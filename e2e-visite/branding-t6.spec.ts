@@ -46,6 +46,44 @@ test("T6c — /branding charge et affiche la section d'import", async ({ page })
   console.log("✅ T6c — /branding chargé");
 });
 
+// ── Helpers : environnement déterministe ──────────────────────────────────────
+
+// L'analyse persiste une ligne `branding_autofill` en statut pending_review :
+// au prochain chargement, /branding REPREND la review en cours (sans issue tant
+// que les 7 sections ne sont pas validées) et n'affiche plus jamais l'import.
+// On neutralise cette persistance côté test : les lectures renvoient « rien »
+// (pas de reprise) et les écritures n'atteignent pas la base (pas de pollution
+// du compte Camille par les données mock).
+async function neutralizeAutofillPersistence(page: Page) {
+  await page.route(/\/rest\/v1\/branding_autofill/, async (route) => {
+    const method = route.request().method();
+    if (method === "GET" || method === "HEAD") {
+      await route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    } else {
+      await route.fulfill({ status: 201, contentType: "application/json", body: "[]" });
+    }
+  });
+}
+
+// Un compte avec ≥ 2 sections branding remplies n'affiche PLUS la section
+// d'import à l'arrivée sur /branding (il montre la fiche d'identité) : dans ce
+// cas on passe par le bouton « Réanalyser » de la fiche. Rend le test
+// déterministe quel que soit l'état du compte.
+async function openImportForm(page: Page) {
+  await neutralizeAutofillPersistence(page);
+  await page.goto("/branding", { waitUntil: "networkidle" });
+  const urlInput = page.getByPlaceholder(/https:\/\/monsite\.com/i);
+  try {
+    await expect(urlInput).toBeVisible({ timeout: 5000 });
+  } catch {
+    const reanalyzeBtn = page.getByRole("button", { name: /réanalyser/i });
+    await expect(reanalyzeBtn).toBeVisible({ timeout: 10000 });
+    await reanalyzeBtn.click();
+    await expect(urlInput).toBeVisible({ timeout: 10000 });
+  }
+  return urlInput;
+}
+
 // ── T6a : happy path (analyze-brand intercepté) ────────────────────────────────
 
 test("T6a — Import URL → BrandingReview s'affiche", async ({ page }) => {
@@ -58,11 +96,7 @@ test("T6a — Import URL → BrandingReview s'affiche", async ({ page }) => {
     });
   });
 
-  await page.goto("/branding", { waitUntil: "networkidle" });
-
-  // Attendre la section d'import
-  const urlInput = page.getByPlaceholder(/https:\/\/monsite\.com/i);
-  await expect(urlInput).toBeVisible({ timeout: 10000 });
+  const urlInput = await openImportForm(page);
 
   // Saisir une URL
   await urlInput.fill("https://camille-ceramique.fr");
@@ -72,14 +106,10 @@ test("T6a — Import URL → BrandingReview s'affiche", async ({ page }) => {
   await expect(analyseBtn).toBeVisible({ timeout: 3000 });
   await analyseBtn.click();
 
-  // BrandingAnalysisLoader joue une animation (~15-45s) même si le mock
-  // répond immédiatement — attendre d'abord le loader, puis la BrandingReview.
-  await expect(page.getByText(/comprends|analyse|voix|café/i).first())
-    .toBeVisible({ timeout: 10000 });
-
-  // La BrandingReview s'affiche après l'animation (texte du mock OU sections)
+  // La BrandingReview (flux section par section) s'affiche après l'animation
+  // du loader. En-tête stable : « Voici ce que j'ai compris de ton projet ».
   await expect(
-    page.getByText(/Céramiste passionnée|résultat|enregistrer|sauvegarder|ajuster|ton branding/i).first()
+    page.getByText(/Voici ce que j'ai compris|sections validées/i).first()
   ).toBeVisible({ timeout: 60000 });
 
   await page.screenshot({ path: path.join(SHOTS, "t6a-branding-review.png"), fullPage: true });
@@ -98,10 +128,7 @@ test("T6b — Erreur analyze-brand → message Oups sans crash", async ({ page }
     });
   });
 
-  await page.goto("/branding", { waitUntil: "networkidle" });
-
-  const urlInput = page.getByPlaceholder(/https:\/\/monsite\.com/i);
-  await expect(urlInput).toBeVisible({ timeout: 10000 });
+  const urlInput = await openImportForm(page);
   await urlInput.fill("https://site-inexistant.fr");
 
   const analyseBtn = page.getByRole("button", { name: /analyse mon projet|analyser/i });
