@@ -7,7 +7,7 @@
 import {
   assertEquals,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { checkQuota, logUsage } from "./plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "./plan-limiter.ts";
 
 // SUPABASE_URL / SERVICE_ROLE_KEY ne sont jamais lus car on injecte toujours sbOverride,
 // mais getServiceClient() pourrait s'exécuter si un test oubliait l'override → on évite
@@ -233,4 +233,22 @@ Deno.test("logUsage: admin → journalise l'usage mais ne consomme pas de bonus"
   await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
   assertEquals(client._inserted.length, 1);
   assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+});
+
+// ---------- quotaDeniedResponse ----------
+
+Deno.test("quotaDeniedResponse: quota épuisé → 429 limit_reached", async () => {
+  const res = quotaDeniedResponse({ allowed: false, plan: "free", reason: "total", message: "plus de crédits" }, {});
+  assertEquals(res.status, 429);
+  const body = await res.json();
+  assertEquals(body.error, "limit_reached");
+});
+
+Deno.test("quotaDeniedResponse: panne de vérification (fail-closed) → 503 quota_check_failed, PAS limit_reached", async () => {
+  // Une panne ai_usage ne doit JAMAIS afficher « tu as utilisé tous tes crédits »
+  // (upsell mensonger) : code distinct → le front traite comme erreur passagère.
+  const res = quotaDeniedResponse({ allowed: false, plan: "free", reason: "error", message: "Impossible de vérifier ton abonnement pour le moment. Réessaie dans un instant." }, {});
+  assertEquals(res.status, 503);
+  const body = await res.json();
+  assertEquals(body.error, "quota_check_failed");
 });

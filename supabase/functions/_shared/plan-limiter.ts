@@ -95,6 +95,16 @@ export interface QuotaResult {
 
 /** Build a standard 429 Response for quota errors */
 export function quotaDeniedResponse(quota: QuotaResult, corsHeaders: Record<string, string>): Response {
+  // Panne de vérification (fail-closed) ≠ quota épuisé : surtout ne pas renvoyer
+  // limit_reached — le front afficherait « tu as utilisé tous tes crédits » +
+  // upsell, mensonger pour une cliente qui n'a rien consommé. On renvoie un 503
+  // distinct que le front traite comme une erreur passagère à réessayer.
+  if (quota.reason === "error") {
+    return new Response(
+      JSON.stringify({ error: "quota_check_failed", message: quota.message, quota }),
+      { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
   return new Response(
     JSON.stringify({
       error: "limit_reached",
@@ -228,7 +238,10 @@ export async function checkQuota(
       allowed: false,
       plan,
       reason: "error",
-      message: "Impossible de vérifier tes crédits pour le moment. Réessaie dans un instant.",
+      // ⚠️ Éviter les mots « crédit(s) » / « quota » / « limite » dans ce message :
+      // plusieurs surfaces front (friendlyError, NewsjackingPanel…) les détectent
+      // par substring et basculeraient sur l'UI « plus de crédits » mensongère.
+      message: "Impossible de vérifier ton abonnement pour le moment. Réessaie dans un instant.",
     };
   }
 

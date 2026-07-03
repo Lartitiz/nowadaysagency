@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
-import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 
@@ -148,10 +148,7 @@ serve(async (req) => {
     const category = categoryMap[action] || "content";
     const quotaCheck = await checkQuota(user.id, category, workspace_id);
     if (!quotaCheck.allowed) {
-      return new Response(
-        JSON.stringify({ error: "limit_reached", message: quotaCheck.message, remaining: 0, category: quotaCheck.reason }),
-        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
     const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
