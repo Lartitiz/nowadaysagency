@@ -294,68 +294,66 @@ export default function AdaptiveHome() {
   // Ideas count
   const workspaceId = activeWorkspace?.id ?? null;
   const wsFilter = useWorkspaceFilter();
-  const { data: ideaCount = 0 } = useQuery<number>({
+  // Les erreurs de chargement remontent (isError) au lieu d'être maquillées en
+  // données vides : un réseau qui tombe ne doit pas afficher « 0 idée » sans rien dire.
+  const { data: ideaCount = 0, isError: ideasError } = useQuery<number>({
     queryKey: ["adaptive-home-ideas-count", user?.id, workspaceId],
     queryFn: async () => {
       if (!user) return 0;
       const filterCol = workspaceId ? "workspace_id" : "user_id";
       const filterVal = workspaceId ?? user.id;
-      const { count } = await supabase
+      const { count, error } = await supabase
         .from("saved_ideas")
         .select("*", { count: "exact", head: true })
         .eq(filterCol, filterVal);
+      if (error) throw error;
       return count ?? 0;
     },
     enabled: !!user,
     staleTime: 2 * 60 * 1000,
+    retry: 1,
   });
 
   // Upcoming posts (next 2)
   type UpcomingPost = { date: string; theme: string | null; format: string | null; canal: string | null };
-  const { data: upcomingPosts = [], isLoading: upcomingLoading } = useQuery<UpcomingPost[]>({
+  const { data: upcomingPosts = [], isLoading: upcomingLoading, isError: postsError } = useQuery<UpcomingPost[]>({
     queryKey: ["adaptive-home-upcoming-posts", wsFilter.column, wsFilter.value],
     queryFn: async () => {
-      try {
-        const todayStr = toLocalDateStr(new Date());
-        const { data, error } = await (supabase as any)
-          .from("calendar_posts")
-          .select("date, theme, format, canal, status")
-          .eq(wsFilter.column, wsFilter.value)
-          .gte("date", todayStr)
-          .neq("status", "idea")
-          .order("date", { ascending: true })
-          .limit(2);
-        if (error) return [];
-        return (data ?? []) as UpcomingPost[];
-      } catch {
-        return [];
-      }
+      const todayStr = toLocalDateStr(new Date());
+      const { data, error } = await (supabase as any)
+        .from("calendar_posts")
+        .select("date, theme, format, canal, status")
+        .eq(wsFilter.column, wsFilter.value)
+        .gte("date", todayStr)
+        .neq("status", "idea")
+        .order("date", { ascending: true })
+        .limit(2);
+      if (error) throw error;
+      return (data ?? []) as UpcomingPost[];
     },
     enabled: !!wsFilter.value,
     staleTime: 2 * 60 * 1000,
+    retry: 1,
   });
 
   // Latest saved idea
   type LatestIdea = { titre: string | null; accroche_short: string | null; content_draft: string | null; created_at: string };
-  const { data: latestIdea = null } = useQuery<LatestIdea | null>({
+  const { data: latestIdea = null, isError: latestIdeaError } = useQuery<LatestIdea | null>({
     queryKey: ["adaptive-home-latest-idea", wsFilter.column, wsFilter.value],
     queryFn: async () => {
-      try {
-        const { data, error } = await (supabase as any)
-          .from("saved_ideas")
-          .select("titre, accroche_short, content_draft, created_at")
-          .eq(wsFilter.column, wsFilter.value)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        if (error) return null;
-        return (data as LatestIdea | null) ?? null;
-      } catch {
-        return null;
-      }
+      const { data, error } = await (supabase as any)
+        .from("saved_ideas")
+        .select("titre, accroche_short, content_draft, created_at")
+        .eq(wsFilter.column, wsFilter.value)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return (data as LatestIdea | null) ?? null;
     },
     enabled: !!wsFilter.value,
     staleTime: 2 * 60 * 1000,
+    retry: 1,
   });
 
   // Branding completion percent. On laisse l'erreur de chargement remonter
@@ -508,6 +506,24 @@ export default function AdaptiveHome() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="max-w-[720px] mx-auto px-4 py-10 space-y-10">
+
+        {/* Erreur de chargement visible (pattern /profil) : sans ce bandeau, un
+            réseau qui tombe affiche un dashboard « normal » à zéro, sans indice. */}
+        {(ideasError || postsError || latestIdeaError || brandingLoadError) && (
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-foreground">
+              Impossible de charger certaines de tes données — ce que tu vois peut être incomplet.
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="rounded-full shrink-0"
+              onClick={() => queryClient.invalidateQueries()}
+            >
+              Réessayer
+            </Button>
+          </div>
+        )}
 
         {/* Bandeau premiers pas */}
         <OnboardingBanner onNavigate={handleNavigate} />

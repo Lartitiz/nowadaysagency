@@ -21,7 +21,8 @@ export interface WorkspaceContextType {
   ownWorkspace: Workspace | null;
   workspaces: Workspace[];
   activeRole: "owner" | "manager" | "editor" | "viewer";
-  switchWorkspace: (workspaceId: string) => void;
+  /** Résout à true si le changement d'espace a réussi — les appelants ne doivent naviguer que dans ce cas. */
+  switchWorkspace: (workspaceId: string) => Promise<boolean>;
   isMultiWorkspace: boolean;
   loading: boolean;
 }
@@ -115,7 +116,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
         if (!memberCheck) {
           toast.error("Tu n'as pas accès à cet espace.");
-          return;
+          return false;
         }
 
         const ws = memberCheck.workspaces as any;
@@ -131,7 +132,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       if (!found) {
         toast.error("Espace introuvable.");
-        return;
+        return false;
       }
 
       setActiveWorkspace(found);
@@ -147,6 +148,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           .maybeSingle();
         if (roleData?.role) setActiveRole(roleData.role as any);
       }
+      return true;
     },
     [workspaces, user?.id, queryClient],
   );

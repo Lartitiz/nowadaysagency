@@ -57,10 +57,12 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
 
   useEffect(() => { setSessions(initialSessions); }, [initialSessions]);
 
-  const updateProgram = async (field: string, value: any) => {
-    await (supabase.from("coaching_programs" as any).update({ [field]: value } as any).eq("id", program.id) as any);
+  const updateProgram = async (field: string, value: any): Promise<boolean> => {
+    const { error } = await (supabase.from("coaching_programs" as any).update({ [field]: value } as any).eq("id", program.id) as any);
+    if (error) { console.error("Maj programme échouée:", error); toast.error(friendlyError(error)); return false; }
     showSaved(field);
     onReload();
+    return true;
   };
 
   const updateSession = async (id: string, updates: Record<string, any>): Promise<boolean> => {
@@ -261,7 +263,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
                 <Pause className="h-3.5 w-3.5" /> Mettre en pause
               </Button>
             ) : (
-              <Button variant="outline" size="sm" className="rounded-full text-sm gap-2 border-primary text-primary hover:bg-primary/10" onClick={async () => { await updateProgram("status", "active"); toast.success("Programme repris !"); }}>
+              <Button variant="outline" size="sm" className="rounded-full text-sm gap-2 border-primary text-primary hover:bg-primary/10" onClick={async () => { if (await updateProgram("status", "active")) toast.success("Programme repris !"); }}>
                 <Play className="h-3.5 w-3.5" /> Reprendre
               </Button>
             )}
@@ -280,7 +282,7 @@ export default function CoachingSessionManager({ program, sessions: initialSessi
             onAddAction={addAction} onDeleteAction={deleteAction} onToggleAction={toggleAction}
           />
         )}
-        <PauseDialog open={pauseDialogOpen} clientName={program.client_name || ""} onConfirm={async () => { await updateProgram("status", "paused"); setPauseDialogOpen(false); toast.success("Programme en pause"); }} onCancel={() => setPauseDialogOpen(false)} />
+        <PauseDialog open={pauseDialogOpen} clientName={program.client_name || ""} onConfirm={async () => { const ok = await updateProgram("status", "paused"); setPauseDialogOpen(false); if (ok) toast.success("Programme en pause"); }} onCancel={() => setPauseDialogOpen(false)} />
         <DeleteClientDialog
           open={deleteDialogOpen} clientName={program.client_name || ""} sessionCount={sessions.length} deliverableCount={deliverables.length} actionCount={actions.length}
           onConfirm={async () => {

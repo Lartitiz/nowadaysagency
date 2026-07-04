@@ -118,7 +118,7 @@ function AppHeaderInner() {
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const { plan, usage, isBinome, isPaid } = useUserPlan();
+  const { plan, usage, bonusCredits, isBinome, isPaid } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [searchParams] = useSearchParams();
@@ -216,7 +216,7 @@ function AppHeaderInner() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <AiCreditsCounter plan={plan} usage={usage} />
+            <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
             <NotificationBell />
             <AvatarMenu
               initial={initial}
@@ -271,7 +271,7 @@ function AppHeaderInner() {
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <AiCreditsCounter plan={plan} usage={usage} />
+            <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
             <NotificationBell />
             <AvatarMenu
               initial={initial}
@@ -306,7 +306,7 @@ function AppHeaderInner() {
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
           <div className="flex items-center gap-2">
-            <AiCreditsCounter plan={plan} usage={usage} />
+            <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
             <NotificationBell />
             <AvatarMenu
               initial={initial}
@@ -521,7 +521,7 @@ function WorkspaceSwitcher({
 }: {
   activeWorkspace: { id: string; name: string } | null;
   workspaces: { id: string; name: string }[];
-  switchWorkspace: (id: string) => void;
+  switchWorkspace: (id: string) => Promise<boolean>;
   navigate: (path: string) => void;
 }) {
   const displayName = activeWorkspace?.name
@@ -544,7 +544,10 @@ function WorkspaceSwitcher({
             key={ws.id}
             onClick={async () => {
               if (ws.id !== activeWorkspace?.id) {
-                await switchWorkspace(ws.id);
+                // Ne naviguer que si le switch a réussi : sinon on enverrait
+                // l'utilisatrice sur le dashboard de l'ANCIEN espace après un toast d'erreur.
+                const ok = await switchWorkspace(ws.id);
+                if (!ok) return;
                 if (window.location.pathname === "/dashboard") {
                   window.location.reload();
                 } else {

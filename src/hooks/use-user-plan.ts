@@ -58,6 +58,8 @@ interface UserPlanState {
   remainingGenerations: (category?: AiCategory) => number;
   remainingAudits: () => number;
   remainingTotal: () => number;
+  /** Crédits réellement dépensables : mensuels restants + bonus (même règle que l'enforcement serveur). */
+  remainingWithBonus: () => number;
   isPaid: boolean;
   isBinome: boolean;
   refresh: () => Promise<void>;
@@ -201,6 +203,12 @@ export function useUserPlan(): UserPlanState {
     return Math.max(0, total.limit - total.used);
   }, [usage, isDemoMode, demoPlanResolved, isAdminUser]);
 
+  const remainingWithBonus = useCallback(() => {
+    const monthly = remainingTotal();
+    if (monthly === Infinity) return Infinity;
+    return monthly + bonusCredits;
+  }, [remainingTotal, bonusCredits]);
+
   return {
     plan: effectivePlan,
     loading,
@@ -212,6 +220,7 @@ export function useUserPlan(): UserPlanState {
     remainingGenerations,
     remainingAudits,
     remainingTotal,
+    remainingWithBonus,
     isPaid: isAdminUser || (isDemoMode && demoPlanResolved === "binome") || (!isDemoMode && plan !== "free"),
     isBinome: isAdminUser || (isDemoMode && demoPlanResolved === "binome") || (!isDemoMode && plan === "binome"),
     refresh,

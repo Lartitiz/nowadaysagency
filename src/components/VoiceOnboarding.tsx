@@ -88,16 +88,20 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
         .eq(column, value)
         .maybeSingle();
 
+      // Règle maison #302 : supabase-js ne lève pas sur { error } — sans ce
+      // check, le toast de succès s'affiche même quand rien n'a été écrit.
       if (existing) {
-        await supabase.from("voice_profile" as any).update({
+        const { error } = await supabase.from("voice_profile" as any).update({
           ...filtered,
           updated_at: new Date().toISOString(),
         }).eq("id", (existing as any).id);
+        if (error) throw error;
       } else {
-        await supabase.from("voice_profile" as any).insert({
+        const { error } = await supabase.from("voice_profile" as any).insert({
           user_id: user.id,
           ...filtered,
         });
+        if (error) throw error;
       }
 
       toast.success("✅ Profil de voix sauvegardé !");

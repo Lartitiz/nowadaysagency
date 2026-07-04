@@ -104,7 +104,10 @@ export default function AbonnementPage() {
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
-  const totalPct = totalLimit > 0 ? Math.round((totalUsed / totalLimit) * 100) : 0;
+  // Les crédits bonus peuvent porter la conso au-delà du mensuel : on plafonne
+  // l'affichage à 100% (un « 25/23 — 109% » lit comme un bug, pas comme un état).
+  const totalUsedCapped = Math.min(totalUsed, totalLimit);
+  const totalPct = totalLimit > 0 ? Math.min(100, Math.round((totalUsed / totalLimit) * 100)) : 0;
   const totalRemaining = Math.max(0, totalLimit - totalUsed);
   const isUnlimited = totalLimit >= 9999;
   const isExhausted = !isUnlimited && totalRemaining === 0;
@@ -193,7 +196,7 @@ export default function AbonnementPage() {
             ) : (
               <>
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Crédits mensuels : {totalUsed}/{totalLimit} utilisés</span>
+                  <span className="text-muted-foreground">Crédits mensuels : {totalUsedCapped}/{totalLimit} utilisés</span>
                   <span className={`font-mono-ui font-semibold ${isExhausted ? "text-destructive" : "text-foreground"}`}>
                     {totalPct}%
                   </span>
@@ -291,8 +294,17 @@ export default function AbonnementPage() {
             </div>
           )}
 
-          {/* Exhausted state */}
-          {isExhausted && (
+          {/* Exhausted state — si des bonus restent, ils prennent le relais : pas d'alarme rouge */}
+          {isExhausted && bonusCredits > 0 && (
+            <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
+              <p className="text-sm font-semibold text-foreground">Crédits mensuels utilisés — tes bonus prennent le relais 🎁</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Il te reste <strong>{bonusCredits} crédits bonus</strong> : tu peux continuer à créer normalement.
+                Tes crédits mensuels reviennent le {renewalDate}.
+              </p>
+            </div>
+          )}
+          {isExhausted && bonusCredits === 0 && (
             <div className="mt-4 p-4 rounded-xl bg-destructive/5 border border-destructive/20">
               <p className="text-sm font-semibold text-foreground">😅 Plus de crédits ce mois-ci !</p>
               <p className="text-xs text-muted-foreground mt-1">

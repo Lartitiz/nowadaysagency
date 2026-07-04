@@ -4,6 +4,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
+import { trackError } from "@/lib/error-tracker";
 import { Button } from "@/components/ui/button";
 import { Plus, MessageCircle, SkipForward } from "lucide-react";
 import Confetti from "@/components/Confetti";
@@ -105,16 +106,23 @@ export default function ProspectionSection() {
 
       const reminderDate = new Date();
       reminderDate.setDate(reminderDate.getDate() + 2);
-      await supabase.from("prospects").update({
+      const { error: reminderError } = await supabase.from("prospects").update({
         next_reminder_at: reminderDate.toISOString(),
         next_reminder_text: `Premier contact avec @${(data as Prospect).instagram_username}`,
       }).eq("id", (data as Prospect).id);
+      if (reminderError) trackError(reminderError, { page: "ProspectionSection", action: "setFirstReminder" });
     }
   };
 
+  // Règle maison #302 : vérifier { error } de chaque écriture — sinon l'état
+  // local avance alors que la base n'a rien reçu, sans aucun signe visible.
   const updateProspect = async (id: string, updates: Partial<Prospect>) => {
     const prevStage = prospects.find(p => p.id === id)?.stage;
-    await supabase.from("prospects").update(updates).eq("id", id);
+    const { error } = await supabase.from("prospects").update(updates).eq("id", id);
+    if (error) {
+      toast.error("La modification n'a pas été enregistrée, réessaie");
+      return;
+    }
     setProspects(prev => prev.map(p => p.id === id ? { ...p, ...updates } : p));
 
     if (updates.stage === "converted" && prevStage !== "converted") {
@@ -125,7 +133,11 @@ export default function ProspectionSection() {
   };
 
   const deleteProspect = async (id: string) => {
-    await supabase.from("prospects").delete().eq("id", id);
+    const { error } = await supabase.from("prospects").delete().eq("id", id);
+    if (error) {
+      toast.error("La suppression a échoué, réessaie");
+      return;
+    }
     setProspects(prev => prev.filter(p => p.id !== id));
     setSelectedProspect(null);
   };

@@ -212,7 +212,8 @@ export default function Dashboard() {
   };
 
   // ── Dashboard data query ──
-  const { data: dashData = defaultDashData } = useQuery<DashboardData>({
+  // isError remonte au bandeau : un 500 ne doit pas afficher un dashboard « normal » à zéro.
+  const { data: dashData = defaultDashData, isError: dashError } = useQuery<DashboardData>({
     queryKey: ["dashboard-data", user?.id, column, value, isDemoMode],
     queryFn: async () => {
       if (isDemoMode && demoData) {
@@ -248,6 +249,8 @@ export default function Dashboard() {
           .eq("workspace_id", wsId ?? user.id),
       ]);
 
+      if (summaryRes.error) throw summaryRes.error;
+
       const s = (summaryRes.data as any) || {};
       const bc = calculateBrandingCompletion(brandingData);
 
@@ -281,6 +284,7 @@ export default function Dashboard() {
     },
     enabled: !!user || isDemoMode,
     staleTime: 2 * 60 * 1000, // 2 min cache
+    retry: 1,
   });
 
   // ── Coaching month query ──
@@ -399,6 +403,22 @@ export default function Dashboard() {
 
         {/* ─── Guide banner (from=guide) ─── */}
         <GuideBanner />
+
+        {/* Erreur de chargement visible : sans ce bandeau, un 500 affiche un
+            dashboard « normal » avec tout à zéro, sans indice ni recours. */}
+        {dashError && (
+          <div className="mb-4 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-foreground">
+              Impossible de charger tes données — ce que tu vois peut être incomplet.
+            </p>
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["dashboard-data"] })}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
 
         {/* ─── View toggle + Phase badge ─── */}
         <div className="flex items-center justify-between mb-4">
