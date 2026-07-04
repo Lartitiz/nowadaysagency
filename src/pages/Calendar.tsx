@@ -957,12 +957,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                     <button
                       onClick={() => setIdeasCollapsed(false)}
                       className="w-10 py-3 rounded-xl border border-border bg-card flex flex-col items-center gap-1.5 hover:bg-muted hover:border-primary/40 transition-colors"
-                      title="Afficher mes idées"
-                      aria-label="Afficher le panneau d'idées"
+                      title="Glisser une idée sur le calendrier"
+                      aria-label="Ouvrir le panneau pour glisser une idée sur le calendrier"
                     >
                       <span className="text-base leading-none">💡</span>
                       <span className="text-2xs font-semibold text-muted-foreground [writing-mode:vertical-rl] rotate-180">
-                        Mes idées
+                        Glisser une idée
                       </span>
                     </button>
                   ) : (

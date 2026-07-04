@@ -38,7 +38,7 @@ interface ProfileSnippets {
 // heavy = élément piloté par l'IA, ouvre un outil dédié (vs édition légère sur sa page)
 const SECTIONS = [
   { key: "nom", emoji: "📝", label: "Mon nom", icon: PenLine, route: "/instagram/profil/nom", moduleRoute: "/instagram/profil/nom", moduleLabel: "Optimiser", heavy: false },
-  { key: "bio", emoji: "✍️", label: "Ma bio", icon: PenLine, route: "/instagram/profil/bio", moduleRoute: "/instagram/profil/bio", moduleLabel: "Créer ma bio", heavy: true },
+  { key: "bio", emoji: "✍️", label: "Ma bio", icon: PenLine, route: "/instagram/profil/bio", moduleRoute: "/instagram/profil/bio", moduleLabel: "Générer ma bio", heavy: true },
   { key: "stories", emoji: "📌", label: "Stories à la une", icon: BookmarkCheck, route: "/instagram/profil/stories", moduleRoute: "/instagram/profil/stories", moduleLabel: "Module highlights", heavy: true },
   { key: "epingles", emoji: "📌", label: "Posts épinglés", icon: Pin, route: "/instagram/profil/epingles", moduleRoute: "/instagram/profil/epingles", moduleLabel: "Choisir mes posts", heavy: false },
   { key: "feed", emoji: "🎨", label: "Mon feed", icon: Palette, route: "/instagram/profil/feed", moduleRoute: "/instagram/profil/feed", moduleLabel: "Recommandations", heavy: false },

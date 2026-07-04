@@ -8,13 +8,13 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 const CARDS = [
-  { emoji: "👤", title: "Mon profil", desc: "Passe en pro, photo, nom, bio, URL.", to: "/pinterest/compte", tag: "Checklist" },
-  { emoji: "🎨", title: "Mes tableaux", desc: "Crée et optimise tes tableaux.", to: "/pinterest/tableaux", tag: "Guidé" },
-  { emoji: "🔎", title: "Mes mots-clés", desc: "Trouve les bons mots-clés SEO.", to: "/pinterest/mots-cles", tag: "Assisté" },
-  { emoji: "📌", title: "Mes épingles", desc: "Crée des épingles optimisées.", to: "/pinterest/epingles", tag: "Assisté" },
-  { emoji: "⏰", title: "Ma routine Pinterest", desc: "Ton rythme et ta checklist mensuelle.", to: "/pinterest/routine", tag: "Suivi" },
-  { emoji: "💡", title: "Trouver des idées", desc: "Idées de contenu Pinterest.", to: "/creer?canal=pinterest", tag: "Assisté" },
-  { emoji: "📅", title: "Mon calendrier", desc: "Planifie tes épingles.", to: "/calendrier?canal=pinterest", tag: "Planning" },
+  { emoji: "👤", title: "Compléter mon profil", desc: "Passe en pro, photo, nom, bio, URL.", to: "/pinterest/compte" },
+  { emoji: "🎨", title: "Organiser mes tableaux", desc: "Crée et optimise tes tableaux.", to: "/pinterest/tableaux" },
+  { emoji: "🔎", title: "Trouver mes mots-clés", desc: "Les bons mots-clés SEO pour être trouvée.", to: "/pinterest/mots-cles", tag: "IA" },
+  { emoji: "📌", title: "Créer mes épingles", desc: "Des épingles optimisées, titre + description.", to: "/pinterest/epingles", tag: "IA" },
+  { emoji: "⏰", title: "Suivre ma routine", desc: "Ton rythme et ta checklist mensuelle.", to: "/pinterest/routine" },
+  { emoji: "💡", title: "Trouver des idées", desc: "Idées de contenu Pinterest.", to: "/creer?canal=pinterest", tag: "IA" },
+  { emoji: "📅", title: "Planifier mes épingles", desc: "Ton calendrier Pinterest.", to: "/calendrier?canal=pinterest" },
 ];
 
 export default function PinterestHub() {

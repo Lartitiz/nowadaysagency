@@ -8,22 +8,13 @@ import { Link } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { PageLoader } from "@/components/ui/spinner";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { HelpCircle, ArrowRight, Info } from "lucide-react";
+import { ArrowRight, Info } from "lucide-react";
 import SaveButton from "@/components/SaveButton";
 import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
 import { useActiveChannels, ALL_CHANNELS, type ChannelId } from "@/hooks/use-active-channels";
-
-const PILIERS = [
-  "Coulisses / fabrication", "Éducation / pédagogie", "Valeurs / engagements",
-  "Témoignages clients", "Vie d'entrepreneuse", "Inspiration / tendances",
-  "Conseils pratiques", "Storytelling personnel",
-];
-
-const TONS = ["Chaleureux", "Expert·e", "Drôle", "Engagé·e", "Poétique", "Direct", "Inspirant·e"];
 
 const ACTIVITY_TYPES = [
   { id: "creatrice", label: "Créatrice / Artisane" },
@@ -66,8 +57,6 @@ const TIME_OPTIONS = [
   { key: "more_10h", label: "Plus de 10h" },
 ];
 
-type HelpKey = string | null;
-
 interface ProfileData {
   prenom: string;
   activite: string;
@@ -85,21 +74,6 @@ interface ProfileData {
   websiteUrl: string;
   instagramUrl: string;
   linkedinUrl: string;
-}
-
-function HelpToggle({ text, fieldKey, openHelp, setOpenHelp }: { text: string; fieldKey: string; openHelp: HelpKey; setOpenHelp: (k: HelpKey) => void }) {
-  const isOpen = openHelp === fieldKey;
-  return (
-    <div className="mt-1">
-      <button onClick={() => setOpenHelp(isOpen ? null : fieldKey)} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors">
-        <HelpCircle className="w-3.5 h-3.5" />
-        <span className="font-mono-ui">Exemple</span>
-      </button>
-      {isOpen && (
-        <p className="mt-1.5 text-xs text-muted-foreground bg-muted/50 rounded-lg px-3 py-2 italic animate-fade-in">{text}</p>
-      )}
-    </div>
-  );
 }
 
 function ChipSelector({ options, value, onChange, multi = false }: {
@@ -181,7 +155,6 @@ export default function Profile() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [openHelp, setOpenHelp] = useState<HelpKey>(null);
 
   const emptyProfile: ProfileData = {
     prenom: "", activite: "", typeActivite: "", cible: "", probleme: "", piliers: [], tons: [],
@@ -259,10 +232,6 @@ export default function Profile() {
     setCurrent((prev) => ({ ...prev, [field]: value }));
   };
 
-  const togglePilier = (p: string) =>
-    update("piliers", current.piliers.includes(p) ? current.piliers.filter((x) => x !== p) : current.piliers.length < 4 ? [...current.piliers, p] : current.piliers);
-  const toggleTon = (t: string) =>
-    update("tons", current.tons.includes(t) ? current.tons.filter((x) => x !== t) : [...current.tons, t]);
 
   const handleSave = async () => {
     if (!user) return;
@@ -274,10 +243,6 @@ export default function Profile() {
           prenom: current.prenom,
           activite: current.activite,
           type_activite: current.typeActivite,
-          cible: current.cible,
-          probleme_principal: current.probleme,
-          piliers: current.piliers,
-          tons: current.tons,
           main_goal: current.mainGoal,
           level: current.level,
           weekly_time: current.weeklyTime,
@@ -384,43 +349,25 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Cible */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Ta cliente idéale</label>
-            <Textarea value={current.cible} onChange={(e) => update("cible", e.target.value)} className="rounded-[10px] min-h-[80px]" placeholder="Qui est-elle ? Quel âge, quel style de vie ?" />
-            <HelpToggle fieldKey="cible" openHelp={openHelp} setOpenHelp={setOpenHelp} text="Ex : Femmes 30-45 ans, entrepreneures, qui cherchent à structurer leur communication pour gagner en visibilité." />
-          </div>
-
-          {/* Problème */}
-          <div>
-            <label className="text-sm font-medium mb-1.5 block">Problème principal de ta cible</label>
-            <Input value={current.probleme} onChange={(e) => update("probleme", e.target.value)} className="rounded-[10px] h-12" placeholder="Qu'est-ce qui la bloque ?" />
-            <HelpToggle fieldKey="probleme" openHelp={openHelp} setOpenHelp={setOpenHelp} text="Ex : Elle crée des pièces magnifiques mais personne ne les voit sur Instagram." />
-          </div>
-
-          {/* Piliers */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Mes thématiques <span className="text-muted-foreground font-normal">(4 max)</span></label>
-            <div className="flex flex-wrap gap-2">
-              {PILIERS.map((p) => (
-                <button key={p} onClick={() => togglePilier(p)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium border transition-all ${current.piliers.includes(p) ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {p}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Tons */}
-          <div>
-            <label className="text-sm font-medium mb-2 block">Ton</label>
-            <div className="flex flex-wrap gap-2">
-              {TONS.map((t) => (
-                <button key={t} onClick={() => toggleTon(t)}
-                  className={`rounded-full px-4 py-2 text-sm font-medium border transition-all ${current.tons.includes(t) ? "bg-primary text-primary-foreground border-primary" : "bg-card text-foreground border-border hover:border-primary/40"}`}>
-                  {t}
-                </button>
-              ))}
+          {/* Cible / thématiques / ton : une seule source de vérité, le module
+              Branding (versions plus riches : persona, stratégie, ton & style).
+              Les avoir aussi ici créait deux versions contradictoires que l'IA
+              mélangeait dans ses prompts. */}
+          <div className="rounded-xl bg-rose-pale/60 border border-border p-4 space-y-2">
+            <p className="text-sm font-semibold text-foreground">Ta cliente idéale, tes thématiques et ton ton ont déménagé 🎨</p>
+            <p className="text-xs text-muted-foreground">
+              Ils vivent dans ton identité de marque, en version plus complète — c'est elle que lit l'IA.
+            </p>
+            <div className="flex flex-wrap gap-2 pt-1">
+              <Link to="/branding/section?section=persona" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
+                Ma cliente idéale →
+              </Link>
+              <Link to="/branding/section?section=content_strategy" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
+                Mes thématiques →
+              </Link>
+              <Link to="/branding/section?section=tone_style" className="rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors">
+                Mon ton →
+              </Link>
             </div>
           </div>
 
