@@ -424,6 +424,24 @@ BADGES "PILULES" (élément signature) :
 - Border-radius: 100px (pilule)
 - Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
 
+EYEBROWS (petit label au-dessus du titre — signature éditoriale, OBLIGATOIRE) :
+- Un eyebrow = une ligne courte au-dessus du titre : font-family: ${ch.font_body}, font-size: 20-22px, font-weight: 600, text-transform: uppercase, letter-spacing: 3px, couleur ${ch.color_primary}
+- Deux formes possibles : texte nu OU badge pilule (voir ci-dessus). ALTERNE les deux formes d'une slide à l'autre.
+- CHAQUE slide de contenu (hook, contexte, tips, CTA) porte un eyebrow ou un badge éditorial court dérivé du contenu ("LE PIÈGE", "ÉTAPE CLÉ", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide. Exceptions : séparateur, dark box, citation pleine page.
+- Gap eyebrow → titre : 16-20px.
+
+MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
+- 1 à 3 mots par titre reçoivent un traitement visuel. Trois techniques, à VARIER d'une slide à l'autre :
+  · Italique accentué : color: ${ch.color_primary}; font-style: italic
+  · Effet surligneur : background: linear-gradient(transparent 55%, ${ch.color_accent}66 55%); padding: 0 6px
+  · Soulignement épais : border-bottom: 6px solid ${ch.color_accent}
+- Dans le corps de texte : au plus 1 mot par bloc en font-weight: 600 + couleur ${ch.color_primary}.
+
+ANCRE VISUELLE (densité minimale, OBLIGATOIRE par slide de contenu) :
+- Chaque slide comporte AU MOINS UN élément de design en plus du texte : carte blanche, barre latérale colorée, chiffre géant décoratif (120-200px en ${ch.font_title}, opacity 0.12-0.2), emoji 48-64px posé comme élément graphique (pas en fin de ligne), ou encadré pointillé.
+- Un titre + un paragraphe nus sur fond uni = slide RATÉE (« lisible mais plate »).
+- Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}, jamais noyés dans une phrase.
+
 CARTES BLANCHES (pour les blocs de contenu) :
 - Background: #FFFFFF
 - Border-radius: ${ch.border_radius}
@@ -534,6 +552,8 @@ CTA (dernière slide) — Douce, invitante :
 - ❌ Font-weight bold sur ${ch.font_title} (toujours normal)
 - ❌ Couleurs qui ne sont pas dans la charte
 - ❌ Plus de 3 couleurs de fond différentes dans tout le carrousel
+- ❌ Slide de contenu sans eyebrow/badge ET sans ancre visuelle (le symptôme « lisible mais plat »)
+- ❌ Titre dont aucun mot-clé n'est mis en valeur (italique accent, surligneur ou soulignement épais)
 
 ${buildVisualSchemaBlock(ch)}
 
