@@ -60,11 +60,20 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       });
       if (error) throw error;
       if (data.user) {
-        await supabase.from("profiles").insert({
+        const { error: profileError } = await supabase.from("profiles").insert({
           user_id: data.user.id,
           prenom: values.prenom,
           activite: values.activite?.trim() || "",
         });
+        // Non bloquant : lac_prenom/lac_activite (localStorage) servent de repli,
+        // et handleFinish ré-écrit le profil en fin d'onboarding.
+        if (profileError) console.error("Signup profile insert failed:", profileError);
+      }
+      if (data.session) {
+        // Auto-confirmation active : la session existe déjà, AuthContext redirige
+        // vers l'onboarding. Ne PAS parler d'email de confirmation (il n'y en a pas).
+        toast.success("Compte créé ! 🎉", { description: "Bienvenue ! On prépare ton espace…" });
+        return;
       }
       setSubmittedEmail(values.email);
       setSuccess(true);

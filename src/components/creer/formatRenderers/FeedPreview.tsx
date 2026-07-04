@@ -37,7 +37,9 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
   const brandName = activeWorkspace?.name?.trim() || "Ta marque";
   const avatarUrl = activeWorkspace?.avatar_url || undefined;
   const handle =
-    (activeWorkspace?.slug?.trim() || brandName).toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9._]/g, "");
+    (activeWorkspace?.slug?.trim() || brandName)
+      .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // é → e (sinon « Élodie » s'affiche « lodie »)
+      .toLowerCase().replace(/\s+/g, "").replace(/[^a-z0-9._]/g, "");
   const firstPhoto = photos && photos.length > 0 ? photoSrc(photos[0]) : "";
 
   // Seuil de troncature propre à chaque plateforme.
