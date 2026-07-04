@@ -17,6 +17,7 @@ import {
   Search,
   Rocket,
   Upload,
+  type LucideIcon,
 } from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
@@ -125,10 +126,10 @@ function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void 
   return (
     <div
       data-tour="card-missions"
-      className="rounded-2xl border border-yellow/40 bg-yellow/40 p-3 sm:p-4 shadow-sm"
+      className="rounded-2xl border border-border/70 bg-rose-pale/70 p-3 sm:p-4"
     >
       <button onClick={toggle} className="w-full flex items-center gap-3">
-        <Rocket className="h-4 w-4 text-foreground shrink-0" />
+        <Rocket className="h-4 w-4 text-bordeaux/80 shrink-0" />
         <span className="font-heading text-sm font-bold text-foreground shrink-0">
           Tes premiers pas
         </span>
@@ -223,6 +224,42 @@ function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: st
         </span>
       )}
     </p>
+  );
+}
+
+/* ── Ligne éditoriale : remplace les cartes-boîtes par une ligne calme
+      (titre serif + description) avec la donnée vivante en métadonnée à droite ── */
+function EditorialRow({
+  icon: Icon,
+  title,
+  desc,
+  meta,
+  onClick,
+  dataTour,
+}: {
+  icon: LucideIcon;
+  title: string;
+  desc: React.ReactNode;
+  meta?: React.ReactNode;
+  onClick: () => void;
+  dataTour?: string;
+}) {
+  return (
+    <button
+      data-tour={dataTour}
+      onClick={onClick}
+      className="group w-full text-left flex items-center gap-4 py-5 px-3 -mx-3 rounded-xl hover:bg-rose-pale/50 transition-colors duration-200"
+    >
+      <Icon className="h-[18px] w-[18px] text-bordeaux/70 shrink-0" strokeWidth={1.75} />
+      <div className="flex-1 min-w-0">
+        <h3 className="font-display text-lg text-foreground leading-snug">{title}</h3>
+        <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed truncate">{desc}</p>
+      </div>
+      <div className="shrink-0 flex items-center gap-3">
+        {meta}
+        <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all" />
+      </div>
+    </button>
   );
 }
 
@@ -456,7 +493,7 @@ export default function AdaptiveHome() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="max-w-[860px] mx-auto px-4 py-12">
+        <main className="max-w-[720px] mx-auto px-4 py-12">
           <div className="space-y-4 animate-pulse">
             <div className="h-8 w-48 bg-muted rounded-lg" />
             <div className="h-4 w-64 bg-muted rounded" />
@@ -470,7 +507,7 @@ export default function AdaptiveHome() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="max-w-[860px] mx-auto px-4 py-8 space-y-8">
+      <main className="max-w-[720px] mx-auto px-4 py-10 space-y-10">
 
         {/* Bandeau premiers pas */}
         <OnboardingBanner onNavigate={handleNavigate} />
@@ -478,10 +515,10 @@ export default function AdaptiveHome() {
         {/* Greeting + pastille coach */}
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="font-display text-3xl text-foreground leading-tight">
+            <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight">
               Salut {profileSummary.firstName} ! 👋
             </h1>
-            <p className="text-muted-foreground mt-1 text-base">
+            <p className="text-muted-foreground mt-2 text-base">
               Prête à faire rayonner tes projets ?
             </p>
           </div>
@@ -500,18 +537,18 @@ export default function AdaptiveHome() {
         {/* Hero */}
         <div
           data-tour="card-next-step"
-          className="group rounded-2xl bg-gradient-to-br from-rose-pale/40 to-card border border-border/60 p-6 sm:p-8 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px] hover:border-border transition-all duration-[300ms] ease-out cursor-pointer"
+          className="group rounded-3xl bg-gradient-to-br from-rose-pale/60 via-card to-card border border-border/60 p-7 sm:p-10 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
           onClick={() => handleNavigate(hero.route)}
         >
-          <p className="font-mono-ui text-2xs text-foreground/60 uppercase tracking-[0.12em] font-semibold mb-3">
+          <p className="font-mono-ui text-2xs text-foreground/60 uppercase tracking-[0.14em] font-semibold mb-4">
             {hero.eyebrow}
           </p>
 
-          <h2 className="font-display text-2xl sm:text-[26px] leading-[1.15] text-foreground">
+          <h2 className="font-display text-[28px] sm:text-[32px] leading-[1.15] text-foreground">
             {hero.title}
           </h2>
 
-          <p className="text-base text-foreground/70 mt-2 leading-relaxed line-clamp-2">
+          <p className="text-base text-foreground/70 mt-3 leading-relaxed line-clamp-2">
             {cleanText(recommendation.explanation)}
           </p>
 
@@ -524,7 +561,7 @@ export default function AdaptiveHome() {
                   type="button"
                   aria-label={`Créer un contenu ${label}`}
                   onClick={(e) => { e.stopPropagation(); navigate(`/creer?canal=${canal}`); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-pale border border-border/40 text-xs text-foreground/70 hover:bg-bordeaux hover:text-white hover:border-bordeaux transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-transparent border border-border text-xs text-foreground/70 hover:bg-bordeaux hover:text-white hover:border-bordeaux transition-colors"
                 >
                   <Icon className="h-3 w-3" />
                   {label}
@@ -534,7 +571,7 @@ export default function AdaptiveHome() {
           )}
 
           <Button
-            className="mt-6 w-full sm:w-auto h-12 px-6 rounded-xl bg-bordeaux hover:bg-primary text-white text-base font-semibold shadow-sm hover:shadow-md transition-all"
+            className="mt-7 w-full sm:w-auto h-12 px-7 rounded-full bg-bordeaux hover:bg-primary text-white text-base font-semibold shadow-sm hover:shadow-md transition-all"
             onClick={(e) => { e.stopPropagation(); handleNavigate(hero.route); }}
           >
             {hero.ctaLabel}
@@ -556,189 +593,98 @@ export default function AdaptiveHome() {
           )}
         </div>
 
-        {/* Zone Piloter */}
+        {/* Zone Piloter — liste éditoriale : la donnée vivante s'affiche dans la
+            description ou en métadonnée à droite, plus aucune carte-boîte */}
         <section>
           <SectionLabel hint="ton quotidien">Piloter</SectionLabel>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
+          <div className="divide-y divide-border/70">
+            <EditorialRow
+              icon={CalendarIcon}
+              title="Voir mon calendrier"
+              desc={
+                upcomingLoading ? (
+                  "…"
+                ) : upcomingPosts.length > 0 ? (
+                  <>
+                    Prochain contenu : {formatPill(upcomingPosts[0].format, upcomingPosts[0].canal).label.toLowerCase()}{" "}
+                    {formatShortDate(upcomingPosts[0].date).toLowerCase()}
+                    {upcomingPosts[0].theme ? ` — ${upcomingPosts[0].theme}` : ""}
+                  </>
+                ) : (
+                  "Rien de prévu pour l'instant — on planifie ta semaine ?"
+                )
+              }
               onClick={() => handleNavigate("/calendrier")}
-              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
-                  <CalendarIcon className="h-5 w-5 text-bordeaux" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-lg text-foreground leading-tight">
-                    Voir mon calendrier
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    Planifie tes contenus et garde une vue claire de ta semaine.
-                  </p>
-                  <div className="mt-3 space-y-1.5 min-h-[42px]">
-                    {upcomingLoading ? (
-                      <>
-                        <div className="h-4 w-full bg-muted/50 rounded animate-pulse" />
-                        <div className="h-4 w-3/4 bg-muted/50 rounded animate-pulse" />
-                      </>
-                    ) : upcomingPosts.length > 0 ? (
-                      upcomingPosts.map((p, i) => {
-                        const pill = formatPill(p.format, p.canal);
-                        return (
-                          <div key={i} className="flex items-center gap-2 text-xs min-w-0">
-                            <span className={`shrink-0 px-2 py-0.5 rounded-full ${pill.cls} text-2xs font-semibold uppercase tracking-wide`}>
-                              {pill.label}
-                            </span>
-                            <span className="shrink-0 text-foreground/70">{formatShortDate(p.date)}</span>
-                            <span className="truncate text-muted-foreground">{p.theme ?? ""}</span>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <p className="text-xs text-muted-foreground italic">
-                        Rien de prévu pour l'instant — et si on créait ton prochain post ?
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-              </div>
-            </button>
-
-            <button
-              data-tour="card-ideas"
+            />
+            <EditorialRow
+              dataTour="card-ideas"
+              icon={Lightbulb}
+              title="Piocher dans mes idées"
+              desc={
+                ideaCount > 0 && latestIdea
+                  ? `Dernière pépite : ${latestIdea.titre ?? latestIdea.accroche_short ?? latestIdea.content_draft ?? ""}`
+                  : "Aucune idée encore — lance un brainstorm avec ta coach."
+              }
+              meta={
+                ideaCount > 0 ? (
+                  <span className="font-display italic text-bordeaux text-xl leading-none">
+                    {ideaCount}
+                  </span>
+                ) : undefined
+              }
               onClick={() => navigate("/idees")}
-              className="group text-left rounded-2xl bg-card border border-border/60 p-5 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[2px] hover:border-primary/30 transition-all duration-[250ms] ease-out"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-mono-ui text-2xs text-foreground/60 uppercase tracking-[0.18em] font-semibold">
-                  Inspiration
-                </span>
-                <span className="font-display italic text-bordeaux text-2xl leading-none">
-                  {ideaCount}
-                </span>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
-                  <Lightbulb className="h-5 w-5 text-bordeaux" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-lg text-foreground leading-tight">
-                    Piocher dans mes idées
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                    {ideaCount > 0
-                      ? "Retrouve tes pépites et transforme-les en posts."
-                      : "Aucune idée encore — lance un brainstorm avec ta coach."}
-                  </p>
-                  {ideaCount > 0 && latestIdea && (
-                    <div className="mt-3 rounded-lg bg-rose-pale/60 px-3 py-2">
-                      <p className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/60 font-semibold">
-                        Dernière pépite
-                      </p>
-                      <p className="text-xs italic text-foreground/80 truncate mt-0.5">
-                        {latestIdea.titre ?? latestIdea.accroche_short ?? latestIdea.content_draft ?? ""}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-              </div>
-            </button>
+            />
+            <EditorialRow
+              icon={Upload}
+              title="Programmer un contenu déjà prêt"
+              desc="Un visuel fait sur Canva ou ailleurs ? Pose-le sur une date."
+              onClick={() => navigate("/calendrier?import=1")}
+            />
           </div>
-
-          {/* Programmer un contenu déjà prêt → import sur une date */}
-          <button
-            onClick={() => navigate("/calendrier?import=1")}
-            className="group mt-4 w-full text-left rounded-xl border border-border/60 bg-card p-4 flex items-center gap-3 hover:border-primary/30 hover:shadow-[var(--shadow-bento)] transition-all duration-200"
-          >
-            <div className="w-10 h-10 rounded-xl bg-rose-pale flex items-center justify-center shrink-0">
-              <Upload className="h-5 w-5 text-bordeaux" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="font-display text-base text-foreground leading-tight">
-                Programmer un contenu déjà prêt
-              </h3>
-              <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                Un visuel fait sur Canva ou ailleurs&nbsp;? Pose-le directement sur une date.
-              </p>
-            </div>
-            <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0" />
-          </button>
         </section>
 
-        {/* Zone Approfondir — secondaire, allégée */}
+        {/* Zone Approfondir — même liste, un ton en dessous */}
         <section>
           <SectionLabel hint="quand tu veux aller plus loin">Approfondir</SectionLabel>
-          <div data-tour="card-mini-actions" className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
+          <div data-tour="card-mini-actions" className="divide-y divide-border/70">
+            <EditorialRow
+              icon={Palette}
+              title="Affiner mon identité de marque"
+              desc={
+                brandingPercent === 100
+                  ? "Ton identité de marque est complète ✨"
+                  : "Ton histoire, ton persona, ta voix."
+              }
+              meta={
+                !brandingLoadError && brandingPercent < 100 ? (
+                  <span className="flex items-center gap-2">
+                    <Progress value={brandingPercent} className="h-1 w-16 hidden sm:block" />
+                    <span className="font-mono-ui text-2xs text-foreground/60 font-semibold">
+                      {brandingPercent}%
+                    </span>
+                  </span>
+                ) : undefined
+              }
               onClick={() => handleNavigate("/branding")}
-              className="group text-left rounded-xl border border-border/60 p-4 hover:bg-card hover:border-primary/30 transition-colors duration-200"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-rose-pale/60 flex items-center justify-center shrink-0">
-                  <Palette className="h-[18px] w-[18px] text-bordeaux" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-base text-foreground leading-tight">
-                    Affiner mon identité de marque
-                  </h3>
-                  {brandingPercent === 100 ? (
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Ton identité de marque est complète ✨
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Ton histoire, ton persona, ta voix.
-                    </p>
-                  )}
-                  {!brandingLoadError && (
-                    <div className="mt-3 flex items-center gap-2">
-                      <Progress value={brandingPercent} className="h-1.5 flex-1" />
-                      <span className="font-mono-ui text-2xs text-foreground/60 font-semibold shrink-0">
-                        {brandingPercent}%
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-              </div>
-            </button>
-
-            <button
+            />
+            <EditorialRow
+              icon={Search}
+              title="Lancer un audit"
+              desc={
+                latestAudit
+                  ? `Dernier audit ${latestAudit.type} — ${formatRelative(latestAudit.created_at)}`
+                  : "Instagram ou site web."
+              }
+              meta={
+                latestAudit ? (
+                  <span className={`font-display italic text-xl leading-none ${scoreToneClass(latestAudit.score_global)}`}>
+                    {latestAudit.score_global}
+                    <span className="text-sm text-foreground/50">/100</span>
+                  </span>
+                ) : undefined
+              }
               onClick={() => handleNavigate("__choose_audit__")}
-              className="group text-left rounded-xl border border-border/60 p-4 hover:bg-card hover:border-primary/30 transition-colors duration-200"
-            >
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-lg bg-rose-pale/60 flex items-center justify-center shrink-0">
-                  <Search className="h-[18px] w-[18px] text-bordeaux" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-display text-base text-foreground leading-tight">
-                    Lancer un audit
-                  </h3>
-                  {latestAudit ? (
-                    <>
-                      <p className={`font-display italic text-xl leading-none mt-1 ${scoreToneClass(latestAudit.score_global)}`}>
-                        {latestAudit.score_global}<span className="text-sm text-foreground/50">/100</span>
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                        Dernier audit {latestAudit.type} — {formatRelative(latestAudit.created_at)}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                      Instagram ou site web.
-                    </p>
-                  )}
-                </div>
-
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all shrink-0 mt-1" />
-              </div>
-            </button>
+            />
           </div>
         </section>
 
