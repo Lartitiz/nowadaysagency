@@ -11,6 +11,8 @@ const NewsjackingPanel = lazy(() => import("./NewsjackingPanel"));
 import CreerTransformTab from "./CreerTransformTab";
 import { PhotoUploadZone, type PhotoItem } from "./PhotoUploadZone";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 interface Props {
   onNext: (idea: string) => void;
@@ -46,6 +48,30 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [localDescription, setLocalDescription] = useState(initialPhotoDescription || "");
   const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
   const navigate = useNavigate();
+  const { column, value } = useWorkspaceFilter();
+
+  // L4 : idées personnalisées générées par le diagnostic (saved_ideas,
+  // source_module="diagnostic") — remplacent les départs génériques quand elles existent.
+  const [personalIdeas, setPersonalIdeas] = useState<string[]>([]);
+  useEffect(() => {
+    if (!value) return;
+    let cancelled = false;
+    (async () => {
+      const { data } = await (supabase.from("saved_ideas") as any)
+        .select("titre")
+        .eq(column, value)
+        .eq("source_module", "diagnostic")
+        .eq("status", "to_explore")
+        .order("created_at", { ascending: true })
+        .limit(5);
+      if (!cancelled && data?.length) {
+        setPersonalIdeas(data.map((d: any) => d.titre).filter(Boolean));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [column, value]);
+
+  const starterChips = personalIdeas.length > 0 ? personalIdeas : STARTER_IDEAS;
 
   // Si on arrive via un legacy redirect (?mode=transform), nettoyer le param
   // de l'URL pour éviter que le panneau ne se ré-ouvre au refresh.
@@ -94,9 +120,11 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
 
             {/* Départs prêts : 1 clic pour remplir et démarrer une première création */}
             <div className="pt-1">
-              <p className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">Pas d'inspiration ? Pioche un départ</p>
+              <p className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">
+                {personalIdeas.length > 0 ? "💡 Tes idées, tirées de ton diagnostic" : "Pas d'inspiration ? Pioche un départ"}
+              </p>
               <div className="flex flex-wrap gap-1.5">
-                {STARTER_IDEAS.map((s) => (
+                {starterChips.map((s) => (
                   <button
                     key={s}
                     type="button"

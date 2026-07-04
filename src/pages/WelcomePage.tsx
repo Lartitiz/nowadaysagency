@@ -291,6 +291,26 @@ export default function WelcomePage() {
   const [offers, setOffers] = useState<OfferState[]>([]);
   const [loading, setLoading] = useState(true);
   const [brandingStillLoading, setBrandingStillLoading] = useState(true);
+  // L4 : première idée personnalisée générée par le diagnostic (saved_ideas,
+  // source_module="diagnostic") — alimente le CTA « Générer mon premier contenu ».
+  const [starterIdea, setStarterIdea] = useState<{ titre: string; format: string } | null>(null);
+  const starterIdeaRef = useRef(false);
+
+  const fetchStarterIdea = useCallback(async () => {
+    if (starterIdeaRef.current) return;
+    const { data } = await (supabase.from("saved_ideas") as any)
+      .select("titre, format")
+      .eq(column, value)
+      .eq("source_module", "diagnostic")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (data?.titre) {
+      starterIdeaRef.current = true;
+      setStarterIdea({ titre: data.titre, format: data.format || "post" });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [column, value]);
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
@@ -391,6 +411,7 @@ export default function WelcomePage() {
       setBrandingCards(cards);
       brandingCardsCountRef.current = cards.length;
       if (cards.length >= 3) setBrandingStillLoading(false);
+      fetchStarterIdea();
       setLoading(false);
     };
     load();
@@ -409,6 +430,9 @@ export default function WelcomePage() {
         if (intervalRef.current) clearInterval(intervalRef.current);
         return;
       }
+
+      // L4 : l'idée personnalisée arrive avec l'enrichissement Opus (asynchrone)
+      fetchStarterIdea();
 
       const [
         brandProfileRes, personaRes, offersRes, storyRes,
@@ -738,12 +762,17 @@ export default function WelcomePage() {
             direct aux questions (auto=1). Le « waouh » dès l'onboarding, sans page blanche. */}
         <div className="flex flex-col gap-3">
           <Button
-            onClick={() => markSeen(`/creer?sujet=${encodeURIComponent("3 erreurs fréquentes dans mon domaine (et comment les éviter)")}&format=post&auto=1`)}
+            onClick={() => markSeen(`/creer?sujet=${encodeURIComponent(starterIdea?.titre || "3 erreurs fréquentes dans mon domaine (et comment les éviter)")}&format=${starterIdea?.format === "carousel" ? "carousel" : "post"}&auto=1`)}
             className="w-full rounded-pill gap-2"
             size="lg"
           >
             ✨ Générer mon premier contenu
           </Button>
+          {starterIdea && (
+            <p className="text-xs text-muted-foreground text-center -mt-1">
+              💡 On démarre sur « {starterIdea.titre} » — une idée tirée de ton diagnostic.
+            </p>
+          )}
           <Button
             onClick={() => markSeen("/dashboard")}
             variant="outline"

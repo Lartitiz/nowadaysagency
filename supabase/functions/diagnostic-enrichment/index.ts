@@ -115,7 +115,10 @@ Structure attendue :
     "formats": ["format 1", "format 2"],
     "rhythm": "rythme de publication détecté ou null",
     "editorial_line": "ligne éditoriale déduite ou null"
-  }
+  },
+  "starter_ideas": [
+    { "titre": "sujet de contenu prêt à générer, formulé à la première personne", "format": "post|carousel|reel|story", "canal": "instagram|linkedin", "objectif": "visibilite|confiance|vente", "angle": "angle éditorial en quelques mots" }
+  ]
 }
 
 Précisions importantes :
@@ -132,7 +135,8 @@ Précisions importantes :
 - Pour le persona, déduis à partir du positionnement et du contenu : à qui s'adresse cette personne ?
 - Pour la stratégie de contenu : les piliers sont des THÉMATIQUES DE CONTENU, pas des conseils génériques. Chaque pilier = un grand sujet dont la marque parle sur ses réseaux. Exemples : pour une céramiste → "Coulisses de l'atelier", "Rituels du quotidien", "L'artisanat comme acte militant". Pour une coach yoga → "Pratiques et postures", "Philosophie du corps", "Témoignages de transformation". Déduis 3-4 piliers CONCRETS à partir de l'activité, du positionnement et du contenu existant de la marque. Ne JAMAIS proposer des piliers génériques comme "Organisation", "Régularité", "Engagement communautaire" ou "Éducation" sans les lier à l'univers spécifique de la marque.
 - Pour la proposition de valeur : synthétise en une phrase ce que cette marque apporte, à qui, et pourquoi c'est différent. Utilise le vocabulaire de la marque, pas du jargon marketing.
-- Pour la proposition de valeur, synthétise le problème résolu, la solution et le différenciateur.`;
+- Pour la proposition de valeur, synthétise le problème résolu, la solution et le différenciateur.
+- Pour starter_ideas : EXACTEMENT 5 idées de premiers contenus, ULTRA-spécifiques à CETTE activité — jamais de générique passe-partout type "Les coulisses de mon travail" sans contexte métier. Chaque titre = un sujet concret prêt à être généré tel quel (10-15 mots max), formulé comme la personne le dirait elle-même. Ancre chaque idée dans les piliers de contenu, l'activité, la cible et les combats détectés (exemple céramiste : "Pourquoi je refuse de produire en série, même quand ça se vend"). Varie les objectifs (visibilité, confiance, vente) et privilégie le canal principal détecté. Formats simples de préférence (post, carousel).`;
 
     const opusModel = getModelForAction("branding_audit");
     const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 8192);
@@ -431,6 +435,43 @@ Précisions importantes :
           pillar_minor_2: pillars[2]?.label || null,
           creative_concept: contentPrefill.creative_twist || null,
         });
+      }
+    }
+
+    // starter_ideas → saved_ideas (L4) : 5 idées personnalisées prêtes à piocher
+    // (chips de /creer, CTA welcome, boîte à idées du calendrier). On n'insère
+    // que sur un espace encore sans idées de diagnostic (le garde already_branded
+    // a déjà filtré les espaces réels ; ceci évite en plus les doublons si le
+    // diagnostic est relancé sur un espace vierge).
+    const starterIdeas = Array.isArray(enrichmentResult?.starter_ideas) ? enrichmentResult.starter_ideas : [];
+    if (starterIdeas.length > 0) {
+      const { count: diagIdeasCount } = await supabaseAdmin
+        .from("saved_ideas")
+        .select("id", { count: "exact", head: true })
+        .eq(filterCol, filterVal)
+        .eq("source_module", "diagnostic");
+      if ((diagIdeasCount || 0) === 0) {
+        const IDEA_FORMATS = ["post", "carousel", "reel", "story", "linkedin"];
+        const IDEA_OBJECTIFS = ["visibilite", "confiance", "vente"];
+        const ideaRows = starterIdeas
+          .filter((i: any) => typeof i?.titre === "string" && i.titre.trim().length > 0)
+          .slice(0, 5)
+          .map((i: any) => ({
+            user_id: profileUserId,
+            workspace_id: workspaceId || null,
+            titre: i.titre.trim().slice(0, 200),
+            angle: typeof i.angle === "string" ? i.angle.slice(0, 200) : "",
+            format: IDEA_FORMATS.includes(i.format) ? i.format : "post",
+            canal: i.canal === "linkedin" ? "linkedin" : "instagram",
+            objectif: IDEA_OBJECTIFS.includes(i.objectif) ? i.objectif : "visibilite",
+            status: "to_explore",
+            source_module: "diagnostic",
+            notes: "✨ Proposée à partir de ton diagnostic",
+          }));
+        if (ideaRows.length > 0) {
+          const { error: ideasError } = await supabaseAdmin.from("saved_ideas").insert(ideaRows);
+          if (ideasError) console.error("[diagnostic-enrichment] insert starter_ideas failed:", ideasError.message);
+        }
       }
     }
 
