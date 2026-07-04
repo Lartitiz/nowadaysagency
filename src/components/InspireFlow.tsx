@@ -182,7 +182,7 @@ export default function InspireFlow() {
       const r = data as InspirationResult;
       setResult(r);
       setEditedContent(r.adapted_content);
-      const { data: saved } = await supabase
+      const { data: saved, error: saveError } = await supabase
         .from("instagram_inspirations")
         .insert({
           user_id: user!.id,
@@ -199,7 +199,12 @@ export default function InspireFlow() {
         })
         .select()
         .single();
-      if (saved) setHistory((prev) => [saved as unknown as HistoryItem, ...prev]);
+      if (saveError) {
+        // L'analyse est affichée, mais l'historique n'a rien enregistré : le dire.
+        toast.error("L'analyse n'a pas pu être enregistrée dans ton historique");
+      } else if (saved) {
+        setHistory((prev) => [saved as unknown as HistoryItem, ...prev]);
+      }
     } catch {
       toast.error("Erreur lors de l'analyse");
     } finally {
@@ -212,7 +217,8 @@ export default function InspireFlow() {
   const saveToIdeas = async () => {
     if (!user || !editedContent.trim()) return;
     try {
-      await supabase.from("saved_ideas").insert({
+      // supabase-js ne lève pas sur { error } : sans throw, le toast mentirait.
+      const { error } = await supabase.from("saved_ideas").insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         type: "draft",
@@ -225,6 +231,7 @@ export default function InspireFlow() {
         format_technique: result?.format || null,
         objectif: result?.objective || null,
       });
+      if (error) throw error;
       toast.success("Sauvegardé dans tes idées !");
     } catch {
       toast.error("Erreur lors de la sauvegarde");
@@ -232,7 +239,11 @@ export default function InspireFlow() {
   };
 
   const deleteHistoryItem = async (id: string) => {
-    await supabase.from("instagram_inspirations").delete().eq("id", id);
+    const { error } = await supabase.from("instagram_inspirations").delete().eq("id", id);
+    if (error) {
+      toast.error("La suppression a échoué, réessaie");
+      return;
+    }
     setHistory((prev) => prev.filter((h) => h.id !== id));
     if (viewingHistory?.id === id) setViewingHistory(null);
     toast.success("Supprimé");

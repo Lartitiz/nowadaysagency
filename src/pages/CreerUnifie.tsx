@@ -108,7 +108,7 @@ export default function CreerUnifie() {
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
   const { activityText } = useActivityExamples();
-  const { remainingTotal, loading: planLoading, plan, usage } = useUserPlan();
+  const { remainingWithBonus, loading: planLoading, plan, usage } = useUserPlan();
 
   // URL params
   const paramFormat = searchParams.get("format");
@@ -2863,9 +2863,9 @@ export default function CreerUnifie() {
               else if (key === "brief" && (step === "result" || step === "edit")) setStep("questions");
             };
             const credits =
-              !planLoading && remainingTotal() < 9000 ? (
+              !planLoading && remainingWithBonus() < 9000 ? (
                 <span className="text-2xs text-muted-foreground whitespace-nowrap">
-                  ✨ {remainingTotal()} restantes
+                  ✨ {remainingWithBonus()} crédit{remainingWithBonus() > 1 ? "s" : ""} restant{remainingWithBonus() > 1 ? "s" : ""}
                 </span>
               ) : null;
             return (
@@ -2880,7 +2880,7 @@ export default function CreerUnifie() {
             {/* Steps */}
             {step === "idea" && (
               <>
-                <LowCreditsBanner remaining={remainingTotal()} plan={plan} />
+                <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
                 <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined} initialPhotoDescription={photoDescription || undefined} initialPhotoSubject={ideaText || undefined} />
               </>
             )}

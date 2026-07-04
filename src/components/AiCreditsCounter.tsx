@@ -9,16 +9,19 @@ import type { CategoryUsage } from "@/hooks/use-user-plan";
 interface AiCreditsCounterProps {
   plan: string;
   usage: Record<string, CategoryUsage>;
+  /** Crédits bonus (jamais expirés) — inclus dans le restant affiché, comme côté enforcement. */
+  bonusCredits?: number;
 }
 
 
-export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps) {
+export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCreditsCounterProps) {
   const total = usage.total;
   const isUnlimited = !total || total.limit <= 0 || total.limit >= 9999;
 
   // PostHog tracking — once per tier per session (hooks before early return)
-  const remaining = isUnlimited ? 0 : Math.max(0, total.limit - total.used);
-  const pctVal = isUnlimited ? 1 : remaining / total.limit;
+  const monthlyRemaining = isUnlimited ? 0 : Math.max(0, total.limit - total.used);
+  const remaining = monthlyRemaining + bonusCredits;
+  const pctVal = isUnlimited ? 1 : remaining / (total.limit + bonusCredits);
   const trackedTiers = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (isUnlimited) return;
@@ -51,6 +54,7 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
 
   // Palier logic
   const isExhausted = remaining === 0;
+  const monthlyOut = !isExhausted && monthlyRemaining === 0 && bonusCredits > 0;
   const isUrgent = !isExhausted && pct < 0.2;
   const isWarning = !isExhausted && !isUrgent && pct <= 0.5;
 
@@ -108,7 +112,7 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
             </>
           ) : (
             <>
-              <span className="hidden sm:inline">{remaining} restants</span>
+              <span className="hidden sm:inline">{remaining} crédit{remaining > 1 ? "s" : ""}</span>
               <span className="sm:hidden">{remaining}</span>
             </>
           )}
@@ -134,17 +138,30 @@ export default function AiCreditsCounter({ plan, usage }: AiCreditsCounterProps)
             {/* Total */}
             <div className="mb-3">
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-                <span>Total</span>
+                <span>Crédits mensuels</span>
                 <span className="font-mono-ui font-semibold">
-                  {total.used}/{total.limit}
+                  {Math.min(total.used, total.limit)}/{total.limit} utilisés
                 </span>
               </div>
               <Progress value={Math.round(usedPct * 100)} className="h-1.5" />
             </div>
 
-            <p className="text-xs text-muted-foreground mt-1">
-              Tu as utilisé tes crédits pour : {total.used > 0 ? "contenus, audits, coaching…" : "rien encore ce mois-ci."}
-            </p>
+            {bonusCredits > 0 && (
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                <span>🎁 Crédits bonus (jamais expirés)</span>
+                <span className="font-mono-ui font-semibold">{bonusCredits}</span>
+              </div>
+            )}
+
+            {monthlyOut ? (
+              <p className="text-xs text-muted-foreground mt-1">
+                Tes crédits mensuels sont utilisés — tes crédits bonus prennent le relais automatiquement.
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground mt-1">
+                Tu as utilisé tes crédits pour : {total.used > 0 ? "contenus, audits, coaching…" : "rien encore ce mois-ci."}
+              </p>
+            )}
 
             {/* Palier messages */}
             {isWarning && (

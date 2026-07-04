@@ -443,7 +443,7 @@ export default function AppSidebar() {
                   {workspaces.map((ws) => (
                     <button
                       key={ws.id}
-                      onClick={() => { switchWorkspace(ws.id); setWsPopoverOpen(false); setOpen(false); }}
+                      onClick={async () => { await switchWorkspace(ws.id); setWsPopoverOpen(false); setOpen(false); }}
                       className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left transition-colors ${
                         ws.id === activeWorkspace?.id ? "bg-muted" : "hover:bg-muted/50"
                       }`}

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { CheckCircle2, Circle, Plus, Trash2, Flame, RotateCcw } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -116,19 +117,23 @@ export default function RoutinesPanel() {
   const isCompleted = (taskId: string, periodStart: string) =>
     completions.some((c) => c.task_id === taskId && c.period_start === periodStart);
 
+  // Règle maison #302 : vérifier { error } de chaque écriture. Sans ça, un clic
+  // sur une case qui échoue ne fait « rien » en silence (fetchAll remet l'ancien état).
   const toggleCompletion = async (taskId: string, periodStart: string) => {
     if (!user) return;
     const existing = completions.find(
       (c) => c.task_id === taskId && c.period_start === periodStart
     );
-    if (existing) {
-      await supabase.from("routine_completions").delete().eq("id", existing.id);
-    } else {
-      await supabase.from("routine_completions").insert({
-        user_id: user.id,
-        task_id: taskId,
-        period_start: periodStart,
-      });
+    const { error } = existing
+      ? await supabase.from("routine_completions").delete().eq("id", existing.id)
+      : await supabase.from("routine_completions").insert({
+          user_id: user.id,
+          task_id: taskId,
+          period_start: periodStart,
+        });
+    if (error) {
+      toast.error("Ça n'a pas été enregistré, réessaie");
+      return;
     }
     await fetchAll();
   };
@@ -136,13 +141,17 @@ export default function RoutinesPanel() {
   const addRoutine = async () => {
     if (!user || !newLabel.trim()) return;
     const maxOrder = tasks.length > 0 ? Math.max(...tasks.map((t) => t.order_index)) : 0;
-    await supabase.from("tasks").insert({
+    const { error } = await supabase.from("tasks").insert({
       user_id: user.id,
       label: newLabel.trim(),
       duration_minutes: parseInt(newDuration) || 15,
       period: newPeriod,
       order_index: maxOrder + 1,
     });
+    if (error) {
+      toast.error("La routine n'a pas pu être ajoutée, réessaie");
+      return;
+    }
     setNewLabel("");
     setNewDuration("15");
     setNewPeriod("week");
@@ -151,8 +160,14 @@ export default function RoutinesPanel() {
   };
 
   const deleteRoutine = async (taskId: string) => {
-    await supabase.from("routine_completions").delete().eq("task_id", taskId);
-    await supabase.from("tasks").delete().eq("id", taskId);
+    const { error: complError } = await supabase.from("routine_completions").delete().eq("task_id", taskId);
+    const { error: taskError } = complError
+      ? { error: complError }
+      : await supabase.from("tasks").delete().eq("id", taskId);
+    if (complError || taskError) {
+      toast.error("La suppression a échoué, réessaie");
+      return;
+    }
     await fetchAll();
   };
 
