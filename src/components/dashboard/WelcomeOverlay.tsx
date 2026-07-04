@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/use-profile";
 import { useOnboardingMissions } from "@/hooks/use-onboarding-missions";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 
 const LS_KEY = "lac_welcome_seen";
@@ -62,7 +63,23 @@ export default function WelcomeOverlay({ prenom }: WelcomeOverlayProps) {
     if (localStorage.getItem(LS_KEY) === "true") return;
     const completedAt = (profileData as any)?.onboarding_completed_at;
     if (!completedAt) return;
-    setVisible(true);
+    // Le parcours actuel passe par /welcome qui marque welcome_seen en BASE.
+    // Sans ce check, l'overlay (flag localStorage uniquement) rejouait le même
+    // écran de bienvenue juste après — et sur chaque nouvel appareil.
+    let cancelled = false;
+    (supabase.from("user_plan_config") as any)
+      .select("welcome_seen")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (cancelled) return;
+        if (data?.welcome_seen) {
+          localStorage.setItem(LS_KEY, "true");
+          return;
+        }
+        setVisible(true);
+      });
+    return () => { cancelled = true; };
   }, [user, profileData]);
 
   const close = () => {

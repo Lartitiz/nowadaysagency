@@ -497,14 +497,26 @@ export default function WelcomePage() {
 
   const markSeen = (destination: string) => {
     if (!user) return;
+    // Même flag que le WelcomeOverlay du dashboard : sans lui, l'overlay
+    // rejouait le même écran de bienvenue juste après l'arrivée sur /dashboard.
+    localStorage.setItem("lac_welcome_seen", "true");
     // Navigate immediately, don't wait for the update
     navigate(destination);
-    // Fire-and-forget: update welcome_seen in background
+    // Fire-and-forget en arrière-plan ; si la ligne n'existe pas encore
+    // (update 0 ligne silencieux), on la crée.
     (supabase.from("user_plan_config") as any)
       .update({ welcome_seen: true })
       .eq("user_id", user.id)
-      .then(({ error }: any) => {
-        if (error) console.error("markSeen error:", error);
+      .select("user_id")
+      .then(({ data, error }: any) => {
+        if (error) { console.error("markSeen error:", error); return; }
+        if (!data?.length) {
+          (supabase.from("user_plan_config") as any)
+            .insert({ user_id: user.id, welcome_seen: true })
+            .then(({ error: insError }: any) => {
+              if (insError) console.error("markSeen insert error:", insError);
+            });
+        }
       });
   };
 
