@@ -288,3 +288,14 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 5. **Workspace first** : toute requête de données passe par useWorkspaceFilter
 6. **L'outil est universel** : les textes, exemples et prompts IA internes doivent parler à tout le monde
 7. **Corrections ciblées > refactorisations larges** : on corrige chirurgicalement, on ne refait pas tout
+## Vocabulaire UI (conventions — audit UX 04/07/2026)
+
+| Règle | Détail |
+|---|---|
+| « Créer » vs « Générer » | **Créer** = action manuelle de l'utilisatrice (flux /creer, remplir un formulaire) ; **Générer** = l'IA propose (bio, titres, recommandations) |
+| « Contenu » / « post » / « publié » | **Contenu** = terme générique ; **post** = un réseau précis (post Instagram/LinkedIn) ; **publié** = l'état final |
+| « Idée » | Élément de la boîte à idées, partout (pas « suggestion » ni « proposition ») |
+| Boutons | Toujours verbe + objet (« Enregistrer mes notes », jamais « OK »/« Valider » seuls) ; un bouton d'upgrade dit « Passer à Premium », jamais « Passer » seul |
+| Checklist d'onboarding | « Tes premiers pas » (un seul nom partout) |
+| Nav | « Calendrier » (pas « Organiser ») ; « Retour à l'accueil » (jamais « hub », jargon interne) |
+| Éditorial (cible, ton, thématiques) | Une seule source de vérité : le module Branding. /profil = infos pratiques uniquement |

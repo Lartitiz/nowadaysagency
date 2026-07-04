@@ -3,14 +3,14 @@ import { Link } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
 const CARDS = [
-  { emoji: "🔍", title: "Auditer mon site", desc: "Scanne ton site pour identifier les améliorations prioritaires.", to: "/seo/audit", tag: "Assisté" },
-  { emoji: "🔑", title: "Trouver des mots-clés", desc: "Découvre les mots-clés que tes client·es recherchent vraiment.", to: "/seo/idees", tag: "Assisté" },
-  { emoji: "📊", title: "Cockpit mots-clés", desc: "Centralise et décide quels mots-clés cibler.", to: "/seo/cockpit", tag: "Outil" },
-  { emoji: "📈", title: "Analyser mes mots-clés", desc: "Évalue le potentiel réel de tes mots-clés.", to: "/seo/analyser", tag: "Assisté" },
-  { emoji: "✏️", title: "Optimiser une page", desc: "Améliore concrètement le contenu de tes pages existantes.", to: "/seo/optimiser", tag: "Assisté" },
-  { emoji: "🏗️", title: "Structurer mon site", desc: "Organise tes pages en silos thématiques pour que Google comprenne ton univers.", to: "/seo/structure", tag: "Assisté" },
-  { emoji: "📰", title: "Contacts presse", desc: "Identifie les médias et blogs pertinents pour obtenir des backlinks.", to: "/seo/presse", tag: "Assisté" },
-  { emoji: "✅", title: "Mon plan d'action", desc: "Compile le tout en un plan personnalisé sur 6 mois.", to: "/seo/plan", tag: "Assisté" },
+  { emoji: "🔍", title: "Auditer mon site", desc: "Scanne ton site pour identifier les améliorations prioritaires.", to: "/seo/audit" },
+  { emoji: "🔑", title: "Trouver des mots-clés", desc: "Découvre les mots-clés que tes client·es recherchent vraiment.", to: "/seo/idees" },
+  { emoji: "📊", title: "Piloter mes mots-clés", desc: "Centralise et décide quels mots-clés cibler.", to: "/seo/cockpit" },
+  { emoji: "📈", title: "Analyser mes mots-clés", desc: "Évalue le potentiel réel de tes mots-clés.", to: "/seo/analyser" },
+  { emoji: "✏️", title: "Optimiser une page", desc: "Améliore concrètement le contenu de tes pages existantes.", to: "/seo/optimiser" },
+  { emoji: "🏗️", title: "Structurer mon site", desc: "Organise tes pages en silos thématiques pour que Google comprenne ton univers.", to: "/seo/structure" },
+  { emoji: "📰", title: "Trouver des contacts presse", desc: "Identifie les médias et blogs pertinents pour obtenir des backlinks.", to: "/seo/presse" },
+  { emoji: "✅", title: "Compiler mon plan d'action", desc: "Compile le tout en un plan personnalisé sur 6 mois.", to: "/seo/plan" },
 ];
 
 export default function SeoHub() {
@@ -32,7 +32,6 @@ export default function SeoHub() {
               <span className="text-2xl mb-3 block">{card.emoji}</span>
               <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-              <span className="mt-3 inline-block font-mono-ui text-2xs font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">{card.tag}</span>
             </Link>
           ))}
         </div>

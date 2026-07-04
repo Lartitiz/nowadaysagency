@@ -565,7 +565,7 @@ export default function InstagramAudit() {
     const elements = (va.elements || []).map((el: any) => ({
       ...el,
       link_to: el.element === "highlights" ? "/instagram/profil/stories" : el.element === "posts_epingles" ? "/instagram/profil/epingles" : el.element === "bio" ? "/instagram/profil/bio" : el.element === "nom" ? "/instagram/profil/nom" : el.element === "feed" ? "/instagram/profil/feed" : undefined,
-      link_label: el.element === "highlights" ? "📖 Module highlights" : el.element === "posts_epingles" ? "📌 Choisir mes posts" : el.element === "bio" ? "✏️ Créer ma bio" : el.element === "nom" ? "✏️ Optimiser mon nom" : el.element === "feed" ? "🎨 Recommandations" : undefined,
+      link_label: el.element === "highlights" ? "📖 Module highlights" : el.element === "posts_epingles" ? "📌 Choisir mes posts" : el.element === "bio" ? "✏️ Générer ma bio" : el.element === "nom" ? "✏️ Optimiser mon nom" : el.element === "feed" ? "🎨 Recommandations" : undefined,
     }));
     return {
       score_global: auditResult.score_global || va.score_global || 0,
