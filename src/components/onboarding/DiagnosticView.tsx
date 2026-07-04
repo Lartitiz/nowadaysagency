@@ -18,21 +18,23 @@ interface Props {
   data: DiagnosticData;
   prenom: string;
   onComplete: () => void;
+  /** CTA principal « Générer mon premier contenu » (création directe, sans passer par /welcome). */
+  onCreateFirst?: () => void;
   hasInstagram?: boolean;
   hasWebsite?: boolean;
   sourcesUsed?: string[];
   sourcesFailed?: string[];
 }
 
-export default function DiagnosticView({ data, prenom, onComplete, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
+export default function DiagnosticView({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   const isMobile = useIsMobile();
   return isMobile
-    ? <MobileSlides data={data} prenom={prenom} onComplete={onComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />
-    : <DesktopScroll data={data} prenom={prenom} onComplete={onComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
+    ? <MobileSlides data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />
+    : <DesktopScroll data={data} prenom={prenom} onComplete={onComplete} onCreateFirst={onCreateFirst} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />;
 }
 
 /* ═══ MOBILE: Slide-by-slide ═══ */
-function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
+function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   const [slide, setSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const hasSummary = !!data.summary;
@@ -57,7 +59,7 @@ function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite, sour
     <WeaknessesSection key="d" weaknesses={data.weaknesses} />,
     <PrioritiesSection key="e" priorities={data.priorities} />,
     <ChannelScoresSection key="f" channelScores={data.channelScores} />,
-    <FinalSection key="g" onComplete={onComplete} />,
+    <FinalSection key="g" onComplete={onComplete} onCreateFirst={onCreateFirst} />,
   );
 
   return (
@@ -111,7 +113,7 @@ function MobileSlides({ data, prenom, onComplete, hasInstagram, hasWebsite, sour
 }
 
 /* ═══ DESKTOP: Scroll with animations ═══ */
-function DesktopScroll({ data, prenom, onComplete, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
+function DesktopScroll({ data, prenom, onComplete, onCreateFirst, hasInstagram, hasWebsite, sourcesUsed, sourcesFailed }: Props) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-[640px] mx-auto px-6 py-16 space-y-24">
@@ -122,7 +124,7 @@ function DesktopScroll({ data, prenom, onComplete, hasInstagram, hasWebsite, sou
         <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>
         <AnimatedSection><PrioritiesSection priorities={data.priorities} /></AnimatedSection>
         <AnimatedSection><ChannelScoresSection channelScores={data.channelScores} /></AnimatedSection>
-        <AnimatedSection><FinalSection onComplete={onComplete} /></AnimatedSection>
+        <AnimatedSection><FinalSection onComplete={onComplete} onCreateFirst={onCreateFirst} /></AnimatedSection>
       </div>
     </div>
   );
@@ -425,7 +427,7 @@ function ChannelBar({ emoji, label, score }: { emoji: string; label: string; sco
 }
 
 /* ═══ Section: Final ═══ */
-function FinalSection({ onComplete }: { onComplete: () => void }) {
+function FinalSection({ onComplete, onCreateFirst }: { onComplete: () => void; onCreateFirst?: () => void }) {
   const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
@@ -445,13 +447,33 @@ function FinalSection({ onComplete }: { onComplete: () => void }) {
         <p>On a du boulot, mais c'est faisable.</p>
       </div>
       <p className="text-lg font-display font-bold text-foreground">On y va ?</p>
-      <Button
-        onClick={onComplete}
-        size="lg"
-        className="rounded-full px-10 text-base shadow-lg"
-      >
-        Découvrir mon espace →
-      </Button>
+      {onCreateFirst ? (
+        <div className="flex flex-col items-center gap-3">
+          {/* Le fer est chaud : on propose de CRÉER tout de suite plutôt que
+              d'enchaîner un 2e écran récapitulatif (welcome). */}
+          <Button
+            onClick={onCreateFirst}
+            size="lg"
+            className="rounded-full px-10 text-base shadow-lg"
+          >
+            ✨ Générer mon premier contenu
+          </Button>
+          <button
+            onClick={onComplete}
+            className="text-sm text-muted-foreground underline-offset-4 hover:underline"
+          >
+            Découvrir mon espace d'abord →
+          </button>
+        </div>
+      ) : (
+        <Button
+          onClick={onComplete}
+          size="lg"
+          className="rounded-full px-10 text-base shadow-lg"
+        >
+          Découvrir mon espace →
+        </Button>
+      )}
     </div>
   );
 }

@@ -23,7 +23,6 @@ import {
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
 
-import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
 import { toast } from "sonner";
@@ -288,7 +287,6 @@ export default function AdaptiveHome() {
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
-  const [welcomeDone, setWelcomeDone] = useState(() => localStorage.getItem("lac_welcome_seen") === "true");
   const [auditPickerOpen, setAuditPickerOpen] = useState(false);
 
   // Ideas count
@@ -439,13 +437,6 @@ export default function AdaptiveHome() {
       }, 30000);
       return () => { clearTimeout(timer1); clearTimeout(timer2); };
     }
-  }, []);
-
-  useEffect(() => {
-    const check = () => setWelcomeDone(localStorage.getItem("lac_welcome_seen") === "true");
-    const interval = setInterval(check, 500);
-    const fallback = setTimeout(() => setWelcomeDone(true), 2000);
-    return () => { clearInterval(interval); clearTimeout(fallback); };
   }, []);
 
   const handleNavigate = (route: string) => {
@@ -752,10 +743,10 @@ export default function AdaptiveHome() {
           </DialogContent>
         </Dialog>
 
-        {/* WelcomeOverlay + GuidedTour */}
-        <WelcomeOverlay prenom={profileSummary.firstName} />
-
-        {!tourDone && !isLoading && welcomeDone &&
+        {/* Guidage 1re visite : UNIQUEMENT le coachmark GuidedTour. L'overlay
+            4 slides « ton espace est prêt » a été retiré (validé Laetitia 04/07) :
+            c'était le 3e récapitulatif d'affilée après le diagnostic et le welcome. */}
+        {!tourDone && !isLoading &&
           <GuidedTour
             steps={TOUR_STEPS}
             storageKey="lac_dashboard_tour_seen"

@@ -295,6 +295,7 @@ export default function WelcomePage() {
   // source_module="diagnostic") — alimente le CTA « Générer mon premier contenu ».
   const [starterIdea, setStarterIdea] = useState<{ titre: string; format: string } | null>(null);
   const starterIdeaRef = useRef(false);
+  const [brandingExpanded, setBrandingExpanded] = useState(false);
 
   const fetchStarterIdea = useCallback(async () => {
     if (starterIdeaRef.current) return;
@@ -497,8 +498,8 @@ export default function WelcomePage() {
 
   const markSeen = (destination: string) => {
     if (!user) return;
-    // Même flag que le WelcomeOverlay du dashboard : sans lui, l'overlay
-    // rejouait le même écran de bienvenue juste après l'arrivée sur /dashboard.
+    // Flag lu par AuthContext (resolvePostAuthRoute) : évite de renvoyer de
+    // force sur /welcome au login suivant.
     localStorage.setItem("lac_welcome_seen", "true");
     // Navigate immediately, don't wait for the update
     navigate(destination);
@@ -603,9 +604,21 @@ export default function WelcomePage() {
               </div>
             ) : hasBranding ? (
               <div className="grid grid-cols-1 gap-3">
-                {brandingCards.map((card, i) => (
+                {/* Replié par défaut : la page welcome empilait 11 cartes — 3 suffisent
+                    pour montrer que le branding est rempli, le reste sur demande. */}
+                {(brandingExpanded ? brandingCards : brandingCards.slice(0, 3)).map((card, i) => (
                   <BrandingCardItem key={i} card={card} index={i} onSave={handleCardSave} />
                 ))}
+                {brandingCards.length > 3 && (
+                  <button
+                    onClick={() => setBrandingExpanded((e) => !e)}
+                    className="w-full rounded-2xl border border-dashed border-border bg-card/50 py-3 text-sm font-medium text-primary hover:bg-secondary/50 transition-colors"
+                  >
+                    {brandingExpanded
+                      ? "Réduire ↑"
+                      : `Voir les ${brandingCards.length - 3} autres sections ↓`}
+                  </button>
+                )}
               </div>
             ) : (
               <div className="rounded-xl bg-card border border-border p-5">
