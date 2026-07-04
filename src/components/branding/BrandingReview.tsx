@@ -955,10 +955,20 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               <span className="text-sm font-semibold text-foreground">
                 {allDone ? "Branding complété ! 🎉" : `${validatedCount}/7 sections validées`}
               </span>
-              {allDone && (
+              {allDone ? (
                 <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-sm font-semibold text-primary hover:underline">
                   Voir mon branding complet →
                 </motion.button>
+              ) : (
+                // Porte de sortie : sans elle, la review remplace /branding
+                // à chaque visite tant que les 7 sections ne sont pas validées.
+                <button
+                  onClick={onDone}
+                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
+                  title="Les sections validées sont gardées ; tu pourras compléter le reste depuis ta page branding."
+                >
+                  Finir plus tard
+                </button>
               )}
             </div>
             <div className="h-[6px] rounded-full bg-rose-pale overflow-hidden">

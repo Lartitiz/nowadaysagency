@@ -185,19 +185,24 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                 <div className="flex items-center justify-between mb-2">
                   <span className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
                     {d.date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}
+                    {/* Sans ce label, la carte du jour vide flotte sans explication */}
+                    {isToday && <span className="ml-1.5 text-2xs font-semibold uppercase tracking-wide">· Aujourd'hui</span>}
                   </span>
                   <AddPostMenu dateStr={dateStr} onAddIdea={addIdeaHandler} onImport={onImport} />
                 </div>
                 <div>
+                  {isToday && dayPosts.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Rien de prévu aujourd'hui — touche ＋ pour ajouter un contenu.</p>
+                  )}
                   {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
                     <MobilePostCard key={p.id} post={p} onSelect={onEditPost} onMove={handleMobileMove} seriesNameById={seriesNameById} />
                   ))}
                   {dayPosts.length > 1 && !expandedDays.has(dateStr) && (
                     <button
                       onClick={() => setExpandedDays(prev => new Set(prev).add(dateStr))}
-                      className="text-2xs text-muted-foreground hover:text-primary mt-0.5"
+                      className="mt-1 w-full rounded-lg border border-dashed border-border py-1.5 text-xs font-medium text-primary text-center"
                     >
-                      +{dayPosts.length - 1} autre{dayPosts.length - 1 > 1 ? "s" : ""}
+                      Voir les {dayPosts.length - 1} autre{dayPosts.length - 1 > 1 ? "s" : ""} contenu{dayPosts.length - 1 > 1 ? "s" : ""} ↓
                     </button>
                   )}
                 </div>
