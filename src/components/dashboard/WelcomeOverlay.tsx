@@ -289,7 +289,7 @@ function StepThree({ onClose }: { onClose: () => void }) {
   return (
     <div className="text-center">
       <h2 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">
-        5 premières missions pour démarrer
+        5 premiers pas pour démarrer
       </h2>
       <p className="text-muted-foreground mb-2">
         Pas besoin de tout faire d'un coup. Commence par ce qui t'inspire.

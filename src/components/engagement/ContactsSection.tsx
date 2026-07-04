@@ -177,7 +177,7 @@ export default function ContactsSection({ contacts, filter, onFilterChange, onIn
                     placeholder="Notes sur ce contact..."
                     className="text-xs min-h-[50px]"
                   />
-                  <Button size="sm" onClick={() => { onUpdateNotes(c.id, tempNotes); setEditingNotes(null); }}>OK</Button>
+                  <Button size="sm" onClick={() => { onUpdateNotes(c.id, tempNotes); setEditingNotes(null); }}>Enregistrer</Button>
                 </div>
               )}
             </div>

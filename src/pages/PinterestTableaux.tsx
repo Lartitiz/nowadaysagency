@@ -110,7 +110,7 @@ export default function PinterestTableaux() {
             <div key={idx} className="rounded-xl border border-border p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-foreground">Tableau {idx + 1}</span>
-                <Button variant="ghost" size="sm" onClick={() => removeBoard(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                <Button variant="ghost" size="sm" aria-label={`Supprimer le tableau ${idx + 1}`} title="Supprimer ce tableau" onClick={() => removeBoard(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
               </div>
               <Input aria-label={`Nom du tableau ${idx + 1}`} value={b.name} onChange={e => updateBoard(idx, "name", e.target.value)} placeholder="Ex : le thème de ton tableau" />
               <Select value={b.board_type} onValueChange={v => updateBoard(idx, "board_type", v)}>

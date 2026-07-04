@@ -69,7 +69,7 @@ export default function SeoEmbed() {
       <div className="mx-auto max-w-7xl px-4 py-3">
         <div className="flex items-center justify-between mb-3">
           <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-            <Link to="/dashboard" className="hover:text-primary transition-colors">Retour au hub</Link>
+            <Link to="/dashboard" className="hover:text-primary transition-colors">Retour à l'accueil</Link>
             <span className="mx-1">›</span>
             <Link to="/seo" className="hover:text-primary transition-colors">SEO</Link>
             <span className="mx-1">›</span>

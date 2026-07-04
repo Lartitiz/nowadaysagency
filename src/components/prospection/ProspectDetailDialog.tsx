@@ -112,7 +112,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
             autoFocus
             onKeyDown={e => e.key === "Enter" && saveField(field)}
           />
-          <Button size="sm" className="h-8" onClick={() => saveField(field)}>OK</Button>
+          <Button size="sm" className="h-8" onClick={() => saveField(field)}>Enregistrer</Button>
         </div>
       ) : (
         <p
@@ -269,7 +269,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
                   <Button size="sm" className="h-8" onClick={() => {
                     onUpdate({ conversion_amount: parseFloat(editValue) || null });
                     setEditField(null);
-                  }}>OK</Button>
+                  }}>Enregistrer</Button>
                 </div>
               ) : (
                 <p

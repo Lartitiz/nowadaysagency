@@ -26,7 +26,7 @@ import QuotaWallModal from "@/components/QuotaWallModal";
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/calendrier", label: "Organiser", icon: CalendarDays, matchExact: false },
+  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
 
 const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", icon: HeartHandshake, matchExact: false };
@@ -34,7 +34,7 @@ const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", ic
 const MOBILE_NAV = [
   { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/calendrier", label: "Organiser", icon: CalendarDays, matchExact: false },
+  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
 
 const BREADCRUMB_LABELS: Record<string, string> = {
@@ -80,7 +80,14 @@ function Breadcrumb() {
 
   if (!matchedPath) return null;
 
-  const label = BREADCRUMB_LABELS[matchedPath];
+  let label = BREADCRUMB_LABELS[matchedPath];
+  // /idees et /plan redirigent vers /calendrier?tab=… : sans ça, le fil
+  // d'Ariane affiche « Calendrier » sur la boîte à idées et la stratégie.
+  if (matchedPath === "/calendrier") {
+    const tab = searchParams.get("tab");
+    if (tab === "idees") label = "Mes idées";
+    else if (tab === "strategie") label = "Ma stratégie";
+  }
   const section = searchParams.get("section");
   const sectionLabel = section ? SECTION_LABELS[section] : null;
 

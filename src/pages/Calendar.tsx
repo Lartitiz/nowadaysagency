@@ -146,7 +146,7 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="rounded-full gap-1.5" aria-label="Plus d'actions">
-              <MoreHorizontal className="h-4 w-4" /> Plus
+              <MoreHorizontal className="h-4 w-4" /> Plus d’actions
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
@@ -166,7 +166,7 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>
-          <PenLine className="h-3.5 w-3.5" /> Ajout rapide
+          <PenLine className="h-3.5 w-3.5" /> Ajouter un contenu
         </Button>
         <Button onClick={onCoachingOpen} className="shrink-0 gap-1.5 rounded-full" size="sm">
           <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine

@@ -148,6 +148,11 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           >
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
+          {!idea.trim() && (
+            <p className="text-xs text-muted-foreground text-center -mt-1">
+              Écris ton idée (ou pioche un départ ci-dessus) pour continuer.
+            </p>
+          )}
           {/* Alternative entry points — clearly visually separated */}
           <div className="pt-2">
             <div className="flex items-center gap-3 mb-3">
@@ -278,6 +283,11 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           >
             Suivant <ArrowRight className="h-4 w-4" />
           </Button>
+          {localPhotos.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center -mt-1">
+              Ajoute au moins une photo pour continuer.
+            </p>
+          )}
         </div>
       )}
 

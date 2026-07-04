@@ -572,7 +572,7 @@ export default function SharedCalendarPage() {
             <p className="text-2xs text-gray-500 mb-2">Pour commenter, dis-nous comment tu t'appelles :</p>
             <div className="flex gap-2">
               <Input aria-label="Ton prénom" placeholder="Ton prénom" value={nameInput} onChange={e => setNameInput(e.target.value)} onKeyDown={e => e.key === "Enter" && confirmName()} className="text-xs h-8 rounded-lg border-gray-300" />
-              <Button size="sm" onClick={confirmName} disabled={!nameInput.trim()} className="h-8 text-xs rounded-lg bg-gray-900 text-white hover:bg-gray-800">OK</Button>
+              <Button size="sm" onClick={confirmName} disabled={!nameInput.trim()} className="h-8 text-xs rounded-lg bg-gray-900 text-white hover:bg-gray-800">Valider mon prénom</Button>
             </div>
           </div>
         )}
