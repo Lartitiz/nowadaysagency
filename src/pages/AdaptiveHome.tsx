@@ -11,7 +11,6 @@ import {
   Mail,
   Pin,
   Lightbulb,
-  Calendar as CalendarIcon,
   MessageCircle,
   Palette,
   Search,
@@ -24,6 +23,7 @@ import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
 
 import WelcomeOverlay from "@/components/dashboard/WelcomeOverlay";
+import WeekStrip, { type WeekPost } from "@/components/dashboard/WeekStrip";
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
 import { toast } from "sonner";
@@ -47,13 +47,6 @@ import { getBrandingCompletionWithStatus } from "@/lib/branding-completion";
 import { toLocalDateStr } from "@/lib/utils";
 
 /* ── Helpers ── */
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const s = new Intl.DateTimeFormat("fr-FR", { weekday: "short", day: "numeric" }).format(d);
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 function formatRelative(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
@@ -64,22 +57,6 @@ function formatRelative(iso: string): string {
   if (diff <= 0) return "aujourd'hui";
   if (diff === 1) return "hier";
   return `il y a ${diff} jours`;
-}
-
-function formatPill(format?: string | null, canal?: string | null): { label: string; cls: string } {
-  const f = (format ?? "").toLowerCase();
-  let label = "Post";
-  if (f.includes("carrousel") || f.includes("carousel")) label = "Carrousel";
-  else if (f.includes("story") || f.includes("storie")) label = "Story";
-  else if (f.includes("reel")) label = "Reel";
-  else if (f.includes("newsletter")) label = "Newsletter";
-  else if (f.includes("pin")) label = "Pin";
-  else if (f.includes("post")) label = "Post";
-  const isInsta = (canal ?? "").toLowerCase().includes("insta");
-  const cls = isInsta
-    ? "bg-rose-soft text-bordeaux"
-    : "bg-rose-pale text-bordeaux";
-  return { label, cls };
 }
 
 /* ── Score → couleur par palier (sémantique : vert ≥75, ambre 50-74, rouge <50) ── */
@@ -238,7 +215,7 @@ function EditorialRow({
   dataTour,
 }: {
   icon: LucideIcon;
-  title: string;
+  title: React.ReactNode;
   desc: React.ReactNode;
   meta?: React.ReactNode;
   onClick: () => void;
@@ -314,10 +291,10 @@ export default function AdaptiveHome() {
     retry: 1,
   });
 
-  // Upcoming posts (next 2)
-  type UpcomingPost = { date: string; theme: string | null; format: string | null; canal: string | null };
-  const { data: upcomingPosts = [], isLoading: upcomingLoading, isError: postsError } = useQuery<UpcomingPost[]>({
-    queryKey: ["adaptive-home-upcoming-posts", wsFilter.column, wsFilter.value],
+  // Contenus à venir : assez pour remplir la bande semaine + connaître le
+  // prochain contenu même s'il tombe après les 7 jours affichés.
+  const { data: upcomingPosts = [], isLoading: upcomingLoading, isError: postsError } = useQuery<WeekPost[]>({
+    queryKey: ["adaptive-home-upcoming-posts-week", wsFilter.column, wsFilter.value],
     queryFn: async () => {
       const todayStr = toLocalDateStr(new Date());
       const { data, error } = await (supabase as any)
@@ -327,9 +304,9 @@ export default function AdaptiveHome() {
         .gte("date", todayStr)
         .neq("status", "idea")
         .order("date", { ascending: true })
-        .limit(2);
+        .limit(30);
       if (error) throw error;
-      return (data ?? []) as UpcomingPost[];
+      return (data ?? []) as WeekPost[];
     },
     enabled: !!wsFilter.value,
     staleTime: 2 * 60 * 1000,
@@ -550,21 +527,22 @@ export default function AdaptiveHome() {
           </button>
         </div>
 
-        {/* Hero */}
+        {/* Hero — bordeaux foncé : seule tache sombre de la page, impossible à
+            rater sur le fond grège (le rose pâle d'avant se fondait dedans) */}
         <div
           data-tour="card-next-step"
-          className="group rounded-3xl bg-gradient-to-br from-rose-pale/60 via-card to-card border border-border/60 p-7 sm:p-10 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
+          className="group rounded-3xl bg-[hsl(var(--bento-dark))] p-7 sm:p-10 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
           onClick={() => handleNavigate(hero.route)}
         >
-          <p className="font-mono-ui text-2xs text-foreground/60 uppercase tracking-[0.14em] font-semibold mb-4">
+          <p className="font-mono-ui text-2xs text-rose-soft/90 uppercase tracking-[0.14em] font-semibold mb-4">
             {hero.eyebrow}
           </p>
 
-          <h2 className="font-display text-[28px] sm:text-[32px] leading-[1.15] text-foreground">
+          <h2 className="font-display text-[28px] sm:text-[32px] leading-[1.15] text-white">
             {hero.title}
           </h2>
 
-          <p className="text-base text-foreground/70 mt-3 leading-relaxed line-clamp-2">
+          <p className="text-base text-white/70 mt-3 leading-relaxed line-clamp-2">
             {cleanText(recommendation.explanation)}
           </p>
 
@@ -577,7 +555,7 @@ export default function AdaptiveHome() {
                   type="button"
                   aria-label={`Créer un contenu ${label}`}
                   onClick={(e) => { e.stopPropagation(); navigate(`/creer?canal=${canal}`); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-transparent border border-border text-xs text-foreground/70 hover:bg-bordeaux hover:text-white hover:border-bordeaux transition-colors"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-transparent border border-white/25 text-xs text-white/80 hover:bg-white hover:text-bordeaux hover:border-white transition-colors"
                 >
                   <Icon className="h-3 w-3" />
                   {label}
@@ -587,7 +565,7 @@ export default function AdaptiveHome() {
           )}
 
           <Button
-            className="mt-7 w-full sm:w-auto h-12 px-7 rounded-full bg-bordeaux hover:bg-primary text-white text-base font-semibold shadow-sm hover:shadow-md transition-all"
+            className="mt-7 w-full sm:w-auto h-12 px-7 rounded-full bg-white hover:bg-rose-pale text-bordeaux text-base font-semibold shadow-sm hover:shadow-md transition-all"
             onClick={(e) => { e.stopPropagation(); handleNavigate(hero.route); }}
           >
             {hero.ctaLabel}
@@ -602,51 +580,49 @@ export default function AdaptiveHome() {
                 saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
                 navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
               }}
-              className="mt-3 ml-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-card/80 border border-border text-foreground/70 rounded-lg hover:border-primary/40 hover:text-primary transition-all"
+              className="mt-3 ml-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-transparent border border-white/25 text-white/70 rounded-lg hover:border-white/60 hover:text-white transition-all"
             >
               🎬 Lancer la démo carrousel
             </button>
           )}
         </div>
 
-        {/* Zone Piloter — liste éditoriale : la donnée vivante s'affiche dans la
-            description ou en métadonnée à droite, plus aucune carte-boîte */}
+        {/* Zone Cette semaine — la bande semaine EST le calendrier : ce qui est
+            prévu (réseau + format) et ce qui est libre, lisible en une seconde */}
+        <section>
+          <SectionLabel hint="ce qui est prévu, ce qui est libre">Cette semaine</SectionLabel>
+          <WeekStrip posts={upcomingPosts} isLoading={upcomingLoading} />
+        </section>
+
+        {/* Zone Piloter — liste éditoriale : la donnée vivante porte une
+            étiquette (« Dernière pépite ») au lieu de se fondre dans la phrase */}
         <section>
           <SectionLabel hint="ton quotidien">Piloter</SectionLabel>
           <div className="divide-y divide-border/70">
             <EditorialRow
-              icon={CalendarIcon}
-              title="Voir mon calendrier"
-              desc={
-                upcomingLoading ? (
-                  "…"
-                ) : upcomingPosts.length > 0 ? (
-                  <>
-                    Prochain contenu : {formatPill(upcomingPosts[0].format, upcomingPosts[0].canal).label.toLowerCase()}{" "}
-                    {formatShortDate(upcomingPosts[0].date).toLowerCase()}
-                    {upcomingPosts[0].theme ? ` — ${upcomingPosts[0].theme}` : ""}
-                  </>
-                ) : (
-                  "Rien de prévu pour l'instant — on planifie ta semaine ?"
-                )
-              }
-              onClick={() => handleNavigate("/calendrier")}
-            />
-            <EditorialRow
               dataTour="card-ideas"
               icon={Lightbulb}
-              title="Piocher dans mes idées"
-              desc={
-                ideaCount > 0 && latestIdea
-                  ? `Dernière pépite : ${latestIdea.titre ?? latestIdea.accroche_short ?? latestIdea.content_draft ?? ""}`
-                  : "Aucune idée encore — lance un brainstorm avec ta coach."
+              title={
+                <>
+                  Piocher dans mes idées
+                  {ideaCount > 0 && (
+                    <span className="font-body text-sm text-muted-foreground not-italic">
+                      {" "}— {ideaCount} en réserve
+                    </span>
+                  )}
+                </>
               }
-              meta={
-                ideaCount > 0 ? (
-                  <span className="font-display italic text-bordeaux text-xl leading-none">
-                    {ideaCount}
-                  </span>
-                ) : undefined
+              desc={
+                ideaCount > 0 && latestIdea ? (
+                  <>
+                    <span className="inline-block align-middle mr-1.5 px-2 py-px rounded-full bg-rose-soft text-bordeaux text-[11px] font-medium">
+                      Dernière pépite
+                    </span>
+                    {latestIdea.titre ?? latestIdea.accroche_short ?? latestIdea.content_draft ?? ""}
+                  </>
+                ) : (
+                  "Aucune idée encore — lance un brainstorm avec ta coach."
+                )
               }
               onClick={() => navigate("/idees")}
             />
