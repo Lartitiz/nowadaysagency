@@ -122,7 +122,7 @@ export default function PinterestEpingles() {
                     <label htmlFor={`pin-title-${i}`} className="text-xs font-semibold text-muted-foreground">Titre</label>
                     <div className="flex items-center gap-2">
                       <Input id={`pin-title-${i}`} value={v.title} readOnly className="flex-1" />
-                      <Button variant="ghost" size="sm" onClick={() => copyText(v.title)}><Copy className="h-3 w-3" /></Button>
+                      <Button variant="ghost" size="sm" aria-label="Copier le titre" title="Copier le titre" onClick={() => copyText(v.title)}><Copy className="h-3 w-3" /></Button>
                     </div>
                   </div>
                   <div>
@@ -151,8 +151,8 @@ export default function PinterestEpingles() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-bold text-foreground">{p.title || p.subject}</span>
                       <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="sm" onClick={() => copyText(`${p.title}\n\n${p.description}`)}><Copy className="h-3 w-3" /></Button>
-                        <Button variant="ghost" size="sm" onClick={() => p.id && deletePin(p.id)}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
+                        <Button variant="ghost" size="sm" aria-label="Copier l'épingle" title="Copier titre + description" onClick={() => copyText(`${p.title}\n\n${p.description}`)}><Copy className="h-3 w-3" /></Button>
+                        <Button variant="ghost" size="sm" aria-label="Supprimer l'épingle" title="Supprimer cette épingle" onClick={() => p.id && deletePin(p.id)}><Trash2 className="h-3 w-3 text-muted-foreground" /></Button>
                       </div>
                     </div>
                     <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>

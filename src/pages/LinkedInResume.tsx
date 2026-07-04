@@ -481,7 +481,7 @@ export default function LinkedInResume() {
                     <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{summaryStory}</p>
                     <CharacterCounter count={summaryStory.length} max={2600} />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => save(summaryStory)} className="rounded-pill gap-1.5">✅ Valider</Button>
+                      <Button size="sm" onClick={() => save(summaryStory)} className="rounded-pill gap-1.5">✅ Utiliser cette version</Button>
                       <Button variant="outline" size="sm" onClick={() => copyText(summaryStory, "story")} className="rounded-pill gap-1.5">
                         {copied === "story" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copier
                       </Button>
@@ -494,7 +494,7 @@ export default function LinkedInResume() {
                     <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{summaryPro}</p>
                     <CharacterCounter count={summaryPro.length} max={2600} />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => save(summaryPro)} className="rounded-pill gap-1.5">✅ Valider</Button>
+                      <Button size="sm" onClick={() => save(summaryPro)} className="rounded-pill gap-1.5">✅ Utiliser cette version</Button>
                       <Button variant="outline" size="sm" onClick={() => copyText(summaryPro, "pro")} className="rounded-pill gap-1.5">
                         {copied === "pro" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copier
                       </Button>

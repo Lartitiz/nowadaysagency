@@ -300,7 +300,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
                         updated[idx] = { ...c, text: editedText };
                         setComments(updated);
                         setEditingIdx(null);
-                      }}>Valider</Button>
+                      }}>Valider le commentaire</Button>
                       <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingIdx(null)}>Annuler</Button>
                     </div>
                   </div>

@@ -475,7 +475,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
                 if (key === "a") setVariants({ ...variants, variant_a: editedText });
                 else setVariants({ ...variants, variant_b: editedText });
                 setEditingVariant(null);
-              }}>Valider</Button>
+              }}>Valider le message</Button>
               <Button size="sm" variant="ghost" className="text-xs" onClick={() => setEditingVariant(null)}>Annuler</Button>
             </div>
           </div>

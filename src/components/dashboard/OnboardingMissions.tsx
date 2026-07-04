@@ -39,7 +39,7 @@ export default function OnboardingMissions({ prenom }: OnboardingMissionsProps) 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="font-heading text-base font-bold text-foreground">
-          🚀 Tes premières missions
+          🚀 Tes premiers pas
         </h2>
         <div className="flex items-center gap-2">
           <span className="text-sm text-muted-foreground">{completedCount}/{missions.length}</span>

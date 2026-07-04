@@ -19,7 +19,7 @@ export default function SeoHub() {
       <AppHeader />
       <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
         <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-          <ArrowLeft className="h-4 w-4" /> Retour au hub
+          <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
         </Link>
         <div className="mb-8">
           <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">🔎 Mon SEO</h1>

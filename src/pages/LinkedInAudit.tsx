@@ -353,7 +353,7 @@ export default function LinkedInAudit() {
                       return (
                         <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-border">
                           <img loading="lazy" src={s.preview} alt="Aperçu du post LinkedIn" className="w-full h-full object-cover" />
-                          <button onClick={() => removeScreenshot(idx)} className="absolute top-0 right-0 bg-background/80 rounded-full p-0.5"><X className="h-3 w-3" /></button>
+                          <button onClick={() => removeScreenshot(idx)} aria-label="Retirer cette capture" title="Retirer cette capture" className="absolute top-0 right-0 bg-background/80 rounded-full p-0.5"><X className="h-3 w-3" /></button>
                         </div>
                       );
                     })}
@@ -670,7 +670,7 @@ export default function LinkedInAudit() {
             <RotateCcw className="h-4 w-4" /> Refaire l'audit
           </Button>
           <Button onClick={() => navigate("/linkedin")} className="gap-2 rounded-pill">
-            Retour au hub LinkedIn <ArrowRight className="h-4 w-4" />
+            Retour à Mon LinkedIn <ArrowRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

@@ -710,7 +710,7 @@ export default function BrandingPage() {
           {topView === "identity" && (
             <motion.div key="identity" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
-                <ArrowLeft className="h-4 w-4" /> Retour au hub
+                <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
               </Link>
 
               {!coachingActive && <AuditRecommendationBanner />}

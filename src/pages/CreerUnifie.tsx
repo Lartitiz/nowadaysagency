@@ -2528,7 +2528,7 @@ export default function CreerUnifie() {
         permalink
           ? "Publié sur Instagram ! Ouvre ton profil pour le voir."
           : "Publié sur Instagram !",
-        permalink ? { action: { label: "Voir", onClick: () => window.open(permalink, "_blank") } } : undefined,
+        permalink ? { action: { label: "Voir sur Instagram", onClick: () => window.open(permalink, "_blank") } } : undefined,
       );
     } catch (e: any) {
       const msg = e?.message || "Échec de la publication Instagram.";
@@ -2583,7 +2583,7 @@ export default function CreerUnifie() {
         res.permalink
           ? "Publié sur LinkedIn ! Ouvre ton profil pour le voir."
           : "Publié sur LinkedIn !",
-        res.permalink ? { action: { label: "Voir", onClick: () => window.open(res.permalink, "_blank") } } : undefined,
+        res.permalink ? { action: { label: "Voir sur LinkedIn", onClick: () => window.open(res.permalink, "_blank") } } : undefined,
       );
     } catch (e: any) {
       const msg = e?.message || "Échec de la publication LinkedIn.";

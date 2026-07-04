@@ -136,9 +136,9 @@ function GuideBanner() {
 }
 
 const PHASE_CONFIG = {
-  construction: { emoji: "🌱", label: "En construction", className: "bg-success-bg text-success" },
-  action: { emoji: "🚀", label: "En action", className: "bg-warning-bg text-warning" },
-  pilotage: { emoji: "⭐", label: "Pilotage", className: "bg-pink-100 text-pink-700" },
+  construction: { emoji: "🌱", label: "Je pose mes bases", className: "bg-success-bg text-success" },
+  action: { emoji: "🚀", label: "Je passe à l’action", className: "bg-warning-bg text-warning" },
+  pilotage: { emoji: "⭐", label: "Je pilote", className: "bg-pink-100 text-pink-700" },
 } as const;
 
 function PhaseBadge() {
