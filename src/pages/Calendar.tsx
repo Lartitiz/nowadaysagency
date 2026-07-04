@@ -711,24 +711,44 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     } as any;
   };
 
-  /** Unplan a post: move it back to saved_ideas */
-  const handleUnplan = async () => {
-    if (!editingPost || !user) return;
-    const payload = await buildIdeaPayloadFromPost(editingPost);
-    if (!payload) return;
-    const { error: insertError } = await supabase.from("saved_ideas").insert(payload);
-    if (insertError) {
+  /** Unplan a post: move it back to saved_ideas (reuses the linked idea instead of duplicating it) */
+  const unplanPost = async (post: CalendarPost): Promise<boolean> => {
+    if (!user) return false;
+    const payload = await buildIdeaPayloadFromPost(post);
+    if (!payload) return false;
+    // Si le post vient d'une idée du panneau, on met à jour cette idée au lieu d'en créer un doublon
+    const { data: linkedIdea } = await (supabase.from("saved_ideas") as any)
+      .select("id")
+      .eq("calendar_post_id", post.id)
+      .limit(1)
+      .maybeSingle();
+    const { error: writeError } = linkedIdea
+      ? await (supabase.from("saved_ideas") as any)
+          .update({ ...payload, calendar_post_id: null, planned_date: null })
+          .eq("id", linkedIdea.id)
+      : await supabase.from("saved_ideas").insert(payload);
+    if (writeError) {
       toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
       fetchPosts();
-      return;
+      return false;
     }
-    // Delete calendar post
-    await supabase.from("calendar_posts").delete().eq("id", editingPost.id);
-    setDialogOpen(false);
+    const { error: deleteError } = await supabase.from("calendar_posts").delete().eq("id", post.id);
+    if (deleteError) {
+      toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
+      fetchPosts();
+      setIdeasRefreshKey(k => k + 1);
+      return false;
+    }
     fetchPosts();
-    // Refresh sidebar
     setIdeasRefreshKey(k => k + 1);
     toast.success("Remis en idée !");
+    return true;
+  };
+
+  const handleUnplan = async () => {
+    if (!editingPost) return;
+    const ok = await unplanPost(editingPost);
+    if (ok) setDialogOpen(false);
   };
 
   const handleIdeaClick = (idea: SavedIdea) => {
@@ -766,16 +786,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     // Drop on ideas sidebar = unplan
     if (overId === "ideas-sidebar") {
       if (data?.type === "idea") return; // already an idea
-      const postId = active.id as string;
-      const post = posts.find(p => p.id === postId);
+      const post = posts.find(p => p.id === active.id);
       if (!post) return;
-      const payload = await buildIdeaPayloadFromPost(post);
-      if (!payload) return;
-      await supabase.from("saved_ideas").insert(payload);
-      await supabase.from("calendar_posts").delete().eq("id", post.id);
-      fetchPosts();
-      setIdeasRefreshKey(k => k + 1);
-      toast.success("Remis en idée !");
+      await unplanPost(post);
       return;
     }
 
