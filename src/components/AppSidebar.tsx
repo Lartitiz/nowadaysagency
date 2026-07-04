@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -78,6 +79,11 @@ export default function AppSidebar() {
 
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
+  // Modules désactivés (feature-flags) : mêmes règles que ProtectedRoute, sinon la
+  // sidebar affiche des liens morts (clic → redirection dashboard) aux non-admins.
+  const visibleSections = NAV_SECTIONS
+    .map((section) => ({ ...section, items: section.items.filter((i) => isRouteVisible(i.path, isAdmin)) }))
+    .filter((section) => section.items.length > 0);
   // Garde anti-perte : "Nouveau contenu" (fresh start) efface le flux + les
   // photos en cours. Si un travail est en cours, on confirme avant de vider.
   const [freshStartTarget, setFreshStartTarget] = useState<string | null>(null);
@@ -250,7 +256,7 @@ export default function AppSidebar() {
             Accueil
           </Link>
 
-          {NAV_SECTIONS.map((section) => (
+          {visibleSections.map((section) => (
             <div key={section.label} className="pt-3">
               <div className="font-mono-ui text-2xs text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
                 {section.label}

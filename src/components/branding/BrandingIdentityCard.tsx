@@ -184,7 +184,9 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
   const proposition = summaries.proposition?.phrase;
   const hasProposition = !!proposition && completion.proposition > 0;
 
-  const incompleteSections = SECTIONS.filter(s => completion[s.key] < 50);
+  // Même seuil que StatusDot (< 100 = pastille orange/grise) : sinon le bandeau
+  // annonce « 1 section à compléter » quand la grille montre 2 pastilles non vertes.
+  const incompleteSections = SECTIONS.filter(s => completion[s.key] < 100);
   const firstIncomplete = incompleteSections[0];
 
   return (

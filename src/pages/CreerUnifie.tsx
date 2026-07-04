@@ -170,6 +170,9 @@ export default function CreerUnifie() {
       return hasIdea ? "format" : "idea";
     }
     if (ps.step === "result" && ps.result) return "result";
+    // Génération interrompue (reload/fermeture mi-streaming) : le crédit est déjà
+    // débité — on restaure le texte déjà écrit au lieu de renvoyer à l'étape format.
+    if (ps.step === "result" && !ps.result && (ps.pendingStream?.text?.length ?? 0) > 40) return "result";
     if (ps.step === "edit" && ps.editContent) return "edit";
     // structure_review dépend de `structureProposal`, qui n'est PAS persisté →
     // au reload il repart à null et l'écran serait vide. On retombe donc sur
@@ -381,6 +384,22 @@ export default function CreerUnifie() {
       const raw: any = (ps.result as any)?.raw;
       if (raw?.pin_html) setPinterestPinHtml(raw.pin_html);
       if (raw?.overlay_html) setPhotoBriefOverlayHtml(raw.overlay_html);
+    } else if (!ps?.result && !result && (ps?.pendingStream?.text?.length ?? 0) > 40 && safeStep === "result") {
+      // Génération interrompue : on reconstruit un résultat depuis le texte déjà
+      // streamé (même parse tolérant que generateStream) — le crédit était débité.
+      const text = ps!.pendingStream!.text;
+      let parsed: any;
+      try {
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: text };
+      } catch {
+        parsed = { content: text };
+      }
+      setResult({ type: (ps!.pendingStream!.format || ps?.selectedFormat || "post") as any, raw: parsed });
+      saveFlowState({ pendingStream: null });
+      toast("💾 J'ai récupéré le texte généré avant l'interruption.", {
+        description: "Vérifie-le : il peut être incomplet. « Regénérer » en refait une version (1 crédit).",
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -446,6 +465,27 @@ export default function CreerUnifie() {
       });
     }
   }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription, isLinkedInCarousel]);
+
+  // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
+  // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
+  // l'étape format et JETAIT le texte — crédit déjà débité (QA compte neuf 04/07).
+  const lastStreamSaveRef = useRef(0);
+  useEffect(() => {
+    if (!streaming || !streamingContent) return;
+    const now = Date.now();
+    if (now - lastStreamSaveRef.current < 1500) return;
+    lastStreamSaveRef.current = now;
+    saveFlowState({
+      step: "result",
+      pendingStream: { text: streamingContent, format: selectedFormat || "post", ts: now },
+    });
+  }, [streaming, streamingContent, selectedFormat]);
+
+  // Une fois le résultat en place (stream terminé ou restauration), purger le
+  // texte partiel : il ne doit resservir qu'en cas d'interruption réelle.
+  useEffect(() => {
+    if (result) saveFlowState({ pendingStream: null });
+  }, [result]);
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);

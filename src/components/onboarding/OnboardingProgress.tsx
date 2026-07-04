@@ -24,7 +24,7 @@ export default function OnboardingProgress({ step, totalSteps, progress, onBack 
       {step > 0 && step < 11 && (
         <button
           onClick={onBack}
-          className="fixed top-4 left-4 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
+          className="fixed top-5 left-16 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Retour
         </button>

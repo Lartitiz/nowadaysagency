@@ -256,7 +256,7 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
         <EditableText
           value={card.content}
           onSave={(v) => onSave(index, v)}
-          className="text-sm text-muted-foreground leading-relaxed"
+          className="text-sm text-muted-foreground leading-relaxed whitespace-pre-line"
           placeholder="Cliquer pour modifier"
         />
       ) : (

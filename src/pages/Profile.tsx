@@ -33,6 +33,18 @@ const ACTIVITY_TYPES = [
   { id: "autre", label: "Autre" },
 ];
 
+// L'onboarding écrit des types fins (artisane, coach, consultante…) ; cette page
+// n'affiche que 5 familles. Sans ce pont, le type choisi à l'onboarding paraît
+// perdu (aucune carte sélectionnée). On ne réécrit type_activite en famille QUE
+// si l'utilisatrice clique — jamais silencieusement au chargement.
+const ONBOARDING_TYPE_TO_FAMILY: Record<string, string> = {
+  artisane: "creatrice", mode_textile: "creatrice", art_design: "creatrice",
+  deco_interieur: "creatrice", beaute_cosmetiques: "creatrice", boutique: "creatrice",
+  bien_etre: "accompagnante", coach: "accompagnante", coach_sportive: "accompagnante", formatrice: "accompagnante",
+  consultante: "prestataire",
+};
+const activityFamily = (t: string) => ONBOARDING_TYPE_TO_FAMILY[t] || t;
+
 const GOAL_OPTIONS = [
   { key: "start", emoji: "🌱", label: "Poser les bases" },
   { key: "visibility", emoji: "📱", label: "Être visible" },
@@ -365,7 +377,7 @@ export default function Profile() {
             <div className="grid grid-cols-2 gap-3">
               {ACTIVITY_TYPES.map((t) => (
                 <button key={t.id} onClick={() => update("typeActivite", t.id)}
-                  className={`rounded-lg border-2 p-3 text-left text-sm font-medium transition-all ${current.typeActivite === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"}`}>
+                  className={`rounded-lg border-2 p-3 text-left text-sm font-medium transition-all ${activityFamily(current.typeActivite) === t.id ? "border-primary bg-secondary" : "border-border hover:border-primary/40"}`}>
                   {t.label}
                 </button>
               ))}

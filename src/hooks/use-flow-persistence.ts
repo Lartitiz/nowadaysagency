@@ -19,6 +19,10 @@ interface FlowState {
   inspirationAnalysis: any;
   inspirationProposals: any[];
   inspirationImagePreview: string | null;
+  // Filet anti-perte : texte déjà streamé pendant une génération en cours.
+  // Un reload/fermeture mi-streaming renvoyait à l'étape format et jetait le
+  // texte alors que le crédit était déjà débité — on le restaure à la place.
+  pendingStream?: { text: string; format: string; ts: number } | null;
   demoScenario?: string | null;
   editingIdeaId?: string | null;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | null;
