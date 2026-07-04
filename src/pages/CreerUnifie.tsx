@@ -386,14 +386,29 @@ export default function CreerUnifie() {
       if (raw?.overlay_html) setPhotoBriefOverlayHtml(raw.overlay_html);
     } else if (!ps?.result && !result && (ps?.pendingStream?.text?.length ?? 0) > 40 && safeStep === "result") {
       // Génération interrompue : on reconstruit un résultat depuis le texte déjà
-      // streamé (même parse tolérant que generateStream) — le crédit était débité.
+      // streamé — le crédit était débité. Le stream étant coupé net, le JSON est
+      // souvent TRONQUÉ : JSON.parse échoue et le repli { content: texte brut }
+      // affichait le JSON tel quel dans la préviz (vu au re-test live 04/07).
+      // On extrait donc "content" même d'un JSON incomplet.
       const text = ps!.pendingStream!.text;
       let parsed: any;
       try {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
-        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: text };
+        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
       } catch {
-        parsed = { content: text };
+        parsed = null;
+      }
+      if (!parsed) {
+        const contentMatch = text.match(/"content"\s*:\s*"((?:[^"\\]|\\.)*)/);
+        if (contentMatch) {
+          try {
+            parsed = { content: JSON.parse(`"${contentMatch[1]}"`) };
+          } catch {
+            parsed = { content: contentMatch[1].replace(/\\n/g, "\n").replace(/\\"/g, '"') };
+          }
+        } else {
+          parsed = { content: text.replace(/^```(?:json)?\s*/, "").replace(/```\s*$/, "") };
+        }
       }
       setResult({ type: (ps!.pendingStream!.format || ps?.selectedFormat || "post") as any, raw: parsed });
       saveFlowState({ pendingStream: null });
