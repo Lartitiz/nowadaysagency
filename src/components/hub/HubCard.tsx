@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
+import { ArrowRight } from "lucide-react";
 
 function HubCard({
   to,
@@ -31,8 +32,12 @@ function HubCard({
         </span>
       )}
       <span className="text-2xl mb-2 block">{emoji}</span>
-      <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
-        {title}
+      {/* Flèche toujours visible : sans elle, rien n'indique que la card est cliquable */}
+      <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors flex items-center justify-between gap-2">
+        <span>{title}</span>
+        {!disabled && (
+          <ArrowRight className="h-4 w-4 shrink-0 text-primary/60 group-hover:text-primary group-hover:translate-x-0.5 transition-all" aria-hidden="true" />
+        )}
       </h3>
       <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{desc}</p>
       {progressLabel && (

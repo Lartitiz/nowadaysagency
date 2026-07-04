@@ -120,16 +120,16 @@ export default function InstagramHub() {
                 </span>
                 <span className="text-2xl mb-2 block">✨</span>
                 <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
-                  Coaching profil
+                  Optimiser mon profil avec l'IA
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">L'IA t'aide à optimiser ton profil, question par question.</p>
               </div>
             </button>
             <FirstTimeTooltip id="instagram-profil" text="Analyse ton profil : bio, feed, cohérence visuelle.">
-              <HubCard to="/instagram/profil" emoji="👤" title="Mon profil" desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom." />
+              <HubCard to="/instagram/profil" emoji="👤" title="Auditer mon profil" desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom." />
             </FirstTimeTooltip>
             <FirstTimeTooltip id="instagram-stats" text="Tes KPIs mensuels avec graphiques d'évolution.">
-              <HubCard to="/instagram/stats" emoji="📈" title="Mes stats" desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution." />
+              <HubCard to="/instagram/stats" emoji="📈" title="Suivre mes stats" desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution." />
             </FirstTimeTooltip>
           </div>
         </ZoneSection>
@@ -153,10 +153,10 @@ export default function InstagramHub() {
         {/* ─── ZONE 3 : ENGAGER & PLANIFIER ─── */}
         <ZoneSection emoji="💬" title={<><span className="text-primary font-bold">3.</span> 💬 Engager & Planifier</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <HubCard to="/instagram/routine" emoji="💬" title="Routine d'engagement" desc="Tes actions hebdo pour créer du lien avec ta communauté." />
-            <HubCard to="/calendrier?canal=instagram" emoji="📅" title="Mon calendrier" desc="Planifie tes posts et visualise ton mois." />
-            <HubCard to="/idees?canal=instagram" emoji="💡" title="Mes idées" desc="Ta banque d'idées sauvegardées." />
-            <HubCard to="/instagram/lancement" emoji="🚀" title="Mon lancement" desc="Plan de lancement guidé." />
+            <HubCard to="/instagram/routine" emoji="💬" title="Faire ma routine d'engagement" desc="Tes actions hebdo pour créer du lien avec ta communauté." />
+            <HubCard to="/calendrier?canal=instagram" emoji="📅" title="Planifier mon mois" desc="Ton calendrier Instagram : pose tes posts, visualise ta régularité." />
+            <HubCard to="/idees?canal=instagram" emoji="💡" title="Piocher dans mes idées" desc="Ta banque d'idées sauvegardées." />
+            <HubCard to="/instagram/lancement" emoji="🚀" title="Préparer mon lancement" desc="Plan de lancement guidé, étape par étape." />
           </div>
         </ZoneSection>
 
