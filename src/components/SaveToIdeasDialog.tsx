@@ -141,15 +141,17 @@ export function SaveToIdeasDialog({
       try {
         const urls = await onUploadVisuals(targetId);
         if (urls.length > 0) {
-          await supabase
+          const { error: visualError } = await supabase
             .from("saved_ideas")
             .update({
               content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
             } as any)
             .eq("id", targetId);
+          if (visualError) throw visualError;
         }
       } catch (e) {
         console.warn("Visual upload failed (idea saved without visuals):", e);
+        toast.warning("Idée sauvegardée, mais ses visuels n'ont pas pu y être attachés.");
       }
     }
 

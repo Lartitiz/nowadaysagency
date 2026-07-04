@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "@/contexts/SessionContext";
 import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import Confetti from "@/components/Confetti";
 
 function formatTime(s: number): string {
@@ -124,6 +125,7 @@ export default function SessionOverlay() {
     currentTaskIndex,
   } = useSession();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   // Navigate to the current task route whenever it changes
   useEffect(() => {
@@ -139,8 +141,12 @@ export default function SessionOverlay() {
     ? taskElapsedSeconds > currentTask.duration
     : false;
 
-  const handleQuit = () => {
-    if (window.confirm("Tu veux vraiment quitter la session ?")) {
+  const handleQuit = async () => {
+    if (await confirm({
+      title: "Quitter la session ?",
+      description: "Ta progression sur la tâche en cours ne sera pas comptée.",
+      confirmText: "Quitter la session",
+    })) {
       endSession();
       navigate("/dashboard");
     }

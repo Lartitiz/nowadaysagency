@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Plus, Star, Hash, Trash2, Crown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { PersonaSummary } from "@/hooks/use-personas";
 
 const AVAILABLE_CHANNELS = [
@@ -36,6 +37,7 @@ export default function PersonaList({
   onCreateNew,
 }: PersonaListProps) {
   const [channelPopoverId, setChannelPopoverId] = useState<string | null>(null);
+  const confirm = useConfirm();
 
   if (personas.length === 0) {
     return (
@@ -167,8 +169,13 @@ export default function PersonaList({
 
                   {!p.is_primary && personas.length > 1 && (
                     <button
-                      onClick={() => {
-                        if (confirm("Supprimer ce persona ?")) onDelete(p.id);
+                      onClick={async () => {
+                        if (await confirm({
+                          title: "Supprimer ce persona ?",
+                          description: "Cette action est irréversible.",
+                          confirmText: "Supprimer",
+                          destructive: true,
+                        })) onDelete(p.id);
                       }}
                       className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                       title="Supprimer"

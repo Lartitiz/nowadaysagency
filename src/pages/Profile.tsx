@@ -286,7 +286,10 @@ export default function Profile() {
         if (current.mainGoal) configUpdate.main_goal = current.mainGoal;
         if (current.level) configUpdate.level = current.level;
         if (current.weeklyTime) configUpdate.weekly_time = current.weeklyTime;
-        await (supabase.from("user_plan_config") as any).update(configUpdate).eq(column, value);
+        const { error: configError } = await (supabase.from("user_plan_config") as any)
+          .update(configUpdate)
+          .eq(column, value);
+        if (configError) throw configError;
       }
 
       setSaved({ ...current });
