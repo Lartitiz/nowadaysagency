@@ -2,6 +2,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders, corsHeaders } from "../_shared/cors.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
+// Comptes internes exclus des STATISTIQUES (mode=stats uniquement — ils restent
+// visibles dans la liste utilisatrices). L'usage des comptes de test Playwright/QA
+// polluait le tunnel d'activation et les actives semaine/mois.
+const EXCLUDED_STATS_EMAILS = [
+  ADMIN_EMAIL,
+  "laetitiatest@nowadaysagency.com", // « Camille » — compte test de référence (visite Playwright quotidienne)
+  "laetitia+qaneuf0407@nowadaysagency.com", // « Élodie » — QA compte neuf à froid du 04/07
+];
 const PLAN_PRICES: Record<string, number> = { outil: 39, binome: 250, pro: 79 };
 
 Deno.serve(async (req) => {
@@ -241,15 +249,17 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   }
 
   const profiles = profilesRes.data || [];
-  const adminUserId = profiles.find((p: any) => p.email === ADMIN_EMAIL)?.user_id;
-  const clientProfiles = profiles.filter((p: any) => p.user_id !== adminUserId);
+  const excludedIds = new Set(
+    profiles.filter((p: any) => EXCLUDED_STATS_EMAILS.includes(p.email)).map((p: any) => p.user_id)
+  );
+  const clientProfiles = profiles.filter((p: any) => !excludedIds.has(p.user_id));
 
   const totalUsers = clientProfiles.length;
   const newThisMonth = clientProfiles.filter((p: any) => p.created_at >= monthStart).length;
   const onboardingCompleted = clientProfiles.filter((p: any) => p.onboarding_completed).length;
 
   // Previous month comparisons (hors compte admin pour ne pas fausser l'usage réel)
-  const aiPrevData = (aiPrevRes.data || []).filter((a: any) => a.user_id !== adminUserId);
+  const aiPrevData = (aiPrevRes.data || []).filter((a: any) => !excludedIds.has(a.user_id));
   const prevActiveUserIds = new Set(aiPrevData.map((a: any) => a.user_id));
   const newPrevMonth = clientProfiles.filter((p: any) => p.created_at >= prevMonthStart && p.created_at < prevMonthEnd).length;
 
@@ -268,8 +278,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   }
 
   // Séparer les vraies abonnées payantes des accès promo
-  const paidSubs = subs.filter((s: any) => s.source !== "promo" && !["now_pilot", "studio"].includes(s.plan) && s.user_id !== adminUserId);
-  const promoSubs = subs.filter((s: any) => (s.source === "promo" || ["now_pilot", "studio"].includes(s.plan)) && s.user_id !== adminUserId);
+  const paidSubs = subs.filter((s: any) => s.source !== "promo" && !["now_pilot", "studio"].includes(s.plan) && !excludedIds.has(s.user_id));
+  const promoSubs = subs.filter((s: any) => (s.source === "promo" || ["now_pilot", "studio"].includes(s.plan)) && !excludedIds.has(s.user_id));
 
   // Business metrics : seulement les abonnements payants (pas les promos)
   const activePaidSubs = paidSubs.filter((s: any) => (s.status === "active" || s.status === "trialing") && s.plan !== "free");
@@ -287,7 +297,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const conversionRate = totalUsers > 0 ? Math.round((paidUsers / totalUsers) * 100) : 0;
 
   // AI usage current month (hors compte admin : tes propres tests/démos ne comptent pas)
-  const aiData = (aiRes.data || []).filter((a: any) => a.user_id !== adminUserId);
+  const aiData = (aiRes.data || []).filter((a: any) => !excludedIds.has(a.user_id));
   const activeUserIds = new Set(aiData.map((a: any) => a.user_id));
   const aiByCategory: Record<string, number> = {};
   const aiByActionType: Record<string, number> = {};
@@ -313,7 +323,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     .filter(([userId, count]) => {
       const sub = subsByUser.get(userId);
       const plan = sub?.plan || "free";
-      return plan === "free" && count >= 48 && userId !== adminUserId;
+      return plan === "free" && count >= 48 && !excludedIds.has(userId);
     })
     .map(([userId, count]) => {
       const prof = profiles.find((p: any) => p.user_id === userId);
@@ -334,8 +344,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const now30 = new Date(now); now30.setDate(now30.getDate() - 30);
   let activeWeek = 0;
   let activeMonth = 0;
-  for (const [, lastSign] of authMap) {
-    if (!lastSign) continue;
+  for (const [uid, lastSign] of authMap) {
+    if (!lastSign || excludedIds.has(uid)) continue;
     const d = new Date(lastSign);
     if (d >= now7) activeWeek++;
     if (d >= now30) activeMonth++;
@@ -384,7 +394,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
 
   // Power users (exclude admin)
   const powerUsers = [...aiCountByUser.entries()]
-    .filter(([userId]) => userId !== adminUserId)
+    .filter(([userId]) => !excludedIds.has(userId))
     .sort((a, b) => b[1] - a[1])
     .slice(0, 10)
     .map(([userId, count]) => {
@@ -394,9 +404,9 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
     });
 
   // Content metrics
-  const drafts = (draftsRes.data || []).filter((d: any) => d.user_id !== adminUserId);
-  const calPosts = (calendarRes.data || []).filter((c: any) => c.user_id !== adminUserId);
-  const scores = (scoresRes.data || []).filter((r: any) => r.user_id !== adminUserId);
+  const drafts = (draftsRes.data || []).filter((d: any) => !excludedIds.has(d.user_id));
+  const calPosts = (calendarRes.data || []).filter((c: any) => !excludedIds.has(c.user_id));
+  const scores = (scoresRes.data || []).filter((r: any) => !excludedIds.has(r.user_id));
   const draftsByCanalMap: Record<string, number> = {};
   for (const d of drafts) { const c = d.canal || "autre"; draftsByCanalMap[c] = (draftsByCanalMap[c] || 0) + 1; }
   const calendarByCanalMap: Record<string, number> = {};
