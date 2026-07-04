@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace, type Workspace } from "@/contexts/WorkspaceContext";
 import { toast } from "sonner";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import type { ProgramWithProfile, SessionData } from "./admin-coaching-types";
 
 interface CoachingProgramListProps {
@@ -27,6 +28,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
   const { user } = useAuth();
   const { switchWorkspace } = useWorkspace();
   const navigate = useNavigate();
+  const confirm = useConfirm();
 
   const activePrograms = programs.filter(p => p.status === "active" || p.status === "paused");
   const completedPrograms = programs.filter(p => p.status === "completed");
@@ -126,9 +128,11 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
 
   const handleLeaveOrDeleteWs = async (wsId: string, wsName: string, hasOthers: boolean) => {
     if (hasOthers) {
-      const confirmed = window.confirm(
-        `L'espace « ${wsName} » a d'autres membres. Tu vas le quitter (l'espace ne sera pas supprimé). Continuer ?`
-      );
+      const confirmed = await confirm({
+        title: `Quitter l'espace « ${wsName} » ?`,
+        description: "Cet espace a d'autres membres : tu vas le quitter, l'espace ne sera pas supprimé.",
+        confirmText: "Quitter l'espace",
+      });
       if (!confirmed) return;
       setDeletingWs(wsId);
       const { error } = await supabase
@@ -143,9 +147,12 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
       }
       toast.success(`Tu as quitté l'espace « ${wsName} »`);
     } else {
-      const confirmed = window.confirm(
-        `Supprimer définitivement l'espace « ${wsName} » et toutes ses données (branding, contenus, calendrier…) ? Action irréversible.`
-      );
+      const confirmed = await confirm({
+        title: `Supprimer l'espace « ${wsName} » ?`,
+        description: "Toutes ses données (branding, contenus, calendrier…) seront supprimées définitivement. Action irréversible.",
+        confirmText: "Supprimer définitivement",
+        destructive: true,
+      });
       if (!confirmed) return;
       setDeletingWs(wsId);
       const { error } = await supabase.rpc("delete_workspace_with_cleanup" as any, { _workspace_id: wsId });
@@ -186,9 +193,12 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
           if (existing && existing.length > 0) {
             const targetWsId = (existing[0] as any).workspace_id;
             const targetWsName = (existing[0] as any).workspaces?.name || profile.prenom || trimmedEmail;
-            const confirmed = window.confirm(
-              `${profile.prenom || trimmedEmail} a déjà un espace « ${targetWsName} ».\n\nOK = t'attacher à cet espace existant (recommandé)\nAnnuler = créer un NOUVEAU espace en doublon`
-            );
+            const confirmed = await confirm({
+              title: "Un espace existe déjà",
+              description: `${profile.prenom || trimmedEmail} a déjà un espace « ${targetWsName} ». Recommandé : t'attacher à cet espace existant plutôt que créer un doublon.`,
+              confirmText: "M'attacher à l'espace existant",
+              cancelText: "Créer un doublon",
+            });
 
             if (confirmed) {
               // Attach as manager

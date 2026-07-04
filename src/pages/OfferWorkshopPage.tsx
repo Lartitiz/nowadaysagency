@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import OfferSynthesisCard from "@/components/branding/OfferSynthesisCard";
 import { friendlyError } from "@/lib/error-messages";
@@ -46,6 +47,7 @@ export default function OfferWorkshopPage() {
   const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") === "synthese" ? "synthese" : "workshop";
   const [workshopTab, setWorkshopTab] = useState(initialTab);
@@ -254,7 +256,12 @@ export default function OfferWorkshopPage() {
 
   const deleteOffer = async () => {
     if (!id) return;
-    if (!confirm("Supprimer cette offre ?")) return;
+    if (!(await confirm({
+      title: "Supprimer cette offre ?",
+      description: "La fiche et toutes ses étapes seront supprimées. Cette action est irréversible.",
+      confirmText: "Supprimer",
+      destructive: true,
+    }))) return;
     const { error } = await supabase.from("offers").delete().eq("id", id);
     if (error) { toast.error("Erreur de suppression"); return; }
     navigate("/branding/offres");

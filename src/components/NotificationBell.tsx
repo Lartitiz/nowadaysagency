@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/popover";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
@@ -58,18 +59,21 @@ export default function NotificationBell() {
   }, [user?.id]);
 
   const markRead = async (id: string) => {
-    await supabase.from("notifications").update({ read: true }).eq("id", id);
+    const { error } = await supabase.from("notifications").update({ read: true }).eq("id", id);
+    if (error) { toast.error("Impossible de marquer la notification comme lue"); return; }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   const markAllRead = async () => {
     if (!user) return;
-    await (supabase.from("notifications") as any).update({ read: true }).eq(column, value).eq("read", false);
+    const { error } = await (supabase.from("notifications") as any).update({ read: true }).eq(column, value).eq("read", false);
+    if (error) { toast.error("Impossible de tout marquer comme lu"); return; }
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
   const deleteNotif = async (id: string) => {
-    await supabase.from("notifications").delete().eq("id", id);
+    const { error } = await supabase.from("notifications").delete().eq("id", id);
+    if (error) { toast.error("Impossible de supprimer la notification"); return; }
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   };
 
