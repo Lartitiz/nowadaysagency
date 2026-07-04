@@ -105,12 +105,15 @@ Structure attendue :
     "goals": ["objectif 1", "objectif 2"],
     "frustrations": ["frustration 1", "frustration 2"],
     "desires": ["désir 1", "désir 2"],
+    "objections": ["objection ou frein à l'achat 1", "objection 2"],
+    "transformation": "la transformation concrète que vit la cliente grâce à cette marque ou null",
     "beautiful_world": "dans un monde idéal, à quoi ressemblerait la situation de cette personne ou null",
     "first_actions": "premières actions concrètes en travaillant avec cette marque ou null"
   },
   "content_strategy_prefill": {
     "confidence": "high|medium|low",
     "pillars": [{"label": "nom du pilier thématique", "description": "de quoi on parle concrètement dans ce pilier"}],
+    "hidden_facets": ["facette personnelle ou coulisse que la marque pourrait montrer 1", "facette 2"],
     "creative_twist": "angle créatif unique ou null",
     "formats": ["format 1", "format 2"],
     "rhythm": "rythme de publication détecté ou null",
@@ -132,7 +135,8 @@ Précisions importantes :
   2. Si AUCUNE donnée CSS n'est présente (cas fréquent avec Squarespace, Wix, Webflow) → propose une palette d'ambiance cohérente avec le positionnement, l'univers et le ton de la marque. Choisis des couleurs qui reflètent l'identité visuelle perçue du site (tons sombres pour un univers luxe/intime, tons chauds pour l'artisanat, pastels pour le bien-être, etc.). confidence: "low". Pour les typos sans données CSS, propose une paire titre/corps cohérente avec l'ambiance (serif élégante pour le luxe, sans-serif ronde pour le friendly, etc.).
 
   Dans les DEUX cas : mood_keywords et photo_style sont toujours déduits du contenu.
-- Pour le persona, déduis à partir du positionnement et du contenu : à qui s'adresse cette personne ?
+- Pour le persona, déduis à partir du positionnement et du contenu : à qui s'adresse cette personne ? Les objections = ce qui freine cette cible avant d'acheter (prix, légitimité, timing…), formulées comme elle les dirait. La transformation = l'avant/après concret vécu grâce à la marque.
+- Pour hidden_facets : 2-3 facettes intimes ou coulisses que cette marque gagnerait à montrer dans sa communication (déduites du à propos, du parcours, des valeurs) — pas des thématiques de contenu, des zones de vulnérabilité ou d'authenticité.
 - Pour la stratégie de contenu : les piliers sont des THÉMATIQUES DE CONTENU, pas des conseils génériques. Chaque pilier = un grand sujet dont la marque parle sur ses réseaux. Exemples : pour une céramiste → "Coulisses de l'atelier", "Rituels du quotidien", "L'artisanat comme acte militant". Pour une coach yoga → "Pratiques et postures", "Philosophie du corps", "Témoignages de transformation". Déduis 3-4 piliers CONCRETS à partir de l'activité, du positionnement et du contenu existant de la marque. Ne JAMAIS proposer des piliers génériques comme "Organisation", "Régularité", "Engagement communautaire" ou "Éducation" sans les lier à l'univers spécifique de la marque.
 - Pour la proposition de valeur : synthétise en une phrase ce que cette marque apporte, à qui, et pourquoi c'est différent. Utilise le vocabulaire de la marque, pas du jargon marketing.
 - Pour la proposition de valeur, synthétise le problème résolu, la solution et le différenciateur.
@@ -270,30 +274,37 @@ Précisions importantes :
       await supabaseAdmin.from("brand_profile").insert(newProfile);
     }
 
-    // persona — enriched with frustrations, beautiful_world
+    // persona — les 5 étapes du parcours persona (frustrations, transformation,
+    // objections, monde idéal, premières actions), mêmes conventions de mapping
+    // que BrandingReview (beautiful_world → step_4_beautiful, first_actions → step_5_actions)
     const personaPrefill = enrichmentResult?.persona_prefill;
     const personaDesc = prefill.target_description || personaPrefill?.description;
     if (personaDesc || personaPrefill) {
+      // transformation dédiée si fournie, sinon l'ancien fallback beautiful_world
+      const personaFields: Record<string, unknown> = {
+        description: personaDesc,
+        step_1_frustrations: personaPrefill?.frustrations?.length ? personaPrefill.frustrations.join("\n") : null,
+        step_2_transformation: personaPrefill?.transformation || personaPrefill?.beautiful_world || null,
+        step_3a_objections: personaPrefill?.objections?.length ? personaPrefill.objections.join("\n") : null,
+        step_4_beautiful: personaPrefill?.beautiful_world || null,
+        step_5_actions: personaPrefill?.first_actions || null,
+      };
       const { data: existingPersona } = await supabaseAdmin
-        .from("persona").select("id, description, step_1_frustrations, step_2_transformation")
+        .from("persona").select("id, description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions")
         .eq(filterCol, filterVal)
         .order("created_at", { ascending: false }).limit(1).maybeSingle();
 
       if (existingPersona) {
         const pUpdates: Record<string, unknown> = {};
-        if (!existingPersona.description && personaDesc) pUpdates.description = personaDesc;
-        if (!existingPersona.step_1_frustrations && personaPrefill?.frustrations?.length) {
-          pUpdates.step_1_frustrations = personaPrefill.frustrations.join("\n");
-        }
-        if (!existingPersona.step_2_transformation && personaPrefill?.beautiful_world) {
-          pUpdates.step_2_transformation = personaPrefill.beautiful_world;
+        for (const [field, value] of Object.entries(personaFields)) {
+          if (value && !(existingPersona as Record<string, unknown>)[field]) pUpdates[field] = value;
         }
         if (Object.keys(pUpdates).length > 0) await supabaseAdmin.from("persona").update(pUpdates).eq("id", existingPersona.id);
       } else {
         const newPersona: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId, is_primary: true };
-        if (personaDesc) newPersona.description = personaDesc;
-        if (personaPrefill?.frustrations?.length) newPersona.step_1_frustrations = personaPrefill.frustrations.join("\n");
-        if (personaPrefill?.beautiful_world) newPersona.step_2_transformation = personaPrefill.beautiful_world;
+        for (const [field, value] of Object.entries(personaFields)) {
+          if (value) newPersona[field] = value;
+        }
         await supabaseAdmin.from("persona").insert(newPersona);
       }
     }
@@ -389,42 +400,58 @@ Précisions importantes :
       }
     }
 
-    // brand_proposition — save value proposition if detected
-    if (prefill.value_prop_sentence) {
+    // brand_proposition — les 4 jalons de la complétion (quoi, comment/valeurs,
+    // pour qui, version finale), mêmes conventions que BrandingReview
+    // (solution → step_2a_process) ; update-si-vide au lieu d'insert-only
+    const propFields: Record<string, unknown> = {
+      step_1_what: prefill.value_prop_sentence || null,
+      step_2a_process: prefill.value_prop_solution || null,
+      step_2b_values: prefill.values?.length ? prefill.values.join("\n") : null,
+      step_3_for_whom: prefill.target_description || prefill.value_prop_problem || null,
+      version_final: prefill.value_prop_sentence || null,
+    };
+    if (Object.values(propFields).some(Boolean)) {
       const { data: existingProp } = await supabaseAdmin
         .from("brand_proposition")
-        .select("id, step_1_what, version_final")
+        .select("id, step_1_what, step_2a_process, step_2b_values, step_3_for_whom, version_final")
         .eq(filterCol, filterVal)
         .maybeSingle();
 
-      if (!existingProp) {
-        await supabaseAdmin.from("brand_proposition").insert({
-          user_id: userId,
-          workspace_id: workspaceId,
-          step_1_what: prefill.value_prop_sentence,
-          version_final: prefill.value_prop_sentence,
-        });
+      if (existingProp) {
+        const propUpdates: Record<string, unknown> = {};
+        for (const [field, value] of Object.entries(propFields)) {
+          if (value && !(existingProp as Record<string, unknown>)[field]) propUpdates[field] = value;
+        }
+        if (Object.keys(propUpdates).length > 0) await supabaseAdmin.from("brand_proposition").update(propUpdates).eq("id", existingProp.id);
+      } else {
+        const newProp: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
+        for (const [field, value] of Object.entries(propFields)) {
+          if (value) newProp[field] = value;
+        }
+        await supabaseAdmin.from("brand_proposition").insert(newProp);
       }
     }
 
-    // content_strategy → brand_strategy pillars
+    // content_strategy → brand_strategy pillars + facettes cachées
     const contentPrefill = enrichmentResult?.content_strategy_prefill;
-    if (contentPrefill?.pillars?.length > 0) {
+    if (contentPrefill?.pillars?.length > 0 || contentPrefill?.hidden_facets?.length > 0) {
       const { data: existingStrategy } = await supabaseAdmin
         .from("brand_strategy")
-        .select("id, pillar_major, pillar_minor_1, pillar_minor_2, creative_concept")
+        .select("id, pillar_major, pillar_minor_1, pillar_minor_2, creative_concept, step_1_hidden_facets")
         .eq(filterCol, filterVal)
         .maybeSingle();
 
-      const pillars = contentPrefill.pillars;
+      const pillars = contentPrefill.pillars || [];
+      const hiddenFacets = contentPrefill.hidden_facets?.length ? contentPrefill.hidden_facets.join("\n") : null;
       if (existingStrategy) {
         // Mettre à jour : écraser le pillar_major générique de l'onboarding
-        // et remplir les piliers mineurs et le concept créatif s'ils sont vides
+        // et remplir les piliers mineurs, le concept créatif et les facettes s'ils sont vides
         const sUpdates: Record<string, unknown> = {};
         if (pillars[0]?.label) sUpdates.pillar_major = pillars[0].label;
         if (!existingStrategy.pillar_minor_1 && pillars[1]?.label) sUpdates.pillar_minor_1 = pillars[1].label;
         if (!existingStrategy.pillar_minor_2 && pillars[2]?.label) sUpdates.pillar_minor_2 = pillars[2].label;
         if (!existingStrategy.creative_concept && contentPrefill.creative_twist) sUpdates.creative_concept = contentPrefill.creative_twist;
+        if (!existingStrategy.step_1_hidden_facets && hiddenFacets) sUpdates.step_1_hidden_facets = hiddenFacets;
         if (Object.keys(sUpdates).length > 0) await supabaseAdmin.from("brand_strategy").update(sUpdates).eq("id", existingStrategy.id);
       } else {
         await supabaseAdmin.from("brand_strategy").insert({
@@ -434,6 +461,7 @@ Précisions importantes :
           pillar_minor_1: pillars[1]?.label || null,
           pillar_minor_2: pillars[2]?.label || null,
           creative_concept: contentPrefill.creative_twist || null,
+          step_1_hidden_facets: hiddenFacets,
         });
       }
     }
