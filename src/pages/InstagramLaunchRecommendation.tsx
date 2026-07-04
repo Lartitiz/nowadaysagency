@@ -45,13 +45,31 @@ export default function InstagramLaunchRecommendation() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: launchesData } = await (supabase.from("launches") as any)
+      const { data: launchesData, error } = await (supabase.from("launches") as any)
         .select("*")
         .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
+      if (error) {
+        console.error("Erreur chargement lancement:", error);
+        toast.error("Impossible de charger ton lancement. Réessaie depuis la page précédente.");
+        navigate("/instagram/lancement");
+        return;
+      }
       if (!launchesData?.length) { navigate("/instagram/lancement"); return; }
-      setLaunch(launchesData[0]);
+      const l = launchesData[0];
+      setLaunch(l);
+
+      // Pré-remplir avec les réponses déjà données (sans écraser une saisie en cours)
+      setOfferType((prev) => prev || l.offer_type || "");
+      setPriceRange((prev) => prev || l.price_range || "");
+      setAudienceSize((prev) => prev || l.audience_size || "");
+      setRecurrence((prev) => prev || l.recurrence || "");
+      if (l.extra_weekly_hours != null) {
+        const t = TIME_OPTIONS.find((o) => o.hours === l.extra_weekly_hours)
+          ?? FALLBACK_TIME_OPTIONS.find((o) => o.hours === l.extra_weekly_hours);
+        if (t) setExtraTime((prev) => prev || t.id);
+      }
 
       // Use editorial line from hook
       if (editorialLineData?.estimated_weekly_minutes) {
@@ -60,7 +78,7 @@ export default function InstagramLaunchRecommendation() {
       }
       setLoaded(true);
     })();
-  }, [user?.id, editorialLineData]);
+  }, [user?.id, column, value, editorialLineData]);
 
   const canShowReco = offerType && priceRange && audienceSize && recurrence && extraTime;
 
@@ -77,7 +95,7 @@ export default function InstagramLaunchRecommendation() {
       ? TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? FALLBACK_TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? 0
       : 0;
 
-    await supabase.from("launches").update({
+    const { error } = await supabase.from("launches").update({
       launch_model: modelId,
       offer_type: offerType,
       price_range: priceRange,
@@ -85,6 +103,11 @@ export default function InstagramLaunchRecommendation() {
       recurrence,
       extra_weekly_hours: extraHours,
     }).eq("id", launch.id);
+    if (error) {
+      console.error("Erreur sélection modèle:", error);
+      toast.error("Le modèle n'a pas pu être enregistré. Réessaie.");
+      return;
+    }
 
     toast.success("Modèle sélectionné !");
     navigate("/instagram/lancement/plan");
@@ -101,6 +124,12 @@ export default function InstagramLaunchRecommendation() {
         <p className="mt-1 text-sm text-muted-foreground italic">
           Quelques questions pour te recommander le plan qui te correspond le mieux.
         </p>
+        <button
+          onClick={() => navigate("/instagram/lancement/plan")}
+          className="mt-2 text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+        >
+          Passer cette étape → aller directement au plan
+        </button>
 
         {!showReco ? (
           <div className="mt-6 space-y-6">
