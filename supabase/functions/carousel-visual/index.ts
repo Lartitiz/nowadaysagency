@@ -10,6 +10,7 @@ import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-
 import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { enforceTextContrast } from "../_shared/contrast-guard.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -29,14 +30,16 @@ Voici le design pour chaque type :
     <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#E74C3C;flex-shrink:0"></div>
     <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
       <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
-      <!-- items en <p data-pptx-editable="body"> avec une puce rouge -->
+      <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✗ ITEM</p>
+      <!-- un <p> par item, TOUJOURS préfixé du glyphe ✗ — JAMAIS de ponctuation (virgule, tiret, point) comme puce -->
     </div>
   </div>
   <div style="flex:1;display:flex;gap:6px">
     <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#27AE60;flex-shrink:0"></div>
     <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
       <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
-      <!-- items en <p data-pptx-editable="body"> avec une puce verte -->
+      <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✓ ITEM</p>
+      <!-- un <p> par item, TOUJOURS préfixé du glyphe ✓ -->
     </div>
   </div>
 </div>
@@ -44,6 +47,8 @@ Voici le design pour chaque type :
 
 █ COMPARISON — Similaire mais avec les couleurs/labels du schema
 Même structure que before_after mais avec les labels et couleurs du champ left/right.
+Puces : ✗ pour la colonne mythe/imaginé, ✓ pour la colonne réalité — JAMAIS de ponctuation comme puce.
+⚠️ Si une des deux cartes a un fond sombre (${ch.color_secondary}…), TOUT son texte (items inclus) passe en clair (blanc ou ${ch.color_background}) — jamais ${ch.color_text} sur fond sombre.
 
 █ TIMELINE — Ligne verticale avec des étapes
 <div style="position:relative;padding-left:60px">
@@ -399,6 +404,11 @@ Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo / ambiance 
 
 ═══ DESIGN SYSTEM — VALEURS CSS CONCRÈTES ═══
 
+CONTRASTE (règle absolue, vérifie CHAQUE bloc avant de retourner) :
+- La couleur d'un texte est TOUJOURS très éloignée de la couleur de son fond DIRECT (la carte ou le bloc qui le porte, pas la slide).
+- Sur une carte/fond sombre (${ch.color_secondary}, #1A1A1A, dark box…) : texte en blanc, ${ch.color_background} ou ${ch.color_accent} — JAMAIS ${ch.color_text} ni la couleur du fond.
+- Erreur réelle à ne jamais reproduire : des items écrits en color:#1C1C20 dans une carte background:#1C1C20 (invisibles).
+
 PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé aux bords.
 
 TITRES (headlines) :
@@ -432,7 +442,7 @@ EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
 - Gap eyebrow → titre : 16-20px.
 
 MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
-- 1 à 3 mots par titre reçoivent un traitement visuel. Trois techniques, à VARIER d'une slide à l'autre :
+- 1 à 3 mots par titre reçoivent un traitement visuel. Trois techniques, à VARIER d'une slide à l'autre (l'italique seul sur tout le carrousel = raté ; utilise l'effet surligneur sur AU MOINS une slide) :
   · Italique accentué : color: ${ch.color_primary}; font-style: italic
   · Effet surligneur : background: linear-gradient(transparent 55%, ${ch.color_accent}66 55%); padding: 0 6px
   · Soulignement épais : border-bottom: 6px solid ${ch.color_accent}
@@ -442,6 +452,7 @@ DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
 - Mais un carrousel ENTIER de slides nues = plat. Sur l'ensemble, au moins 2-3 slides portent un vrai moment de design : carte blanche, barre latérale colorée, chiffre géant décoratif (120-200px en ${ch.font_title}, opacity 0.12-0.2), emoji 48-64px posé comme élément graphique (pas en fin de ligne), ou encadré pointillé.
 - Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}, jamais noyés dans une phrase.
+- Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
 CARTES BLANCHES (pour les blocs de contenu) :
 - Background: #FFFFFF
@@ -1558,6 +1569,23 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         motif: invariants.motif,
       };
       console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
+    }
+
+    // ═══ Garde DÉTERMINISTE de contraste (tous types de carrousel) ═══
+    // Bug prod 04/07 : texte écrit dans la couleur de sa carte (noir sur noir)
+    // → items de comparison et punchline de timeline invisibles. Le prompt
+    // l'interdit désormais, mais on ne dépend pas du modèle : toute couleur de
+    // texte quasi identique à son fond direct est réécrite en lisible.
+    if (Array.isArray(result?.slides_html)) {
+      let contrastFixes = 0;
+      result.slides_html = result.slides_html.map((slide: any) => {
+        const { html, fixes } = enforceTextContrast(slide?.html || "");
+        contrastFixes += fixes;
+        return fixes > 0 ? { ...slide, html } : slide;
+      });
+      if (contrastFixes > 0) {
+        console.warn(`carousel-visual: ${contrastFixes} couleur(s) de texte illisible(s) corrigée(s) (garde contraste)`);
+      }
     }
 
     await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);

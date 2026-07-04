@@ -85,6 +85,8 @@ interface Props {
   editorialAngle?: string;
   questions: Question[];
   loadingQuestions: boolean;
+  /** Erreur remontée par la préparation des questions (quota, réseau…) — affichée honnêtement. */
+  loadError?: string | null;
   previousBriefsCount?: number;
   initialAnswers?: Record<string, string>;
   onNext: (answers: Record<string, string>) => void;
@@ -98,6 +100,7 @@ export default function CreerStepQuestions({
   editorialAngle,
   questions,
   loadingQuestions,
+  loadError,
   previousBriefsCount,
   initialAnswers,
   onNext,
@@ -125,8 +128,15 @@ export default function CreerStepQuestions({
   if (questions.length === 0) {
     return (
       <div className="py-8 text-center animate-fade-in space-y-4">
+        {loadError && (
+          <p className="text-sm text-destructive">
+            ⚠️ Les questions n'ont pas pu être préparées : {loadError}
+          </p>
+        )}
         <p className="text-sm text-muted-foreground">
-          Pas de questions cette fois — on peut générer directement, ton contenu sera très bien quand même.
+          {loadError
+            ? "Tu peux quand même générer directement — la qualité reste au rendez-vous."
+            : "Pas de questions cette fois — on peut générer directement, ton contenu sera très bien quand même."}
         </p>
         <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2">
           {isSubmitting ? (

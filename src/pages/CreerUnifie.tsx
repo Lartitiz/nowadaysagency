@@ -363,6 +363,7 @@ export default function CreerUnifie() {
     loadingQuestions,
     questions,
     setQuestions,
+    questionsError,
     generateStream,
     streamingContent,
     streaming,
@@ -1067,7 +1068,7 @@ export default function CreerUnifie() {
     setPinterestPinHtml(null);
     setPhotoBriefOverlayHtml(null);
     setPhotoBriefResult(null);
-    let enrichedSubject = existingCalendarContent
+    const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
 
@@ -2914,6 +2915,7 @@ export default function CreerUnifie() {
                 editorialAngle={editorialAngle || undefined}
                 questions={questions}
                 loadingQuestions={loadingQuestions}
+                loadError={questionsError}
                 onNext={handleQuestionsNext}
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}

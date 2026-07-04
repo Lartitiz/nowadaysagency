@@ -177,6 +177,10 @@ export function useContentGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [loadingQuestions, setLoadingQuestions] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
+  // Erreur propre à la préparation des questions (quota, réseau…) — distincte de
+  // `error` (partagé avec la génération) pour que l'écran questions puisse dire
+  // la vérité au lieu de « Pas de questions pour ce format ».
+  const [questionsError, setQuestionsError] = useState<string | null>(null);
 
   // Internal streaming wrapper — proxied to consumers via the hook's return.
   // Kept inside the hook so all callers share the same SSE state.
@@ -465,6 +469,7 @@ export function useContentGenerator() {
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
       const { format, subject, editorialAngle, objective, workspaceId } = params;
+      setQuestionsError(null);
 
       setLoadingQuestions(true);
       setQuestions([]);
@@ -649,7 +654,9 @@ export function useContentGenerator() {
         setQuestions(parsedQuestions);
         return parsedQuestions;
       } catch (e: any) {
-        setError(cleanErrorMessage(e?.message) || "Erreur lors de la génération des questions");
+        const cleaned = cleanErrorMessage(e?.message) || "Erreur lors de la génération des questions";
+        setError(cleaned);
+        setQuestionsError(cleaned);
         return [];
       } finally {
         setLoadingQuestions(false);
@@ -810,6 +817,7 @@ export function useContentGenerator() {
     loadingQuestions,
     questions,
     setQuestions,
+    questionsError,
     // Streaming API (Phase 4 — proxy of internal useStreamingInvoke)
     generateStream,
     streamingContent,
