@@ -8,6 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
@@ -320,6 +321,11 @@ serve(async (req) => {
         }
 
         content = normalizePhotoIndexes(content, body.photos?.length || 0);
+        {
+          const capped = limitVisualSchemas(content);
+          if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
+          content = capped.content;
+        }
         await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -392,6 +398,11 @@ serve(async (req) => {
         }
 
         content = normalizePhotoIndexes(content, body.photos?.length || 0);
+        {
+          const capped = limitVisualSchemas(content);
+          if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
+          content = capped.content;
+        }
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -754,6 +765,15 @@ Réponds UNIQUEMENT en JSON valide :
       } catch (correctionError) {
         console.error("Correction pass failed in carousel-ai:", correctionError);
       }
+    }
+
+    // Garde DÉTERMINISTE : le prompt limite les schémas (max 2, jamais consécutifs)
+    // mais le modèle déborde (3 consécutifs observés en prod le 04/07). On applique
+    // la règle par code — le narratif prime, cf PR #112/#113.
+    if (type === "express_full" || type === "slides") {
+      const capped = limitVisualSchemas(content);
+      if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
+      content = capped.content;
     }
 
     await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspace_id);
@@ -1604,7 +1624,7 @@ ${deepeningBlock ? "- UTILISE les mots et exemples de l'utilisatrice dans les sl
 SCHÉMAS VISUELS (quand le sujet s'y prête)
 ══════════════════════════════════════
 
-2-3 slides schéma par carrousel = le sweet spot. Types disponibles :
+Le schéma est l'EXCEPTION, pas la règle : 0 à 2 par carrousel MAXIMUM, JAMAIS deux slides schéma consécutives. Le narratif typographique porte le carrousel ; un schéma n'apparaît que si le contenu l'exige vraiment. Types disponibles :
 1. "before_after" — Avant/Après { before: { label, items }, after: { label, items } }
 2. "comparison" — Deux colonnes opposées { left: { label, items }, right: { label, items } }
 3. "timeline" — Progression chronologique { steps: [{ label, desc }] }
