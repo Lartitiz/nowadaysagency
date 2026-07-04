@@ -21,17 +21,47 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/t6");
 fs.mkdirSync(SHOTS, { recursive: true });
 
+// Même forme que la réponse RÉELLE de l'edge analyze-brand : `{ success, analysis }`
+// avec des sections OBJETS (cf. AnalysisResult dans BrandingReview.tsx).
+// ⚠️ handleStartAnalysis jette si `result.success` est falsy → un mock « à plat »
+// envoie la page sur l'écran d'erreur au lieu de la BrandingReview.
 const MOCK_ANALYSIS = {
-  story: "Céramiste passionnée, Camille crée des pièces uniques faites à la main.",
-  persona: "Amatrices d'artisanat, femmes 25-45 ans sensibles au fait-main.",
-  value_proposition: "Des céramiques artisanales qui portent la trace de la main.",
-  tone_style: "Chaleureux, authentique, ancré dans le geste.",
-  content_strategy: "Instagram en priorité, 3x/semaine, photos atelier + coulisses.",
-  offers: "Pièces à l'unité + ateliers de poterie.",
-  charter: "Couleurs terre, fond neutre, lumière naturelle.",
+  story: {
+    confidence: "high",
+    full_story: "Céramiste passionnée, Camille crée des pièces uniques faites à la main.",
+  },
+  persona: {
+    confidence: "high",
+    description: "Amatrices d'artisanat, femmes 25-45 ans sensibles au fait-main.",
+  },
+  value_proposition: {
+    confidence: "high",
+    key_phrase: "Des céramiques artisanales qui portent la trace de la main.",
+  },
+  tone_style: {
+    confidence: "medium",
+    voice_description: "Chaleureux, authentique, ancré dans le geste.",
+    tone_keywords: ["chaleureux", "authentique"],
+  },
+  content_strategy: {
+    confidence: "medium",
+    editorial_line: "Instagram en priorité, 3x/semaine, photos atelier + coulisses.",
+    pillars: ["Coulisses d'atelier", "Fait-main", "Vie de céramiste"],
+  },
+  offers: {
+    confidence: "medium",
+    offers: [{ name: "Pièces à l'unité", description: "Céramiques uniques faites main." }],
+  },
+  charter: {
+    confidence: "low",
+    visual_style_description: "Couleurs terre, fond neutre, lumière naturelle.",
+  },
   sources_used: ["https://camille-ceramique.fr"],
   sources_failed: [],
+  overall_confidence: "medium",
 };
+
+const MOCK_EDGE_RESPONSE = { success: true, analysis: MOCK_ANALYSIS };
 
 // ── T6c : état initial ────────────────────────────────────────────────────────
 
@@ -92,7 +122,7 @@ test("T6a — Import URL → BrandingReview s'affiche", async ({ page }) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify(MOCK_ANALYSIS),
+      body: JSON.stringify(MOCK_EDGE_RESPONSE),
     });
   });
 

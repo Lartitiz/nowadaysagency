@@ -548,8 +548,10 @@ export default function InstagramLaunch() {
           </CardContent>
         </Card>
 
-        {/* Navigation */}
-        <div className="mt-6 flex items-center justify-between pb-12">
+        {/* Navigation — flex-wrap : les 3 boutons font ~516px de large, sans wrap
+            ils débordent le viewport mobile (390px) et forcent un dézoom de toute
+            la page (« 🚀 Lancer » devenait incliquable en 390px). */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2 pb-12">
           <Button variant="outline" onClick={() => setStep((s) => s - 1)} disabled={step === 0}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Précédent
           </Button>
