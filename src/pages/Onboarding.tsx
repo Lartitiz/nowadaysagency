@@ -168,7 +168,7 @@ export default function Onboarding() {
           </div>
         </div>
       ) : diagnosticData ? (
-        <DiagnosticView data={diagnosticData} prenom={answers.prenom} onComplete={handleDiagnosticComplete} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={diagnosticData.sources_used} sourcesFailed={diagnosticData.sources_failed} />
+        <DiagnosticView data={diagnosticData} prenom={answers.prenom} onComplete={() => handleDiagnosticComplete()} onCreateFirst={() => handleDiagnosticComplete(true)} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={diagnosticData.sources_used} sourcesFailed={diagnosticData.sources_failed} />
       ) : null}
     </div>
   );

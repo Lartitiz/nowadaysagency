@@ -169,6 +169,20 @@ function cleanErrorMessage(raw: unknown): string {
   return s || "Une erreur est survenue. Réessaie 🌸";
 }
 
+// Message honnête affiché en ligne à l'étape résultat quand le quota a coupé la
+// génération (le détail plan/usage vit dans le QuotaWallModal, pas ici).
+const QUOTA_EXHAUSTED_MESSAGE =
+  "Tes crédits du mois sont utilisés — ils reviennent le 1er du mois 🌸";
+
+// Les erreurs « fonctionnalité premium » passent aussi par handleQuotaError : pour
+// elles on garde le message serveur (il nomme le plan requis), sinon le message
+// crédits générique.
+function quotaInlineMessage(serverMessage: string): string {
+  return serverMessage.includes("disponible à partir")
+    ? serverMessage
+    : QUOTA_EXHAUSTED_MESSAGE;
+}
+
 // ── Hook ──
 
 export function useContentGenerator() {
@@ -181,6 +195,11 @@ export function useContentGenerator() {
   // `error` (partagé avec la génération) pour que l'écran questions puisse dire
   // la vérité au lieu de « Pas de questions pour ce format ».
   const [questionsError, setQuestionsError] = useState<string | null>(null);
+  // Quota épuisé pendant la génération : état distinct de `error`. Le QuotaWallModal
+  // s'ouvre par-dessus, mais l'étape résultat reste affichée derrière (et réapparaît
+  // à la fermeture du modal) — sans cet état elle retombait sur « Session expirée ou
+  // contenu indisponible » avec un Réessayer qui ne peut que re-échouer.
+  const [quotaExhausted, setQuotaExhausted] = useState<string | null>(null);
 
   // Internal streaming wrapper — proxied to consumers via the hook's return.
   // Kept inside the hook so all callers share the same SSE state.
@@ -197,6 +216,7 @@ export function useContentGenerator() {
     setGenerating(false);
     setResult(null);
     setError(null);
+    setQuotaExhausted(null);
     setLoadingQuestions(false);
     setQuestions([]);
   }, []);
@@ -220,6 +240,7 @@ export function useContentGenerator() {
 
     setGenerating(true);
     setError(null);
+    setQuotaExhausted(null);
     setResult(null);
 
     // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
@@ -416,13 +437,17 @@ export function useContentGenerator() {
           throw new Error(`Format non supporté : ${format}`);
       }
 
-      if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
-      if (data?.error) {
-        if (data.error === "limit_reached" || data.message?.includes("ce mois")) {
-          throw Object.assign(new Error(data.message || data.error), { _isQuota: true, data });
-        }
-        throw new Error(data.message || data.error);
+      // Quota : détection par le CODE structuré, AVANT le throw générique. Les
+      // helpers d'invocation renvoient TOUJOURS le couple { data, error.isRateLimit }
+      // sur un limit_reached — l'ancien throw générique sur invokeError passait donc
+      // en premier, perdait data.quota (plan/usage du QuotaWallModal) et laissait la
+      // détection retomber sur des substrings de message (fragiles depuis que les
+      // messages quota n'emploient plus les mots « crédit »/« quota », PR #308).
+      if (invokeError?.isRateLimit || data?.error === "limit_reached" || data?.message?.includes("ce mois")) {
+        throw Object.assign(new Error(data?.message || invokeError?.message || "limit_reached"), { _isQuota: true, data });
       }
+      if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
+      if (data?.error) throw new Error(data.message || data.error);
 
       // Edge functions wrap response in { content: "..." } — unwrap before parsing
       const rawContent = data?.content ?? data;
@@ -456,6 +481,7 @@ export function useContentGenerator() {
       // Erreurs quota/premium → toast convivial (jamais le JSON brut affiché).
       const cleaned = cleanErrorMessage(e?.message);
       if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
+        setQuotaExhausted(quotaInlineMessage(cleaned));
         setError(null);
         return null;
       }
@@ -689,6 +715,7 @@ export function useContentGenerator() {
 
       streamReset();
       setError(null);
+      setQuotaExhausted(null);
       setResult(null);
 
       const contentTypeMap: Record<string, string> = {
@@ -772,6 +799,7 @@ export function useContentGenerator() {
       } catch (e: any) {
         const cleaned = cleanErrorMessage(e?.message);
         if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
+          setQuotaExhausted(quotaInlineMessage(cleaned));
           setError(null);
           return null;
         }
@@ -812,6 +840,7 @@ export function useContentGenerator() {
     result,
     setResult,
     error,
+    quotaExhausted,
     reset,
     generateQuestions,
     loadingQuestions,

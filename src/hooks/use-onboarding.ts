@@ -562,7 +562,37 @@ export function useOnboarding() {
     navigate("/dashboard", { replace: true });
   };
 
-  const handleDiagnosticComplete = async () => {
+  // Destination du CTA « Générer mon premier contenu » en fin de diagnostic :
+  // même comportement que le CTA du welcome (1re idée perso du diagnostic si
+  // dispo, sinon sujet générique) + on marque welcome_seen pour que le login
+  // suivant ne renvoie pas de force sur /welcome (AuthContext).
+  const resolveCreateDestination = async (): Promise<string> => {
+    let sujet = "3 erreurs fréquentes dans mon domaine (et comment les éviter)";
+    let format = "post";
+    try {
+      const { data } = await (supabase.from("saved_ideas") as any)
+        .select("titre, format")
+        .eq(column, value)
+        .eq("source_module", "diagnostic")
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      if (data?.titre) {
+        sujet = data.titre;
+        format = data.format === "carousel" ? "carousel" : "post";
+      }
+    } catch { /* idée perso pas encore prête (enrichment async) → générique */ }
+    localStorage.setItem("lac_welcome_seen", "true");
+    if (user) {
+      (supabase.from("user_plan_config") as any)
+        .update({ welcome_seen: true })
+        .eq("user_id", user.id)
+        .then(({ error }: any) => { if (error) console.error("welcome_seen update failed:", error); });
+    }
+    return `/creer?sujet=${encodeURIComponent(sujet)}&format=${format}&auto=1`;
+  };
+
+  const handleDiagnosticComplete = async (goCreate = false) => {
     if (isDemoMode) {
       skipDemoOnboarding();
       navigate("/welcome", { replace: true });
@@ -616,6 +646,10 @@ export function useOnboarding() {
       console.error("Failed to update user_plan_config:", e);
     }
 
+    if (goCreate) {
+      navigate(await resolveCreateDestination(), { replace: true });
+      return;
+    }
     navigate("/welcome", { replace: true });
   };
 

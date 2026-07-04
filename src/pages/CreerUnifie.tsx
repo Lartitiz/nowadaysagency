@@ -361,6 +361,7 @@ export default function CreerUnifie() {
     result,
     setResult,
     error,
+    quotaExhausted,
     reset: resetGenerator,
     generateQuestions,
     loadingQuestions,
@@ -3025,18 +3026,31 @@ export default function CreerUnifie() {
 
             {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
-                {error ? (
+                {/* Quota épuisé pendant la génération : dire la vérité (les crédits),
+                    pas « Session expirée » — et pas de Réessayer qui ne peut que re-échouer. */}
+                {quotaExhausted ? (
+                  <p className="text-sm font-medium text-foreground">{quotaExhausted}</p>
+                ) : error ? (
                   <p className="text-destructive font-medium">{error}</p>
                 ) : (
                   <p className="text-sm text-muted-foreground">Session expirée ou contenu indisponible.</p>
                 )}
                 <div className="flex gap-3 justify-center">
-                  <button
-                    onClick={handleRegenerate}
-                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
-                  >
-                    🔄 Réessayer
-                  </button>
+                  {quotaExhausted ? (
+                    <button
+                      onClick={() => navigate("/pricing")}
+                      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
+                    >
+                      Voir les plans →
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleRegenerate}
+                      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
+                    >
+                      🔄 Réessayer
+                    </button>
+                  )}
                   <button
                     onClick={requestReset}
                     className="px-4 py-2 rounded-lg bg-muted text-muted-foreground text-sm font-medium hover:opacity-90 transition"
