@@ -23,6 +23,7 @@ import {
   ArrowRight, Check, Save, CalendarPlus, LayoutList, Calendar as CalendarIconFull, GitBranch, Lightbulb
 } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   LAUNCH_TEMPLATES, PHASE_STYLES, CATEGORY_COLORS, FORMAT_OPTIONS, CONTENT_TYPES,
   TIME_OPTIONS, FALLBACK_TIME_OPTIONS,
@@ -44,11 +45,14 @@ export default function InstagramLaunchPlan() {
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const { data: editorialLineData } = useEditorialLine();
+  const confirm = useConfirm();
 
   // Step management
   const [currentStep, setCurrentStep] = useState(0); // 0=template, 1=temps, 2=generate, 3=preview
   const [launch, setLaunch] = useState<any>(null);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Step 1: Template
   const [selectedTemplate, setSelectedTemplate] = useState<LaunchTemplate | null>(null);
@@ -73,29 +77,37 @@ export default function InstagramLaunchPlan() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const { data: launches } = await (supabase.from("launches") as any)
+      setLoaded(false);
+      setLoadError(false);
+      const { data: launches, error: launchesError } = await (supabase.from("launches") as any)
         .select("*")
         .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
 
+      if (launchesError) {
+        console.error("Erreur chargement lancement:", launchesError);
+        setLoadError(true);
+        setLoaded(true);
+        return;
+      }
       if (!launches?.length) { navigate("/instagram/lancement"); return; }
       const l = launches[0];
       setLaunch(l);
 
-      // Check editorial line from hook
-      if (editorialLineData?.estimated_weekly_minutes) {
-        setEditorialTime(Math.round((editorialLineData as any).estimated_weekly_minutes / 60));
-        setHasEditorialLine(true);
-      }
-
       // If plan already generated, load slots
       if (l.plan_generated) {
-        const { data: existing } = await supabase
+        const { data: existing, error: existingError } = await supabase
           .from("launch_plan_contents")
           .select("*")
           .eq("launch_id", l.id)
           .order("sort_order", { ascending: true });
+        if (existingError) {
+          console.error("Erreur chargement plan:", existingError);
+          setLoadError(true);
+          setLoaded(true);
+          return;
+        }
         if (existing?.length) {
           const loadedSlots: LaunchSlot[] = existing.map((e: any) => ({
             id: e.id,
@@ -123,16 +135,22 @@ export default function InstagramLaunchPlan() {
 
       setLoaded(true);
     })();
-  }, [user?.id]);
+  }, [user?.id, column, value, reloadKey]);
+
+  // La ligne éditoriale arrive en async (react-query) : la prendre en compte
+  // dès qu'elle est là, pas seulement si elle était déjà chargée au mount.
+  useEffect(() => {
+    if (editorialLineData?.estimated_weekly_minutes) {
+      setEditorialTime(Math.round((editorialLineData as any).estimated_weekly_minutes / 60));
+      setHasEditorialLine(true);
+    }
+  }, [editorialLineData]);
 
   // ── Step 1: Template selection ──
 
   const selectTemplate = (t: LaunchTemplate) => {
     setSelectedTemplate(t);
     // Auto-fill phase dates based on sale_start or today
-    const baseDate = launch?.sale_start ? new Date(launch.sale_start) : new Date();
-    let cursor = new Date(baseDate);
-
     // For classique/gros, phases go backwards from sale date
     // Simple approach: stack phases forward from a start
     const startDate = launch?.teasing_start ? new Date(launch.teasing_start) : addDays(new Date(), 7);
@@ -208,11 +226,10 @@ export default function InstagramLaunchPlan() {
         }
       }
 
-      setSlots(allSlots);
       setPlan(parsed);
 
-      // Save to DB
-      await supabase.from("launch_plan_contents").delete().eq("launch_id", launch.id);
+      // Persistance : on INSÈRE le nouveau plan avant de supprimer l'ancien,
+      // pour ne jamais détruire l'existant si l'écriture échoue.
       const rows = allSlots.map((s, i) => ({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
@@ -227,30 +244,43 @@ export default function InstagramLaunchPlan() {
         angle_suggestion: s.angle_suggestion,
         sort_order: i,
       }));
-      if (rows.length) {
-        const { data: inserted } = await supabase.from("launch_plan_contents").insert(rows).select();
-        if (inserted) {
-          setSlots(inserted.map((r: any) => ({
-            id: r.id,
-            date: r.content_date,
-            phase: r.phase,
-            format: r.format,
-            content_type: r.content_type,
-            content_type_emoji: r.content_type_emoji,
-            category: r.category,
-            objective: r.objective || "",
-            angle_suggestion: r.angle_suggestion || "",
-          })));
-        }
+      if (!rows.length) throw new Error("L'IA n'a renvoyé aucun contenu — réessaie.");
+
+      const { data: inserted, error: insertError } = await supabase.from("launch_plan_contents").insert(rows).select();
+      if (insertError) throw new Error(insertError.message);
+
+      setSlots((inserted || []).map((r: any) => ({
+        id: r.id,
+        date: r.content_date,
+        phase: r.phase,
+        format: r.format,
+        content_type: r.content_type,
+        content_type_emoji: r.content_type_emoji,
+        category: r.category,
+        objective: r.objective || "",
+        angle_suggestion: r.angle_suggestion || "",
+      })));
+
+      // Supprime l'ancien plan (tout sauf les lignes fraîchement insérées)
+      const newIds = (inserted || []).map((r: any) => r.id);
+      const { error: cleanError } = await supabase
+        .from("launch_plan_contents")
+        .delete()
+        .eq("launch_id", launch.id)
+        .not("id", "in", `(${newIds.join(",")})`);
+      if (cleanError) {
+        console.error("Erreur nettoyage ancien plan:", cleanError);
+        toast.warning("L'ancien plan n'a pas pu être entièrement remplacé — des doublons peuvent subsister.");
       }
 
       // Update launch
-      await supabase.from("launches").update({
+      const { error: metaError } = await supabase.from("launches").update({
         template_type: selectedTemplate?.id,
         extra_weekly_hours: extraHours,
         phases: JSON.parse(JSON.stringify(phaseConfigs)),
         plan_generated: true,
       }).eq("id", launch.id);
+      if (metaError) throw new Error(metaError.message);
 
       setCurrentStep(3);
       toast.success("Plan de lancement généré ! 🚀");
@@ -264,22 +294,52 @@ export default function InstagramLaunchPlan() {
 
   // ── Slot manipulation ──
 
+  // Optimiste avec rollback : si l'écriture échoue, on restaure l'état local
+  // et on prévient (sinon l'UI ment et diverge de la base).
   const deleteSlot = async (slotId: string) => {
+    const previous = slots;
     setSlots((prev) => prev.filter((s) => s.id !== slotId));
-    await supabase.from("launch_plan_contents").delete().eq("id", slotId);
+    const { error } = await supabase.from("launch_plan_contents").delete().eq("id", slotId);
+    if (error) {
+      console.error("Erreur suppression slot:", error);
+      setSlots(previous);
+      toast.error("La suppression n'a pas été enregistrée. Réessaie.");
+    }
   };
 
   const updateSlotDate = async (slotId: string, newDate: string) => {
+    const previous = slots;
     setSlots((prev) => prev.map((s) => (s.id === slotId ? { ...s, date: newDate } : s)));
-    await supabase.from("launch_plan_contents").update({ content_date: newDate }).eq("id", slotId);
+    const { error } = await supabase.from("launch_plan_contents").update({ content_date: newDate }).eq("id", slotId);
+    if (error) {
+      console.error("Erreur déplacement slot:", error);
+      setSlots(previous);
+      toast.error("Le changement de date n'a pas été enregistré. Réessaie.");
+    }
   };
 
   // ── Send to calendar ──
 
   const sendToCalendar = async () => {
     if (!user || !launch) return;
+
+    // Déjà envoyé : renvoyer = remplacer, on demande confirmation (pas de doublons silencieux)
+    if (launch.plan_sent_to_calendar) {
+      const ok = await confirm({
+        title: "Renvoyer le plan au calendrier ?",
+        description: "Ce plan a déjà été envoyé. Renvoyer remplacera les emplacements de ce lancement dans ton calendrier, y compris ceux que tu aurais modifiés.",
+        confirmText: "Renvoyer et remplacer",
+        cancelText: "Annuler",
+      });
+      if (!ok) return;
+    }
+
     setSaving(true);
     try {
+      // Remplace les emplacements déjà envoyés pour ce lancement
+      const { error: cleanError } = await supabase.from("calendar_posts").delete().eq("launch_id", launch.id);
+      if (cleanError) throw new Error(cleanError.message);
+
       const calendarRows = slots.map((s) => ({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
@@ -287,6 +347,7 @@ export default function InstagramLaunchPlan() {
         canal: "instagram",
         theme: `🚀 ${launch.name}`,
         status: "idea",
+        format: s.format || null,
         notes: s.objective,
         angle: s.angle_suggestion || null,
         objectif: s.category === "vente" ? "vente" : s.category === "visibilite" ? "visibilite" : "confiance",
@@ -298,17 +359,39 @@ export default function InstagramLaunchPlan() {
         launch_id: launch.id,
       }));
 
-      await supabase.from("calendar_posts").insert(calendarRows);
-      await supabase.from("launches").update({ plan_sent_to_calendar: true }).eq("id", launch.id);
-      await supabase.from("launch_plan_contents").update({ sent_to_calendar: true }).eq("launch_id", launch.id);
+      const { error: insertError } = await supabase.from("calendar_posts").insert(calendarRows);
+      if (insertError) throw new Error(insertError.message);
 
+      const { error: launchError } = await supabase.from("launches").update({ plan_sent_to_calendar: true }).eq("id", launch.id);
+      if (launchError) throw new Error(launchError.message);
+      const { error: contentsError } = await supabase.from("launch_plan_contents").update({ sent_to_calendar: true }).eq("launch_id", launch.id);
+      if (contentsError) throw new Error(contentsError.message);
+
+      setLaunch((prev: any) => (prev ? { ...prev, plan_sent_to_calendar: true } : prev));
       toast.success(`${slots.length} emplacements ajoutés au calendrier ! 🚀`);
       navigate("/calendrier?canal=instagram");
     } catch (e: any) {
-      toast.error("Erreur lors de l'envoi au calendrier");
+      console.error("Erreur envoi calendrier:", e);
+      toast.error(friendlyError(e));
     } finally {
       setSaving(false);
     }
+  };
+
+  // « Sauvegarder sans envoyer » : le plan est déjà écrit à la génération,
+  // ce bouton VÉRIFIE donc que la base contient bien les contenus (toast honnête).
+  const verifySaved = async () => {
+    if (!launch) return;
+    const { count, error } = await supabase
+      .from("launch_plan_contents")
+      .select("id", { count: "exact", head: true })
+      .eq("launch_id", launch.id);
+    if (error || !count) {
+      console.error("Erreur vérification plan:", error);
+      toast.error("Le plan ne semble pas enregistré. Regénère-le ou réessaie.");
+      return;
+    }
+    toast.success(`Plan sauvegardé (${count} contenus) !`);
   };
 
   // ── Computed stats ──
@@ -339,6 +422,23 @@ export default function InstagramLaunchPlan() {
   }, [slots]);
 
   if (!loaded) return null;
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
+          <SubPageHeader parentLabel="Lancement" parentTo="/instagram/lancement" currentLabel="Planifier mon lancement" />
+          <div className="mt-16 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">Impossible de charger ton plan de lancement. Vérifie ta connexion, puis réessaie.</p>
+            <Button variant="outline" onClick={() => setReloadKey((k) => k + 1)} className="rounded-full">
+              Réessayer
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -614,7 +714,7 @@ export default function InstagramLaunchPlan() {
                 </div>
                 {/* Slots flow */}
                 <div className="flex gap-3 overflow-x-auto pb-4 pt-2">
-                  {slots.sort((a, b) => a.date.localeCompare(b.date)).map((slot, i) => {
+                  {[...slots].sort((a, b) => a.date.localeCompare(b.date)).map((slot, i) => {
                     const cat = CATEGORY_COLORS[slot.category];
                     return (
                       <div key={slot.id} className="flex items-center gap-2 shrink-0">
@@ -654,9 +754,9 @@ export default function InstagramLaunchPlan() {
                 <div className="flex flex-wrap gap-3 pt-2">
                   <Button onClick={sendToCalendar} disabled={saving} className="rounded-full gap-2">
                     <CalendarPlus className="h-4 w-4" />
-                    {saving ? "Envoi en cours..." : "📅 Envoyer tout dans mon calendrier"}
+                    {saving ? "Envoi en cours..." : launch?.plan_sent_to_calendar ? "📅 Renvoyer dans mon calendrier" : "📅 Envoyer tout dans mon calendrier"}
                   </Button>
-                  <Button variant="outline" onClick={() => toast.success("Plan sauvegardé !")} className="rounded-full gap-2">
+                  <Button variant="outline" onClick={verifySaved} className="rounded-full gap-2">
                     <Save className="h-4 w-4" /> Sauvegarder sans envoyer
                   </Button>
                   <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-full gap-2">
@@ -667,7 +767,7 @@ export default function InstagramLaunchPlan() {
                   open={showIdeasDialog}
                   onOpenChange={setShowIdeasDialog}
                   contentType="post_instagram"
-                  subject={`Lancement : ${launch?.offer_name || "Mon lancement"}`}
+                  subject={`Lancement : ${launch?.name || "Mon lancement"}`}
                   contentData={{ type: "generated", text: slots.map(s => `${s.date} — ${s.content_type}`).join("\n") }}
                   sourceModule="instagram-launch"
                   format="post"
@@ -716,7 +816,7 @@ function SlotCard({ slot, onDelete, onDateChange }: { slot: LaunchSlot; onDelete
           <Badge variant="secondary" className="text-xs">{formatLabel}</Badge>
           {cat && <Badge className={cn("text-2xs", cat.bg, cat.text)}>{cat.label}</Badge>}
         </div>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive shrink-0" aria-label="Supprimer cette phase">
+        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive shrink-0" aria-label="Supprimer ce contenu">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>
@@ -749,7 +849,7 @@ function CalendarPreview({ slots }: { slots: LaunchSlot[] }) {
 
   // Build weeks
   const weeks: Date[][] = [];
-  let cursor = new Date(first);
+  const cursor = new Date(first);
   const dow = cursor.getDay();
   cursor.setDate(cursor.getDate() - (dow === 0 ? 6 : dow - 1)); // Monday
 

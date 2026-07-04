@@ -74,6 +74,7 @@ interface LaunchData {
   sale_end: string | null;
   selected_contents: string[];
   status: string;
+  launch_model?: string | null;
 }
 
 const EMPTY_LAUNCH: LaunchData = {
@@ -125,6 +126,8 @@ export default function InstagramLaunch() {
   const [launch, setLaunch] = useState<LaunchData>({ ...EMPTY_LAUNCH });
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
   const [generatingIdeas, setGeneratingIdeas] = useState(false);
   const [launchIdeas, setLaunchIdeas] = useState<LaunchIdea[]>([]);
   const [copiedIdeaIdx, setCopiedIdeaIdx] = useState<number | null>(null);
@@ -132,12 +135,20 @@ export default function InstagramLaunch() {
 
   useEffect(() => {
     if (!user) return;
+    setLoaded(false);
+    setLoadError(false);
     (supabase.from("launches") as any)
       .select("*")
       .eq(column, value)
       .order("created_at", { ascending: false })
       .limit(1)
-      .then(({ data }) => {
+      .then(({ data, error }: { data: any[] | null; error: any }) => {
+        if (error) {
+          console.error("Erreur chargement lancement:", error);
+          setLoadError(true);
+          setLoaded(true);
+          return;
+        }
         if (data && data.length > 0) {
           const r = data[0];
           setLaunch({
@@ -152,11 +163,15 @@ export default function InstagramLaunch() {
             sale_end: r.sale_end,
             selected_contents: r.selected_contents ?? [],
             status: r.status,
+            launch_model: r.launch_model ?? null,
           });
+        } else {
+          // Changement d'espace sans lancement existant : repartir d'un formulaire vide
+          setLaunch({ ...EMPTY_LAUNCH });
         }
         setLoaded(true);
       });
-  }, [user?.id]);
+  }, [user?.id, column, value, reloadKey]);
 
 
   const update = (field: keyof LaunchData, value: any) => setLaunch((prev) => ({ ...prev, [field]: value }));
@@ -216,39 +231,83 @@ export default function InstagramLaunch() {
     setTimeout(() => setCopiedIdeaIdx(null), 1500);
   };
 
+  // Écrit le lancement en base et LÈVE si Supabase renvoie { error }
+  // (supabase-js ne lève jamais tout seul — règle maison).
+  const persist = async (status?: string) => {
+    if (!user) throw new Error("Non connectée");
+    const payload = {
+      user_id: profileUserId,
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      name: launch.name,
+      promise: launch.promise,
+      objections: launch.objections,
+      free_resource: launch.free_resource,
+      teasing_start: launch.teasing_start,
+      teasing_end: launch.teasing_end,
+      sale_start: launch.sale_start,
+      sale_end: launch.sale_end,
+      selected_contents: launch.selected_contents,
+      status: status ?? launch.status,
+    };
+    if (launch.id) {
+      const { error } = await supabase.from("launches").update(payload).eq("id", launch.id);
+      if (error) throw new Error(error.message);
+      if (status) setLaunch((prev) => ({ ...prev, status }));
+    } else {
+      const { data, error } = await supabase.from("launches").insert(payload).select().single();
+      if (error) throw new Error(error.message);
+      if (data) setLaunch((prev) => ({ ...prev, id: data.id, status: payload.status }));
+    }
+  };
+
   const save = async () => {
     if (!user) return;
     setSaving(true);
     try {
-      const payload = {
-        user_id: profileUserId,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        name: launch.name,
-        promise: launch.promise,
-        objections: launch.objections,
-        free_resource: launch.free_resource,
-        teasing_start: launch.teasing_start,
-        teasing_end: launch.teasing_end,
-        sale_start: launch.sale_start,
-        sale_end: launch.sale_end,
-        selected_contents: launch.selected_contents,
-        status: launch.status,
-      };
-      if (launch.id) {
-        await supabase.from("launches").update(payload).eq("id", launch.id);
-      } else {
-        const { data } = await supabase.from("launches").insert(payload).select().single();
-        if (data) setLaunch((prev) => ({ ...prev, id: data.id }));
-      }
+      await persist();
       toast.success("Lancement sauvegardé !");
-    } catch {
-      toast.error("Erreur lors de la sauvegarde");
+    } catch (e: any) {
+      console.error("Erreur sauvegarde lancement:", e);
+      toast.error(friendlyError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Étape finale : sauvegarde en "active" puis passe au choix du modèle
+  // (ou directement au plan si un modèle a déjà été choisi).
+  const launchAndGo = async () => {
+    if (!user) return;
+    setSaving(true);
+    try {
+      await persist("active");
+      navigate(launch.launch_model ? "/instagram/lancement/plan" : "/instagram/lancement/recommandation");
+    } catch (e: any) {
+      console.error("Erreur sauvegarde lancement:", e);
+      toast.error(friendlyError(e));
     } finally {
       setSaving(false);
     }
   };
 
   if (!loaded) return null;
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
+          <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Préparer un lancement" />
+          <div className="mt-16 text-center space-y-3">
+            <p className="text-sm text-muted-foreground">Impossible de charger ton lancement. Vérifie ta connexion, puis réessaie.</p>
+            <Button variant="outline" onClick={() => setReloadKey((k) => k + 1)} className="rounded-full">
+              Réessayer
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -502,7 +561,7 @@ export default function InstagramLaunch() {
               Suivant <ChevronRight className="h-4 w-4 ml-1" />
             </Button>
           ) : (
-            <Button onClick={async () => { const newLaunch = { ...launch, status: "active" }; setLaunch(newLaunch); setSaving(true); try { const payload = { user_id: profileUserId, name: newLaunch.name, promise: newLaunch.promise, objections: newLaunch.objections, free_resource: newLaunch.free_resource, teasing_start: newLaunch.teasing_start, teasing_end: newLaunch.teasing_end, sale_start: newLaunch.sale_start, sale_end: newLaunch.sale_end, selected_contents: newLaunch.selected_contents, status: "active" }; if (newLaunch.id) { await supabase.from("launches").update(payload).eq("id", newLaunch.id); } else { const { data } = await supabase.from("launches").insert(payload).select().single(); if (data) setLaunch(prev => ({ ...prev, id: data.id })); } navigate("/instagram/lancement/plan"); } catch { toast.error("Erreur lors de la sauvegarde"); } finally { setSaving(false); } }}>
+            <Button onClick={launchAndGo} disabled={saving}>
               🚀 Lancer
             </Button>
           )}
