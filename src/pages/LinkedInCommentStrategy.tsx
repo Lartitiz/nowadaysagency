@@ -93,7 +93,7 @@ export default function LinkedInCommentStrategy() {
           <h2 className="text-base font-bold text-foreground mb-4">Mes comptes à commenter régulièrement</h2>
           
           {accounts.length === 0 && (
-            <p className="text-sm text-muted-foreground italic mb-4">Aucun compte ajouté. Commence par en ajouter 10-15.</p>
+            <p className="text-sm text-muted-foreground italic mb-4">Aucun compte ajouté pour l'instant — ajoute ton premier compte juste en dessous 👇 (vise 10-15).</p>
           )}
 
           <div className="space-y-2 mb-4">
@@ -101,7 +101,7 @@ export default function LinkedInCommentStrategy() {
               <div key={idx} className="flex items-center gap-3 rounded-xl border border-border p-3">
                 <span className="text-sm font-medium text-foreground flex-1">{acc.name}</span>
                 {acc.niche && <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{acc.niche}</span>}
-                <Button variant="ghost" size="sm" onClick={() => removeAccount(idx)}>
+                <Button variant="ghost" size="sm" aria-label={`Retirer ${acc.name}`} title="Retirer ce compte" onClick={() => removeAccount(idx)}>
                   <Trash2 className="h-4 w-4 text-muted-foreground" />
                 </Button>
               </div>
