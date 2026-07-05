@@ -32,10 +32,13 @@ for (const page_info of LEGAL_PAGES) {
   test(`T21-légal — ${page_info.label} (${page_info.path}) charge sans 404`, async ({ page }) => {
     await page.goto(page_info.path, { waitUntil: "domcontentloaded" });
 
-    // La page ne doit pas afficher d'erreur 404 ou "non trouvée"
+    // La page ne doit pas afficher d'erreur 404 ou "non trouvée".
+    // ⚠️ pas le mot « erreur » nu : les CGU contiennent légitimement
+    // « peuvent contenir des erreurs » (section IA) → faux positif racé
+    // (n'échouait que quand la page avait fini de rendre TOUT le texte).
     const body = await page.locator("body").textContent() || "";
     expect(body, `Page ${page_info.path} semble vide ou en erreur`).not.toMatch(
-      /page introuvable|404|not found|erreur|cannot read/i
+      /page introuvable|404|not found|une erreur est survenue|erreur réseau|impossible de charger|cannot read/i
     );
 
     // La page doit avoir du contenu substantiel (plus de 100 chars de texte)
