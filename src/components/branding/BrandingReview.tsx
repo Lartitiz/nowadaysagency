@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
+import { posthog } from "@/lib/posthog";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
@@ -675,18 +676,17 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   const validatedCount = validated.size;
   const allDone = validatedCount === 7;
 
-  // Log section_validated events
+  // Log section_validated events — PostHog, PAS ai_usage : ai_usage est la table
+  // de FACTURATION (checkQuota compte toutes ses lignes du mois dans le quota),
+  // y écrire de la télémétrie brûlait des crédits gratuits à chaque validation.
   const logEvent = useCallback(async (eventType: string, meta?: Record<string, any>) => {
     if (!user?.id) return;
     try {
-      await supabase.from("ai_usage").insert({
-        user_id: user.id,
+      posthog.capture(eventType, {
+        source: "branding_autofill",
         workspace_id: workspaceId !== user.id ? workspaceId : null,
-        action_type: eventType,
-        category: "autofill",
-        model_used: null,
-        tokens_used: null,
-      } as any);
+        ...meta,
+      });
     } catch { /* silent */ }
   }, [user?.id, workspaceId]);
 
