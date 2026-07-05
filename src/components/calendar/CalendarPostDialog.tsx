@@ -276,6 +276,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const igValidImages = mediaUrls.filter(isPublicImageUrl);
   const instagramPublishDisabledReason = (() => {
     if (postCanal !== "instagram") return "Publication directe réservée aux posts Instagram.";
+    // L'edge social-instagram-publish ne gère que le feed (pas media_type=STORIES) :
+    // publier une story d'ici partirait en post feed.
+    if (format === "story_serie") return "La publication directe des stories arrive bientôt — publie-la depuis l'app Instagram.";
     if (igValidImages.length === 0) return "Ajoute un visuel (image) pour publier.";
     if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
     return null;
@@ -401,6 +404,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       return;
     }
     if (postCanal === "instagram") {
+      // Même garde que la publication immédiate : le cron publie en feed, pas en story.
+      if (format === "story_serie") { toast.error("La publication directe des stories arrive bientôt — publie-la depuis l'app Instagram."); return; }
       if (igValidImages.length === 0) { toast.error("Ajoute au moins un visuel (image) avant de programmer."); return; }
       if (igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
     } else if (postCanal === "linkedin") {

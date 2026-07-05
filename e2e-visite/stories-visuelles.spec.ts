@@ -101,6 +101,16 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   // Bouton d'export
   await expect(page.getByRole("button", { name: /télécharger les visuels/i })).toBeVisible();
 
+  // « Publier sur Instagram » ne doit PAS être actif pour une story : l'edge
+  // social-instagram-publish ne gère que le feed, une story partirait en post feed.
+  const publishIg = page.getByRole("button", { name: /publier sur instagram/i }).first();
+  if (await publishIg.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await expect(publishIg).toBeDisabled();
+    console.log("Bouton « Publier sur Instagram » présent mais désactivé (attendu pour une story)");
+  } else {
+    console.log("Bouton « Publier sur Instagram » absent pour une story (OK)");
+  }
+
   // La zone sticker existe dans au moins un aperçu (contenu de l'iframe)
   let stickerFound = false;
   for (let i = 0; i < previewCount; i++) {

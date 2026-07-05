@@ -60,6 +60,11 @@ describe("instagramPublishDisabledReason", () => {
     }
   });
 
+  it("story : bloqué même avec une image publiable (l'edge ne fait pas media_type=STORIES)", () => {
+    expect(instagramPublishDisabledReason({ ...base, selectedFormat: "story" })).toMatch(/stories arrive bientôt/);
+    expect(instagramPublishDisabledReason({ ...base, selectedFormat: "story", publishableImageUrl: null })).toMatch(/stories arrive bientôt/);
+  });
+
   it("carrousel : exige au moins 2 visuels", () => {
     expect(instagramPublishDisabledReason({ ...base, isCarousel: true, visualSlidesCount: 1 })).toMatch(/visuels du carrousel/);
     expect(instagramPublishDisabledReason({ ...base, isCarousel: true, visualSlidesCount: 2 })).toBeNull();
