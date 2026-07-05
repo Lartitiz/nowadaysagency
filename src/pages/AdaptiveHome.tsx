@@ -15,6 +15,7 @@ import {
   Palette,
   Search,
   Rocket,
+  Recycle as RecycleIcon,
   Upload,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +39,7 @@ import {
 
 import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { weeklyIdeas } from "@/lib/weekly-ideas";
+import RecycleDialog from "@/components/dashboard/RecycleDialog";
 import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -266,6 +268,7 @@ export default function AdaptiveHome() {
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
   const [auditPickerOpen, setAuditPickerOpen] = useState(false);
+  const [recycleOpen, setRecycleOpen] = useState(false);
 
   // Ideas count
   const workspaceId = activeWorkspace?.id ?? null;
@@ -647,6 +650,12 @@ export default function AdaptiveHome() {
               desc="Un visuel fait sur Canva ou ailleurs ? Pose-le sur une date."
               onClick={() => navigate("/calendrier?import=1")}
             />
+            <EditorialRow
+              icon={RecycleIcon}
+              title="Recycler un contenu qui a marché"
+              desc="Tes meilleurs posts méritent une seconde vie — on les ré-angle."
+              onClick={() => setRecycleOpen(true)}
+            />
           </div>
         </section>
 
@@ -742,6 +751,9 @@ export default function AdaptiveHome() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Recyclage intelligent : les meilleurs posts passés, prêts à ré-angler */}
+        <RecycleDialog open={recycleOpen} onOpenChange={setRecycleOpen} />
 
         {/* Guidage 1re visite : UNIQUEMENT le coachmark GuidedTour. L'overlay
             4 slides « ton espace est prêt » a été retiré (validé Laetitia 04/07) :
