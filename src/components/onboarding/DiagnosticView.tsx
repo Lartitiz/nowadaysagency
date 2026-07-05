@@ -3,6 +3,7 @@ import { motion, useInView, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage } from "@/lib/diagnostic-data";
+import BrandLearnedSection from "./BrandLearnedSection";
 import Confetti from "@/components/Confetti";
 
 const SOURCE_BADGES: Record<string, { emoji: string; label: string }> = {
@@ -38,7 +39,6 @@ function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, h
   const [slide, setSlide] = useState(0);
   const [touchStart, setTouchStart] = useState(0);
   const hasSummary = !!data.summary;
-  const totalSlides = hasSummary ? 8 : 7;
 
   const handleTouchStart = (e: React.TouchEvent) => setTouchStart(e.touches[0].clientX);
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -59,8 +59,12 @@ function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, h
     <WeaknessesSection key="d" weaknesses={data.weaknesses} />,
     <PrioritiesSection key="e" priorities={data.priorities} />,
     <ChannelScoresSection key="f" channelScores={data.channelScores} />,
+    // Slide toujours présente (état d'attente inclus) : l'enrichissement est
+    // asynchrone et une slide qui apparaît en cours de route décalerait l'index
+    <BrandLearnedSection key="brand" />,
     <FinalSection key="g" onComplete={onComplete} onCreateFirst={onCreateFirst} />,
   );
+  const totalSlides = sections.length;
 
   return (
     <div
@@ -124,6 +128,7 @@ function DesktopScroll({ data, prenom, onComplete, onCreateFirst, hasInstagram, 
         <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>
         <AnimatedSection><PrioritiesSection priorities={data.priorities} /></AnimatedSection>
         <AnimatedSection><ChannelScoresSection channelScores={data.channelScores} /></AnimatedSection>
+        <AnimatedSection><BrandLearnedSection /></AnimatedSection>
         <AnimatedSection><FinalSection onComplete={onComplete} onCreateFirst={onCreateFirst} /></AnimatedSection>
       </div>
     </div>
