@@ -18,6 +18,57 @@ import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
+// ── Sortie structurée pour les steps `questions` / `follow-up` ──
+// Le tool forcé (tool_choice) fait garantir le JSON par l'API elle-même :
+// fini les 502 « réponse IA illisible » quand Haiku glisse un guillemet non
+// échappé ou un saut de ligne brut dans du JSON texte (vu 2× de suite le
+// 05/07 sur le parcours story). Les prompts restent inchangés — c'est la
+// couche de transport qui devient déterministe, pas une règle de plus.
+const QUESTIONS_TOOL = {
+  name: "poser_questions",
+  description: "Retourne les 3 questions de brief à poser à l'utilisatrice.",
+  input_schema: {
+    type: "object",
+    properties: {
+      questions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question: { type: "string" },
+            placeholder: { type: "string" },
+          },
+          required: ["question", "placeholder"],
+        },
+      },
+    },
+    required: ["questions"],
+  },
+};
+
+const FOLLOW_UP_TOOL = {
+  name: "poser_questions_suivi",
+  description: "Retourne 1 à 2 questions d'approfondissement.",
+  input_schema: {
+    type: "object",
+    properties: {
+      follow_up_questions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question: { type: "string" },
+            placeholder: { type: "string" },
+            why: { type: "string" },
+          },
+          required: ["question", "placeholder"],
+        },
+      },
+    },
+    required: ["follow_up_questions"],
+  },
+};
+
 /**
  * Detect the actual media_type of an image payload so we never claim
  * image/jpeg when the bytes are image/png (Anthropic returns a 400 otherwise).
@@ -1449,6 +1500,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         // Questions ancrées sur photos : plus lourd (upload images) mais reste
         // borné — 60s/tentative évite le blocage indéfini d'un fetch qui traîne.
         abortTimeoutMs: 60000,
+        tool: QUESTIONS_TOOL,
       }, finalUsage);
     } else if (step === "generate" && body.photo_mode && body.photos?.[0]?.base64) {
       // Photo mode with vision: send 1 to 10 images to Claude — format-aware prompt.
@@ -1551,7 +1603,18 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       // tentative à 30s pour qu'un fetch qui traîne bascule vite en retry plutôt
       // que de faire patienter l'utilisatrice >1 min sur le chemin d'activation.
       const abortMs = (step === "questions" || step === "follow-up") ? 30000 : undefined;
-      rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
+      const structuredTool = step === "questions" ? QUESTIONS_TOOL : step === "follow-up" ? FOLLOW_UP_TOOL : undefined;
+      rawContent = structuredTool
+        ? await callAnthropic({
+            model: modelForCall,
+            system: systemPrompt,
+            messages: [{ role: "user", content: userPrompt! }],
+            temperature: tempText,
+            max_tokens: maxTokens ?? 4096,
+            abortTimeoutMs: abortMs,
+            tool: structuredTool,
+          }, finalUsage)
+        : await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
     }
 
     // Plus de fallback { raw } muet : une réponse illisible = erreur claire (502),

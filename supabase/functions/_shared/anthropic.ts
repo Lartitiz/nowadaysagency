@@ -13,6 +13,18 @@ export function sanitizeDashes(text: string): string {
     .replace(/,\s*,/g, ",");    // évite ",," si deux tirets se suivaient
 }
 
+/** Applique sanitizeDashes à toutes les strings d'une valeur JSON (sortie structurée). */
+export function sanitizeDashesDeep<T>(value: T): T {
+  if (typeof value === "string") return sanitizeDashes(value) as unknown as T;
+  if (Array.isArray(value)) return value.map(sanitizeDashesDeep) as unknown as T;
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = sanitizeDashesDeep(v);
+    return out as unknown as T;
+  }
+  return value;
+}
+
 export type AnthropicModel = "claude-opus-4-8" | "claude-sonnet-4-6" | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
@@ -55,6 +67,12 @@ export interface AnthropicMessage {
   content: string | any[];
 }
 
+export interface AnthropicTool {
+  name: string;
+  description?: string;
+  input_schema: Record<string, unknown>;
+}
+
 export interface AnthropicOptions {
   model: AnthropicModel;
   system?: string;
@@ -70,6 +88,16 @@ export interface AnthropicOptions {
    * génération de questions en Haiku) pour transformer un blocage en retry rapide.
    */
   abortTimeoutMs?: number;
+  /**
+   * Sortie structurée : force le modèle à répondre via ce tool (`tool_choice`).
+   * L'API garantit alors un `input` conforme au schéma — ça élimine toute la
+   * classe d'échecs « réponse IA illisible » du parsing texte (guillemets non
+   * échappés dans une string, sauts de ligne bruts, prose autour du JSON).
+   * `callAnthropic` renvoie alors `JSON.stringify(input)` : les appelants
+   * existants gardent leur flux (string → tryParseAiJson) mais le parse ne
+   * peut plus échouer.
+   */
+  tool?: AnthropicTool;
 }
 
 // Modèle par type d'action — Sonnet pour le contenu courant, Opus pour les tâches complexes
@@ -321,6 +349,30 @@ function extractValidatedText(data: any): string {
   return text;
 }
 
+/**
+ * Pendant d'`extractValidatedText` pour la sortie structurée (tool forcé) :
+ * même garde troncature, puis extrait l'`input` du bloc tool_use et le
+ * re-sérialise — le JSON renvoyé à l'appelant est donc valide par construction.
+ */
+export function extractValidatedToolInput(data: any, toolName: string): string {
+  if (data?.stop_reason === "max_tokens") {
+    throw new AnthropicError(
+      "La génération a été coupée car trop longue. Réessaie.",
+      422
+    );
+  }
+  const block = Array.isArray(data?.content)
+    ? data.content.find((b: any) => b?.type === "tool_use" && b?.name === toolName)
+    : undefined;
+  if (!block || block.input === undefined || block.input === null) {
+    throw new AnthropicError(
+      "L'IA a renvoyé une réponse vide. Réessaie.",
+      502
+    );
+  }
+  return JSON.stringify(sanitizeDashesDeep(block.input));
+}
+
 export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageSink): Promise<string> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
@@ -330,6 +382,11 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     messages: prepareMessages(options.model, options.messages),
     max_tokens: options.max_tokens || 4096,
   };
+
+  if (options.tool) {
+    body.tools = [options.tool];
+    body.tool_choice = { type: "tool", name: options.tool.name };
+  }
 
   if (options.system) {
     body.system = [
@@ -412,7 +469,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     if (response.ok) {
       const data = await response.json();
       if (usageOut) Object.assign(usageOut, extractUsage(data, options.model));
-      return extractValidatedText(data);
+      return options.tool ? extractValidatedToolInput(data, options.tool.name) : extractValidatedText(data);
     }
 
     const errorText = await response.text();
@@ -455,7 +512,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
         if (usageOut) Object.assign(usageOut, extractUsage(data, "claude-sonnet-4-6"));
-        return extractValidatedText(data);
+        return options.tool ? extractValidatedToolInput(data, options.tool.name) : extractValidatedText(data);
       }
       await fallbackRes.text(); // consume body
     }
