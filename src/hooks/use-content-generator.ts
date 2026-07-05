@@ -221,6 +221,17 @@ export function useContentGenerator() {
     setQuestions([]);
   }, []);
 
+  // Pour les générations qui n'empruntent PAS generate()/generateStream()
+  // (structure proposal carrousel, visuels/briefs Pinterest : appels directs
+  // dans CreerUnifie) : marquer/effacer l'état quota pour que l'étape résultat
+  // dise la vérité aussi sur ces chemins.
+  const markQuotaExhausted = useCallback((e?: unknown) => {
+    const raw = typeof e === "string" ? e : (e as any)?.data?.message || (e as any)?.message || "";
+    setQuotaExhausted(quotaInlineMessage(cleanErrorMessage(raw)));
+  }, []);
+
+  const clearQuotaExhausted = useCallback(() => setQuotaExhausted(null), []);
+
   const generate = useCallback(async (params: GenerateParams) => {
     const {
       format,
@@ -841,6 +852,8 @@ export function useContentGenerator() {
     setResult,
     error,
     quotaExhausted,
+    markQuotaExhausted,
+    clearQuotaExhausted,
     reset,
     generateQuestions,
     loadingQuestions,
