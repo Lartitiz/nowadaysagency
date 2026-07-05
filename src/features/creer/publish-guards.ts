@@ -64,6 +64,11 @@ export function instagramPublishDisabledReason(args: {
   if (selectedFormat?.startsWith("pinterest") || selectedFormat === "linkedin" || selectedFormat === "newsletter") {
     return "Publication Instagram disponible uniquement pour les formats Instagram.";
   }
+  // L'edge social-instagram-publish ne gère que le feed (image simple + carrousel),
+  // pas media_type=STORIES : sans ce garde, une story partirait en post feed.
+  if (selectedFormat === "story") {
+    return "La publication directe des stories arrive bientôt — en attendant, télécharge le visuel et publie-le depuis l'app Instagram.";
+  }
   if (isCarousel) {
     return visualSlidesCount >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.";
   }
