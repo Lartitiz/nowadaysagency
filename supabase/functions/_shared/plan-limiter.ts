@@ -274,8 +274,17 @@ export async function checkQuota(
     };
   }
 
-  // Check category limit
-  if (categoryUsed >= limits[category]) {
+  // Check category limit — le cap catégorie protège la répartition du mensuel
+  // de BASE. Les bonus_credits sont un dépassement TOUTES-CATÉGORIES (même
+  // sémantique que leur consommation dans logUsage : tout usage au-delà du
+  // mensuel de base décrémente un bonus) → tant qu'il reste des bonus, le cap
+  // catégorie ne bloque pas. Sans ça, sur plan free (content = total = 23),
+  // les bonus ne pouvaient JAMAIS servir à générer du contenu : vécu le 05/07,
+  // compte recrédité de 190 bonus, header « 190 restants », génération refusée.
+  // Le plafond global reste vérifié au-dessus (effectiveTotalLimit inclut les
+  // bonus) ; les catégories à cap 0 (quality_max sur free) restent indisponibles
+  // (return not_available plus haut, les bonus ne les débloquent pas).
+  if (categoryUsed >= limits[category] && bonusCredits <= 0) {
     const label = CATEGORY_LABELS[category] || category;
     const nextMonth = new Date();
     nextMonth.setMonth(nextMonth.getMonth() + 1, 1);
@@ -294,7 +303,8 @@ export async function checkQuota(
   return {
     allowed: true,
     plan,
-    remaining: limits[category] - categoryUsed - 1,
+    // clamp 0 : quand un bonus by-passe le cap catégorie, le calcul brut devient négatif
+    remaining: Math.max(0, limits[category] - categoryUsed - 1),
     remaining_total: effectiveTotalLimit - totalUsed - 1,
     usage: usageMap,
   };

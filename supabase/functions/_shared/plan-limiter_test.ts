@@ -151,12 +151,29 @@ Deno.test("free: les crédits bonus étendent le plafond total", async () => {
   assertEquals(r.remaining_total, 28 - 23 - 1);
 });
 
-Deno.test("free: le bonus n'étend PAS le cap par catégorie (content reste bloqué à 23)", async () => {
-  // Comportement réel à connaître : content a un cap catégorie = total = 23.
-  // Même avec du bonus (total → 28), un usage 100% content est bloqué à 23 par le cap catégorie.
+Deno.test("free: tant qu'il reste des bonus, le cap catégorie ne bloque pas (content au-delà de 23)", async () => {
+  // Renversement assumé du comportement pré-05/07 : content a un cap = total de
+  // base (23) → sans ce fix, les bonus ne pouvaient JAMAIS servir à générer du
+  // contenu sur plan free (vécu : compte recrédité de 190 bonus, génération
+  // refusée pendant que le header affichait « 190 restants »). Les bonus sont un
+  // dépassement toutes-catégories, cohérent avec leur consommation dans logUsage.
   const r = await checkQuota("u1", "content", undefined, sb({ userPlan: "free", usage: rows(23, "content"), bonusCredits: 5 }));
+  assertEquals(r.allowed, true);
+  assertEquals(r.remaining, 0); // cap catégorie dépassé → clamp, pas de négatif
+  assertEquals(r.remaining_total, 28 - 23 - 1);
+});
+
+Deno.test("free: bonus épuisés (0) → le cap catégorie bloque comme avant", async () => {
+  const r = await checkQuota("u1", "content", undefined, sb({ userPlan: "free", usage: rows(23, "content"), bonusCredits: 0 }));
   assertEquals(r.allowed, false);
-  assertEquals(r.reason, "category");
+  // total de base atteint aussi (23 content = 23 total) → c'est le total qui répond
+  assertEquals(r.allowed, false);
+});
+
+Deno.test("free: quality_max reste indisponible même avec des bonus", async () => {
+  const r = await checkQuota("u1", "quality_max", undefined, sb({ userPlan: "free", bonusCredits: 50 }));
+  assertEquals(r.allowed, false);
+  assertEquals(r.reason, "not_available");
 });
 
 Deno.test("erreur de lecture usage → fail-closed (bloqué, reason error)", async () => {
