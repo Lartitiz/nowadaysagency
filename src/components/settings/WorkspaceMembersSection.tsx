@@ -149,7 +149,7 @@ export default function WorkspaceMembersSection() {
       </h2>
       <p className="text-sm text-muted-foreground mb-4">
         Les personnes qui ont accès à l'espace
-        {activeWorkspace?.name ? ` « ${activeWorkspace.name} »` : " actif"}.
+        {activeWorkspace?.name ? ` «\u00A0${activeWorkspace.name}\u00A0»` : " actif"}.
       </p>
 
       {loading ? (
@@ -193,8 +193,10 @@ export default function WorkspaceMembersSection() {
                 {invitations.map((inv) => (
                   <div key={inv.id} className="flex items-center justify-between gap-3 p-3 rounded-xl border border-dashed border-border">
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate flex items-center gap-1.5">
-                        <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" /> {inv.email}
+                      {/* truncate sur un conteneur flex ne produit pas d'ellipsis : il faut le span interne */}
+                      <p className="text-sm font-medium text-foreground flex items-center gap-1.5 min-w-0">
+                        <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        <span className="truncate">{inv.email}</span>
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {ROLE_LABELS[inv.role] || inv.role} · expire le {new Date(inv.expires_at).toLocaleDateString("fr-FR")}
