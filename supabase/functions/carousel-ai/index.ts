@@ -15,6 +15,33 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 
+// ── Sortie structurée pour les deepening_questions ──
+// Même pattern que creative-flow (#359) : le tool forcé (tool_choice) fait
+// garantir le JSON par l'API elle-même — fini les 502 « réponse IA illisible »
+// quand Haiku glisse un guillemet non échappé ou un saut de ligne brut dans du
+// JSON texte. Prompts inchangés : seule la couche de transport devient déterministe.
+const QUESTIONS_TOOL = {
+  name: "poser_questions",
+  description: "Retourne les 3 questions d'approfondissement à poser à l'utilisatrice.",
+  input_schema: {
+    type: "object",
+    properties: {
+      questions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            question: { type: "string" },
+            placeholder: { type: "string" },
+          },
+          required: ["question", "placeholder"],
+        },
+      },
+    },
+    required: ["questions"],
+  },
+};
+
 // Choix du modèle de RÉDACTION du carrousel.
 // Par défaut Sonnet (rapide). Opus seulement si l'utilisatrice a coché
 // explicitement "Mode qualité Max" (quality_max) — plus soigné mais ~2-3x plus
@@ -709,6 +736,7 @@ Réponds UNIQUEMENT en JSON valide :
           // Questions ancrées sur photos : borne chaque tentative à 60s pour
           // éviter le blocage indéfini d'un fetch qui traîne.
           abortTimeoutMs: 60000,
+          tool: QUESTIONS_TOOL,
         }, deepeningUsage);
 
         await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`, deepeningUsage.total_tokens, deepeningUsage.model, workspace_id);
@@ -748,7 +776,7 @@ Réponds UNIQUEMENT en JSON valide :
       ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
       // Questions = appel Haiku court et borné : 30s/tentative pour qu'un fetch
       // qui traîne bascule en retry plutôt que de bloquer le chemin d'activation.
-      ...(type === "deepening_questions" ? { abortTimeoutMs: 30000 } : {}),
+      ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : {}),
     }, usage);
 
     // JSON-aware correction pass for carousels
