@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -13,32 +13,52 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
   const [expired, setExpired] = useState(false);
+  const readyRef = useRef(false);
 
   useEffect(() => {
+    // 1) Lien déjà consommé/expiré : Supabase redirige avec l'erreur DANS le
+    //    fragment (#error=access_denied&error_code=otp_expired). Le dire tout
+    //    de suite — avant, on laissait 15 s de « Chargement... » avant l'écran
+    //    « Lien expiré ». Cas fréquent : token à usage unique grillé par un
+    //    scanner d'e-mails (le lien passe par un wrapper de tracking, un
+    //    simple GET suffit) avant le clic réel de l'utilisatrice.
+    if (/error_code=otp_expired|error=access_denied/.test(window.location.hash)) {
+      setExpired(true);
+      return;
+    }
+
+    const markReady = () => {
+      readyRef.current = true;
+      setReady(true);
+      setExpired(false);
+    };
+
+    // 2) Chemin nominal : supabase-js consomme le #access_token et émet
+    //    PASSWORD_RECOVERY après le montage.
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY") {
-        setReady(true);
-      }
+      if (event === "PASSWORD_RECOVERY") markReady();
     });
 
+    // 3) Filet : si l'échange du token s'est fait AVANT notre abonnement
+    //    (client supabase initialisé au chargement du bundle), l'événement est
+    //    raté mais la session existe → autoriser la saisie au lieu d'afficher
+    //    « Lien expiré » à tort sur un lien valide.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) markReady();
+    });
+
+    // 4) Timeout de secours via ref — l'ancienne version capturait `ready`
+    //    dans la closure (toujours false) : après 15 s, `expired` repassait à
+    //    true même quand le formulaire était prêt.
     const timeout = setTimeout(() => {
-      setExpired((prev) => {
-        // Only expire if not already ready
-        return !ready ? true : prev;
-      });
+      if (!readyRef.current) setExpired(true);
     }, 15000);
 
     return () => {
       subscription.unsubscribe();
       clearTimeout(timeout);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Clear expired if ready fires
-  useEffect(() => {
-    if (ready) setExpired(false);
-  }, [ready]);
 
   const handleReset = async (e: React.FormEvent) => {
     e.preventDefault();
