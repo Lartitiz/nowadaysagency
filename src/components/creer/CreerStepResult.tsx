@@ -467,7 +467,7 @@ export default function CreerStepResult({
       case "reel":
         return <ReelResult result={result} />;
       case "story":
-        return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />;
+        return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} />;
       case "post":
         return <PostResult result={result} photos={photos} />;
       case "linkedin":

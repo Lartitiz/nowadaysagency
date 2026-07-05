@@ -751,6 +751,26 @@ ${venteBlock}
 
 ${hookBlock}
 
+══ PLAN VISUEL PAR STORY (champ "visual") ══
+
+Chaque story reçoit un objet "visual" : c'est le plan du visuel 1080×1920 rendu AUTOMATIQUEMENT par l'outil (texte façon natif Instagram : pastilles de texte surlignées posées sur une photo ou un fond aux couleurs de la marque). Le spectateur doit croire que la story a été faite dans l'app Instagram, PAS designée.
+
+GABARITS DISPONIBLES (champ "gabarit") :
+- "photo_pills" : photo en fond + pastille titre + pastille texte. Le gabarit par défaut, le plus authentique.
+- "fond_pills" : fond uni aux couleurs de la marque + pastilles centrées. Pour les annonces et les stories sans photo.
+- "interaction" : une question courte en pastille + une ZONE RÉSERVÉE pour le sticker interactif (sondage/question/slider) que l'utilisateur·ice posera dans Instagram. OBLIGATOIRE quand la story a un sticker.
+- "liste" : pastille titre + 2-4 pastilles items empilées. Pour les tips et étapes.
+- "citation" : verbatim en italique élégant dans une grande pastille. Pour la preuve sociale, les retours clients.
+
+RÈGLES DU PLAN VISUEL :
+1. "title_pill" : 3-7 mots MAX, pas de point final (affiché en majuscules condensées type "Strong" Instagram).
+2. "body_pill" : 1-2 phrases courtes, 120 caractères MAX (affiché en gras type "Classic" Instagram). Le texte complet de la story reste dans "text" ; les pastilles n'en sont que la version AFFICHABLE.
+3. "list_pills" : uniquement pour le gabarit "liste", 2-4 items de 6-10 mots.
+4. "quote" : uniquement pour le gabarit "citation". Verbatim court, jamais inventé : s'il n'y a pas de vrai retour client fourni, n'utilise PAS ce gabarit.
+5. "background" : "photo" ou "fond_couleur". Si "photo", remplis "photo_directive" : quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle (comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo").
+6. Varie les gabarits dans la séquence : jamais deux fois le même d'affilée si la séquence fait 3+ stories.
+7. Story avec sticker → gabarit "interaction" (le sticker a besoin de sa zone).
+
 POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
 - Option A : hook court (le plus percutant, 5-10 mots)
 - Option B : hook développé (pour ceux·celles qui préfèrent contextualiser, 10-15 mots)
@@ -821,6 +841,15 @@ Réponds en JSON strict :
         "options": ["Oui", "Non"],
         "placement": "bas de la story"
       },
+      "visual": {
+        "gabarit": "interaction",
+        "background": "fond_couleur",
+        "title_pill": "[3-7 mots]",
+        "body_pill": "[1-2 phrases courtes, 120 car. max]",
+        "list_pills": null,
+        "quote": null,
+        "photo_directive": null
+      },
       "tip": "...",
       "face_cam": false,
       "sous_titres_needed": false
@@ -831,6 +860,7 @@ Réponds en JSON strict :
 IMPORTANT :
 - Seule la story 1 a "hook_options". Les autres stories ont "hook_options": null
 - Le champ "text" de la story 1 contient le hook option_a par défaut
+- CHAQUE story a un "visual", SAUF les stories face cam : si "face_cam": true → "visual": null (c'est une vidéo à filmer, pas un visuel à rendre)
 - Le champ "narrative_angle" indique l'angle de narration choisi pour la séquence
 - Pas de markdown dans les valeurs JSON
 
