@@ -118,7 +118,7 @@ function buildPalette(branding: StoryFrameBranding | null | undefined): Palette 
 }
 
 /** Une pastille façon texte natif Instagram : fond ligne à ligne (box-decoration-break). */
-function pill(text: string, opts: { bg: string; color: string; font: string; size: number; transform?: string; letterSpacing?: string; italic?: boolean }): string {
+function pill(text: string, opts: { bg: string; color: string; font: string; size: number; transform?: string; letterSpacing?: string; italic?: boolean; role?: string }): string {
   const style = [
     "display:inline",
     "box-decoration-break:clone",
@@ -129,15 +129,19 @@ function pill(text: string, opts: { bg: string; color: string; font: string; siz
     `font-size:${opts.size}px`,
     "font-weight:600",
     `line-height:1.72`,
-    "padding:6px 26px",
-    "border-radius:16px",
+    "padding:8px 30px",
+    "border-radius:18px",
     opts.transform ? `text-transform:${opts.transform}` : "",
-    opts.letterSpacing ? `letter-spacing:${opts.letterSpacing}` : "",
+    // letter-spacing TOUJOURS explicite (jamais "normal") : html2canvas mesure
+    // mal les espaces de certaines fontes (Playfair italique → mots collés à
+    // l'export) ; un letter-spacing non nul le force à poser chaque caractère.
+    `letter-spacing:${opts.letterSpacing || "0.01em"}`,
     opts.italic ? "font-style:italic" : "",
   ]
     .filter(Boolean)
     .join(";");
-  return `<span style="${style}">${escapeHtml(text)}</span>`;
+  // data-story-pptx : repère de mesure pour l'export PPTX natif (export-story-pptx).
+  return `<span data-story-pptx="${opts.role || "text"}" style="${style}">${escapeHtml(text)}</span>`;
 }
 
 function titlePillHtml(text: string, p: Palette): string {
@@ -145,14 +149,15 @@ function titlePillHtml(text: string, p: Palette): string {
     bg: p.primary,
     color: textOn(p.primary, p.ink),
     font: FONT_STRONG,
-    size: 58,
+    size: 66,
     transform: "uppercase",
     letterSpacing: "2px",
+    role: "title",
   });
 }
 
-function bodyPillHtml(text: string, p: Palette, size = 44): string {
-  return pill(text, { bg: "#FFFFFF", color: p.ink, font: FONT_CLASSIC, size });
+function bodyPillHtml(text: string, p: Palette, size = 52): string {
+  return pill(text, { bg: "#FFFFFF", color: p.ink, font: FONT_CLASSIC, size, role: "body" });
 }
 
 /** Zone sticker : matérialisée en aperçu, espace vide (même encombrement) à l'export. */
@@ -184,7 +189,7 @@ function stickerZoneHtml(sticker: StoryStickerPlan | null | undefined, p: Palett
 function wrapFrame(inner: string, backgroundCss: string): string {
   return `${FONT_LINK}
 <style>html,body{margin:0;padding:0;width:${STORY_W}px;height:${STORY_H}px;overflow:hidden}*,*::before,*::after{box-sizing:border-box}</style>
-<div style="width:${STORY_W}px;height:${STORY_H}px;position:relative;${backgroundCss}">${inner}</div>`;
+<div data-story-frame style="width:${STORY_W}px;height:${STORY_H}px;position:relative;${backgroundCss}">${inner}</div>`;
 }
 
 /**
@@ -221,15 +226,18 @@ export function buildStoryFrameHtml(
     const items = (Array.isArray(visual.list_pills) ? visual.list_pills : []).filter(Boolean).slice(0, 4);
     inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;gap:44px">
 ${title ? `<div style="text-align:center">${titlePillHtml(title, p)}</div>` : ""}
-${items.map((it) => `<div>${bodyPillHtml(it, p, 42)}</div>`).join("\n")}
+${items.map((it) => `<div>${bodyPillHtml(it, p, 48)}</div>`).join("\n")}
 </div>`;
   } else if (gabarit === "citation") {
     const quote = (visual.quote || body || title).trim();
-    const attribution = visual.quote ? body : "";
+    // L'IA remet parfois le verbatim tel quel dans body_pill : ne montrer
+    // l'attribution que si elle apporte autre chose que la citation.
+    const normalize = (s: string) => s.toLowerCase().replace(/[«»"'’\s.?!,:;()-]/g, "");
+    const attribution = visual.quote && normalize(body) && normalize(body) !== normalize(quote) ? body : "";
     const quoteBg = tintWithWhite(p.background, 0.5);
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:40px">
-<div>${pill(`« ${quote} »`, { bg: quoteBg, color: p.ink, font: FONT_ELEGANT, size: 54, italic: true })}</div>
-${attribution ? `<div>${pill(attribution, { bg: p.primary, color: textOn(p.primary, p.ink), font: FONT_CLASSIC, size: 34 })}</div>` : ""}
+    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:44px">
+<div>${pill(`« ${quote} »`, { bg: quoteBg, color: p.ink, font: FONT_ELEGANT, size: 58, italic: true, role: "quote" })}</div>
+${attribution ? `<div>${pill(attribution, { bg: p.primary, color: textOn(p.primary, p.ink), font: FONT_CLASSIC, size: 38, role: "attribution" })}</div>` : ""}
 </div>`;
   } else if (gabarit === "interaction") {
     inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;gap:70px;text-align:center">

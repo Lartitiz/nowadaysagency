@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, Loader2 } from "lucide-react";
+import { Download, FileDown, Loader2, Palette } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
@@ -10,6 +10,8 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
 import { exportStoryPng } from "@/lib/export-carousel-png";
+import { exportStoryPptx } from "@/lib/export-story-pptx";
+import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 
 interface PhotoLike {
   preview?: string;
@@ -95,21 +97,48 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
 
   const hasFrames = frames.some(Boolean);
   const [exporting, setExporting] = useState(false);
+  const [exportingPptx, setExportingPptx] = useState(false);
+  const { openInCanva, openingCanva } = useOpenInCanva();
 
-  const handleExport = useCallback(async () => {
-    setExporting(true);
-    try {
-      const exportFrames = stories
+  const buildExportFrames = useCallback(
+    () =>
+      stories
         .map((s: any, i: number) => {
           const html = buildStoryFrameHtml(s, branding, { photoUrl, preview: false });
           return html ? { story_number: i + 1, html } : null;
         })
-        .filter(Boolean) as { story_number: number; html: string }[];
-      await exportStoryPng(exportFrames, result?.structure_type || "sequence");
+        .filter(Boolean) as { story_number: number; html: string }[],
+    [stories, charter, photoUrl],
+  );
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      await exportStoryPng(buildExportFrames(), result?.structure_type || "sequence");
     } finally {
       setExporting(false);
     }
-  }, [stories, charter, photoUrl, result?.structure_type]);
+  }, [buildExportFrames, result?.structure_type]);
+
+  const handleExportPptx = useCallback(async () => {
+    setExportingPptx(true);
+    try {
+      await exportStoryPptx(buildExportFrames(), {
+        fileName: result?.structure_type || "sequence",
+        photoUrl,
+      });
+    } finally {
+      setExportingPptx(false);
+    }
+  }, [buildExportFrames, photoUrl, result?.structure_type]);
+
+  const handleOpenInCanva = useCallback(() => {
+    openInCanva(
+      async () =>
+        (await exportStoryPptx(buildExportFrames(), { photoUrl, returnBlob: true })) as Blob,
+      `Stories — ${result?.structure_label || result?.structure_type || "séquence"}`,
+    );
+  }, [openInCanva, buildExportFrames, photoUrl, result?.structure_label, result?.structure_type]);
 
   const fullText = stories
     .map((s: any) => s.text || s.texte || s.content || "")
@@ -174,10 +203,20 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
           )}
         </div>
         {hasFrames && (
-          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
-            {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
-            Télécharger les visuels
-          </Button>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
+              {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              Télécharger les visuels
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExportPptx} disabled={exportingPptx} className="gap-1.5">
+              {exportingPptx ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileDown className="h-3.5 w-3.5" />}
+              PPTX éditable
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleOpenInCanva} disabled={openingCanva} className="gap-1.5">
+              {openingCanva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Palette className="h-3.5 w-3.5" />}
+              Ouvrir dans Canva
+            </Button>
+          </div>
         )}
       </div>
       <div className="space-y-2" data-selection-enabled="true">
