@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
 
 interface InvitationData {
@@ -31,26 +32,28 @@ export default function InvitePage() {
     }
 
     async function fetchInvitation() {
-      const { data, error } = await supabase
-        .from("workspace_invitations" as any)
-        .select("id, workspace_id, email, role, workspaces:workspace_id(name)")
-        .eq("token", token)
-        .is("accepted_at", null)
-        .gt("expires_at", new Date().toISOString())
-        .maybeSingle();
+      // Via l'edge (service role) : la RLS SELECT sur workspaces est limitée
+      // aux membres, donc un join direct côté client ne peut pas résoudre le
+      // nom de l'espace pour une invitée pas encore membre.
+      const { data, error } = await invokeWithTimeout(
+        "invite-to-workspace",
+        { body: { action: "preview", token } },
+        15000,
+      );
 
-      if (error || !data) {
+      if (error || !data?.invitation) {
+        if (error) console.error("[invite] preview error:", error);
         setStatus("invalid");
         return;
       }
 
-      const row = data as any;
+      const inv = data.invitation;
       setInvitation({
-        id: row.id,
-        workspace_id: row.workspace_id,
-        email: row.email,
-        role: row.role,
-        workspace_name: row.workspaces?.name || "Espace inconnu",
+        id: inv.id,
+        workspace_id: inv.workspace_id,
+        email: inv.email,
+        role: inv.role,
+        workspace_name: inv.workspace_name || "Espace inconnu",
       });
       setStatus("valid");
     }
@@ -88,11 +91,16 @@ export default function InvitePage() {
         }
       }
 
-      // Mark invitation as accepted
-      await supabase
+      // Mark invitation as accepted. En cas d'échec (RLS), l'edge "list"
+      // auto-répare les invitations restées pendantes (#350) — on ne bloque
+      // donc pas l'acceptation, mais on garde une trace.
+      const { error: acceptErr } = await supabase
         .from("workspace_invitations" as any)
         .update({ accepted_at: new Date().toISOString() } as any)
         .eq("id", invitation.id);
+      if (acceptErr) {
+        console.error("[invite] accepted_at update failed (auto-heal edge prendra le relais):", acceptErr);
+      }
 
       setStatus("accepted");
       toast.success(`Tu as rejoint l'espace "${invitation.workspace_name}" !`);

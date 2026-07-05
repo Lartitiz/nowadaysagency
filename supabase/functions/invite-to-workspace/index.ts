@@ -2,9 +2,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { corsHeaders } from "../_shared/cors.ts";
 
 // Actions : "invite" (défaut, rétro-compatible), "list" (membres + invitations
-// en attente) et "revoke" (annuler une invitation en attente). Tout passe par
-// le service role car les RLS ne permettent ni de lire les profils des autres
-// membres, ni de supprimer une invitation depuis le client.
+// en attente), "revoke" (annuler une invitation en attente) et "preview"
+// (résoudre une invitation par token pour la page /invite/:token). Tout passe
+// par le service role car les RLS ne permettent ni de lire les profils des
+// autres membres, ni de supprimer une invitation depuis le client, ni de lire
+// le nom d'un workspace dont on n'est pas encore membre.
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,7 +19,47 @@ Deno.serve(async (req) => {
     });
 
   try {
-    // 1. Auth check
+    // 1. Parse body
+    const { workspace_id, email, role, action, invitation_id, token } = await req.json();
+    const act = action || "invite";
+
+    // 2. Service client for privileged checks
+    const sb = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+    );
+
+    // ─── action: preview ───
+    // Avant le check d'auth : la page /invite/:token doit s'afficher même
+    // sans compte (l'invitée n'est pas encore connectée). Le token secret
+    // fait office de capacité — le détenir suffit à voir cette invitation.
+    if (act === "preview") {
+      if (!token) return json({ error: "token est requis" }, 400);
+      const { data: invite, error: previewErr } = await sb
+        .from("workspace_invitations")
+        .select("id, workspace_id, email, role, workspaces:workspace_id(name)")
+        .eq("token", token)
+        .is("accepted_at", null)
+        .gt("expires_at", new Date().toISOString())
+        .maybeSingle();
+      if (previewErr) throw previewErr;
+      if (!invite) {
+        return json({ error: "Invitation introuvable, expirée ou déjà acceptée." }, 404);
+      }
+      const ws = invite.workspaces as { name?: string } | null;
+      return json({
+        success: true,
+        invitation: {
+          id: invite.id,
+          workspace_id: invite.workspace_id,
+          email: invite.email,
+          role: invite.role,
+          workspace_name: ws?.name ?? null,
+        },
+      });
+    }
+
+    // 3. Auth check (toutes les autres actions)
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) return json({ error: "Non authentifié" }, 401);
 
@@ -29,18 +71,9 @@ Deno.serve(async (req) => {
     const { data: { user } } = await anonClient.auth.getUser();
     if (!user) return json({ error: "Non authentifié" }, 401);
 
-    // 2. Parse body
-    const { workspace_id, email, role, action, invitation_id } = await req.json();
-    const act = action || "invite";
     if (!workspace_id) {
       return json({ error: "workspace_id est requis" }, 400);
     }
-
-    // 3. Service client for privileged checks
-    const sb = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    );
 
     // 4. Check caller is owner or manager of the workspace
     const { data: membership } = await sb
