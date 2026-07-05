@@ -98,8 +98,16 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   console.log(`Aperçus visuels rendus : ${previewCount}`);
   expect(previewCount).toBeGreaterThan(0);
 
-  // Bouton d'export
+  // Boutons d'export
   await expect(page.getByRole("button", { name: /télécharger les visuels/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /ouvrir dans canva/i })).toBeVisible();
+
+  // Export PPTX natif : le téléchargement doit aboutir (fichier .pptx non vide)
+  const dlPromise = page.waitForEvent("download", { timeout: 120_000 });
+  await page.getByRole("button", { name: /pptx éditable/i }).click();
+  const download = await dlPromise;
+  console.log(`PPTX téléchargé : ${download.suggestedFilename()}`);
+  expect(download.suggestedFilename()).toMatch(/\.pptx$/);
 
   // « Publier sur Instagram » ne doit PAS être actif pour une story : l'edge
   // social-instagram-publish ne gère que le feed, une story partirait en post feed.
