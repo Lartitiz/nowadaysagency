@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { format, startOfWeek, startOfMonth, endOfMonth, addWeeks, subWeeks, addMonths, subMonths, isSameDay, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { toast } from "sonner";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { useIsMobile } from "@/hooks/use-mobile";
 import {
@@ -324,13 +325,17 @@ export default function SharedCalendarPage() {
     setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: newStatus } : p));
 
     try {
-      await fetch(`${baseUrl}/public-calendar-edit`, {
+      // fetch ne rejette PAS sur un 4xx/5xx : sans le check res.ok, une erreur
+      // serveur laissait le statut optimiste affiché alors que rien n'était sauvé.
+      const res = await fetch(`${baseUrl}/public-calendar-edit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, post_id: post.id, field: "status", value: newStatus }),
       });
+      if (!res.ok) throw new Error(String(res.status));
     } catch {
       setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: old } : p));
+      toast.error("Le changement de statut n'a pas été enregistré, réessaie");
     }
   };
 
@@ -342,13 +347,15 @@ export default function SharedCalendarPage() {
     setEditingWording(null);
 
     try {
-      await fetch(`${baseUrl}/public-calendar-edit`, {
+      const res = await fetch(`${baseUrl}/public-calendar-edit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, post_id: post.id, field: "wording", value: newWording }),
       });
+      if (!res.ok) throw new Error(String(res.status));
     } catch {
       setPosts(prev => prev.map(p => p.id === post.id ? { ...p, content_draft: old, wording: old } : p));
+      toast.error("Le texte n'a pas été enregistré, réessaie");
     }
   };
 
@@ -359,15 +366,21 @@ export default function SharedCalendarPage() {
     // Optimistic
     setPosts(prev => prev.map(p => p.status === "ready" ? { ...p, status: "draft_ready" } : p));
 
+    let failed = 0;
     for (const post of toValidate) {
       try {
-        await fetch(`${baseUrl}/public-calendar-edit`, {
+        const res = await fetch(`${baseUrl}/public-calendar-edit`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ token, post_id: post.id, field: "status", value: "draft_ready" }),
         });
-      } catch { /* ignore */ }
+        if (!res.ok) throw new Error(String(res.status));
+      } catch {
+        failed++;
+        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: "ready" } : p));
+      }
     }
+    if (failed > 0) toast.error(`${failed} post${failed > 1 ? "s" : ""} n'${failed > 1 ? "ont" : "a"} pas pu être validé${failed > 1 ? "s" : ""}, réessaie`);
   };
 
   // ── Comments ──

@@ -166,16 +166,16 @@ export default function ProspectionSection() {
   const handleDmSent = async (content: string, approach: string) => {
     if (!dmProspect || !user) return;
     // Log interaction
-    try {
-      await supabase.from("prospect_interactions").insert({
-        prospect_id: dmProspect.id,
-        user_id: user.id,
-        interaction_type: "dm_sent",
-        content,
-        ai_generated: true,
-      });
-    } catch (e) {
-      console.error("[Prospection] Failed to log interaction:", e);
+    const { error: logError } = await supabase.from("prospect_interactions").insert({
+      prospect_id: dmProspect.id,
+      user_id: user.id,
+      interaction_type: "dm_sent",
+      content,
+      ai_generated: true,
+    });
+    if (logError) {
+      console.error("[Prospection] Failed to log interaction:", logError);
+      toast.error("Le message n'a pas pu être noté dans l'historique");
     }
 
     const nextStage = dmProspect.stage === "to_contact" ? "in_conversation" : dmProspect.stage;
@@ -188,7 +188,7 @@ export default function ProspectionSection() {
       next_reminder_text: `Vérifier si @${dmProspect.instagram_username} a répondu`,
     });
     setDmProspect(null);
-    toast.success("✅ Message noté dans l'historique !");
+    if (!logError) toast.success("✅ Message noté dans l'historique !");
   };
 
   return (
