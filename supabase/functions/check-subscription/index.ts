@@ -1,7 +1,12 @@
 // Redeployed 2026-03-05
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { PLAN_LIMITS } from "../_shared/plan-limiter.ts";
+import {
+  PLAN_LIMITS,
+  getBonusCredits,
+  getEffectivePlan,
+  getMonthlyUsageRows,
+} from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 serve(async (req) => {
@@ -58,27 +63,24 @@ serve(async (req) => {
       });
     }
 
+    // Périmètre : le front envoie son workspace actif pour que l'affichage
+    // compte l'usage et résolve le plan EXACTEMENT comme l'enforcement
+    // (checkQuota) — par workspace quand il y en a un, par user sinon.
+    let body: { workspace_id?: string } = {};
+    try {
+      body = await req.json();
+    } catch {
+      // Pas de body (anciens appels) → périmètre perso, comme avant.
+    }
+    const workspaceId = body?.workspace_id || undefined;
+
     const { data: sub } = await supabaseClient
       .from("subscriptions")
       .select("*")
       .eq("user_id", userId)
       .single();
 
-    // Get bonus credits
-    const { data: profileData } = await supabaseClient
-      .from("profiles")
-      .select("bonus_credits")
-      .eq("user_id", userId)
-      .single();
-    const bonusCredits = profileData?.bonus_credits || 0;
-
-    // Also check coaching_programs for active Now Pilot programs
-    const { data: activeProgram } = await supabaseClient
-      .from("coaching_programs")
-      .select("id, status")
-      .eq("client_user_id", userId)
-      .eq("status", "active")
-      .maybeSingle();
+    const bonusCredits = await getBonusCredits(supabaseClient, userId);
 
     const { data: purchases } = await supabaseClient
       .from("purchases")
@@ -86,27 +88,14 @@ serve(async (req) => {
       .eq("user_id", userId)
       .eq("status", "paid");
 
-    // Get usage this month by category
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-
-    const { data: usageRows } = await supabaseClient
-      .from("ai_usage")
-      .select("category")
-      .eq("user_id", userId)
-      .gte("created_at", monthStart.toISOString());
-
-    const rows = usageRows || [];
-
-    // Resolve legacy plan aliases (studio → binome, now_pilot → binome)
-    const PLAN_ALIASES: Record<string, string> = { studio: "binome", now_pilot: "binome" };
-    let plan = sub?.plan || "free";
-    plan = PLAN_ALIASES[plan] || plan;
-    if (plan === "free" && activeProgram) {
-      plan = "binome";
-    }
+    // Plan effectif + usage : MÊME code que l'enforcement (plan-limiter).
+    // Couvre les alias legacy, le plan workspace et le coaching actif — fini
+    // le « Gratuit · 0 restantes » affiché pendant que le serveur autorise (T19).
+    const plan = await getEffectivePlan(supabaseClient, userId, workspaceId);
     const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+
+    const { data: usageRows } = await getMonthlyUsageRows(supabaseClient, userId, workspaceId);
+    const rows = usageRows || [];
 
     // Build usage map
     const usage: Record<string, { used: number; limit: number }> = {};

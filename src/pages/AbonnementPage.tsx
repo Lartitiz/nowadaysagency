@@ -10,6 +10,7 @@ import { useUserPlan, type AiCategory } from "@/hooks/use-user-plan";
 import { STRIPE_PLANS, CREDIT_PACKS } from "@/lib/stripe-config";
 import { Link } from "react-router-dom";
 import PromoCodeInput from "@/components/PromoCodeInput";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 // Compteur global unique (« total ») affiché en tête. Ici on ne détaille que les
 // deux sous-plafonds qui ont vraiment du sens : les audits et les carrousels
@@ -35,6 +36,7 @@ function getNextRenewalDate(): string {
 export default function AbonnementPage() {
   const { user } = useAuth();
   const { plan, usage, isPaid, isBinome, bonusCredits, refresh } = useUserPlan();
+  const { activeWorkspace, loading: workspaceLoading } = useWorkspace();
 
   const [subInfo, setSubInfo] = useState<any>(null);
   const [loadingSub, setLoadingSub] = useState(true);
@@ -43,12 +45,19 @@ export default function AbonnementPage() {
   const [packLoading, setPackLoading] = useState<string | null>(null);
 
   useEffect(() => {
+    // Attendre le workspace actif : le « Plan actuel » affiché doit être le plan
+    // EFFECTIF (celui que le serveur applique), qui dépend du périmètre.
+    if (workspaceLoading) return;
     refresh();
 
     (async () => {
       setLoadingSub(true);
       try {
-        const { data } = await invokeWithTimeout("check-subscription", {}, 15000);
+        const { data } = await invokeWithTimeout(
+          "check-subscription",
+          { body: { workspace_id: activeWorkspace?.id || null } },
+          15000,
+        );
         if (data) setSubInfo(data);
       } catch (e) {
         console.error("Abonnement error:", e);
@@ -56,7 +65,8 @@ export default function AbonnementPage() {
       }
       setLoadingSub(false);
     })();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceLoading, activeWorkspace?.id]);
 
   const handlePortal = async () => {
     setPortalLoading(true);
