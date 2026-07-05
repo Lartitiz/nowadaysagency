@@ -87,6 +87,25 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false });
       if (invitesErr) throw invitesErr;
 
+      // Auto-réparation : l'UPDATE de accepted_at par l'invitée (InvitePage,
+      // RLS côté client) ne prend pas toujours effet — une invitation dont
+      // l'email est déjà membre est en réalité acceptée. On la marque ici via
+      // service role et on ne la renvoie pas comme pendante.
+      const memberEmails = new Set(
+        [...profilesById.values()].map((p) => p.email?.toLowerCase()).filter(Boolean),
+      );
+      const staleIds = (invitations || [])
+        .filter((i) => memberEmails.has(i.email.toLowerCase()))
+        .map((i) => i.id);
+      if (staleIds.length > 0) {
+        const { error: healErr } = await sb
+          .from("workspace_invitations")
+          .update({ accepted_at: new Date().toISOString() })
+          .in("id", staleIds);
+        if (healErr) console.error("[list] auto-heal accepted_at failed:", healErr);
+      }
+      const pendingInvitations = (invitations || []).filter((i) => !staleIds.includes(i.id));
+
       return json({
         success: true,
         members: (members || []).map((m) => ({
@@ -97,7 +116,7 @@ Deno.serve(async (req) => {
           prenom: profilesById.get(m.user_id)?.prenom || null,
           email: profilesById.get(m.user_id)?.email || null,
         })),
-        invitations: (invitations || []).map((i) => ({
+        invitations: pendingInvitations.map((i) => ({
           id: i.id,
           email: i.email,
           role: i.role,
