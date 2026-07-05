@@ -166,6 +166,108 @@ function deriveFrequency(postsLast30d: number): string {
 }
 
 /**
+ * Récupère UNIQUEMENT les ~25 derniers posts avec leurs métriques par post
+ * (reach, likes, comments, saves, shares, views pour les Reels) + engagementRate.
+ * Version légère de fetchInstagramInsights (pas de démographie ni de métriques
+ * compte) — utilisée par le recyclage intelligent (edge recycle-candidates).
+ */
+export async function fetchRecentPostMetrics(
+  supabase: any,
+  conn: any,
+): Promise<{ posts: IgPostMetrics[]; postsLast30d: number; partial: boolean }> {
+  const token = await refreshTokenIfNeeded(supabase, conn);
+  return fetchPostMetricsInternal(conn.platform_account_id, token);
+}
+
+async function fetchPostMetricsInternal(
+  igId: string,
+  token: string,
+): Promise<{ posts: IgPostMetrics[]; postsLast30d: number; partial: boolean }> {
+  let partial = false;
+  const media = await getJson(
+    (() => {
+      const u = new URL(`${GRAPH}/${igId}/media`);
+      u.searchParams.set("fields", "id,caption,media_type,timestamp,permalink");
+      u.searchParams.set("limit", "25");
+      u.searchParams.set("access_token", token);
+      return u;
+    })(),
+  );
+
+  const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
+  let postsLast30d = 0;
+  const measured: IgPostMetrics[] = [];
+
+  if (media?.data?.length) {
+    for (const post of media.data) {
+      if (post.timestamp && new Date(post.timestamp).getTime() >= cutoff) postsLast30d++;
+
+      const ins = await getJson(
+        (() => {
+          const u = new URL(`${GRAPH}/${post.id}/insights`);
+          // saved/shares ne sont pas dispo sur tous les types de média → on demande
+          // un set large, les métriques absentes sont simplement ignorées.
+          u.searchParams.set("metric", "reach,likes,comments,saved,shares");
+          u.searchParams.set("access_token", token);
+          return u;
+        })(),
+      );
+
+      const pm: IgPostMetrics = {
+        id: String(post.id),
+        subject: (post.caption || "").replace(/\s+/g, " ").trim().slice(0, 120),
+        format: String(post.media_type || "IMAGE"),
+        timestamp: post.timestamp,
+        permalink: post.permalink,
+      };
+      if (ins?.data) {
+        for (const m of ins.data) {
+          const val = m?.values?.[0]?.value ?? m?.total_value?.value;
+          if (m.name === "reach") pm.reach = val;
+          if (m.name === "likes") pm.likes = val;
+          if (m.name === "comments") pm.comments = val;
+          if (m.name === "saved") pm.saves = val;
+          if (m.name === "shares") pm.shares = val;
+        }
+      } else {
+        partial = true;
+      }
+
+      // Reels / vidéos : Meta sert souvent "views" plutôt que "reach". On le récupère
+      // dans un appel isolé (pour ne pas casser l'appel éprouvé ci-dessus) afin que
+      // ces formats ne soient pas exclus du classement faute de dénominateur.
+      const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
+      if (isVideo) {
+        const vj = await getJson(
+          (() => {
+            const u = new URL(`${GRAPH}/${post.id}/insights`);
+            u.searchParams.set("metric", "views");
+            u.searchParams.set("access_token", token);
+            return u;
+          })(),
+        );
+        const v = vj?.data?.find((m: any) => m.name === "views");
+        const vVal = v?.values?.[0]?.value ?? v?.total_value?.value;
+        if (typeof vVal === "number") pm.views = vVal;
+      }
+
+      const interactions =
+        (pm.likes || 0) + (pm.comments || 0) + (pm.saves || 0) + (pm.shares || 0);
+      // Dénominateur : reach en priorité, sinon views (Reels), sinon on ne calcule pas.
+      const denom = (pm.reach && pm.reach > 0) ? pm.reach
+        : (pm.views && pm.views > 0) ? pm.views
+        : 0;
+      if (denom > 0) pm.engagementRate = interactions / denom;
+      measured.push(pm);
+    }
+  } else {
+    partial = true;
+  }
+
+  return { posts: measured, postsLast30d, partial };
+}
+
+/**
  * Récupère les statistiques réelles du compte Instagram d'une connexion.
  * `conn` = ligne social_connections (platform_account_id + access_token).
  */
@@ -294,89 +396,15 @@ export async function fetchInstagramInsights(
     );
   }
 
-  // 4. Posts récents + insights par post.
-  const media = await getJson(
-    (() => {
-      const u = new URL(`${GRAPH}/${igId}/media`);
-      u.searchParams.set("fields", "id,caption,media_type,timestamp,permalink");
-      u.searchParams.set("limit", "25");
-      u.searchParams.set("access_token", token);
-      return u;
-    })(),
-  );
+  // 4. Posts récents + insights par post (logique partagée avec le recyclage
+  // intelligent via fetchRecentPostMetrics — extraction sans changement de
+  // comportement).
+  const postData = await fetchPostMetricsInternal(igId, token);
+  if (postData.partial) partial = true;
+  const measured = postData.posts;
 
-  const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
-  let postsLast30d = 0;
-  const measured: IgPostMetrics[] = [];
-
-  if (media?.data?.length) {
-    for (const post of media.data) {
-      if (post.timestamp && new Date(post.timestamp).getTime() >= cutoff) postsLast30d++;
-
-      const ins = await getJson(
-        (() => {
-          const u = new URL(`${GRAPH}/${post.id}/insights`);
-          // saved/shares ne sont pas dispo sur tous les types de média → on demande
-          // un set large, les métriques absentes sont simplement ignorées.
-          u.searchParams.set("metric", "reach,likes,comments,saved,shares");
-          u.searchParams.set("access_token", token);
-          return u;
-        })(),
-      );
-
-      const pm: IgPostMetrics = {
-        id: String(post.id),
-        subject: (post.caption || "").replace(/\s+/g, " ").trim().slice(0, 120),
-        format: String(post.media_type || "IMAGE"),
-        timestamp: post.timestamp,
-        permalink: post.permalink,
-      };
-      if (ins?.data) {
-        for (const m of ins.data) {
-          const val = m?.values?.[0]?.value ?? m?.total_value?.value;
-          if (m.name === "reach") pm.reach = val;
-          if (m.name === "likes") pm.likes = val;
-          if (m.name === "comments") pm.comments = val;
-          if (m.name === "saved") pm.saves = val;
-          if (m.name === "shares") pm.shares = val;
-        }
-      } else {
-        partial = true;
-      }
-
-      // Reels / vidéos : Meta sert souvent "views" plutôt que "reach". On le récupère
-      // dans un appel isolé (pour ne pas casser l'appel éprouvé ci-dessus) afin que
-      // ces formats ne soient pas exclus du classement faute de dénominateur.
-      const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
-      if (isVideo) {
-        const vj = await getJson(
-          (() => {
-            const u = new URL(`${GRAPH}/${post.id}/insights`);
-            u.searchParams.set("metric", "views");
-            u.searchParams.set("access_token", token);
-            return u;
-          })(),
-        );
-        const v = vj?.data?.find((m: any) => m.name === "views");
-        const vVal = v?.values?.[0]?.value ?? v?.total_value?.value;
-        if (typeof vVal === "number") pm.views = vVal;
-      }
-
-      const interactions =
-        (pm.likes || 0) + (pm.comments || 0) + (pm.saves || 0) + (pm.shares || 0);
-      // Dénominateur : reach en priorité, sinon views (Reels), sinon on ne calcule pas.
-      const denom = (pm.reach && pm.reach > 0) ? pm.reach
-        : (pm.views && pm.views > 0) ? pm.views
-        : 0;
-      if (denom > 0) pm.engagementRate = interactions / denom;
-      measured.push(pm);
-    }
-  } else {
-    partial = true;
-  }
-
-  result.postsLast30d = postsLast30d;
-  result.frequencyLabel = deriveFrequency(postsLast30d);
+  result.postsLast30d = postData.postsLast30d;
+  result.frequencyLabel = deriveFrequency(postData.postsLast30d);
 
   // Classement top/flop : on ne garde que les posts dont on a pu mesurer l'engagement.
   const ranked = measured
@@ -395,10 +423,11 @@ export async function fetchInstagramInsights(
   // (jusqu'à 90 j dans la liste) peut légitimement dépasser le reach 28 j et ne doit
   // pas faire écarter une valeur correcte. Si l'invariant casse, le reach est aberrant
   // → on ne l'expose pas (mieux vaut vide qu'impossible).
+  const recentCutoff = Date.now() - 30 * 24 * 3600 * 1000;
   const maxRecentPostReach = Math.max(
     0,
     ...measured
-      .filter((p) => p.timestamp && new Date(p.timestamp).getTime() >= cutoff)
+      .filter((p) => p.timestamp && new Date(p.timestamp).getTime() >= recentCutoff)
       .map((p) => p.reach || 0),
   );
   if (typeof result.reach30d === "number" && result.reach30d < maxRecentPostReach) {
