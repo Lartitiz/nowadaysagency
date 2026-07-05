@@ -5,15 +5,12 @@ import {
   ArrowRight,
   ChevronDown,
   Clock,
-  Globe,
   Instagram,
   Linkedin,
   Mail,
   Pin,
   Lightbulb,
   MessageCircle,
-  Palette,
-  Search,
   Rocket,
   Recycle as RecycleIcon,
   Upload,
@@ -29,13 +26,6 @@ import AppHeader from "@/components/AppHeader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { weeklyIdeas } from "@/lib/weekly-ideas";
@@ -45,28 +35,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { getBrandingCompletionWithStatus } from "@/lib/branding-completion";
 import { toLocalDateStr } from "@/lib/utils";
-
-/* ── Helpers ── */
-function formatRelative(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const today = new Date();
-  const a = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const b = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  const diff = Math.round((b.getTime() - a.getTime()) / 86400000);
-  if (diff <= 0) return "aujourd'hui";
-  if (diff === 1) return "hier";
-  return `il y a ${diff} jours`;
-}
-
-/* ── Score → couleur par palier (sémantique : vert ≥75, ambre 50-74, rouge <50) ── */
-function scoreToneClass(score: number): string {
-  if (score >= 75) return "text-success";
-  if (score >= 50) return "text-warning";
-  return "text-error";
-}
 
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
@@ -206,38 +175,35 @@ function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: st
   );
 }
 
-/* ── Ligne éditoriale : remplace les cartes-boîtes par une ligne calme
-      (titre serif + description) avec la donnée vivante en métadonnée à droite ── */
-function EditorialRow({
+/* ── Raccourci « Piloter » : pill compacte — la version ligne éditoriale
+      (titre + description) repoussait le dashboard à deux écrans ── */
+function PilotPill({
   icon: Icon,
-  title,
-  desc,
-  meta,
+  label,
+  count,
   onClick,
   dataTour,
 }: {
   icon: LucideIcon;
-  title: React.ReactNode;
-  desc: React.ReactNode;
-  meta?: React.ReactNode;
+  label: string;
+  count?: number;
   onClick: () => void;
   dataTour?: string;
 }) {
   return (
     <button
       data-tour={dataTour}
+      type="button"
       onClick={onClick}
-      className="group w-full text-left flex items-center gap-4 py-5 px-3 -mx-3 rounded-xl hover:bg-rose-pale/50 transition-colors duration-200"
+      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-card border border-border text-sm text-foreground hover:border-bordeaux/40 hover:text-bordeaux transition-colors"
     >
-      <Icon className="h-[18px] w-[18px] text-bordeaux/70 shrink-0" strokeWidth={1.75} />
-      <div className="flex-1 min-w-0">
-        <h3 className="font-display text-lg text-foreground leading-snug">{title}</h3>
-        <p className="text-sm text-muted-foreground mt-0.5 leading-relaxed truncate">{desc}</p>
-      </div>
-      <div className="shrink-0 flex items-center gap-3">
-        {meta}
-        <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-bordeaux group-hover:translate-x-0.5 transition-all" />
-      </div>
+      <Icon className="h-4 w-4 text-bordeaux/70 shrink-0" strokeWidth={1.75} />
+      {label}
+      {count != null && count > 0 && (
+        <span className="font-mono-ui text-2xs font-semibold text-bordeaux bg-rose-soft rounded-full px-1.5 py-px">
+          {count}
+        </span>
+      )}
     </button>
   );
 }
@@ -246,7 +212,6 @@ function EditorialRow({
 const TOUR_STEPS = [
   { target: "card-next-step", title: "Ta prochaine étape", text: "Chaque jour, l'outil te recommande l'action qui aura le plus d'impact. Pas besoin de réfléchir par où commencer : c'est ici.", position: "bottom" as const },
   { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "top" as const },
-  { target: "card-mini-actions", title: "Approfondir", text: "Affine ton identité de marque et lance des audits pour aller plus loin quand tu en as l'envie.", position: "top" as const },
   { target: "card-missions", title: "Tes premiers pas", text: "Quelques petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
   { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
 ];
@@ -267,7 +232,6 @@ export default function AdaptiveHome() {
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
-  const [auditPickerOpen, setAuditPickerOpen] = useState(false);
   const [recycleOpen, setRecycleOpen] = useState(false);
 
   // Ideas count
@@ -315,86 +279,6 @@ export default function AdaptiveHome() {
     retry: 1,
   });
 
-  // Latest saved idea
-  type LatestIdea = { titre: string | null; accroche_short: string | null; content_draft: string | null; created_at: string };
-  const { data: latestIdea = null, isError: latestIdeaError } = useQuery<LatestIdea | null>({
-    queryKey: ["adaptive-home-latest-idea", wsFilter.column, wsFilter.value],
-    queryFn: async () => {
-      const { data, error } = await (supabase as any)
-        .from("saved_ideas")
-        .select("titre, accroche_short, content_draft, created_at")
-        .eq(wsFilter.column, wsFilter.value)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (error) throw error;
-      return (data as LatestIdea | null) ?? null;
-    },
-    enabled: !!wsFilter.value,
-    staleTime: 2 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Branding completion percent. On laisse l'erreur de chargement remonter
-  // (isError) plutôt que de la masquer en 0 % : un branding complet ne doit pas
-  // afficher une barre vide à 0 % sur une simple erreur réseau transitoire.
-  const { data: brandingPercent = 0, isError: brandingLoadError } = useQuery<number>({
-    queryKey: ["adaptive-home-branding-completion", wsFilter.column, wsFilter.value],
-    queryFn: async () => {
-      const r = await getBrandingCompletionWithStatus({ column: wsFilter.column, value: wsFilter.value });
-      if (r.error) throw r.error;
-      return r.percent;
-    },
-    enabled: !!wsFilter.value,
-    staleTime: 2 * 60 * 1000,
-    retry: 1,
-  });
-
-  // Latest audit (most recent between instagram_audit and website_audit)
-  type LatestAudit = { score_global: number; created_at: string; type: "Instagram" | "Site" } | null;
-  const { data: latestAudit = null } = useQuery<LatestAudit>({
-    queryKey: ["adaptive-home-latest-audit", wsFilter.column, wsFilter.value],
-    queryFn: async (): Promise<LatestAudit> => {
-      try {
-        const [ig, web] = await Promise.all([
-          (supabase as any)
-            .from("instagram_audit")
-            .select("score_global, created_at")
-            .eq(wsFilter.column, wsFilter.value)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-          (supabase as any)
-            .from("website_audit")
-            .select("score_global, created_at")
-            .eq(wsFilter.column, wsFilter.value)
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle(),
-        ]);
-        const igRow = ig.data as { score_global: number | null; created_at: string } | null;
-        const webRow = web.data as { score_global: number | null; created_at: string } | null;
-        const candidates: NonNullable<LatestAudit>[] = [];
-        if (igRow && igRow.score_global != null) {
-          candidates.push({ score_global: igRow.score_global, created_at: igRow.created_at, type: "Instagram" });
-        }
-        if (webRow && webRow.score_global != null) {
-          candidates.push({ score_global: webRow.score_global, created_at: webRow.created_at, type: "Site" });
-        }
-        if (candidates.length === 0) return null;
-        candidates.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        return candidates[0];
-      } catch {
-        return null;
-      }
-    },
-    enabled: !!wsFilter.value,
-    staleTime: 2 * 60 * 1000,
-  });
-
-
-
-
   const queryClient = useQueryClient();
   const location = useLocation();
   useEffect(() => {
@@ -421,18 +305,9 @@ export default function AdaptiveHome() {
   }, []);
 
   const handleNavigate = (route: string) => {
-    if (route === "__choose_audit__") {
-      setAuditPickerOpen(true);
-      return;
-    }
     if (route === "/creer" && profileSummary.brandingTotal < 50) {
       toast("Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡");
     }
-    navigate(route);
-  };
-
-  const handleAuditChoice = (route: "/instagram/audit" | "/site/audit") => {
-    setAuditPickerOpen(false);
     navigate(route);
   };
 
@@ -477,11 +352,11 @@ export default function AdaptiveHome() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="max-w-[720px] mx-auto px-4 py-10 space-y-10">
+      <main className="max-w-[720px] mx-auto px-4 py-8 space-y-7">
 
         {/* Erreur de chargement visible (pattern /profil) : sans ce bandeau, un
             réseau qui tombe affiche un dashboard « normal » à zéro, sans indice. */}
-        {(ideasError || postsError || latestIdeaError || brandingLoadError) && (
+        {(ideasError || postsError) && (
           <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
             <p className="text-sm text-foreground">
               Impossible de charger certaines de tes données — ce que tu vois peut être incomplet.
@@ -500,16 +375,12 @@ export default function AdaptiveHome() {
         {/* Bandeau premiers pas */}
         <OnboardingBanner onNavigate={handleNavigate} />
 
-        {/* Greeting + pastille coach */}
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight">
-              Salut {profileSummary.firstName} ! 👋
-            </h1>
-            <p className="text-muted-foreground mt-2 text-base">
-              Prête à faire rayonner tes projets ?
-            </p>
-          </div>
+        {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit
+            gagner sa place pour que la page tienne dans une fenêtre */}
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight">
+            Salut {profileSummary.firstName} ! 👋
+          </h1>
 
           <button
             data-tour="card-assistant"
@@ -526,25 +397,30 @@ export default function AdaptiveHome() {
             rater sur le fond grège (le rose pâle d'avant se fondait dedans) */}
         <div
           data-tour="card-next-step"
-          className="group rounded-3xl bg-[hsl(var(--bento-dark))] p-7 sm:p-10 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
+          className="group rounded-3xl bg-[hsl(var(--bento-dark))] p-6 sm:p-7 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
           onClick={() => handleNavigate(hero.route)}
         >
-          <p className="font-mono-ui text-2xs text-rose-soft/90 uppercase tracking-[0.14em] font-semibold mb-4">
+          <p className="font-mono-ui text-2xs text-rose-soft/90 uppercase tracking-[0.14em] font-semibold mb-3">
             {hero.eyebrow}
           </p>
 
-          <h2 className="font-display text-[28px] sm:text-[32px] leading-[1.15] text-white">
+          <h2 className="font-display text-[26px] sm:text-[28px] leading-[1.15] text-white">
             {hero.title}
           </h2>
 
-          <p className="text-base text-white/70 mt-3 leading-relaxed line-clamp-2">
-            {cleanText(recommendation.explanation)}
-          </p>
+          {/* L'explication ne s'affiche que pendant la mise en route : une fois
+              lancée, « Créer un contenu » se passe de justification — chaque
+              ligne du hero repousse le reste sous la ligne de flottaison. */}
+          {!launched && (
+            <p className="text-base text-white/70 mt-3 leading-relaxed line-clamp-2">
+              {cleanText(recommendation.explanation)}
+            </p>
+          )}
 
-          {/* Raccourcis création par canal — uniquement une fois lancée */}
-          {hero.showChannels && (
-            <div className="flex flex-wrap gap-2 mt-4">
-              {CHANNEL_PILLS.map(({ label, icon: Icon, canal }) => (
+          {/* Pills canaux + CTA sur une même ligne (le CTA à droite) */}
+          <div className="flex flex-wrap items-center gap-2 mt-5">
+            {hero.showChannels &&
+              CHANNEL_PILLS.map(({ label, icon: Icon, canal }) => (
                 <button
                   key={label}
                   type="button"
@@ -556,16 +432,15 @@ export default function AdaptiveHome() {
                   {label}
                 </button>
               ))}
-            </div>
-          )}
 
-          <Button
-            className="mt-7 w-full sm:w-auto h-12 px-7 rounded-full bg-white hover:bg-rose-pale text-bordeaux text-base font-semibold shadow-sm hover:shadow-md transition-all"
-            onClick={(e) => { e.stopPropagation(); handleNavigate(hero.route); }}
-          >
-            {hero.ctaLabel}
-            <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-          </Button>
+            <Button
+              className="w-full sm:w-auto sm:ml-auto h-11 px-6 rounded-full bg-white hover:bg-rose-pale text-bordeaux text-base font-semibold shadow-sm hover:shadow-md transition-all"
+              onClick={(e) => { e.stopPropagation(); handleNavigate(hero.route); }}
+            >
+              {hero.ctaLabel}
+              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
+            </Button>
+          </div>
 
           {isAurianaDemoEmail(user?.email) && (
             <button
@@ -591,13 +466,15 @@ export default function AdaptiveHome() {
 
         {/* Zone Idées de la semaine — le rendez-vous du rituel hebdo, dans l'app
             et plus seulement dans l'e-mail (V2 rétention). Même rotation
-            déterministe que l'e-mail (weekly-ideas.ts ↔ email-trigger). */}
+            déterministe que l'e-mail (weekly-ideas.ts ↔ email-trigger) : on
+            n'en AFFICHE que 3 sur 5 pour tenir dans une fenêtre, la rotation
+            et l'e-mail ne changent pas. */}
         <section>
           <SectionLabel hint="le rendez-vous de ton rituel — un clic et on la rédige ensemble">
             Tes idées de la semaine
           </SectionLabel>
           <div className="divide-y divide-border/70">
-            {weeklyIdeas().map((idea) => (
+            {weeklyIdeas().slice(0, 3).map((idea) => (
               <button
                 key={idea}
                 type="button"
@@ -612,145 +489,32 @@ export default function AdaptiveHome() {
           </div>
         </section>
 
-        {/* Zone Piloter — liste éditoriale : la donnée vivante porte une
-            étiquette (« Dernière pépite ») au lieu de se fondre dans la phrase */}
+        {/* Zone Piloter — pills compactes. La section « Approfondir » (identité
+            de marque, audits) a été retirée du dashboard (validé Laetitia 05/07) :
+            ces entrées existent déjà dans la sidebar et les pages réseaux, et le
+            branding arrive désormais quasi complet dès l'onboarding. */}
         <section>
           <SectionLabel hint="ton quotidien">Piloter</SectionLabel>
-          <div className="divide-y divide-border/70">
-            <EditorialRow
+          <div className="flex flex-wrap gap-2">
+            <PilotPill
               dataTour="card-ideas"
               icon={Lightbulb}
-              title={
-                <>
-                  Piocher dans mes idées
-                  {ideaCount > 0 && (
-                    <span className="font-body text-sm text-muted-foreground not-italic">
-                      {" "}— {ideaCount} en réserve
-                    </span>
-                  )}
-                </>
-              }
-              desc={
-                ideaCount > 0 && latestIdea ? (
-                  <>
-                    <span className="inline-block align-middle mr-1.5 px-2 py-px rounded-full bg-rose-soft text-bordeaux text-[11px] font-medium">
-                      Dernière pépite
-                    </span>
-                    {latestIdea.titre ?? latestIdea.accroche_short ?? latestIdea.content_draft ?? ""}
-                  </>
-                ) : (
-                  "Aucune idée encore — lance un brainstorm avec ta coach."
-                )
-              }
+              label="Mes idées"
+              count={ideaCount}
               onClick={() => navigate("/idees")}
             />
-            <EditorialRow
+            <PilotPill
               icon={Upload}
-              title="Programmer un contenu déjà prêt"
-              desc="Un visuel fait sur Canva ou ailleurs ? Pose-le sur une date."
+              label="Programmer un contenu prêt"
               onClick={() => navigate("/calendrier?import=1")}
             />
-            <EditorialRow
+            <PilotPill
               icon={RecycleIcon}
-              title="Recycler un contenu qui a marché"
-              desc="Tes meilleurs posts méritent une seconde vie — on les ré-angle."
+              label="Recycler un post qui a marché"
               onClick={() => setRecycleOpen(true)}
             />
           </div>
         </section>
-
-        {/* Zone Approfondir — même liste, un ton en dessous */}
-        <section>
-          <SectionLabel hint="quand tu veux aller plus loin">Approfondir</SectionLabel>
-          <div data-tour="card-mini-actions" className="divide-y divide-border/70">
-            <EditorialRow
-              icon={Palette}
-              title="Affiner mon identité de marque"
-              desc={
-                brandingPercent === 100
-                  ? "Ton identité de marque est complète ✨"
-                  : "Ton histoire, ton persona, ta voix."
-              }
-              meta={
-                !brandingLoadError && brandingPercent < 100 ? (
-                  <span className="flex items-center gap-2">
-                    <Progress value={brandingPercent} className="h-1 w-16 hidden sm:block" />
-                    <span className="font-mono-ui text-2xs text-foreground/60 font-semibold">
-                      {brandingPercent}%
-                    </span>
-                  </span>
-                ) : undefined
-              }
-              onClick={() => handleNavigate("/branding")}
-            />
-            <EditorialRow
-              icon={Search}
-              title="Lancer un audit"
-              desc={
-                latestAudit
-                  ? `Dernier audit ${latestAudit.type} — ${formatRelative(latestAudit.created_at)}`
-                  : "Instagram ou site web."
-              }
-              meta={
-                latestAudit ? (
-                  <span className={`font-display italic text-xl leading-none ${scoreToneClass(latestAudit.score_global)}`}>
-                    {latestAudit.score_global}
-                    <span className="text-sm text-foreground/50">/100</span>
-                  </span>
-                ) : undefined
-              }
-              onClick={() => handleNavigate("__choose_audit__")}
-            />
-          </div>
-        </section>
-
-        {/* Audit picker */}
-        <Dialog open={auditPickerOpen} onOpenChange={setAuditPickerOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Quel audit veux-tu lancer&nbsp;?</DialogTitle>
-              <DialogDescription>
-                Choisis l'espace que tu veux analyser maintenant.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="grid gap-3 pt-2">
-              <button
-                type="button"
-                onClick={() => handleAuditChoice("/instagram/audit")}
-                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-primary hover:bg-accent/40"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/60 text-foreground">
-                  <Instagram className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-foreground">Audit Instagram</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Bio, feed, highlights et points d'amélioration.
-                  </span>
-                </span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleAuditChoice("/site/audit")}
-                className="flex w-full items-center gap-3 rounded-xl border border-border bg-card px-4 py-4 text-left transition-colors hover:border-primary hover:bg-accent/40"
-              >
-                <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/60 text-foreground">
-                  <Globe className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-foreground">Audit site web</span>
-                  <span className="block text-xs text-muted-foreground">
-                    Conversion, lisibilité et clarté des pages.
-                  </span>
-                </span>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
 
         {/* Recyclage intelligent : les meilleurs posts passés, prêts à ré-angler */}
         <RecycleDialog open={recycleOpen} onOpenChange={setRecycleOpen} />
