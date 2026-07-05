@@ -362,6 +362,8 @@ export default function CreerUnifie() {
     setResult,
     error,
     quotaExhausted,
+    markQuotaExhausted,
+    clearQuotaExhausted,
     reset: resetGenerator,
     generateQuestions,
     loadingQuestions,
@@ -1065,6 +1067,10 @@ export default function CreerUnifie() {
   const doGenerate = async (ansInput: Record<string, string>) => {
     if (!selectedFormat) return;
     if (generating || structureLoading || streaming) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
+    // Les chemins directs (structure carrousel, Pinterest) ne passent pas par
+    // generate()/generateStream() qui effacent l'état quota — on l'efface ici
+    // pour qu'un ancien « crédits utilisés » ne masque pas une nouvelle tentative.
+    clearQuotaExhausted();
 
     // Les réponses arrivent indexées par ID de question (`q_0`, `q_1`…) car l'IA
     // ne renvoie pas d'`id`. On les ré-indexe par LE TEXTE de la question pour que
@@ -1223,7 +1229,8 @@ export default function CreerUnifie() {
           },
         });
       } catch (e: any) {
-        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
+        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
+        else toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
       } finally {
         setPinterestVisualGenerating(false);
       }
@@ -1262,7 +1269,8 @@ export default function CreerUnifie() {
           },
         });
       } catch (e: any) {
-        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du brief");
+        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
+        else toast.error(e?.message || "Erreur lors de la génération du brief");
       } finally {
         setPinterestVisualGenerating(false);
       }
@@ -1318,7 +1326,11 @@ export default function CreerUnifie() {
           setStep("format");
           return;
         }
-        if (!handleQuotaError(e)) {
+        if (handleQuotaError(e)) {
+          // Quota tombé sur la proposition de structure : step est déjà "result"
+          // → sans marquage, l'écran derrière le mur quota dirait « Session expirée ».
+          markQuotaExhausted(e);
+        } else {
           toast.error("Erreur lors de la proposition de structure. Génération directe...");
           await generate({
             format: selectedFormat as any,
@@ -1671,6 +1683,7 @@ export default function CreerUnifie() {
 
   const handleSelectInspirationProposal = async (proposal: any) => {
     if (pinterestVisualGenerating) return; // garde anti double-clic (évite une 2e génération facturée)
+    clearQuotaExhausted(); // appels directs (hors generate()) : ne pas hériter d'un ancien état quota
     setChosenProposal(proposal);
 
     if (proposal.recommended_output === "visual") {
@@ -1705,7 +1718,8 @@ export default function CreerUnifie() {
         });
         setIdeaText(proposal.subject);
       } catch (e: any) {
-        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du visuel");
+        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
+        else toast.error(e?.message || "Erreur lors de la génération du visuel");
       } finally {
         setPinterestVisualGenerating(false);
       }
@@ -1744,7 +1758,8 @@ export default function CreerUnifie() {
         });
         setIdeaText(proposal.subject);
       } catch (e: any) {
-        if (!handleQuotaError(e)) toast.error(e?.message || "Erreur lors de la génération du brief");
+        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
+        else toast.error(e?.message || "Erreur lors de la génération du brief");
       } finally {
         setPinterestVisualGenerating(false);
       }
