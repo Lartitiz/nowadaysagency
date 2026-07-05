@@ -483,6 +483,11 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
     { "item": "Alt text ajouté", "auto": false },
     { "item": "Repartagé en story dans l'heure", "auto": false }
   ],
+  "plan_tournage": [
+    { "plan": "Toi face caméra, assise à ton poste de travail habituel, lumière de la fenêtre sur le visage", "type": "face_cam", "sert_pour": "hook + cta", "duree": "1 prise de 60 sec (tout le monologue)", "conseil": "Téléphone calé à hauteur des yeux, pas en contre-plongée" },
+    { "plan": "Gros plan sur tes mains en train de [geste précis du métier]", "type": "b_roll", "sert_pour": "plan de coupe section body 1", "duree": "10 sec de rush", "conseil": null },
+    { "plan": "…", "type": "insert", "sert_pour": "…", "duree": "…", "conseil": null }
+  ],
   "garde_fou_alerte": null
 }
 
@@ -494,6 +499,7 @@ IMPORTANT :
 - La caption ne répète PAS le script, elle offre un angle complémentaire
 - Les hashtags : 3-5 max, mix large + niche
 - Les amplification_stories : 2 stories à poster dans l'heure
+- "plan_tournage" = la SHOT LIST du reel : 3 à 6 plans à tourner AU TÉLÉPHONE, listés dans l'ordre de TOURNAGE le plus simple (toutes les prises face cam d'abord, puis les plans de coupe). Chaque "plan" est CONCRET et ancré dans l'activité RÉELLE de la marque (son lieu, ses gestes, ses objets — d'après le contexte de marque fourni ; JAMAIS un "plan de coupe générique" ni un décor qu'elle n'a probablement pas). Types : "face_cam" (elle parle), "b_roll" (elle fait, sans parler), "insert" (gros plan objet/écran/détail). Cohérence : chaque cut du script doit correspondre à un plan de cette liste ("sert_pour" le dit). Si le format est face cam pur, prévois quand même 1-2 plans de coupe b_roll pour faire respirer le montage. Bonus malin : indique quand un plan b_roll est RÉUTILISABLE pour de futurs reels.
 - Pas de markdown dans les valeurs JSON`;
 
   return base + calibrage + metaBlock + inspirationBlock + hookBlock + subjectBlock + angleBlock + personalBlock + jsonBlock;
