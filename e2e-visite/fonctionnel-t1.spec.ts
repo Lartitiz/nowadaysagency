@@ -43,13 +43,30 @@ async function goToCreer(page: Page) {
 }
 
 async function dismissQuotaWall(page: Page): Promise<boolean> {
-  // Détecte si la QuotaWallModal est ouverte (plusieurs variantes de texte)
-  const wall = page.getByText(/quota|crédits épuisés|plus de crédit|crédits du mois|Passer à L.Assistant/i).first();
+  // Détecte si la QuotaWallModal est ouverte (plusieurs variantes de texte,
+  // dont le message serveur du cap catégorie « Tu as utilisé tes 23 contenus
+  // ce mois. Tes crédits se renouvellent le… »)
+  const wall = page
+    .getByText(/quota|crédits épuisés|plus de crédit|crédits du mois|utilisé tes \d+|se renouvellent|Passer à L.Assistant/i)
+    .first();
   if (await wall.isVisible({ timeout: 3000 }).catch(() => false)) {
     console.log("⚠️  QuotaWallModal détectée — compte Camille bloqué quota");
     return true; // bloqué
   }
   return false;
+}
+
+// Le cap mensuel par CATÉGORIE (23 contenus/mois en gratuit) n'est PAS couvert
+// par les bonus_credits (plan-limiter : bonus → limite totale uniquement).
+// Quand il est atteint, l'edge répond 429 et le front peut rester muet
+// (chemins directs, corrigé par #339) → on écoute le réseau pour skipper
+// proprement au lieu d'échouer sur un compte à sec.
+function watchQuota429(page: Page): { hit: () => boolean } {
+  let hit = false;
+  page.on("response", (r) => {
+    if (r.url().includes("/functions/v1/") && r.status() === 429) hit = true;
+  });
+  return { hit: () => hit };
 }
 
 async function enterIdea(page: Page, idea: string) {
@@ -62,26 +79,31 @@ async function enterIdea(page: Page, idea: string) {
 }
 
 async function selectFormat(page: Page, channel: "instagram" | "linkedin") {
-  if (channel === "instagram") {
-    // Cliquer sur la carte canal Instagram
-    await page.getByRole("button", { name: /instagram/i }).first().click();
-    // Sous-format : cliquer sur "Post" (carte de format)
-    const postCard = page.getByText(/^Post$/, { exact: true }).first();
-    if (await postCard.isVisible({ timeout: 4000 }).catch(() => false)) {
-      await postCard.click();
-    }
-  } else {
-    // LinkedIn : cliquer sur la carte canal
-    await page.getByRole("button", { name: /linkedin/i }).first().click();
-    // LinkedIn demande un sous-format → sélectionner "Post" (1300-2000 caractères)
-    const postCard = page.getByText(/^Post$/, { exact: true }).first();
-    await expect(postCard).toBeVisible({ timeout: 5000 });
-    await postCard.click();
+  // Cliquer sur la carte canal
+  await page.getByRole("button", { name: new RegExp(channel, "i") }).first().click();
+  // Sous-format : cliquer sur "Post". Attente FERME (pas de catch silencieux) :
+  // si la carte tarde et qu'on clique Suivant sans elle, l'étape 2 reste
+  // coincée sur son 2e panneau (photo/angle) et tout le test déraille.
+  const postCard = page.getByText(/^Post$/, { exact: true }).first();
+  await expect(postCard).toBeVisible({ timeout: 15000 });
+  await postCard.click();
+
+  // Depuis la refonte « fin de parcours allégée », l'étape 2 peut enchaîner
+  // DEUX panneaux (format puis photo/angle), chacun validé par « Suivant ».
+  // On clique Suivant jusqu'à atteindre l'étape 3 (max 3 fois).
+  for (let i = 0; i < 3; i++) {
+    const suivant = page.getByRole("button", { name: /suivant/i }).first();
+    await expect(suivant).toBeEnabled({ timeout: 5000 });
+    await suivant.click();
+    const onStep3 = await page
+      .getByText(/Étape 3 sur 4/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
+    if (onStep3) return;
   }
-  // Bouton Suivant pour valider le format (doit être enabled après sélection)
-  const suivant = page.getByRole("button", { name: /suivant/i });
-  await expect(suivant).toBeEnabled({ timeout: 5000 });
-  await suivant.click();
+  throw new Error("Impossible d'atteindre l'étape 3 après 3 clics « Suivant » à l'étape 2");
 }
 
 async function generateDirectly(page: Page): Promise<boolean> {
@@ -92,8 +114,9 @@ async function generateDirectly(page: Page): Promise<boolean> {
 
   // Dès que l'un des deux boutons apparaît, on clique
   await Promise.race([
-    expect(genDir).toBeVisible({ timeout: 30000 }),
-    expect(genBtn).toBeVisible({ timeout: 30000 }),
+    // 90s : la latence de creative-flow (questions) reste variable (mesuré 5s→90s+)
+    expect(genDir).toBeVisible({ timeout: 90000 }),
+    expect(genBtn).toBeVisible({ timeout: 90000 }),
   ]).catch(() => {});
 
   if (await genDir.isVisible().catch(() => false)) {
@@ -110,6 +133,7 @@ async function generateDirectly(page: Page): Promise<boolean> {
 
 test("T1a — Post Instagram : génération streaming + ajout calendrier", async ({ page }) => {
   test.setTimeout(180_000); // 3 min : génération LLM + streaming Instagram peut dépasser 90 s
+  const quota429 = watchQuota429(page);
   await goToCreer(page);
   await enterIdea(page, IDEA);
   await selectFormat(page, "instagram");
@@ -123,8 +147,18 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
 
   // ── Attente du résultat streamé ──────────────────────────────────────────
   // "Ton contenu prêt" = titre étape 4, apparaît dès que l'étape commence.
-  // Le streaming du contenu continue après.
-  await expect(page.getByText(/ton contenu prêt/i)).toBeVisible({ timeout: 90000 });
+  // Le streaming du contenu continue après. Sur 429 catégorie muet (avant
+  // publication de #339), l'app rebondit à l'étape 2 sans étape 4 → skip.
+  try {
+    await expect(page.getByText(/ton contenu prêt/i)).toBeVisible({ timeout: 90000 });
+  } catch {
+    if (quota429.hit() || (await dismissQuotaWall(page))) {
+      console.log("SKIP : quota épuisé (429 catégorie — pas d'étape résultat)");
+      test.skip();
+      return;
+    }
+    throw new Error("Étape résultat jamais atteinte après 90 s (sans quota wall ni 429)");
+  }
 
   // ── Ajouter au calendrier ─────────────────────────────────────────────────
   // Ce bouton s'affiche UNIQUEMENT quand le streaming est terminé.
@@ -136,12 +170,12 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
     await expect(calBtn).toBeVisible({ timeout: 90000 });
     calBtnFound = true;
   } catch {
-    if (await dismissQuotaWall(page)) {
-      console.log("SKIP : quota épuisé (génération bloquée côté serveur)");
+    if (quota429.hit() || (await dismissQuotaWall(page))) {
+      console.log("SKIP : quota épuisé (429 catégorie ou quota wall — génération bloquée côté serveur)");
       test.skip();
       return;
     }
-    throw new Error("Bouton 'Ajouter au calendrier' non trouvé après 90 s (sans quota wall)");
+    throw new Error("Bouton 'Ajouter au calendrier' non trouvé après 90 s (sans quota wall ni 429)");
   }
 
   await page.screenshot({ path: path.join(SHOTS, "t1a-instagram-result.png") });
