@@ -168,10 +168,16 @@ async function waitForIframeReady(
     await Promise.all(bgUrls.map((u) => preloadImage(u, timeoutMs)));
   }
 
-  // Deux RAF + petit buffer pour laisser le layout se stabiliser
-  await new Promise<void>((r) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => r())),
-  );
+  // Deux RAF + petit buffer pour laisser le layout se stabiliser.
+  // ⚠️ Course avec un timeout : sur un onglet non visible (fenêtre recouverte,
+  // onglet en arrière-plan), Chrome ne déclenche JAMAIS requestAnimationFrame
+  // et l'export restait suspendu indéfiniment, spinner infini sans erreur.
+  await Promise.race([
+    new Promise<void>((r) =>
+      requestAnimationFrame(() => requestAnimationFrame(() => r())),
+    ),
+    new Promise<void>((r) => setTimeout(r, 500)),
+  ]);
   await new Promise((r) => setTimeout(r, 200));
 }
 
