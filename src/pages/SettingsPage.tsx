@@ -27,6 +27,7 @@ import { useProfileUserId } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
+import WorkspaceMembersSection from "@/components/settings/WorkspaceMembersSection";
 import PromoCodeInput from "@/components/PromoCodeInput";
 import {
   AlertDialog,
@@ -351,6 +352,9 @@ export default function SettingsPage() {
             </Button>
           </div>
         </Section>
+
+        {/* ─── Membres de l'espace (owner/manager) ─── */}
+        <WorkspaceMembersSection />
 
         {/* ─── Account info ─── */}
         <Section icon={<Shield className="h-4 w-4" />} title="Mon compte">
