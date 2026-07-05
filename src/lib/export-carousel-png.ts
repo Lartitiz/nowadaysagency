@@ -9,6 +9,18 @@ interface VisualSlide {
 const SLIDE_W = 1080;
 const SLIDE_H = 1350;
 
+// Dimensions d'une story Instagram (9:16). Réutilisé par l'export stories.
+const STORY_W = 1080;
+const STORY_H = 1920;
+
+interface SlideDims {
+  w: number;
+  h: number;
+}
+
+const CAROUSEL_DIMS: SlideDims = { w: SLIDE_W, h: SLIDE_H };
+const STORY_DIMS: SlideDims = { w: STORY_W, h: STORY_H };
+
 const sanitize = (s: string) =>
   s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
 
@@ -17,9 +29,9 @@ const sanitize = (s: string) =>
  * Google Fonts que la page parente. Évite les conflits Tailwind/box-sizing
  * qui faisaient mal calculer `background-size: cover` à html2canvas.
  */
-async function mountSlideIframe(html: string, logoOverlayHtml: string): Promise<HTMLIFrameElement> {
+async function mountSlideIframe(html: string, logoOverlayHtml: string, dims: SlideDims): Promise<HTMLIFrameElement> {
   const iframe = document.createElement("iframe");
-  iframe.style.cssText = `position:fixed;top:-99999px;left:-99999px;width:${SLIDE_W}px;height:${SLIDE_H}px;border:0;z-index:-1;pointer-events:none;`;
+  iframe.style.cssText = `position:fixed;top:-99999px;left:-99999px;width:${dims.w}px;height:${dims.h}px;border:0;z-index:-1;pointer-events:none;`;
   iframe.setAttribute("aria-hidden", "true");
   iframe.setAttribute("tabindex", "-1");
 
@@ -35,7 +47,7 @@ async function mountSlideIframe(html: string, logoOverlayHtml: string): Promise<
 <meta charset="utf-8" />
 ${fontLinks}
 <style>
-  html, body { margin:0; padding:0; width:${SLIDE_W}px; height:${SLIDE_H}px; overflow:hidden; background:transparent; position:relative; }
+  html, body { margin:0; padding:0; width:${dims.w}px; height:${dims.h}px; overflow:hidden; background:transparent; position:relative; }
   *, *::before, *::after { box-sizing: border-box; }
 </style>
 </head><body>${html}${logoOverlayHtml}</body></html>`;
@@ -185,17 +197,18 @@ async function captureSlide(
   useCORS: boolean,
   logoOverlayHtml: string,
   output: SlideOutput,
+  dims: SlideDims = CAROUSEL_DIMS,
 ): Promise<Blob> {
-  const iframe = await mountSlideIframe(html, logoOverlayHtml);
+  const iframe = await mountSlideIframe(html, logoOverlayHtml, dims);
   try {
     await waitForIframeReady(iframe, html);
 
     const target = iframe.contentDocument!.body;
     const canvas = await html2canvas(target, {
-      width: SLIDE_W,
-      height: SLIDE_H,
-      windowWidth: SLIDE_W,
-      windowHeight: SLIDE_H,
+      width: dims.w,
+      height: dims.h,
+      windowWidth: dims.w,
+      windowHeight: dims.h,
       scale: output.scale,
       useCORS,
       allowTaint: !useCORS,
@@ -217,22 +230,23 @@ async function captureSlideWithRetry(
   html: string,
   logoOverlayHtml: string,
   output: SlideOutput = PNG_RETINA,
+  dims: SlideDims = CAROUSEL_DIMS,
 ): Promise<Blob | null> {
   // 1er essai : sortie demandée + CORS strict
   try {
-    return await captureSlide(html, true, logoOverlayHtml, output);
+    return await captureSlide(html, true, logoOverlayHtml, output, dims);
   } catch (e) {
     console.warn("[exportCarouselPng] capture failed (CORS), retry", e);
   }
   // 2e essai : même sortie mais on tolère le taint (images sans CORS)
   try {
-    return await captureSlide(html, false, logoOverlayHtml, output);
+    return await captureSlide(html, false, logoOverlayHtml, output, dims);
   } catch (e) {
     console.warn("[exportCarouselPng] capture failed (taint), retry scale 1", e);
   }
   // 3e essai : scale 1 + taint, dernière chance
   try {
-    return await captureSlide(html, false, logoOverlayHtml, { ...output, scale: 1 });
+    return await captureSlide(html, false, logoOverlayHtml, { ...output, scale: 1 }, dims);
   } catch (e) {
     console.error("[exportCarouselPng] capture failed all retries", e);
     return null;
@@ -316,6 +330,87 @@ export async function exportCarouselPng(
     URL.revokeObjectURL(url);
   } catch {
     // Fallback : téléchargements séparés
+    for (const img of images) {
+      const url = URL.createObjectURL(img.blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = img.name;
+      a.click();
+      URL.revokeObjectURL(url);
+      await new Promise((r) => setTimeout(r, 200));
+    }
+  }
+}
+
+interface StoryFrame {
+  story_number: number;
+  html: string;
+}
+
+// Sortie story : PNG 1080×1920 natif (la taille exacte d'une story Instagram,
+// scale 1 — un retina 2160×3840 n'apporte rien et alourdit le fichier).
+const PNG_STORY: SlideOutput = { scale: 1, mime: "image/png" };
+
+/**
+ * Rend les frames de stories en JPEG 1080×1920 et renvoie les Blobs, SANS téléchargement.
+ * Prévu pour la publication directe Instagram (media_type STORIES) — mêmes plafonds
+ * Meta que le feed (1440px / 8 Mo).
+ */
+export async function renderStoryFramesToBlobs(
+  frames: StoryFrame[],
+): Promise<{ story_number: number; blob: Blob }[]> {
+  if (!frames || frames.length === 0) return [];
+  const out: { story_number: number; blob: Blob }[] = [];
+  for (const f of frames) {
+    const blob = await captureSlideWithRetry(f.html, "", { scale: 1, mime: "image/jpeg", quality: 0.9 }, STORY_DIMS);
+    if (blob) out.push({ story_number: f.story_number, blob });
+  }
+  return out;
+}
+
+/**
+ * Capture les frames de stories (1080×1920) et les télécharge :
+ * - 1 frame → PNG seul
+ * - >1 frames → ZIP
+ * Pas d'overlay logo : une story doit garder le look natif Instagram.
+ */
+export async function exportStoryPng(frames: StoryFrame[], fileName = "stories"): Promise<void> {
+  if (!frames || frames.length === 0) return;
+
+  const images: { name: string; blob: Blob }[] = [];
+  for (const f of frames) {
+    const blob = await captureSlideWithRetry(f.html, "", PNG_STORY, STORY_DIMS);
+    if (!blob) {
+      console.warn(`[exportStoryPng] story ${f.story_number} skipped`);
+      continue;
+    }
+    images.push({ name: `story-${f.story_number}.png`, blob });
+  }
+
+  if (images.length === 0) return;
+
+  if (images.length === 1) {
+    const url = URL.createObjectURL(images[0].blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = images[0].name;
+    a.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  try {
+    const JSZip = (await import("jszip")).default;
+    const zip = new JSZip();
+    for (const img of images) zip.file(img.name, img.blob);
+    const zipBlob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(zipBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = sanitize(`stories-${fileName}.zip`);
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch {
     for (const img of images) {
       const url = URL.createObjectURL(img.blob);
       const a = document.createElement("a");

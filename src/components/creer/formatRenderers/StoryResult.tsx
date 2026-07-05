@@ -1,16 +1,58 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Download, Loader2 } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { useBrandCharter } from "@/hooks/use-branding";
+import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import { exportStoryPng } from "@/lib/export-carousel-png";
+
+interface PhotoLike {
+  preview?: string;
+  base64?: string;
+  mimeType?: string;
+}
 
 interface Props {
   result: any;
   onStoriesUpdate?: (stories: any[]) => void;
+  photos?: PhotoLike[];
 }
 
-export default function StoryResult({ result, onStoriesUpdate }: Props) {
+const PREVIEW_W = 150;
+
+/** Aperçu d'une frame : le HTML 1080×1920 du renderer, mis à l'échelle dans une iframe. */
+function StoryFramePreview({ html, title }: { html: string; title: string }) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-lg border border-border shrink-0"
+      style={{ width: PREVIEW_W, aspectRatio: "1080 / 1920" }}
+    >
+      <iframe
+        srcDoc={html}
+        title={title}
+        sandbox="allow-same-origin"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "1080px",
+          height: "1920px",
+          transform: `scale(${PREVIEW_W / 1080})`,
+          transformOrigin: "top left",
+          border: "none",
+          pointerEvents: "none",
+        }}
+      />
+    </div>
+  );
+}
+
+export default function StoryResult({ result, onStoriesUpdate, photos }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
   const [stories, setStories] = useState(rawStories);
 
@@ -23,6 +65,51 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
       prevSignature.current = newSig;
     }
   }, [result]);
+
+  const { data: charter } = useBrandCharter();
+  const branding: StoryFrameBranding | null = charter
+    ? {
+        color_primary: charter.color_primary,
+        color_secondary: charter.color_secondary,
+        color_background: charter.color_background,
+        color_text: charter.color_text,
+      }
+    : null;
+
+  const photoUrl = useMemo(() => {
+    const ph = photos?.[0];
+    if (!ph) return null;
+    if (ph.preview) return ph.preview;
+    if (ph.base64) return `data:${ph.mimeType || "image/jpeg"};base64,${ph.base64}`;
+    return null;
+  }, [photos]);
+
+  // Rendu déterministe : recalculé à chaque édition (instantané, aucun appel réseau).
+  const frames = useMemo(
+    () =>
+      stories.map((s: any) =>
+        buildStoryFrameHtml(s, branding, { photoUrl, preview: true }),
+      ),
+    [stories, charter, photoUrl],
+  );
+
+  const hasFrames = frames.some(Boolean);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = useCallback(async () => {
+    setExporting(true);
+    try {
+      const exportFrames = stories
+        .map((s: any, i: number) => {
+          const html = buildStoryFrameHtml(s, branding, { photoUrl, preview: false });
+          return html ? { story_number: i + 1, html } : null;
+        })
+        .filter(Boolean) as { story_number: number; html: string }[];
+      await exportStoryPng(exportFrames, result?.structure_type || "sequence");
+    } finally {
+      setExporting(false);
+    }
+  }, [stories, charter, photoUrl, result?.structure_type]);
 
   const fullText = stories
     .map((s: any) => s.text || s.texte || s.content || "")
@@ -64,64 +151,115 @@ export default function StoryResult({ result, onStoriesUpdate }: Props) {
     });
   }, [onStoriesUpdate]);
 
+  const updateVisualPill = useCallback((index: number, field: "title_pill" | "body_pill", newValue: string) => {
+    setStories(prev => {
+      const updated = [...prev];
+      updated[index] = { ...updated[index], visual: { ...updated[index].visual, [field]: newValue } };
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+  }, [onStoriesUpdate]);
+
   return (
     <div className="space-y-4 animate-fade-in">
-      {angleInfo && (
-        <div className="flex items-center gap-2 px-1">
-          <Badge variant="outline" className="text-xs font-medium bg-primary/5 border-primary/20 text-primary">
-            {angleInfo.emoji} {angleInfo.label}
-          </Badge>
+      <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
+        <div className="flex items-center gap-2">
+          {angleInfo && (
+            <Badge variant="outline" className="text-xs font-medium bg-primary/5 border-primary/20 text-primary">
+              {angleInfo.emoji} {angleInfo.label}
+            </Badge>
+          )}
           {result?.structure_label && (
             <span className="text-xs text-muted-foreground">{result.structure_label}</span>
           )}
         </div>
-      )}
+        {hasFrames && (
+          <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
+            {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+            Télécharger les visuels
+          </Button>
+        )}
+      </div>
       <div className="space-y-2" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
           <Card key={i} className="border-border">
-            <CardContent className="p-3 space-y-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="font-mono text-2xs">
-                  Story {i + 1}
-                </Badge>
-                {story.timing && (
-                  <Badge variant="outline" className="font-mono text-2xs">{story.timing}</Badge>
-                )}
-                {story.role && (
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
-                    {formatSlideRole(story.role)}
-                  </Badge>
-                )}
-                {story.format && (
-                  <Badge variant="outline" className="text-2xs">{story.format}</Badge>
-                )}
-              </div>
-              {(story.text || story.texte || story.content) && (
-                <div
-                  contentEditable
-                  suppressContentEditableWarning
-                  onBlur={(e) => {
-                    const newText = e.currentTarget.textContent || "";
-                    const oldText = story.text || story.texte || story.content || "";
-                    if (newText !== oldText) {
-                      updateStoryText(i, newText);
-                    }
-                  }}
-                  className="text-sm text-foreground leading-relaxed whitespace-pre-wrap rounded px-1 -mx-1 transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-text"
-                >
-                  {story.text || story.texte || story.content}
-                </div>
-              )}
-              {story.sticker && (
-                <div className="flex items-center gap-1.5">
-                  <Badge variant="secondary" className="text-2xs">
-                    {story.sticker.type || "Sticker"}
-                  </Badge>
-                  {story.sticker.label && (
-                    <span className="text-xs text-muted-foreground">{story.sticker.label}</span>
+            <CardContent className="p-3">
+              <div className="flex gap-3">
+                <div className="flex-1 min-w-0 space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="secondary" className="font-mono text-2xs">
+                      Story {i + 1}
+                    </Badge>
+                    {story.timing && (
+                      <Badge variant="outline" className="font-mono text-2xs">{story.timing}</Badge>
+                    )}
+                    {story.role && (
+                      <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
+                        {formatSlideRole(story.role)}
+                      </Badge>
+                    )}
+                    {story.format && (
+                      <Badge variant="outline" className="text-2xs">{story.format}</Badge>
+                    )}
+                  </div>
+                  {(story.text || story.texte || story.content) && (
+                    <div
+                      contentEditable
+                      suppressContentEditableWarning
+                      onBlur={(e) => {
+                        const newText = e.currentTarget.textContent || "";
+                        const oldText = story.text || story.texte || story.content || "";
+                        if (newText !== oldText) {
+                          updateStoryText(i, newText);
+                        }
+                      }}
+                      className="text-sm text-foreground leading-relaxed whitespace-pre-wrap rounded px-1 -mx-1 transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-text"
+                    >
+                      {story.text || story.texte || story.content}
+                    </div>
+                  )}
+                  {story.sticker && (
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant="secondary" className="text-2xs">
+                        {story.sticker.type || "Sticker"}
+                      </Badge>
+                      {Array.isArray(story.sticker.options) && story.sticker.options.length > 0 ? (
+                        <span className="text-xs text-muted-foreground">
+                          {story.sticker.options.join(" · ")} — à poser dans Instagram
+                        </span>
+                      ) : story.sticker.label ? (
+                        <span className="text-xs text-muted-foreground">{story.sticker.label}</span>
+                      ) : null}
+                    </div>
+                  )}
+                  {frames[i] && story.visual && (
+                    <div className="space-y-1.5 pt-1">
+                      {typeof story.visual.title_pill === "string" && (
+                        <Input
+                          value={story.visual.title_pill}
+                          onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
+                          className="h-7 text-xs"
+                          aria-label="Pastille titre"
+                          placeholder="Pastille titre"
+                        />
+                      )}
+                      {typeof story.visual.body_pill === "string" && (
+                        <Input
+                          value={story.visual.body_pill}
+                          onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
+                          className="h-7 text-xs"
+                          aria-label="Pastille texte"
+                          placeholder="Pastille texte"
+                        />
+                      )}
+                    </div>
+                  )}
+                  {story.visual?.photo_directive && (
+                    <p className="text-xs text-muted-foreground">📷 {story.visual.photo_directive}</p>
                   )}
                 </div>
-              )}
+                {frames[i] && <StoryFramePreview html={frames[i]!} title={`Aperçu story ${i + 1}`} />}
+              </div>
             </CardContent>
           </Card>
         ))}
