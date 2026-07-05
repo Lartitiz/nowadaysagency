@@ -37,6 +37,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { DEMO_AUTOFILL_RESULT } from "@/lib/demo-autofill-data";
 import { toast } from "sonner";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
+import { posthog } from "@/lib/posthog";
 
 const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; done: string }> = {
   storytelling: { low: "Commence par raconter ton moment déclic. 5 minutes suffisent.", mid: "Ton histoire prend forme ! Il te manque le texte final poli.", high: "Presque terminé. Laisse l'IA t'aider à peaufiner ton récit.", done: "Ton histoire est prête. Tu peux en faire un post ou un carousel." },
@@ -127,18 +128,13 @@ export default function BrandingPage() {
 
   const canShowMirror = completion.tone > 0 && !!lastAudit;
 
-  // Analytics logging helper
+  // Analytics logging helper — PostHog, PAS ai_usage : ai_usage est la table de
+  // FACTURATION (checkQuota compte toutes ses lignes du mois dans le quota),
+  // y écrire de la télémétrie brûlait des crédits gratuits à chaque autofill.
   const logEvent = useCallback(async (eventType: string) => {
     if (!user?.id || isDemoMode) return;
     try {
-      await supabase.from("ai_usage").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : null,
-        action_type: eventType,
-        category: "autofill",
-        model_used: null,
-        tokens_used: null,
-      } as any);
+      posthog.capture(eventType, { source: "branding_autofill", workspace_id: workspaceId !== user.id ? workspaceId : null });
     } catch { /* silent */ }
   }, [user?.id, workspaceId, isDemoMode]);
 
