@@ -199,20 +199,28 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
   // === PROFIL UTILISATRICE ===
   if (options.includeProfile && ctx.profile) {
     const p = ctx.profile;
+    // Source de vérité éditoriale = le module Branding (décision 04/07, cf /profil
+    // qui n'édite plus ces champs). Les lignes héritées du profil ne servent que de
+    // FALLBACK : dès que l'équivalent branding existe, on tait la version profil
+    // pour ne pas injecter deux versions contradictoires dans le même prompt.
+    const t = ctx.tone;
+    const hasBrandingTarget = Boolean(t?.target_description || ctx.persona);
+    const hasBrandingTone = Boolean(t?.voice_description || t?.tone_register || t?.tone_style);
+    const hasBrandingPillars = Boolean(ctx.strategy?.pillar_major || (ctx.editorial?.pillars as any[])?.length);
     const lines: string[] = [];
     if (p.prenom) lines.push(`- Prénom : ${p.prenom}`);
     if (p.activite) lines.push(`- Activité : ${p.activite}`);
     if (p.type_activite) lines.push(`- Type : ${p.type_activite}`);
-    if (p.cible) lines.push(`- Cible : ${p.cible}`);
-    if (p.probleme_principal) lines.push(`- Problème qu'elle résout : ${p.probleme_principal}`);
-    if (p.mission) lines.push(`- Mission : ${p.mission}`);
-    if (p.offre) lines.push(`- Offre principale : ${p.offre}`);
-    if (p.piliers?.length) lines.push(`- Thématiques : ${p.piliers.join(", ")}`);
-    if (p.tons?.length) lines.push(`- Ton souhaité : ${p.tons.join(", ")}`);
-    if (p.croyances_limitantes) lines.push(`- Croyances limitantes de sa cible : ${p.croyances_limitantes}`);
-    if (p.verbatims) lines.push(`- Verbatims (les mots de ses clientes) : ${p.verbatims}`);
-    if (p.expressions_cles) lines.push(`- Expressions clés : ${p.expressions_cles}`);
-    if (p.ce_quon_evite) lines.push(`- Ce qu'on évite : ${p.ce_quon_evite}`);
+    if (p.cible && !hasBrandingTarget) lines.push(`- Cible : ${p.cible}`);
+    if (p.probleme_principal && !t?.target_problem) lines.push(`- Problème qu'elle résout : ${p.probleme_principal}`);
+    if (p.mission && !t?.mission) lines.push(`- Mission : ${p.mission}`);
+    if (p.offre && !t?.offer) lines.push(`- Offre principale : ${p.offre}`);
+    if (p.piliers?.length && !hasBrandingPillars) lines.push(`- Thématiques : ${p.piliers.join(", ")}`);
+    if (p.tons?.length && !hasBrandingTone) lines.push(`- Ton souhaité : ${p.tons.join(", ")}`);
+    if (p.croyances_limitantes && !t?.target_beliefs) lines.push(`- Croyances limitantes de sa cible : ${p.croyances_limitantes}`);
+    if (p.verbatims && !t?.target_verbatims) lines.push(`- Verbatims (les mots de ses clientes) : ${p.verbatims}`);
+    if (p.expressions_cles && !t?.key_expressions) lines.push(`- Expressions clés : ${p.expressions_cles}`);
+    if (p.ce_quon_evite && !t?.things_to_avoid) lines.push(`- Ce qu'on évite : ${p.ce_quon_evite}`);
     if (p.style_communication?.length) lines.push(`- Style de communication : ${p.style_communication.join(", ")}`);
     if (p.instagram_username) lines.push(`- Instagram : @${p.instagram_username}`);
     if (p.instagram_followers) lines.push(`- Abonné·es : ${p.instagram_followers}`);
