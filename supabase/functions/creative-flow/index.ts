@@ -173,10 +173,13 @@ serve(async (req) => {
       const keyExp = typeof ctx.tone.key_expressions === "string" ? ctx.tone.key_expressions : "";
       if (keyExp) brandVocab.push(`expressions clés: ${keyExp.slice(0, 200)}`);
     }
-    if (ctx?.brand_profile?.offer) {
-      const off = typeof ctx.brand_profile.offer === "string" ? ctx.brand_profile.offer : "";
-      if (off) brandVocab.push(`offre: ${off.slice(0, 150)}`);
-    }
+    // ctx.tone = ligne brand_profile (dont `offer`), fallback profiles.offre — même priorité que formatContextForAI
+    const offerDesc = typeof ctx?.tone?.offer === "string" && ctx.tone.offer
+      ? ctx.tone.offer
+      : (typeof ctx?.profile?.offre === "string" ? ctx.profile.offre : "");
+    if (offerDesc) brandVocab.push(`offre: ${offerDesc.slice(0, 150)}`);
+    const offerNames = (Array.isArray(ctx?.offers) ? ctx.offers : []).map((o: { name?: string }) => o?.name).filter(Boolean);
+    if (offerNames.length > 0) brandVocab.push(`noms des offres: ${offerNames.slice(0, 4).join(", ")}`);
     const brandVocabBlock = brandVocab.length > 0
       ? `\n\nVOCABULAIRE MÉTIER DE L'UTILISATRICE (à RÉUTILISER dans les questions) :\n${brandVocab.map(v => `- ${v}`).join("\n")}\n\nRÈGLE : au moins 2 questions sur 3 doivent réutiliser un mot/concept de ce vocabulaire (nom de l'offre, terme de la cible, expression clé). Les questions doivent montrer que tu connais SON univers, pas un univers générique.\n`
       : "";
