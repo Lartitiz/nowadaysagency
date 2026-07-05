@@ -26,21 +26,15 @@ Voici le design pour chaque type :
 
 █ BEFORE_AFTER — Deux colonnes côte à côte
 <div style="display:flex;gap:24px;width:100%">
-  <div style="flex:1;display:flex;gap:6px">
-    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#E74C3C;flex-shrink:0"></div>
-    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
+  <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
       <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
       <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✗ ITEM</p>
       <!-- un <p> par item, TOUJOURS préfixé du glyphe ✗ — JAMAIS de ponctuation (virgule, tiret, point) comme puce -->
-    </div>
   </div>
-  <div style="flex:1;display:flex;gap:6px">
-    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:#27AE60;flex-shrink:0"></div>
-    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
+  <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
       <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
       <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✓ ITEM</p>
       <!-- un <p> par item, TOUJOURS préfixé du glyphe ✓ -->
-    </div>
   </div>
 </div>
 
@@ -156,12 +150,9 @@ RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la pl
     <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
     <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
   </div>
-  <div style="display:flex;gap:6px">
-    <div data-pptx-shape="card" style="width:8px;border-radius:4px;background:${ch.color_primary};flex-shrink:0"></div>
-    <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
+  <div data-pptx-shape="card" style="background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
       <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
       <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
-    </div>
   </div>
 </div>
 La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
@@ -450,7 +441,7 @@ MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
 
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
-- Mais un carrousel ENTIER de slides nues = plat. Sur l'ensemble, au moins 2-3 slides portent un vrai moment de design : carte blanche, barre latérale colorée, chiffre géant décoratif (120-200px en ${ch.font_title}, opacity 0.12-0.2), emoji 48-64px posé comme élément graphique (pas en fin de ligne), ou encadré pointillé.
+- Mais un carrousel ENTIER de slides nues = plat. Sur l'ensemble, au moins 2-3 slides portent un vrai moment de design : carte blanche, chiffre géant décoratif (120-200px en ${ch.font_title}, opacity 0.12-0.2), emoji 48-64px posé comme élément graphique (pas en fin de ligne), ou encadré pointillé.
 - Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}, jamais noyés dans une phrase.
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
@@ -459,7 +450,7 @@ CARTES BLANCHES (pour les blocs de contenu) :
 - Border-radius: ${ch.border_radius}
 - Box-shadow: 0 4px 24px rgba(0,0,0,0.06)
 - Padding: 40px
-- Optionnel : barre latérale colorée = un div séparé (width:8px;border-radius:4px;background:[couleur accent]) accolé à la carte dans un flex avec gap:6px — JAMAIS border-left sur la carte (non exportable en shape éditable).
+- ❌ JAMAIS de barre/trait vertical accolé au flanc d'une carte (le « trait coloré à gauche » = tell « généré par IA », banni). Pour différencier une carte : ombre légère, fond très légèrement teinté (${ch.color_background}), ou encadré pointillé.
 
 BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Border: 2px dashed ${ch.color_primary}40 (avec transparence)
@@ -523,7 +514,7 @@ TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Optionnel : badge pilule en haut à gauche avec un label éditorial court ("Le piège", "À éviter", etc.) — jamais un numéro de slide.
 - Titre headline en ${ch.font_title} (42-48px), couleur ${ch.color_secondary}
 - Corps du tip en ${ch.font_body} (28-30px)
-- Barre accent latérale colorée (4px solid) à gauche du bloc de texte
+- Pour structurer le bloc : un mot-clé surligné ou un encadré pointillé — JAMAIS de barre verticale accolée au texte
 - Un mot-clé souligné en ${ch.color_accent} (soulignement jaune type highlighter)
 - Alterner les couleurs d'accent entre les slides pour la variété, UNIQUEMENT dans la palette de la charte : ${ch.color_primary}, ${ch.color_accent}, ${ch.color_secondary}. JAMAIS de couleur hors charte pour les accents.
 
@@ -565,6 +556,7 @@ CTA (dernière slide) — Douce, invitante :
 - ❌ Couleurs qui ne sont pas dans la charte
 - ❌ Plus de 3 couleurs de fond différentes dans tout le carrousel
 - ❌ Le même ornement répété sur toutes les slides (eyebrow partout, badge partout, carte partout) — effet template généré par IA
+- ❌ Barre/trait vertical accolé au flanc d'une carte ou d'un bloc de texte — LE tell « généré par IA » par excellence
 - ❌ Carrousel entier sans un seul moment de design (aucune carte, aucun chiffre mis en scène, aucune rupture) — le symptôme « lisible mais plat »
 - ❌ Titre dont aucun mot-clé n'est mis en valeur (italique accent, surligneur ou soulignement épais)
 
