@@ -4,6 +4,7 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
+import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, linkedInPublishDisabledReason } from "@/features/creer/publish-guards";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -2509,34 +2510,15 @@ export default function CreerUnifie() {
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [publishingLinkedIn, setPublishingLinkedIn] = useState(false);
 
-  const publishableImageUrl = (() => {
-    const r: any = result?.raw || result;
-    if (!r) return null;
-    const candidates: any[] = [
-      r.image_url, r.imageUrl, r.cover_url, r.coverUrl, r.photo_url, r.photoUrl,
-      r.photo?.url, r.pexels?.url, r.image?.url,
-      r.slides?.[0]?.image_url, r.slides?.[0]?.imageUrl, r.slides?.[0]?.photo?.url,
-      uploadedPhotos?.[0]?.preview,
-    ];
-    for (const c of candidates) {
-      if (typeof c === "string" && /^https:\/\//i.test(c) && !c.startsWith("blob:") && !c.startsWith("data:")) {
-        return c;
-      }
-    }
-    return null;
-  })();
+  const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
 
   const isCarouselPublish = selectedFormat === "carousel";
-  const publishInstagramDisabledReason = (() => {
-    if (selectedFormat?.startsWith("pinterest") || selectedFormat === "linkedin" || selectedFormat === "newsletter") {
-      return "Publication Instagram disponible uniquement pour les formats Instagram.";
-    }
-    if (isCarouselPublish) {
-      return visualSlides.length >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.";
-    }
-    if (!publishableImageUrl) return "Aucune image publique trouvée. Une image avec une URL https publique est requise.";
-    return null;
-  })();
+  const publishInstagramDisabledReason = instagramPublishDisabledReason({
+    selectedFormat,
+    isCarousel: isCarouselPublish,
+    visualSlidesCount: visualSlides.length,
+    publishableImageUrl,
+  });
 
   const handlePublishInstagram = async () => {
     if (!session?.user) {
@@ -2547,14 +2529,7 @@ export default function CreerUnifie() {
       toast.error(publishInstagramDisabledReason);
       return;
     }
-    const r: any = result?.raw || result;
-    const caption: string =
-      r?.edited_text ||
-      r?.full_text ||
-      r?.content ||
-      (typeof r?.caption === "string" ? r.caption : (r?.caption?.text || r?.caption?.full || "")) ||
-      [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() ||
-      "";
+    const caption: string = extractInstagramCaption(result?.raw || result);
 
     setPublishingInstagram(true);
     try {
@@ -2601,15 +2576,10 @@ export default function CreerUnifie() {
   // ═══ Publication directe LinkedIn (post texte) ═══
   // Disponible pour un post LinkedIn texte (hors carrousel LinkedIn, qui est visuel).
   const isLinkedInTextPost = selectedFormat === "linkedin" && !isLinkedInCarousel;
-  const publishLinkedInDisabledReason = (() => {
-    if (!isLinkedInTextPost) return null; // bouton non affiché dans ce cas
-    const r: any = result?.raw || result;
-    const text =
-      r?.edited_text || r?.full_text || r?.content ||
-      [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() || "";
-    if (!text.trim()) return "Génère ton post LinkedIn pour pouvoir le publier.";
-    return null;
-  })();
+  const publishLinkedInDisabledReason = linkedInPublishDisabledReason({
+    isLinkedInTextPost,
+    raw: result?.raw || result,
+  });
 
   const handlePublishLinkedIn = async () => {
     if (!session?.user) {
@@ -2620,13 +2590,7 @@ export default function CreerUnifie() {
       toast.error(publishLinkedInDisabledReason);
       return;
     }
-    const r: any = result?.raw || result;
-    const text: string =
-      r?.edited_text ||
-      r?.full_text ||
-      r?.content ||
-      [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() ||
-      "";
+    const text: string = extractLinkedInText(result?.raw || result);
 
     setPublishingLinkedIn(true);
     try {
