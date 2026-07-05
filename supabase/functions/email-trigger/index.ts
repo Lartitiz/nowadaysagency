@@ -6,6 +6,9 @@ const APP_URL = "https://nowadays-assistant.fr";
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
 
 // Pool d'idées évergreen (rendez-vous hebdo). On en pioche 5 par semaine (rotation selon le n° de semaine).
+// ⚠️ SYNCHRO : dupliqué dans src/lib/weekly-ideas.ts (V2 in-app — le dashboard affiche
+// les MÊMES 5 idées que cet e-mail, calculées par la même rotation déterministe).
+// Toute modification du pool ou de la formule doit être faite DES DEUX CÔTÉS.
 const WEEKLY_IDEA_POOL = [
   "Une erreur que tu vois souvent dans ton domaine (et quoi faire à la place)",
   "Les coulisses de ton dernier projet ou de ta semaine",
