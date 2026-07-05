@@ -14,6 +14,9 @@ export default function ReelResult({ result }: Props) {
   const sections = result?.sections || (Array.isArray(result?.script) ? result.script : result?.script?.sections) || [];
   const personalTip = result?.personal_tip || result?.conseil_personnalise;
   const lectureTest = result?.lecture_test;
+  // Shot list de tournage (chantier « scripts Reels ») — champ additif : les
+  // contenus générés avant ce chantier ne l'ont pas, la section ne s'affiche pas.
+  const planTournage = Array.isArray(result?.plan_tournage) ? result.plan_tournage : [];
 
   const fullText = sections
     .map((s: any) => [s.texte_parle, s.texte_overlay].filter(Boolean).join("\n"))
@@ -79,6 +82,38 @@ export default function ReelResult({ result }: Props) {
           </Card>
         ))}
       </div>
+
+      {planTournage.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wide">🎥 Ton plan de tournage</span>
+            <Badge variant="secondary" className="text-2xs">{planTournage.length} plans</Badge>
+          </div>
+          <p className="text-2xs text-muted-foreground">
+            Tout se tourne au téléphone, dans cet ordre — les prises face cam d'abord, les plans de coupe ensuite.
+          </p>
+          <div className="space-y-2">
+            {planTournage.map((shot: any, i: number) => (
+              <div key={i} className="flex gap-2.5 items-start rounded-lg bg-muted/30 p-2.5">
+                <span className="font-mono text-2xs text-muted-foreground pt-0.5 shrink-0">{i + 1}.</span>
+                <div className="min-w-0 space-y-0.5">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge variant="secondary" className="text-2xs">
+                      {shot.type === "face_cam" ? "🎤 Face cam" : shot.type === "insert" ? "🔍 Insert" : "🎬 B-roll"}
+                    </Badge>
+                    {shot.duree && <span className="font-mono text-2xs text-muted-foreground">{shot.duree}</span>}
+                  </div>
+                  {shot.plan && <p className="text-sm text-foreground leading-snug">{shot.plan}</p>}
+                  {shot.sert_pour && (
+                    <p className="text-2xs text-muted-foreground">Sert pour : {shot.sert_pour}</p>
+                  )}
+                  {shot.conseil && <p className="text-xs text-muted-foreground">💡 {shot.conseil}</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {personalTip && (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
