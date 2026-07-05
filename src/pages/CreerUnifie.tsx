@@ -1176,16 +1176,17 @@ export default function CreerUnifie() {
             setStep("format");
             return;
           }
-          // L'erreur est affichée par l'effet global (toast unique sur `error`),
-          // y compris le cas "résultat vide" (le hook pose désormais l'erreur).
-          // On évite ainsi le double toast rouge.
-          setStep("format");
+          // Échec (429 « Trop de requêtes », réseau, quota…) : on RESTE à l'étape
+          // résultat — son état vide affiche `quotaExhausted` (Voir les plans) ou
+          // `error` (🔄 Réessayer) inline, en plus du toast de l'effet global.
+          // Un setStep("format") ici renvoyait l'utilisatrice à l'étape 2 sans
+          // explication visible (le toast de 4 s était le seul indice).
           return;
         }
       } catch (e: any) {
         // Defensive — generateStream catches its own errors, but keep parity.
-        if (e?._isQuota && handleQuotaError(e)) {
-          setStep("format");
+        if (handleQuotaError(e)) {
+          markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
           return;
         }
         if (isDemoMode) {
