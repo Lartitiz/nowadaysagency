@@ -139,18 +139,20 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
             onBack={() => setShowDmGen(false)}
             onMessageSent={async (content, approach, meta) => {
               // Log interaction
+              let logError: unknown = null;
               if (user) {
-                try {
-                  await supabase.from("contact_interactions").insert({
-                    contact_id: prospect.id,
-                    user_id: user.id,
-                    interaction_type: "dm_sent",
-                    content,
-                    ai_generated: true,
-                  } as any);
+                ({ error: logError } = await supabase.from("contact_interactions").insert({
+                  contact_id: prospect.id,
+                  user_id: user.id,
+                  interaction_type: "dm_sent",
+                  content,
+                  ai_generated: true,
+                } as any));
+                if (logError) {
+                  console.error("[ProspectDetail] Failed to log interaction:", logError);
+                  toast.error("Le message n'a pas pu être noté dans l'historique");
+                } else {
                   loadInteractions();
-                } catch (e) {
-                  console.error("[ProspectDetail] Failed to log interaction:", e);
                 }
               }
               // Determine next stage & reminder based on approach
@@ -176,7 +178,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
                 next_reminder_text: reminderText,
               });
               setShowDmGen(false);
-              toast.success("✅ Message noté dans l'historique !");
+              if (!logError) toast.success("✅ Message noté dans l'historique !");
             }}
           />
         </DialogContent>
