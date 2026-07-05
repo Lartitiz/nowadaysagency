@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/dialog";
 
 import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
+import { weeklyIdeas } from "@/lib/weekly-ideas";
 import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -583,6 +584,29 @@ export default function AdaptiveHome() {
         <section>
           <SectionLabel hint="ce qui est prévu, ce qui est libre">Cette semaine</SectionLabel>
           <WeekStrip posts={upcomingPosts} isLoading={upcomingLoading} />
+        </section>
+
+        {/* Zone Idées de la semaine — le rendez-vous du rituel hebdo, dans l'app
+            et plus seulement dans l'e-mail (V2 rétention). Même rotation
+            déterministe que l'e-mail (weekly-ideas.ts ↔ email-trigger). */}
+        <section>
+          <SectionLabel hint="le rendez-vous de ton rituel — un clic et on la rédige ensemble">
+            Tes idées de la semaine
+          </SectionLabel>
+          <div className="divide-y divide-border/70">
+            {weeklyIdeas().map((idea) => (
+              <button
+                key={idea}
+                type="button"
+                onClick={() => navigate(`/creer?sujet=${encodeURIComponent(idea)}`)}
+                className="group flex w-full items-center gap-3 py-2.5 text-left transition-colors hover:bg-muted/30"
+              >
+                <Lightbulb className="h-4 w-4 shrink-0 text-bordeaux/60" />
+                <span className="flex-1 text-sm text-foreground">{idea}</span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-foreground/30 transition-transform group-hover:translate-x-0.5 group-hover:text-bordeaux" />
+              </button>
+            ))}
+          </div>
         </section>
 
         {/* Zone Piloter — liste éditoriale : la donnée vivante porte une
