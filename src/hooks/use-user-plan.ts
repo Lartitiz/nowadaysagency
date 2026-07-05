@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { trackError } from "@/lib/error-tracker";
 import { supabase } from "@/integrations/supabase/client";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 
 type Plan = "free" | "outil" | "binome";
 
@@ -65,46 +66,51 @@ interface UserPlanState {
   refresh: () => Promise<void>;
 }
 
-/* ── Shared in-memory cache for check-subscription ── */
-let _cachedData: any = null;
-let _cacheTimestamp = 0;
-let _inflightPromise: Promise<any> | null = null;
+/* ── Shared in-memory cache for check-subscription ──
+   Clé = workspace actif : le plan effectif et le compteur d'usage dépendent du
+   périmètre (l'enforcement serveur compte par workspace), donc changer d'espace
+   doit changer de cache — sinon on ré-affiche les crédits de l'espace précédent. */
+let _cache = new Map<string, { data: any; ts: number }>();
+const _inflight = new Map<string, Promise<any>>();
 const CACHE_TTL = 60_000; // 1 minute
 
-async function fetchSubscription(): Promise<any> {
-  const now = Date.now();
-  if (_cachedData && now - _cacheTimestamp < CACHE_TTL) {
-    return _cachedData;
+async function fetchSubscription(workspaceId?: string): Promise<any> {
+  const key = workspaceId || "perso";
+  const hit = _cache.get(key);
+  if (hit && Date.now() - hit.ts < CACHE_TTL) {
+    return hit.data;
   }
-  if (_inflightPromise) return _inflightPromise;
+  const pending = _inflight.get(key);
+  if (pending) return pending;
 
-  _inflightPromise = supabase.functions
-    .invoke("check-subscription")
+  const promise = supabase.functions
+    .invoke("check-subscription", { body: { workspace_id: workspaceId || null } })
     .then(({ data, error }) => {
-      _inflightPromise = null;
+      _inflight.delete(key);
       if (!error && data) {
-        _cachedData = data;
-        _cacheTimestamp = Date.now();
+        _cache.set(key, { data, ts: Date.now() });
         return data;
       }
       return null;
     })
     .catch(() => {
-      _inflightPromise = null;
+      _inflight.delete(key);
       return null;
     });
 
-  return _inflightPromise;
+  _inflight.set(key, promise);
+  return promise;
 }
 
 /** Force cache invalidation (called by refresh and on sign-out to avoid cross-user leak) */
 export function invalidateUserPlanCache() {
-  _cachedData = null;
-  _cacheTimestamp = 0;
+  _cache = new Map();
+  _inflight.clear();
 }
 
 export function useUserPlan(): UserPlanState {
   const { user } = useAuth();
+  const { activeWorkspace, loading: workspaceLoading } = useWorkspace();
   const { isDemoMode, demoData, demoPlan } = useDemoContext();
   const demoPlanResolved: Plan = isDemoMode ? normalizePlan(demoPlan as string) : "free";
   const [plan, setPlan] = useState<Plan>(isDemoMode ? demoPlanResolved : "free");
@@ -128,9 +134,12 @@ export function useUserPlan(): UserPlanState {
       setLoading(false);
       return;
     }
+    // Attendre la résolution du workspace actif : interroger trop tôt ferait
+    // un appel en périmètre perso puis un second en périmètre workspace.
+    if (workspaceLoading) return;
 
     try {
-      const data = await fetchSubscription();
+      const data = await fetchSubscription(activeWorkspace?.id);
       if (data) {
         setPlan(normalizePlan(data.plan || "free"));
         setBonusCredits(data.bonus_credits || 0);
@@ -142,7 +151,7 @@ export function useUserPlan(): UserPlanState {
       trackError(e, { page: "useUserPlan", action: "checkSubscription" });
     }
     setLoading(false);
-  }, [user, isDemoMode]);
+  }, [user, isDemoMode, workspaceLoading, activeWorkspace?.id]);
 
   const refresh = useCallback(async () => {
     invalidateUserPlanCache();
@@ -175,8 +184,11 @@ export function useUserPlan(): UserPlanState {
     const total = usage.total;
     if (!cat || !total) return true;
     if (cat.limit === 0) return false;
-    return cat.used < cat.limit && total.used < total.limit;
-  }, [usage, isDemoMode, demoPlanResolved, isAdminUser]);
+    if (total.used >= total.limit) return false;
+    // Même règle que l'enforcement (plan-limiter) : tant qu'il reste des bonus,
+    // le cap catégorie ne bloque pas — seul le plafond global (bonus inclus) compte.
+    return cat.used < cat.limit || bonusCredits > 0;
+  }, [usage, isDemoMode, demoPlanResolved, isAdminUser, bonusCredits]);
 
   const canAudit = useCallback(() => {
     return canGenerate("audit");

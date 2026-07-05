@@ -77,7 +77,10 @@ export default function SettingsPage() {
 
   useEffect(() => {
     loadSubscription();
-  }, []);
+    // Re-charger quand l'espace actif change : le plan affiché est le plan
+    // effectif du périmètre courant (même règle que l'enforcement serveur).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeWorkspace?.id]);
 
   // Charge les préférences du rituel une fois que profileUserId est résolu
   // (la résolution du propriétaire d'espace est asynchrone).
@@ -136,7 +139,11 @@ export default function SettingsPage() {
   const loadSubscription = async () => {
     setLoadingSub(true);
     try {
-      const { data, error } = await invokeWithTimeout("check-subscription", {}, 15000);
+      const { data, error } = await invokeWithTimeout(
+        "check-subscription",
+        { body: { workspace_id: activeWorkspace?.id || null } },
+        15000,
+      );
       if (!error && data) setSubInfo(data);
     } catch (e) {
       console.error("Settings error:", e);

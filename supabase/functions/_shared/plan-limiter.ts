@@ -163,12 +163,44 @@ function bestPlan(planA: string, planB: string): string {
   return limitsA.total >= limitsB.total ? planA : planB;
 }
 
+/**
+ * Plan EFFECTIF = le meilleur entre le plan perso (subscriptions), le plan du
+ * workspace et un éventuel programme d'accompagnement actif (coaching_programs).
+ * SOURCE DE VÉRITÉ UNIQUE : l'affichage (check-subscription) et l'enforcement
+ * (checkQuota/logUsage) doivent TOUS LES DEUX passer par ici — toute divergence
+ * ré-introduit le bug « header N restantes pendant que le serveur refuse » (T19).
+ */
+export async function getEffectivePlan(sb: any, userId: string, workspaceId?: string): Promise<string> {
+  const userPlan = await getUserPlan(sb, userId);
+  const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId) : "free";
+  const coachingPlan = await getCoachingPlan(sb, userId);
+  return bestPlan(bestPlan(userPlan, workspacePlan), coachingPlan);
+}
+
 function getMonthStart(): string {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
 }
 
-async function getBonusCredits(sb: any, userId: string): Promise<number> {
+/**
+ * Usage IA du mois courant, dans le MÊME périmètre que l'enforcement :
+ * par workspace quand il y en a un, par user sinon. Exporté pour que
+ * check-subscription compte exactement comme checkQuota.
+ */
+export function getMonthlyUsageRows(sb: any, userId: string, workspaceId?: string) {
+  const query = sb
+    .from("ai_usage")
+    .select("category")
+    .gte("created_at", getMonthStart());
+  if (workspaceId) {
+    query.eq("workspace_id", workspaceId);
+  } else {
+    query.eq("user_id", userId);
+  }
+  return query;
+}
+
+export async function getBonusCredits(sb: any, userId: string): Promise<number> {
   const { data } = await sb
     .from("profiles")
     .select("bonus_credits")
@@ -191,15 +223,7 @@ export async function checkQuota(
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
-  // Plan effectif = le meilleur entre le plan perso (subscriptions),
-  // le plan du workspace, et un éventuel programme d'accompagnement actif
-  // (coaching_program) — pour rester cohérent avec check-subscription qui
-  // pilote l'affichage. Sans le coaching_program, une cliente Binôme sans
-  // abonnement Stripe était traitée en "free" et bloquée à tort.
-  const userPlan = await getUserPlan(sb, userId);
-  const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId) : "free";
-  const coachingPlan = await getCoachingPlan(sb, userId);
-  const plan = bestPlan(bestPlan(userPlan, workspacePlan), coachingPlan);
+  const plan = await getEffectivePlan(sb, userId, workspaceId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
   // Check if category is available for this plan
@@ -213,25 +237,11 @@ export async function checkQuota(
     };
   }
 
-  const monthStart = getMonthStart();
-
   // Get bonus credits for the user
   const bonusCredits = await getBonusCredits(sb, userId);
   const effectiveTotalLimit = limits.total + bonusCredits;
 
-  // Get all usage this month — filter by workspace or user
-  const query = sb
-    .from("ai_usage")
-    .select("category")
-    .gte("created_at", monthStart);
-
-  if (workspaceId) {
-    query.eq("workspace_id", workspaceId);
-  } else {
-    query.eq("user_id", userId);
-  }
-
-  const { data: usageRows, error: usageError } = await query;
+  const { data: usageRows, error: usageError } = await getMonthlyUsageRows(sb, userId, workspaceId);
 
   if (usageError) {
     return {
@@ -337,20 +347,10 @@ export async function logUsage(
   const { data: adminCheck } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (adminCheck) return;
 
-  const userPlan = await getUserPlan(sb, userId);
-  const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId) : "free";
-  const coachingPlan = await getCoachingPlan(sb, userId);
-  const plan = bestPlan(bestPlan(userPlan, workspacePlan), coachingPlan);
+  const plan = await getEffectivePlan(sb, userId, workspaceId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
-  const monthStart = getMonthStart();
 
-  let usageQuery = sb
-    .from("ai_usage")
-    .select("id")
-    .gte("created_at", monthStart);
-  if (workspaceId) usageQuery = usageQuery.eq("workspace_id", workspaceId);
-  else usageQuery = usageQuery.eq("user_id", userId);
-  const { data: usageRows } = await usageQuery;
+  const { data: usageRows } = await getMonthlyUsageRows(sb, userId, workspaceId);
 
   const totalUsed = (usageRows || []).length;
 
