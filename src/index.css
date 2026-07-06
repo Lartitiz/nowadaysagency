@@ -15,9 +15,10 @@
     --popover: 0 0% 100%;
     --popover-foreground: 270 25% 17%;
 
-    /* Framboise foncée à L52% : contraste AA (blanc sur framboise & framboise sur fond clair ≥ 4.5:1).
+    /* Framboise foncée : contraste AA vérifié via axe (blanc sur framboise & framboise sur fond
+       clair ≥ 4.5:1). NB : L52% mesurait en réalité 4.1:1 (échec) — L48% donne ~4.7:1.
        L'ancienne teinte vive (61%) reste dispo via --primary-light pour le décoratif. */
-    --primary: 338 90% 52%;
+    --primary: 338 84% 48%;
     --primary-foreground: 0 0% 100%;
 
     --secondary: 330 100% 91%;
