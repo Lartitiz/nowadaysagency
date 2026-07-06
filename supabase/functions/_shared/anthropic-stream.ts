@@ -134,17 +134,26 @@ export function createClientSSEStream(
 }
 
 /**
+ * Callback de progression passé au handler : émet un event SSE
+ * `{ type: "status", stage, ...data }` que le client peut afficher
+ * (vraies étapes de génération au lieu d'une barre simulée).
+ * En mode non-SSE le handler reçoit un no-op — toujours sûr à appeler.
+ */
+export type StatusEmitter = (stage: string, data?: Record<string, unknown>) => void;
+
+/**
  * Wrap an existing async handler (that returns a normal JSON Response) into
  * an SSE response that emits heartbeats every `intervalMs` ms while the
  * handler is running. When the handler resolves, the JSON body is parsed and
  * re-emitted as a single `done` event whose `full` field is the JSON string.
+ * The handler receives a StatusEmitter to surface real progress stages.
  *
  * Goal: keep long-running edge functions alive through proxies/CDNs that
  * close idle connections after ~60s, WITHOUT changing any generation logic.
  */
 export function runWithHeartbeatSSE(
   corsHeaders: Record<string, string>,
-  work: () => Promise<Response>,
+  work: (emitStatus: StatusEmitter) => Promise<Response>,
   intervalMs = 10000,
 ): Response {
   const encoder = new TextEncoder();
@@ -168,8 +177,12 @@ export function runWithHeartbeatSSE(
 
       safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", stage: "generating" })}\n\n`));
 
+      const emitStatus: StatusEmitter = (stage, data) => {
+        safeEnqueue(encoder.encode(`data: ${JSON.stringify({ type: "status", stage, ...(data || {}) })}\n\n`));
+      };
+
       try {
-        const response = await work();
+        const response = await work(emitStatus);
         clearInterval(heartbeat);
 
         let bodyText = "";

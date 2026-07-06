@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
@@ -325,6 +326,9 @@ export default function CreerUnifie() {
   // Visual states (carousel only)
   const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(stripFontImportLeakFromSlides(ps?.visualSlides || []));
   const [visualLoading, setVisualLoading] = useState(false);
+  // Progression RÉELLE de la génération des visuels (events SSE de l'edge :
+  // lots de slides terminés). null = pas d'info (fallback barre simulée).
+  const [visualChunkProgress, setVisualChunkProgress] = useState<{ done: number; total: number } | null>(null);
   // Surcharge de couleurs du carrousel (null = couleurs de la charte). Réinitialisée à chaque nouvelle génération.
   const [carouselColors, setCarouselColors] = useState<CarouselColors | null>(null);
   
@@ -359,6 +363,7 @@ export default function CreerUnifie() {
   const {
     generate,
     generating,
+    generationStage,
     result,
     setResult,
     error,
@@ -2428,18 +2433,30 @@ export default function CreerUnifie() {
         }).then(() => {}, () => {});
       }
 
-      const { data, error: fnError } = await invokeWithTimeout("carousel-visual", {
+      const visualsStartedAt = performance.now();
+      const { data, error: fnError } = await invokeWithHeartbeat("carousel-visual", {
         body: requestBody,
-      }, 120000);
-      if (fnError) throw fnError;
+        onStatus: (stage, info: any) => {
+          if (stage === "visuals" && typeof info?.total === "number") {
+            setVisualChunkProgress({ done: Number(info.done) || 0, total: info.total });
+          }
+        },
+      }, 180000);
       // Quota épuisé : ouvrir le QuotaWallModal avec l'objet quota complet,
-      // avant le throw générique qui perdrait data.quota.
+      // AVANT le throw générique qui perdrait data.quota (en SSE, le 429 arrive
+      // avec fnError ET data parsé — le quota se juge donc en premier).
       if (data?.error === "limit_reached" || data?.quota) {
         // Pré-génération silencieuse : ne pas faire surgir le mur quota sans clic.
         if (opts?.background) return;
         if (handleQuotaError({ data })) return;
       }
+      if (fnError) throw fnError;
       if (data?.error) throw new Error(data.error);
+      posthog.capture("carousel_visuals_timing", {
+        duration_ms: Math.round(performance.now() - visualsStartedAt),
+        slides_count: requestBody.slides?.length || 0,
+        quality_max: !!requestBody.quality_max,
+      });
       // Garde déterministe : ne JAMAIS afficher « Visuels générés ! » sur un résultat
       // vide ou amputé. Sans ça, une slide au HTML vide ou un tableau plus court que
       // demandé passe pour un succès → l'utilisatrice exporte un PPTX avec page(s)
@@ -2487,6 +2504,7 @@ export default function CreerUnifie() {
       }
     } finally {
       setVisualLoading(false);
+      setVisualChunkProgress(null);
     }
   };
 
@@ -3046,6 +3064,7 @@ export default function CreerUnifie() {
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
+                generationStage={generationStage}
                 streamingContent={streaming ? streamingContent : undefined}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}
@@ -3060,6 +3079,7 @@ export default function CreerUnifie() {
                 calendarLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
                 onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}
                 visualLoading={visualLoading}
+                visualChunkProgress={visualChunkProgress}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
