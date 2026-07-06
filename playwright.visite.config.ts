@@ -28,6 +28,11 @@ export default defineConfig({
   reporter: "list",
   outputDir: "./e2e-visite/results",
 
+  // Sonde : purge les artefacts du run précédent (setup) puis synthétise les
+  // signaux collectés en sonde-report.json/.md trié en deux bacs (teardown).
+  globalSetup: "./e2e-visite/sonde-setup.ts",
+  globalTeardown: "./e2e-visite/aggregate.ts",
+
   use: {
     baseURL: process.env.VISITE_BASE_URL || "https://nowadays-assistant.fr",
     screenshot: "on",

@@ -36,4 +36,7 @@ e2e/.auth/
 e2e-visite/.auth/
 e2e-visite/shots/
 e2e-visite/results/
+e2e-visite/sonde/
+e2e-visite/sonde-report.json
+e2e-visite/sonde-report.md
 test-results/

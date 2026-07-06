@@ -1,6 +1,7 @@
 import { test, type Page } from "@playwright/test";
 import * as path from "path";
 import { fileURLToPath } from "url";
+import { ECRANS } from "./ecrans";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -25,22 +26,6 @@ async function revealAllByScrolling(page: Page) {
   });
   await page.waitForTimeout(400); // laisse les animations de reveal se poser
 }
-
-const ECRANS: Array<{ slug: string; url: string }> = [
-  { slug: "dashboard", url: "/dashboard" },
-  { slug: "dashboard-complet", url: "/dashboard/complet" },
-  { slug: "creer", url: "/creer" },
-  { slug: "calendrier", url: "/calendrier" },
-  { slug: "idees", url: "/idees" },
-  { slug: "branding", url: "/branding" },
-  { slug: "instagram", url: "/instagram" },
-  { slug: "linkedin", url: "/linkedin" },
-  { slug: "abonnement", url: "/abonnement" },
-  { slug: "profil", url: "/profil" },
-  // NB : /site, /seo, /pinterest sont des modules masqués (feature-flags.ts
-  // enabled:false) → visibles admin only ; un compte test non-admin est
-  // redirigé vers /dashboard. Ne pas les ajouter ici.
-];
 
 for (const e of ECRANS) {
   test(`écran: ${e.slug}`, async ({ page }, info) => {
