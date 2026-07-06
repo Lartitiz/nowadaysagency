@@ -355,6 +355,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
             ))}
             <div className="ml-auto flex items-center gap-2">
               <select value={sort} onChange={(e) => setSort(e.target.value)}
+                aria-label="Trier les idées"
                 className="text-2xs font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground">
                 {SORT_OPTIONS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
