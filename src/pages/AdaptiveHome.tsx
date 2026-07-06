@@ -98,7 +98,7 @@ function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void 
         >
           <span className="text-lg shrink-0">{nextMission.emoji}</span>
           <div className="flex-1 min-w-0">
-            <p className="font-mono-ui text-2xs uppercase tracking-[0.14em] text-foreground/50 font-semibold">
+            <p className="font-mono-ui text-2xs uppercase tracking-[0.14em] text-foreground/70 font-semibold">
               Prochaine étape
             </p>
             <p className="text-sm font-semibold text-foreground truncate">{nextMission.title}</p>
@@ -163,7 +163,7 @@ function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; 
 function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
     <p className="mb-3 flex items-baseline gap-2">
-      <span className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/60 font-semibold">
+      <span className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/70 font-semibold">
         {children}
       </span>
       {hint && (
