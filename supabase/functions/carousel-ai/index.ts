@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -9,7 +9,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
-import { runWithHeartbeatSSE } from "../_shared/anthropic-stream.ts";
+import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -48,6 +48,14 @@ const QUESTIONS_TOOL = {
 // lent. Fini l'escalade silencieuse vers Opus basée sur la longueur des réponses.
 function pickCarouselModel(body: any) {
   return body?.quality_max ? "claude-opus-4-8" : getModelForAction("carousel");
+}
+
+// Modèle de la PASSE DE CORRECTION anti-patterns IA. La correction est une
+// édition mécanique à règles fermées : en qualité normale, Haiku la tient et
+// réduit la latence perçue de la phase texte (les 2 appels étant séquentiels).
+// En Mode qualité Max on garde Sonnet, cohérent avec la promesse du toggle.
+function pickCorrectionModel(body: any): AnthropicModel {
+  return body?.quality_max ? "claude-sonnet-4-6" : "claude-haiku-4-5";
 }
 
 // ── Helpers contexte par photo ──
@@ -151,7 +159,7 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
 
-  const handle = async (): Promise<Response> => {
+  const handle = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
 
   try {
     // Parse body first to extract workspace_id
@@ -292,6 +300,7 @@ serve(async (req) => {
           : buildMixCarouselPrompt(body, isLinkedIn);
         let content: string;
         const mixUsage: UsageSink = {};
+        emitStatus("writing");
 
         if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
           const messageContent: any[] = [];
@@ -335,10 +344,12 @@ serve(async (req) => {
 
         // JSON-aware correction pass for carousels
         try {
+          emitStatus("correcting");
           const corrected = await applyCorrectionPassCarousel(content, {
             enabled: true,
             skipIfShorterThan: 300,
             logger: (msg) => console.log(msg),
+            model: pickCorrectionModel(body),
           });
           if (corrected && corrected !== content) {
             content = corrected;
@@ -367,6 +378,7 @@ serve(async (req) => {
           : buildPhotoCarouselPrompt(body, isLinkedIn);
         let content: string;
         const photoUsage: UsageSink = {};
+        emitStatus("writing");
 
         if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
           // Vision mode: send photos to Claude
@@ -412,10 +424,12 @@ serve(async (req) => {
 
         // JSON-aware correction pass for carousels
         try {
+          emitStatus("correcting");
           const corrected = await applyCorrectionPassCarousel(content, {
             enabled: true,
             skipIfShorterThan: 300,
             logger: (msg) => console.log(msg),
+            model: pickCorrectionModel(body),
           });
           if (corrected && corrected !== content) {
             content = corrected;
@@ -765,6 +779,7 @@ Réponds UNIQUEMENT en JSON valide :
         ? pickCarouselModel(body)
         : getModelForAction("carousel");
     const usage: UsageSink = {};
+    if (type !== "deepening_questions") emitStatus("writing");
     let content = await callAnthropic({
       model: modelForCall,
       system: systemPrompt,
@@ -782,10 +797,12 @@ Réponds UNIQUEMENT en JSON valide :
     // JSON-aware correction pass for carousels
     if (type === "express_full" || type === "slides" || type === "hooks") {
       try {
+        emitStatus("correcting");
         const corrected = await applyCorrectionPassCarousel(content, {
           enabled: true,
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
+          model: pickCorrectionModel(body),
         });
         if (corrected && corrected !== content) {
           content = corrected;

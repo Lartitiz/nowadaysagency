@@ -1,4 +1,4 @@
-import { callAnthropicSimple, getModelForAction } from "./anthropic.ts";
+import { callAnthropicSimple, getModelForAction, type AnthropicModel } from "./anthropic.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
 
@@ -9,6 +9,12 @@ export interface CorrectionOptions {
   enabled?: boolean;
   /** Logger optionnel pour debug */
   logger?: (msg: string) => void;
+  /**
+   * Modèle de la correction (défaut : le modèle "content", Sonnet). La correction
+   * est une édition mécanique à règles fermées : les appelants sensibles à la
+   * latence (carrousel qualité normale) passent Haiku, ~2x plus rapide.
+   */
+  model?: AnthropicModel;
 }
 
 /**
@@ -468,7 +474,7 @@ export async function applyCorrectionPass(
   format: CorrectionFormat,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 200, enabled = true, logger } = options;
+  const { skipIfShorterThan = 200, enabled = true, logger, model } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:${format}] SKIPPED (disabled)`);
@@ -490,7 +496,7 @@ export async function applyCorrectionPass(
     logger?.(`[correction-pass:${format}] STARTED, content length: ${content.length}`);
 
     const corrected = await callAnthropicSimple(
-      getModelForAction("content"),
+      model ?? getModelForAction("content"),
       correctionPrompt,
       `Voici le contenu à corriger :\n\n"""\n${content}\n"""`,
       0.3,
@@ -520,7 +526,7 @@ export async function applyCorrectionPassCarousel(
   jsonContent: string,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 300, enabled = true, logger } = options;
+  const { skipIfShorterThan = 300, enabled = true, logger, model } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:carousel-json] SKIPPED (disabled)`);
@@ -554,7 +560,7 @@ export async function applyCorrectionPassCarousel(
 
     // Step 3: Send only text to correction
     const correctedBlock = await callAnthropicSimple(
-      getModelForAction("content"),
+      model ?? getModelForAction("content"),
       CAROUSEL_CORRECTION_PROMPT,
       `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
       0.3,

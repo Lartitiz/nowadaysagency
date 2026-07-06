@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { supabase } from "@/integrations/supabase/client";
+import { posthog } from "@/lib/posthog";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
@@ -200,6 +201,10 @@ export function useContentGenerator() {
   // à la fermeture du modal) — sans cet état elle retombait sur « Session expirée ou
   // contenu indisponible » avec un Réessayer qui ne peut que re-échouer.
   const [quotaExhausted, setQuotaExhausted] = useState<string | null>(null);
+  // Étape réelle de la génération en cours (events SSE `status` du serveur :
+  // "writing" → rédaction, "correcting" → relecture anti-patterns IA). Permet
+  // à l'écran d'attente d'afficher la vraie étape au lieu de messages simulés.
+  const [generationStage, setGenerationStage] = useState<string | null>(null);
 
   // Internal streaming wrapper — proxied to consumers via the hook's return.
   // Kept inside the hook so all callers share the same SSE state.
@@ -253,6 +258,8 @@ export function useContentGenerator() {
     setError(null);
     setQuotaExhausted(null);
     setResult(null);
+    setGenerationStage(null);
+    const generationStartedAt = performance.now();
 
     // Defensive: bail early on non-canonical formats (e.g. "auto") so the user
     // gets a clear toast instead of a half-broken request.
@@ -320,6 +327,7 @@ export function useContentGenerator() {
               ...(params.narrativeThread && params.narrativeThread.trim() ? { narrative_thread: params.narrativeThread } : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
+            onStatus: (stage) => setGenerationStage(stage),
           }, 180000);
           data = res.data;
           invokeError = res.error;
@@ -486,6 +494,14 @@ export function useContentGenerator() {
         ...parsed,
       };
 
+      // Télémétrie de latence (PostHog, jamais ai_usage) : la lenteur de
+      // génération était invisible dans les stats — aucune durée loguée nulle part.
+      posthog.capture("content_generation_timing", {
+        format,
+        duration_ms: Math.round(performance.now() - generationStartedAt),
+        quality_max: !!params.qualityMax,
+      });
+
       setResult(normalized);
       return normalized;
     } catch (e: any) {
@@ -500,6 +516,7 @@ export function useContentGenerator() {
       return null;
     } finally {
       setGenerating(false);
+      setGenerationStage(null);
     }
   }, []);
 
@@ -848,6 +865,7 @@ export function useContentGenerator() {
   return {
     generate,
     generating,
+    generationStage,
     result,
     setResult,
     error,

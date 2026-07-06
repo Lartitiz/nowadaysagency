@@ -208,6 +208,12 @@ interface Props {
   result: any;
   format: string;
   generating: boolean;
+  /**
+   * Étape RÉELLE de la génération (events SSE du serveur) : "writing" pendant
+   * la rédaction, "correcting" pendant la relecture anti-patterns IA.
+   * null/undefined = pas d'info (messages rotatifs simulés, comportement historique).
+   */
+  generationStage?: string | null;
   streamingContent?: string;
   // Carrousel passé par l'étape structure → la rédaction est l'étape 2/2.
   step2of2?: boolean;
@@ -222,6 +228,8 @@ interface Props {
   calendarLabel?: string;
   onGenerateVisuals?: () => void;
   visualLoading?: boolean;
+  /** Progression réelle des visuels (lots de slides terminés, SSE). null = barre simulée. */
+  visualChunkProgress?: { done: number; total: number } | null;
   visualSlides?: { slide_number: number; html: string }[];
   onExportPptx?: () => void;
   onExportHybridPptx?: () => void;
@@ -269,6 +277,7 @@ export default function CreerStepResult({
   result,
   format,
   generating,
+  generationStage,
   streamingContent,
   step2of2,
   qualityMax,
@@ -281,6 +290,7 @@ export default function CreerStepResult({
   calendarLabel,
   onGenerateVisuals,
   visualLoading,
+  visualChunkProgress,
   visualSlides,
   onExportPptx,
   onExportHybridPptx,
@@ -416,6 +426,13 @@ export default function CreerStepResult({
     }
 
     // Mode skeleton : formats structurés (carousel, reel, story)
+    // Étape réelle si le serveur l'envoie (SSE) : la correction démarre quand la
+    // rédaction est finie → message honnête + barre calée sur la vraie avancée.
+    const isCorrecting = generationStage === "correcting";
+    const displayedMessage = isCorrecting
+      ? "Relecture finale : on gomme les tournures d'IA…"
+      : messages[messageIndex];
+    const displayedProgress = isCorrecting ? Math.max(progress, 65) : progress;
     return (
       <div className="py-8 animate-fade-in space-y-5">
         {step2of2 && (
@@ -429,13 +446,13 @@ export default function CreerStepResult({
         <SkeletonPreview format={format} />
 
         <div className="space-y-3">
-          <p className="text-sm font-medium text-center text-foreground animate-fade-in" key={messageIndex}>
-            {messages[messageIndex]}
+          <p className="text-sm font-medium text-center text-foreground animate-fade-in" key={isCorrecting ? "correcting" : messageIndex}>
+            {displayedMessage}
           </p>
           <div className="w-full bg-secondary rounded-full h-2">
             <div
               className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-              style={{ width: `${progress}%` }}
+              style={{ width: `${displayedProgress}%` }}
             />
           </div>
           {qualityMax ? (
@@ -580,19 +597,26 @@ export default function CreerStepResult({
                 <div className="w-16 h-20 rounded-lg bg-primary/5 shrink-0" />
               </div>
 
-              {/* Message rotatif */}
+              {/* Message : progression réelle (lots de slides, SSE) si dispo, sinon rotatif */}
               <div className="flex items-center gap-3">
                 <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
-                <p className="text-sm font-medium text-primary animate-fade-in" key={visualProgressIndex}>
-                  {VISUAL_PROGRESS_MESSAGES[visualProgressIndex]}
+                <p className="text-sm font-medium text-primary animate-fade-in" key={visualChunkProgress ? `chunk-${visualChunkProgress.done}` : visualProgressIndex}>
+                  {visualChunkProgress && visualChunkProgress.total > 1 && visualChunkProgress.done > 0
+                    ? `Design des slides… ${visualChunkProgress.done}/${visualChunkProgress.total} lots prêts`
+                    : VISUAL_PROGRESS_MESSAGES[visualProgressIndex]}
                 </p>
               </div>
 
-              {/* Barre de progression (calibrée ~50 s) */}
+              {/* Barre de progression : vraie avancée des lots quand on la connaît,
+                  sinon barre simulée (comportement historique) */}
               <div className="w-full bg-primary/10 rounded-full h-2">
                 <div
                   className="bg-primary h-2 rounded-full transition-all duration-500 ease-out"
-                  style={{ width: `${visualProgress}%` }}
+                  style={{
+                    width: `${visualChunkProgress && visualChunkProgress.total > 0
+                      ? Math.max(Math.min(visualProgress, 88), Math.round((visualChunkProgress.done / visualChunkProgress.total) * 92))
+                      : visualProgress}%`,
+                  }}
                 />
               </div>
 

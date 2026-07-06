@@ -11,6 +11,7 @@ import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
+import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -187,6 +188,13 @@ IMPORTANT pour les schémas :
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
+
+  // SSE heartbeat (même pattern que carousel-ai) : garde la connexion vivante
+  // pendant la génération ET porte les events de progression réelle (lots de
+  // slides terminés) que le front affiche à la place d'une barre simulée.
+  const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
+
+  const handle = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
 
   try {
     const authHeader = req.headers.get("authorization");
@@ -886,42 +894,24 @@ Adapte le design de CHAQUE slide à son type. Crée une continuité visuelle ent
 Retourne UNIQUEMENT le JSON.`;
     }
 
-    // Build messages - include template reference image if available
-    const messages: any[] = [];
-
-    if (isPhotoCarousel || isMixCarousel) {
-      // Mode photo/mix : envoyer chaque photo en vision
-      const messageContent: any[] = [];
-      for (let i = 0; i < reqBody.photos.length; i++) {
-        const photo = reqBody.photos[i];
-        if (photo.base64) {
-          const { media_type, data } = extractImagePayload(photo.base64, photo.mimeType);
-          messageContent.push({
-            type: "image",
-            source: { type: "base64", media_type, data }
-          });
-          messageContent.push({
-            type: "text",
-            text: `↑ Photo ${i + 1} (pour slide ${i + 1})`
-          });
-        }
-      }
-      messageContent.push({ type: "text", text: finalUserPrompt });
-      messages.push({ role: "user", content: messageContent });
-    } else {
-      // Mode texte existant
+    // ═══ Construction des messages, factorisée ═══
+    // La génération parallèle par lots construit un message par lot avec le même
+    // squelette (photos en vision / templates de référence). On pré-résout donc
+    // les URLs de templates une seule fois, puis `buildMessagesFor` assemble un
+    // message pour un texte de prompt donné (et, en mode photo/mix, le sous-
+    // ensemble de photos réellement référencées par le lot).
     const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp", ".svg"];
     const isImageUrl = (url: string) => {
       const lower = url.toLowerCase().split("?")[0];
       return imageExtensions.some(ext => lower.endsWith(ext));
     };
 
-    if (isCharterRef && templateUrls.length > 0) {
+    let validImageUrls: string[] = [];
+    if (!isPhotoCarousel && !isMixCarousel && isCharterRef && templateUrls.length > 0) {
       // Filter to only image URLs (exclude PDFs and other unsupported formats)
       const imageUrls = templateUrls.filter((u: string) => isImageUrl(u));
-      
+
       // Vérifier que les URLs sont accessibles (signed URLs Supabase peuvent expirer)
-      const validImageUrls: string[] = [];
       for (const url of imageUrls) {
         try {
           if (!isSafePublicUrl(url)) { // anti-SSRF : bloque IP privées / métadata (les URLs signées Supabase passent)
@@ -943,7 +933,32 @@ Retourne UNIQUEMENT le JSON.`;
           console.warn(`carousel-visual: erreur accès template image: ${url}`, e);
         }
       }
-      
+    }
+
+    // `photoIndexes` (1-based, optionnel) : sous-ensemble de photos à joindre
+    // (celles référencées par les slides du lot) — évite de renvoyer toutes les
+    // photos en vision à chaque appel parallèle.
+    const buildMessagesFor = (userText: string, photoIndexes?: number[]): any[] => {
+      if (isPhotoCarousel || isMixCarousel) {
+        const messageContent: any[] = [];
+        for (let i = 0; i < reqBody.photos.length; i++) {
+          if (photoIndexes && !photoIndexes.includes(i + 1)) continue;
+          const photo = reqBody.photos[i];
+          if (photo.base64) {
+            const { media_type, data } = extractImagePayload(photo.base64, photo.mimeType);
+            messageContent.push({
+              type: "image",
+              source: { type: "base64", media_type, data }
+            });
+            messageContent.push({
+              type: "text",
+              text: `↑ Photo ${i + 1}`
+            });
+          }
+        }
+        messageContent.push({ type: "text", text: userText });
+        return [{ role: "user", content: messageContent }];
+      }
       if (validImageUrls.length > 0) {
         // Use vision: send the template image + text prompt
         const content: any[] = [];
@@ -955,17 +970,12 @@ Retourne UNIQUEMENT le JSON.`;
         }
         content.push({
           type: "text",
-          text: `Voici le template de référence de l'utilisatrice. Analyse son design (mise en page, style, espacement, ambiance) et reproduis-le fidèlement pour les slides suivantes.\n\n${finalUserPrompt}`,
+          text: `Voici le template de référence de l'utilisatrice. Analyse son design (mise en page, style, espacement, ambiance) et reproduis-le fidèlement pour les slides suivantes.\n\n${userText}`,
         });
-        messages.push({ role: "user", content });
-      } else {
-        // No valid image templates, fallback to text-only
-        messages.push({ role: "user", content: finalUserPrompt });
+        return [{ role: "user", content }];
       }
-    } else {
-      messages.push({ role: "user", content: finalUserPrompt });
-    }
-    } // end else (text mode)
+      return [{ role: "user", content: userText }];
+    };
 
     // Modèle des visuels branché sur « Mode qualité Max » : Sonnet par défaut (rapide,
     // ~2x plus court à générer), Opus seulement si l'utilisatrice a coché le toggle
@@ -1072,7 +1082,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     console.log(JSON.stringify({
       type: "carousel_visual_call",
       model,
-      slides_count: messages.length,
+      slides_count: slides.length,
       style,
       is_photo: isPhotoCarousel,
       is_mix: isMixCarousel,
@@ -1081,38 +1091,202 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       timestamp: new Date().toISOString(),
     }));
 
-    const usage: UsageSink = {};
-    const rawResponse = await callAnthropic({
-      model,
-      system: systemPromptWithAnnotations,
-      messages,
-      temperature: 0.5,
-      max_tokens: 16384,
-    }, usage);
-
-    let result: any;
-    try {
-      // Strip markdown code fences if present
-      let cleaned = rawResponse.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found");
-      }
-    } catch (parseErr) {
-      console.error("Failed to parse carousel-visual response:", rawResponse.slice(0, 500));
-      // Retry: try to find the slides_html array directly
+    // ═══ Parsing d'une réponse slides (même format pour chaque appel/lot) ═══
+    const parseSlidesJson = (raw: string): any => {
       try {
-        const arrayMatch = rawResponse.match(/\[\s*\{[\s\S]*\}\s*\]/);
-        if (arrayMatch) {
-          result = { slides_html: JSON.parse(arrayMatch[0]) };
-        } else {
+        // Strip markdown code fences if present
+        const cleaned = raw.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        throw new Error("No JSON found");
+      } catch (parseErr) {
+        console.error("Failed to parse carousel-visual response:", raw.slice(0, 500));
+        // Retry: try to find the slides_html array directly
+        try {
+          const arrayMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
+          if (arrayMatch) return { slides_html: JSON.parse(arrayMatch[0]) };
           throw parseErr;
+        } catch {
+          throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
         }
-      } catch {
-        throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
       }
+    };
+
+    // ═══ Génération PARALLÈLE par lots de slides ═══
+    // Mesure du 05/07/2026 : UN appel monolithique qui écrit le HTML des 8-10
+    // slides = ~78 s (le temps LLM est dominé par les tokens de SORTIE). En
+    // rendant les slides par lots de ~3 en parallèle, le mur d'attente tombe à
+    // la durée du lot le plus lent (~25-35 s). La cohérence inter-lots est
+    // garantie par (a) le même system prompt + invariants, (b) le carrousel
+    // COMPLET fourni en contexte à chaque lot, (c) un PLAN DE COHÉRENCE
+    // déterministe (fonds, rupture, moments de design) calculé par code.
+    const CHUNK_TARGET = 3;
+    const useParallelChunks = slides.length >= 5;
+
+    // Lots consécutifs équilibrés (8 → 3+3+2, 10 → 3+3+2+2) d'INDEX de slides.
+    const buildChunks = (count: number, target: number): number[][] => {
+      const n = Math.max(1, Math.ceil(count / target));
+      const base = Math.floor(count / n);
+      let extra = count % n;
+      const out: number[][] = [];
+      let idx = 0;
+      for (let c = 0; c < n; c++) {
+        const size = base + (extra-- > 0 ? 1 : 0);
+        out.push(Array.from({ length: size }, (_, k) => idx + k));
+        idx += size;
+      }
+      return out;
+    };
+
+    // Plan de cohérence (mode texte uniquement — en photo/mix le rythme vient
+    // des photos et des styles d'overlay, déjà cadrés par le system prompt).
+    const buildCoherencePlan = (): string => {
+      const n = slides.length;
+      const techniques = ["italique accentué (color primary + font-style italic)", "effet surligneur (linear-gradient accent)", "soulignement épais (border-bottom accent)"];
+      const designMoments = new Set<number>(
+        slides.filter((s: any) => s?.visual_schema).map((s: any) => Number(s.slide_number)).filter(Boolean),
+      );
+      if (designMoments.size < 2 && n >= 4) {
+        const a = Number(slides[Math.floor(n / 3)]?.slide_number);
+        const b = Number(slides[Math.floor((2 * n) / 3)]?.slide_number);
+        if (a) designMoments.add(a);
+        if (b) designMoments.add(b);
+      }
+      const sepSlide = slides.find((s: any) => /separator|punchline|dark/i.test(String(s?.role || "")));
+      const ruptureNum = Number(sepSlide?.slide_number) || Number(slides[Math.floor(n / 2)]?.slide_number) || 0;
+      const lines = slides.map((s: any, i: number) => {
+        const num = Number(s?.slide_number) || i + 1;
+        let bg: string;
+        if (i === 0) bg = `fond ${ch.color_background} (hook plein format, typographie géante)`;
+        else if (num === ruptureNum) bg = `SLIDE DE RUPTURE à fond plein (${ch.color_primary} ou dark box #1A1A1A, texte clair)`;
+        else if (i === n - 1) bg = `fond ${ch.color_background} (CTA, carte blanche centrée)`;
+        else bg = i % 2 === 1 ? "fond blanc #FFFFFF" : `fond ${ch.color_background}`;
+        const design = designMoments.has(num) ? " · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé)" : "";
+        return `- Slide ${num} : ${bg}${design} · mise en valeur des mots-clés : ${techniques[i % 3]}`;
+      });
+      return `═══ PLAN DE COHÉRENCE DU CARROUSEL (IMPOSÉ — chaque slide le respecte à la lettre) ═══
+Ce plan garantit le rythme global (alternance des fonds, UNE seule rupture, techniques de mise en valeur variées) même quand les slides sont rendues par lots :
+${lines.join("\n")}
+Utilise AU PLUS 3 familles de layout sur tout le carrousel : hook plein format, bloc texte centré (avec ou sans carte), schéma visuel. Les slides d'une même famille gardent exactement la même structure (padding, tailles, position du titre).`;
+    };
+
+    const chunkDirective = (nums: number[]) => `
+
+═══ RENDU PARTIEL — IMPÉRATIF ═══
+Le carrousel COMPLET est fourni ci-dessus pour le contexte (cohérence, transitions, rythme), mais TU NE RENDS QUE les slides ${nums.join(", ")}.
+Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_number" d'origine. Le bloc "slides_invariants" reste obligatoire.`;
+
+    const usage: UsageSink = {};
+    const tStart = Date.now();
+    let result: any;
+
+    if (useParallelChunks) {
+      const chunks = buildChunks(slides.length, CHUNK_TARGET);
+      const planBlock = (!isPhotoCarousel && !isMixCarousel) ? `\n\n${buildCoherencePlan()}` : "";
+      let doneCount = 0;
+      emitStatus("visuals", { done: 0, total: chunks.length });
+
+      const runChunk = async (idxs: number[]) => {
+        const nums = idxs.map((i) => Number(slides[i]?.slide_number) || i + 1);
+        // Photos réellement référencées par ce lot (photo/mix) — évite de
+        // renvoyer toutes les photos en vision à chaque appel. Si une slide
+        // photo du lot n'a pas de photo_index exploitable, repli sûr : toutes.
+        let photoIdx: number[] | undefined;
+        if (isPhotoCarousel || isMixCarousel) {
+          const referenced = [...new Set(idxs.map((i) => Number(slides[i]?.photo_index)).filter((p) => Number.isInteger(p) && p >= 1))];
+          const hasUnresolvedPhotoSlide = idxs.some((i) => {
+            const st = String(slides[i]?.slide_type || "");
+            const isPhotoSlide = st === "photo_full" || st === "photo_integrated" || (isPhotoCarousel && st !== "text_only");
+            return isPhotoSlide && !(Number.isInteger(Number(slides[i]?.photo_index)) && Number(slides[i]?.photo_index) >= 1);
+          });
+          photoIdx = hasUnresolvedPhotoSlide ? undefined : referenced; // undefined = toutes ; [] = aucune (lot 100% texte)
+        }
+        const chunkUsage: UsageSink = {};
+        const raw = await callAnthropic({
+          model,
+          system: systemPromptWithAnnotations,
+          messages: buildMessagesFor(finalUserPrompt + planBlock + chunkDirective(nums), photoIdx),
+          temperature: 0.5,
+          max_tokens: 8192,
+        }, chunkUsage);
+        doneCount++;
+        emitStatus("visuals", { done: doneCount, total: chunks.length });
+        return { parsed: parseSlidesJson(raw), usage: chunkUsage };
+      };
+
+      const chunkResults = await Promise.all(chunks.map(runChunk));
+
+      let allSlides = chunkResults
+        .flatMap((r) => (Array.isArray(r.parsed?.slides_html) ? r.parsed.slides_html : []))
+        .filter((s: any) => s && s.html);
+
+      // Réparation : si un lot a « oublié » des slides malgré la directive,
+      // UN appel de rattrapage rend les manquantes (jamais de carrousel troué).
+      const got = new Set(allSlides.map((s: any) => Number(s?.slide_number)));
+      const missing = slides
+        .map((s: any, i: number) => Number(s?.slide_number) || i + 1)
+        .filter((num: number) => !got.has(num));
+      if (missing.length > 0) {
+        console.warn(`carousel-visual: ${missing.length} slide(s) manquante(s) après rendu parallèle → appel de rattrapage`, missing);
+        try {
+          const missingIdxs = slides
+            .map((s: any, i: number) => ({ num: Number(s?.slide_number) || i + 1, i }))
+            .filter((x: any) => missing.includes(x.num))
+            .map((x: any) => x.i);
+          const repair = await runChunk(missingIdxs);
+          if (Array.isArray(repair.parsed?.slides_html)) {
+            allSlides = allSlides.concat(repair.parsed.slides_html.filter((s: any) => s && s.html && !got.has(Number(s.slide_number))));
+          }
+          chunkResults.push(repair);
+        } catch (repairErr) {
+          console.error("carousel-visual: appel de rattrapage échoué", repairErr);
+        }
+      }
+
+      allSlides.sort((a: any, b: any) => (Number(a?.slide_number) || 0) - (Number(b?.slide_number) || 0));
+
+      // Invariants : palette/typo/motif identiques d'un lot à l'autre (mêmes
+      // invariants serveur dans le prompt) → on prend le premier bloc retourné
+      // et on agrège les layouts_used de tous les lots (1 entrée par slide).
+      const firstInv = chunkResults.map((r) => r.parsed?.slides_invariants).find(Boolean);
+      const layoutsUsed = chunkResults.flatMap((r) =>
+        Array.isArray(r.parsed?.slides_invariants?.layouts_used) ? r.parsed.slides_invariants.layouts_used : [],
+      );
+      result = {
+        slides_html: allSlides,
+        ...(firstInv ? { slides_invariants: { ...firstInv, layouts_used: layoutsUsed.length ? layoutsUsed : (firstInv.layouts_used || []) } } : {}),
+      };
+
+      usage.input_tokens = chunkResults.reduce((s, r) => s + (r.usage.input_tokens || 0), 0);
+      usage.output_tokens = chunkResults.reduce((s, r) => s + (r.usage.output_tokens || 0), 0);
+      usage.total_tokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+      usage.model = chunkResults[0]?.usage.model;
+
+      console.log(JSON.stringify({
+        type: "carousel_visual_timing",
+        mode: "parallel",
+        chunks: chunks.length,
+        slides: slides.length,
+        duration_ms: Date.now() - tStart,
+      }));
+    } else {
+      emitStatus("visuals", { done: 0, total: 1 });
+      const rawResponse = await callAnthropic({
+        model,
+        system: systemPromptWithAnnotations,
+        messages: buildMessagesFor(finalUserPrompt),
+        temperature: 0.5,
+        max_tokens: 16384,
+      }, usage);
+      result = parseSlidesJson(rawResponse);
+      emitStatus("visuals", { done: 1, total: 1 });
+
+      console.log(JSON.stringify({
+        type: "carousel_visual_timing",
+        mode: "single",
+        slides: slides.length,
+        duration_ms: Date.now() - tStart,
+      }));
     }
 
     // ═══ D1 — Passe de correction du contraste (carrousel photo uniquement) ═══
@@ -1616,4 +1790,8 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
+  };
+
+  if (wantsSSE) return runWithHeartbeatSSE(corsHeaders, handle);
+  return handle();
 });

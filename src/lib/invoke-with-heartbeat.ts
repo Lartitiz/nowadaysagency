@@ -15,7 +15,16 @@ import type { InvokeError } from "./invoke-with-timeout";
  */
 export async function invokeWithHeartbeat(
   functionName: string,
-  options: { body?: any } = {},
+  options: {
+    body?: any;
+    /**
+     * Callback appelé sur chaque event SSE `{ type: "status", stage, ... }`
+     * émis par le serveur pendant la génération — permet d'afficher les
+     * vraies étapes (rédaction, correction, lots de visuels) au lieu d'une
+     * barre de progression simulée.
+     */
+    onStatus?: (stage: string, data?: Record<string, unknown>) => void;
+  } = {},
   timeoutMs = 180000,
 ): Promise<{ data: any; error: InvokeError | null }> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -117,8 +126,10 @@ export async function invokeWithHeartbeat(
             finalText = event.full || "";
           } else if (event.type === "error") {
             sseError = event.error || "Erreur de génération.";
+          } else if (event.type === "status" && event.stage && options.onStatus) {
+            try { options.onStatus(event.stage, event); } catch { /* le callback UI ne doit jamais casser le flux */ }
           }
-          // heartbeat / status → ignore
+          // heartbeat → ignore
         } catch { /* ignore partial JSON */ }
       }
     }
@@ -126,6 +137,24 @@ export async function invokeWithHeartbeat(
     clearTimeout(timer);
 
     if (sseError) {
+      // L'event SSE `error` transporte le body de la réponse serveur tel quel.
+      // Si c'est du JSON (cas quota : `{ error: "limit_reached", quota, message }`),
+      // on le parse pour que les appelants gardent `data.quota` / `data.error`
+      // exactement comme sur le chemin JSON classique — sinon le mur de quota
+      // s'ouvrirait sans les vraies infos (plan, usage) ou pas du tout.
+      let errJson: any = null;
+      try { errJson = JSON.parse(sseError); } catch { /* texte brut */ }
+      if (errJson && typeof errJson === "object") {
+        const isLimit = errJson.error === "limit_reached";
+        return {
+          data: errJson,
+          error: {
+            message: errJson.message || errJson.error || "Erreur de génération.",
+            code: isLimit ? "RATE_LIMIT" : "SERVER_ERROR",
+            isRateLimit: isLimit,
+          },
+        };
+      }
       return { data: null, error: { message: sseError, code: "SERVER_ERROR" } };
     }
 
