@@ -198,7 +198,7 @@ export default function ContentRecycling() {
           const caption = rawCarousel.caption || { hook: "", body: "", cta: "" };
           structure = { slides, caption };
           const slidesText = slides
-            .map((s) => `Slide ${s.slide_number} — ${s.title}\n${s.body}`)
+            .map((s) => `Slide ${s.slide_number} · ${s.title}\n${s.body}`)
             .join("\n\n");
           const captionText = [caption.hook, caption.body, caption.cta].filter(Boolean).join("\n\n");
           display[k] = `${slidesText}\n\n──────────\nLégende\n\n${captionText}`;
