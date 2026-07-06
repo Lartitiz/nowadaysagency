@@ -1210,36 +1210,58 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
           max_tokens: 8192,
         }, chunkUsage);
         doneCount++;
-        emitStatus("visuals", { done: doneCount, total: chunks.length });
+        // Clamp : les appels de rattrapage ne doivent pas afficher « 4/3 »
+        emitStatus("visuals", { done: Math.min(doneCount, chunks.length), total: chunks.length });
         return { parsed: parseSlidesJson(raw), usage: chunkUsage };
       };
 
-      const chunkResults = await Promise.all(chunks.map(runChunk));
+      // Résilience : un lot qui échoue (surcharge Anthropic 529, parse raté…)
+      // ne doit PAS tuer les autres — vécu le 06/07 : un 529 transitoire sur un
+      // seul lot faisait échouer TOUTE la génération (Promise.all rejette), en
+      // silence côté front (pré-génération background). On isole donc chaque
+      // lot ; ses slides manquantes partent dans la passe de rattrapage.
+      let firstChunkError: unknown = null;
+      const settled = await Promise.all(chunks.map((idxs) =>
+        runChunk(idxs).catch((e) => {
+          console.error("carousel-visual: lot en échec → slides envoyées au rattrapage", e?.message || e);
+          if (!firstChunkError) firstChunkError = e;
+          return null;
+        }),
+      ));
+      const chunkResults = settled.filter(Boolean) as { parsed: any; usage: UsageSink }[];
+      if (chunkResults.length === 0) throw firstChunkError || new Error("Génération des visuels échouée sur tous les lots.");
 
       let allSlides = chunkResults
         .flatMap((r) => (Array.isArray(r.parsed?.slides_html) ? r.parsed.slides_html : []))
         .filter((s: any) => s && s.html);
 
-      // Réparation : si un lot a « oublié » des slides malgré la directive,
-      // UN appel de rattrapage rend les manquantes (jamais de carrousel troué).
+      // Réparation : slides manquantes (lot en échec OU lot qui a « oublié »
+      // des slides malgré la directive) → appels de rattrapage par lots de ~3,
+      // eux aussi isolés. Jamais de carrousel troué tant qu'un lot passe.
       const got = new Set(allSlides.map((s: any) => Number(s?.slide_number)));
       const missing = slides
         .map((s: any, i: number) => Number(s?.slide_number) || i + 1)
         .filter((num: number) => !got.has(num));
       if (missing.length > 0) {
-        console.warn(`carousel-visual: ${missing.length} slide(s) manquante(s) après rendu parallèle → appel de rattrapage`, missing);
-        try {
-          const missingIdxs = slides
-            .map((s: any, i: number) => ({ num: Number(s?.slide_number) || i + 1, i }))
-            .filter((x: any) => missing.includes(x.num))
-            .map((x: any) => x.i);
-          const repair = await runChunk(missingIdxs);
+        console.warn(`carousel-visual: ${missing.length} slide(s) manquante(s) après rendu parallèle → rattrapage`, missing);
+        const missingIdxs = slides
+          .map((s: any, i: number) => ({ num: Number(s?.slide_number) || i + 1, i }))
+          .filter((x: any) => missing.includes(x.num))
+          .map((x: any) => x.i);
+        const repairChunks = buildChunks(missingIdxs.length, CHUNK_TARGET)
+          .map((positions) => positions.map((p) => missingIdxs[p]));
+        const repairs = (await Promise.all(repairChunks.map((idxs) =>
+          runChunk(idxs).catch((e) => {
+            console.error("carousel-visual: rattrapage en échec", e?.message || e);
+            return null;
+          }),
+        ))).filter(Boolean) as { parsed: any; usage: UsageSink }[];
+        for (const repair of repairs) {
           if (Array.isArray(repair.parsed?.slides_html)) {
             allSlides = allSlides.concat(repair.parsed.slides_html.filter((s: any) => s && s.html && !got.has(Number(s.slide_number))));
+            repair.parsed.slides_html.forEach((s: any) => got.add(Number(s?.slide_number)));
           }
           chunkResults.push(repair);
-        } catch (repairErr) {
-          console.error("carousel-visual: appel de rattrapage échoué", repairErr);
         }
       }
 
