@@ -223,6 +223,27 @@ export async function checkQuota(
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
+  // Bypass comptes QA : autorisés à générer sans limite pour les tests
+  // automatisés, MAIS on garde leur plan RÉEL (souvent "free") pour que le
+  // gating UI/tests reflète l'expérience d'une vraie cliente free. On ne
+  // loggue pas non plus (logUsage a son propre check) → aucune écriture
+  // ai_usage pour ces comptes. Comparaison EXACTE sur email (code de
+  // facturation : jamais de match partiel).
+  const QA_TEST_EMAILS = new Set<string>([
+    "laetitiatest@nowadaysagency.com",
+  ]);
+  try {
+    const { data: userRow } = await sb.auth.admin.getUserById(userId);
+    const email = (userRow?.user?.email || "").toLowerCase();
+    if (email && QA_TEST_EMAILS.has(email)) {
+      const realPlan = await getEffectivePlan(sb, userId, workspaceId);
+      return { allowed: true, plan: realPlan, remaining: 9999, remaining_total: 9999 };
+    }
+  } catch (_) {
+    // silencieux : si la lookup échoue, on retombe sur le flux normal
+  }
+
+
   const plan = await getEffectivePlan(sb, userId, workspaceId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
@@ -330,6 +351,21 @@ export async function logUsage(
   sbOverride?: any
 ): Promise<void> {
   const sb = sbOverride ?? getServiceClient();
+
+  // Bypass comptes QA : voir checkQuota. On ne loggue rien pour ces comptes
+  // afin que la QA automatisée puisse tourner tous les jours sans polluer
+  // ai_usage ni consommer de bonus. Comparaison EXACTE sur email.
+  const QA_TEST_EMAILS = new Set<string>([
+    "laetitiatest@nowadaysagency.com",
+  ]);
+  try {
+    const { data: userRow } = await sb.auth.admin.getUserById(userId);
+    const email = (userRow?.user?.email || "").toLowerCase();
+    if (email && QA_TEST_EMAILS.has(email)) return;
+  } catch (_) {
+    // silencieux : si la lookup échoue, on retombe sur le flux normal
+  }
+
   await sb.from("ai_usage").insert({
     user_id: userId,
     category,
@@ -338,6 +374,7 @@ export async function logUsage(
     model_used: modelUsed || null,
     workspace_id: workspaceId || null,
   });
+
 
   // After logging, check if user exceeded monthly base limit → decrement bonus.
   // Le plan et le périmètre de comptage doivent être LES MÊMES que dans checkQuota
