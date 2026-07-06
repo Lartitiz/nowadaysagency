@@ -8,7 +8,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
-import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
+import { streamAnthropicSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
@@ -86,6 +86,103 @@ function extractImagePayload(input: string, fallbackMime?: string): { media_type
   else if (head.startsWith("UklGR")) sniffed = "image/webp";
   else if (head.startsWith("R0lGOD")) sniffed = "image/gif";
   return { media_type: sniffed || fallbackMime || "image/jpeg", data: input };
+}
+
+/**
+ * System prompt du RECYCLAGE, paramétré par format(s). Le pipeline parallèle
+ * l'appelle avec UN format à la fois (un appel Sonnet par format) — le schéma
+ * JSON de sortie ne contient alors que ce format, et la garantie
+ * anti-chevauchement est portée par le PLAN (angles imposés dans le user
+ * prompt), plus par une consigne d'auto-arbitrage.
+ */
+function buildRecycleSystemPrompt(
+  fmtIds: string[],
+  formatLabels: Record<string, string>,
+  commonPrefix: string,
+  objectiveBlock: string,
+  activity: string,
+  target: string,
+  piliers: string,
+): string {
+  const requestedFormats = fmtIds.map((f) => formatLabels[f] || f);
+  return `${commonPrefix}
+
+${ANTI_BIAS}
+
+${CHAIN_OF_THOUGHT}
+
+${FORMAT_STRUCTURES}
+
+${WRITING_RESOURCES}
+${objectiveBlock}
+═══════════════════════════════════════════════════
+MISSION : RECYCLAGE DE CONTENU
+═══════════════════════════════════════════════════
+
+Tu vas recycler un contenu existant en ${requestedFormats.length} format(s) : ${requestedFormats.join(", ")}.
+
+Ce n'est pas du reformatage (dire la même chose en plus court). C'est de la dérivation (explorer une facette différente du même sujet).
+
+Matrice d'angles par format :
+- Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
+- Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
+- Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
+- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Dense (1300-2000 car.), pas de remplissage.
+- Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
+
+RÉDACTION : pour chaque format, rédige un contenu COMPLET et PRÊT À POSTER. Pas un brouillon.
+
+${activity ? `L'utilisatrice est : ${activity}.` : ""}
+${target ? `Sa cible : ${target}. Adapte le vocabulaire et les exemples à cette audience.` : ""}
+${piliers ? `Ses piliers de contenu : ${piliers}. Le recyclage doit rester cohérent avec ces piliers.` : ""}
+
+LONGUEURS OBLIGATOIRES :
+- Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
+- Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
+- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
+- LinkedIn : 1300-2000 caractères. Prose fluide, pas de listes à puces. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
+- Instagram (Carrousel, Reel, Stories) : 3 hashtags maximum en fin de légende. Jamais plus, même si la légende est longue. Choisis-les ciblés (pas de #love #life génériques).
+- Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
+
+RÈGLE DE PROFONDEUR :
+Tu ne raccourcis JAMAIS une idée pour "faire court" ou "tout faire rentrer".
+Un carrousel de 8 slides qui va au bout d'UNE idée > un carrousel de 8 slides qui survole 3 idées.
+Un reel de 45 secondes sur UN point percutant > un reel de 60 secondes qui liste des conseils.
+
+RÈGLE DE VOIX :
+Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si elle utilise "en vrai", "le truc c'est que", "franchement" dans le contenu source, RÉUTILISE ces expressions. L'IA structure et amplifie, elle ne réécrit pas.
+
+SELF-CHECK FINAL (fais-le en interne avant de répondre) :
+- Si un ANGLE t'est imposé dans le message : est-ce que tu l'as vraiment suivi, sans déborder sur les angles des autres formats ?
+- Est-ce que les accroches sont assez fortes pour stopper le scroll ?
+- Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
+- Est-ce que j'ai utilisé des expressions de la source ou est-ce que j'ai tout réécrit en mode IA ?
+- Est-ce que les longueurs sont respectées ?
+
+Réponds UNIQUEMENT en JSON valide :
+{
+  "results": {
+    ${fmtIds.map((f: string) => f === "carrousel"
+      ? `"carrousel": {
+      "slides": [
+        { "slide_number": 1, "title": "hook court", "body": "2-4 phrases" },
+        { "slide_number": 2, "title": "...", "body": "..." },
+        { "slide_number": 3, "title": "...", "body": "..." },
+        { "slide_number": 4, "title": "...", "body": "..." },
+        { "slide_number": 5, "title": "...", "body": "..." },
+        { "slide_number": 6, "title": "...", "body": "..." },
+        { "slide_number": 7, "title": "...", "body": "..." },
+        { "slide_number": 8, "title": "punchline + CTA", "body": "2-4 phrases" }
+      ],
+      "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final" }
+    }`
+      : `"${f}": "contenu complet ici"`).join(",\n    ")}
+  },
+  "topics": {
+    ${fmtIds.map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
+  }
+}
+${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
 }
 
 serve(async (req) => {
@@ -724,113 +821,9 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = `Ajuste le contenu : ${adjustment}`;
 
     } else if (step === "recycle") {
-      const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
-
-      // Persona and target from context
-      const recycleActivity = ctx?.profile?.activite || profile?.activite || "";
-      const recycleTarget = ctx?.profile?.cible || profile?.cible || "";
-      const recyclePiliers = ctx?.profile?.piliers || "";
-
-      systemPrompt = `${COMMON_PREFIX}
-
-${ANTI_BIAS}
-
-${CHAIN_OF_THOUGHT}
-
-${FORMAT_STRUCTURES}
-
-${WRITING_RESOURCES}
-${objectiveBlock}
-═══════════════════════════════════════════════════
-MISSION : RECYCLAGE DE CONTENU
-═══════════════════════════════════════════════════
-
-Tu vas recycler un contenu existant en ${requestedFormats.length} format(s) : ${requestedFormats.join(", ")}.
-
-ÉTAPE 1 — ANALYSE (réfléchis en interne, ne montre PAS cette étape) :
-
-Avant de rédiger quoi que ce soit, analyse le contenu source :
-1. Quel est le MESSAGE CENTRAL ? (la thèse, en 1 phrase)
-2. Quelles sont les SOUS-IDÉES exploitables ? (liste 3-5 idées distinctes)
-3. Quelle est l'ÉMOTION dominante ? (vulnérabilité, colère, joie, révélation, urgence)
-4. Quels EXEMPLES ou ANECDOTES sont présents ?
-5. Quels CHIFFRES ou PREUVES sont utilisables ?
-
-ÉTAPE 2 — ATTRIBUTION DES ANGLES :
-
-Chaque format DOIT prendre une sous-idée DIFFÉRENTE du contenu source.
-Ce n'est pas du reformatage (dire la même chose en plus court). C'est de la dérivation (explorer une facette différente du même sujet).
-
-Matrice d'angles par format :
-- Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
-- Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
-- Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
-- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Dense (1300-2000 car.), pas de remplissage.
-- Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
-
-Si 2 formats risquent de se chevaucher, force un pivot : change le point d'entrée, la question posée, ou le public visé dans le contenu.
-
-ÉTAPE 3 — RÉDACTION :
-
-Pour chaque format, rédige un contenu COMPLET et PRÊT À POSTER. Pas un brouillon.
-
-${recycleActivity ? `L'utilisatrice est : ${recycleActivity}.` : ""}
-${recycleTarget ? `Sa cible : ${recycleTarget}. Adapte le vocabulaire et les exemples à cette audience.` : ""}
-${recyclePiliers ? `Ses piliers de contenu : ${recyclePiliers}. Le recyclage doit rester cohérent avec ces piliers.` : ""}
-
-LONGUEURS OBLIGATOIRES :
-- Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
-- Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
-- Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
-- LinkedIn : 1300-2000 caractères. Prose fluide, pas de listes à puces. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
-- Instagram (Carrousel, Reel, Stories) : 3 hashtags maximum en fin de légende. Jamais plus, même si la légende est longue. Choisis-les ciblés (pas de #love #life génériques).
-- Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
-
-RÈGLE DE PROFONDEUR :
-Tu ne raccourcis JAMAIS une idée pour "faire court" ou "tout faire rentrer".
-Un carrousel de 8 slides qui va au bout d'UNE idée > un carrousel de 8 slides qui survole 3 idées.
-Un reel de 45 secondes sur UN point percutant > un reel de 60 secondes qui liste des conseils.
-
-RÈGLE DE VOIX :
-Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si elle utilise "en vrai", "le truc c'est que", "franchement" dans le contenu source, RÉUTILISE ces expressions. L'IA structure et amplifie, elle ne réécrit pas.
-
-SELF-CHECK FINAL (fais-le en interne avant de répondre) :
-- Est-ce que chaque format a un angle VRAIMENT différent ? Si 2 formats disent la même chose en changeant juste la longueur, RÉÉCRIS.
-- Est-ce que les accroches sont assez fortes pour stopper le scroll ?
-- Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
-- Est-ce que j'ai utilisé des expressions de la source ou est-ce que j'ai tout réécrit en mode IA ?
-- Est-ce que les longueurs sont respectées ?
-
-Réponds UNIQUEMENT en JSON valide :
-{
-  "results": {
-    ${(formats || []).map((f: string) => f === "carrousel"
-      ? `"carrousel": {
-      "slides": [
-        { "slide_number": 1, "title": "hook court", "body": "2-4 phrases" },
-        { "slide_number": 2, "title": "...", "body": "..." },
-        { "slide_number": 3, "title": "...", "body": "..." },
-        { "slide_number": 4, "title": "...", "body": "..." },
-        { "slide_number": 5, "title": "...", "body": "..." },
-        { "slide_number": 6, "title": "...", "body": "..." },
-        { "slide_number": 7, "title": "...", "body": "..." },
-        { "slide_number": 8, "title": "punchline + CTA", "body": "2-4 phrases" }
-      ],
-      "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final" }
-    }`
-      : `"${f}": "contenu complet ici"`).join(",\n    ")}
-  },
-  "topics": {
-    ${(formats || []).map((f: string) => `"${f}": "le sujet réel de ce contenu en 5-10 mots (pas 'recyclage', le VRAI sujet traité)"`).join(",\n    ")}
-  }
-}
-${(formats || []).includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
-
-      // Move source text to user message instead of system prompt
-      userPrompt = sourceText
-        ? `Voici le contenu à recycler :\n\n"""\n${sourceText}\n"""\n\nRecycle-le en ${requestedFormats.join(", ")}. Chaque format prend un angle différent. Contenu complet et prêt à poster.`
-        : `Recycle ce contenu en ${requestedFormats.join(", ")}. Chaque format prend un angle différent.`;
-
+      // Les prompts du recyclage sont construits PAR FORMAT dans le pipeline
+      // parallèle dédié (plus bas, avant la section « Call Anthropic ») via
+      // buildRecycleSystemPrompt. Rien à préparer ici.
     } else if (step === "dictation") {
       systemPrompt = `${COMMON_PREFIX}
 
@@ -1045,11 +1038,17 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         });
       }
 
-      // LinkedIn (texte): disable streaming, use 2-step generation + correction
+      // LinkedIn (texte) : pas de streaming de texte (la correction doit relire
+      // le post complet), mais un SSE heartbeat + étapes réelles (writing →
+      // correcting) pour que le front affiche la vraie avancée au lieu d'une
+      // barre simulée — même pattern que carousel-ai. Le client streaming
+      // consomme déjà l'event final `done.full`.
       if (isLinkedIn) {
+        const runLinkedInTwoStep = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
         console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
         const genLkUsage: UsageSink = {};
         const corrLkUsage: UsageSink = {};
+        emitStatus("writing");
         const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage);
         console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
 
@@ -1172,8 +1171,11 @@ Réponds UNIQUEMENT en JSON :
   "accroche": "les 210 premiers caractères",
   "corrections_applied": ["liste courte des corrections faites"]
 }`;
+        // Correction = édition mécanique à règles fermées → Haiku (~2x plus
+        // rapide que Sonnet), même arbitrage que le carrousel (#364).
+        emitStatus("correcting");
         const correctedRaw = await callAnthropicSimple(
-          getModelForAction("content"),
+          "claude-haiku-4-5",
           correctionPrompt,
           `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
           0.3,
@@ -1230,11 +1232,16 @@ Réponds UNIQUEMENT en JSON :
         return new Response(JSON.stringify(fallbackParsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+        };
+        return runWithHeartbeatSSE(corsHeaders, runLinkedInTwoStep);
       }
 
-      // Newsletter: disable streaming, use 2-step generation + correction (same pattern as LinkedIn)
+      // Newsletter : même pattern que LinkedIn — pas de streaming de texte,
+      // mais heartbeat SSE + étapes réelles (writing → correcting).
       if (isNewsletter) {
+        const runNewsletterTwoStep = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
         const nlUsage: UsageSink = {};
+        emitStatus("writing");
         const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage);
 
         let parsed: any;
@@ -1258,8 +1265,11 @@ Réponds UNIQUEMENT en JSON :
 
         if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
           try {
+            emitStatus("correcting");
             const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
               logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+              // Édition mécanique à règles fermées → Haiku (cf. #364)
+              model: "claude-haiku-4-5",
             });
             if (corrected && corrected.length >= 200) {
               parsed.content = corrected;
@@ -1277,6 +1287,8 @@ Réponds UNIQUEMENT en JSON :
         return new Response(JSON.stringify(parsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
+        };
+        return runWithHeartbeatSSE(corsHeaders, runNewsletterTwoStep);
       }
 
       // Carousel: disable streaming, use 2-step generation + correction
@@ -1403,59 +1415,218 @@ Réponds UNIQUEMENT en JSON :
     // Build files array (backward compatible)
     const filesArray: any[] = body.files || (body.fileBase64 ? [{ base64: body.fileBase64, mimeType: body.fileMimeType, name: "fichier" }] : []);
 
-    if (step === "recycle" && filesArray.length > 0) {
-      // Validate total size (~20 Mo max in base64)
-      let totalSize = 0;
-      for (const f of filesArray) {
-        totalSize += (f.base64?.length || 0);
+    // ═══ RECYCLAGE — PIPELINE PARALLÈLE PAR FORMAT ═══
+    // Avant : UN appel Sonnet écrivait TOUS les formats demandés (max_tokens
+    // 12288) → attente = somme des formats, et un échec/troncature emportait
+    // tout (« coche moins de formats à la fois »). Même remède que les visuels
+    // carrousel (#364) : un petit appel de PLAN (Haiku, sortie structurée)
+    // analyse la source UNE fois et attribue à chaque format sa sous-idée —
+    // la garantie anti-chevauchement est décidée là, pas ré-improvisée par
+    // chaque appel — puis UN appel Sonnet PAR FORMAT en parallèle. L'attente
+    // tombe au format le plus lent, et un format qui échoue est retenté seul
+    // sans emporter les autres.
+    if (step === "recycle") {
+      const tRecycle = Date.now();
+      const fmtIds: string[] = formats || [];
+      if (fmtIds.length === 0) {
+        return new Response(JSON.stringify({ error: "Aucun format demandé." }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
-      if (totalSize > 27_000_000) { // ~20 Mo in base64
+      const recActivity = ctx?.profile?.activite || profile?.activite || "";
+      const recTarget = ctx?.profile?.cible || profile?.cible || "";
+      const recPiliers = ctx?.profile?.piliers || "";
+      const requestedLabels = fmtIds.map((f) => formatLabels[f] || f);
+
+      // ── Fichiers : mêmes validations que l'ancien chemin ──
+      const filesContent: any[] = [];
+      let pdfWarning = "";
+      if (filesArray.length > 0) {
+        let totalSize = 0;
+        for (const f of filesArray) totalSize += (f.base64?.length || 0);
+        if (totalSize > 27_000_000) { // ~20 Mo in base64
+          return new Response(
+            JSON.stringify({ error: "La taille totale des fichiers dépasse 20 Mo. Réduis le nombre ou la taille des fichiers." }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+        // Anthropic limit: max 5 PDFs
+        let pdfCount = 0;
+        for (const f of filesArray.slice(0, 10)) {
+          if (f.mimeType === "application/pdf") {
+            pdfCount++;
+            if (pdfCount > 5) {
+              pdfWarning = "\n⚠️ Note : seuls les 5 premiers PDFs ont été analysés (limite technique).";
+              continue;
+            }
+            filesContent.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } });
+          } else if (f.mimeType?.startsWith("image/")) {
+            filesContent.push({ type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } });
+          }
+        }
+      }
+
+      // ── 1. PLAN (Haiku, tool forcé) : analyse, angle par format, synthèse ──
+      // Les fichiers ne sont envoyés qu'ICI (une fois) : la synthèse fidèle
+      // sert ensuite de source texte aux appels par format (pas de re-envoi
+      // vision × N formats).
+      const PLAN_TOOL = {
+        name: "plan_recyclage",
+        description: "Analyse du contenu source et attribution d'un angle DISTINCT à chaque format.",
+        input_schema: {
+          type: "object",
+          properties: {
+            message_central: { type: "string", description: "La thèse du contenu source en 1 phrase." },
+            synthese_source: { type: "string", description: "Synthèse FIDÈLE du contenu source (10-20 phrases) : thèse, sous-idées, exemples et anecdotes, chiffres, et les expressions typiques de l'auteure recopiées VERBATIM. N'invente rien." },
+            angles: {
+              type: "array",
+              description: "Un élément par format demandé.",
+              items: {
+                type: "object",
+                properties: {
+                  format: { type: "string", description: "Le nom du format tel que fourni." },
+                  sous_idee: { type: "string", description: "La sous-idée de la source attribuée à ce format." },
+                  angle: { type: "string", description: "L'angle d'attaque, clairement différent des autres formats." },
+                },
+                required: ["format", "sous_idee", "angle"],
+              },
+            },
+          },
+          required: ["message_central", "synthese_source", "angles"],
+        },
+      };
+
+      const planUsage: UsageSink = {};
+      let plan: any = null;
+      try {
+        const planText = `Analyse ce contenu source pour le recycler en ${fmtIds.length} format(s) : ${requestedLabels.join(", ")}.
+
+Matrice d'affinités pour l'attribution :
+- Carrousel : l'idée la plus PÉDAGOGIQUE.
+- Reel : l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE.
+- Stories : l'angle le plus INTIME ou PERSONNEL.
+- LinkedIn : l'angle le plus ENGAGÉ (prise de position).
+- Newsletter : l'angle le plus PROFOND (réflexion complète).
+
+Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
+        const planRaw = await callAnthropic({
+          model: getModelForAction("questions"),
+          system: "Tu prépares le recyclage d'un contenu en plusieurs formats. Tu es FIDÈLE à la source : tu n'inventes aucun fait, aucun chiffre, aucune anecdote.",
+          messages: [{ role: "user", content: [...filesContent, { type: "text", text: planText }] }],
+          max_tokens: 2048,
+          abortTimeoutMs: 60000,
+          tool: PLAN_TOOL,
+        }, planUsage);
+        plan = tryParseAiJson<any>(planRaw, "creative-flow:recycle-plan");
+      } catch (e: any) {
+        console.warn("[creative-flow] recycle: plan échoué → angles libres par format", e?.message || e);
+      }
+
+      // Source des appels par format : le texte fourni, complété (ou remplacé,
+      // cas fichiers-seuls) par la synthèse du plan.
+      const sourceForFormats = [
+        sourceText ? `"""\n${sourceText}\n"""` : "",
+        filesArray.length > 0 && plan?.synthese_source ? `SYNTHÈSE FIDÈLE DES FICHIERS SOURCES :\n"""\n${plan.synthese_source}\n"""` : "",
+      ].filter(Boolean).join("\n\n");
+      if (!sourceForFormats) {
         return new Response(
-          JSON.stringify({ error: "La taille totale des fichiers dépasse 20 Mo. Réduis le nombre ou la taille des fichiers." }),
-          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          JSON.stringify({ error: "Impossible d'analyser les fichiers sources. Réessaie." }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
 
-      // Anthropic limit: max 5 PDFs
-      let pdfCount = 0;
-      let pdfWarning = "";
-      const content: any[] = [];
+      const angleFor = (f: string): { sous_idee?: string; angle?: string } => {
+        const arr = Array.isArray(plan?.angles) ? plan.angles : [];
+        const label = (formatLabels[f] || f).toLowerCase();
+        const found = arr.find((a: any) => {
+          const af = String(a?.format || "").toLowerCase();
+          return af && (af.includes(label) || label.includes(af) || af.includes(f.toLowerCase()));
+        });
+        return found || arr[fmtIds.indexOf(f)] || {};
+      };
 
-      for (const f of filesArray.slice(0, 10)) {
-        if (f.mimeType === "application/pdf") {
-          pdfCount++;
-          if (pdfCount > 5) {
-            pdfWarning = "\n⚠️ Note : seuls les 5 premiers PDFs ont été analysés (limite technique).";
-            continue;
-          }
-          content.push({
-            type: "document",
-            source: { type: "base64", media_type: "application/pdf", data: f.base64 },
-          });
-        } else if (f.mimeType?.startsWith("image/")) {
-          content.push({
-            type: "image",
-            source: { type: "base64", media_type: f.mimeType, data: f.base64 },
+      // ── 2. UN appel Sonnet PAR FORMAT, en parallèle ──
+      const runFormat = async (f: string) => {
+        const label = formatLabels[f] || f;
+        const a = angleFor(f);
+        const others = fmtIds
+          .filter((x) => x !== f)
+          .map((x) => {
+            const ox = angleFor(x);
+            return `- ${formatLabels[x] || x}${ox.angle ? ` : ${ox.angle}` : ""}`;
+          })
+          .join("\n");
+        const angleBlock = a.angle
+          ? `\n\nTON ANGLE (imposé par le plan éditorial, respecte-le) :\n- Sous-idée : ${a.sous_idee || ""}\n- Angle : ${a.angle}${others ? `\n\nLes AUTRES formats couvrent déjà ces angles — ne les reprends PAS :\n${others}` : ""}`
+          : (others ? `\n\nD'autres formats recyclent aussi ce contenu (${fmtIds.filter((x) => x !== f).map((x) => formatLabels[x] || x).join(", ")}) : prends un angle qui leur laisse de la place.` : "");
+        const fUsage: UsageSink = {};
+        const raw = await callAnthropicSimple(
+          getModelForAction("content"),
+          buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
+          `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
+          f === "linkedin" ? 0.7 : 0.85,
+          4096,
+          fUsage,
+        );
+        const parsed = tryParseAiJson<any>(raw, `creative-flow:recycle:${f}`);
+        const resultVal = parsed?.results?.[f]
+          ?? (parsed?.results && typeof parsed.results === "object" ? Object.values(parsed.results)[0] : null);
+        const topicVal = parsed?.topics?.[f]
+          ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
+        if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
+        return { f, resultVal, topicVal, usage: fUsage };
+      };
+
+      const settled: (Awaited<ReturnType<typeof runFormat>> | null)[] = await Promise.all(
+        fmtIds.map((f) => runFormat(f).catch((e) => {
+          console.error(`[creative-flow] recycle: format ${f} en échec (1er essai)`, e?.message || e);
+          return null;
+        })),
+      );
+      // 2e chance séquentielle pour les formats tombés (surcharge transitoire) —
+      // un format qui échoue n'emporte plus les autres.
+      for (let i = 0; i < fmtIds.length; i++) {
+        if (!settled[i]) {
+          settled[i] = await runFormat(fmtIds[i]).catch((e) => {
+            console.error(`[creative-flow] recycle: format ${fmtIds[i]} abandonné après 2 essais`, e?.message || e);
+            return null;
           });
         }
       }
 
-      const requestedFormats = (formats || []).map((f: string) => formatLabels[f] || f);
-      const fileNames = filesArray.map((f: any) => f.name || "fichier").join(", ");
-      const textInstruction = sourceText
-        ? `Voici aussi du contexte texte :\n${sourceText}\n\nRecycle le contenu de ces ${filesArray.length} fichier(s) (${fileNames}) et du texte en ${requestedFormats.join(", ")}. Synthétise les informations clés de tous les fichiers, ne traite pas chaque fichier isolément.${pdfWarning}`
-        : `Analyse ces ${filesArray.length} fichier(s) (${fileNames}) et recycle leur contenu en ${requestedFormats.join(", ")}. Synthétise les informations clés de tous les fichiers.${pdfWarning}`;
+      const ok = settled.filter(Boolean) as Awaited<ReturnType<typeof runFormat>>[];
+      if (ok.length === 0) {
+        // Aucun crédit consommé sur une génération entièrement ratée (pas de logUsage).
+        return new Response(
+          JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
-      content.push({ type: "text", text: textInstruction });
+      const results: Record<string, unknown> = {};
+      const topics: Record<string, unknown> = {};
+      for (const r of ok) {
+        results[r.f] = r.resultVal;
+        if (r.topicVal) topics[r.f] = r.topicVal;
+      }
+      const failedFormats = fmtIds.filter((f) => !(f in results));
 
-      rawContent = await callAnthropic({
-        model: getModelForAction("content"),
-        system: systemPrompt,
-        messages: [{ role: "user", content }],
-        temperature: 0.8,
-        max_tokens: 8192,
-      }, finalUsage);
-    } else if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
+      const totalTokens = (planUsage.total_tokens || 0) + ok.reduce((s, r) => s + (r.usage.total_tokens || 0), 0);
+      await logUsage(userId, "content", "creative_flow", totalTokens || undefined, ok[0]?.usage.model, workspace_id);
+      console.log(JSON.stringify({
+        type: "recycle_timing",
+        formats: fmtIds.length,
+        failed: failedFormats.length,
+        with_files: filesArray.length,
+        duration_ms: Date.now() - tRecycle,
+      }));
+      return new Response(
+        JSON.stringify({ results, topics, ...(failedFormats.length > 0 ? { failed_formats: failedFormats } : {}) }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
       // Vision-anchored questions: let Claude SEE ALL photos (1..10) to ask grounded questions.
       const validPhotosQ = body.photos.filter((p: any) => p?.base64).slice(0, 10);
       const photoCountQ = validPhotosQ.length;
@@ -1631,22 +1802,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       );
     }
 
-    // Garde anti-échec silencieux : si la génération recycle renvoie un JSON
-    // tronqué / sans `results`, on retourne une 500 SANS logUsage (pas de
-    // crédit consommé sur une génération ratée).
-    if (step === "recycle") {
-      const hasResults = parsed && typeof parsed === "object"
-        && parsed.results && typeof parsed.results === "object"
-        && Object.keys(parsed.results).length > 0;
-      if (!hasResults) {
-        console.warn("[creative-flow] recycle returned empty results, raw=", String(rawContent || "").slice(0, 500));
-        return new Response(
-          JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    }
-
+    // (step === "recycle" ne passe plus par ici : pipeline parallèle dédié plus haut.)
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
     // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
@@ -1665,6 +1821,8 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       try {
         const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
           logger: (msg) => console.log(msg),
+          // Édition mécanique à règles fermées → Haiku (cf. #364)
+          model: "claude-haiku-4-5",
         });
         if (corrected && corrected.length >= 100) {
           parsed.content = corrected;

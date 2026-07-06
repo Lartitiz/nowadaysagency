@@ -14,6 +14,7 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
+import { posthog } from "@/lib/posthog";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 
@@ -156,6 +157,7 @@ export default function ContentRecycling() {
         }
       }
 
+      const recycleStartedAt = performance.now();
       const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
       if (error?.isRateLimit || data?.error === "limit_reached") {
         if (handleQuotaError({ message: error?.message || data?.message, data })) {
@@ -166,9 +168,24 @@ export default function ContentRecycling() {
       const r = data?.results || {};
       if (Object.keys(r).length === 0) {
         toast.error("Génération incomplète", {
-          description: "La génération a échoué en cours de route. Réessaie, ou coche moins de formats à la fois.",
+          description: "La génération a échoué en cours de route. Réessaie.",
         });
         return;
+      }
+      // Télémétrie de latence (PostHog) — même chantier que content_generation_timing.
+      posthog.capture("recycle_timing", {
+        duration_ms: Math.round(performance.now() - recycleStartedAt),
+        formats_count: formats.length,
+        with_files: files.length,
+      });
+      // Le pipeline par format peut livrer un résultat PARTIEL (un format
+      // retombé après 2 essais) : on le dit honnêtement au lieu de laisser
+      // un onglet vide sans explication.
+      const failedFormats: string[] = Array.isArray(data?.failed_formats) ? data.failed_formats : [];
+      if (failedFormats.length > 0) {
+        toast.warning("Génération partielle", {
+          description: `Le format ${failedFormats.join(", ")} n'a pas pu être généré cette fois. Relance le recyclage pour le récupérer.`,
+        });
       }
 
       // Detect structured carousel and flatten to readable text for display
@@ -192,7 +209,7 @@ export default function ContentRecycling() {
       setCarouselStructure(structure);
       setResults(display);
       setTopics(data?.topics || {});
-      setActiveTab(formats[0] || "");
+      setActiveTab(Object.keys(display)[0] || "");
 
       if (user) {
         const fileNames = files.map(f => f.file.name).join(", ");
