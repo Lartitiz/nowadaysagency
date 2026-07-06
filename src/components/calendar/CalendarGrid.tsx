@@ -78,7 +78,7 @@ function DroppableDay({
       className={cn(
         "min-h-[110px] border-b border-r border-border p-1.5 group relative transition-colors",
         !expanded && "max-h-[150px] overflow-hidden",
-        !inMonth && "opacity-40",
+        !inMonth && "opacity-65",
         isToday && "bg-rose-pale",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
         fileOver && "bg-primary/10 ring-2 ring-primary/50 ring-inset",
