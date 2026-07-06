@@ -8,6 +8,12 @@ interface UseStreamingInvokeReturn {
   streaming: boolean;
   /** true quand le streaming est terminé et le résultat complet */
   done: boolean;
+  /**
+   * Étape réelle envoyée par le serveur pendant la génération (events SSE
+   * `status` : "writing", "correcting"…). null si le serveur n'en émet pas
+   * (streaming de texte classique) — l'UI garde alors ses messages simulés.
+   */
+  stage: string | null;
   /** Erreur éventuelle */
   error: string | null;
   /** Lance le streaming */
@@ -20,6 +26,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
   const [content, setContent] = useState("");
   const [streaming, setStreaming] = useState(false);
   const [done, setDone] = useState(false);
+  const [stage, setStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -28,6 +35,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
     setContent("");
     setStreaming(false);
     setDone(false);
+    setStage(null);
     setError(null);
   }, []);
 
@@ -126,6 +134,10 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
       const decoder = new TextDecoder();
       let textBuffer = "";
       let fullText = "";
+      // Protocole heartbeat (LinkedIn/newsletter 2-step) : PAS de deltas, tout
+      // arrive dans l'event final `done.full`. On le capture ici — sinon la
+      // fonction retournerait la chaîne vide accumulée depuis les deltas.
+      let doneFull = "";
 
       while (true) {
         const { done: streamDone, value } = await reader.read();
@@ -147,9 +159,13 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
             }
 
             if (event.type === "done") {
-              const finalText = event.full || fullText;
-              setContent(finalText);
+              doneFull = event.full || fullText;
+              setContent(doneFull);
               setDone(true);
+            }
+
+            if (event.type === "status" && typeof event.stage === "string") {
+              setStage(event.stage);
             }
 
             if (event.type === "error") {
@@ -163,7 +179,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
 
       setStreaming(false);
       setDone(true);
-      return fullText;
+      return doneFull || fullText;
     } catch (err: any) {
       const msg = err?.name === "AbortError"
         ? "La génération a pris trop de temps. Réessaie."
@@ -177,5 +193,5 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
     }
   }, [reset]);
 
-  return { content, streaming, done, error, invoke, reset };
+  return { content, streaming, done, stage, error, invoke, reset };
 }

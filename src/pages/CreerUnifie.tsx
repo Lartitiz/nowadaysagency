@@ -380,6 +380,7 @@ export default function CreerUnifie() {
     streamingContent,
     streaming,
     streamDone,
+    streamStage,
     streamReset,
   } = useContentGenerator();
 
@@ -3064,7 +3065,7 @@ export default function CreerUnifie() {
                 result={result?.raw || result}
                 format={selectedFormat || "post"}
                 generating={generating || demoGenerating || streaming || pinterestVisualGenerating}
-                generationStage={generationStage}
+                generationStage={generationStage || streamStage}
                 streamingContent={streaming ? streamingContent : undefined}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}

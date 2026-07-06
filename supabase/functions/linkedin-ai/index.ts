@@ -17,6 +17,8 @@ async function correctJsonField(rawJson: string, field: string): Promise<string>
     if (typeof original !== "string" || original.length < 200) return rawJson;
     const corrected = await applyCorrectionPass(original, "linkedin", {
       logger: (m) => console.log(`[linkedin-ai] ${m}`),
+      // Édition mécanique à règles fermées → Haiku (cf. #364)
+      model: "claude-haiku-4-5",
     });
     if (!corrected || corrected === original) return rawJson;
     parsed[field] = corrected;
@@ -37,6 +39,8 @@ async function correctCrosspostJson(rawJson: string): Promise<string> {
     if (typeof liText !== "string" || liText.length < 200) return rawJson;
     const corrected = await applyCorrectionPass(liText, "linkedin", {
       logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
+      // Édition mécanique à règles fermées → Haiku (cf. #364)
+      model: "claude-haiku-4-5",
     });
     if (!corrected || corrected === liText) return rawJson;
     parsed.versions.linkedin.full_text = corrected;
