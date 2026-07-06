@@ -223,6 +223,27 @@ export async function checkQuota(
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
+  // Bypass comptes QA : autorisés à générer sans limite pour les tests
+  // automatisés, MAIS on garde leur plan RÉEL (souvent "free") pour que le
+  // gating UI/tests reflète l'expérience d'une vraie cliente free. On ne
+  // loggue pas non plus (logUsage a son propre check) → aucune écriture
+  // ai_usage pour ces comptes. Comparaison EXACTE sur email (code de
+  // facturation : jamais de match partiel).
+  const QA_TEST_EMAILS = new Set<string>([
+    "laetitiatest@nowadaysagency.com",
+  ]);
+  try {
+    const { data: userRow } = await sb.auth.admin.getUserById(userId);
+    const email = (userRow?.user?.email || "").toLowerCase();
+    if (email && QA_TEST_EMAILS.has(email)) {
+      const realPlan = await getEffectivePlan(sb, userId, workspaceId);
+      return { allowed: true, plan: realPlan, remaining: 9999, remaining_total: 9999 };
+    }
+  } catch (_) {
+    // silencieux : si la lookup échoue, on retombe sur le flux normal
+  }
+
+
   const plan = await getEffectivePlan(sb, userId, workspaceId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
