@@ -7,8 +7,23 @@ const SONDE_DIR = path.join(__dirname, "sonde");
 
 // Seuils de tri. Volontairement indulgents : la sonde ne doit remonter que
 // des signaux, pas du bruit. Le cron affine avec le registre « déjà connu ».
-const PERF_LOAD_MS = 6000; // au-delà = 🟡 lenteur
+// On mesure sur gotoMs (temps jusqu'au networkidle = page réellement prête,
+// data comprise) et NON sur perf.loadMs (loadEventEnd ~400-680ms ne capte que
+// le shell de la SPA — inutile). Plancher absolu + régression vs baseline.
+const PERF_GOTO_MS = 8000; // au-delà = 🟡 lenteur (plancher absolu, sans baseline)
 const OVERFLOW_TOL = 3; // px de tolérance avant de crier au débordement
+
+// Baseline perf COMMITÉE (perf-baseline.json à côté d'aggregate) : budget load-ms
+// par `${slug}-${projet}`. Le cron tourne en worktree frais chaque jour (sonde/
+// gitignoré) → seul un fichier commité persiste pour comparer d'un jour à l'autre.
+// Regénérer si la perf change légitimement (cf. commentaire du fichier).
+const BASELINE_FILE = path.join(__dirname, "perf-baseline.json");
+let PERF_BASELINE: Record<string, number> = {};
+try {
+  PERF_BASELINE = JSON.parse(fs.readFileSync(BASELINE_FILE, "utf8"));
+} catch {
+  /* pas de baseline commitée → pas de détection de régression, juste le plancher absolu */
+}
 
 type Sonde = {
   slug: string;
@@ -22,6 +37,7 @@ type Sonde = {
   pageErrors: string[];
   network: Array<{ status: number; method: string; url: string }>;
   requestFailed: Array<{ url: string; error: string }>;
+  brokenImages: string[];
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
@@ -41,6 +57,7 @@ export default function () {
   let heavy = false;
 
   for (const f of files) {
+    if (f === "_landing.json") continue; // traité à part (forme différente)
     let s: Sonde;
     try {
       s = JSON.parse(fs.readFileSync(path.join(SONDE_DIR, f), "utf8"));
@@ -57,6 +74,8 @@ export default function () {
     for (const n of s.network)
       if (n.status >= 500)
         dur.push({ bac: "dur", type: "réseau-5xx", ecran, detail: `${n.status} ${n.method} ${n.url}` });
+    for (const img of s.brokenImages || [])
+      dur.push({ bac: "dur", type: "image-cassée", ecran, detail: img });
 
     // --- 🟡 observation ---
     // Échec réseau (hors annulations, déjà filtrées côté sonde) : souvent une
@@ -70,16 +89,35 @@ export default function () {
       obs.push({ bac: "observation", type: "console-error", ecran, detail: `${ce.text} (${ce.location})` });
     if (s.overflowPx > OVERFLOW_TOL)
       obs.push({ bac: "observation", type: "débordement-h", ecran, detail: `${s.overflowPx}px hors viewport` });
-    const loadMs = s.perf?.loadMs ?? null;
-    if (loadMs && loadMs > PERF_LOAD_MS)
-      obs.push({ bac: "observation", type: "lenteur", ecran, detail: `load ${loadMs}ms (> ${PERF_LOAD_MS}ms)` });
+    const goto = s.gotoMs ?? null;
+    if (goto && goto > PERF_GOTO_MS)
+      obs.push({ bac: "observation", type: "lenteur", ecran, detail: `chargement ${goto}ms (> ${PERF_GOTO_MS}ms)` });
+    // Régression perf vs baseline commitée (le budget inclut déjà une marge ×1.7).
+    const budget = PERF_BASELINE[`${s.slug}-${s.projet}`];
+    if (goto && budget && goto > budget)
+      obs.push({ bac: "observation", type: "perf-régression", ecran, detail: `chargement ${goto}ms > budget ${budget}ms` });
     for (const a of s.a11y || [])
       obs.push({ bac: "observation", type: `a11y-${a.impact}`, ecran, detail: `${a.id} — ${a.help} (${a.nodes} él., ex: ${a.sample})` });
   }
 
+  // --- Landing publique (meta/SEO) ---
+  try {
+    const l = JSON.parse(fs.readFileSync(path.join(SONDE_DIR, "_landing.json"), "utf8")) as {
+      missing: string[];
+      navError: string | null;
+    };
+    if (l.navError)
+      dur.push({ bac: "dur", type: "landing-KO", ecran: "landing /", detail: l.navError });
+    for (const m of l.missing || [])
+      obs.push({ bac: "observation", type: "landing-seo", ecran: "landing /", detail: m });
+  } catch {
+    /* pas de sonde landing dans ce run */
+  }
+
+  const nEcrans = files.filter((f) => f !== "_landing.json").length;
   const report = {
     mode: heavy ? "heavy" : "light",
-    ecransSondes: files.length,
+    ecransSondes: nEcrans,
     dur,
     observations: obs,
     verdictSonde: dur.length === 0 ? "vert" : "rouge",
@@ -89,7 +127,7 @@ export default function () {
   // Résumé lisible (le cron lit surtout le JSON, mais ceci aide au coup d'œil).
   const lignes: string[] = [];
   lignes.push(`# Sonde — ${report.mode === "heavy" ? "audit lourd (a11y)" : "sonde légère"}`);
-  lignes.push(`${files.length} écrans sondés · 🔴 ${dur.length} dur · 🟡 ${obs.length} observation\n`);
+  lignes.push(`${nEcrans} écrans sondés · 🔴 ${dur.length} dur · 🟡 ${obs.length} observation\n`);
   if (dur.length) {
     lignes.push("## 🔴 Dur (casse le vert)");
     for (const d of dur) lignes.push(`- **${d.type}** — ${d.ecran} — ${d.detail}`);
@@ -104,6 +142,6 @@ export default function () {
 
   // Trace console pour le run interactif.
   console.log(
-    `\n[sonde] ${files.length} écrans · 🔴 ${dur.length} dur · 🟡 ${obs.length} obs · mode ${report.mode} → e2e-visite/sonde-report.md`,
+    `\n[sonde] ${nEcrans} écrans · 🔴 ${dur.length} dur · 🟡 ${obs.length} obs · mode ${report.mode} → e2e-visite/sonde-report.md`,
   );
 }

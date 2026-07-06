@@ -37,6 +37,7 @@ type Sonde = {
   pageErrors: string[]; // exceptions JS non catchées
   network: Array<{ status: number; method: string; url: string }>; // 4xx/5xx de notre réseau
   requestFailed: Array<{ url: string; error: string }>;
+  brokenImages: string[]; // <img> chargées mais cassées (naturalWidth=0)
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
@@ -55,6 +56,7 @@ for (const e of ECRANS) {
       pageErrors: [],
       network: [],
       requestFailed: [],
+      brokenImages: [],
       a11y: null,
     };
 
@@ -122,6 +124,20 @@ for (const e of ECRANS) {
         const w = Math.max(de.scrollWidth, document.body?.scrollWidth || 0);
         return Math.max(0, w - window.innerWidth);
       });
+    } catch {
+      /* ignore */
+    }
+
+    // Images cassées : `complete && naturalWidth===0` = chargement ÉCHOUÉ (une
+    // lazy pas encore déclenchée a complete=false → non comptée, pas de faux positif).
+    // Filtre les src vides. L'app génère des visuels → une image cassée = bug visible.
+    try {
+      s.brokenImages = await page.evaluate(() =>
+        Array.from(document.images)
+          .filter((i) => i.complete && i.naturalWidth === 0 && (i.currentSrc || i.getAttribute("src")))
+          .map((i) => (i.currentSrc || i.src).slice(0, 200))
+          .slice(0, 10),
+      );
     } catch {
       /* ignore */
     }

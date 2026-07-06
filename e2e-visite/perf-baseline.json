@@ -1,0 +1,23 @@
+{
+  "_comment": "Budget de temps de chargement (gotoMs, networkidle) par ecran-projet. Genere depuis un run sain le 2026-07-06 = gotoMs x1.7, plancher 3500ms. La sonde flag une regression perf si un ecran depasse son budget. REGENERER si la perf change legitimement (ex: optimisation): relancer la visite et recopier gotoMs x1.7.",
+  "abonnement-desktop": 3700,
+  "abonnement-mobile": 3500,
+  "branding-desktop": 3900,
+  "branding-mobile": 3500,
+  "calendrier-desktop": 4300,
+  "calendrier-mobile": 3500,
+  "creer-desktop": 3700,
+  "creer-mobile": 4100,
+  "dashboard-complet-desktop": 4600,
+  "dashboard-complet-mobile": 4300,
+  "dashboard-desktop": 4200,
+  "dashboard-mobile": 3500,
+  "idees-desktop": 3500,
+  "idees-mobile": 3500,
+  "instagram-desktop": 3600,
+  "instagram-mobile": 3500,
+  "linkedin-desktop": 3800,
+  "linkedin-mobile": 3500,
+  "profil-desktop": 3500,
+  "profil-mobile": 3500
+}
