@@ -66,7 +66,7 @@ export default function BrandingStatusBanner() {
       <Banner onDismiss={() => setDismissed(true)}>
         💡 Ton contenu sera plus pertinent si tu complètes ton identité de marque.
         {missing.length > 0 && <> Il te manque : {missing.join(", ")}. </>}
-        <Link to="/branding" className="text-primary hover:underline font-medium ml-1">
+        <Link to="/branding" className="text-primary-text hover:underline font-medium ml-1">
           Compléter →
         </Link>
       </Banner>
@@ -76,7 +76,7 @@ export default function BrandingStatusBanner() {
   return (
     <Banner onDismiss={() => setDismissed(true)} borderClass="border-primary/20">
       🎯 Pour que l'IA génère du contenu qui te ressemble, commence par remplir ton identité de marque.{" "}
-      <Link to="/branding" className="text-primary hover:underline font-medium">
+      <Link to="/branding" className="text-primary-text hover:underline font-medium">
         Commencer →
       </Link>
     </Banner>

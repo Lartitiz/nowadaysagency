@@ -35,7 +35,7 @@ export function DashboardViewToggle({ current }: { current: DashboardView }) {
         aria-label="Vue guidée"
         className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
           current === "guide"
-            ? "bg-primary/10 text-primary font-medium"
+            ? "bg-primary/10 text-primary-text font-medium"
             : "text-muted-foreground hover:text-foreground"
         }`}
       >
@@ -49,7 +49,7 @@ export function DashboardViewToggle({ current }: { current: DashboardView }) {
         aria-label="Vue complète"
         className={`flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-md text-xs transition-all duration-200 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
           current === "complete"
-            ? "bg-primary/10 text-primary font-medium"
+            ? "bg-primary/10 text-primary-text font-medium"
             : "text-muted-foreground hover:text-foreground"
         }`}
       >
