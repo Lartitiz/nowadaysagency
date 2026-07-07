@@ -29,7 +29,7 @@ interface Props {
 // mémoïsée CalendarContentCard. (Avant : closure inline `() => onEditPost(p)` dans
 // le map = nouvelle réf à chaque render → memo inopérant.)
 function DraggableCard({ post, onSelect, seriesNameById }: { post: CalendarPost; onSelect: (post: CalendarPost) => void; seriesNameById?: Record<string, string> }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
+  const { listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const handleClick = useCallback(() => onSelect(post), [onSelect, post]);
   const style: React.CSSProperties = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
@@ -39,8 +39,13 @@ function DraggableCard({ post, onSelect, seriesNameById }: { post: CalendarPost;
     cursor: "grab",
   };
 
+  // a11y : on NE spread PAS `attributes` (role="button" + tabIndex de dnd-kit) sur ce
+  // wrapper, car il contient le <button> cliquable de la carte → nested-interactive.
+  // Le calendrier n'a pas de KeyboardSensor (CalendarDndWrapper = PointerSensor seul),
+  // donc ces attributs clavier ne servaient pas ; le drag pointeur (listeners) est intact
+  // et la carte reste focusable/activable via son propre <button>.
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    <div ref={setNodeRef} style={style} {...listeners}>
       <CalendarContentCard post={post} onClick={handleClick} variant="compact" seriesNameById={seriesNameById} />
     </div>
   );
