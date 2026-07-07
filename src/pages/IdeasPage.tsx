@@ -464,7 +464,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                   <div className="absolute top-2 right-2" onClick={(e) => e.stopPropagation()}>
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive">
+                        <Button variant="ghost" size="sm" aria-label="Supprimer cette idée" className="h-6 w-6 p-0 rounded-full hover:bg-destructive/10 hover:text-destructive">
                           <X className="h-3.5 w-3.5" />
                         </Button>
                       </AlertDialogTrigger>
