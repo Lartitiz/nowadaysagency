@@ -296,7 +296,7 @@ export default function AbonnementPage() {
                         <span className="text-lg">{pack.emoji}</span>
                       )}
                       <span className="text-sm font-semibold text-foreground">{pack.label}</span>
-                      <span className="text-xs text-primary font-semibold">{pack.price.toFixed(2).replace('.', ',')}€</span>
+                      <span className="text-xs text-primary-text font-semibold">{pack.price.toFixed(2).replace('.', ',')}€</span>
                     </button>
                   );
                 })}
@@ -371,7 +371,7 @@ export default function AbonnementPage() {
               plan === "binome" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
               <h3 className="font-display font-bold text-foreground">🤝 Ta binôme de com</h3>
-              <p className="text-lg font-semibold text-primary mt-1">290€/mois</p>
+              <p className="text-lg font-semibold text-primary-text mt-1">290€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-2xs text-muted-foreground mt-1 space-y-0.5 text-left">
                 <p>✅ L'outil complet en illimité</p>
@@ -382,7 +382,7 @@ export default function AbonnementPage() {
                 <p>✅ Comptes-rendus détaillés</p>
               </div>
               {plan === "binome" ? (
-                <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>
+                <span className="inline-block mt-3 text-xs font-semibold text-primary-text">Plan actuel ✓</span>
               ) : (
                 <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>
                   📞 Réserver un appel découverte
@@ -413,7 +413,7 @@ function PlanCard({ name, price, credits, active, onSelect, disabled }: {
       active ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
     }`}>
       <h3 className="font-display font-bold text-foreground">{name}</h3>
-      <p className="text-lg font-semibold text-primary mt-1">{price}</p>
+      <p className="text-lg font-semibold text-primary-text mt-1">{price}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{credits}</p>
       {active ? (
         <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>

@@ -99,7 +99,7 @@ function MissionCard({
       </span>
       <span className="text-xs text-muted-foreground line-clamp-2">{mission.description}</span>
       {isNext && !mission.completed && (
-        <span className="text-xs font-medium text-primary animate-pulse mt-auto">
+        <span className="text-xs font-medium text-primary-text mt-auto">
           Commencer →
         </span>
       )}
