@@ -44,7 +44,7 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
   ownerDisplayName?: string;
   seriesNameById?: Record<string, string>;
 }) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
+  const { listeners, setNodeRef, transform, isDragging } = useDraggable({ id: post.id });
   const style: React.CSSProperties = {
     transform: transform ? `translate(${transform.x}px, ${transform.y}px)` : undefined,
     opacity: isDragging ? 0.3 : 1,
@@ -54,7 +54,10 @@ function DraggableWeekCard({ post, onClick, onQuickStatusChange, onQuickDuplicat
   };
 
   return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+    // a11y : pas de `attributes` (role=button clavier dnd-kit) sur le wrapper qui
+    // contient le <button> de la carte → nested-interactive. PointerSensor seul (pas de
+    // KeyboardSensor) donc inutile ; drag pointeur via `listeners` intact. Cf #381 (mois).
+    <div ref={setNodeRef} style={style} {...listeners}>
       <CalendarContentCard post={post} onClick={onClick} variant="detailed"
         onQuickStatusChange={onQuickStatusChange}
         onQuickDuplicate={onQuickDuplicate}

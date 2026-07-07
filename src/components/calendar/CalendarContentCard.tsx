@@ -151,120 +151,125 @@ function CalendarContentCardImpl({
     return (
       <TooltipProvider delayDuration={400}>
         <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              onClick={onClick}
-              className={cn(
-                "w-full text-left rounded-lg border px-2.5 py-2 transition-shadow hover:shadow-sm cursor-pointer mb-1.5 group/card relative",
-                statusStyle.textClass,
-              )}
-              style={cardStyle}
-            >
-              {/* Quick actions on hover */}
-              {(onQuickStatusChange || onQuickDuplicate || onQuickDelete || onQuickGenerate || onQuickAttachSeries) && (
-                <div
-                  className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150 z-10"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {onQuickStatusChange && post.status !== "published" && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const order = ["idea", "a_rediger", "drafting", "ready", "published"];
-                        const currentIdx = order.indexOf(post.status);
-                        const nextStatus = order[Math.min(currentIdx + 1, order.length - 1)];
-                        onQuickStatusChange(post.id, nextStatus);
-                      }}
-                      className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
-                      title="Avancer le statut"
-                    >
-                      <ChevronRight className="h-3 w-3" />
-                    </button>
+          {/* Wrapper relatif + group/card : porte le positionnement et l'état hover
+              pour que les actions rapides soient FRÈRES du <button> de la carte (et non
+              imbriquées dedans → fini le button-in-button / nested-interactive). */}
+          <div className="relative group/card mb-1.5">
+            <TooltipTrigger asChild>
+              <button
+                onClick={onClick}
+                className={cn(
+                  "w-full text-left rounded-lg border px-2.5 py-2 transition-shadow hover:shadow-sm cursor-pointer relative",
+                  statusStyle.textClass,
+                )}
+                style={cardStyle}
+              >
+                {/* Series badge above title */}
+                {seriesBadgeDetailed}
+
+                {/* Canal icon + title (2 lines max) */}
+                <div className="flex items-start gap-1.5">
+                  <span className="text-sm shrink-0 mt-0.5" style={{ fontSize: 14 }}>{canalIcon}</span>
+                  {publishBadge && (
+                    <span className={cn("text-xs shrink-0 mt-0.5", publishBadge.className)} title={publishBadge.label}>
+                      {publishBadge.icon}
+                    </span>
                   )}
-                  {onQuickGenerate && !post.content_draft && !(post as any).generated_content_id && (post.status === "idea" || post.status === "a_rediger") && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onQuickGenerate(post);
-                      }}
-                      className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
-                      title="Générer avec l'IA"
-                    >
-                      <Sparkles className="h-3 w-3" />
-                    </button>
+                  <p className={cn(
+                    "font-medium text-xs leading-snug",
+                    post.status === "published" && "line-through",
                   )}
-                  {onQuickAttachSeries && !hasSeries && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onQuickAttachSeries(post);
-                      }}
-                      className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
-                      title="Rattacher à une série"
-                    >
-                      <Tv className="h-3 w-3" />
-                    </button>
-                  )}
-                  {onQuickDuplicate && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onQuickDuplicate(post);
-                      }}
-                      className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-accent hover:border-border text-muted-foreground hover:text-foreground transition-colors"
-                      title="Dupliquer"
-                    >
-                      <Copy className="h-3 w-3" />
-                    </button>
-                  )}
-                  {onQuickDelete && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onQuickDelete(post.id);
-                      }}
-                      className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-destructive/10 hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-colors"
-                      title="Supprimer"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </button>
-                  )}
+                  style={{
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                    whiteSpace: 'normal',
+                  }}>
+                    {title}
+                  </p>
                 </div>
-              )}
 
-              {/* Series badge above title */}
-              {seriesBadgeDetailed}
-
-              {/* Canal icon + title (2 lines max) */}
-              <div className="flex items-start gap-1.5">
-                <span className="text-sm shrink-0 mt-0.5" style={{ fontSize: 14 }}>{canalIcon}</span>
-                {publishBadge && (
-                  <span className={cn("text-xs shrink-0 mt-0.5", publishBadge.className)} title={publishBadge.label}>
-                    {publishBadge.icon}
+                {(commentCount || 0) > 0 && (
+                  <span className="absolute bottom-1.5 right-1.5 text-2xs bg-primary/10 text-primary font-semibold px-1.5 py-0.5 rounded-full">
+                    💬 {commentCount}
                   </span>
                 )}
-                <p className={cn(
-                  "font-medium text-xs leading-snug",
-                  post.status === "published" && "line-through",
-                )}
-                style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                  whiteSpace: 'normal',
-                }}>
-                  {title}
-                </p>
-              </div>
+              </button>
+            </TooltipTrigger>
 
-              {(commentCount || 0) > 0 && (
-                <span className="absolute bottom-1.5 right-1.5 text-2xs bg-primary/10 text-primary font-semibold px-1.5 py-0.5 rounded-full">
-                  💬 {commentCount}
-                </span>
-              )}
-            </button>
-          </TooltipTrigger>
+            {/* Actions rapides au survol — FRÈRES du <button> (overlay absolu), plus imbriquées */}
+            {(onQuickStatusChange || onQuickDuplicate || onQuickDelete || onQuickGenerate || onQuickAttachSeries) && (
+              <div
+                className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover/card:opacity-100 transition-opacity duration-150 z-10"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {onQuickStatusChange && post.status !== "published" && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const order = ["idea", "a_rediger", "drafting", "ready", "published"];
+                      const currentIdx = order.indexOf(post.status);
+                      const nextStatus = order[Math.min(currentIdx + 1, order.length - 1)];
+                      onQuickStatusChange(post.id, nextStatus);
+                    }}
+                    className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
+                    title="Avancer le statut"
+                  >
+                    <ChevronRight className="h-3 w-3" />
+                  </button>
+                )}
+                {onQuickGenerate && !post.content_draft && !(post as any).generated_content_id && (post.status === "idea" || post.status === "a_rediger") && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickGenerate(post);
+                    }}
+                    className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
+                    title="Générer avec l'IA"
+                  >
+                    <Sparkles className="h-3 w-3" />
+                  </button>
+                )}
+                {onQuickAttachSeries && !hasSeries && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickAttachSeries(post);
+                    }}
+                    className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-primary/10 hover:border-primary/30 text-muted-foreground hover:text-primary transition-colors"
+                    title="Rattacher à une série"
+                  >
+                    <Tv className="h-3 w-3" />
+                  </button>
+                )}
+                {onQuickDuplicate && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickDuplicate(post);
+                    }}
+                    className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-accent hover:border-border text-muted-foreground hover:text-foreground transition-colors"
+                    title="Dupliquer"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </button>
+                )}
+                {onQuickDelete && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onQuickDelete(post.id);
+                    }}
+                    className="p-1 rounded-md bg-background/90 border border-border/50 hover:bg-destructive/10 hover:border-destructive/30 text-muted-foreground hover:text-destructive transition-colors"
+                    title="Supprimer"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
           <TooltipContent side="right" className="p-3 bg-card border shadow-lg rounded-xl">
             {tooltipContent}
           </TooltipContent>
