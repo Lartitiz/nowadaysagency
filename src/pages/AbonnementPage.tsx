@@ -416,7 +416,7 @@ function PlanCard({ name, price, credits, active, onSelect, disabled }: {
       <p className="text-lg font-semibold text-primary-text mt-1">{price}</p>
       <p className="text-xs text-muted-foreground mt-0.5">{credits}</p>
       {active ? (
-        <span className="inline-block mt-3 text-xs font-semibold text-primary">Plan actuel ✓</span>
+        <span className="inline-block mt-3 text-xs font-semibold text-primary-text">Plan actuel ✓</span>
       ) : (
         <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={onSelect} disabled={disabled}>
           Passer à {name} →
