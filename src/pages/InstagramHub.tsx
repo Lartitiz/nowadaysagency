@@ -119,7 +119,7 @@ export default function InstagramHub() {
                   IA · 10 min
                 </span>
                 <span className="text-2xl mb-2 block">✨</span>
-                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary-text transition-colors">
                   Optimiser mon profil avec l'IA
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">L'IA t'aide à optimiser ton profil, question par question.</p>
@@ -141,7 +141,7 @@ export default function InstagramHub() {
             className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
           >
             <div>
-              <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+              <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary-text transition-colors">
                 Créer un contenu Instagram
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">Post, carrousel, reel, story : tous les formats.</p>
