@@ -25,7 +25,11 @@ setup("authentifie le compte test Camille", async ({ page }) => {
   await page.getByRole("button", { name: /se connecter|connexion|login/i }).first().click();
 
   // Succès = on quitte /login pour un écran connecté.
-  await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 25_000 });
+  // 45s (et non 25s) : le post-login enchaîne une longue série de requêtes REST
+  // séquentielles (rôle, plan, workspace, notifs…) avant la redirection ; sur un
+  // moment réseau froid, 25s pouvait expirer et faire échouer TOUT le run (faux rouge,
+  // observé le 07/07/2026 alors que le login fonctionnait — vérifié via diagnostic direct).
+  await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 45_000 });
   await page.waitForTimeout(1500); // laisse la session Supabase se poser dans localStorage
 
   fs.mkdirSync(path.dirname(AUTH_FILE), { recursive: true });
