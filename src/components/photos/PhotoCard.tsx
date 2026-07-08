@@ -93,7 +93,11 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 bg-gradient-to-br from-muted/60 to-muted/30">
           <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-transparent via-white/20 to-transparent" />
           <Loader2 className="h-6 w-6 animate-spin text-primary relative" />
-          <p className="text-xs font-medium text-foreground relative">Retouche en cours…</p>
+          <p className="text-xs font-medium text-foreground relative">
+            {photo.background_prompt || photo.background_preset_key
+              ? "Retouche en cours…"
+              : "Ajout en cours…"}
+          </p>
           <p className="text-2xs text-muted-foreground relative">{formatElapsed(elapsedMs)}</p>
         </div>
       )}
@@ -155,9 +159,11 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
-          {photo.name && (
+          {(photo.description || photo.name) && (
             <div className="absolute bottom-0 left-0 right-0 px-3 py-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-              <p className="text-2xs text-white font-medium truncate">{photo.name}</p>
+              <p className="text-2xs text-white font-medium truncate">
+                {photo.description || photo.name}
+              </p>
             </div>
           )}
         </>

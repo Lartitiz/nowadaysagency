@@ -1,11 +1,14 @@
 /**
- * PhotoDetailDialog — full preview of a ready photo with Before/After toggle
- * and descriptive download.
+ * PhotoDetailDialog — full preview of a ready photo.
+ *
+ * Photos retouchées : bascule Avant/Après + téléchargement des deux versions.
+ * Photos bibliothèque (un seul fichier) : vue simple + description/tags IA,
+ * régénérables via l'edge photo-describe.
  */
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Loader2, Sparkles } from "lucide-react";
+import { Download, Loader2, RefreshCw, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -21,6 +24,7 @@ import {
   getSignedPhotoUrl,
   type UserPhotoRow,
 } from "@/lib/photo-storage";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
 interface PhotoDetailDialogProps {
   photo: UserPhotoRow | null;
@@ -44,14 +48,25 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
   const [beforeUrl, setBeforeUrl] = useState<string | null>(null);
   const [downloading, setDownloading] = useState(false);
+  // Description/tags régénérés : la prop `photo` peut être périmée après un
+  // appel photo-describe, on garde la dernière valeur renvoyée par l'edge.
+  const [meta, setMeta] = useState<{ description: string | null; tags: string[] } | null>(null);
+  const [describing, setDescribing] = useState(false);
+
+  // Photo bibliothèque = un seul fichier (pas de version originale distincte)
+  const hasRetouch =
+    !!photo?.original_storage_path && photo.original_storage_path !== photo.storage_path;
 
   useEffect(() => {
     if (!photo || !open) return;
     setView("after");
+    setMeta({ description: photo.description, tags: photo.tags ?? [] });
     let cancelled = false;
     Promise.all([
       getSignedPhotoUrl(photo.storage_path),
-      getSignedPhotoUrl(photo.original_storage_path),
+      photo.original_storage_path !== photo.storage_path
+        ? getSignedPhotoUrl(photo.original_storage_path)
+        : Promise.resolve(null),
     ]).then(([a, b]) => {
       if (cancelled) return;
       setAfterUrl(a);
@@ -71,8 +86,9 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
     setDownloading(true);
     try {
       const baseName = slugify(photo.name ?? "photo");
-      const filename =
-        view === "after"
+      const filename = !hasRetouch
+        ? `${baseName}.jpg`
+        : view === "after"
           ? `${baseName}-retouchee.jpg`
           : `${baseName}-originale.jpg`;
       const path = view === "after" ? photo.storage_path : photo.original_storage_path;
@@ -81,6 +97,28 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
       toast.error(e?.message || "Téléchargement impossible");
     } finally {
       setDownloading(false);
+    }
+  }
+
+  async function handleDescribe() {
+    if (!photo || describing) return;
+    setDescribing(true);
+    try {
+      const { data, error } = await invokeWithTimeout(
+        "photo-describe",
+        { body: { mode: "describe", photo_id: photo.id, workspace_id: photo.workspace_id } },
+        60_000,
+      );
+      if (error) throw new Error(error.message);
+      setMeta({
+        description: typeof data?.description === "string" ? data.description : null,
+        tags: Array.isArray(data?.tags) ? data.tags : [],
+      });
+      toast.success("Description mise à jour");
+    } catch (e: any) {
+      toast.error(e?.message || "Description impossible pour le moment");
+    } finally {
+      setDescribing(false);
     }
   }
 
@@ -96,33 +134,35 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
           )}
         </DialogHeader>
 
-        {/* Before/After toggle */}
-        <div className="flex items-center gap-1 rounded-full bg-muted p-1 self-start text-xs">
-          <button
-            type="button"
-            onClick={() => setView("after")}
-            className={cn(
-              "px-3 py-1 rounded-full font-medium transition-colors",
-              view === "after"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Retouchée
-          </button>
-          <button
-            type="button"
-            onClick={() => setView("before")}
-            className={cn(
-              "px-3 py-1 rounded-full font-medium transition-colors",
-              view === "before"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            Originale
-          </button>
-        </div>
+        {/* Before/After toggle — seulement pour les photos retouchées */}
+        {hasRetouch && (
+          <div className="flex items-center gap-1 rounded-full bg-muted p-1 self-start text-xs">
+            <button
+              type="button"
+              onClick={() => setView("after")}
+              className={cn(
+                "px-3 py-1 rounded-full font-medium transition-colors",
+                view === "after"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Retouchée
+            </button>
+            <button
+              type="button"
+              onClick={() => setView("before")}
+              className={cn(
+                "px-3 py-1 rounded-full font-medium transition-colors",
+                view === "before"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              Originale
+            </button>
+          </div>
+        )}
 
         <div className="rounded-xl overflow-hidden border border-border bg-muted/40 max-h-[60vh] flex items-center justify-center">
           {url ? (
@@ -137,6 +177,49 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
             </div>
           )}
         </div>
+
+        {/* Description + tags IA (matière du matching photo ↔ contenu) */}
+        {photo.status === "ready" && (
+          <div className="rounded-xl bg-muted/50 px-3 py-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                {meta?.description ? (
+                  <p className="text-xs text-foreground leading-snug">{meta.description}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Pas encore de description IA.
+                  </p>
+                )}
+                {!!meta?.tags?.length && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {meta.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-2xs"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleDescribe}
+                disabled={describing}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Régénérer la description"
+                title="Régénérer la description"
+              >
+                {describing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="flex justify-end gap-2">
           {photo.status === "ready" && (
@@ -156,7 +239,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
               </>
             ) : (
               <>
-                <Download className="h-4 w-4 mr-2" /> Télécharger {view === "after" ? "la retouche" : "l'originale"}
+                <Download className="h-4 w-4 mr-2" /> Télécharger{" "}
+                {!hasRetouch ? "la photo" : view === "after" ? "la retouche" : "l'originale"}
               </>
             )}
           </Button>
