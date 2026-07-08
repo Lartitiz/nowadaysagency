@@ -13,6 +13,9 @@ import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 import { resolveLibraryPhotoUrls, urlToDataUrl } from "@/lib/story-photos";
+import StoryPhotoSuggestions, {
+  type AppliedStockPhoto,
+} from "@/components/creer/formatRenderers/StoryPhotoSuggestions";
 
 interface PhotoLike {
   preview?: string;
@@ -236,6 +239,27 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
     });
   }, [onStoriesUpdate]);
 
+  // Fond choisi après génération (stock Pexels ou « Ma photo ») : URL stable
+  // (https Pexels ou data:) + crédit — persistés dans le JSON de la séquence.
+  const applyStoryPhoto = useCallback(
+    (index: number, photo: AppliedStockPhoto) => {
+      setStories((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          visual: {
+            ...updated[index].visual,
+            photo_url: photo.url,
+            photo_stock_credit: photo.credit,
+          },
+        };
+        onStoriesUpdate?.(updated);
+        return updated;
+      });
+    },
+    [onStoriesUpdate],
+  );
+
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
@@ -340,16 +364,45 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
                       )}
                     </div>
                   )}
-                  {story.visual?.photo_id && libraryUrls.has(story.visual.photo_id) ? (
+                  {story.visual?.photo_id && libraryUrls.has(story.visual.photo_id) && !story.visual?.photo_url ? (
                     <p className="text-xs text-primary">
                       📸 Photo de ta bibliothèque
                       {story.visual.photo_library_description
                         ? ` — ${story.visual.photo_library_description}`
                         : ""}
                     </p>
-                  ) : story.visual?.photo_directive ? (
+                  ) : story.visual?.photo_stock_credit?.photographer ? (
+                    <p className="text-xs text-muted-foreground">
+                      Photo :{" "}
+                      {story.visual.photo_stock_credit.source_url ? (
+                        <a
+                          href={story.visual.photo_stock_credit.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="underline hover:text-foreground"
+                        >
+                          {story.visual.photo_stock_credit.photographer}
+                        </a>
+                      ) : (
+                        story.visual.photo_stock_credit.photographer
+                      )}{" "}
+                      · Pexels
+                    </p>
+                  ) : story.visual?.photo_directive && !story.visual?.photo_url ? (
                     <p className="text-xs text-muted-foreground">📷 {story.visual.photo_directive}</p>
                   ) : null}
+                  {story.visual?.background === "photo" &&
+                    !story.visual?.photo_id &&
+                    (!photos || photos.length === 0) && (
+                      <StoryPhotoSuggestions
+                        storyIndex={i}
+                        directive={story.visual?.photo_directive ?? null}
+                        queryEn={story.visual?.photo_query_en ?? null}
+                        appliedUrl={story.visual?.photo_url ?? null}
+                        autoApply={!story.visual?.photo_url}
+                        onApply={(photo) => applyStoryPhoto(i, photo)}
+                      />
+                    )}
                 </div>
                 {frames[i] && <StoryFramePreview html={frames[i]!} title={`Aperçu story ${i + 1}`} />}
               </div>

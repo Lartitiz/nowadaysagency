@@ -73,4 +73,27 @@ export async function urlToDataUrl(url: string): Promise<string | null> {
   }
 }
 
+/**
+ * Fichier image → data URL JPEG redimensionnée (fond de story « Ma photo »).
+ * Le data URL est appliqué immédiatement au fond ; l'upload vers la
+ * bibliothèque se fait en parallèle, best-effort.
+ */
+export async function fileToResizedDataUrl(file: File, maxDim = 1600): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  let { width, height } = bitmap;
+  if (width > maxDim || height > maxDim) {
+    const ratio = Math.min(maxDim / width, maxDim / height);
+    width = Math.round(width * ratio);
+    height = Math.round(height * ratio);
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas indisponible");
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close?.();
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
 export { USER_PHOTOS_BUCKET };

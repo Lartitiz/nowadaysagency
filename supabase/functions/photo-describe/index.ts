@@ -12,6 +12,10 @@
  *   de marque à prendre au téléphone) depuis le branding du workspace. Le front
  *   les affiche dans l'état vide et peut les verser dans photo_wishlist.
  *
+ * - mode "pick_stock" (lot C stories) : classe des candidates Pexels en vision
+ *   (URLs des vignettes) selon la photo_directive d'UNE story — c'est ce choix
+ *   IA parmi ~8 résultats qui fait la pertinence, au lieu du 1er résultat brut.
+ *
  * skipQuota : micro-appels d'assistance (comme stock-photo-keywords), pas de
  * débit crédit. Sortie structurée en `tool` forcé (jamais de parse texte).
  */
@@ -31,6 +35,20 @@ const BodySchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("shoot_ideas"),
     workspace_id: z.string().uuid().optional(),
+  }),
+  z.object({
+    mode: z.literal("pick_stock"),
+    workspace_id: z.string().uuid().optional(),
+    directive: z.string().min(3).max(400),
+    candidates: z
+      .array(
+        z.object({
+          id: z.string().min(1).max(60),
+          url: z.string().url().max(500),
+        }),
+      )
+      .min(2)
+      .max(10),
   }),
 ]);
 
@@ -81,6 +99,23 @@ const SHOOT_IDEAS_TOOL = {
       },
     },
     required: ["ideas"],
+  },
+};
+
+const PICK_STOCK_TOOL = {
+  name: "save_stock_ranking",
+  description: "Enregistre le classement des photos candidates",
+  input_schema: {
+    type: "object",
+    properties: {
+      ranked_ids: {
+        type: "array",
+        items: { type: "string" },
+        description:
+          "Les ids des photos qui conviennent, de la MEILLEURE à la moins bonne. Exclure totalement celles qui sont hors sujet ou trop « stock corporate ».",
+      },
+    },
+    required: ["ranked_ids"],
   },
 };
 
@@ -213,6 +248,48 @@ serve(async (req) => {
 
       console.log(JSON.stringify({ event: "photo_described", photo_id: photo.id, tags_count: tags.length }));
       return json({ description, tags });
+    }
+
+    if (body.mode === "pick_stock") {
+      // Classement en vision : les vignettes candidates passent en source URL
+      // (Anthropic les télécharge côté API — pas de base64 à transporter).
+      const content: unknown[] = [];
+      for (const c of body.candidates) {
+        content.push({ type: "text", text: `Candidate id "${c.id}" :` });
+        content.push({ type: "image", source: { type: "url", url: c.url } });
+      }
+      content.push({
+        type: "text",
+        text: `Une créatrice cherche le FOND d'une story Instagram (photo plein écran 9:16, du texte sera posé par-dessus).
+
+Le plan de tournage de cette story : "${body.directive}"
+
+Classe les candidates de la meilleure à la moins bonne pour CE plan. Critères :
+- La scène correspond au plan de tournage (sujet, action, ambiance).
+- Authentique et vécu : lumière naturelle, matière, geste réel. ÉLIMINE le « stock corporate » (bureaux d'entreprise génériques, poignées de main, sourires posés en costume, fonds trop léchés).
+- Utilisable en fond : pas de texte incrusté, pas de logo, assez de zones calmes pour poser du texte.
+Exclus du classement toute candidate hors sujet — mieux vaut 2 bonnes photos que 8 moyennes.`,
+      });
+
+      const raw = await callAnthropic({
+        model: "claude-haiku-4-5",
+        messages: [{ role: "user", content }],
+        tool: PICK_STOCK_TOOL,
+        temperature: 0.2,
+        max_tokens: 300,
+        abortTimeoutMs: 25_000,
+      });
+
+      const parsed = JSON.parse(raw) as { ranked_ids?: unknown };
+      const validIds = new Set(body.candidates.map((c) => c.id));
+      const ranked = Array.from(
+        new Set(
+          (Array.isArray(parsed.ranked_ids) ? parsed.ranked_ids : [])
+            .map((x) => (typeof x === "string" ? x : ""))
+            .filter((x) => validIds.has(x)),
+        ),
+      );
+      return json({ ranked_ids: ranked });
     }
 
     // mode === "shoot_ideas"
