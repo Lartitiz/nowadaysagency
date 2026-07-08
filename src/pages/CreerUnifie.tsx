@@ -2891,6 +2891,7 @@ export default function CreerUnifie() {
                 current={stepperKey}
                 onStepClick={handleStepClick}
                 rightSlot={credits}
+                verbOverride={paramAuto && stepperKey === "brief" ? "Ton premier contenu" : undefined}
               />
             );
           })()}

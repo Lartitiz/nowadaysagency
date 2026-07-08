@@ -23,13 +23,15 @@ interface Props {
   onStepClick?: (key: StepperKey) => void;
   /** Optional right-aligned slot (e.g. credits counter) */
   rightSlot?: React.ReactNode;
+  /** Remplace le verbe de l'étape courante (ex. « Ton premier contenu » sur le récap auto=1). */
+  verbOverride?: string;
 }
 
 /**
  * Visual stepper for the /creer flow.
  * Pure presentation component — does not own routing/state.
  */
-export default function CreerStepper({ current, onStepClick, rightSlot }: Props) {
+export default function CreerStepper({ current, onStepClick, rightSlot, verbOverride }: Props) {
   const currentIndex = STEPS.findIndex((s) => s.key === current);
   const currentStep = STEPS[currentIndex] ?? STEPS[0];
 
@@ -77,7 +79,7 @@ export default function CreerStepper({ current, onStepClick, rightSlot }: Props)
         <p className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Étape {currentIndex + 1} sur {STEPS.length}</span>
           {" — "}
-          {currentStep.verb}
+          {verbOverride || currentStep.verb}
         </p>
         {rightSlot && <div className="shrink-0">{rightSlot}</div>}
       </div>
