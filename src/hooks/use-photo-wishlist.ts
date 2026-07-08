@@ -87,5 +87,41 @@ export function usePhotoWishlistMutations() {
     await invalidate();
   }
 
-  return { addMany, setDone, remove };
+  /**
+   * « À prendre plus tard » depuis une story (lot C) : si la même directive
+   * est déjà ouverte, on incrémente requested_count (la liste se trie toute
+   * seule par fréquence) ; sinon on crée l'item source=directive.
+   */
+  async function addDirective(label: string): Promise<void> {
+    if (!user?.id || !workspaceId) throw new Error("Espace de travail introuvable");
+    const clean = label.trim().slice(0, 200);
+    if (!clean) return;
+    const { data: existing, error: selErr } = await supabase
+      .from("photo_wishlist")
+      .select("id, requested_count")
+      .eq("workspace_id", workspaceId)
+      .eq("status", "open")
+      .eq("label", clean)
+      .limit(1)
+      .maybeSingle();
+    if (selErr) throw new Error(selErr.message);
+    if (existing) {
+      const { error } = await supabase
+        .from("photo_wishlist")
+        .update({ requested_count: (existing.requested_count ?? 1) + 1 })
+        .eq("id", existing.id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await supabase.from("photo_wishlist").insert({
+        workspace_id: workspaceId,
+        user_id: user.id,
+        label: clean,
+        source: "directive",
+      });
+      if (error) throw new Error(error.message);
+    }
+    await invalidate();
+  }
+
+  return { addMany, setDone, remove, addDirective };
 }
