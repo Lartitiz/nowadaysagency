@@ -514,6 +514,13 @@ export interface StoriesBriefParams {
   gardeFouAlerte?: string | null;
   pre_gen_answers?: { vecu?: string; energy?: string; message_cle?: string } | null;
   subject?: string | null;
+  /**
+   * Catalogue de la bibliothèque photos du workspace (lot B) : descriptions
+   * écrites par photo-describe à l'upload. L'IA référence une photo par son
+   * `index` (petit entier — jamais d'UUID dans le prompt) ; creative-flow
+   * résout ensuite index → user_photos.id de façon déterministe.
+   */
+  photo_catalog?: { index: number; description: string }[] | null;
 }
 
 function getStoriesVenteInstructions(priceRange?: string | null): string {
@@ -767,9 +774,21 @@ RÈGLES DU PLAN VISUEL :
 2. "body_pill" : 1-2 phrases courtes, 120 caractères MAX (affiché en gras type "Classic" Instagram). Le texte complet de la story reste dans "text" ; les pastilles n'en sont que la version AFFICHABLE.
 3. "list_pills" : uniquement pour le gabarit "liste", 2-4 items de 6-10 mots.
 4. "quote" : uniquement pour le gabarit "citation". Verbatim court, jamais inventé : s'il n'y a pas de vrai retour client fourni, n'utilise PAS ce gabarit.
-5. "background" : "photo" ou "fond_couleur". Si "photo", remplis "photo_directive" : quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle (comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo").
-6. Varie les gabarits dans la séquence : jamais deux fois le même d'affilée si la séquence fait 3+ stories.
-7. Story avec sticker → gabarit "interaction" (le sticker a besoin de sa zone).
+5. "background" : "photo" ou "fond_couleur". Les stories vivent de VRAIES images : "photo" est le fond PAR DÉFAUT dès que la story raconte, montre ou illustre quelque chose de concret ; réserve "fond_couleur" aux annonces sèches et aux gabarits "citation"/"liste" quand aucune image n'aurait de sens. Si "photo", remplis "photo_directive" : quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle (comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo").
+6. Si "background": "photo", remplis AUSSI "photo_query_en" : 2-4 mots EN ANGLAIS décrivant une scène photographiable concrète équivalente à la directive (pour la recherche de photos libres de droits), ex "hands shaping clay bowl". Sinon null.
+7. Varie les gabarits dans la séquence : jamais deux fois le même d'affilée si la séquence fait 3+ stories.
+8. Story avec sticker → gabarit "interaction" (le sticker a besoin de sa zone).${p.photo_catalog && p.photo_catalog.length > 0 ? `
+
+══ BIBLIOTHÈQUE DE PHOTOS DE LA MARQUE ══
+
+L'utilisatrice a déjà ces photos (décrites automatiquement) :
+${p.photo_catalog.map((ph) => `- photo ${ph.index} : ${ph.description}`).join("\n")}
+
+RÈGLES BIBLIOTHÈQUE :
+- Pour chaque story avec "background": "photo", regarde D'ABORD si une photo ci-dessus illustre VRAIMENT ce moment précis. Si oui, mets son numéro dans "photo_index". Sinon "photo_index": null.
+- Correspondance EXIGEANTE : la photo doit coller à la scène de CETTE story. Un rapport vague ou décoratif = null (on cherchera ailleurs), c'est mieux qu'une photo hors sujet.
+- Ne mets JAMAIS le même "photo_index" sur deux stories de la séquence.
+- Remplis quand même "photo_directive" et "photo_query_en" dans tous les cas (l'utilisatrice peut préférer reprendre la photo elle-même).` : ""}
 
 POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
 - Option A : hook court (le plus percutant, 5-10 mots)
@@ -848,7 +867,9 @@ Réponds en JSON strict :
         "body_pill": "[1-2 phrases courtes, 120 car. max]",
         "list_pills": null,
         "quote": null,
-        "photo_directive": null
+        "photo_directive": null,
+        "photo_query_en": null${p.photo_catalog && p.photo_catalog.length > 0 ? `,
+        "photo_index": null` : ""}
       },
       "tip": "...",
       "face_cam": false,

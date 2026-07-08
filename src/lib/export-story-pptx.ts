@@ -24,11 +24,13 @@ const PX_PER_IN = W_PX / PPTX_W_IN; // 144
 interface StoryFrame {
   story_number: number;
   html: string;
+  /** Photo de fond DE CETTE story (data: ou https) — prioritaire sur opts.photoUrl. */
+  photoUrl?: string | null;
 }
 
 export interface StoryPptxOptions {
   fileName?: string;
-  /** Photo de fond (data: ou https) des gabarits photo — insérée en couche image native. */
+  /** Photo de fond globale (héritage : une seule photo pour toute la séquence). */
   photoUrl?: string | null;
   /** true : renvoie le Blob (pont Canva) au lieu de télécharger. */
   returnBlob?: boolean;
@@ -168,7 +170,7 @@ export async function exportStoryPptx(
 
   for (const f of frames) {
     const slide = pptx.addSlide();
-    await renderFrameToSlide(slide, f.html, opts.photoUrl);
+    await renderFrameToSlide(slide, f.html, f.photoUrl ?? opts.photoUrl);
   }
 
   if (opts.returnBlob) {
