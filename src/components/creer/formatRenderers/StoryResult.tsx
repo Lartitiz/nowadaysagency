@@ -12,6 +12,7 @@ import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
+import { resolveLibraryPhotoUrls, urlToDataUrl } from "@/lib/story-photos";
 
 interface PhotoLike {
   preview?: string;
@@ -86,13 +87,56 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
     return null;
   }, [photos]);
 
+  // Photos de bibliothèque assignées par la génération (visual.photo_id) :
+  // résolues en URLs signées à l'affichage, jamais persistées (elles expirent).
+  const [libraryUrls, setLibraryUrls] = useState<Map<string, string>>(new Map());
+  const libraryIdsSignature = useMemo(
+    () =>
+      stories
+        .map((s: any) => s?.visual?.photo_id)
+        .filter(Boolean)
+        .sort()
+        .join(","),
+    [stories],
+  );
+  useEffect(() => {
+    if (!libraryIdsSignature) {
+      setLibraryUrls(new Map());
+      return;
+    }
+    let cancelled = false;
+    resolveLibraryPhotoUrls(stories).then((map) => {
+      if (!cancelled) setLibraryUrls(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [libraryIdsSignature]);
+
+  // Photo par story : choix post-génération (photo_url), sinon bibliothèque
+  // (photo_id résolu), sinon la photo attachée à la création (comportement historique).
+  const getStoryPhotoUrl = useCallback(
+    (story: any): string | null => {
+      const v = story?.visual;
+      if (v?.photo_url) return v.photo_url;
+      if (v?.photo_id) {
+        const resolved = libraryUrls.get(v.photo_id);
+        if (resolved) return resolved;
+      }
+      return photoUrl;
+    },
+    [libraryUrls, photoUrl],
+  );
+
   // Rendu déterministe : recalculé à chaque édition (instantané, aucun appel réseau).
   const frames = useMemo(
     () =>
       stories.map((s: any) =>
-        buildStoryFrameHtml(s, branding, { photoUrl, preview: true }),
+        buildStoryFrameHtml(s, branding, { photoUrl: getStoryPhotoUrl(s), preview: true }),
       ),
-    [stories, charter, photoUrl],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stories, charter, getStoryPhotoUrl],
   );
 
   const hasFrames = frames.some(Boolean);
@@ -100,21 +144,25 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
   const [exportingPptx, setExportingPptx] = useState(false);
   const { openInCanva, openingCanva } = useOpenInCanva();
 
-  const buildExportFrames = useCallback(
-    () =>
-      stories
-        .map((s: any, i: number) => {
-          const html = buildStoryFrameHtml(s, branding, { photoUrl, preview: false });
-          return html ? { story_number: i + 1, html } : null;
-        })
-        .filter(Boolean) as { story_number: number; html: string }[],
-    [stories, charter, photoUrl],
-  );
+  // Export : chaque photo (URL signée ou stock https) est convertie en data URL
+  // pour que html2canvas et le PPTX n'aient jamais de souci CORS / d'expiration.
+  const buildExportFrames = useCallback(async () => {
+    const frames: { story_number: number; html: string; photoUrl?: string | null }[] = [];
+    for (let i = 0; i < stories.length; i++) {
+      const s = stories[i];
+      const rawUrl = getStoryPhotoUrl(s);
+      const exportUrl = rawUrl ? await urlToDataUrl(rawUrl) : null;
+      const html = buildStoryFrameHtml(s, branding, { photoUrl: exportUrl, preview: false });
+      if (html) frames.push({ story_number: i + 1, html, photoUrl: exportUrl });
+    }
+    return frames;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stories, charter, getStoryPhotoUrl]);
 
   const handleExport = useCallback(async () => {
     setExporting(true);
     try {
-      await exportStoryPng(buildExportFrames(), result?.structure_type || "sequence");
+      await exportStoryPng(await buildExportFrames(), result?.structure_type || "sequence");
     } finally {
       setExporting(false);
     }
@@ -123,22 +171,21 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
   const handleExportPptx = useCallback(async () => {
     setExportingPptx(true);
     try {
-      await exportStoryPptx(buildExportFrames(), {
+      await exportStoryPptx(await buildExportFrames(), {
         fileName: result?.structure_type || "sequence",
-        photoUrl,
       });
     } finally {
       setExportingPptx(false);
     }
-  }, [buildExportFrames, photoUrl, result?.structure_type]);
+  }, [buildExportFrames, result?.structure_type]);
 
   const handleOpenInCanva = useCallback(() => {
     openInCanva(
       async () =>
-        (await exportStoryPptx(buildExportFrames(), { photoUrl, returnBlob: true })) as Blob,
+        (await exportStoryPptx(await buildExportFrames(), { returnBlob: true })) as Blob,
       `Stories — ${result?.structure_label || result?.structure_type || "séquence"}`,
     );
-  }, [openInCanva, buildExportFrames, photoUrl, result?.structure_label, result?.structure_type]);
+  }, [openInCanva, buildExportFrames, result?.structure_label, result?.structure_type]);
 
   const fullText = stories
     .map((s: any) => s.text || s.texte || s.content || "")
@@ -293,9 +340,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
                       )}
                     </div>
                   )}
-                  {story.visual?.photo_directive && (
+                  {story.visual?.photo_id && libraryUrls.has(story.visual.photo_id) ? (
+                    <p className="text-xs text-primary">
+                      📸 Photo de ta bibliothèque
+                      {story.visual.photo_library_description
+                        ? ` — ${story.visual.photo_library_description}`
+                        : ""}
+                    </p>
+                  ) : story.visual?.photo_directive ? (
                     <p className="text-xs text-muted-foreground">📷 {story.visual.photo_directive}</p>
-                  )}
+                  ) : null}
                 </div>
                 {frames[i] && <StoryFramePreview html={frames[i]!} title={`Aperçu story ${i + 1}`} />}
               </div>

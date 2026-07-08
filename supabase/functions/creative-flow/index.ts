@@ -393,6 +393,10 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     const isCaption = !isCarousel && !isReel && !isStories && !isLinkedIn && !isPinterest && !isNewsletter;
     const isPhotoMode = body.photo_mode === true;
 
+    // Catalogue de photos de la bibliothèque (stories, lot B) : rempli au moment
+    // du brief, relu après le parse pour résoudre photo_index → photo_id.
+    let storiesPhotoCatalog: { index: number; id: string; description: string }[] = [];
+
     // Format labels (used by recycle, declared here for broader scope)
     const formatLabels: Record<string, string> = {
       carrousel: "Carrousel Instagram (8 slides)",
@@ -622,6 +626,35 @@ Réponds UNIQUEMENT en JSON :
             storiesGardeFouAlerte = "⚠️ Tes stories récentes sont très orientées vente. Reviens à de la connexion ou de l'éducation pour maintenir la confiance. Ratio sain : 80% connexion/éducation, 20% vente.";
           }
         }
+        // Catalogue bibliothèque (lot B) : l'IA écrit la séquence en SACHANT
+        // quelles photos existent (descriptions écrites par photo-describe à
+        // l'upload). Index courts dans le prompt (jamais d'UUID : trop long,
+        // risque de recopie erronée) ; la résolution index → id se fait après
+        // le parse, côté edge, de façon déterministe.
+        {
+          const catCol = workspace_id ? "workspace_id" : "user_id";
+          const catVal = workspace_id || userId;
+          const { data: catRows, error: catErr } = await supabase
+            .from("user_photos")
+            .select("id, description")
+            .eq(catCol, catVal)
+            .eq("status", "ready")
+            .not("description", "is", null)
+            .order("created_at", { ascending: false })
+            .limit(40);
+          if (catErr) {
+            // Jamais bloquant : sans catalogue, la génération garde le
+            // comportement historique (directives seules).
+            console.warn("[creative-flow] catalogue photos illisible:", catErr.message);
+          }
+          storiesPhotoCatalog = (catRows || [])
+            .filter((r: { description?: string | null }) => typeof r.description === "string" && r.description.trim().length > 0)
+            .map((r: { id: string; description: string }, i: number) => ({
+              index: i + 1,
+              id: r.id,
+              description: r.description.trim(),
+            }));
+        }
         depthMandate = storiesBrief({
           objective: effectiveObjective,
           price_range: body.price_range,
@@ -631,6 +664,7 @@ Réponds UNIQUEMENT en JSON :
           gardeFouAlerte: storiesGardeFouAlerte,
           pre_gen_answers: body.pre_gen_answers,
           subject: context,
+          photo_catalog: storiesPhotoCatalog.map(({ index, description }) => ({ index, description })),
         });
       } else if (isLinkedIn) {
         depthMandate = linkedinBrief(editorialFormat);
@@ -1829,6 +1863,27 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         }
       } catch (corrErr) {
         console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
+      }
+    }
+
+    // ═══ RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories, lot B) ═══
+    // photo_index (petit entier émis par l'IA) → photo_id (UUID user_photos),
+    // de façon déterministe : correspondance stricte, jamais deux stories sur
+    // la même photo, et uniquement quand la story attend un fond photo.
+    if (isStories && step === "generate" && storiesPhotoCatalog.length > 0 && Array.isArray(parsed?.stories)) {
+      const byIndex = new Map(storiesPhotoCatalog.map((c) => [c.index, c]));
+      const usedPhotoIds = new Set<string>();
+      for (const s of parsed.stories) {
+        const v = s?.visual;
+        if (!v || typeof v !== "object") continue;
+        const idx = typeof v.photo_index === "number" ? v.photo_index : null;
+        delete v.photo_index;
+        if (idx === null) continue;
+        const cat = byIndex.get(idx);
+        if (!cat || v.background !== "photo" || usedPhotoIds.has(cat.id)) continue;
+        v.photo_id = cat.id;
+        v.photo_library_description = cat.description;
+        usedPhotoIds.add(cat.id);
       }
     }
 

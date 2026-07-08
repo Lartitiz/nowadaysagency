@@ -24,6 +24,16 @@ export interface StoryVisualPlan {
   list_pills?: string[] | null;
   quote?: string | null;
   photo_directive?: string | null;
+  /** Requête stock EN (2-4 mots) émise par le brief — sert aux suggestions Pexels (lot C). */
+  photo_query_en?: string | null;
+  /** Photo de la bibliothèque assignée par la génération (user_photos.id) — lot B. */
+  photo_id?: string | null;
+  /** Description de la photo de bibliothèque assignée (badge « de ta bibliothèque »). */
+  photo_library_description?: string | null;
+  /** Photo choisie APRÈS génération (stock Pexels ou upload) : URL stable https ou data:. */
+  photo_url?: string | null;
+  /** Crédit stock si photo_url vient de Pexels (lot C). */
+  photo_stock_credit?: { photographer?: string | null; source_url?: string | null } | null;
 }
 
 export interface StoryStickerPlan {
