@@ -57,6 +57,14 @@ try {
     console.log(`   🔑 décrochage diagnostic (inscrites→onboarding fini) : ${inscrites - onb} perdues (${100 - pct(onb)}%)`);
     console.log(`   🔑 onboarding fini mais 0 génération : ${onb - gen} (${onb ? Math.round(((onb - gen) / onb) * 100) : 0}% des onboardé·es)`);
   }
+  // Cohorte 7j = le signal PROPRE pour mesurer le levier A (1er contenu génère direct,
+  // live depuis 08/07) sans dilution par l'historique. Baseline lifetime au 08/07 = 48% de génération.
+  const c = d.cohort_7d;
+  if (c) {
+    const cp = (x) => (c.signups ? Math.round((x / c.signups) * 100) : 0);
+    console.log(`   🧪 cohorte 7 derniers jours : ${c.signups} inscrites → ${c.onboarded} onboardées (${cp(c.onboarded)}%) → ${c.generated} ont généré (${cp(c.generated)}%)`);
+    console.log(`      ↳ c'est CE % « ont généré » qui doit remonter si le levier A marche (réf. lifetime 08/07 = 48%).`);
+  }
 } catch (e) {
   console.log(`funnel : erreur (${String(e.message).slice(0, 90)}) — étape sautée sans casser le run.`);
 }

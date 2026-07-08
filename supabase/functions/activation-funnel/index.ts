@@ -90,12 +90,23 @@ Deno.serve(async (req) => {
     const signupsToday = profiles.filter((p: any) => p.created_at && new Date(p.created_at).getTime() >= t0).length;
     const genUsersToday = new Set(ai.filter((a: any) => a.created_at && new Date(a.created_at).getTime() >= t0).map((a: any) => a.user_id)).size;
 
+    // Cohorte récente (7 derniers jours) — pour MESURER un levier récent (ex. levier A
+    // « 1er contenu génère direct ») sans dilution par les inscrit·es historiques.
+    const cohortDays = 7;
+    const cohortStart = Date.now() - cohortDays * DAY;
+    const generatedSet = new Set(ai.map((a: any) => a.user_id));
+    const cohort = profiles.filter((p: any) => p.created_at && new Date(p.created_at).getTime() >= cohortStart);
+    const cohortSignups = cohort.length;
+    const cohortOnboarded = cohort.filter((p: any) => p.onboarding_completed).length;
+    const cohortGenerated = cohort.filter((p: any) => generatedSet.has(p.user_id)).length;
+
     return new Response(JSON.stringify({
       generated_at: new Date().toISOString(),
       funnel,
       median_days_to_first_gen,
       signups_today: signupsToday,
       generating_users_today: genUsersToday,
+      cohort_7d: { signups: cohortSignups, onboarded: cohortOnboarded, generated: cohortGenerated },
     }), { headers: { ...cors, "Content-Type": "application/json" } });
   } catch (e) {
     return new Response(JSON.stringify({ error: String((e as any)?.message || e) }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
