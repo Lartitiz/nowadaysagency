@@ -7200,66 +7200,11 @@ export type Database = {
         }
         Relationships: []
       }
-      photo_wishlist: {
-        Row: {
-          created_at: string
-          id: string
-          label: string
-          requested_count: number
-          satisfied_photo_id: string | null
-          source: string
-          status: string
-          updated_at: string
-          user_id: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          label: string
-          requested_count?: number
-          satisfied_photo_id?: string | null
-          source?: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          label?: string
-          requested_count?: number
-          satisfied_photo_id?: string | null
-          source?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "photo_wishlist_satisfied_photo_id_fkey"
-            columns: ["satisfied_photo_id"]
-            isOneToOne: false
-            referencedRelation: "user_photos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "photo_wishlist_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_photos: {
         Row: {
           background_preset_key: string | null
           background_prompt: string | null
           created_at: string
-          description: string | null
           error_message: string | null
           file_size_bytes: number | null
           height: number | null
@@ -7279,7 +7224,6 @@ export type Database = {
           background_preset_key?: string | null
           background_prompt?: string | null
           created_at?: string
-          description?: string | null
           error_message?: string | null
           file_size_bytes?: number | null
           height?: number | null
@@ -7299,7 +7243,6 @@ export type Database = {
           background_preset_key?: string | null
           background_prompt?: string | null
           created_at?: string
-          description?: string | null
           error_message?: string | null
           file_size_bytes?: number | null
           height?: number | null
