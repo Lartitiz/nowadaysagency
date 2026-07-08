@@ -269,7 +269,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
-          <span className={`text-sm font-bold capitalize ${isToday ? "text-primary" : "text-foreground"}`}>
+          <span className={`text-sm font-bold capitalize ${isToday ? "text-primary-text" : "text-foreground"}`}>
             {dayLabel}
           </span>
           {isToday && (

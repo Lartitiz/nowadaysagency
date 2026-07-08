@@ -90,7 +90,7 @@ function DroppableDay({
       )}
     >
       <div className="flex items-center justify-between mb-1">
-        <span className={cn("text-xs font-medium", isToday ? "text-primary font-bold" : "text-foreground")}>
+        <span className={cn("text-xs font-medium", isToday ? "text-primary-text font-bold" : "text-foreground")}>
           {dayNum}
         </span>
         {inMonth && (
@@ -188,7 +188,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
             return (
               <div key={dateStr} className={`rounded-xl border p-3 ${isToday ? "bg-rose-pale border-primary/30" : "border-border"}`}>
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-sm font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
+                  <span className={`text-sm font-bold ${isToday ? "text-primary-text" : "text-foreground"}`}>
                     {d.date.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" })}
                     {/* Sans ce label, la carte du jour vide flotte sans explication */}
                     {isToday && <span className="ml-1.5 text-2xs font-semibold uppercase tracking-wide">· Aujourd'hui</span>}
