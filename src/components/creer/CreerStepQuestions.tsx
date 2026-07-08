@@ -92,6 +92,9 @@ interface Props {
   onNext: (answers: Record<string, string>) => void;
   onSkip: () => void;
   onBack: () => void;
+  /** auto=1 (1er contenu post-diagnostic) : récap + « Générer » direct au lieu du
+   *  mur de 3 questions. L'affinage reste dispo en secondaire (levier activation). */
+  autoFirstContent?: boolean;
 }
 
 export default function CreerStepQuestions({
@@ -106,10 +109,12 @@ export default function CreerStepQuestions({
   onNext,
   onSkip,
   onBack,
+  autoFirstContent,
 }: Props) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers || {});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [refine, setRefine] = useState(false);
 
   const handleSkip = () => {
     setIsSubmitting(true);
@@ -120,6 +125,36 @@ export default function CreerStepQuestions({
     setIsSubmitting(true);
     onNext(finalAnswers);
   };
+
+  // Levier A — 1er contenu (auto=1) : au lieu du mur de 3 questions juste après le
+  // diagnostic, on récapitule l'idée déjà préparée et on GÉNÈRE direct (récompense
+  // immédiate). L'affinage reste accessible en lien secondaire pour qui veut creuser.
+  if (autoFirstContent && !refine && subject) {
+    return (
+      <div className="animate-fade-in space-y-5 py-2">
+        <div>
+          <h2 className="font-display text-xl font-bold text-foreground">Ton premier contenu est prêt à écrire</h2>
+          <p className="text-sm text-muted-foreground mt-1">À partir de ton diagnostic — on l'a déjà préparé pour toi.</p>
+        </div>
+        <div className="rounded-xl bg-rose-pale border border-primary/20 p-4">
+          <p className="text-2xs font-semibold uppercase tracking-wide text-primary-text mb-1">Ton idée</p>
+          <p className="text-sm font-medium text-foreground leading-snug">{subject}</p>
+        </div>
+        <Button onClick={handleSkip} disabled={isSubmitting} className="w-full rounded-pill gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base">
+          {isSubmitting ? (
+            <><Loader2 className="h-4 w-4 animate-spin" /> On rédige ton contenu…</>
+          ) : (
+            <><Sparkles className="h-4 w-4" /> Générer mon premier contenu</>
+          )}
+        </Button>
+        <div className="text-center">
+          <button type="button" onClick={() => setRefine(true)} className="text-sm text-primary-text underline underline-offset-2 hover:opacity-80">
+            Je préfère répondre à quelques questions d'abord
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loadingQuestions) {
     return <QuestionsLoading />;

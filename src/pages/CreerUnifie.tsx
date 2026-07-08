@@ -2858,7 +2858,10 @@ export default function CreerUnifie() {
         )}
 
         {/* Mode tabs — first visible choice */}
-        <BrandingStatusBanner />
+        {/* Levier A : sur le 1er contenu (auto=1, juste après le diagnostic), on masque
+            la bannière « remplis ton identité de marque » — contradictoire avec le diagnostic
+            qu'on vient de finir. Elle reste sur les créations suivantes. */}
+        {!paramAuto && <BrandingStatusBanner />}
 
         <div className="mt-4">
           {/* Unified stepper — visible from step 1, hidden on result/edit screens to give content full focus */}
@@ -2976,6 +2979,7 @@ export default function CreerUnifie() {
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
                 initialAnswers={briefPrefillAnswers ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
+                autoFirstContent={paramAuto}
               />
             )}
 
