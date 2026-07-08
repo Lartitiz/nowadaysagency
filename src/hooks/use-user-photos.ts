@@ -133,6 +133,64 @@ export function useCreatePhotoRetouch() {
 }
 
 /**
+ * Upload multiple simple vers la bibliothèque (sans retouche) : chaque photo
+ * passe à status=ready dès l'upload, puis photo-describe (vision) remplit
+ * description + tags en arrière-plan — le Realtime rafraîchit la grille.
+ */
+export function useUploadLibraryPhotos() {
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  async function mutate(files: File[]): Promise<{ uploaded: number; failed: number }> {
+    if (!user?.id || !workspaceId) {
+      throw new Error("Espace de travail introuvable");
+    }
+    // Même garde-fou que useCreatePhotoRetouch (fallback user.id ≠ workspace valide)
+    if (workspaceId === user.id) {
+      throw new Error("Espace de travail en cours de chargement, réessaie dans 1 seconde.");
+    }
+
+    let uploaded = 0;
+    let failed = 0;
+    setProgress({ done: 0, total: files.length });
+    try {
+      for (const file of files) {
+        try {
+          const { photoId } = await uploadPhotoOriginal({
+            file,
+            userId: user.id,
+            workspaceId,
+            purpose: "library",
+          });
+          uploaded++;
+          // Description IA en arrière-plan : un échec laisse juste la photo
+          // sans description (régénérable depuis le détail), jamais bloquant.
+          invokeWithTimeout(
+            "photo-describe",
+            { body: { mode: "describe", photo_id: photoId, workspace_id: workspaceId } },
+            60_000,
+          )
+            .then(({ error }) => {
+              if (error) console.warn("[photo-describe]", error.message);
+            })
+            .catch((e) => console.warn("[photo-describe]", e));
+        } catch (e) {
+          failed++;
+          console.error("[useUploadLibraryPhotos] upload failed:", e);
+        }
+        setProgress((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
+      }
+    } finally {
+      setProgress(null);
+    }
+    return { uploaded, failed };
+  }
+
+  return { mutate, progress };
+}
+
+/**
  * Re-trigger the edge function for an existing photo (re-uses stored prompt).
  */
 export function useRetryPhotoRetouch() {

@@ -26,6 +26,7 @@ export interface UserPhotoRow {
   status: PhotoStatus;
   name: string | null;
   tags: string[];
+  description: string | null;
   background_prompt: string | null;
   background_preset_key: string | null;
   source_type: string;
@@ -108,6 +109,13 @@ export interface UploadOriginalParams {
   name?: string;
   backgroundPrompt?: string;
   backgroundPresetKey?: string;
+  /**
+   * "retouche" (défaut) : flux historique en 2 temps, l'edge
+   * photo-background-replace produira le fichier final.
+   * "library" : ajout direct à la bibliothèque — un seul fichier uploadé,
+   * la ligne passe à status=ready sans traitement.
+   */
+  purpose?: "retouche" | "library";
 }
 
 export interface UploadOriginalResult {
@@ -126,6 +134,7 @@ export async function uploadPhotoOriginal({
   name,
   backgroundPrompt,
   backgroundPresetKey,
+  purpose = "retouche",
 }: UploadOriginalParams): Promise<UploadOriginalResult> {
   if (!file.type.startsWith("image/")) {
     throw new Error("Le fichier doit être une image.");
@@ -163,8 +172,10 @@ export async function uploadPhotoOriginal({
   }
 
   const photoId = insertRes.data.id as string;
-  const originalPath = `${userId}/${photoId}_original.jpg`;
   const finalPath = `${userId}/${photoId}.jpg`;
+  // Bibliothèque : un seul fichier, directement au chemin final (pas d'_original
+  // puisqu'il n'y a pas de traitement). Retouche : flux historique en 2 fichiers.
+  const originalPath = purpose === "library" ? finalPath : `${userId}/${photoId}_original.jpg`;
 
   const upload = await supabase.storage
     .from(USER_PHOTOS_BUCKET)
@@ -183,12 +194,13 @@ export async function uploadPhotoOriginal({
     throw new Error(raw || "Impossible d'envoyer la photo dans le stockage");
   }
 
-  // Update the row with the real paths
+  // Update the row with the real paths (library : prête immédiatement)
   const update = await supabase
     .from("user_photos")
     .update({
       storage_path: finalPath,
       original_storage_path: originalPath,
+      ...(purpose === "library" ? { status: "ready" as PhotoStatus } : {}),
     })
     .eq("id", photoId);
 
@@ -335,7 +347,10 @@ export async function downloadPhoto(path: string, filename: string): Promise<voi
  * Deletes the user_photos row + both storage objects.
  */
 export async function deletePhotoCompletely(photo: Pick<UserPhotoRow, "id" | "storage_path" | "original_storage_path">): Promise<void> {
-  const paths = [photo.storage_path, photo.original_storage_path].filter(Boolean) as string[];
+  // Photos bibliothèque : storage_path === original_storage_path → dédup
+  const paths = Array.from(
+    new Set([photo.storage_path, photo.original_storage_path].filter(Boolean)),
+  ) as string[];
   if (paths.length > 0) {
     await supabase.storage.from(USER_PHOTOS_BUCKET).remove(paths);
   }
