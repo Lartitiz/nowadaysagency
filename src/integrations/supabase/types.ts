@@ -5126,6 +5126,60 @@ export type Database = {
           },
         ]
       }
+      photo_wishlist: {
+        Row: {
+          created_at: string
+          id: string
+          label: string
+          requested_count: number
+          satisfied_photo_id: string | null
+          source: string
+          status: string
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          label: string
+          requested_count?: number
+          satisfied_photo_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          label?: string
+          requested_count?: number
+          satisfied_photo_id?: string | null
+          source?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_wishlist_satisfied_photo_id_fkey"
+            columns: ["satisfied_photo_id"]
+            isOneToOne: false
+            referencedRelation: "user_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "photo_wishlist_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pinterest_boards: {
         Row: {
           board_type: string | null
@@ -7199,60 +7253,6 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
-      }
-      photo_wishlist: {
-        Row: {
-          created_at: string
-          id: string
-          label: string
-          requested_count: number
-          satisfied_photo_id: string | null
-          source: string
-          status: string
-          updated_at: string
-          user_id: string
-          workspace_id: string
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          label: string
-          requested_count?: number
-          satisfied_photo_id?: string | null
-          source?: string
-          status?: string
-          updated_at?: string
-          user_id: string
-          workspace_id: string
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          label?: string
-          requested_count?: number
-          satisfied_photo_id?: string | null
-          source?: string
-          status?: string
-          updated_at?: string
-          user_id?: string
-          workspace_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "photo_wishlist_satisfied_photo_id_fkey"
-            columns: ["satisfied_photo_id"]
-            isOneToOne: false
-            referencedRelation: "user_photos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "photo_wishlist_workspace_id_fkey"
-            columns: ["workspace_id"]
-            isOneToOne: false
-            referencedRelation: "workspaces"
-            referencedColumns: ["id"]
-          },
-        ]
       }
       user_photos: {
         Row: {
