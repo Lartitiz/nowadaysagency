@@ -278,3 +278,6 @@ verify_jwt = false
 
 [functions.product-on-model]
 verify_jwt = false
+
+[functions.photo-dump-plan]
+verify_jwt = false

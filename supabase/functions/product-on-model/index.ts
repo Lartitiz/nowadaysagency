@@ -32,10 +32,23 @@ const BodySchema = z.object({
   photo_id: z.string().uuid(),
   mode: z.enum(["auto", "porte", "pose"]).default("auto"),
   framing: z.enum(["auto", "sans_visage", "portrait"]).default("auto"),
-  ambiance: z.string().max(200).optional().nullable(),
+  ambiance: z.string().max(300).optional().nullable(),
   // Présent = régénération ciblée (1 image, 1 crédit) au lieu des 3 propositions.
   adjustment: z.string().max(300).optional().nullable(),
+  // Mode série (photo dump) : 1 image par appel, et une personne de référence
+  // (data URL jpeg/png) pour garder LE MÊME mannequin d'une slide à l'autre.
+  single: z.boolean().optional(),
+  reference_person_b64: z.string().max(4_000_000).optional().nullable(),
 });
+
+function dataUrlToBlob(input: string): Blob | null {
+  const m = input.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!m) return null;
+  const bin = atob(m[2]);
+  const bytes = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+  return new Blob([bytes], { type: m[1] });
+}
 
 const OPENAI_URL = "https://api.openai.com/v1/images/edits";
 const OPENAI_TIMEOUT_MS = 200_000;
@@ -79,6 +92,7 @@ function buildPrompt(opts: {
   ambiance: string | null;
   adjustment: string | null;
   productDescription: string | null;
+  hasPersonReference: boolean;
   brand: BrandBlockInput;
 }): string {
   const lines: string[] = [];
@@ -105,9 +119,15 @@ function buildPrompt(opts: {
     "ATTACHMENT (critical when the product is worn): if the product physically attaches to the body, render that connection anatomically correct and true to real life — a pierced earring passes THROUGH the earlobe and hangs straight down under gravity; a ring encircles a finger; glasses rest on the nose bridge and hook over the ears; a watch or bracelet wraps fully around the wrist; a necklace drapes around the neck following its curve. The piece must join at the exact correct point, at realistic scale, obeying gravity — never floating beside the body part, never fused flat onto the skin, never oversized or undersized."
   );
 
-  lines.push(
-    "PERSON (when shown): a real-looking person, NOT a professional model — natural visible skin texture, minimal makeup, subtle facial asymmetries, a few loose hair strands. Representation matters: vary ethnicity and age (25-55) across variations."
-  );
+  if (opts.hasPersonReference) {
+    lines.push(
+      "PERSON: the SECOND attached image shows the person to feature — it is THE SAME person in this photo (same face, same hair, same skin tone, same style). Natural, unposed, real-looking."
+    );
+  } else {
+    lines.push(
+      "PERSON (when shown): a real-looking person, NOT a professional model — natural visible skin texture, minimal makeup, subtle facial asymmetries, a few loose hair strands. Representation matters: vary ethnicity and age (25-55) across variations."
+    );
+  }
 
   lines.push(
     "SCENE: " +
@@ -191,7 +211,10 @@ serve(async (req) => {
 
     const bodyWorkspaceId = parsed.workspace_id ?? null;
     const adjustment = parsed.adjustment?.trim() || null;
-    const n = adjustment ? 1 : 3;
+    const n = adjustment || parsed.single ? 1 : 3;
+    const referenceBlob = parsed.reference_person_b64
+      ? dataUrlToBlob(parsed.reference_person_b64)
+      : null;
 
     // 3. Gate Premium : la mise en scène est réservée aux plans payants
     // (décision produit 09/07/2026 — gpt-image = feature Premium). Le plan
@@ -293,6 +316,7 @@ serve(async (req) => {
       ambiance: parsed.ambiance ?? null,
       adjustment,
       productDescription: photo.description,
+      hasPersonReference: !!referenceBlob,
       brand: {
         activite: profileRes.data?.activite,
         photo_style: charterRes.data?.photo_style,
@@ -320,6 +344,16 @@ serve(async (req) => {
         "image[]",
         new File([sourceBlob], "product.jpg", { type: sourceBlob.type || "image/jpeg" })
       );
+      if (referenceBlob) {
+        // Personne de référence en 2e position (la 1re image garde la
+        // priorité de fidélité produit).
+        form.append(
+          "image[]",
+          new File([referenceBlob], "person-reference.jpg", {
+            type: referenceBlob.type || "image/jpeg",
+          })
+        );
+      }
       form.append("prompt", prompt);
       form.append("n", String(n));
       form.append("size", "1024x1536");
