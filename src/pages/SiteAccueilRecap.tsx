@@ -15,6 +15,7 @@ export default function SiteAccueilRecap() {
   const { column, value } = useWorkspaceFilter();
   const [data, setData] = useState<any>(null);
   const [cms, setCms] = useState("");
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -28,6 +29,7 @@ export default function SiteAccueilRecap() {
         setData({ ...hpRes.data, faq });
       }
       if (wpRes.data) setCms(wpRes.data.cms || "");
+      setLoaded(true);
     };
     load();
   }, [user?.id]);
@@ -52,6 +54,28 @@ export default function SiteAccueilRecap() {
   };
 
   const cmsLabel = { squarespace: "Squarespace", wordpress: "WordPress", shopify: "Shopify", wix: "Wix", autre: "ton outil", none: "ton site" }[cms] || "ton site";
+
+  // Pas encore de page rédigée : état vide avec CTA vers l'éditeur (sinon spinner infini).
+  if (loaded && !data) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-2xl px-6 py-8 max-md:px-4">
+          <Link to="/site" className="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+            <ArrowLeft className="h-4 w-4" /> Retour à Mon Site Web
+          </Link>
+          <div className="mt-8 rounded-2xl border border-border bg-card p-8 text-center space-y-4">
+            <p className="text-3xl">🏡</p>
+            <h1 className="font-display text-2xl font-bold text-foreground">Ta page n'est pas encore rédigée</h1>
+            <p className="text-sm text-muted-foreground">Le récap s'affichera ici dès que tu auras rédigé ta page d'accueil, section par section.</p>
+            <Button asChild className="rounded-full">
+              <Link to="/site/accueil"><Pencil className="h-4 w-4 mr-1.5" /> Rédiger ma page</Link>
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   if (!data) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
