@@ -27,6 +27,8 @@ export interface UserPhotoRow {
   name: string | null;
   tags: string[];
   description: string | null;
+  /** Type classé par l'IA : produit, produit_porte, portrait, ambiance, coulisses, autre. */
+  kind: string | null;
   background_prompt: string | null;
   background_preset_key: string | null;
   source_type: string;

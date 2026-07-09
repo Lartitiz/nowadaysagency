@@ -329,6 +329,13 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                 )}
               </div>
               <div className="space-y-2">
+                {photo.kind === "portrait" && (
+                  <p className="text-xs rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2">
+                    Cette photo semble montrer une personne. La mise en scène est conçue
+                    pour tes produits : sur un portrait, l'IA re-générerait la personne —
+                    résultat imprévisible.
+                  </p>
+                )}
                 {charterHint && (
                   <p className="text-xs rounded-lg bg-secondary/60 text-secondary-foreground px-3 py-2">
                     🎨 Ta charte guide l'ambiance : {charterHint}

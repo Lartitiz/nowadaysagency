@@ -58,14 +58,21 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   // appel photo-describe, on garde la dernière valeur renvoyée par l'edge.
   const [meta, setMeta] = useState<{ description: string | null; tags: string[] } | null>(null);
   const [describing, setDescribing] = useState(false);
+  const [productActionsOpen, setProductActionsOpen] = useState(false);
 
   // Photo bibliothèque = un seul fichier (pas de version originale distincte)
   const hasRetouch =
     !!photo?.original_storage_path && photo.original_storage_path !== photo.storage_path;
 
+  // Packshot / Mettre en scène = actions produit : mises en avant seulement si
+  // la photo est un produit (ou pas encore classée — comportement historique).
+  const isProductPhoto =
+    !photo?.kind || photo.kind === "produit" || photo.kind === "produit_porte";
+
   useEffect(() => {
     if (!photo || !open) return;
     setView("after");
+    setProductActionsOpen(false);
     setMeta({ description: photo.description, tags: photo.tags ?? [] });
     let cancelled = false;
     Promise.all([
@@ -233,12 +240,12 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               <Wand2 className="h-4 w-4 mr-2" /> Retouche IA
             </Button>
           )}
-          {photo.status === "ready" && onPackshot && (
+          {photo.status === "ready" && isProductPhoto && onPackshot && (
             <Button variant="outline" onClick={() => onPackshot(photo)}>
               <Package className="h-4 w-4 mr-2" /> Packshot e-commerce
             </Button>
           )}
-          {photo.status === "ready" && onMiseEnScene && (
+          {photo.status === "ready" && isProductPhoto && onMiseEnScene && (
             <Button variant="outline" onClick={() => onMiseEnScene(photo)}>
               <Shirt className="h-4 w-4 mr-2" /> Mettre en scène
             </Button>
@@ -266,6 +273,42 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
             )}
           </Button>
         </div>
+
+        {/* Actions produit repliées pour les photos non-produit : jamais cachées
+            (le classement IA peut se tromper), mais avec le contexte pour
+            décider — un portrait « mis en scène » donne un clone IA imprévisible. */}
+        {photo.status === "ready" && !isProductPhoto && (onPackshot || onMiseEnScene) && (
+          <div className="flex flex-col items-end gap-2">
+            <button
+              type="button"
+              onClick={() => setProductActionsOpen((s) => !s)}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {productActionsOpen ? "Masquer les actions produit" : "Actions produit…"}
+            </button>
+            {productActionsOpen && (
+              <div className="w-full rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
+                <p className="text-xs text-amber-900">
+                  {photo.kind === "portrait"
+                    ? "Cette photo semble montrer une personne. Ces outils sont conçus pour des produits : sur un portrait, le résultat sera imprévisible (la personne serait re-générée par l'IA)."
+                    : "Cette photo ne semble pas montrer un produit — ces outils sont conçus pour des photos produit."}
+                </p>
+                <div className="flex flex-wrap justify-end gap-2">
+                  {onPackshot && (
+                    <Button size="sm" variant="outline" onClick={() => onPackshot(photo)}>
+                      <Package className="h-3.5 w-3.5 mr-1.5" /> Packshot quand même
+                    </Button>
+                  )}
+                  {onMiseEnScene && (
+                    <Button size="sm" variant="outline" onClick={() => onMiseEnScene(photo)}>
+                      <Shirt className="h-3.5 w-3.5 mr-1.5" /> Mettre en scène quand même
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

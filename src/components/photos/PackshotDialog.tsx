@@ -199,6 +199,13 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
           </DialogDescription>
         </DialogHeader>
 
+        {photo.kind === "portrait" && (
+          <p className="text-xs rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2">
+            Cette photo semble montrer une personne. Le packshot est conçu pour tes
+            produits : ici, il détourerait la personne sur fond blanc.
+          </p>
+        )}
+
         {/* Aperçus avant / après */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
