@@ -32,12 +32,24 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
   });
   // Le onClick est porté par la carte parente ; l'overlay de survol intercepte
   // les pointer events au-dessus de l'image → on clique la carte elle-même.
-  await page.locator(".grid .group.relative").first().click();
+  // On prend une carte AVEC image (les photos pending n'en ont pas).
+  await page
+    .locator(".grid .group.relative")
+    .filter({ has: page.locator("img") })
+    .first()
+    .click();
 
-  // Détail → bouton packshot
-  const packshotBtn = page.getByRole("button", { name: /Packshot e-commerce/i });
-  await expect(packshotBtn).toBeVisible({ timeout: 10_000 });
-  await packshotBtn.click();
+  // Détail → bouton packshot. Depuis #424 (kind), il est direct pour une photo
+  // produit, ou replié sous « Actions produit… » pour les autres types.
+  const packshotBtn = page.getByRole("button", { name: /^Packshot e-commerce$/ });
+  const foldToggle = page.getByText("Actions produit…");
+  await expect(packshotBtn.or(foldToggle).first()).toBeVisible({ timeout: 10_000 });
+  if (await packshotBtn.isVisible().catch(() => false)) {
+    await packshotBtn.click();
+  } else {
+    await foldToggle.click();
+    await page.getByRole("button", { name: /Packshot quand même/i }).click();
+  }
 
   // Dialog packshot : source chargée puis génération
   await expect(page.getByRole("heading", { name: /Packshot e-commerce/i })).toBeVisible();
