@@ -628,6 +628,16 @@ function addBlockToSlide(
   const color = normalizeHex(block.style.color, charterTextFallback);
   const charSpacing = letterSpacingPxToCharSpacing(block.style.letterSpacingPx, PX_PER_IN);
 
+  // Un bloc rendu sur UNE seule ligne en HTML ne doit JAMAIS re-wrapper dans
+  // PowerPoint : ses métriques (mono + letter-spacing surtout) y sont plus
+  // larges et cassent les petits labels malgré le slack de largeur
+  // (« ENTREPRI/SES » hors pilule, « LE/CONSTAT », « LIEN EN [BIO] » — vus en
+  // prod). La boîte est transparente : le léger débord éventuel est bénin,
+  // contrairement à un wrap qui déborde verticalement sur l'élément du dessous.
+  const isSingleLine =
+    !block.text.includes("\n") &&
+    block.rect.h < block.style.lineHeight * 1.6;
+
   const frameOptions: PptxGenJS.TextPropsOptions = {
     x,
     y,
@@ -640,7 +650,7 @@ function addBlockToSlide(
     color,
     align: block.style.textAlign,
     valign: "top",
-    wrap: true,
+    wrap: !isSingleLine,
     margin: 0,
     // « Réduire le texte en cas de débordement » : si malgré les slacks le texte
     // dépasse encore la boîte (métriques de police exotiques), PowerPoint le
@@ -980,28 +990,33 @@ export async function exportCarouselHybridPptx(
       // ont été masqués via data-pptx-shape-hide → les shapes natifs restent visibles.
       // Le texte ENFANT non annoté reste rendu dans le PNG (pas masqué) → il s'affiche
       // par-dessus le shape natif visuellement (PNG posé après).
-      for (const sb of usableShapes) {
-        if (sb.type === "background") {
-          // Fond unique : on l'applique directement à slide.background plutôt
-          // qu'un addShape pleine slide (plus léger + édition "Format de l'arrière-plan").
-          slide.background = { color: sb.fill };
-          continue;
-        }
-        const xRaw = pxToInches(sb.rect.x, PX_PER_IN);
+      const drawNativeShape = (sb: ShapeBlock, wMul = 1, centered = false) => {
+        const wBase = pxToInches(sb.rect.w, PX_PER_IN);
+        const wRaw = wBase * wMul;
+        // Élargissement symétrique quand le label interne est centré (pilule CTA
+        // au milieu d'une carte) — sinon on étend à droite (label ancré à gauche).
+        const xRaw = pxToInches(sb.rect.x, PX_PER_IN) - (centered ? (wRaw - wBase) / 2 : 0);
         const yRaw = pxToInches(sb.rect.y, PX_PER_IN);
-        const wRaw = pxToInches(sb.rect.w, PX_PER_IN);
         const hRaw = pxToInches(sb.rect.h, PX_PER_IN);
         const x = Math.max(0, xRaw);
         const y = Math.max(0, yRaw);
         const w = Math.min(PPTX_W_IN - x, wRaw - (x - xRaw));
         const h = Math.min(PPTX_H_IN - y, hRaw - (y - yRaw));
-        if (w <= 0 || h <= 0) continue;
+        if (w <= 0 || h <= 0) return;
         const radiusInches = pxToInches(sb.borderRadiusPx, PX_PER_IN);
         const cappedRadius = Math.min(radiusInches, Math.min(w, h) / 2);
         try {
           slide.addShape("roundRect", {
             x, y, w, h,
-            fill: { color: sb.fill },
+            // L'alpha CSS devient une transparency native : une carte-voile
+            // rgba(255,255,255,0.06) sur fond sombre reste un voile (et pas un
+            // aplat blanc opaque qui rend son texte clair illisible).
+            fill: {
+              color: sb.fill,
+              ...(sb.fillAlpha !== undefined && sb.fillAlpha < 1
+                ? { transparency: Math.round((1 - sb.fillAlpha) * 100) }
+                : {}),
+            },
             line: sb.border
               ? { color: sb.border.color, width: sb.border.widthPt, dashType: sb.border.dashType }
               : { type: "none" },
@@ -1021,7 +1036,40 @@ export async function exportCarouselHybridPptx(
         } catch (e) {
           console.warn("[hybrid] addShape failed for shape type", sb.type, e);
         }
-
+      };
+      // PILULES à label une-ligne : le texte est posé en wrap:false (il ne
+      // re-wrappe jamais) mais les métriques PowerPoint (mono + letter-spacing)
+      // le rendent jusqu'à ~30 % plus large que le HTML → il déborderait de la
+      // pilule (« ENTREPRI|SES » dont la fin atterrit en blanc sur fond clair,
+      // vu en prod). On élargit ces pilules d'autant ET on les pose AU-DESSUS
+      // du PNG de fond : dessinée dessous, l'extension serait cachée par les
+      // pixels opaques du PNG (le trou du masquage est à la taille HTML). Leur
+      // visuel étant entièrement retiré du PNG (bg/bordure/ombre via
+      // data-pptx-shape-hide), les poser au-dessus est visuellement équivalent.
+      const deferredPills: Array<{ sb: ShapeBlock; centered: boolean }> = [];
+      for (const sb of usableShapes) {
+        if (sb.type === "background") {
+          // Fond unique : on l'applique directement à slide.background plutôt
+          // qu'un addShape pleine slide (plus léger + édition "Format de l'arrière-plan").
+          slide.background = { color: sb.fill };
+          continue;
+        }
+        const innerLabel =
+          sb.type === "pill"
+            ? blocks.find(
+                (b) =>
+                  !b.text.includes("\n") &&
+                  b.rect.h < b.style.lineHeight * 1.6 &&
+                  b.rect.x >= sb.rect.x && b.rect.y >= sb.rect.y &&
+                  b.rect.x + b.rect.w <= sb.rect.x + sb.rect.w + 1 &&
+                  b.rect.y + b.rect.h <= sb.rect.y + sb.rect.h + 1,
+              )
+            : undefined;
+        if (innerLabel) {
+          deferredPills.push({ sb, centered: innerLabel.style.textAlign === "center" });
+          continue;
+        }
+        drawNativeShape(sb);
       }
       const shadowedCount = usableShapes.filter((s) => s.type !== "background" && s.shadow).length;
       if (shadowedCount > 0) {
@@ -1030,6 +1078,9 @@ export async function exportCarouselHybridPptx(
 
 
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
+
+      // Pilules élargies (cf. deferredPills) : au-dessus du PNG, sous le texte.
+      for (const dp of deferredPills) drawNativeShape(dp.sb, 1.3, dp.centered);
 
       // Dégradés déco : posés APRÈS le fond (donc visibles + déplaçables individuellement
       // dans Canva) et AVANT le texte (qui reste au-dessus).
