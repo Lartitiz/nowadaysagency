@@ -2,8 +2,10 @@
  * MiseEnSceneDialog — « Mettre en scène » une photo produit de la bibliothèque.
  *
  * Parcours piste A (validé en maquettes 09/07/2026) : zéro formulaire — la
- * charte guide l'ambiance, un clic génère 3 propositions (3 crédits) via
- * l'edge product-on-model (gpt-image, fidélité produit haute). Le lien
+ * charte guide l'ambiance, un clic génère 1 proposition (1 crédit) via
+ * l'edge product-on-model (gpt-image, fidélité produit haute). Le bouton
+ * « Voir 2 autres variantes » en génère 2 de plus à la demande (maîtrise des
+ * coûts 09/07/2026 : les 3 d'office triplaient la facture OpenAI). Le lien
  * « Ajuster les réglages » ouvre les choix (porté/posé, cadrage, ambiance).
  *
  * Écran résultat : la photo produit d'origine reste affichée en vis-à-vis
@@ -109,6 +111,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isAdjusting, setIsAdjusting] = useState(false);
+  const [isAddingVariants, setIsAddingVariants] = useState(false);
   const [proposals, setProposals] = useState<string[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
   const [customAdjust, setCustomAdjust] = useState("");
@@ -124,6 +127,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     setAmbiance("");
     setIsGenerating(false);
     setIsAdjusting(false);
+    setIsAddingVariants(false);
     setProposals([]);
     setSelectedIdx(0);
     setCustomAdjust("");
@@ -158,10 +162,13 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
 
   if (!photo) return null;
 
-  const busy = isGenerating || isAdjusting || isSaving;
+  const busy = isGenerating || isAdjusting || isAddingVariants || isSaving;
   const hasResult = proposals.length > 0;
 
-  async function callEdge(adjustment: string | null): Promise<string[] | null> {
+  async function callEdge(
+    adjustment: string | null,
+    variants = false,
+  ): Promise<string[] | null> {
     const { data, error } = await invokeWithTimeout(
       "product-on-model",
       {
@@ -172,9 +179,10 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
           framing,
           ambiance: ambiance.trim() || null,
           adjustment,
+          variants,
         },
       },
-      adjustment ? 160_000 : 240_000,
+      variants ? 200_000 : 160_000,
     );
 
     if (data?.error === "premium_required") {
@@ -207,6 +215,19 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (images) {
       setProposals(images);
       setSelectedIdx(0);
+    }
+  };
+
+  // 2 variantes de plus à la demande — générées depuis la photo d'origine et
+  // ajoutées aux propositions existantes.
+  const handleMoreVariants = async () => {
+    if (busy || !hasResult) return;
+    setIsAddingVariants(true);
+    const images = await callEdge(null, true);
+    setIsAddingVariants(false);
+    if (images?.length) {
+      setSelectedIdx(proposals.length);
+      setProposals((prev) => [...prev, ...images]);
     }
   };
 
@@ -348,9 +369,9 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                   </p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  3 propositions avec des personnes vraies et variées, un rendu photo
-                  spontané (jamais de flou d'arrière-plan artificiel). Compte environ une
-                  minute.
+                  Une proposition avec une personne vraie, un rendu photo spontané
+                  (jamais de flou d'arrière-plan artificiel). Compte environ une minute —
+                  tu pourras demander d'autres variantes ensuite.
                 </p>
               </div>
             </div>
@@ -428,7 +449,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
             )}
 
             <p className="text-2xs text-muted-foreground">
-              3 crédits photo pour 3 propositions. Ta photo d'origine reste intacte.
+              1 crédit photo. Ta photo d'origine reste intacte.
             </p>
 
             <DialogFooter>
@@ -444,7 +465,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                 ) : (
                   <>
                     <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                    Générer 3 propositions
+                    Générer la mise en scène
                   </>
                 )}
               </Button>
@@ -469,6 +490,27 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                 </button>
               ))}
             </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={handleMoreVariants}
+              disabled={busy}
+            >
+              {isAddingVariants ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                  Nouvelles variantes en cours…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5 mr-1.5" />
+                  Voir 2 autres variantes (2 crédits)
+                </>
+              )}
+            </Button>
 
             <div className="grid grid-cols-[1fr_120px] gap-3">
               <div className="rounded-xl overflow-hidden border border-border bg-muted/40 relative">
