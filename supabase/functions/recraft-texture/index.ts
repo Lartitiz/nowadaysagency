@@ -1,25 +1,27 @@
 /**
- * recraft-texture
+ * recraft-texture (nom historique — génération désormais PROCÉDURALE)
  *
- * Génère UNE texture de fond « matière » (papier, lin…) par marque via
- * l'API Recraft, teintée sur la couleur de fond de la charte.
+ * Génère UNE texture de fond « matière » (papier, lin…) par marque, en SVG
+ * procédural (feTurbulence) teinté sur la couleur de fond de la charte.
  * Pipeline :
- *   1. Standard auth/quota/rate-limit (category: photo_retouch)
+ *   1. Standard auth/rate-limit (category: photo_retouch, rien n'est consommé)
  *   2. Validate body + fetch brand_charter (color_background)
- *   3. Appel Recraft /v1/images/generations (retry 1× sur 5xx/timeout)
- *   4. Download image → upload bucket public brand-assets
+ *   3. Construction du SVG (recette par matière, seed propre à la marque)
+ *   4. Upload bucket public brand-assets
  *   5. Update brand_charter (texture_url, texture_material, texture_enabled)
- *   6. logUsage (uniquement après succès complet)
  *
- * La texture est générée UNE fois par marque puis réutilisée par les
- * templates (carousel-visual). Pas de génération par post.
+ * Historique : 3 itérations Recraft (realistic_image v1-v2 puis
+ * digital_illustration/grain) ont toutes produit des « scènes » (fiche
+ * produit, feuille sur table, personnage) — les modèles d'image ne savent
+ * pas produire un fond vide uniforme de façon fiable. Le procédural est
+ * déterministe, gratuit et instantané. Recraft reste utilisé pour les
+ * sujets figuratifs (lot 2 : pictos de schémas).
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { logUsage } from "../_shared/plan-limiter.ts";
 
 // ── Body schema ──
 const MATERIAL_KEYS = [
@@ -35,29 +37,78 @@ const BodySchema = z.object({
   material: z.enum(MATERIAL_KEYS),
 });
 
-// ── Prompts par matière ──
-// Style digital_illustration + substyle grain (V3 uniquement) : rendu PLAT
-// plein cadre par construction. Le style realistic_image est banni ici :
-// il génère systématiquement une « scène » (feuille posée sur une table,
-// fiche produit avec bannière) malgré tous les prompts essayés (v1→v3).
-const MATERIAL_PROMPTS: Record<(typeof MATERIAL_KEYS)[number], string> = {
-  papier_grain: "subtle fine art paper grain background, plain, uniform",
-  papier_craft:
-    "subtle kraft paper background, warm natural tone, faint fibers, plain, uniform",
-  lin: "subtle linen weave background, fine even fabric grain, plain, uniform",
-  papier_recycle:
-    "subtle recycled paper background, tiny speckles and faint fibers, plain, uniform",
-  grain_mineral: "subtle light stone grain background, soft mineral surface, plain, uniform",
+// ── Recettes procédurales par matière ──
+// Chaque recette = couches feTurbulence (grain, fibres, taches) posées en
+// voiles noir/blanc très légers sur la couleur de fond de la marque : le
+// motif vient de la matière, la teinte vient TOUJOURS de la charte.
+type NoiseLayer = {
+  baseFrequency: string;
+  octaves: number;
+  /** voile sombre (0-1) */
+  dark: number;
+  /** voile clair (0-1) */
+  light: number;
 };
 
-const NEGATIVE_PROMPT =
-  "text, letters, typography, watermark, logo, label, banner, border, frame, " +
-  "product photo, mockup, packaging, perspective, tilt, depth of field, " +
-  "paper edges, table, objects, hands, shadows, vignette";
+const MATERIAL_RECIPES: Record<(typeof MATERIAL_KEYS)[number], NoiseLayer[]> = {
+  papier_grain: [
+    { baseFrequency: "0.8", octaves: 2, dark: 0.05, light: 0.04 },
+  ],
+  papier_craft: [
+    // fibres horizontales + grain serré
+    { baseFrequency: "0.012 0.18", octaves: 2, dark: 0.06, light: 0.03 },
+    { baseFrequency: "0.9", octaves: 2, dark: 0.05, light: 0.04 },
+  ],
+  lin: [
+    // tissage : deux directions croisées
+    { baseFrequency: "0.01 0.35", octaves: 1, dark: 0.05, light: 0.03 },
+    { baseFrequency: "0.35 0.01", octaves: 1, dark: 0.05, light: 0.03 },
+  ],
+  papier_recycle: [
+    { baseFrequency: "0.7", octaves: 2, dark: 0.05, light: 0.04 },
+    // mouchetures éparses plus larges
+    { baseFrequency: "0.08", octaves: 3, dark: 0.05, light: 0 },
+  ],
+  grain_mineral: [
+    // marbrures larges très douces + grain fin
+    { baseFrequency: "0.02", octaves: 3, dark: 0.04, light: 0.04 },
+    { baseFrequency: "0.6", octaves: 2, dark: 0.03, light: 0.03 },
+  ],
+};
 
-const RECRAFT_URL = "https://external.api.recraft.ai/v1/images/generations";
-const RECRAFT_TIMEOUT_MS = 60_000;
-const RETRY_DELAY_MS = 2_000;
+const TEXTURE_W = 1080;
+const TEXTURE_H = 1350;
+
+function buildTextureSvg(material: (typeof MATERIAL_KEYS)[number], bgColor: string, seed: number): string {
+  const layers = MATERIAL_RECIPES[material];
+  const defs: string[] = [];
+  const rects: string[] = [];
+
+  layers.forEach((l, i) => {
+    // Deux filtres par couche : le bruit module l'alpha d'un voile sombre
+    // puis d'un voile clair (fonctionne sur n'importe quelle couleur de fond).
+    if (l.dark > 0) {
+      defs.push(
+        `<filter id="d${i}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${l.baseFrequency}" numOctaves="${l.octaves}" seed="${seed + i}" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.6 0.6 0.6 0 -0.55"/><feComponentTransfer><feFuncA type="linear" slope="${l.dark}"/></feComponentTransfer></filter>`,
+      );
+      rects.push(`<rect width="${TEXTURE_W}" height="${TEXTURE_H}" filter="url(#d${i})"/>`);
+    }
+    if (l.light > 0) {
+      defs.push(
+        `<filter id="l${i}" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="${l.baseFrequency}" numOctaves="${l.octaves}" seed="${seed + i + 50}" stitchTiles="stitch"/><feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0.6 0.6 0.6 0 -0.55"/><feComponentTransfer><feFuncA type="linear" slope="${l.light}"/></feComponentTransfer></filter>`,
+      );
+      rects.push(`<rect width="${TEXTURE_W}" height="${TEXTURE_H}" filter="url(#l${i})"/>`);
+    }
+  });
+
+  return (
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${TEXTURE_W}" height="${TEXTURE_H}" viewBox="0 0 ${TEXTURE_W} ${TEXTURE_H}">` +
+    `<defs>${defs.join("")}</defs>` +
+    `<rect width="${TEXTURE_W}" height="${TEXTURE_H}" fill="${bgColor}"/>` +
+    rects.join("") +
+    `</svg>`
+  );
+}
 
 serve(async (req) => {
   const t0 = Date.now();
@@ -76,10 +127,10 @@ serve(async (req) => {
   const pipe = await runPipeline(req, {
     category: "photo_retouch",
     workspaceId: workspaceIdForPipeline,
-    rateLimit: { max: 3, windowMs: 60_000 },
+    rateLimit: { max: 10, windowMs: 60_000 },
   });
   if (!pipe.ok) return pipe.response;
-  const { userId, supabase, corsHeaders, quota } = pipe;
+  const { userId, supabase, corsHeaders } = pipe;
 
   const jsonResponse = (body: unknown, status: number) =>
     new Response(JSON.stringify(body), {
@@ -114,125 +165,22 @@ serve(async (req) => {
       return jsonResponse({ error: "Erreur DB" }, 500);
     }
 
-    const bgColor = charter?.color_background || "#F6F4F0";
+    const rawBg = charter?.color_background || "#F6F4F0";
+    // Garde stricte : la couleur part telle quelle dans un SVG
+    const bgColor = /^#[0-9a-fA-F]{3,8}$/.test(rawBg) ? rawBg : "#F6F4F0";
 
-    // 4. Recraft API key
-    const recraftKey = Deno.env.get("RECRAFT_API_TOKEN");
-    if (!recraftKey) {
-      console.error("[recraft-texture] RECRAFT_API_TOKEN missing");
-      return jsonResponse({ error: "Configuration Recraft manquante" }, 500);
-    }
+    // 4. Construire le SVG (seed stable par utilisateur·rice → texture propre
+    // à la marque, reproductible d'une régénération à l'autre)
+    const seed = Array.from(userId).reduce((a, c) => (a + c.charCodeAt(0)) % 997, 7);
+    const svg = buildTextureSvg(material, bgColor, seed);
+    const textureBlob = new Blob([svg], { type: "image/svg+xml" });
 
-    const prompt =
-      `${MATERIAL_PROMPTS[material]}, tinted ${bgColor} color tone, ` +
-      "fills the entire frame, flat, minimal, muted, very low contrast";
-
-    // 5. Appel Recraft (1 retry sur 5xx/timeout)
-    const callRecraft = async (): Promise<Response> =>
-      await fetch(RECRAFT_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${recraftKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          prompt,
-          negative_prompt: NEGATIVE_PROMPT,
-          model: "recraftv3",
-          style: "digital_illustration",
-          substyle: "grain",
-          size: "1024x1024",
-          n: 1,
-        }),
-        signal: AbortSignal.timeout(RECRAFT_TIMEOUT_MS),
-      });
-
-    let recraftRes: Response | null = null;
-    let retried = false;
-    let lastError: string | null = null;
-    const recraftT0 = Date.now();
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        recraftRes = await callRecraft();
-        if (recraftRes.ok) break;
-        if (recraftRes.status >= 500 && attempt === 0) {
-          await recraftRes.text().catch(() => "");
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        break;
-      } catch (e) {
-        const isTimeout = e instanceof DOMException && e.name === "TimeoutError";
-        lastError = isTimeout ? "Recraft timeout" : (e instanceof Error ? e.message : "fetch error");
-        if (attempt === 0 && (isTimeout || (e instanceof Error && e.name === "TypeError"))) {
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        recraftRes = null;
-        break;
-      }
-    }
-
-    const recraftMs = Date.now() - recraftT0;
-
-    if (!recraftRes) {
-      console.error(JSON.stringify({
-        event: "recraft_texture_failed",
-        reason: "network_or_timeout",
-        user_id: userId, retried, last_error: lastError, recraft_ms: recraftMs,
-      }));
-      return jsonResponse({ error: "Recraft temporairement indisponible" }, 502);
-    }
-
-    if (!recraftRes.ok) {
-      const errBody = await recraftRes.text().catch(() => "");
-      let friendly = `Erreur Recraft (status ${recraftRes.status})`;
-      if (recraftRes.status === 401 || recraftRes.status === 403) {
-        friendly = "Clé API Recraft invalide";
-      } else if (recraftRes.status === 429) {
-        friendly = "Limite Recraft atteinte, réessaie dans 1 min";
-      } else if (recraftRes.status === 400 || recraftRes.status === 422) {
-        // Détail volontairement exposé : sans accès aux logs edge, c'est le
-        // seul moyen de diagnostiquer un paramètre refusé (style, substyle…).
-        friendly = `Recraft a refusé la demande : ${errBody.slice(0, 300)}`;
-      } else if (recraftRes.status >= 500) {
-        friendly = "Recraft temporairement indisponible";
-      }
-      console.error(JSON.stringify({
-        event: "recraft_texture_failed",
-        reason: "recraft_http_error",
-        user_id: userId, retried,
-        recraft_status: recraftRes.status,
-        recraft_body: errBody.slice(0, 500),
-        recraft_ms: recraftMs,
-      }));
-      return jsonResponse({ error: friendly }, 502);
-    }
-
-    // 6. Récupérer l'URL de l'image générée puis la télécharger
-    const recraftJson = await recraftRes.json().catch(() => null);
-    const imageUrl: string | undefined = recraftJson?.data?.[0]?.url;
-    if (!imageUrl) {
-      console.error("[recraft-texture] réponse Recraft sans URL:", JSON.stringify(recraftJson).slice(0, 300));
-      return jsonResponse({ error: "Réponse Recraft invalide" }, 502);
-    }
-
-    const imgRes = await fetch(imageUrl, { signal: AbortSignal.timeout(30_000) });
-    if (!imgRes.ok) {
-      console.error("[recraft-texture] download error:", imgRes.status);
-      return jsonResponse({ error: "Téléchargement de la texture impossible" }, 502);
-    }
-    const textureBlob = await imgRes.blob();
-
-    // 7. Upload dans le bucket public brand-assets
-    const texturePath = `${userId}/texture-${material}-${Date.now()}.png`;
+    // 5. Upload dans le bucket public brand-assets
+    const texturePath = `${userId}/texture-${material}-${Date.now()}.svg`;
     const { error: upErr } = await supabase.storage
       .from("brand-assets")
       .upload(texturePath, textureBlob, {
-        contentType: textureBlob.type || "image/png",
+        contentType: "image/svg+xml",
         upsert: true,
       });
 
@@ -244,7 +192,7 @@ serve(async (req) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const textureUrl = `${supabaseUrl}/storage/v1/object/public/brand-assets/${texturePath}`;
 
-    // 8. Update brand_charter (upsert si la charte n'existe pas encore)
+    // 6. Update brand_charter (upsert si la charte n'existe pas encore)
     if (charter?.id) {
       const { error: updErr } = await supabase
         .from("brand_charter")
@@ -273,25 +221,17 @@ serve(async (req) => {
       }
     }
 
-    // 9. Log usage (uniquement après succès complet)
-    await logUsage(
-      userId,
-      "photo_retouch",
-      "brand_texture",
-      undefined,
-      "recraft-v3",
-      bodyWorkspaceId ?? undefined
-    );
+    // Pas de logUsage : génération procédurale, aucun coût — aucun crédit
+    // consommé.
 
     console.log(JSON.stringify({
       event: "recraft_texture_success",
       user_id: userId,
       workspace_id: bodyWorkspaceId,
       material,
-      recraft_ms: recraftMs,
+      procedural: true,
       total_ms: Date.now() - t0,
-      output_bytes: textureBlob.size,
-      retry_used: retried,
+      output_bytes: svg.length,
     }));
 
     return jsonResponse(
@@ -299,8 +239,6 @@ serve(async (req) => {
         success: true,
         texture_url: textureUrl,
         material,
-        remaining: quota?.remaining,
-        remaining_total: quota?.remaining_total,
       },
       200
     );
