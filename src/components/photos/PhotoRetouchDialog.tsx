@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { useRetouchExistingPhoto } from "@/hooks/use-user-photos";
 import { getSignedPhotoUrl, type UserPhotoRow } from "@/lib/photo-storage";
-import { PROMPT_SUGGESTIONS } from "@/components/photos/PhotoUploadDialog";
+import { useBackgroundSuggestions } from "@/hooks/use-background-suggestions";
 
 interface PhotoRetouchDialogProps {
   photo: UserPhotoRow | null;
@@ -35,6 +35,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
   const [prompt, setPrompt] = useState("");
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { mutate, isPending } = useRetouchExistingPhoto();
+  const suggestions = useBackgroundSuggestions();
 
   // On repart de l'originale (before) comme aperçu quand la photo est déjà
   // retouchée, sinon de son unique fichier.
@@ -76,7 +77,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Retoucher cette photo
+            Modifier le fond de la photo
           </DialogTitle>
           <DialogDescription>
             Décris le décor que tu veux derrière ton sujet — l'IA remplace le fond. Ta photo
@@ -116,7 +117,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
               disabled={isPending}
             />
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {PROMPT_SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   type="button"
@@ -142,7 +143,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" /> Lancer la retouche
+                <Sparkles className="h-4 w-4 mr-2" /> Générer le nouveau fond
               </>
             )}
           </Button>

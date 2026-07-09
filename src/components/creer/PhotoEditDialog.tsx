@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useBackgroundSuggestions } from "@/hooks/use-background-suggestions";
 
 export interface PhotoEditDialogProps {
   open: boolean;
@@ -33,6 +34,8 @@ interface Preset {
   prompt?: string;
 }
 
+// Presets fonctionnels toujours proposés ; les idées de décor sont construites
+// depuis le branding (charte visuelle) via useBackgroundSuggestions.
 const PRESETS: Preset[] = [
   {
     key: "transparent",
@@ -44,12 +47,6 @@ const PRESETS: Preset[] = [
     label: "Fond studio blanc",
     mode: "replace_bg",
     prompt: "clean white studio background, soft natural shadow under the subject",
-  },
-  {
-    key: "golden_hour",
-    label: "Lumière dorée",
-    mode: "replace_bg",
-    prompt: "warm golden hour lighting, soft bokeh background, cozy ambient light",
   },
 ];
 
@@ -72,6 +69,7 @@ export function PhotoEditDialog({
   onApply,
 }: PhotoEditDialogProps) {
   const { activeWorkspace } = useWorkspace();
+  const brandSuggestions = useBackgroundSuggestions();
 
   const [prompt, setPrompt] = useState("");
   const [selectedPreset, setSelectedPreset] = useState<string | null>(null);
@@ -91,10 +89,21 @@ export function PhotoEditDialog({
     }
   }, [open]);
 
+  // Presets fonctionnels + idées de décor alignées sur la charte de la personne
+  const presets: Preset[] = [
+    ...PRESETS,
+    ...brandSuggestions.slice(0, 3).map((s, i) => ({
+      key: `branding_${i}`,
+      label: s,
+      mode: "replace_bg" as const,
+      prompt: s,
+    })),
+  ];
+
   const handlePreset = (key: string) => {
     setSelectedPreset(key);
     setBgImageBase64(null);
-    const p = PRESETS.find((p) => p.key === key);
+    const p = presets.find((p) => p.key === key);
     if (p?.mode === "replace_bg" && p.prompt) {
       setPrompt(p.prompt);
     } else if (p?.mode === "remove_bg") {
@@ -139,7 +148,7 @@ export function PhotoEditDialog({
 
   const handleGenerate = async () => {
     const preset = selectedPreset
-      ? PRESETS.find((p) => p.key === selectedPreset)
+      ? presets.find((p) => p.key === selectedPreset)
       : null;
 
     let mode: "remove_bg" | "replace_bg" = "replace_bg";
@@ -154,7 +163,7 @@ export function PhotoEditDialog({
     } else if (finalPrompt.length < 3) {
       toast.error("Décris d'abord ton fond", {
         description:
-          "Choisis un preset, uploade une image de fond, ou écris quelques mots (ex : plage au coucher du soleil).",
+          "Choisis une idée de décor, ajoute ta propre image de fond, ou écris quelques mots (ex : plage au coucher du soleil).",
       });
       return;
     }
@@ -209,7 +218,8 @@ export function PhotoEditDialog({
             Modifier le fond
           </DialogTitle>
           <DialogDescription>
-            L'IA détoure ta photo et remplace l'arrière-plan. Choisis un preset, uploade une image de fond, ou décris ce que tu veux.
+            L'IA détoure ta photo et remplace l'arrière-plan. Choisis une idée de décor, ajoute
+            ta propre image de fond, ou décris ce que tu veux.
           </DialogDescription>
         </DialogHeader>
 
@@ -258,7 +268,7 @@ export function PhotoEditDialog({
         <div className="space-y-2">
           <p className="text-xs font-medium text-foreground">Idées rapides</p>
           <div className="flex flex-wrap gap-2">
-            {PRESETS.map((p) => (
+            {presets.map((p) => (
               <button
                 key={p.key}
                 type="button"

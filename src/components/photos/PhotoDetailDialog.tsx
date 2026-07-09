@@ -237,7 +237,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
         <div className="flex flex-wrap justify-end gap-2">
           {photo.status === "ready" && onRetouche && (
             <Button variant="outline" onClick={() => onRetouche(photo)}>
-              <Wand2 className="h-4 w-4 mr-2" /> Retouche IA
+              <Wand2 className="h-4 w-4 mr-2" /> Modifier le fond
             </Button>
           )}
           {photo.status === "ready" && isProductPhoto && onPackshot && (
