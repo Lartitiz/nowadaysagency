@@ -105,7 +105,11 @@ Deno.serve(async (req) => {
 
       // Connexions sociales : expirées, expirant sous 7 j, et LinkedIn vieillissantes
       // sans date d'expiration connue (refresh manuel ~60 j — alerter à 50 j d'âge).
+      // ⚠️ Seulement Instagram + LinkedIn : Canva/Pinterest se rafraîchissent via
+      // refresh_token, leur token_expires_at en base est trompeur — même règle que
+      // la page Connexions (PR #306), sinon faux positif quotidien.
       const connState = (c: any) => {
+        if (c.platform !== "instagram" && c.platform !== "linkedin") return null;
         if (c.token_expires_at) {
           const left = (new Date(c.token_expires_at).getTime() - now) / DAY;
           if (left < 0) return { etat: "expirée", jours: Math.round(left) };
