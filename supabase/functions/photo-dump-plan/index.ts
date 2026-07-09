@@ -26,7 +26,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { callAnthropic, AnthropicError } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, SONNET_MODEL } from "../_shared/anthropic.ts";
 
 const BodySchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -166,7 +166,7 @@ serve(async (req) => {
     if (ch.moodboard_description) brandLines.push(`Ambiance : ${ch.moodboard_description}`);
 
     const raw = await callAnthropic({
-      model: "claude-sonnet-4-6",
+      model: SONNET_MODEL,
       system:
         "Tu composes des « photo dumps » Instagram : des carrousels 100 % photos, spontanés, qui racontent une histoire vécue — jamais un catalogue commercial. Codes du format : 6-8 slides, arc narratif (ouverture qui pose la scène → moments qui se suivent → une respiration → une chute qui reboucle), le produit n'est frontal que sur 2 slides MAX, une slide mouvement/floue assumée, variété d'échelles (large, détail, geste). Le VRAI passe avant le généré : privilégie les photos du catalogue quand elles collent au beat. INTERDIT ABSOLU : générer une personne pour incarner l'utilisatrice ou son équipe (source generate_porte = uniquement un produit porté par un mannequin anonyme, et seulement si le catalogue contient des photos produit).",
       messages: [

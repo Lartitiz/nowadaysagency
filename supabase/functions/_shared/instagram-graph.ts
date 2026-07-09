@@ -3,7 +3,7 @@
 // social_connections. Réutilisé par la publication programmée (social-publish-scheduled).
 import { encryptToken } from "./token-crypto.ts";
 
-const GRAPH = "https://graph.instagram.com/v21.0";
+const GRAPH = "https://graph.instagram.com/v23.0";
 const REFRESH_THRESHOLD_MS = 7 * 24 * 3600 * 1000;
 
 export async function refreshTokenIfNeeded(supabase: any, conn: any): Promise<string> {

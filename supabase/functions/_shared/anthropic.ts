@@ -25,11 +25,28 @@ export function sanitizeDashesDeep<T>(value: T): T {
   return value;
 }
 
-export type AnthropicModel = "claude-opus-4-8" | "claude-sonnet-4-6" | "claude-haiku-4-5";
+export type AnthropicModel =
+  | "claude-opus-4-8"
+  | "claude-sonnet-4-6"
+  | "claude-sonnet-5"
+  | "claude-haiku-4-5";
 
 export function getDefaultModel(): AnthropicModel {
   return (Deno.env.get("AI_MODEL_DEFAULT") as AnthropicModel) || "claude-sonnet-4-6";
 }
+
+/**
+ * Tier « Sonnet » configurable (même patron que `AI_MODEL_QUESTIONS`). Permet de
+ * re-benchmarker Sonnet 5 en heure creuse via un simple secret Lovable
+ * `AI_MODEL_SONNET=claude-sonnet-5` (rollback instantané en le retirant). Défaut =
+ * Sonnet 4.6 → AUCUN changement de comportement tant que le secret n'est pas posé.
+ * Point de vérité unique : `getModelForAction` remappe toute sortie Sonnet 4.6 ici,
+ * + les 3 littéraux Sonnet hors MODEL_MAP (carrousel visuel, passe de correction Max,
+ * photo-dump). ⚠️ Sonnet 5 REJETTE `temperature` (400, cf MODELS_REJECTING_SAMPLING)
+ * ET active le thinking ADAPTATIF quand le champ est omis (cf MODELS_THINKING_ON).
+ */
+export const SONNET_MODEL: AnthropicModel =
+  (Deno.env.get("AI_MODEL_SONNET") as AnthropicModel) || "claude-sonnet-4-6";
 
 /**
  * Opus 4.8 (et 4.7) REJETTENT les paramètres d'échantillonnage (temperature,
@@ -40,10 +57,28 @@ export function getDefaultModel(): AnthropicModel {
 const MODELS_REJECTING_SAMPLING = new Set<string>([
   "claude-opus-4-8",
   "claude-opus-4-7",
+  // Sonnet 5 rejette lui aussi temperature/top_p/top_k (valeur non-défaut → 400).
+  "claude-sonnet-5",
 ]);
 
 export function supportsTemperature(model: string): boolean {
   return !MODELS_REJECTING_SAMPLING.has(model);
+}
+
+/**
+ * Certains modèles activent le thinking ADAPTATIF quand le champ `thinking` est OMIS
+ * (Sonnet 5 : omission ⇒ adaptatif ON ; ≠ Sonnet 4.6 / Opus 4.8 où omission ⇒ off).
+ * Comme ce code n'envoie jamais `thinking`, on force `disabled` pour ces modèles afin
+ * de préserver le comportement historique (sortie directe, sans latence ni blocs de
+ * réflexion non gérés par le parsing JSON). N'affecte que Sonnet 5 → no-op tant que
+ * `AI_MODEL_SONNET` n'est pas basculé.
+ */
+const MODELS_THINKING_ON_WHEN_OMITTED = new Set<string>([
+  "claude-sonnet-5",
+]);
+
+export function forcesDisabledThinking(model: string): boolean {
+  return MODELS_THINKING_ON_WHEN_OMITTED.has(model);
 }
 
 /**
@@ -141,7 +176,11 @@ const MODEL_MAP: Record<string, AnthropicModel> = {
 };
 
 export function getModelForAction(action: string): AnthropicModel {
-  return MODEL_MAP[action] || getDefaultModel();
+  const model = MODEL_MAP[action] || getDefaultModel();
+  // Point de bascule unique du tier Sonnet : toute action mappée sur Sonnet 4.6 suit
+  // `AI_MODEL_SONNET` (défaut 4.6 = no-op). Couvre content/caption/carousel/reels/
+  // stories/linkedin_post/… d'un seul geste, sans éditer les 20 littéraux du MODEL_MAP.
+  return model === "claude-sonnet-4-6" ? SONNET_MODEL : model;
 }
 
 /**
@@ -203,6 +242,11 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     messages: prepareMessages(options.model, options.messages),
     max_tokens: options.max_tokens || 4096,
   };
+
+  // Sonnet 5 : thinking adaptatif ON si omis → on force `disabled` (comportement historique).
+  if (forcesDisabledThinking(options.model)) {
+    body.thinking = { type: "disabled" };
+  }
 
   if (options.system) {
     body.system = [
@@ -382,6 +426,11 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     messages: prepareMessages(options.model, options.messages),
     max_tokens: options.max_tokens || 4096,
   };
+
+  // Sonnet 5 : thinking adaptatif ON si omis → on force `disabled` (comportement historique).
+  if (forcesDisabledThinking(options.model)) {
+    body.thinking = { type: "disabled" };
+  }
 
   if (options.tool) {
     body.tools = [options.tool];
