@@ -108,9 +108,9 @@ export default function LinkedInCommentStrategy() {
             ))}
           </div>
 
-          <div className="flex gap-2">
-            <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nom du compte" className="flex-1" onKeyDown={(e) => e.key === "Enter" && addAccount()} />
-            <Input value={newNiche} onChange={(e) => setNewNiche(e.target.value)} placeholder="Niche (optionnel)" className="w-40" onKeyDown={(e) => e.key === "Enter" && addAccount()} />
+          <div className="flex flex-wrap gap-2">
+            <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Nom du compte" className="flex-1 min-w-40" onKeyDown={(e) => e.key === "Enter" && addAccount()} />
+            <Input value={newNiche} onChange={(e) => setNewNiche(e.target.value)} placeholder="Niche (optionnel)" className="w-48" onKeyDown={(e) => e.key === "Enter" && addAccount()} />
             <Button onClick={addAccount} variant="outline" className="rounded-full gap-1.5">
               <Plus className="h-4 w-4" /> Ajouter
             </Button>
