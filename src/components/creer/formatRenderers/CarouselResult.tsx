@@ -144,7 +144,7 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
 }
 
 /** Aperçu d'une slide : le HTML 1080×1350 mis à l'échelle dans une iframe. */
-function SlideFramePreview({ html, title, width = 180 }: { html: string; title: string; width?: number }) {
+export function SlideFramePreview({ html, title, width = 180 }: { html: string; title: string; width?: number }) {
   return (
     <div
       className="relative overflow-hidden rounded-lg border border-border shrink-0"
