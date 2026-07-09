@@ -2,7 +2,8 @@
  * Santé de l'app — lecture de l'edge `cron-health`.
  *
  * Sans argument : scope "daily" (étape 8bis de la visite quotidienne) — santé des
- * publications réelles (échecs, posts bloqués, programmés en retard, tokens sociaux).
+ * publications réelles (échecs, posts bloqués, programmés en retard, tokens sociaux)
+ * + retours bêta des 24 h (widget beta_feedback), les « blocking » en tête.
  * Avec `--hebdo` : scope "weekly" (routine du lundi) — coûts IA, usage features,
  * rétention par cohorte, volume de publications.
  *
@@ -56,6 +57,20 @@ try {
     console.log(`   publiés dans les 24 h          : ${d.published_24h}`);
     console.log(`   connexions sociales à risque   : ${(d.connections_at_risk || []).length} / ${d.connections_total}`);
     for (const c of d.connections_at_risk || []) console.log(`      ⚠️ ${c.platform} (${c.compte || "?"}) — ${c.etat} (${c.jours} j)`);
+    if (d.feedback_24h) {
+      const items = d.feedback_24h.items || [];
+      const blocking = items.filter((f) => f.severite === "blocking").length;
+      console.log(`   feedbacks bêta (24 h)          : ${d.feedback_24h.count}${blocking ? `  🔴 dont ${blocking} BLOQUANT(S)` : ""}`);
+      for (const f of items) {
+        const icone = f.severite === "blocking" ? "🔴" : f.type === "bug" ? "🟡" : "💡";
+        const sev = f.severite ? ` [${f.severite}]` : "";
+        console.log(`      ${icone} ${f.type}${sev} — « ${f.contenu} »${f.page ? ` (page ${f.page})` : ""}${f.capture ? " 📎 capture" : ""} — ${f.quand}`);
+        if (f.detail) console.log(`         ↳ ${f.detail}`);
+      }
+      if (d.feedback_new_total > d.feedback_24h.count) {
+        console.log(`   feedbacks encore « new » (tous âges) : ${d.feedback_new_total}  ⚠️ des plus anciens jamais traités dans l'onglet admin`);
+      }
+    }
   } else {
     const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
     const delta = (cur, prev) => (prev ? `${cur >= prev ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)}%` : "n/a");
