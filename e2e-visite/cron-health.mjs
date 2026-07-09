@@ -63,6 +63,11 @@ try {
     console.log("📈 Bilan hebdo (source Supabase — hors comptes test)");
     console.log(`   IA 7 j : ${cur.appels} appels / ${cur.tokens} tokens / ${cur.utilisatrices} utilisatrices  (vs S-1 : ${delta(cur.appels, prev.appels)} appels, ${delta(cur.tokens, prev.tokens)} tokens)`);
     for (const [m, v] of Object.entries(cur.byModel || {})) console.log(`      modèle ${m} : ${v.appels} appels, ${v.tokens} tokens`);
+    if (cur.cout_total_estime_eur != null) {
+      console.log(
+        `   coût estimé 7 j : ${cur.cout_total_estime_eur} € (texte ${cur.cout_texte_estime_eur} € + images ${cur.cout_images_estime_eur} €)  (S-1 : ${prev.cout_total_estime_eur ?? "?"} €)`
+      );
+    }
     console.log("   top actions 7 j (vs S-1) :");
     const prevActions = Object.fromEntries((prev.topActions || []).map((a) => [a.action, a.count]));
     for (const a of cur.topActions || []) console.log(`      ${String(a.action).padEnd(28)} ${String(a.count).padStart(4)}  (S-1 : ${prevActions[a.action] ?? 0})`);
