@@ -2,11 +2,15 @@
  * photoroom-edit
  *
  * Stateless variant of photo-background-replace.
- * Takes a raw base64 image + mode (remove_bg | replace_bg) and returns
- * the edited image as base64. Does NOT persist anything to storage or DB.
+ * Takes a raw base64 image + mode (remove_bg | replace_bg | packshot) and
+ * returns the edited image as base64. Does NOT persist anything to storage or DB.
  *
  * Used by PhotoUploadZone where photos live only in memory until the user
- * validates the brief.
+ * validates the brief, and by PackshotDialog (bibliothèque photos).
+ *
+ * Mode packshot : fond blanc pur e-commerce via background.color (déterministe,
+ * aucun prompt IA), cadrage carré 2000x2000 avec marges optionnel, ombre douce
+ * optionnelle. Conforme aux specs marketplace (fond blanc uni, JPEG, ≥1600px).
  *
  * Uses Photoroom Image Editing v2.
  *
@@ -22,14 +26,16 @@ import { logUsage } from "../_shared/plan-limiter.ts";
 const BodySchema = z
   .object({
     image_base64: z.string().min(100), // data URL or raw base64
-    mode: z.enum(["remove_bg", "replace_bg"]),
+    mode: z.enum(["remove_bg", "replace_bg", "packshot"]),
     prompt: z.string().max(500).optional(),
     background_image_base64: z.string().min(100).optional(),
+    packshot_square: z.boolean().optional(),
+    packshot_shadow: z.boolean().optional(),
     workspace_id: z.string().uuid().optional().nullable(),
   })
   .refine(
     (d) =>
-      d.mode === "remove_bg" ||
+      d.mode !== "replace_bg" ||
       (d.prompt && d.prompt.trim().length >= 3) ||
       (d.background_image_base64 && d.background_image_base64.length >= 100),
     { message: "Un prompt (≥3 caractères) ou une image de fond est requis pour replace_bg" }
@@ -127,9 +133,29 @@ serve(async (req) => {
     const callPhotoroom = async (): Promise<Response> => {
       const fd = new FormData();
       fd.append("imageFile", inputBlob, "input." + (imgMime.split("/")[1] || "jpg"));
-      fd.append("referenceBox", "originalImage");
       fd.append("removeBackground", "true");
-      fd.append("outputSize", "originalImage");
+
+      if (parsed.mode === "packshot") {
+        // Fond blanc pur déterministe (jamais via prompt : résultat garanti)
+        fd.append("background.color", "FFFFFF");
+        if (parsed.packshot_shadow) {
+          fd.append("shadow.mode", "ai.soft");
+        }
+        if (parsed.packshot_square !== false) {
+          // Cadrage marketplace : carré 2000px, produit centré, ~10 % de marge
+          fd.append("referenceBox", "subjectBox");
+          fd.append("outputSize", "2000x2000");
+          fd.append("padding", "0.1");
+          fd.append("scaling", "fit");
+        } else {
+          fd.append("referenceBox", "originalImage");
+          fd.append("outputSize", "originalImage");
+        }
+        fd.append("export.format", "jpg");
+      } else {
+        fd.append("referenceBox", "originalImage");
+        fd.append("outputSize", "originalImage");
+      }
 
       if (parsed.mode === "replace_bg") {
         if (parsed.background_image_base64) {
