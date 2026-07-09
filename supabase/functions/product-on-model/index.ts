@@ -106,7 +106,14 @@ function buildPrompt(opts: {
   );
 
   lines.push(
-    "CAPTURE: deep depth of field, EVERYTHING in sharp focus from foreground to background (small phone sensor look). Natural daylight, true-to-life colors, fine visible grain, slightly off-center framing. At most 1-2 honest imperfections (slight motion blur OR slightly tilted horizon)."
+    "CAPTURE: deep depth of field, EVERYTHING in sharp focus from foreground to background, as if shot at f/11 on a phone (small sensor look). Every element of the background must stay crisp, detailed and readable — walls, furniture, objects, textures. Natural daylight, true-to-life colors, fine visible grain, slightly off-center framing. At most 1-2 honest imperfections (slight motion blur OR slightly tilted horizon)."
+  );
+
+  // 🔑 En édition fidélité haute, le modèle hérite du STYLE OPTIQUE de la photo
+  // source : si elle a du bokeh, il revient malgré la consigne (vu le 09/07 sur
+  // un bol en grès). L'override doit être explicite.
+  lines.push(
+    "IMPORTANT: if the source photo has any background blur or shallow depth of field, do NOT reproduce it — re-render the whole scene with a fully sharp background. Only the product itself must be preserved from the source, never its optical style."
   );
 
   lines.push(
