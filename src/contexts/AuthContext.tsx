@@ -41,6 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [isDemoMode]);
 
   async function resolvePostAuthRoute(userId: string): Promise<string> {
+    // Inscription fraîche (marqueur posé par SignupForm avant signUp) : route
+    // déterministe vers /onboarding, sans lire profiles/user_plan_config — au
+    // SIGNED_IN post-signup, la ligne profiles n'existe souvent PAS ENCORE
+    // (insert en cours dans SignupForm) → statut "unknown" → /welcome → /dashboard.
+    try {
+      if (sessionStorage.getItem("lac_fresh_signup")) {
+        sessionStorage.removeItem("lac_fresh_signup");
+        return "/onboarding";
+      }
+    } catch { /* storage indisponible — résolution normale */ }
     try {
       const status = await resolveOnboardingStatus({
         profileUserId: userId,

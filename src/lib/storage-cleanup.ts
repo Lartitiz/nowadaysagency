@@ -6,6 +6,7 @@
 
 // Clés sessionStorage à clé fixe utilisées dans l'app
 const SESSION_KEYS = [
+  "lac_fresh_signup",
   "creer_flow_state",
   "creer_unifie_result",
   "creer_flow_photos",

@@ -89,16 +89,35 @@ function buildRecommendation(
 
   // P1 – Onboarding not done
   if (!onboardingDone) {
-    return {
-      title: "Termine ton diagnostic",
-      explanation: "Ton diagnostic n'est pas fini — 10 min pour avoir ta vraie feuille de route.",
-      ctaLabel: "Reprendre →",
-      ctaRoute: "/onboarding",
-      icon: "ClipboardCheck",
-      alternatives: [
-        { title: "Explorer l'outil librement", route: "/dashboard/complet", icon: "LayoutGrid" },
-      ],
-    };
+    // « Reprendre » seulement si un brouillon de diagnostic existe sur cet
+    // appareil (lac_onboarding_step, posé dès la 1re étape — cf use-onboarding).
+    // Sinon « Ton diagnostic n'est pas fini » est trompeur pour une inscrite
+    // qui ne l'a jamais commencé.
+    let started = false;
+    try {
+      started = !!localStorage.getItem("lac_onboarding_step");
+    } catch { /* storage indisponible — wording « jamais commencé » */ }
+    return started
+      ? {
+          title: "Termine ton diagnostic",
+          explanation: "Ton diagnostic n'est pas fini — 10 min pour avoir ta vraie feuille de route.",
+          ctaLabel: "Reprendre →",
+          ctaRoute: "/onboarding",
+          icon: "ClipboardCheck",
+          alternatives: [
+            { title: "Explorer l'outil librement", route: "/dashboard/complet", icon: "LayoutGrid" },
+          ],
+        }
+      : {
+          title: "Fais ton diagnostic",
+          explanation: "10 min de questions pour obtenir ta feuille de route personnalisée.",
+          ctaLabel: "Commencer →",
+          ctaRoute: "/onboarding",
+          icon: "ClipboardCheck",
+          alternatives: [
+            { title: "Explorer l'outil librement", route: "/dashboard/complet", icon: "LayoutGrid" },
+          ],
+        };
   }
 
   // P2 – Pas encore de contenu créé : pousser la création en priorité
