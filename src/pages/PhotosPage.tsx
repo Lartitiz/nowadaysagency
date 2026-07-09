@@ -210,7 +210,7 @@ export default function PhotosPage() {
           </div>
           <div className="flex gap-2 shrink-0 self-start">
             <Button variant="outline" onClick={() => setRetoucheOpen(true)} disabled={!wsReady}>
-              <Sparkles className="h-4 w-4 mr-2" /> Retouche IA
+              <Sparkles className="h-4 w-4 mr-2" /> Changer un fond
             </Button>
             <Button onClick={openFilePicker} disabled={!wsReady || uploading}>
               {uploading ? (

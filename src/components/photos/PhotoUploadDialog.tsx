@@ -21,20 +21,13 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCreatePhotoRetouch } from "@/hooks/use-user-photos";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useBackgroundSuggestions } from "@/hooks/use-background-suggestions";
 import { convertHeicIfNeeded, isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
 
 interface PhotoUploadDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }
-
-export const PROMPT_SUGGESTIONS = [
-  "Studio photo lumière douce, fond beige uni",
-  "Atelier d'artiste, lumière naturelle, plantes en arrière-plan",
-  "Plage tropicale au coucher du soleil, palmiers flous",
-  "Café cosy parisien, ambiance chaleureuse, bokeh",
-  "Bureau minimaliste scandinave, bois clair et blanc",
-];
 
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
@@ -48,6 +41,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
 
   const { mutate, isPending } = useCreatePhotoRetouch();
   const { activeWorkspace, loading: wsLoading } = useWorkspace();
+  const suggestions = useBackgroundSuggestions();
   const ready = !!activeWorkspace && !wsLoading;
 
   function reset() {
@@ -126,10 +120,11 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Nouvelle photo retouchée
+            Importer une photo et changer son fond
           </DialogTitle>
           <DialogDescription>
-            Importe une photo, décris le décor que tu veux derrière, et l'IA s'occupe du reste.
+            Importe une photo, décris le décor que tu veux derrière ton sujet, et l'IA remplace
+            le fond.
           </DialogDescription>
         </DialogHeader>
 
@@ -216,7 +211,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
               disabled={isPending}
             />
             <div className="flex flex-wrap gap-1.5 pt-1">
-              {PROMPT_SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s}
                   type="button"
