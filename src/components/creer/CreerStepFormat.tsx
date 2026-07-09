@@ -51,7 +51,7 @@ function getPhotoToggleCopy(format: string): { title: string; subtitle: string }
     case "reel":
       return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour le hook et le script — ton idée reste le sujet" };
     case "story":
-      return { title: "📸 Mes stories s'appuient sur mes photos", subtitle: "Choisis-les dans ta bibliothèque ou ajoute-les : l'IA met la bonne photo en fond de la bonne story" };
+      return { title: "📸 J'ai des photos précises à utiliser", subtitle: "Optionnel : sans rien ajouter, chaque story sera illustrée automatiquement (ta bibliothèque d'abord, banques d'images sinon)" };
     case "linkedin":
       return { title: "📸 J'attache une photo à mon post", subtitle: "Ta photo appuie ton propos — l'IA écrit sur ton sujet, pas une description du visuel" };
     case "newsletter":
