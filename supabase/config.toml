@@ -272,3 +272,6 @@ verify_jwt = false
 
 [functions.social-publish-scheduled]
 verify_jwt = false
+
+[functions.product-on-model]
+verify_jwt = false
