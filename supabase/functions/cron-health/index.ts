@@ -22,6 +22,11 @@ const EXCLUDED_EMAILS = [
 ];
 const isExcludedEmail = (e: string | null) =>
   !!e && (EXCLUDED_EMAILS.includes(e) || /^laetitia\+cs/i.test(e));
+// Le scope daily surveille les publications RÉELLES : le compte admin de Laetitia y
+// reste inclus (c'est notamment SA connexion LinkedIn ~60 j qu'il faut attraper) —
+// seuls les comptes de test en sortent. Le scope weekly exclut aussi l'admin (stats).
+const isTestEmail = (e: string | null) =>
+  !!e && ((e !== ADMIN_EMAIL && EXCLUDED_EMAILS.includes(e)) || /^laetitia\+cs/i.test(e));
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -49,8 +54,9 @@ Deno.serve(async (req) => {
 
     const profRes = await supabase.from("profiles").select("user_id, email, created_at");
     if (profRes.error) throw profRes.error;
+    const excludeFn = scope === "daily" ? isTestEmail : isExcludedEmail;
     const excludedIds = new Set(
-      (profRes.data || []).filter((p: any) => isExcludedEmail(p.email)).map((p: any) => p.user_id),
+      (profRes.data || []).filter((p: any) => excludeFn(p.email)).map((p: any) => p.user_id),
     );
     const isClient = (userId: string) => !excludedIds.has(userId);
     const now = Date.now();
