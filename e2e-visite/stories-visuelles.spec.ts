@@ -102,12 +102,23 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   await expect(page.getByRole("button", { name: /télécharger les visuels/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /ouvrir dans canva/i })).toBeVisible();
 
-  // Export PPTX natif : le téléchargement doit aboutir (fichier .pptx non vide)
+  // Export PPTX natif : téléchargement + validation de CONTENU (jszip) — le nom
+  // de fichier ne suffit pas, cf. e2e-visite/pptx-validate.ts.
   const dlPromise = page.waitForEvent("download", { timeout: 120_000 });
   await page.getByRole("button", { name: /pptx éditable/i }).click();
   const download = await dlPromise;
   console.log(`PPTX téléchargé : ${download.suggestedFilename()}`);
   expect(download.suggestedFilename()).toMatch(/\.pptx$/);
+  const pptxPath = path.join(__dirname, "results", "export-stories.pptx");
+  fs.mkdirSync(path.dirname(pptxPath), { recursive: true });
+  await download.saveAs(pptxPath);
+  // Stories = exporter NATIF pur (pas d'html2canvas) : pas d'image de fond par
+  // slide attendue, mais le texte éditable doit être là.
+  const { validatePptx } = await import("./pptx-validate");
+  const report = await validatePptx(pptxPath, { minSlides: 1, expectEditableText: true });
+  const realProblems = report.problems.filter((p) => !p.includes("image(s) pour"));
+  console.log(`📦 PPTX stories : ${report.slideCount} slides, ${report.texts.filter((t) => t.trim()).length} runs de texte`);
+  expect(realProblems, `Défauts PPTX stories : ${realProblems.join(" | ")}`).toEqual([]);
 
   // « Publier sur Instagram » ne doit PAS être actif pour une story : l'edge
   // social-instagram-publish ne gère que le feed, une story partirait en post feed.
