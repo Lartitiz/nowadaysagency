@@ -4,8 +4,8 @@
 // scope "daily"  : santé des publications réelles — posts en échec, posts bloqués,
 //                  programmés en retard (= cron pg de publication mort ?), tokens
 //                  sociaux expirés/expirants (LinkedIn ne se refresh pas seul, ~60 j).
-// scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), coût images
-//                  estimé en € (gpt-image/Photoroom/Recraft), usage des features
+// scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), coûts estimés
+//                  en € (texte Anthropic + images gpt-image/Photoroom/Recraft), usage
 //                  (action_type), rétention par cohorte hebdo d'inscription,
 //                  volume de publications.
 //
@@ -177,6 +177,18 @@ Deno.serve(async (req) => {
       "recraftv3-vector": 0.04,
     };
 
+    // Coût texte estimé (€/million de tokens, tarifs Anthropic ~juillet 2026 :
+    // Haiku 4.5 = 1$/5$, Sonnet 4.6 = 3$/15$, Opus 4.8 = 5$/25$ in/out).
+    // `tokens_used` mélange input+output ; on applique un tarif MIXTE avec une
+    // hypothèse 75 % input / 25 % output (les prompts contexte+charte dominent).
+    // Approximation assumée — l'ordre de grandeur suffit pour la tendance hebdo.
+    const TEXT_COST_EUR_PER_MTOKEN: Record<string, number> = {
+      "claude-haiku-4-5": 2,
+      "claude-sonnet-4-6": 6,
+      "claude-opus-4-8": 10,
+      "claude-opus-4-7": 10,
+    };
+
     const summarize = (rows: any[]) => {
       const byModel: Record<string, { appels: number; tokens: number }> = {};
       const byAction: Record<string, number> = {};
@@ -198,13 +210,20 @@ Deno.serve(async (req) => {
         (s, [m, v]) => s + (IMAGE_COST_EUR[m] || 0) * v.appels,
         0,
       );
+      const coutTexteEur = Object.entries(byModel).reduce(
+        (s, [m, v]) => s + ((TEXT_COST_EUR_PER_MTOKEN[m] || 0) * v.tokens) / 1_000_000,
+        0,
+      );
+      const round2 = (n: number) => Math.round(n * 100) / 100;
       return {
         appels: rows.length,
         tokens,
         byModel,
         topActions,
         utilisatrices: new Set(rows.map((r) => r.user_id)).size,
-        cout_images_estime_eur: Math.round(coutImagesEur * 100) / 100,
+        cout_images_estime_eur: round2(coutImagesEur),
+        cout_texte_estime_eur: round2(coutTexteEur),
+        cout_total_estime_eur: round2(coutImagesEur + coutTexteEur),
       };
     };
     const aiCur = summarize(ai.filter((a: any) => inWindow(a.created_at, curFrom, curTo)));
