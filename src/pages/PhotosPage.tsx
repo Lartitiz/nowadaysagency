@@ -36,10 +36,10 @@ import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
 
 const MAX_BATCH = 20;
-const MAX_FILE_BYTES = 15 * 1024 * 1024;
-const HEIC_TYPES = ["image/heic", "image/heif"];
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TAG_CHIPS = 8;
 
 export default function PhotosPage() {
@@ -77,20 +77,26 @@ export default function PhotosPage() {
   async function handleFilesSelected(list: FileList | null) {
     if (!list?.length) return;
     const files: File[] = [];
+    const rejected: string[] = [];
     for (const f of Array.from(list).slice(0, MAX_BATCH)) {
-      if (!f.type.startsWith("image/")) {
-        toast.error(`« ${f.name} » n'est pas une image.`);
-        continue;
-      }
-      if (HEIC_TYPES.includes(f.type.toLowerCase()) || /\.hei[cf]$/i.test(f.name)) {
-        toast.error(`« ${f.name} » est en HEIC — convertis-la en JPG ou PNG.`);
+      // HEIC accepté : converti en JPEG dans le hook (photos d'iPhone).
+      // NB : le type MIME d'un .heic est parfois vide → on regarde aussi le nom.
+      if (!f.type.startsWith("image/") && !isHeic(f)) {
+        rejected.push(`${f.name} (pas une image)`);
         continue;
       }
       if (f.size > MAX_FILE_BYTES) {
-        toast.error(`« ${f.name} » dépasse 15 Mo.`);
+        rejected.push(`${f.name} (plus de 25 Mo)`);
         continue;
       }
       files.push(f);
+    }
+    if (rejected.length > 0) {
+      toast.error(
+        rejected.length === 1
+          ? `1 fichier ignoré : ${rejected[0]}`
+          : `${rejected.length} fichiers ignorés : ${rejected.slice(0, 3).join(", ")}${rejected.length > 3 ? "…" : ""}`,
+      );
     }
     if (list.length > MAX_BATCH) {
       toast.info(`Maximum ${MAX_BATCH} photos à la fois — les premières ont été prises.`);
@@ -175,7 +181,7 @@ export default function PhotosPage() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/*"
+          accept={PHOTO_INPUT_ACCEPT}
           multiple
           className="hidden"
           onChange={(e) => {

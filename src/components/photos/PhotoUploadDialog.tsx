@@ -21,6 +21,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useCreatePhotoRetouch } from "@/hooks/use-user-photos";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { convertHeicIfNeeded, isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
 
 interface PhotoUploadDialogProps {
   open: boolean;
@@ -35,8 +36,7 @@ const PROMPT_SUGGESTIONS = [
   "Bureau minimaliste scandinave, bois clair et blanc",
 ];
 
-const MAX_FILE_BYTES = 15 * 1024 * 1024;
-const HEIC_TYPES = ["image/heic", "image/heif"];
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
 export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -58,19 +58,25 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
     setName("");
   }
 
-  function selectFile(f: File | null | undefined) {
-    if (!f) return;
-    if (!f.type.startsWith("image/")) {
+  async function selectFile(raw: File | null | undefined) {
+    if (!raw) return;
+    if (!raw.type.startsWith("image/") && !isHeic(raw)) {
       toast.error("Le fichier doit être une image.");
       return;
     }
-    if (HEIC_TYPES.includes(f.type.toLowerCase()) || /\.hei[cf]$/i.test(f.name)) {
-      toast.error("Le format HEIC n'est pas encore pris en charge. Convertis la photo en JPG ou PNG.");
+    if (raw.size > MAX_FILE_BYTES) {
+      toast.error("La photo dépasse 25 Mo. Réduis-la puis réessaie.");
       return;
     }
-    if (f.size > MAX_FILE_BYTES) {
-      toast.error("La photo dépasse 15 Mo. Réduis-la puis réessaie.");
-      return;
+    let f = raw;
+    if (isHeic(raw)) {
+      // Photos d'iPhone : conversion HEIC → JPEG (comme partout ailleurs)
+      try {
+        f = await convertHeicIfNeeded(raw);
+      } catch {
+        toast.error("Impossible de lire cette photo HEIC. Réessaie en JPG.");
+        return;
+      }
     }
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(f);
@@ -151,7 +157,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
               <p className="text-sm font-medium text-foreground">
                 Glisse ta photo ici ou clique pour sélectionner
               </p>
-              <p className="text-xs text-muted-foreground mt-1">JPG, PNG • Max ~10 Mo</p>
+              <p className="text-xs text-muted-foreground mt-1">JPG, PNG, HEIC (iPhone) • Max 25 Mo</p>
             </div>
           ) : (
             <div className="relative rounded-xl overflow-hidden border border-border">
@@ -172,7 +178,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
           <input
             ref={inputRef}
             type="file"
-            accept="image/*"
+            accept={PHOTO_INPUT_ACCEPT}
             className="hidden"
             onChange={(e) => {
               selectFile(e.target.files?.[0]);

@@ -100,7 +100,9 @@ export function PhotoWishlistPanel() {
                 {busyId === item.id && <Loader2 className="h-3 w-3 animate-spin text-warning" />}
               </button>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-foreground leading-snug">{item.label}</p>
+                <p className="text-xs text-foreground leading-snug line-clamp-2" title={item.label}>
+                  {item.label}
+                </p>
                 {item.requested_count > 1 && (
                   <p className="text-2xs text-warning">
                     demandée {item.requested_count} fois

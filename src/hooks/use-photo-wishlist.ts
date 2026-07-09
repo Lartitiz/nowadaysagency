@@ -94,7 +94,16 @@ export function usePhotoWishlistMutations() {
    */
   async function addDirective(label: string): Promise<void> {
     if (!user?.id || !workspaceId) throw new Error("Espace de travail introuvable");
-    const clean = label.trim().slice(0, 200);
+    // Les photo_directive sont des plans de tournage parfois longs (2-3
+    // phrases) : dans la liste de courses on ne garde que la première phrase,
+    // sinon l'item devient un pavé illisible (vu à l'audit UX du 08/07).
+    let clean = label.trim();
+    if (clean.length > 100) {
+      const firstSentence = clean.match(/^[^.!?]+[.!?]/)?.[0];
+      clean = (firstSentence && firstSentence.length >= 20 ? firstSentence : clean.slice(0, 100)).trim();
+      clean = clean.replace(/[.!?]$/, "");
+    }
+    clean = clean.slice(0, 200);
     if (!clean) return;
     const { data: existing, error: selErr } = await supabase
       .from("photo_wishlist")

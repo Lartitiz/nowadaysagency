@@ -9,24 +9,9 @@ import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPicker
 import { StockPhotoPickerDialog } from "@/components/photos/StockPhotoPickerDialog";
 import { autoSelectStockPhotos, type StockKeywordContext } from "@/lib/stock-photos";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
+import { convertHeicIfNeeded, isHeic } from "@/lib/heic";
 
 const MAX_FILE_SIZE_MB = 25;
-
-function isHeic(file: File): boolean {
-  const name = file.name.toLowerCase();
-  const type = (file.type || "").toLowerCase();
-  return type === "image/heic" || type === "image/heif" || name.endsWith(".heic") || name.endsWith(".heif");
-}
-
-async function convertHeicIfNeeded(file: File): Promise<File> {
-  if (!isHeic(file)) return file;
-  // Dynamic import — heic2any only loads when actually needed (~80kb)
-  const heic2any = (await import("heic2any")).default;
-  const blob = await heic2any({ blob: file, toType: "image/jpeg", quality: 0.85 });
-  const out = Array.isArray(blob) ? blob[0] : blob;
-  const newName = file.name.replace(/\.(heic|heif)$/i, ".jpg");
-  return new File([out], newName, { type: "image/jpeg" });
-}
 
 export interface PhotoItem {
   base64: string;
