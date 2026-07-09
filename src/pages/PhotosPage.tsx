@@ -37,6 +37,7 @@ import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
+import { PortraitProDialog } from "@/components/photos/PortraitProDialog";
 import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -68,6 +69,7 @@ export default function PhotosPage() {
   const [detailPhoto, setDetailPhoto] = useState<UserPhotoRow | null>(null);
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
+  const [portraitProPhoto, setPortraitProPhoto] = useState<UserPhotoRow | null>(null);
   const [retouchePhoto, setRetouchePhoto] = useState<UserPhotoRow | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<UserPhotoRow | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -346,6 +348,10 @@ export default function PhotosPage() {
           setDetailPhoto(null);
           setMiseEnScenePhoto(p);
         }}
+        onPortraitPro={(p) => {
+          setDetailPhoto(null);
+          setPortraitProPhoto(p);
+        }}
       />
       <PackshotDialog
         photo={packshotPhoto}
@@ -356,6 +362,11 @@ export default function PhotosPage() {
         photo={miseEnScenePhoto}
         open={!!miseEnScenePhoto}
         onOpenChange={(v) => !v && setMiseEnScenePhoto(null)}
+      />
+      <PortraitProDialog
+        photo={portraitProPhoto}
+        open={!!portraitProPhoto}
+        onOpenChange={(v) => !v && setPortraitProPhoto(null)}
       />
       <PhotoRetouchDialog
         photo={retouchePhoto}
