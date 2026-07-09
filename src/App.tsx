@@ -17,6 +17,7 @@ import { SessionProvider } from "@/contexts/SessionContext";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 const SessionOverlay = lazy(() => import("@/components/session/SessionOverlay"));
 const AiDebugShortcut = lazy(() => import("@/components/admin/AiDebugShortcut"));
+const UpdateBanner = lazy(() => import("@/components/UpdateBanner"));
 
 const AppSidebar = lazy(() => import("./components/AppSidebar"));
 const CoachChat = lazy(() => import("./components/coach/CoachChat"));
@@ -211,6 +212,7 @@ function AnimatedRoutes() {
       {showAppWidgets && <Suspense fallback={null}><DemoBanner /></Suspense>}
       <Suspense fallback={null}><SessionOverlay /></Suspense>
       <Suspense fallback={null}><AiDebugShortcut /></Suspense>
+      <Suspense fallback={null}><UpdateBanner /></Suspense>
       
       {showAppWidgets && <Suspense fallback={null}><AppSidebar /></Suspense>}
       {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
