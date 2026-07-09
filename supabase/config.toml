@@ -243,6 +243,9 @@ verify_jwt = false
 [functions.photoroom-edit]
 verify_jwt = false
 
+[functions.recraft-picto]
+verify_jwt = false
+
 [functions.recraft-texture]
 verify_jwt = false
 
