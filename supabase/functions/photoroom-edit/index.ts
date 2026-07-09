@@ -237,6 +237,9 @@ serve(async (req) => {
       let friendly = `Erreur Photoroom (status ${res.status})`;
       if (res.status === 401 || res.status === 403) {
         friendly = "Clé API Photoroom invalide";
+      } else if (res.status === 402) {
+        // 402 Payment Required = crédits/plan Photoroom épuisés (à recharger).
+        friendly = "Le service de retouche est momentanément indisponible (quota atteint). Réessaie un peu plus tard.";
       } else if (res.status === 429) {
         friendly = "Limite Photoroom atteinte, réessaie dans 1 min";
       } else if (res.status === 400 || res.status === 422) {

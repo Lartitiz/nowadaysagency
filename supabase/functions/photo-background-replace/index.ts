@@ -268,6 +268,11 @@ serve(async (req) => {
       if (photoroomRes.status === 401 || photoroomRes.status === 403) {
         friendly = "Clé API Photoroom invalide";
         console.error("[photo-background-replace] Photoroom auth failed", errBody);
+      } else if (photoroomRes.status === 402) {
+        // 402 Payment Required = crédits/plan Photoroom épuisés (à recharger).
+        // Message utilisateur neutre ; la cause réelle est loguée pour l'admin.
+        friendly = "Le service de retouche est momentanément indisponible (quota atteint). Réessaie un peu plus tard.";
+        console.error("[photo-background-replace] Photoroom 402 Payment Required — crédits/plan API épuisés", errBody);
       } else if (photoroomRes.status === 429) {
         friendly = "Limite Photoroom atteinte, réessaie dans 1 min";
       } else if (photoroomRes.status === 400 || photoroomRes.status === 422) {
