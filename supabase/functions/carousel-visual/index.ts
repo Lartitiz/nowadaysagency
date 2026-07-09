@@ -10,6 +10,7 @@ import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-
 import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
@@ -244,6 +245,7 @@ serve(async (req) => {
       carousel_type: z.string().max(50).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
       quality_max: z.boolean().optional(),
+      cover_illustration: z.boolean().optional(),
     }).passthrough());
     const { slides, template_style, charter: bodyCharter, custom_overrides, template_reference_urls } = reqBody;
 
@@ -1859,9 +1861,88 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       }
     }
 
+    // ═══ Illustration de COUVERTURE (opt-in, décoché par défaut) ═══
+    // Recraft génère 1 illustration de marque ; la slide de couverture est
+    // composée EN DUR (layout A validé) — déterministe, pas via l'IA. En cas
+    // d'échec (Recraft KO, pas de clé…), on GARDE la couverture générée par
+    // l'IA : jamais de carrousel cassé, et aucun crédit débité en plus.
+    let coverIllustrationDone = false;
+    if (reqBody?.cover_illustration === true && Array.isArray(result?.slides_html) && result.slides_html.length > 0) {
+      try {
+        const recraftKey = Deno.env.get("RECRAFT_API_TOKEN");
+        if (!recraftKey) throw new Error("RECRAFT_API_TOKEN manquant");
+
+        // Slide de couverture = plus petit slide_number (généralement 1)
+        const coverIdx = result.slides_html.reduce(
+          (best: number, s: any, i: number, arr: any[]) =>
+            (s?.slide_number ?? 999) < (arr[best]?.slide_number ?? 999) ? i : best,
+          0,
+        );
+        const coverSlideNumber = result.slides_html[coverIdx]?.slide_number ?? 1;
+        const srcCover = (slides || []).find((sl: any) => sl.slide_number === coverSlideNumber) as any;
+        const coverTitle: string = (srcCover?.title || srcCover?.overlay_text || "").toString().trim();
+
+        if (!coverTitle) throw new Error("titre de couverture introuvable");
+
+        // Concept visuel dérivé du titre (Haiku, court) — pas de texte dans l'image.
+        const conceptRaw = await callAnthropic({
+          model: "claude-haiku-4-5",
+          system:
+            "Tu proposes une scène d'illustration éditoriale simple et chaleureuse pour une couverture de carrousel. Concret (une personne ou des objets du quotidien du métier), jamais de texte ni de logo dans l'image.",
+          messages: [{
+            role: "user",
+            content:
+              `Titre de couverture : « ${coverTitle} ». Ambiance de marque : ${ch.mood_keywords}. ` +
+              `Décris EN ANGLAIS, en 12 mots maximum, une scène d'illustration simple et positive pour ce carrousel. ` +
+              `Réponds UNIQUEMENT la description, sans guillemets.`,
+          }],
+          temperature: 0.7,
+          max_tokens: 60,
+        }, usage);
+        const concept = (conceptRaw || "").replace(/["\n]/g, " ").trim().slice(0, 180) ||
+          "a creative solopreneur working calmly in a cozy studio";
+
+        const colors = {
+          primary: hexToRgb(ch.color_primary) ?? [28, 28, 32] as [number, number, number],
+          secondary: hexToRgb(ch.color_secondary) ?? [110, 106, 102] as [number, number, number],
+          background: hexToRgb(ch.color_background) ?? [246, 244, 240] as [number, number, number],
+        };
+
+        const svg = await fetchRecraftIllustrationSvg(concept, colors, recraftKey);
+        const coverHtml = buildCoverSlideHtml({
+          title: coverTitle,
+          illustrationSvg: svg,
+          ch: {
+            color_primary: ch.color_primary,
+            color_text: ch.color_text,
+            color_background: ch.color_background,
+            font_title: ch.font_title,
+            font_body: ch.font_body,
+            texture_url: ch.texture_url || undefined,
+          },
+        });
+
+        result.slides_html[coverIdx] = {
+          ...result.slides_html[coverIdx],
+          html: coverHtml,
+        };
+        coverIllustrationDone = true;
+
+        // Coût Recraft distinct (pas de tokens) — 1 illustration par carrousel.
+        await logUsage(user.id, "photo_retouch", "cover_illustration", undefined, "recraftv3-vector", workspaceId);
+        console.log(JSON.stringify({ event: "cover_illustration_success", slide_number: coverSlideNumber, concept }));
+      } catch (coverErr) {
+        console.error(JSON.stringify({
+          event: "cover_illustration_failed",
+          error: coverErr instanceof Error ? coverErr.message.slice(0, 300) : "inconnu",
+        }));
+        // silencieux côté client : la couverture IA d'origine est conservée
+      }
+    }
+
     await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
 
-    return new Response(JSON.stringify({ result, remaining: quota.remaining }), {
+    return new Response(JSON.stringify({ result, cover_illustration_applied: coverIllustrationDone, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {

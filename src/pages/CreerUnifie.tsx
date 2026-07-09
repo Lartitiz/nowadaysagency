@@ -261,6 +261,14 @@ export default function CreerUnifie() {
   useEffect(() => {
     if (qualityMaxLocked && qualityMax) setQualityMax(false);
   }, [qualityMaxLocked, qualityMax]);
+  // « Illustration de couverture » : Recraft génère une grande illustration de
+  // marque en couverture (layout ancré en bas). Off par défaut (dosé + coût).
+  // Premium, même verrou fail-closed que Qualité Max.
+  const [coverIllustration, setCoverIllustration] = useState(false);
+  const coverIllustrationLocked = plan === "free";
+  useEffect(() => {
+    if (coverIllustrationLocked && coverIllustration) setCoverIllustration(false);
+  }, [coverIllustrationLocked, coverIllustration]);
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
   const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
@@ -2407,6 +2415,8 @@ export default function CreerUnifie() {
         // "Mode qualité Max" : Opus pour le rendu des visuels (plus soigné, ~2x plus lent).
         // Par défaut (toggle off) → Sonnet, nettement plus rapide.
         quality_max: qualityMax || undefined,
+        // Illustration de couverture (Recraft) — opt-in, jamais envoyé si off.
+        cover_illustration: coverIllustration || undefined,
       };
 
       console.log("[carousel-visual] request body keys:", Object.keys(requestBody), "slides count:", requestBody.slides?.length);
@@ -2967,6 +2977,43 @@ export default function CreerUnifie() {
                   checked={qualityMax && !qualityMaxLocked}
                   onCheckedChange={setQualityMax}
                   disabled={qualityMaxLocked}
+                  className="mt-0.5 shrink-0"
+                />
+              </label>
+            )}
+
+            {step === "questions" && selectedFormat === "carousel" && (
+              <label
+                className={`flex items-start gap-3 rounded-xl border border-border bg-card/60 p-3 mb-4 animate-fade-in ${coverIllustrationLocked ? "cursor-default" : "cursor-pointer"}`}
+              >
+                <Palette className={`h-4 w-4 mt-0.5 shrink-0 ${coverIllustrationLocked ? "text-muted-foreground" : "text-primary"}`} />
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-medium text-foreground inline-flex items-center gap-2">
+                    Illustration de couverture
+                    {coverIllustrationLocked && (
+                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        Premium
+                      </span>
+                    )}
+                  </span>
+                  <p className="text-xs text-muted-foreground">
+                    Une grande illustration dans tes couleurs sur la première slide. À réserver aux carrousels
+                    où tu veux marquer le coup — ça ajoute quelques secondes à la génération.
+                  </p>
+                  {coverIllustrationLocked && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.preventDefault(); navigate("/abonnement"); }}
+                      className="mt-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                    >
+                      Passe en Premium pour l'activer →
+                    </button>
+                  )}
+                </div>
+                <Switch
+                  checked={coverIllustration && !coverIllustrationLocked}
+                  onCheckedChange={setCoverIllustration}
+                  disabled={coverIllustrationLocked}
                   className="mt-0.5 shrink-0"
                 />
               </label>
