@@ -16,6 +16,9 @@ import { resolveLibraryPhotoUrls, urlToDataUrl } from "@/lib/story-photos";
 import StoryPhotoSuggestions, {
   type AppliedStockPhoto,
 } from "@/components/creer/formatRenderers/StoryPhotoSuggestions";
+import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { useUserPhotos } from "@/hooks/use-user-photos";
+import { getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
 
 interface PhotoLike {
   preview?: string;
@@ -82,13 +85,46 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
       }
     : null;
 
-  const photoUrl = useMemo(() => {
-    const ph = photos?.[0];
-    if (!ph) return null;
-    if (ph.preview) return ph.preview;
-    if (ph.base64) return `data:${ph.mimeType || "image/jpeg"};base64,${ph.base64}`;
-    return null;
-  }, [photos]);
+  // Photos attachées à la création (lot D) : 1 photo = fil visuel de toute la
+  // séquence (comportement historique) ; 2+ photos = réparties UNE par story à
+  // fond photo, dans l'ordre. Les photos venues de la bibliothèque
+  // (userPhotoId) sont déjà placées par la génération (photo_id) — on ne
+  // distribue que les uploads frais, sans doublonner.
+  const attachedByStory = useMemo(() => {
+    const itemUrl = (ph: any): string | null =>
+      ph?.preview || (ph?.base64 ? `data:${ph.mimeType || "image/jpeg"};base64,${ph.base64}` : null);
+    const map = new Map<number, string>();
+    if (!photos?.length) return map;
+
+    if (photos.length === 1) {
+      const url = itemUrl(photos[0]);
+      if (url) {
+        stories.forEach((s: any, i: number) => {
+          if (s?.visual?.background === "photo") map.set(i, url);
+        });
+      }
+      return map;
+    }
+
+    const assignedLibraryIds = new Set(
+      stories.map((s: any) => s?.visual?.photo_id).filter(Boolean),
+    );
+    const pool = photos.filter(
+      (p: any) => !p.userPhotoId || !assignedLibraryIds.has(p.userPhotoId),
+    );
+    let k = 0;
+    stories.forEach((s: any, i: number) => {
+      const v = s?.visual;
+      if (!v || v.background !== "photo" || v.photo_id || v.photo_url) return;
+      if (k >= pool.length) return;
+      const url = itemUrl(pool[k]);
+      if (url) {
+        map.set(i, url);
+        k++;
+      }
+    });
+    return map;
+  }, [photos, stories]);
 
   // Photos de bibliothèque assignées par la génération (visual.photo_id) :
   // résolues en URLs signées à l'affichage, jamais persistées (elles expirent).
@@ -118,25 +154,25 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
   }, [libraryIdsSignature]);
 
   // Photo par story : choix post-génération (photo_url), sinon bibliothèque
-  // (photo_id résolu), sinon la photo attachée à la création (comportement historique).
+  // (photo_id résolu), sinon la photo attachée répartie sur cette story.
   const getStoryPhotoUrl = useCallback(
-    (story: any): string | null => {
+    (story: any, index: number): string | null => {
       const v = story?.visual;
       if (v?.photo_url) return v.photo_url;
       if (v?.photo_id) {
         const resolved = libraryUrls.get(v.photo_id);
         if (resolved) return resolved;
       }
-      return photoUrl;
+      return attachedByStory.get(index) ?? null;
     },
-    [libraryUrls, photoUrl],
+    [libraryUrls, attachedByStory],
   );
 
   // Rendu déterministe : recalculé à chaque édition (instantané, aucun appel réseau).
   const frames = useMemo(
     () =>
-      stories.map((s: any) =>
-        buildStoryFrameHtml(s, branding, { photoUrl: getStoryPhotoUrl(s), preview: true }),
+      stories.map((s: any, i: number) =>
+        buildStoryFrameHtml(s, branding, { photoUrl: getStoryPhotoUrl(s, i), preview: true }),
       ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [stories, charter, getStoryPhotoUrl],
@@ -153,7 +189,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
     const frames: { story_number: number; html: string; photoUrl?: string | null }[] = [];
     for (let i = 0; i < stories.length; i++) {
       const s = stories[i];
-      const rawUrl = getStoryPhotoUrl(s);
+      const rawUrl = getStoryPhotoUrl(s, i);
       const exportUrl = rawUrl ? await urlToDataUrl(rawUrl) : null;
       const html = buildStoryFrameHtml(s, branding, { photoUrl: exportUrl, preview: false });
       if (html) frames.push({ story_number: i + 1, html, photoUrl: exportUrl });
@@ -259,6 +295,56 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
     },
     [onStoriesUpdate],
   );
+
+  // Fond choisi dans la BIBLIOTHÈQUE (lot D) : on persiste le photo_id (les
+  // URLs signées expirent) et on efface tout choix stock précédent.
+  const applyLibraryPhoto = useCallback(
+    (index: number, row: UserPhotoRow) => {
+      setStories((prev) => {
+        const updated = [...prev];
+        updated[index] = {
+          ...updated[index],
+          visual: {
+            ...updated[index].visual,
+            photo_id: row.id,
+            photo_library_description: row.description ?? null,
+            photo_url: null,
+            photo_stock_credit: null,
+          },
+        };
+        onStoriesUpdate?.(updated);
+        return updated;
+      });
+    },
+    [onStoriesUpdate],
+  );
+
+  // Vignettes bibliothèque de la rangée par story (les 4 plus récentes) —
+  // signées UNE fois ici, partagées par toutes les rangées.
+  const { data: libRows = [] } = useUserPhotos();
+  const [libraryStrip, setLibraryStrip] = useState<{ row: UserPhotoRow; url: string }[]>([]);
+  useEffect(() => {
+    const ready = libRows.filter((p) => p.status === "ready" && p.storage_path).slice(0, 4);
+    if (ready.length === 0) {
+      setLibraryStrip([]);
+      return;
+    }
+    let cancelled = false;
+    getSignedPhotoUrls(ready.map((r) => r.storage_path)).then((map) => {
+      if (cancelled) return;
+      setLibraryStrip(
+        ready
+          .map((row) => ({ row, url: map.get(row.storage_path) || "" }))
+          .filter((x) => x.url),
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [libRows]);
+
+  // Picker « toute la bibliothèque » : un seul dialog, ciblé sur une story.
+  const [pickerFor, setPickerFor] = useState<number | null>(null);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -391,18 +477,20 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
                   ) : story.visual?.photo_directive && !story.visual?.photo_url ? (
                     <p className="text-xs text-muted-foreground">📷 {story.visual.photo_directive}</p>
                   ) : null}
-                  {story.visual?.background === "photo" &&
-                    !story.visual?.photo_id &&
-                    (!photos || photos.length === 0) && (
-                      <StoryPhotoSuggestions
-                        storyIndex={i}
-                        directive={story.visual?.photo_directive ?? null}
-                        queryEn={story.visual?.photo_query_en ?? null}
-                        appliedUrl={story.visual?.photo_url ?? null}
-                        autoApply={!story.visual?.photo_url}
-                        onApply={(photo) => applyStoryPhoto(i, photo)}
-                      />
-                    )}
+                  {story.visual?.background === "photo" && (
+                    <StoryPhotoSuggestions
+                      storyIndex={i}
+                      directive={story.visual?.photo_directive ?? null}
+                      queryEn={story.visual?.photo_query_en ?? null}
+                      appliedUrl={getStoryPhotoUrl(story, i)}
+                      appliedPhotoId={story.visual?.photo_id ?? null}
+                      autoApply={!getStoryPhotoUrl(story, i)}
+                      libraryStrip={libraryStrip}
+                      onApply={(photo) => applyStoryPhoto(i, photo)}
+                      onApplyLibrary={(row) => applyLibraryPhoto(i, row)}
+                      onOpenLibrary={() => setPickerFor(i)}
+                    />
+                  )}
                 </div>
                 {frames[i] && <StoryFramePreview html={frames[i]!} title={`Aperçu story ${i + 1}`} />}
               </div>
@@ -410,6 +498,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
           </Card>
         ))}
       </div>
+
+      <PhotoLibraryPickerDialog
+        open={pickerFor !== null}
+        onOpenChange={(v) => !v && setPickerFor(null)}
+        maxSelectable={1}
+        onConfirm={(rows) => {
+          if (pickerFor !== null && rows[0]) applyLibraryPhoto(pickerFor, rows[0]);
+          setPickerFor(null);
+        }}
+      />
 
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
 

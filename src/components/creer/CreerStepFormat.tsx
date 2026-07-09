@@ -51,7 +51,7 @@ function getPhotoToggleCopy(format: string): { title: string; subtitle: string }
     case "reel":
       return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour le hook et le script — ton idée reste le sujet" };
     case "story":
-      return { title: "📸 Mes stories tournent autour d'une photo", subtitle: "L'IA construit la séquence autour de ton idée, ta photo sert de fil visuel" };
+      return { title: "📸 Mes stories s'appuient sur mes photos", subtitle: "Choisis-les dans ta bibliothèque ou ajoute-les : l'IA met la bonne photo en fond de la bonne story" };
     case "linkedin":
       return { title: "📸 J'attache une photo à mon post", subtitle: "Ta photo appuie ton propos — l'IA écrit sur ton sujet, pas une description du visuel" };
     case "newsletter":
@@ -657,11 +657,12 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       {/* Single-photo formats — preloaded photo confirmation banner — REMOVED.
           The toggle "📸 J'accompagne une photo" + the PhotoUploadZone below already convey the state. */}
 
-      {/* Single-photo upload zone — LinkedIn accepte jusqu'à 10 photos (série / reportage / avant-après) */}
+      {/* Single-photo upload zone — LinkedIn et Story acceptent jusqu'à 10 photos
+          (LinkedIn : série / avant-après ; Story : une photo par story, réparties par l'IA) */}
       {formatAcceptsSinglePhoto(selectedFormat) && photoMode && (
         <div className="animate-fade-in space-y-2">
           <PhotoUploadZone
-            maxPhotos={selectedFormat === "linkedin" ? 10 : 1}
+            maxPhotos={selectedFormat === "linkedin" || selectedFormat === "story" ? 10 : 1}
             initialPhotos={postPhoto.length > 0 ? postPhoto : undefined}
             initialDescription={postPhotoDescription}
             onPhotosChange={setPostPhoto}
@@ -672,6 +673,11 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
           {selectedFormat === "linkedin" && (
             <p className="text-xs text-muted-foreground pl-1">
               💡 Jusqu'à <strong>10 photos</strong> : 1 = scène unique, 2 = <strong>avant / après</strong> (1ʳᵉ = avant, 2ᵉ = après), 3+ = <strong>série / reportage</strong> (l'IA construit un récit en plusieurs temps).
+            </p>
+          )}
+          {selectedFormat === "story" && (
+            <p className="text-xs text-muted-foreground pl-1">
+              💡 Jusqu'à <strong>10 photos</strong> : l'IA place <strong>une photo par story</strong>, là où elle raconte le mieux. Une seule photo = fil visuel de toute la séquence.
             </p>
           )}
         </div>
