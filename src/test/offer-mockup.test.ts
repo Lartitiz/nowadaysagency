@@ -82,3 +82,22 @@ describe("resolveBackgroundColor", () => {
     expect(resolveBackgroundColor({ color_background: "pas-un-hex" })).toBe("#F1EFE8");
   });
 });
+
+describe("screenRatioFor", () => {
+  it("le support épouse le ratio de la capture dans ses bornes", async () => {
+    const { screenRatioFor } = await import("@/lib/offer-mockup");
+    // Couverture 800×1120 (0,714) : AUCUN crop sur tablette/livre/pages
+    expect(screenRatioFor("tablette", 800, 1120)).toBeCloseTo(800 / 1120);
+    expect(screenRatioFor("livre", 800, 1120)).toBeCloseTo(800 / 1120);
+    expect(screenRatioFor("pages", 800, 1120)).toBeCloseTo(800 / 1120);
+  });
+  it("clamp : une capture paysage sur téléphone reste un téléphone", async () => {
+    const { screenRatioFor } = await import("@/lib/offer-mockup");
+    expect(screenRatioFor("telephone", 1920, 1080)).toBe(0.52);
+    expect(screenRatioFor("ordinateur", 800, 1120)).toBe(1.45);
+  });
+  it("dimensions manquantes : défaut portrait raisonnable", async () => {
+    const { screenRatioFor } = await import("@/lib/offer-mockup");
+    expect(screenRatioFor("tablette", 0, 0)).toBeCloseTo(0.72);
+  });
+});
