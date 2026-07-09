@@ -237,3 +237,61 @@ export function useRetryPhotoRetouch() {
 
   return { retry, isRetrying };
 }
+
+/**
+ * Retouche IA d'une photo DÉJÀ en bibliothèque, sur place (nouveau décor au
+ * prompt). Pas d'upload : l'edge relit `original_storage_path` (qui, pour une
+ * photo de bibliothèque, pointe sur son propre fichier) et écrit le résultat
+ * dans `storage_path` → la bascule Avant/Après apparaît, l'originale est
+ * préservée. L'edge refusant un statut `ready`, on repasse d'abord en `pending`
+ * (comme le retry) et on mémorise le nouveau prompt.
+ */
+export function useRetouchExistingPhoto() {
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const [isPending, setIsPending] = useState(false);
+
+  async function mutate(input: { photo: UserPhotoRow; backgroundPrompt: string }): Promise<void> {
+    if (!user?.id || !workspaceId) throw new Error("Espace de travail introuvable");
+    // Même garde-fou que useCreatePhotoRetouch (fallback user.id ≠ workspace valide)
+    if (workspaceId === user.id) {
+      throw new Error("Espace de travail en cours de chargement, réessaie dans 1 seconde.");
+    }
+    const prompt = input.backgroundPrompt.trim();
+    if (prompt.length < 3) {
+      throw new Error("Décris le décor souhaité avant de lancer la retouche.");
+    }
+    setIsPending(true);
+    try {
+      // Repasse en pending + mémorise le nouveau prompt (l'edge rejette `ready`).
+      // background_preset_key remis à null : on bascule sur un décor libre.
+      const { error: updErr } = await supabase
+        .from("user_photos")
+        .update({
+          status: "pending",
+          error_message: null,
+          background_prompt: prompt,
+          background_preset_key: null,
+        })
+        .eq("id", input.photo.id);
+      if (updErr) throw new Error(updErr.message);
+
+      const { error } = await invokeWithTimeout(
+        "photo-background-replace",
+        {
+          body: {
+            photo_id: input.photo.id,
+            workspace_id: workspaceId,
+            background_prompt: prompt,
+          },
+        },
+        90_000,
+      );
+      if (error) throw new Error(error.message);
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return { mutate, isPending };
+}

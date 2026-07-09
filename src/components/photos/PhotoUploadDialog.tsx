@@ -28,7 +28,7 @@ interface PhotoUploadDialogProps {
   onOpenChange: (v: boolean) => void;
 }
 
-const PROMPT_SUGGESTIONS = [
+export const PROMPT_SUGGESTIONS = [
   "Studio photo lumière douce, fond beige uni",
   "Atelier d'artiste, lumière naturelle, plantes en arrière-plan",
   "Plage tropicale au coucher du soleil, palmiers flous",
