@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
 
   try {
     // 1. Parse body
-    const { workspace_id, email, role, action, invitation_id, token } = await req.json();
+    const { workspace_id, email, role, action, invitation_id, token, member_id } = await req.json();
     const act = action || "invite";
 
     // 2. Service client for privileged checks
@@ -176,6 +176,39 @@ Deno.serve(async (req) => {
       if (!deleted || deleted.length === 0) {
         return json({ error: "Invitation introuvable ou déjà acceptée." }, 404);
       }
+      return json({ success: true });
+    }
+
+    // ─── action: remove_member ───
+    // Retire un membre EXISTANT (≠ révoquer une invitation pendante). La RLS
+    // DELETE owner/manager existe côté client, mais on passe par l'edge pour
+    // imposer les garde-fous : jamais l'owner, jamais soi-même.
+    if (act === "remove_member") {
+      if (!member_id) {
+        return json({ error: "member_id est requis" }, 400);
+      }
+      const { data: target, error: targetErr } = await sb
+        .from("workspace_members")
+        .select("id, user_id, role")
+        .eq("id", member_id)
+        .eq("workspace_id", workspace_id)
+        .maybeSingle();
+      if (targetErr) throw targetErr;
+      if (!target) {
+        return json({ error: "Membre introuvable dans cet espace." }, 404);
+      }
+      if (target.role === "owner") {
+        return json({ error: "Impossible de retirer le ou la propriétaire de son espace." }, 400);
+      }
+      if (target.user_id === user.id) {
+        return json({ error: "Tu ne peux pas te retirer toi-même de l'espace." }, 400);
+      }
+      const { error: removeErr } = await sb
+        .from("workspace_members")
+        .delete()
+        .eq("id", member_id)
+        .eq("workspace_id", workspace_id);
+      if (removeErr) throw removeErr;
       return json({ success: true });
     }
 

@@ -5,8 +5,19 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Users, Loader2, Copy, Check, X, Mail } from "lucide-react";
+import { Users, Loader2, Copy, Check, X, Mail, UserMinus } from "lucide-react";
 
 interface Member {
   id: string;
@@ -51,6 +62,7 @@ export default function WorkspaceMembersSection() {
   const [freshInviteUrl, setFreshInviteUrl] = useState<string | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const canManage = activeRole === "owner" || activeRole === "manager";
   const workspaceId = activeWorkspace?.id;
@@ -122,6 +134,27 @@ export default function WorkspaceMembersSection() {
     }
   };
 
+  const handleRemoveMember = async (member: Member) => {
+    setRemovingId(member.id);
+    const { data, error } = await invokeWithTimeout(
+      "invite-to-workspace",
+      { body: { action: "remove_member", workspace_id: workspaceId, member_id: member.id } },
+      20000,
+    );
+    setRemovingId(null);
+    if (error || !data?.success) {
+      console.error("[membres] remove_member error:", error, data);
+      toast.error("Retrait impossible", {
+        description: error?.message || data?.error || "Une erreur est survenue. Réessaie.",
+      });
+      return;
+    }
+    toast.success("Membre retiré", {
+      description: `${member.prenom || member.email || "Ce membre"} n'a plus accès à l'espace.`,
+    });
+    loadMembers();
+  };
+
   const handleRevoke = async (invitation: PendingInvitation) => {
     setRevokingId(invitation.id);
     const { data, error } = await invokeWithTimeout(
@@ -176,9 +209,47 @@ export default function WorkspaceMembersSection() {
                   </p>
                   {m.email && <p className="text-xs text-muted-foreground truncate">{m.email}</p>}
                 </div>
-                <Badge variant={m.role === "owner" ? "default" : "secondary"} className="shrink-0 text-xs">
-                  {ROLE_LABELS[m.role] || m.role}
-                </Badge>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge variant={m.role === "owner" ? "default" : "secondary"} className="text-xs">
+                    {ROLE_LABELS[m.role] || m.role}
+                  </Badge>
+                  {/* Retrait d'un membre existant : jamais l'owner, jamais soi-même
+                      (l'edge fait respecter les mêmes règles côté serveur) */}
+                  {m.role !== "owner" && m.user_id !== user?.id && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="rounded-full h-8 px-3 text-destructive hover:text-destructive"
+                          disabled={removingId === m.id}
+                          aria-label={`Retirer ${m.prenom || m.email || "ce membre"} de l'espace`}
+                        >
+                          {removingId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <UserMinus className="h-3.5 w-3.5" />}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Retirer {m.prenom || m.email || "ce membre"} ?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            {m.prenom || m.email || "Ce membre"} n'aura plus accès à l'espace
+                            {activeWorkspace?.name ? ` «\u00A0${activeWorkspace.name}\u00A0»` : ""} ni à son contenu.
+                            Tu pourras l'inviter à nouveau plus tard si besoin.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel className="rounded-full">Annuler</AlertDialogCancel>
+                          <AlertDialogAction
+                            className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            onClick={() => handleRemoveMember(m)}
+                          >
+                            Retirer de l'espace
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                </div>
               </div>
             ))}
           </div>

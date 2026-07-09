@@ -36,6 +36,26 @@ const BRANDING_TABLES = [
   "diagnostic_results",
 ];
 
+// Sous-ensemble utilisé par le bouton « Réinitialiser tout le branding » de
+// /branding (body.brandingOnly). Exécuté ici en service role car les policies
+// DELETE de branding_coaching_sessions / branding_mirror_results sont scopées
+// `auth.uid() = user_id` : un DELETE client par un·e manager sur l'espace d'une
+// cliente laissait silencieusement les lignes écrites par la cliente (0 ligne
+// matchée). Ne touche NI à l'onboarding NI au profil.
+const BRANDING_ONLY_TABLES = [
+  "storytelling",
+  "persona",
+  "brand_proposition",
+  "brand_profile",
+  "brand_strategy",
+  "brand_charter",
+  "offers",
+  "branding_audits",
+  "branding_coaching_sessions",
+  "voice_profile",
+  "branding_mirror_results",
+];
+
 const PROFILE_RESET = {
   onboarding_completed: false,
   onboarding_completed_at: null,
@@ -141,6 +161,31 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      // ─── Mode brandingOnly : reset branding de /branding, rien d'autre ───
+      if (body.brandingOnly === true) {
+        console.log(`[reset-onboarding] BRANDING-ONLY reset of ${workspaceId} by ${callerEmail}`);
+        for (const table of BRANDING_ONLY_TABLES) {
+          await del(table, "workspace_id", workspaceId);
+        }
+        // branding_autofill : on remet le statut à zéro sans supprimer la ligne
+        // (comportement historique du bouton — la ligne porte l'état du flux).
+        const { error: autofillErr } = await admin
+          .from("branding_autofill")
+          .update({ autofill_status: "idle", autofill_pending_review: false })
+          .eq("workspace_id", workspaceId);
+        if (autofillErr) errors.push(`branding_autofill: ${autofillErr.message}`);
+
+        console.log(`[reset-onboarding] Branding-only done. Cleaned: ${tablesCleaned}, Errors: ${errors.length}`);
+        return new Response(
+          JSON.stringify({
+            success: errors.length === 0,
+            tables_cleaned: tablesCleaned,
+            errors: errors.length > 0 ? errors : undefined,
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const ownerUserId = (members || []).find((m) => m.role === "owner")?.user_id ?? null;
       console.log(`[reset-onboarding] WORKSPACE-scoped reset of ${workspaceId} by ${callerEmail} (owner=${ownerUserId})`);
 

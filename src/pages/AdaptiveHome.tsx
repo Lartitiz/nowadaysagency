@@ -229,7 +229,7 @@ const CHANNEL_PILLS = [
 export default function AdaptiveHome() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { activeWorkspace } = useWorkspace();
+  const { activeWorkspace, activeRole } = useWorkspace();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
@@ -391,8 +391,10 @@ export default function AdaptiveHome() {
           </div>
         )}
 
-        {/* Bandeau premiers pas */}
-        <OnboardingBanner onNavigate={handleNavigate} />
+        {/* Bandeau premiers pas — owner uniquement : les missions guident le
+            setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
+            pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
+        {activeRole === "owner" && <OnboardingBanner onNavigate={handleNavigate} />}
 
         {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit
             gagner sa place pour que la page tienne dans une fenêtre */}
@@ -547,7 +549,7 @@ export default function AdaptiveHome() {
         {/* Guidage 1re visite : UNIQUEMENT le coachmark GuidedTour. L'overlay
             4 slides « ton espace est prêt » a été retiré (validé Laetitia 04/07) :
             c'était le 3e récapitulatif d'affilée après le diagnostic et le welcome. */}
-        {!tourDone && !isLoading &&
+        {!tourDone && !isLoading && activeRole === "owner" &&
           <GuidedTour
             steps={TOUR_STEPS}
             storageKey="lac_dashboard_tour_seen"
