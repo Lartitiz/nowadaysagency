@@ -12,7 +12,9 @@
  *   2. Gate Premium (plan free → { error: "premium_required" }, bypass QA)
  *   3. Validate body + fetch user_photos + download depuis le bucket
  *   4. Charte + profil → bloc « univers de marque » du prompt
- *   5. OpenAI /v1/images/edits (n=3 initial, n=1 ajustement, retry 1× sur 5xx)
+ *   5. OpenAI /v1/images/edits (n=1 initial, n=2 variantes opt-in, n=1
+ *      ajustement, retry 1× sur 5xx) — maîtrise des coûts 09/07/2026 : les
+ *      3 propositions d'office triplaient la facture OpenAI (~0,50 €/clic)
  *   6. logUsage 1× PAR image générée (uniquement après succès)
  *
  * Recette anti-effet-IA (validée en tests le 09/07/2026) : fond NET décrit
@@ -33,11 +35,14 @@ const BodySchema = z.object({
   mode: z.enum(["auto", "porte", "pose"]).default("auto"),
   framing: z.enum(["auto", "sans_visage", "portrait"]).default("auto"),
   ambiance: z.string().max(300).optional().nullable(),
-  // Présent = régénération ciblée (1 image, 1 crédit) au lieu des 3 propositions.
+  // Présent = régénération ciblée (1 image, 1 crédit) de la proposition affichée.
   adjustment: z.string().max(300).optional().nullable(),
   // Mode série (photo dump) : 1 image par appel, et une personne de référence
   // (data URL jpeg/png) pour garder LE MÊME mannequin d'une slide à l'autre.
   single: z.boolean().optional(),
+  // « Voir d'autres variantes » : 2 images supplémentaires demandées depuis
+  // l'écran résultat (opt-in — remplace les 3 propositions d'office).
+  variants: z.boolean().optional(),
   reference_person_b64: z.string().max(4_000_000).optional().nullable(),
 });
 
@@ -113,7 +118,7 @@ function buildPrompt(opts: {
   // notion de jointure physique (une boucle qui passe DANS le lobe, une bague
   // qui encercle un doigt…) → il pose l'objet à côté, le fait flotter ou le
   // fond dans la peau. Consigne d'accroche anatomique explicite pour relever le
-  // taux de bons tirages (n=3). Générique : sans effet si le produit n'a pas
+  // taux de bons tirages. Générique : sans effet si le produit n'a pas
   // d'accroche (vêtement, sac).
   lines.push(
     "ATTACHMENT (critical when the product is worn): if the product physically attaches to the body, render that connection anatomically correct and true to real life — a pierced earring passes THROUGH the earlobe and hangs straight down under gravity; a ring encircles a finger; glasses rest on the nose bridge and hook over the ears; a watch or bracelet wraps fully around the wrist; a necklace drapes around the neck following its curve. The piece must join at the exact correct point, at realistic scale, obeying gravity — never floating beside the body part, never fused flat onto the skin, never oversized or undersized."
@@ -211,7 +216,9 @@ serve(async (req) => {
 
     const bodyWorkspaceId = parsed.workspace_id ?? null;
     const adjustment = parsed.adjustment?.trim() || null;
-    const n = adjustment || parsed.single ? 1 : 3;
+    // 1 image par défaut (coût maîtrisé) ; 2 de plus quand la cliente demande
+    // explicitement d'autres variantes depuis l'écran résultat.
+    const n = adjustment || parsed.single ? 1 : parsed.variants ? 2 : 1;
     const referenceBlob = parsed.reference_person_b64
       ? dataUrlToBlob(parsed.reference_person_b64)
       : null;
@@ -464,7 +471,11 @@ serve(async (req) => {
       await logUsage(
         userId,
         "photo_retouch",
-        adjustment ? "mise_en_scene_adjust" : "mise_en_scene",
+        adjustment
+          ? "mise_en_scene_adjust"
+          : parsed.variants
+            ? "mise_en_scene_variants"
+            : "mise_en_scene",
         i === 0 ? tokens : undefined,
         "gpt-image-2",
         bodyWorkspaceId ?? undefined
