@@ -583,6 +583,7 @@ ${styleInstructions}
 - Dans chaque slide, l'élément qui contient DIRECTEMENT le titre porte l'attribut data-slide-text="title" ; celui qui contient le corps porte data-slide-text="body". Un seul élément de chaque par slide.
 - Le texte du JSON y est recopié VERBATIM (aucune reformulation, coupure, fusion ou ajout). Tu peux styler des mots via des <span> À L'INTÉRIEUR de cet élément, mais le texte complet reste identique.
 - Les textes décoratifs que TU crées (numéros géants, labels de schéma…) ne portent JAMAIS cet attribut.
+- BOUTON D'APPEL À L'ACTION de la dernière slide (pilule/badge « Réponds en commentaire », « Enregistre ce post », « lien en bio »… — le CTA graphique, PAS le titre/corps) : enveloppe TOUT le bouton dans un élément portant l'attribut data-slide-cta, et l'élément qui contient DIRECTEMENT son texte porte data-slide-text="cta". Cela permet à l'utilisatrice de le modifier ou de le retirer entièrement. N'ajoute data-slide-cta QUE sur ce bouton, jamais sur un titre, un corps ou un élément décoratif.
 
 Retourne un JSON :
 {
@@ -755,7 +756,7 @@ Tu VOIS chaque photo. Avant de finaliser CHAQUE slide, regarde la zone réelle d
 - Renseigne ensuite honnêtement le champ "contrast_ok" : true seulement si, APRÈS ta correction, le texte est franchement lisible. false si un doute subsiste malgré tout.
 
 ═══ ANCRAGE DU TEXTE (OBLIGATOIRE — permet l'édition en direct) ═══
-L'élément qui contient DIRECTEMENT l'overlay_text porte l'attribut data-slide-text="overlay" (un seul par slide, texte recopié VERBATIM ; les <span> de style restent À L'INTÉRIEUR de cet élément). Le CTA autorisé de la dernière slide ne porte PAS cet attribut.
+L'élément qui contient DIRECTEMENT l'overlay_text porte l'attribut data-slide-text="overlay" (un seul par slide, texte recopié VERBATIM ; les <span> de style restent À L'INTÉRIEUR de cet élément). Le CTA autorisé de la dernière slide ne porte PAS data-slide-text="overlay" : s'il prend la forme d'un bouton/pilule graphique, enveloppe-le dans un élément data-slide-cta avec son texte en data-slide-text="cta" (permet de le modifier ou de le retirer).
 
 Retourne un JSON :
 {
@@ -889,6 +890,7 @@ N'ajoute JAMAIS data-pptx-photo sur un élément sans photo réelle (icône SVG,
 - Slides "photo_full" : l'élément qui contient DIRECTEMENT l'overlay_text porte data-slide-text="overlay".
 - Slides "text_only" et "photo_integrated" : l'élément du titre porte data-slide-text="title", celui du corps data-slide-text="body".
 - Texte recopié VERBATIM dans ces éléments (les <span> de style restent à l'intérieur) ; jamais cet attribut sur des textes décoratifs.
+- BOUTON D'APPEL À L'ACTION de la dernière slide (pilule/badge « Réponds en commentaire », « Enregistre ce post »…) : enveloppe TOUT le bouton dans un élément portant data-slide-cta, et l'élément qui contient DIRECTEMENT son texte porte data-slide-text="cta" (permet de le modifier ou de le retirer). Uniquement sur ce bouton.
 
 Retourne un JSON :
 {
