@@ -36,18 +36,18 @@ const BodySchema = z.object({
 });
 
 // ── Prompts par matière ──
-// Contraintes communes : uniforme, contraste minimal (le texte doit rester
-// lisible par-dessus), aucun objet/texte, éclairage plat.
-// ⚠️ Ne JAMAIS employer « seamless texture » : Recraft génère alors une
-// fiche produit de banque de textures (bannière, faux logo, perspective).
+// Style digital_illustration + substyle grain (V3 uniquement) : rendu PLAT
+// plein cadre par construction. Le style realistic_image est banni ici :
+// il génère systématiquement une « scène » (feuille posée sur une table,
+// fiche produit avec bannière) malgré tous les prompts essayés (v1→v3).
 const MATERIAL_PROMPTS: Record<(typeof MATERIAL_KEYS)[number], string> = {
-  papier_grain: "plain fine-grain art paper surface, subtle even grain, matte",
+  papier_grain: "subtle fine art paper grain background, plain, uniform",
   papier_craft:
-    "plain kraft paper surface, warm natural tone, subtle fibers, matte",
-  lin: "plain natural linen fabric surface, fine even weave, soft matte",
+    "subtle kraft paper background, warm natural tone, faint fibers, plain, uniform",
+  lin: "subtle linen weave background, fine even fabric grain, plain, uniform",
   papier_recycle:
-    "plain recycled paper surface, tiny natural speckles and fibers, matte",
-  grain_mineral: "plain smooth light stone surface, very subtle mineral grain, matte",
+    "subtle recycled paper background, tiny speckles and faint fibers, plain, uniform",
+  grain_mineral: "subtle light stone grain background, soft mineral surface, plain, uniform",
 };
 
 const NEGATIVE_PROMPT =
@@ -124,10 +124,8 @@ serve(async (req) => {
     }
 
     const prompt =
-      `extreme macro close-up photograph of ${MATERIAL_PROMPTS[material]}, ` +
-      "camera perpendicular to the surface, the material fills 100% of the frame " +
-      "edge to edge, nothing else visible, no surroundings, no context, " +
-      `tinted ${bgColor} color tone, perfectly flat, even diffuse lighting, uniform, very low contrast`;
+      `${MATERIAL_PROMPTS[material]}, tinted ${bgColor} color tone, ` +
+      "fills the entire frame, flat, minimal, muted, very low contrast";
 
     // 5. Appel Recraft (1 retry sur 5xx/timeout)
     const callRecraft = async (): Promise<Response> =>
@@ -140,7 +138,9 @@ serve(async (req) => {
         body: JSON.stringify({
           prompt,
           negative_prompt: NEGATIVE_PROMPT,
-          style: "realistic_image",
+          model: "recraftv3",
+          style: "digital_illustration",
+          substyle: "grain",
           size: "1024x1024",
           n: 1,
         }),
@@ -194,6 +194,10 @@ serve(async (req) => {
         friendly = "Clé API Recraft invalide";
       } else if (recraftRes.status === 429) {
         friendly = "Limite Recraft atteinte, réessaie dans 1 min";
+      } else if (recraftRes.status === 400 || recraftRes.status === 422) {
+        // Détail volontairement exposé : sans accès aux logs edge, c'est le
+        // seul moyen de diagnostiquer un paramètre refusé (style, substyle…).
+        friendly = `Recraft a refusé la demande : ${errBody.slice(0, 300)}`;
       } else if (recraftRes.status >= 500) {
         friendly = "Recraft temporairement indisponible";
       }
