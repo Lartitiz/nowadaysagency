@@ -1286,12 +1286,18 @@ export default function CreerUnifie() {
     }
 
     // Formats structurés : appel classique (pas de streaming)
-    // Carrousels photo/mix : proposer la structure d'abord (sauf si déjà validée)
+    // Carrousel « photo » (photos en fond + texte par-dessus) : proposer la
+    // structure d'abord (sauf si déjà validée) — l'assignation photo→slide y est
+    // le seul levier avant génération.
+    // Carrousel « mix » : PLUS d'écran structure. On génère directement ; tout
+    // (réordonner, ajouter/supprimer une slide, changer son type, swapper la
+    // photo, éditer le texte) se règle ensuite sur l'écran résultat, sur le vrai
+    // carrousel qu'on voit (CarouselPhotoResult), au lieu d'un plan abstrait.
     // Les carrousels texte vont directement à la génération (pas de structure_review)
     // pure_photo : pas de structure review non plus — le nombre de slides est forcé
     // au nombre de photos uploadées dans le post-process (effet plus bas).
-    const isPhotoOrMixCarousel = carouselSubMode === "photo" || carouselSubMode === "mix";
-    if (selectedFormat === "carousel" && isPhotoOrMixCarousel && !structureProposal && !lastConfirmedStructure) {
+    const usesStructureReview = carouselSubMode === "photo";
+    if (selectedFormat === "carousel" && usesStructureReview && !structureProposal && !lastConfirmedStructure) {
       setStructureLoading(true);
       try {
         const structureBody: any = {
@@ -1306,17 +1312,17 @@ export default function CreerUnifie() {
           photo_description: photoDescription || undefined,
           ...(newsjackingContext ? { news_context: newsjackingContext.slice(0, 3800) } : {}),
         };
-        // En mode photo/mix, envoyer les photos pour analyse visuelle.
+        // Mode photo : envoyer les photos pour analyse visuelle.
         // Version allégée (~1024px) pour l'analyse uniquement — le rendu/export
         // garde le plein format via uploadedPhotos / generatedWithPhotos.
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0) {
+        if (carouselSubMode === "photo" && uploadedPhotos.length > 0) {
           structureBody.photos = await downscalePhotosForVision(
             uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
           );
           // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
           setGeneratedWithPhotos(uploadedPhotos);
         }
-        const structureTimeout = (carouselSubMode === "photo" || carouselSubMode === "mix") && uploadedPhotos.length > 0 ? 60000 : 30000;
+        const structureTimeout = carouselSubMode === "photo" && uploadedPhotos.length > 0 ? 60000 : 30000;
         const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
           body: structureBody,
         }, structureTimeout);
@@ -1348,7 +1354,6 @@ export default function CreerUnifie() {
             answers: Object.keys(ans).length > 0 ? ans : undefined,
             channel: isLinkedInCarousel ? "linkedin" : undefined,
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-            ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
             ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
             ...(qualityMax ? { qualityMax: true } : {}),
             ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
