@@ -18,6 +18,11 @@ const SHOTS = path.join(__dirname, "shots/photos-acces");
 fs.mkdirSync(SHOTS, { recursive: true });
 
 test("dashboard : pill « Mes photos » présente et mène à /photos", async ({ page }) => {
+  // Neutralise l'overlay de visite guidée (1re visite) qui, en contexte de test
+  // (storageState neuf à chaque run), recouvre la page et intercepte les clics.
+  await page.addInitScript(() => {
+    localStorage.setItem("lac_dashboard_tour_seen", "1");
+  });
   await page.goto("/dashboard", { waitUntil: "networkidle" });
 
   // Voisinage attendu dans « Piloter » : la pill « Mes idées » cohabite.
