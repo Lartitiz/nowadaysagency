@@ -32,6 +32,7 @@ import {
 import { deletePhotoCompletely } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadDialog } from "@/components/photos/PhotoUploadDialog";
+import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
@@ -53,6 +54,7 @@ export default function PhotosPage() {
   const [retoucheOpen, setRetoucheOpen] = useState(false);
   const [detailPhoto, setDetailPhoto] = useState<UserPhotoRow | null>(null);
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
+  const [retouchePhoto, setRetouchePhoto] = useState<UserPhotoRow | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<UserPhotoRow | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -269,11 +271,20 @@ export default function PhotosPage() {
           setDetailPhoto(null);
           setPackshotPhoto(p);
         }}
+        onRetouche={(p) => {
+          setDetailPhoto(null);
+          setRetouchePhoto(p);
+        }}
       />
       <PackshotDialog
         photo={packshotPhoto}
         open={!!packshotPhoto}
         onOpenChange={(v) => !v && setPackshotPhoto(null)}
+      />
+      <PhotoRetouchDialog
+        photo={retouchePhoto}
+        open={!!retouchePhoto}
+        onOpenChange={(v) => !v && setRetouchePhoto(null)}
       />
 
       <AlertDialog open={!!photoToDelete} onOpenChange={(v) => !v && setPhotoToDelete(null)}>
