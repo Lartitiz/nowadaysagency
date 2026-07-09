@@ -399,7 +399,7 @@ Tu dois produire des slides qui ressemblent à du design professionnel fait sur 
 Couleur principale : ${ch.color_primary}
 Couleur secondaire (titres foncés) : ${ch.color_secondary}
 Couleur accent (highlights) : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/200% — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
+Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
 Texte : ${ch.color_text}
 Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
 Police corps : ${ch.font_body}
@@ -555,7 +555,7 @@ CTA (dernière slide) — Douce, invitante :
 - TOUTES les slides utilisent les MÊMES fonts (${ch.font_title} pour les titres, ${ch.font_body} pour le corps)
 - Le padding latéral est IDENTIQUE sur toutes les slides (80px)
 - Les badges pilules ont le MÊME style partout
-- Le fond ALTERNE entre : ${ch.texture_url ? `la texture de marque (background:url('${ch.texture_url}') center/200%), blanc, et ponctuellement ${ch.color_primary}` : `blanc, ${ch.color_background}, et ponctuellement ${ch.color_primary}`} (max 1-2 slides en fond coloré plein)
+- Le fond ALTERNE entre : ${ch.texture_url ? `la texture de marque (background:url('${ch.texture_url}') center/cover), blanc, et ponctuellement ${ch.color_primary}` : `blanc, ${ch.color_background}, et ponctuellement ${ch.color_primary}`} (max 1-2 slides en fond coloré plein)
 - La hiérarchie titre/corps est CONSTANTE : le titre est toujours plus grand, toujours en ${ch.font_title}
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
@@ -665,7 +665,7 @@ Le carrousel photo se lit comme une histoire qui coule : le fil vit DANS les phr
 Couleur principale : ${ch.color_primary}
 Couleur secondaire : ${ch.color_secondary}
 Couleur accent : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/200% — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
+Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
 Texte : ${ch.color_text}
 Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
 Police corps : ${ch.font_body}
@@ -799,7 +799,7 @@ Ce carrousel est un MIX : certaines slides ont des photos, d'autres sont du text
 Couleur principale : ${ch.color_primary}
 Couleur secondaire (titres foncés) : ${ch.color_secondary}
 Couleur accent (highlights) : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/200% — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
+Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
 Texte : ${ch.color_text}
 Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
 Police corps : ${ch.font_body}

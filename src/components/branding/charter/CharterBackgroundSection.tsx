@@ -158,7 +158,7 @@ export default function CharterBackgroundSection({
                 </>
               )}
             </Button>
-            <span className="text-xs text-muted-foreground">1 crédit retouche photo, une seule fois</span>
+            <span className="text-xs text-muted-foreground">Gratuit, tu peux régénérer autant que tu veux</span>
           </div>
 
           {!textureUrl && (
