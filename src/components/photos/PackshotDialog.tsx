@@ -285,10 +285,14 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
           </p>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
-            Annuler
-          </Button>
+        {/* 4 boutons ne tiennent pas dans max-w-2xl : Annuler disparaît après
+            génération (le X ferme) et le footer peut wrapper au besoin. */}
+        <DialogFooter className="flex-col sm:flex-row sm:flex-wrap gap-2">
+          {!resultBase64 && (
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={busy}>
+              Annuler
+            </Button>
+          )}
           {resultBase64 && (
             <>
               <Button type="button" variant="outline" onClick={handleGenerate} disabled={busy}>
