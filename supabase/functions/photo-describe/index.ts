@@ -22,6 +22,13 @@
  *   lot de 40. Appelé par la bibliothèque quand elle voit des photos sans
  *   kind : auto-réparant, pas de backfill admin.
  *
+ * - mode "portrait_ambiances" (Portrait pro) : 4 ambiances de fond de portrait
+ *   personnalisées depuis le branding (titre + description + prompt Photoroom
+ *   caché). Cache dans brand_charter.portrait_ambiances, invalidé par une
+ *   signature des champs branding utilisés (PAS updated_at : notre propre
+ *   écriture du cache le bumperait → régénération infinie). `regenerate`
+ *   force un nouveau lot en évitant les titres précédents.
+ *
  * skipQuota : micro-appels d'assistance (comme stock-photo-keywords), pas de
  * débit crédit. Sortie structurée en `tool` forcé (jamais de parse texte).
  */
@@ -45,6 +52,11 @@ const BodySchema = z.discriminatedUnion("mode", [
   z.object({
     mode: z.literal("classify_missing"),
     workspace_id: z.string().uuid().optional(),
+  }),
+  z.object({
+    mode: z.literal("portrait_ambiances"),
+    workspace_id: z.string().uuid().optional(),
+    regenerate: z.boolean().optional(),
   }),
   z.object({
     mode: z.literal("pick_stock"),
@@ -164,6 +176,40 @@ const PICK_STOCK_TOOL = {
       },
     },
     required: ["ranked_ids"],
+  },
+};
+
+const PORTRAIT_AMBIANCES_TOOL = {
+  name: "save_portrait_ambiances",
+  description: "Enregistre les ambiances de fond de portrait proposées",
+  input_schema: {
+    type: "object",
+    properties: {
+      ambiances: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: {
+              type: "string",
+              description: "Nom court de l'ambiance, max 28 caractères (ex : « Dans ton atelier »)",
+            },
+            description: {
+              type: "string",
+              description:
+                "Ce qu'on verra derrière la personne, concret, max 65 caractères (ex : « Établi en bois, pièces en cours, lumière du matin »)",
+            },
+            prompt: {
+              type: "string",
+              description:
+                "Prompt du décor pour l'IA de remplacement de fond : le DÉCOR SEUL, sans personne ni texte, réaliste, net, lumière décrite. 60 à 220 caractères, en français.",
+            },
+          },
+          required: ["title", "description", "prompt"],
+        },
+      },
+    },
+    required: ["ambiances"],
   },
 };
 
@@ -397,6 +443,112 @@ Exclus du classement toute candidate hors sujet — mieux vaut 2 bonnes photos q
         ),
       );
       return json({ ranked_ids: ranked });
+    }
+
+    if (body.mode === "portrait_ambiances") {
+      const ctx = await getUserContext(supabase, userId, body.workspace_id);
+      const p = ctx.profile || {};
+      const charter = ctx.charter || {};
+
+      const lines: string[] = [];
+      if (p.prenom) lines.push(`Prénom : ${p.prenom}`);
+      if (p.activite) lines.push(`Activité : ${p.activite}`);
+      if (p.type_activite) lines.push(`Type d'activité : ${p.type_activite}`);
+      if (p.cible) lines.push(`Cible : ${p.cible}`);
+      if (charter.photo_style) lines.push(`Style photo souhaité : ${charter.photo_style}`);
+      if (charter.mood_keywords) lines.push(`Ambiance de marque : ${JSON.stringify(charter.mood_keywords)}`);
+      if (charter.moodboard_description) lines.push(`Moodboard : ${charter.moodboard_description}`);
+      const colors = [charter.color_primary, charter.color_secondary, charter.color_accent, charter.color_background]
+        .filter(Boolean)
+        .join(", ");
+      if (colors) lines.push(`Couleurs de la charte (hex) : ${colors}`);
+      if (charter.visual_donts) lines.push(`À éviter absolument : ${charter.visual_donts}`);
+
+      // Signature d'invalidation : les champs branding réellement utilisés.
+      // (updated_at serait bumpé par notre propre écriture du cache.)
+      const signature = lines.join("|");
+
+      // Ligne charte pour le cache (colonne posée par la migration Portrait pro ;
+      // select défensif : si la colonne manque encore, on génère sans cache).
+      let charterRow: { id: string; portrait_ambiances: unknown } | null = null;
+      try {
+        const col = body.workspace_id ? "workspace_id" : "user_id";
+        const val = body.workspace_id || userId;
+        const { data } = await supabase
+          .from("brand_charter")
+          .select("id, portrait_ambiances")
+          .eq(col, val)
+          .maybeSingle();
+        charterRow = data;
+      } catch {
+        charterRow = null;
+      }
+
+      const cache = (charterRow?.portrait_ambiances ?? null) as
+        | { signature?: unknown; items?: unknown }
+        | null;
+      const cachedItems = Array.isArray(cache?.items) ? (cache!.items as any[]) : [];
+      if (!body.regenerate && cachedItems.length >= 3 && cache?.signature === signature) {
+        return json({ ambiances: cachedItems, cached: true });
+      }
+
+      const avoidTitles = body.regenerate
+        ? cachedItems.map((a) => (typeof a?.title === "string" ? a.title : "")).filter(Boolean)
+        : [];
+
+      const raw = await callAnthropic({
+        model: "claude-haiku-4-5",
+        system:
+          "Tu imagines des fonds de portrait professionnel pour une entrepreneuse. Une IA de remplacement d'arrière-plan (détourage) incrustera sa photo TELLE QUELLE sur le décor : la personne n'est jamais modifiée, seul le fond change. Les décors doivent être crédibles pour son activité, cohérents avec sa charte, et flatteurs derrière un buste/visage (pas de décor trop chargé au centre).",
+        messages: [
+          {
+            role: "user",
+            content:
+              `Voici la marque :\n${lines.length ? lines.join("\n") : "(branding pas encore rempli : propose des ambiances universelles et chaleureuses pour une indépendante)"}\n\n` +
+              `Propose exactement 4 ambiances de fond variées pour ses portraits professionnels :\n` +
+              `1. son lieu de travail crédible (atelier, bureau, boutique… selon l'activité)\n` +
+              `2. un fond uni ou studio dans une couleur de sa charte\n` +
+              `3. une matière ou texture de son univers\n` +
+              `4. libre, la plus juste pour sa marque.\n` +
+              (avoidTitles.length
+                ? `\nElle a déjà vu ces ambiances, propose-en de VRAIMENT différentes : ${avoidTitles.join(" · ")}.\n`
+                : ""),
+          },
+        ],
+        tool: PORTRAIT_AMBIANCES_TOOL,
+        temperature: 0.8,
+        max_tokens: 900,
+        abortTimeoutMs: 25_000,
+      });
+
+      const parsed = JSON.parse(raw) as { ambiances?: unknown };
+      const ambiances = (Array.isArray(parsed.ambiances) ? parsed.ambiances : [])
+        .map((a: any) => ({
+          title: typeof a?.title === "string" ? a.title.trim().slice(0, 40) : "",
+          description: typeof a?.description === "string" ? a.description.trim().slice(0, 90) : "",
+          prompt: typeof a?.prompt === "string" ? a.prompt.trim().slice(0, 300) : "",
+        }))
+        .filter((a) => a.title.length > 0 && a.prompt.length >= 20)
+        .slice(0, 4);
+
+      if (ambiances.length < 3) {
+        return json({ error: "Ambiances incomplètes, réessaie." }, 502);
+      }
+
+      // Cache best-effort : une membre sans droit d'écriture sur la charte ou
+      // une colonne pas encore migrée ne doivent pas faire échouer la réponse.
+      if (charterRow?.id) {
+        try {
+          await supabase
+            .from("brand_charter")
+            .update({ portrait_ambiances: { signature, items: ambiances } })
+            .eq("id", charterRow.id);
+        } catch (e) {
+          console.error("[photo-describe] portrait_ambiances cache write failed:", e);
+        }
+      }
+
+      return json({ ambiances, cached: false });
     }
 
     // mode === "shoot_ideas"

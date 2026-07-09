@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Loader2, Package, RefreshCw, Shirt, Sparkles, Wand2 } from "lucide-react";
+import { Camera, Download, Loader2, Package, RefreshCw, Shirt, Sparkles, Wand2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +36,8 @@ interface PhotoDetailDialogProps {
   onRetouche?: (photo: UserPhotoRow) => void;
   /** Ouvre la mise en scène (produit porté/en situation) pour cette photo. */
   onMiseEnScene?: (photo: UserPhotoRow) => void;
+  /** Ouvre le Portrait pro (fond de marque, visage intact) — photos kind=portrait. */
+  onPortraitPro?: (photo: UserPhotoRow) => void;
 }
 
 function slugify(s: string): string {
@@ -48,7 +50,7 @@ function slugify(s: string): string {
     .slice(0, 60) || "photo";
 }
 
-export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene }: PhotoDetailDialogProps) {
+export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro }: PhotoDetailDialogProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -235,6 +237,13 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
         )}
 
         <div className="flex flex-wrap justify-end gap-2">
+          {/* Portrait pro : l'action vedette des photos de personne — fond de
+              marque via détourage Photoroom, visage jamais re-généré. */}
+          {photo.status === "ready" && photo.kind === "portrait" && onPortraitPro && (
+            <Button onClick={() => onPortraitPro(photo)}>
+              <Camera className="h-4 w-4 mr-2" /> Portrait pro
+            </Button>
+          )}
           {photo.status === "ready" && onRetouche && (
             <Button variant="outline" onClick={() => onRetouche(photo)}>
               <Wand2 className="h-4 w-4 mr-2" /> Modifier le fond
@@ -252,6 +261,9 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           )}
           {photo.status === "ready" && (
             <Button
+              /* Un seul bouton vedette à la fois : quand Portrait pro est là,
+                 Créer un contenu passe en secondaire. */
+              variant={photo.kind === "portrait" && onPortraitPro ? "outline" : "default"}
               onClick={() => {
                 navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });
                 onOpenChange(false);

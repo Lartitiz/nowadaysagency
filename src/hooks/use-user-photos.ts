@@ -346,3 +346,130 @@ export function useRetouchExistingPhoto() {
 
   return { mutate, isPending };
 }
+
+/**
+ * « Portrait pro » : génère une NOUVELLE photo de bibliothèque depuis un
+ * portrait existant (fond remplacé par Photoroom, visage détouré intact).
+ *
+ * Contrairement à useRetouchExistingPhoto (sur place), on crée une ligne à
+ * part : l'originale reste intacte et la personne peut générer plusieurs
+ * versions du même selfie. Flux : copie serveur du fichier source vers
+ * `${uid}/${newId}_original.jpg` → insert row pending → edge
+ * photo-background-replace (écrit `${uid}/${newId}.jpg`, passe la ligne ready).
+ * Les ajustements ultérieurs re-passent par useRetouchExistingPhoto sur la
+ * ligne générée (chemins déjà distincts → pas de snapshot).
+ */
+export function useGeneratePortraitPro() {
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const [isPending, setIsPending] = useState(false);
+
+  async function mutate(input: {
+    sourcePhoto: UserPhotoRow;
+    backgroundPrompt: string;
+    ambianceTitle?: string;
+  }): Promise<{ photoId: string }> {
+    if (!user?.id || !workspaceId) throw new Error("Espace de travail introuvable");
+    if (workspaceId === user.id) {
+      throw new Error("Espace de travail en cours de chargement, réessaie dans 1 seconde.");
+    }
+    const prompt = input.backgroundPrompt.trim();
+    if (prompt.length < 3) {
+      throw new Error("Choisis une ambiance ou décris ton fond avant de générer.");
+    }
+    setIsPending(true);
+    try {
+      const source = input.sourcePhoto;
+      // Fichier pristine : l'original si la photo source a déjà été retouchée.
+      const srcPath = source.original_storage_path || source.storage_path;
+
+      // 1. Ligne d'abord (id serveur), chemins en placeholder — même pattern
+      //    que uploadPhotoOriginal.
+      const insertRes = await supabase
+        .from("user_photos")
+        .insert({
+          user_id: user.id,
+          workspace_id: workspaceId,
+          storage_path: "",
+          original_storage_path: "",
+          status: "pending",
+          name: `${source.name ?? "Portrait"} — portrait pro`.slice(0, 120),
+          kind: "portrait",
+          source_type: "generated",
+          background_prompt: prompt,
+          description: source.description
+            ? `Portrait pro — ${source.description}`.slice(0, 300)
+            : "Portrait professionnel généré (fond remplacé)",
+          tags: Array.from(new Set(["portrait-pro", ...(source.tags ?? [])])).slice(0, 6),
+        })
+        .select("id")
+        .single();
+      if (insertRes.error || !insertRes.data) {
+        const raw = insertRes.error?.message || "";
+        if (raw.toLowerCase().includes("row-level security")) {
+          throw new Error("Espace de travail invalide. Recharge la page et réessaie.");
+        }
+        throw new Error(raw || "Impossible de créer le portrait");
+      }
+      const newId = insertRes.data.id as string;
+      const originalPath = `${user.id}/${newId}_original.jpg`;
+      const resultPath = `${user.id}/${newId}.jpg`;
+
+      const cleanup = async () => {
+        await supabase.from("user_photos").delete().eq("id", newId);
+        await supabase.storage.from(USER_PHOTOS_BUCKET).remove([originalPath]).catch(() => {});
+      };
+
+      // 2. Copie serveur du fichier source (pas de re-upload client).
+      const { error: copyErr } = await supabase.storage
+        .from(USER_PHOTOS_BUCKET)
+        .copy(srcPath, originalPath);
+      if (copyErr && !/exist|dupl/i.test(copyErr.message)) {
+        await supabase.from("user_photos").delete().eq("id", newId);
+        throw new Error(copyErr.message);
+      }
+
+      // 3. Chemins réels sur la ligne.
+      const { error: pathErr } = await supabase
+        .from("user_photos")
+        .update({ original_storage_path: originalPath, storage_path: resultPath })
+        .eq("id", newId);
+      if (pathErr) {
+        await cleanup();
+        throw new Error(pathErr.message);
+      }
+
+      // 4. Edge (écrit le résultat, ligne → ready ; échec → failed sans débit).
+      try {
+        const { error } = await invokeWithTimeout(
+          "photo-background-replace",
+          {
+            body: {
+              photo_id: newId,
+              workspace_id: workspaceId,
+              background_prompt: prompt,
+            },
+          },
+          90_000,
+        );
+        if (error) throw new Error(error.message);
+      } catch (invokeErr) {
+        // Refus EN AMONT (quota/débit : ligne encore pending) → on retire
+        // l'essai de la bibliothèque. Si l'edge a démarré, elle gère le statut.
+        const { data: cur } = await supabase
+          .from("user_photos")
+          .select("status")
+          .eq("id", newId)
+          .maybeSingle();
+        if (!cur || cur.status === "pending") await cleanup();
+        throw invokeErr;
+      }
+
+      return { photoId: newId };
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return { mutate, isPending };
+}
