@@ -1663,6 +1663,13 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       // Les rgba sont composés sur le fond du parent dans la pile.
       const VOID_TAGS = new Set(["br", "img", "hr", "input", "meta", "link", "source", "area", "base", "col", "embed", "param", "track", "wbr"]);
       const BG_DECL_RE = /background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|[a-z]+)/i;
+      // TEXTURE DE MARQUE = FOND CLAIR. La texture-papier est déclarée en
+      // `background:url('…')` — illisible pour BG_DECL_RE, donc la garde
+      // retombait sur un mauvais fond de repli et laissait passer du texte
+      // blanc/jaune posé directement sur la texture (vu en prod, 3 slides d'un
+      // même carrousel). La texture est par construction une matière CLAIRE
+      // dérivée du fond de charte → un fond url(...) compte comme bgDefault6.
+      const BG_URL_RE = /background\s*:\s*url\(/i;
       const bgEnclosingAt = (whole: string, offset: number, fallback6: string): string | null => {
         const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
         const stack: Array<{ tag: string; bg6: string | null }> = [];
@@ -1683,9 +1690,10 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
             }
           } else if (!VOID_TAGS.has(tag) && !/\/\s*$/.test(attrs)) {
             const bm = attrs.match(BG_DECL_RE);
-            // Gradient/url/nom inconnu → hexOnBg rend null → l'élément ne compte
+            // Gradient/nom inconnu → hexOnBg rend null → l'élément ne compte
             // pas comme fond (on retombe sur le parent) — comportement sûr.
-            const composed = bm ? hexOnBg(bm[1], nearest() || fallback6) : null;
+            let composed = bm ? hexOnBg(bm[1], nearest() || fallback6) : null;
+            if (!composed && BG_URL_RE.test(attrs)) composed = fallback6;
             stack.push({ tag, bg6: composed });
           }
         }
