@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter } from "./use-workspace-query";
 
 /**
@@ -9,26 +9,13 @@ import { useWorkspaceFilter } from "./use-workspace-query";
  * stratégie, charte, offres, audits, coaching, voice profile, mirror) puis
  * remet l'autofill à zéro.
  *
- * 100% côté client : le filtre `workspace_id` (ou `user_id` en fallback) passe
- * par les policies RLS `workspace_delete_*` / `auth.uid() = user_id`. Chaque
- * table est traitée indépendamment et les erreurs sont remontées telles quelles
- * (pas de faux succès silencieux). On ne touche PAS à l'onboarding.
+ * Passe par l'edge `reset-onboarding` (mode brandingOnly, service role) : les
+ * policies DELETE de branding_coaching_sessions / branding_mirror_results sont
+ * scopées `auth.uid() = user_id`, donc un DELETE côté client par un·e manager
+ * sur l'espace d'une cliente laissait silencieusement les lignes écrites par
+ * la cliente (0 ligne matchée). L'edge vérifie le membership et supprime par
+ * workspace_id. On ne touche PAS à l'onboarding.
  */
-
-// Tables supprimées (toutes ont une policy DELETE par workspace_id ou user_id).
-const BRANDING_TABLES = [
-  "storytelling",
-  "persona",
-  "brand_proposition",
-  "brand_profile",
-  "brand_strategy",
-  "brand_charter",
-  "offers",
-  "branding_audits",
-  "branding_coaching_sessions",
-  "voice_profile",
-  "branding_mirror_results",
-] as const;
 
 // Clés react-query à invalider pour que /branding se rafraîchisse vide.
 const BRANDING_QUERY_KEYS = [
@@ -87,18 +74,14 @@ export function useResetBranding() {
     setIsResetting(true);
     const errors: string[] = [];
     try {
-      for (const table of BRANDING_TABLES) {
-        const { error } = await (supabase.from(table as any) as any)
-          .delete()
-          .eq(column, value);
-        if (error) errors.push(`${table}: ${error.message}`);
+      const { data, error } = await invokeWithTimeout(
+        "reset-onboarding",
+        { body: { workspaceId: value, brandingOnly: true } },
+        30000,
+      );
+      if (error || !data?.success) {
+        errors.push(error?.message || (data?.errors || ["Réinitialisation incomplète."]).join(" ; "));
       }
-
-      // branding_autofill n'a pas de policy DELETE → on remet son statut à zéro.
-      const { error: autofillError } = await (supabase.from("branding_autofill" as any) as any)
-        .update({ autofill_status: "idle", autofill_pending_review: false })
-        .eq(column, value);
-      if (autofillError) errors.push(`branding_autofill: ${autofillError.message}`);
 
       clearBrandingLocalStorage();
 
