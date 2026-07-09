@@ -1,0 +1,1 @@
+ALTER TABLE public.brand_charter ADD COLUMN IF NOT EXISTS portrait_ambiances jsonb;

@@ -319,6 +319,7 @@ export type Database = {
           moodboard_images: Json | null
           photo_keywords: Json | null
           photo_style: string | null
+          portrait_ambiances: Json | null
           template_layout_description: string | null
           texture_enabled: boolean
           texture_material: string | null
@@ -354,6 +355,7 @@ export type Database = {
           moodboard_images?: Json | null
           photo_keywords?: Json | null
           photo_style?: string | null
+          portrait_ambiances?: Json | null
           template_layout_description?: string | null
           texture_enabled?: boolean
           texture_material?: string | null
@@ -389,6 +391,7 @@ export type Database = {
           moodboard_images?: Json | null
           photo_keywords?: Json | null
           photo_style?: string | null
+          portrait_ambiances?: Json | null
           template_layout_description?: string | null
           texture_enabled?: boolean
           texture_material?: string | null
