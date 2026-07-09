@@ -3378,7 +3378,6 @@ export default function CreerUnifie() {
         format={selectedFormat || undefined}
         objectif={objective || undefined}
         visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
-        onVisualSlidesUpdate={setVisualSlides}
         onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
         editingIdeaId={editingIdeaId}
       />
