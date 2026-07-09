@@ -119,7 +119,11 @@ export function linkedInPermalink(urn: string): string {
 // ─────────────────────────────────────────────────────────────────────────────
 // Carrousel natif LinkedIn = un DOCUMENT PDF publié via l'API versionnée /rest.
 // (Les images restent sur /v2/ugcPosts ; seuls les documents passent par /rest.)
-const LINKEDIN_VERSION = "202401";
+// LinkedIn ne garantit chaque version (LinkedIn-Version) qu'~1 an ; 202401 est sunset
+// (c'est même l'exemple de version « deprecated » dans la doc LinkedIn). On suit la
+// dernière version supportée — voir learn.microsoft.com/linkedin/marketing/versioning.
+// Payload /rest/posts + /rest/documents vérifié conforme à 202606 (aucun champ renommé).
+const LINKEDIN_VERSION = "202606";
 const REST_DOCUMENTS_INIT_URL = "https://api.linkedin.com/rest/documents?action=initializeUpload";
 const REST_POSTS_URL = "https://api.linkedin.com/rest/posts";
 
