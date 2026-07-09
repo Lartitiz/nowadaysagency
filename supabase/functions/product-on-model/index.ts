@@ -252,8 +252,10 @@ serve(async (req) => {
     const buildForm = () => {
       const form = new FormData();
       form.append("model", "gpt-image-1");
+      // ⚠️ gpt-image-1 attend la notation tableau `image[]` (la forme `image`
+      // est celle de dall-e-2 → 400 immédiat).
       form.append(
-        "image",
+        "image[]",
         new File([blob], "product.jpg", { type: blob.type || "image/jpeg" })
       );
       form.append("prompt", prompt);
@@ -317,7 +319,13 @@ serve(async (req) => {
 
     if (!aiRes.ok) {
       const errBody = await aiRes.text().catch(() => "");
-      let friendly = `Erreur OpenAI (status ${aiRes.status})`;
+      // Le message OpenAI est remonté (tronqué) : sans accès direct aux logs
+      // Supabase, c'est le seul moyen de diagnostiquer un 400 depuis le front.
+      let openaiMsg = "";
+      try {
+        openaiMsg = JSON.parse(errBody)?.error?.message ?? "";
+      } catch (_) { /* body non-JSON */ }
+      let friendly = `Erreur OpenAI (status ${aiRes.status})${openaiMsg ? ` : ${openaiMsg.slice(0, 200)}` : ""}`;
       if (aiRes.status === 401 || aiRes.status === 403) {
         friendly = "Clé API OpenAI invalide ou organisation non vérifiée";
       } else if (aiRes.status === 429) {
