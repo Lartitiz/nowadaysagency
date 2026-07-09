@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { callAnthropic, type AnthropicModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, SONNET_MODEL, type AnthropicModel, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
@@ -1002,7 +1002,7 @@ Retourne UNIQUEMENT le JSON.`;
     // Modèle des visuels branché sur « Mode qualité Max » : Sonnet par défaut (rapide,
     // ~2x plus court à générer), Opus seulement si l'utilisatrice a coché le toggle
     // (rendu le plus soigné, plus lent). Le pass de correction réutilise ce `model`.
-    const model: AnthropicModel = reqBody.quality_max ? "claude-opus-4-8" : "claude-sonnet-4-6";
+    const model: AnthropicModel = reqBody.quality_max ? "claude-opus-4-8" : SONNET_MODEL;
 
     // ═══ Append PPTX-editable annotation rules + invariants to ALL modes ═══
     // Discipline issue de l'étude "Le design via Claude" :

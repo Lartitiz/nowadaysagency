@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
       scopes = "instagram_business_basic,instagram_business_content_publish,instagram_business_manage_insights";
 
       // 3. Fetch account info
-      const meUrl = new URL("https://graph.instagram.com/v21.0/me");
+      const meUrl = new URL("https://graph.instagram.com/v23.0/me");
       meUrl.searchParams.set("fields", "user_id,username");
       meUrl.searchParams.set("access_token", accessToken);
       const meRes = await fetch(meUrl);

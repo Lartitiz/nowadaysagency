@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, SONNET_MODEL, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -55,7 +55,7 @@ function pickCarouselModel(body: any) {
 // réduit la latence perçue de la phase texte (les 2 appels étant séquentiels).
 // En Mode qualité Max on garde Sonnet, cohérent avec la promesse du toggle.
 function pickCorrectionModel(body: any): AnthropicModel {
-  return body?.quality_max ? "claude-sonnet-4-6" : "claude-haiku-4-5";
+  return body?.quality_max ? SONNET_MODEL : "claude-haiku-4-5";
 }
 
 // ── Helpers contexte par photo ──

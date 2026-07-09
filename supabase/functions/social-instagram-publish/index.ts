@@ -7,7 +7,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
 import { encryptToken, decryptConnTokens } from "../_shared/token-crypto.ts";
 
-const GRAPH = "https://graph.instagram.com/v21.0";
+const GRAPH = "https://graph.instagram.com/v23.0";
 const REFRESH_THRESHOLD_MS = 7 * 24 * 3600 * 1000;
 
 async function refreshTokenIfNeeded(supabase: any, conn: any): Promise<string> {
