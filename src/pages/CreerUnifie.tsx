@@ -3087,6 +3087,7 @@ export default function CreerUnifie() {
                 visualLoading={visualLoading}
                 visualChunkProgress={visualChunkProgress}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
+                onVisualSlidesUpdate={setVisualSlides}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
                 onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}
@@ -3377,6 +3378,7 @@ export default function CreerUnifie() {
         format={selectedFormat || undefined}
         objectif={objective || undefined}
         visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
+        onVisualSlidesUpdate={setVisualSlides}
         onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
         editingIdeaId={editingIdeaId}
       />

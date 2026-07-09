@@ -2,8 +2,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { formatSlideRole } from "@/lib/slide-roles";
+import { replaceSlideText } from "@/lib/carousel-html-edit";
 
 interface SlideData {
   slide_number: number;
@@ -25,6 +26,8 @@ interface Props {
   result: any;
   visualSlides?: { slide_number: number; html: string }[];
   onSlidesUpdate?: (slides: SlideData[], caption: CaptionData) => void;
+  /** Remonte les visuels patchés quand une édition de texte est répercutée dans le HTML. */
+  onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
 }
 
 /** Inline editable text block */
@@ -140,7 +143,34 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
   );
 }
 
-export default function CarouselResult({ result, visualSlides, onSlidesUpdate }: Props) {
+/** Aperçu d'une slide : le HTML 1080×1350 mis à l'échelle dans une iframe. */
+function SlideFramePreview({ html, title, width = 180 }: { html: string; title: string; width?: number }) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-lg border border-border shrink-0"
+      style={{ width, aspectRatio: "1080 / 1350" }}
+    >
+      <iframe
+        srcDoc={html}
+        title={title}
+        sandbox="allow-same-origin"
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          width: "1080px",
+          height: "1350px",
+          transform: `scale(${width / 1080})`,
+          transformOrigin: "top left",
+          border: "none",
+          pointerEvents: "none",
+        }}
+      />
+    </div>
+  );
+}
+
+export default function CarouselResult({ result, visualSlides, onSlidesUpdate, onVisualSlidesUpdate }: Props) {
   const rawSlides: SlideData[] = result?.slides || result?.carousel?.slides || [];
   const rawCaption: CaptionData = result?.caption || result?.carousel?.caption || {};
   const qualityCheck = result?.quality_check || result?.carousel?.quality_check;
@@ -168,14 +198,36 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
     }
   }, [result]);
 
+  // Édition live : le changement de texte est répercuté chirurgicalement dans
+  // le HTML du visuel (ancre data-slide-text, repli par correspondance de
+  // texte pour les visuels générés avant le contrat). Échec de localisation =
+  // visuel inchangé, jamais bloquant.
+  const visualSlidesRef = useRef(visualSlides);
+  visualSlidesRef.current = visualSlides;
+
   const updateSlide = useCallback((index: number, field: "title" | "body", value: string) => {
     setSlides(prev => {
+      const oldText = (prev[index]?.[field] as string) || "";
       const updated = [...prev];
       updated[index] = { ...updated[index], [field]: value };
       onSlidesUpdate?.(updated, captionRef.current);
+
+      const visuals = visualSlidesRef.current;
+      if (visuals?.length && onVisualSlidesUpdate) {
+        const slideNumber = updated[index].slide_number || index + 1;
+        const vi = visuals.findIndex((v) => v.slide_number === slideNumber);
+        if (vi >= 0) {
+          const patched = replaceSlideText(visuals[vi].html, field, oldText, value);
+          if (patched) {
+            const next = [...visuals];
+            next[vi] = { ...next[vi], html: patched };
+            onVisualSlidesUpdate(next);
+          }
+        }
+      }
       return updated;
     });
-  }, [onSlidesUpdate]);
+  }, [onSlidesUpdate, onVisualSlidesUpdate]);
 
   const updateCaption = useCallback((field: "hook" | "body" | "cta", value: string) => {
     setCaption(prev => {
@@ -184,6 +236,13 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
       return updated;
     });
   }, [onSlidesUpdate]);
+
+  // Aperçu par slide (vis-à-vis) : visuel apparié par slide_number
+  const visualBySlide = useMemo(
+    () => new Map((visualSlides || []).map((v) => [v.slide_number, v])),
+    [visualSlides],
+  );
+  const hasSidePreviews = slides.some((s, i) => visualBySlide.has(s.slide_number || i + 1));
 
   const fullText = [
     caption?.hook,
@@ -220,50 +279,63 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
         ✏️ Clique sur un texte pour le modifier directement
       </p>
 
-      {/* Slides */}
+      {/* Slides — texte éditable à gauche, aperçu du visuel à droite (comme les stories) */}
       <div className="space-y-2">
-        {slides.map((slide, i) => (
-          <Card key={i} className="border-border">
-            <CardContent className="p-3 space-y-1.5">
-              <div className="flex items-center gap-2 flex-wrap">
-                <Badge variant="secondary" className="font-mono text-2xs">
-                  Slide {slide.slide_number || i + 1}
-                </Badge>
-                {slide.role && (
-                  <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
-                    {formatSlideRole(slide.role)}
-                  </Badge>
-                )}
-              </div>
-              {slide.title != null && (
-                <InlineEditable
-                  value={slide.title || ""}
-                  onChange={(v) => updateSlide(i, "title", v)}
-                  className="text-sm font-bold text-foreground"
-                  placeholder="Titre de la slide…"
-                />
-              )}
-              {slide.body != null && (
-                <InlineEditable
-                  value={slide.body || ""}
-                  onChange={(v) => updateSlide(i, "body", v)}
-                  className="text-sm text-foreground leading-relaxed"
-                  placeholder="Contenu de la slide…"
-                />
-              )}
-              {slide.visual_schema && (
-                <div className="flex items-center gap-1.5 mt-1">
-                  <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-2xs">
-                    📊 Schéma : {(slide.visual_schema as any).type}
-                  </Badge>
+        {slides.map((slide, i) => {
+          const visual = visualBySlide.get(slide.slide_number || i + 1);
+          return (
+            <Card key={i} className="border-border">
+              <CardContent className="p-3">
+                <div className="flex gap-3 items-start">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="secondary" className="font-mono text-2xs">
+                        Slide {slide.slide_number || i + 1}
+                      </Badge>
+                      {slide.role && (
+                        <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
+                          {formatSlideRole(slide.role)}
+                        </Badge>
+                      )}
+                    </div>
+                    {slide.title != null && (
+                      <InlineEditable
+                        value={slide.title || ""}
+                        onChange={(v) => updateSlide(i, "title", v)}
+                        className="text-sm font-bold text-foreground"
+                        placeholder="Titre de la slide…"
+                      />
+                    )}
+                    {slide.body != null && (
+                      <InlineEditable
+                        value={slide.body || ""}
+                        onChange={(v) => updateSlide(i, "body", v)}
+                        className="text-sm text-foreground leading-relaxed"
+                        placeholder="Contenu de la slide…"
+                      />
+                    )}
+                    {slide.visual_schema && (
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <Badge className="bg-violet-100 text-violet-700 border-violet-200 text-2xs">
+                          📊 Schéma : {(slide.visual_schema as any).type}
+                        </Badge>
+                      </div>
+                    )}
+                    {slide.visual_suggestion && !slide.visual_schema && (
+                      <p className="text-xs italic text-muted-foreground">🎨 {slide.visual_suggestion}</p>
+                    )}
+                  </div>
+                  {visual && (
+                    <SlideFramePreview
+                      html={visual.html}
+                      title={`Aperçu slide ${slide.slide_number || i + 1}`}
+                    />
+                  )}
                 </div>
-              )}
-              {slide.visual_suggestion && !slide.visual_schema && (
-                <p className="text-xs italic text-muted-foreground">🎨 {slide.visual_suggestion}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Caption */}
@@ -324,8 +396,9 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate }:
 
       <AiGeneratedMention />
 
-      {/* Visual preview */}
-      {visualSlides && visualSlides.length > 0 && (
+      {/* Grille de secours : uniquement si aucun visuel n'a pu être apparié
+          aux slides (numéros incohérents) — sinon le vis-à-vis suffit. */}
+      {visualSlides && visualSlides.length > 0 && !hasSidePreviews && (
         <VisualSlidesGrid slides={visualSlides} />
       )}
     </div>

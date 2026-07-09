@@ -572,6 +572,11 @@ ${buildVisualSchemaBlock(ch)}
 
 ${styleInstructions}
 
+═══ ANCRAGE DU TEXTE (OBLIGATOIRE — permet l'édition en direct) ═══
+- Dans chaque slide, l'élément qui contient DIRECTEMENT le titre porte l'attribut data-slide-text="title" ; celui qui contient le corps porte data-slide-text="body". Un seul élément de chaque par slide.
+- Le texte du JSON y est recopié VERBATIM (aucune reformulation, coupure, fusion ou ajout). Tu peux styler des mots via des <span> À L'INTÉRIEUR de cet élément, mais le texte complet reste identique.
+- Les textes décoratifs que TU crées (numéros géants, labels de schéma…) ne portent JAMAIS cet attribut.
+
 Retourne un JSON :
 {
   "slides_html": [
@@ -1757,6 +1762,20 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         motif: invariants.motif,
       };
       console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
+    }
+
+    // ═══ Télémétrie ancres d'édition (carrousels texte) ═══
+    // Le prompt exige data-slide-text="title|body" autour des textes verbatim
+    // (édition en direct côté front). On ne répare pas ici (le front a un
+    // repli par correspondance de texte) mais on compte les manquants pour
+    // surveiller la tenue du contrat.
+    if (!isPhotoCarousel && !isMixCarousel && Array.isArray(result?.slides_html)) {
+      const missing = result.slides_html.filter(
+        (s: any) => typeof s?.html === "string" && !s.html.includes("data-slide-text="),
+      ).length;
+      if (missing > 0) {
+        console.warn(`carousel-visual: ${missing} slide(s) sans ancre data-slide-text (édition live en repli texte)`);
+      }
     }
 
     // ═══ Garde DÉTERMINISTE de contraste (tous types de carrousel) ═══
