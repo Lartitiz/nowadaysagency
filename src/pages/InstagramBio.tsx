@@ -6,7 +6,7 @@ import { friendlyError } from "@/lib/error-messages";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { usePersona, useBrandProposition, useBrandStrategy, useStorytelling } from "@/hooks/use-branding";
 import { useQueryClient } from "@tanstack/react-query";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
@@ -82,8 +82,8 @@ export default function InstagramBio() {
   useAuditInsight("bio");
   const activityExamples = useActivityExamples();
   const { isDemoMode, demoData } = useDemoContext();
-  const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const profileUserId = useProfileUserId();
 
   // Profile data
   const { data: profileHookData } = useProfile();
@@ -151,7 +151,8 @@ export default function InstagramBio() {
     }
     if (!user || (brandingLoaded && profile)) return;
     const load = async () => {
-      const { data: val } = await (supabase.from("audit_validations") as any).select("*").eq(column, value).eq("section", "bio").maybeSingle();
+      // audit_validations est user-scopée (pas de colonne workspace_id) — cf. ProfileSectionValidation.tsx
+      const { data: val } = await (supabase.from("audit_validations") as any).select("*").eq("user_id", user.id).eq("section", "bio").maybeSingle();
 
       const bp = brandProfileData as any;
       const persona = personaData as any;
@@ -280,7 +281,7 @@ export default function InstagramBio() {
         differentiation_text: diffText || null,
         bio_cta_type: ctaType || null,
         bio_cta_text: ctaText || null,
-      } as any).eq(column, value);
+      } as any).eq("user_id", profileUserId);
       queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       const res = await invokeWithTimeout("generate-content", {
@@ -352,9 +353,9 @@ export default function InstagramBio() {
     try {
       // Écritures critiques d'abord (l'état "validé" en dépend) — toutes idempotentes,
       // donc un retry après échec partiel reconverge sans doublon.
+      // audit_validations est user-scopée (pas de colonne workspace_id) — cf. ProfileSectionValidation.tsx
       const { error: valErr } = await supabase.from("audit_validations").upsert({
         user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         section: "bio",
         status: "validated",
         validated_at: new Date().toISOString(),
@@ -366,7 +367,7 @@ export default function InstagramBio() {
       const { error: profErr } = await (supabase.from("profiles") as any).update({
         validated_bio: bioText,
         validated_bio_at: new Date().toISOString(),
-      } as any).eq(column, value);
+      } as any).eq("user_id", profileUserId);
       if (profErr) throw profErr;
 
       // Historique = best-effort : une panne ici ne doit PAS faire échouer la validation

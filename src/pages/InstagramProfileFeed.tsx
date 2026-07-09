@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { isModuleVisible } from "@/config/feature-flags";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -7,6 +9,7 @@ import AuditInsight from "@/components/AuditInsight";
 import ProfileSectionValidation from "@/components/ProfileSectionValidation";
 
 export default function InstagramProfileFeed() {
+  const { isAdmin } = useAuth();
   const [checklist, setChecklist] = useState({
     formats: false,
     variety: false,
@@ -48,14 +51,16 @@ export default function InstagramProfileFeed() {
           ))}
         </div>
 
-        <div className="mt-6 rounded-xl bg-rose-pale p-4">
-          <p className="text-sm text-muted-foreground">
-            📌 Besoin d'inspiration pour ton feed ?{" "}
-            <Link to="/pinterest/tableaux" className="text-primary hover:underline font-medium">
-              Créer un tableau d'inspiration sur Pinterest →
-            </Link>
-          </p>
-        </div>
+        {isModuleVisible("pinterest", isAdmin) && (
+          <div className="mt-6 rounded-xl bg-rose-pale p-4">
+            <p className="text-sm text-muted-foreground">
+              📌 Besoin d'inspiration pour ton feed ?{" "}
+              <Link to="/pinterest/tableaux" className="text-primary hover:underline font-medium">
+                Créer un tableau d'inspiration sur Pinterest →
+              </Link>
+            </p>
+          </div>
+        )}
 
         <ProfileSectionValidation section="feed" />
       </main>
