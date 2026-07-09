@@ -7273,7 +7273,6 @@ export type Database = {
           file_size_bytes: number | null
           height: number | null
           id: string
-          kind: string | null
           name: string | null
           original_storage_path: string
           source_type: string
@@ -7294,7 +7293,6 @@ export type Database = {
           file_size_bytes?: number | null
           height?: number | null
           id?: string
-          kind?: string | null
           name?: string | null
           original_storage_path: string
           source_type?: string
@@ -7315,7 +7313,6 @@ export type Database = {
           file_size_bytes?: number | null
           height?: number | null
           id?: string
-          kind?: string | null
           name?: string | null
           original_storage_path?: string
           source_type?: string
