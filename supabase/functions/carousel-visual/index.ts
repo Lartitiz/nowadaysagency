@@ -747,6 +747,9 @@ Tu VOIS chaque photo. Avant de finaliser CHAQUE slide, regarde la zone réelle d
 - Si NON (ou au moindre doute) : tu DOIS d'abord corriger — ajoute ou renforce le voile/bandeau (jusqu'à rgba opaque 0.92), déplace le texte vers une zone plus contrastée, ou agrandis l'ombre. Ne livre JAMAIS une slide au contraste douteux.
 - Renseigne ensuite honnêtement le champ "contrast_ok" : true seulement si, APRÈS ta correction, le texte est franchement lisible. false si un doute subsiste malgré tout.
 
+═══ ANCRAGE DU TEXTE (OBLIGATOIRE — permet l'édition en direct) ═══
+L'élément qui contient DIRECTEMENT l'overlay_text porte l'attribut data-slide-text="overlay" (un seul par slide, texte recopié VERBATIM ; les <span> de style restent À L'INTÉRIEUR de cet élément). Le CTA autorisé de la dernière slide ne porte PAS cet attribut.
+
 Retourne un JSON :
 {
   "slides_html": [
@@ -874,6 +877,11 @@ N'ajoute JAMAIS data-pptx-photo sur un élément sans photo réelle (icône SVG,
 - ❌ Photo intégrée trop petite (minimum 40% de la surface de la slide)
 - ❌ Cercles ou ronds décoratifs
 - ❌ Font-weight bold sur ${ch.font_title}
+
+═══ ANCRAGE DU TEXTE (OBLIGATOIRE — permet l'édition en direct) ═══
+- Slides "photo_full" : l'élément qui contient DIRECTEMENT l'overlay_text porte data-slide-text="overlay".
+- Slides "text_only" et "photo_integrated" : l'élément du titre porte data-slide-text="title", celui du corps data-slide-text="body".
+- Texte recopié VERBATIM dans ces éléments (les <span> de style restent à l'intérieur) ; jamais cet attribut sur des textes décoratifs.
 
 Retourne un JSON :
 {
@@ -1764,17 +1772,22 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
     }
 
-    // ═══ Télémétrie ancres d'édition (carrousels texte) ═══
-    // Le prompt exige data-slide-text="title|body" autour des textes verbatim
-    // (édition en direct côté front). On ne répare pas ici (le front a un
-    // repli par correspondance de texte) mais on compte les manquants pour
-    // surveiller la tenue du contrat.
-    if (!isPhotoCarousel && !isMixCarousel && Array.isArray(result?.slides_html)) {
-      const missing = result.slides_html.filter(
-        (s: any) => typeof s?.html === "string" && !s.html.includes("data-slide-text="),
-      ).length;
+    // ═══ Télémétrie ancres d'édition (tous types de carrousel) ═══
+    // Le prompt exige data-slide-text="title|body|overlay" autour des textes
+    // verbatim (édition en direct côté front). On ne répare pas ici (le front
+    // a un repli par correspondance de texte) mais on compte les manquants —
+    // uniquement pour les slides dont la SOURCE a du texte (une slide photo
+    // sans overlay n'a légitimement pas d'ancre).
+    if (Array.isArray(result?.slides_html)) {
+      const srcByNumber = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+      const missing = result.slides_html.filter((sl: any) => {
+        if (typeof sl?.html !== "string") return false;
+        const src = srcByNumber.get(sl.slide_number) as any;
+        const hasText = !!(src && (src.title || src.body || src.overlay_text));
+        return hasText && !sl.html.includes("data-slide-text=");
+      }).length;
       if (missing > 0) {
-        console.warn(`carousel-visual: ${missing} slide(s) sans ancre data-slide-text (édition live en repli texte)`);
+        console.warn(`carousel-visual: ${missing} slide(s) avec texte sans ancre data-slide-text (édition live en repli texte)`);
       }
     }
 

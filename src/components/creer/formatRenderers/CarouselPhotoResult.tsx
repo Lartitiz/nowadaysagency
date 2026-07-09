@@ -2,6 +2,8 @@ import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatSlideRole } from "@/lib/slide-roles";
+import { replaceSlideText } from "@/lib/carousel-html-edit";
+import { SlideFramePreview } from "@/components/creer/formatRenderers/CarouselResult";
 import { sanitizeInternalLabels } from "@/lib/sanitize-internal-labels";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -44,6 +46,8 @@ interface CarouselPhotoResultProps {
   photos?: PhotoItem[];
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   visualSlides?: { slide_number: number; html: string }[];
+  /** Remonte les visuels patchés quand une édition de texte est répercutée dans le HTML. */
+  onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
   channel?: "linkedin" | "instagram";
   onRetry?: () => void;
   captionLoading?: boolean;
@@ -204,7 +208,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, onVisualSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -301,6 +305,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // sinon la bannière « Mettre à jour les visuels » ne se referme pas après régénération.
   const [renderedSig, setRenderedSig] = useState<string>("");
 
+  // Aperçu par slide (vis-à-vis, lot F) : visuel apparié par slide_number
+  const visualBySlide = useMemo(
+    () => new Map((visualSlides || []).map((v) => [v.slide_number, v])),
+    [visualSlides],
+  );
+
 
   const prevSignature = useRef(JSON.stringify({
     slides: (r?.slides || []).map((s: any) => s.slide_number),
@@ -380,10 +390,47 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   );
 
 
+  // Édition live (lot F) : le changement de texte est répercuté
+  // chirurgicalement dans le HTML du visuel (ancre data-slide-text, repli par
+  // correspondance de texte). Succès → la signature "rendue" est synchronisée
+  // pour ne pas déclencher la bannière « visuels périmés » sur un simple texte ;
+  // échec → visuel inchangé, la bannière + « Mettre à jour » couvrent (comportement d'avant).
+  const visualSlidesLiveRef = useRef(visualSlides);
+  visualSlidesLiveRef.current = visualSlides;
+
+  const patchVisual = (
+    nextSlides: any[],
+    slideNumber: number,
+    field: "overlay" | "title" | "body",
+    oldText: string,
+    newText: string,
+  ) => {
+    const visuals = visualSlidesLiveRef.current;
+    if (!visuals?.length || !onVisualSlidesUpdate) return;
+    const vi = visuals.findIndex((v) => v.slide_number === slideNumber);
+    if (vi < 0) return;
+    const patched = replaceSlideText(visuals[vi].html, field, oldText, newText);
+    if (!patched) return;
+    const nextVisuals = [...visuals];
+    nextVisuals[vi] = { ...nextVisuals[vi], html: patched };
+    onVisualSlidesUpdate(nextVisuals);
+    setRenderedSig(slidesSignature(nextSlides, colors));
+  };
+
   const updateSlideText = (idx: number, text: string) => {
+    const oldText = slides[idx]?.overlay_text || "";
     const next = slides.map((s, i) => (i === idx ? { ...s, overlay_text: text } : s));
     setSlides(next);
     notify(next, caption);
+    patchVisual(next, slides[idx]?.slide_number || idx + 1, "overlay", oldText, text);
+  };
+
+  const updateSlideField = (idx: number, field: "title" | "body", text: string) => {
+    const oldText = (slides[idx]?.[field] as string) || "";
+    const next = slides.map((s: any, i: number) => (i === idx ? { ...s, [field]: text } : s));
+    setSlides(next);
+    notify(next, caption);
+    patchVisual(next, slides[idx]?.slide_number || idx + 1, field, oldText, text);
   };
 
   const moveSlide = (idx: number, direction: -1 | 1) => {
@@ -545,7 +592,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       {slides.map((slide: any, idx: number) => {
         return (
           <Card key={idx} className="border-border">
-            <CardContent className="p-4 space-y-3">
+            <CardContent className="p-4">
+              <div className="flex gap-3 items-start">
+              <div className="flex-1 min-w-0 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">
                   SLIDE {slide.slide_number || idx + 1} / {slides.length}
@@ -734,11 +783,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                       aria-label={`Titre de la slide ${slide.slide_number || idx + 1}`}
                       value={slide.title || ""}
                       placeholder="Titre de la slide"
-                      onChange={(e) => {
-                        const next = slides.map((s: any, i: number) => (i === idx ? { ...s, title: e.target.value } : s));
-                        setSlides(next);
-                        notify(next, caption);
-                      }}
+                      onChange={(e) => updateSlideField(idx, "title", e.target.value)}
                       className="resize-none min-h-[40px] text-sm font-semibold"
                       rows={1}
                     />
@@ -748,11 +793,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                       aria-label={`Texte de la slide ${slide.slide_number || idx + 1} (optionnel)`}
                       value={slide.body || ""}
                       placeholder="Texte de la slide (optionnel)"
-                      onChange={(e) => {
-                        const next = slides.map((s: any, i: number) => (i === idx ? { ...s, body: e.target.value } : s));
-                        setSlides(next);
-                        notify(next, caption);
-                      }}
+                      onChange={(e) => updateSlideField(idx, "body", e.target.value)}
                       className="resize-none min-h-[48px] text-sm"
                       rows={2}
                     />
@@ -763,6 +804,18 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
               {slide.note && (
                 <p className="text-xs text-muted-foreground">💡 {sanitizeInternalLabels(slide.note)}</p>
               )}
+              </div>
+              {(() => {
+                const v = visualBySlide.get(slide.slide_number || idx + 1);
+                return v ? (
+                  <SlideFramePreview
+                    html={v.html}
+                    title={`Aperçu slide ${slide.slide_number || idx + 1}`}
+                    width={150}
+                  />
+                ) : null;
+              })()}
+              </div>
             </CardContent>
           </Card>
         );

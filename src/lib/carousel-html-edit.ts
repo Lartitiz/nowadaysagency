@@ -27,7 +27,7 @@ function normalize(s: string): string {
  */
 export function replaceSlideText(
   html: string,
-  field: "title" | "body",
+  field: "title" | "body" | "overlay",
   oldText: string,
   newText: string,
 ): string | null {
