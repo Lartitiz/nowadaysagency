@@ -38,17 +38,22 @@ const BodySchema = z.object({
 // ── Prompts par matière ──
 // Contraintes communes : uniforme, contraste minimal (le texte doit rester
 // lisible par-dessus), aucun objet/texte, éclairage plat.
+// ⚠️ Ne JAMAIS employer « seamless texture » : Recraft génère alors une
+// fiche produit de banque de textures (bannière, faux logo, perspective).
 const MATERIAL_PROMPTS: Record<(typeof MATERIAL_KEYS)[number], string> = {
-  papier_grain:
-    "seamless fine-grain art paper texture, subtle even grain, matte surface",
+  papier_grain: "plain fine-grain art paper surface, subtle even grain, matte",
   papier_craft:
-    "seamless kraft paper texture, warm natural craft paper with subtle fibers, matte",
-  lin: "seamless natural linen fabric texture, fine even weave, soft matte cloth",
+    "plain kraft paper surface, warm natural tone, subtle fibers, matte",
+  lin: "plain natural linen fabric surface, fine even weave, soft matte",
   papier_recycle:
-    "seamless recycled paper texture, tiny natural speckles and fibers, matte",
-  grain_mineral:
-    "seamless smooth stone surface texture, very subtle mineral grain, matte",
+    "plain recycled paper surface, tiny natural speckles and fibers, matte",
+  grain_mineral: "plain smooth light stone surface, very subtle mineral grain, matte",
 };
+
+const NEGATIVE_PROMPT =
+  "text, letters, typography, watermark, logo, label, banner, border, frame, " +
+  "product photo, mockup, packaging, perspective, tilt, depth of field, " +
+  "paper edges, table, objects, hands, shadows, vignette";
 
 const RECRAFT_URL = "https://external.api.recraft.ai/v1/images/generations";
 const RECRAFT_TIMEOUT_MS = 60_000;
@@ -119,9 +124,9 @@ serve(async (req) => {
     }
 
     const prompt =
-      `${MATERIAL_PROMPTS[material]}, tinted ${bgColor} color tone, ` +
-      "flat even lighting, uniform full-frame background texture, " +
-      "very low contrast, no objects, no text, no logo, no shadows, no borders";
+      `flat top-down close-up of ${MATERIAL_PROMPTS[material]}, ` +
+      `the surface fills the entire frame edge to edge, tinted ${bgColor} color tone, ` +
+      "perfectly flat, even diffuse lighting, uniform, very low contrast";
 
     // 5. Appel Recraft (1 retry sur 5xx/timeout)
     const callRecraft = async (): Promise<Response> =>
@@ -133,6 +138,7 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           prompt,
+          negative_prompt: NEGATIVE_PROMPT,
           style: "realistic_image",
           size: "1024x1024",
           n: 1,
