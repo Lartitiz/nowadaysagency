@@ -10,7 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import type { UserPhotoRow } from "@/lib/photo-storage";
-import { uploadPhotoOriginal } from "@/lib/photo-storage";
+import { uploadPhotoOriginal, USER_PHOTOS_BUCKET } from "@/lib/photo-storage";
 import { convertHeicIfNeeded } from "@/lib/heic";
 
 export type { UserPhotoRow } from "@/lib/photo-storage";
@@ -240,11 +240,16 @@ export function useRetryPhotoRetouch() {
 
 /**
  * Retouche IA d'une photo DÉJÀ en bibliothèque, sur place (nouveau décor au
- * prompt). Pas d'upload : l'edge relit `original_storage_path` (qui, pour une
- * photo de bibliothèque, pointe sur son propre fichier) et écrit le résultat
- * dans `storage_path` → la bascule Avant/Après apparaît, l'originale est
- * préservée. L'edge refusant un statut `ready`, on repasse d'abord en `pending`
- * (comme le retry) et on mémorise le nouveau prompt.
+ * prompt). Pas d'upload.
+ *
+ * Subtilité storage : l'edge écrit TOUJOURS son résultat sur `${uid}/${id}.jpg`
+ * en upsert. Or une photo de bibliothèque n'a qu'un fichier, à ce même chemin
+ * (storage_path === original_storage_path) → l'edge écraserait l'unique
+ * original. On en fait donc d'abord une COPIE serveur vers `_original.jpg` et on
+ * y pointe `original_storage_path` : l'edge lit alors la copie pristine comme
+ * source, écrit la retouche sur storage_path, et la bascule Avant/Après
+ * apparaît (originale préservée). L'edge refusant un statut `ready`, on repasse
+ * aussi la ligne en `pending` (comme le retry) et on mémorise le nouveau prompt.
  */
 export function useRetouchExistingPhoto() {
   const { user } = useAuth();
@@ -263,6 +268,29 @@ export function useRetouchExistingPhoto() {
     }
     setIsPending(true);
     try {
+      const photo = input.photo;
+      const prevOriginalPath = photo.original_storage_path;
+
+      // Un seul fichier (biblio/packshot) → on snapshot l'original vers un
+      // chemin distinct avant que l'edge n'écrase storage_path. Déjà distinct
+      // (photo déjà retouchée) → rien à faire, on re-retouche depuis l'original.
+      let originalPath = prevOriginalPath;
+      let snapshotPath: string | null = null;
+      if (originalPath === photo.storage_path) {
+        const dest = /\.jpg$/i.test(photo.storage_path)
+          ? photo.storage_path.replace(/\.jpg$/i, "_original.jpg")
+          : `${photo.storage_path}_original.jpg`;
+        const { error: copyErr } = await supabase.storage
+          .from(USER_PHOTOS_BUCKET)
+          .copy(photo.storage_path, dest);
+        // Un snapshot déjà présent (retouche relancée) n'est pas une erreur.
+        if (copyErr && !/exist|dupl/i.test(copyErr.message)) {
+          throw new Error(copyErr.message);
+        }
+        originalPath = dest;
+        snapshotPath = dest;
+      }
+
       // Repasse en pending + mémorise le nouveau prompt (l'edge rejette `ready`).
       // background_preset_key remis à null : on bascule sur un décor libre.
       const { error: updErr } = await supabase
@@ -272,22 +300,45 @@ export function useRetouchExistingPhoto() {
           error_message: null,
           background_prompt: prompt,
           background_preset_key: null,
+          original_storage_path: originalPath,
         })
-        .eq("id", input.photo.id);
+        .eq("id", photo.id);
       if (updErr) throw new Error(updErr.message);
 
-      const { error } = await invokeWithTimeout(
-        "photo-background-replace",
-        {
-          body: {
-            photo_id: input.photo.id,
-            workspace_id: workspaceId,
-            background_prompt: prompt,
+      try {
+        const { error } = await invokeWithTimeout(
+          "photo-background-replace",
+          {
+            body: {
+              photo_id: photo.id,
+              workspace_id: workspaceId,
+              background_prompt: prompt,
+            },
           },
-        },
-        90_000,
-      );
-      if (error) throw new Error(error.message);
+          90_000,
+        );
+        if (error) throw new Error(error.message);
+      } catch (invokeErr) {
+        // L'edge a pu refuser EN AMONT (quota/débit) sans toucher la ligne, qui
+        // resterait alors bloquée en « Retouche en cours ». Si elle est encore
+        // `pending` (l'edge n'a pas démarré), on la restaure à son état d'avant.
+        // Si l'edge a démarré (processing/failed), il gère lui-même le statut.
+        const { data: cur } = await supabase
+          .from("user_photos")
+          .select("status")
+          .eq("id", photo.id)
+          .maybeSingle();
+        if (cur?.status === "pending") {
+          await supabase
+            .from("user_photos")
+            .update({ status: "ready", original_storage_path: prevOriginalPath })
+            .eq("id", photo.id);
+          if (snapshotPath) {
+            await supabase.storage.from(USER_PHOTOS_BUCKET).remove([snapshotPath]);
+          }
+        }
+        throw invokeErr;
+      }
     } finally {
       setIsPending(false);
     }
