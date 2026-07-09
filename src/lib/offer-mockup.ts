@@ -124,26 +124,55 @@ function drawCoverInto(
 const FRAME_DARK = "#2E2B28";
 const FRAME_BASE = "#3A3733";
 
-function drawTablet(ctx: CanvasRenderingContext2D, S: number, img: ImgSource, screenW = 0.36) {
-  const w = S * screenW;
-  const h = S * 0.66;
+function clamp(v: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, v));
+}
+
+/**
+ * Ratio (l/h) de la zone d'affichage : celui de la CAPTURE, clampé par
+ * support pour rester crédible. C'est ce qui garantit le « au pixel près » —
+ * un écran figé cropperait le titre de la couverture (vu au 1er re-test live).
+ */
+export function screenRatioFor(support: MockupSupport, imgW: number, imgH: number): number {
+  const r = imgW > 0 && imgH > 0 ? imgW / imgH : 0.72;
+  switch (support) {
+    case "tablette":
+      return clamp(r, 0.62, 0.82);
+    case "telephone":
+      return clamp(r, 0.44, 0.52);
+    case "livre":
+      return clamp(r, 0.58, 0.85);
+    case "pages":
+      return clamp(r, 0.66, 0.78); // autour d'A4 (0,707)
+    case "ordinateur":
+      return clamp(r, 1.45, 1.85);
+  }
+}
+
+function drawTablet(ctx: CanvasRenderingContext2D, S: number, img: ImgSource, support: "tablette" | "telephone" = "tablette") {
+  const { w: iw, h: ih } = imgSize(img);
+  const inset = S * (support === "tablette" ? 0.022 : 0.016);
+  const screenH = S * (support === "tablette" ? 0.62 : 0.58);
+  const screenW = screenH * screenRatioFor(support, iw, ih);
+  const w = screenW + 2 * inset;
+  const h = screenH + 2 * inset;
   const x = (S - w) / 2;
   const y = (S - h) / 2 - S * 0.02;
   drawGroundShadow(ctx, S / 2, y + h + S * 0.035, w * 0.72, S * 0.022);
   ctx.fillStyle = FRAME_DARK;
   roundRectPath(ctx, x, y, w, h, S * 0.032);
   ctx.fill();
-  const inset = S * 0.022;
-  drawCoverInto(ctx, img, x + inset, y + inset, w - 2 * inset, h - 2 * inset, S * 0.008);
+  drawCoverInto(ctx, img, x + inset, y + inset, screenW, screenH, S * 0.008);
 }
 
 function drawPhone(ctx: CanvasRenderingContext2D, S: number, img: ImgSource) {
-  drawTablet(ctx, S, img, 0.24);
+  drawTablet(ctx, S, img, "telephone");
 }
 
 function drawBook(ctx: CanvasRenderingContext2D, S: number, img: ImgSource) {
-  const w = S * 0.36;
-  const h = S * 0.62;
+  const { w: iw, h: ih } = imgSize(img);
+  const h = S * 0.6;
+  const w = h * screenRatioFor("livre", iw, ih);
   const x = (S - w) / 2 - S * 0.015;
   const y = (S - h) / 2 - S * 0.02;
   const edge1 = S * 0.02;
@@ -164,8 +193,9 @@ function drawBook(ctx: CanvasRenderingContext2D, S: number, img: ImgSource) {
 }
 
 function drawPages(ctx: CanvasRenderingContext2D, S: number, img: ImgSource) {
-  const w = S * 0.4;
-  const h = w * 1.414; // A4
+  const { w: iw, h: ih } = imgSize(img);
+  const h = S * 0.56;
+  const w = h * screenRatioFor("pages", iw, ih);
   const cx = S / 2;
   const cy = S / 2 - S * 0.01;
   drawGroundShadow(ctx, cx, cy + h / 2 + S * 0.03, w * 0.8, S * 0.02);
@@ -190,10 +220,11 @@ function drawPages(ctx: CanvasRenderingContext2D, S: number, img: ImgSource) {
 }
 
 function drawLaptop(ctx: CanvasRenderingContext2D, S: number, img: ImgSource) {
-  const w = S * 0.6;
-  const h = S * 0.4;
+  const { w: iw, h: ih } = imgSize(img);
+  const w = S * 0.62;
+  const h = w / screenRatioFor("ordinateur", iw, ih);
   const x = (S - w) / 2;
-  const y = S * 0.24;
+  const y = S / 2 - h / 2 - S * 0.05;
   const baseH = S * 0.045;
   drawGroundShadow(ctx, S / 2, y + h + baseH + S * 0.022, w * 0.72, S * 0.02);
   // Écran

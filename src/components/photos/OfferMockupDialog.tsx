@@ -306,22 +306,22 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-xs w-full justify-start"
+                    className="text-xs w-full justify-start min-w-0"
                     disabled={isSaving}
                     onClick={() => handleSave("ambiance")}
                   >
-                    <Sparkles className="h-3.5 w-3.5 mr-1.5" />
-                    Mettre en ambiance — bureau, lin, atelier… · 1 crédit
+                    <Sparkles className="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                    <span className="truncate">Mettre en ambiance · 1 crédit</span>
                   </Button>
                 </div>
               </div>
             </div>
 
-            <DialogFooter className="flex-row flex-wrap gap-2 sm:justify-between items-center">
-              <span className="text-xs rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1">
+            <DialogFooter className="w-full flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <span className="text-xs rounded-full bg-emerald-50 text-emerald-700 px-2.5 py-1 self-start sm:self-center shrink-0">
                 Offert
               </span>
-              <div className="flex flex-wrap justify-end gap-2">
+              <div className="flex flex-wrap justify-end gap-2 min-w-0">
                 <Button variant="outline" size="sm" onClick={handleDownload} disabled={isSaving}>
                   <Download className="h-4 w-4 mr-2" /> Télécharger
                 </Button>
@@ -331,7 +331,7 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
                   disabled={isSaving}
                   onClick={() => handleSave("create")}
                 >
-                  <Sparkles className="h-4 w-4 mr-2" /> Créer un post avec
+                  <Sparkles className="h-4 w-4 mr-2" /> Créer un post
                 </Button>
                 <Button size="sm" disabled={isSaving || !!savedPhotoId} onClick={() => handleSave("none")}>
                   {isSaving ? (
