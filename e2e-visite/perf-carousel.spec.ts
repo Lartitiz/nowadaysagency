@@ -9,11 +9,21 @@
  * text/event-stream (les headers arrivent tout de suite, le body streame) —
  * seuls les jalons UI (⏲ ci-dessous) mesurent la vraie attente.
  *
- * Spec de diagnostic ponctuelle (pas un test de régression) : tout est loggé
- * en console, aucune assertion de durée.
+ * Spec de diagnostic pour les DURÉES (aucune assertion de durée), MAIS depuis
+ * le 09/07 il porte aussi la validation de contenu de l'EXPORT PPTX hybride
+ * (desktop uniquement) : le carrousel généré ici est réutilisé — zéro crédit en
+ * plus — pour télécharger le « PowerPoint — éditable » et l'ouvrir au jszip
+ * (slides, fonds non vides, texte éditable, pas de label « Slide N » — les bugs
+ * réels de #415/#420). LÀ il y a des assertions : un défaut = ROUGE export.
  */
 
 import { test, expect, Page } from "@playwright/test";
+import * as path from "path";
+import * as fs from "fs";
+import { fileURLToPath } from "url";
+import { validatePptx, extractLargestMedia } from "./pptx-validate";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const IDEA = "Pourquoi poster moins mais mieux change tout pour les solopreneurs";
 
@@ -108,4 +118,42 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
     console.log(`  ${t.url} [${t.status ?? "?"}] : ${dur}`);
   }
   console.log(`\n⏲ Ressenti utilisateur : texte à ${((tTextReady - tClickGen) / 1000).toFixed(1)}s, visuels à ${((tVisualsReady - tClickGen) / 1000).toFixed(1)}s`);
+
+  // ── EXPORT PPTX hybride : validation de CONTENU (desktop uniquement) ──────
+  // Réutilise le carrousel qui vient d'être généré (zéro crédit en plus).
+  if (test.info().project.name !== "desktop") {
+    console.log("Export PPTX : validé en desktop uniquement — étape sautée sur ce projet.");
+    return;
+  }
+  const uiSlides = await page.locator("iframe").count(); // aperçus srcdoc rendus
+
+  await page.getByRole("button", { name: /télécharger/i }).first().click();
+  const pptxItem = page.getByText(/PowerPoint — éditable/i).first();
+  await expect(pptxItem).toBeVisible({ timeout: 8000 });
+  const dlPromise = page.waitForEvent("download", { timeout: 240_000 }); // html2canvas × N slides
+  await pptxItem.click();
+  const download = await dlPromise;
+
+  const outDir = path.join(__dirname, "results");
+  fs.mkdirSync(outDir, { recursive: true });
+  const pptxPath = path.join(outDir, "export-carousel-hybride.pptx");
+  await download.saveAs(pptxPath);
+  console.log(`📦 PPTX téléchargé : ${download.suggestedFilename()} (${fs.statSync(pptxPath).size} o)`);
+
+  const report = await validatePptx(pptxPath, { minSlides: 3, expectEditableText: true });
+  console.log(
+    `📦 Contenu : ${report.slideCount} slides (UI : ${uiSlides} aperçus), ${report.mediaCount} images, plus petite image ${report.mediaMinBytes} o, ${report.texts.filter((t) => t.trim()).length} runs de texte`,
+  );
+  if (report.slideCount !== uiSlides) {
+    // Informational : d'autres iframes peuvent exister sur la page — ne casse pas seul.
+    console.log(`ℹ️ slides PPTX (${report.slideCount}) ≠ iframes UI (${uiSlides}) — à regarder si ça diverge fort.`);
+  }
+
+  // Le fond le plus lourd est extrait pour « le regard » du cron (juger à l'œil
+  // wraps/contraste — les défauts que seule une humaine ou une capture attrape).
+  const shot = await extractLargestMedia(pptxPath, path.join(__dirname, "shots", "export-pptx-fond.png"));
+  if (shot) console.log(`👀 Fond extrait pour le regard : ${shot}`);
+
+  expect(report.problems, `Défauts PPTX détectés : ${report.problems.join(" | ")}`).toEqual([]);
+  console.log("✅ Export PPTX hybride : contenu validé (zip, slides, fonds, texte éditable, pas de label technique).");
 });
