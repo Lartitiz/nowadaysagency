@@ -324,6 +324,27 @@ export async function userPhotoToBase64(
 }
 
 /**
+ * Charge le fichier stocké d'une photo en data URL SANS repasser par un canvas
+ * (le fichier bibliothèque est déjà ≤2048px / 5 Mo à l'upload). Utilisé par le
+ * packshot, où on veut envoyer la pleine résolution stockée à Photoroom.
+ */
+export async function userPhotoToRawBase64(
+  photo: Pick<UserPhotoRow, "storage_path">,
+): Promise<string> {
+  const url = await getSignedPhotoUrl(photo.storage_path, 300);
+  if (!url) throw new Error("Impossible de charger la photo.");
+  const res = await fetch(url);
+  if (!res.ok) throw new Error("Impossible de charger la photo.");
+  const blob = await res.blob();
+  return await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Lecture du fichier impossible."));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
  * Triggers a download via the browser. Uses a signed URL to fetch the blob,
  * then forces a descriptive filename.
  */

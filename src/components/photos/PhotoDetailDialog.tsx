@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Loader2, RefreshCw, Sparkles } from "lucide-react";
+import { Download, Loader2, Package, RefreshCw, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,8 @@ interface PhotoDetailDialogProps {
   photo: UserPhotoRow | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
+  /** Ouvre le dialog packshot pour cette photo (le détail se ferme). */
+  onPackshot?: (photo: UserPhotoRow) => void;
 }
 
 function slugify(s: string): string {
@@ -42,7 +44,7 @@ function slugify(s: string): string {
     .slice(0, 60) || "photo";
 }
 
-export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDialogProps) {
+export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot }: PhotoDetailDialogProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -221,7 +223,12 @@ export function PhotoDetailDialog({ photo, open, onOpenChange }: PhotoDetailDial
           </div>
         )}
 
-        <div className="flex justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
+          {photo.status === "ready" && onPackshot && (
+            <Button variant="outline" onClick={() => onPackshot(photo)}>
+              <Package className="h-4 w-4 mr-2" /> Packshot e-commerce
+            </Button>
+          )}
           {photo.status === "ready" && (
             <Button
               onClick={() => {
