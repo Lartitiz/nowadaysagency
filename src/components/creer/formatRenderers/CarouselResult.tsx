@@ -1,12 +1,31 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, ArrowUp, ArrowDown, Trash2, X } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
-import { replaceSlideText } from "@/lib/carousel-html-edit";
+import {
+  replaceSlideText,
+  removeSlideCta,
+  hasSlideCta,
+  getSlideCtaText,
+} from "@/lib/carousel-html-edit";
+
+/** En dessous, un carrousel n'a plus de sens : on bloque la suppression. */
+const MIN_SLIDES = 3;
 
 interface SlideData {
   slide_number: number;
@@ -316,6 +335,75 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
     });
   }, [onSlidesUpdate]);
 
+  // Réordonne/filtre les visuels rendus pour rester appariés aux slides après
+  // une suppression ou un déplacement : `orderedOrigNums` = les slide_number
+  // d'AVANT l'opération, dans le nouvel ordre ; on renumérote 1..n comme les slides.
+  const remapVisuals = useCallback((orderedOrigNums: number[]) => {
+    const visuals = visualSlidesRef.current;
+    if (!visuals?.length || !onVisualSlidesUpdate) return;
+    const vmap = new Map(visuals.map((v) => [v.slide_number, v]));
+    const next = orderedOrigNums
+      .map((num, i) => {
+        const v = vmap.get(num);
+        return v ? { ...v, slide_number: i + 1 } : null;
+      })
+      .filter(Boolean) as { slide_number: number; html: string }[];
+    onVisualSlidesUpdate(next);
+  }, [onVisualSlidesUpdate]);
+
+  const deleteSlide = useCallback((index: number) => {
+    setSlides(prev => {
+      if (prev.length <= MIN_SLIDES) return prev;
+      const survivors = prev.filter((_, i) => i !== index);
+      const origNums = survivors.map((s, i) => s.slide_number ?? i + 1);
+      const next = survivors.map((s, i) => ({ ...s, slide_number: i + 1 }));
+      onSlidesUpdate?.(next, captionRef.current);
+      remapVisuals(origNums);
+      return next;
+    });
+  }, [onSlidesUpdate, remapVisuals]);
+
+  const moveSlide = useCallback((index: number, direction: -1 | 1) => {
+    setSlides(prev => {
+      const target = index + direction;
+      if (target < 0 || target >= prev.length) return prev;
+      const reordered = [...prev];
+      [reordered[index], reordered[target]] = [reordered[target], reordered[index]];
+      const origNums = reordered.map((s, i) => s.slide_number ?? i + 1);
+      const next = reordered.map((s, i) => ({ ...s, slide_number: i + 1 }));
+      onSlidesUpdate?.(next, captionRef.current);
+      remapVisuals(origNums);
+      return next;
+    });
+  }, [onSlidesUpdate, remapVisuals]);
+
+  // Édition / retrait du bouton d'appel à l'action (CTA) : n'existe que dans le
+  // HTML du visuel (data-slide-cta), pas dans les slides structurées.
+  const patchCtaVisual = useCallback((slideNumber: number, html: string) => {
+    const visuals = visualSlidesRef.current;
+    if (!visuals?.length || !onVisualSlidesUpdate) return;
+    const vi = visuals.findIndex((v) => v.slide_number === slideNumber);
+    if (vi < 0) return;
+    const next = [...visuals];
+    next[vi] = { ...next[vi], html };
+    onVisualSlidesUpdate(next);
+  }, [onVisualSlidesUpdate]);
+
+  const updateCta = useCallback((slideNumber: number, currentHtml: string, value: string) => {
+    const oldText = getSlideCtaText(currentHtml) || "";
+    if (value === oldText) return;
+    const patched = replaceSlideText(currentHtml, "cta", oldText, value);
+    if (patched) patchCtaVisual(slideNumber, patched);
+  }, [patchCtaVisual]);
+
+  const removeCta = useCallback((slideNumber: number, currentHtml: string) => {
+    const patched = removeSlideCta(currentHtml);
+    if (patched) patchCtaVisual(slideNumber, patched);
+  }, [patchCtaVisual]);
+
+  // Confirmation de suppression : index de la slide à supprimer (null = fermé).
+  const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
+
   // Aperçu par slide (vis-à-vis) : visuel apparié par slide_number
   const visualBySlide = useMemo(
     () => new Map((visualSlides || []).map((v) => [v.slide_number, v])),
@@ -361,7 +449,10 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
       {/* Slides — texte éditable à gauche, aperçu du visuel à droite (comme les stories) */}
       <div className="space-y-2">
         {slides.map((slide, i) => {
-          const visual = visualBySlide.get(slide.slide_number || i + 1);
+          const slideNumber = slide.slide_number || i + 1;
+          const visual = visualBySlide.get(slideNumber);
+          const ctaText = visual && hasSlideCta(visual.html) ? getSlideCtaText(visual.html) : null;
+          const canDelete = slides.length > MIN_SLIDES;
           return (
             <Card key={i} className="border-border">
               <CardContent className="p-3">
@@ -369,13 +460,48 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
                   <div className="flex-1 min-w-0 space-y-1.5">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Badge variant="secondary" className="font-mono text-2xs">
-                        Slide {slide.slide_number || i + 1}
+                        Slide {slideNumber}
                       </Badge>
                       {slide.role && (
                         <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
                           {formatSlideRole(slide.role)}
                         </Badge>
                       )}
+                      <div className="ml-auto flex items-center gap-0.5">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          onClick={() => moveSlide(i, -1)}
+                          disabled={i === 0}
+                          aria-label="Monter la slide"
+                          title="Monter la slide"
+                        >
+                          <ArrowUp size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                          onClick={() => moveSlide(i, 1)}
+                          disabled={i === slides.length - 1}
+                          aria-label="Descendre la slide"
+                          title="Descendre la slide"
+                        >
+                          <ArrowDown size={13} />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 text-muted-foreground hover:text-destructive disabled:opacity-40"
+                          onClick={() => setDeleteIdx(i)}
+                          disabled={!canDelete}
+                          aria-label="Supprimer la slide"
+                          title={canDelete ? "Supprimer la slide" : `Minimum ${MIN_SLIDES} slides`}
+                        >
+                          <Trash2 size={13} />
+                        </Button>
+                      </div>
                     </div>
                     {slide.title != null && (
                       <InlineEditable
@@ -392,6 +518,29 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
                         className="text-sm text-foreground leading-relaxed"
                         placeholder="Contenu de la slide…"
                       />
+                    )}
+                    {ctaText != null && (
+                      <div className="flex items-center gap-1.5 rounded-md bg-muted/40 border border-border px-2 py-1">
+                        <span className="text-2xs font-mono uppercase tracking-wide text-muted-foreground shrink-0">
+                          Bouton
+                        </span>
+                        <InlineEditable
+                          value={ctaText}
+                          onChange={(v) => updateCta(slideNumber, visual!.html, v)}
+                          className="flex-1 text-sm text-primary font-medium"
+                          placeholder="Texte du bouton…"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                          onClick={() => removeCta(slideNumber, visual!.html)}
+                          aria-label="Retirer le bouton d'appel à l'action"
+                          title="Retirer le bouton"
+                        >
+                          <X size={13} />
+                        </Button>
+                      </div>
                     )}
                     {slide.visual_schema && (
                       <div className="flex items-center gap-1.5 mt-1">
@@ -480,6 +629,29 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
       {visualSlides && visualSlides.length > 0 && !hasSidePreviews && (
         <VisualSlidesGrid slides={visualSlides} />
       )}
+
+      <AlertDialog open={deleteIdx !== null} onOpenChange={(o) => !o && setDeleteIdx(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer cette slide ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La slide et son visuel seront retirés du carrousel. Les autres slides sont renumérotées automatiquement.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (deleteIdx !== null) deleteSlide(deleteIdx);
+                setDeleteIdx(null);
+              }}
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

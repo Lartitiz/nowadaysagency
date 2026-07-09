@@ -109,6 +109,16 @@ function buildPrompt(opts: {
   lines.push(MODE_TEXT[opts.mode] ?? MODE_TEXT.auto);
   lines.push("FRAMING: " + (FRAMING_TEXT[opts.framing] ?? FRAMING_TEXT.auto));
 
+  // 🔑 Point faible n°1 des bijoux « portés » : le modèle génératif n'a aucune
+  // notion de jointure physique (une boucle qui passe DANS le lobe, une bague
+  // qui encercle un doigt…) → il pose l'objet à côté, le fait flotter ou le
+  // fond dans la peau. Consigne d'accroche anatomique explicite pour relever le
+  // taux de bons tirages (n=3). Générique : sans effet si le produit n'a pas
+  // d'accroche (vêtement, sac).
+  lines.push(
+    "ATTACHMENT (critical when the product is worn): if the product physically attaches to the body, render that connection anatomically correct and true to real life — a pierced earring passes THROUGH the earlobe and hangs straight down under gravity; a ring encircles a finger; glasses rest on the nose bridge and hook over the ears; a watch or bracelet wraps fully around the wrist; a necklace drapes around the neck following its curve. The piece must join at the exact correct point, at realistic scale, obeying gravity — never floating beside the body part, never fused flat onto the skin, never oversized or undersized."
+  );
+
   if (opts.hasPersonReference) {
     lines.push(
       "PERSON: the SECOND attached image shows the person to feature — it is THE SAME person in this photo (same face, same hair, same skin tone, same style). Natural, unposed, real-looking."
