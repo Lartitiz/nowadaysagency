@@ -3,7 +3,7 @@ import { useMemo } from "react";
 const CRUISE_TIPS = [
   { emoji: "🕐", text: "Interagis dans les 30 min après avoir posté. L'algorithme regarde l'engagement des premières minutes." },
   { emoji: "💬", text: "Tes commentaires doivent faire +4 mots. \"Trop beau 😍\" ne compte pas. Pose une question, donne un avis." },
-  { emoji: "📱", text: "Les stickers interactifs en stories boostent tes vues de 15-25%. Utilise-les tous les jours." },
+  { emoji: "📱", text: "Les stickers interactifs en stories boostent nettement tes vues. Utilise-les tous les jours." },
   { emoji: "🤝", text: "L'engagement, c'est 50% donner, 50% recevoir. Commente chez les autres d'abord." },
   { emoji: "📩", text: "Quand quelqu'un répond à ta story, c'est un signal fort. Réponds toujours, même un petit mot." },
   { emoji: "🔁", text: "Partage le contenu des autres en story avec un petit commentaire perso. Elles feront pareil." },
@@ -14,18 +14,18 @@ const CRUISE_TIPS = [
 ];
 
 const STORIES_TIPS = [
-  { emoji: "📱", text: "23,8% de ton audience part après la story 1. Ton hook est crucial : une question, une émotion, une affirmation choc.", source: "Socialinsider 2025" },
-  { emoji: "📩", text: "'Écris [MOT] en DM' convertit 2x mieux que le sticker lien. Et ça booste l'algo.", source: "Social Media Examiner" },
-  { emoji: "🎥", text: "Les stories vidéo génèrent plus de reach que les images. Mais mixe les deux pour varier le rythme.", source: "Socialinsider 2025" },
-  { emoji: "❓", text: "Le sticker Question ouverte est le plus puissant : les réponses = DM = signal algo n°1.", source: "Instagram Algo" },
-  { emoji: "🔥", text: "Les comptes qui postent des stories tous les jours ont 23% de rétention en plus.", source: "Outfame 2026" },
-  { emoji: "🎯", text: "3-7 stories par jour, c'est le sweet spot. Au-delà de 10, les gens voient les petits points et passent.", source: "Buffer + Socialinsider" },
-  { emoji: "⏰", text: "Étale tes stories dans la journée (matin/midi/soir). Chaque nouvelle story te remet en haut de la barre.", source: "Instagram Data" },
-  { emoji: "🔇", text: "60-80% des gens regardent les stories SANS le son. Si tu fais de la face cam, prévois les sous-titres.", source: "Sprout Social" },
-  { emoji: "📝", text: "Les stories 'screenshot de Notes iPhone' sont très tendance. Brut, intime, rapide.", source: "Tendances 2025" },
-  { emoji: "🔗", text: "Ne mets JAMAIS un sticker lien sur la story 1 ou 2. Les gens partent avant de voir le reste.", source: "Best practices" },
-  { emoji: "📈", text: "Les séquences structurées (problème→solution) ont +28% de complétion par rapport aux stories isolées.", source: "Later 2025" },
-  { emoji: "⚖️", text: "Ratio sain : 80% connexion/éducation, 20% vente en croisière. En lancement, tu peux monter à 40% vente.", source: "Best practices" },
+  { emoji: "📱", text: "Une grosse partie de ton audience part dès la story 1. Ton hook est crucial : une question, une émotion, une affirmation choc." },
+  { emoji: "📩", text: "'Écris [MOT] en DM' convertit souvent mieux que le sticker lien. Et chaque DM booste ton compte." },
+  { emoji: "🎥", text: "Les stories vidéo génèrent plus de reach que les images. Mais mixe les deux pour varier le rythme." },
+  { emoji: "❓", text: "Le sticker Question ouverte est le plus puissant : les réponses = DM = signal algo n°1." },
+  { emoji: "🔥", text: "Les comptes qui postent des stories tous les jours gardent leur audience plus longtemps." },
+  { emoji: "🎯", text: "3-7 stories par jour, c'est le sweet spot. Au-delà de 10, les gens voient les petits points et passent." },
+  { emoji: "⏰", text: "Étale tes stories dans la journée (matin/midi/soir). Chaque nouvelle story te remet en haut de la barre." },
+  { emoji: "🔇", text: "La majorité des gens regardent les stories SANS le son. Si tu fais de la face cam, prévois les sous-titres." },
+  { emoji: "📝", text: "Les stories 'screenshot de Notes iPhone' sont très tendance. Brut, intime, rapide." },
+  { emoji: "🔗", text: "Ne mets JAMAIS un sticker lien sur la story 1 ou 2. Les gens partent avant de voir le reste." },
+  { emoji: "📈", text: "Les séquences structurées (problème→solution) sont regardées jusqu'au bout bien plus souvent que les stories isolées." },
+  { emoji: "⚖️", text: "Ratio sain : 80% connexion/éducation, 20% vente en croisière. En lancement, tu peux monter à 40% vente." },
 ];
 
 const LAUNCH_TIPS = [
@@ -72,9 +72,6 @@ export default function TipsSection({ isLaunching }: TipsSectionProps) {
             <span className="mr-1">{storyTip.emoji}</span>
             {storyTip.text}
           </p>
-          {storyTip.source && (
-            <p className="text-2xs text-muted-foreground">Source : {storyTip.source}</p>
-          )}
         </div>
       )}
 

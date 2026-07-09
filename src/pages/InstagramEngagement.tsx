@@ -270,6 +270,8 @@ export default function InstagramEngagement() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 space-y-6">
         <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Routine d'engagement" />
 
+        <h1 className="font-display text-3xl font-bold text-foreground">💬 Ta routine d'engagement</h1>
+
         <div className="rounded-xl border border-border bg-card p-4 flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-sm font-semibold text-foreground">✨ Coaching commentaires</p>

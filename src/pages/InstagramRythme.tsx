@@ -126,7 +126,8 @@ export default function InstagramRythme() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Ton temps & ton rythme" />
-        <p className="text-sm text-muted-foreground italic -mt-4 mb-4">On part de ta réalité, pas d'un idéal impossible. Combien de temps t'as vraiment ? On calcule.</p>
+        <h1 className="font-display text-3xl font-bold text-foreground">⏱️ Ton temps & ton rythme</h1>
+        <p className="mt-2 text-sm text-muted-foreground italic mb-4">On part de ta réalité, pas d'un idéal impossible. Combien de temps t'as vraiment ? On calcule.</p>
 
         {/* Section 1: Time per step */}
         <section className="mt-8 space-y-6">
@@ -180,7 +181,11 @@ export default function InstagramRythme() {
             <h3 className="font-display text-lg font-bold text-foreground">🎯 Ton rythme idéal</h3>
             <p className="text-sm text-muted-foreground">Avec <span className="font-bold text-foreground">{formatMin(timeWeekly)}</span> par semaine, tu peux réalistement :</p>
             <div className="space-y-1.5 text-sm">
-              <p>📱 Publier <span className="font-bold text-primary">{calcs.postsPerWeek}</span> contenu{calcs.postsPerWeek > 1 ? "s" : ""} par semaine</p>
+              {calcs.postsPerWeek > 0 && calcs.postsPerWeek < 1 ? (
+                <p>📱 Publier <span className="font-bold text-primary">1</span> contenu tous les 15 jours</p>
+              ) : (
+                <p>📱 Publier <span className="font-bold text-primary">{String(calcs.postsPerWeek).replace(".", ",")}</span> contenu{calcs.postsPerWeek > 1 ? "s" : ""} par semaine</p>
+              )}
               <p>📸 Soit <span className="font-bold text-primary">{calcs.postsPerMonth}</span> contenus par mois</p>
               <p>📖 Faire <span className="font-bold text-primary">{calcs.storiesPerDay}</span> min de stories par jour</p>
             </div>
