@@ -3,15 +3,19 @@
 //
 // scope "daily"  : santé des publications réelles — posts en échec, posts bloqués,
 //                  programmés en retard (= cron pg de publication mort ?), tokens
-//                  sociaux expirés/expirants (LinkedIn ne se refresh pas seul, ~60 j).
+//                  sociaux expirés/expirants (LinkedIn ne se refresh pas seul, ~60 j)
+//                  + retours bêta (beta_feedback) des 24 h, les « blocking » d'abord,
+//                  et total encore en statut "new" (backstop si un run saute).
 // scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), coûts estimés
 //                  en € (texte Anthropic + images gpt-image/Photoroom/Recraft), usage
 //                  (action_type), rétention par cohorte hebdo d'inscription,
 //                  volume de publications.
 //
 // Sécurité : lecture seule, pas de PII en sortie (compteurs, plateformes, erreurs
-// tronquées ; les noms de comptes sociaux sont des handles publics). Gardé par le
-// même secret partagé que activation-funnel : `CRON_STATS_SECRET` (header x-cron-secret).
+// tronquées ; les noms de comptes sociaux sont des handles publics ; le texte des
+// feedbacks bêta est du contenu écrit POUR l'admin, tronqué, sans identité de
+// l'autrice). Gardé par le même secret partagé que activation-funnel :
+// `CRON_STATS_SECRET` (header x-cron-secret).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
@@ -63,7 +67,7 @@ Deno.serve(async (req) => {
     const now = Date.now();
 
     if (scope === "daily") {
-      const [postsRes, connRes] = await Promise.all([
+      const [postsRes, connRes, fbRes, fbNewRes] = await Promise.all([
         supabase
           .from("calendar_posts")
           .select("user_id, canal, publish_status, publish_error, scheduled_publish_at, published_at, updated_at")
@@ -71,9 +75,19 @@ Deno.serve(async (req) => {
         supabase
           .from("social_connections")
           .select("user_id, platform, platform_account_name, token_expires_at, updated_at"),
+        supabase
+          .from("beta_feedback")
+          .select("user_id, type, severity, content, details, page_url, screenshot_url, status, created_at")
+          .gte("created_at", new Date(now - DAY).toISOString()),
+        // Backstop : tout ce qui est encore en "new" quel que soit l'âge — si un run
+        // de la routine saute, rien ne reste invisible (le passage à "seen"/"done"
+        // dans l'onglet admin fait redescendre ce compteur).
+        supabase.from("beta_feedback").select("user_id").eq("status", "new"),
       ]);
       if (postsRes.error) throw postsRes.error;
       if (connRes.error) throw connRes.error;
+      if (fbRes.error) throw fbRes.error;
+      if (fbNewRes.error) throw fbNewRes.error;
       const posts = (postsRes.data || []).filter((p: any) => isClient(p.user_id));
       const conns = (connRes.data || []).filter((c: any) => isClient(c.user_id));
 
@@ -130,6 +144,29 @@ Deno.serve(async (req) => {
         })
         .filter(Boolean);
 
+      // Retours bêta des 24 h (widget BetaFeedbackWidget → table beta_feedback,
+      // sinon visibles seulement dans l'onglet admin) — les « blocking » d'abord.
+      const SEVERITY_RANK: Record<string, number> = { blocking: 0, annoying: 1, minor: 2 };
+      const sevRank = (s: string | null) => SEVERITY_RANK[s || ""] ?? 3;
+      const feedback24h = (fbRes.data || [])
+        .filter((f: any) => isClient(f.user_id))
+        .sort(
+          (a: any, b: any) =>
+            sevRank(a.severity) - sevRank(b.severity) ||
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
+        .map((f: any) => ({
+          type: f.type,
+          severite: f.severity,
+          contenu: (f.content || "").slice(0, 200),
+          detail: f.details ? f.details.slice(0, 200) : null,
+          page: f.page_url,
+          capture: !!f.screenshot_url,
+          statut: f.status,
+          quand: f.created_at,
+        }));
+      const feedbackNewTotal = (fbNewRes.data || []).filter((f: any) => isClient(f.user_id)).length;
+
       return json({
         generated_at: new Date().toISOString(),
         scope,
@@ -139,6 +176,8 @@ Deno.serve(async (req) => {
         published_24h: published24h,
         connections_total: conns.length,
         connections_at_risk: connectionsAtRisk.slice(0, 20),
+        feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
+        feedback_new_total: feedbackNewTotal,
       });
     }
 
