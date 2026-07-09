@@ -2,8 +2,8 @@
  * product-on-model — « Mettre en scène » une photo produit de la bibliothèque.
  *
  * Génère des variantes réalistes du produit porté par une vraie personne (ou
- * posé en situation) via OpenAI Images Edits (gpt-image-1). La photo produit
- * ORIGINALE est envoyée à CHAQUE appel avec input_fidelity=high : c'est elle
+ * posé en situation) via OpenAI Images Edits (gpt-image-2). La photo produit
+ * ORIGINALE est envoyée à CHAQUE appel (fidélité haute automatique) : c'est elle
  * qui protège la fidélité du produit (jamais d'itération sur une image générée,
  * sinon le produit s'érode).
  *
@@ -301,9 +301,11 @@ serve(async (req) => {
 
     const buildForm = () => {
       const form = new FormData();
-      form.append("model", "gpt-image-1");
-      // ⚠️ gpt-image-1 attend la notation tableau `image[]` (la forme `image`
-      // est celle de dall-e-2 → 400 immédiat).
+      // gpt-image-2 = flagship actuel (gpt-image-1 déprécié oct. 2026) — même
+      // génération que le ChatGPT avec lequel Laetitia a validé la qualité.
+      form.append("model", "gpt-image-2");
+      // ⚠️ notation tableau `image[]` obligatoire (la forme `image` est celle
+      // de dall-e-2 → 400 immédiat).
       form.append(
         "image[]",
         new File([sourceBlob], "product.jpg", { type: sourceBlob.type || "image/jpeg" })
@@ -312,7 +314,8 @@ serve(async (req) => {
       form.append("n", String(n));
       form.append("size", "1024x1536");
       form.append("quality", "high");
-      form.append("input_fidelity", "high");
+      // Pas d'input_fidelity : gpt-image-2 traite TOUTE image d'entrée en
+      // fidélité haute automatiquement (le paramètre est refusé par l'API).
       form.append("output_format", "jpeg");
       return form;
     };
@@ -419,7 +422,7 @@ serve(async (req) => {
         "photo_retouch",
         adjustment ? "mise_en_scene_adjust" : "mise_en_scene",
         i === 0 ? tokens : undefined,
-        "gpt-image-1",
+        "gpt-image-2",
         bodyWorkspaceId ?? undefined
       );
     }
