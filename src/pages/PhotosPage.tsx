@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Sparkles } from "lucide-react";
+import { BookOpen, Loader2, Plus, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,7 @@ import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
 import { PortraitProDialog } from "@/components/photos/PortraitProDialog";
+import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
 import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -70,6 +71,7 @@ export default function PhotosPage() {
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
   const [portraitProPhoto, setPortraitProPhoto] = useState<UserPhotoRow | null>(null);
+  const [mockupOpen, setMockupOpen] = useState(false);
   const [retouchePhoto, setRetouchePhoto] = useState<UserPhotoRow | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<UserPhotoRow | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -210,7 +212,10 @@ export default function PhotosPage() {
               moment dans tes stories et tes posts.
             </p>
           </div>
-          <div className="flex gap-2 shrink-0 self-start">
+          <div className="flex flex-wrap gap-2 shrink-0 self-start">
+            <Button variant="outline" onClick={() => setMockupOpen(true)} disabled={!wsReady}>
+              <BookOpen className="h-4 w-4 mr-2" /> Mockup de mon offre
+            </Button>
             <Button variant="outline" onClick={() => setRetoucheOpen(true)} disabled={!wsReady}>
               <Sparkles className="h-4 w-4 mr-2" /> Changer un fond
             </Button>
@@ -367,6 +372,11 @@ export default function PhotosPage() {
         photo={portraitProPhoto}
         open={!!portraitProPhoto}
         onOpenChange={(v) => !v && setPortraitProPhoto(null)}
+      />
+      <OfferMockupDialog
+        open={mockupOpen}
+        onOpenChange={setMockupOpen}
+        onOpenRetouch={(p) => setRetouchePhoto(p)}
       />
       <PhotoRetouchDialog
         photo={retouchePhoto}
