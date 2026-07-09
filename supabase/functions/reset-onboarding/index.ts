@@ -168,10 +168,11 @@ Deno.serve(async (req) => {
           await del(table, "workspace_id", workspaceId);
         }
         // branding_autofill : on remet le statut à zéro sans supprimer la ligne
-        // (comportement historique du bouton — la ligne porte l'état du flux).
+        // (la ligne porte l'état du flux). Contrainte check : none / pending_review
+        // / completed — le « idle » du bouton historique n'a jamais été valide.
         const { error: autofillErr } = await admin
           .from("branding_autofill")
-          .update({ autofill_status: "idle", autofill_pending_review: false })
+          .update({ autofill_status: "none", autofill_pending_review: false })
           .eq("workspace_id", workspaceId);
         if (autofillErr) errors.push(`branding_autofill: ${autofillErr.message}`);
 
