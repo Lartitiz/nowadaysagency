@@ -278,8 +278,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
   // Fond choisi après génération (stock Pexels ou « Ma photo ») : URL stable
   // (https Pexels ou data:) + crédit — persistés dans le JSON de la séquence.
   const applyStoryPhoto = useCallback(
-    (index: number, photo: AppliedStockPhoto) => {
+    (index: number, photo: AppliedStockPhoto, opts?: { onlyIfEmpty?: boolean }) => {
       setStories((prev) => {
+        const current = prev[index]?.visual;
+        // Pré-application automatique : ne JAMAIS écraser une photo déjà là
+        // (photo de bibliothèque placée par la génération, choix manuel…).
+        // Vérifié au niveau de l'état pour être insensible aux courses
+        // (résolution d'URL signée encore en vol au moment du fetch stock).
+        if (opts?.onlyIfEmpty && (current?.photo_id || current?.photo_url)) {
+          return prev;
+        }
         const updated = [...prev];
         updated[index] = {
           ...updated[index],
@@ -484,9 +492,13 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
                       queryEn={story.visual?.photo_query_en ?? null}
                       appliedUrl={getStoryPhotoUrl(story, i)}
                       appliedPhotoId={story.visual?.photo_id ?? null}
-                      autoApply={!getStoryPhotoUrl(story, i)}
+                      autoApply={
+                        !story.visual?.photo_id &&
+                        !story.visual?.photo_url &&
+                        !attachedByStory.has(i)
+                      }
                       libraryStrip={libraryStrip}
-                      onApply={(photo) => applyStoryPhoto(i, photo)}
+                      onApply={(photo, opts) => applyStoryPhoto(i, photo, opts)}
                       onApplyLibrary={(row) => applyLibraryPhoto(i, row)}
                       onOpenLibrary={() => setPickerFor(i)}
                     />
