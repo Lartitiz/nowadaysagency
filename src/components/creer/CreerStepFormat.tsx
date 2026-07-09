@@ -343,7 +343,10 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
     // Exception : mixte en newsjacking = régime texte d'abord, aucune photo exigée
     // (le casting des images se fait dans l'écran résultat).
     const textFirstMix = !!newsjackingActive && carouselSubMode === "mix";
-    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0 && !textFirstMix) {
+    // Exception : photo dump activé en « Photos brutes » = zéro photo attachée
+    // est un cas VALIDE (l'app compose depuis la bibliothèque + la génération).
+    const dumpComposes = carouselSubMode === "pure_photo" && photoDump;
+    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0 && !textFirstMix && !dumpComposes) {
       setPhotoWarning(true);
       return;
     }
