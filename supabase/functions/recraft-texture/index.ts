@@ -124,9 +124,10 @@ serve(async (req) => {
     }
 
     const prompt =
-      `flat top-down close-up of ${MATERIAL_PROMPTS[material]}, ` +
-      `the surface fills the entire frame edge to edge, tinted ${bgColor} color tone, ` +
-      "perfectly flat, even diffuse lighting, uniform, very low contrast";
+      `extreme macro close-up photograph of ${MATERIAL_PROMPTS[material]}, ` +
+      "camera perpendicular to the surface, the material fills 100% of the frame " +
+      "edge to edge, nothing else visible, no surroundings, no context, " +
+      `tinted ${bgColor} color tone, perfectly flat, even diffuse lighting, uniform, very low contrast`;
 
     // 5. Appel Recraft (1 retry sur 5xx/timeout)
     const callRecraft = async (): Promise<Response> =>
