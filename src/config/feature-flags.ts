@@ -14,7 +14,7 @@ export interface ModuleFlag {
 }
 
 export const MODULE_FLAGS: ModuleFlag[] = [
-  { id: "site",       label: "Site Web",    enabled: false, routes: ["/site"] },
+  { id: "site",       label: "Site Web",    enabled: true,  routes: ["/site"] },
   { id: "seo",        label: "SEO",         enabled: false, routes: ["/seo"] },
   { id: "pinterest",  label: "Pinterest",   enabled: false, routes: ["/pinterest"] },
   { id: "communaute", label: "Communauté",  enabled: false, routes: ["/communaute"] },
