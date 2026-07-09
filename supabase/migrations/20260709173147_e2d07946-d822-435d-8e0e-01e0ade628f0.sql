@@ -1,0 +1,1 @@
+ALTER TABLE public.user_photos ADD COLUMN IF NOT EXISTS kind text CHECK (kind IS NULL OR kind IN ('produit','produit_porte','portrait','ambiance','coulisses','autre'));
