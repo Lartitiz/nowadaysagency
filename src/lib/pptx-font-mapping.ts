@@ -587,6 +587,12 @@ export interface ShapeBlock {
   rect: { x: number; y: number; w: number; h: number };
   /** Hex 6 chars normalisé sans `#`. */
   fill: string;
+  /**
+   * Alpha du fond CSS (0-1). Absent = opaque. Une carte `rgba(255,255,255,0.06)`
+   * posée sur un fond sombre et rendue OPAQUE blanche = texte clair illisible
+   * (vu en prod) : l'exporter traduit cet alpha en `transparency` pptxgenjs.
+   */
+  fillAlpha?: number;
   /** Border-radius en px (top-left si shorthand asymétrique). */
   borderRadiusPx: number;
   /**
@@ -786,6 +792,15 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       console.debug("[hybrid] shape skipped (transparent fill)", { type });
       continue;
     }
+    // Alpha CSS (computed style Chrome : `rgba(r, g, b, a)`). Rendre une carte
+    // semi-transparente en aplat OPAQUE inverse son rôle visuel (voile discret
+    // sur fond sombre → carte blanche pleine qui rend le texte clair illisible).
+    const alphaM = bgColor.match(/rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/i);
+    const fillAlpha = alphaM ? Math.max(0, Math.min(1, parseFloat(alphaM[1]))) : 1;
+    if (fillAlpha === 0) {
+      console.debug("[hybrid] shape skipped (fully transparent fill)", { type });
+      continue;
+    }
 
     // borderTopLeftRadius est toujours défini en computed style (même si shorthand asymétrique).
     const borderRadiusStr = cs.borderTopLeftRadius || cs.borderRadius || "0px";
@@ -796,6 +811,7 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       type,
       rect: { x: r.left, y: r.top, w: r.width, h: r.height },
       fill: normalizeHex(bgColor, "FFFFFF"),
+      ...(fillAlpha < 1 ? { fillAlpha } : {}),
       borderRadiusPx,
       shadow,
       border,
