@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { ArrowLeft, Upload, X, Sparkles, FileText, Loader2, CheckCircle2, GripVertical } from "lucide-react";
 import { type Emotion, type Universe, type StyleAxis, type GeneratedPalette } from "@/lib/charter-palette-generator";
+import CharterBackgroundSection from "@/components/branding/charter/CharterBackgroundSection";
 import CharterColorsSection from "@/components/branding/charter/CharterColorsSection";
 import CharterTypographySection from "@/components/branding/charter/CharterTypographySection";
 import CharterTemplatesSection from "@/components/branding/charter/CharterTemplatesSection";
@@ -134,6 +135,9 @@ interface CharterData {
   updated_at?: string;
   moodboard_images: { url: string; path: string; name: string }[];
   moodboard_description: string | null;
+  texture_enabled: boolean;
+  texture_material: string | null;
+  texture_url?: string | null;
 }
 
 const INITIAL: CharterData = {
@@ -160,6 +164,9 @@ const INITIAL: CharterData = {
   moodboard_images: [],
   moodboard_description: null,
   template_layout_description: null,
+  texture_enabled: false,
+  texture_material: null,
+  texture_url: null,
 };
 
 /** Get display color for UI (neutral fallback if null) */
@@ -452,6 +459,10 @@ export default function BrandCharterPage() {
       moodboard_images: d.moodboard_images,
       moodboard_description: d.moodboard_description,
       template_layout_description: d.template_layout_description,
+      // texture_url volontairement absent : seule l'edge recraft-texture l'écrit,
+      // l'auto-save ne doit jamais l'écraser avec un état local périmé.
+      texture_enabled: d.texture_enabled,
+      texture_material: d.texture_material,
     };
 
     if (d.id) {
@@ -959,6 +970,16 @@ export default function BrandCharterPage() {
             setSectorPalettesOpen={setSectorPalettesOpen}
           />
           {generatedPalettes.length > 0 && <AiGeneratedMention />}
+
+          {/* SECTION: Fond des visuels (uni / matière) */}
+          <CharterBackgroundSection
+            textureEnabled={data.texture_enabled}
+            textureMaterial={data.texture_material}
+            textureUrl={data.texture_url ?? null}
+            colorBackground={data.color_background}
+            workspaceIdForApi={workspaceId && workspaceId !== user?.id ? workspaceId : null}
+            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
+          />
 
           {/* SECTION 3: Typographies */}
           <CharterTypographySection
