@@ -58,6 +58,10 @@ export interface GenerateParams {
   narrativeThread?: string;
   // Newsjacking — separate field to avoid bloating `subject`
   newsContext?: string;
+  // Régime « texte d'abord » (carrousel mixte sans photos) : l'edge rend des
+  // photo_directive par slide photo + matching strict contre le catalogue bibliothèque.
+  textFirst?: boolean;
+  photoCatalog?: { index: number; description: string; kind?: string | null }[];
   // "Mode qualité Max" : escalade vers Opus pour la rédaction (plus soigné, plus lent)
   qualityMax?: boolean;
 }
@@ -327,6 +331,10 @@ export function useContentGenerator() {
               quality_max: params.qualityMax || undefined,
               ...(params.narrativeThread && params.narrativeThread.trim() ? { narrative_thread: params.narrativeThread } : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
+              ...(params.textFirst ? { text_first: true } : {}),
+              ...(params.textFirst && params.photoCatalog && params.photoCatalog.length > 0
+                ? { photo_catalog: params.photoCatalog.slice(0, 40) }
+                : {}),
             },
             onStatus: (stage) => setGenerationStage(stage),
           }, 180000);

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, ArrowRight, Wand2, Instagram, Linkedin, Mail, Pin } from "lucide-react";
+import { ArrowLeft, ArrowRight, Wand2, Instagram, Linkedin, Mail, Pin, ImageIcon } from "lucide-react";
 import {
   CONTENT_TYPE_SPECS,
   OBJECTIVE_RECOMMENDATIONS,
@@ -72,6 +72,10 @@ interface Props {
   suggestedFormat?: string;
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
+  // Régime « texte d'abord » : quand on vient du newsjacking, le carrousel mixte
+  // n'exige plus de photos en amont — le texte est rédigé d'abord et les images
+  // se choisissent ensuite, slide par slide, dans l'écran résultat (casting).
+  newsjackingActive?: boolean;
   onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
   // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
   // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
@@ -80,7 +84,7 @@ interface Props {
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, forcedChannel, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, onNext, onSelectionChange, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, forcedChannel, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack }: Props) {
   // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
   // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
   // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
@@ -332,8 +336,11 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       toast.error("Choisis le type de carrousel (Texte, Photo ou Mixte) avant de continuer.");
       return;
     }
-    // Guard: photo/mix mode requires at least one photo
-    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0) {
+    // Guard: photo/mix mode requires at least one photo.
+    // Exception : mixte en newsjacking = régime texte d'abord, aucune photo exigée
+    // (le casting des images se fait dans l'écran résultat).
+    const textFirstMix = !!newsjackingActive && carouselSubMode === "mix";
+    if (selectedFormat === "carousel" && (carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length === 0 && !textFirstMix) {
       setPhotoWarning(true);
       return;
     }
@@ -814,8 +821,23 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
         )
       )}
 
+      {/* Mixte en newsjacking = régime texte d'abord : pas d'upload de photos en
+          amont, le casting des images se fait dans l'écran résultat. */}
+      {newsjackingActive && carouselSubMode === "mix" && (
+        <div className="animate-fade-in rounded-xl border border-primary/20 bg-primary/5 p-3.5 flex items-start gap-2.5">
+          <ImageIcon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-foreground">On écrit d'abord, les images viennent ensuite</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Ton carrousel est rédigé à partir de l'actu. Tu choisiras ensuite l'image de chaque
+              slide photo — depuis ta bibliothèque, une banque d'images ou un import.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Photo upload zone (carousel photo / mix / pure_photo) */}
-      {(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && (
+      {(carouselSubMode === "photo" || carouselSubMode === "pure_photo" || (carouselSubMode === "mix" && !newsjackingActive)) && (
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={10}
