@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, Loader2, Package, RefreshCw, Sparkles, Wand2 } from "lucide-react";
+import { Download, Loader2, Package, RefreshCw, Shirt, Sparkles, Wand2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +34,8 @@ interface PhotoDetailDialogProps {
   onPackshot?: (photo: UserPhotoRow) => void;
   /** Ouvre la retouche IA (remplacement de décor) pour cette photo. */
   onRetouche?: (photo: UserPhotoRow) => void;
+  /** Ouvre la mise en scène (produit porté/en situation) pour cette photo. */
+  onMiseEnScene?: (photo: UserPhotoRow) => void;
 }
 
 function slugify(s: string): string {
@@ -46,7 +48,7 @@ function slugify(s: string): string {
     .slice(0, 60) || "photo";
 }
 
-export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche }: PhotoDetailDialogProps) {
+export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene }: PhotoDetailDialogProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -234,6 +236,11 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           {photo.status === "ready" && onPackshot && (
             <Button variant="outline" onClick={() => onPackshot(photo)}>
               <Package className="h-4 w-4 mr-2" /> Packshot e-commerce
+            </Button>
+          )}
+          {photo.status === "ready" && onMiseEnScene && (
+            <Button variant="outline" onClick={() => onMiseEnScene(photo)}>
+              <Shirt className="h-4 w-4 mr-2" /> Mettre en scène
             </Button>
           )}
           {photo.status === "ready" && (
