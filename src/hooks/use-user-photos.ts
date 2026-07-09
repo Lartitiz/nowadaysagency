@@ -11,6 +11,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import type { UserPhotoRow } from "@/lib/photo-storage";
 import { uploadPhotoOriginal } from "@/lib/photo-storage";
+import { convertHeicIfNeeded } from "@/lib/heic";
 
 export type { UserPhotoRow } from "@/lib/photo-storage";
 
@@ -155,8 +156,10 @@ export function useUploadLibraryPhotos() {
     let failed = 0;
     setProgress({ done: 0, total: files.length });
     try {
-      for (const file of files) {
+      for (const rawFile of files) {
         try {
+          // Photos d'iPhone : HEIC → JPEG (même conversion que le flux création)
+          const file = await convertHeicIfNeeded(rawFile);
           const { photoId } = await uploadPhotoOriginal({
             file,
             userId: user.id,

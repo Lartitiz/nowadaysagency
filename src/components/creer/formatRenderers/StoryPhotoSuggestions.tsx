@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { searchStockPhotos, type StockPhoto } from "@/lib/stock-photos";
 import { fileToResizedDataUrl } from "@/lib/story-photos";
+import { convertHeicIfNeeded, isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { uploadPhotoOriginal } from "@/lib/photo-storage";
 import { usePhotoWishlistMutations } from "@/hooks/use-photo-wishlist";
@@ -137,13 +138,15 @@ export default function StoryPhotoSuggestions({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query]);
 
-  async function handleOwnPhoto(file: File | null | undefined) {
-    if (!file) return;
-    if (!file.type.startsWith("image/")) {
+  async function handleOwnPhoto(raw: File | null | undefined) {
+    if (!raw) return;
+    if (!raw.type.startsWith("image/") && !isHeic(raw)) {
       toast.error("Le fichier doit être une image.");
       return;
     }
     try {
+      // Photos d'iPhone : HEIC → JPEG avant tout (createImageBitmap ne décode pas le HEIC)
+      const file = await convertHeicIfNeeded(raw);
       const dataUrl = await fileToResizedDataUrl(file);
       onApply({ url: dataUrl, credit: null });
       // Croissance de la bibliothèque par l'usage : la photo y est versée en
@@ -286,7 +289,7 @@ export default function StoryPhotoSuggestions({
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={PHOTO_INPUT_ACCEPT}
         className="hidden"
         onChange={(e) => {
           handleOwnPhoto(e.target.files?.[0]);
