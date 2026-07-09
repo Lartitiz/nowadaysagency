@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
+import { isModuleVisible, isRouteVisible } from "@/config/feature-flags";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, RefreshCw, Search, Square, CheckSquare } from "lucide-react";
@@ -30,7 +31,7 @@ interface AuditInfo {
 }
 
 export default function AuditRecommendationsSection() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
@@ -58,7 +59,12 @@ export default function AuditRecommendationsSection() {
     ]);
 
     if (auditRes.data) setAudit(auditRes.data as AuditInfo);
-    if (recsRes.data) setRecommendations(recsRes.data as Recommendation[]);
+    // Une reco vers un module masqué (ex. SEO) mènerait à un redirect silencieux vers /dashboard
+    if (recsRes.data) {
+      setRecommendations((recsRes.data as Recommendation[]).filter(
+        r => isModuleVisible(r.module, isAdmin) && isRouteVisible(r.route, isAdmin)
+      ));
+    }
     setLoading(false);
   };
 
