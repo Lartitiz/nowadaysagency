@@ -40,6 +40,8 @@ const BodySchema = z.object({
 const OPENAI_URL = "https://api.openai.com/v1/images/edits";
 const OPENAI_TIMEOUT_MS = 200_000;
 const RETRY_DELAY_MS = 2_000;
+const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
+const PHOTOROOM_TIMEOUT_MS = 45_000;
 
 // Comptes QA : mêmes emails que plan-limiter (bypass quota) — ils gardent un
 // plan "free" réel, le gate Premium doit donc les laisser passer pour que la
@@ -222,6 +224,47 @@ serve(async (req) => {
       return jsonResponse({ error: "Téléchargement de la photo impossible" }, 500);
     }
 
+    // 4bis. Détourage Photoroom AVANT gpt-image (lot 1ter, validé le 09/07) :
+    // en fidélité haute, gpt-image hérite du STYLE OPTIQUE de la source — un
+    // bokeh d'origine rend le fond flou, incorrigible par prompt. Une source
+    // détourée sur fond blanc n'a rien à hériter → scène re-générée NETTE
+    // selon la recette. Dégrade proprement : si Photoroom échoue (quota,
+    // panne), on continue avec la photo brute plutôt que de bloquer.
+    let sourceBlob: Blob = blob;
+    let detoured = false;
+    const photoroomKey = Deno.env.get("PHOTOROOM_API_KEY");
+    if (photoroomKey) {
+      try {
+        const fd = new FormData();
+        fd.append("imageFile", blob, "input.jpg");
+        fd.append("removeBackground", "true");
+        fd.append("background.color", "FFFFFF");
+        fd.append("referenceBox", "originalImage");
+        fd.append("outputSize", "originalImage");
+        fd.append("export.format", "jpg");
+        const prRes = await fetch(PHOTOROOM_URL, {
+          method: "POST",
+          headers: { "x-api-key": photoroomKey },
+          body: fd,
+          signal: AbortSignal.timeout(PHOTOROOM_TIMEOUT_MS),
+        });
+        if (prRes.ok) {
+          sourceBlob = await prRes.blob();
+          detoured = true;
+        } else {
+          await prRes.text().catch(() => "");
+          console.warn(
+            "[product-on-model] détourage Photoroom KO (status " + prRes.status + ") — photo brute utilisée"
+          );
+        }
+      } catch (e) {
+        console.warn(
+          "[product-on-model] détourage Photoroom erreur — photo brute utilisée:",
+          e instanceof Error ? e.message : e
+        );
+      }
+    }
+
     // 5. Charte + profil pour le bloc « univers de marque »
     const col = bodyWorkspaceId ? "workspace_id" : "user_id";
     const val = bodyWorkspaceId || userId;
@@ -263,7 +306,7 @@ serve(async (req) => {
       // est celle de dall-e-2 → 400 immédiat).
       form.append(
         "image[]",
-        new File([blob], "product.jpg", { type: blob.type || "image/jpeg" })
+        new File([sourceBlob], "product.jpg", { type: sourceBlob.type || "image/jpeg" })
       );
       form.append("prompt", prompt);
       form.append("n", String(n));
@@ -390,6 +433,7 @@ serve(async (req) => {
       mode: parsed.mode,
       framing: parsed.framing,
       has_adjustment: !!adjustment,
+      detoured,
       tokens,
       ai_ms: aiMs,
       total_ms: Date.now() - t0,
