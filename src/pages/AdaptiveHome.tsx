@@ -14,6 +14,7 @@ import {
   Rocket,
   Recycle as RecycleIcon,
   Upload,
+  Image as ImageIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -249,6 +250,24 @@ export default function AdaptiveHome() {
         .from("saved_ideas")
         .select("*", { count: "exact", head: true })
         .eq(filterCol, filterVal);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!user,
+    staleTime: 2 * 60 * 1000,
+    retry: 1,
+  });
+
+  // Photos : compteur de la pill « Mes photos » (accès direct à la bibliothèque).
+  // La bibliothèque est toujours cloisonnée par workspace_id (cf. useUserPhotos).
+  const { data: photoCount = 0 } = useQuery<number>({
+    queryKey: ["adaptive-home-photos-count", user?.id, workspaceId],
+    queryFn: async () => {
+      if (!user) return 0;
+      const { count, error } = await supabase
+        .from("user_photos")
+        .select("*", { count: "exact", head: true })
+        .eq("workspace_id", workspaceId ?? user.id);
       if (error) throw error;
       return count ?? 0;
     },
@@ -502,6 +521,12 @@ export default function AdaptiveHome() {
               label="Mes idées"
               count={ideaCount}
               onClick={() => navigate("/idees")}
+            />
+            <PilotPill
+              icon={ImageIcon}
+              label="Mes photos"
+              count={photoCount}
+              onClick={() => navigate("/photos")}
             />
             <PilotPill
               icon={Upload}
