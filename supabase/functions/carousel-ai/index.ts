@@ -1129,6 +1129,8 @@ Un carrousel n'est PAS une liste de slides indépendantes : c'est UNE histoire q
 - Le hook (slide 1) ouvre une tension qui ne se referme qu'à la toute fin. Garde un fil rouge tendu du début à la fin.
 - TEST DE CONTINUITÉ (applique-le avant de retourner le JSON) : lues d'affilée, les slides doivent sonner comme un récit continu. Si on peut intervertir deux slides sans que rien ne change → elles sont juxtaposées, pas enchaînées → RÉÉCRIS pour créer la progression.
 
+${FACTS_AND_MOTIF_RULES}
+
 ═══ SCHÉMAS VISUELS (À DOSER — le narratif prime) ═══
 
 La force d'un carrousel vient du NARRATIF : affirmations fortes, récit, prises de position portées par une grande typographie. PAS de l'accumulation de schémas. Un carrousel peut très bien n'avoir AUCUN schéma — et c'est souvent mieux.
@@ -2129,6 +2131,18 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
 }`;
 }
 
+// Règles anti-confusion factuelle + ancrage du CTA, partagées par les trois
+// moteurs (texte, mix, mix-actu). Nées d'un carrousel réel raté (09/07) : le
+// même chiffre décliné sur deux slides sans le dire (71 000/an puis 300/jour
+// lus comme DEUX stats), le même chiffre répété 3× sur une slide, une
+// métaphore inconnue qui débarque en conclusion, un CTA hors-sol.
+const FACTS_AND_MOTIF_RULES = `═══ CHIFFRES & IMAGE FILÉE (ANTI-CONFUSION) ═══
+
+- CHIFFRE DÉCLINÉ = LE DIRE. Si deux slides s'appuient sur le MÊME chiffre sous deux formes (ex : "71 000 faillites par an" puis "300 par jour ouvré"), la seconde DOIT s'annoncer comme reformulation ("Autrement dit…", "Ramené à une journée…", "Ça fait…"). Sinon la lectrice croit lire une DEUXIÈME statistique et perd le fil.
+- UN CHIFFRE = UNE APPARITION PAR SLIDE. Le même chiffre ne figure jamais à la fois dans le titre, le body ET un schéma/carte stat de la même slide. Une seule occurrence, à la place la plus forte.
+- IMAGE FILÉE : si la conclusion ou le CTA s'appuie sur une métaphore ("la lumière encore allumée", "le filet de sécurité", "la vitrine"), cette image doit avoir été POSÉE en toutes lettres dans une slide antérieure. Une métaphore qui débarque en dernière slide tombe à plat : soit tu la poses avant, soit tu conclus sans elle.
+- CTA ANCRÉ : la dernière slide reprend UN mot ou UNE image du cœur du carrousel. "Échangeons", "DM ouvert", "Parlons-en" seuls (ou combinés) = CTA générique interdit.`;
+
 function buildMixCarouselPrompt(body: any, isLinkedIn: boolean = false): string {
   const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure, narrative_thread } = body;
 
@@ -2289,7 +2303,7 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 - ARC NARRATIF : situation → tension → développement → résolution → ouverture. Fil conducteur clair entre slides photo et texte.
 - Les slides text_only doivent avoir un body de 30-50 mots MINIMUM (phrases complètes, pas des fragments).
 - QUALITÉ VISUELLE des slides texte (CRUCIAL) : une slide text_only n'est PAS un mur de texte. Quand le contenu s'y prête, ajoute un "visual_schema" pour porter le message visuellement (comparaison avant/après, opposition deux colonnes, timeline, liste numérotée structurée, citation mise en avant, chiffre-clé géant). Vise au moins 1 slide texte sur 2 avec un visual_schema. Si la slide est juste du texte, alors le body doit être PERCUTANT (formule, prise de position, micro-récit) — pas un paragraphe descriptif.
-- Les overlay_text sur photo_full sont COURTS (5-20 mots) : ils complètent l'image, ils ne la décrivent pas. Ils doivent être ANCRÉS dans CE moment précis (fait sensoriel, détail concret, parole captée), pas une formule chic transposable ("Quand la magie opère", "Un instant suspendu" → INTERDIT).
+- Les overlay_text sur photo_full sont une VRAIE PHRASE COMPLÈTE (sujet + verbe conjugué) de 8-20 mots qui FAIT AVANCER le récit : ils complètent l'image, ils ne la décrivent pas. ANCRÉS dans CE moment précis (fait sensoriel, détail concret, parole captée), pas une formule chic transposable ("Quand la magie opère", "Un instant suspendu" → INTERDIT). Les fragments nominaux empilés façon légende de galerie ("Disparus en silence. Des gens. Pas des statistiques." → INTERDIT) : une slide photo porte une ÉTAPE du récit, pas un stamp.
 - Au moins 1 exemple concret OU 1 analogie du quotidien dans le carrousel.
 - Le sujet "${body.subject || ""}" est un BRIEF CRÉATIF : si c'est un concept (VS, avant/après, métaphore), il structure l'ensemble. Le titre apparaît (ou est amélioré) sur la slide 1.
 - Les autres règles d'écriture (ton oral incarné, anti-jargon, anti-formules vides, écriture inclusive, pas de tirets cadratins) sont déjà définies dans le contexte système.
@@ -2321,6 +2335,8 @@ La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte par
 - Pas de rampe émotionnelle artificielle ("c'est important" → "c'est crucial" → "c'est vital"). Une seule tension, posée une fois, puis on développe par EXEMPLES, pas par escalade rhétorique.
 - Anti-TU : voix principale = JE (expérience partagée). Le TU est limité à 2 slides max d'interpellation ponctuelle, jamais comme voix narrative.
 
+${FACTS_AND_MOTIF_RULES}
+
 ${SLIDE_TITLE_RULES}
 
 
@@ -2341,6 +2357,7 @@ ${deepeningCtx}${angleBlock}
 - Au moins UNE slide formule la CROYANCE retournée ("on croit X, en fait Y") OU porte le RETOURNEMENT de perspective (le moment "j'avais jamais vu ça comme ça"). Cette slide est le PIVOT du carrousel — pas le hook, pas le CTA, le milieu.
 - Les overlay_text des slides photo_full, lus à la suite, forment un récit continu (reprise, prolongement ou bascule d'une slide à l'autre) — pas une galerie de légendes interchangeables.
 - Le test de permutation échoue : déplacer une slide au hasard (photo ou texte) casserait visiblement le récit. Si ce n'est pas le cas, le chaînage est trop faible — réécris.
+- Aucun chiffre décliné sans annonce, aucun chiffre répété 3× sur la même slide, aucune métaphore de conclusion non posée en amont, CTA ancré dans le sujet (pas de "Échangeons / DM ouvert" nu), et AU PLUS UNE occurrence du retournement par négation ("Pas X. Y." et variantes) dans tout le carrousel.
 ${isLinkedIn ? `- Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié).` : `- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.`}
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE — peut être vide) ═══
@@ -2545,7 +2562,7 @@ Cette actu est le POINT D'ENTRÉE visible (slide 1). Le reste du carrousel = TA 
 
 ═══ TYPES DE SLIDES (identique au mode mix classique) ═══
 
-1. "photo_full" — Photo plein écran + overlay court (5-20 mots, ancré dans CETTE photo, pas une formule chic).
+1. "photo_full" — Photo plein écran + overlay = VRAIE PHRASE COMPLÈTE (sujet + verbe conjugué, 8-20 mots) qui fait avancer le récit, ancrée dans CETTE photo. Pas une formule chic, pas des fragments nominaux empilés ("Disparus en silence. Des gens. Pas des statistiques." → INTERDIT).
 2. "photo_integrated" — Photo intégrée dans un layout (top_photo, left_photo, right_photo, card_photo, banner_photo).
 3. "text_only" — Slide texte pure. body 30-50 mots MIN, prose fluide écrite en JE, qui FAIT AVANCER le monologue.
 
@@ -2582,6 +2599,8 @@ La "cascade" est le défaut #1 des carrousels mixtes IA : chaque slide texte par
 - Pas de rampe émotionnelle artificielle ("c'est important" → "c'est crucial" → "c'est vital"). Une seule tension, posée une fois, puis on développe par EXEMPLES, pas par escalade rhétorique.
 - Anti-TU : voix principale = JE (expérience ou analyse partagée). Le TU est limité à 2 slides max d'interpellation ponctuelle, jamais comme voix narrative.
 
+${FACTS_AND_MOTIF_RULES}
+
 ${SLIDE_TITLE_RULES}
 
 ═══ ASSIGNATION DES PHOTOS ═══
@@ -2599,6 +2618,7 @@ ${deepeningCtx}${angleBlock}
 - Le pont actu → métier est formulé en "ce que ça touche dans MON terrain", pas "ce que ça dit de TON business".
 - Les overlay_text des slides photo_full, lus à la suite, forment un récit continu (reprise, prolongement ou bascule d'une slide à l'autre) — pas une galerie de légendes interchangeables.
 - Test de permutation : si on échange deux slides au hasard et que le carrousel "marche encore" → raté, recommence.
+- Aucun chiffre décliné sans annonce ("Autrement dit…"), aucun chiffre répété 3× sur la même slide, aucune métaphore de conclusion non posée en amont, CTA ancré dans le sujet (pas de "Échangeons / DM ouvert" nu), et AU PLUS UNE occurrence du retournement par négation ("Pas X. Y." et variantes) dans tout le carrousel.
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
 Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"","hashtags":[]} ou l'omettre.` : `═══ LÉGENDE INSTAGRAM (OBLIGATOIRE) ═══

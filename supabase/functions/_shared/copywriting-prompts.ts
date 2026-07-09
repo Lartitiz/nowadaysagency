@@ -396,7 +396,7 @@ PATTERNS "VOIX IA" BANNIS (reconnaissables instantanément) :
 Rythme artificiel :
 - Rafales de phrases de 3-4 mots ("C'est ton message. Et ton message, ça se travaille. Avec méthode. Avec écoute.") → INTERDIT. Écrire des phrases complètes. Les phrases courtes arrivent naturellement après une longue, pas en série.
 - Anaphore mécanique en fin de texte ("Avec X. Avec Y. Avec Z." ou "Pas X. Pas Y. Mais Z.") → SUPPRIMER.
-- "C'est pas X. C'est Y." plus d'une fois par contenu → UNE FOIS MAX.
+- RETOURNEMENT PAR NÉGATION, toutes variantes confondues : "C'est pas X. C'est Y." / "Pas X. Juste Y." / "X. Pas Y." ("Des gens. Pas des statistiques.") / "Ce n'est pas X, c'est Y" / "X n'est plus Y. C'est Z." → UNE FOIS MAX par contenu, EN TOUT. C'est la même mécanique sous cinq habillages : deux occurrences = procédé visible, trois = signature IA. COMPTE-LES toutes ensemble avant de retourner ; garde la plus forte, réécris les autres en affirmation directe.
 - Phrase isolée dramatique sur une ligne ("Et là, tout a basculé.") → SUPPRIMER.
 - "Sauf que." comme phrase isolée sur une ligne → BANNI. Marqueur IA #1. Si tu utilises "sauf que", c'est EN MILIEU DE PHRASE, max 1 fois par contenu.
 - "Et là." comme phrase isolée → BANNI.

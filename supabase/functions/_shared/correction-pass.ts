@@ -268,8 +268,8 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → ✅ "J'ai eu le feed le plus beau... je savais ce que je proposais..."
 
 3. CTA GÉNÉRIQUE (dernière slide) :
-   ❌ "Et toi, tu commences par quoi ?" / "Dis-moi en commentaire"
-   → ✅ Question SPÉCIFIQUE au sujet du carrousel. Ex: "Quelle est la dernière slide qui t'a fait arrêter de scroller, et pourquoi ?"
+   ❌ "Et toi, tu commences par quoi ?" / "Dis-moi en commentaire" / "Échangeons" / "DM ouvert" / "Parlons-en" (seuls ou combinés : "Échangeons → DM ouvert" reste générique)
+   → ✅ Question ou invitation SPÉCIFIQUE au sujet, qui REPREND un mot ou une image du cœur du carrousel. Ex: "Quelle est la dernière slide qui t'a fait arrêter de scroller, et pourquoi ?"
 
 4. RÉCITATION DU SUJET (slide qui répète le brief sans le digérer) :
    → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
@@ -312,6 +312,12 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    ❌ "Tu te compares à des comptes plus gros et tu te décourages."
    → ✅ "La comparaison est devenue le sport national du feed. C'est épuisant pour tout le monde."
    → Pas de syndrome psy nommé (imposteur, peur du rejet, etc.) sauf si l'utilisatrice l'avait elle-même nommé.
+
+12. RETOURNEMENT PAR NÉGATION EN SÉRIE (LE tic IA n°1 des contenus d'opinion) :
+   → COMPTE sur l'ENSEMBLE (slides + caption) les occurrences de la famille, toutes variantes confondues : "C'est pas X. C'est Y." / "Pas X. Juste Y." / "X. Pas Y." / "Ce n'est pas X, c'est Y" / "X n'est plus Y. C'est Z."
+   → 0 ou 1 occurrence : ne touche à rien. 2+ : garde LA plus forte, réécris chacune des autres en affirmation directe (sans le pivot négatif).
+   ❌ (3 occurrences dans le même carrousel) "Des gens. Pas des statistiques." + "Ce n'est pas faux. C'est juste insuffisant." + "Ce n'est plus un symbole. C'est une décision."
+   → ✅ garder une seule des trois, et par ex. "Ce n'est pas faux. C'est juste insuffisant." → "C'est vrai, mais ça ne suffit plus quand personne ne sait que le projet existe."
 ══ FORMAT DE RÉPONSE ══
 Retourne EXACTEMENT le même format annoté :
 [SLIDE 1 - HOOK] texte corrigé
