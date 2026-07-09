@@ -27,7 +27,7 @@ import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES
 function cleanStreamingContent(raw: string): string {
   if (!raw) return "";
 
-  let cleaned = raw
+  const cleaned = raw
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/```\s*$/g, "");
@@ -231,6 +231,7 @@ interface Props {
   /** Progression réelle des visuels (lots de slides terminés, SSE). null = barre simulée. */
   visualChunkProgress?: { done: number; total: number } | null;
   visualSlides?: { slide_number: number; html: string }[];
+  onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
   onExportPptx?: () => void;
   onExportHybridPptx?: () => void;
   /** Pont Canva : exporte le PPTX et l'ouvre comme design éditable dans Canva. */
@@ -292,6 +293,7 @@ export default function CreerStepResult({
   visualLoading,
   visualChunkProgress,
   visualSlides,
+  onVisualSlidesUpdate,
   onExportPptx,
   onExportHybridPptx,
   onOpenInCanva,
@@ -480,7 +482,7 @@ export default function CreerStepResult({
 
     switch (format) {
       case "carousel":
-        return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} />;
+        return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} />;
       case "reel":
         return <ReelResult result={result} />;
       case "story":
