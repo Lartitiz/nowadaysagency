@@ -24,6 +24,9 @@ interface CharterBackgroundSectionProps {
   textureMaterial: string | null;
   textureUrl: string | null;
   colorBackground: string | null;
+  colorPrimary: string | null;
+  colorText: string | null;
+  fontTitle: string | null;
   workspaceIdForApi: string | null;
   onDataChange: (updates: { texture_enabled?: boolean; texture_material?: string | null; texture_url?: string | null }) => void;
 }
@@ -33,6 +36,9 @@ export default function CharterBackgroundSection({
   textureMaterial,
   textureUrl,
   colorBackground,
+  colorPrimary,
+  colorText,
+  fontTitle,
   workspaceIdForApi,
   onDataChange,
 }: CharterBackgroundSectionProps) {
@@ -165,6 +171,35 @@ export default function CharterBackgroundSection({
             <p className="text-xs text-muted-foreground">
               Tant que la texture n'est pas générée, tes visuels gardent le fond uni.
             </p>
+          )}
+
+          {textureUrl && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-2">Aperçu sur une slide :</p>
+              <div
+                className="w-full max-w-[260px] aspect-[4/5] rounded-xl border border-border overflow-hidden"
+                style={{ background: `url('${textureUrl}') center/cover` }}
+              >
+                <div className="h-full w-full p-5 flex flex-col justify-center gap-3">
+                  <span
+                    className="text-[10px] font-semibold tracking-[0.15em] uppercase"
+                    style={{ color: colorPrimary || "#1C1C20" }}
+                  >
+                    Ta marque
+                  </span>
+                  <p
+                    className="text-xl leading-snug"
+                    style={{
+                      color: colorText || "#1C1C20",
+                      fontFamily: fontTitle ? `'${fontTitle}', serif` : undefined,
+                    }}
+                  >
+                    Un titre comme sur tes visuels
+                  </p>
+                  <span className="text-xs" style={{ color: colorPrimary || "#1C1C20" }}>1/7 →</span>
+                </div>
+              </div>
+            </div>
           )}
         </div>
       )}

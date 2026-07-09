@@ -977,6 +977,9 @@ export default function BrandCharterPage() {
             textureMaterial={data.texture_material}
             textureUrl={data.texture_url ?? null}
             colorBackground={data.color_background}
+            colorPrimary={data.color_primary}
+            colorText={data.color_text}
+            fontTitle={data.font_title}
             workspaceIdForApi={workspaceId && workspaceId !== user?.id ? workspaceId : null}
             onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
           />
