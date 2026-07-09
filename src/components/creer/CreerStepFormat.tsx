@@ -76,7 +76,7 @@ interface Props {
   // n'exige plus de photos en amont — le texte est rédigé d'abord et les images
   // se choisissent ensuite, slide par slide, dans l'écran résultat (casting).
   newsjackingActive?: boolean;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean, photoDump?: boolean) => void;
   // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
   // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
   // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
@@ -101,6 +101,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(initialCarouselSubMode ?? null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
+  // Photo dump (pure_photo uniquement) : l'app complète la séquence — vraies
+  // photos d'abord, IA pour le reste. ON par défaut (design validé 09/07).
+  const [photoDump, setPhotoDump] = useState(true);
   const [photoDescription, setPhotoDescription] = useState(initialPhotoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
   const [postPhoto, setPostPhoto] = useState<PhotoItem[]>(
@@ -370,6 +373,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       formatAcceptsSinglePhoto(selectedFormat) ? photoMode : undefined,
       pinterestData,
       isLinkedInCarousel,
+      isCarouselPurePhoto ? photoDump : undefined,
     );
   };
 
@@ -819,6 +823,36 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
             </div>
           </div>
         )
+      )}
+
+      {/* Photo dump (pure_photo uniquement) : l'app complète la séquence photo —
+          bibliothèque d'abord, IA pour le reste, wishlist en dernier recours. */}
+      {selectedFormat === "carousel" && carouselSubMode === "pure_photo" && (
+        <div
+          className={cn(
+            "w-full flex items-center gap-3 p-4 rounded-lg border transition-all animate-fade-in",
+            photoDump
+              ? "bg-primary/5 border-primary/40 ring-1 ring-primary/20"
+              : "bg-muted/30 border-border hover:border-primary/30"
+          )}
+        >
+          <Switch
+            checked={photoDump}
+            onCheckedChange={setPhotoDump}
+            className="flex-shrink-0"
+            aria-label="✨ Compléter en photo dump"
+          />
+          <button
+            type="button"
+            onClick={() => setPhotoDump(!photoDump)}
+            className="flex-1 min-w-0 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded"
+          >
+            <p className="text-sm font-medium text-foreground">✨ Compléter en photo dump</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              L'app complète ta séquence : tes vraies photos d'abord, l'IA pour le reste.
+            </p>
+          </button>
+        </div>
       )}
 
       {/* Mixte en newsjacking = régime texte d'abord : pas d'upload de photos en

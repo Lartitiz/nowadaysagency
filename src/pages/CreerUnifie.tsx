@@ -45,6 +45,9 @@ import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { useUserPhotos } from "@/hooks/use-user-photos";
 const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
 import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
+import PhotoDumpProgress from "@/components/creer/PhotoDumpProgress";
+import { runPhotoDump, PremiumRequiredError, type DumpProgressItem } from "@/lib/photo-dump";
+import { usePhotoWishlistMutations } from "@/hooks/use-photo-wishlist";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
 
@@ -220,6 +223,20 @@ export default function CreerUnifie() {
   // Snapshot des photos au moment de la génération du carrousel.
   // Sert de source de vérité pour handleGenerateVisuals si le state UI est reset.
   const [generatedWithPhotos, setGeneratedWithPhotos] = useState<any[]>([]);
+  // ═══ Photo dump (lot 3 mise en scène) — pure_photo uniquement ═══
+  // Toggle « Compléter en photo dump » remonté depuis l'étape format (ON par défaut).
+  const [photoDumpEnabled, setPhotoDumpEnabled] = useState(true);
+  // Résolution en cours : bloque la réentrance et affiche PhotoDumpProgress.
+  const [photoDumpResolving, setPhotoDumpResolving] = useState(false);
+  const [photoDumpProgress, setPhotoDumpProgress] = useState<{
+    narrativeThread: string;
+    items: DumpProgressItem[];
+  } | null>(null);
+  // Beats introuvables → wishlist « Photos à prendre » (source directive).
+  const { addDirective: addWishlistDirective } = usePhotoWishlistMutations();
+  // Le dump ne se résout qu'UNE fois par parcours (une régénération réutilise
+  // les photos résolues au lieu de re-facturer les slides générées).
+  const photoDumpDoneRef = useRef(false);
   // Dialog "photos manquantes" : remplace le downgrade silencieux.
   const [photoMissingDialog, setPhotoMissingDialog] = useState<{
     open: boolean;
@@ -906,9 +923,12 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean }) => {
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean; photoDump?: boolean }) => {
     if (loadingQuestions || generating || structureLoading) return; // garde anti double-clic (évite une 2e génération facturée)
-    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal } = options || {};
+    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal, photoDump } = options || {};
+    if (photoDump !== undefined) setPhotoDumpEnabled(photoDump);
+    // Nouveau passage par l'étape format = nouveau parcours → le dump peut se re-résoudre.
+    photoDumpDoneRef.current = false;
 
     // Auriana demo account: let the flow continue through all steps (no bypass)
 
@@ -1110,7 +1130,7 @@ export default function CreerUnifie() {
 
   const doGenerate = async (ansInput: Record<string, string>) => {
     if (!selectedFormat) return;
-    if (generating || structureLoading || streaming) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
+    if (generating || structureLoading || streaming || photoDumpResolving) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
     // Régime texte d'abord : on fige les lignes bibliothèque correspondant au catalogue
     // envoyé, pour résoudre library_photo_index au retour même si la biblio a bougé.
     if (isTextFirstMix) textFirstRowsSnapshotRef.current = textFirstCatalogRows;
@@ -1325,6 +1345,56 @@ export default function CreerUnifie() {
       return;
     }
 
+    // ── Photo dump (lot 3) : compléter la séquence pure_photo avant carousel-ai ──
+    // Toggle ON : photo-dump-plan compose l'arc narratif, puis chaque slide est
+    // résolue (bibliothèque → Photoroom → mise en scène → wishlist). Les images
+    // résolues remplacent les photos attachées du flux normal, ordre du plan.
+    let purePhotoResolved: any[] | null = null;
+    if (selectedFormat === "carousel" && carouselSubMode === "pure_photo" && photoDumpEnabled && !photoDumpDoneRef.current && !isDemoMode) {
+      setStep("result");
+      setPhotoDumpResolving(true);
+      setPhotoDumpProgress(null);
+      try {
+        const attachedIds = uploadedPhotos
+          .map((p: any) => p.userPhotoId)
+          .filter((id: any): id is string => typeof id === "string");
+        const dumpSujet = (ideaText.trim() || photoDescription.trim() || "Séquence photo spontanée").slice(0, 600);
+        const out = await runPhotoDump({
+          sujet: dumpSujet,
+          attachedPhotoIds: attachedIds.slice(0, 10),
+          workspaceId: workspaceId !== session.user.id ? workspaceId : undefined,
+          libraryRows: (libraryPhotosForCasting || []) as UserPhotoRow[],
+          onProgress: (thread, items) => setPhotoDumpProgress({ narrativeThread: thread, items }),
+          onWishlist: (beat) => addWishlistDirective(beat),
+        });
+        if (out && out.photos.length > 0) {
+          purePhotoResolved = out.photos;
+          photoDumpDoneRef.current = true;
+          setUploadedPhotos(out.photos);
+          setGeneratedWithPhotos(out.photos);
+          savePhotos(out.photos);
+        }
+        // out === null (plan indisponible) ou 0 photo résolue → flux normal
+        // avec les photos attachées telles quelles, sans bloquer la création.
+      } catch (e: any) {
+        if (e instanceof PremiumRequiredError) {
+          toast.error("La mise en scène est réservée au plan Premium", {
+            description: "Passe en Premium pour compléter tes photo dumps.",
+            action: { label: "Voir les plans", onClick: () => navigate("/abonnement") },
+          });
+          setPhotoDumpResolving(false);
+          setPhotoDumpProgress(null);
+          setStep("format");
+          return;
+        }
+        // Échec inattendu : le dump est un bonus, on continue avec les photos attachées.
+        console.warn("[photo-dump] résolution KO, flux normal:", e?.message || e);
+      } finally {
+        setPhotoDumpResolving(false);
+        setPhotoDumpProgress(null);
+      }
+    }
+
     // Formats structurés : appel classique (pas de streaming)
     // Carrousel « photo » (photos en fond + texte par-dessus) : proposer la
     // structure d'abord (sauf si déjà validée) — l'assignation photo→slide y est
@@ -1423,7 +1493,8 @@ export default function CreerUnifie() {
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
             : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
-        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
+        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoResolved ?? uploadedPhotos).map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
         ...(qualityMax ? { qualityMax: true } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
@@ -1447,7 +1518,8 @@ export default function CreerUnifie() {
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
             : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
-      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoResolved ?? uploadedPhotos).map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
@@ -3068,11 +3140,11 @@ export default function CreerUnifie() {
                 initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
                 initialPhotoDescription={photoDescription || undefined}
                 newsjackingActive={!!newsjackingContext}
-                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
+                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar, photoDump) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar });
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump });
                 }}
                 onSelectionChange={({ format, carouselSubMode: sub }) => {
                   // Persiste les choix en cours pour les restaurer au reload (avant « Suivant »).
@@ -3214,11 +3286,27 @@ export default function CreerUnifie() {
               )
             )}
 
+            {/* Photo dump : résolution des slides (avant le loader carrousel habituel) */}
+            {step === "result" && photoDumpResolving && (
+              photoDumpProgress ? (
+                <PhotoDumpProgress
+                  narrativeThread={photoDumpProgress.narrativeThread}
+                  items={photoDumpProgress.items}
+                />
+              ) : (
+                <div className="py-16 text-center space-y-3 animate-fade-in">
+                  <Spinner className="h-8 w-8 mx-auto" />
+                  <p className="text-sm font-medium text-foreground">Je compose ta séquence photo dump…</p>
+                  <p className="text-xs text-muted-foreground">Tes vraies photos d'abord, l'IA pour le reste.</p>
+                </div>
+              )
+            )}
+
             {step === "result" && structureLoading && (
               <CarouselStructureLoader hasPhotos={uploadedPhotos.length > 0} />
             )}
 
-            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !result && (
+            {step === "result" && !isLaunchMode && !generating && !demoGenerating && !streaming && !pinterestVisualGenerating && !structureLoading && !photoDumpResolving && !result && (
               <div className="py-12 text-center space-y-4 animate-fade-in">
                 {/* Quota épuisé pendant la génération : dire la vérité (les crédits),
                     pas « Session expirée » — et pas de Réessayer qui ne peut que re-échouer. */}
