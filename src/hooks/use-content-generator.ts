@@ -35,7 +35,7 @@ export interface GenerateParams {
   slideCount?: number;
   carouselType?: string;
   // Photo-related
-  photos?: { base64: string; context?: string; mimeType?: string }[];
+  photos?: { base64: string; context?: string; mimeType?: string; userPhotoId?: string }[];
   photoDescription?: string;
   photoMode?: boolean;
   slideStructure?: Array<{
@@ -70,7 +70,7 @@ export interface GenerateQuestionsParams {
   channel?: "instagram" | "linkedin";
   workspaceId?: string;
   // Photo-related — when present, ask vision-anchored questions
-  photos?: Array<{ base64: string; context?: string; mimeType?: string }>;
+  photos?: Array<{ base64: string; context?: string; mimeType?: string; userPhotoId?: string }>;
   photoDescription?: string;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
   photoMode?: boolean;
@@ -379,6 +379,16 @@ export function useContentGenerator() {
               time_available: timeAvailable || "flexible",
               pre_gen_answers: preGenAnswers || null,
               workspace_id: workspaceId || null,
+              // Photos de la bibliothèque choisies à l'étape format (lot D) :
+              // le brief les traite en priorité absolue, une par story.
+              ...(params.photoMode && params.photos?.length
+                ? {
+                    preferred_photo_ids: params.photos
+                      .map((p) => p.userPhotoId)
+                      .filter((id): id is string => !!id)
+                      .slice(0, 10),
+                  }
+                : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
@@ -899,7 +909,7 @@ export interface GenerateStreamParams {
   answers?: Record<string, string>;
   workspaceId?: string;
   photoMode?: boolean;
-  photos?: { base64: string; mimeType?: string; context?: string }[];
+  photos?: { base64: string; mimeType?: string; context?: string; userPhotoId?: string }[];
   photoDescription?: string;
   deepResearch?: boolean;
   pinterestLink?: string;

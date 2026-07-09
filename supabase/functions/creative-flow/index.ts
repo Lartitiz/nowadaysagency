@@ -395,7 +395,8 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // Catalogue de photos de la bibliothèque (stories, lot B) : rempli au moment
     // du brief, relu après le parse pour résoudre photo_index → photo_id.
-    let storiesPhotoCatalog: { index: number; id: string; description: string }[] = [];
+    // `preferred` (lot D) = photo explicitement choisie à l'étape format.
+    let storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] = [];
 
     // Format labels (used by recycle, declared here for broader scope)
     const formatLabels: Record<string, string> = {
@@ -631,29 +632,52 @@ Réponds UNIQUEMENT en JSON :
         // l'upload). Index courts dans le prompt (jamais d'UUID : trop long,
         // risque de recopie erronée) ; la résolution index → id se fait après
         // le parse, côté edge, de façon déterministe.
+        // Lot D : les photos CHOISIES à l'étape format (preferred_photo_ids)
+        // passent en tête du catalogue, marquées « chosen » — le brief les
+        // traite en priorité absolue et le post-parse garantit leur placement.
         {
           const catCol = workspace_id ? "workspace_id" : "user_id";
           const catVal = workspace_id || userId;
+          const rawPreferred = (body as Record<string, unknown>).preferred_photo_ids;
+          const preferredIds: string[] = Array.isArray(rawPreferred)
+            ? rawPreferred.filter((x: unknown): x is string => typeof x === "string").slice(0, 10)
+            : [];
           const { data: catRows, error: catErr } = await supabase
             .from("user_photos")
             .select("id, description")
             .eq(catCol, catVal)
             .eq("status", "ready")
-            .not("description", "is", null)
             .order("created_at", { ascending: false })
-            .limit(40);
+            .limit(60);
           if (catErr) {
             // Jamais bloquant : sans catalogue, la génération garde le
             // comportement historique (directives seules).
             console.warn("[creative-flow] catalogue photos illisible:", catErr.message);
           }
-          storiesPhotoCatalog = (catRows || [])
-            .filter((r: { description?: string | null }) => typeof r.description === "string" && r.description.trim().length > 0)
-            .map((r: { id: string; description: string }, i: number) => ({
-              index: i + 1,
-              id: r.id,
-              description: r.description.trim(),
-            }));
+          type CatRow = { id: string; description: string | null };
+          const rows = (catRows || []) as CatRow[];
+          // Les préférées passent MÊME sans description (photo fraîchement
+          // uploadée, describe encore en cours) ; le reste doit être décrit.
+          const preferredRows = preferredIds
+            .map((id) => rows.find((r) => r.id === id))
+            .filter((r): r is CatRow => !!r);
+          const otherRows = rows
+            .filter(
+              (r) =>
+                !preferredIds.includes(r.id) &&
+                typeof r.description === "string" &&
+                r.description.trim().length > 0,
+            )
+            .slice(0, Math.max(0, 40 - preferredRows.length));
+          storiesPhotoCatalog = [...preferredRows, ...otherRows].map((r, i) => ({
+            index: i + 1,
+            id: r.id,
+            description:
+              typeof r.description === "string" && r.description.trim().length > 0
+                ? r.description.trim()
+                : "photo choisie par l'utilisatrice (pas encore décrite)",
+            preferred: preferredIds.includes(r.id),
+          }));
         }
         depthMandate = storiesBrief({
           objective: effectiveObjective,
@@ -664,7 +688,11 @@ Réponds UNIQUEMENT en JSON :
           gardeFouAlerte: storiesGardeFouAlerte,
           pre_gen_answers: body.pre_gen_answers,
           subject: context,
-          photo_catalog: storiesPhotoCatalog.map(({ index, description }) => ({ index, description })),
+          photo_catalog: storiesPhotoCatalog.map(({ index, description, preferred }) => ({
+            index,
+            description,
+            chosen: preferred || undefined,
+          })),
         });
       } else if (isLinkedIn) {
         depthMandate = linkedinBrief(editorialFormat);
@@ -1884,6 +1912,25 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         v.photo_id = cat.id;
         v.photo_library_description = cat.description;
         usedPhotoIds.add(cat.id);
+      }
+      // Garantie lot D : toute photo CHOISIE par l'utilisatrice que l'IA n'a
+      // pas placée est distribuée aux stories à fond photo restées sans photo,
+      // dans l'ordre de la séquence. Ses photos finissent TOUJOURS dans le
+      // résultat (c'était la demande de base du parcours).
+      const leftoverPreferred = storiesPhotoCatalog.filter(
+        (c) => c.preferred && !usedPhotoIds.has(c.id),
+      );
+      if (leftoverPreferred.length > 0) {
+        for (const s of parsed.stories) {
+          if (leftoverPreferred.length === 0) break;
+          const v = s?.visual;
+          if (!v || typeof v !== "object") continue;
+          if (v.background !== "photo" || v.photo_id) continue;
+          const next = leftoverPreferred.shift()!;
+          v.photo_id = next.id;
+          v.photo_library_description = next.description;
+          usedPhotoIds.add(next.id);
+        }
       }
     }
 

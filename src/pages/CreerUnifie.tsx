@@ -1349,7 +1349,7 @@ export default function CreerUnifie() {
             channel: isLinkedInCarousel ? "linkedin" : undefined,
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
             ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
             ...(qualityMax ? { qualityMax: true } : {}),
             ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
           });
@@ -1375,7 +1375,7 @@ export default function CreerUnifie() {
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
         ...(qualityMax ? { qualityMax: true } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
@@ -1395,7 +1395,7 @@ export default function CreerUnifie() {
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
@@ -1581,7 +1581,7 @@ export default function CreerUnifie() {
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })) : undefined, photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
