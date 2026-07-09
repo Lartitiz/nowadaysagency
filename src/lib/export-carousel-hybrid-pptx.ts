@@ -580,6 +580,39 @@ function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZon
   return zones;
 }
 
+/** Police à chasse fixe ? (IBM Plex Mono, Courier…) */
+function isMonoFont(fontFamily: string | undefined | null): boolean {
+  return /mono|courier/i.test(fontFamily || "");
+}
+
+/**
+ * Largeur CIBLE (en pouces) d'un bloc texte dans PowerPoint.
+ *
+ * Le navigateur rend les webfonts réelles ; PowerPoint/Canva substituent
+ * souvent (Libre Baskerville, IBM Plex Mono rarement installées) par des
+ * polices aux métriques plus larges → un texte re-wrappe, gagne des lignes et
+ * chevauche le bloc du dessous (vu en prod sur 4 slides d'un même carrousel).
+ *
+ * - Bloc UNE LIGNE en mono : largeur EXACTE calculable (chasse fixe 0.6 em)
+ *   + letter-spacing + marge de gravure 6 %.
+ * - Sinon : slack forfaitaire — 25 % pour les mono (substitution Courier plus
+ *   large + letter-spacing), 18 % pour le reste (serif de substitution).
+ */
+function desiredTextWidthIn(block: BlockRender): number {
+  const wRaw = pxToInches(block.rect.w, PX_PER_IN);
+  const mono = isMonoFont(block.style.fontFamily);
+  const singleLine = !block.text.includes("\n") && block.rect.h < block.style.lineHeight * 1.6;
+  if (mono && singleLine) {
+    const fontPt = fontSizePxToPt(block.style.fontSizePx, PX_PER_IN);
+    const spacingPt = letterSpacingPxToCharSpacing(block.style.letterSpacingPx, PX_PER_IN) || 0;
+    const n = block.text.length;
+    const estIn = (n * fontPt * 0.6 + Math.max(0, n - 1) * spacingPt) / 72 * 1.06;
+    return Math.max(wRaw, estIn);
+  }
+  const ratio = mono ? 0.25 : 0.18;
+  return wRaw + Math.max(0.12, wRaw * ratio);
+}
+
 function addBlockToSlide(
   slide: PptxGenJS.Slide,
   block: BlockRender,
@@ -588,15 +621,13 @@ function addBlockToSlide(
   let x = pxToInches(block.rect.x, PX_PER_IN);
   const y = pxToInches(block.rect.y, PX_PER_IN);
   const wRaw = pxToInches(block.rect.w, PX_PER_IN);
-  // Slack LARGEUR : PowerPoint/Canva rendent les polices avec des métriques un
-  // peu plus larges que le navigateur (surtout les mono type IBM Plex) → un
-  // texte qui tenait sur 1 ligne en HTML re-wrappe dans la boîte aux dimensions
-  // exactes ("DÉFAILLANCES" cassé en deux sur les cartes stats, CTA "DM /
-  // ouvert"). ~12 % + plancher, étendu SELON L'ALIGNEMENT pour ne pas décaler
-  // le texte, borné aux bords de la slide. La boîte reste transparente : la
-  // largeur en plus n'est occupée que si le texte en a réellement besoin.
-  const wSafety = Math.max(0.12, wRaw * 0.12);
-  let w = wRaw + wSafety;
+  // Slack LARGEUR (cf. desiredTextWidthIn) : étendu SELON L'ALIGNEMENT pour ne
+  // pas décaler le texte, borné aux bords de la slide. La boîte reste
+  // transparente : la largeur en plus n'est occupée que si le texte en a
+  // réellement besoin.
+  const wDesired = desiredTextWidthIn(block);
+  const wSafety = wDesired - wRaw;
+  let w = wDesired;
   if (block.style.textAlign === "center") {
     x -= wSafety / 2;
   } else if (block.style.textAlign === "right") {
@@ -623,7 +654,7 @@ function addBlockToSlide(
   const fontFace = mapFontToPptx(
     block.style.fontFamily || (isTitleish ? charter?.font_title : charter?.font_body),
   );
-  const fontSize = fontSizePxToPt(block.style.fontSizePx, PX_PER_IN);
+  let fontSize = fontSizePxToPt(block.style.fontSizePx, PX_PER_IN);
   const charterTextFallback = normalizeHex(charter?.color_text, "FFFFFF");
   const color = normalizeHex(block.style.color, charterTextFallback);
   const charSpacing = letterSpacingPxToCharSpacing(block.style.letterSpacingPx, PX_PER_IN);
@@ -637,6 +668,18 @@ function addBlockToSlide(
   const isSingleLine =
     !block.text.includes("\n") &&
     block.rect.h < block.style.lineHeight * 1.6;
+
+  // Boîte MULTI-LIGNE bloquée par le bord de la slide (colonne collée à
+  // droite, pleine largeur…) : elle ne peut pas absorber le slack → le texte
+  // re-wrapperait quand même et gagnerait des lignes sur le bloc du dessous
+  // (vu en prod : deux paragraphes superposés). On réduit la police au prorata
+  // du déficit (plancher 80 % — mesuré : une colonne collée au bord droit
+  // demandait 84 %, le plancher 88 % laissait encore une ligne de chevauche-
+  // ment) : le wrap redevient ≈ celui du HTML. Les blocs une-ligne sont en
+  // wrap:false → jamais concernés.
+  if (!isSingleLine && w < wDesired - 0.01) {
+    fontSize = Math.round(fontSize * Math.max(0.8, w / wDesired) * 10) / 10;
+  }
 
   const frameOptions: PptxGenJS.TextPropsOptions = {
     x,
@@ -1046,7 +1089,7 @@ export async function exportCarouselHybridPptx(
       // pixels opaques du PNG (le trou du masquage est à la taille HTML). Leur
       // visuel étant entièrement retiré du PNG (bg/bordure/ombre via
       // data-pptx-shape-hide), les poser au-dessus est visuellement équivalent.
-      const deferredPills: Array<{ sb: ShapeBlock; centered: boolean }> = [];
+      const deferredPills: Array<{ sb: ShapeBlock; centered: boolean; wMul: number }> = [];
       for (const sb of usableShapes) {
         if (sb.type === "background") {
           // Fond unique : on l'applique directement à slide.background plutôt
@@ -1066,7 +1109,18 @@ export async function exportCarouselHybridPptx(
               )
             : undefined;
         if (innerLabel) {
-          deferredPills.push({ sb, centered: innerLabel.style.textAlign === "center" });
+          // Largeur cible = largeur CIBLE du label (estimation mono exacte ou
+          // slack, cf. desiredTextWidthIn) + le padding horizontal HTML des
+          // deux côtés — au lieu d'un ×1.3 forfaitaire qui restait court sur
+          // les labels longs (« MÉCANISME SYSTÉMIQUE » débordant, vu en prod).
+          const padIn = Math.max(0, pxToInches(innerLabel.rect.x - sb.rect.x, PX_PER_IN));
+          const pillRawIn = pxToInches(sb.rect.w, PX_PER_IN);
+          const pillDesired = desiredTextWidthIn(innerLabel) + padIn * 2;
+          deferredPills.push({
+            sb,
+            centered: innerLabel.style.textAlign === "center",
+            wMul: Math.max(1, pillDesired / Math.max(0.01, pillRawIn)),
+          });
           continue;
         }
         drawNativeShape(sb);
@@ -1080,7 +1134,7 @@ export async function exportCarouselHybridPptx(
       slide.addImage({ data: bg, x: 0, y: 0, w: PPTX_W_IN, h: PPTX_H_IN });
 
       // Pilules élargies (cf. deferredPills) : au-dessus du PNG, sous le texte.
-      for (const dp of deferredPills) drawNativeShape(dp.sb, 1.3, dp.centered);
+      for (const dp of deferredPills) drawNativeShape(dp.sb, dp.wMul, dp.centered);
 
       // Dégradés déco : posés APRÈS le fond (donc visibles + déplaçables individuellement
       // dans Canva) et AVANT le texte (qui reste au-dessus).
