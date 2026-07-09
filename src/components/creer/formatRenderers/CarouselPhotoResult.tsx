@@ -18,8 +18,11 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, Palette, RotateCcw, Trash2, Plus } from "lucide-react";
+import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
+import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
+import { toast } from "sonner";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import {
   AlertDialog,
@@ -276,6 +279,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const [hashtagInput, setHashtagInput] = useState((buildCaptionWithFallback(r?.caption, r?.slides || []).hashtags || []).join(" "));
   // Dialog de remplacement de photo : index 1-based de la slide ciblée (null = fermé).
   const [swapSlideIdx, setSwapSlideIdx] = useState<number | null>(null);
+  // Casting (régime texte d'abord) : dialog bibliothèque pour la slide ciblée (index 0-based).
+  const [libraryPickSlideIdx, setLibraryPickSlideIdx] = useState<number | null>(null);
+  const [libraryImporting, setLibraryImporting] = useState(false);
   // Confirmation de suppression : index de la slide à supprimer (null = fermé).
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
 
@@ -312,15 +318,18 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   );
 
 
+  // La signature de resync inclut photo_index + cast_source pour que le casting
+  // automatique bibliothèque (posé par le parent, régime texte d'abord) soit
+  // répercuté dans l'état local même quand la liste de slides n'a pas changé.
   const prevSignature = useRef(JSON.stringify({
-    slides: (r?.slides || []).map((s: any) => s.slide_number),
+    slides: (r?.slides || []).map((s: any) => [s.slide_number, s.photo_index ?? null, s.cast_source || ""]),
     captionHash: JSON.stringify(r?.caption || {}),
   }));
 
   useEffect(() => {
     const currentSlides = r?.slides || [];
     const newSig = JSON.stringify({
-      slides: currentSlides.map((s: any) => s.slide_number),
+      slides: currentSlides.map((s: any) => [s.slide_number, s.photo_index ?? null, s.cast_source || ""]),
       captionHash: JSON.stringify(r?.caption || {}),
     });
     if (newSig !== prevSignature.current) {
@@ -446,11 +455,60 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // Remplacement de la photo d'une slide : ajoute la photo au set (ou retrouve son
   // index si elle y est déjà), pointe la slide dessus, et laisse la bannière
   // « Mettre à jour les visuels » apparaître via la signature.
-  const handleSwapPhoto = (slideIdx: number, photo: PhotoItem) => {
+  const handleSwapPhoto = (slideIdx: number, photo: PhotoItem, castSource?: string) => {
     const newIndex = onAddPhoto?.(photo);
     if (!newIndex) return;
     const next = slides.map((s, i) =>
-      i === slideIdx ? { ...s, photo_index: newIndex } : s,
+      i === slideIdx ? { ...s, photo_index: newIndex, cast_source: castSource } : s,
+    );
+    setSlides(next);
+    notify(next, caption);
+  };
+
+  // Casting bibliothèque (régime texte d'abord) : la photo choisie dans la
+  // photothèque est convertie en PhotoItem (URL signée → base64) puis posée
+  // sur la slide comme un swap classique.
+  const handleLibraryPick = async (rows: UserPhotoRow[]) => {
+    const row = rows[0];
+    if (!row || libraryPickSlideIdx === null) return;
+    setLibraryImporting(true);
+    try {
+      const { base64, mimeType, name } = await userPhotoToBase64(row);
+      handleSwapPhoto(libraryPickSlideIdx, {
+        id: row.id,
+        userPhotoId: row.id,
+        base64,
+        preview: base64,
+        name,
+        mimeType,
+        context: "",
+      });
+      setLibraryPickSlideIdx(null);
+    } catch (e) {
+      toast.error("Cette photo n'a pas pu être chargée", {
+        description: e instanceof Error ? e.message : "Réessaie dans un instant.",
+      });
+    } finally {
+      setLibraryImporting(false);
+    }
+  };
+
+  // Échappatoire anti-image-forcée : si aucune image ne colle à la directive,
+  // la slide photo se convertit en slide texte (le récit reste intact).
+  const convertSlideToText = (idx: number) => {
+    const next = slides.map((s: any, i: number) =>
+      i === idx
+        ? {
+            ...s,
+            slide_type: "text_only",
+            title: s.title || s.overlay_text || "",
+            body: s.body || "",
+            photo_index: null,
+            photo_directive: undefined,
+            photo_query_en: undefined,
+            cast_source: undefined,
+          }
+        : s,
     );
     setSlides(next);
     notify(next, caption);
@@ -540,12 +598,55 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     onColorsChange?.({ ...effectiveColors, [key]: value });
   };
 
+  // ═══ Casting (régime texte d'abord) ═══
+  // Une slide est « à caster » quand elle porte une directive d'image sans photo posée.
+  const isPhotoType = (s: any) =>
+    s?.slide_type === "photo_full" || s?.slide_type === "photo_integrated";
+  const castingSlides = slides.filter((s: any) => isPhotoType(s) && s.photo_directive);
+  const uncastCount = castingSlides.filter((s: any) => !Number.isInteger(s.photo_index)).length;
+  const castingActive = castingSlides.length > 0;
+
   return (
     <div className="space-y-4 animate-fade-in">
       {r?.chosen_angle && (
         <Badge className="bg-primary/10 text-primary border-primary/20">
           {r.chosen_angle.title}
         </Badge>
+      )}
+
+      {/* En-tête casting : progression + CTA de rendu, tant que les visuels n'existent pas */}
+      {castingActive && (!visualSlides || visualSlides.length === 0) && (
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">Ton carrousel est écrit ✍️</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {uncastCount === 0
+                  ? "Toutes les slides photo ont leur image — tu peux créer les visuels."
+                  : uncastCount === 1
+                    ? "Il reste 1 image à choisir. Les slides texte sont prêtes."
+                    : `Il reste ${uncastCount} images à choisir. Les slides texte sont prêtes.`}
+              </p>
+            </div>
+            {onRegenerateVisuals && (
+              <div className="text-right">
+                <Button
+                  size="sm"
+                  onClick={onRegenerateVisuals}
+                  disabled={uncastCount > 0 || visualLoading}
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${visualLoading ? "animate-spin" : ""}`} />
+                  {visualLoading ? "Création…" : "Créer les visuels"}
+                </Button>
+                {uncastCount > 0 && (
+                  <p className="text-2xs text-muted-foreground mt-1">
+                    s'active quand chaque slide photo a son image
+                  </p>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {onColorsChange && (
@@ -705,6 +806,64 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                   (!slide.slide_type && slide.overlay_text !== undefined);
                 if (!isPhotoSlide) return null;
 
+                // ═══ Slide à caster (régime texte d'abord) : directive sans photo posée ═══
+                const isCasting = !!slide.photo_directive && !Number.isInteger(slide.photo_index);
+                if (isCasting) {
+                  return (
+                    <div className="rounded-lg border border-dashed border-warning/50 bg-warning-bg/40 p-3 space-y-2.5">
+                      <div className="flex items-start gap-2.5">
+                        <div className="h-16 w-12 shrink-0 rounded-md border border-dashed border-border bg-background/60 flex items-center justify-center text-muted-foreground">
+                          <ImagePlus size={18} />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-2xs font-semibold uppercase tracking-wide text-warning">
+                            Image à choisir
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            <span className="font-medium text-foreground">L'image idéale ici :</span>{" "}
+                            {slide.photo_directive}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs"
+                          onClick={() => setLibraryPickSlideIdx(idx)}
+                        >
+                          <ImageIcon size={13} className="mr-1" />
+                          Ma bibliothèque
+                        </Button>
+                        {onAddPhoto && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setSwapSlideIdx(idx)}
+                          >
+                            <Search size={13} className="mr-1" />
+                            Banque d'images / import
+                          </Button>
+                        )}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-muted-foreground"
+                          onClick={() => convertSlideToText(idx)}
+                          title="Aucune image ne colle ? La slide devient une slide texte."
+                        >
+                          <Type size={13} className="mr-1" />
+                          Passer en slide texte
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                }
+
                 // Résolution photo_index 1-based avec fallback sur l'idx de la slide
                 const photoNum =
                   Number.isInteger(slide.photo_index) && slide.photo_index >= 1
@@ -712,29 +871,55 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                     : idx + 1;
                 const photo = photos?.[photoNum - 1];
                 return (
-                  <div className="flex items-end gap-2">
-                    {photo?.preview ? (
-                      <img loading="lazy"
-                        src={photo.preview}
-                        alt={`Photo ${photoNum}`}
-                        className="h-32 w-auto rounded-md object-cover border border-border"
-                      />
-                    ) : (
-                      <div className="h-32 w-24 rounded-md border border-dashed border-border bg-muted/30 flex items-center justify-center text-muted-foreground">
-                        <ImageIcon size={20} />
+                  <div className="space-y-1.5">
+                    <div className="flex items-end gap-2">
+                      {photo?.preview ? (
+                        <img loading="lazy"
+                          src={photo.preview}
+                          alt={`Photo ${photoNum}`}
+                          className="h-32 w-auto rounded-md object-cover border border-border"
+                        />
+                      ) : (
+                        <div className="h-32 w-24 rounded-md border border-dashed border-border bg-muted/30 flex items-center justify-center text-muted-foreground">
+                          <ImageIcon size={20} />
+                        </div>
+                      )}
+                      <div className="flex flex-col items-start gap-1">
+                        {slide.cast_source === "library_auto" && (
+                          <Badge variant="secondary" className="text-2xs bg-success-bg text-success border-transparent">
+                            <Sparkles size={10} className="mr-1" />
+                            Castée depuis ta bibliothèque
+                          </Badge>
+                        )}
+                        {onAddPhoto && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setSwapSlideIdx(idx)}
+                          >
+                            <ImageIcon size={13} className="mr-1" />
+                            {photo?.preview ? "Changer la photo" : "Ajouter une photo"}
+                          </Button>
+                        )}
+                        {slide.photo_directive && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 text-xs text-muted-foreground"
+                            onClick={() => setLibraryPickSlideIdx(idx)}
+                          >
+                            Ma bibliothèque
+                          </Button>
+                        )}
                       </div>
-                    )}
-                    {onAddPhoto && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-xs"
-                        onClick={() => setSwapSlideIdx(idx)}
-                      >
-                        <ImageIcon size={13} className="mr-1" />
-                        {photo?.preview ? "Changer la photo" : "Ajouter une photo"}
-                      </Button>
+                    </div>
+                    {slide.photo_directive && (
+                      <p className="text-2xs text-muted-foreground">
+                        🎯 {slide.photo_directive}
+                      </p>
                     )}
                   </div>
                 );
@@ -972,9 +1157,28 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
             const s = slides[swapSlideIdx];
             return Number.isInteger(s?.photo_index) && s.photo_index >= 1 ? s.photo_index : swapSlideIdx + 1;
           })()}
-          defaultQuery={r?.subject || result?.subject || ""}
+          defaultQuery={(() => {
+            // Casting : la recherche banque d'images est pré-remplie avec les
+            // mots-clés de la directive (photo_query_en, généré par l'IA), à
+            // défaut la directive elle-même, à défaut le sujet du carrousel.
+            const s = slides[swapSlideIdx];
+            return s?.photo_query_en || s?.photo_directive || r?.subject || result?.subject || "";
+          })()}
           onSelect={(photo) => handleSwapPhoto(swapSlideIdx, photo)}
         />
+      )}
+
+      {/* Casting : choisir une image dans la photothèque pour la slide ciblée */}
+      <PhotoLibraryPickerDialog
+        open={libraryPickSlideIdx !== null && !libraryImporting}
+        onOpenChange={(o) => { if (!o) setLibraryPickSlideIdx(null); }}
+        maxSelectable={1}
+        onConfirm={handleLibraryPick}
+      />
+      {libraryImporting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60">
+          <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+        </div>
       )}
 
       <AlertDialog open={deleteIdx !== null} onOpenChange={(o) => { if (!o) setDeleteIdx(null); }}>

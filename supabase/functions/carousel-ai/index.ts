@@ -155,6 +155,67 @@ function normalizePhotoIndexes(content: string, photoCount: number): string {
   }
 }
 
+// ── Régime « texte d'abord » (lot 1 casting) ──
+// Le carrousel mixte est rédigé SANS photos : chaque slide photo sort avec une
+// photo_directive (l'image idéale, en français) + photo_query_en (mots-clés banque
+// d'images) + éventuellement library_photo_index (match STRICT dans le catalogue
+// bibliothèque envoyé par le front). Le casting des images se fait ensuite, slide
+// par slide, dans l'écran résultat.
+function buildTextFirstBlock(body: any): string {
+  if (!body?.text_first) return "";
+  const catalog = Array.isArray(body.photo_catalog) ? body.photo_catalog : [];
+  const catalogBlock = catalog.length > 0
+    ? `\n═══ CATALOGUE BIBLIOTHÈQUE (photos existantes de l'utilisatrice) ═══\n${catalog.map((p: any) => `- Photo ${p.index}${p.kind ? ` [${p.kind}]` : ""} : ${p.description}`).join("\n")}\n\nRÈGLE DE MATCHING (STRICTE) : pour une slide photo, si UNE photo du catalogue correspond VRAIMENT à sa directive (même sujet ET même ambiance — pas juste le même thème), renseigne "library_photo_index" avec son numéro. AU MOINDRE DOUTE → null. Un carrousel avec des slides « image à choisir » vaut mieux qu'un faux match. N'assigne jamais deux fois la même photo du catalogue.\n`
+    : "";
+  return `\n═══ RÉGIME « TEXTE D'ABORD » — AUCUNE PHOTO FOURNIE ═══
+
+Ce carrousel est rédigé AVANT que les images existent : l'utilisatrice choisira ou créera chaque image ENSUITE, slide par slide. Le récit commande ; les images serviront le récit — jamais l'inverse.
+
+RÈGLES SPÉCIFIQUES (remplacent les règles de composition liées aux photos fournies) :
+- Slides photo (photo_full + photo_integrated) : entre 2 et 4 MAXIMUM. Chaque image devra être trouvée ou créée par l'utilisatrice — sois économe, ne mets une slide photo que là où une image PORTE le récit. La règle « au moins 50% de slides photo » ne s'applique PAS ici.
+- Slide 1 = photo_full (hook visuel). Dernière slide = text_only.
+- "photo_index" : TOUJOURS null sur toutes les slides (aucune photo n'est fournie).
+- Pour CHAQUE slide photo, renseigne EN PLUS :
+  · "photo_directive" : 1-2 phrases en FRANÇAIS décrivant l'image idéale — concrète et tournable (sujet précis, cadrage, lumière, ambiance), ancrée dans l'activité et l'univers de l'utilisatrice, cohérente avec l'overlay de la slide. Pas de « une jolie photo inspirante ».
+  · "photo_query_en" : 2-4 mots-clés en ANGLAIS pour une banque d'images (ex : "hands pottery clay").
+  · "library_photo_index" : numéro du catalogue si match STRICT, sinon null.${catalog.length === 0 ? ` (Aucun catalogue fourni : null partout.)` : ""}
+- INTERDIT dans photo_directive : demander l'image d'une personnalité réelle, d'une marque tierce ou d'un événement d'actualité précis (droit à l'image). L'image illustre TON propos et TON terrain — l'actu vit dans le TEXTE des slides, pas dans les images.
+${catalogBlock}`;
+}
+
+// Post-traitement text_first : force photo_index à null partout (l'IA recopie
+// parfois le photo_index des exemples JSON) et télémétrie des directives manquantes.
+function enforceTextFirstDirectives(content: string): string {
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) return content;
+    const parsed = JSON.parse(jsonMatch[0]);
+    const slides = parsed?.slides;
+    if (!Array.isArray(slides) || slides.length === 0) return content;
+    let missingDirectives = 0;
+    slides.forEach((s: any) => {
+      if (!s) return;
+      s.photo_index = null;
+      const isPhoto = s.slide_type === "photo_full" || s.slide_type === "photo_integrated";
+      if (isPhoto && !(typeof s.photo_directive === "string" && s.photo_directive.trim())) {
+        missingDirectives += 1;
+      }
+      if (!isPhoto) {
+        delete s.photo_directive;
+        delete s.photo_query_en;
+        delete s.library_photo_index;
+      }
+    });
+    if (missingDirectives > 0) {
+      console.warn(`[carousel-ai] text_first: ${missingDirectives} slide(s) photo sans photo_directive`);
+    }
+    return content.replace(jsonMatch[0], JSON.stringify(parsed, null, 2));
+  } catch (err) {
+    console.warn("[carousel-ai] enforceTextFirstDirectives: échec, content laissé tel quel", err);
+    return content;
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
@@ -206,6 +267,14 @@ serve(async (req) => {
       narrative_thread: z.string().max(1000).optional().nullable(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
       news_context: z.string().max(4000).optional().nullable(),
+      // Régime « texte d'abord » (lot 1 casting) : rédaction sans photos, directives
+      // d'images par slide + matching strict contre le catalogue bibliothèque.
+      text_first: z.boolean().optional(),
+      photo_catalog: z.array(z.object({
+        index: z.number().int().min(1).max(60),
+        description: z.string().max(400),
+        kind: z.string().max(30).optional().nullable(),
+      })).max(40).optional(),
       series_id: z.string().uuid().optional().nullable(),
       episode_number: z.number().int().min(1).optional().nullable(),
     }).passthrough());
@@ -331,7 +400,10 @@ serve(async (req) => {
             temperature: 0.85,
           }, mixUsage);
         } else {
-          const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
+          const photoDescLine = body.text_first
+            ? ""
+            : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
+          const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
           content = await callAnthropic({
             model: pickCarouselModel(body),
@@ -358,7 +430,9 @@ serve(async (req) => {
           console.error("Correction pass failed in carousel-ai (mix):", correctionError);
         }
 
-        content = normalizePhotoIndexes(content, body.photos?.length || 0);
+        content = body.text_first
+          ? enforceTextFirstDirectives(content)
+          : normalizePhotoIndexes(content, body.photos?.length || 0);
         {
           const capped = limitVisualSchemas(content);
           if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
@@ -2344,7 +2418,7 @@ ${SLIDE_TITLE_RULES}
 
 Les photos sont fournies dans l'ordre : photo 1, photo 2, etc.
 Pour chaque slide photo (photo_full ou photo_integrated), indique photo_index (1, 2, 3...) pour dire quelle photo utiliser.
-
+${buildTextFirstBlock(body)}
 ${deepeningCtx}${angleBlock}
 
 ═══ VÉRIFICATION FINALE (avant de retourner le JSON) ═══
@@ -2605,7 +2679,7 @@ ${SLIDE_TITLE_RULES}
 
 ═══ ASSIGNATION DES PHOTOS ═══
 Photos fournies dans l'ordre : photo 1, photo 2... Pour chaque slide photo, indique photo_index.
-
+${buildTextFirstBlock(body)}
 ${deepeningCtx}${angleBlock}
 
 ═══ VÉRIFICATION FINALE (avant de retourner le JSON) ═══

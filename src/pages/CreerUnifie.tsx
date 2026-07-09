@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { handleQuotaError } from "@/lib/quota-error-handler";
@@ -42,6 +42,7 @@ import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
 const PinterestInspirationStep = lazy(() => import("@/components/creer/PinterestInspirationStep"));
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
+import { useUserPhotos } from "@/hooks/use-user-photos";
 const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
 import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
 import { downscalePhotosForVision } from "@/lib/image-vision";
@@ -274,6 +275,34 @@ export default function CreerUnifie() {
   const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
   const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
   const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(null);
+
+  // ═══ Régime « texte d'abord » (lot 1 casting) ═══
+  // Newsjacking + carrousel mixte sans photos : le texte est rédigé d'abord, chaque
+  // slide photo sort avec une directive d'image, et le casting se fait dans le résultat.
+  const isTextFirstMix = carouselSubMode === "mix" && !!newsjackingContext && uploadedPhotos.length === 0;
+  // Catalogue bibliothèque envoyé à l'edge (texte léger : descriptions + type) pour le
+  // matching strict. Les lignes sont snapshotées au moment de la génération pour que
+  // library_photo_index (1-based) reste résoluble même si la bibliothèque bouge entre-temps.
+  const { data: libraryPhotosForCasting } = useUserPhotos();
+  const textFirstCatalogRows = useMemo(
+    () =>
+      (libraryPhotosForCasting || [])
+        .filter((p) => p.status === "ready" && (p.description || "").trim())
+        .slice(0, 40),
+    [libraryPhotosForCasting],
+  );
+  const textFirstCatalog = useMemo(
+    () =>
+      textFirstCatalogRows.map((p, i) => ({
+        index: i + 1,
+        description: (p.description || "").slice(0, 400),
+        kind: p.kind || undefined,
+      })),
+    [textFirstCatalogRows],
+  );
+  const textFirstRowsSnapshotRef = useRef<UserPhotoRow[]>([]);
+  const uploadedPhotosLiveRef = useRef<any[]>(uploadedPhotos);
+  uploadedPhotosLiveRef.current = uploadedPhotos;
 
 
 
@@ -1082,6 +1111,9 @@ export default function CreerUnifie() {
   const doGenerate = async (ansInput: Record<string, string>) => {
     if (!selectedFormat) return;
     if (generating || structureLoading || streaming) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
+    // Régime texte d'abord : on fige les lignes bibliothèque correspondant au catalogue
+    // envoyé, pour résoudre library_photo_index au retour même si la biblio a bougé.
+    if (isTextFirstMix) textFirstRowsSnapshotRef.current = textFirstCatalogRows;
     // Les chemins directs (structure carrousel, Pinterest) ne passent pas par
     // generate()/generateStream() qui effacent l'état quota — on l'efface ici
     // pour qu'un ancien « crédits utilisés » ne masque pas une nouvelle tentative.
@@ -1386,7 +1418,11 @@ export default function CreerUnifie() {
         confirmedStructure: lastConfirmedStructure,
         ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-        ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(carouselSubMode === "mix"
+        ? (isTextFirstMix
+            ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
+            : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+        : {}),
         ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
         ...(qualityMax ? { qualityMax: true } : {}),
@@ -1406,7 +1442,11 @@ export default function CreerUnifie() {
       answers: Object.keys(ans).length > 0 ? ans : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "mix"
+        ? (isTextFirstMix
+            ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
+            : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+        : {}),
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
@@ -1592,7 +1632,11 @@ export default function CreerUnifie() {
       confirmedStructure: confirmedSlides,
       ...(narrativeThread ? { narrativeThread } : {}),
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-      ...(carouselSubMode === "mix" ? { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "mix"
+        ? (isTextFirstMix
+            ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
+            : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+        : {}),
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
@@ -2203,6 +2247,22 @@ export default function CreerUnifie() {
 
   const handleGenerateVisuals = async (opts?: { forceText?: boolean; background?: boolean }) => {
     if (!result?.raw?.slides || visualLoading) return;
+    // Casting texte-d'abord incomplet : chaque slide photo doit avoir son image avant
+    // le rendu (sinon le curseur auto poserait des photos arbitraires dessus).
+    const uncastCount = (result.raw.slides || []).filter(
+      (s: any) =>
+        (s?.slide_type === "photo_full" || s?.slide_type === "photo_integrated") &&
+        s?.photo_directive &&
+        !Number.isInteger(s?.photo_index),
+    ).length;
+    if (uncastCount > 0) {
+      if (!opts?.background) {
+        toast(uncastCount === 1
+          ? "Choisis d'abord une image pour la slide photo restante."
+          : `Choisis d'abord une image pour les ${uncastCount} slides photo restantes.`);
+      }
+      return;
+    }
     setVisualLoading(true);
 
     // ═══ Demo bypass: return pre-built visuals only when user follows the script ═══
@@ -2534,6 +2594,73 @@ export default function CreerUnifie() {
   // sinon l'utilisatrice se retrouve sans visuels et doit cliquer
   // "Regénérer visuels" à la main. On retente UNE fois automatiquement,
   // puis on laisse la main au bouton manuel (pas de boucle infinie).
+  // ═══ Casting automatique bibliothèque (régime texte d'abord) ═══
+  // L'edge renvoie library_photo_index quand une photo de la bibliothèque matche
+  // strictement la directive d'une slide. On charge ces photos (URL signée → base64),
+  // on les ajoute au set du carrousel et on pose photo_index — la slide arrive
+  // « pré-castée » (badge via cast_source). Les slides sans match restent à caster.
+  const autoCastRef = useRef<any>(null);
+  useEffect(() => {
+    const rawSlides = result?.raw?.slides;
+    if (!Array.isArray(rawSlides)) return;
+    if (autoCastRef.current === result) return;
+    const toCast = rawSlides.filter(
+      (s: any) => Number.isInteger(s?.library_photo_index) && !Number.isInteger(s?.photo_index),
+    );
+    if (toCast.length === 0) return;
+    autoCastRef.current = result;
+    const rows = textFirstRowsSnapshotRef.current;
+    (async () => {
+      const resolved = new Map<number, PhotoItem>();
+      for (const s of toCast) {
+        const li = s.library_photo_index as number;
+        if (resolved.has(li)) continue;
+        const row = rows[li - 1];
+        if (!row) continue;
+        try {
+          const { base64, mimeType, name } = await userPhotoToBase64(row);
+          resolved.set(li, {
+            id: row.id,
+            userPhotoId: row.id,
+            base64,
+            preview: base64,
+            name,
+            mimeType,
+            context: "",
+          });
+        } catch (e) {
+          console.warn("[casting] photo bibliothèque illisible, slide laissée à caster", e);
+        }
+      }
+      if (resolved.size === 0) return;
+      const prev = uploadedPhotosLiveRef.current || [];
+      const next = [...prev];
+      const indexByLibrary = new Map<number, number>();
+      for (const [li, item] of resolved) {
+        const existing = next.findIndex((p: any) => p.userPhotoId && p.userPhotoId === item.userPhotoId);
+        if (existing >= 0) indexByLibrary.set(li, existing + 1);
+        else {
+          next.push(item);
+          indexByLibrary.set(li, next.length);
+        }
+      }
+      setUploadedPhotos(next);
+      savePhotos(next);
+      setResult((prevR: any) => {
+        if (!prevR?.raw?.slides) return prevR;
+        const nextSlides = prevR.raw.slides.map((s: any) => {
+          const li = s?.library_photo_index;
+          if (Number.isInteger(li) && indexByLibrary.has(li) && !Number.isInteger(s?.photo_index)) {
+            return { ...s, photo_index: indexByLibrary.get(li), cast_source: "library_auto" };
+          }
+          return s;
+        });
+        return { ...prevR, raw: { ...prevR.raw, slides: nextSlides } };
+      });
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
   const autoVisualsAttemptRef = useRef<{ result: any; n: number }>({ result: null, n: 0 });
   useEffect(() => {
     if (selectedFormat !== "carousel") return;
@@ -2546,6 +2673,16 @@ export default function CreerUnifie() {
     const photosAvail = uploadedPhotos.length > 0 || generatedWithPhotos.length > 0;
     const wouldOpenPhotoDialog = (rawType === "photo" || rawType === "mix") && !photosAvail;
     if (wouldOpenPhotoDialog) return;
+    // Régime texte d'abord : tant qu'une slide photo (directive présente) n'a pas
+    // son image, on ne rend pas les visuels — le curseur auto de handleGenerateVisuals
+    // poserait des photos arbitraires sur les slides non castées.
+    const hasUncastPhotoSlide = (result?.raw?.slides || []).some(
+      (s: any) =>
+        (s?.slide_type === "photo_full" || s?.slide_type === "photo_integrated") &&
+        s?.photo_directive &&
+        !Number.isInteger(s?.photo_index),
+    );
+    if (hasUncastPhotoSlide) return;
     // Tentatives bornées par résultat : 1 essai + 1 retry sur échec transitoire.
     if (autoVisualsAttemptRef.current.result !== result) {
       autoVisualsAttemptRef.current = { result, n: 0 };
@@ -2930,6 +3067,7 @@ export default function CreerUnifie() {
                 suggestedFormat={newsjackingSuggestedFormat || undefined}
                 initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
                 initialPhotoDescription={photoDescription || undefined}
+                newsjackingActive={!!newsjackingContext}
                 onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
