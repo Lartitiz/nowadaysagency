@@ -472,9 +472,12 @@ export default function CreerStepResult({
   if (!result) return null;
 
   const renderResult = () => {
-    // Carousel photo gets its own renderer — but only if we actually have photos
+    // Carousel photo gets its own renderer — si on a des photos, OU si les slides
+    // portent des directives d'image (régime texte d'abord : le casting se fait
+    // dans CarouselPhotoResult, qui démarre alors sans aucune photo).
     const r = result?.raw || result;
-    if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && photos && photos.length > 0) {
+    const hasCastingSlides = Array.isArray(r?.slides) && r.slides.some((s: any) => s?.photo_directive);
+    if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && ((photos && photos.length > 0) || hasCastingSlides)) {
       return (
         <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} onVisualSlidesUpdate={onVisualSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} />
       );
