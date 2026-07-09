@@ -4,8 +4,9 @@
 // scope "daily"  : santé des publications réelles — posts en échec, posts bloqués,
 //                  programmés en retard (= cron pg de publication mort ?), tokens
 //                  sociaux expirés/expirants (LinkedIn ne se refresh pas seul, ~60 j).
-// scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), usage des
-//                  features (action_type), rétention par cohorte hebdo d'inscription,
+// scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), coût images
+//                  estimé en € (gpt-image/Photoroom/Recraft), usage des features
+//                  (action_type), rétention par cohorte hebdo d'inscription,
 //                  volume de publications.
 //
 // Sécurité : lecture seule, pas de PII en sortie (compteurs, plateformes, erreurs
@@ -166,6 +167,16 @@ Deno.serve(async (req) => {
     const [curFrom, curTo] = week(0);
     const [prevFrom, prevTo] = week(1);
 
+    // Coût images estimé (€/image, tarifs ~juillet 2026) : les APIs images sont
+    // facturées à l'image, et logUsage écrit 1 ligne ai_usage PAR image — le
+    // compte d'appels par modèle suffit donc. gpt-image-2 = high 1024x1536.
+    const IMAGE_COST_EUR: Record<string, number> = {
+      "gpt-image-2": 0.15,
+      "gpt-image-1": 0.22,
+      "photoroom-v2": 0.05,
+      "recraftv3-vector": 0.04,
+    };
+
     const summarize = (rows: any[]) => {
       const byModel: Record<string, { appels: number; tokens: number }> = {};
       const byAction: Record<string, number> = {};
@@ -183,7 +194,18 @@ Deno.serve(async (req) => {
         .sort((x, y) => y[1] - x[1])
         .slice(0, 12)
         .map(([action, count]) => ({ action, count }));
-      return { appels: rows.length, tokens, byModel, topActions, utilisatrices: new Set(rows.map((r) => r.user_id)).size };
+      const coutImagesEur = Object.entries(byModel).reduce(
+        (s, [m, v]) => s + (IMAGE_COST_EUR[m] || 0) * v.appels,
+        0,
+      );
+      return {
+        appels: rows.length,
+        tokens,
+        byModel,
+        topActions,
+        utilisatrices: new Set(rows.map((r) => r.user_id)).size,
+        cout_images_estime_eur: Math.round(coutImagesEur * 100) / 100,
+      };
     };
     const aiCur = summarize(ai.filter((a: any) => inWindow(a.created_at, curFrom, curTo)));
     const aiPrev = summarize(ai.filter((a: any) => inWindow(a.created_at, prevFrom, prevTo)));
