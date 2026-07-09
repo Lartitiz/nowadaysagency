@@ -585,9 +585,28 @@ function addBlockToSlide(
   block: BlockRender,
   charter: HybridCharter | null | undefined,
 ) {
-  const x = pxToInches(block.rect.x, PX_PER_IN);
+  let x = pxToInches(block.rect.x, PX_PER_IN);
   const y = pxToInches(block.rect.y, PX_PER_IN);
-  const w = pxToInches(block.rect.w, PX_PER_IN);
+  const wRaw = pxToInches(block.rect.w, PX_PER_IN);
+  // Slack LARGEUR : PowerPoint/Canva rendent les polices avec des métriques un
+  // peu plus larges que le navigateur (surtout les mono type IBM Plex) → un
+  // texte qui tenait sur 1 ligne en HTML re-wrappe dans la boîte aux dimensions
+  // exactes ("DÉFAILLANCES" cassé en deux sur les cartes stats, CTA "DM /
+  // ouvert"). ~12 % + plancher, étendu SELON L'ALIGNEMENT pour ne pas décaler
+  // le texte, borné aux bords de la slide. La boîte reste transparente : la
+  // largeur en plus n'est occupée que si le texte en a réellement besoin.
+  const wSafety = Math.max(0.12, wRaw * 0.12);
+  let w = wRaw + wSafety;
+  if (block.style.textAlign === "center") {
+    x -= wSafety / 2;
+  } else if (block.style.textAlign === "right") {
+    x -= wSafety;
+  }
+  if (x < 0) {
+    w += x;
+    x = 0;
+  }
+  w = Math.min(w, PPTX_W_IN - x);
   // Marge de sécurité proportionnelle à la taille de police (≈ demi-ligne),
   // plancher 0.15" — absorbe les écarts de wrapping HTML vs PowerPoint
   // (métriques de fonts, kerning, arrondis lineSpacing/charSpacing).
@@ -623,6 +642,11 @@ function addBlockToSlide(
     valign: "top",
     wrap: true,
     margin: 0,
+    // « Réduire le texte en cas de débordement » : si malgré les slacks le texte
+    // dépasse encore la boîte (métriques de police exotiques), PowerPoint le
+    // rétrécit au lieu de le laisser déborder sur l'élément d'en dessous
+    // (dernière ligne rognée au bord d'une carte, vue en prod).
+    fit: "shrink",
     charSpacing: charSpacing || undefined,
     lineSpacingMultiple: Math.max(0.9, Math.min(1.6, block.style.lineHeight / Math.max(1, block.style.fontSizePx))),
   };
@@ -750,6 +774,12 @@ export async function exportCarouselHybridPptx(
         if (eb.rect.y + eb.rect.h < 0) continue;
         // Déjà capturé par Strategy A/B/C (le texte porte alors data-pptx-hide).
         if ((eb.el as HTMLElement).closest('[data-pptx-hide="true"]')) continue;
+        // CONTENEUR d'un bloc déjà capturé : son textContent répète le texte du
+        // descendant annoté/capturé → deux calques superposés dans le PPTX (vu en
+        // prod : eyebrow annoté "caption" + son wrapper pleine largeur re-capturé
+        // ici). On saute le conteneur ; son éventuel texte propre reste cuit dans
+        // le PNG de fond (visible, juste non éditable) — échec sûr.
+        if ((eb.el as HTMLElement).querySelector('[data-pptx-editable],[data-pptx-hide="true"]')) continue;
         blocks.push({ text: eb.text, rect: eb.rect, style: eb.style, kind: eb.kind });
         (eb.el as HTMLElement).setAttribute("data-pptx-hide", "true");
       }

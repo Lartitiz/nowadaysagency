@@ -1437,6 +1437,15 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
           /<(span|div|p)\b[^>]*>\s*slide\s*\d{1,2}(?:\s*[\/.\-]\s*\d{1,2})?\s*<\/\1>/gi,
           () => { stampsKilled++; return ""; },
         );
+        // d) Préfixe "Slide N," / "Slide N ·" / "Slide N —" DANS un label plus long
+        //    (vu en prod : eyebrow "Slide 4, Analyse" rendu tel quel malgré les 4
+        //    interdits du prompt). On retire le préfixe méta et on GARDE le label
+        //    éditorial restant ("Analyse"). Ancré juste après un tag ouvrant → les
+        //    mentions en milieu de phrase ne sont pas touchées.
+        html = html.replace(
+          /(<(?:span|div|p|h[1-6])\b[^>]*>\s*)slides?\s*(?:n[°o]\s*)?\d{1,2}\s*[,·—:–-]\s*(?=\S)/gi,
+          (_m: string, open: string) => { stampsKilled++; return open; },
+        );
         return html;
       };
       result.slides_html = result.slides_html.map((slide: any) => ({
@@ -1645,28 +1654,64 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       };
       let titlesFixed = 0;
       let bodyFixed = 0;
+      // Fond ENGLOBANT réel d'un élément : mini-scan des tags avec une pile,
+      // jusqu'à l'offset de l'élément. Indispensable sur les slides MULTI-FONDS
+      // (photo en haut + bandeau coloré en bas, carte sombre sur fond clair…) :
+      // l'ancien fond « 1ère couleur unie du HTML » comparait le titre au MAUVAIS
+      // fond (vu en prod : titre olive sur bandeau magenta jugé lisible car testé
+      // contre le fond clair global → passé tel quel dans l'aperçu ET l'export).
+      // Les rgba sont composés sur le fond du parent dans la pile.
+      const VOID_TAGS = new Set(["br", "img", "hr", "input", "meta", "link", "source", "area", "base", "col", "embed", "param", "track", "wbr"]);
+      const BG_DECL_RE = /background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|[a-z]+)/i;
+      const bgEnclosingAt = (whole: string, offset: number, fallback6: string): string | null => {
+        const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+        const stack: Array<{ tag: string; bg6: string | null }> = [];
+        const nearest = (): string | null => {
+          for (let i = stack.length - 1; i >= 0; i--) if (stack[i].bg6) return stack[i].bg6;
+          return null;
+        };
+        let m: RegExpExecArray | null;
+        while ((m = tagRe.exec(whole)) && m.index < offset) {
+          const closing = m[1] === "/";
+          const tag = m[2].toLowerCase();
+          const attrs = m[3] || "";
+          if (closing) {
+            // Pop tolérant : referme jusqu'au tag correspondant (les tags internes
+            // mal refermés sautent avec — HTML machine, cas marginal).
+            for (let i = stack.length - 1; i >= 0; i--) {
+              if (stack[i].tag === tag) { stack.length = i; break; }
+            }
+          } else if (!VOID_TAGS.has(tag) && !/\/\s*$/.test(attrs)) {
+            const bm = attrs.match(BG_DECL_RE);
+            // Gradient/url/nom inconnu → hexOnBg rend null → l'élément ne compte
+            // pas comme fond (on retombe sur le parent) — comportement sûr.
+            const composed = bm ? hexOnBg(bm[1], nearest() || fallback6) : null;
+            stack.push({ tag, bg6: composed });
+          }
+        }
+        return nearest();
+      };
       result.slides_html = result.slides_html.map((slide: any) => {
         let html: string = slide.html || "";
-        // Fond réel de la slide = 1ère couleur de fond UNIE rencontrée (le regex n'attrape
-        // pas `background:linear-gradient(...)` car la valeur ne commence pas par #/rgb) ;
-        // sinon on retombe sur le fond de charte (clair).
+        // Repli si l'élément n'a AUCUN fond englobant déclaré : 1ère couleur de
+        // fond unie du HTML (≈ conteneur racine), sinon le fond de charte (clair).
         let bg6 = bgDefault6;
         const bgm = html.match(/background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/i);
         if (bgm) { const c = hexOnBg(bgm[1], "FFFFFF"); if (c) bg6 = c; }
-        const bgIsLight = lum(bg6) > 0.5;
         html = html.replace(
           /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["']title["'][^>]*)>/gi,
-          (full: string) =>
+          (full: string, _t: string, _a: string, offset: number, whole: string) =>
             full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
               const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
               if (!cm) return sm;
-              const eff = hexOnBg(cm[1], bg6);
+              const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
+              const eff = hexOnBg(cm[1], bgLocal);
               if (!eff) return sm;
               let repl: string | null = null;
-              if (bgIsLight) {
-                if (ratio(eff, bg6) < LIGHT_BG_FLOOR) repl = bestDark(bg6);
+              if (lum(bgLocal) > 0.5) {
+                if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bestDark(bgLocal);
               } else {
-                if (ratio(eff, bg6) < DARK_BG_FLOOR) repl = "FFFFFF";
+                if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
               }
               if (!repl || repl === eff) return sm;
               titlesFixed++;
@@ -1686,17 +1731,18 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
           ratio(text6, b) >= LIGHT_BG_FLOOR ? text6 : bestDark(b);
         html = html.replace(
           /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["'](?:body|subtitle)["'][^>]*)>/gi,
-          (full: string) =>
+          (full: string, _t: string, _a: string, offset: number, whole: string) =>
             full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
               const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
               if (!cm) return sm;
-              const eff = hexOnBg(cm[1], bg6);
+              const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
+              const eff = hexOnBg(cm[1], bgLocal);
               if (!eff) return sm;
               let repl: string | null = null;
-              if (bgIsLight) {
-                if (ratio(eff, bg6) < LIGHT_BG_FLOOR) repl = bodyDark(bg6);
+              if (lum(bgLocal) > 0.5) {
+                if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bodyDark(bgLocal);
               } else {
-                if (ratio(eff, bg6) < DARK_BG_FLOOR) repl = "FFFFFF";
+                if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
               }
               if (!repl || repl === eff) return sm;
               bodyFixed++;

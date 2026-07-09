@@ -261,6 +261,9 @@ export function extractEditableBlocks(
 
     // Skip nodes already covered by an annotated ancestor (avoid double-render)
     if (skipAnnotated && el.closest("[data-pptx-editable]")) continue;
+    // Skip CONTAINERS of an annotated node: their textContent repeats the
+    // descendant's text → duplicated overlapping frames in the PPTX.
+    if (skipAnnotated && el.querySelector("[data-pptx-editable]")) continue;
 
     // Skip if any child is itself a text-bearing element (we want leaf-ish blocks)
     const hasBlockChild = Array.from(el.children).some((c) => {
