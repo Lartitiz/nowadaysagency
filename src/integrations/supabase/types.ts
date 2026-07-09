@@ -320,6 +320,9 @@ export type Database = {
           photo_keywords: Json | null
           photo_style: string | null
           template_layout_description: string | null
+          texture_enabled: boolean
+          texture_material: string | null
+          texture_url: string | null
           updated_at: string | null
           uploaded_templates: Json | null
           user_id: string
@@ -352,6 +355,9 @@ export type Database = {
           photo_keywords?: Json | null
           photo_style?: string | null
           template_layout_description?: string | null
+          texture_enabled?: boolean
+          texture_material?: string | null
+          texture_url?: string | null
           updated_at?: string | null
           uploaded_templates?: Json | null
           user_id: string
@@ -384,6 +390,9 @@ export type Database = {
           photo_keywords?: Json | null
           photo_style?: string | null
           template_layout_description?: string | null
+          texture_enabled?: boolean
+          texture_material?: string | null
+          texture_url?: string | null
           updated_at?: string | null
           uploaded_templates?: Json | null
           user_id?: string
