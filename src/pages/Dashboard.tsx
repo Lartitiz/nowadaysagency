@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useUserPhase } from "@/hooks/use-user-phase";
-import { X, ArrowLeft, Lightbulb } from "lucide-react";
+import { X, ArrowLeft, Lightbulb, Image as ImageIcon } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
@@ -82,6 +82,7 @@ interface DashboardData {
   planData: PlanData | null;
   recommendations: { id: string; titre: string | null; route: string; completed: boolean | null }[];
   ideaCount: number;
+  photoCount: number;
 }
 
 /* ── Welcome messages ── */
@@ -209,6 +210,7 @@ export default function Dashboard() {
     calendarPostCount: 0, weekPostsPublished: 0, weekPostsTotal: 0, nextPost: null,
     planData: null, recommendations: [],
     ideaCount: 0,
+    photoCount: 0,
   };
 
   // ── Dashboard data query ──
@@ -238,7 +240,7 @@ export default function Dashboard() {
 
       const wsId = activeWorkspace?.id || null;
 
-      const [summaryRes, brandingData, ideasCountRes] = await Promise.all([
+      const [summaryRes, brandingData, ideasCountRes, photosCountRes] = await Promise.all([
         supabase.rpc("get_dashboard_summary", {
           p_user_id: user.id,
           p_workspace_id: wsId,
@@ -246,6 +248,8 @@ export default function Dashboard() {
         fetchBrandingData({ column, value }),
         supabase.from("saved_ideas").select("*", { count: "exact", head: true })
           .eq("user_id", user.id)
+          .eq("workspace_id", wsId ?? user.id),
+        supabase.from("user_photos").select("*", { count: "exact", head: true })
           .eq("workspace_id", wsId ?? user.id),
       ]);
 
@@ -280,6 +284,7 @@ export default function Dashboard() {
         planData,
         recommendations: s.recommendations || [],
         ideaCount: ideasCountRes.count ?? 0,
+        photoCount: photosCountRes.count ?? 0,
       };
     },
     enabled: !!user || isDemoMode,
@@ -539,6 +544,37 @@ export default function Dashboard() {
               <div>
                 <h3 className="font-heading text-base font-bold text-foreground leading-tight">Mes idées</h3>
                 <p className="text-xs text-muted-foreground mt-0.5">Boîte à idées</p>
+              </div>
+            </div>
+
+            {/* ─── Mes photos ─── */}
+            <div
+              onClick={() => navigate("/photos")}
+              className="rounded-[20px] p-5 sm:p-5
+                shadow-[var(--shadow-bento)]
+                hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]
+                active:translate-y-0 active:shadow-[var(--shadow-bento)]
+                transition-all duration-[250ms] ease-out
+                cursor-pointer
+                opacity-0 animate-reveal-up
+                bg-gradient-to-br from-[hsl(var(--bento-mint))] to-[hsl(160_50%_97%)]
+                border border-border/50 text-foreground
+                flex flex-col justify-between min-h-[130px]"
+              style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
+            >
+              <div className="flex justify-between items-start">
+                <div className="w-9 h-9 rounded-xl bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
+                  <ImageIcon className="h-5 w-5 text-primary" />
+                </div>
+                {dashData.photoCount > 0 && (
+                  <span className="bg-black/5 px-2 py-0.5 rounded-md text-2xs font-bold text-muted-foreground uppercase tracking-wider">
+                    {dashData.photoCount} photo{dashData.photoCount > 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+              <div>
+                <h3 className="font-heading text-base font-bold text-foreground leading-tight">Mes photos</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Ma bibliothèque</p>
               </div>
             </div>
 

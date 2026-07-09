@@ -39,6 +39,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "Créer un contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
       { label: "Mon calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
+      { label: "Ma bibliothèque photos", path: "/photos", icon: <Image size={16} /> },
     ],
   },
   {
@@ -61,7 +62,6 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
     label: "RESSOURCES",
     items: [
-      { label: "Photos", path: "/photos", icon: <Image size={16} /> },
       { label: "Contacts", path: "/contacts", icon: <Users size={16} /> },
       { label: "Coach IA", path: "/dashboard/guide", icon: <Brain size={16} /> },
     ],
