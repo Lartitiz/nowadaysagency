@@ -16,6 +16,12 @@
  *   (URLs des vignettes) selon la photo_directive d'UNE story — c'est ce choix
  *   IA parmi ~8 résultats qui fait la pertinence, au lieu du 1er résultat brut.
  *
+ * - mode "classify_missing" (lot 1bis mise en scène) : rattrape le champ `kind`
+ *   des photos décrites avant son introduction — classification TEXTE (les
+ *   descriptions existent déjà, pas de re-vision) en un seul appel Haiku par
+ *   lot de 40. Appelé par la bibliothèque quand elle voit des photos sans
+ *   kind : auto-réparant, pas de backfill admin.
+ *
  * skipQuota : micro-appels d'assistance (comme stock-photo-keywords), pas de
  * débit crédit. Sortie structurée en `tool` forcé (jamais de parse texte).
  */
@@ -37,6 +43,10 @@ const BodySchema = z.discriminatedUnion("mode", [
     workspace_id: z.string().uuid().optional(),
   }),
   z.object({
+    mode: z.literal("classify_missing"),
+    workspace_id: z.string().uuid().optional(),
+  }),
+  z.object({
     mode: z.literal("pick_stock"),
     workspace_id: z.string().uuid().optional(),
     directive: z.string().min(3).max(400),
@@ -51,6 +61,17 @@ const BodySchema = z.discriminatedUnion("mode", [
       .max(10),
   }),
 ]);
+
+// Types de photo : pilotent les actions contextuelles de la bibliothèque
+// (Packshot/Mettre en scène = produit only) et le matching des futurs lots.
+const PHOTO_KINDS = ["produit", "produit_porte", "portrait", "ambiance", "coulisses", "autre"] as const;
+const KIND_GUIDE =
+  "produit = l'objet à vendre est le sujet principal (posé, packshot, à plat) ; " +
+  "produit_porte = le produit est porté/tenu par quelqu'un mais reste le sujet ; " +
+  "portrait = une personne est le sujet principal ; " +
+  "ambiance = lieu, décor, matière, nourriture, paysage ; " +
+  "coulisses = travail en cours, mains à l'œuvre, atelier en action ; " +
+  "autre = rien de tout ça (capture d'écran, texte, graphique…).";
 
 const DESCRIBE_TOOL = {
   name: "save_photo_description",
@@ -69,8 +90,35 @@ const DESCRIBE_TOOL = {
         description:
           "3 à 6 tags courts en français, minuscules, singulier. Inclure si pertinent une catégorie parmi : portrait, produit, atelier, coulisses, lifestyle, détail, lieu, équipe.",
       },
+      kind: {
+        type: "string",
+        enum: [...PHOTO_KINDS],
+        description: `Type de photo. ${KIND_GUIDE}`,
+      },
     },
-    required: ["description", "tags"],
+    required: ["description", "tags", "kind"],
+  },
+};
+
+const CLASSIFY_TOOL = {
+  name: "save_photo_kinds",
+  description: "Enregistre le type de chaque photo",
+  input_schema: {
+    type: "object",
+    properties: {
+      kinds: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id: { type: "string", description: "L'id de la photo, repris tel quel" },
+            kind: { type: "string", enum: [...PHOTO_KINDS], description: KIND_GUIDE },
+          },
+          required: ["id", "kind"],
+        },
+      },
+    },
+    required: ["kinds"],
   },
 };
 
@@ -213,7 +261,7 @@ serve(async (req) => {
               { type: "image", source: { type: "base64", media_type, data } },
               {
                 type: "text",
-                text: "Décris cette photo (8 à 15 mots, français) et donne 3 à 6 tags.",
+                text: "Décris cette photo (8 à 15 mots, français), donne 3 à 6 tags, et classe son type (kind).",
               },
             ],
           },
@@ -224,7 +272,7 @@ serve(async (req) => {
         abortTimeoutMs: 25_000,
       });
 
-      const parsed = JSON.parse(raw) as { description?: unknown; tags?: unknown };
+      const parsed = JSON.parse(raw) as { description?: unknown; tags?: unknown; kind?: unknown };
       const description = typeof parsed.description === "string" ? parsed.description.trim().slice(0, 200) : "";
       const tags = Array.from(
         new Set(
@@ -233,21 +281,80 @@ serve(async (req) => {
             .filter((t) => t.length > 0 && t.length <= 30),
         ),
       ).slice(0, 6);
+      const kind = PHOTO_KINDS.includes(parsed.kind as (typeof PHOTO_KINDS)[number])
+        ? (parsed.kind as string)
+        : "autre";
 
       if (!description) return json({ error: "Description vide, réessaie." }, 502);
 
       // 4. Écriture (RLS update workspace-scoped)
       const { error: updErr } = await supabase
         .from("user_photos")
-        .update({ description, tags })
+        .update({ description, tags, kind })
         .eq("id", photo.id);
       if (updErr) {
         console.error("[photo-describe] update error:", updErr);
         return json({ error: "Impossible d'enregistrer la description" }, 500);
       }
 
-      console.log(JSON.stringify({ event: "photo_described", photo_id: photo.id, tags_count: tags.length }));
-      return json({ description, tags });
+      console.log(JSON.stringify({ event: "photo_described", photo_id: photo.id, tags_count: tags.length, kind }));
+      return json({ description, tags, kind });
+    }
+
+    if (body.mode === "classify_missing") {
+      // Rattrapage : photos déjà décrites mais sans kind (antérieures au champ).
+      // Classification TEXTE sur les descriptions stockées — un seul appel Haiku
+      // par lot de 40, pas de re-vision. RLS-scoped : chaque bibliothèque se
+      // répare elle-même à l'ouverture.
+      const { data: rows, error: listErr } = await supabase
+        .from("user_photos")
+        .select("id, description, tags")
+        .is("kind", null)
+        .not("description", "is", null)
+        .eq("status", "ready")
+        .order("created_at", { ascending: true })
+        .limit(40);
+
+      if (listErr) {
+        console.error("[photo-describe] classify list error:", listErr);
+        return json({ error: "Erreur DB" }, 500);
+      }
+      if (!rows?.length) return json({ classified: 0, remaining: 0 });
+
+      const lines = rows.map(
+        (r: { id: string; description: string | null; tags: string[] | null }) =>
+          `id ${r.id} : ${r.description}${r.tags?.length ? ` (tags : ${r.tags.join(", ")})` : ""}`,
+      );
+
+      const raw = await callAnthropic({
+        model: "claude-haiku-4-5",
+        system:
+          "Tu classes des photos de la bibliothèque d'une marque à partir de leur description. Réponds pour CHAQUE photo listée, en reprenant son id tel quel.",
+        messages: [
+          {
+            role: "user",
+            content: `Types possibles : ${KIND_GUIDE}\n\nClasse chacune de ces photos :\n${lines.join("\n")}`,
+          },
+        ],
+        tool: CLASSIFY_TOOL,
+        temperature: 0,
+        max_tokens: 1500,
+        abortTimeoutMs: 25_000,
+      });
+
+      const parsed = JSON.parse(raw) as { kinds?: unknown };
+      const validIds = new Set(rows.map((r: { id: string }) => r.id));
+      let classified = 0;
+      for (const item of Array.isArray(parsed.kinds) ? parsed.kinds : []) {
+        const id = typeof (item as any)?.id === "string" ? (item as any).id : "";
+        const kind = PHOTO_KINDS.includes((item as any)?.kind) ? ((item as any).kind as string) : null;
+        if (!id || !kind || !validIds.has(id)) continue;
+        const { error: updErr } = await supabase.from("user_photos").update({ kind }).eq("id", id);
+        if (!updErr) classified++;
+      }
+
+      console.log(JSON.stringify({ event: "photos_classified", classified, batch: rows.length }));
+      return json({ classified, remaining: rows.length === 40 ? 1 : 0 });
     }
 
     if (body.mode === "pick_stock") {

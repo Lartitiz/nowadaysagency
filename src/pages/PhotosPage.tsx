@@ -7,7 +7,8 @@
  * (remplacement de décor) reste accessible en action secondaire.
  */
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -40,10 +41,21 @@ import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
 const MAX_BATCH = 20;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_TAG_CHIPS = 8;
+
+// Types de photo (classés par l'IA, cf. edge photo-describe) → libellés de filtre
+const KIND_LABELS: Record<string, string> = {
+  produit: "Produits",
+  produit_porte: "Portés",
+  portrait: "Portraits",
+  ambiance: "Ambiance",
+  coulisses: "Coulisses",
+  autre: "Autres",
+};
 
 export default function PhotosPage() {
   const { data: photos = [], isLoading } = useUserPhotos();
@@ -59,7 +71,29 @@ export default function PhotosPage() {
   const [retouchePhoto, setRetouchePhoto] = useState<UserPhotoRow | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<UserPhotoRow | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
+  const [kindFilter, setKindFilter] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+
+  // Rattrapage des photos décrites avant l'arrivée du champ kind : la
+  // bibliothèque se répare elle-même à l'ouverture (1 appel texte par lot de
+  // 40, silencieux, une fois par montage).
+  const classifyTriggered = useRef(false);
+  useEffect(() => {
+    if (classifyTriggered.current || !wsReady) return;
+    const needsClassify = photos.some((p) => !p.kind && p.description && p.status === "ready");
+    if (!needsClassify) return;
+    classifyTriggered.current = true;
+    invokeWithTimeout(
+      "photo-describe",
+      { body: { mode: "classify_missing", workspace_id: activeWorkspace!.id } },
+      60_000,
+    ).then(({ data }) => {
+      if (data?.classified > 0) {
+        queryClient.invalidateQueries({ queryKey: ["user-photos"] });
+      }
+    });
+  }, [photos, wsReady, activeWorkspace, queryClient]);
 
   // Tags les plus fréquents de la bibliothèque → chips de filtre
   const topTags = useMemo(() => {
@@ -75,9 +109,18 @@ export default function PhotosPage() {
       .map(([tag]) => tag);
   }, [photos]);
 
+  // Types présents dans la bibliothèque (dans l'ordre de KIND_LABELS)
+  const presentKinds = useMemo(() => {
+    const kinds = new Set(photos.map((p) => p.kind).filter(Boolean) as string[]);
+    return Object.keys(KIND_LABELS).filter((k) => kinds.has(k));
+  }, [photos]);
+
   const filteredPhotos = useMemo(
-    () => (tagFilter ? photos.filter((p) => (p.tags ?? []).includes(tagFilter)) : photos),
-    [photos, tagFilter],
+    () =>
+      photos
+        .filter((p) => (kindFilter ? p.kind === kindFilter : true))
+        .filter((p) => (tagFilter ? (p.tags ?? []).includes(tagFilter) : true)),
+    [photos, tagFilter, kindFilter],
   );
 
   async function handleFilesSelected(list: FileList | null) {
@@ -205,14 +248,36 @@ export default function PhotosPage() {
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="flex-1 min-w-0 w-full">
+              {presentKinds.length > 1 && (
+                <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                  {presentKinds.map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setKindFilter(kindFilter === k ? null : k)}
+                      className={cn(
+                        "px-3 py-1 rounded-full text-xs border transition-colors",
+                        kindFilter === k
+                          ? "bg-primary text-primary-foreground border-primary font-medium"
+                          : "bg-background text-foreground border-border hover:border-primary/40",
+                      )}
+                    >
+                      {KIND_LABELS[k]}
+                    </button>
+                  ))}
+                </div>
+              )}
               {topTags.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 mb-4">
                   <button
                     type="button"
-                    onClick={() => setTagFilter(null)}
+                    onClick={() => {
+                      setTagFilter(null);
+                      setKindFilter(null);
+                    }}
                     className={cn(
                       "px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                      tagFilter === null
+                      tagFilter === null && kindFilter === null
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary text-secondary-foreground hover:bg-secondary/70",
                     )}
