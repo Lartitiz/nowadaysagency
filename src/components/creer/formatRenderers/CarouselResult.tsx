@@ -1,8 +1,10 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { Maximize2 } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
 import { replaceSlideText } from "@/lib/carousel-html-edit";
 
@@ -82,6 +84,7 @@ function InlineEditable({
 function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: string }[] }) {
   const gridRef = useRef<HTMLDivElement>(null);
   const [colWidth, setColWidth] = useState(0);
+  const [zoomed, setZoomed] = useState<{ slide_number: number; html: string } | null>(null);
 
   useEffect(() => {
     const el = gridRef.current;
@@ -113,8 +116,12 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
             <p className="text-2xs font-mono text-muted-foreground text-center">
               Slide {vs.slide_number}
             </p>
-            <div
-              className="relative overflow-hidden rounded-lg border border-border w-full"
+            <button
+              type="button"
+              onClick={() => setZoomed(vs)}
+              title="Agrandir la slide"
+              aria-label={`Agrandir la slide ${vs.slide_number}`}
+              className="group relative overflow-hidden rounded-lg border border-border w-full cursor-zoom-in p-0"
               style={{ aspectRatio: "1080 / 1350" }}
             >
               {scale > 0 && (
@@ -135,38 +142,110 @@ function VisualSlidesGrid({ slides }: { slides: { slide_number: number; html: st
                   }}
                 />
               )}
-            </div>
+              <span className="absolute inset-0 flex items-center justify-center bg-foreground/0 transition-colors group-hover:bg-foreground/40">
+                <Maximize2 className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+              </span>
+            </button>
           </div>
         ))}
       </div>
+      <SlideLightbox
+        html={zoomed?.html || ""}
+        title={zoomed ? `Slide ${zoomed.slide_number}` : ""}
+        open={zoomed != null}
+        onOpenChange={(o) => !o && setZoomed(null)}
+      />
     </div>
   );
 }
 
-/** Aperçu d'une slide : le HTML 1080×1350 mis à l'échelle dans une iframe. */
-export function SlideFramePreview({ html, title, width = 180 }: { html: string; title: string; width?: number }) {
+/** Le HTML 1080×1350 mis à l'échelle pour remplir son conteneur (mesuré au ResizeObserver). */
+function ScaledSlideFrame({ html, title }: { html: string; title: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const measure = () => setWidth(el.getBoundingClientRect().width);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const scale = width > 0 ? width / 1080 : 0;
+
   return (
-    <div
-      className="relative overflow-hidden rounded-lg border border-border shrink-0"
-      style={{ width, aspectRatio: "1080 / 1350" }}
-    >
-      <iframe
-        srcDoc={html}
-        title={title}
-        sandbox="allow-same-origin"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "1080px",
-          height: "1350px",
-          transform: `scale(${width / 1080})`,
-          transformOrigin: "top left",
-          border: "none",
-          pointerEvents: "none",
-        }}
-      />
+    <div ref={ref} className="absolute inset-0">
+      {scale > 0 && (
+        <iframe
+          srcDoc={html}
+          title={title}
+          sandbox="allow-same-origin"
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            width: "1080px",
+            height: "1350px",
+            transform: `scale(${scale})`,
+            transformOrigin: "top left",
+            border: "none",
+            pointerEvents: "none",
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/** Modale plein écran affichant une slide en grand (au clic sur son aperçu). */
+export function SlideLightbox({
+  html,
+  title,
+  open,
+  onOpenChange,
+}: {
+  html: string;
+  title: string;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-none w-auto border-none bg-transparent p-0 shadow-none">
+        <div
+          className="relative overflow-hidden rounded-2xl border border-border bg-white shadow-strong"
+          style={{ height: "min(85vh, 90vw * 1350 / 1080)", aspectRatio: "1080 / 1350" }}
+        >
+          <ScaledSlideFrame html={html} title={title} />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/** Aperçu cliquable d'une slide : clic → agrandissement en modale. */
+export function SlideFramePreview({ html, title, width = 180 }: { html: string; title: string; width?: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Agrandir la slide"
+        aria-label="Agrandir la slide"
+        className="group relative overflow-hidden rounded-lg border border-border shrink-0 cursor-zoom-in p-0"
+        style={{ width, aspectRatio: "1080 / 1350" }}
+      >
+        <ScaledSlideFrame html={html} title={title} />
+        <span className="absolute inset-0 flex items-center justify-center bg-foreground/0 transition-colors group-hover:bg-foreground/40">
+          <Maximize2 className="h-5 w-5 text-white opacity-0 transition-opacity group-hover:opacity-100" />
+        </span>
+      </button>
+      <SlideLightbox html={html} title={title} open={open} onOpenChange={setOpen} />
+    </>
   );
 }
 
