@@ -45,7 +45,7 @@ interface Props {
   autoApply: boolean;
   /** Vignettes bibliothèque récentes, signées une fois par StoryResult. */
   libraryStrip: { row: UserPhotoRow; url: string }[];
-  onApply: (photo: AppliedStockPhoto) => void;
+  onApply: (photo: AppliedStockPhoto, opts?: { onlyIfEmpty?: boolean }) => void;
   onApplyLibrary: (row: UserPhotoRow) => void;
   onOpenLibrary: () => void;
 }
@@ -132,13 +132,18 @@ export default function StoryPhotoSuggestions({
 
         if (autoApply && !autoApplied.current && ordered[0]) {
           autoApplied.current = true;
-          onApply({
-            url: ordered[0].url,
-            credit: {
-              photographer: ordered[0].photographer,
-              source_url: ordered[0].source_url,
+          // onlyIfEmpty : si entre-temps la story a reçu une photo (bibliothèque
+          // placée par la génération, choix manuel), on ne l'écrase JAMAIS.
+          onApply(
+            {
+              url: ordered[0].url,
+              credit: {
+                photographer: ordered[0].photographer,
+                source_url: ordered[0].source_url,
+              },
             },
-          });
+            { onlyIfEmpty: true },
+          );
         }
       } catch (e) {
         console.warn("[StoryPhotoSuggestions]", e);
