@@ -3,9 +3,10 @@
 //
 // scope "daily"  : santé des publications réelles — posts en échec, posts bloqués,
 //                  programmés en retard (= cron pg de publication mort ?), tokens
-//                  sociaux expirés/expirants (LinkedIn ne se refresh pas seul, ~60 j)
-//                  + retours bêta (beta_feedback) des 24 h, les « blocking » d'abord,
-//                  et total encore en statut "new" (backstop si un run saute).
+//                  sociaux expirés/expirants (LinkedIn ne se refresh pas seul, ~60 j),
+//                  retours bêta (beta_feedback) des 24 h, les « blocking » d'abord,
+//                  et total encore en statut "new" (backstop si un run saute),
+//                  crédits Photoroom restants (épuisés = 402 sur toutes les retouches).
 // scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), coûts estimés
 //                  en € (texte Anthropic + images gpt-image/Photoroom/Recraft), usage
 //                  (action_type), rétention par cohorte hebdo d'inscription,
@@ -44,6 +45,44 @@ const json = (body: unknown, status = 200) =>
 const HOUR = 3600000;
 const DAY = 24 * HOUR;
 
+// Crédits Photoroom (plan Basic 1000 img/mois, souscrit le 09/07/2026 → reset le 9
+// de chaque mois ; une retouche fond IA ≈ 5 crédits). À épuisement l'API renvoie 402
+// et TOUTES les retouches photo de l'app échouent — d'où la surveillance quotidienne.
+const PHOTOROOM_RESET_DAY = 9;
+const PHOTOROOM_ALERTE_RESTANTS = 300; // seuil bas absolu
+const PHOTOROOM_ALERTE_PAR_JOUR = 150; // rythme insoutenable (1000/mois ≈ 33/j)
+
+async function photoroomCredits(now: number) {
+  const key = Deno.env.get("PHOTOROOM_API_KEY");
+  if (!key) return { erreur: "PHOTOROOM_API_KEY absent" };
+  try {
+    const r = await fetch("https://image-api.photoroom.com/v1/account", {
+      headers: { "x-api-key": key },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) return { erreur: `HTTP ${r.status} ${(await r.text()).slice(0, 90)}` };
+    const credits = (await r.json())?.credits;
+    if (typeof credits?.available !== "number") return { erreur: "réponse sans credits.available" };
+    const restants = credits.available;
+    const abonnement = typeof credits.subscription === "number" ? credits.subscription : null;
+    const consommes = abonnement !== null ? abonnement - restants : null;
+    // Jours écoulés depuis le dernier reset (le 9 du mois), pour le rythme moyen.
+    const d = new Date(now);
+    const reset = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - (d.getUTCDate() < PHOTOROOM_RESET_DAY ? 1 : 0), PHOTOROOM_RESET_DAY));
+    const joursDepuisReset = Math.max(1, Math.ceil((now - reset.getTime()) / DAY));
+    const moyenneParJour = consommes !== null ? Math.round((consommes / joursDepuisReset) * 10) / 10 : null;
+    const alerte =
+      restants < PHOTOROOM_ALERTE_RESTANTS
+        ? `moins de ${PHOTOROOM_ALERTE_RESTANTS} crédits restants — risque de 402 sur les retouches photo`
+        : moyenneParJour !== null && moyenneParJour > PHOTOROOM_ALERTE_PAR_JOUR
+          ? `rythme ${moyenneParJour}/j > ${PHOTOROOM_ALERTE_PAR_JOUR}/j — épuisement avant le reset du ${PHOTOROOM_RESET_DAY}`
+          : null;
+    return { restants, abonnement, consommes_mois: consommes, jours_depuis_reset: joursDepuisReset, moyenne_par_jour: moyenneParJour, alerte };
+  } catch (e) {
+    return { erreur: String((e as any)?.message || e).slice(0, 90) };
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
@@ -67,7 +106,7 @@ Deno.serve(async (req) => {
     const now = Date.now();
 
     if (scope === "daily") {
-      const [postsRes, connRes, fbRes, fbNewRes] = await Promise.all([
+      const [postsRes, connRes, fbRes, fbNewRes, photoroom] = await Promise.all([
         supabase
           .from("calendar_posts")
           .select("user_id, canal, publish_status, publish_error, scheduled_publish_at, published_at, updated_at")
@@ -83,6 +122,7 @@ Deno.serve(async (req) => {
         // de la routine saute, rien ne reste invisible (le passage à "seen"/"done"
         // dans l'onglet admin fait redescendre ce compteur).
         supabase.from("beta_feedback").select("user_id").eq("status", "new"),
+        photoroomCredits(now),
       ]);
       if (postsRes.error) throw postsRes.error;
       if (connRes.error) throw connRes.error;
@@ -178,6 +218,7 @@ Deno.serve(async (req) => {
         connections_at_risk: connectionsAtRisk.slice(0, 20),
         feedback_24h: { count: feedback24h.length, items: feedback24h.slice(0, 15) },
         feedback_new_total: feedbackNewTotal,
+        photoroom_credits: photoroom,
       });
     }
 

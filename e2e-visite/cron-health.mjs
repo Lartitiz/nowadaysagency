@@ -3,7 +3,8 @@
  *
  * Sans argument : scope "daily" (étape 8bis de la visite quotidienne) — santé des
  * publications réelles (échecs, posts bloqués, programmés en retard, tokens sociaux)
- * + retours bêta des 24 h (widget beta_feedback), les « blocking » en tête.
+ * + retours bêta des 24 h (widget beta_feedback), les « blocking » en tête,
+ * + crédits Photoroom restants (épuisés = 402 sur toutes les retouches photo).
  * Avec `--hebdo` : scope "weekly" (routine du lundi) — coûts IA, usage features,
  * rétention par cohorte, volume de publications.
  *
@@ -70,6 +71,14 @@ try {
       if (d.feedback_new_total > d.feedback_24h.count) {
         console.log(`   feedbacks encore « new » (tous âges) : ${d.feedback_new_total}  ⚠️ des plus anciens jamais traités dans l'onglet admin`);
       }
+    }
+    // Crédits Photoroom (absent si l'edge live n'est pas encore la version qui les remonte).
+    const pr = d.photoroom_credits;
+    if (pr?.erreur) {
+      console.log(`   crédits Photoroom              : ⚠️ non lus (${pr.erreur})`);
+    } else if (pr) {
+      const conso = pr.consommes_mois != null ? `, consommés ${pr.consommes_mois} (~${pr.moyenne_par_jour}/j sur ${pr.jours_depuis_reset} j)` : "";
+      console.log(`   crédits Photoroom restants     : ${pr.restants}${pr.abonnement ? ` / ${pr.abonnement}` : ""}${conso}${pr.alerte ? `  🔴 ${pr.alerte}` : ""}`);
     }
   } else {
     const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
