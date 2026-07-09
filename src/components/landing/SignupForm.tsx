@@ -53,6 +53,11 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
     try {
       localStorage.setItem("lac_prenom", values.prenom);
       localStorage.setItem("lac_activite", values.activite?.trim() || "");
+      // Marqueur consommé par resolvePostAuthRoute (AuthContext) : une inscription
+      // toute fraîche va TOUJOURS à /onboarding, sans dépendre de l'insert profiles
+      // ci-dessous (le SIGNED_IN part avant que la ligne existe → statut "unknown"
+      // → la nouvelle inscrite atterrissait sur /dashboard).
+      sessionStorage.setItem("lac_fresh_signup", "1");
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -79,6 +84,9 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       setSuccess(true);
       toast.success("Compte créé !", { description: "Vérifie tes emails pour confirmer ton inscription." });
     } catch (error: any) {
+      // Inscription échouée : retirer le marqueur pour ne pas dérouter vers
+      // /onboarding une connexion ultérieure dans le même onglet.
+      sessionStorage.removeItem("lac_fresh_signup");
       const msg = error.message;
       if (msg === "User already registered") {
         toast.error("Tu as déjà un compte !", {
