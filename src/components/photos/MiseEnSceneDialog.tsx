@@ -47,6 +47,12 @@ type Framing = "auto" | "sans_visage" | "portrait";
 
 const ADJUST_CHIPS: { key: string; label: string; prompt: string }[] = [
   {
+    key: "fond_net",
+    label: "Fond net",
+    prompt:
+      "Le fond doit être COMPLÈTEMENT NET, aucun flou d'arrière-plan : tous les détails du décor lisibles et précis, comme au grand angle d'un téléphone (f/11).",
+  },
+  {
     key: "sans_visage",
     label: "Sans visage",
     prompt: "Recadre : le visage ne doit pas être visible, gros plan sur le produit.",
