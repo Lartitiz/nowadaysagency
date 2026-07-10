@@ -20,6 +20,25 @@ import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-st
  * Utilisé à la fois pour les carrousels texte ET les carrousels mixtes,
  * sinon le mixte rendrait les slides à visual_schema en simple texte.
  */
+/**
+ * Fond de charte SOMBRE ? Pilote le choix des fonds de slides : pour une marque
+ * sombre, l'alternance ne doit JAMAIS imposer de slide à fond blanc plein — les
+ * fonds restent dans la gamme sombre de la charte (décision Laetitia, 10/07/2026,
+ * suite à l'audit rendu visuel : 2-3 slides sur 8 sortaient en blanc plein sur
+ * une charte quasi noire). Couleur non parsable → considérée CLAIRE (comportement
+ * historique inchangé). Seuil 0.5 = même convention que la garde de contraste.
+ */
+function isDarkBackground(color: string | undefined | null): boolean {
+  let h = String(color || "").trim().replace("#", "");
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+  if (!/^[0-9a-fA-F]{6}$/.test(h)) return false;
+  const c = (i: number) => {
+    const x = parseInt(h.slice(i, i + 2), 16) / 255;
+    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+  };
+  return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4) <= 0.5;
+}
+
 function buildVisualSchemaBlock(ch: any): string {
   return `═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══
 
@@ -308,6 +327,11 @@ serve(async (req) => {
         : "",
     };
 
+    // Marque SOMBRE : les fonds de slides restent dans la gamme sombre de la
+    // charte (jamais de blanc plein imposé par l'alternance). La texture de
+    // marque étant une matière claire, elle garde la logique claire.
+    const darkBrand = isDarkBackground(String(ch.color_background)) && !ch.texture_url;
+
     // Construit les invariants PPTX (source de vérité unique pour la phase d'export).
     const invariants = buildPptxInvariants({ charter, brandProfile });
     const invariantsBlock = formatInvariantsForPrompt(invariants);
@@ -518,14 +542,14 @@ HOOK (slide 1) — Design le plus fort, stoppe le scroll :
 - Optionnel : motif décoratif subtil en fond (lignes, zigzag — pas de ronds).
 
 CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
-- Fond : blanc ou ${ch.color_background}
+- Fond : ${darkBrand ? `${ch.color_background} ou une déclinaison à peine plus claire de ${ch.color_background} (même famille sombre — JAMAIS blanc)` : `blanc ou ${ch.color_background}`}
 - Titre en ${ch.font_title} (42-48px)
 - Corps en ${ch.font_body} avec un ton intime
 - Optionnel : bordure pointillée autour du bloc de texte
 - Optionnel : petit emoji en grand (48px) comme élément visuel
 
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
-- Fond : blanc
+- Fond : ${darkBrand ? `${ch.color_background} (les cartes posées dessus portent la clarté)` : "blanc"}
 - Optionnel : badge pilule en haut à gauche avec un label éditorial court ("Le piège", "À éviter", etc.) — jamais un numéro de slide.
 - Titre headline en ${ch.font_title} (42-48px), couleur ${ch.color_secondary}
 - Corps du tip en ${ch.font_body} (28-30px)
@@ -557,7 +581,7 @@ CTA (dernière slide) — Douce, invitante :
 - TOUTES les slides utilisent les MÊMES fonts (${ch.font_title} pour les titres, ${ch.font_body} pour le corps)
 - Le padding latéral est IDENTIQUE sur toutes les slides (80px)
 - Les badges pilules ont le MÊME style partout
-- Le fond ALTERNE entre : ${ch.texture_url ? `la texture de marque (background:url('${ch.texture_url}') center/cover), blanc, et ponctuellement ${ch.color_primary}` : `blanc, ${ch.color_background}, et ponctuellement ${ch.color_primary}`} (max 1-2 slides en fond coloré plein)
+- Le fond ${darkBrand ? `reste dans la GAMME SOMBRE de la charte : ${ch.color_background}, une déclinaison à peine plus claire ou plus foncée de ${ch.color_background} (même famille), et ponctuellement ${ch.color_primary} — l'alternance est OPTIONNELLE et JAMAIS une slide à fond blanc/clair plein : la marque est sombre, chaque fond de slide reste sombre` : `ALTERNE entre : ${ch.texture_url ? `la texture de marque (background:url('${ch.texture_url}') center/cover), blanc, et ponctuellement ${ch.color_primary}` : `blanc, ${ch.color_background}, et ponctuellement ${ch.color_primary}`} (max 1-2 slides en fond coloré plein)`}
 - La hiérarchie titre/corps est CONSTANTE : le titre est toujours plus grand, toujours en ${ch.font_title}
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
@@ -569,7 +593,7 @@ CTA (dernière slide) — Douce, invitante :
 - ❌ Cercles ou ronds comme éléments décoratifs
 - ❌ Font-weight bold sur ${ch.font_title} (toujours normal)
 - ❌ Couleurs qui ne sont pas dans la charte
-- ❌ Plus de 3 couleurs de fond différentes dans tout le carrousel
+- ❌ Plus de 3 couleurs de fond différentes dans tout le carrousel${darkBrand ? `\n- ❌ Slide à fond BLANC ou clair plein alors que la charte est sombre — les fonds de slides restent dans la gamme sombre (les cartes/bandeaux clairs posés DESSUS restent autorisés)` : ""}
 - ❌ Le même ornement répété sur toutes les slides (eyebrow partout, badge partout, carte partout) — effet template généré par IA
 - ❌ Barre/trait vertical accolé au flanc d'une carte ou d'un bloc de texte — LE tell « généré par IA » par excellence
 - ❌ Carrousel entier sans un seul moment de design (aucune carte, aucun chiffre mis en scène, aucune rupture) — le symptôme « lisible mais plat »
@@ -1183,7 +1207,9 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
         if (i === 0) bg = `fond ${ch.color_background} (hook plein format, typographie géante)`;
         else if (num === ruptureNum) bg = `SLIDE DE RUPTURE à fond plein (${ch.color_primary} ou dark box #1A1A1A, texte clair)`;
         else if (i === n - 1) bg = `fond ${ch.color_background} (CTA, carte blanche centrée)`;
-        else bg = i % 2 === 1 ? "fond blanc #FFFFFF" : `fond ${ch.color_background}`;
+        else bg = i % 2 === 1
+          ? (darkBrand ? `fond dans la gamme sombre de la charte, à peine distinct de ${ch.color_background} (JAMAIS blanc)` : "fond blanc #FFFFFF")
+          : `fond ${ch.color_background}`;
         const design = designMoments.has(num) ? " · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé)" : "";
         return `- Slide ${num} : ${bg}${design} · mise en valeur des mots-clés : ${techniques[i % 3]}`;
       });
