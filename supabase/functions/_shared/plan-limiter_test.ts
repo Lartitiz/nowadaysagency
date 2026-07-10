@@ -252,6 +252,34 @@ Deno.test("logUsage: admin → journalise l'usage mais ne consomme pas de bonus"
   assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
 });
 
+// ---------- bypass compte QA (déterministe, par UUID) ----------
+
+// UUID réel de laetitiatest@nowadaysagency.com (Camille), cf. QA_TEST_USER_IDS.
+const QA_UUID = "52e6c03c-a7de-4c20-9b4a-276751f976e8";
+
+Deno.test("checkQuota: compte QA → autorisé même au-delà des limites, avec son plan RÉEL", async () => {
+  // Régression 10/07/2026 : le bypass par email (lookup auth.admin réseau +
+  // catch silencieux) échouait par intermittence → générations QA facturées.
+  // Le bypass par UUID ne dépend d'aucun appel réseau : toujours déterministe.
+  const r = await checkQuota(QA_UUID, "content", undefined, sb({ userPlan: "free", usage: rows(999, "content") }));
+  assertEquals(r.allowed, true);
+  assertEquals(r.plan, "free"); // plan réel conservé (gating UI d'une vraie cliente free)
+  assertEquals(r.remaining_total, 9999);
+});
+
+Deno.test("logUsage: compte QA → aucune écriture ai_usage, aucun bonus consommé", async () => {
+  const client = fakeClient({ userPlan: "free", usage: rows(50, "content"), bonusCredits: 5 });
+  // deno-lint-ignore no-explicit-any
+  await logUsage(QA_UUID, "content", "create", undefined, undefined, undefined, client as any);
+  assertEquals(client._inserted.length, 0);
+  assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);
+});
+
+Deno.test("checkQuota: un UUID non-QA au plafond reste bloqué (pas d'élargissement du bypass)", async () => {
+  const r = await checkQuota("un-autre-uuid", "content", undefined, sb({ userPlan: "free", usage: rows(23, "content") }));
+  assertEquals(r.allowed, false);
+});
+
 // ---------- quotaDeniedResponse ----------
 
 Deno.test("quotaDeniedResponse: quota épuisé → 429 limit_reached", async () => {

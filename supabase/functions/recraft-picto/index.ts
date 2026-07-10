@@ -21,7 +21,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { logUsage } from "../_shared/plan-limiter.ts";
+import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 
 const BodySchema = z.object({
   concepts: z.array(z.string().min(2).max(80)).min(1).max(4),
@@ -35,10 +35,6 @@ const BodySchema = z.object({
     })
     .optional(),
 });
-
-// Comparaison EXACTE sur email, même liste que plan-limiter (jamais de
-// match partiel).
-const QA_TEST_EMAILS = new Set<string>(["laetitiatest@nowadaysagency.com"]);
 
 const RECRAFT_URL = "https://external.api.recraft.ai/v1/images/generations";
 const RECRAFT_TIMEOUT_MS = 60_000;
@@ -91,19 +87,14 @@ serve(async (req) => {
     const { concepts } = parsed;
     const bodyWorkspaceId = parsed.workspace_id ?? null;
 
-    // qa_overrides réservé au compte de test
+    // qa_overrides réservé au compte de test (bypass déterministe par UUID,
+    // cf. QA_TEST_USER_IDS dans plan-limiter).
     let overrides: NonNullable<typeof parsed.qa_overrides> = {};
     if (parsed.qa_overrides) {
-      try {
-        const { data: userRow } = await supabase.auth.admin.getUserById(userId);
-        const email = (userRow?.user?.email || "").toLowerCase();
-        if (email && QA_TEST_EMAILS.has(email)) {
-          overrides = parsed.qa_overrides;
-        } else {
-          console.warn("[recraft-picto] qa_overrides ignoré (compte non QA)", { userId });
-        }
-      } catch (_) {
-        // silencieux : overrides ignorés si la lookup échoue
+      if (isQaTestAccount(userId)) {
+        overrides = parsed.qa_overrides;
+      } else {
+        console.warn("[recraft-picto] qa_overrides ignoré (compte non QA)", { userId });
       }
     }
 
