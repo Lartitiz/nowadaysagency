@@ -281,3 +281,6 @@ verify_jwt = false
 
 [functions.photo-dump-plan]
 verify_jwt = false
+
+[functions.carousel-slide-image]
+verify_jwt = false

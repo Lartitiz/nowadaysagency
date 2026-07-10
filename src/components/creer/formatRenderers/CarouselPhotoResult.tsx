@@ -23,6 +23,9 @@ import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import {
   AlertDialog,
@@ -37,6 +40,10 @@ import {
 
 const MAX_SLIDES = 20;
 const MIN_SLIDES = 2;
+
+// Chips d'ajustement de la génération d'image (lot 2) — envoyées telles quelles
+// à l'edge, appliquées PAR-DESSUS la directive d'origine.
+const GEN_CHIPS = ["Autre ambiance", "Avec une personne", "Fond net", "Plus naturel"];
 
 export interface CarouselColors {
   primary: string;
@@ -282,6 +289,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // Casting (régime texte d'abord) : dialog bibliothèque pour la slide ciblée (index 0-based).
   const [libraryPickSlideIdx, setLibraryPickSlideIdx] = useState<number | null>(null);
   const [libraryImporting, setLibraryImporting] = useState(false);
+  // Génération IA par slide (lot 2) : proposition en cours par index de slide.
+  // Chaque appel repart de la photo_directive d'ORIGINE (jamais de l'image
+  // précédente) — l'ajustement s'applique par-dessus, côté edge.
+  const [genState, setGenState] = useState<Record<number, { loading: boolean; image?: string; error?: string }>>({});
+  const navigate = useNavigate();
+  const castingWorkspaceId = useWorkspaceId();
   // Confirmation de suppression : index de la slide à supprimer (null = fermé).
   const [deleteIdx, setDeleteIdx] = useState<number | null>(null);
 
@@ -493,6 +506,66 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     }
   };
 
+  // Génération IA de l'image d'une slide depuis sa directive (lot 2).
+  // 1 crédit par appel (edge carousel-slide-image, gpt-image-2, gate Premium).
+  const generateForSlide = async (idx: number, adjustment?: string) => {
+    const directive = (slides[idx]?.photo_directive as string | undefined)?.trim();
+    if (!directive || genState[idx]?.loading) return;
+    setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: true, error: undefined } }));
+    const { data, error } = await invokeWithTimeout(
+      "carousel-slide-image",
+      {
+        body: {
+          directive,
+          workspace_id: castingWorkspaceId || undefined,
+          ...(adjustment ? { adjustment } : {}),
+        },
+      },
+      200_000,
+    );
+    if (data?.error === "premium_required") {
+      setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false } }));
+      toast.error("La génération d'images est réservée au plan Premium", {
+        description: "Passe en Premium pour créer les images de tes slides.",
+        action: { label: "Voir les plans", onClick: () => navigate("/abonnement") },
+      });
+      return;
+    }
+    if (data?.error === "limit_reached" || error?.isRateLimit) {
+      setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false } }));
+      toast.error("Tu as utilisé toutes tes retouches photo du mois", {
+        description: "Elles se rechargent au début du mois prochain.",
+      });
+      return;
+    }
+    if (error || typeof data?.image !== "string" || !data.image) {
+      const msg = error?.message || data?.error || "Réessaie dans quelques instants.";
+      setGenState((p) => ({ ...p, [idx]: { ...p[idx], loading: false, error: msg } }));
+      toast.error("Génération impossible", { description: msg });
+      return;
+    }
+    setGenState((p) => ({ ...p, [idx]: { loading: false, image: data.image } }));
+  };
+
+  // « Garder cette image » : la proposition générée devient la photo de la slide.
+  const keepGeneratedImage = (idx: number) => {
+    const img = genState[idx]?.image;
+    if (!img) return;
+    handleSwapPhoto(idx, {
+      id: crypto.randomUUID(),
+      base64: img,
+      preview: img,
+      name: `slide-${slides[idx]?.slide_number || idx + 1}-generee.jpg`,
+      mimeType: "image/jpeg",
+      context: "",
+    }, "generated");
+    setGenState((p) => {
+      const n = { ...p };
+      delete n[idx];
+      return n;
+    });
+  };
+
   // Échappatoire anti-image-forcée : si aucune image ne colle à la directive,
   // la slide photo se convertit en slide texte (le récit reste intact).
   const convertSlideToText = (idx: number) => {
@@ -596,6 +669,76 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   ];
   const setColor = (key: keyof CarouselColors, value: string) => {
     onColorsChange?.({ ...effectiveColors, [key]: value });
+  };
+
+  // Bloc « proposition générée » (lot 2) — partagé entre la carte à caster et
+  // la carte déjà castée (« Générer à la place »). La régénération et les chips
+  // repartent toujours de la directive d'origine.
+  const renderGenerationBlock = (idx: number) => {
+    const g = genState[idx];
+    if (!g) return null;
+    if (g.loading) {
+      return (
+        <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3 flex items-center gap-2 text-xs text-muted-foreground">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin text-primary" />
+          Génération de l'image en cours… (~1 min, d'après la directive et ta charte)
+        </div>
+      );
+    }
+    if (g.image) {
+      return (
+        <div className="mt-2 rounded-lg border border-primary/20 bg-primary/5 p-3 space-y-2">
+          <div className="flex gap-3 items-start">
+            <img
+              src={g.image}
+              alt="Proposition générée"
+              className="h-40 w-auto rounded-md object-cover border border-border"
+            />
+            <div className="min-w-0 flex-1 space-y-2">
+              <p className="text-xs font-medium text-foreground">
+                <Sparkles size={13} className="inline mr-1 text-primary" />
+                Proposition générée
+              </p>
+              <p className="text-2xs text-muted-foreground">
+                D'après la directive de la slide + ta charte visuelle.
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                <Button type="button" size="sm" className="h-7 text-xs" onClick={() => keepGeneratedImage(idx)}>
+                  Garder cette image
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-xs"
+                  onClick={() => generateForSlide(idx)}
+                >
+                  <RefreshCw size={13} className="mr-1" />
+                  Régénérer · 1 crédit
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {GEN_CHIPS.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => generateForSlide(idx, chip)}
+                    className="rounded-full border border-border bg-background px-2.5 py-0.5 text-2xs text-muted-foreground hover:border-primary/40 hover:text-foreground transition-colors"
+                    title={`Régénérer (1 crédit) : ${chip}`}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    if (g.error) {
+      return <p className="mt-2 text-2xs text-destructive">⚠ {g.error}</p>;
+    }
+    return null;
   };
 
   // ═══ Casting (régime texte d'abord) ═══
@@ -848,6 +991,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                             Banque d'images / import
                           </Button>
                         )}
+                        {onAddPhoto && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            disabled={genState[idx]?.loading}
+                            onClick={() => generateForSlide(idx)}
+                          >
+                            <Sparkles size={13} className="mr-1" />
+                            Générer l'image · 1 crédit
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="ghost"
@@ -860,6 +1016,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                           Passer en slide texte
                         </Button>
                       </div>
+                      {renderGenerationBlock(idx)}
                     </div>
                   );
                 }
@@ -891,6 +1048,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                             Castée depuis ta bibliothèque
                           </Badge>
                         )}
+                        {slide.cast_source === "generated" && (
+                          <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary border-transparent">
+                            <Sparkles size={10} className="mr-1" />
+                            Image générée
+                          </Badge>
+                        )}
                         {onAddPhoto && (
                           <Button
                             type="button"
@@ -904,15 +1067,30 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                           </Button>
                         )}
                         {slide.photo_directive && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 text-xs text-muted-foreground"
-                            onClick={() => setLibraryPickSlideIdx(idx)}
-                          >
-                            Ma bibliothèque
-                          </Button>
+                          <div className="flex flex-wrap gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-muted-foreground"
+                              onClick={() => setLibraryPickSlideIdx(idx)}
+                            >
+                              Ma bibliothèque
+                            </Button>
+                            {onAddPhoto && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-muted-foreground"
+                                disabled={genState[idx]?.loading}
+                                onClick={() => generateForSlide(idx)}
+                              >
+                                <Sparkles size={13} className="mr-1" />
+                                Générer à la place · 1 crédit
+                              </Button>
+                            )}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -921,6 +1099,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                         🎯 {slide.photo_directive}
                       </p>
                     )}
+                    {renderGenerationBlock(idx)}
                   </div>
                 );
               })()}
