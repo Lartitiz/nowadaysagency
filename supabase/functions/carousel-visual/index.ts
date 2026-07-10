@@ -12,7 +12,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
-import { enforceAnchoredText, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
+import { enforceAnchoredText, ensureAnchor, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
 /**
@@ -1887,19 +1887,47 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
     if (Array.isArray(result?.slides_html)) {
       const srcText = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
       let verbatimFixes = 0;
+      let anchorsAdded = 0;
+      let anchorsUnmatched = 0;
       result.slides_html = result.slides_html.map((slide: any) => {
         const src = srcText.get(slide.slide_number) as any;
         // Slides texte uniquement — l'overlay photo a sa propre passe de lisibilité.
         if (!src || (src.slide_type && src.slide_type !== "text_only")) return slide;
+        let slideHtml: string = slide?.html || "";
+        let changed = false;
+        // Ancre title MANQUANTE (audit 10/07 : slides à visual_schema, ~3 runs
+        // sur 4) : on la pose sur l'élément au texte identique AVANT la passe
+        // verbatim, sinon l'édition live retombe sur le repli par correspondance
+        // de texte de carousel-html-edit.ts.
+        if (typeof src.title === "string" && src.title.trim()) {
+          const ensured = ensureAnchor(slideHtml, "title", src.title);
+          if (ensured.status === "added") {
+            slideHtml = ensured.html;
+            changed = true;
+            anchorsAdded++;
+          } else if (ensured.status === "unmatched") {
+            anchorsUnmatched++;
+          }
+        }
         const anchors: VerbatimAnchor[] = [];
         if (typeof src.title === "string" && src.title.trim()) anchors.push({ field: "title", text: src.title });
         if (typeof src.body === "string" && src.body.trim()) anchors.push({ field: "body", text: src.body });
-        if (anchors.length === 0) return slide;
-        const { html, fixes } = enforceAnchoredText(slide?.html || "", anchors);
-        if (fixes.length === 0) return slide;
-        verbatimFixes += fixes.length;
-        return { ...slide, html };
+        if (anchors.length > 0) {
+          const { html, fixes } = enforceAnchoredText(slideHtml, anchors);
+          if (fixes.length > 0) {
+            slideHtml = html;
+            changed = true;
+            verbatimFixes += fixes.length;
+          }
+        }
+        return changed ? { ...slide, html: slideHtml } : slide;
       });
+      if (anchorsAdded > 0) {
+        console.warn(`carousel-visual: ${anchorsAdded} ancre(s) data-slide-text="title" ajoutée(s) (garde déterministe)`);
+      }
+      if (anchorsUnmatched > 0) {
+        console.warn(`carousel-visual: ${anchorsUnmatched} slide(s) avec title sans ancre ni élément au texte identique (repli texte côté édition)`);
+      }
       if (verbatimFixes > 0) {
         console.warn(`carousel-visual: ${verbatimFixes} texte(s) ancré(s) réécrit(s) verbatim (garde déterministe)`);
       }

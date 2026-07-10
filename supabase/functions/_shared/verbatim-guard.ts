@@ -58,6 +58,25 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
+/** Balise fermante correspondante, en comptant les imbrications du MÊME tag. */
+function findClosingTag(
+  html: string,
+  tag: string,
+  contentStart: number,
+): { contentEnd: number; end: number } | null {
+  const tagRe = new RegExp(`<(/?)${tag}(?=[\\s>/])((?:[^>"']|"[^"]*"|'[^']*')*)>`, "gi");
+  tagRe.lastIndex = contentStart;
+  let depth = 1;
+  let t: RegExpExecArray | null;
+  while ((t = tagRe.exec(html))) {
+    const selfClosing = /\/\s*$/.test(t[2] || "");
+    if (t[1] === "/") depth--;
+    else if (!selfClosing) depth++;
+    if (depth === 0) return { contentEnd: t.index, end: t.index + t[0].length };
+  }
+  return null; // fermeture introuvable → on ne touche pas
+}
+
 /** Localise l'élément ancré : [début balise ouvrante, début contenu, début balise fermante, fin]. */
 function findAnchoredElement(
   html: string,
@@ -68,22 +87,10 @@ function findAnchoredElement(
   );
   const m = openRe.exec(html);
   if (!m) return null;
-  const tag = m[1].toLowerCase();
-  const openStart = m.index;
   const contentStart = m.index + m[0].length;
-
-  // Balise fermante correspondante, en comptant les imbrications du MÊME tag.
-  const tagRe = new RegExp(`<(/?)${tag}(?=[\\s>/])((?:[^>"']|"[^"]*"|'[^']*')*)>`, "gi");
-  tagRe.lastIndex = contentStart;
-  let depth = 1;
-  let t: RegExpExecArray | null;
-  while ((t = tagRe.exec(html))) {
-    const selfClosing = /\/\s*$/.test(t[2] || "");
-    if (t[1] === "/") depth--;
-    else if (!selfClosing) depth++;
-    if (depth === 0) return { openStart, contentStart, contentEnd: t.index, end: t.index + t[0].length };
-  }
-  return null; // fermeture introuvable → on ne touche pas
+  const close = findClosingTag(html, m[1].toLowerCase(), contentStart);
+  if (!close) return null;
+  return { openStart: m.index, contentStart, contentEnd: close.contentEnd, end: close.end };
 }
 
 export interface VerbatimAnchor {
@@ -114,4 +121,53 @@ export function enforceAnchoredText(
     fixes.push(field);
   }
   return { html: out, fixes };
+}
+
+// Balises jamais candidates à porter une ancre : conteneurs de code/style,
+// vides (void elements) ou structurelles.
+const ANCHOR_SKIP_TAGS = new Set([
+  "script", "style", "svg", "html", "head", "body",
+  "br", "hr", "img", "input", "meta", "link", "source", "track", "area", "base", "col", "embed", "wbr",
+]);
+
+/**
+ * Pose l'ancre data-slide-text="<field>" quand elle MANQUE (audit 10/07 : les
+ * slides à visual_schema sortent sans ancre title dans ~3 runs sur 4, l'édition
+ * live retombe alors sur le repli par correspondance de texte, fragile).
+ * Cherche l'élément dont le texte rendu normalisé (normalizeForCompare) égale
+ * exactement le texte source ; parmi plusieurs candidats imbriqués, prend le
+ * plus PETIT — celui qui contient directement le texte — pour que l'édition
+ * live ne patche que lui. Texte éclaté ou réécrit → HTML inchangé ("unmatched").
+ */
+export function ensureAnchor(
+  html: string,
+  field: string,
+  text: string,
+): { html: string; status: "present" | "added" | "unmatched" } {
+  const source = normalizeForCompare(text || "");
+  if (!html || !source) return { html: html || "", status: "unmatched" };
+  if (findAnchoredElement(html, field)) return { html, status: "present" };
+
+  const openRe = /<([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+  let best: { openStart: number; contentStart: number; size: number } | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = openRe.exec(html))) {
+    const tag = m[1].toLowerCase();
+    if (ANCHOR_SKIP_TAGS.has(tag)) continue;
+    if (/\/\s*$/.test(m[2] || "")) continue; // auto-fermante
+    if (/\bdata-slide-text\s*=/.test(m[2] || "")) continue; // déjà ancré pour un autre champ
+    const contentStart = m.index + m[0].length;
+    const close = findClosingTag(html, tag, contentStart);
+    if (!close) continue;
+    if (normalizeForCompare(stripTags(html.slice(contentStart, close.contentEnd))) !== source) continue;
+    const size = close.contentEnd - contentStart;
+    if (!best || size < best.size) best = { openStart: m.index, contentStart, size };
+  }
+  if (!best) return { html, status: "unmatched" };
+  const openTag = html.slice(best.openStart, best.contentStart);
+  const patched = openTag.replace(/>$/, ` data-slide-text="${field}">`);
+  return {
+    html: html.slice(0, best.openStart) + patched + html.slice(best.contentStart),
+    status: "added",
+  };
 }
