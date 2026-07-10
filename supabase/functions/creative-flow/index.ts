@@ -15,6 +15,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -1339,10 +1340,18 @@ Réponds UNIQUEMENT en JSON :
         if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
           try {
             emitStatus("correcting");
+            const nlAllowed = numbersIn([
+              typeof body.context === "string" ? body.context : "",
+              body.answers ? JSON.stringify(body.answers) : "",
+              typeof body.news_context === "string" ? body.news_context : "",
+              fullContext || "",
+            ].join("\n"));
+            const nlRedac = analyzeTextRedac(parsed.content, nlAllowed);
             const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
               logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
               // Édition mécanique à règles fermées → Haiku (cf. #364)
               model: "claude-haiku-4-5",
+              extraInstructions: buildTextFixInstructions(nlRedac) || undefined,
             });
             if (corrected && corrected.length >= 200) {
               parsed.content = corrected;
@@ -1903,10 +1912,21 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       parsed.content.length >= 200
     ) {
       try {
+        // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
+        // passe de correction existante — retournements (1 max), formules
+        // moulées, chiffres sans source (liste blanche = brief + réponses + actu).
+        const liAllowed = numbersIn([
+          typeof body.context === "string" ? body.context : "",
+          body.answers ? JSON.stringify(body.answers) : "",
+          typeof body.news_context === "string" ? body.news_context : "",
+          fullContext || "",
+        ].join("\n"));
+        const liRedac = analyzeTextRedac(parsed.content, liAllowed);
         const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
           logger: (msg) => console.log(msg),
           // Édition mécanique à règles fermées → Haiku (cf. #364)
           model: "claude-haiku-4-5",
+          extraInstructions: buildTextFixInstructions(liRedac) || undefined,
         });
         if (corrected && corrected.length >= 100) {
           parsed.content = corrected;
