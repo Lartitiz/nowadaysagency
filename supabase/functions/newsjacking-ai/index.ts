@@ -611,9 +611,13 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     // réponse arrive sans bloc JSON final (= « Réponse IA invalide » en vagues,
     // constaté 09-10/07 avec AI_MODEL_SONNET=claude-sonnet-5). Ce fetch brut
     // n'utilise pas le helper partagé (web search) → on applique la même garde ici.
+    // 8192 (et pas 4096) : la sortie compte les blocs texte intercalés entre les
+    // web_search + le JSON final (jusqu'à 6 actus), et le tokenizer Sonnet 5
+    // (~+30 %) fait déborder le défaut (même panne que le reel, PR #477).
+    // Plafond non consommé = non facturé.
     const requestBody: Record<string, unknown> = {
       model,
-      max_tokens: 6000,
+      max_tokens: 8192,
       ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
       messages: [{ role: "user", content: systemPrompt + exclusionBlock + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
@@ -774,9 +778,12 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
     }
 
     if (!parsed) {
-      console.error("No JSON found in response. Text preview:", fullText.slice(0, 800));
-      return new Response(JSON.stringify({ error: "Réponse IA invalide. Réessaie." }), {
-        status: 500,
+      console.error("No JSON found in response. stop_reason:", data?.stop_reason, "Text preview:", fullText.slice(0, 800));
+      const errMsg = data?.stop_reason === "max_tokens"
+        ? "La recherche a produit une réponse trop longue et a été coupée. Réessaie."
+        : "Réponse IA invalide. Réessaie.";
+      return new Response(JSON.stringify({ error: errMsg }), {
+        status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
