@@ -196,7 +196,7 @@ export async function stockPhotoToPhotoItem(stock: StockPhoto): Promise<PhotoIte
   };
 }
 
-async function blobToResizedBase64(
+export async function blobToResizedBase64(
   blob: Blob,
 ): Promise<{ base64: string; mimeType: string }> {
   try {

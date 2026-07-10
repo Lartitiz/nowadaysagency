@@ -284,3 +284,6 @@ verify_jwt = false
 
 [functions.carousel-slide-image]
 verify_jwt = false
+
+[functions.news-photo-search]
+verify_jwt = false

@@ -179,7 +179,8 @@ RÈGLES SPÉCIFIQUES (remplacent les règles de composition liées aux photos fo
   · "photo_directive" : 1-2 phrases en FRANÇAIS décrivant l'image idéale — concrète et tournable (sujet précis, cadrage, lumière, ambiance), ancrée dans l'activité et l'univers de l'utilisatrice, cohérente avec l'overlay de la slide. Pas de « une jolie photo inspirante ».
   · "photo_query_en" : 2-4 mots-clés en ANGLAIS pour une banque d'images (ex : "hands pottery clay").
   · "library_photo_index" : numéro du catalogue si match STRICT, sinon null.${catalog.length === 0 ? ` (Aucun catalogue fourni : null partout.)` : ""}
-- INTERDIT dans photo_directive : demander l'image d'une personnalité réelle, d'une marque tierce ou d'un événement d'actualité précis (droit à l'image). L'image illustre TON propos et TON terrain — l'actu vit dans le TEXTE des slides, pas dans les images.
+  · "news_entity" : SI le contexte actualité porte sur une personnalité, une marque, une œuvre ou un événement PRÉCIS et nommé, ET que CETTE slide gagnerait à montrer une vraie photo de presse de cette entité, renseigne le nom exact tel qu'on le chercherait dans une banque d'images (ex : "Zendaya", "Patagonia", "Jeux Olympiques Paris"). Sinon null. Au plus 1-2 slides avec news_entity.
+- INTERDIT dans photo_directive : demander l'image d'une personnalité réelle, d'une marque tierce ou d'un événement d'actualité précis (droit à l'image). L'image illustre TON propos et TON terrain — l'actu vit dans le TEXTE des slides. Une photo réelle de l'entité ne peut venir QUE d'une banque de presse libre de droits, via "news_entity" : la photo_directive reste l'alternative générique SANS l'entité.
 ${catalogBlock}`;
 }
 
@@ -204,6 +205,7 @@ function enforceTextFirstDirectives(content: string): string {
         delete s.photo_directive;
         delete s.photo_query_en;
         delete s.library_photo_index;
+        delete s.news_entity;
       }
     });
     if (missingDirectives > 0) {
