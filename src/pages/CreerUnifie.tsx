@@ -1437,7 +1437,15 @@ export default function CreerUnifie() {
           body: structureBody,
         }, structureTimeout);
         if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
+        // Photos sans rapport avec le sujet : erreur actionnable de l'edge
+        // (rien débité). Pas de repli en génération directe — elle verrait les
+        // mêmes photos et re-refuserait, en payant un appel de plus.
+        if (data?.error === "photo_mismatch") {
+          toast.error(data.message, { duration: 12000 });
+          setStep("format");
+          return;
+        }
+        if (data?.error) throw new Error(data.message || data.error);
         if (data?.result) {
           setStructureProposal(data.result);
           setStep("structure_review");
