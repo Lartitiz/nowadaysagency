@@ -86,6 +86,39 @@ export interface RunPhotoDumpResult {
  * (l'appelant continue alors le flux normal avec les photos attachées).
  * Lève PremiumRequiredError si une slide payante tombe sur le gate Premium.
  */
+
+/**
+ * Redimensionne une data URL en JPEG ≤ 1440 px (qualité 0,82). Les photos de
+ * bibliothèque arrivent à leur taille stockée (jusqu'à 5 Mo) : sans cette
+ * passe, le corps envoyé à carousel-ai dépasse la limite de l'edge — rejet
+ * avant les en-têtes CORS (vu au re-test live du 10/07, erreur « CORS »).
+ */
+async function downscaleDataUrl(dataUrl: string): Promise<string> {
+  try {
+    const img = new Image();
+    await new Promise<void>((res, rej) => {
+      img.onload = () => res();
+      img.onerror = () => rej(new Error("image invalide"));
+      img.src = dataUrl;
+    });
+    const MAX = 1440;
+    let { width, height } = img;
+    if (width <= MAX && height <= MAX && dataUrl.length < 900_000) return dataUrl;
+    if (width > MAX || height > MAX) {
+      const r = Math.min(MAX / width, MAX / height);
+      width = Math.round(width * r);
+      height = Math.round(height * r);
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.82);
+  } catch {
+    return dataUrl;
+  }
+}
+
 export async function runPhotoDump(opts: RunPhotoDumpOptions): Promise<RunPhotoDumpResult | null> {
   // 1. Plan narratif (micro-appel, non facturé)
   const { data: planData, error: planError } = await invokeWithTimeout(
@@ -306,6 +339,13 @@ export async function runPhotoDump(opts: RunPhotoDumpOptions): Promise<RunPhotoD
       if (e instanceof PremiumRequiredError) throw e;
       finish(false);
     }
+  }
+
+  // Passe de compression unique avant de rendre la main au flux carrousel
+  for (const p of photos) {
+    p.base64 = await downscaleDataUrl(p.base64);
+    p.preview = p.base64;
+    p.mimeType = "image/jpeg";
   }
 
   return { photos, narrativeThread, skipped };
