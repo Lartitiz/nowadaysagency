@@ -4,7 +4,7 @@
  * Pattern copié depuis chat-guide/index.ts (déjà en production).
  */
 
-import { sanitizeStyle, supportsTemperature, stripTrailingAssistant, type AnthropicUsage } from "./anthropic.ts";
+import { sanitizeStyle, supportsTemperature, stripTrailingAssistant, forcesDisabledThinking, type AnthropicUsage } from "./anthropic.ts";
 
 export async function streamAnthropicSSE(
   apiKey: string,
@@ -32,6 +32,10 @@ export async function streamAnthropicSSE(
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
       messages: finalMessages,
       ...(sampled ? { temperature } : {}),
+      // Sonnet 5 : thinking adaptatif ON si le champ est omis → blocs thinking
+      // qui mangent max_tokens sans produire de text_delta. Même garde que le
+      // helper non-streaming (anthropic.ts).
+      ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
       max_tokens: maxTokens,
       stream: true,
     }),
