@@ -5,6 +5,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { friendlyError } from "@/lib/error-messages";
 import { isPublicImageUrl } from "@/lib/instagram-publish";
 import { toLocalDateStr, cn } from "@/lib/utils";
@@ -202,11 +203,16 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
               if (!pdfErr) {
                 const { data: pdfData } = supabase.storage.from("calendar-media").getPublicUrl(pdfPath);
                 if (pdfData?.publicUrl) setPdfUrl(pdfData.publicUrl);
+              } else {
+                toast("PDF d'origine non conservé", { description: "L'import continue avec les images ; le carrousel LinkedIn utilisera les visuels au lieu du PDF natif." });
               }
-            } catch { /* le PDF d'origine est optionnel (fallback = images) */ }
+            } catch {
+              toast("PDF d'origine non conservé", { description: "L'import continue avec les images ; le carrousel LinkedIn utilisera les visuels au lieu du PDF natif." });
+            }
           }
         } else if (file.type.startsWith("image/")) {
-          if (file.size > 10 * 1024 * 1024) { toast.error("Image trop lourde (max 10 Mo)"); continue; }
+          const sizeErr = uxSizeError(file, UX_UPLOAD_LIMITS.media);
+          if (sizeErr) { toast.error(sizeErr); continue; }
           imageFiles.push(file);
         } else {
           toast.error("Format non géré", { description: "Ajoute des images ou un PDF." });

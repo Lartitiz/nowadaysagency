@@ -497,9 +497,9 @@ export default function BrandCharterPage() {
     const file = inputEl.files?.[0];
     if (!file || !user) return;
 
-    // Size guard (5 Mo)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Fichier trop lourd (max 5 Mo)");
+    const sizeErr = uxSizeError(file, UX_UPLOAD_LIMITS.lightAsset);
+    if (sizeErr) {
+      toast.error(sizeErr);
       inputEl.value = "";
       return;
     }

@@ -43,10 +43,11 @@ import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
+import { UX_UPLOAD_LIMITS, formatMb } from "@/lib/upload-limits";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
 const MAX_BATCH = 20;
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = UX_UPLOAD_LIMITS.photo;
 const MAX_TAG_CHIPS = 8;
 
 // Types de photo (classés par l'IA, cf. edge photo-describe) → libellés de filtre
@@ -139,7 +140,7 @@ export default function PhotosPage() {
         continue;
       }
       if (f.size > MAX_FILE_BYTES) {
-        rejected.push(`${f.name} (plus de 25 Mo)`);
+        rejected.push(`${f.name} (plus de ${formatMb(MAX_FILE_BYTES)})`);
         continue;
       }
       files.push(f);

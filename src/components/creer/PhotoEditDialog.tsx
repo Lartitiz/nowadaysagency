@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useBackgroundSuggestions } from "@/hooks/use-background-suggestions";
@@ -50,7 +51,7 @@ const PRESETS: Preset[] = [
   },
 ];
 
-const MAX_BG_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_BG_SIZE_BYTES = UX_UPLOAD_LIMITS.lightAsset;
 
 function fileToDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {

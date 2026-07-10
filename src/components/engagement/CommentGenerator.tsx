@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useBrandProfile } from "@/hooks/use-profile";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -28,7 +29,7 @@ const ANGLES = [
   { value: "expertise", label: "🎓 Expertise" },
 ];
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 Mo
+const MAX_FILE_SIZE = UX_UPLOAD_LIMITS.lightAsset;
 const ACCEPTED_TYPES = ["image/png", "image/jpeg", "image/jpg"];
 
 interface Props {

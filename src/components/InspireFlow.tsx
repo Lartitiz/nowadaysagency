@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { Sparkles, Copy, Save, RefreshCw, ChevronDown, Eye, Trash2, Link2, Upload, X, Mic, MicOff } from "lucide-react";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
@@ -46,7 +47,7 @@ interface HistoryItem {
 }
 
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "application/pdf"];
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = UX_UPLOAD_LIMITS.media;
 const MAX_FILES = 5;
 
 function AnalysisPoint({ label, text }: { label: string; text: string }) {
@@ -124,7 +125,7 @@ export default function InspireFlow() {
     const valid: File[] = [];
     for (const f of Array.from(newFiles)) {
       if (!ACCEPTED_TYPES.includes(f.type)) { toast.error(`Format non accepté : ${f.name}`); continue; }
-      if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop lourd (max 10 Mo) : ${f.name}`); continue; }
+      if (f.size > MAX_FILE_SIZE) { toast.error(uxSizeError(f, MAX_FILE_SIZE)!); continue; }
       valid.push(f);
     }
     setFiles((prev) => {

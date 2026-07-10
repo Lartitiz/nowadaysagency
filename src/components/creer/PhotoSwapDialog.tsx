@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import {
   searchStockPhotos,
@@ -42,7 +43,7 @@ function fileToDataUrl(file: File): Promise<string> {
   });
 }
 
-const MAX_UPLOAD_BYTES = 10 * 1024 * 1024; // 10 Mo
+const MAX_UPLOAD_BYTES = UX_UPLOAD_LIMITS.media;
 
 export default function PhotoSwapDialog({
   open,

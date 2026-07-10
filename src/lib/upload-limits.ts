@@ -8,7 +8,7 @@
 // média calendrier 10 Mo). Ces plafonds volontaires restent locaux ; ce module
 // ne reflète que le plafond serveur (le maximum absolu par bucket).
 
-const MB = 1024 * 1024;
+export const MB = 1024 * 1024;
 
 // Plafonds serveur par bucket — synchronisés avec la migration SQL.
 export const BUCKET_SIZE_LIMITS: Record<string, number> = {
@@ -22,8 +22,37 @@ export const BUCKET_SIZE_LIMITS: Record<string, number> = {
 
 const DEFAULT_LIMIT = 25 * MB;
 
-function formatMb(bytes: number): string {
+export function formatMb(bytes: number): string {
   return `${Math.round(bytes / MB)} Mo`;
+}
+
+// Plafonds UX volontaires, par usage (sous les plafonds serveur ci-dessus).
+// Source unique : les call sites ne redéclarent plus leurs littéraux — un même
+// usage doit refuser à la même taille partout, avec le même message.
+// - photo      : photos de contenu (biblio, retouche, carrousel) ; compressées
+//                côté client après la garde (canvas 2048px / cible 5 Mo)
+// - media      : médias et documents envoyés tels quels ou en base64 aux edges
+//                (calendrier, imports, branding, audits)
+// - lightAsset : petits assets re-traités par une edge (logo, fond de retouche,
+//                screenshot de feedback) — base64 dans le payload, donc strict
+export const UX_UPLOAD_LIMITS = {
+  photo: 25 * MB,
+  media: 10 * MB,
+  lightAsset: 5 * MB,
+} as const;
+
+/**
+ * Message d'erreur uniforme si le fichier dépasse un plafond UX, sinon `null`.
+ * Ne remplace pas `checkUploadSize` (plafond serveur par bucket) : ici c'est
+ * la garde volontaire du point d'entrée.
+ */
+export function uxSizeError(
+  file: { size: number; name?: string },
+  limitBytes: number,
+): string | null {
+  if (file.size <= limitBytes) return null;
+  const label = file?.name ? `« ${file.name} »` : "Ce fichier";
+  return `${label} est trop lourd (${formatMb(file.size)}). Taille maximale : ${formatMb(limitBytes)}.`;
 }
 
 /**

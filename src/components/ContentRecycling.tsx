@@ -14,6 +14,7 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS } from "@/lib/upload-limits";
 import { posthog } from "@/lib/posthog";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
@@ -27,7 +28,7 @@ const FORMATS = [
 ];
 
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = UX_UPLOAD_LIMITS.media;
 const MAX_FILES = 10;
 
 interface UploadedFile {
