@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate, Link } from "react-router-dom";
@@ -288,6 +288,13 @@ export default function LandingPage() {
     description: "L'assistant de communication pour solopreneuses et créatrices éthiques. Branding, contenus IA, stratégie Instagram & LinkedIn. Gratuit, sans carte bancaire.",
     canonical: "/",
   });
+
+  // React Router ne scrolle pas vers le hash (ex: /#signup-section depuis /login).
+  useEffect(() => {
+    if (loading || user) return;
+    const id = window.location.hash.slice(1);
+    if (id) document.getElementById(id)?.scrollIntoView();
+  }, [loading, user]);
 
   if (loading) {
     return (

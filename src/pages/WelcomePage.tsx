@@ -24,6 +24,16 @@ const TIME_LABELS: Record<string, string> = {
   more_10h: "Plus de 10h",
 };
 
+// Réponse brute de l'onboarding (profiles.weekly_time) — prioritaire sur le
+// bucket du plan pour refléter exactement ce que l'utilisatrice a répondu.
+const ONBOARDING_TIME_LABELS: Record<string, string> = {
+  "15min": "15 min par-ci par-là",
+  "30min": "30 minutes",
+  "1h": "1 heure",
+  "2h": "2 heures",
+  more: "Plus de 2 heures",
+};
+
 const IMPACT_COLORS: Record<string, string> = {
   high: "bg-destructive/10 text-destructive",
   medium: "bg-primary/10 text-primary",
@@ -315,6 +325,7 @@ export default function WelcomePage() {
 
   const prenom = (profileData as any)?.prenom || "";
   const channels: string[] = (profileData as any)?.canaux || [];
+  const onboardingTime = (profileData as any)?.weekly_time || "";
 
   useEffect(() => {
     if (!user) return;
@@ -770,9 +781,9 @@ export default function WelcomePage() {
                 🎯 {GOAL_LABELS[goal] || goal}
               </span>
             )}
-            {time && (
+            {(onboardingTime || time) && (
               <span className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium">
-                ⏰ {TIME_LABELS[time] || time}
+                ⏰ {ONBOARDING_TIME_LABELS[onboardingTime] || TIME_LABELS[time] || time}
               </span>
             )}
             {channels.map((ch) => (

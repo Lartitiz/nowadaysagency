@@ -509,7 +509,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
               >
                 <span className="text-2xl block mb-1">🎠</span>
                 <span className="text-xs font-semibold text-foreground">Texte design</span>
-                <p className="text-2xs text-muted-foreground mt-0.5">8-10 slides, design auto, .pptx téléchargeable</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">7-10 slides, design auto, .pptx téléchargeable</p>
               </button>
             )}
             <button
@@ -704,7 +704,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
           // Collapsed chip — replaces the full picker once a sub-mode is selected
           (() => {
             const subModeMeta = {
-              text: { emoji: "📝", label: "Texte design", desc: "L'IA écrit et designe 8-10 slides" },
+              text: { emoji: "📝", label: "Texte design", desc: "L'IA écrit et designe 7-10 slides" },
               photo: { emoji: "📸", label: "Tes photos en fond", desc: "Photos plein écran + texte par-dessus" },
               mix: { emoji: "✨", label: "Photos + slides design", desc: "Alternance photos et slides texte design" },
               pure_photo: { emoji: "🖼️", label: "Photos brutes", desc: "Photos cadrées, aucun texte par-dessus" },
@@ -762,7 +762,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
                     <span className="text-xl">📝</span>
                     <span className="text-sm font-semibold text-foreground">Texte design</span>
                   </div>
-                  <p className="text-2xs leading-snug text-muted-foreground">L'IA écrit et designe 8-10 slides. .pptx téléchargeable.</p>
+                  <p className="text-2xs leading-snug text-muted-foreground">L'IA écrit et designe 7-10 slides. .pptx téléchargeable.</p>
                 </button>
               )}
               <button

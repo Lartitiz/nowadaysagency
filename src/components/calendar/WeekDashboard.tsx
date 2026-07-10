@@ -85,9 +85,10 @@ export function WeekDashboard({
   };
 
   // Simple one-line summary
+  const plurielTotal = total > 1 ? "s" : "";
   const summaryText = isComplete
-    ? `${weekLabel} : ${total} contenus planifiés, ${published} publiés ✅`
-    : `${weekLabel} : ${total} contenus planifiés, ${published} publié${published > 1 ? "s" : ""}`;
+    ? `${weekLabel} : ${total} contenu${plurielTotal} planifié${plurielTotal}, ${published} publié${published > 1 ? "s" : ""} ✅`
+    : `${weekLabel} : ${total} contenu${plurielTotal} planifié${plurielTotal}, ${published} publié${published > 1 ? "s" : ""}`;
 
   return (
     <div className="mb-4">
