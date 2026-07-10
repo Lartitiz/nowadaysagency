@@ -89,6 +89,13 @@ export default function Onboarding() {
     next();
   }, [step, answers, brandingAnswers, next]);
 
+  // Arrivée sur l'onboarding = le marqueur d'inscription fraîche a rempli son
+  // rôle (routage LandingPage/AuthContext). Le consommer ici pour qu'une
+  // connexion ultérieure dans le même onglet ne soit pas déroutée.
+  useEffect(() => {
+    try { sessionStorage.removeItem("lac_fresh_signup"); } catch { /* ignore */ }
+  }, []);
+
   useEffect(() => {
     if (!pendingAutoNext) return;
     if (step !== 3 && step !== 6 && step !== 7 && step !== 8) return;
