@@ -301,7 +301,18 @@ export default function LandingPage() {
     );
   }
 
-  if (user) return <Navigate to="/dashboard" replace />;
+  // Inscription fraîche (marqueur posé par SignupForm) : ce Navigate gagne la
+  // course contre resolvePostAuthRoute — l'effet auth (AuthContext) se
+  // ré-abonne à chaque changement d'identité de `navigate` et son setTimeout
+  // s'annule (`mounted=false`) — donc c'est ICI qu'il faut router vers
+  // /onboarding. Lecture SEULE : le marqueur est consommé à l'arrivée
+  // (montage d'Onboarding) ou par resolvePostAuthRoute, jamais pendant un
+  // render (double render StrictMode = double consommation).
+  if (user) {
+    let freshSignup = false;
+    try { freshSignup = !!sessionStorage.getItem("lac_fresh_signup"); } catch { /* storage indisponible */ }
+    return <Navigate to={freshSignup ? "/onboarding" : "/dashboard"} replace />;
+  }
 
   const scrollTo = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
