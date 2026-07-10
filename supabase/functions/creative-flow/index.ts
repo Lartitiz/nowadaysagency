@@ -7,7 +7,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
@@ -15,6 +15,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -810,7 +811,9 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
-${isReel || isStories ? `` : isNewsletter ? `Réponds UNIQUEMENT en JSON :
+${isReel || isStories ? `` : isNewsletter ? `Un email part en TEXTE BRUT : aucune valeur ne doit contenir de markdown (**gras**, *italique*, ## titres) — les astérisques s'afficheraient tels quels chez le lecteur. Pour un aparté, utilise des parenthèses.
+
+Réponds UNIQUEMENT en JSON :
 {
   "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
   "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
@@ -1349,6 +1352,10 @@ Réponds UNIQUEMENT en JSON :
           }
         }
 
+        // Nettoyage déterministe : un email part en texte brut, le markdown
+        // résiduel (**gras**, *italique*) s'afficherait tel quel (audit 09/07).
+        parsed = stripMarkdownFromNewsletter(parsed);
+
         if (parsed.content && typeof parsed.content === "string") {
           parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
         }
@@ -1838,7 +1845,11 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         max_tokens: 4096,
       }, finalUsage);
     } else {
-      const maxTokens = step === "questions" ? 800 : step === "recycle" ? 12288 : undefined;
+      // 8192 pour la génération de contenu : le JSON reel (script + duplicata `sections`
+      // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
+      // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
+      // coûte rien tant qu'il n'est pas consommé.
+      const maxTokens = step === "questions" ? 800 : step === "recycle" ? 12288 : 8192;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
       const tempText = isLinkedInText ? 0.7 : 0.85;
       // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
@@ -1959,6 +1970,17 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
     if (e?.status === 429) {
       return new Response(JSON.stringify({ error: "Trop de requêtes. Réessaie dans un moment." }), {
         status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Les erreurs Anthropic portent déjà un message utilisateur clair (troncature 422,
+    // surcharge 529, timeout 504…). Avant, la troncature ("La génération a été coupée
+    // car trop longue") tombait dans le message générique "L'IA a eu un blanc" (le
+    // filtre includes("IA") est sensible à la casse) : indiagnosticable depuis le front.
+    if (e instanceof AnthropicError) {
+      console.error("creative-flow anthropic error:", e.status, e.message);
+      const status = e.status >= 400 && e.status <= 599 ? e.status : 500;
+      return new Response(JSON.stringify({ error: e.message }), {
+        status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     console.error("creative-flow error:", e);

@@ -26,7 +26,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { logUsage } from "../_shared/plan-limiter.ts";
+import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 
 // ── Body schema ──
 const BodySchema = z.object({
@@ -60,11 +60,6 @@ const OPENAI_TIMEOUT_MS = 200_000;
 const RETRY_DELAY_MS = 2_000;
 const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
 const PHOTOROOM_TIMEOUT_MS = 45_000;
-
-// Comptes QA : mêmes emails que plan-limiter (bypass quota) — ils gardent un
-// plan "free" réel, le gate Premium doit donc les laisser passer pour que la
-// QA automatisée et les tests live fonctionnent.
-const QA_TEST_EMAILS = new Set<string>(["laetitiatest@nowadaysagency.com"]);
 
 const MODE_TEXT: Record<string, string> = {
   porte: "The product must be WORN by a person.",
@@ -227,18 +222,10 @@ serve(async (req) => {
     // (décision produit 09/07/2026 — gpt-image = feature Premium). Le plan
     // vient du pipeline (même source de vérité que le quota, cf. T19).
     // Statut 200 + error code (pattern limit_reached) pour un parsing front simple.
-    if (quota && quota.plan === "free") {
-      let isQa = false;
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const email = (userData?.user?.email || "").toLowerCase();
-        isQa = QA_TEST_EMAILS.has(email);
-      } catch (_) {
-        // silencieux : sans email on applique le gate normal
-      }
-      if (!isQa) {
-        return jsonResponse({ error: "premium_required" }, 200);
-      }
+    // Le compte QA garde un plan "free" réel mais passe le gate (bypass
+    // déterministe par UUID, cf. QA_TEST_USER_IDS dans plan-limiter).
+    if (quota && quota.plan === "free" && !isQaTestAccount(userId)) {
+      return jsonResponse({ error: "premium_required" }, 200);
     }
 
     // 4. Photo source (RLS-scoped : la cliente ne voit que ses photos)

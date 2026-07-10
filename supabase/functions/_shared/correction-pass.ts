@@ -170,14 +170,17 @@ Cette newsletter pourrait-elle avoir été écrite par une IA ? Si oui → réé
 
 5. EMPILEMENT INSPIRATIONNEL : 2+ phrases-valeurs → exemple concret.
 
-6. MANQUE D'APARTÉS PERSONNELS : ajoute 1-2 parenthèses ou italiques d'autocorrection humaine.
+6. MANQUE D'APARTÉS PERSONNELS : ajoute 1-2 apartés entre parenthèses (autocorrection humaine). PAS d'italique : l'email part en texte brut.
 
 7. LONGUEUR INSUFFISANTE : si < 1500 caractères, développe avec un exemple supplémentaire.
+
+8. MARKDOWN RÉSIDUEL (**gras**, *italique*, ## titre) : supprime les délimiteurs, garde le texte.
 
 ══ RÈGLES ABSOLUES ══
 - Garde le SENS et la CONVICTION.
 - Cible : 2000-3000 caractères.
 - JAMAIS de tiret cadratin (—).
+- JAMAIS de markdown : texte brut uniquement.
 - Écriture inclusive.
 
 Réponds UNIQUEMENT avec la newsletter corrigée, rien d'autre.`,
