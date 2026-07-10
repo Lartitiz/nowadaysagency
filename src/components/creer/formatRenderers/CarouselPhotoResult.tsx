@@ -18,8 +18,9 @@ import { ChevronDown } from "lucide-react";
 
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import LinkedInCaptionEditor from "@/components/linkedin/LinkedInCaptionEditor";
-import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles } from "lucide-react";
+import { AlertTriangle, RefreshCw, ArrowUp, ArrowDown, ImageIcon, ImagePlus, Palette, RotateCcw, Trash2, Plus, Search, Type, Sparkles, Newspaper } from "lucide-react";
 import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
+import NewsPhotoPickerDialog from "@/components/creer/NewsPhotoPickerDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { toast } from "sonner";
@@ -289,6 +290,8 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // Casting (régime texte d'abord) : dialog bibliothèque pour la slide ciblée (index 0-based).
   const [libraryPickSlideIdx, setLibraryPickSlideIdx] = useState<number | null>(null);
   const [libraryImporting, setLibraryImporting] = useState(false);
+  // Photo d'actu libre de droits (lot 3) : dialog Openverse pour la slide ciblée.
+  const [newsPickSlideIdx, setNewsPickSlideIdx] = useState<number | null>(null);
   // Génération IA par slide (lot 2) : proposition en cours par index de slide.
   // Chaque appel repart de la photo_directive d'ORIGINE (jamais de l'image
   // précédente) — l'ajustement s'applique par-dessus, côté edge.
@@ -564,6 +567,34 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       delete n[idx];
       return n;
     });
+  };
+
+  // Photo d'actu libre (lot 3) : pose la photo sur la slide ET injecte la ligne
+  // de crédit dans la légende (obligatoire en CC BY) — en UNE passe d'état pour
+  // que le parent reçoive slides ET caption cohérents dans le même notify.
+  const handleNewsPhotoPick = (idx: number, item: PhotoItem, credit: string) => {
+    const newIndex = onAddPhoto?.(item);
+    if (!newIndex) return;
+    const nextSlides = slides.map((s: any, i: number) =>
+      i === idx
+        ? { ...s, photo_index: newIndex, cast_source: "news_stock", photo_credit: credit }
+        : s,
+    );
+    let nextCaption = caption;
+    const alreadyThere =
+      (caption.body || "").includes(credit) || (caption.fullText || "").includes(credit);
+    if (credit && !alreadyThere) {
+      const body = (caption.body || "").trim();
+      nextCaption = { ...caption, body: body ? `${body}\n\n${credit}` : credit };
+      nextCaption.fullText = composeFullText(nextCaption);
+    }
+    setSlides(nextSlides);
+    setCaption(nextCaption);
+    notify(nextSlides, nextCaption);
+    if (nextCaption !== caption) {
+      toast("Crédit photo ajouté à la légende", { description: credit });
+    }
+    setNewsPickSlideIdx(null);
   };
 
   // Échappatoire anti-image-forcée : si aucune image ne colle à la directive,
@@ -979,6 +1010,19 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                           <ImageIcon size={13} className="mr-1" />
                           Ma bibliothèque
                         </Button>
+                        {onAddPhoto && slide.news_entity && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="h-7 text-xs"
+                            onClick={() => setNewsPickSlideIdx(idx)}
+                            title={`Photos libres de droits de « ${slide.news_entity} » (crédit ajouté à la légende)`}
+                          >
+                            <Newspaper size={13} className="mr-1" />
+                            Photo d'actu (libre)
+                          </Button>
+                        )}
                         {onAddPhoto && (
                           <Button
                             type="button"
@@ -991,7 +1035,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                             Banque d'images / import
                           </Button>
                         )}
-                        {onAddPhoto && (
+                        {/* Jamais de personnalité/marque générée par IA : le bouton
+                            Générer est masqué quand la slide vise une entité d'actu. */}
+                        {onAddPhoto && !slide.news_entity && (
                           <Button
                             type="button"
                             variant="outline"
@@ -1054,6 +1100,12 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                             Image générée
                           </Badge>
                         )}
+                        {slide.cast_source === "news_stock" && (
+                          <Badge variant="secondary" className="text-2xs bg-primary/10 text-primary border-transparent">
+                            <Newspaper size={10} className="mr-1" />
+                            Photo d'actu — crédit dans la légende
+                          </Badge>
+                        )}
                         {onAddPhoto && (
                           <Button
                             type="button"
@@ -1077,7 +1129,21 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                             >
                               Ma bibliothèque
                             </Button>
-                            {onAddPhoto && (
+                            {onAddPhoto && slide.news_entity && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-7 text-xs text-muted-foreground"
+                                onClick={() => setNewsPickSlideIdx(idx)}
+                              >
+                                <Newspaper size={13} className="mr-1" />
+                                Photo d'actu
+                              </Button>
+                            )}
+                            {/* Pas de génération IA quand la slide vise une entité
+                                d'actu (jamais de personnalité générée). */}
+                            {onAddPhoto && !slide.news_entity && (
                               <Button
                                 type="button"
                                 variant="ghost"
@@ -1344,6 +1410,18 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
             return s?.photo_query_en || s?.photo_directive || r?.subject || result?.subject || "";
           })()}
           onSelect={(photo) => handleSwapPhoto(swapSlideIdx, photo)}
+        />
+      )}
+
+      {/* Casting : photo d'actu libre de droits (Openverse) pour la slide ciblée */}
+      {newsPickSlideIdx !== null && (
+        <NewsPhotoPickerDialog
+          open={newsPickSlideIdx !== null}
+          onOpenChange={(o) => { if (!o) setNewsPickSlideIdx(null); }}
+          defaultQuery={(slides[newsPickSlideIdx]?.news_entity as string) || ""}
+          onSelect={(photo, credit) => {
+            if (newsPickSlideIdx !== null) handleNewsPhotoPick(newsPickSlideIdx, photo, credit);
+          }}
         />
       )}
 

@@ -8,6 +8,40 @@ export interface CalendarContent {
   storyDetail: any;
 }
 
+/**
+ * Cap déterministe des hashtags (règle : 3 max Instagram, ciblés) — le modèle
+ * en sort 5+ malgré la consigne. Dédoublonne (insensible casse/#) et garde
+ * les premiers, formes d'origine préservées.
+ */
+export function capHashtags(list: unknown, max = 3): string[] {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const h of list) {
+    if (typeof h !== "string" || !h.trim()) continue;
+    const key = h.trim().replace(/^#+/, "").toLowerCase();
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(h.trim());
+    if (out.length >= max) break;
+  }
+  return out;
+}
+
+/**
+ * Retire la ligne de coaching que l'IA ajoutait en fin de contenu quand aucun
+ * élément perso n'était fourni (« 💡 Ajoute une anecdote perso… »). Elle vit
+ * désormais dans `personal_tip`, mais on garde ce filet : un contenu publié ne
+ * doit JAMAIS embarquer un conseil destiné à l'utilisatrice.
+ */
+export function stripCoachingHint(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\n*\s*(?:💡\s*)?Ajoute une anecdote perso pour que ça sonne vraiment toi\.?\s*(?:L'IA structure, toi tu incarnes\.?)?\s*/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function buildCalendarContent(selectedFormat: string | null, raw: any): CalendarContent {
   const r = raw;
   if (!r) return { contentDraft: "", accroche: "", storyDetail: null as any };
@@ -93,7 +127,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       duree_cible: r.duree_cible,
       script: r.sections || r.script,
       caption: r.caption,
-      hashtags: r.hashtags,
+      hashtags: capHashtags(r.hashtags),
       cover_text: r.cover_text,
       alt_text: r.alt_text,
       amplification_stories: r.amplification_stories,
@@ -114,5 +148,5 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   // Si l'utilisatrice a édité le texte (étape "edit"), il prime sur la version IA.
   if (r.edited_text?.trim()) contentDraft = r.edited_text;
 
-  return { contentDraft, accroche, storyDetail };
+  return { contentDraft: stripCoachingHint(contentDraft), accroche, storyDetail };
 }

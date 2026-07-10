@@ -5,18 +5,25 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
 import { toast } from "sonner";
+import { stripCoachingHint } from "@/features/creer/build-calendar-content";
+import { stripInlineMarkdown } from "@/lib/strip-markdown";
 
 interface Props {
   result: any;
 }
 
 export default function NewsletterResult({ result }: Props) {
-  const subject = result?.subject || "";
-  const previewText = result?.preview_text || "";
-  const body = result?.body || result?.content || result?.text || "";
+  // Filets de sécurité : le markdown résiduel (**gras**) s'afficherait tel quel
+  // et partirait dans le presse-papier (l'edge nettoie les nouvelles générations,
+  // ici on couvre l'existant et le chemin "adjust") ; le conseil d'incarnation
+  // vit dans personal_tip, jamais dans le corps.
+  const subject = stripInlineMarkdown(result?.subject || "");
+  const previewText = stripInlineMarkdown(result?.preview_text || "");
+  const body = stripCoachingHint(stripInlineMarkdown(result?.body || result?.content || result?.text || ""));
+  const personalTip = result?.personal_tip;
   const wordCount = result?.word_count;
-  const ctaSuggestion = result?.cta_suggestion;
-  
+  const ctaSuggestion = stripInlineMarkdown(result?.cta_suggestion || "");
+
 
   const fullText = [subject, body].filter(Boolean).join("\n\n");
   const [checkedText, setCheckedText] = useState(fullText);
@@ -87,6 +94,12 @@ export default function NewsletterResult({ result }: Props) {
             <p className="text-sm text-foreground">{ctaSuggestion}</p>
           </CardContent>
         </Card>
+      )}
+
+      {personalTip && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+          <p className="text-sm text-foreground">{personalTip}</p>
+        </div>
       )}
 
       {/* Meta */}

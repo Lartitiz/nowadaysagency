@@ -12,7 +12,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
-import { enforceAnchoredText, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
+import { enforceAnchoredText, ensureAnchor, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
 /**
@@ -30,13 +30,13 @@ Voici le design pour chaque type :
 █ BEFORE_AFTER — Deux colonnes côte à côte
 <div style="display:flex;gap:24px;width:100%">
   <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
-      <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
-      <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✗ ITEM</p>
+      <p data-pptx-editable="caption" style="font-size:26px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
+      <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✗ ITEM</p>
       <!-- un <p> par item, TOUJOURS préfixé du glyphe ✗ — JAMAIS de ponctuation (virgule, tiret, point) comme puce -->
   </div>
   <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
-      <p data-pptx-editable="caption" style="font-size:22px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
-      <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✓ ITEM</p>
+      <p data-pptx-editable="caption" style="font-size:26px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
+      <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✓ ITEM</p>
       <!-- un <p> par item, TOUJOURS préfixé du glyphe ✓ -->
   </div>
 </div>
@@ -52,10 +52,10 @@ Puces : ✗ pour la colonne mythe/imaginé, ✓ pour la colonne réalité — JA
   <div style="position:absolute;left:24px;top:0;bottom:0;width:3px;background:linear-gradient(to bottom, ${ch.color_primary}, ${ch.color_accent})"></div>
   <!-- Pour chaque step : -->
   <div style="display:flex;gap:20px;margin-bottom:24px;align-items:flex-start">
-    <div data-pptx-shape="pill" style="width:44px;height:44px;border-radius:50%;background:${ch.color_secondary};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;flex-shrink:0">01</div>
+    <div data-pptx-shape="pill" style="width:44px;height:44px;border-radius:50%;background:${ch.color_secondary};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;flex-shrink:0">01</div>
     <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
-      <p data-pptx-editable="subtitle" style="font-size:24px;color:${ch.color_secondary}">LABEL</p>
-      <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};opacity:0.85;margin-top:6px">DESC</p>
+      <p data-pptx-editable="subtitle" style="font-size:32px;color:${ch.color_secondary}">LABEL</p>
+      <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};opacity:0.85;margin-top:6px">DESC</p>
     </div>
   </div>
 </div>
@@ -64,14 +64,14 @@ Puces : ✗ pour la colonne mythe/imaginé, ✓ pour la colonne réalité — JA
 Pour chaque item :
 <div data-pptx-shape="card" style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:${ch.border_radius || 12}px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
   <span style="font-size:28px">✅ ou ❌</span>
-  <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text}">TEXTE</p>
+  <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text}">TEXTE</p>
 </div>
 
 █ STATS — Gros chiffres avec labels
 Pour chaque stat :
 <div style="text-align:center;padding:24px">
   <p data-pptx-editable="title" style="font-size:80px;font-weight:700;color:${ch.color_primary};line-height:1">73%</p>
-  <p data-pptx-editable="body" style="font-size:22px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
+  <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
 </div>
 Dispose 2-3 stats en flex row avec des séparateurs visuels.
 
@@ -79,7 +79,7 @@ Dispose 2-3 stats en flex row avec des séparateurs visuels.
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
   <div data-pptx-shape="card" style="background:${ch.color_primary}15;border-radius:${ch.border_radius || 12}px;padding:24px;text-align:center">
     <span style="font-size:40px">EMOJI</span>
-    <p data-pptx-editable="body" style="font-size:22px;font-weight:600;margin-top:8px">LABEL</p>
+    <p data-pptx-editable="body" style="font-size:26px;font-weight:600;margin-top:8px">LABEL</p>
   </div>
 </div>
 
@@ -113,7 +113,7 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
   <div data-pptx-shape="card" style="text-align:center;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
     <span style="font-size:48px;display:block;margin-bottom:8px">EMOJI</span>
-    <p data-pptx-editable="body" style="font-size:20px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
+    <p data-pptx-editable="body" style="font-size:26px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
   </div>
 </div>
 
@@ -125,8 +125,8 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
       <span data-pptx-editable="caption" style="font-size:36px;font-weight:700;color:${ch.color_primary};opacity:0.4;font-family:${ch.font_title};line-height:1">01</span>
     </div>
     <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
-      <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
-      <p data-pptx-editable="body" style="font-size:20px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+      <h3 data-pptx-editable="title" style="font-size:28px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
+      <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
     </div>
   </div>
   <!-- Filet pointillé entre steps (PAS après le dernier) : -->
@@ -137,11 +137,11 @@ Si story_arc.steps.length < 3 → rends comme une simple liste verticale sans fi
 █ QUOTE_BIG — Citation typographique (guillemet décoratif XL + citation italique + attribution discrète)
 <div style="position:relative;padding:60px;display:flex;flex-direction:column;justify-content:center;height:100%">
   <!-- Si "context" présent — sinon omettre ce bloc : -->
-  <p data-pptx-editable="caption" style="font-size:22px;color:${ch.color_secondary};margin:0 0 24px 0;font-family:${ch.font_body}">CONTEXT</p>
+  <p data-pptx-editable="caption" style="font-size:26px;color:${ch.color_secondary};margin:0 0 24px 0;font-family:${ch.font_body}">CONTEXT</p>
   <span aria-hidden="true" style="position:absolute;top:20px;left:30px;font-size:140px;line-height:1;color:${ch.color_primary};opacity:0.2;font-family:Georgia,serif">"</span>
   <p data-pptx-editable="title" style="font-size:48px;font-style:italic;line-height:1.3;color:${ch.color_text};margin:0;font-family:${ch.font_title};font-weight:normal">QUOTE</p>
   <!-- Si "attribution" présente — sinon omettre : -->
-  <p data-pptx-editable="body" style="font-size:22px;color:${ch.color_secondary};margin:32px 0 0 0;font-family:${ch.font_body}">ATTRIBUTION</p>
+  <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_secondary};margin:32px 0 0 0;font-family:${ch.font_body}">ATTRIBUTION</p>
 </div>
 RÈGLE TAILLE QUOTE : 56px si quote < 60 chars, 48px par défaut (60-120 chars), 40px si > 120 chars.
 RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la place.
@@ -150,12 +150,12 @@ RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la pl
 <div style="display:flex;flex-direction:column;gap:32px">
   <div data-pptx-shape="card" style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
     <span aria-hidden="true" style="position:absolute;top:16px;right:24px;font-size:32px;color:${ch.color_primary};opacity:0.5">❝</span>
-    <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
-    <p data-pptx-editable="body" style="font-size:24px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
+    <p data-pptx-editable="caption" style="font-size:28px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
+    <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
   </div>
   <div data-pptx-shape="card" style="background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
-      <p data-pptx-editable="caption" style="font-size:18px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
-      <p data-pptx-editable="title" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+      <p data-pptx-editable="caption" style="font-size:28px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
+      <p data-pptx-editable="title" style="font-size:32px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
   </div>
 </div>
 La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
@@ -165,8 +165,8 @@ La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
   <!-- Pour chaque stage (i = 0..2, formate "01", "02", "03") : -->
   <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
     <span data-pptx-editable="caption" style="font-size:64px;font-weight:700;color:${ch.color_primary};opacity:0.25;line-height:1;font-family:${ch.font_title};display:block;margin-bottom:8px">01</span>
-    <h3 data-pptx-editable="title" style="font-size:24px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
-    <p data-pptx-editable="body" style="font-size:18px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+    <h3 data-pptx-editable="title" style="font-size:28px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
+    <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
   </div>
   <!-- Flèche entre colonnes (PAS après la dernière) : -->
   <div style="display:flex;align-items:center;flex-shrink:0">
@@ -1021,7 +1021,7 @@ Chaque slide (texte, photo, schéma) est une colonne flex pleine hauteur :
 
 display:flex;flex-direction:column;height:1350px (+ justify-content adapté au contenu).
 
-- CONTRAINTE DE SORTIE VÉRIFIABLE : le dernier élément visible de chaque slide se termine entre 1010px et 1240px de hauteur (75-92% des 1350px). Si ton contenu finit plus haut, AUGMENTE font-sizes, paddings et gaps jusqu'à atteindre cette zone — n'ajoute pas de texte, agrandis l'existant.
+- CONTRAINTE DE SORTIE VÉRIFIABLE : le dernier élément visible de chaque slide se termine entre 1010px et 1240px de hauteur (75-92% des 1350px). Si ton contenu finit plus haut, AUGMENTE font-sizes, paddings et gaps jusqu'à atteindre cette zone — n'ajoute pas de texte, agrandis l'existant. Si au contraire ton contenu DÉPASSE 1240px : RACCOURCIS les textes (moins de mots, moins d'items) — ne réduis JAMAIS une font-size sous 26px pour faire tenir.
 
 Une slide dont le contenu flotte dans le tiers central avec les deux autres tiers vides est un DÉFAUT à corriger avant de répondre.
 
@@ -1887,19 +1887,47 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
     if (Array.isArray(result?.slides_html)) {
       const srcText = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
       let verbatimFixes = 0;
+      let anchorsAdded = 0;
+      let anchorsUnmatched = 0;
       result.slides_html = result.slides_html.map((slide: any) => {
         const src = srcText.get(slide.slide_number) as any;
         // Slides texte uniquement — l'overlay photo a sa propre passe de lisibilité.
         if (!src || (src.slide_type && src.slide_type !== "text_only")) return slide;
+        let slideHtml: string = slide?.html || "";
+        let changed = false;
+        // Ancre title MANQUANTE (audit 10/07 : slides à visual_schema, ~3 runs
+        // sur 4) : on la pose sur l'élément au texte identique AVANT la passe
+        // verbatim, sinon l'édition live retombe sur le repli par correspondance
+        // de texte de carousel-html-edit.ts.
+        if (typeof src.title === "string" && src.title.trim()) {
+          const ensured = ensureAnchor(slideHtml, "title", src.title);
+          if (ensured.status === "added") {
+            slideHtml = ensured.html;
+            changed = true;
+            anchorsAdded++;
+          } else if (ensured.status === "unmatched") {
+            anchorsUnmatched++;
+          }
+        }
         const anchors: VerbatimAnchor[] = [];
         if (typeof src.title === "string" && src.title.trim()) anchors.push({ field: "title", text: src.title });
         if (typeof src.body === "string" && src.body.trim()) anchors.push({ field: "body", text: src.body });
-        if (anchors.length === 0) return slide;
-        const { html, fixes } = enforceAnchoredText(slide?.html || "", anchors);
-        if (fixes.length === 0) return slide;
-        verbatimFixes += fixes.length;
-        return { ...slide, html };
+        if (anchors.length > 0) {
+          const { html, fixes } = enforceAnchoredText(slideHtml, anchors);
+          if (fixes.length > 0) {
+            slideHtml = html;
+            changed = true;
+            verbatimFixes += fixes.length;
+          }
+        }
+        return changed ? { ...slide, html: slideHtml } : slide;
       });
+      if (anchorsAdded > 0) {
+        console.warn(`carousel-visual: ${anchorsAdded} ancre(s) data-slide-text="title" ajoutée(s) (garde déterministe)`);
+      }
+      if (anchorsUnmatched > 0) {
+        console.warn(`carousel-visual: ${anchorsUnmatched} slide(s) avec title sans ancre ni élément au texte identique (repli texte côté édition)`);
+      }
       if (verbatimFixes > 0) {
         console.warn(`carousel-visual: ${verbatimFixes} texte(s) ancré(s) réécrit(s) verbatim (garde déterministe)`);
       }

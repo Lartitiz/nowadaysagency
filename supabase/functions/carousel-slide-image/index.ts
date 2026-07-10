@@ -25,7 +25,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { logUsage } from "../_shared/plan-limiter.ts";
+import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 
 const BodySchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -39,10 +39,6 @@ const BodySchema = z.object({
 const OPENAI_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_TIMEOUT_MS = 160_000;
 const RETRY_DELAY_MS = 2_000;
-
-// Comptes QA : mêmes emails que plan-limiter (bypass quota) — plan "free" réel,
-// le gate Premium doit les laisser passer pour la QA automatisée.
-const QA_TEST_EMAILS = new Set<string>(["laetitiatest@nowadaysagency.com"]);
 
 interface BrandBlockInput {
   activite?: string | null;
@@ -142,18 +138,10 @@ serve(async (req) => {
 
     // Gate Premium — même décision produit que la mise en scène (gpt-image =
     // feature Premium). Statut 200 + error code pour un parsing front simple.
-    if (quota && quota.plan === "free") {
-      let isQa = false;
-      try {
-        const { data: userData } = await supabase.auth.getUser();
-        const email = (userData?.user?.email || "").toLowerCase();
-        isQa = QA_TEST_EMAILS.has(email);
-      } catch (_) {
-        // silencieux : sans email on applique le gate normal
-      }
-      if (!isQa) {
-        return jsonResponse({ error: "premium_required" }, 200);
-      }
+    // Le compte QA garde un plan "free" réel mais passe le gate (bypass
+    // déterministe par UUID, cf. QA_TEST_USER_IDS dans plan-limiter).
+    if (quota && quota.plan === "free" && !isQaTestAccount(userId)) {
+      return jsonResponse({ error: "premium_required" }, 200);
     }
 
     // Charte + profil pour le bloc « univers de marque »

@@ -243,6 +243,24 @@ export async function getBonusCredits(sb: any, userId: string): Promise<number> 
   return data?.bonus_credits || 0;
 }
 
+// Bypass comptes QA — DÉTERMINISTE : Set d'UUID en dur, AUCUNE résolution
+// réseau. L'ancien mécanisme (Set d'emails + sb.auth.admin.getUserById avec
+// catch silencieux) échouait par intermittence : le 10/07/2026, 3 générations
+// du compte QA ont été facturées (lignes ai_usage + bonus 133→130) pendant que
+// d'autres du même jour étaient bypassées. Un UUID auth est stable à vie, la
+// comparaison est locale et infaillible. checkQuota et logUsage passent TOUS
+// LES DEUX par ce même Set : un seul mécanisme, zéro point de panne.
+// ⚠️ NE PAS élargir sans demande explicite : les autres comptes test (Margot…)
+// servent justement à mesurer la facturation réelle et ne doivent JAMAIS être
+// bypassés. Comparaison EXACTE (code de facturation : jamais de match partiel).
+const QA_TEST_USER_IDS = new Set<string>([
+  "52e6c03c-a7de-4c20-9b4a-276751f976e8", // laetitiatest@nowadaysagency.com (Camille)
+]);
+
+export function isQaTestAccount(userId: string): boolean {
+  return QA_TEST_USER_IDS.has(userId);
+}
+
 export async function checkQuota(
   userId: string,
   category: string,
@@ -257,26 +275,15 @@ export async function checkQuota(
     return { allowed: true, plan: "admin", remaining: 9999, remaining_total: 9999 };
   }
 
-  // Bypass comptes QA : autorisés à générer sans limite pour les tests
-  // automatisés, MAIS on garde leur plan RÉEL (souvent "free") pour que le
-  // gating UI/tests reflète l'expérience d'une vraie cliente free. On ne
-  // loggue pas non plus (logUsage a son propre check) → aucune écriture
-  // ai_usage pour ces comptes. Comparaison EXACTE sur email (code de
-  // facturation : jamais de match partiel).
-  const QA_TEST_EMAILS = new Set<string>([
-    "laetitiatest@nowadaysagency.com",
-  ]);
-  try {
-    const { data: userRow } = await sb.auth.admin.getUserById(userId);
-    const email = (userRow?.user?.email || "").toLowerCase();
-    if (email && QA_TEST_EMAILS.has(email)) {
-      const realPlan = await getEffectivePlan(sb, userId, workspaceId);
-      return { allowed: true, plan: realPlan, remaining: 9999, remaining_total: 9999 };
-    }
-  } catch (_) {
-    // silencieux : si la lookup échoue, on retombe sur le flux normal
+  // Bypass comptes QA (cf. QA_TEST_USER_IDS) : autorisés à générer sans limite
+  // pour les tests automatisés, MAIS on garde leur plan RÉEL (souvent "free")
+  // pour que le gating UI/tests reflète l'expérience d'une vraie cliente free.
+  // On ne loggue pas non plus (logUsage a son propre check) → aucune écriture
+  // ai_usage pour ces comptes.
+  if (isQaTestAccount(userId)) {
+    const realPlan = await getEffectivePlan(sb, userId, workspaceId);
+    return { allowed: true, plan: realPlan, remaining: 9999, remaining_total: 9999 };
   }
-
 
   // Périmètre résolu côté serveur — voir resolveBillingWorkspaceId.
   const billingWorkspaceId = await resolveBillingWorkspaceId(sb, userId, workspaceId);
@@ -389,19 +396,11 @@ export async function logUsage(
 ): Promise<void> {
   const sb = sbOverride ?? getServiceClient();
 
-  // Bypass comptes QA : voir checkQuota. On ne loggue rien pour ces comptes
-  // afin que la QA automatisée puisse tourner tous les jours sans polluer
-  // ai_usage ni consommer de bonus. Comparaison EXACTE sur email.
-  const QA_TEST_EMAILS = new Set<string>([
-    "laetitiatest@nowadaysagency.com",
-  ]);
-  try {
-    const { data: userRow } = await sb.auth.admin.getUserById(userId);
-    const email = (userRow?.user?.email || "").toLowerCase();
-    if (email && QA_TEST_EMAILS.has(email)) return;
-  } catch (_) {
-    // silencieux : si la lookup échoue, on retombe sur le flux normal
-  }
+  // Bypass comptes QA (même Set déterministe que checkQuota, cf.
+  // QA_TEST_USER_IDS) : on ne loggue rien pour ces comptes afin que la QA
+  // automatisée puisse tourner tous les jours sans polluer ai_usage ni
+  // consommer de bonus.
+  if (isQaTestAccount(userId)) return;
 
   // Même périmètre que checkQuota : le workspace est résolu côté serveur pour
   // que TOUTE ligne ai_usage porte un workspace_id (les ~20 edges qui n'en

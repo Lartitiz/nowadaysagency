@@ -8,6 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { runRedacGate } from "../_shared/redac-gate.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
@@ -179,7 +180,8 @@ RÈGLES SPÉCIFIQUES (remplacent les règles de composition liées aux photos fo
   · "photo_directive" : 1-2 phrases en FRANÇAIS décrivant l'image idéale — concrète et tournable (sujet précis, cadrage, lumière, ambiance), ancrée dans l'activité et l'univers de l'utilisatrice, cohérente avec l'overlay de la slide. Pas de « une jolie photo inspirante ».
   · "photo_query_en" : 2-4 mots-clés en ANGLAIS pour une banque d'images (ex : "hands pottery clay").
   · "library_photo_index" : numéro du catalogue si match STRICT, sinon null.${catalog.length === 0 ? ` (Aucun catalogue fourni : null partout.)` : ""}
-- INTERDIT dans photo_directive : demander l'image d'une personnalité réelle, d'une marque tierce ou d'un événement d'actualité précis (droit à l'image). L'image illustre TON propos et TON terrain — l'actu vit dans le TEXTE des slides, pas dans les images.
+  · "news_entity" : SI le contexte actualité porte sur une personnalité, une marque, une œuvre ou un événement PRÉCIS et nommé, ET que CETTE slide gagnerait à montrer une vraie photo de presse de cette entité, renseigne le nom exact tel qu'on le chercherait dans une banque d'images (ex : "Zendaya", "Patagonia", "Jeux Olympiques Paris"). Sinon null. Au plus 1-2 slides avec news_entity.
+- INTERDIT dans photo_directive : demander l'image d'une personnalité réelle, d'une marque tierce ou d'un événement d'actualité précis (droit à l'image). L'image illustre TON propos et TON terrain — l'actu vit dans le TEXTE des slides. Une photo réelle de l'entité ne peut venir QUE d'une banque de presse libre de droits, via "news_entity" : la photo_directive reste l'alternative générique SANS l'entité.
 ${catalogBlock}`;
 }
 
@@ -204,6 +206,7 @@ function enforceTextFirstDirectives(content: string): string {
         delete s.photo_directive;
         delete s.photo_query_en;
         delete s.library_photo_index;
+        delete s.news_entity;
       }
     });
     if (missingDirectives > 0) {
@@ -215,6 +218,79 @@ function enforceTextFirstDirectives(content: string): string {
     return content;
   }
 }
+
+// ── Sortie structurée du carrousel mixte (tool forcé) ──
+// Même patron que le fix #359 (questions creative-flow) : le tool_choice fait
+// garantir le JSON par l'API elle-même. Sans lui, une photo sans rapport avec
+// le brief faisait répondre le modèle en PROSE (refus poli) dans `content`
+// (reproduit 3/3 les 09-10/07) : parse impossible côté front, message
+// générique « réessaie » mensonger, et crédit déjà débité. Avec le tool forcé
+// la prose est impossible : soit un carrousel, soit un refus STRUCTURÉ via
+// `photo_mismatch` — traité en aval par une erreur actionnable SANS logUsage.
+// Le schéma reste volontairement lâche (pas de `required` sur les slides,
+// additionalProperties implicite) : les prompts mix/actu/texte-d'abord
+// restent la source de vérité du contenu, le tool ne fige que le transport.
+const MIX_CAROUSEL_TOOL = {
+  name: "livrer_carrousel_mixte",
+  description:
+    "Livre le carrousel mixte final (slides + caption), OU signale via photo_mismatch que les photos fournies ne permettent pas de traiter le brief.",
+  input_schema: {
+    type: "object",
+    properties: {
+      photo_mismatch: {
+        type: "object",
+        description:
+          "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
+        properties: {
+          reason: {
+            type: "string",
+            description:
+              "1-2 phrases en français, adressées directement à l'utilisatrice (tutoiement), décrivant UNIQUEMENT le décalage constaté entre la ou les photos et le sujet. AUCUNE recommandation ni question (l'app ajoute la marche à suivre).",
+          },
+        },
+        required: ["reason"],
+      },
+      carousel_type: { type: "string" },
+      chosen_angle: {
+        type: "object",
+        properties: { title: { type: "string" }, description: { type: "string" } },
+      },
+      slides: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            slide_number: { type: "number" },
+            slide_type: { type: "string" },
+            photo_index: { type: ["number", "null"] },
+            photo_layout: { type: "string" },
+            role: { type: "string" },
+            title: { type: "string" },
+            body: { type: "string" },
+            overlay_text: { type: "string" },
+            overlay_position: { type: "string" },
+            overlay_style: { type: "string" },
+            visual_anchor: { type: "string" },
+            photo_directive: { type: "string" },
+            photo_query_en: { type: "string" },
+            library_photo_index: { type: ["number", "null"] },
+            note: { type: "string" },
+          },
+        },
+      },
+      caption: {
+        type: "object",
+        properties: {
+          hook: { type: "string" },
+          body: { type: "string" },
+          cta: { type: "string" },
+          hashtags: { type: "array", items: { type: "string" } },
+        },
+      },
+      quality_check: { type: "object" },
+    },
+  },
+};
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -398,6 +474,7 @@ serve(async (req) => {
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
             temperature: 0.85,
+            tool: MIX_CAROUSEL_TOOL,
           }, mixUsage);
         } else {
           const photoDescLine = body.text_first
@@ -411,7 +488,37 @@ serve(async (req) => {
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
             temperature: 0.85,
+            tool: MIX_CAROUSEL_TOOL,
           }, mixUsage);
+        }
+
+        // Refus structuré AVANT correction, post-traitements et logUsage : si le
+        // modèle a signalé photo_mismatch (photos sans rapport avec le brief),
+        // aucun carrousel n'est livré → on ne débite RIEN et on remonte un
+        // message actionnable (changer de photo ou passer en texte design) à la
+        // place du générique « réessaie » — qui, ici, redonnerait le même refus.
+        {
+          let mixParsed: any = null;
+          try { mixParsed = JSON.parse(content); } catch { /* théoriquement impossible : tool forcé */ }
+          const hasSlides = Array.isArray(mixParsed?.slides) && mixParsed.slides.length > 0;
+          const mismatchReason = typeof mixParsed?.photo_mismatch?.reason === "string"
+            ? mixParsed.photo_mismatch.reason.trim()
+            : "";
+          if (!hasSlides) {
+            const plural = (body.photos?.length || 0) > 1;
+            const message = mismatchReason
+              ? `${plural ? "Tes photos ne semblent pas correspondre" : "Ta photo ne semble pas correspondre"} à ton idée : ${mismatchReason}${/[.!?…]$/.test(mismatchReason) ? "" : "."} Change de photo${plural ? "s" : ""} ou passe en carrousel « Texte design » pour garder ton idée telle quelle. Aucun crédit n'a été décompté.`
+              : "L'IA a renvoyé un carrousel vide. Réessaie — aucun crédit n'a été décompté.";
+            console.warn(`[carousel-ai] mix: ${mismatchReason ? "photo_mismatch" : "carrousel vide"} — ${mixUsage.total_tokens ?? "?"} tokens (${mixUsage.model ?? "?"}) NON débités${mismatchReason ? ` — ${mismatchReason}` : ""}`);
+            return new Response(JSON.stringify({
+              error: mismatchReason ? "photo_mismatch" : "empty_carousel",
+              message,
+            }), {
+              // 200 volontaire : l'erreur structurée doit passer par l'event SSE
+              // `done` (runWithHeartbeatSSE) pour que le front lise error+message.
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
         }
 
         // JSON-aware correction pass for carousels
@@ -438,6 +545,12 @@ serve(async (req) => {
           if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
           content = capped.content;
         }
+        // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+        content = (await runRedacGate(content, {
+          isLinkedIn,
+          onStatus: emitStatus,
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+        })).content;
         await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -518,6 +631,11 @@ serve(async (req) => {
           if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
           content = capped.content;
         }
+        content = (await runRedacGate(content, {
+          isLinkedIn,
+          onStatus: emitStatus,
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+        })).content;
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -895,6 +1013,12 @@ Réponds UNIQUEMENT en JSON valide :
       const capped = limitVisualSchemas(content);
       if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
       content = capped.content;
+      // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+      content = (await runRedacGate(content, {
+        isLinkedIn,
+        onStatus: emitStatus,
+        correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+      })).content;
     }
 
     // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
@@ -1230,7 +1354,7 @@ Types disponibles et QUAND les utiliser :
    { "type": "before_after", "before": { "label": "Avant", "items": ["Point 1", "Point 2"] }, "after": { "label": "Après", "items": ["Point 1", "Point 2"] } }
 
 2. "comparison" — Deux colonnes opposées (bon/mauvais, mythe/réalité, toi/les autres)
-   { "type": "comparison", "left": { "label": "❌ Ce qu'on te dit", "items": ["Poste tous les jours", "Utilise 30 hashtags"] }, "right": { "label": "✅ Ce qui marche", "items": ["Poste quand t'as un truc à dire", "3-5 hashtags ciblés"] } }
+   { "type": "comparison", "left": { "label": "❌ Ce qu'on te dit", "items": ["Poste tous les jours", "Utilise 30 hashtags"] }, "right": { "label": "✅ Ce qui marche", "items": ["Poste quand t'as un truc à dire", "3 hashtags ciblés"] } }
    ⚠️ ATTENTION "before_after" et "comparison" = les DEUX CADRES CÔTE À CÔTE qu'on voit sur TOUS les carrousels LinkedIn → effet "template générique". À ÉVITER par défaut. Pour une opposition (mythe/réalité, ce-qu'on-dit/ma-position, eux/toi), préfère QUASI TOUJOURS "objection_response" (version narrative VERTICALE, n°14 ci-dessous), beaucoup plus singulière. Ne garde "comparison"/"before_after" que pour une comparaison FACTUELLE serrée (chiffres, items concrets) où les deux colonnes apportent vraiment de la clarté.
 
 3. "timeline" — Progression chronologique ou étapes
@@ -1313,10 +1437,10 @@ Retourne ce JSON exact :
     }
   ],
   "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1)",
+    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1 ; JAMAIS un vécu 1ʳᵉ personne inventé type \"Ma première pièce…\" : anecdote SEULEMENT si fournie par l'utilisatrice)",
     "body": "Le reste de la caption",
     "cta": "Le CTA dans la caption",
-    "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"]
+    "hashtags": ["hashtag1", "hashtag2", "hashtag3"]
   },
   "quality_check": {
     "hook_word_count": 8,
@@ -1787,7 +1911,7 @@ Retourne ce JSON exact :
     }
   ],
   "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle personnel)",
+    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle personnel ; JAMAIS un vécu 1ʳᵉ personne inventé : anecdote SEULEMENT si fournie par l'utilisatrice)",
     "body": "Le reste de la caption (contexte, pourquoi ce sujet maintenant)",
     "cta": "Le CTA dans la caption",
     "hashtags": ["hashtag1", "hashtag2"]
@@ -1965,14 +2089,14 @@ ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
 - Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1.
 - Body : ce que les photos ne montrent pas (mécanisme, chiffre, leçon, contexte marché).
 - CTA pro : "Votre avis en commentaire ?", "Partagez si cela résonne", "Quelle est votre expérience ?". JAMAIS "Sauvegarde", "DM moi", "Tag une copine".
-- Hashtags : 0-5 hashtags PROFESSIONNELS (secteur, métier, thématique pro). PAS de hashtags lifestyle Instagram.` : `═══ LÉGENDE ═══
+- Hashtags : 0-2 hashtags PROFESSIONNELS (secteur, métier, thématique pro). PAS de hashtags lifestyle Instagram.` : `═══ LÉGENDE ═══
 - 400-800 caractères
 - La légende PROLONGE l'histoire des slides, elle ne la répète pas
 - Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1
 - Body : ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
 - Ton sensoriel : faire ressentir les textures, les lumières, les ambiances
 - CTA : invitation à la conversation ("Et toi, tu as déjà ressenti ça ?")
-- 5-10 hashtags pertinents`}
+- 3 hashtags MAXIMUM, ciblés (pas de #love #life génériques)`}
 ${deepeningCtx}${angleBlock}
 
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
@@ -2166,7 +2290,7 @@ Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"",
 - "hook" DIFFÉRENT du texte slide 1, ancré dans TA réaction à l'actu
 - "body" : ce que les slides ne disent pas, formulé en JE
 - "cta" : invitation à la conversation (1 seule)
-- 5-10 hashtags pertinents au sujet de l'actu`}
+- 3 hashtags MAXIMUM, ciblés sur le sujet de l'actu`}
 
 ⚠️ Les valeurs ci-dessous montrent la STRUCTURE JSON, PAS le ton. Tout doit être 100% ancré dans l'actu réelle et la voix JE.
 
@@ -2449,7 +2573,7 @@ Tu DOIS produire un objet "caption" avec ces 4 champs remplis :
 - "hook" (string, OBLIGATOIRE) : phrase d'accroche DIFFÉRENTE du texte de la slide 1, 1-2 phrases
 - "body" (string, OBLIGATOIRE) : 300-700 caractères — ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
 - "cta" (string, OBLIGATOIRE) : invitation concrète à la conversation (question, appel à commenter, à partager)
-- "hashtags" (array de 5-10 strings, OBLIGATOIRE) : hashtags pertinents sans le "#"
+- "hashtags" (array de 3 strings MAXIMUM, OBLIGATOIRE) : hashtags ciblés sans le "#"
 
 Total caption (hook + body + cta) : 400-800 caractères.
 
@@ -2460,7 +2584,7 @@ STRUCTURE attendue (REMPLIS chaque champ avec du contenu ORIGINAL, ancré dans C
   "hook": "<phrase d\'accroche 1-2 lignes, DIFFÉRENTE du texte slide 1, ancrée dans le sujet>",
   "body": "<300-700 caractères : l\'envers du décor de CE moment précis, ce que les photos ne disent pas, l\'émotion / le pourquoi spécifique au sujet>",
   "cta": "<invitation concrète à la conversation, en lien avec le sujet>",
-  "hashtags": [<5 à 10 hashtags pertinents au sujet, sans le #>]
+  "hashtags": [<3 hashtags maximum, ciblés, sans le #>]
 }`}
 
 
@@ -2707,7 +2831,7 @@ Objet "caption" avec :
 - "hook" (1-2 phrases, DIFFÉRENT du texte slide 1, ancré dans TA réaction)
 - "body" (300-700 caractères : l'envers de TA réaction, ce que les slides ne disent pas, formulé en JE)
 - "cta" (invitation à la conversation — UNE seule, pas de liste)
-- "hashtags" (5-10 hashtags pertinents au sujet, sans le #)`}
+- "hashtags" (3 hashtags maximum, ciblés, sans le #)`}
 
 ⚠️ Les valeurs ci-dessous montrent la STRUCTURE JSON, PAS le ton. Tout doit être 100% ancré dans l'actu réelle et la voix JE.
 

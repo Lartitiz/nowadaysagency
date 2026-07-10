@@ -1,4 +1,5 @@
 import PptxGenJS from "pptxgenjs";
+import { fitFontToBox } from "./pptx-font-mapping";
 
 // ═══ TYPES ═══
 
@@ -27,6 +28,53 @@ interface CharterColors {
   color_text?: string | null;
   font_title?: string | null;
   font_body?: string | null;
+}
+
+
+/**
+ * addText avec taille AJUSTÉE À LA BOÎTE (audit 10/07, CR-4) : les layouts de
+ * cet exporter sont codés en dur (y/h fixes) et PowerPoint n'applique pas
+ * normAutofit à l'ouverture → un texte long débordait sur l'élément suivant
+ * (étapes timeline superposées, before_after illisible — mesuré). On réduit la
+ * police en amont pour tenir dans la boîte ; les textes qui tiennent déjà ne
+ * changent pas d'un pt.
+ */
+function addFittedText(slide: any, textOrParts: any, opts: any) {
+  try {
+    if (opts && typeof opts.w === "number" && typeof opts.h === "number") {
+      const parts = Array.isArray(textOrParts) ? (textOrParts as any[]) : null;
+      const t = parts ? parts.map((p: any) => p?.text || "").join("") : String(textOrParts ?? "");
+      // La taille de référence vit soit dans le frame, soit dans les PARTS
+      // (makeBadge/highlightLastSignificantWord posent fontSize par part).
+      const baseSize =
+        typeof opts.fontSize === "number"
+          ? opts.fontSize
+          : parts
+            ? Math.max(0, ...parts.map((p: any) => p?.options?.fontSize || 0))
+            : 0;
+      if (baseSize > 0) {
+        const face = String(opts.fontFace || (parts && parts[0]?.options?.fontFace) || "");
+        const fitted = fitFontToBox(t, opts.w, opts.h, baseSize, {
+          mono: /mono|courier/i.test(face),
+          lineSpacingMultiple: opts.lineSpacingMultiple,
+        });
+        if (fitted < baseSize) {
+          const ratio = fitted / baseSize;
+          if (typeof opts.fontSize === "number") opts = { ...opts, fontSize: fitted };
+          if (parts) {
+            textOrParts = parts.map((p: any) =>
+              p?.options?.fontSize
+                ? { ...p, options: { ...p.options, fontSize: Math.round(p.options.fontSize * ratio * 10) / 10 } }
+                : p,
+            );
+          }
+        }
+      }
+    }
+  } catch {
+    /* en cas de pépin d'estimation : comportement historique */
+  }
+  slide.addText(textOrParts, opts);
 }
 
 // ═══ HELPERS ═══
@@ -62,7 +110,7 @@ function makeBadge(
   fontBody: string,
 ) {
   const w = Math.max(1.8, text.length * 0.14 + 0.6);
-  slide.addText(
+  addFittedText(slide, 
     [{ text: text.toUpperCase(), options: { fontSize: 11, bold: true, color: "FFFFFF", fontFace: fontBody } }],
     {
       x,
@@ -103,7 +151,7 @@ function buildInfographieOrTuto(
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
   // Title
-  slide.addText(
+  addFittedText(slide, 
     [{ text: pinData.main_title, options: { fontSize: 22, color: c.secondary, fontFace: f.title } }],
     { x: PAD_X, y: PAD_Y + 0.6, w: CONTENT_W, h: 0.8, align: "center", valign: "middle" },
   );
@@ -126,7 +174,7 @@ function buildInfographieOrTuto(
       h: 0.5,
       fill: { color: c.primary },
     });
-    slide.addText(
+    addFittedText(slide, 
       [{ text: String(el.number ?? i + 1), options: { fontSize: 16, bold: true, color: "FFFFFF", fontFace: f.body } }],
       { x: PAD_X, y: y + 0.05, w: 0.5, h: 0.5, align: "center", valign: "middle" },
     );
@@ -134,14 +182,14 @@ function buildInfographieOrTuto(
     // Label
     const labelX = PAD_X + 0.65;
     const labelW = CONTENT_W - 0.65;
-    slide.addText(
+    addFittedText(slide, 
       [{ text: `${el.emoji ? el.emoji + " " : ""}${el.label}`, options: { fontSize: labelSize, bold: true, color: c.text, fontFace: f.title } }],
       { x: labelX, y, w: labelW, h: 0.35, valign: "bottom" },
     );
 
     // Description
     if (el.description) {
-      slide.addText(
+      addFittedText(slide, 
         [{ text: el.description, options: { fontSize, color: c.text, fontFace: f.body } }],
         { x: labelX, y: y + 0.35, w: labelW, h: 0.4, valign: "top" },
       );
@@ -149,7 +197,7 @@ function buildInfographieOrTuto(
 
     // Arrow between elements (except last)
     if (i < elements.length - 1) {
-      slide.addText(
+      addFittedText(slide, 
         [{ text: "→", options: { fontSize: 18, color: c.primary, fontFace: f.body } }],
         { x: PAD_X + 0.1, y: y + perElement - 0.3, w: 0.3, h: 0.3, align: "center" },
       );
@@ -158,7 +206,7 @@ function buildInfographieOrTuto(
 
   // CTA
   if (pinData.cta_text) {
-    slide.addText(
+    addFittedText(slide, 
       [{ text: pinData.cta_text, options: { fontSize: 10, italic: true, color: c.text, fontFace: f.body } }],
       { x: PAD_X, y: H - 1.0, w: CONTENT_W, h: 0.35, align: "center" },
     );
@@ -166,7 +214,7 @@ function buildInfographieOrTuto(
 
   // Watermark
   if (pinData.watermark) {
-    slide.addText(
+    addFittedText(slide, 
       [{ text: pinData.watermark, options: { fontSize: 8, color: "999999", fontFace: f.body } }],
       { x: PAD_X, y: H - 0.55, w: CONTENT_W, h: 0.3, align: "center" },
     );
@@ -185,7 +233,7 @@ function buildChecklist(
   const badgeW = Math.max(1.8, badgeText.length * 0.14 + 0.6);
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
-  slide.addText(
+  addFittedText(slide, 
     [{ text: pinData.main_title, options: { fontSize: 22, color: c.secondary, fontFace: f.title } }],
     { x: PAD_X, y: PAD_Y + 0.6, w: CONTENT_W, h: 0.8, align: "center", valign: "middle" },
   );
@@ -228,27 +276,27 @@ function buildChecklist(
       fill: { color: c.primary },
       rectRadius: 0.06,
     });
-    slide.addText(
+    addFittedText(slide, 
       [{ text: "✓", options: { fontSize: 14, bold: true, color: "FFFFFF", fontFace: f.body } }],
       { x: PAD_X + 0.2, y: y + (perItem - 0.08) / 2 - 0.15, w: 0.3, h: 0.3, align: "center", valign: "middle" },
     );
 
     // Label text
-    slide.addText(
+    addFittedText(slide, 
       [{ text: el.label, options: { fontSize: 11, color: c.text, fontFace: f.body } }],
       { x: PAD_X + 0.65, y, w: CONTENT_W - 0.85, h: perItem - 0.08, valign: "middle" },
     );
   });
 
   if (pinData.cta_text) {
-    slide.addText(
+    addFittedText(slide, 
       [{ text: pinData.cta_text, options: { fontSize: 10, italic: true, color: c.text, fontFace: f.body } }],
       { x: PAD_X, y: H - 0.8, w: CONTENT_W, h: 0.35, align: "center" },
     );
   }
 
   if (pinData.watermark) {
-    slide.addText(
+    addFittedText(slide, 
       [{ text: pinData.watermark, options: { fontSize: 8, color: "999999", fontFace: f.body } }],
       { x: PAD_X, y: H - 0.45, w: CONTENT_W, h: 0.25, align: "center" },
     );
@@ -267,7 +315,7 @@ function buildAvantApres(
   const badgeW = Math.max(1.8, badgeText.length * 0.14 + 0.6);
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
-  slide.addText(
+  addFittedText(slide, 
     [{ text: pinData.main_title, options: { fontSize: 20, color: c.secondary, fontFace: f.title } }],
     { x: PAD_X, y: PAD_Y + 0.6, w: CONTENT_W, h: 0.7, align: "center", valign: "middle" },
   );
@@ -299,7 +347,7 @@ function buildAvantApres(
   const perBefore = Math.min(0.6, (sectionH - 0.2) / Math.max(beforeItems.length, 1));
   beforeItems.forEach((el, i) => {
     const y = sectionStartY + 0.1 + i * perBefore;
-    slide.addText(
+    addFittedText(slide, 
       [{ text: `${el.emoji || "❌"} ${el.label}`, options: { fontSize: 11, color: "666666", fontFace: f.body } }],
       { x: PAD_X + 0.25, y, w: CONTENT_W - 0.5, h: perBefore - 0.04, valign: "middle" },
     );
@@ -307,7 +355,7 @@ function buildAvantApres(
 
   // Arrow between sections
   const arrowY = sectionStartY + sectionH + 0.05;
-  slide.addText(
+  addFittedText(slide, 
     [{ text: "▼", options: { fontSize: 24, color: c.primary, fontFace: f.body } }],
     { x: W / 2 - 0.3, y: arrowY, w: 0.6, h: 0.5, align: "center", valign: "middle" },
   );
@@ -334,14 +382,14 @@ function buildAvantApres(
   const perAfter = Math.min(0.6, (sectionH - 0.2) / Math.max(afterItems.length, 1));
   afterItems.forEach((el, i) => {
     const y = afterY + 0.1 + i * perAfter;
-    slide.addText(
+    addFittedText(slide, 
       [{ text: `${el.emoji || "✅"} ${el.label}`, options: { fontSize: 11, color: c.text, fontFace: f.body } }],
       { x: PAD_X + 0.25, y, w: CONTENT_W - 0.5, h: perAfter - 0.04, valign: "middle" },
     );
   });
 
   if (pinData.watermark) {
-    slide.addText(
+    addFittedText(slide, 
       [{ text: pinData.watermark, options: { fontSize: 8, color: "999999", fontFace: f.body } }],
       { x: PAD_X, y: H - 0.45, w: CONTENT_W, h: 0.25, align: "center" },
     );
@@ -360,7 +408,7 @@ function buildSchemaVisuel(
   const badgeW = Math.max(1.8, badgeText.length * 0.14 + 0.6);
   makeBadge(slide, badgeText, (W - badgeW) / 2, PAD_Y, c.primary, f.body);
 
-  slide.addText(
+  addFittedText(slide, 
     [{ text: pinData.main_title, options: { fontSize: 20, color: c.secondary, fontFace: f.title } }],
     { x: PAD_X, y: PAD_Y + 0.6, w: CONTENT_W, h: 0.7, align: "center", valign: "middle" },
   );
@@ -384,12 +432,12 @@ function buildSchemaVisuel(
       rectRadius: 0.12,
       shadow: makeShadow(),
     });
-    slide.addText(
+    addFittedText(slide, 
       [{ text: `${center.emoji ? center.emoji + " " : ""}${center.label}`, options: { fontSize: 16, bold: true, color: c.text, fontFace: f.title } }],
       { x: centerX + 0.2, y: centerY + 0.15, w: centerCardW - 0.4, h: 0.5, align: "center", valign: "middle" },
     );
     if (center.description) {
-      slide.addText(
+      addFittedText(slide, 
         [{ text: center.description, options: { fontSize: 10, color: c.text, fontFace: f.body } }],
         { x: centerX + 0.2, y: centerY + 0.6, w: centerCardW - 0.4, h: 0.45, align: "center", valign: "top" },
       );
@@ -431,13 +479,13 @@ function buildSchemaVisuel(
       shadow: makeLightShadow(),
     });
 
-    slide.addText(
+    addFittedText(slide, 
       [{ text: `${el.emoji ? el.emoji + " " : ""}${el.label}`, options: { fontSize: 11, bold: true, color: c.text, fontFace: f.body } }],
       { x: x + 0.1, y: y + 0.08, w: colW - 0.2, h: 0.35, valign: "middle" },
     );
 
     if (el.description) {
-      slide.addText(
+      addFittedText(slide, 
         [{ text: el.description, options: { fontSize: 9, color: c.text, fontFace: f.body } }],
         { x: x + 0.1, y: y + 0.4, w: colW - 0.2, h: perItem - 0.6, valign: "top" },
       );
@@ -445,7 +493,7 @@ function buildSchemaVisuel(
   });
 
   if (pinData.watermark) {
-    slide.addText(
+    addFittedText(slide, 
       [{ text: pinData.watermark, options: { fontSize: 8, color: "999999", fontFace: f.body } }],
       { x: PAD_X, y: H - 0.45, w: CONTENT_W, h: 0.25, align: "center" },
     );

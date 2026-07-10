@@ -170,6 +170,41 @@ export interface TextRun {
   color?: string;
   /** Poids brut (info / debug). pptxgenjs utilise `bold`. */
   fontWeight?: number;
+  /**
+   * Surligneur natif PowerPoint (hex sans `#`). Détecté sur un ANCÊTRE span à
+   * fond inline (le `linear-gradient(transparent 60%, accent 60%)` signature
+   * de l'app, ou fond uni) : le fond disparaissait au masquage du texte et
+   * n'était recréé nulle part (audit 10/07, CR-2). Le highlight run-level
+   * suit le texte quel que soit le re-wrap PowerPoint.
+   */
+  highlight?: string;
+}
+
+/**
+ * Couleur de surligneur portée par un ancêtre STRICTEMENT sous `root` (le
+ * fond de `root` lui-même = pilule/carte, géré par le pipeline shapes).
+ * Lit le style INLINE (le CSS de masquage a déjà neutralisé le calculé).
+ */
+function inlineHighlightHexOf(el: Element | null, root: HTMLElement): string | undefined {
+  let cur: Element | null = el;
+  while (cur && cur !== root) {
+    if ((cur as HTMLElement).hasAttribute?.("data-pptx-shape")) return undefined;
+    const st = (cur as HTMLElement).style;
+    if (st) {
+      const bgImg = st.backgroundImage || "";
+      const bgCol = st.backgroundColor || "";
+      if (bgImg.includes("linear-gradient")) {
+        const stops = (bgImg.match(/rgba?\([^)]+\)|#[0-9a-fA-F]{3,8}/g) || []).filter(
+          (c) => !/rgba\([^)]*,\s*0(\.0+)?\s*\)/.test(c),
+        );
+        if (stops.length) return normalizeHex(stops[stops.length - 1]);
+      } else if (bgCol && bgCol !== "transparent" && !/rgba\([^)]*,\s*0(\.0+)?\s*\)/.test(bgCol)) {
+        return normalizeHex(bgCol);
+      }
+    }
+    cur = cur.parentElement;
+  }
+  return undefined;
 }
 
 export interface EditableBlock {
@@ -440,6 +475,7 @@ function extractRunsFromElement(
             italic: isItalic,
             color,
             fontWeight: weight,
+            highlight: inlineHighlightHexOf(parent, root),
           });
         }
       }
@@ -481,7 +517,8 @@ function extractRunsFromElement(
       prev &&
       !!prev.bold === !!r.bold &&
       !!prev.italic === !!r.italic &&
-      (prev.color || "") === (r.color || "")
+      (prev.color || "") === (r.color || "") &&
+      (prev.highlight || "") === (r.highlight || "")
     ) {
       prev.text += r.text;
     } else {
@@ -502,7 +539,8 @@ function extractRunsFromElement(
     (r) =>
       !!r.bold === frame.frameBold &&
       !!r.italic === frame.frameItalic &&
-      (r.color || "") === frame.frameColor,
+      (r.color || "") === frame.frameColor &&
+      !r.highlight,
   );
   if (allMatchFrame) return undefined;
 
@@ -513,6 +551,7 @@ function extractRunsFromElement(
     if (!!r.italic !== frame.frameItalic) out.italic = !!r.italic;
     if ((r.color || "") !== frame.frameColor) out.color = r.color;
     if (r.fontWeight !== undefined) out.fontWeight = r.fontWeight;
+    if (r.highlight) out.highlight = r.highlight; // surligneur (CR-2) — pas de notion frame
     return out;
   });
 }
@@ -555,7 +594,18 @@ function textContentWithBreaks(el: Element): string {
  * importée dans Canva, quelle que soit la résolution d'import (Canva affiche au
  * minimum 1px par point). En dessous, les légendes/labels devenaient illisibles.
  */
-const MIN_FONT_PT = 15;
+export const MIN_FONT_PT = 15;
+
+/**
+ * Conversion px→pt SANS plancher : la taille « naturelle », fidèle au HTML.
+ * Sert au plancher layout-aware de l'exporter hybride (audit fidélité 10/07) :
+ * lui seul sait si le bloc a la place de monter vers MIN_FONT_PT sans
+ * chevaucher le bloc du dessous ni sortir de sa carte. Les autres exporters
+ * (natif, stories, pinterest) gardent fontSizePxToPt tel quel.
+ */
+export function fontSizePxToPtRaw(px: number, pxPerInch: number): number {
+  return Math.round((px / pxPerInch) * 72);
+}
 
 /** Convert CSS px font-size into PPTX point size for a 1080px wide -> 7.5in slide. */
 export function fontSizePxToPt(px: number, pxPerInch: number): number {
@@ -564,6 +614,38 @@ export function fontSizePxToPt(px: number, pxPerInch: number): number {
   // justifie de le rapetisser pour "coller" au fond. Plancher MIN_FONT_PT.
   const inches = px / pxPerInch;
   return Math.max(MIN_FONT_PT, Math.round(inches * 72));
+}
+
+/**
+ * Ajuste une taille de police (pt) pour qu'un texte TIENNE dans sa boîte
+ * (largeur/hauteur en pouces) — pour les exporters à layout codé en dur
+ * (natif carrousel, pinterest éditable) dont les boîtes ont des hauteurs
+ * fixes : PowerPoint n'applique pas normAutofit à l'ouverture, un texte long
+ * débordait sur l'élément suivant (audit 10/07, CR-4). Estimation prudente :
+ * largeur moyenne 0.55 em (0.62 mono, +15 % si majuscules dominantes),
+ * plancher 55 % de la taille demandée (jamais < 9pt).
+ */
+export function fitFontToBox(
+  text: string,
+  boxWIn: number,
+  boxHIn: number,
+  fontPt: number,
+  opts: { mono?: boolean; lineSpacingMultiple?: number } = {},
+): number {
+  if (!text || boxWIn <= 0 || boxHIn <= 0 || fontPt <= 0) return fontPt;
+  const upper = text.replace(/[^A-ZÀ-Þ]/g, "").length / Math.max(1, text.length) > 0.5;
+  const charEm = (opts.mono ? 0.62 : 0.6) * (upper ? 1.15 : 1); // 0.6 : serif substituée plus large (mesuré : titre natif débordait à 0.55)
+  const spacing = opts.lineSpacingMultiple || 1.2;
+  const fits = (pt: number) => {
+    const lineCapacity = Math.max(1, Math.floor((boxWIn * 72) / (pt * charEm)));
+    const lines = Math.ceil(text.length / lineCapacity);
+    return (lines * pt * spacing) / 72 <= boxHIn + 0.01;
+  };
+  if (fits(fontPt)) return fontPt;
+  const floor = Math.max(9, fontPt * 0.55);
+  let pt = fontPt;
+  while (pt > floor && !fits(pt)) pt -= 0.5;
+  return Math.round(pt * 10) / 10;
 }
 
 /** Convert CSS letter-spacing (px) to pptxgenjs `charSpacing` (integer points). */
