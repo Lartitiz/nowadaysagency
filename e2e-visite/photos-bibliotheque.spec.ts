@@ -7,7 +7,7 @@
  * - La page « Mes photos » se charge (titre + bouton « Ajouter des photos »)
  * - Soit l'état vide « séance photo » (compte sans photos), soit la grille
  *   accompagnée du panneau « Photos à prendre »
- * - Le bouton « Retouche IA » (flux historique) reste présent
+ * - Le bouton de retouche fond (renommé « Changer un fond ») reste présent
  */
 
 import { test, expect } from "@playwright/test";
@@ -24,7 +24,11 @@ test("bibliothèque photos : page, séance photo ou grille + liste de courses", 
 
   await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: /Ajouter des photos/i })).toBeVisible();
-  await expect(page.getByRole("button", { name: /Retouche IA/i })).toBeVisible();
+  // Le bouton de retouche fond a été renommé « Changer un fond » (#437/#454) ;
+  // on tolère les variantes historiques pour ne pas casser sur un futur renommage.
+  await expect(
+    page.getByRole("button", { name: /Changer un fond|Modifier le fond|Retouche IA/i }).first(),
+  ).toBeVisible();
 
   // Deux états légitimes selon le compte : séance photo (vide) ou grille + wishlist
   const seance = page.getByText(/séance photo de 20 minutes/i).first();
