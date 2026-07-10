@@ -216,6 +216,79 @@ function enforceTextFirstDirectives(content: string): string {
   }
 }
 
+// ── Sortie structurée du carrousel mixte (tool forcé) ──
+// Même patron que le fix #359 (questions creative-flow) : le tool_choice fait
+// garantir le JSON par l'API elle-même. Sans lui, une photo sans rapport avec
+// le brief faisait répondre le modèle en PROSE (refus poli) dans `content`
+// (reproduit 3/3 les 09-10/07) : parse impossible côté front, message
+// générique « réessaie » mensonger, et crédit déjà débité. Avec le tool forcé
+// la prose est impossible : soit un carrousel, soit un refus STRUCTURÉ via
+// `photo_mismatch` — traité en aval par une erreur actionnable SANS logUsage.
+// Le schéma reste volontairement lâche (pas de `required` sur les slides,
+// additionalProperties implicite) : les prompts mix/actu/texte-d'abord
+// restent la source de vérité du contenu, le tool ne fige que le transport.
+const MIX_CAROUSEL_TOOL = {
+  name: "livrer_carrousel_mixte",
+  description:
+    "Livre le carrousel mixte final (slides + caption), OU signale via photo_mismatch que les photos fournies ne permettent pas de traiter le brief.",
+  input_schema: {
+    type: "object",
+    properties: {
+      photo_mismatch: {
+        type: "object",
+        description:
+          "À remplir UNIQUEMENT si des photos sont fournies ET qu'elles n'ont AUCUN rapport exploitable avec le brief (aucun angle honnête possible). Dans ce cas, ne remplis PAS `slides`. En cas de doute, génère le carrousel : un lien inattendu mais assumé vaut mieux qu'un refus.",
+        properties: {
+          reason: {
+            type: "string",
+            description:
+              "1-2 phrases en français, adressées directement à l'utilisatrice (tutoiement), expliquant concrètement le décalage entre la ou les photos et le sujet.",
+          },
+        },
+        required: ["reason"],
+      },
+      carousel_type: { type: "string" },
+      chosen_angle: {
+        type: "object",
+        properties: { title: { type: "string" }, description: { type: "string" } },
+      },
+      slides: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            slide_number: { type: "number" },
+            slide_type: { type: "string" },
+            photo_index: { type: ["number", "null"] },
+            photo_layout: { type: "string" },
+            role: { type: "string" },
+            title: { type: "string" },
+            body: { type: "string" },
+            overlay_text: { type: "string" },
+            overlay_position: { type: "string" },
+            overlay_style: { type: "string" },
+            visual_anchor: { type: "string" },
+            photo_directive: { type: "string" },
+            photo_query_en: { type: "string" },
+            library_photo_index: { type: ["number", "null"] },
+            note: { type: "string" },
+          },
+        },
+      },
+      caption: {
+        type: "object",
+        properties: {
+          hook: { type: "string" },
+          body: { type: "string" },
+          cta: { type: "string" },
+          hashtags: { type: "array", items: { type: "string" } },
+        },
+      },
+      quality_check: { type: "object" },
+    },
+  },
+};
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
@@ -398,6 +471,7 @@ serve(async (req) => {
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
             temperature: 0.85,
+            tool: MIX_CAROUSEL_TOOL,
           }, mixUsage);
         } else {
           const photoDescLine = body.text_first
@@ -411,7 +485,37 @@ serve(async (req) => {
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
             temperature: 0.85,
+            tool: MIX_CAROUSEL_TOOL,
           }, mixUsage);
+        }
+
+        // Refus structuré AVANT correction, post-traitements et logUsage : si le
+        // modèle a signalé photo_mismatch (photos sans rapport avec le brief),
+        // aucun carrousel n'est livré → on ne débite RIEN et on remonte un
+        // message actionnable (changer de photo ou passer en texte design) à la
+        // place du générique « réessaie » — qui, ici, redonnerait le même refus.
+        {
+          let mixParsed: any = null;
+          try { mixParsed = JSON.parse(content); } catch { /* théoriquement impossible : tool forcé */ }
+          const hasSlides = Array.isArray(mixParsed?.slides) && mixParsed.slides.length > 0;
+          const mismatchReason = typeof mixParsed?.photo_mismatch?.reason === "string"
+            ? mixParsed.photo_mismatch.reason.trim()
+            : "";
+          if (!hasSlides) {
+            const plural = (body.photos?.length || 0) > 1;
+            const message = mismatchReason
+              ? `${plural ? "Tes photos ne semblent pas correspondre" : "Ta photo ne semble pas correspondre"} à ton idée : ${mismatchReason}${/[.!?…]$/.test(mismatchReason) ? "" : "."} Change de photo${plural ? "s" : ""} ou passe en carrousel « Texte design » pour garder ton idée telle quelle. Aucun crédit n'a été décompté.`
+              : "L'IA a renvoyé un carrousel vide. Réessaie — aucun crédit n'a été décompté.";
+            console.warn(`[carousel-ai] mix: ${mismatchReason ? "photo_mismatch" : "carrousel vide"} — ${mixUsage.total_tokens ?? "?"} tokens (${mixUsage.model ?? "?"}) NON débités${mismatchReason ? ` — ${mismatchReason}` : ""}`);
+            return new Response(JSON.stringify({
+              error: mismatchReason ? "photo_mismatch" : "empty_carousel",
+              message,
+            }), {
+              // 200 volontaire : l'erreur structurée doit passer par l'event SSE
+              // `done` (runWithHeartbeatSSE) pour que le front lise error+message.
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            });
+          }
         }
 
         // JSON-aware correction pass for carousels
