@@ -28,7 +28,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [adminLoading, setAdminLoading] = useState(true);
+  // ID de l'utilisateur pour lequel le rôle admin a été résolu. Sert à DÉRIVER
+  // `adminLoading` au rendu (cf. plus bas) plutôt que de le piloter via un effet :
+  // un state piloté par effet est toujours en retard d'un rendu sur `user`, ce qui
+  // ouvre une fenêtre où `user` est défini mais `adminLoading` encore false → AdminRoute
+  // redirige à tort vers /dashboard avant que le rôle soit vérifié.
+  const [adminCheckedForUserId, setAdminCheckedForUserId] = useState<string | null>(null);
   const navigate = useNavigate();
   const lastHiddenAt = useRef<number>(0);
 
@@ -246,18 +251,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isDemoMode || !user) {
       setIsAdmin(false);
-      setAdminLoading(false);
+      setAdminCheckedForUserId(null);
       return;
     }
     // Skip if still on the demo fake user (waiting for real user to restore)
     if (user.id === "demo-user") {
       return;
     }
-    setAdminLoading(true);
-    Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle()).then(({ data }) => {
-      setIsAdmin(!!data);
-    }).catch(() => setIsAdmin(false)).finally(() => setAdminLoading(false));
+    const uid = user.id;
+    let cancelled = false;
+    Promise.resolve(supabase.from("user_roles").select("role").eq("user_id", uid).eq("role", "admin").maybeSingle())
+      .then(({ data }) => {
+        if (cancelled) return;
+        setIsAdmin(!!data);
+      })
+      .catch(() => {
+        if (!cancelled) setIsAdmin(false);
+      })
+      .finally(() => {
+        // Marque le rôle comme RÉSOLU pour cet uid (que ce soit admin ou non) → lève `adminLoading`.
+        if (!cancelled) setAdminCheckedForUserId(uid);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, isDemoMode]);
+
+  // `adminLoading` DÉRIVÉ : vrai tant qu'un vrai utilisateur est connecté et que son rôle
+  // admin n'a pas encore été résolu. Comme c'est calculé au rendu (pas via un effet), il passe
+  // à true dans le MÊME rendu où `user` devient défini → aucune fenêtre de redirection racée.
+  const adminLoading =
+    !isDemoMode && !!user && user.id !== "demo-user" && adminCheckedForUserId !== user.id;
 
   // Memoize the context value to prevent unnecessary re-renders of all consumers
   const value = useMemo<AuthContextType>(
