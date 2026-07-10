@@ -2582,6 +2582,10 @@ export default function CreerUnifie() {
       }
 
       const visualsStartedAt = performance.now();
+      // Les carrousels riches en photos (dump : 6-8 slides pleines images)
+      // dépassent régulièrement 180 s côté rendu — plafond élargi dans ce cas
+      // (vu au re-test live du 10/07 : texte OK, timeout sur les visuels).
+      const visualsTimeout = (requestBody as any)?.photos?.length >= 4 ? 420000 : 180000;
       const { data, error: fnError } = await invokeWithHeartbeat("carousel-visual", {
         body: requestBody,
         onStatus: (stage, info: any) => {
@@ -2589,7 +2593,7 @@ export default function CreerUnifie() {
             setVisualChunkProgress({ done: Number(info.done) || 0, total: info.total });
           }
         },
-      }, 180000);
+      }, visualsTimeout);
       // Quota épuisé : ouvrir le QuotaWallModal avec l'objet quota complet,
       // AVANT le throw générique qui perdrait data.quota (en SSE, le 429 arrive
       // avec fnError ET data parsé — le quota se juge donc en premier).
