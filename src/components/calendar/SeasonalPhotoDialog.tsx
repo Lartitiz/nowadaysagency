@@ -117,8 +117,9 @@ export function SeasonalPhotoDialog({
   const { data: charter } = useQuery({
     queryKey: ["seasonal-brand-colors", column, value],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("brand_charter")
+      // TS2589 (instanciation trop profonde) sur ce .eq(column) dynamique —
+      // même parade que PlanPage : cast du from() en any.
+      const { data } = await (supabase.from("brand_charter") as any)
         .select("color_primary, color_background")
         .eq(column, value)
         .maybeSingle();

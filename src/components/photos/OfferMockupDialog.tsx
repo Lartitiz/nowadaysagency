@@ -65,8 +65,9 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
   const { data: charter } = useQuery({
     queryKey: ["mockup-brand-colors", column, value],
     queryFn: async () => {
-      const { data } = await supabase
-        .from("brand_charter")
+      // TS2589 (instanciation trop profonde) sur ce .eq(column) dynamique —
+      // même parade que PlanPage : cast du from() en any.
+      const { data } = await (supabase.from("brand_charter") as any)
         .select("color_background, color_primary")
         .eq(column, value)
         .maybeSingle();
