@@ -5,7 +5,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 import { scrapeWebsite } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -148,16 +148,11 @@ serve(async (req) => {
     const systemPrompt = `Tu es une assistante de veille pour créateur·ices de contenu et entrepreneur·es.
 On te donne le texte brut d'UN article web + le profil de la créatrice. Tu dois résumer cet article et évaluer s'il se connecte à sa marque pour du newsjacking.
 
-Rends UNIQUEMENT du JSON strict, sans texte autour, avec EXACTEMENT cette structure :
-{
-  "titre": "titre court et fidèle de l'article (max 110 caractères)",
-  "resume": "3-4 phrases neutres qui résument l'article (pas d'analyse, juste les faits)",
-  "faits_cles": ["4 à 8 faits bruts tirés de l'article : chiffres, noms d'acteurs, dates, citations courtes, exemples nommés. Une entrée = un fait concret, max 200 caractères. Pas d'analyse, pas de reformulation marketing."],
-  "axe": "mot_qui_revient" | "obsession_collective" | "comportement_emergent" | "debat_recurrent" | "objet_culturel" | "actu_connectable",
-  "ton": "confortable" | "entre_deux" | "decalant",
-  "force_pont": "fort" | "moyen" | "fragile",
-  "pertinence": "1-2 phrases qui expliquent CONCRÈTEMENT pourquoi/comment cette actu peut nourrir un contenu pour CETTE créatrice — cite un élément précis de son profil (cible, combat, pilier, offre). Si vraiment hors-sol : dis-le franchement et propose un angle de pont surprenant."
-}
+Contenu attendu :
+- "titre" : titre court et fidèle de l'article (max 110 caractères)
+- "resume" : 3-4 phrases neutres qui résument l'article (pas d'analyse, juste les faits)
+- "faits_cles" : 4 à 8 faits bruts tirés de l'article : chiffres, noms d'acteurs, dates, citations courtes, exemples nommés. Une entrée = un fait concret, max 200 caractères. Pas d'analyse, pas de reformulation marketing.
+- "pertinence" : 1-2 phrases qui expliquent CONCRÈTEMENT pourquoi/comment cette actu peut nourrir un contenu pour CETTE créatrice — cite un élément précis de son profil (cible, combat, pilier, offre). Si vraiment hors-sol : dis-le franchement et propose un angle de pont surprenant.
 
 Règles :
 - "force_pont" = "fragile" si l'actu n'a aucun lien naturel avec son univers ET qu'aucun angle décalé n'est crédible.
@@ -179,10 +174,38 @@ ${articleSlice}
 
 Analyse maintenant.`;
 
+    // Sortie structurée (tool forcé, même patron que #359) : le JSON renvoyé est
+    // valide par construction — fini les échecs de parse sur guillemets non
+    // échappés dans faits_cles/citations (classe des « Réponse IA invalide »).
+    const ANALYSE_TOOL: AnthropicTool = {
+      name: "rendre_analyse",
+      description: "Renvoie l'analyse structurée de l'article",
+      input_schema: {
+        type: "object",
+        properties: {
+          titre: { type: "string" },
+          resume: { type: "string" },
+          faits_cles: { type: "array", items: { type: "string" } },
+          axe: { type: "string", enum: ["mot_qui_revient", "obsession_collective", "comportement_emergent", "debat_recurrent", "objet_culturel", "actu_connectable"] },
+          ton: { type: "string", enum: ["confortable", "entre_deux", "decalant"] },
+          force_pont: { type: "string", enum: ["fort", "moyen", "fragile"] },
+          pertinence: { type: "string" },
+        },
+        required: ["titre", "resume", "axe", "ton", "force_pont", "pertinence"],
+      },
+    };
+
     let raw = "";
     const usage: UsageSink = {};
     try {
-      raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.6, 1600, usage);
+      raw = await callAnthropic({
+        model,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        temperature: 0.6,
+        max_tokens: 1600,
+        tool: ANALYSE_TOOL,
+      }, usage);
     } catch (e) {
       console.error("[newsjacking-from-url] anthropic error", (e as Error).message);
       clearTimeout(timeout);

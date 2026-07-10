@@ -5,7 +5,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
+import { getModelForAction, callAnthropic, callAnthropicSimple, forcesDisabledThinking, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
 
 // Perplexity insère parfois ses balises de citation (<cite index="40-3">…</cite>)
@@ -606,43 +606,74 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         excludedUrls.map((u) => `- ${u}`).join("\n")
       : "";
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model,
-        max_tokens: 4096,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-        messages: [{ role: "user", content: systemPrompt + exclusionBlock + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
-      }),
-      signal: controller.signal,
-    });
+    // Sonnet 5 active le thinking ADAPTATIF quand le champ est omis : les blocs de
+    // réflexion consomment alors les max_tokens au milieu des recherches web et la
+    // réponse arrive sans bloc JSON final (= « Réponse IA invalide » en vagues,
+    // constaté 09-10/07 avec AI_MODEL_SONNET=claude-sonnet-5). Ce fetch brut
+    // n'utilise pas le helper partagé (web search) → on applique la même garde ici.
+    const requestBody: Record<string, unknown> = {
+      model,
+      max_tokens: 6000,
+      ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+      messages: [{ role: "user", content: systemPrompt + exclusionBlock + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
+    };
+
+    // L'API peut interrompre un tour long à base d'outils serveur (web search) avec
+    // stop_reason="pause_turn" : le contenu s'arrête avant le JSON final. Il faut
+    // renvoyer le contenu partiel comme tour assistant et relancer pour obtenir la fin.
+    let data: any;
+    let tokensUsed = 0;
+    const allContent: any[] = [];
+    for (let turn = 0; turn < 3; turn++) {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_API_KEY,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify(requestBody),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        clearTimeout(timeout);
+        const errText = await response.text();
+        console.error("Anthropic error:", response.status, "model:", model, "body:", errText.slice(0, 500));
+        const userMsg = response.status === 529 ? "L'IA est temporairement surchargée. Réessaie dans quelques secondes."
+          : response.status === 403 ? "Le web search n'est pas activé sur le compte API. Contacte le support."
+          : `Erreur IA (${response.status}). Réessaie.`;
+        return new Response(JSON.stringify({ error: userMsg }), {
+          status: 502,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      data = await response.json();
+      tokensUsed += (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
+      allContent.push(...(data.content || []));
+      if (data.stop_reason !== "pause_turn") break;
+      console.log(`[newsjacking] pause_turn (tour ${turn + 1}) — relance pour terminer la réponse`);
+      // On termine par un tour user : Opus 4.8 / Sonnet 5 rejettent un tableau de
+      // messages finissant par un tour assistant (400, cf stripTrailingAssistant).
+      requestBody.messages = [
+        ...(requestBody.messages as any[]),
+        { role: "assistant", content: data.content },
+        { role: "user", content: "Termine : renvoie maintenant le JSON final demandé (uniquement le JSON, sans markdown)." },
+      ];
+    }
 
     clearTimeout(timeout);
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Anthropic error:", response.status, "model:", model, "body:", errText.slice(0, 500));
-      const userMsg = response.status === 529 ? "L'IA est temporairement surchargée. Réessaie dans quelques secondes."
-        : response.status === 403 ? "Le web search n'est pas activé sur le compte API. Contacte le support."
-        : `Erreur IA (${response.status}). Réessaie.`;
-      return new Response(JSON.stringify({ error: userMsg }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (data?.stop_reason === "max_tokens") {
+      console.warn("[newsjacking] réponse tronquée (stop_reason=max_tokens) — le parse va probablement passer par le filet");
     }
 
-    const data = await response.json();
-    const tokensUsed = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
-
     // Extract text blocks (web search responses have multiple text blocks interleaved with search results)
-    const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
+    const textBlocks = allContent.filter((b: any) => b.type === "text").map((b: any) => b.text);
     const fullText = textBlocks.join("\n");
-    console.log("Raw text blocks count:", textBlocks.length, "Full text length:", fullText.length);
+    console.log("Raw text blocks count:", textBlocks.length, "Full text length:", fullText.length, "stop_reason:", data?.stop_reason);
 
     // Parse JSON — try multiple strategies
     let parsed: any;
@@ -675,7 +706,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         }
       }
 
-      // Strategy 3: last resort — find first { and last }
+      // Strategy 3: find first { and last }
       if (!parsed) {
         const firstBrace = fullText.indexOf("{");
         const lastBrace = fullText.lastIndexOf("}");
@@ -683,20 +714,71 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
           try {
             parsed = JSON.parse(fullText.slice(firstBrace, lastBrace + 1));
           } catch (e3) {
-            console.error("JSON parse failed all strategies. Text preview:", fullText.slice(0, 800));
-            return new Response(JSON.stringify({ error: "Erreur de parsing IA. Réessaie." }), {
-              status: 500,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
+            console.error("JSON parse strategy 3 failed:", (e3 as Error).message);
           }
-        } else {
-          console.error("No JSON found in response. Text preview:", fullText.slice(0, 800));
-          return new Response(JSON.stringify({ error: "Réponse IA invalide. Réessaie." }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
         }
       }
+    }
+
+    // Filet final : le modèle a écrit sa veille en prose (ou JSON malformé) au lieu
+    // du JSON demandé. Plutôt qu'un 500 sec, on structure ce texte par un appel
+    // court à sortie structurée (tool forcé → JSON valide par construction, même
+    // patron que #359). Haiku suffit : c'est de la recopie, pas de la génération.
+    if (!parsed && fullText.trim().length > 0) {
+      console.warn("[newsjacking] pas de JSON parsable — extraction structurée de secours. Preview:", fullText.slice(0, 800));
+      const EXTRACT_TOOL: AnthropicTool = {
+        name: "rendre_actus",
+        description: "Renvoie les actus présentes dans le texte, structurées",
+        input_schema: {
+          type: "object",
+          properties: {
+            actus: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  titre: { type: "string" },
+                  resume: { type: "string" },
+                  source: { type: "string" },
+                  source_url: { type: "string" },
+                  type: { type: "string", enum: ["globale", "niche"] },
+                  axe: { type: "string", enum: ["mot_qui_revient", "obsession_collective", "comportement_emergent", "debat_recurrent", "objet_culturel", "actu_connectable"] },
+                  ton: { type: "string", enum: ["confortable", "entre_deux", "decalant"] },
+                  force_pont: { type: "string", enum: ["fort", "moyen", "fragile"] },
+                  pertinence: { type: "string" },
+                },
+                required: ["titre", "resume", "pertinence"],
+              },
+            },
+            message: { type: "string" },
+          },
+          required: ["actus"],
+        },
+      };
+      try {
+        const extractUsage: UsageSink = {};
+        const rawExtract = await callAnthropic({
+          model: "claude-haiku-4-5",
+          system: "Tu extrais des données structurées d'un texte de veille d'actualités. Ne reformule pas, n'invente RIEN : recopie fidèlement les sujets présents dans le texte (titre, résumé, source, URL, tags). Si le texte ne contient aucun sujet exploitable, renvoie un tableau actus vide.",
+          messages: [{ role: "user", content: `Texte de veille à structurer :\n\n${fullText.slice(0, 12000)}` }],
+          max_tokens: 3000,
+          tool: EXTRACT_TOOL,
+          abortTimeoutMs: 30_000,
+        }, extractUsage);
+        parsed = JSON.parse(rawExtract);
+        tokensUsed += extractUsage.total_tokens ?? 0;
+        console.log("[newsjacking] extraction structurée de secours OK:", parsed?.actus?.length ?? 0, "actu(s)");
+      } catch (eExtract) {
+        console.error("[newsjacking] extraction de secours en échec:", (eExtract as Error).message);
+      }
+    }
+
+    if (!parsed) {
+      console.error("No JSON found in response. Text preview:", fullText.slice(0, 800));
+      return new Response(JSON.stringify({ error: "Réponse IA invalide. Réessaie." }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // Tolérance : si le modèle renvoie un tableau racine au lieu de {actus:[...]},
