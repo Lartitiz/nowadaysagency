@@ -1085,7 +1085,7 @@ INTRO (2-3 phrases) :
 
 CORPS :
 - Développe en profondeur. C'est le format France Culture de la com.
-- Apartés personnels en italique ou entre parenthèses.
+- Apartés personnels entre parenthèses. JAMAIS d'italique ni de gras : l'email part en texte brut, le markdown (**, *) s'afficherait tel quel.
 - Au moins 2 exemples concrets ou anecdotes.
 - Des nuances, des "oui mais", des zones grises. La newsletter n'est pas 
   un cours : c'est une réflexion partagée.
