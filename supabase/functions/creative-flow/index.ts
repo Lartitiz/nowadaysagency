@@ -1087,17 +1087,20 @@ Privilégie les sources françaises et européennes quand elles existent.`,
           text: `${userSubjectBlock}${formatBrief}${body.photo_description ? `\nDescription complémentaire : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\nRègle anti-fabrication : n'invente AUCUN détail non vérifiable. Si la matière manque, bascule sur registre RÉFLEXIF/MÉTA ancré sur LE SUJET DÉCLARÉ.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
         });
 
-        const anthropicStream = await streamAnthropicSSE(
-          apiKey,
-          model,
-          systemPrompt,
-          [{ role: "user", content: photoContent }],
-          0.7,
-          4096,
+        return createClientSSEStream(
+          () => streamAnthropicSSE(
+            apiKey,
+            model,
+            systemPrompt,
+            [{ role: "user", content: photoContent }],
+            0.7,
+            4096,
+          ),
+          corsHeaders,
+          async (_full, usage) => {
+            await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+          },
         );
-        return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
-          await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-        });
       }
 
       // LinkedIn (texte) : pas de streaming de texte (la correction doit relire
@@ -1454,19 +1457,22 @@ Réponds UNIQUEMENT en JSON :
         });
       }
 
-      // Non-LinkedIn, non-Carousel: stream as usual
-      const anthropicStream = await streamAnthropicSSE(
-        apiKey,
-        model,
-        systemPrompt,
-        [{ role: "user", content: userPrompt! }],
-        0.85,
-        4096,
+      // Non-LinkedIn, non-Carousel: stream as usual (avec relance serveur sur
+      // overloaded / complétion vide — cf. bug post IG intermittent 10/07).
+      return createClientSSEStream(
+        () => streamAnthropicSSE(
+          apiKey,
+          model,
+          systemPrompt,
+          [{ role: "user", content: userPrompt! }],
+          0.85,
+          4096,
+        ),
+        corsHeaders,
+        async (_full, usage) => {
+          await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+        },
       );
-
-      return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
-        await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-      });
     }
 
     // ── Call Anthropic ──
