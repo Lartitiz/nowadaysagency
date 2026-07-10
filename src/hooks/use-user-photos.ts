@@ -347,28 +347,35 @@ export function useRetouchExistingPhoto() {
   return { mutate, isPending };
 }
 
+export interface GeneratePhotoVariantInput {
+  sourcePhoto: UserPhotoRow;
+  backgroundPrompt: string;
+  /** Métadonnées de la NOUVELLE photo (nom, type, tags, description). */
+  name: string;
+  kind: string;
+  tags: string[];
+  description: string;
+}
+
 /**
- * « Portrait pro » : génère une NOUVELLE photo de bibliothèque depuis un
- * portrait existant (fond remplacé par Photoroom, visage détouré intact).
+ * Génère une NOUVELLE photo de bibliothèque depuis une photo existante, fond
+ * remplacé par Photoroom (sujet détouré au pixel, jamais re-généré). Socle
+ * commun de « Portrait pro » et des déclinaisons saisonnières.
  *
  * Contrairement à useRetouchExistingPhoto (sur place), on crée une ligne à
  * part : l'originale reste intacte et la personne peut générer plusieurs
- * versions du même selfie. Flux : copie serveur du fichier source vers
+ * versions de la même photo. Flux : copie serveur du fichier source vers
  * `${uid}/${newId}_original.jpg` → insert row pending → edge
  * photo-background-replace (écrit `${uid}/${newId}.jpg`, passe la ligne ready).
  * Les ajustements ultérieurs re-passent par useRetouchExistingPhoto sur la
  * ligne générée (chemins déjà distincts → pas de snapshot).
  */
-export function useGeneratePortraitPro() {
+export function useGeneratePhotoVariant() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const [isPending, setIsPending] = useState(false);
 
-  async function mutate(input: {
-    sourcePhoto: UserPhotoRow;
-    backgroundPrompt: string;
-    ambianceTitle?: string;
-  }): Promise<{ photoId: string }> {
+  async function mutate(input: GeneratePhotoVariantInput): Promise<{ photoId: string }> {
     if (!user?.id || !workspaceId) throw new Error("Espace de travail introuvable");
     if (workspaceId === user.id) {
       throw new Error("Espace de travail en cours de chargement, réessaie dans 1 seconde.");
@@ -393,14 +400,12 @@ export function useGeneratePortraitPro() {
           storage_path: "",
           original_storage_path: "",
           status: "pending",
-          name: `${source.name ?? "Portrait"} — portrait pro`.slice(0, 120),
-          kind: "portrait",
+          name: input.name.slice(0, 120),
+          kind: input.kind,
           source_type: "generated",
           background_prompt: prompt,
-          description: source.description
-            ? `Portrait pro — ${source.description}`.slice(0, 300)
-            : "Portrait professionnel généré (fond remplacé)",
-          tags: Array.from(new Set(["portrait-pro", ...(source.tags ?? [])])).slice(0, 6),
+          description: input.description.slice(0, 300),
+          tags: input.tags.slice(0, 6),
         })
         .select("id")
         .single();
@@ -409,7 +414,7 @@ export function useGeneratePortraitPro() {
         if (raw.toLowerCase().includes("row-level security")) {
           throw new Error("Espace de travail invalide. Recharge la page et réessaie.");
         }
-        throw new Error(raw || "Impossible de créer le portrait");
+        throw new Error(raw || "Impossible de créer la photo");
       }
       const newId = insertRes.data.id as string;
       const originalPath = `${user.id}/${newId}_original.jpg`;
@@ -469,6 +474,31 @@ export function useGeneratePortraitPro() {
     } finally {
       setIsPending(false);
     }
+  }
+
+  return { mutate, isPending };
+}
+
+/** « Portrait pro » : variante portrait (métadonnées dédiées) du socle ci-dessus. */
+export function useGeneratePortraitPro() {
+  const { mutate: generateVariant, isPending } = useGeneratePhotoVariant();
+
+  async function mutate(input: {
+    sourcePhoto: UserPhotoRow;
+    backgroundPrompt: string;
+    ambianceTitle?: string;
+  }): Promise<{ photoId: string }> {
+    const source = input.sourcePhoto;
+    return generateVariant({
+      sourcePhoto: source,
+      backgroundPrompt: input.backgroundPrompt,
+      name: `${source.name ?? "Portrait"} — portrait pro`,
+      kind: "portrait",
+      tags: Array.from(new Set(["portrait-pro", ...(source.tags ?? [])])),
+      description: source.description
+        ? `Portrait pro — ${source.description}`
+        : "Portrait professionnel généré (fond remplacé)",
+    });
   }
 
   return { mutate, isPending };
