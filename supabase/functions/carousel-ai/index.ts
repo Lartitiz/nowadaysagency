@@ -238,12 +238,12 @@ const MIX_CAROUSEL_TOOL = {
       photo_mismatch: {
         type: "object",
         description:
-          "À remplir UNIQUEMENT si des photos sont fournies ET qu'elles n'ont AUCUN rapport exploitable avec le brief (aucun angle honnête possible). Dans ce cas, ne remplis PAS `slides`. En cas de doute, génère le carrousel : un lien inattendu mais assumé vaut mieux qu'un refus.",
+          "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
         properties: {
           reason: {
             type: "string",
             description:
-              "1-2 phrases en français, adressées directement à l'utilisatrice (tutoiement), expliquant concrètement le décalage entre la ou les photos et le sujet.",
+              "1-2 phrases en français, adressées directement à l'utilisatrice (tutoiement), décrivant UNIQUEMENT le décalage constaté entre la ou les photos et le sujet. AUCUNE recommandation ni question (l'app ajoute la marche à suivre).",
           },
         },
         required: ["reason"],
