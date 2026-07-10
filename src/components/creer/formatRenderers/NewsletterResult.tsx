@@ -5,18 +5,22 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
 import { toast } from "sonner";
+import { stripInlineMarkdown } from "@/lib/strip-markdown";
 
 interface Props {
   result: any;
 }
 
 export default function NewsletterResult({ result }: Props) {
-  const subject = result?.subject || "";
-  const previewText = result?.preview_text || "";
-  const body = result?.body || result?.content || result?.text || "";
+  // Filet de sécurité : le markdown résiduel (**gras**) s'afficherait tel quel
+  // et partirait dans le presse-papier — l'edge nettoie déjà les nouvelles
+  // générations, ici on couvre l'existant et le chemin "adjust".
+  const subject = stripInlineMarkdown(result?.subject || "");
+  const previewText = stripInlineMarkdown(result?.preview_text || "");
+  const body = stripInlineMarkdown(result?.body || result?.content || result?.text || "");
   const wordCount = result?.word_count;
-  const ctaSuggestion = result?.cta_suggestion;
-  
+  const ctaSuggestion = stripInlineMarkdown(result?.cta_suggestion || "");
+
 
   const fullText = [subject, body].filter(Boolean).join("\n\n");
   const [checkedText, setCheckedText] = useState(fullText);

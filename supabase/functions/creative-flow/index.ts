@@ -15,6 +15,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -807,7 +808,9 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
-${isReel || isStories ? `` : isNewsletter ? `Réponds UNIQUEMENT en JSON :
+${isReel || isStories ? `` : isNewsletter ? `Un email part en TEXTE BRUT : aucune valeur ne doit contenir de markdown (**gras**, *italique*, ## titres) — les astérisques s'afficheraient tels quels chez le lecteur. Pour un aparté, utilise des parenthèses.
+
+Réponds UNIQUEMENT en JSON :
 {
   "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
   "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
@@ -1343,6 +1346,10 @@ Réponds UNIQUEMENT en JSON :
             console.error("[creative-flow newsletter] correction pass failed:", e);
           }
         }
+
+        // Nettoyage déterministe : un email part en texte brut, le markdown
+        // résiduel (**gras**, *italique*) s'afficherait tel quel (audit 09/07).
+        parsed = stripMarkdownFromNewsletter(parsed);
 
         if (parsed.content && typeof parsed.content === "string") {
           parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
