@@ -4,6 +4,7 @@
  */
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { assertWorkspaceMembership } from "./workspace-guard.ts";
 
 // Modèle de crédits simplifié (2026-06) :
 //  - `total` = LE compteur global unique de créations du mois (toutes catégories
@@ -200,6 +201,39 @@ export function getMonthlyUsageRows(sb: any, userId: string, workspaceId?: strin
   return query;
 }
 
+/**
+ * Périmètre de facturation DÉTERMINISTE (fix 10/07/2026). Les lignes ai_usage
+ * partaient avec workspace_id NULL dès que le client omettait le champ (observé
+ * en live : carousel_deepening_questions et carousel_express_full NULL pendant
+ * que carousel_visual était rattaché) → une partie de la génération échappait
+ * au comptage par workspace de checkQuota / check-subscription, et le coût d'un
+ * même contenu dépendait du contexte d'appel. Résolution côté serveur :
+ *  - workspace fourni ET membre → conservé (manager sur l'espace d'une cliente) ;
+ *  - fourni mais NON membre → ignoré (jamais compter ni facturer sur l'espace
+ *    d'autrui, ni hériter de son plan) ;
+ *  - absent → workspace PROPRE de l'utilisatrice (owner, créé au signup) ;
+ *    à défaut (compte legacy sans workspace), périmètre par user comme avant.
+ */
+export async function resolveBillingWorkspaceId(
+  sb: any,
+  userId: string,
+  workspaceId?: string | null,
+): Promise<string | undefined> {
+  if (workspaceId) {
+    const guard = await assertWorkspaceMembership(sb, userId, workspaceId);
+    if (guard.ok) return workspaceId;
+  }
+  const { data } = await sb
+    .from("workspace_members")
+    .select("workspace_id")
+    .eq("user_id", userId)
+    .eq("role", "owner")
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return data?.workspace_id ?? undefined;
+}
+
 export async function getBonusCredits(sb: any, userId: string): Promise<number> {
   const { data } = await sb
     .from("profiles")
@@ -251,7 +285,10 @@ export async function checkQuota(
     return { allowed: true, plan: realPlan, remaining: 9999, remaining_total: 9999 };
   }
 
-  const plan = await getEffectivePlan(sb, userId, workspaceId);
+  // Périmètre résolu côté serveur — voir resolveBillingWorkspaceId.
+  const billingWorkspaceId = await resolveBillingWorkspaceId(sb, userId, workspaceId);
+
+  const plan = await getEffectivePlan(sb, userId, billingWorkspaceId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
   // Check if category is available for this plan
@@ -269,7 +306,7 @@ export async function checkQuota(
   const bonusCredits = await getBonusCredits(sb, userId);
   const effectiveTotalLimit = limits.total + bonusCredits;
 
-  const { data: usageRows, error: usageError } = await getMonthlyUsageRows(sb, userId, workspaceId);
+  const { data: usageRows, error: usageError } = await getMonthlyUsageRows(sb, userId, billingWorkspaceId);
 
   if (usageError) {
     return {
@@ -365,13 +402,18 @@ export async function logUsage(
   // consommer de bonus.
   if (isQaTestAccount(userId)) return;
 
+  // Même périmètre que checkQuota : le workspace est résolu côté serveur pour
+  // que TOUTE ligne ai_usage porte un workspace_id (les ~20 edges qui n'en
+  // passent pas retombent sur le workspace propre de l'utilisatrice).
+  const billingWorkspaceId = await resolveBillingWorkspaceId(sb, userId, workspaceId);
+
   await sb.from("ai_usage").insert({
     user_id: userId,
     category,
     action_type: actionType,
     tokens_used: tokensUsed || null,
     model_used: modelUsed || null,
-    workspace_id: workspaceId || null,
+    workspace_id: billingWorkspaceId || null,
   });
 
 
@@ -383,10 +425,10 @@ export async function logUsage(
   const { data: adminCheck } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
   if (adminCheck) return;
 
-  const plan = await getEffectivePlan(sb, userId, workspaceId);
+  const plan = await getEffectivePlan(sb, userId, billingWorkspaceId);
   const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
 
-  const { data: usageRows } = await getMonthlyUsageRows(sb, userId, workspaceId);
+  const { data: usageRows } = await getMonthlyUsageRows(sb, userId, billingWorkspaceId);
 
   const totalUsed = (usageRows || []).length;
 

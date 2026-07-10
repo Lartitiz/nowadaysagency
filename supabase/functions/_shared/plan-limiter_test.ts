@@ -23,6 +23,10 @@ interface FakeConfig {
   bonusCredits?: number;
   usage?: { category: string }[];
   usageError?: boolean;
+  /** L'utilisateur est-il membre du workspace passé en paramètre ? (resolveBillingWorkspaceId) */
+  member?: boolean;
+  /** Workspace propre (owner) résolu quand aucun workspace valide n'est fourni. */
+  ownWorkspaceId?: string;
 }
 
 interface FakeClient {
@@ -47,9 +51,17 @@ function fakeClient(cfg: FakeConfig): FakeClient {
   function builderFor(table: string) {
     // deno-lint-ignore no-explicit-any
     const b: any = {};
+    // Trace des .eq() : permet de distinguer les deux requêtes workspace_members
+    // (check d'adhésion filtré par workspace_id vs lookup du workspace propre).
+    const eqCols: string[] = [];
     b.select = () => b;
-    b.eq = () => b;
+    b.eq = (col: string) => {
+      eqCols.push(col);
+      return b;
+    };
     b.gte = () => b;
+    b.order = () => b;
+    b.limit = () => b;
     b.single = () => {
       if (table === "subscriptions") {
         return Promise.resolve({ data: cfg.userPlan ? { plan: cfg.userPlan } : null, error: null });
@@ -65,6 +77,16 @@ function fakeClient(cfg: FakeConfig): FakeClient {
     b.maybeSingle = () => {
       if (table === "coaching_programs") {
         return Promise.resolve({ data: cfg.coaching ? { id: "c1" } : null, error: null });
+      }
+      if (table === "workspace_members") {
+        // Check d'adhésion (filtré par workspace_id) vs lookup workspace propre.
+        if (eqCols.includes("workspace_id")) {
+          return Promise.resolve({ data: cfg.member ? { role: "member" } : null, error: null });
+        }
+        return Promise.resolve({
+          data: cfg.ownWorkspaceId ? { workspace_id: cfg.ownWorkspaceId } : null,
+          error: null,
+        });
       }
       return Promise.resolve({ data: null, error: null });
     };
@@ -184,9 +206,17 @@ Deno.test("erreur de lecture usage → fail-closed (bloqué, reason error)", asy
 
 Deno.test("plan workspace upgrade le plan perso (free + workspace binome → binome)", async () => {
   // quality_max indisponible en free mais dispo en binome
-  const r = await checkQuota("u1", "quality_max", "ws1", sb({ userPlan: "free", workspacePlan: "binome" }));
+  const r = await checkQuota("u1", "quality_max", "ws1", sb({ userPlan: "free", workspacePlan: "binome", member: true }));
   assertEquals(r.allowed, true);
   assertEquals(r.plan, "binome");
+});
+
+Deno.test("workspace fourni mais NON membre → ignoré (pas d'héritage de plan, périmètre propre)", async () => {
+  // Un client (ou un bug front) qui passe le workspace_id d'autrui ne doit ni
+  // hériter de son plan ni compter/facturer dans son périmètre.
+  const r = await checkQuota("u1", "quality_max", "ws-autrui", sb({ userPlan: "free", workspacePlan: "binome", member: false }));
+  assertEquals(r.allowed, false);
+  assertEquals(r.reason, "not_available"); // plan resté free : quality_max indisponible
 });
 
 Deno.test("programme d'accompagnement actif upgrade en binome", async () => {
@@ -198,7 +228,7 @@ Deno.test("programme d'accompagnement actif upgrade en binome", async () => {
 // ---------- logUsage ----------
 
 Deno.test("logUsage: insère bien une ligne ai_usage avec les bons champs", async () => {
-  const client = fakeClient({ userPlan: "free", usage: rows(5, "content") });
+  const client = fakeClient({ userPlan: "free", usage: rows(5, "content"), member: true });
   // deno-lint-ignore no-explicit-any
   await logUsage("u1", "content", "create", 1234, "claude-opus", "ws1", client as any);
   assertEquals(client._inserted.length, 1);
@@ -207,6 +237,33 @@ Deno.test("logUsage: insère bien une ligne ai_usage avec les bons champs", asyn
   assertEquals(row.category, "content");
   assertEquals(row.tokens_used, 1234);
   assertEquals(row.workspace_id, "ws1");
+});
+
+Deno.test("logUsage: workspace omis → la ligne est rattachée au workspace PROPRE", async () => {
+  // Le bug du 10/07/2026 : des edges appelés sans workspace_id écrivaient des
+  // lignes NULL qui échappaient au comptage par workspace (carrousel facturé
+  // 1 unité au lieu de 3 dans le périmètre workspace).
+  const client = fakeClient({ userPlan: "free", usage: rows(5, "content"), ownWorkspaceId: "ws-own" });
+  // deno-lint-ignore no-explicit-any
+  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
+  assertEquals(client._inserted.length, 1);
+  assertEquals(client._inserted[0].workspace_id, "ws-own");
+});
+
+Deno.test("logUsage: compte legacy sans aucun workspace → périmètre user préservé (NULL)", async () => {
+  const client = fakeClient({ userPlan: "free", usage: rows(5, "content") });
+  // deno-lint-ignore no-explicit-any
+  await logUsage("u1", "content", "create", undefined, undefined, undefined, client as any);
+  assertEquals(client._inserted.length, 1);
+  assertEquals(client._inserted[0].workspace_id, null);
+});
+
+Deno.test("logUsage: workspace d'autrui (non membre) → retombe sur le workspace propre", async () => {
+  const client = fakeClient({ userPlan: "free", usage: rows(5, "content"), member: false, ownWorkspaceId: "ws-own" });
+  // deno-lint-ignore no-explicit-any
+  await logUsage("u1", "content", "create", undefined, undefined, "ws-autrui", client as any);
+  assertEquals(client._inserted.length, 1);
+  assertEquals(client._inserted[0].workspace_id, "ws-own");
 });
 
 Deno.test("logUsage: au-delà du plafond de base, décrémente les crédits bonus (RPC atomique)", async () => {
@@ -229,7 +286,7 @@ Deno.test("logUsage: sous le plafond de base, ne touche pas aux crédits bonus",
 Deno.test("logUsage: plan workspace binome → ne consomme JAMAIS de bonus (même > 23 usages)", async () => {
   // Le bug corrigé : logUsage lisait le plan PERSO (free, total=23) au lieu du plan
   // effectif (workspace binome, total=9999) → les bonus d'une cliente Binôme fondaient à tort.
-  const client = fakeClient({ userPlan: "free", workspacePlan: "binome", usage: rows(50, "content"), bonusCredits: 5 });
+  const client = fakeClient({ userPlan: "free", workspacePlan: "binome", usage: rows(50, "content"), bonusCredits: 5, member: true });
   // deno-lint-ignore no-explicit-any
   await logUsage("u1", "content", "create", undefined, undefined, "ws1", client as any);
   assertEquals(client._rpcCalls.filter((c) => c.name === "consume_bonus_credit").length, 0);

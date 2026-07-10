@@ -945,7 +945,9 @@ Réponds UNIQUEMENT en JSON valide :
           tool: QUESTIONS_TOOL,
         }, deepeningUsage);
 
-        await logUsage(userId, category, `carousel_deepening_${body.carousel_type}`, deepeningUsage.total_tokens, deepeningUsage.model, workspace_id);
+        // PAS de logUsage — les questions d'approfondissement sont gratuites
+        // (arbitrage 10/07/2026 : un carrousel débite 2 crédits, rédaction +
+        // visuel ; aligné sur creative-flow où le step "questions" est gratuit).
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1019,7 +1021,12 @@ Réponds UNIQUEMENT en JSON valide :
       })).content;
     }
 
-    await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspace_id);
+    // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
+    // un carrousel débite 2 crédits (rédaction express_full + carousel_visual),
+    // les questions pré-chargées ne comptent pas (aligné sur creative-flow).
+    if (type !== "deepening_questions") {
+      await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspace_id);
+    }
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

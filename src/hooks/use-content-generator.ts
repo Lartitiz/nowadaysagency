@@ -6,6 +6,8 @@ import { posthog } from "@/lib/posthog";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   EDITORIAL_ANGLES,
   CONTENT_STRUCTURES,
@@ -191,6 +193,18 @@ function quotaInlineMessage(serverMessage: string): string {
 // ── Hook ──
 
 export function useContentGenerator() {
+  // Filet workspace (10/07/2026) : plusieurs appelants (CreerUnifie…) omettaient
+  // params.workspaceId → les lignes ai_usage partaient avec workspace_id NULL et
+  // échappaient au comptage par workspace du quota (checkQuota/check-subscription).
+  // Le hook résout lui-même le workspace actif ; un params.workspaceId explicite
+  // garde la priorité (manager sur l'espace d'une cliente). useWorkspaceId retombe
+  // sur user.id quand le contexte n'est pas prêt → on le neutralise (ce n'est pas
+  // un id de workspace), le serveur retombera alors sur le workspace propre.
+  const { user } = useAuth();
+  const activeWorkspaceId = useWorkspaceId();
+  const defaultWorkspaceId =
+    activeWorkspaceId && activeWorkspaceId !== user?.id ? activeWorkspaceId : undefined;
+
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<ContentResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -258,6 +272,7 @@ export function useContentGenerator() {
       carouselType,
       newsContext,
     } = params;
+    const effectiveWorkspaceId = workspaceId || defaultWorkspaceId;
 
     setGenerating(true);
     setError(null);
@@ -319,7 +334,7 @@ export function useContentGenerator() {
               deepening_answers: answers || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
-              workspace_id: workspaceId || null,
+              workspace_id: effectiveWorkspaceId || null,
               // Optimisation : si la structure a déjà été confirmée à l'étape précédente
               // (structure_proposal), Claude a déjà analysé les photos en vision. Inutile
               // de les renvoyer en base64 — la structure encode déjà photo_index + slide_type.
@@ -367,7 +382,7 @@ export function useContentGenerator() {
               selected_hook: selectedHook || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
-              workspace_id: workspaceId || null,
+              workspace_id: effectiveWorkspaceId || null,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
           }, 120000);
@@ -386,7 +401,7 @@ export function useContentGenerator() {
               face_cam: faceCam || "flexible",
               time_available: timeAvailable || "flexible",
               pre_gen_answers: preGenAnswers || null,
-              workspace_id: workspaceId || null,
+              workspace_id: effectiveWorkspaceId || null,
               // Photos de la bibliothèque choisies à l'étape format (lot D) :
               // le brief les traite en priorité absolue, une par story.
               ...(params.photoMode && params.photos?.length
@@ -427,7 +442,7 @@ export function useContentGenerator() {
                 ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
                 : [],
               objective: objective || null,
-              workspace_id: workspaceId || null,
+              workspace_id: effectiveWorkspaceId || null,
               photo_mode: params.photoMode || undefined,
               photos: params.photoMode && params.photos?.length ? params.photos.slice(0, 10).map(p => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context })) : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
@@ -456,7 +471,7 @@ export function useContentGenerator() {
                 : undefined,
               objective: objective || null,
               editorialFormat: editorialAngle || null,
-              workspace_id: workspaceId || null,
+              workspace_id: effectiveWorkspaceId || null,
               photo_mode: params.photoMode || undefined,
               photos: params.photoMode && params.photos?.length
                 ? params.photos.slice(0, 10).map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
@@ -537,11 +552,12 @@ export function useContentGenerator() {
       setGenerating(false);
       setGenerationStage(null);
     }
-  }, []);
+  }, [defaultWorkspaceId]);
 
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
       const { format, subject, editorialAngle, objective, workspaceId } = params;
+      const effectiveWorkspaceId = workspaceId || defaultWorkspaceId;
       setQuestionsError(null);
 
       setLoadingQuestions(true);
@@ -573,7 +589,7 @@ export function useContentGenerator() {
               .select("subject, format, editorial_angle, created_at")
               .order("created_at", { ascending: false })
               .limit(8); // marge pour filtrer les sujets vides
-            if (workspaceId) q = q.eq("workspace_id", workspaceId);
+            if (effectiveWorkspaceId) q = q.eq("workspace_id", effectiveWorkspaceId);
             else q = q.eq("user_id", user.id);
             const { data: briefs } = await q;
             const cleanBriefs = (briefs || [])
@@ -616,6 +632,9 @@ export function useContentGenerator() {
             body: {
               type: "deepening_questions",
               channel: params.channel || "instagram",
+              // Sans ce champ, la ligne ai_usage (catégorie suggestion) partait
+              // avec workspace_id NULL — hors du périmètre de comptage du quota.
+              workspace_id: effectiveWorkspaceId || null,
               subject: effectiveSubjectQ,
               subject_details: existingContentQ || undefined,
               objective: objective || null,
@@ -662,6 +681,9 @@ export function useContentGenerator() {
           const res = await invokeWithTimeout("creative-flow", {
             body: {
               step: "questions",
+              // Étape gratuite, mais le workspace scope aussi le contexte branding
+              // (getUserContext) et la mémoire anti-répétition côté serveur.
+              workspace_id: effectiveWorkspaceId || undefined,
               contentType:
                 format === "linkedin"
                   ? "linkedin_post"
@@ -735,7 +757,7 @@ export function useContentGenerator() {
         setLoadingQuestions(false);
       }
     },
-    []
+    [defaultWorkspaceId]
   );
 
   // ── Streaming generation (text formats: post / linkedin / newsletter / pinterest) ──
@@ -814,7 +836,7 @@ export function useContentGenerator() {
               conviction: (ans as any).conviction || ansValues[2] || undefined,
             }
           : undefined,
-        workspace_id: workspaceId || undefined,
+        workspace_id: workspaceId || defaultWorkspaceId || undefined,
         objective: objective || undefined,
         editorialFormat: editorialAngle || undefined,
         editorialFormatLabel: editorialAngle || undefined,
@@ -878,7 +900,7 @@ export function useContentGenerator() {
       setResult(normalized);
       return normalized;
     },
-    [streamInvoke, streamReset]
+    [streamInvoke, streamReset, defaultWorkspaceId]
   );
 
   return {
