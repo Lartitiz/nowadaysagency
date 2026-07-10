@@ -150,29 +150,35 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
           textBuffer = textBuffer.slice(newlineIdx + 1);
 
           if (!line.startsWith("data: ")) continue;
+          // ⚠️ Le parse reste seul dans son try/catch : un `throw` métier placé
+          // dans le même try serait avalé par le catch « JSON partiel » (bug
+          // historique : l'event `error` du serveur était ignoré en silence et
+          // l'utilisatrice voyait un générique « La génération a échoué » au
+          // lieu du message honnête de l'edge).
+          let event: any;
           try {
-            const event = JSON.parse(line.slice(6));
+            event = JSON.parse(line.slice(6));
+          } catch {
+            continue; // JSON partiel — on attend la suite du buffer
+          }
 
-            if (event.type === "delta" && event.text) {
-              fullText += event.text;
-              setContent(fullText);
-            }
+          if (event.type === "delta" && event.text) {
+            fullText += event.text;
+            setContent(fullText);
+          }
 
-            if (event.type === "done") {
-              doneFull = event.full || fullText;
-              setContent(doneFull);
-              setDone(true);
-            }
+          if (event.type === "done") {
+            doneFull = event.full || fullText;
+            setContent(doneFull);
+            setDone(true);
+          }
 
-            if (event.type === "status" && typeof event.stage === "string") {
-              setStage(event.stage);
-            }
+          if (event.type === "status" && typeof event.stage === "string") {
+            setStage(event.stage);
+          }
 
-            if (event.type === "error") {
-              throw new Error(event.error);
-            }
-          } catch (parseErr) {
-            // Ignore partial JSON
+          if (event.type === "error") {
+            throw new Error(event.error);
           }
         }
       }

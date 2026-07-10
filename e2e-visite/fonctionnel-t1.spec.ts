@@ -132,7 +132,7 @@ async function generateDirectly(page: Page): Promise<boolean> {
 // ── T1a : Instagram Post ──────────────────────────────────────────────────────
 
 test("T1a — Post Instagram : génération streaming + ajout calendrier", async ({ page }) => {
-  test.setTimeout(180_000); // 3 min : génération LLM + streaming Instagram peut dépasser 90 s
+  test.setTimeout(300_000); // 5 min : questions (≤90 s) + génération (≤150 s, cf. budget bouton) + navigation
   const quota429 = watchQuota429(page);
   await goToCreer(page);
   await enterIdea(page, IDEA);
@@ -164,10 +164,15 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
   // Ce bouton s'affiche UNIQUEMENT quand le streaming est terminé.
   // Si le quota bloque la génération, le spinner tourne indéfiniment :
   // on attrape le timeout et on vérifie la quota wall avant de skip/échouer.
+  // 150 s (pas 90) : le retry serveur de creative-flow (#466) peut empiler 2
+  // tentatives Anthropic AVANT le 1er delta quand le provider est chargé, et
+  // le timeout du front est à 180 s — le spec doit laisser au produit sa
+  // fenêtre légitime avant de rougir (échec 2/2 du 10/07 = latence Sonnet 5,
+  // pas un hang : diagnostic chip task_5b4a5a20).
   const calBtn = page.getByRole("button", { name: /ajouter au calendrier/i }).first();
   let calBtnFound = false;
   try {
-    await expect(calBtn).toBeVisible({ timeout: 90000 });
+    await expect(calBtn).toBeVisible({ timeout: 150000 });
     calBtnFound = true;
   } catch {
     if (quota429.hit() || (await dismissQuotaWall(page))) {
@@ -175,7 +180,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
       test.skip();
       return;
     }
-    throw new Error("Bouton 'Ajouter au calendrier' non trouvé après 90 s (sans quota wall ni 429)");
+    throw new Error("Bouton 'Ajouter au calendrier' non trouvé après 150 s (sans quota wall ni 429)");
   }
 
   await page.screenshot({ path: path.join(SHOTS, "t1a-instagram-result.png") });
