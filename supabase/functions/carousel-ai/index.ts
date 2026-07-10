@@ -201,6 +201,14 @@ function enforceTextFirstDirectives(content: string): string {
       const isPhoto = s.slide_type === "photo_full" || s.slide_type === "photo_integrated";
       if (isPhoto && !(typeof s.photo_directive === "string" && s.photo_directive.trim())) {
         missingDirectives += 1;
+        // Repli (vu en sonde le 10/07) : sans directive, la carte de casting se
+        // dégrade en simple « Ajouter une photo » et la slide échappe au
+        // verrouillage du CTA. On synthétise depuis ce que la slide fournit.
+        const fallback = [s.visual_suggestion, s.overlay_text, s.title]
+          .find((x: unknown) => typeof x === "string" && (x as string).trim());
+        s.photo_directive = typeof fallback === "string" && fallback.trim()
+          ? `Une image qui illustre : ${fallback.trim()}`
+          : "Une image cohérente avec l'univers de la marque, qui illustre le propos de cette slide.";
       }
       if (!isPhoto) {
         delete s.photo_directive;
