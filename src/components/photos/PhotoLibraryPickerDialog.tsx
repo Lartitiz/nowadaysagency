@@ -22,16 +22,22 @@ interface PhotoLibraryPickerDialogProps {
 function PickerThumb({
   photo,
   url,
+  signDone,
   selected,
   disabled,
   onToggle,
 }: {
   photo: UserPhotoRow;
   url: string | null;
+  signDone: boolean;
   selected: boolean;
   disabled: boolean;
   onToggle: () => void;
 }) {
+  const [imgError, setImgError] = useState(false);
+  // Aperçu KO (signature échouée ou image en erreur) ≠ « en chargement » :
+  // la photo reste sélectionnable, l'import passe par storage_path.
+  const broken = imgError || (signDone && !url);
   return (
     <button
       type="button"
@@ -45,16 +51,18 @@ function PickerThumb({
         disabled && !selected && "opacity-40 cursor-not-allowed",
       )}
     >
-      {url ? (
+      {url && !imgError ? (
         <img
           src={url}
           alt={photo.name ?? "Photo"}
           className="h-full w-full object-cover"
           loading="lazy"
+          onError={() => setImgError(true)}
         />
       ) : (
-        <div className="flex h-full w-full items-center justify-center text-muted-foreground">
+        <div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
           <ImageIcon className="h-5 w-5" />
+          {broken && <span className="text-2xs px-1">Aperçu indisponible</span>}
         </div>
       )}
       {selected && (
@@ -75,6 +83,7 @@ export function PhotoLibraryPickerDialog({
   const { data: photos, isLoading } = useUserPhotos();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [urlMap, setUrlMap] = useState<Map<string, string>>(new Map());
+  const [signDone, setSignDone] = useState(false);
 
   const readyPhotos = useMemo(
     () => (photos ?? []).filter((p) => p.status === "ready"),
@@ -90,11 +99,15 @@ export function PhotoLibraryPickerDialog({
   useEffect(() => {
     if (!open || readyPhotos.length === 0) {
       setUrlMap(new Map());
+      setSignDone(false);
       return;
     }
     let cancelled = false;
+    setSignDone(false);
     getSignedPhotoUrls(readyPhotos.map((p) => p.storage_path)).then((map) => {
-      if (!cancelled) setUrlMap(map);
+      if (cancelled) return;
+      setUrlMap(map);
+      setSignDone(true);
     });
     return () => {
       cancelled = true;
@@ -151,6 +164,7 @@ export function PhotoLibraryPickerDialog({
                   key={p.id}
                   photo={p}
                   url={urlMap.get(p.storage_path) ?? null}
+                  signDone={signDone}
                   selected={selectedIds.includes(p.id)}
                   disabled={atMax}
                   onToggle={() => toggle(p.id)}

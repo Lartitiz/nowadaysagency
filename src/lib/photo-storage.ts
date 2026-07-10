@@ -72,6 +72,10 @@ async function compressToJpeg(
     | CanvasRenderingContext2D
     | null;
   if (!ctx) throw new Error("Canvas indisponible");
+  // JPEG n'a pas d'alpha : sans fond posé d'abord, les pixels transparents
+  // d'un PNG deviennent NOIRS à l'encodage. Fond blanc = rendu attendu.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
 
@@ -222,11 +226,16 @@ export async function getSignedPhotoUrl(
   expiresInSeconds = 3600,
 ): Promise<string | null> {
   if (!path) return null;
-  const { data, error } = await supabase.storage
-    .from(USER_PHOTOS_BUCKET)
-    .createSignedUrl(path, expiresInSeconds);
-  if (error) return null;
-  return data?.signedUrl ?? null;
+  // La signature peut échouer transitoirement (5xx storage observé en prod) :
+  // sans retry, la vignette reste vide en silence.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await supabase.storage
+      .from(USER_PHOTOS_BUCKET)
+      .createSignedUrl(path, expiresInSeconds);
+    if (!error && data?.signedUrl) return data.signedUrl;
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 400));
+  }
+  return null;
 }
 
 /**
@@ -240,17 +249,22 @@ export async function getSignedPhotoUrls(
   const valid = paths.filter(Boolean);
   if (valid.length === 0) return new Map();
 
-  const { data, error } = await supabase.storage
-    .from(USER_PHOTOS_BUCKET)
-    .createSignedUrls(valid, expiresInSeconds);
-
-  if (error || !data) return new Map();
-
-  const map = new Map<string, string>();
-  for (const entry of data) {
-    if (entry.signedUrl && entry.path) map.set(entry.path, entry.signedUrl);
+  // Même retry que getSignedPhotoUrl : un échec transitoire du batch
+  // laissait TOUTES les vignettes vides (picker, stories).
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data, error } = await supabase.storage
+      .from(USER_PHOTOS_BUCKET)
+      .createSignedUrls(valid, expiresInSeconds);
+    if (!error && data) {
+      const map = new Map<string, string>();
+      for (const entry of data) {
+        if (entry.signedUrl && entry.path) map.set(entry.path, entry.signedUrl);
+      }
+      return map;
+    }
+    if (attempt === 0) await new Promise((r) => setTimeout(r, 400));
   }
-  return map;
+  return new Map();
 }
 
 /**

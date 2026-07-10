@@ -31,6 +31,8 @@ function formatElapsed(ms: number): string {
 
 export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoCardProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewError, setPreviewError] = useState(false);
+  const [previewAttempt, setPreviewAttempt] = useState(0);
   const [elapsedMs, setElapsedMs] = useState(0);
 
   // Sign URL when ready
@@ -40,13 +42,16 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
       setPreviewUrl(null);
       return;
     }
+    setPreviewError(false);
     getSignedPhotoUrl(photo.storage_path).then((url) => {
-      if (!cancelled) setPreviewUrl(url);
+      if (cancelled) return;
+      setPreviewUrl(url);
+      if (!url) setPreviewError(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [photo.status, photo.storage_path]);
+  }, [photo.status, photo.storage_path, previewAttempt]);
 
   // Elapsed timer for pending/processing
   useEffect(() => {
@@ -74,17 +79,38 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
       onClick={() => isReady && onOpen(photo)}
     >
       {/* Image preview */}
-      {isReady && previewUrl && (
+      {isReady && previewUrl && !previewError && (
         <img
           src={previewUrl}
           alt={photo.name ?? "Photo"}
           className="h-full w-full object-cover"
           loading="lazy"
+          onError={() => setPreviewError(true)}
         />
       )}
-      {isReady && !previewUrl && (
+      {isReady && !previewUrl && !previewError && (
         <div className="flex h-full w-full items-center justify-center text-muted-foreground">
           <ImageIcon className="h-6 w-6" />
+        </div>
+      )}
+      {/* Aperçu indisponible (signature ou chargement KO) — la photo existe,
+          seul l'aperçu a échoué : on propose de recharger la vignette */}
+      {isReady && previewError && (
+        <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-3 text-center">
+          <ImageIcon className="h-6 w-6 text-muted-foreground" />
+          <p className="text-2xs text-muted-foreground">Aperçu indisponible</p>
+          <Button
+            size="sm"
+            variant="secondary"
+            className="h-7 text-xs relative z-10"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPreviewError(false);
+              setPreviewAttempt((a) => a + 1);
+            }}
+          >
+            <RefreshCw className="h-3 w-3 mr-1" /> Réessayer
+          </Button>
         </div>
       )}
 
