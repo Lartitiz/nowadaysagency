@@ -81,6 +81,35 @@ async function mountFrame(html: string): Promise<HTMLIFrameElement> {
   return iframe;
 }
 
+/**
+ * Fragments LIGNE d'un span inline (box-decoration-break:clone) : le rect de
+ * chaque ligne (getClientRects, padding inclus) apparié au TEXTE de la ligne
+ * (marche caractère par caractère, rupture détectée au changement de `top`).
+ * Rend [] si l'appariement échoue → l'appelant retombe sur le pavé englobant.
+ */
+function lineFragmentsOf(el: HTMLElement, doc: Document): { rect: DOMRect; text: string }[] {
+  const rects = Array.from(el.getClientRects()).filter((r) => r.width >= 2 && r.height >= 2);
+  if (rects.length <= 1) return [];
+  const range = doc.createRange();
+  const walker = doc.createTreeWalker(el, 4 /* SHOW_TEXT */);
+  const lines: { top: number; text: string }[] = [];
+  let node: Node | null;
+  while ((node = walker.nextNode())) {
+    const data = (node as Text).data;
+    for (let i = 0; i < data.length; i++) {
+      range.setStart(node, i);
+      range.setEnd(node, i + 1);
+      const r = range.getBoundingClientRect();
+      if (!r || (r.width === 0 && r.height === 0)) continue;
+      const last = lines[lines.length - 1];
+      if (last && Math.abs(r.top - last.top) < r.height * 0.6) last.text += data[i];
+      else lines.push({ top: r.top, text: data[i] });
+    }
+  }
+  if (lines.length !== rects.length) return [];
+  return rects.map((rect, i) => ({ rect, text: lines[i].text.trim() }));
+}
+
 /** Écrit une frame dans une slide : fond (couleur ou photo) + pastilles natives. */
 async function renderFrameToSlide(
   slide: PptxGenJS.Slide,
@@ -126,26 +155,91 @@ async function renderFrameToSlide(
       if (cs.textTransform === "uppercase") text = text.toUpperCase();
 
       const fontSizePx = parseFloat(cs.fontSize) || 44;
-      // La pastille inline se découpe ligne à ligne dans le rendu HTML ; en PPTX
-      // on pose UNE forme arrondie englobante — même encombrement, texte centré.
-      slide.addText(text, {
-        shape: "roundRect",
-        rectRadius: 0.1,
-        x: pxToInches(rect.x, PX_PER_IN),
-        y: pxToInches(rect.y, PX_PER_IN),
-        w: pxToInches(rect.width, PX_PER_IN),
-        h: pxToInches(rect.height, PX_PER_IN),
-        fill: { color: rgbToHex(cs.backgroundColor, "FFFFFF") },
+      const fill = rgbToHex(cs.backgroundColor, "FFFFFF");
+      const textProps = {
         color: rgbToHex(cs.color, "2A2521"),
         fontFace: mapFontToPptx(cs.fontFamily),
         fontSize: fontSizePxToPt(fontSizePx, PX_PER_IN),
         bold: (parseInt(cs.fontWeight, 10) || 400) >= 600,
         italic: cs.fontStyle === "italic",
-        align: "center",
-        valign: "middle",
+        align: "center" as const,
+        valign: "middle" as const,
         margin: 6,
-        line: { type: "none" },
-      });
+      };
+
+      // La pastille inline se découpe ligne à ligne dans le rendu HTML
+      // (box-decoration-break:clone). getClientRects() rend UN rect par ligne :
+      // une seule ligne → forme+texte d'un tenant (comportement historique) ;
+      // multi-lignes → une pilule NATIVE PAR LIGNE (le style Instagram était
+      // perdu, remplacé par un pavé englobant — audit 10/07 CR-3) + le texte en
+      // un bloc unique transparent par-dessus (éditable d'un tenant).
+      const lineRects = Array.from(el.getClientRects()).filter((r) => r.width >= 2 && r.height >= 2);
+      if (lineRects.length <= 1) {
+        slide.addText(text, {
+          shape: "roundRect",
+          rectRadius: 0.1,
+          x: pxToInches(rect.x, PX_PER_IN),
+          y: pxToInches(rect.y, PX_PER_IN),
+          w: pxToInches(rect.width, PX_PER_IN),
+          h: pxToInches(rect.height, PX_PER_IN),
+          fill: { color: fill },
+          line: { type: "none" },
+          ...textProps,
+        });
+      } else {
+        const radiusPx = parseFloat(cs.borderRadius) || 18;
+        const frags = lineFragmentsOf(el, doc);
+        const centered = lineRects.every(
+          (r) => Math.abs(r.x + r.width / 2 - (rect.x + rect.width / 2)) < 6,
+        );
+        if (frags.length === lineRects.length && frags.length > 0) {
+          // UNE pilule + UN texte PAR LIGNE (wrap:false) : le texte suit sa
+          // pilule quel que soit le wrap PowerPoint (une substitution de police
+          // désalignait un bloc texte unique re-wrappé sur les pilules HTML —
+          // mesuré à l'itération 1 du lot C). Pilule élargie de 12 % pour
+          // absorber les métriques plus larges (esprit #420).
+          for (let li = 0; li < frags.length; li++) {
+            const r = frags[li].rect;
+            const wMul = 1.12;
+            const wIn = pxToInches(r.width, PX_PER_IN) * wMul;
+            const xIn = pxToInches(r.x, PX_PER_IN) - (centered ? (wIn - pxToInches(r.width, PX_PER_IN)) / 2 : 0);
+            const yIn = pxToInches(r.y, PX_PER_IN);
+            const hIn = pxToInches(r.height, PX_PER_IN);
+            let lineText = frags[li].text;
+            if (cs.textTransform === "uppercase") lineText = lineText.toUpperCase();
+            slide.addText(lineText, {
+              shape: "roundRect",
+              rectRadius: Math.min(pxToInches(radiusPx, PX_PER_IN), Math.min(wIn, hIn) / 2),
+              x: Math.max(0, xIn),
+              y: yIn,
+              w: Math.min(wIn, PPTX_W_IN - Math.max(0, xIn)),
+              h: hIn,
+              fill: { color: fill },
+              line: { type: "none" },
+              ...textProps,
+              wrap: false,
+            });
+          }
+        } else {
+          // Repli sûr (appariement lignes/texte impossible) : pavé englobant.
+          slide.addText(text, {
+            shape: "roundRect",
+            rectRadius: 0.1,
+            x: pxToInches(rect.x, PX_PER_IN),
+            y: pxToInches(rect.y, PX_PER_IN),
+            w: pxToInches(rect.width, PX_PER_IN),
+            h: pxToInches(rect.height, PX_PER_IN),
+            fill: { color: fill },
+            line: { type: "none" },
+            ...textProps,
+            align: centered ? "center" : "left",
+            lineSpacingMultiple: Math.max(
+              0.9,
+              Math.min(1.9, (parseFloat(cs.lineHeight) || fontSizePx * 1.72) / fontSizePx),
+            ),
+          });
+        }
+      }
     }
   } finally {
     iframe.remove();

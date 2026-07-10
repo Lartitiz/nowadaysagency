@@ -1,5 +1,5 @@
 import PptxGenJS from "pptxgenjs";
-import { mapFontToPptx, normalizeHex } from "./pptx-font-mapping";
+import { mapFontToPptx, normalizeHex, fitFontToBox } from "./pptx-font-mapping";
 
 // ═══ TYPES ═══
 
@@ -40,6 +40,53 @@ export interface CharterColors {
 // simple strip de "#" qui corrompait les couleurs non-hex-6 de la charte.
 function hex(color: string): string {
   return normalizeHex(color);
+}
+
+
+/**
+ * addText avec taille AJUSTÉE À LA BOÎTE (audit 10/07, CR-4) : les layouts de
+ * cet exporter sont codés en dur (y/h fixes) et PowerPoint n'applique pas
+ * normAutofit à l'ouverture → un texte long débordait sur l'élément suivant
+ * (étapes timeline superposées, before_after illisible — mesuré). On réduit la
+ * police en amont pour tenir dans la boîte ; les textes qui tiennent déjà ne
+ * changent pas d'un pt.
+ */
+function addFittedText(slide: any, textOrParts: any, opts: any) {
+  try {
+    if (opts && typeof opts.w === "number" && typeof opts.h === "number") {
+      const parts = Array.isArray(textOrParts) ? (textOrParts as any[]) : null;
+      const t = parts ? parts.map((p: any) => p?.text || "").join("") : String(textOrParts ?? "");
+      // La taille de référence vit soit dans le frame, soit dans les PARTS
+      // (makeBadge/highlightLastSignificantWord posent fontSize par part).
+      const baseSize =
+        typeof opts.fontSize === "number"
+          ? opts.fontSize
+          : parts
+            ? Math.max(0, ...parts.map((p: any) => p?.options?.fontSize || 0))
+            : 0;
+      if (baseSize > 0) {
+        const face = String(opts.fontFace || (parts && parts[0]?.options?.fontFace) || "");
+        const fitted = fitFontToBox(t, opts.w, opts.h, baseSize, {
+          mono: /mono|courier/i.test(face),
+          lineSpacingMultiple: opts.lineSpacingMultiple,
+        });
+        if (fitted < baseSize) {
+          const ratio = fitted / baseSize;
+          if (typeof opts.fontSize === "number") opts = { ...opts, fontSize: fitted };
+          if (parts) {
+            textOrParts = parts.map((p: any) =>
+              p?.options?.fontSize
+                ? { ...p, options: { ...p.options, fontSize: Math.round(p.options.fontSize * ratio * 10) / 10 } }
+                : p,
+            );
+          }
+        }
+      }
+    }
+  } catch {
+    /* en cas de pépin d'estimation : comportement historique */
+  }
+  slide.addText(textOrParts, opts);
 }
 
 /** Classify the slide role into a design category */
@@ -333,7 +380,7 @@ function buildPhotoFullSlide(
       rectRadius: 0.12,
     });
     const parts = highlightLastSignificantWord(overlayText, c.primary, c.text);
-    slide.addText(parts, {
+    addFittedText(slide, parts, {
       x: 1.1, y: bandY + 0.15, w: W - 2.2, h: bandH - 0.3,
       fontSize, fontFace, bold, italic,
       align, valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
@@ -369,13 +416,13 @@ function buildPhotoFullSlide(
     // Highlight du dernier mot significatif (rose charte) pour "minimal"
     if (style === "minimal") {
       const parts = highlightLastSignificantWord(overlayText, c.primary, "FFFFFF");
-      slide.addText(parts, {
+      addFittedText(slide, parts, {
         x: 0.6, y: textY, w: W - 1.2, h: textH,
         fontSize, fontFace, bold, italic,
         align, valign, wrap: true, lineSpacingMultiple: 1.3,
       });
     } else {
-      slide.addText(overlayText, {
+      addFittedText(slide, overlayText, {
         x: 0.6, y: textY, w: W - 1.2, h: textH,
         fontSize, fontFace, bold, italic, color: "FFFFFF",
         align, valign, wrap: true, lineSpacingMultiple: 1.3,
@@ -444,14 +491,14 @@ function buildPhotoIntegratedSlide(
       slide.addText(badgeText, { ...badgeOpts, y: photoH - 0.6 });
 
       if (s.title) {
-        slide.addText(s.title, {
+        addFittedText(slide, s.title, {
           x: PAD_X + 0.25, y: textAreaY + 0.35, w: CONTENT_W - 0.25, h: 1.2,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
         });
       }
       if (s.body) {
-        slide.addText(s.body, {
+        addFittedText(slide, s.body, {
           x: PAD_X + 0.25, y: textAreaY + 1.65, w: CONTENT_W - 0.25, h: textAreaH - 1.85,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
@@ -486,14 +533,14 @@ function buildPhotoIntegratedSlide(
       slide.addText(badgeText, { ...badgeOpts, x: textX + 0.3 });
 
       if (s.title) {
-        slide.addText(s.title, {
+        addFittedText(slide, s.title, {
           x: textX + 0.45, y: 1.3, w: textW - 0.4, h: 2.0,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
         });
       }
       if (s.body) {
-        slide.addText(s.body, {
+        addFittedText(slide, s.body, {
           x: textX + 0.45, y: 3.5, w: textW - 0.4, h: H - 4.5,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
@@ -527,14 +574,14 @@ function buildPhotoIntegratedSlide(
       slide.addText(badgeText, badgeOpts);
 
       if (s.title) {
-        slide.addText(s.title, {
+        addFittedText(slide, s.title, {
           x: PAD_X + 0.25, y: 1.3, w: textW - 0.25, h: 2.0,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.2,
         });
       }
       if (s.body) {
-        slide.addText(s.body, {
+        addFittedText(slide, s.body, {
           x: PAD_X + 0.25, y: 3.5, w: textW - 0.25, h: H - 4.5,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
@@ -574,14 +621,14 @@ function buildPhotoIntegratedSlide(
       slide.addText(badgeText, { ...badgeOpts, x: (W - bW) / 2, y: cardY + 0.4 });
 
       if (s.title) {
-        slide.addText(s.title, {
+        addFittedText(slide, s.title, {
           x: cardX + 0.4, y: cardY + 1.1, w: cardW - 0.8, h: 1.8,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
         });
       }
       if (s.body) {
-        slide.addText(s.body, {
+        addFittedText(slide, s.body, {
           x: cardX + 0.4, y: cardY + 3.0, w: cardW - 0.8, h: cardH - 3.4,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "center", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
@@ -600,14 +647,14 @@ function buildPhotoIntegratedSlide(
         });
       }
       if (s.title) {
-        slide.addText(s.title, {
+        addFittedText(slide, s.title, {
           x: PAD_X, y: photoH + 0.3, w: CONTENT_W, h: 1.2,
           fontSize: 22, fontFace: f.title, color: c.secondary,
           align: "left", valign: "top", wrap: true,
         });
       }
       if (s.body) {
-        slide.addText(s.body, {
+        addFittedText(slide, s.body, {
           x: PAD_X, y: photoH + 1.6, w: CONTENT_W, h: H - photoH - 2.0,
           fontSize: 15, fontFace: f.body, color: c.text,
           align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.5,
@@ -674,7 +721,7 @@ function buildHookSlide(
 
   // Title inside card — highlight last significant word
   const titleParts = highlightLastSignificantWord(s.title, c.primary, c.secondary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: cardX + 0.4,
     y: cardY + 1.1,
     w: cardW - 0.8,
@@ -714,7 +761,7 @@ function buildContextSlide(
   slide.addText(badgeText, badgeOpts);
 
   // Title
-  slide.addText(s.title, {
+  addFittedText(slide, s.title, {
     x: PAD_X + 0.1,
     y: 1.5,
     w: CONTENT_W - 0.2,
@@ -766,7 +813,7 @@ function buildContextSlide(
     });
 
     // Body text
-    slide.addText(s.body, {
+    addFittedText(slide, s.body, {
       x: cardX + 0.3,
       y: bodyY + 0.7,
       w: cardW - 0.5,
@@ -810,7 +857,7 @@ function buildTipSlide(
 
   // Title with highlighted last significant word
   const titleParts = highlightLastSignificantWord(s.title, accentColor, c.secondary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: PAD_X,
     y: 1.4,
     w: CONTENT_W,
@@ -851,7 +898,7 @@ function buildTipSlide(
     });
 
     // Body text
-    slide.addText(s.body, {
+    addFittedText(slide, s.body, {
       x: cardX + 0.4,
       y: cardY + 0.3,
       w: cardW - 0.7,
@@ -877,7 +924,7 @@ function buildSeparatorSlide(
   slide.background = { color: c.primary };
 
   // Title centré en blanc
-  slide.addText(s.title, {
+  addFittedText(slide, s.title, {
     x: 0.8,
     y: 2.5,
     w: W - 1.6,
@@ -918,7 +965,7 @@ function buildDarkBoxSlide(
 
   // Title with accent word highlighted
   const titleParts = highlightLastSignificantWord(s.title, c.accent, "FFFFFF");
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: PAD_X + 0.3,
     y: 2.0,
     w: CONTENT_W - 0.6,
@@ -934,7 +981,7 @@ function buildDarkBoxSlide(
 
   // Body with stronger transparency for visual hierarchy
   if (s.body) {
-    slide.addText(s.body, {
+    addFittedText(slide, s.body, {
       x: PAD_X + 0.3,
       y: 5.8,
       w: CONTENT_W - 0.6,
@@ -991,7 +1038,7 @@ function buildHopeSlide(
 
   // Title with highlighted last significant word
   const titleParts = highlightLastSignificantWord(s.title, c.primary, c.primary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: PAD_X + 0.2,
     y: 3.4,
     w: CONTENT_W - 0.4,
@@ -1007,7 +1054,7 @@ function buildHopeSlide(
 
   // Body
   if (s.body) {
-    slide.addText(s.body, {
+    addFittedText(slide, s.body, {
       x: PAD_X + 0.4,
       y: 5.2,
       w: CONTENT_W - 0.8,
@@ -1091,7 +1138,7 @@ function buildCtaSlide(
 
   // CTA title inside card with highlight
   const titleParts = highlightLastSignificantWord(s.title, c.primary, c.secondary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: cardX + 0.4,
     y: cardY + 0.6,
     w: cardW - 0.8,
@@ -1107,7 +1154,7 @@ function buildCtaSlide(
 
   // Body inside card with slight transparency
   if (s.body) {
-    slide.addText(s.body, {
+    addFittedText(slide, s.body, {
       x: cardX + 0.4,
       y: cardY + 1.7,
       w: cardW - 0.8,
@@ -1265,7 +1312,7 @@ function buildChecklistSchema(
   // Title with highlighted keyword
   const schemaTitle = s.visual_schema?.title || s.title;
   const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: PAD_X,
     y: 1.3,
     w: CONTENT_W,
@@ -1329,7 +1376,7 @@ function buildChecklistSchema(
 
     // Item text
     const itemText = item.text || item.label || "";
-    slide.addText(itemText, {
+    addFittedText(slide, itemText, {
       x: PAD_X + 0.75,
       y: itemY,
       w: CONTENT_W - 1.0,
@@ -1362,7 +1409,7 @@ function buildBeforeAfterSchema(
   // Title
   const schemaTitle = s.visual_schema?.title || s.title;
   const titleParts = highlightLastSignificantWord(schemaTitle, "27AE60", c.secondary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: PAD_X,
     y: 1.2,
     w: CONTENT_W,
@@ -1432,7 +1479,7 @@ function buildBeforeAfterSchema(
         });
       }
 
-      slide.addText(itemText, {
+      addFittedText(slide, itemText, {
         x: x + 0.2, y: itemY, w: w - 0.4, h: 0.75,
         fontSize: itemText.length > 50 ? 13 : 14, fontFace: f.body, color: c.text,
         align: "left", valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
@@ -1480,7 +1527,7 @@ function buildComparisonSchema(
   // Title
   const schemaTitle = s.visual_schema?.title || s.title;
   const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.2,
     fontSize: 22, fontFace: f.title, color: c.secondary,
     align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
@@ -1536,7 +1583,7 @@ function buildComparisonSchema(
           x: x + 0.15, y: itemY - 0.05, w: w - 0.3, h: 0.01, fill: { color: "EEEEEE" },
         });
       }
-      slide.addText(itemText, {
+      addFittedText(slide, itemText, {
         x: x + 0.2, y: itemY, w: w - 0.4, h: 0.75,
         fontSize: itemText.length > 50 ? 13 : 14, fontFace: f.body, color: c.text,
         align: "left", valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
@@ -1572,7 +1619,7 @@ function buildStatsSchema(
   const schemaTitle = s.visual_schema?.title || s.title;
   if (schemaTitle) {
     const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-    slide.addText(titleParts, {
+    addFittedText(slide, titleParts, {
       x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.2,
       fontSize: 22, fontFace: f.title, color: c.secondary,
       align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
@@ -1601,7 +1648,7 @@ function buildStatsSchema(
     });
 
     // Label
-    slide.addText(label, {
+    addFittedText(slide, label, {
       x: colX + 0.15, y: statsY + 2.2, w: colW - 0.3, h: 1.5,
       fontSize: 16, fontFace: f.body, color: c.text,
       align: "center", valign: "top", wrap: true, lineSpacingMultiple: 1.4,
@@ -1636,7 +1683,7 @@ function buildTimelineSchema(
   // Title
   const schemaTitle = s.visual_schema?.title || s.title;
   const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-  slide.addText(titleParts, {
+  addFittedText(slide, titleParts, {
     x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.1,
     fontSize: 22, fontFace: f.title, color: c.secondary,
     align: "left", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
@@ -1685,7 +1732,7 @@ function buildTimelineSchema(
     });
 
     // Label
-    slide.addText(label, {
+    addFittedText(slide, label, {
       x: lineX + 0.35, y: stepY - 0.05, w: CONTENT_W - 1.4, h: 0.35,
       fontSize, fontFace: f.body, color: c.secondary, bold: true,
       align: "left", valign: "middle", wrap: true,
@@ -1693,7 +1740,7 @@ function buildTimelineSchema(
 
     // Description
     if (desc) {
-      slide.addText(desc, {
+      addFittedText(slide, desc, {
         x: lineX + 0.35, y: stepY + 0.3, w: CONTENT_W - 1.4, h: 0.5,
         fontSize: descFontSize, fontFace: f.body, color: c.text,
         align: "left", valign: "top", wrap: true, lineSpacingMultiple: 1.3,
@@ -1720,7 +1767,7 @@ function buildEquationSchema(
   const schemaTitle = s.visual_schema?.title || s.title;
   if (schemaTitle) {
     const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-    slide.addText(titleParts, {
+    addFittedText(slide, titleParts, {
       x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.0,
       fontSize: 22, fontFace: f.title, color: c.secondary,
       align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
@@ -1750,7 +1797,7 @@ function buildEquationSchema(
       x: curX, y: centerY, w: cardW, h: cardH,
       fill: { color: "FFFFFF" }, rectRadius: 0.1, shadow: makeLightShadow(),
     });
-    slide.addText(label, {
+    addFittedText(slide, label, {
       x: curX, y: centerY, w: cardW, h: cardH,
       fontSize: label.length > 15 ? 16 : 22, fontFace: f.body, color: c.secondary,
       bold: true, align: "center", valign: "middle", wrap: true,
@@ -1773,7 +1820,7 @@ function buildEquationSchema(
     x: curX, y: centerY, w: cardW, h: cardH,
     fill: { color: c.primary }, rectRadius: 0.1,
   });
-  slide.addText(resultLabel, {
+  addFittedText(slide, resultLabel, {
     x: curX, y: centerY, w: cardW, h: cardH,
     fontSize: resultLabel.length > 15 ? 16 : 22, fontFace: f.body, color: "FFFFFF",
     bold: true, align: "center", valign: "middle", wrap: true,
@@ -1798,7 +1845,7 @@ function buildMatrix2x2Schema(
   const schemaTitle = s.visual_schema?.title || s.title;
   if (schemaTitle) {
     const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-    slide.addText(titleParts, {
+    addFittedText(slide, titleParts, {
       x: PAD_X, y: 1.0, w: CONTENT_W, h: 1.0,
       fontSize: 20, fontFace: f.title, color: c.secondary,
       align: "center", valign: "middle", wrap: true,
@@ -1845,7 +1892,7 @@ function buildMatrix2x2Schema(
     // Label
     const label = q.label || "";
     if (label) {
-      slide.addText(label, {
+      addFittedText(slide, label, {
         x: pos.x + 0.2, y: pos.y + (emoji ? 1.1 : 0.6), w: qW - 0.4, h: qH - (emoji ? 1.6 : 1.2),
         fontSize: 16, fontFace: f.body, color: c.text, bold: true,
         align: "center", valign: "top", wrap: true, lineSpacingMultiple: 1.3,
@@ -1903,7 +1950,7 @@ function buildPyramidSchema(
   const schemaTitle = s.visual_schema?.title || s.title;
   if (schemaTitle) {
     const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-    slide.addText(titleParts, {
+    addFittedText(slide, titleParts, {
       x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.0,
       fontSize: 22, fontFace: f.title, color: c.secondary,
       align: "center", valign: "middle", wrap: true,
@@ -1946,7 +1993,7 @@ function buildPyramidSchema(
 
     // Label
     const textColor = isDark ? "FFFFFF" : c.secondary;
-    slide.addText(label, {
+    addFittedText(slide, label, {
       x: levelX + 0.2, y: levelY + (desc ? 0.05 : 0), w: levelW - 0.4,
       h: desc ? levelH * 0.55 : levelH,
       fontSize: count > 4 ? 15 : 18, fontFace: f.body, color: textColor, bold: true,
@@ -1955,7 +2002,7 @@ function buildPyramidSchema(
 
     // Description
     if (desc) {
-      slide.addText(desc, {
+      addFittedText(slide, desc, {
         x: levelX + 0.2, y: levelY + levelH * 0.5, w: levelW - 0.4, h: levelH * 0.45,
         fontSize: count > 4 ? 10 : 12, fontFace: f.body, color: textColor,
         align: "center", valign: "top", wrap: true, transparency: isDark ? 20 : 0,
@@ -1981,7 +2028,7 @@ function buildFlowchartSchema(
   const schemaTitle = s.visual_schema?.title || s.title;
   if (schemaTitle) {
     const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-    slide.addText(titleParts, {
+    addFittedText(slide, titleParts, {
       x: PAD_X, y: 1.2, w: CONTENT_W, h: 0.8,
       fontSize: 20, fontFace: f.title, color: c.secondary,
       align: "center", valign: "middle", wrap: true,
@@ -1999,7 +2046,7 @@ function buildFlowchartSchema(
     x: questionX, y: questionY, w: questionW, h: questionH,
     fill: { color: c.primary }, rectRadius: 0.15,
   });
-  slide.addText(startText, {
+  addFittedText(slide, startText, {
     x: questionX, y: questionY, w: questionW, h: questionH,
     fontSize: 18, fontFace: f.body, color: "FFFFFF", bold: true,
     align: "center", valign: "middle", wrap: true,
@@ -2039,7 +2086,7 @@ function buildFlowchartSchema(
       });
 
       // Condition text
-      slide.addText(condition, {
+      addFittedText(slide, condition, {
         x: bx + 0.2, y: branchY + 0.2, w: branchW - 0.4, h: 1.2,
         fontSize: 14, fontFace: f.body, color: c.text,
         align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.3,
@@ -2082,7 +2129,7 @@ function buildFlowchartSchema(
         fill: { color: bColor, transparency: 90 }, rectRadius: 0.1,
       });
 
-      slide.addText(condition, {
+      addFittedText(slide, condition, {
         x: PAD_X + 0.2, y: by, w: CONTENT_W * 0.6 - 0.4, h: branchSpacing - 0.15,
         fontSize: branchCount > 4 ? 12 : 14, fontFace: f.body, color: c.text,
         align: "left", valign: "middle", wrap: true,
@@ -2129,7 +2176,7 @@ function buildScaleSchema(
   const schemaTitle = s.visual_schema?.title || s.title;
   if (schemaTitle) {
     const titleParts = highlightLastSignificantWord(schemaTitle, c.primary, c.secondary);
-    slide.addText(titleParts, {
+    addFittedText(slide, titleParts, {
       x: PAD_X, y: 1.2, w: CONTENT_W, h: 1.2,
       fontSize: 22, fontFace: f.title, color: c.secondary,
       align: "center", valign: "middle", wrap: true, lineSpacingMultiple: 1.2,
