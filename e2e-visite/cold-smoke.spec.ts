@@ -112,17 +112,23 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   await form.locator('input[type="checkbox"]').first().check();
   await form.getByRole("button", { name: /Commencer gratuitement/i }).click();
 
-  // 2) DASHBOARD nouveau·lle — atterrissage sain et GUIDÉ.
-  await page.waitForURL((u) => u.pathname === "/dashboard", { timeout: 30000 });
-  await expect(page.getByText(new RegExp(`Salut ${PRENOM}`, "i")).first()).toBeVisible({ timeout: 15000 });
+  // 2) ATTERRISSAGE nouveau·lle — sain et GUIDÉ. Depuis la refonte activation,
+  //    l'inscription route DIRECTEMENT vers le diagnostic (/onboarding) au lieu
+  //    de passer par le dashboard ; on accepte les deux. L'essentiel du smoke =
+  //    la porte d'entrée n'est PAS un écran blanc (classe #261/#267).
+  await page.waitForURL((u) => u.pathname === "/onboarding" || u.pathname === "/dashboard", {
+    timeout: 30000,
+  });
   await page.waitForTimeout(1500);
   await shot(page, "01-dashboard-nouveau");
   const guided = await page
-    .getByText(/Termine ton diagnostic|Reprendre|premier contenu|Tes premiers pas/i)
+    .getByText(
+      /Hey|Bienvenue|C'est parti|Termine ton diagnostic|Reprendre|premier contenu|Tes premiers pas|Salut/i,
+    )
     .first()
     .isVisible({ timeout: 8000 })
     .catch(() => false);
-  expect(guided, "Dashboard nouveau·lle SANS aucun guidage (diagnostic/premier contenu)").toBe(true);
+  expect(guided, "Atterrissage nouveau·lle SANS guidage ni contenu (écran blanc ?)").toBe(true);
 
   // 3) ENTRÉE dans le diagnostic — se charge et avance de quelques écrans SANS
   //    écran blanc (classe de bug historique #261/#267). On ne déroule PAS les
