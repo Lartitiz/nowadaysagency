@@ -89,7 +89,7 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
 // ─── Loading tips by activity type ───
 const LOADING_TIPS: Record<string, string[]> = {
   artisane: [
-    "Le saviez-tu ? Les vidéos de processus de création génèrent 3x plus d'engagement.",
+    "Le savais-tu ? Les vidéos de processus de création génèrent 3x plus d'engagement.",
     "Astuce : photographier tes créations sur fond neutre + en situation = combo gagnant.",
   ],
   mode_textile: [

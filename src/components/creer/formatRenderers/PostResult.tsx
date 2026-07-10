@@ -10,6 +10,25 @@ interface Props {
   photos?: { preview?: string; base64?: string; name?: string }[];
 }
 
+const FORMAT_LABELS: Record<string, string> = {
+  caption_instagram: "Caption Instagram",
+  post_instagram: "Post Instagram",
+  post_linkedin: "Post LinkedIn",
+  caption_linkedin: "Caption LinkedIn",
+  carousel: "Carrousel",
+  reel: "Reel",
+  story: "Story",
+  newsletter: "Newsletter",
+  pinterest: "Pinterest",
+};
+
+/** Libellé humain pour un format technique (« caption_instagram » → « Caption Instagram »). */
+function humanFormat(raw: string): string {
+  if (FORMAT_LABELS[raw]) return FORMAT_LABELS[raw];
+  const words = raw.replace(/_/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export default function PostResult({ result, content, photos }: Props) {
   const postText = content || result?.content || result?.post || result?.text || "";
   const accroche = result?.accroche || result?.hook || "";
@@ -29,7 +48,7 @@ export default function PostResult({ result, content, photos }: Props) {
       {(format || objective) && (
         <div className="flex items-center gap-2 flex-wrap">
           {format && (
-            <Badge className="bg-primary/10 text-primary border-primary/20">{format}</Badge>
+            <Badge className="bg-primary/10 text-primary border-primary/20">{humanFormat(String(format))}</Badge>
           )}
           {objective && (
             <Badge variant="secondary">{objective}</Badge>
