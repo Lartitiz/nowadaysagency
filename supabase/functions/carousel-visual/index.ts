@@ -13,6 +13,7 @@ import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/w
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
 import { enforceAnchoredText, ensureAnchor, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
+import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
 /**
@@ -1956,6 +1957,32 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       }
       if (verbatimFixes > 0) {
         console.warn(`carousel-visual: ${verbatimFixes} texte(s) ancré(s) réécrit(s) verbatim (garde déterministe)`);
+      }
+    }
+
+    // ═══ Télémétrie fidélité des SCHÉMAS visuels (mesure seule, pas de correction) ═══
+    // Les champs d'un visual_schema ne sont ni ancrés ni couverts par la garde
+    // verbatim (audit 10/07 : attribution de quote_big omise du rendu). On
+    // MESURE d'abord l'ampleur via les logs avant de décider d'une réinjection.
+    if (Array.isArray(result?.slides_html)) {
+      const srcBySlide = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+      const reports: Array<{ slide: number; missing: string[]; checked: number }> = [];
+      for (const slide of result.slides_html) {
+        const src = srcBySlide.get(slide?.slide_number) as any;
+        if (!src?.visual_schema) continue;
+        const { missing, checked } = checkSchemaFidelity(slide?.html || "", src.visual_schema);
+        if (missing.length > 0) {
+          reports.push({ slide: Number(slide.slide_number), missing: missing.map((m) => m.slice(0, 80)), checked });
+        }
+      }
+      if (reports.length > 0) {
+        console.warn(JSON.stringify({
+          type: "carousel_schema_fidelity",
+          user_id: user.id,
+          slides_with_missing: reports.length,
+          detail: reports,
+          timestamp: new Date().toISOString(),
+        }));
       }
     }
 
