@@ -7,7 +7,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
@@ -981,6 +981,7 @@ Réponds UNIQUEMENT en JSON :
         researchAngleHint = "Le contenu est un retour d'expérience. Cherche des benchmarks, des moyennes sectorielles, des résultats comparatifs.";
       }
 
+      const searchModel = getModelForAction("content");
       const searchResponse = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -989,7 +990,10 @@ Réponds UNIQUEMENT en JSON :
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: getModelForAction("content"),
+          model: searchModel,
+          // Fetch brut (hors helpers) : la garde thinking Sonnet 5 doit être posée
+          // ici aussi, sinon le thinking adaptatif mange le budget de recherche.
+          ...(forcesDisabledThinking(searchModel) ? { thinking: { type: "disabled" } } : {}),
           max_tokens: 2048,
           tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
           messages: [{
@@ -1030,7 +1034,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
       }
 
       // Log deep research usage
-      await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, "claude-sonnet-4-6", workspace_id);
+      await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspace_id);
     }
 
     // ── Streaming SSE (generate step) ──
