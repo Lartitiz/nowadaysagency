@@ -6,6 +6,7 @@ import {
   getBonusCredits,
   getEffectivePlan,
   getMonthlyUsageRows,
+  resolveBillingWorkspaceId,
 } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -65,14 +66,20 @@ serve(async (req) => {
 
     // Périmètre : le front envoie son workspace actif pour que l'affichage
     // compte l'usage et résolve le plan EXACTEMENT comme l'enforcement
-    // (checkQuota) — par workspace quand il y en a un, par user sinon.
+    // (checkQuota). La résolution serveur est la MÊME que dans checkQuota/
+    // logUsage (resolveBillingWorkspaceId) : workspace fourni si membre, sinon
+    // workspace propre — fini les lignes/périmètres qui divergent (T19).
     let body: { workspace_id?: string } = {};
     try {
       body = await req.json();
     } catch {
-      // Pas de body (anciens appels) → périmètre perso, comme avant.
+      // Pas de body (anciens appels) → résolution serveur (workspace propre).
     }
-    const workspaceId = body?.workspace_id || undefined;
+    const workspaceId = await resolveBillingWorkspaceId(
+      supabaseClient,
+      userId,
+      body?.workspace_id || undefined,
+    );
 
     const { data: sub } = await supabaseClient
       .from("subscriptions")
