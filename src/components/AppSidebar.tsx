@@ -202,10 +202,15 @@ export default function AppSidebar() {
         </button>
       )}
 
-      {/* Backdrop */}
+      {/* Backdrop. Sur desktop (lg+) le menu s'ouvre au SURVOL : le backdrop
+          reste purement décoratif (pointer-events-none) pour ne jamais bloquer
+          ni consommer un clic sur la page — la fermeture est déjà gérée par la
+          sortie de survol (startCloseTimer). Constaté en audit (09-10/07) : un
+          backdrop cliquable par-dessus /creer interceptait les boutons
+          d'édition. Sur mobile (ouverture au tap), il garde le tap-pour-fermer. */}
       {open && (
         <div
-          className="fixed inset-0 z-[299] bg-black/[0.08] backdrop-blur-[2px]"
+          className="fixed inset-0 z-[299] bg-black/[0.08] backdrop-blur-[2px] lg:pointer-events-none"
           onMouseEnter={startCloseTimer}
           onClick={() => setOpen(false)}
         />

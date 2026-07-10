@@ -235,6 +235,13 @@ export default function AdaptiveHome() {
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
   const [recycleOpen, setRecycleOpen] = useState(false);
 
+  // Le flag « tour vu » vit en localStorage (par navigateur) : sur un nouvel
+  // appareil il est vide. On ne remontre donc le tour qu'aux comptes récents —
+  // une utilisatrice installée qui change de navigateur ne le revoit pas.
+  const isRecentAccount = user?.created_at
+    ? Date.now() - new Date(user.created_at).getTime() < 14 * 24 * 3600 * 1000
+    : false;
+
   // Ideas count
   const workspaceId = activeWorkspace?.id ?? null;
   const wsFilter = useWorkspaceFilter();
@@ -548,8 +555,10 @@ export default function AdaptiveHome() {
 
         {/* Guidage 1re visite : UNIQUEMENT le coachmark GuidedTour. L'overlay
             4 slides « ton espace est prêt » a été retiré (validé Laetitia 04/07) :
-            c'était le 3e récapitulatif d'affilée après le diagnostic et le welcome. */}
-        {!tourDone && !isLoading && activeRole === "owner" &&
+            c'était le 3e récapitulatif d'affilée après le diagnostic et le welcome.
+            Réservé aux comptes récents : constaté en audit (09-10/07) qu'il
+            revenait à chaque visite et interceptait les clics du dashboard. */}
+        {!tourDone && !isLoading && activeRole === "owner" && isRecentAccount &&
           <GuidedTour
             steps={TOUR_STEPS}
             storageKey="lac_dashboard_tour_seen"

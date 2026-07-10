@@ -13,34 +13,11 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { toast } from "sonner";
-import GuidedTour from "@/components/GuidedTour";
 
-const PLAN_TOUR_STEPS = [
-  {
-    target: "plan-progress",
-    title: "Ton plan de com'",
-    text: "Voilà ton parcours personnalisé. L'outil a calculé tes étapes en fonction de tes objectifs et du temps que tu as. Pas besoin de tout faire d'un coup : avance à ton rythme.",
-    position: "bottom" as const,
-  },
-  {
-    target: "plan-first-phase",
-    title: "Commence par ici",
-    text: "Chaque phase a des étapes concrètes. Clique sur une étape pour la faire, et coche-la quand c'est fini. L'outil suit ta progression.",
-    position: "bottom" as const,
-  },
-  {
-    target: "nav-branding",
-    title: "Ta marque",
-    text: "Tout ton branding est ici : positionnement, cible, ton, storytelling. C'est le socle de tout ce que l'outil génère pour toi.",
-    position: "bottom" as const,
-  },
-  {
-    target: "nav-creer",
-    title: "Créer du contenu",
-    text: "Posts Instagram, carrousels, newsletters, posts LinkedIn : l'outil connaît ta marque et te propose des textes avec les bonnes structures.",
-    position: "bottom" as const,
-  },
-];
+// Le tour guidé du plan a été retiré (10/07) : le coachmark est réservé au
+// dashboard, première visite uniquement. Ses étapes 3-4 pointaient de toute
+// façon vers le nav desktop de AppHeader, masqué depuis la sidebar (anchors
+// data-tour="nav-*" jamais visibles → étapes auto-sautées).
 
 export default function CommPlanPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
@@ -56,9 +33,6 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
   const [coachExercises, setCoachExercises] = useState<CoachExercise[]>([]);
   const [hiddenSteps, setHiddenSteps] = useState<StepVisibility[]>([]);
   const [showCoachManager, setShowCoachManager] = useState(false);
-  const [planTourDone, setPlanTourDone] = useState(() =>
-    !!localStorage.getItem("lac_plan_tour_seen")
-  );
   // For visibility tab we need a "full plan" (without hidden filtering) for CoachPlanManager
   const [fullPlan, setFullPlan] = useState<PlanData | null>(null);
 
@@ -284,9 +258,6 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
         {isCoachMode && fullPlan && (
           <CoachPlanManager open={showCoachManager} onOpenChange={setShowCoachManager} workspaceId={workspaceId} plan={fullPlan} exercises={coachExercises} hiddenSteps={hiddenSteps} onExercisesChange={handleExercisesChange} onVisibilityChange={handleVisibilityChange} />
         )}
-        {!planTourDone && !loading && plan && !showSetup && !showWelcome && (
-          <GuidedTour steps={PLAN_TOUR_STEPS} storageKey="lac_plan_tour_seen" onComplete={() => { setPlanTourDone(true); localStorage.setItem("lac_dashboard_tour_seen", "true"); }} />
-        )}
       </div>
     );
   }
@@ -371,16 +342,6 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
             hiddenSteps={hiddenSteps}
             onExercisesChange={handleExercisesChange}
             onVisibilityChange={handleVisibilityChange}
-          />
-        )}
-        {!planTourDone && !loading && plan && !showSetup && !showWelcome && (
-          <GuidedTour
-            steps={PLAN_TOUR_STEPS}
-            storageKey="lac_plan_tour_seen"
-            onComplete={() => {
-              setPlanTourDone(true);
-              localStorage.setItem("lac_dashboard_tour_seen", "true");
-            }}
           />
         )}
       </main>
