@@ -231,12 +231,16 @@ function enforceTextFirstDirectives(content: string): string {
 // additionalProperties implicite) : les prompts mix/actu/texte-d'abord
 // restent la source de vérité du contenu, le tool ne fige que le transport.
 // Champ partagé par les trois tools (mix, photo, structure) : wording du seuil
-// « dernier recours » validé par #488 — le relâcher refait refuser des photos
-// choisies délibérément par l'utilisatrice.
+// « dernier recours » validé par #488, précisé après observation live sur le
+// chemin photo (refus 2/2 d'une photo de tour de potier pour un sujet « du
+// tour à l'émaillage » : le modèle exigeait que la photo couvre TOUT le
+// process). Couverture partielle ≠ contradiction : la photo se répète et les
+// textes portent le reste. Le relâcher refait refuser des photos choisies
+// délibérément par l'utilisatrice.
 const PHOTO_MISMATCH_FIELD = {
   type: "object",
   description:
-    "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
+    "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Une photo qui ne montre qu'UNE étape, UN moment ou UN aspect du sujet n'est PAS un motif non plus : couverture partielle ≠ contradiction — la photo peut se répéter d'une slide à l'autre et les textes racontent ce que l'image ne montre pas. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
   properties: {
     reason: {
       type: "string",
