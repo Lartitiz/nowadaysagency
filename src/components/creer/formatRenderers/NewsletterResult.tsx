@@ -5,6 +5,7 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
 import { toast } from "sonner";
+import { stripCoachingHint } from "@/features/creer/build-calendar-content";
 
 interface Props {
   result: any;
@@ -13,7 +14,8 @@ interface Props {
 export default function NewsletterResult({ result }: Props) {
   const subject = result?.subject || "";
   const previewText = result?.preview_text || "";
-  const body = result?.body || result?.content || result?.text || "";
+  const body = stripCoachingHint(result?.body || result?.content || result?.text || "");
+  const personalTip = result?.personal_tip;
   const wordCount = result?.word_count;
   const ctaSuggestion = result?.cta_suggestion;
   
@@ -87,6 +89,12 @@ export default function NewsletterResult({ result }: Props) {
             <p className="text-sm text-foreground">{ctaSuggestion}</p>
           </CardContent>
         </Card>
+      )}
+
+      {personalTip && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+          <p className="text-sm text-foreground">{personalTip}</p>
+        </div>
       )}
 
       {/* Meta */}

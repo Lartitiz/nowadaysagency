@@ -25,6 +25,68 @@ export function sanitizeDashesDeep<T>(value: T): T {
   return value;
 }
 
+/**
+ * Filet déterministe anti-tics (audit rédactionnel 10/07) : les règles ANTI_SLOP
+ * du prompt restent probabilistes (« Spoiler : » est banni et sort quand même),
+ * ce nettoyage garantit les cas sans ambiguïté :
+ * - littéraux bannis en tête de phrase (« Spoiler : », « Et devinez quoi. »,
+ *   « Et là, tout a basculé. », « Sauf que. » isolé, « Le vrai game changer ? ») ;
+ * - chevilles « Le truc c'est que » / « En vrai » en OUVERTURE de paragraphe
+ *   (en milieu de phrase elles restent : c'est l'ouverture qui fait tic).
+ * Fonctionne sur texte brut ET sur du JSON sérialisé (ancres `\n` littérales
+ * incluses : dans un blob JSON les sauts de ligne du contenu sont échappés).
+ */
+export function sanitizeSlop(text: string): string {
+  if (!text) return text;
+  // Ancre « début de ligne » : début de chaîne, vrai \n, ou "\n" échappé JSON.
+  const NL = String.raw`(?:^|\n|\\n)`;
+  const upper = (s: string) => (s ? s.charAt(0).toUpperCase() + s.slice(1) : s);
+
+  let out = text
+    // Phrases-signature supprimées entières (anchorées ligne pour éviter les faux positifs)
+    .replace(new RegExp(String.raw`(${NL})\s*Et devinez quoi\s*[.?!…]\s*`, "g"), "$1")
+    .replace(new RegExp(String.raw`(${NL})\s*Et là, tout a basculé\s*\.\s*`, "g"), "$1")
+    .replace(new RegExp(String.raw`(${NL})\s*Le vrai game changer\s*\?\s*`, "g"), "$1")
+    // « Sauf que. » comme phrase isolée : on consomme AUSSI le saut de ligne
+    // qui la suit (sinon la suppression laisse une ligne vide en trop)
+    .replace(new RegExp(String.raw`(${NL})\s*Sauf que\s*\.\s*(?:\n|\\n|$)`, "g"), "$1");
+
+  // « Spoiler : » en tête de phrase → on garde la suite, capitalisée.
+  out = out.replace(
+    new RegExp(String.raw`(${NL})(\s*)Spoiler\s*:\s*([a-zà-ÿ])`, "gi"),
+    (_m, a: string, sp: string, c: string) => a + sp + upper(c),
+  );
+
+  // Chevilles en OUVERTURE de paragraphe (début, \n\n réel, ou \n\n échappé).
+  const PARA = String.raw`(?:^|\n\n|\\n\\n)`;
+  out = out.replace(
+    new RegExp(
+      String.raw`(${PARA})(Le truc,? c(?:'|\\u2019|’)est qu(?:e\s+|(?:'|\\u2019|’))|En vrai\s*,\s+|En vrai\s+(?=c(?:'|\\u2019|’)|[a-zà-ÿ]))([a-zà-ÿA-ZÀ-Ý])`,
+      "g",
+    ),
+    (_m, a: string, _crutch: string, c: string) => a + upper(c),
+  );
+
+  return out;
+}
+
+/** sanitizeDashes + sanitizeSlop : le nettoyage de style standard des sorties. */
+export function sanitizeStyle(text: string): string {
+  return sanitizeSlop(sanitizeDashes(text));
+}
+
+/** Variante récursive de sanitizeStyle pour la sortie structurée. */
+export function sanitizeStyleDeep<T>(value: T): T {
+  if (typeof value === "string") return sanitizeStyle(value) as unknown as T;
+  if (Array.isArray(value)) return value.map(sanitizeStyleDeep) as unknown as T;
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) out[k] = sanitizeStyleDeep(v);
+    return out as unknown as T;
+  }
+  return value;
+}
+
 export type AnthropicModel =
   | "claude-opus-4-8"
   | "claude-sonnet-4-6"
@@ -302,7 +364,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     if (response.ok) {
       const data = await response.json();
       return {
-        text: sanitizeDashes(data.content?.[0]?.text || ""),
+        text: sanitizeStyle(data.content?.[0]?.text || ""),
         stop_reason: data.stop_reason || null,
         usage: extractUsage(data, options.model),
       };
@@ -348,7 +410,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
         return {
-          text: sanitizeDashes(data.content?.[0]?.text || ""),
+          text: sanitizeStyle(data.content?.[0]?.text || ""),
           stop_reason: data.stop_reason || null,
           usage: extractUsage(data, "claude-sonnet-4-6"),
         };
@@ -393,7 +455,7 @@ function extractValidatedText(data: any, keepDashes = false): string {
     );
   }
   const raw = data?.content?.[0]?.text || "";
-  const text = keepDashes ? raw : sanitizeDashes(raw);
+  const text = keepDashes ? raw : sanitizeStyle(raw);
   if (!text.trim()) {
     throw new AnthropicError(
       "L'IA a renvoyé une réponse vide. Réessaie.",
@@ -424,7 +486,7 @@ export function extractValidatedToolInput(data: any, toolName: string, keepDashe
       502
     );
   }
-  return JSON.stringify(keepDashes ? block.input : sanitizeDashesDeep(block.input));
+  return JSON.stringify(keepDashes ? block.input : sanitizeStyleDeep(block.input));
 }
 
 export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageSink): Promise<string> {

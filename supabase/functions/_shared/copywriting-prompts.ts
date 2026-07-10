@@ -361,9 +361,9 @@ MOTS/EXPRESSIONS BANNIS (si tu les écris, c'est un échec) :
 - "Il est important de noter que…" → dire la chose directement
 - "Plongeons dans…" / "Sans plus attendre" → SUPPRIMER
 - "En outre" / "Par conséquent" → "Et" / "Du coup" / "Résultat"
-- "Cela étant dit" → "Le truc c'est que"
+- "Cela étant dit" → SUPPRIMER la cheville, enchaîner directement (PAS de "Le truc c'est que" : cette béquille est devenue un tic à son tour)
 - "Je tenais à souligner" → dire la chose, c'est tout
-- "Nous sommes convaincu·es que" → "En vrai"
+- "Nous sommes convaincu·es que" → affirmer directement, sans cheville (PAS de "En vrai" systématique)
 - "N'oubliez pas que" → "Rappelle-toi"
 - "Décortiquons" / "Explorons" / "Découvrons" → SUPPRIMER
 
@@ -405,6 +405,8 @@ Rythme artificiel :
 - "Le vrai game changer ?" → BANNI.
 - "Mais attends, y'a mieux." → BANNI.
 - "Ce qu'on ne te dit pas, c'est que…" → BANNI.
+- "Le truc c'est que…" ou "En vrai…" en OUVERTURE de phrase, de paragraphe ou de caption → BANNI (max 1 par contenu, en milieu de phrase seulement). Ces deux chevilles sont les tics IA les plus fréquents de l'app.
+- "Je ne dis pas ça pour (me) justifier. Je le dis parce que…" → BANNI. Formule moulée : elle ressort à l'identique d'un contenu à l'autre.
 - "Et là, déclic." → BANNI.
 - Chute en paire nominale symétrique ("Message clair, preuve concrète.", "Vision forte, exécution solide.", "Simplicité, authenticité.") → BANNI. Ça résume sans rien dire. Terminer par une phrase concrète ou une question qui ouvre.
 

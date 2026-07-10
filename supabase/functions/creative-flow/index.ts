@@ -315,7 +315,10 @@ serve(async (req) => {
       }
     }
     if (!effectivePreGen && step === "generate") {
-      preGenBlock = `\nL'utilisatrice n'a pas fourni d'éléments personnels.\nGénère le contenu normalement mais AJOUTE en fin :\n"💡 Ajoute une anecdote perso pour que ça sonne vraiment toi. L'IA structure, toi tu incarnes."\n`;
+      // Le conseil d'incarnation vit dans un CHAMP dédié (personal_tip), jamais
+      // dans le contenu : dans content il partait tel quel dans un copier-coller
+      // ou une publication (vu à l'audit rédactionnel du 10/07).
+      preGenBlock = `\nL'utilisatrice n'a pas fourni d'éléments personnels.\nGénère le contenu normalement. INTERDIT d'écrire un conseil, une note de coaching ou une mention de l'IA DANS le contenu lui-même.\nRenvoie À LA PLACE, dans le champ JSON "personal_tip" prévu par le format de réponse, exactement : "💡 Ajoute une anecdote perso pour que ça sonne vraiment toi. L'IA structure, toi tu incarnes."\n`;
     }
 
     const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "") + voiceBlock;
@@ -816,14 +819,16 @@ ${isReel || isStories ? `` : isNewsletter ? `Réponds UNIQUEMENT en JSON :
   "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
   "format": "newsletter",
   "pillar": "...",
-  "objectif": "..."
+  "objectif": "...",
+  "personal_tip": "conseil d'incarnation SEULEMENT si demandé plus haut, sinon null"
 }` : `Réponds UNIQUEMENT en JSON :
 {
   "content": "...",
   "accroche": "...",
   "format": "...",
   "pillar": "...",
-  "objectif": "..."
+  "objectif": "...",
+  "personal_tip": "conseil d'incarnation SEULEMENT si demandé plus haut, sinon null"
 }`}`;
       // Inject launch context for stories AND reels (preserved from stories-ai / reels-ai)
       if ((isStories || isReel) && body.launch_context) {

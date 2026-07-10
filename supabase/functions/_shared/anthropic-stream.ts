@@ -4,7 +4,7 @@
  * Pattern copié depuis chat-guide/index.ts (déjà en production).
  */
 
-import { sanitizeDashes, supportsTemperature, stripTrailingAssistant, type AnthropicUsage } from "./anthropic.ts";
+import { sanitizeStyle, supportsTemperature, stripTrailingAssistant, type AnthropicUsage } from "./anthropic.ts";
 
 export async function streamAnthropicSSE(
   apiKey: string,
@@ -173,7 +173,7 @@ export function createClientSSEStream(
 
         // ── Succès : au moins un delta et pas d'erreur ──
         if (sawDelta && !streamError) {
-          const cleanFull = sanitizeDashes(fullText);
+          const cleanFull = sanitizeStyle(fullText);
           const usage: AnthropicUsage = {
             input_tokens: inputTokens,
             output_tokens: outputTokens,
