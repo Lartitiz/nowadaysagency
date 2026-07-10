@@ -6,12 +6,13 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { callAnthropic, SONNET_MODEL, type AnthropicModel, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
+import { buildPptxInvariants, formatInvariantsForPrompt, NEUTRAL_DEFAULT_PALETTE } from "../_shared/pptx-invariants.ts";
 import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
+import { enforceAnchoredText, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
 /**
@@ -283,14 +284,13 @@ serve(async (req) => {
       .maybeSingle();
 
     const ch = {
-      // Palette par défaut NEUTRE & éditoriale (charbon / papier chaud / taupe doux)
-      // utilisée tant que l'utilisatrice n'a pas posé ses couleurs de charte.
-      // Volontairement appropriable — PAS aux couleurs de Nowadays.
-      color_primary: charter.color_primary || "#1C1C20",
-      color_secondary: charter.color_secondary || "#6E6A66",
-      color_accent: charter.color_accent || "#C9BFB2",
-      color_background: charter.color_background || "#F6F4F0",
-      color_text: charter.color_text || "#1C1C20",
+      // Palette par défaut NEUTRE & éditoriale — source unique NEUTRAL_DEFAULT_PALETTE
+      // (pptx-invariants), sinon charte vide = prompt bicolore (audit 10/07).
+      color_primary: charter.color_primary || NEUTRAL_DEFAULT_PALETTE.primary,
+      color_secondary: charter.color_secondary || NEUTRAL_DEFAULT_PALETTE.secondary,
+      color_accent: charter.color_accent || NEUTRAL_DEFAULT_PALETTE.accent,
+      color_background: charter.color_background || NEUTRAL_DEFAULT_PALETTE.background,
+      color_text: charter.color_text || NEUTRAL_DEFAULT_PALETTE.text,
       font_title: charter.font_title || "Libre Baskerville",
       font_body: charter.font_body || "IBM Plex Mono",
       mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "épuré, élégant, minimal, éditorial"),
@@ -457,7 +457,7 @@ MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
 - Mais un carrousel ENTIER de slides nues = plat. Sur l'ensemble, au moins 2-3 slides portent un vrai moment de design : carte blanche, chiffre géant décoratif (120-200px en ${ch.font_title}, opacity 0.12-0.2), emoji 48-64px posé comme élément graphique (pas en fin de ligne), ou encadré pointillé.
-- Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}, jamais noyés dans une phrase.
+- Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en ${ch.font_title}, couleur ${ch.color_primary}, jamais noyés dans une phrase. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
 CARTES BLANCHES (pour les blocs de contenu) :
@@ -581,7 +581,8 @@ ${styleInstructions}
 
 ═══ ANCRAGE DU TEXTE (OBLIGATOIRE — permet l'édition en direct) ═══
 - Dans chaque slide, l'élément qui contient DIRECTEMENT le titre porte l'attribut data-slide-text="title" ; celui qui contient le corps porte data-slide-text="body". Un seul élément de chaque par slide.
-- Le texte du JSON y est recopié VERBATIM (aucune reformulation, coupure, fusion ou ajout). Tu peux styler des mots via des <span> À L'INTÉRIEUR de cet élément, mais le texte complet reste identique.
+- Le texte du JSON y est recopié VERBATIM (aucune reformulation, coupure, fusion ou ajout — la CASSE d'origine est conservée, MAJUSCULES comprises, et les émojis présents dans le texte restent DANS le texte). Tu peux styler des mots via des <span> À L'INTÉRIEUR de cet élément, mais le texte complet reste identique.
+- Si un champ (title ou body) est VIDE dans le JSON, tu n'écris RIEN à sa place : n'invente jamais une phrase de complément, un sous-titre ou une accroche.
 - Les textes décoratifs que TU crées (numéros géants, labels de schéma…) ne portent JAMAIS cet attribut.
 - BOUTON D'APPEL À L'ACTION de la dernière slide (pilule/badge « Réponds en commentaire », « Enregistre ce post », « lien en bio »… — le CTA graphique, PAS le titre/corps) : enveloppe TOUT le bouton dans un élément portant l'attribut data-slide-cta, et l'élément qui contient DIRECTEMENT son texte porte data-slide-text="cta". Cela permet à l'utilisatrice de le modifier ou de le retirer entièrement. N'ajoute data-slide-cta QUE sur ce bouton, jamais sur un titre, un corps ou un élément décoratif.
 
@@ -1230,6 +1231,8 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
           messages: buildMessagesFor(finalUserPrompt + planBlock + chunkDirective(nums), photoIdx),
           temperature: 0.5,
           max_tokens: 8192,
+          // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
+          keepDashes: true,
         }, chunkUsage);
         doneCount++;
         // Clamp : les appels de rattrapage ne doivent pas afficher « 4/3 »
@@ -1321,6 +1324,8 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
         messages: buildMessagesFor(finalUserPrompt),
         temperature: 0.5,
         max_tokens: 16384,
+        // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
+        keepDashes: true,
       }, usage);
       result = parseSlidesJson(rawResponse);
       emitStatus("visuals", { done: 1, total: 1 });
@@ -1392,6 +1397,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
             messages: [{ role: "user", content: fixContent }],
             temperature: 0.4,
             max_tokens: 16384,
+            keepDashes: true,
           }, fixUsage);
           const fixCleaned = fixRaw.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
           const fixMatch = fixCleaned.match(/\{[\s\S]*\}/);
@@ -1868,6 +1874,34 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       });
       if (contrastFixes > 0) {
         console.warn(`carousel-visual: ${contrastFixes} couleur(s) de texte illisible(s) corrigée(s) (garde contraste)`);
+      }
+    }
+
+    // ═══ Garde DÉTERMINISTE de verbatim du texte ancré (slides texte) ═══
+    // Audit live 10/07 : malgré la règle d'ancrage, le modèle dévie (casse perdue,
+    // émojis retirés, body éclaté quand il contient des chiffres) — et l'ancien
+    // sanitizeDashes réécrivait les tirets (désormais keepDashes: true sur les
+    // appels de rendu). On ne dépend pas du prompt : si le texte de l'ancre
+    // diffère du texte source, la source est réinjectée telle quelle. Les <span>
+    // d'accent internes sautent alors — même compromis que l'édition live.
+    if (Array.isArray(result?.slides_html)) {
+      const srcText = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+      let verbatimFixes = 0;
+      result.slides_html = result.slides_html.map((slide: any) => {
+        const src = srcText.get(slide.slide_number) as any;
+        // Slides texte uniquement — l'overlay photo a sa propre passe de lisibilité.
+        if (!src || (src.slide_type && src.slide_type !== "text_only")) return slide;
+        const anchors: VerbatimAnchor[] = [];
+        if (typeof src.title === "string" && src.title.trim()) anchors.push({ field: "title", text: src.title });
+        if (typeof src.body === "string" && src.body.trim()) anchors.push({ field: "body", text: src.body });
+        if (anchors.length === 0) return slide;
+        const { html, fixes } = enforceAnchoredText(slide?.html || "", anchors);
+        if (fixes.length === 0) return slide;
+        verbatimFixes += fixes.length;
+        return { ...slide, html };
+      });
+      if (verbatimFixes > 0) {
+        console.warn(`carousel-visual: ${verbatimFixes} texte(s) ancré(s) réécrit(s) verbatim (garde déterministe)`);
       }
     }
 

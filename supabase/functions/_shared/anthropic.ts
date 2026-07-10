@@ -124,6 +124,15 @@ export interface AnthropicOptions {
    */
   abortTimeoutMs?: number;
   /**
+   * Désactive `sanitizeDashes` sur la sortie de CET appel. À réserver aux edges
+   * de RENDU qui recopient du texte utilisateur verbatim (carousel-visual…) :
+   * l'anti-tic « — → virgule » y réécrivait les tirets présents dans le texte
+   * source des slides (vu en prod : « » — moi, en 2021 » rendu « », moi, en
+   * 2021 »), et cassait le repli d'édition live par correspondance de texte.
+   * Les textes GÉNÉRÉS restent assainis par défaut (comportement historique).
+   */
+  keepDashes?: boolean;
+  /**
    * Sortie structurée : force le modèle à répondre via ce tool (`tool_choice`).
    * L'API garantit alors un `input` conforme au schéma — ça élimine toute la
    * classe d'échecs « réponse IA illisible » du parsing texte (guillemets non
@@ -376,14 +385,15 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
  * pour les appelants qui gèrent la troncature eux-mêmes (ex. branding-coaching
  * relance avec un max_tokens plus haut).
  */
-function extractValidatedText(data: any): string {
+function extractValidatedText(data: any, keepDashes = false): string {
   if (data?.stop_reason === "max_tokens") {
     throw new AnthropicError(
       "La génération a été coupée car trop longue. Réessaie.",
       422
     );
   }
-  const text = sanitizeDashes(data?.content?.[0]?.text || "");
+  const raw = data?.content?.[0]?.text || "";
+  const text = keepDashes ? raw : sanitizeDashes(raw);
   if (!text.trim()) {
     throw new AnthropicError(
       "L'IA a renvoyé une réponse vide. Réessaie.",
@@ -398,7 +408,7 @@ function extractValidatedText(data: any): string {
  * même garde troncature, puis extrait l'`input` du bloc tool_use et le
  * re-sérialise — le JSON renvoyé à l'appelant est donc valide par construction.
  */
-export function extractValidatedToolInput(data: any, toolName: string): string {
+export function extractValidatedToolInput(data: any, toolName: string, keepDashes = false): string {
   if (data?.stop_reason === "max_tokens") {
     throw new AnthropicError(
       "La génération a été coupée car trop longue. Réessaie.",
@@ -414,7 +424,7 @@ export function extractValidatedToolInput(data: any, toolName: string): string {
       502
     );
   }
-  return JSON.stringify(sanitizeDashesDeep(block.input));
+  return JSON.stringify(keepDashes ? block.input : sanitizeDashesDeep(block.input));
 }
 
 export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageSink): Promise<string> {
@@ -518,7 +528,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     if (response.ok) {
       const data = await response.json();
       if (usageOut) Object.assign(usageOut, extractUsage(data, options.model));
-      return options.tool ? extractValidatedToolInput(data, options.tool.name) : extractValidatedText(data);
+      return options.tool ? extractValidatedToolInput(data, options.tool.name, options.keepDashes) : extractValidatedText(data, options.keepDashes);
     }
 
     const errorText = await response.text();
@@ -561,7 +571,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
         if (usageOut) Object.assign(usageOut, extractUsage(data, "claude-sonnet-4-6"));
-        return options.tool ? extractValidatedToolInput(data, options.tool.name) : extractValidatedText(data);
+        return options.tool ? extractValidatedToolInput(data, options.tool.name, options.keepDashes) : extractValidatedText(data, options.keepDashes);
       }
       await fallbackRes.text(); // consume body
     }

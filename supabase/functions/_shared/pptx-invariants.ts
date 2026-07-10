@@ -100,6 +100,23 @@ export interface BuildInvariantsInput {
   } | null;
 }
 
+/**
+ * Palette par défaut NEUTRE & éditoriale (charbon / papier chaud / taupe doux),
+ * utilisée tant que l'utilisatrice n'a pas posé ses couleurs de charte.
+ * SOURCE UNIQUE partagée avec carousel-visual : l'audit du 10/07/2026 a montré
+ * qu'avec une charte vide, DEUX palettes par défaut contradictoires coexistaient
+ * dans le même prompt (rose Nowadays ici vs charbon/crème dans carousel-visual)
+ * → les lots parallèles tranchaient chacun de leur côté = carrousel BICOLORE.
+ * Volontairement appropriable — PAS aux couleurs de Nowadays.
+ */
+export const NEUTRAL_DEFAULT_PALETTE = {
+  primary: "#1C1C20",
+  secondary: "#6E6A66",
+  accent: "#C9BFB2",
+  background: "#F6F4F0",
+  text: "#1C1C20",
+} as const;
+
 export function buildPptxInvariants(input: BuildInvariantsInput): PptxInvariants {
   const ch = input.charter || {};
   const bp = input.brandProfile || {};
@@ -111,11 +128,11 @@ export function buildPptxInvariants(input: BuildInvariantsInput): PptxInvariants
 
   return {
     palette: {
-      primary_hex: ch.color_primary || "#FB3D80",
-      secondary_hex: ch.color_secondary || "#91014b",
-      accent_hex: ch.color_accent || "#FFE561",
-      bg_hex: ch.color_background || "#FFF4F8",
-      text_hex: ch.color_text || "#1A1A2E",
+      primary_hex: ch.color_primary || NEUTRAL_DEFAULT_PALETTE.primary,
+      secondary_hex: ch.color_secondary || NEUTRAL_DEFAULT_PALETTE.secondary,
+      accent_hex: ch.color_accent || NEUTRAL_DEFAULT_PALETTE.accent,
+      bg_hex: ch.color_background || NEUTRAL_DEFAULT_PALETTE.background,
+      text_hex: ch.color_text || NEUTRAL_DEFAULT_PALETTE.text,
       dominant: deriveDominant(bp.tone_register),
     },
     typography: {
@@ -131,7 +148,7 @@ export function buildPptxInvariants(input: BuildInvariantsInput): PptxInvariants
     motif: deriveMotif(bp.tone_register, moodStr),
     pptx_dont: [
       "lignes décoratives sous les titres (signature IA)",
-      "fonds beige / crème par défaut (#F5F5DC, #FAF0E6)",
+      "fonds beige / crème INVENTÉS hors charte (#F5F5DC, #FAF0E6…) — le fond de slide vient de la charte (ou du défaut neutre), jamais d'une teinte improvisée",
       "border-radius < 8px (rendu mauvais en PPTX)",
       "gradients à plus de 2 couleurs",
       "polices Google Fonts non-mappées (la machine du client ne les a pas)",
