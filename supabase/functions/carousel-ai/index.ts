@@ -8,6 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { runRedacGate } from "../_shared/redac-gate.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
@@ -542,6 +543,12 @@ serve(async (req) => {
           if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
           content = capped.content;
         }
+        // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+        content = (await runRedacGate(content, {
+          isLinkedIn,
+          onStatus: emitStatus,
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+        })).content;
         await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -622,6 +629,11 @@ serve(async (req) => {
           if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
           content = capped.content;
         }
+        content = (await runRedacGate(content, {
+          isLinkedIn,
+          onStatus: emitStatus,
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+        })).content;
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -997,6 +1009,12 @@ Réponds UNIQUEMENT en JSON valide :
       const capped = limitVisualSchemas(content);
       if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
       content = capped.content;
+      // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+      content = (await runRedacGate(content, {
+        isLinkedIn,
+        onStatus: emitStatus,
+        correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+      })).content;
     }
 
     await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspace_id);
@@ -1327,7 +1345,7 @@ Types disponibles et QUAND les utiliser :
    { "type": "before_after", "before": { "label": "Avant", "items": ["Point 1", "Point 2"] }, "after": { "label": "Après", "items": ["Point 1", "Point 2"] } }
 
 2. "comparison" — Deux colonnes opposées (bon/mauvais, mythe/réalité, toi/les autres)
-   { "type": "comparison", "left": { "label": "❌ Ce qu'on te dit", "items": ["Poste tous les jours", "Utilise 30 hashtags"] }, "right": { "label": "✅ Ce qui marche", "items": ["Poste quand t'as un truc à dire", "3-5 hashtags ciblés"] } }
+   { "type": "comparison", "left": { "label": "❌ Ce qu'on te dit", "items": ["Poste tous les jours", "Utilise 30 hashtags"] }, "right": { "label": "✅ Ce qui marche", "items": ["Poste quand t'as un truc à dire", "3 hashtags ciblés"] } }
    ⚠️ ATTENTION "before_after" et "comparison" = les DEUX CADRES CÔTE À CÔTE qu'on voit sur TOUS les carrousels LinkedIn → effet "template générique". À ÉVITER par défaut. Pour une opposition (mythe/réalité, ce-qu'on-dit/ma-position, eux/toi), préfère QUASI TOUJOURS "objection_response" (version narrative VERTICALE, n°14 ci-dessous), beaucoup plus singulière. Ne garde "comparison"/"before_after" que pour une comparaison FACTUELLE serrée (chiffres, items concrets) où les deux colonnes apportent vraiment de la clarté.
 
 3. "timeline" — Progression chronologique ou étapes
@@ -1410,10 +1428,10 @@ Retourne ce JSON exact :
     }
   ],
   "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1)",
+    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1 ; JAMAIS un vécu 1ʳᵉ personne inventé type \"Ma première pièce…\" : anecdote SEULEMENT si fournie par l'utilisatrice)",
     "body": "Le reste de la caption",
     "cta": "Le CTA dans la caption",
-    "hashtags": ["hashtag1", "hashtag2", "hashtag3", "hashtag4", "hashtag5"]
+    "hashtags": ["hashtag1", "hashtag2", "hashtag3"]
   },
   "quality_check": {
     "hook_word_count": 8,
@@ -1884,7 +1902,7 @@ Retourne ce JSON exact :
     }
   ],
   "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle personnel)",
+    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle personnel ; JAMAIS un vécu 1ʳᵉ personne inventé : anecdote SEULEMENT si fournie par l'utilisatrice)",
     "body": "Le reste de la caption (contexte, pourquoi ce sujet maintenant)",
     "cta": "Le CTA dans la caption",
     "hashtags": ["hashtag1", "hashtag2"]
@@ -2062,14 +2080,14 @@ ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
 - Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1.
 - Body : ce que les photos ne montrent pas (mécanisme, chiffre, leçon, contexte marché).
 - CTA pro : "Votre avis en commentaire ?", "Partagez si cela résonne", "Quelle est votre expérience ?". JAMAIS "Sauvegarde", "DM moi", "Tag une copine".
-- Hashtags : 0-5 hashtags PROFESSIONNELS (secteur, métier, thématique pro). PAS de hashtags lifestyle Instagram.` : `═══ LÉGENDE ═══
+- Hashtags : 0-2 hashtags PROFESSIONNELS (secteur, métier, thématique pro). PAS de hashtags lifestyle Instagram.` : `═══ LÉGENDE ═══
 - 400-800 caractères
 - La légende PROLONGE l'histoire des slides, elle ne la répète pas
 - Hook : phrase d'accroche DIFFÉRENTE du texte de la slide 1
 - Body : ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
 - Ton sensoriel : faire ressentir les textures, les lumières, les ambiances
 - CTA : invitation à la conversation ("Et toi, tu as déjà ressenti ça ?")
-- 5-10 hashtags pertinents`}
+- 3 hashtags MAXIMUM, ciblés (pas de #love #life génériques)`}
 ${deepeningCtx}${angleBlock}
 
 RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
@@ -2263,7 +2281,7 @@ Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"",
 - "hook" DIFFÉRENT du texte slide 1, ancré dans TA réaction à l'actu
 - "body" : ce que les slides ne disent pas, formulé en JE
 - "cta" : invitation à la conversation (1 seule)
-- 5-10 hashtags pertinents au sujet de l'actu`}
+- 3 hashtags MAXIMUM, ciblés sur le sujet de l'actu`}
 
 ⚠️ Les valeurs ci-dessous montrent la STRUCTURE JSON, PAS le ton. Tout doit être 100% ancré dans l'actu réelle et la voix JE.
 
@@ -2546,7 +2564,7 @@ Tu DOIS produire un objet "caption" avec ces 4 champs remplis :
 - "hook" (string, OBLIGATOIRE) : phrase d'accroche DIFFÉRENTE du texte de la slide 1, 1-2 phrases
 - "body" (string, OBLIGATOIRE) : 300-700 caractères — ce que les photos ne montrent pas (l'envers du décor, l'émotion, le pourquoi)
 - "cta" (string, OBLIGATOIRE) : invitation concrète à la conversation (question, appel à commenter, à partager)
-- "hashtags" (array de 5-10 strings, OBLIGATOIRE) : hashtags pertinents sans le "#"
+- "hashtags" (array de 3 strings MAXIMUM, OBLIGATOIRE) : hashtags ciblés sans le "#"
 
 Total caption (hook + body + cta) : 400-800 caractères.
 
@@ -2557,7 +2575,7 @@ STRUCTURE attendue (REMPLIS chaque champ avec du contenu ORIGINAL, ancré dans C
   "hook": "<phrase d\'accroche 1-2 lignes, DIFFÉRENTE du texte slide 1, ancrée dans le sujet>",
   "body": "<300-700 caractères : l\'envers du décor de CE moment précis, ce que les photos ne disent pas, l\'émotion / le pourquoi spécifique au sujet>",
   "cta": "<invitation concrète à la conversation, en lien avec le sujet>",
-  "hashtags": [<5 à 10 hashtags pertinents au sujet, sans le #>]
+  "hashtags": [<3 hashtags maximum, ciblés, sans le #>]
 }`}
 
 
@@ -2804,7 +2822,7 @@ Objet "caption" avec :
 - "hook" (1-2 phrases, DIFFÉRENT du texte slide 1, ancré dans TA réaction)
 - "body" (300-700 caractères : l'envers de TA réaction, ce que les slides ne disent pas, formulé en JE)
 - "cta" (invitation à la conversation — UNE seule, pas de liste)
-- "hashtags" (5-10 hashtags pertinents au sujet, sans le #)`}
+- "hashtags" (3 hashtags maximum, ciblés, sans le #)`}
 
 ⚠️ Les valeurs ci-dessous montrent la STRUCTURE JSON, PAS le ton. Tout doit être 100% ancré dans l'actu réelle et la voix JE.
 

@@ -5,6 +5,12 @@ export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagr
 export interface CorrectionOptions {
   /** Skip correction si le contenu est plus court que ce nombre de caractères */
   skipIfShorterThan?: number;
+  /**
+   * Instructions ciblées ajoutées à la demande de correction (quality-gate
+   * rédactionnel : phrases précises à réécrire, mesurées en code). Quand ce champ
+   * est présent, la passe est une re-passe chirurgicale, pas une relecture large.
+   */
+  extraInstructions?: string;
   /** Skip correction si null/undefined */
   enabled?: boolean;
   /** Logger optionnel pour debug */
@@ -535,7 +541,7 @@ export async function applyCorrectionPassCarousel(
   jsonContent: string,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 300, enabled = true, logger, model } = options;
+  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:carousel-json] SKIPPED (disabled)`);
@@ -571,7 +577,9 @@ export async function applyCorrectionPassCarousel(
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       CAROUSEL_CORRECTION_PROMPT,
-      `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
+      extraInstructions
+        ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
+        : `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
       0.3,
       4096
     );

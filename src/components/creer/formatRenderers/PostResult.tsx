@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import FeedPreview from "@/components/creer/formatRenderers/FeedPreview";
+import { stripCoachingHint } from "@/features/creer/build-calendar-content";
 import { useState } from "react";
 
 interface Props {
@@ -30,7 +31,9 @@ function humanFormat(raw: string): string {
 }
 
 export default function PostResult({ result, content, photos }: Props) {
-  const postText = content || result?.content || result?.post || result?.text || "";
+  // Filet : le conseil d'incarnation vit dans personal_tip, jamais dans le texte.
+  const postText = stripCoachingHint(content || result?.content || result?.post || result?.text || "");
+  const personalTip = result?.personal_tip;
   const accroche = result?.accroche || result?.hook || "";
   const format = result?.format || result?.content_type;
   const objective = result?.objective || result?.objectif;
@@ -58,6 +61,12 @@ export default function PostResult({ result, content, photos }: Props) {
 
       {/* Aperçu réaliste « comme dans le feed » */}
       <FeedPreview variant="instagram" text={caption} hashtags={hashtags} photos={photos} />
+
+      {personalTip && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+          <p className="text-sm text-foreground">{personalTip}</p>
+        </div>
+      )}
 
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
 
