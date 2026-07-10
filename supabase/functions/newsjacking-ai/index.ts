@@ -5,7 +5,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { getModelForAction, callAnthropicSimple } from "../_shared/anthropic.ts";
+import { getModelForAction, callAnthropicSimple, forcesDisabledThinking } from "../_shared/anthropic.ts";
 import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
 
 // Perplexity insère parfois ses balises de citation (<cite index="40-3">…</cite>)
@@ -606,6 +606,24 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         excludedUrls.map((u) => `- ${u}`).join("\n")
       : "";
 
+    // 8192 (et pas 4096) : la sortie compte les blocs texte intercalés entre les
+    // web_search + le JSON final (jusqu'à 6 actus), et le tokenizer Sonnet 5
+    // (~+30 %) fait déborder le défaut → stop_reason max_tokens → JSON amputé
+    // → « Erreur de parsing IA » 500 (même panne que le reel, PR #477).
+    // Plafond non consommé = non facturé.
+    const requestBody: any = {
+      model,
+      max_tokens: 8192,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+      messages: [{ role: "user", content: systemPrompt + exclusionBlock + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
+    };
+    // Cet appel est un fetch direct (web_search oblige) : il ne bénéficie pas du
+    // garde de callAnthropic. Sonnet 5 active le thinking ADAPTATIF quand le champ
+    // est omis, et les tokens de réflexion se décomptent de max_tokens.
+    if (forcesDisabledThinking(model)) {
+      requestBody.thinking = { type: "disabled" };
+    }
+
     const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -613,12 +631,7 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
         "x-api-key": ANTHROPIC_API_KEY,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({
-        model,
-        max_tokens: 4096,
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-        messages: [{ role: "user", content: systemPrompt + exclusionBlock + `\n\nFais les recherches maintenant. Pour chaque sujet candidat, applique les 3 garde-fous : (1) pont explicite concret citant le profil, (2) registre tagué + ⌈N/3⌉ décalants, (3) auto-évalue "force_pont" — si "fragile", jette. Au moins 2/3 des sujets renvoyés doivent être "fort". Mieux vaut 3 sujets ultra-connectés que 6 hors-sol.` }],
-      }),
+      body: JSON.stringify(requestBody),
       signal: controller.signal,
     });
 
@@ -638,6 +651,17 @@ Si vraiment rien ne fonctionne (moins de 3 sujets connectés trouvables), retour
 
     const data = await response.json();
     const tokensUsed = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
+
+    // Troncature détectée AVANT le parsing : sans ce garde, le JSON amputé part
+    // dans les 3 stratégies de parse et ressort en « Erreur de parsing IA » 500,
+    // indiagnosticable depuis le front.
+    if (data.stop_reason === "max_tokens") {
+      console.error("[newsjacking] réponse tronquée (stop_reason=max_tokens), model:", model, "output_tokens:", data.usage?.output_tokens);
+      return new Response(JSON.stringify({ error: "La recherche a produit une réponse trop longue et a été coupée. Réessaie." }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Extract text blocks (web search responses have multiple text blocks interleaved with search results)
     const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
