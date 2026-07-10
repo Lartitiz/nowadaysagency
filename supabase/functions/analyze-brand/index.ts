@@ -5,7 +5,7 @@ import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extra
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { type UsageSink, extractUsage } from "../_shared/anthropic.ts";
+import { type UsageSink, extractUsage, SONNET_MODEL, forcesDisabledThinking } from "../_shared/anthropic.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -334,8 +334,14 @@ Précisions sur charter :
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-6",
+        // Tier Sonnet configurable (AI_MODEL_SONNET) : ce littéral 4-6 échappait au
+        // banc, contrairement au reste du corpus (« point de vérité unique »).
+        model: SONNET_MODEL,
         max_tokens: 8192,
+        // Sonnet 5 : thinking ADAPTATIF si le champ est omis → les blocs de
+        // réflexion mangent max_tokens et la réponse arrive sans JSON. Fetch brut
+        // (hors helper callAnthropic) → même garde qu'anthropic.ts, posée ici.
+        ...(forcesDisabledThinking(SONNET_MODEL) ? { thinking: { type: "disabled" } } : {}),
         system: systemPrompt,
         messages: [{ role: "user", content: userContent }],
       }),
@@ -354,7 +360,7 @@ Précisions sur charter :
     }
 
     const data = await resp.json();
-    if (usageOut) Object.assign(usageOut, extractUsage(data, "claude-sonnet-4-6"));
+    if (usageOut) Object.assign(usageOut, extractUsage(data, SONNET_MODEL));
     const textContent = data.content?.find((c: { type: string }) => c.type === "text")?.text || "{}";
 
     try {
