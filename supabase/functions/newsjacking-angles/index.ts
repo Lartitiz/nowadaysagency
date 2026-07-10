@@ -5,7 +5,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, AnthropicError, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 
 const AXE_LABELS: Record<string, string> = {
   // Nouveaux axes (micro-phénomènes culturels)
@@ -261,72 +261,56 @@ Renvoie EXACTEMENT ${expectedCount} angle${expectedCount > 1 ? "s" : ""}${expect
     const t0 = Date.now();
     console.log(`[newsjacking-angles] start mode=${mode} — user=${user.id.slice(0,8)} actu="${String(actu.titre).slice(0,60)}" promptLen=${systemPrompt.length}`);
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120000);
-
-    let response: Response;
-    try {
-      response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": ANTHROPIC_API_KEY,
-          "anthropic-version": "2023-06-01",
+    // Sortie structurée (tool forcé, même patron que #359) : JSON valide par
+    // construction + gestion thinking/retries/troncature déléguée au helper —
+    // le fetch brut sans `thinking: disabled` cassait par vagues sur Sonnet 5.
+    const ANGLES_TOOL: AnthropicTool = {
+      name: "rendre_angles",
+      description: "Renvoie les angles de newsjacking générés",
+      input_schema: {
+        type: "object",
+        properties: {
+          angles: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                vehicule: { type: "string", enum: ["recit_experience", "declencheur_externe", "constat_decale", "montrer_plutot_quexpliquer", "parallele_absurde"] },
+                hook: { type: "string" },
+                description: { type: "string" },
+                format_suggere: { type: "string", enum: ["post", "carousel", "reel", "story", "linkedin"] },
+              },
+              required: ["vehicule", "hook", "description", "format_suggere"],
+            },
+          },
         },
-        body: JSON.stringify({
-          model,
-          max_tokens: maxTokens,
-          messages: [{ role: "user", content: systemPrompt }],
-        }),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
-    }
+        required: ["angles"],
+      },
+    };
 
-    console.log(`[newsjacking-angles] mode=${mode} claude responded in ${Date.now() - t0}ms — status=${response.status}`);
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error("Anthropic error:", response.status, "model:", model, "body:", errText.slice(0, 500));
-      const userMsg = response.status === 529 ? "L'IA est temporairement surchargée. Réessaie dans quelques secondes."
-        : `Erreur IA (${response.status}). Réessaie.`;
-      return new Response(JSON.stringify({ error: userMsg }), {
+    let raw: string;
+    const usage: UsageSink = {};
+    try {
+      raw = await callAnthropic({
+        model,
+        messages: [{ role: "user", content: systemPrompt }],
+        max_tokens: maxTokens,
+        tool: ANGLES_TOOL,
+        abortTimeoutMs: 120_000,
+      }, usage);
+    } catch (e) {
+      const status = e instanceof AnthropicError ? e.status : 502;
+      console.error("Anthropic error:", status, "model:", model, (e as Error).message);
+      return new Response(JSON.stringify({ error: (e as Error).message || "Erreur IA. Réessaie." }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const data = await response.json();
-    const tokensUsed = (data.usage?.input_tokens ?? 0) + (data.usage?.output_tokens ?? 0);
-    const textBlocks = (data.content || []).filter((b: any) => b.type === "text").map((b: any) => b.text);
-    const fullText = textBlocks.join("\n");
-    console.log(`[newsjacking-angles] text length=${fullText.length}`);
+    console.log(`[newsjacking-angles] mode=${mode} claude responded in ${Date.now() - t0}ms`);
 
-    // Parse JSON
-    let parsed: any;
-    try {
-      parsed = JSON.parse(fullText.trim());
-    } catch {
-      const firstBrace = fullText.indexOf("{");
-      const lastBrace = fullText.lastIndexOf("}");
-      if (firstBrace !== -1 && lastBrace > firstBrace) {
-        try {
-          parsed = JSON.parse(fullText.slice(firstBrace, lastBrace + 1));
-        } catch (e) {
-          console.error("JSON parse failed. Preview:", fullText.slice(0, 500));
-          return new Response(JSON.stringify({ error: "Erreur de parsing IA. Réessaie." }), {
-            status: 500,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      } else {
-        return new Response(JSON.stringify({ error: "Réponse IA invalide. Réessaie." }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
+    const tokensUsed = usage.total_tokens ?? 0;
+    const parsed: any = JSON.parse(raw); // valide par construction (tool forcé)
 
     if (!parsed.angles || !Array.isArray(parsed.angles)) {
       return new Response(JSON.stringify({ error: "Format de réponse invalide." }), {
@@ -358,7 +342,7 @@ Renvoie EXACTEMENT ${expectedCount} angle${expectedCount > 1 ? "s" : ""}${expect
       });
     }
 
-    await logUsage(user.id, "content", "newsjacking", tokensUsed, model, workspace_id);
+    await logUsage(user.id, "content", "newsjacking", tokensUsed, usage.model || model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
