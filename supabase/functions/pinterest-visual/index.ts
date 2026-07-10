@@ -7,7 +7,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { buildPptxInvariants, formatInvariantsForPrompt } from "../_shared/pptx-invariants.ts";
+import { buildPptxInvariants, formatInvariantsForPrompt, NEUTRAL_DEFAULT_PALETTE } from "../_shared/pptx-invariants.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
@@ -94,11 +94,13 @@ serve(async (req) => {
     const brandProfile = brandProfileRes.data || null;
 
     const ch = {
-      color_primary: charter.color_primary || "#FB3D80",
-      color_secondary: charter.color_secondary || "#91014b",
-      color_accent: charter.color_accent || "#FFE561",
-      color_background: charter.color_background || "#FFF4F8",
-      color_text: charter.color_text || "#1A1A2E",
+      // Défauts alignés sur NEUTRAL_DEFAULT_PALETTE (source unique avec les
+      // invariants PPTX) — sinon charte vide = deux palettes dans le même prompt.
+      color_primary: charter.color_primary || NEUTRAL_DEFAULT_PALETTE.primary,
+      color_secondary: charter.color_secondary || NEUTRAL_DEFAULT_PALETTE.secondary,
+      color_accent: charter.color_accent || NEUTRAL_DEFAULT_PALETTE.accent,
+      color_background: charter.color_background || NEUTRAL_DEFAULT_PALETTE.background,
+      color_text: charter.color_text || NEUTRAL_DEFAULT_PALETTE.text,
       font_title: charter.font_title || "Libre Baskerville",
       font_body: charter.font_body || "IBM Plex Mono",
       mood_keywords: Array.isArray(charter.mood_keywords) ? charter.mood_keywords.join(", ") : (charter.mood_keywords || "pop, joyeux, audacieux"),

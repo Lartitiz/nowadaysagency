@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -234,6 +234,7 @@ export function SlideLightbox({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-none w-auto border-none bg-transparent p-0 shadow-none">
+        <DialogTitle className="sr-only">{title || "Aperçu de la slide en grand format"}</DialogTitle>
         <div
           className="relative overflow-hidden rounded-2xl border border-border bg-white shadow-strong"
           style={{ height: "min(85vh, 90vw * 1350 / 1080)", aspectRatio: "1080 / 1350" }}
