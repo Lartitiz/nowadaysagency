@@ -1,5 +1,28 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
+// Types Web Speech API (webkitSpeechRecognition) absents des libs DOM de TypeScript —
+// déclarés localement, propriétés limitées à ce que ce hook consomme.
+interface SpeechRecognitionAlternative {
+  transcript: string;
+}
+
+interface SpeechRecognitionResult {
+  isFinal: boolean;
+  [index: number]: SpeechRecognitionAlternative;
+}
+
+interface SpeechRecognitionEvent {
+  resultIndex: number;
+  results: {
+    length: number;
+    [index: number]: SpeechRecognitionResult;
+  };
+}
+
+interface SpeechRecognitionErrorEvent {
+  error: string;
+}
+
 interface UseSpeechRecognitionReturn {
   isListening: boolean;
   isSupported: boolean;
