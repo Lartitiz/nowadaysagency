@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { getModelForAction, supportsTemperature, stripTrailingAssistant } from "../_shared/anthropic.ts";
+import { getModelForAction, supportsTemperature, stripTrailingAssistant, forcesDisabledThinking } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -296,6 +296,10 @@ async function streamAnthropicSSE(
       system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
       messages: sampled ? messages : stripTrailingAssistant(messages as any),
       ...(sampled ? { temperature } : {}),
+      // Sonnet 5 : thinking ADAPTATIF quand le champ est omis → les blocs de
+      // réflexion consomment max_tokens sans text_delta (réponses vides/tronquées).
+      // No-op tant que assistant_chat = Opus 4.8 ; protège si le tier bascule.
+      ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
       max_tokens: maxTokens,
       stream: true,
     }),
