@@ -9,14 +9,15 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
-// Comptes internes exclus des stats (mêmes que admin-users) + alias de test +cs/+qaneuf.
+// Comptes internes exclus des stats (mêmes que admin-users).
 const EXCLUDED_EMAILS = [
   ADMIN_EMAIL,
-  "laetitiatest@nowadaysagency.com",       // Camille (visite quotidienne)
-  "laetitia+qaneuf0407@nowadaysagency.com", // Élodie (qa neuf)
+  "laetitiatest@nowadaysagency.com", // Camille (visite quotidienne)
 ];
+// Tout alias laetitia+…@ est un compte interne (qaneuf, qabranding, mobile, cs…) :
+// le domaine n'a qu'une seule boîte réelle, celle de l'admin.
 const isExcludedEmail = (e: string | null) =>
-  !!e && (EXCLUDED_EMAILS.includes(e) || /^laetitia\+cs/i.test(e)); // +cs… = comptes du smoke à froid
+  !!e && (EXCLUDED_EMAILS.includes(e) || /^laetitia\+[^@]*@nowadaysagency\.com$/i.test(e));
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -36,17 +37,31 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const [profRes, aiRes, calRes] = await Promise.all([
-      supabase.from("profiles").select("user_id, email, created_at, onboarding_completed"),
-      supabase.from("ai_usage").select("user_id, created_at"),
-      supabase.from("calendar_posts").select("user_id, status, publish_status, published_at"),
-    ]);
-    if (profRes.error) throw profRes.error;
+    // PostgREST plafonne chaque select à 1000 lignes : sans pagination, seules les
+    // 1000 plus anciennes lignes d'ai_usage étaient lues → toutes les générations
+    // récentes devenaient invisibles (cohorte 7j systématiquement à 0).
+    const fetchAll = async (table: string, columns: string) => {
+      const PAGE = 1000;
+      const rows: any[] = [];
+      for (let from = 0; ; from += PAGE) {
+        const { data, error } = await supabase.from(table).select(columns).range(from, from + PAGE - 1);
+        if (error) throw error;
+        rows.push(...(data || []));
+        if (!data || data.length < PAGE) break;
+      }
+      return rows;
+    };
 
-    const profiles = (profRes.data || []).filter((p: any) => !isExcludedEmail(p.email));
+    const [profilesAll, aiAll, calAll] = await Promise.all([
+      fetchAll("profiles", "user_id, email, created_at, onboarding_completed"),
+      fetchAll("ai_usage", "user_id, created_at"),
+      fetchAll("calendar_posts", "user_id, status, publish_status, published_at"),
+    ]);
+
+    const profiles = profilesAll.filter((p: any) => !isExcludedEmail(p.email));
     const clientIds = new Set(profiles.map((p: any) => p.user_id));
-    const ai = (aiRes.data || []).filter((a: any) => clientIds.has(a.user_id));
-    const cal = (calRes.data || []).filter((c: any) => clientIds.has(c.user_id));
+    const ai = aiAll.filter((a: any) => clientIds.has(a.user_id));
+    const cal = calAll.filter((c: any) => clientIds.has(c.user_id));
 
     const isPublished = (c: any) => c.publish_status === "published" || c.status === "published";
     const totalUsers = profiles.length;

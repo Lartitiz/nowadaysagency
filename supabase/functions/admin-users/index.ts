@@ -8,8 +8,11 @@ const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
 const EXCLUDED_STATS_EMAILS = [
   ADMIN_EMAIL,
   "laetitiatest@nowadaysagency.com", // « Camille » — compte test de référence (visite Playwright quotidienne)
-  "laetitia+qaneuf0407@nowadaysagency.com", // « Élodie » — QA compte neuf à froid du 04/07
 ];
+// Tout alias laetitia+…@ est un compte interne (qaneuf, qabranding, mobile, cs…) :
+// le domaine n'a qu'une seule boîte réelle, celle de l'admin.
+const isExcludedStatsEmail = (e: string | null) =>
+  !!e && (EXCLUDED_STATS_EMAILS.includes(e) || /^laetitia\+[^@]*@nowadaysagency\.com$/i.test(e));
 const PLAN_PRICES: Record<string, number> = { outil: 39, binome: 250, pro: 79 };
 
 Deno.serve(async (req) => {
@@ -213,6 +216,29 @@ async function listAllAuthUsers(supabase: any) {
   return users;
 }
 
+// Récupère TOUTES les lignes d'une table en paginant : PostgREST plafonne chaque
+// select à 1000 lignes, et ai_usage a dépassé ce seuil → sans pagination, seules
+// les 1000 plus anciennes lignes étaient lues (générations récentes invisibles
+// dans le tunnel lifetime et les actives du mois).
+async function fetchAllRows(
+  supabase: any,
+  table: string,
+  columns: string,
+  modify?: (q: any) => any,
+): Promise<any[]> {
+  const PAGE = 1000;
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase.from(table).select(columns);
+    if (modify) q = modify(q);
+    const { data, error } = await q.range(from, from + PAGE - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows;
+}
+
 async function getStats(supabase: any, monthStart: string, now: Date) {
   const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   const prevMonthStart = prevMonthDate.toISOString();
@@ -225,20 +251,20 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   ] = await Promise.all([
     supabase.from("profiles").select("user_id, prenom, email, created_at, onboarding_completed, type_activite, canaux, level"),
     supabase.from("subscriptions").select("user_id, plan, status, created_at, canceled_at, current_period_start, current_period_end, source"),
-    supabase.from("ai_usage").select("user_id, category, created_at, action_type, tokens_used, model_used").gte("created_at", monthStart),
+    fetchAllRows(supabase, "ai_usage", "user_id, category, created_at, action_type, tokens_used, model_used", (q) => q.gte("created_at", monthStart)),
     supabase.from("brand_profile").select("user_id, " + BRAND_PROFILE_FIELDS.join(", ")),
     supabase.from("persona").select("user_id, " + PERSONA_FIELDS.join(", ")),
     supabase.from("storytelling").select("user_id, " + STORYTELLING_FIELDS.join(", ")),
     supabase.from("brand_proposition").select("user_id, " + PROPOSITION_FIELDS.join(", ")),
     supabase.from("brand_strategy").select("user_id, " + STRATEGY_FIELDS.join(", ")),
-    supabase.from("ai_usage").select("user_id, category, created_at").gte("created_at", prevMonthStart).lt("created_at", prevMonthEnd),
+    fetchAllRows(supabase, "ai_usage", "user_id, category, created_at", (q) => q.gte("created_at", prevMonthStart).lt("created_at", prevMonthEnd)),
     supabase.from("content_drafts").select("user_id, created_at, canal, status").gte("created_at", monthStart),
     supabase.from("calendar_posts").select("user_id, created_at, canal, status").gte("created_at", monthStart),
     supabase.from("content_scores").select("user_id, global_score, created_at").gte("created_at", monthStart),
     listAllAuthUsers(supabase),
     // Lifetime (tunnel d'activation + adoption + vitesse d'activation + rétention)
-    supabase.from("ai_usage").select("user_id, category, created_at"),
-    supabase.from("calendar_posts").select("user_id, status, publish_status, published_at"),
+    fetchAllRows(supabase, "ai_usage", "user_id, category, created_at"),
+    fetchAllRows(supabase, "calendar_posts", "user_id, status, publish_status, published_at"),
     supabase.from("social_connections").select("user_id, platform"),
   ]);
 
@@ -250,7 +276,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
 
   const profiles = profilesRes.data || [];
   const excludedIds = new Set(
-    profiles.filter((p: any) => EXCLUDED_STATS_EMAILS.includes(p.email)).map((p: any) => p.user_id)
+    profiles.filter((p: any) => isExcludedStatsEmail(p.email)).map((p: any) => p.user_id)
   );
   const clientProfiles = profiles.filter((p: any) => !excludedIds.has(p.user_id));
 
@@ -259,7 +285,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const onboardingCompleted = clientProfiles.filter((p: any) => p.onboarding_completed).length;
 
   // Previous month comparisons (hors compte admin pour ne pas fausser l'usage réel)
-  const aiPrevData = (aiPrevRes.data || []).filter((a: any) => !excludedIds.has(a.user_id));
+  const aiPrevData = aiPrevRes.filter((a: any) => !excludedIds.has(a.user_id));
   const prevActiveUserIds = new Set(aiPrevData.map((a: any) => a.user_id));
   const newPrevMonth = clientProfiles.filter((p: any) => p.created_at >= prevMonthStart && p.created_at < prevMonthEnd).length;
 
@@ -297,7 +323,7 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
   const conversionRate = totalUsers > 0 ? Math.round((paidUsers / totalUsers) * 100) : 0;
 
   // AI usage current month (hors compte admin : tes propres tests/démos ne comptent pas)
-  const aiData = (aiRes.data || []).filter((a: any) => !excludedIds.has(a.user_id));
+  const aiData = aiRes.filter((a: any) => !excludedIds.has(a.user_id));
   const activeUserIds = new Set(aiData.map((a: any) => a.user_id));
   const aiByCategory: Record<string, number> = {};
   const aiByActionType: Record<string, number> = {};
@@ -481,8 +507,8 @@ async function getStats(supabase: any, monthStart: string, now: Date) {
 
   // ── Tunnel d'activation (lifetime, hors admin) ──
   const clientIds = new Set(clientProfiles.map((p: any) => p.user_id));
-  const aiLifetime = (aiLifetimeRes.data || []).filter((a: any) => clientIds.has(a.user_id));
-  const calLifetime = (calLifetimeRes.data || []).filter((c: any) => clientIds.has(c.user_id));
+  const aiLifetime = aiLifetimeRes.filter((a: any) => clientIds.has(a.user_id));
+  const calLifetime = calLifetimeRes.filter((c: any) => clientIds.has(c.user_id));
 
   // Une publication réelle = publish_status "published" (cron + publication directe) OU status "published" (marquage manuel).
   const isPublished = (c: any) => c.publish_status === "published" || c.status === "published";
