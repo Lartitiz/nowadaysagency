@@ -406,7 +406,8 @@ Rythme artificiel :
 - "Mais attends, y'a mieux." → BANNI.
 - "Ce qu'on ne te dit pas, c'est que…" → BANNI.
 - "Le truc c'est que…" ou "En vrai…" en OUVERTURE de phrase, de paragraphe ou de caption → BANNI (max 1 par contenu, en milieu de phrase seulement). Ces deux chevilles sont les tics IA les plus fréquents de l'app.
-- "Je ne dis pas ça pour (me) justifier. Je le dis parce que…" → BANNI. Formule moulée : elle ressort à l'identique d'un contenu à l'autre.
+- "Je ne dis pas ça pour…" (justifier, dénigrer, me plaindre — toutes fins confondues) → BANNI. Formule moulée : elle ressort à l'identique d'un contenu à l'autre.
+- CHIFFRE SANS SOURCE : n'écris JAMAIS un chiffre précis (pourcentage, prix, durée, quantité, « X sur Y ») qui ne vient pas de l'utilisatrice, de son branding ou de l'actu fournie. Sans source réelle → formulation qualitative honnête (« une bonne partie », « plusieurs semaines », « bien plus cher »). Un faux chiffre publié détruit la crédibilité ; deux contenus aux chiffres contradictoires encore plus.
 - "Et là, déclic." → BANNI.
 - Chute en paire nominale symétrique ("Message clair, preuve concrète.", "Vision forte, exécution solide.", "Simplicité, authenticité.") → BANNI. Ça résume sans rien dire. Terminer par une phrase concrète ou une question qui ouvre.
 

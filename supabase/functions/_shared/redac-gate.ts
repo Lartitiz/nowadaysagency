@@ -27,11 +27,46 @@ const REVERSAL_PATTERNS: RegExp[] = [
 // Formules moulées repérées à l'identique dans deux contenus générés à 30 min
 // d'écart : si on les laisse, elles se voient dès que deux posts cohabitent.
 const MOULDED_VERBATIMS: RegExp[] = [
-  /Je ne dis pas ça pour (?:me )?justifier/i,
+  // Toutes les fins possibles (« justifier », « dénigrer », « me plaindre »…) :
+  // c'est l'OUVERTURE qui est moulée, vue à l'identique dans des contenus distincts.
+  /Je ne dis pas ça pour /i,
   /L(?:'|’)IA structure, toi tu incarnes/i,
 ];
 
 const wordCount = (s: string) => (s || "").trim().split(/\s+/).filter(Boolean).length;
+
+// ── Chiffres inventés (lot 3) ──
+// Politique (arbitrage 10/07) : aucun chiffre précis qui ne vient pas de
+// l'utilisatrice (brief, réponses, branding) ou de l'actu fournie. L'audit a
+// montré des stats fabriquées ET contradictoires entre contenus (pertes
+// « 10-20 % » vs « 20-30 % » vs « une sur trois » dans le même carrousel).
+
+const NUMBER_TOKEN = /\d+(?:[.,]\d+)?/g;
+
+/** Tokens numériques d'un texte (pour construire la liste blanche d'entrée). */
+export function numbersIn(text: string): Set<string> {
+  const out = new Set<string>();
+  for (const m of (text || "").matchAll(NUMBER_TOKEN)) out.add(m[0].replace(",", "."));
+  return out;
+}
+
+/** Chiffres du texte absents de la liste blanche, avec un extrait de contexte. */
+function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
+  const found: string[] = [];
+  const seen = new Set<string>();
+  for (const m of (text || "").matchAll(NUMBER_TOKEN)) {
+    const tok = m[0].replace(",", ".");
+    if (allowed.has(tok)) continue;
+    // Ordinaux (« 1er », « 2e », « 1ʳᵉ ») : pas des statistiques.
+    const after = text.slice(m.index! + m[0].length, m.index! + m[0].length + 3);
+    if (/^(?:er|re|e\b|ᵉ|ʳ)/.test(after)) continue;
+    const ctx = text.slice(Math.max(0, m.index! - 30), m.index! + m[0].length + 30).replace(/\s+/g, " ").trim();
+    if (seen.has(ctx)) continue;
+    seen.add(ctx);
+    found.push(`${m[0]} (« …${ctx}… »)`);
+  }
+  return found;
+}
 
 /** Similarité lexicale grossière (Jaccard sur tokens > 3 lettres). */
 function tokenSimilarity(a: string, b: string): number {
@@ -72,9 +107,10 @@ export interface RedacAnalysis {
   ctaDuplicated: boolean;
   moulded: string[];
   hashtagsCount: number;
+  fabricatedNumbers: string[];
 }
 
-export function analyzeCarouselRedac(parsed: any): RedacAnalysis {
+export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>): RedacAnalysis {
   const slides: any[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
   const caption = parsed?.caption || {};
   const allText = [
@@ -98,7 +134,15 @@ export function analyzeCarouselRedac(parsed: any): RedacAnalysis {
 
   const hashtagsCount = Array.isArray(caption?.hashtags) ? caption.hashtags.length : 0;
 
-  return { reversals, overlongSlides, ctaDuplicated, moulded, hashtagsCount };
+  // Chiffres : on analyse aussi les schémas visuels (stats affichées sur les slides)
+  const schemaText = slides
+    .map((s: any) => (s?.visual_schema ? JSON.stringify(s.visual_schema) : ""))
+    .join("\n");
+  const fabricatedNumbers = allowedNumbers
+    ? findFabricatedNumbers(allText + "\n" + schemaText, allowedNumbers)
+    : [];
+
+  return { reversals, overlongSlides, ctaDuplicated, moulded, hashtagsCount, fabricatedNumbers };
 }
 
 /**
@@ -131,7 +175,8 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     Math.max(0, a.reversals.length - 1) + // 1 retournement est toléré (règle « 1 max »)
     a.overlongSlides.length +
     (a.ctaDuplicated ? 1 : 0) +
-    a.moulded.length;
+    a.moulded.length +
+    a.fabricatedNumbers.length;
   return {
     source: "code",
     score: Math.max(40, 100 - 10 * violations),
@@ -139,6 +184,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     slides_over_50_words: a.overlongSlides,
     caption_cta_duplicates_slide: a.ctaDuplicated,
     moulded_verbatims: a.moulded,
+    fabricated_numbers: a.fabricatedNumbers.length,
     hashtags_count: a.hashtagsCount,
     corrected_by_repass: repassed,
   };
@@ -163,6 +209,11 @@ function buildFixInstructions(a: RedacAnalysis): string {
   for (const m of a.moulded) {
     lines.push(`FORMULE MOULÉE : « ${m} » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).`);
   }
+  if (a.fabricatedNumbers.length) {
+    lines.push(
+      `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs semaines », « la plupart », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion. Si un schéma visuel de type stats n'a plus de chiffre à afficher, transforme-le en slide texte.`,
+    );
+  }
   return lines.join("\n\n");
 }
 
@@ -182,7 +233,13 @@ export interface RedacGateResult {
  */
 export async function runRedacGate(
   content: string,
-  opts: { isLinkedIn: boolean; correction: CorrectionOptions; onStatus?: (s: string) => void },
+  opts: {
+    isLinkedIn: boolean;
+    correction: CorrectionOptions;
+    onStatus?: (s: string) => void;
+    /** Texte d'entrée (brief, réponses, branding, actu) : liste blanche des chiffres autorisés. */
+    inputText?: string;
+  },
 ): Promise<RedacGateResult> {
   const parseFenced = (c: string): { parsed: any; raw: string } | null => {
     const m = c.match(/\{[\s\S]*\}/);
@@ -197,7 +254,8 @@ export async function runRedacGate(
   const first = parseFenced(content);
   if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis() };
 
-  const before = analyzeCarouselRedac(first.parsed);
+  const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
+  const before = analyzeCarouselRedac(first.parsed, allowedNumbers);
   let out = content;
   let repassed = false;
 
@@ -221,7 +279,7 @@ export async function runRedacGate(
   const finalDoc = parseFenced(out) || parseFenced(content);
   if (!finalDoc) return { content: out, repassed, before, after: before };
 
-  const after = analyzeCarouselRedac(finalDoc.parsed);
+  const after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers);
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
   finalDoc.parsed.quality_check = buildQualityCheck(after, repassed);
 
@@ -230,12 +288,49 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}`,
   );
 
   return { content: out, repassed, before, after };
 }
 
 function emptyAnalysis(): RedacAnalysis {
-  return { reversals: [], overlongSlides: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0 };
+  return { reversals: [], overlongSlides: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [] };
+}
+
+// ── Variante TEXTE (lot 4) : LinkedIn et newsletter ──
+// Mêmes mesures que le gate carrousel, sur un texte brut. Le résultat s'injecte
+// en `extraInstructions` dans la passe de correction DÉJÀ existante de
+// creative-flow (aucun appel IA supplémentaire).
+
+export interface TextRedacAnalysis {
+  reversals: string[];
+  moulded: string[];
+  fabricatedNumbers: string[];
+}
+
+export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>): TextRedacAnalysis {
+  const reversals = findReversals(text || "");
+  const moulded = MOULDED_VERBATIMS.map((re) => (text || "").match(re)?.[0]).filter(Boolean) as string[];
+  const fabricatedNumbers = allowedNumbers ? findFabricatedNumbers(text || "", allowedNumbers) : [];
+  return { reversals, moulded, fabricatedNumbers };
+}
+
+/** Instructions ciblées pour la passe de correction texte ("" si rien à corriger). */
+export function buildTextFixInstructions(a: TextRedacAnalysis): string {
+  const lines: string[] = [];
+  if (a.reversals.length > 1) {
+    lines.push(
+      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, le maximum est 1 PAR CONTENU. Garde UNIQUEMENT le plus fort, réécris les autres en affirmation directe :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
+    );
+  }
+  for (const m of a.moulded) {
+    lines.push(`FORMULE MOULÉE : « ${m} » est une signature IA récurrente. Réécris-la autrement (ou supprime-la).`);
+  }
+  if (a.fabricatedNumbers.length) {
+    lines.push(
+      `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs heures », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion.`,
+    );
+  }
+  return lines.join("\n\n");
 }

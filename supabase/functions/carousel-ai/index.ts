@@ -400,6 +400,20 @@ serve(async (req) => {
 
     let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile);
 
+    // Liste blanche des chiffres autorisés en sortie (lot 3 anti-chiffres-inventés) :
+    // tout ce que l'utilisatrice, son branding ou l'actu ont réellement fourni.
+    const gateInputText = [
+      body.subject,
+      body.photo_description,
+      body.editorial_angle,
+      body.objective,
+      body.deepening_answers ? JSON.stringify(body.deepening_answers) : "",
+      typeof body.news_context === "string" ? body.news_context : "",
+      Array.isArray(body.photos) ? body.photos.map((p: any) => p?.context || "").join("\n") : "",
+      Array.isArray(body.photo_catalog) ? body.photo_catalog.map((p: any) => p?.description || "").join("\n") : "",
+      brandingContext || "",
+    ].filter(Boolean).join("\n");
+
     // Inject SERIES context if the post belongs to a series
     if (series_id && (type === "express_full" || type === "hooks" || type === "slides" || type === "structure_proposal")) {
       try {
@@ -549,6 +563,7 @@ serve(async (req) => {
         content = (await runRedacGate(content, {
           isLinkedIn,
           onStatus: emitStatus,
+          inputText: gateInputText,
           correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
         })).content;
         await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
@@ -634,6 +649,7 @@ serve(async (req) => {
         content = (await runRedacGate(content, {
           isLinkedIn,
           onStatus: emitStatus,
+          inputText: gateInputText,
           correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
         })).content;
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
@@ -1015,6 +1031,7 @@ Réponds UNIQUEMENT en JSON valide :
       content = (await runRedacGate(content, {
         isLinkedIn,
         onStatus: emitStatus,
+        inputText: gateInputText,
         correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
       })).content;
     }
@@ -1308,7 +1325,7 @@ MODULATION JE / TU / NOUS :
 
 Chaque slide (sauf hook et CTA) doit contenir AU MOINS 1 de ces éléments :
 - Un MÉCANISME NOMMÉ : biais cognitif, concept psycho/socio, dynamique systémique (avec auteur si connu)
-- Une DONNÉE CHIFFRÉE sourcée (chiffre + source entre parenthèses)
+- Une DONNÉE CHIFFRÉE uniquement si elle est FOURNIE par le brief, le branding ou l'actu (jamais inventée ; sans source réelle → mécanisme ou exemple concret à la place)
 - Un EXEMPLE HYPER-SPÉCIFIQUE : situation concrète avec détail (pas "quand tu postes" mais "quand tu passes 45 min à choisir le filtre et que tu finis par ne rien publier")
 - Un RETOURNEMENT DE PERSPECTIVE : une phrase qui recadre complètement le sujet ("Le problème n'est pas X, c'est Y")
 - Une ANALOGIE ORIGINALE ancrée dans le quotidien ou la culture pop

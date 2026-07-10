@@ -489,7 +489,7 @@ export async function applyCorrectionPass(
   format: CorrectionFormat,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 200, enabled = true, logger, model } = options;
+  const { skipIfShorterThan = 200, enabled = true, logger, model, extraInstructions } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:${format}] SKIPPED (disabled)`);
@@ -513,7 +513,9 @@ export async function applyCorrectionPass(
     const corrected = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       correctionPrompt,
-      `Voici le contenu à corriger :\n\n"""\n${content}\n"""`,
+      extraInstructions
+        ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
+        : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`,
       0.3,
       4096
     );
