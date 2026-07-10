@@ -228,6 +228,23 @@ function enforceTextFirstDirectives(content: string): string {
 // Le schéma reste volontairement lâche (pas de `required` sur les slides,
 // additionalProperties implicite) : les prompts mix/actu/texte-d'abord
 // restent la source de vérité du contenu, le tool ne fige que le transport.
+// Champ partagé par les trois tools (mix, photo, structure) : wording du seuil
+// « dernier recours » validé par #488 — le relâcher refait refuser des photos
+// choisies délibérément par l'utilisatrice.
+const PHOTO_MISMATCH_FIELD = {
+  type: "object",
+  description:
+    "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
+  properties: {
+    reason: {
+      type: "string",
+      description:
+        "1-2 phrases en français, adressées directement à l'utilisatrice (tutoiement), décrivant UNIQUEMENT le décalage constaté entre la ou les photos et le sujet. AUCUNE recommandation ni question (l'app ajoute la marche à suivre).",
+    },
+  },
+  required: ["reason"],
+};
+
 const MIX_CAROUSEL_TOOL = {
   name: "livrer_carrousel_mixte",
   description:
@@ -235,19 +252,7 @@ const MIX_CAROUSEL_TOOL = {
   input_schema: {
     type: "object",
     properties: {
-      photo_mismatch: {
-        type: "object",
-        description:
-          "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
-        properties: {
-          reason: {
-            type: "string",
-            description:
-              "1-2 phrases en français, adressées directement à l'utilisatrice (tutoiement), décrivant UNIQUEMENT le décalage constaté entre la ou les photos et le sujet. AUCUNE recommandation ni question (l'app ajoute la marche à suivre).",
-          },
-        },
-        required: ["reason"],
-      },
+      photo_mismatch: PHOTO_MISMATCH_FIELD,
       carousel_type: { type: "string" },
       chosen_angle: {
         type: "object",
@@ -289,6 +294,129 @@ const MIX_CAROUSEL_TOOL = {
     },
   },
 };
+
+// Même patron pour le carrousel PHOTO : mêmes symptômes reproduits que sur le
+// mix (refus en prose → parse KO front, « réessaie » mensonger, crédit débité).
+// Champs alignés sur les specs JSON de buildPhotoCarouselPrompt /
+// buildPhotoCarouselNewsReactionPrompt ; schéma volontairement lâche, les
+// prompts restent la source de vérité du contenu.
+const PHOTO_CAROUSEL_TOOL = {
+  name: "livrer_carrousel_photo",
+  description:
+    "Livre le carrousel photo final (slides + caption), OU signale via photo_mismatch que les photos fournies ne permettent pas de traiter le brief.",
+  input_schema: {
+    type: "object",
+    properties: {
+      photo_mismatch: PHOTO_MISMATCH_FIELD,
+      carousel_type: { type: "string" },
+      chosen_angle: {
+        type: "object",
+        properties: { title: { type: "string" }, description: { type: "string" } },
+      },
+      slides: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            slide_number: { type: "number" },
+            role: { type: "string" },
+            photo_index: { type: ["number", "null"] },
+            slide_type: { type: "string" },
+            photo_description: { type: "string" },
+            overlay_text: { type: "string" },
+            overlay_position: { type: "string" },
+            overlay_style: { type: "string" },
+            visual_anchor: { type: "string" },
+            note: { type: "string" },
+          },
+        },
+      },
+      caption: {
+        type: "object",
+        properties: {
+          hook: { type: "string" },
+          body: { type: "string" },
+          cta: { type: "string" },
+          hashtags: { type: "array", items: { type: "string" } },
+        },
+      },
+      quality_check: { type: "object" },
+    },
+  },
+};
+
+// Même patron pour le step structure_proposal : l'IA voit les photos en vision
+// et peut refuser en prose de la même façon. L'appel est GRATUIT (pas de
+// logUsage) mais un refus en prose casse le parse → « Erreur lors de la
+// proposition de structure » + repli sur une génération directe qui re-refuse,
+// en payant un appel de plus. Champs alignés sur le JSON demandé par
+// structureSystemPrompt.
+const STRUCTURE_PROPOSAL_TOOL = {
+  name: "livrer_structure_carrousel",
+  description:
+    "Livre la structure narrative proposée pour le carrousel, OU signale via photo_mismatch que les photos fournies ne permettent pas de traiter le brief.",
+  input_schema: {
+    type: "object",
+    properties: {
+      photo_mismatch: PHOTO_MISMATCH_FIELD,
+      strategic_rationale: { type: "string" },
+      narrative_thread: { type: "string" },
+      slides: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            slide_number: { type: "number" },
+            role: { type: "string" },
+            title_suggestion: { type: "string" },
+            strategic_note: { type: "string" },
+            story_beat: { type: "string" },
+            photo_index: { type: ["number", "null"] },
+            slide_type: { type: "string" },
+            visual_anchor: { type: "string" },
+          },
+        },
+      },
+      total_slides: { type: "number" },
+      carousel_type: { type: "string" },
+    },
+  },
+};
+
+// Refus structuré commun aux chemins mix et photo : à appeler AVANT correction,
+// post-traitements et logUsage. Si le tool forcé a renvoyé photo_mismatch (ou un
+// carrousel vide), rien n'est livré → on ne débite RIEN et on remonte une erreur
+// actionnable (changer de photo ou passer en texte design) à la place du
+// générique « réessaie » — qui, ici, redonnerait le même refus.
+// Retourne null si un carrousel a bien été livré.
+function carouselMismatchResponse(
+  content: string,
+  body: any,
+  usage: UsageSink,
+  label: string,
+  corsHeaders: Record<string, string>,
+): Response | null {
+  let parsed: any = null;
+  try { parsed = JSON.parse(content); } catch { /* théoriquement impossible : tool forcé */ }
+  const hasSlides = Array.isArray(parsed?.slides) && parsed.slides.length > 0;
+  if (hasSlides) return null;
+  const mismatchReason = typeof parsed?.photo_mismatch?.reason === "string"
+    ? parsed.photo_mismatch.reason.trim()
+    : "";
+  const plural = (body.photos?.length || 0) > 1;
+  const message = mismatchReason
+    ? `${plural ? "Tes photos ne semblent pas correspondre" : "Ta photo ne semble pas correspondre"} à ton idée : ${mismatchReason}${/[.!?…]$/.test(mismatchReason) ? "" : "."} Change de photo${plural ? "s" : ""} ou passe en carrousel « Texte design » pour garder ton idée telle quelle. Aucun crédit n'a été décompté.`
+    : "L'IA a renvoyé un carrousel vide. Réessaie — aucun crédit n'a été décompté.";
+  console.warn(`[carousel-ai] ${label}: ${mismatchReason ? "photo_mismatch" : "carrousel vide"} — ${usage.total_tokens ?? "?"} tokens (${usage.model ?? "?"}) NON débités${mismatchReason ? ` — ${mismatchReason}` : ""}`);
+  return new Response(JSON.stringify({
+    error: mismatchReason ? "photo_mismatch" : "empty_carousel",
+    message,
+  }), {
+    // 200 volontaire : l'erreur structurée doit passer par l'event SSE
+    // `done` (runWithHeartbeatSSE) pour que le front lise error+message.
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -490,33 +618,9 @@ serve(async (req) => {
           }, mixUsage);
         }
 
-        // Refus structuré AVANT correction, post-traitements et logUsage : si le
-        // modèle a signalé photo_mismatch (photos sans rapport avec le brief),
-        // aucun carrousel n'est livré → on ne débite RIEN et on remonte un
-        // message actionnable (changer de photo ou passer en texte design) à la
-        // place du générique « réessaie » — qui, ici, redonnerait le même refus.
         {
-          let mixParsed: any = null;
-          try { mixParsed = JSON.parse(content); } catch { /* théoriquement impossible : tool forcé */ }
-          const hasSlides = Array.isArray(mixParsed?.slides) && mixParsed.slides.length > 0;
-          const mismatchReason = typeof mixParsed?.photo_mismatch?.reason === "string"
-            ? mixParsed.photo_mismatch.reason.trim()
-            : "";
-          if (!hasSlides) {
-            const plural = (body.photos?.length || 0) > 1;
-            const message = mismatchReason
-              ? `${plural ? "Tes photos ne semblent pas correspondre" : "Ta photo ne semble pas correspondre"} à ton idée : ${mismatchReason}${/[.!?…]$/.test(mismatchReason) ? "" : "."} Change de photo${plural ? "s" : ""} ou passe en carrousel « Texte design » pour garder ton idée telle quelle. Aucun crédit n'a été décompté.`
-              : "L'IA a renvoyé un carrousel vide. Réessaie — aucun crédit n'a été décompté.";
-            console.warn(`[carousel-ai] mix: ${mismatchReason ? "photo_mismatch" : "carrousel vide"} — ${mixUsage.total_tokens ?? "?"} tokens (${mixUsage.model ?? "?"}) NON débités${mismatchReason ? ` — ${mismatchReason}` : ""}`);
-            return new Response(JSON.stringify({
-              error: mismatchReason ? "photo_mismatch" : "empty_carousel",
-              message,
-            }), {
-              // 200 volontaire : l'erreur structurée doit passer par l'event SSE
-              // `done` (runWithHeartbeatSSE) pour que le front lise error+message.
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            });
-          }
+          const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
+          if (mismatch) return mismatch;
         }
 
         // JSON-aware correction pass for carousels
@@ -593,6 +697,7 @@ serve(async (req) => {
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
             temperature: 0.85,
+            tool: PHOTO_CAROUSEL_TOOL,
           }, photoUsage);
         } else {
           // Text-only mode: description without actual photos
@@ -604,7 +709,13 @@ serve(async (req) => {
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
             temperature: 0.85,
+            tool: PHOTO_CAROUSEL_TOOL,
           }, photoUsage);
+        }
+
+        {
+          const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
+          if (mismatch) return mismatch;
         }
 
         // JSON-aware correction pass for carousels
@@ -804,6 +915,7 @@ Propose la structure optimale.`;
           system: structureSystemPrompt,
           messages: [{ role: "user", content: messageContent }],
           max_tokens: 3000,
+          tool: STRUCTURE_PROPOSAL_TOOL,
         });
       } else {
         content = await callAnthropic({
@@ -811,6 +923,7 @@ Propose la structure optimale.`;
           system: structureSystemPrompt,
           messages: [{ role: "user", content: structureUserPrompt }],
           max_tokens: 3000,
+          tool: STRUCTURE_PROPOSAL_TOOL,
         });
       }
 
@@ -821,6 +934,28 @@ Propose la structure optimale.`;
         structureResult = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
       } catch {
         structureResult = null;
+      }
+
+      // Refus structuré : mêmes symptômes possibles que sur la génération (l'IA
+      // voit les photos en vision) — sans ce chemin, un photo_mismatch partait
+      // en « Impossible de parser » + repli sur une génération directe qui
+      // re-refusait. Appel gratuit : rien à dé-débiter, mais le message doit
+      // être actionnable. Le front (CreerUnifie) affiche message et renvoie au
+      // choix des photos.
+      if (hasPhotos && !(Array.isArray(structureResult?.slides) && structureResult.slides.length > 0)) {
+        const mismatchReason = typeof structureResult?.photo_mismatch?.reason === "string"
+          ? structureResult.photo_mismatch.reason.trim()
+          : "";
+        if (mismatchReason) {
+          const plural = photos.length > 1;
+          console.warn(`[carousel-ai] structure_proposal: photo_mismatch — ${mismatchReason}`);
+          return new Response(JSON.stringify({
+            error: "photo_mismatch",
+            message: `${plural ? "Tes photos ne semblent pas correspondre" : "Ta photo ne semble pas correspondre"} à ton idée : ${mismatchReason}${/[.!?…]$/.test(mismatchReason) ? "" : "."} Change de photo${plural ? "s" : ""} ou passe en carrousel « Texte design » pour garder ton idée telle quelle. Aucun crédit n'a été décompté.`,
+          }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
       }
 
       if (!structureResult) {
