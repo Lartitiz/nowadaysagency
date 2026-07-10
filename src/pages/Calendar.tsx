@@ -40,6 +40,9 @@ import { IdeaDetailSheet } from "@/components/calendar/IdeaDetailSheet";
 import { WeekDashboard } from "@/components/calendar/WeekDashboard";
 import { QuickBatchAdd } from "@/components/calendar/QuickBatchAdd";
 import { ImportContentDialog } from "@/components/calendar/ImportContentDialog";
+import { MarronnierBanner } from "@/components/calendar/MarronnierBanner";
+import { SeasonalPhotoDialog } from "@/components/calendar/SeasonalPhotoDialog";
+import type { MarronnierOccurrence } from "@/lib/marronniers";
 import { lazy, Suspense } from "react";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 const CalendarDndWrapper = lazy(() => import("@/components/calendar/CalendarDndWrapper"));
@@ -213,6 +216,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [ideaDetailOpen, setIdeaDetailOpen] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
+  const [seasonalOcc, setSeasonalOcc] = useState<MarronnierOccurrence | null>(null);
+  const [seasonalOpen, setSeasonalOpen] = useState(false);
   const [ideasCollapsed, setIdeasCollapsed] = useState(true);
   const [quickBatchOpen, setQuickBatchOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
@@ -834,6 +839,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const calendarContent = (
     <>
+      {/* Marronnier proche : proposer la déclinaison saisonnière d'une photo produit */}
+      <MarronnierBanner
+        onDecliner={(occ) => {
+          setSeasonalOcc(occ);
+          setSeasonalOpen(true);
+        }}
+      />
+
       {/* Filtres regroupés (canal + objectif + série) */}
       <CalendarFilterBar
         canalFilter={canalFilter}
@@ -1023,6 +1036,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         onOpenChange={setIdeaDetailOpen}
         onUpdated={handleIdeaUpdated}
         onPlanned={handleIdeaPlannedFromSheet}
+      />
+
+      <SeasonalPhotoDialog
+        open={seasonalOpen}
+        onOpenChange={setSeasonalOpen}
+        initialOccurrence={seasonalOcc}
+        onPlanned={fetchPosts}
       />
 
       <CalendarCoachingDialog
