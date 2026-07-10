@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 interface TourStep {
   target: string;
@@ -51,15 +51,46 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
   const [currentStep, setCurrentStep] = useState(0);
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null);
   const [visible, setVisible] = useState(false);
+  const tooltipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (localStorage.getItem(storageKey)) {
       onComplete();
       return;
     }
-    const timer = setTimeout(() => setVisible(true), 600);
+    const timer = setTimeout(() => {
+      // Jamais par-dessus un dialog ouvert : l'utilisatrice est déjà en train
+      // de faire quelque chose. On ne marque pas « vu » → nouvel essai à la
+      // prochaine visite du dashboard.
+      if (
+        document.querySelector(
+          '[role="dialog"][data-state="open"], [role="alertdialog"][data-state="open"]',
+        )
+      ) {
+        onComplete();
+        return;
+      }
+      // Première visite uniquement : marqué « vu » dès l'affichage, pas à la
+      // complétion. Naviguer ailleurs en cours de tour ne le fait plus revenir
+      // à chaque retour sur le dashboard.
+      localStorage.setItem(storageKey, "true");
+      setVisible(true);
+    }, 600);
     return () => clearTimeout(timer);
   }, []);
+
+  // Le tour se dissout au premier pointerdown hors de sa bulle, SANS consommer
+  // le clic : l'overlay est en pointer-events:none, l'action visée s'exécute.
+  useEffect(() => {
+    if (!visible) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (tooltipRef.current?.contains(e.target as Node)) return;
+      setVisible(false);
+      onComplete();
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+  }, [visible]);
 
   useEffect(() => {
     if (!visible) return;
@@ -87,7 +118,6 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
       stopRetry();
       setTargetRect(null);
       if (currentStep === steps.length - 1) {
-        localStorage.setItem(storageKey, "true");
         setVisible(false);
         onComplete();
       } else {
@@ -135,7 +165,9 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
     };
   }, [currentStep, visible, steps]);
 
-  if (!visible || localStorage.getItem(storageKey)) return null;
+  // Rien tant que la cible n'est pas localisée : pas d'assombrissement « à
+  // vide » pendant les retries (écran assombri bloquant, constaté en audit).
+  if (!visible || !targetRect) return null;
 
   const step = steps[currentStep];
   const isLast = currentStep === steps.length - 1;
@@ -143,7 +175,6 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
 
   const handleNext = () => {
     if (isLast) {
-      localStorage.setItem(storageKey, "true");
       setVisible(false);
       onComplete();
     } else {
@@ -152,28 +183,28 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
   };
 
   const handleSkip = () => {
-    localStorage.setItem(storageKey, "true");
     setVisible(false);
     onComplete();
   };
 
   return (
-    <div className="fixed inset-0 z-[90]">
+    // z-[45] : au-dessus du contenu et du header sticky (z-40), mais SOUS les
+    // dialogs Radix (z-50) et la sidebar (z-299+). pointer-events-none : le
+    // coachmark ne bloque jamais la page — seule sa bulle est interactive.
+    <div className="fixed inset-0 z-[45] pointer-events-none">
       {/* Overlay with spotlight hole */}
-      <svg className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }}>
+      <svg className="absolute inset-0 w-full h-full">
         <defs>
           <mask id="tour-mask">
             <rect width="100%" height="100%" fill="white" />
-            {targetRect && (
-              <rect
-                x={targetRect.left - 6}
-                y={targetRect.top - 6}
-                width={targetRect.width + 12}
-                height={targetRect.height + 12}
-                rx={12}
-                fill="black"
-              />
-            )}
+            <rect
+              x={targetRect.left - 6}
+              y={targetRect.top - 6}
+              width={targetRect.width + 12}
+              height={targetRect.height + 12}
+              rx={12}
+              fill="black"
+            />
           </mask>
         </defs>
         <rect
@@ -184,41 +215,36 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
         />
       </svg>
 
-      {/* Clickable overlay to skip */}
-      <div className="absolute inset-0" onClick={handleSkip} style={{ zIndex: 91 }} />
-
       {/* Tooltip */}
-      {targetRect && (
-        <div
-          className="absolute z-[92] animate-fade-in"
-          style={getTooltipPosition(targetRect, position)}
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="bg-card border border-border rounded-2xl p-5 shadow-xl max-w-[280px]">
-            <h3 className="font-display text-sm text-foreground mb-1.5">{step.title}</h3>
-            <p className="text-xs text-muted-foreground leading-relaxed">{step.text}</p>
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-2xs text-muted-foreground">
-                {currentStep + 1}/{steps.length}
-              </span>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleSkip}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Passer
-                </button>
-                <button
-                  onClick={handleNext}
-                  className="text-xs font-medium text-primary-foreground bg-primary px-4 py-1.5 rounded-full hover:opacity-90 transition"
-                >
-                  {isLast ? "C'est compris !" : "Suivant →"}
-                </button>
-              </div>
+      <div
+        ref={tooltipRef}
+        className="absolute animate-fade-in pointer-events-auto"
+        style={getTooltipPosition(targetRect, position)}
+      >
+        <div className="bg-card border border-border rounded-2xl p-5 shadow-xl max-w-[280px]">
+          <h3 className="font-display text-sm text-foreground mb-1.5">{step.title}</h3>
+          <p className="text-xs text-muted-foreground leading-relaxed">{step.text}</p>
+          <div className="flex items-center justify-between mt-4">
+            <span className="text-2xs text-muted-foreground">
+              {currentStep + 1}/{steps.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSkip}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Passer
+              </button>
+              <button
+                onClick={handleNext}
+                className="text-xs font-medium text-primary-foreground bg-primary px-4 py-1.5 rounded-full hover:opacity-90 transition"
+              >
+                {isLast ? "C'est compris !" : "Suivant →"}
+              </button>
             </div>
           </div>
         </div>
-      )}
+      </div>
 
     </div>
   );
