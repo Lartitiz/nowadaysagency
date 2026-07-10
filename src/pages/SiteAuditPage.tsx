@@ -13,6 +13,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle, Upload, Camera, Loader2, Link as LinkIcon, Palette, ChevronDown, Sparkles } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -326,7 +327,8 @@ const SiteAuditPage = () => {
 
   // ── Screenshot handlers ──
   const handleScreenshotFile = (file: File) => {
-    if (file.size > 5 * 1024 * 1024) { toast.error("Max 5 Mo"); return; }
+    const sizeErr = uxSizeError(file, UX_UPLOAD_LIMITS.lightAsset);
+    if (sizeErr) { toast.error(sizeErr); return; }
     if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) { toast.error("Format : PNG ou JPG"); return; }
     setScreenshotFile(file);
     const reader = new FileReader();

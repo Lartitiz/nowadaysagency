@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 
 type FeedbackType = "bug" | "suggestion" | null;
 type Severity = "blocking" | "annoying" | "minor";
@@ -92,8 +93,9 @@ export default function BetaFeedbackWidget() {
   const handleScreenshot = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image trop lourde (max 5 Mo)");
+    const sizeErr = uxSizeError(file, UX_UPLOAD_LIMITS.lightAsset);
+    if (sizeErr) {
+      toast.error(sizeErr);
       return;
     }
     setScreenshotFile(file);

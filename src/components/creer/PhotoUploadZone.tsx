@@ -6,12 +6,13 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { PhotoEditDialog } from "./PhotoEditDialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { UX_UPLOAD_LIMITS, MB } from "@/lib/upload-limits";
 import { StockPhotoPickerDialog } from "@/components/photos/StockPhotoPickerDialog";
 import { autoSelectStockPhotos, type StockKeywordContext } from "@/lib/stock-photos";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { convertHeicIfNeeded, isHeic } from "@/lib/heic";
 
-const MAX_FILE_SIZE_MB = 25;
+const MAX_FILE_SIZE_MB = UX_UPLOAD_LIMITS.photo / MB;
 
 export interface PhotoItem {
   base64: string;

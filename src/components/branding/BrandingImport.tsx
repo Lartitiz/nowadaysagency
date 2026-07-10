@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 
 interface BrandingImportProps {
   onAnalyze: (data: { website?: string; files: File[] }) => void;
@@ -16,7 +17,7 @@ interface BrandingImportProps {
 }
 
 const MAX_FILES = 5;
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = UX_UPLOAD_LIMITS.media;
 // Keep in sync with file-extractors.ts — images aren't supported (no OCR),
 // so don't offer them here or they'd be silently dropped after analysis.
 const ACCEPTED_EXTENSIONS = ".pdf,.docx,.doc,.txt,.md";
@@ -34,7 +35,7 @@ export default function BrandingImport({ onAnalyze, onSkip, loading = false, ini
     const accepted: File[] = [];
     for (const file of Array.from(newFiles)) {
       if (files.length + accepted.length >= MAX_FILES) { toast.error(`Maximum ${MAX_FILES} fichiers`); break; }
-      if (file.size > MAX_FILE_SIZE) { toast.error(`${file.name} dépasse 10 Mo`); continue; }
+      if (file.size > MAX_FILE_SIZE) { toast.error(uxSizeError(file, MAX_FILE_SIZE)!); continue; }
       const ext = file.name.split(".").pop()?.toLowerCase();
       if (!["pdf", "docx", "doc", "txt", "md"].includes(ext || "")) { toast.error(`Format non supporté : .${ext}`); continue; }
       accepted.push(file);

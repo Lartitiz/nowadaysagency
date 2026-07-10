@@ -18,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, formatMb } from "@/lib/upload-limits";
 import { cn } from "@/lib/utils";
 import { useCreatePhotoRetouch } from "@/hooks/use-user-photos";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -29,7 +30,7 @@ interface PhotoUploadDialogProps {
   onOpenChange: (v: boolean) => void;
 }
 
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_FILE_BYTES = UX_UPLOAD_LIMITS.photo;
 
 export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -59,7 +60,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
       return;
     }
     if (raw.size > MAX_FILE_BYTES) {
-      toast.error("La photo dépasse 25 Mo. Réduis-la puis réessaie.");
+      toast.error(`La photo dépasse ${formatMb(MAX_FILE_BYTES)}. Réduis-la puis réessaie.`);
       return;
     }
     let f = raw;

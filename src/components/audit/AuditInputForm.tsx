@@ -3,6 +3,8 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Button } from "@/components/ui/button";
 import { Upload, X, Sparkles, Loader2, ImagePlus, RotateCcw } from "lucide-react";
+import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 
 const FREQUENCY_OPTIONS = ["Tous les jours", "3-4x/semaine", "1-2x/semaine", "Moins d'1x/semaine", "Irrégulier"];
 
@@ -154,14 +156,19 @@ export default function AuditInputForm({ initial, onSubmit, loading, isRedo, ins
 
   const handleProfileFiles = (fl: FileList | null) => {
     if (!fl) return;
-    const arr = Array.from(fl).filter((f) => f.size <= 10 * 1024 * 1024).slice(0, 5);
-    set("profileScreenshots", [...form.profileScreenshots, ...arr]);
+    const all = Array.from(fl);
+    const kept = all.filter((f) => f.size <= UX_UPLOAD_LIMITS.media);
+    // Un fichier écarté sans message = échec silencieux : on prévient
+    all.filter((f) => f.size > UX_UPLOAD_LIMITS.media).forEach((f) => toast.error(uxSizeError(f, UX_UPLOAD_LIMITS.media)!));
+    set("profileScreenshots", [...form.profileScreenshots, ...kept].slice(0, 5));
   };
 
   const addPostFiles = (field: "bestPostFiles" | "worstPostFiles", fl: FileList) => {
     const current = form[field];
-    const newFiles = Array.from(fl).filter((f) => f.size <= 5 * 1024 * 1024);
-    const combined = [...current, ...newFiles].slice(0, 5);
+    const all = Array.from(fl);
+    const kept = all.filter((f) => f.size <= UX_UPLOAD_LIMITS.lightAsset);
+    all.filter((f) => f.size > UX_UPLOAD_LIMITS.lightAsset).forEach((f) => toast.error(uxSizeError(f, UX_UPLOAD_LIMITS.lightAsset)!));
+    const combined = [...current, ...kept].slice(0, 5);
     set(field, combined);
   };
 

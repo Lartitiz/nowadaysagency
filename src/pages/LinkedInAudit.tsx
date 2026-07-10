@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
@@ -182,7 +183,9 @@ export default function LinkedInAudit() {
 
   const handleFileAdd = (type: ScreenshotType, fileList: FileList | null) => {
     if (!fileList) return;
-    const newFiles = Array.from(fileList).filter((f) => f.size <= 10 * 1024 * 1024).slice(0, 5);
+    const all = Array.from(fileList);
+    all.filter((f) => f.size > UX_UPLOAD_LIMITS.media).forEach((f) => toast.error(uxSizeError(f, UX_UPLOAD_LIMITS.media)!));
+    const newFiles = all.filter((f) => f.size <= UX_UPLOAD_LIMITS.media).slice(0, 5);
     newFiles.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {

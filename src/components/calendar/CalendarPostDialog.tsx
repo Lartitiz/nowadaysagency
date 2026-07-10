@@ -27,6 +27,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { publishToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { toast } from "sonner";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 
@@ -246,7 +247,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     try {
       const newUrls: string[] = [];
       for (const file of Array.from(files)) {
-        if (file.size > 10 * 1024 * 1024) { toast.error("Fichier trop lourd (max 10 Mo)"); continue; }
+        const sizeErr = uxSizeError(file, UX_UPLOAD_LIMITS.media);
+        if (sizeErr) { toast.error(sizeErr); continue; }
         const ext = file.name.split(".").pop()?.toLowerCase() || "png";
         const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { error } = await supabase.storage.from("calendar-media").upload(path, file, { contentType: file.type });
