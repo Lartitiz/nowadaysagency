@@ -888,14 +888,15 @@ export function useContentGenerator() {
         return null;
       }
 
-      // Tolerant JSON parse (same logic as inline CreerUnifie)
-      let parsed: any;
-      try {
-        const jsonMatch = fullText.match(/\{[\s\S]*\}/);
-        parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : { content: fullText };
-      } catch {
-        parsed = { content: fullText };
-      }
+      // Parse tolérant via parseAIJson : gère les fences ```json, le texte
+      // après le `}`, virgules traînantes, etc. Le parse inline précédent
+      // (match(/\{[\s\S]*\}/) + JSON.parse nu) échouait dès qu'un fence
+      // markdown ou du texte de queue entourait l'objet → le JSON brut fuyait
+      // dans le rendu du post. Sonnet 5 (thinking off) enveloppe désormais
+      // ~systématiquement sa sortie en ```json {"content": …} → il FAUT le
+      // parseur robuste ici. Si ce n'est pas du JSON (texte pur), fallback.
+      const parsedJson = parseAIJson(fullText);
+      const parsed: any = parsedJson ?? { content: fullText };
 
       const normalized: ContentResult = {
         type: format as ContentResult["type"],
