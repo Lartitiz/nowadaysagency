@@ -317,7 +317,7 @@ const MIX_CAROUSEL_TOOL = {
 const PHOTO_CAROUSEL_TOOL = {
   name: "livrer_carrousel_photo",
   description:
-    "Livre le carrousel photo final (slides + caption), OU signale via photo_mismatch que les photos fournies ne permettent pas de traiter le brief.",
+    "Livre le carrousel photo final (slides + caption), OU signale via photo_mismatch que les photos fournies ne permettent pas de traiter le brief. Un carrousel photo compte PLUSIEURS slides (typiquement 4 à 8) même avec une seule photo — voir le nombre visé dans les instructions. Ne livre JAMAIS un carrousel d'une ou deux slides.",
   input_schema: {
     type: "object",
     properties: {
@@ -328,6 +328,11 @@ const PHOTO_CAROUSEL_TOOL = {
         properties: { title: { type: "string" }, description: { type: "string" } },
       },
       slides: {
+        // Le tool forcé devient le contrat de sortie : sans ce rappel, le modèle
+        // ignorait la règle de comptage du prompt (« 1 photo unique → 4-6 slides,
+        // pas 8 ») isolée dans CAS PARTICULIERS, et livrait 1 slide (observé 2/2).
+        description:
+          "Toutes les slides du carrousel, dans l'ordre. Respecte le nombre de slides des instructions : typiquement 4 à 8. Une photo unique se RÉPÈTE sur plusieurs slides, chaque slide portant une étape du récit (contexte → tension → bascule → résolution → ouverture) — elle ne se résume JAMAIS à une seule slide.",
         type: "array",
         items: {
           type: "object",
