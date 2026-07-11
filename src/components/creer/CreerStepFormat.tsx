@@ -76,7 +76,7 @@ interface Props {
   // n'exige plus de photos en amont — le texte est rédigé d'abord et les images
   // se choisissent ensuite, slide par slide, dans l'écran résultat (casting).
   newsjackingActive?: boolean;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean, photoDump?: boolean) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean, photoDump?: boolean, textFirstMix?: boolean) => void;
   // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
   // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
   // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
@@ -100,6 +100,11 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
   );
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(initialCarouselSubMode ?? null);
+  // Lot 4 : fourche du mixte hors newsjacking. null = pas encore choisi (on
+  // affiche les deux entrées), false = « j'ai mes photos » (upload classique),
+  // true = « j'écris d'abord » (régime texte d'abord, casting dans le résultat).
+  // Le newsjacking, lui, force le texte d'abord sans passer par cette fourche.
+  const [textFirstChoice, setTextFirstChoice] = useState<boolean | null>(null);
   const [uploadedPhotos, setUploadedPhotos] = useState<PhotoItem[]>(initialPhotos ?? []);
   // Photo dump (pure_photo uniquement) : l'app complète la séquence — vraies
   // photos d'abord, IA pour le reste. ON par défaut (design validé 09/07).
@@ -131,6 +136,11 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
   useEffect(() => {
     onSelectionChangeRef.current?.({ format: selectedFormat, carouselSubMode });
   }, [selectedFormat, carouselSubMode]);
+  // Quitter le sous-mode mixte annule la fourche texte-d'abord (elle ne concerne
+  // que le mixte hors newsjacking).
+  useEffect(() => {
+    if (carouselSubMode !== "mix") setTextFirstChoice(null);
+  }, [carouselSubMode]);
   const hasUserChangedFormat = useRef(false);
   const [pinterestLink, setPinterestLink] = useState("");
   const [pinterestBoardId, setPinterestBoardId] = useState("");
@@ -339,10 +349,16 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       toast.error("Choisis le type de carrousel (Texte, Photo ou Mixte) avant de continuer.");
       return;
     }
+    // Mixte hors newsjacking : la fourche doit avoir été tranchée (photos-d'abord
+    // ou texte-d'abord) avant de continuer.
+    if (selectedFormat === "carousel" && carouselSubMode === "mix" && !newsjackingActive && textFirstChoice === null) {
+      toast.error("Choisis comment construire ton mixte : « J'ai mes photos » ou « J'écris d'abord ».");
+      return;
+    }
     // Guard: photo/mix mode requires at least one photo.
-    // Exception : mixte en newsjacking = régime texte d'abord, aucune photo exigée
-    // (le casting des images se fait dans l'écran résultat).
-    const textFirstMix = !!newsjackingActive && carouselSubMode === "mix";
+    // Exception : mixte en régime texte d'abord (newsjacking OU choix explicite) =
+    // aucune photo exigée, le casting des images se fait dans l'écran résultat.
+    const textFirstMix = carouselSubMode === "mix" && (!!newsjackingActive || textFirstChoice === true);
     // Exception : photo dump activé en « Photos brutes » = zéro photo attachée
     // est un cas VALIDE (l'app compose depuis la bibliothèque + la génération).
     const dumpComposes = carouselSubMode === "pure_photo" && photoDump;
@@ -367,16 +383,20 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       boardId: pinterestBoardId || undefined,
       boardName: pinterestBoards.find(b => b.id === pinterestBoardId)?.name || undefined,
     } : undefined;
+    // Texte d'abord : on n'emporte AUCUNE photo en amont (le casting se fait dans
+    // le résultat) — même si des photos avaient été chargées avant de basculer.
+    const mixPhotos = isCarouselMix && textFirstMix ? [] : uploadedPhotos;
     onNext(
       selectedFormat,
       selectedAngle,
       selectedFormat === "carousel" ? (carouselSubMode || "text") : undefined,
-      isCarouselPhoto || isCarouselMix || isCarouselPurePhoto ? uploadedPhotos : isSinglePhotoFormat ? postPhoto : isInspirationPin ? inspirationPhotos : undefined,
+      isCarouselPhoto || isCarouselMix || isCarouselPurePhoto ? mixPhotos : isSinglePhotoFormat ? postPhoto : isInspirationPin ? inspirationPhotos : undefined,
       isCarouselPhoto || isCarouselMix || isCarouselPurePhoto ? photoDescription : isSinglePhotoFormat ? postPhotoDescription : undefined,
       formatAcceptsSinglePhoto(selectedFormat) ? photoMode : undefined,
       pinterestData,
       isLinkedInCarousel,
       isCarouselPurePhoto ? photoDump : undefined,
+      isCarouselMix ? textFirstMix : undefined,
     );
   };
 
@@ -873,8 +893,70 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
         </div>
       )}
 
-      {/* Photo upload zone (carousel photo / mix / pure_photo) */}
-      {(carouselSubMode === "photo" || carouselSubMode === "pure_photo" || (carouselSubMode === "mix" && !newsjackingActive)) && (
+      {/* Lot 4 — Fourche du mixte hors newsjacking : « J'ai mes photos » (upload
+          classique) vs « J'écris d'abord » (régime texte d'abord). */}
+      {carouselSubMode === "mix" && !newsjackingActive && textFirstChoice === null && (
+        <div className="animate-fade-in space-y-2">
+          <p className="text-sm font-semibold text-foreground">Comment on s'y prend ?</p>
+          <button
+            type="button"
+            onClick={() => setTextFirstChoice(false)}
+            className="w-full text-left rounded-xl border border-border hover:border-primary/40 bg-card p-3.5 flex items-start gap-3 transition-colors"
+          >
+            <ImageIcon className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+            <span className="min-w-0">
+              <span className="block text-sm font-medium text-foreground">J'ai déjà mes photos</span>
+              <span className="block text-xs text-muted-foreground mt-0.5">
+                Tu les ajoutes maintenant, l'IA écrit le carrousel autour. Idéal pour le vécu, les coulisses, un produit.
+              </span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => { setTextFirstChoice(true); setPhotoWarning(false); }}
+            className="w-full text-left rounded-xl border-2 border-primary/40 hover:border-primary bg-card p-3.5 flex items-start gap-3 transition-colors"
+          >
+            <Wand2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <span className="min-w-0">
+              <span className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">J'écris d'abord, je choisis les images après</span>
+                <span className="rounded-full bg-primary/10 text-primary text-[10px] font-semibold px-2 py-0.5">Nouveau</span>
+              </span>
+              <span className="block text-xs text-muted-foreground mt-0.5">
+                L'IA rédige le carrousel, puis tu castes l'image de chaque slide : ta bibliothèque, une banque d'images, ou générée. Idéal pour une opinion, un conseil, une prise de position.
+              </span>
+            </span>
+          </button>
+        </div>
+      )}
+
+      {/* Mixte hors newsjacking, choix « j'écris d'abord » : même encart que le
+          newsjacking + retour possible vers la fourche. */}
+      {carouselSubMode === "mix" && !newsjackingActive && textFirstChoice === true && (
+        <div className="animate-fade-in space-y-2">
+          <div className="rounded-xl border border-primary/20 bg-primary/5 p-3.5 flex items-start gap-2.5">
+            <Wand2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-foreground">On écrit d'abord, les images viennent ensuite</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                L'IA rédige ton carrousel, puis tu choisiras l'image de chaque slide photo — bibliothèque,
+                banque d'images, ou générée.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setTextFirstChoice(null)}
+            className="text-xs font-medium text-primary hover:underline"
+          >
+            ← J'ai finalement mes photos
+          </button>
+        </div>
+      )}
+
+      {/* Photo upload zone (carousel photo / mix / pure_photo).
+          En mixte hors newsjacking, seulement après le choix « j'ai mes photos ». */}
+      {(carouselSubMode === "photo" || carouselSubMode === "pure_photo" || (carouselSubMode === "mix" && !newsjackingActive && textFirstChoice === false)) && (
         <div className="animate-fade-in">
           <PhotoUploadZone
             maxPhotos={10}
