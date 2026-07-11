@@ -1356,6 +1356,7 @@ export default function CreerUnifie() {
     // résolue (bibliothèque → Photoroom → mise en scène → wishlist). Les images
     // résolues remplacent les photos attachées du flux normal, ordre du plan.
     let purePhotoResolved: any[] | null = null;
+    let dumpNarrative: string | null = null;
     if (selectedFormat === "carousel" && carouselSubMode === "pure_photo" && photoDumpEnabled && !photoDumpDoneRef.current && !isDemoMode) {
       setStep("result");
       setPhotoDumpResolving(true);
@@ -1375,6 +1376,7 @@ export default function CreerUnifie() {
         });
         if (out && out.photos.length > 0) {
           purePhotoResolved = out.photos;
+          dumpNarrative = out.narrativeThread || null;
           photoDumpDoneRef.current = true;
           setUploadedPhotos(out.photos);
           setGeneratedWithPhotos(out.photos);
@@ -1401,17 +1403,20 @@ export default function CreerUnifie() {
       }
     }
 
-    // carousel-ai n'ANALYSE les photos que pour la légende/le contexte : version
-    // allégée (~1024px) pour le corps de la requête. Un dump = 6-8 pleines
-    // images ; envoyées brutes, le corps dépasse la limite de l'edge (rejet
-    // avant les en-têtes CORS, vu au re-test live du 11/07). Le rendu/export
-    // garde le plein format via l'état (uploadedPhotos/generatedWithPhotos).
-    let purePhotoForAi: any[] | null = null;
+    // Un photo dump n'a PAS besoin que carousel-ai VOIE les images : chaque photo
+    // est une slide 1:1 sans texte par-dessus (« Photos brutes » = seule la
+    // légende est écrite). Lui envoyer les base64 déclenchait une analyse vision
+    // Sonnet qui dépassait le timeout de la passerelle (504 → « CORS » côté
+    // navigateur, vu au re-test live du 11/07). On lui passe seulement le fil
+    // narratif + les beats en TEXTE : légende écrite sans vision, sans timeout.
+    // Le rendu garde les vraies photos via l'état (uploadedPhotos).
+    let pureDumpDescription: string | null = null;
     if (carouselSubMode === "pure_photo") {
-      const src = (purePhotoResolved ?? uploadedPhotos).map((p: any) => ({
-        base64: p.base64, context: p.context, mimeType: p.mimeType,
-      }));
-      purePhotoForAi = src.length > 0 ? await downscalePhotosForVision(src) : src;
+      const beats = (purePhotoResolved ?? uploadedPhotos)
+        .map((p: any) => (typeof p.context === "string" ? p.context.trim() : ""))
+        .filter((c: string) => c.length > 0);
+      const parts = [dumpNarrative?.trim(), beats.join(" · ")].filter(Boolean);
+      pureDumpDescription = parts.length > 0 ? parts.join(" — ").slice(0, 1200) : (photoDescription || null);
     }
 
     // Formats structurés : appel classique (pas de streaming)
@@ -1521,7 +1526,7 @@ export default function CreerUnifie() {
             : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
         // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
-        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoForAi ?? []), photoDescription } : {}),
+        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", carouselSubMode: "pure_photo", photoDescription: pureDumpDescription ?? photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
         ...(qualityMax ? { qualityMax: true } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
@@ -1546,7 +1551,7 @@ export default function CreerUnifie() {
             : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
       // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
-      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoForAi ?? []), photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", carouselSubMode: "pure_photo", photoDescription: pureDumpDescription ?? photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),

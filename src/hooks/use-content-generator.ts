@@ -339,7 +339,11 @@ export function useContentGenerator() {
               // (structure_proposal), Claude a déjà analysé les photos en vision. Inutile
               // de les renvoyer en base64 — la structure encode déjà photo_index + slide_type.
               // Évite que Sonnet refasse une analyse vision (~3 min → ~40 s).
-              photos: (!params.confirmedStructure && (params.carouselType === "photo" || params.carouselType === "mix")) ? await downscalePhotosForVision(params.photos) : undefined,
+              // pure_photo (photo dump) : JAMAIS de vision — chaque photo est une
+              // slide 1:1 sans texte, l'analyse vision Sonnet dépassait le timeout
+              // gateway (504). Le contexte des slides est passé en texte via
+              // photo_description ; la légende s'écrit sans voir les images.
+              photos: (!params.confirmedStructure && params.carouselSubMode !== "pure_photo" && (params.carouselType === "photo" || params.carouselType === "mix")) ? await downscalePhotosForVision(params.photos) : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
