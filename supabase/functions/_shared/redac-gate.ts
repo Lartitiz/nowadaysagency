@@ -53,16 +53,17 @@ export function numbersIn(text: string): Set<string> {
 /** Chiffres du texte absents de la liste blanche, avec un extrait de contexte. */
 function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
   const found: string[] = [];
-  const seen = new Set<string>();
+  const seenValues = new Set<string>();
   for (const m of (text || "").matchAll(NUMBER_TOKEN)) {
     const tok = m[0].replace(",", ".");
     if (allowed.has(tok)) continue;
     // Ordinaux (« 1er », « 2e », « 1ʳᵉ ») : pas des statistiques.
     const after = text.slice(m.index! + m[0].length, m.index! + m[0].length + 3);
     if (/^(?:er|re|e\b|ᵉ|ʳ)/.test(after)) continue;
+    // Dédup par VALEUR : « 35 » relevé trois fois = un seul chiffre à traiter.
+    if (seenValues.has(tok)) continue;
+    seenValues.add(tok);
     const ctx = text.slice(Math.max(0, m.index! - 30), m.index! + m[0].length + 30).replace(/\s+/g, " ").trim();
-    if (seen.has(ctx)) continue;
-    seen.add(ctx);
     found.push(`${m[0]} (« …${ctx}… »)`);
   }
   return found;
@@ -82,6 +83,11 @@ function tokenSimilarity(a: string, b: string): number {
 
 function slideTexts(s: any): string {
   return [s?.title, s?.body, s?.overlay_text].filter(Boolean).join(" ");
+}
+
+/** Corps mesurable d'une slide pour la règle « 50 mots » (titre exclu). */
+function slideBody(s: any): string {
+  return [s?.body, s?.overlay_text].filter(Boolean).join(" ");
 }
 
 function findReversals(text: string): string[] {
@@ -121,8 +127,8 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>):
   const reversals = findReversals(allText);
 
   const overlongSlides = slides
-    .map((s: any) => ({ slide: s?.slide_number ?? 0, words: wordCount(slideTexts(s)) }))
-    .filter((x) => x.words > 55); // 50 (règle) + tolérance de comptage
+    .map((s: any) => ({ slide: s?.slide_number ?? 0, words: wordCount(slideBody(s)) }))
+    .filter((x) => x.words > 55); // 50 (règle, corps seul) + tolérance de comptage
 
   // CTA de caption ≡ CTA de la dernière slide (la caption doit COMPLÉTER, pas répéter)
   const lastSlide = slides[slides.length - 1];
@@ -176,7 +182,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     a.overlongSlides.length +
     (a.ctaDuplicated ? 1 : 0) +
     a.moulded.length +
-    a.fabricatedNumbers.length;
+    Math.min(3, a.fabricatedNumbers.length);
   return {
     source: "code",
     score: Math.max(40, 100 - 10 * violations),
@@ -278,6 +284,22 @@ export async function runRedacGate(
 
   const finalDoc = parseFenced(out) || parseFenced(content);
   if (!finalDoc) return { content: out, repassed, before, after: before };
+
+  // Filet schémas : la re-passe ne voit que les textes — un visual_schema qui
+  // porte encore des chiffres sans source est retiré en code (la slide redevient
+  // texte au rendu). Vu au re-test v3 : slides propres mais schéma stats
+  // « 20 % d'eau / 7-14j / 1000°C+ » entièrement inventé.
+  if (allowedNumbers) {
+    const slides = Array.isArray(finalDoc.parsed?.slides) ? finalDoc.parsed.slides : [];
+    for (const sl of slides) {
+      if (!sl?.visual_schema) continue;
+      const fab = findFabricatedNumbers(JSON.stringify(sl.visual_schema), allowedNumbers);
+      if (fab.length) {
+        console.log(`[redac-gate] visual_schema slide ${sl.slide_number} retiré (chiffres sans source : ${fab.map((f) => f.split(" ")[0]).join(", ")})`);
+        sl.visual_schema = null;
+      }
+    }
+  }
 
   const after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers);
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);

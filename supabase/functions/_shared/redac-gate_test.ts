@@ -100,3 +100,24 @@ Deno.test("le gate texte compte les retournements au-delà de 1", () => {
   assertEquals(a.reversals.length >= 2, true);
   assertEquals(buildTextFixInstructions(a).includes("RETOURNEMENTS"), true);
 });
+
+Deno.test("les chiffres dupliqués comptent une fois (dédup par valeur)", () => {
+  const parsed = {
+    slides: [
+      { slide_number: 1, title: "", body: "Le prix est de 42 euros. Oui, 42 euros. Je répète : 42." },
+    ],
+    caption: {},
+  };
+  const a = analyzeCarouselRedac(parsed, new Set<string>());
+  assertEquals(a.fabricatedNumbers.length, 1);
+});
+
+Deno.test("la règle 50 mots mesure le corps, pas le titre", () => {
+  const longTitle = "Un titre volontairement très long qui ne doit pas compter dans la mesure du corps de la slide du tout";
+  const body = Array(40).fill("mot").join(" ");
+  const a = analyzeCarouselRedac(
+    { slides: [{ slide_number: 1, title: longTitle, body }], caption: {} },
+    undefined,
+  );
+  assertEquals(a.overlongSlides.length, 0);
+});
