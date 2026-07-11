@@ -296,7 +296,10 @@ export default function CreerUnifie() {
   // ═══ Régime « texte d'abord » (lot 1 casting) ═══
   // Newsjacking + carrousel mixte sans photos : le texte est rédigé d'abord, chaque
   // slide photo sort avec une directive d'image, et le casting se fait dans le résultat.
-  const isTextFirstMix = carouselSubMode === "mix" && !!newsjackingContext && uploadedPhotos.length === 0;
+  // Lot 4 : ce régime est aussi accessible hors newsjacking via le choix explicite
+  // « J'écris d'abord » dans la fourche du mixte (remonté par CreerStepFormat).
+  const [explicitTextFirstMix, setExplicitTextFirstMix] = useState(false);
+  const isTextFirstMix = carouselSubMode === "mix" && (!!newsjackingContext || explicitTextFirstMix) && uploadedPhotos.length === 0;
   // Catalogue bibliothèque envoyé à l'edge (texte léger : descriptions + type) pour le
   // matching strict. Les lignes sont snapshotées au moment de la génération pour que
   // library_photo_index (1-based) reste résoluble même si la bibliothèque bouge entre-temps.
@@ -923,9 +926,12 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean; photoDump?: boolean }) => {
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean; photoDump?: boolean; textFirstMix?: boolean }) => {
     if (loadingQuestions || generating || structureLoading) return; // garde anti double-clic (évite une 2e génération facturée)
-    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal, photoDump } = options || {};
+    const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal, photoDump, textFirstMix } = options || {};
+    // Lot 4 : mémorise le choix explicite « J'écris d'abord » du mixte hors
+    // newsjacking (source de vérité de isTextFirstMix avec le contexte actu).
+    setExplicitTextFirstMix(!!textFirstMix);
     if (photoDump !== undefined) setPhotoDumpEnabled(photoDump);
     // Nouveau passage par l'étape format = nouveau parcours → le dump peut se re-résoudre.
     photoDumpDoneRef.current = false;
@@ -3165,11 +3171,11 @@ export default function CreerUnifie() {
                 initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
                 initialPhotoDescription={photoDescription || undefined}
                 newsjackingActive={!!newsjackingContext}
-                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar, photoDump) => {
+                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar, photoDump, textFirstMix) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump });
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix });
                 }}
                 onSelectionChange={({ format, carouselSubMode: sub }) => {
                   // Persiste les choix en cours pour les restaurer au reload (avant « Suivant »).
