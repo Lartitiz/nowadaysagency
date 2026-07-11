@@ -1395,6 +1395,19 @@ export default function CreerUnifie() {
       }
     }
 
+    // carousel-ai n'ANALYSE les photos que pour la légende/le contexte : version
+    // allégée (~1024px) pour le corps de la requête. Un dump = 6-8 pleines
+    // images ; envoyées brutes, le corps dépasse la limite de l'edge (rejet
+    // avant les en-têtes CORS, vu au re-test live du 11/07). Le rendu/export
+    // garde le plein format via l'état (uploadedPhotos/generatedWithPhotos).
+    let purePhotoForAi: any[] | null = null;
+    if (carouselSubMode === "pure_photo") {
+      const src = (purePhotoResolved ?? uploadedPhotos).map((p: any) => ({
+        base64: p.base64, context: p.context, mimeType: p.mimeType,
+      }));
+      purePhotoForAi = src.length > 0 ? await downscalePhotosForVision(src) : src;
+    }
+
     // Formats structurés : appel classique (pas de streaming)
     // Carrousel « photo » (photos en fond + texte par-dessus) : proposer la
     // structure d'abord (sauf si déjà validée) — l'assignation photo→slide y est
@@ -1502,7 +1515,7 @@ export default function CreerUnifie() {
             : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
         // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
-        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoResolved ?? uploadedPhotos).map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoForAi ?? []), photoDescription } : {}),
         ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
         ...(qualityMax ? { qualityMax: true } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
@@ -1527,7 +1540,7 @@ export default function CreerUnifie() {
             : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
       // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
-      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoResolved ?? uploadedPhotos).map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: (purePhotoForAi ?? []), photoDescription } : {}),
       ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
