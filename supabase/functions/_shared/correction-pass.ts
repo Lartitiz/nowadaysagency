@@ -251,7 +251,9 @@ et tu dois les CORRIGER systématiquement, même subtils.
 - Réponds avec les MÊMES marqueurs de section, dans le MÊME ordre. Aucun marqueur
   ajouté ni supprimé.
 - Le nombre de mots parlés total reste à ±10 % de l'original : le calibrage durée
-  est fait en amont, ne RALLONGE jamais, ne résume pas.
+  est fait en amont, ne RALLONGE jamais, ne résume pas. EXCEPTION : si une
+  instruction ciblée "TROP LONG" te donne un plafond de mots, c'est ELLE qui
+  prime — coupe jusqu'au plafond demandé.
 - N'invente JAMAIS un chiffre, une statistique, un vécu.
 - JAMAIS de tiret cadratin (—).
 

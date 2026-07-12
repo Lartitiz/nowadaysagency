@@ -17,6 +17,7 @@ import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
 import {
+  countReelSpokenWords,
   enforceReelNoFaceCam,
   recalibrateReelTimings,
   reelAuditableText,
@@ -1978,6 +1979,17 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         }
         if (body.face_cam === "non") {
           extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
+        }
+        // Plafond de mots par objectif (calibrage du brief), mesuré en code :
+        // au re-test post-#527, la visibilité sortait encore à ~95 mots (cible
+        // 40-80). La durée affichée est honnête (recalibrage), mais un reel
+        // reach doit rester court → coupe pilotée par la passe de correction.
+        const reelWordCap = effectiveObjective === "visibilite" ? 80
+          : (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") ? 190
+          : 150;
+        const reelWords = countReelSpokenWords(parsed);
+        if (reelWords > reelWordCap) {
+          extras.push(`TROP LONG POUR L'OBJECTIF "${effectiveObjective || "standard"}" : ${reelWords} mots parlés, plafond ${reelWordCap}. COUPE le texte parlé à ${reelWordCap} mots maximum : supprime les redites, la mise en contexte longue et les exemples secondaires. Ne touche PAS à la couche mécanisme (le POURQUOI) ni au hook. C'est une exception explicite à la règle "±10 %".`);
         }
         // Édition mécanique à règles fermées → Haiku (même choix que LinkedIn/carrousel).
         const corrected = await applyCorrectionPassReel(parsed, {
