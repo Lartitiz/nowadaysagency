@@ -166,6 +166,26 @@ function readTotalValue(json: any): number | undefined {
 // fenêtre ; à défaut on somme la série. Repli en days_28 si la fenêtre échoue (suffit
 // pour views/profile_views). Appel ISOLÉ : une métrique absente renvoie undefined
 // sans casser les autres.
+// Agrégat total_value d'une métrique compte sur une fenêtre since/until arbitraire
+// (period=day). Brique commune du 28 j glissant et du backfill par mois calendaire.
+async function fetchWindowedTotalValue(
+  igId: string,
+  token: string,
+  metric: string,
+  since: number,
+  until: number,
+  ctx?: IgFetchContext,
+): Promise<number | undefined> {
+  const windowed = new URL(`${GRAPH}/${igId}/insights`);
+  windowed.searchParams.set("metric", metric);
+  windowed.searchParams.set("period", "day");
+  windowed.searchParams.set("metric_type", "total_value");
+  windowed.searchParams.set("since", String(since));
+  windowed.searchParams.set("until", String(until));
+  windowed.searchParams.set("access_token", token);
+  return readTotalValue(await getJson(windowed, ctx));
+}
+
 async function fetchAccountTotalValue(
   igId: string,
   token: string,
@@ -174,15 +194,7 @@ async function fetchAccountTotalValue(
 ): Promise<number | undefined> {
   const until = Math.floor(Date.now() / 1000);
   const since = until - 28 * 24 * 3600;
-
-  const windowed = new URL(`${GRAPH}/${igId}/insights`);
-  windowed.searchParams.set("metric", metric);
-  windowed.searchParams.set("period", "day");
-  windowed.searchParams.set("metric_type", "total_value");
-  windowed.searchParams.set("since", String(since));
-  windowed.searchParams.set("until", String(until));
-  windowed.searchParams.set("access_token", token);
-  const v1 = readTotalValue(await getJson(windowed, ctx));
+  const v1 = await fetchWindowedTotalValue(igId, token, metric, since, until, ctx);
   if (typeof v1 === "number") return v1;
 
   // Repli : agrégat days_28 sans fenêtre.
@@ -192,6 +204,76 @@ async function fetchAccountTotalValue(
   fallback.searchParams.set("metric_type", "total_value");
   fallback.searchParams.set("access_token", token);
   return readTotalValue(await getJson(fallback, ctx));
+}
+
+// ── Backfill : métriques d'un MOIS CALENDAIRE passé ──────────────────────────
+// L'API Meta accepte des fenêtres since/until dans le passé (~2 ans max, et pas
+// avant le passage du compte en professionnel). On récupère les agrégats du mois
+// tel quel — PAS de repli days_28 (il renverrait la fenêtre glissante actuelle,
+// fausse pour un mois passé). followers (compteur actuel) n'a pas d'historique.
+export interface IgMonthMetrics {
+  reach?: number;
+  views?: number;
+  totalInteractions?: number;
+  accountsEngaged?: number;
+  profileViews?: number;
+  followersGained?: number;
+  partial: boolean;
+  authError?: boolean;
+}
+
+export async function fetchInstagramMonth(
+  supabase: any,
+  conn: any,
+  monthDate: string, // "YYYY-MM-01"
+): Promise<IgMonthMetrics> {
+  const token = await refreshTokenIfNeeded(supabase, conn);
+  const igId = conn.platform_account_id;
+  const ctx = newFetchContext();
+
+  const [y, m] = monthDate.split("-").map(Number);
+  const since = Math.floor(Date.UTC(y, m - 1, 1) / 1000);
+  // Borne haute : fin du mois, plafonnée à maintenant (mois en cours interdit
+  // côté edge, mais on reste défensif).
+  const until = Math.min(Math.floor(Date.UTC(y, m, 1) / 1000), Math.floor(Date.now() / 1000));
+
+  const [reach, views, totalInteractions, accountsEngaged, profileViews, growth] =
+    await Promise.all([
+      fetchWindowedTotalValue(igId, token, "reach", since, until, ctx),
+      fetchWindowedTotalValue(igId, token, "views", since, until, ctx),
+      fetchWindowedTotalValue(igId, token, "total_interactions", since, until, ctx),
+      fetchWindowedTotalValue(igId, token, "accounts_engaged", since, until, ctx),
+      fetchWindowedTotalValue(igId, token, "profile_views", since, until, ctx),
+      // follower_count (period=day) = nouveaux abonnés par jour → somme du mois.
+      (async () => {
+        const u = new URL(`${GRAPH}/${igId}/insights`);
+        u.searchParams.set("metric", "follower_count");
+        u.searchParams.set("period", "day");
+        u.searchParams.set("since", String(since));
+        u.searchParams.set("until", String(until));
+        u.searchParams.set("access_token", token);
+        return getJson(u, ctx);
+      })(),
+    ]);
+
+  const result: IgMonthMetrics = { partial: false };
+  if (typeof reach === "number") result.reach = reach;
+  if (typeof views === "number") result.views = views;
+  if (typeof totalInteractions === "number") result.totalInteractions = totalInteractions;
+  if (typeof accountsEngaged === "number") result.accountsEngaged = accountsEngaged;
+  if (typeof profileViews === "number") result.profileViews = profileViews;
+
+  const growthValues = growth?.data?.[0]?.values;
+  if (Array.isArray(growthValues) && growthValues.length > 0) {
+    const sum = growthValues.reduce((s: number, v: any) => s + (Number(v?.value) || 0), 0);
+    // 0 = presque toujours « pas de données » (jamais négatif) → on n'expose pas.
+    if (sum > 0) result.followersGained = sum;
+  }
+
+  result.partial = [reach, views, totalInteractions, accountsEngaged, profileViews]
+    .some((v) => typeof v !== "number");
+  result.authError = ctx.authError;
+  return result;
 }
 
 function deriveFrequency(postsLast30d: number): string {
