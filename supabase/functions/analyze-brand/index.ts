@@ -287,6 +287,12 @@ Précisions sur tone_style :
 - things_to_avoid : mots ou formulations que cette marque évite visiblement
 - target_verbatims : phrases que la cible pourrait dire (déduit du positionnement)
 - channels : canaux de communication détectés (ex: ["instagram", "newsletter", "site web"])
+- fights (RÈGLE D'INFÉRENCE INDICIAIRE, stricte) : tu peux inférer un combat NON explicite dans les sources, à 3 conditions cumulatives :
+  1. Chaque combat cite son INDICE : le mot, l'insistance ou l'absence observée dans les sources qui te le fait penser. Format : "combat (indice : ...)".
+  2. INTERDIT le combat générique que n'importe quelle marque du secteur revendiquerait : "l'industriel", "la production de masse", "la surconsommation", "le manque d'authenticité" seuls sont REFUSÉS. Cherche le désaccord qui distinguerait cette personne DES AUTRES du même métier.
+  3. Un combat inféré (vs explicitement écrit) est une HYPOTHÈSE : préfixe-le par "Hypothèse : " pour que l'utilisatrice le valide ou le corrige à la review.
+  Si tu n'as AUCUN indice exploitable : tableau vide. Un tableau vide vaut mieux qu'un combat plausible mais faux.
+- NE PRÉ-REMPLIS JAMAIS de vécu inventé : pas de fausses anecdotes, pas de "phrases de clientes" fabriquées, pas de croyances de débuts imaginées. Le vécu ne s'extrait pas d'un site web, il se demande en coaching.
 
 Précisions sur persona :
 - description : description courte du persona en une phrase (ex: "Solopreneuse créative, 30-40 ans, artisane ou prestataire de service")

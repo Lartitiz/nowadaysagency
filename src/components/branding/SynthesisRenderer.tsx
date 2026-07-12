@@ -509,6 +509,39 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
         </div>
       )}
 
+      {/* Convictions vécues — matière brute spiky (remplie en coaching, jamais auto-générée) */}
+      {(data.conviction_pairs || data.conviction_shift || data.conviction_verbatims || data.conviction_unspoken) && (
+        <div>
+          <SectionLabel emoji="🌶️" title="Mes convictions vécues" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {data.conviction_pairs && (
+              <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
+                <p className="font-display text-sm font-bold text-foreground mb-2">👀 Mon désaccord avec mon métier</p>
+                <ClampField value={data.conviction_pairs} onSave={(v) => onSaveDirect("conviction_pairs", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
+              </div>
+            )}
+            {data.conviction_shift && (
+              <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-success">
+                <p className="font-display text-sm font-bold text-foreground mb-2">🔄 Ce que je croyais à mes débuts</p>
+                <ClampField value={data.conviction_shift} onSave={(v) => onSaveDirect("conviction_shift", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
+              </div>
+            )}
+            {data.conviction_verbatims && (
+              <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-warning">
+                <p className="font-display text-sm font-bold text-foreground mb-2">💬 Les phrases de clientes qui me restent</p>
+                <ClampField value={data.conviction_verbatims} onSave={(v) => onSaveDirect("conviction_verbatims", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
+              </div>
+            )}
+            {data.conviction_unspoken && (
+              <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
+                <p className="font-display text-sm font-bold text-foreground mb-2">🤐 Ce que je n'ose pas dire tout haut</p>
+                <ClampField value={data.conviction_unspoken} onSave={(v) => onSaveDirect("conviction_unspoken", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Do / Don't */}
       {(doList.length > 0 || dontList.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -242,6 +242,17 @@ Deno.serve(async (req) => {
       }).join("\n");
       livingMatterParts.push(`OFFRES (transformations promises) :\n${lines}`);
     }
+    const tone = (ctx as any)?.tone || {};
+    const convictionPieces = [
+      tone.conviction_pairs && `  • Désaccord avec ses pairs : ${String(tone.conviction_pairs).trim().slice(0, 260)}`,
+      tone.conviction_shift && `  • Croyance de débuts abandonnée : ${String(tone.conviction_shift).trim().slice(0, 260)}`,
+      tone.conviction_verbatims && `  • Phrases de clientes (verbatim) : ${String(tone.conviction_verbatims).trim().slice(0, 260)}`,
+      tone.conviction_unspoken && `  • Ce qu'elle n'ose pas dire tout haut : ${String(tone.conviction_unspoken).trim().slice(0, 260)}`,
+    ].filter(Boolean) as string[];
+    if (convictionPieces.length > 0) {
+      livingMatterParts.push(`CONVICTIONS VÉCUES (or brut pour contre_pied_pairs, confession_couteuse, question_taboue — fidélité absolue à ces mots) :\n${convictionPieces.join("\n")}`);
+    }
+
     const livingMatterBlock = livingMatterParts.length > 0
       ? `\n══════════════════════════════════════\nMATIÈRE VIVANTE DE L'UTILISATRICE\n══════════════════════════════════════\n${livingMatterParts.join("\n\n")}\n\nRÈGLE D'ANCRAGE : au moins 2 idées sur 4 doivent s'ancrer EXPLICITEMENT dans cette matière (citer un persona précis par son prénom OU rebondir sur une anecdote nommée OU servir une offre listée). Une idée trop générique qui ignore cette matière est invalide.\n`
       : "";
