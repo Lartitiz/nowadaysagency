@@ -409,9 +409,18 @@ export default function InstagramStats() {
     if (!user) return;
     setIsGenerating(true);
     try {
-      const last6 = allStats.slice(0, 6);
+      // Historique = mois STRICTEMENT antérieurs au mois analysé. Avant, on
+      // envoyait allStats.slice(0,6) qui INCLUAIT le mois analysé en tête :
+      // l'edge le comparait à lui-même → « stable » systématique et faux.
+      const history = allStats
+        .filter(s => s.month_date < selectedMonth)
+        .slice(0, 6);
       const { data, error } = await invokeWithTimeout("engagement-insight", {
-        body: { currentWeek: formData, history: last6, mode: "monthly_stats" },
+        body: {
+          currentWeek: { ...formData, month_date: selectedMonth },
+          history,
+          mode: "monthly_stats",
+        },
       }, 60000);
       if (error) throw new Error(error.message);
       const insight = data?.insight || "";
@@ -426,7 +435,7 @@ export default function InstagramStats() {
       toast.error("Erreur lors de l'analyse");
     }
     setIsGenerating(false);
-  }, [user, allStats, formData, formId]);
+  }, [user, allStats, formData, formId, selectedMonth]);
 
   const saveConfig = useCallback(async (cfg: StatsConfig) => {
     if (!user) return;
@@ -798,15 +807,19 @@ export default function InstagramStats() {
                 <Sparkles className="h-4 w-4" />
                 {isGenerating ? "Analyse en cours..." : "🧠 Analyser mes stats avec l'IA"}
               </Button>
-              {allStats.length === 0 && (
+              {allStats.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-3">Saisis au moins 1 mois de stats pour lancer l'analyse.</p>
+              ) : (
+                <p className="text-sm text-muted-foreground mt-3">
+                  Analyse {monthLabel(selectedMonth)} (le mois sélectionné dans « Saisir mes stats »), comparé à tes mois précédents.
+                </p>
               )}
             </div>
             {aiAnalysis && (
               <div className="rounded-xl border border-border bg-card p-5 sm:p-6 space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-display text-base font-bold text-foreground">
-                    🧠 Mon analyse — Basée sur tes {Math.min(allStats.length, 6)} derniers mois
+                    🧠 Mon analyse — {monthLabel(selectedMonth)}
                   </h3>
                   <Button variant="ghost" size="sm" onClick={handleAnalyze} disabled={isGenerating} className="gap-1">
                     <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? "animate-spin" : ""}`} />
