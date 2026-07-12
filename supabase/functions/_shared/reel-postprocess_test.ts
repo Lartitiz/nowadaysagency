@@ -2,6 +2,8 @@ import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.t
 import {
   countReelSpokenWords,
   enforceReelNoFaceCam,
+  enforceSelectedReelHook,
+  rebuildReelLectureTest,
   recalibrateReelTimings,
   extractReelTexts,
   reinjectReelTexts,
@@ -154,4 +156,41 @@ Deno.test("enforceReelNoFaceCam : script déjà voix off = false, rien ne bouge"
     plan_tournage: [{ plan: "Mains qui façonnent", type: "b_roll" }],
   };
   assertEquals(enforceReelNoFaceCam(reel as any), false);
+});
+
+Deno.test("rebuildReelLectureTest : le monologue = concat des texte_parle finaux", () => {
+  const reel = sampleReel() as any;
+  reel.lecture_test = "ancien monologue périmé";
+  reel.script[2].texte_parle = "Version corrigée de la chute.";
+  rebuildReelLectureTest(reel);
+  assert(reel.lecture_test.startsWith("Mon premier devis"));
+  assert(reel.lecture_test.endsWith("Version corrigée de la chute."));
+  assert(!reel.lecture_test.includes("périmé"));
+});
+
+Deno.test("enforceSelectedReelHook verrouille texte + overlay du hook choisi", () => {
+  const reel = sampleReel() as any;
+  const touched = enforceSelectedReelHook(reel, {
+    text: "Mon premier savon, je l'ai jeté. Il était parfait.",
+    text_overlay: "PARFAIT. DONC RATÉ.",
+  });
+  assertEquals(touched, true);
+  assertEquals(reel.script[0].texte_parle, "Mon premier savon, je l'ai jeté. Il était parfait.");
+  assertEquals(reel.script[0].texte_overlay, "PARFAIT. DONC RATÉ.");
+  assertEquals(reel.sections, reel.script);
+});
+
+Deno.test("enforceSelectedReelHook : placeholder du fallback auto jamais verrouillé", () => {
+  const reel = sampleReel() as any;
+  const before = reel.script[0].texte_parle;
+  assertEquals(enforceSelectedReelHook(reel, { text: "(génère un hook percutant de 5-12 mots)" }), false);
+  assertEquals(enforceSelectedReelHook(reel, null), false);
+  assertEquals(enforceSelectedReelHook(reel, undefined), false);
+  assertEquals(reel.script[0].texte_parle, before);
+});
+
+Deno.test("enforceSelectedReelHook : hook déjà identique = false (idempotent)", () => {
+  const reel = sampleReel() as any;
+  enforceSelectedReelHook(reel, { text: "Nouveau hook choisi.", text_overlay: "OVERLAY CHOISI" });
+  assertEquals(enforceSelectedReelHook(reel, { text: "Nouveau hook choisi.", text_overlay: "OVERLAY CHOISI" }), false);
 });

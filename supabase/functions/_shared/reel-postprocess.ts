@@ -74,6 +74,52 @@ export function recalibrateReelTimings(parsed: any): void {
   if (Array.isArray(parsed.script)) parsed.sections = parsed.script;
 }
 
+/**
+ * Reconstruit lecture_test = concaténation des texte_parle dans l'ordre.
+ * À l'origine c'est le modèle qui concatène ; après la passe de correction les
+ * texte_parle ont bougé et le monologue affiché (1er bloc de ReelResult)
+ * divergeait du script (faille trouvée à la revue du 12/07). Déterministe
+ * > déclaratif : on reconstruit toujours.
+ */
+export function rebuildReelLectureTest(parsed: any): void {
+  const spoken = sectionsOf(parsed)
+    .map((s) => (s.texte_parle || "").trim())
+    .filter(Boolean);
+  if (spoken.length && typeof parsed === "object" && parsed !== null) {
+    parsed.lecture_test = spoken.join(" ");
+  }
+}
+
+/**
+ * Verrouille le hook CHOISI par l'utilisatrice (étape hook_selection) sur la
+ * section 1 : ni la génération ni la passe de correction ne doivent le
+ * réécrire — c'est SON choix, fait sur ces mots précis.
+ * Retourne true si quelque chose a été réaligné.
+ */
+export function enforceSelectedReelHook(
+  parsed: any,
+  selectedHook: { text?: unknown; text_overlay?: unknown } | null | undefined,
+): boolean {
+  const script = sectionsOf(parsed);
+  const first = script[0];
+  if (!first || String(first.section || "") !== "hook") return false;
+  const text = typeof selectedHook?.text === "string" ? selectedHook.text.trim() : "";
+  // Garde-fou : ne jamais verrouiller un placeholder (fallback auto du brief).
+  if (!text || text.startsWith("(")) return false;
+  let touched = false;
+  if (first.texte_parle !== text) {
+    first.texte_parle = text;
+    touched = true;
+  }
+  const overlay = typeof selectedHook?.text_overlay === "string" ? selectedHook.text_overlay.trim() : "";
+  if (overlay && !overlay.startsWith("(") && first.texte_overlay !== overlay) {
+    first.texte_overlay = overlay;
+    touched = true;
+  }
+  if (touched && Array.isArray(parsed?.script)) parsed.sections = parsed.script;
+  return touched;
+}
+
 /** Bloc balisé des textes corrigibles (pour la passe de correction). */
 export function extractReelTexts(parsed: any): string {
   const lines: string[] = [];
