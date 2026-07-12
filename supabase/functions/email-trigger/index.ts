@@ -131,6 +131,9 @@ serve(async (req) => {
       case "weekly_digest":
         result = await handleWeeklyDigest(supabase, supabaseUrl, serviceRoleKey);
         break;
+      case "monthly_stats_report":
+        result = await handleMonthlyStatsReport(supabase, supabaseUrl, serviceRoleKey);
+        break;
       case "process_queue":
         result = await handleProcessQueue(supabase, supabaseUrl, serviceRoleKey);
         break;
@@ -398,6 +401,128 @@ async function handleWeeklyDigest(supabase: any, supabaseUrl: string, serviceRol
     }
   }
   return { event: "weekly_digest", eligible: profiles.length, sent, skipped, errors };
+}
+
+// Rapport mensuel stats Instagram : envoyé le 1er du mois, déclenché par l'edge
+// stats-monthly-snapshot juste APRÈS le gel des chiffres du mois écoulé. Cible =
+// les utilisatrices qui ONT des stats pour ce mois (portée renseignée). Contrairement
+// au weekly digest, l'admin est INCLUSE : c'est le rapport de ses propres données.
+async function handleMonthlyStatsReport(supabase: any, supabaseUrl: string, serviceRoleKey: string): Promise<any> {
+  const { data: sequences } = await supabase
+    .from("email_sequences").select("id").eq("trigger_event", "monthly_stats_report").eq("is_active", true).limit(1);
+  if (!sequences?.length) return { event: "monthly_stats_report", reason: "no active sequence", sent: 0 };
+
+  const { data: steps } = await supabase
+    .from("email_sequence_steps").select("template_id").eq("sequence_id", sequences[0].id)
+    .order("step_number", { ascending: true }).limit(1);
+  const templateId = steps?.[0]?.template_id;
+  if (!templateId) return { event: "monthly_stats_report", reason: "no step", sent: 0 };
+
+  const { data: template } = await supabase
+    .from("email_templates").select("subject, html_body, is_active").eq("id", templateId).single();
+  if (!template?.is_active) return { event: "monthly_stats_report", reason: "template inactive", sent: 0 };
+
+  // Mois écoulé (le cron tourne le 1er du mois suivant) + mois d'avant pour les variations.
+  const nowD = new Date();
+  const monthStart = new Date(Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth() - 1, 1));
+  const prevStart = new Date(Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth() - 2, 1));
+  const monthKey = monthStart.toISOString().slice(0, 10);
+  const prevKey = prevStart.toISOString().slice(0, 10);
+  const MONTHS_FR = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
+  const moisLabel = `${MONTHS_FR[monthStart.getUTCMonth()]} ${monthStart.getUTCFullYear()}`;
+
+  const { data: rows } = await supabase
+    .from("monthly_stats")
+    .select("user_id, reach, views, interactions, accounts_engaged, profile_visits, followers, followers_gained, ai_analysis, month_date")
+    .in("month_date", [monthKey, prevKey])
+    .not("reach", "is", null);
+  const current = (rows || []).filter((r: any) => r.month_date === monthKey);
+  const prevByUser = new Map<string, any>();
+  for (const r of (rows || []).filter((r: any) => r.month_date === prevKey)) {
+    // En cas de plusieurs lignes (multi-espaces), on garde la plus grosse portée.
+    const seen = prevByUser.get(r.user_id);
+    if (!seen || (r.reach || 0) > (seen.reach || 0)) prevByUser.set(r.user_id, r);
+  }
+  const byUser = new Map<string, any>();
+  for (const r of current) {
+    const seen = byUser.get(r.user_id);
+    if (!seen || (r.reach || 0) > (seen.reach || 0)) byUser.set(r.user_id, r);
+  }
+  if (!byUser.size) return { event: "monthly_stats_report", month: monthKey, eligible: 0, sent: 0 };
+
+  const { data: profiles } = await supabase
+    .from("profiles").select("user_id, prenom, email")
+    .in("user_id", [...byUser.keys()])
+    .eq("onboarding_completed", true)
+    .not("email", "is", null);
+
+  // Anti-doublon : pas deux rapports dans le même mois.
+  const days25Ago = new Date(Date.now() - 25 * 86400000).toISOString();
+  const { data: recent } = await supabase
+    .from("email_sends").select("user_id").eq("template_id", templateId).gte("sent_at", days25Ago);
+  const alreadyThisMonth = new Set((recent || []).map((r: any) => r.user_id));
+
+  const fmtNum = (n: number) => n.toLocaleString("fr-FR");
+  const variation = (cur: number | null, prev: number | null): string => {
+    if (cur == null || prev == null || prev === 0) return "";
+    const pct = Math.round(((cur - prev) / prev) * 100);
+    if (Math.abs(pct) <= 2) return " <span style=\"color:#6B6B6B;font-size:13px;\">(stable)</span>";
+    const color = pct > 0 ? "#0B7A4B" : "#B3261E";
+    return ` <span style="color:${color};font-size:13px;font-weight:bold;">(${pct > 0 ? "+" : ""}${pct} %)</span>`;
+  };
+  const statRow = (label: string, cur: number | null | undefined, prev: number | null | undefined): string => {
+    if (typeof cur !== "number") return "";
+    return `<tr><td style="padding:8px 0;font-size:15px;color:#6B6B6B;">${label}</td><td style="padding:8px 0;font-size:15px;color:#1A1A1A;font-weight:bold;text-align:right;">${fmtNum(cur)}${variation(cur ?? null, typeof prev === "number" ? prev : null)}</td></tr>`;
+  };
+
+  let sent = 0, skipped = 0, errors = 0;
+  for (const p of profiles || []) {
+    if (!p.email || alreadyThisMonth.has(p.user_id)) { skipped++; continue; }
+    const s = byUser.get(p.user_id);
+    if (!s) { skipped++; continue; }
+    const prev = prevByUser.get(p.user_id) || null;
+
+    const engagement = s.accounts_engaged != null && s.reach ? Math.round((s.accounts_engaged / s.reach) * 1000) / 10 : null;
+    const prevEngagement = prev?.accounts_engaged != null && prev?.reach ? Math.round((prev.accounts_engaged / prev.reach) * 1000) / 10 : null;
+
+    const statsHtml =
+      `<table style="width:100%;border-collapse:collapse;margin:8px 0 4px;">` +
+      statRow("Abonné·es", s.followers, prev?.followers) +
+      statRow("Portée (comptes touchés)", s.reach, prev?.reach) +
+      statRow("Vues", s.views, prev?.views) +
+      statRow("Interactions", s.interactions, prev?.interactions) +
+      (engagement != null
+        ? `<tr><td style="padding:8px 0;font-size:15px;color:#6B6B6B;">Taux d'engagement</td><td style="padding:8px 0;font-size:15px;color:#1A1A1A;font-weight:bold;text-align:right;">${String(engagement).replace(".", ",")} %${variation(engagement, prevEngagement)}</td></tr>`
+        : "") +
+      statRow("Visites du profil", s.profile_visits, prev?.profile_visits) +
+      statRow("Abonné·es gagné·es", s.followers_gained, prev?.followers_gained) +
+      `</table>`;
+
+    const analyseHtml = s.ai_analysis
+      ? `<div style="background:#FFF4F8;border-radius:8px;padding:16px 20px;margin:16px 0;"><p style="margin:0;font-size:14px;color:#91014b;font-weight:bold;">🧠 L'analyse du mois</p><p style="margin:8px 0 0;font-size:15px;color:#1A1A1A;line-height:1.6;">${s.ai_analysis}</p></div>`
+      : `<p style="font-size:14px;color:#6B6B6B;line-height:1.6;">💡 Lance « Analyser mes stats avec l'IA » sur ta page stats pour comprendre ce que ces chiffres racontent.</p>`;
+
+    const resolved = resolveTemplate(template.html_body, template.subject, {
+      prenom: p.prenom || "", email: p.email, app_url: APP_URL,
+      mois: moisLabel, stats: statsHtml, analyse: analyseHtml,
+    });
+    try {
+      const res = await fetch(`${supabaseUrl}/functions/v1/send-email`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: p.email, subject: resolved.subject, html: resolved.html,
+          template_id: templateId, sequence_id: sequences[0].id, user_id: p.user_id,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) sent++; else skipped++; // send-email filtre les désabonnées
+    } catch (e) {
+      errors++;
+      console.error("monthly_stats_report send error", p.user_id, e);
+    }
+  }
+  return { event: "monthly_stats_report", month: monthKey, eligible: byUser.size, sent, skipped, errors };
 }
 
 async function handleProcessQueue(supabase: any, supabaseUrl: string, serviceRoleKey: string): Promise<any> {
