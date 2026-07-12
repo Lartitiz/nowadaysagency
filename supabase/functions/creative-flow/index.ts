@@ -8,7 +8,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink } from "../_shared/anthropic.ts";
-import { streamAnthropicSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
+import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
@@ -75,6 +75,36 @@ const FOLLOW_UP_TOOL = {
       },
     },
     required: ["follow_up_questions"],
+  },
+};
+
+// ── Sortie structurée pour le POST (Instagram) et le Pinterest en streaming ──
+// Même remède que les questions : le tool forcé fait garantir le JSON par l'API.
+// Le post streamait en TEXTE LIBRE avec un prompt « Réponds UNIQUEMENT en JSON »
+// (forme identique au schéma ci-dessous) — Sonnet (thinking off) cassait ce JSON
+// par intermittence (saut de ligne ET guillemet droit non échappé dans `content`)
+// → le blob ```json fuyait au rendu (filets front #511/#524). En passant par le
+// tool, le JSON assemblé côté Anthropic est valide par construction. Le schéma
+// REPREND À L'IDENTIQUE la forme demandée dans le prompt (cf. bloc « Réponds
+// UNIQUEMENT en JSON » du step generate) — le prompt reste inchangé, seule la
+// couche de transport devient déterministe.
+const POST_TOOL = {
+  name: "rediger_post",
+  description: "Retourne le post rédigé (contenu prêt à poster) au format structuré.",
+  input_schema: {
+    type: "object",
+    properties: {
+      content: { type: "string", description: "Le contenu complet, prêt à poster." },
+      accroche: { type: "string", description: "La première phrase / accroche." },
+      format: { type: "string" },
+      pillar: { type: "string" },
+      objectif: { type: "string" },
+      personal_tip: {
+        type: ["string", "null"],
+        description: "Conseil d'incarnation SEULEMENT si demandé plus haut, sinon null.",
+      },
+    },
+    required: ["content", "accroche"],
   },
 };
 
@@ -1489,21 +1519,28 @@ Réponds UNIQUEMENT en JSON :
         });
       }
 
-      // Non-LinkedIn, non-Carousel: stream as usual (avec relance serveur sur
-      // overloaded / complétion vide — cf. bug post IG intermittent 10/07).
+      // Non-LinkedIn, non-Carousel (= POST Instagram + Pinterest) : streaming
+      // par TOOL FORCÉ. Le prompt demande déjà un JSON `{content, accroche, …}` ;
+      // en texte libre Sonnet le cassait par intermittence (fuite du blob ```json
+      // au rendu). Le tool fait garantir le JSON par l'API — le stream recolle
+      // les `input_json_delta`, donc le live « rédige en temps réel » est
+      // préservé à l'identique (cf. streamAnthropicToolSSE). Relance serveur sur
+      // overloaded / complétion vide conservée (bug post IG intermittent 10/07).
       return createClientSSEStream(
-        () => streamAnthropicSSE(
+        () => streamAnthropicToolSSE(
           apiKey,
           model,
           systemPrompt,
           [{ role: "user", content: userPrompt! }],
           0.85,
           4096,
+          POST_TOOL,
         ),
         corsHeaders,
         async (_full, usage) => {
           await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
         },
+        { failOnTruncation: true },
       );
     }
 
