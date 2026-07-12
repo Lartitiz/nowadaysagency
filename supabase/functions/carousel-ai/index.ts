@@ -8,7 +8,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
-import { runRedacGate } from "../_shared/redac-gate.ts";
+import { runRedacGate, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
@@ -633,17 +633,21 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
 
     // Variance de caption PILOTÉE PAR CODE (audit qualité 11/07 : 9-10 captions
     // sur 10 finissaient par une question sur le même gabarit ; la consigne de
-    // prompt seule n'a pas suffi — re-test 12/07). Le tirage force la distribution.
+    // prompt seule n'a pas suffi — re-test 12/07). Le tirage force la distribution,
+    // et le redac-gate fait RESPECTER la forme tirée (re-test v3 : le modèle
+    // désobéissait 4 fois sur 7 à la consigne seule) via captionEndingRule.
+    let captionEndingRule: CaptionEndingRule | undefined;
     if (type === "express_full" && !isLinkedIn) {
-      const CAPTION_ENDINGS = [
-        `une QUESTION spécifique au cœur du carrousel (jamais générique, elle reprend un mot ou une image des slides)`,
-        `une AFFIRMATION finale qui claque — AUCUNE question, AUCUN point d'interrogation dans le cta`,
-        `une INVITATION à raconter UN cas précis en commentaire, à l'impératif — SANS point d'interrogation`,
-        `une CONFIDENCE ou un aveu personnel qui clôt le propos — AUCUNE question`,
-        `une CHUTE SOBRE : la dernière idée se suffit, pas d'appel explicite à commenter — AUCUNE question`,
+      const CAPTION_ENDINGS: Array<{ requiresQuestion: boolean; instruction: string }> = [
+        { requiresQuestion: true, instruction: `une QUESTION spécifique au cœur du carrousel (jamais générique, elle reprend un mot ou une image des slides)` },
+        { requiresQuestion: false, instruction: `une AFFIRMATION finale qui claque — AUCUNE question, AUCUN point d'interrogation dans le cta` },
+        { requiresQuestion: false, instruction: `une INVITATION à raconter UN cas précis en commentaire, à l'impératif — SANS point d'interrogation` },
+        { requiresQuestion: false, instruction: `une CONFIDENCE ou un aveu personnel qui clôt le propos — AUCUNE question` },
+        { requiresQuestion: false, instruction: `une CHUTE SOBRE : la dernière idée se suffit, pas d'appel explicite à commenter — AUCUNE question` },
       ];
-      const ending = CAPTION_ENDINGS[Math.floor(Math.random() * CAPTION_ENDINGS.length)];
-      systemPrompt += `\n\n══ CHUTE DE CAPTION IMPOSÉE POUR CETTE GÉNÉRATION ══\nLa caption se termine par : ${ending}.\nCette forme est NON NÉGOCIABLE pour cette génération (elle assure qu'un feed ne montre pas dix captions construites pareil). Si la forme imposée n'est pas une question, le champ "cta" de la caption ne contient AUCUN point d'interrogation.`;
+      captionEndingRule = CAPTION_ENDINGS[Math.floor(Math.random() * CAPTION_ENDINGS.length)];
+      console.log(`[carousel-ai] chute caption tirée : ${captionEndingRule.requiresQuestion ? "question" : "non-question"} — ${captionEndingRule.instruction.slice(0, 60)}`);
+      systemPrompt += `\n\n══ CHUTE DE CAPTION IMPOSÉE POUR CETTE GÉNÉRATION ══\nLa caption se termine par : ${captionEndingRule.instruction}.\nCette forme est NON NÉGOCIABLE pour cette génération (elle assure qu'un feed ne montre pas dix captions construites pareil). Si la forme imposée n'est pas une question, le champ "cta" de la caption ne contient AUCUN point d'interrogation.`;
     }
 
     let userPrompt = "";
@@ -742,6 +746,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           isLinkedIn,
           onStatus: emitStatus,
           inputText: gateInputText,
+          captionEnding: captionEndingRule,
           correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
         })).content;
         await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
@@ -835,6 +840,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           isLinkedIn,
           onStatus: emitStatus,
           inputText: gateInputText,
+          captionEnding: captionEndingRule,
           correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
         })).content;
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
@@ -1243,6 +1249,7 @@ Réponds UNIQUEMENT en JSON valide :
         isLinkedIn,
         onStatus: emitStatus,
         inputText: gateInputText,
+        captionEnding: captionEndingRule,
         correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
       })).content;
     }

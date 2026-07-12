@@ -131,3 +131,31 @@ Deno.test("la règle 50 mots mesure le corps, pas le titre", () => {
   );
   assertEquals(a.overlongSlides.length, 0);
 });
+
+// ── Chute de caption imposée (caption v2, 12/07) ──
+import { captionEndingViolated } from "./redac-gate.ts";
+
+Deno.test("captionEndingViolated : question exigée mais absente", () => {
+  const parsed = { caption: { hook: "h", body: "b", cta: "Écris BOL en commentaire." } };
+  assertEquals(captionEndingViolated(parsed, { requiresQuestion: true, instruction: "une QUESTION" }), true);
+});
+
+Deno.test("captionEndingViolated : question exigée et présente", () => {
+  const parsed = { caption: { hook: "h", body: "b", cta: "Tu gardes lequel chez toi ?" } };
+  assertEquals(captionEndingViolated(parsed, { requiresQuestion: true, instruction: "une QUESTION" }), false);
+});
+
+Deno.test("captionEndingViolated : forme non-question mais cta en question", () => {
+  const parsed = { caption: { hook: "h", body: "b", cta: "Et toi, tu justifies ou tu expliques ?" } };
+  assertEquals(captionEndingViolated(parsed, { requiresQuestion: false, instruction: "une AFFIRMATION" }), true);
+});
+
+Deno.test("captionEndingViolated : forme non-question respectée (cta vide, body affirmatif)", () => {
+  const parsed = { caption: { hook: "h", body: "Je préfère vendre moins vite, au juste prix.", cta: "" } };
+  assertEquals(captionEndingViolated(parsed, { requiresQuestion: false, instruction: "une CHUTE SOBRE" }), false);
+});
+
+Deno.test("captionEndingViolated : sans règle, jamais de violation", () => {
+  const parsed = { caption: { hook: "h", body: "b", cta: "Une question ?" } };
+  assertEquals(captionEndingViolated(parsed, undefined), false);
+});
