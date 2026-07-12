@@ -122,3 +122,24 @@ Deno.test("héros : hook long (>12 mots) ou déjà grand → intouché", () => {
   const big = ROOT(OVERLAY_P("font-size:72px;color:white;", "Court et déjà grand."));
   assertEquals(enforceHeroHook(big, "Court et déjà grand.").bumped, false);
 });
+
+Deno.test("scrim cas 2 : ancre SOMBRE (#3B382F) sur photo sans carte → blanchie + scrim (re-test 12/07)", () => {
+  const html = ROOT(
+    `<div style="display:flex;flex-direction:column;justify-content:flex-end;padding:0 80px 200px 80px;">` +
+      OVERLAY_P("font-size:66px;color:#3B382F;text-shadow:0 4px 26px rgba(0,0,0,0.75);", "Ce champ n'est pas mon atelier.") + `</div>`,
+  );
+  const { html: out, injected } = injectFallbackScrim(html, "bottom_left");
+  assertEquals(injected, true);
+  assert(/data-slide-text="overlay"[^>]*color:#FFFFFF/.test(out) || /color:#FFFFFF[^"]*"[^>]*data-slide-text="overlay"/.test(out) || out.includes("color:#FFFFFF"));
+  assert(out.includes('data-injected-scrim="1"'));
+});
+
+Deno.test("scrim cas 2 : texte sombre SUR carte blanche (narratif) → intouché", () => {
+  const html = ROOT(
+    `<div style="background:#FFFFFF;border-radius:12px;padding:28px 40px;">` +
+      OVERLAY_P("font-size:42px;color:#3B382F;") + `</div>`,
+  );
+  const { html: out, injected } = injectFallbackScrim(html, "bottom_center");
+  assertEquals(injected, false);
+  assert(out.includes("color:#3B382F"));
+});
