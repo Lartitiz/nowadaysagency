@@ -8206,6 +8206,7 @@ export type Database = {
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
       trigger_email_event: { Args: { _event: string }; Returns: undefined }
       trigger_publish_due_posts: { Args: never; Returns: undefined }
+      trigger_stats_monthly_snapshot: { Args: never; Returns: undefined }
       user_has_workspace_access: { Args: { ws_id: string }; Returns: boolean }
       user_workspace_role: { Args: { ws_id: string }; Returns: string }
       vault_upsert_service_role_key: {
