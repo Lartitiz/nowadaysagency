@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image, BarChart3 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -39,6 +39,9 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     items: [
       { label: "Créer un contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
       { label: "Mon calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
+      // La page /instagram/stats agrège déjà Instagram + site (GA4) + CA ("Suivre
+      // mes stats") ; on l'expose ici en porte directe, sans passer par le hub Insta.
+      { label: "Mes statistiques", path: "/instagram/stats", icon: <BarChart3 size={16} /> },
       { label: "Ma bibliothèque photos", path: "/photos", icon: <Image size={16} /> },
     ],
   },
@@ -142,10 +145,25 @@ export default function AppSidebar() {
     return () => clearCloseTimer();
   }, [clearCloseTimer]);
 
+  // Tous les chemins de navigation, pour la règle "le plus précis l'emporte".
+  const navPaths = visibleSections
+    .flatMap((s) => s.items)
+    .flatMap((i) => [i.path, ...(i.children?.map((c) => c.path) ?? [])])
+    .filter((p) => !p.includes("?"));
+
   const isActive = (path: string) => {
     if (path.includes("?")) return location.pathname + location.search === path;
     if (path === "/dashboard") return location.pathname === "/dashboard";
-    return location.pathname === path || location.pathname.startsWith(path + "/");
+    const matches = location.pathname === path || location.pathname.startsWith(path + "/");
+    if (!matches) return false;
+    // "Le chemin le plus précis l'emporte" : sur /instagram/stats, l'entrée
+    // "Mes statistiques" (/instagram/stats) doit gagner sur "Instagram"
+    // (/instagram), sinon les deux s'allument. On désactive donc un item si un
+    // AUTRE item du menu est un préfixe plus long qui matche aussi.
+    const moreSpecific = navPaths.some(
+      (p) => p !== path && p.length > path.length && (location.pathname === p || location.pathname.startsWith(p + "/")),
+    );
+    return !moreSpecific;
   };
 
   const toggleSub = (key: string) => {
