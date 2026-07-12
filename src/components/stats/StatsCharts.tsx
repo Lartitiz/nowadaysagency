@@ -49,7 +49,7 @@ export default function StatsCharts({
 
           <ChartCard
             title="Acquisition de followers"
-            subtitle="Gagnés vs perdus chaque mois, avec la croissance nette."
+            subtitle="Gagnés vs perdus chaque mois, avec la croissance nette. Instagram ne fournit pas les désabonnements : quand ils ne sont pas saisis, ils sont estimés (gagnés − variation d'abonnés)."
           >
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={chartData} stackOffset="sign">
@@ -57,7 +57,11 @@ export default function StatsCharts({
                 <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
                 <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
                 <Tooltip
-                  formatter={(val: any) => fmt(Math.abs(Number(val)))}
+                  formatter={(val: any, name: any, entry: any) =>
+                    name === "Perdus" && entry?.payload?.lostEstimated
+                      ? [`${fmt(Math.abs(Number(val)))} (estimé)`, name]
+                      : fmt(Math.abs(Number(val)))
+                  }
                   contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
                 />
                 <Legend />
@@ -71,18 +75,20 @@ export default function StatsCharts({
 
           <ChartCard
             title="Du contenu au profil"
-            subtitle="Portée → visites profil → clics site. Plus les courbes restent proches, mieux ton funnel convertit."
+            subtitle="Rythme de publication (barres) face à la portée, aux visites profil et aux clics site : est-ce que publier plus te rapporte plus ?"
           >
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <YAxis yAxisId="left" fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                <YAxis yAxisId="right" orientation="right" fontSize={11} stroke="hsl(var(--bordeaux))" allowDecimals={false} />
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Legend />
-                <Line type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
-                <Line type="monotone" dataKey="profile_visits" stroke="hsl(var(--info))" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                <Line type="monotone" dataKey="website_clicks" stroke="hsl(var(--warning))" name="Clics site" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Bar yAxisId="right" dataKey="posts_count" fill="hsl(var(--rose-medium))" name="Posts publiés (éch. droite)" radius={[4, 4, 0, 0]} barSize={18} />
+                <Line yAxisId="left" type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                <Line yAxisId="left" type="monotone" dataKey="profile_visits" stroke="hsl(var(--info))" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line yAxisId="left" type="monotone" dataKey="website_clicks" stroke="hsl(var(--warning))" name="Clics site" strokeWidth={2} dot={{ r: 3 }} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -211,6 +217,7 @@ function ComparisonTable({ allStats, compareA, compareB, setCompareA, setCompare
 
   const metrics = [
     { label: "Followers", key: "followers" },
+    { label: "Posts publiés", key: "posts_count" },
     { label: "Portée", key: "reach" },
     { label: "Comptes engagés", key: "accounts_engaged" },
     { label: "Interactions", key: "interactions" },
@@ -218,6 +225,8 @@ function ComparisonTable({ allStats, compareA, compareB, setCompareA, setCompare
     { label: "Clics site", key: "website_clicks" },
     { label: "Followers gagnés", key: "followers_gained" },
     { label: "Inscrits email", key: "email_signups" },
+    // Contexte pub : un pic de reach/abonnés peut venir d'un budget sponsorisé.
+    { label: "Budget pub (€)", key: "ad_budget" },
   ];
 
   return (

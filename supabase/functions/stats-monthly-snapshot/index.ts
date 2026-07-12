@@ -14,7 +14,8 @@
 // - déclenché par pg_cron (service-role) ou un admin ; personne d'autre.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { fetchInstagramInsights } from "../_shared/instagram-insights.ts";
+import { fetchInstagramInsights, countPostsInWindow, newFetchContext } from "../_shared/instagram-insights.ts";
+import { refreshTokenIfNeeded } from "../_shared/instagram-graph.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 function json(body: unknown, corsHeaders: Record<string, string>, status = 200) {
@@ -100,6 +101,16 @@ Deno.serve(async (req) => {
         setIfEmpty("profile_visits", m.profileViews30d);
         if (typeof m.followerGrowth30d === "number" && m.followerGrowth30d >= 0) {
           setIfEmpty("followers_gained", m.followerGrowth30d);
+        }
+        // Posts du mois ÉCOULÉ (fenêtre calendaire exacte, pas la glissante 28 j).
+        if (cur.posts_count == null) {
+          const [py, pm] = monthDate.split("-").map(Number);
+          const pSince = Math.floor(Date.UTC(py, pm - 1, 1) / 1000);
+          const pUntil = Math.floor(Date.UTC(py, pm, 1) / 1000);
+          const ctx = newFetchContext();
+          const token = await refreshTokenIfNeeded(supabase, conn);
+          const count = await countPostsInWindow(conn.platform_account_id, token, ctx, pSince, pUntil);
+          if (typeof count === "number") patch.posts_count = count;
         }
 
         const customData: Record<string, unknown> = { ...((cur.custom_data as Record<string, unknown>) || {}) };

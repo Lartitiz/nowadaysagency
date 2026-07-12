@@ -48,6 +48,7 @@ export interface IgLiveMetrics {
   profileViews30d?: number; // visites du profil (réintroduit par Meta en 2025)
   followerGrowth30d?: number;
   postsLast30d?: number;
+  postsMonthCount?: number; // nb de posts du MOIS CALENDAIRE en cours (≠ fenêtre 30 j)
   frequencyLabel?: string;
   avgEngagementRate?: number; // moyenne sur les posts mesurés
   topPosts: IgPostMetrics[]; // 3 meilleurs par engagement
@@ -218,8 +219,58 @@ export interface IgMonthMetrics {
   accountsEngaged?: number;
   profileViews?: number;
   followersGained?: number;
+  postsCount?: number; // nb de posts publiés dans le mois (liste média paginée)
   partial: boolean;
   authError?: boolean;
+}
+
+// Liste paginée des médias du compte (du plus récent au plus ancien), arrêtée
+// dès qu'on passe sous `stopBefore` (epoch ms) ou `max` éléments. Sert à compter
+// les posts par mois calendaire et à l'analyse de contenus.
+export async function fetchMediaList(
+  igId: string,
+  token: string,
+  ctx: IgFetchContext,
+  opts: { stopBefore?: number; max?: number } = {},
+): Promise<{ id: string; timestamp: string; media_type: string; permalink?: string; caption?: string }[]> {
+  const max = opts.max ?? 300;
+  const out: { id: string; timestamp: string; media_type: string; permalink?: string; caption?: string }[] = [];
+  let url: URL | null = (() => {
+    const u = new URL(`${GRAPH}/${igId}/media`);
+    u.searchParams.set("fields", "id,timestamp,media_type,permalink,caption");
+    u.searchParams.set("limit", "50");
+    u.searchParams.set("access_token", token);
+    return u;
+  })();
+  while (url && out.length < max) {
+    const json = await getJson(url, ctx);
+    const data = json?.data;
+    if (!Array.isArray(data) || !data.length) break;
+    for (const m of data) {
+      const t = m?.timestamp ? new Date(m.timestamp).getTime() : 0;
+      if (opts.stopBefore && t && t < opts.stopBefore) return out;
+      out.push(m);
+      if (out.length >= max) return out;
+    }
+    url = json?.paging?.next ? new URL(json.paging.next) : null;
+  }
+  return out;
+}
+
+// Compte les posts publiés dans une fenêtre [since, until) en epoch SECONDES.
+export async function countPostsInWindow(
+  igId: string,
+  token: string,
+  ctx: IgFetchContext,
+  since: number,
+  until: number,
+): Promise<number | undefined> {
+  const media = await fetchMediaList(igId, token, ctx, { stopBefore: since * 1000, max: 500 });
+  if (!media.length) return media.length === 0 && ctx.authError ? undefined : 0;
+  return media.filter((m) => {
+    const t = m?.timestamp ? new Date(m.timestamp).getTime() / 1000 : 0;
+    return t >= since && t < until;
+  }).length;
 }
 
 export async function fetchInstagramMonth(
@@ -237,7 +288,7 @@ export async function fetchInstagramMonth(
   // côté edge, mais on reste défensif).
   const until = Math.min(Math.floor(Date.UTC(y, m, 1) / 1000), Math.floor(Date.now() / 1000));
 
-  const [reach, views, totalInteractions, accountsEngaged, profileViews, growth] =
+  const [reach, views, totalInteractions, accountsEngaged, profileViews, growth, postsCount] =
     await Promise.all([
       fetchWindowedTotalValue(igId, token, "reach", since, until, ctx),
       fetchWindowedTotalValue(igId, token, "views", since, until, ctx),
@@ -254,6 +305,7 @@ export async function fetchInstagramMonth(
         u.searchParams.set("access_token", token);
         return getJson(u, ctx);
       })(),
+      countPostsInWindow(igId, token, ctx, since, until),
     ]);
 
   const result: IgMonthMetrics = { partial: false };
@@ -262,6 +314,7 @@ export async function fetchInstagramMonth(
   if (typeof totalInteractions === "number") result.totalInteractions = totalInteractions;
   if (typeof accountsEngaged === "number") result.accountsEngaged = accountsEngaged;
   if (typeof profileViews === "number") result.profileViews = profileViews;
+  if (typeof postsCount === "number") result.postsCount = postsCount;
 
   const growthValues = growth?.data?.[0]?.values;
   if (Array.isArray(growthValues) && growthValues.length > 0) {
@@ -465,7 +518,12 @@ export async function fetchInstagramInsights(
   //       total_interactions, accounts_engaged, profile_views). Appels isolés et
   //       optionnels : une métrique absente reste simplement vide (pas de partial),
   //       on enrichit le remplissage auto sans jamais dégrader le reste.
-  const [base, reach28, accountVals, growth, postData] = await Promise.all([
+  // Posts du mois calendaire en cours (pour la colonne posts_count : rythme de
+  // publication comparable mois à mois, ≠ fenêtre glissante postsLast30d).
+  const nowD = new Date();
+  const monthStartSec = Math.floor(Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), 1) / 1000);
+
+  const [base, reach28, accountVals, growth, postData, postsMonthCount] = await Promise.all([
     fetchBase(),
     fetchReach28(),
     Promise.all([
@@ -478,6 +536,7 @@ export async function fetchInstagramInsights(
     // 4. Posts récents + insights par post (logique partagée avec le recyclage
     // intelligent via fetchRecentPostMetrics).
     fetchPostMetricsInternal(igId, token, ctx),
+    countPostsInWindow(igId, token, ctx, monthStartSec, Math.floor(Date.now() / 1000)),
   ]);
 
   if (base) {
@@ -534,6 +593,7 @@ export async function fetchInstagramInsights(
 
   result.postsLast30d = postData.postsLast30d;
   result.frequencyLabel = deriveFrequency(postData.postsLast30d);
+  if (typeof postsMonthCount === "number") result.postsMonthCount = postsMonthCount;
 
   // Classement top/flop : on ne garde que les posts dont on a pu mesurer l'engagement.
   const ranked = measured

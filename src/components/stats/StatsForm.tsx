@@ -76,6 +76,7 @@ export default function StatsForm({
               <NumInput label="Nb de followers" value={formData.followers} onChange={v => onFieldChange("followers", v)} auto />
               <NumInput label="Followers en +" value={formData.followers_gained} onChange={v => onFieldChange("followers_gained", v)} auto />
               <NumInput label="Followers en -" value={formData.followers_lost} onChange={v => onFieldChange("followers_lost", v)} />
+              <NumInput label="Posts publiés" value={formData.posts_count} onChange={v => onFieldChange("posts_count", v)} auto />
             </div>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               <span className="inline-flex items-center rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">Insta</span>
