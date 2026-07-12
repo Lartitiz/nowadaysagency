@@ -14,6 +14,12 @@
  * PNG — c'est SAIN. À l'inverse une capture ratée (html2canvas a rendu du vide)
  * est parfaitement uniforme (0 % d'encre) tout en pouvant peser 5–9 Ko. Seul le
  * taux d'encre sépare les deux : ~0 % = raté, tout contenu réel est bien au-dessus.
+ *
+ * Cas à part : une couche raster ENTIÈREMENT transparente (alpha=0 partout) est
+ * LÉGITIME dans l'export hybride — quand tout le décor d'une slide est reposé en
+ * natif (fond <p:bg> + cartes/textes natifs, ex. dark box), la couche « middle »
+ * n'a plus rien à peindre. Elle est donc exclue du verdict « fond raté », qui ne
+ * s'applique qu'aux images OPAQUES uniformes (constat du 12/07 sur perf-carousel).
  */
 import * as fs from "fs";
 import JSZip from "jszip";
@@ -32,7 +38,10 @@ export interface PptxReport {
   mediaCount: number;
   /** Taille de la plus petite image embarquée (octets) — diagnostic seulement. */
   mediaMinBytes: number;
-  /** Plus faible taux d'encre parmi les images décodées (−1 si aucune décodée). */
+  /**
+   * Plus faible taux d'encre parmi les images décodées (−1 si aucune décodée).
+   * Les couches 100 % transparentes (overlay hybride légitime) sont exclues.
+   */
   mediaMinInk: number;
   /** Tous les runs de texte (<a:t>) du document. */
   texts: string[];
@@ -43,7 +52,9 @@ export interface PptxReport {
 /**
  * Taux d'encre d'un PNG : fraction de pixels qui diffèrent nettement de la
  * couleur de fond dominante. Retourne −1 si l'image n'est pas décodable (module
- * absent ou format inattendu) pour laisser l'appelant retomber sur une heuristique.
+ * absent ou format inattendu) pour laisser l'appelant retomber sur une heuristique,
+ * et −2 si l'image est ENTIÈREMENT transparente (aucun pixel avec alpha ≥ 8) —
+ * couche overlay légitime de l'export hybride, à ne pas juger comme un fond.
  */
 async function inkRatio(buf: Buffer): Promise<number> {
   let decode: (b: Uint8Array) => { width: number; height: number; data: ArrayLike<number>; channels: number; depth: number };
@@ -98,10 +109,12 @@ async function inkRatio(buf: Buffer): Promise<number> {
   // 2e passe : compte les pixels « encre » (≠ fond dominant).
   let ink = 0;
   let seen = 0;
+  let opaque = 0;
   for (let y = 0; y < height; y += stride) {
     for (let x = 0; x < width; x += stride) {
       const [r, g, b, a] = px(y * width + x);
       seen++;
+      if (a >= 8) opaque++;
       if (domTransparent) {
         if (a >= 8) ink++; // sur fond transparent, tout pixel opaque = contenu
       } else {
@@ -110,7 +123,9 @@ async function inkRatio(buf: Buffer): Promise<number> {
       }
     }
   }
-  return seen ? ink / seen : -1;
+  if (!seen) return -1;
+  if (!opaque) return -2; // 100 % transparent : couche overlay vide, pas un fond raté
+  return ink / seen;
 }
 
 export async function validatePptx(
@@ -147,7 +162,11 @@ export async function validatePptx(
     // Juge le CONTENU, pas le poids : un fond « texte d'abord » épuré est léger
     // mais plein de sens ; une capture ratée est uniforme (0 % d'encre).
     const ink = await inkRatio(b);
-    if (ink >= 0) {
+    if (ink === -2) {
+      // Couche raster 100 % transparente : légitime quand tout le décor de la
+      // slide est reposé en natif (<p:bg> + textes natifs) — on ne la juge pas
+      // et elle n'entre pas dans mediaMinInk.
+    } else if (ink >= 0) {
       if (ink < mediaMinInk) mediaMinInk = ink;
       if (ink < FLAT_INK_RATIO) {
         problems.push(
