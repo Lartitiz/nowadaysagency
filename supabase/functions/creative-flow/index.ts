@@ -11,7 +11,7 @@ import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, 
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
-import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
+import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
@@ -1894,12 +1894,18 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         text: `${userSubjectBlock}${formatBrief}${body.photo_description ? `\nDescription complémentaire des photos (contexte secondaire) : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE (matière SOURCE pour enrichir le sujet ci-dessus) ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\n══ RÈGLE ANTI-FABRICATION (CRITIQUE) ══\n- N'invente AUCUN détail non vérifiable : prénom, chiffre, citation, lieu, date, nom de client/projet, dialogue, sentiment précis, anecdote.\n- Si un chiffre, un numéro d'édition (ex. "#3"), une date, un nom propre, un slogan est VISIBLE sur une image, recopie-le EXACTEMENT. N'invente JAMAIS un numéro, une date ou un nom que tu n'as pas lu littéralement sur la photo (ex. ne transforme PAS "#3" en "#8").\n- Tu peux UNIQUEMENT t'appuyer sur : (1) le SUJET DÉCLARÉ ci-dessus, (2) ce que tu VOIS littéralement sur les photos, (3) la description complémentaire, (4) les réponses ci-dessus.\n- Si la matière manque pour étoffer, BASCULE sur un registre RÉFLEXIF / MÉTA lié AU SUJET DÉCLARÉ : observation sociologique, lecture culturelle, questionnement ouvert, constat sensoriel. C'est TOUJOURS préférable à une anecdote inventée.\n${answersBlockPhoto ? "" : "- Aucune réponse n'a été fournie : écris un post 100% RÉFLEXIF / MÉTA ancré sur LE SUJET DÉCLARÉ. INTERDICTION FORMELLE de récit fictif, de personnages, de scènes ou de dialogues inventés.\n"}- Évite absolument les formulations type "ce jour-là, X m'a dit…", "je me souviens quand…", "il y a 3 ans…", "j'ai croisé…" si ces éléments ne sont PAS explicitement dans les réponses.\n- En cas de doute entre raconter ou observer : OBSERVE. Mieux vaut un post un peu plus court et juste qu'un post étoffé d'éléments inventés.\n\n⚠️ INTERDICTION ABSOLUE de recopier un exemple textuel. Génère du contenu ORIGINAL ancré dans LE SUJET DÉCLARÉ + CES image(s) + les réponses fournies.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
       });
 
+      // Tool forcé : le prompt demande déjà un JSON (jsonShape) ; sans tool le
+      // modèle peut le casser (fence/guillemet non échappé) → JSON illisible côté
+      // serveur. Le tool (miroir de jsonShape) fait garantir un JSON valide par
+      // l'API. Non-streaming ici (le post photo ne streame pas), donc pas d'enjeu
+      // de live à préserver — juste la validité, comme le POST streaming #534.
       rawContent = await callAnthropic({
         model: getModelForAction("content"),
         system: systemPrompt,
         messages: [{ role: "user", content: photoContent }],
         temperature: isLinkedInPhoto ? 0.7 : 0.85,
         max_tokens: 4096,
+        tool: buildVisionTool(contentType),
       }, finalUsage);
     } else {
       // 8192 pour la génération de contenu : le JSON reel (script + duplicata `sections`
