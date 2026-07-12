@@ -23,6 +23,7 @@ export const FONT_FLOORS_PX: Record<string, number> = {
   subtitle: 30,
   title: 34,
   caption: 24,
+  overlay: 32,
 };
 
 /**
@@ -50,6 +51,42 @@ export function enforceMinFontSize(
         if (parseFloat(px) >= floor) return decl;
         bumped = true;
         return `font-size:${floor}px`;
+      },
+    );
+    if (!bumped) return tag;
+    fixes++;
+    return tag.replace(styleMatch[0], `style="${fixedStyle}"`);
+  });
+  return { html: out, fixes };
+}
+
+/**
+ * Variante GLOBALE pour les HTML générés SANS rôles data-pptx-editable
+ * (ex. épingle Pinterest) : remonte au plancher tout font-size inline trop
+ * petit, quel que soit l'élément. Exemptions décoratives : éléments
+ * aria-hidden="true" et éléments dont l'opacity propre est < 0.7 (watermarks,
+ * numéros fantômes). Bump only, jamais de réduction.
+ */
+export function enforceGlobalMinFontSize(
+  html: string,
+  floorPx = 20,
+): { html: string; fixes: number } {
+  if (!html) return { html, fixes: 0 };
+  let fixes = 0;
+  const tagRe = /<[a-zA-Z][a-zA-Z0-9]*((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+  const out = html.replace(tagRe, (tag) => {
+    if (/aria-hidden\s*=\s*"true"/i.test(tag)) return tag;
+    const styleMatch = tag.match(/style\s*=\s*"([^"]*)"/i);
+    if (!styleMatch) return tag;
+    const opacity = styleMatch[1].match(/(?<![a-zA-Z-])opacity\s*:\s*([\d.]+)/i);
+    if (opacity && parseFloat(opacity[1]) < 0.7) return tag;
+    let bumped = false;
+    const fixedStyle = styleMatch[1].replace(
+      /(?<![a-zA-Z-])font-size\s*:\s*([\d.]+)px/gi,
+      (decl, px) => {
+        if (parseFloat(px) >= floorPx) return decl;
+        bumped = true;
+        return `font-size:${floorPx}px`;
       },
     );
     if (!bumped) return tag;

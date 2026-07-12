@@ -9,6 +9,8 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { buildPptxInvariants, formatInvariantsForPrompt, NEUTRAL_DEFAULT_PALETTE } from "../_shared/pptx-invariants.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { enforceTextContrast } from "../_shared/contrast-guard.ts";
+import { enforceGlobalMinFontSize } from "../_shared/font-size-guard.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -139,12 +141,12 @@ Tu dois produire un visuel qui ressemble à du design professionnel fait sur Fig
 
 TITRES :
 - Font : ${ch.font_title}, font-weight: 400 (JAMAIS bold)
-- Taille : 48-60px pour le titre principal, 28-36px pour les sous-titres
+- Taille : 56-68px pour le titre principal, 32-40px pour les sous-titres
 - Couleur : ${ch.color_secondary} ou ${ch.color_text}
 
 CORPS DE TEXTE :
 - Font : ${ch.font_body}, font-weight: 400
-- Taille : 22-28px
+- Taille : 30-36px
 - Couleur : ${ch.color_text}
 - Line-height : 1.6
 
@@ -152,7 +154,7 @@ BADGES "PILULES" (élément signature) :
 - Display: inline-block
 - Background : ${ch.color_primary}
 - Color: white, font-family: ${ch.font_body}, font-weight: 600
-- Font-size: 16-20px, text-transform: uppercase, letter-spacing: 2px
+- Font-size: 20-24px, text-transform: uppercase, letter-spacing: 2px
 - Padding: 8px 24px
 - Border-radius: 100px (pilule)
 
@@ -230,11 +232,12 @@ Si pin_type = "schema_visuel" :
 - Peut être : mind map, diagramme en étoile, flow chart, équation visuelle
 
 ═══ LISIBILITÉ MOBILE (Pinterest = mobile first) ═══
-- Titre principal : min 36px
-- Sous-titres : min 24px
-- Corps : min 18px
-- Badges : min 14px
+- Titre principal : min 48px
+- Sous-titres : min 32px
+- Corps : min 28px
+- Badges : min 20px
 - Marges latérales : min 40px
+- Une épingle se lit dans un feed mobile à ~200px de large : tout texte sous ces minima est ILLISIBLE. En cas de doute, plus grand.
 
 ═══ TITRE SEO PINTEREST ═══
 - Max 100 caractères
@@ -381,7 +384,16 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       html = html
         .replace(/@import\s+url\(\s*['"]?[^)]*fonts\.googleapis\.com[^)]*['"]?\s*\)\s*;?/gi, "")
         .replace(/<style>\s*<\/style>/gi, "");
-      result.pin_html = fontsLink + html;
+      // Gardes DÉTERMINISTES (mêmes parades que carousel-visual) : contraste
+      // texte/fond, puis plancher GLOBAL de taille — le HTML d'épingle n'a pas
+      // de rôles data-pptx-editable, on borne donc tout texte inline (les
+      // décoratifs aria-hidden / opacity < 0.7 comme le watermark sont exemptés).
+      const contrast = enforceTextContrast(html);
+      const fontFloor = enforceGlobalMinFontSize(contrast.html, 20);
+      if (contrast.fixes > 0 || fontFloor.fixes > 0) {
+        console.warn(`pinterest-visual: gardes déterministes — ${contrast.fixes} contraste, ${fontFloor.fixes} font-size sous plancher`);
+      }
+      result.pin_html = fontsLink + fontFloor.html;
     }
 
     // Fallback : injecter les invariants serveur si Claude les a oubliés.
