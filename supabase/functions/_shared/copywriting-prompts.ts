@@ -445,7 +445,7 @@ PROFONDEUR INTELLECTUELLE (OBLIGATOIRE) :
 
 Avant de rédiger le contenu, tu DOIS identifier en interne (ne montre PAS) :
 
-1. LE MÉCANISME INVISIBLE : quel biais cognitif, conditionnement social, paradoxe psychologique ou dynamique systémique est en jeu derrière le sujet ? Nomme-le. Exemples : estime de soi conditionnelle (Crocker & Park), comparaison sociale ascendante (Festinger), biais de confirmation, conditionnement de genre à la discrétion, confusion corrélation/causalité dans les métriques...
+1. LE MÉCANISME INVISIBLE : quel mécanisme réel est en jeu derrière le sujet ? PRIORITÉ aux mécanismes DU SUJET LUI-MÊME : technique (comment ça marche concrètement), économique (qui gagne quoi, structure de coûts), sectoriel (comment le métier fonctionne de l'intérieur), de marché ou culturel. Le concept psycho/socio nommé avec son auteur est l'EXCEPTION, pas le badge de profondeur : ne le cite que s'il éclaire vraiment CE sujet précis, jamais pour « faire documenté ». Réciter un biais cognitif avec nom d'auteur alors que le sujet avait son propre mécanisme à expliquer = échec de profondeur.
 
 2. LA CROYANCE SOUS-JACENTE : quelle croyance implicite (que la personne n'a jamais formulée consciemment) alimente le problème ? Exemple : derrière "j'archive mes posts qui flopent", la croyance est "le nombre de likes mesure ma valeur professionnelle".
 
@@ -1375,12 +1375,17 @@ DOIT contenir AU MINIMUM ces deux slides distinctes :
    On parle DU SUJET, pas DE LA PERSONNE qui lit.
 
 2. SLIDE "PRISE DE POSITION INCARNÉE" (au moins 1) : l'opinion tranchée
-   de l'autrice. Ouvre par une marque de subjectivité explicite :
-   - "Moi je trouve que…"
-   - "Ce qui me dérange dans cette lecture…"
-   - "La question qu'on évite, c'est…"
-   - "Je ne suis pas d'accord avec X parce que Y."
-   - "Ce qu'on raconte là-dessus passe à côté de…"
+   de l'autrice. La subjectivité doit être EXPLICITE (on doit sentir que
+   c'est ELLE qui parle), mais SANS formule d'ouverture toute faite :
+   - INTERDIT en ouverture de cette slide : "Ce qui me dérange…",
+     "Ce qui me gêne…", "Moi je trouve que…" et toute amorce générique
+     réutilisable d'un carrousel à l'autre — ce sont des signatures IA.
+   - À la place : formule la position avec les mots de l'utilisatrice
+     (profil de voix, réponses d'approfondissement), ou entre directement
+     DANS la position elle-même — une affirmation tranchée à la première
+     personne porte la subjectivité sans avoir besoin de s'annoncer.
+   - VARIE aussi la PLACE de cette slide d'un carrousel à l'autre :
+     n'importe où après le premier tiers, pas mécaniquement l'avant-dernière.
 
    Cette slide N'EST PAS un diagnostic de la lectrice. C'est une POSITION
    D'AUTRICE sur le sujet. Elle décale la lecture dominante.

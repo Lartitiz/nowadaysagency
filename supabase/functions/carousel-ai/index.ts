@@ -514,9 +514,13 @@ serve(async (req) => {
     const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
 
-    // Recent briefs context — fetched server-side as fallback for deepening_questions
+    // Recent briefs context — fetched server-side for deepening_questions ET pour la
+    // génération elle-même (anti-sérialité, audit qualité 11/07 : sans mémoire des
+    // contenus récents, le moteur re-sert la même idée-pivot, les mêmes amorces et
+    // le même CTA d'un carrousel à l'autre du même compte).
+    const generationTypes = ["express_full", "slides", "hooks"];
     let recentBriefsContext = body.recent_briefs_context || "";
-    if (!recentBriefsContext && type === "deepening_questions") {
+    if (!recentBriefsContext && (type === "deepening_questions" || generationTypes.includes(type))) {
       recentBriefsContext = await getRecentBriefsContext(supabase, userId, workspace_id, 3);
     }
 
@@ -558,6 +562,16 @@ serve(async (req) => {
       Array.isArray(body.photo_catalog) ? body.photo_catalog.map((p: any) => p?.description || "").join("\n") : "",
       brandingContext || "",
     ].filter(Boolean).join("\n");
+
+    // Anti-sérialité : la génération connaît les sujets récents du compte et doit
+    // s'en démarquer (idée-pivot, amorces, forme du CTA) — audit qualité 11/07.
+    if (recentBriefsContext && generationTypes.includes(type)) {
+      systemPrompt += `\n${recentBriefsContext}
+CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'en DÉMARQUER, pas pour t'en inspirer.
+- Si le sujet courant est voisin d'un brief récent, choisis une IDÉE-PIVOT différente : ne redis pas la même thèse avec d'autres mots.
+- Ne réutilise AUCUNE formule d'ouverture de slide, de prise de position ou de CTA qui pourrait déjà être sortie sur ces sujets : quelqu'un qui lit le feed voit les carrousels CÔTE À CÔTE.
+- Varie la construction par rapport à un carrousel précédent probable : place de la prise de position, forme de la caption, type de hook.`;
+    }
 
     // Inject SERIES context if the post belongs to a series
     if (series_id && (type === "express_full" || type === "hooks" || type === "slides" || type === "structure_proposal")) {
@@ -1255,7 +1269,7 @@ ${isLinkedIn
 □ Une slide récite le brief sans le digérer ? → Reformule avec un argument propre.
 ══════════════════════════════════════════`}
 - Phrases qui alternent longues et courtes (rythme)
-- Expressions naturelles (en vrai, franchement, le truc c'est que)
+- Expressions naturelles et orales, puisées dans le profil de voix de l'utilisatrice — jamais de cheville passe-partout plaquée en ouverture de phrase
 - Humour discret, pas forcé
 - Pas de jargon marketing creux
 - Pas de manipulation, pas de fausse rareté, pas de FOMO
@@ -1269,6 +1283,9 @@ ${ANTI_SLOP}
 
 ANTI-BROETRY (s'applique aux captions, pas aux slides) :
 Les captions de carrousels ne sont PAS des listes de phrases sur des lignes séparées. Ce sont des paragraphes fluides de 2-3 phrases. Le rythme vient du contraste entre phrases longues et phrases courtes, pas des sauts de ligne.
+
+VARIANCE DE CAPTION (anti-sérialité) :
+Ne construis PAS chaque caption sur le même gabarit « accroche d'une ligne → paragraphe → question finale ». Ce moule, répété sur tous les posts d'un compte, se voit immédiatement dans un feed. La question finale est une OPTION parmi d'autres, pas un réflexe : une caption peut se clore sur une affirmation qui claque, une invitation à raconter UN cas précis, une confidence, ou rien du tout après la dernière idée. Choisis la chute qui sert CE carrousel.
 
 ${CHAIN_OF_THOUGHT}
 
@@ -1984,19 +2001,15 @@ EXIGENCES DE DENSITÉ (ce qui sépare un bon carrousel d'un carrousel génériqu
 ══════════════════════════════════════
 
 Chaque slide (sauf hook et CTA) doit contenir AU MOINS 1 de ces éléments :
-- Une DONNÉE chiffrée sourcée (chiffre + source entre parenthèses)
+- Une DONNÉE chiffrée FOURNIE par le brief, les réponses, le branding ou l'actu (jamais inventée)
 - Une ANALOGIE originale ancrée dans le quotidien ou la culture pop
 - Un EXEMPLE CONCRET et spécifique (prénom, situation, détail)
-- Un MÉCANISME NOMMÉ (concept psycho/socio avec auteur si connu)
+- Un MÉCANISME DU SUJET expliqué (technique, économique, sectoriel — le concept psycho nommé avec auteur reste l'exception, voir PROFONDEUR)
 - Un VERBATIM réel ou vraisemblable (une phrase que quelqu'un dirait)
 
-Exemple de slide DENSE (ce qu'on veut) :
-"73% des comptes actifs publient 2-3 fois par semaine (Later 2024). Pas parce que la quantité compte. Parce que la régularité entraîne l'algorithme à montrer le contenu. C'est le biais de simple exposition (Zajonc) : on fait davantage confiance à ce qu'on voit souvent."
+La structure d'une slide DENSE (ce qu'on veut) : [un fait ou une scène spécifique au sujet] + [le mécanisme qui l'explique] + [ce que ça implique concrètement pour la lectrice]. Trois couches, dans les mots du métier de l'utilisatrice.
 
-Exemple de slide GÉNÉRIQUE (ce qu'on refuse) :
-"La régularité est plus importante que la quantité. Publie quand tu as quelque chose à dire. Ton audience préfère un bon contenu par semaine."
-
-La différence : la slide dense a un chiffre + un mécanisme + une implication concrète. La slide générique dit des trucs vrais que tout le monde sait déjà.
+La structure d'une slide GÉNÉRIQUE (ce qu'on refuse) : [un conseil que tout le monde connaît] + [une justification vague] + [une platitude bienveillante]. Si la slide pourrait être publiée telle quelle par n'importe quel compte du même secteur, elle est générique : réécris-la.
 
 ══════════════════════════════════════
 RÈGLES STRUCTURELLES (s'appliquent à tous les carrousels, quel que soit le style)

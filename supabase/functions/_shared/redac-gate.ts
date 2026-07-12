@@ -31,6 +31,9 @@ const MOULDED_VERBATIMS: RegExp[] = [
   // c'est l'OUVERTURE qui est moulée, vue à l'identique dans des contenus distincts.
   /Je ne dis pas ça pour /i,
   /L(?:'|’)IA structure, toi tu incarnes/i,
+  // Amorce de prise de position suggérée par DEPTH_LAYER_DUAL, devenue un tic :
+  // mesurée dans 5/10 carrousels du corpus qualité 11/07, toujours même position.
+  /Ce qui me (?:dérange|gêne)\b/i,
 ];
 
 const wordCount = (s: string) => (s || "").trim().split(/\s+/).filter(Boolean).length;

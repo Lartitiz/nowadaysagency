@@ -278,7 +278,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
 
 3. CTA GÉNÉRIQUE (dernière slide) :
    ❌ "Et toi, tu commences par quoi ?" / "Dis-moi en commentaire" / "Échangeons" / "DM ouvert" / "Parlons-en" (seuls ou combinés : "Échangeons → DM ouvert" reste générique)
-   → ✅ Question ou invitation SPÉCIFIQUE au sujet, qui REPREND un mot ou une image du cœur du carrousel. Ex: "Quelle est la dernière slide qui t'a fait arrêter de scroller, et pourquoi ?"
+   → ✅ Question ou invitation SPÉCIFIQUE au sujet, qui REPREND un mot ou une image du cœur du carrousel. Construis-la à partir du contenu réel des slides, pas d'un gabarit : le moule "Quelle est la dernière fois où tu as [verbe], et pourquoi ?" est une signature IA — si le CTA y ressemble, change de forme (affirmation à compléter, invitation à raconter UN cas précis, choix à trancher…).
 
 4. RÉCITATION DU SUJET (slide qui répète le brief sans le digérer) :
    → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
