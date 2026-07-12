@@ -603,6 +603,21 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       }
     }
 
+    // Variance de caption PILOTÉE PAR CODE (audit qualité 11/07 : 9-10 captions
+    // sur 10 finissaient par une question sur le même gabarit ; la consigne de
+    // prompt seule n'a pas suffi — re-test 12/07). Le tirage force la distribution.
+    if (type === "express_full" && !isLinkedIn) {
+      const CAPTION_ENDINGS = [
+        `une QUESTION spécifique au cœur du carrousel (jamais générique, elle reprend un mot ou une image des slides)`,
+        `une AFFIRMATION finale qui claque — AUCUNE question, AUCUN point d'interrogation dans le cta`,
+        `une INVITATION à raconter UN cas précis en commentaire, à l'impératif — SANS point d'interrogation`,
+        `une CONFIDENCE ou un aveu personnel qui clôt le propos — AUCUNE question`,
+        `une CHUTE SOBRE : la dernière idée se suffit, pas d'appel explicite à commenter — AUCUNE question`,
+      ];
+      const ending = CAPTION_ENDINGS[Math.floor(Math.random() * CAPTION_ENDINGS.length)];
+      systemPrompt += `\n\n══ CHUTE DE CAPTION IMPOSÉE POUR CETTE GÉNÉRATION ══\nLa caption se termine par : ${ending}.\nCette forme est NON NÉGOCIABLE pour cette génération (elle assure qu'un feed ne montre pas dix captions construites pareil). Si la forme imposée n'est pas une question, le champ "cta" de la caption ne contient AUCUN point d'interrogation.`;
+    }
+
     let userPrompt = "";
 
     if (type === "hooks") {
@@ -1614,7 +1629,7 @@ Retourne ce JSON exact :
   "slides": [
     {
       "slide_number": 1,
-      "role": "hook",
+      "role": "hook — puis pour chaque slide suivante un rôle SÉMANTIQUE précis (contexte/mecanisme/croyance/bascule/prise_de_position/resultat/ouverture/cta…), JAMAIS \\"content\\"",
       "title": "Le headline de la slide",
       "body": "Le texte complémentaire (optionnel pour le hook)",
       "visual_suggestion": "Description visuelle textuelle (ambiance, composition, couleurs)",
@@ -2022,9 +2037,12 @@ STRUCTURE :
 - Dernière slide = 1 SEUL CTA. Pas 2. Pas 3.
 - Headlines (title) : 4-9 mots, scène-first / JE — voir RÈGLES TITRES système. Pas de "L'art de", "L'importance de", "Repenser", "Le piège de".
 
-NARRATION :
+NARRATION — MÉTHODE D'ÉCRITURE (la plus importante) :
+- N'écris PAS slide par slide comme si tu remplissais des cases. Écris D'ABORD, en interne (ne le montre pas), le carrousel comme UNE SEULE histoire courante qui se lit d'une traite, à voix haute, du début à la fin — PUIS découpe ce texte en slides. Chaque slide est un temps de ce récit, pas un item d'une liste.
 - ARC NARRATIF OBLIGATOIRE : situation → tension → développement → résolution → ouverture. Même un carrousel "tips" a un fil conducteur, pas juste une liste.
 - CONNEXION ENTRE SLIDES : chaque slide crée une tension qui donne envie de swiper. La dernière phrase d'une slide amorce la suivante.
+- RÔLE SÉMANTIQUE OBLIGATOIRE : le champ "role" de CHAQUE slide nomme précisément son temps dans le récit (ex : contexte, mecanisme, croyance, bascule, revelation, prise_de_position, resultat, ouverture — libre mais PRÉCIS). Le rôle générique "content" est INTERDIT : si tu ne sais pas nommer le rôle d'une slide dans l'histoire, c'est qu'elle n'y a pas sa place — réécris-la ou fusionne-la.
+- TEST DU MÉLANGE avant de retourner le JSON : si on peut intervertir deux slides du milieu sans rien changer, elles sont juxtaposées, pas racontées → réécris pour créer la progression.
 - AU MOINS 1 analogie du quotidien ou référence culture pop dans le carrousel.
 - La caption est DIFFÉRENTE du hook slide 1. Elle apporte une couche supplémentaire (contexte personnel, pourquoi ce sujet maintenant).
 
@@ -2084,7 +2102,7 @@ Retourne ce JSON exact :
   "slides": [
     {
       "slide_number": 1,
-      "role": "hook",
+      "role": "hook — puis pour chaque slide suivante un rôle SÉMANTIQUE précis (contexte/mecanisme/croyance/bascule/prise_de_position/resultat/ouverture/cta…), JAMAIS \\"content\\"",
       "title": "Le headline de la slide",
       "body": "Le texte complémentaire (optionnel pour le hook)",
       "visual_suggestion": "Description visuelle textuelle (ambiance, composition, couleurs)",
