@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { Link } from "react-router-dom";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useIsOwnSpace } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -41,6 +41,7 @@ export default function InstagramStats() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const isOwnSpace = useIsOwnSpace();
 
   const now = useMemo(() => new Date(), []);
   const currentMonthDate = useMemo(() => monthKey(now), [now]);
@@ -88,10 +89,25 @@ export default function InstagramStats() {
     if (!user) return;
     try {
       const { data, error } = await (supabase.from("stats_config" as any) as any)
-        .select("*").eq(column, value).maybeSingle();
+        .select("*").eq(column, value)
+        .order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw error;
-      if (data) {
-        const cfg = data as any as StatsConfig;
+      let cfg = (data as any as StatsConfig) || null;
+      // Reprise des configs d'avant les espaces : sauvées sans workspace_id, elles
+      // étaient invisibles au filtre workspace → l'onboarding revenait à chaque
+      // visite. On rattache la plus récente à l'espace propre, une fois pour toutes.
+      if (!cfg && column === "workspace_id" && isOwnSpace) {
+        const { data: legacy } = await (supabase.from("stats_config" as any) as any)
+          .select("*").eq("user_id", user.id).is("workspace_id", null)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (legacy) {
+          cfg = legacy as any as StatsConfig;
+          const { error: adoptErr } = await (supabase.from("stats_config" as any) as any)
+            .update({ workspace_id: value }).eq("id", (legacy as any).id);
+          if (adoptErr) console.error("Rattachement config legacy échoué:", adoptErr);
+        }
+      }
+      if (cfg) {
         setConfig(cfg); setDraftConfig(cfg);
       } else {
         setShowOnboarding(true);
@@ -102,17 +118,35 @@ export default function InstagramStats() {
     } finally {
       setConfigLoaded(true);
     }
-  }, [user?.id]);
+  }, [user?.id, column, value, isOwnSpace]);
 
   const loadStats = useCallback(async () => {
     if (!user) return;
+    // Reprise des stats d'avant les espaces et des imports Excel orphelins
+    // (workspace_id null → invisibles au filtre workspace) : on les rattache à
+    // l'espace propre, sauf si le mois existe déjà côté workspace (pas de doublon).
+    if (column === "workspace_id" && isOwnSpace) {
+      const { data: legacy } = await (supabase.from("monthly_stats" as any) as any)
+        .select("id, month_date").eq("user_id", user.id).is("workspace_id", null);
+      if (legacy?.length) {
+        const { data: wsRows } = await (supabase.from("monthly_stats" as any) as any)
+          .select("month_date").eq("workspace_id", value);
+        const taken = new Set((wsRows || []).map((r: any) => r.month_date));
+        const toAdopt = (legacy as any[]).filter(r => !taken.has(r.month_date)).map(r => r.id);
+        if (toAdopt.length) {
+          const { error: adoptErr } = await (supabase.from("monthly_stats" as any) as any)
+            .update({ workspace_id: value }).in("id", toAdopt);
+          if (adoptErr) console.error("Rattachement stats legacy échoué:", adoptErr);
+        }
+      }
+    }
     const { data } = await (supabase.from("monthly_stats" as any) as any)
       .select("*").eq(column, value).order("month_date", { ascending: false });
     const rows = (data || []) as StatsRow[];
     setAllStats(rows);
     if (rows.length >= 2) { setCompareA(rows[0].month_date); setCompareB(rows[1].month_date); }
     else if (rows.length === 1) { setCompareA(rows[0].month_date); }
-  }, [user?.id]);
+  }, [user?.id, column, value, isOwnSpace]);
 
   useEffect(() => { loadConfig(); loadStats(); }, [loadConfig, loadStats]);
 
@@ -396,7 +430,13 @@ export default function InstagramStats() {
 
   const saveConfig = useCallback(async (cfg: StatsConfig) => {
     if (!user) return;
-    const payload = { ...cfg, user_id: user.id, updated_at: new Date().toISOString() } as any;
+    const payload = {
+      ...cfg, user_id: user.id,
+      // Même convention que handleSave : la config appartient à l'espace actif,
+      // sinon elle est invisible au rechargement (filtre workspace_id).
+      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+      updated_at: new Date().toISOString(),
+    } as any;
     delete payload.id;
     if (config?.id) {
       const { error } = await supabase.from("stats_config" as any).update(payload).eq("id", config.id);
@@ -408,7 +448,7 @@ export default function InstagramStats() {
     }
     setConfig({ ...cfg, id: config?.id || payload.id });
     setDraftConfig({ ...cfg, id: config?.id || payload.id });
-  }, [user, config]);
+  }, [user, config, workspaceId]);
 
   const handleConfigClick = useCallback((step: number) => {
     setShowOnboarding(true); setOnboardingStep(step); setConfig(null);

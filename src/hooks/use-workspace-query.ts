@@ -38,6 +38,24 @@ export function useWorkspaceFilter(): { column: string; value: string } {
 
 
 /**
+ * True when the active workspace is the user's own (or none). Used to safely
+ * "adopt" legacy rows (workspace_id null, created before workspaces) into the
+ * active workspace — never when managing someone else's space.
+ */
+export function useIsOwnSpace(): boolean {
+  let active: { id: string } | null = null;
+  let own: { id: string } | null = null;
+  try {
+    const ws = useWorkspace();
+    active = ws.activeWorkspace;
+    own = ws.ownWorkspace;
+  } catch {
+    // fallback
+  }
+  return !active || active.id === own?.id;
+}
+
+/**
  * Returns the user_id of the workspace owner.
  * When viewing a client workspace (role = manager), returns the client's user_id.
  * When on own workspace (role = owner), returns auth user's id.

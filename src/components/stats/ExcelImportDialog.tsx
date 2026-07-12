@@ -317,7 +317,13 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       }
       prevDate = md;
 
-      const payload: Record<string, any> = { user_id: userId, month_date: monthKey(md) };
+      const payload: Record<string, any> = {
+        user_id: userId,
+        month_date: monthKey(md),
+        // Sans workspace_id, les lignes importées sont invisibles pour la page
+        // (qui relit par workspace) — même convention que la saisie manuelle.
+        ...(column === "workspace_id" ? { workspace_id: value } : {}),
+      };
 
       for (const [metric, colIdx] of Object.entries(mapping)) {
         if (colIdx == null) continue;
@@ -367,7 +373,16 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
     try {
       let count = 0;
       for (const row of previewRows) {
-        const { error } = await supabase.from("monthly_stats" as any).upsert(row.payload, { onConflict: "user_id,month_date" });
+        // Upsert manuel : il n'existe pas de contrainte unique (user_id, month_date)
+        // en base, donc l'upsert onConflict échouait silencieusement (42P10).
+        let q = (supabase.from("monthly_stats" as any) as any)
+          .select("id").eq("month_date", row.monthDate).eq(column, value);
+        if (column === "workspace_id") q = q.eq("user_id", userId);
+        else q = q.is("workspace_id", null);
+        const { data: existing } = await q.limit(1).maybeSingle();
+        const { error } = existing?.id
+          ? await (supabase.from("monthly_stats" as any) as any).update(row.payload).eq("id", existing.id)
+          : await (supabase.from("monthly_stats" as any) as any).insert(row.payload);
         if (!error) count++;
       }
 
