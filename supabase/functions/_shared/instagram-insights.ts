@@ -337,6 +337,70 @@ function deriveFrequency(postsLast30d: number): string {
   return "Irrégulier";
 }
 
+// ── Posts d'un MOIS CALENDAIRE avec leurs métriques ──────────────────────────
+// Pour expliquer un mois (« pourquoi avril a mieux marché ? ») : la liste des
+// contenus publiés ce mois-là, triés par engagement. Injectés dans le prompt de
+// l'analyse IA mensuelle et affichés sous l'analyse.
+export async function fetchMonthPosts(
+  supabase: any,
+  conn: any,
+  monthDate: string, // "YYYY-MM-01"
+): Promise<{ posts: IgPostMetrics[]; authError?: boolean }> {
+  const token = await refreshTokenIfNeeded(supabase, conn);
+  const igId = conn.platform_account_id;
+  const ctx = newFetchContext();
+  const [y, m] = monthDate.split("-").map(Number);
+  const since = Date.UTC(y, m - 1, 1);
+  const until = Date.UTC(y, m, 1);
+
+  const media = (await fetchMediaList(igId, token, ctx, { stopBefore: since, max: 500 }))
+    .filter((mm) => {
+      const t = mm?.timestamp ? new Date(mm.timestamp).getTime() : 0;
+      return t >= since && t < until;
+    });
+
+  const posts = await mapPool(media, POST_CONCURRENCY, async (post) => {
+    const pm: IgPostMetrics = {
+      id: String(post.id),
+      subject: (post.caption || "").replace(/\s+/g, " ").trim().slice(0, 120),
+      format: String(post.media_type || "IMAGE"),
+      timestamp: post.timestamp,
+      permalink: post.permalink,
+    };
+    const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
+    const insUrl = new URL(`${GRAPH}/${post.id}/insights`);
+    insUrl.searchParams.set("metric", "reach,likes,comments,saved,shares");
+    insUrl.searchParams.set("access_token", token);
+    const viewsUrl = new URL(`${GRAPH}/${post.id}/insights`);
+    viewsUrl.searchParams.set("metric", "views");
+    viewsUrl.searchParams.set("access_token", token);
+    const [ins, vj] = await Promise.all([
+      getJson(insUrl, ctx),
+      isVideo ? getJson(viewsUrl, ctx) : Promise.resolve(null),
+    ]);
+    if (ins?.data) {
+      for (const mi of ins.data) {
+        const val = mi?.values?.[0]?.value ?? mi?.total_value?.value;
+        if (mi.name === "reach") pm.reach = val;
+        if (mi.name === "likes") pm.likes = val;
+        if (mi.name === "comments") pm.comments = val;
+        if (mi.name === "saved") pm.saves = val;
+        if (mi.name === "shares") pm.shares = val;
+      }
+    }
+    const v = vj?.data?.find((mi: any) => mi.name === "views");
+    const vVal = v?.values?.[0]?.value ?? v?.total_value?.value;
+    if (typeof vVal === "number") pm.views = vVal;
+    const interactions = (pm.likes || 0) + (pm.comments || 0) + (pm.saves || 0) + (pm.shares || 0);
+    const denom = (pm.reach && pm.reach > 0) ? pm.reach : (pm.views && pm.views > 0) ? pm.views : 0;
+    if (denom > 0) pm.engagementRate = interactions / denom;
+    return pm;
+  });
+
+  posts.sort((a, b) => (b.engagementRate || 0) - (a.engagementRate || 0));
+  return { posts, authError: ctx.authError };
+}
+
 // ── Analyse de contenus : « ce qui marche pour toi » sur ~50 posts ───────────
 // Agrégats déterministes (pas d'IA) par FORMAT, JOUR de semaine et CRÉNEAU
 // horaire (heure de Paris), calculés sur les insights par post. Les moyennes ne
