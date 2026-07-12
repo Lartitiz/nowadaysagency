@@ -14,8 +14,14 @@ import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, 
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
-import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
+import {
+  enforceReelNoFaceCam,
+  recalibrateReelTimings,
+  reelAuditableText,
+  reelTemplateLeaks,
+} from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
@@ -1938,6 +1944,56 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       } catch (corrErr) {
         console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
       }
+    }
+
+    // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
+    // Le reel était le seul format riche sans filet post-génération. Trois étages :
+    // 1. face_cam=non : enforcement déterministe de la structure (format_type,
+    //    format_visuel, plan_tournage) — la passe texte ne touche pas ces champs.
+    // 2. Correction JSON-aware (textes seuls, via bloc balisé) avec instructions
+    //    ciblées mesurées en code : chiffres sans source (redac-gate) + fuites de
+    //    gabarit ("SAUVEGARDE", "Nouveau Reel" : 8/8 au corpus d'audit).
+    // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
+    //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
+    //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
+    if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
+      if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
+        console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
+      }
+      try {
+        const reelAllowed = numbersIn([
+          typeof body.context === "string" ? body.context : "",
+          body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+          body.selected_hook ? JSON.stringify(body.selected_hook) : "",
+          typeof body.news_context === "string" ? body.news_context : "",
+          fullContext || "",
+        ].join("\n"));
+        const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed);
+        const extras: string[] = [];
+        const redacFix = buildTextFixInstructions(reelRedac);
+        if (redacFix) extras.push(redacFix);
+        const leaks = reelTemplateLeaks(parsed);
+        if (leaks.length) {
+          extras.push(`FUITES DE GABARIT DÉTECTÉES (réécris chacune) :\n${leaks.map((l) => `- ${l}`).join("\n")}`);
+        }
+        if (body.face_cam === "non") {
+          extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
+        }
+        // Édition mécanique à règles fermées → Haiku (même choix que LinkedIn/carrousel).
+        const corrected = await applyCorrectionPassReel(parsed, {
+          logger: (msg) => console.log(msg),
+          model: "claude-haiku-4-5",
+          extraInstructions: extras.length ? extras.join("\n\n") : undefined,
+        });
+        if (corrected && typeof corrected === "object") {
+          Object.assign(parsed, corrected);
+        }
+      } catch (corrErr) {
+        console.error("[creative-flow] correction-pass reel failed:", corrErr);
+      }
+      // Recalibrage TOUJOURS appliqué, même si la correction a échoué : déterministe,
+      // et il doit compter les mots de la version FINALE du texte.
+      recalibrateReelTimings(parsed);
     }
 
     // ═══ RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories, lot B) ═══
