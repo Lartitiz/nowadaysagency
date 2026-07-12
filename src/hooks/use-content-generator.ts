@@ -98,6 +98,49 @@ export interface ContentResult {
 
 // ── JSON parser (handles markdown-wrapped JSON) ──
 
+/**
+ * Échappe les caractères de contrôle (vrais \n, \r, \t, …) qui apparaissent
+ * NON échappés à l'intérieur d'une chaîne JSON. Sonnet (thinking off) enveloppe
+ * sa sortie en ```json { "content": "…" } mais insère parfois de vrais sauts de
+ * ligne dans la valeur → JSON invalide ("Bad control character in string
+ * literal") → parseAIJson renvoyait null → le blob brut fuyait au rendu du post.
+ * On ne touche qu'à l'intérieur des chaînes ; hors chaîne, un \n est de la
+ * mise en forme structurelle qu'il faut laisser telle quelle.
+ */
+function escapeUnescapedControlChars(s: string): string {
+  let out = "";
+  let inStr = false;
+  let esc = false;
+  for (let i = 0; i < s.length; i++) {
+    const ch = s[i];
+    const code = s.charCodeAt(i);
+    if (esc) {
+      out += ch;
+      esc = false;
+      continue;
+    }
+    if (ch === "\\") {
+      out += ch;
+      esc = true;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = !inStr;
+      out += ch;
+      continue;
+    }
+    if (inStr && code < 0x20) {
+      if (ch === "\n") out += "\\n";
+      else if (ch === "\r") out += "\\r";
+      else if (ch === "\t") out += "\\t";
+      else out += "\\u" + code.toString(16).padStart(4, "0");
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
+
 function parseAIJson(raw: string | object): any {
   if (typeof raw === "object" && raw !== null) return raw;
   if (typeof raw !== "string") return null;
@@ -135,6 +178,26 @@ function parseAIJson(raw: string | object): any {
       return JSON.parse(arrMatch[0]);
     } catch {
       // ignore
+    }
+  }
+
+  // Réparation des caractères de contrôle non échappés (vrais \n / \r / \t
+  // dans une chaîne). Cause n°1 de fuite du JSON brut au rendu du post — voir
+  // escapeUnescapedControlChars. On reparse la version réparée.
+  const repaired = escapeUnescapedControlChars(cleaned);
+  if (repaired !== cleaned) {
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      // ignore
+    }
+    const repObj = repaired.match(/\{[\s\S]*\}/);
+    if (repObj) {
+      try {
+        return JSON.parse(repObj[0]);
+      } catch {
+        // ignore
+      }
     }
   }
 
