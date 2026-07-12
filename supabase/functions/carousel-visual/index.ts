@@ -13,6 +13,7 @@ import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/w
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
 import { enforceMinFontSize } from "../_shared/font-size-guard.ts";
+import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -292,6 +293,11 @@ serve(async (req) => {
         .eq(col, val)
         .maybeSingle();
       charter = dbCharter || {};
+      if (!dbCharter) {
+        // Perte de marque SILENCIEUSE (fallback Libre Baskerville/palette neutre) —
+        // télémétrie pour repérer les configs à charte irrésolue (audit 12/07, lot E).
+        console.warn(JSON.stringify({ event: "charter_fallback", user_id: user.id, workspace_id: workspaceId || null }));
+      }
     }
 
     // Hybride : on enrichit avec le ton éditorial (brand_profile) pour dériver
@@ -682,11 +688,11 @@ Le SEUL texte que tu écris sur une slide est l'overlay_text fourni dans le JSON
 - un SURTITRE / kicker / eyebrow / intertitre ;
 - une étiquette de CATÉGORIE ou de THÈME, même si elle résume bien la slide (PAS de « LE VRAI PROBLÈME », « LA MÉTHODE », « LE DÉCLIC », « HISTOIRE VRAIE », « ÉTAPE 1 », « CONVERSATION #2 », « 3 SEMAINES PLUS TARD »…) ;
 - un numéro de slide, un numéro de chapitre, un label de section.
-Le carrousel photo se lit comme une histoire qui coule : le fil vit DANS les phrases, jamais dans des stamps posés par-dessus. Une pilule/un badge ne sert QU'À porter l'overlay_text lui-même (style « minimal »), jamais un mot que tu rajoutes. SEULE exception autorisée : sur la TOUTE DERNIÈRE slide uniquement, un CTA court (ex « Enregistre ce post », « On en parle ? »). En cas de doute : tu n'écris que l'overlay_text, rien d'autre.
+Le carrousel photo se lit comme une histoire qui coule : le fil vit DANS les phrases, jamais dans des stamps posés par-dessus. Une pilule/un badge ne sert QU'À porter l'overlay_text lui-même (style « minimal »), jamais un mot que tu rajoutes. SEULE exception autorisée : sur la TOUTE DERNIÈRE slide uniquement, un CTA court. Ce CTA nomme la situation CONCRÈTE du sujet où revenir à ce post servira (garde-le court, 4-8 mots) — JAMAIS un « Enregistre ce post » / « Sauvegarde » générique et interchangeable. En cas de doute : tu n'écris que l'overlay_text, rien d'autre.
 
 ═══ RÈGLES HTML/CSS POUR LES PHOTOS ═══
 - Chaque slide = un <div> EXACTEMENT 1080px × 1350px
-- La photo est en background-image: url() en base64, avec background-size: cover; background-position: center
+- La photo est en background-image: url() en base64, avec background-size: cover; background-position: center par défaut — voir PHOTOS RÉPÉTÉES pour les slides consécutives qui partagent la même photo
 - CSS 100% inline (pas de classes CSS)
 - CHAQUE slide commence par la balise @import Google Fonts :
   <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap');</style>
@@ -767,7 +773,10 @@ QUAND overlay_text est null :
 - ❌ Toutes les slides avec le même traitement (varier les styles)
 - ❌ Cercles ou ronds décoratifs
 - ❌ Font-weight bold sur ${ch.font_title}
-- ❌ INVENTER un SURTITRE / une étiquette de catégorie / un intertitre de section au-dessus ou en dessous de la phrase (ex : "HISTOIRE VRAIE", "CONVERSATION #2", "3 SEMAINES PLUS TARD", "ÉTAPE 1"). En carrousel photo, tu ne poses RIEN d'autre que l'overlay_text fourni : pas de label de section, pas de tag de catégorie, pas de numéro de chapitre. Le fil narratif vit DANS les phrases, pas dans des stamps qui transforment l'histoire en galerie d'images légendées. SEULE exception : la toute dernière slide peut porter un CTA court et discret (ex : "Enregistre ce post").
+- ❌ INVENTER un SURTITRE / une étiquette de catégorie / un intertitre de section au-dessus ou en dessous de la phrase (ex : "HISTOIRE VRAIE", "CONVERSATION #2", "3 SEMAINES PLUS TARD", "ÉTAPE 1"). En carrousel photo, tu ne poses RIEN d'autre que l'overlay_text fourni : pas de label de section, pas de tag de catégorie, pas de numéro de chapitre. Le fil narratif vit DANS les phrases, pas dans des stamps qui transforment l'histoire en galerie d'images légendées. SEULE exception : la toute dernière slide peut porter un CTA court et discret, contextualisé au sujet (jamais un "Enregistre ce post" générique).
+
+═══ PHOTOS RÉPÉTÉES = CADRAGES DIFFÉRENTS ═══
+Quand la MÊME photo (même photo_index) porte deux slides consécutives, la deuxième NE reprend PAS le cadrage cover/center de la première : c'est le pendant visuel du zoom narratif. Sur la deuxième occurrence : background-size entre 140% et 175% et background-position ciblée sur le détail dont parle le texte (le visual_anchor de la slide) — plan entier puis plan serré. Jamais deux slides visuellement identiques d'affilée.
 
 ═══ SLIDE 1 = HERO D'OUVERTURE ═══
 La slide 1 est la vignette qui doit STOPPER le scroll. Traite-la comme une affiche, pas comme une slide ordinaire :
@@ -922,9 +931,11 @@ N'ajoute JAMAIS data-pptx-photo sur un élément sans photo réelle (icône SVG,
 Retourne un JSON :
 {
   "slides_html": [
-    { "slide_number": 1, "html": "..." }
+    { "slide_number": 1, "html": "...", "contrast_ok": true, "legibility": "traitement de lisibilité appliqué (voile, carte, étiquette…)" }
   ]
 }
+
+Pour chaque slide portant une PHOTO (photo_full / photo_integrated) : avant de finaliser, regarde la zone réelle de pixels sous le texte et corrige au moindre doute (voile dense, bandeau opaque). Renseigne "contrast_ok" honnêtement (false si un doute subsiste) et "legibility" (courte note). Slides text_only : "contrast_ok": true suffit.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
 
@@ -1370,7 +1381,10 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
     // Chaque slide s'auto-évalue (contrast_ok). Pour celles que l'IA signale encore
     // douteuses, UNE passe ciblée de régénération impose un bandeau opaque. Tout est
     // gardé : au moindre échec on conserve les slides d'origine (jamais de régression).
-    if (isPhotoCarousel && Array.isArray(result?.slides_html)) {
+    if ((isPhotoCarousel || isMixCarousel) && Array.isArray(result?.slides_html)) {
+      // En mix, seules les slides porteuses d'une PHOTO sont concernées : une slide
+      // design sombre de la charte avec texte blanc est légitime sans voile.
+      const slideHasPhoto = (s: any) => /data:image\//.test(s?.html || "") || /\{\{PHOTO_\d+\}\}/.test(s?.html || "");
       // Filet DÉTERMINISTE : `contrast_ok` est auto-déclaré par l'IA, qui sur-estime
       // souvent la lisibilité. On ne s'y fie donc pas seul. Heuristique sur le HTML
       // rendu : une slide à texte CLAIR (blanc/quasi-blanc) posé sur la photo SANS
@@ -1391,7 +1405,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
         return !(darkVeil || darkShadow || darkSolid);
       };
       const flagged = result.slides_html.filter(
-        (s: any) => s?.contrast_ok === false || overlayLikelyUnreadable(s),
+        (s: any) => (!isMixCarousel || slideHasPhoto(s)) && (s?.contrast_ok === false || overlayLikelyUnreadable(s)),
       );
       if (flagged.length > 0) {
         console.warn(
@@ -1444,6 +1458,39 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         } catch (fixErr) {
           console.error("carousel-visual: passe de correction du contraste échouée (slides d'origine conservées)", fixErr);
         }
+      }
+    }
+
+    // ═══ D1-bis — Gardes déterministes lisibilité / safe-zone / héros (audit 12/07, lot C) ═══
+    // Le modèle s'auto-déclare conforme (voile, 200px de marge basse, slide 1 « affiche »)
+    // mais le rendu réel viole ces règles. Corrections par CODE, jamais par re-génération :
+    // padding remonté au plancher, scrim injecté si texte clair sans voile, hook court agrandi.
+    if ((isPhotoCarousel || isMixCarousel) && Array.isArray(result?.slides_html)) {
+      const srcByNumber = new Map<number, any>();
+      for (const s of (slides as any[])) {
+        if (Number.isInteger((s as any)?.slide_number)) srcByNumber.set((s as any).slide_number, s);
+      }
+      let safeFixes = 0, scrims = 0, heroBumps = 0;
+      const slideNums = result.slides_html.map((s: any) => Number(s?.slide_number)).filter((n: number) => Number.isFinite(n));
+      const minNum = slideNums.length ? Math.min(...slideNums) : 1;
+      result.slides_html = result.slides_html.map((s: any) => {
+        const source = srcByNumber.get(Number(s?.slide_number));
+        // Slides texte du mix : pas d'overlay photo, les gardes ne matchent pas (no-op).
+        const pos = source?.overlay_position;
+        let html: string = s?.html || "";
+        if (!html) return s;
+        const sz = enforceSafeZones(html, pos);
+        html = sz.html; safeFixes += sz.fixes;
+        const sc = injectFallbackScrim(html, pos);
+        html = sc.html; if (sc.injected) scrims++;
+        if (Number(s?.slide_number) === minNum && typeof source?.overlay_text === "string") {
+          const hero = enforceHeroHook(html, source.overlay_text);
+          html = hero.html; if (hero.bumped) heroBumps++;
+        }
+        return html === s.html ? s : { ...s, html };
+      });
+      if (safeFixes || scrims || heroBumps) {
+        console.log(`carousel-visual: gardes photo (lot C) — safe-zone ${safeFixes} fix(es), scrim injecté ${scrims}, héros slide 1 ${heroBumps}`);
       }
     }
 

@@ -166,3 +166,72 @@ export function normalizePhotoIndexes(
 
   return content.replace(doc.jsonText, JSON.stringify(doc.parsed, null, 2));
 }
+
+/**
+ * Appariement style/longueur des overlays (audit 12/07, lot E) : « minimal »
+ * (pilule/très grand) et « technique » (étiquette) sont conçus pour des phrases
+ * courtes — vu en live une phrase narrative de 23 mots rendue en pavé noir
+ * d'étiquette. Au-delà de 18 mots, l'overlay bascule en « narratif » (carte
+ * opaque lisible). Déterministe, aucune réécriture de texte.
+ */
+export function normalizeOverlayStyles(content: string): string {
+  const doc = extractJson(content);
+  if (!doc) return content;
+  const slides = doc.parsed?.slides;
+  if (!Array.isArray(slides) || slides.length === 0) return content;
+  let fixes = 0;
+  for (const s of slides as AnySlide[]) {
+    const text = typeof s?.overlay_text === "string" ? s.overlay_text.trim() : "";
+    if (!text) continue;
+    const words = text.split(/\s+/).filter(Boolean).length;
+    const style = s.overlay_style;
+    if (words > 18 && (style === "minimal" || style === "technique")) {
+      s.overlay_style = "narratif";
+      fixes++;
+    }
+  }
+  if (fixes > 0) {
+    console.log(`[photo-slide-structure] ${fixes} overlay_style long(s) rebasculé(s) en narratif (minimal/technique ≤ 18 mots)`);
+  }
+  return content.replace(doc.jsonText, JSON.stringify(doc.parsed, null, 2));
+}
+
+export interface MixCompositionReport {
+  total: number;
+  photoSlides: number;
+  photoRatio: number;
+  maxConsecutiveSameType: number;
+  violatesRatio: boolean;
+  violatesRun: boolean;
+}
+
+/**
+ * Mesure de composition d'un carrousel MIX (audit 12/07, lot D — télémétrie
+ * seule, pas de correction auto) : le prompt exige ≥ 50 % de slides photo et
+ * jamais 3 slides de même type d'affilée ; vu en live 33 % photo et 3 text_only
+ * consécutives. On mesure et on loggue pour dimensionner un éventuel fix.
+ */
+export function analyzeMixComposition(content: string): MixCompositionReport | null {
+  const doc = extractJson(content);
+  const slides = doc?.parsed?.slides;
+  if (!Array.isArray(slides) || slides.length === 0) return null;
+  const types = (slides as AnySlide[]).map((s) =>
+    isPhotoType(s?.slide_type) ? "photo" : s?.slide_type === "text_only" ? "text" : "autre",
+  );
+  const photoSlides = types.filter((t) => t === "photo").length;
+  let maxRun = 1;
+  let run = 1;
+  for (let i = 1; i < types.length; i++) {
+    run = types[i] === types[i - 1] ? run + 1 : 1;
+    if (run > maxRun) maxRun = run;
+  }
+  const photoRatio = photoSlides / types.length;
+  return {
+    total: types.length,
+    photoSlides,
+    photoRatio: Math.round(photoRatio * 100) / 100,
+    maxConsecutiveSameType: maxRun,
+    violatesRatio: photoRatio < 0.4, // 50 % exigé, 40 % toléré
+    violatesRun: maxRun >= 3,
+  };
+}

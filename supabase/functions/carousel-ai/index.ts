@@ -16,7 +16,7 @@ import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.t
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
-import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex } from "../_shared/photo-slide-structure.ts";
+import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition } from "../_shared/photo-slide-structure.ts";
 
 // ── Sortie structurée pour les deepening_questions ──
 // Même pattern que creative-flow (#359) : le tool forcé (tool_choice) fait
@@ -533,7 +533,9 @@ serve(async (req) => {
     if (
       type === "express_full" &&
       !hadUserDeepening &&
-      body.carousel_type !== "photo" && body.carousel_type !== "mix" &&
+      // Audit 12/07 (lot F) : photo/mix n'étaient pas servis — un carrousel photo
+      // d'expertise restait sans matière anti-surface. Même mécanique condiment,
+      // échec silencieux, toujours coupé si deepening ou actu.
       !(typeof body.news_context === "string" && body.news_context.trim())
     ) {
       const material = await fetchDepthMaterial({
@@ -720,6 +722,13 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           content = mergeConfirmedStructure(content, body.confirmed_structure);
           const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
           content = normalizePhotoIndexes(content, photoCountForIndexes);
+          content = normalizeOverlayStyles(content);
+          // Télémétrie composition (lot D, audit 12/07) : ratio photo < 40 % ou 3 slides
+          // de même type d'affilée — mesure seule, fix éventuel après lecture des logs.
+          const comp = analyzeMixComposition(content);
+          if (comp && (comp.violatesRatio || comp.violatesRun)) {
+            console.warn(JSON.stringify({ event: "carousel_mix_composition", ...comp }));
+          }
         }
         {
           const capped = limitVisualSchemas(content);
@@ -831,6 +840,8 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
           content = normalizePhotoIndexes(content, photoCountForIndexes, { assumePhotoWhenTypeMissing: true });
         }
+        // Un overlay long en style « minimal »/« technique » rend un pavé (lot E).
+        content = normalizeOverlayStyles(content);
         {
           const capped = limitVisualSchemas(content);
           if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
@@ -2292,6 +2303,8 @@ TENIR LES PROMESSES : si une slide (souvent la 1re) annonce une liste ou un nomb
 COMMENT ENCHAÎNER (sans mécaniser) : la plupart des transitions s'appuient naturellement sur l'UN de ces deux appuis — (a) un connecteur ("Puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Mais", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce que personne ne dit"…), (b) la reprise d'un mot-clé de la slide précédente. MAIS ne PLAQUE pas un connecteur sur chaque slide : si deux ou trois overlays d'affilée démarrent par "Puis… Et là… C'est là que…", c'est raté → varie, et souvent la simple continuité du sens (même sujet, même scène qui se prolonge) suffit. Le fil doit se SENTIR, pas se cocher. La vraie cible, c'est la fluidité du PRINCIPE Nº1, pas la présence mécanique d'un connecteur.
 
 Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur ${isLinkedIn ? "LinkedIn" : "Instagram"} = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
+
+OUTIL À DOSER — LA SLIDE OUVERTE (0 ou 1 par carrousel, jamais la dernière) : tu PEUX terminer UNE slide du milieu sur une tension non résolue que la slide suivante vient payer — c'est le meilleur moteur de swipe. Ce n'est PAS une obligation : l'absence est le cas normal, et deux slides ouvertes dans le même carrousel = raté (la ficelle se voit).
 
 RELECTURE FINALE OBLIGATOIRE (avant de répondre) : relis la suite des overlays d'une traite, à voix haute. (1) Est-ce que ça SONNE comme une seule histoire racontée d'un trait, ou comme des phrases posées côte à côte ? (2) Les transitions sont-elles fluides ET variées (pas le même connecteur répété, pas un "Puis/Et là" plaqué sur chaque slide) ? (3) Toute promesse de décompte est-elle tenue dans la prose (pas reléguée à un surtitre/badge) ? (4) Aucun overlay n'est une suite de groupes nominaux sans verbe conjugué (ex INTERDIT vu en vrai : "Dix formations ouvertes sur l'ordi. Zéro post publié." → à réécrire en phrase : "J'avais dix formations ouvertes sur l'ordi et toujours zéro post publié."). (5) Chaque "on", "elle", "il", "sa", "lui" a-t-il un référent que le lecteur peut identifier SANS deviner ? Si un pronom apparaît avant que son personnage soit planté, RÉÉCRIS. Si une seule réponse cloche, RÉÉCRIS avant de renvoyer le JSON.
 
