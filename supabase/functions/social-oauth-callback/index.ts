@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
       refreshToken = tokJson.refresh_token || null;
       const expiresIn = Number(tokJson.expires_in || 3600);
       expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-      scopes = String(tokJson.scope || "https://www.googleapis.com/auth/analytics.readonly openid email");
+      scopes = String(tokJson.scope || "https://www.googleapis.com/auth/analytics.readonly");
 
       // 2. Énumère les propriétés GA4 accessibles (Analytics Admin API).
       let properties: Awaited<ReturnType<typeof accountSummaries>>;

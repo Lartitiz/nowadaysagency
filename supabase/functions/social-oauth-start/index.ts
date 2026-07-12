@@ -21,9 +21,10 @@ const CANVA_SCOPES =
   "design:content:write design:meta:read profile:read";
 // Pinterest API v5 : lire le compte + les tableaux, et créer des épingles. Scopes séparés par des virgules.
 const PI_SCOPES = "user_accounts:read,boards:read,pins:read,pins:write";
-// Google Analytics : lecture seule des rapports GA4 + identité (openid/email) pour
-// nommer le compte connecté. Espace comme séparateur (convention OAuth Google).
-const GOOGLE_SCOPES = "https://www.googleapis.com/auth/analytics.readonly openid email";
+// Google Analytics : lecture seule des rapports GA4. Scope minimal (le compte est
+// nommé via la propriété GA4, pas via l'email) → moins de friction à la validation
+// Google. Doit correspondre EXACTEMENT au scope déclaré sur l'écran de consentement.
+const GOOGLE_SCOPES = "https://www.googleapis.com/auth/analytics.readonly";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
