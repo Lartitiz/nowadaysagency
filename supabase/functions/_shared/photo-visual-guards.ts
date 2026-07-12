@@ -111,14 +111,35 @@ export function enforceSafeZones(html: string, overlayPosition?: string | null):
  */
 export function injectFallbackScrim(html: string, overlayPosition?: string | null): { html: string; injected: boolean } {
   if (!html || !html.includes('data-slide-text="overlay"')) return { html, injected: false };
-  const hasLightText = /color\s*:\s*(#fff(?:fff)?\b|white\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(html);
-  if (!hasLightText) return { html, injected: false };
+
+  // Cas 2 (re-test lots C-F, 12/07 soir) : l'ancre overlay en couleur SOMBRE de la
+  // charte (ex #3B382F) posée sur la photo SANS carte claire — illisible et hors
+  // contrat (le prompt impose blanc-sur-sombre ou foncé-sur-bandeau-clair). On
+  // blanchit l'ancre puis on laisse le scrim sombre se poser en dessous.
+  let work = html;
+  const anchorRe = /(<[a-z][a-z0-9]*[^>]*data-slide-text="overlay"[^>]*style=")([^"]*)(")/i;
+  const anchor = work.match(anchorRe);
+  const anchorColor = anchor?.[2].match(/color\s*:\s*#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
+  const hasLightCard = /background[^;"']*:\s*(?:#fff\b|#ffffff\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(work);
+  if (anchor && anchorColor && !hasLightCard) {
+    const hex = anchorColor[1].length === 3 ? anchorColor[1].split("").map((c) => c + c).join("") : anchorColor[1];
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+    if (luminance < 0.5) {
+      const newStyle = anchor[2].replace(/color\s*:\s*#(?:[0-9a-f]{3}|[0-9a-f]{6})\b/i, "color:#FFFFFF");
+      work = work.replace(anchorRe, `$1${newStyle}$3`);
+      console.log("[photo-visual-guards] ancre overlay sombre sur photo sans carte → blanchie (scrim à suivre)");
+    }
+  }
+
+  const hasLightText = /color\s*:\s*(#fff(?:fff)?\b|white\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(work);
+  if (!hasLightText) return { html: work, injected: false };
   // Le text-shadow ne compte PAS comme protection (durcissement audit 12/07) :
   // on l'efface avant de chercher un voile/bandeau sombre réel.
-  const htmlNoShadow = html.replace(/text-shadow\s*:[^;"']*/gi, "");
+  const htmlNoShadow = work.replace(/text-shadow\s*:[^;"']*/gi, "");
   const darkVeil = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(htmlNoShadow);
   const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-2]?\d|3[0-2])\s*,)/i.test(htmlNoShadow);
-  if (darkVeil || darkSolid) return { html, injected: false };
+  if (darkVeil || darkSolid) return { html: work, injected: false };
 
   const pos = String(overlayPosition || "");
   const scrim = /^top/.test(pos)
@@ -130,18 +151,18 @@ export function injectFallbackScrim(html: string, overlayPosition?: string | nul
   // Injection juste après l'ouverture du div racine 1080×1350 (position:relative
   // déjà posée par le contrat de rendu ; on l'ajoute si absente).
   const rootRe = /(<div style=")([^"]*width\s*:\s*1080px[^"]*)(")/i;
-  const root = rootRe.exec(html);
-  if (!root) return { html, injected: false };
+  const root = rootRe.exec(work);
+  if (!root) return { html: work, injected: false };
   let rootStyle = root[2];
   if (!/position\s*:/i.test(rootStyle)) rootStyle = `position:relative;${rootStyle}`;
-  const rootTagClose = html.indexOf(">", root.index + root[0].length);
-  if (rootTagClose < 0) return { html, injected: false };
+  const rootTagClose = work.indexOf(">", root.index + root[0].length);
+  if (rootTagClose < 0) return { html: work, injected: false };
   const out =
-    html.slice(0, root.index) +
+    work.slice(0, root.index) +
     `<div style="${rootStyle}"` +
-    html.slice(root.index + root[0].length, rootTagClose + 1) +
+    work.slice(root.index + root[0].length, rootTagClose + 1) +
     scrim +
-    html.slice(rootTagClose + 1);
+    work.slice(rootTagClose + 1);
   return { html: out, injected: true };
 }
 
