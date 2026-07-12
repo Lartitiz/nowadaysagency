@@ -68,6 +68,7 @@ const HOOKS_TOOL = {
     properties: {
       hooks: {
         type: "array",
+        description: "TABLEAU de 3 objets hook — jamais une chaîne de caractères, jamais du JSON stringifié",
         items: {
           type: "object",
           properties: {
@@ -2028,6 +2029,21 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
     }
 
     // (step === "recycle" ne passe plus par ici : pipeline parallèle dédié plus haut.)
+
+    // ═══ NORMALISATION HOOKS (lot 7) ═══
+    // Le tool forcé garantit le JSON de TRANSPORT, pas les types internes : vu en
+    // live au premier test (12/07), le modèle peut remplir `hooks` avec une STRING
+    // JSON au lieu du tableau d'objets. On déballe en déterministe — sinon le front
+    // tombe en fallback « Continuer sans choisir » alors que les hooks existent.
+    if (step === "hooks" && parsed && typeof parsed === "object") {
+      if (typeof parsed.hooks === "string") {
+        const inner = tryParseAiJson<any>(parsed.hooks, "creative-flow:hooks-unwrap");
+        parsed.hooks = Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : [];
+      }
+      if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
+      // Objets valides uniquement : un hook sans texte parlé est inutilisable.
+      parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
+    }
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
     // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
