@@ -128,10 +128,10 @@ Deno.serve(async (req) => {
       url.searchParams.set("code_challenge_method", "s256");
     }
     if (platform === "google") {
-      // access_type=offline + prompt=consent : force Google à renvoyer un
-      // refresh_token à CHAQUE autorisation (sinon absent aux reconnexions).
+      // access_type=offline + prompt=select_account consent : force Google à
+      // renvoyer un refresh_token à CHAQUE autorisation ET à demander le compte.
       url.searchParams.set("access_type", "offline");
-      url.searchParams.set("prompt", "consent");
+      url.searchParams.set("prompt", "select_account consent");
       url.searchParams.set("include_granted_scopes", "true");
     }
 
