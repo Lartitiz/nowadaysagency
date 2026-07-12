@@ -13,7 +13,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight } from "lucide-react";
+import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight, History as HistoryIcon } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import ExcelImportDialog from "@/components/stats/ExcelImportDialog";
 import StatsPeriodSelector from "@/components/stats/StatsPeriodSelector";
@@ -65,6 +65,7 @@ export default function InstagramStats() {
   const [igConnected, setIgConnected] = useState(false);
   const [igStatusChecked, setIgStatusChecked] = useState(false);
   const [fetchingLive, setFetchingLive] = useState(false);
+  const [backfilling, setBackfilling] = useState<string | null>(null);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
 
@@ -450,6 +451,58 @@ export default function InstagramStats() {
     }
   }, [user, workspaceId, allStats, currentMonthDate, loadStats]);
 
+  // Récupère l'HISTORIQUE : les 12 derniers mois révolus depuis l'API Meta
+  // (fenêtres calendaires, cf. body.month de instagram-insights-fetch). On ne
+  // remplit QUE les mois sans portée et les champs vides — jamais d'écrasement.
+  const backfillHistory = useCallback(async () => {
+    if (!user) return;
+    setBackfilling("0/12");
+    try {
+      let filled = 0, skipped = 0, empty = 0;
+      for (let i = 1; i <= 12; i++) {
+        setBackfilling(`${i}/12`);
+        const month = monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1));
+        const existing = allStats.find(s => s.month_date === month);
+        if (existing?.reach != null) { skipped++; continue; }
+        const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
+          body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined, month },
+        });
+        const m = (data as any)?.monthMetrics;
+        if (error || !m) { empty++; continue; }
+        const patch: any = {};
+        const setIfEmpty = (col: string, val: unknown) => {
+          if (typeof val === "number" && (existing as any)?.[col] == null) patch[col] = val;
+        };
+        setIfEmpty("reach", m.reach);
+        setIfEmpty("views", m.views);
+        setIfEmpty("interactions", m.totalInteractions);
+        setIfEmpty("accounts_engaged", m.accountsEngaged);
+        setIfEmpty("profile_visits", m.profileViews);
+        setIfEmpty("followers_gained", m.followersGained);
+        if (!Object.keys(patch).length) { empty++; continue; }
+        const payload: any = {
+          ...(existing || {}), ...patch, user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          month_date: month, updated_at: new Date().toISOString(),
+        };
+        delete payload.id; delete payload.created_at;
+        const { error: writeErr } = (existing as any)?.id
+          ? await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id)
+          : await supabase.from("monthly_stats" as any).insert(payload);
+        if (writeErr) { empty++; continue; }
+        filled++;
+      }
+      await loadStats();
+      toast.success(`✅ Historique récupéré : ${filled} mois rempli${filled > 1 ? "s" : ""}`, {
+        description: `${skipped} déjà renseigné${skipped > 1 ? "s" : ""}, ${empty} sans donnée exploitable (Instagram remonte ~2 ans max, et rien avant le passage en compte professionnel).`,
+      });
+    } catch {
+      toast.error("Erreur pendant la récupération de l'historique");
+    } finally {
+      setBackfilling(null);
+    }
+  }, [user, workspaceId, allStats, now, loadStats]);
+
   const handleAnalyze = useCallback(async () => {
     if (!user) return;
     setIsGenerating(true);
@@ -769,11 +822,18 @@ export default function InstagramStats() {
                 {" "}<span className="text-xs">Instagram fournit une fenêtre glissante de 28 jours, rangée dans le mois en cours — et un instantané automatique fige tes chiffres en fin de mois, même sans clic.</span>
               </span>
             </div>
-            <Button onClick={fetchFromInstagram} disabled={fetchingLive} size="sm" className="gap-1.5 shrink-0">
-              {fetchingLive
-                ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Récupération…</>
-                : <><Sparkles className="h-3.5 w-3.5" />Remplir depuis Instagram</>}
-            </Button>
+            <div className="flex gap-2 shrink-0 flex-wrap">
+              <Button onClick={fetchFromInstagram} disabled={fetchingLive || !!backfilling} size="sm" className="gap-1.5">
+                {fetchingLive
+                  ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Récupération…</>
+                  : <><Sparkles className="h-3.5 w-3.5" />Remplir depuis Instagram</>}
+              </Button>
+              <Button onClick={backfillHistory} disabled={fetchingLive || !!backfilling} variant="outline" size="sm" className="gap-1.5">
+                {backfilling
+                  ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Historique {backfilling}…</>
+                  : <><HistoryIcon className="h-3.5 w-3.5" />Récupérer 12 mois d'historique</>}
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">

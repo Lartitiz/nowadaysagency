@@ -4,7 +4,7 @@
 // Nécessite la permission instagram_business_manage_insights (revue Meta).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
-import { fetchInstagramInsights } from "../_shared/instagram-insights.ts";
+import { fetchInstagramInsights, fetchInstagramMonth } from "../_shared/instagram-insights.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
@@ -51,6 +51,36 @@ Deno.serve(async (req) => {
         "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.",
         corsHeaders,
         409,
+      );
+    }
+
+    // Backfill : body.month = "YYYY-MM-01" → agrégats de ce MOIS CALENDAIRE passé
+    // (fenêtre since/until historique, ~24 mois max côté Meta). Utilisé par le
+    // bouton « Récupérer mon historique » pour remplir les mois vides.
+    const month: string | null = typeof body?.month === "string" ? body.month : null;
+    if (month) {
+      if (!/^\d{4}-\d{2}-01$/.test(month)) {
+        return jsonError("Mois invalide (format attendu : YYYY-MM-01).", corsHeaders, 400);
+      }
+      const [y, mo] = month.split("-").map(Number);
+      const start = Date.UTC(y, mo - 1, 1);
+      const nowD = new Date();
+      const currentMonthStart = Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), 1);
+      const oldest = Date.UTC(nowD.getUTCFullYear() - 2, nowD.getUTCMonth(), 1);
+      if (start >= currentMonthStart || start < oldest) {
+        return jsonError("Mois hors de la fenêtre récupérable (mois révolus des 24 derniers mois).", corsHeaders, 400);
+      }
+      const monthMetrics = await fetchInstagramMonth(supabase, conn, month);
+      if (monthMetrics.authError && monthMetrics.reach == null && monthMetrics.views == null) {
+        return jsonError(
+          "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.",
+          corsHeaders,
+          409,
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, accountName: conn.platform_account_name, month, monthMetrics }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
 
