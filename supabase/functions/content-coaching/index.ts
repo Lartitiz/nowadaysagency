@@ -17,6 +17,9 @@ function truncateForPrompt(text: string, maxChars: number): string {
   return `${text.slice(0, maxChars).trim()}\n[… contexte tronqué pour garder la génération stable …]`;
 }
 
+// Marqueur interne : la réponse LLM n'a pas pu être parsée (déjà loguée).
+class ParseFailure extends Error {}
+
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -48,8 +51,12 @@ Deno.serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const body = await req.json();
-    const { answers, workspace_id, intensity, regenerate_lens } = body;
+    const { answers, workspace_id, intensity, regenerate_lens, draw_nonce, exclude_lenses, previous_subject } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
+    const knownLensIds = IDEA_LENSES.map((l) => l.id);
+    const excludeLensIds: string[] = Array.isArray(exclude_lenses)
+      ? exclude_lenses.filter((id: unknown) => typeof id === "string" && knownLensIds.includes(id)).slice(0, 8)
+      : [];
 
     const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
@@ -311,12 +318,17 @@ Deno.serve(async (req) => {
 
     const bugCreatifBlock = "";
 
-    const cibleTxt = ctx?.profile?.cible || "non renseignée";
+    // Fallback de cible : profiles.cible est souvent vide alors que le
+    // branding (brand_profile.target_description) ou le persona la décrivent.
+    // Sans fallback, le bloc AUDIENCE tourne sur "non renseignée" et le
+    // modèle invente une cible (audit 12/07 : cible copiée du few-shot).
+    const cibleTxt = ctx?.profile?.cible || ctx?.tone?.target_description || ctx?.persona?.description || "non renseignée";
     const activiteTxt = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
 
-    // ─── LENSES (4 tirées par session, déterministe sur user+jour) ───
-    const lensSeed = `${user.id}|${now.toISOString().slice(0, 10)}|${sujet || ""}|${objectif}`;
-    const chosenLenses = pickLenses(lensSeed, 4);
+    // ─── LENSES (4 par tirage ; nonce client pour varier entre clics,
+    // exclude pour ne pas remontrer les lentilles déjà affichées) ───
+    const lensSeed = `${user.id}|${now.toISOString().slice(0, 10)}|${sujet || ""}|${objectif}|${canal || ""}|${format || ""}|${draw_nonce || ""}`;
+    const chosenLenses = pickLenses(lensSeed, 4, excludeLensIds);
     const lensesBlock = chosenLenses
       .map((l, i) => `   ${i + 1}. ${l.label} — ${l.def}`)
       .join("\n");
@@ -426,6 +438,13 @@ Pinterest : Texte → /creer?canal=pinterest | Visuelle → /creer?canal=pintere
 Newsletter → /creer?format=newsletter
 
 ═══════════════════════════════════════════════
+DIVERSITÉ THÉMATIQUE — obligatoire sur le jeu de 4
+═══════════════════════════════════════════════
+- Les 4 idées couvrent 4 TERRITOIRES différents du métier (ex : matière/technique, relation client, économie/coulisses, vision/valeurs, transmission…). Deux idées sur le même territoire = invalide.
+- MAXIMUM 1 idée sur le prix, le tarif ou la justification du coût — sauf si le SUJET fourni est explicitement le prix. La défense du prix est le réflexe le plus prévisible du secteur : ne pas en faire le centre de gravité.
+- MAXIMUM 1 idée réutilisant une même scène ou un même décor (pas 3 variations du même moment fort du métier).
+
+═══════════════════════════════════════════════
 TEST DE SINGULARITÉ — applique-le sur CHAQUE idée AVANT le test de validité
 ═══════════════════════════════════════════════
 Si quelqu'un qui suit 5 comptes du même secteur sur Insta/LinkedIn aurait déjà vu cette idée formulée à peu près comme ça → invalide, recommence.
@@ -467,22 +486,12 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
 }`;
 
     const usage: UsageSink = {};
-    const raw = await callAnthropic({
-      model: getModelForAction("coaching"),
-      system: truncateForPrompt(systemPrompt, MAX_CONTEXT_CHARS + MAX_LIVING_MATTER_CHARS + 12000),
-      messages: [
-        {
-          role: "user",
-          content: `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) TEST DE SINGULARITÉ, (6) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé, SANS aucune prose, SANS markdown, SANS raisonnement, et commence directement par le caractère {.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`,
-        },
-      ],
-      temperature: 0.8,
-      max_tokens: 4000,
-    }, usage);
+    const previousBlock = regenerate_lens && typeof previous_subject === "string" && previous_subject.trim()
+      ? ` Version précédente à DÉPASSER (ne la reformule pas, change d'angle à l'intérieur de la lentille) : "${previous_subject.trim().slice(0, 300)}".`
+      : "";
+    const baseUserMessage = `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente.${previousBlock}` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) DIVERSITÉ THÉMATIQUE, (6) TEST DE SINGULARITÉ, (7) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé, SANS aucune prose, SANS markdown, SANS raisonnement, et commence directement par le caractère {.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`;
 
-
-    let result: any;
-    try {
+    const parseIdeas = async (raw: string): Promise<any> => {
       // Strip markdown fences éventuelles puis isole le 1er { ... } équilibré.
       let cleaned = (raw || "")
         .replace(/```json\s*/gi, "")
@@ -495,26 +504,89 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
       }
       cleaned = cleaned.slice(start, end + 1);
       try {
-        result = JSON.parse(cleaned);
+        return JSON.parse(cleaned);
       } catch {
         // Réparations courantes : virgules trailing + caractères de contrôle.
         const repaired = cleaned
           .replace(/,(\s*[}\]])/g, "$1")
           .replace(/[\x00-\x1F\x7F]/g, " ");
         try {
-          result = JSON.parse(repaired);
+          return JSON.parse(repaired);
         } catch {
           // Dernier recours : jsonrepair gère les guillemets non échappés,
           // virgules manquantes, retours-ligne dans les strings, etc.
           const { jsonrepair } = await import("npm:jsonrepair@3.8.1");
-          result = JSON.parse(jsonrepair(cleaned));
+          return JSON.parse(jsonrepair(cleaned));
         }
       }
-    } catch (parseErr) {
-      console.error("Failed to parse content-coaching response:", parseErr, "raw:", raw?.slice(0, 800));
-      return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    };
+
+    const callAndParse = async (userMessage: string): Promise<any> => {
+      const raw = await callAnthropic({
+        model: getModelForAction("coaching"),
+        system: truncateForPrompt(systemPrompt, MAX_CONTEXT_CHARS + MAX_LIVING_MATTER_CHARS + 12000),
+        messages: [{ role: "user", content: userMessage }],
+        temperature: 0.8,
+        max_tokens: 4000,
+      }, usage);
+      try {
+        return await parseIdeas(raw);
+      } catch (parseErr) {
+        console.error("Failed to parse content-coaching response:", parseErr, "raw:", raw?.slice(0, 800));
+        throw new ParseFailure();
+      }
+    };
+
+    let result: any;
+    try {
+      result = await callAndParse(baseUserMessage);
+    } catch (e) {
+      if (e instanceof ParseFailure) {
+        return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw e;
+    }
+
+    // ─── Enforcement ancrage matière vivante ───
+    // Le prompt exige que 2 idées sur 4 citent la matière vivante, mais la
+    // règle peut s'éteindre en silence (audit 12/07 : 0/44 idées ancrées).
+    // Vérification déterministe + 1 retry maximum, puis on sert quand même.
+    const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const anchorTokens: string[] = [];
+    for (const p of personas) if (p.portrait_prenom) anchorTokens.push(normalize(p.portrait_prenom));
+    for (const label of [...offers.map((o: any) => o.name), ...stories.map((s: any) => s.title)]) {
+      if (!label) continue;
+      for (const w of normalize(label).split(/[^a-z0-9]+/)) {
+        if (w.length >= 5) anchorTokens.push(w.slice(0, 6));
+      }
+    }
+    const countAnchored = (ideas: any[]) =>
+      ideas.filter((i) => {
+        const text = normalize(`${i?.subject || ""} ${i?.why_it_works || ""}`);
+        return anchorTokens.some((t) => text.includes(t));
+      }).length;
+
+    if (!regenerate_lens && livingMatterBlock && anchorTokens.length > 0 && Array.isArray(result?.ideas) && result.ideas.length > 0) {
+      let anchored = countAnchored(result.ideas);
+      let retried = false;
+      if (anchored === 0) {
+        retried = true;
+        console.warn("[content-coaching][ancrage] 0 idée ancrée dans la matière vivante — retry", { userId: user.id });
+        try {
+          const retryResult = await callAndParse(
+            `${baseUserMessage}\n\nCORRECTION OBLIGATOIRE : ta précédente proposition ignorait totalement la MATIÈRE VIVANTE. Cette fois, au moins 2 idées sur 4 doivent citer EXPLICITEMENT un persona par son prénom, une offre par son nom ou une anecdote listée dans le bloc MATIÈRE VIVANTE.`,
+          );
+          if (Array.isArray(retryResult?.ideas) && countAnchored(retryResult.ideas) > 0) {
+            result = retryResult;
+            anchored = countAnchored(result.ideas);
+          }
+        } catch (retryErr) {
+          console.warn("[content-coaching][ancrage] retry échoué, on sert la 1re version", retryErr);
+        }
+      }
+      console.log("[content-coaching][ancrage]", { anchored, total: result.ideas.length, retried });
     }
 
     // Backwards compatibility: if the front expects the old format

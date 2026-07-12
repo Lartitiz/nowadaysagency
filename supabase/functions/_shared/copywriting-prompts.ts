@@ -1433,81 +1433,95 @@ export const IDEA_LENSES: Array<{ id: string; label: string; def: string }> = [
     def: "Combinaison explicite de DEUX angles éditoriaux différents (ex : Build in public × Mythe à déconstruire). L'idée naît du frottement entre les deux." },
 ];
 
-export function pickLenses(seed: string, count = 4): typeof IDEA_LENSES {
-  // Hash stable sur seed pour varier par jour/user mais rester reproductible
-  // dans une même session.
+// Lentilles à fort potentiel "waouh" (métaphore, scène, tabou, vulnérabilité,
+// renversement) : chaque tirage doit en contenir au moins une, sinon une
+// session peut passer une journée entière sur des angles purement analytiques.
+export const HIGH_TENSION_LENS_IDS = [
+  "analogie_inattendue",
+  "micro_scene",
+  "question_taboue",
+  "confession_couteuse",
+  "inversion",
+];
+
+export function pickLenses(seed: string, count = 4, excludeIds: string[] = []): typeof IDEA_LENSES {
+  // Hash stable sur seed : même graine → même tirage (reproductible),
+  // mais la graine inclut un nonce côté appelant pour varier entre clics.
   let h = 2166136261;
   for (let i = 0; i < seed.length; i++) {
     h = (h ^ seed.charCodeAt(i)) >>> 0;
     h = Math.imul(h, 16777619) >>> 0;
   }
-  const pool = [...IDEA_LENSES];
+  const next = (salt: number) => {
+    h = Math.imul(h ^ salt, 2654435761) >>> 0;
+    return h;
+  };
+  // Exclusion des lentilles déjà montrées (bouton "Autres idées"), en gardant
+  // toujours assez de candidates pour un tirage complet.
+  let pool = IDEA_LENSES.filter((l) => !excludeIds.includes(l.id));
+  if (pool.length < count) pool = [...IDEA_LENSES];
   const out: typeof IDEA_LENSES = [];
-  // Pioche déterministe sans remise
-  while (out.length < Math.min(count, pool.length)) {
-    h = Math.imul(h ^ (out.length + 1), 2654435761) >>> 0;
-    const idx = h % pool.length;
+  // Garantie : au moins 1 lentille haute-tension par tirage.
+  const tension = pool.filter((l) => HIGH_TENSION_LENS_IDS.includes(l.id));
+  if (tension.length > 0) {
+    const picked = tension[next(97) % tension.length];
+    out.push(picked);
+    pool = pool.filter((l) => l.id !== picked.id);
+  }
+  // Pioche déterministe sans remise pour le reste.
+  while (out.length < Math.min(count, out.length + pool.length)) {
+    const idx = next(out.length + 1) % pool.length;
     out.push(pool[idx]);
     pool.splice(idx, 1);
+  }
+  // Position de la lentille garantie mélangée elle aussi (sinon toujours 1re).
+  if (out.length > 1) {
+    const swap = next(193) % out.length;
+    [out[0], out[swap]] = [out[swap], out[0]];
   }
   return out;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
-// WOW IDEA EXAMPLES : few-shot d'idées waouh annotées (tiède vs waouh).
-// Couvre 6 secteurs pour permettre l'extrapolation par le LLM.
+// WOW IDEA EXAMPLES : critères de structure tiède vs waouh, SANS exemples
+// sectoriels incarnés. Les exemples (céramiste, coach…) fuyaient dans les
+// sorties : secteur, cible et thèmes recopiés tels quels (audit 12/07 —
+// cible du few-shot reprise mot pour mot, thème récité 5 sessions sur 8).
 // ═══════════════════════════════════════════════════════════════════════
 export const WOW_IDEA_EXAMPLES = `
 ═══════════════════════════════════════════════════
-EXEMPLES : IDÉE TIÈDE vs IDÉE WAOUH
+CE QUI SÉPARE UNE IDÉE TIÈDE D'UNE IDÉE WAOUH
 ═══════════════════════════════════════════════════
-Ces exemples montrent la différence concrète entre une idée plate (qu'on
-voit partout) et une idée qui fait dire "ah merde, c'est exactement ça".
-Tu n'imites pas le SUJET, tu imites la STRUCTURE de profondeur.
+Une idée tiède est une CATÉGORIE de contenu ("des erreurs à éviter", "des
+conseils pour…", "pourquoi X est important") : n'importe qui du secteur
+pourrait la publier. Une idée waouh est un MOMENT ou une POSITION
+irremplaçable. Elle contient AU MOINS DEUX de ces marqueurs :
+1. UNE SCÈNE DATÉE ET SITUÉE : un instant précis (une heure, un lieu, un
+   geste, une phrase entendue) que seule cette personne peut raconter.
+2. UNE POSITION QUI COÛTE : ce que tenir cette position coûte réellement
+   (argent, clients, confort, réputation) — pas une opinion gratuite.
+3. UN RENVERSEMENT VÉRIFIÉ : l'inverse exact d'un réflexe répandu du
+   secteur, factuellement défendable — pas un contre-pied décoratif.
+4. UN MÉCANISME NOMMÉ : le ressort caché (psychologique, économique,
+   technique) qui explique un phénomène que la cible vit sans le
+   comprendre.
 
-- CÉRAMISTE (cible : femmes 30-45 sensibles à l'artisanat)
-Tiède : "3 erreurs quand on choisit sa vaisselle"
-Waouh : "Le bol qui m'a fait pleurer à 2h du mat, pourquoi je ne fais
-plus de pièces 'parfaites'"
-Pourquoi : tension nommée (perfection vs vivant) + scène précise (2h du
-mat) + position métier qui dérange les pairs (rejet de la pièce parfaite).
+TRANSFORMATIONS TYPES (des structures, jamais des sujets à recopier) :
+- "liste de conseils" → "le cas précis où le conseil standard a échoué,
+  et ce que ça révèle"
+- "pourquoi mon approche est mieux" → "ce que je refuse de faire, et ce
+  que ce refus me coûte concrètement"
+- "les coulisses de mon travail" → "le moment exact où ce métier se joue
+  (l'instant, le geste, la décision), raconté de l'intérieur"
+- "mon parcours" → "la croyance que j'ai dû abandonner, et l'événement
+  précis qui l'a fait craquer"
 
-- COACH BUSINESS (cible : freelances en transition)
-Tiède : "Comment fixer ses prix quand on débute"
-Waouh : "Le jour où j'ai facturé 3000€ et où ma cliente m'a dit 'c'est
-trop peu'"
-Pourquoi : confession contre-intuitive (la cliente corrige à la HAUSSE)
-+ remet en cause le réflexe 'bas prix = plus accessible' du secteur.
+⚠ ANTI-FUITE (obligatoire) : ces marqueurs sont des STRUCTURES vides.
+Tout le CONTENU (secteur, cible, thèmes, scènes, chiffres) vient
+EXCLUSIVEMENT du contexte branding et de la matière vivante de
+l'utilisatrice — jamais d'un exemple générique mémorisé. Si la cible est
+"non renseignée", ne l'invente pas : déduis-la prudemment du branding.
 
-- AGENT IMMOBILIER (cible : primo-accédants Paris/banlieue)
-Tiède : "Les pièges à éviter à l'achat"
-Waouh : "Pourquoi j'ai déconseillé à 4 clients d'acheter cette année
-(et ce que mon agence en a pensé)"
-Pourquoi : contre-pied intra-métier (déconseiller dans un métier de
-commission) + tension professionnelle assumée + observation terrain.
-
-- CONSULTANTE MARKETING (cible : petites marques ≤ 10 personnes)
-Tiède : "L'authenticité, le nouveau marketing"
-Waouh : "La marque qui m'a payé pour ne RIEN poster pendant 3 mois,
-ce qu'on a observé"
-Pourquoi : inversion radicale (silence comme stratégie) + observation
-chiffrable + dérange la doxa 'il faut poster'.
-
-- PRATICIENNE BIEN-ÊTRE (cible : femmes en burn-out latent)
-Tiède : "5 rituels matin pour bien commencer la journée"
-Waouh : "La cliente qui dort 9h, médite, mange clean, et qui craque
-quand même. Ce que j'ai compris."
-Pourquoi : micro-scène + démolition d'une promesse mainstream du
-secteur + ouvre sur un mécanisme plus profond (sur-contrôle).
-
-- CRÉATRICE DE MODE ÉTHIQUE (cible : 25-40 conscience écolo)
-Tiède : "Pourquoi le slow fashion est l'avenir"
-Waouh : "Pourquoi je refuse de dire que mes pièces 'durent toute la vie'
-(et ce que ça change pour mes prix)"
-Pourquoi : contre-pied honnête sur un argument marketing du secteur +
-tension business assumée + révèle un mécanisme caché du métier.
-
-RÈGLE D'EXTRAPOLATION : tes idées doivent atteindre ce niveau de
-spécificité et de tension. Si tu n'arrives pas à formuler une scène
-ou une position aussi précise, l'idée n'est pas prête : reformule.
+RÈGLE : si tu ne peux pas formuler la scène ou la position avec cette
+précision, l'idée n'est pas prête — reformule.
 `;
