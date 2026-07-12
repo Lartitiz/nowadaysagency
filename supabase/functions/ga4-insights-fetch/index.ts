@@ -39,27 +39,30 @@ Deno.serve(async (req) => {
       );
     }
 
-    // ─── Résolution de l'id de propriété GA4 ───
-    // L'env GA4_PROPERTY_ID gagne (Phase 1, une seule propriété). Sinon, on tente
-    // une ligne social_connections platform='google' pour l'espace.
-    let propertyId = Deno.env.get("GA4_PROPERTY_ID") || "";
+    // ─── Gate + résolution de la propriété GA4 ───
+    // On EXIGE une connexion Google (ligne social_connections platform='google')
+    // pour l'espace appelant : c'est elle qui autorise l'accès ET porte l'id de
+    // propriété. Sans cette ligne → 404, même si GA4_PROPERTY_ID est défini. Cela
+    // empêche qu'un autre compte tire les données de la propriété globale Phase 1.
     const supabase = getServiceClient();
-    if (!propertyId) {
-      const filterCol = workspaceId ? "workspace_id" : "user_id";
-      const filterVal = workspaceId || userId;
-      let q = supabase
-        .from("social_connections")
-        .select("platform_account_id")
-        .eq("platform", "google")
-        .eq(filterCol, filterVal);
-      if (workspaceId) q = q.eq("user_id", userId);
-      else q = q.is("workspace_id", null);
-      const { data: conn } = await q.maybeSingle();
-      propertyId = conn?.platform_account_id || "";
+    const filterCol = workspaceId ? "workspace_id" : "user_id";
+    const filterVal = workspaceId || userId;
+    let cq = supabase
+      .from("social_connections")
+      .select("platform_account_id")
+      .eq("platform", "google")
+      .eq(filterCol, filterVal);
+    if (workspaceId) cq = cq.eq("user_id", userId);
+    else cq = cq.is("workspace_id", null);
+    const { data: conn } = await cq.maybeSingle();
+    if (!conn) {
+      return jsonError("Google Analytics n'est pas connecté sur ce compte.", corsHeaders, 404);
     }
+    // La ligne porte l'id de propriété ; sinon on retombe sur l'env (Phase 1).
+    const propertyId = conn.platform_account_id || Deno.env.get("GA4_PROPERTY_ID") || "";
     if (!propertyId) {
       return jsonError(
-        "Aucune propriété Google Analytics configurée. Renseigne GA4_PROPERTY_ID ou connecte un compte Google.",
+        "Connexion Google présente mais aucune propriété GA4 (ni platform_account_id ni GA4_PROPERTY_ID).",
         corsHeaders,
         404,
       );

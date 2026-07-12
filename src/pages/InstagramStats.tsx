@@ -69,6 +69,7 @@ export default function InstagramStats() {
   const [backfilling, setBackfilling] = useState<string | null>(null);
   const [fetchingGa4, setFetchingGa4] = useState(false);
   const [backfillingGa4, setBackfillingGa4] = useState<string | null>(null);
+  const [ga4Connected, setGa4Connected] = useState(false);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
   const [contentInsights, setContentInsights] = useState<any | null>(null);
@@ -172,6 +173,10 @@ export default function InstagramStats() {
     }).then(({ data }) => {
       const conns = (data as any)?.connections || [];
       setIgConnected(conns.some((c: any) => c.platform === "instagram" && c.connected));
+      // GA4 : le bloc de remplissage auto n'apparaît QUE si une connexion Google
+      // existe pour cet espace (pas juste uses_ga4) — sinon la propriété globale
+      // Phase 1 fuiterait chez les autres comptes.
+      setGa4Connected(conns.some((c: any) => c.platform === "google" && c.connected));
       setIgStatusChecked(true);
     }).catch(() => { setIgStatusChecked(true); /* non bloquant */ });
   }, [user?.id, workspaceId, workspaceReady]);
@@ -1137,8 +1142,8 @@ export default function InstagramStats() {
           </div>
         )}
 
-        {/* ─── Remplissage auto depuis Google Analytics (si le site est suivi via GA4) ─── */}
-        {config?.uses_ga4 && (
+        {/* ─── Remplissage auto depuis Google Analytics (si une connexion Google existe) ─── */}
+        {igStatusChecked && ga4Connected && (
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <span>📈</span>

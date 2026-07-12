@@ -159,28 +159,32 @@ Deno.serve(async (req) => {
     // On fige les colonnes « site web » du mois écoulé pour les espaces qui ont
     // activé GA4 (stats_config.uses_ga4). Ne remplit QUE les champs vides.
     const ga4Results: { scope: string; status: string }[] = [];
-    const ga4PropertyId = Deno.env.get("GA4_PROPERTY_ID") || "";
-    const ga4Configured = !!ga4PropertyId
-      && !!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL")
+    const ga4EnvProperty = Deno.env.get("GA4_PROPERTY_ID") || "";
+    const ga4Configured = !!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL")
       && !!Deno.env.get("GOOGLE_SA_PRIVATE_KEY");
     if (ga4Configured) {
       try {
-        const { data: ga4Configs } = await supabase
-          .from("stats_config")
-          .select("user_id, workspace_id")
-          .eq("uses_ga4", true);
-        let ga4Metrics: Awaited<ReturnType<typeof fetchGa4Month>> | null = null;
-        if ((ga4Configs || []).length) {
-          // Une seule propriété (Phase 1) → un seul appel réutilisé pour tous.
-          ga4Metrics = await fetchGa4Month(ga4PropertyId, monthDate);
-        }
-        for (const cfg of ga4Configs || []) {
-          const scope = cfg.workspace_id || cfg.user_id;
+        // Gate par la CONNEXION Google (social_connections platform='google'), pas
+        // par uses_ga4 : on ne remplit que les espaces réellement connectés, ce qui
+        // empêche la propriété globale Phase 1 de fuiter dans d'autres comptes.
+        const { data: ga4Conns } = await supabase
+          .from("social_connections")
+          .select("user_id, workspace_id, platform_account_id")
+          .eq("platform", "google");
+        const metricsCache = new Map<string, Awaited<ReturnType<typeof fetchGa4Month>>>();
+        for (const conn of ga4Conns || []) {
+          const scope = conn.workspace_id || conn.user_id;
+          const propertyId = conn.platform_account_id || ga4EnvProperty;
           try {
-            if (!ga4Metrics) { ga4Results.push({ scope, status: "no_data" }); continue; }
+            if (!propertyId) { ga4Results.push({ scope, status: "no_property" }); continue; }
+            let ga4Metrics = metricsCache.get(propertyId);
+            if (!ga4Metrics) {
+              ga4Metrics = await fetchGa4Month(propertyId, monthDate);
+              metricsCache.set(propertyId, ga4Metrics);
+            }
             let gq = supabase.from("monthly_stats").select("*").eq("month_date", monthDate);
-            if (cfg.workspace_id) gq = gq.eq("workspace_id", cfg.workspace_id);
-            else gq = gq.eq("user_id", cfg.user_id).is("workspace_id", null);
+            if (conn.workspace_id) gq = gq.eq("workspace_id", conn.workspace_id);
+            else gq = gq.eq("user_id", conn.user_id).is("workspace_id", null);
             const { data: gExisting } = await gq.limit(1).maybeSingle();
 
             const gcur = (gExisting || {}) as Record<string, unknown>;
@@ -206,8 +210,8 @@ Deno.serve(async (req) => {
             } else {
               const { error: insErr } = await supabase.from("monthly_stats").insert({
                 ...gpatch,
-                user_id: cfg.user_id,
-                workspace_id: cfg.workspace_id ?? null,
+                user_id: conn.user_id,
+                workspace_id: conn.workspace_id ?? null,
                 month_date: monthDate,
                 updated_at: new Date().toISOString(),
               });
