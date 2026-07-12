@@ -67,6 +67,8 @@ export default function InstagramStats() {
   const [igStatusChecked, setIgStatusChecked] = useState(false);
   const [fetchingLive, setFetchingLive] = useState(false);
   const [backfilling, setBackfilling] = useState<string | null>(null);
+  const [fetchingGa4, setFetchingGa4] = useState(false);
+  const [backfillingGa4, setBackfillingGa4] = useState<string | null>(null);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
   const [contentInsights, setContentInsights] = useState<any | null>(null);
@@ -555,6 +557,120 @@ export default function InstagramStats() {
     }
   }, [user, workspaceId, allStats, now, loadStats]);
 
+  // Remplit les colonnes « site web » du mois en cours avec les vraies stats
+  // Google Analytics (visiteurs, utilisateurs GA4, trafic par source). Miroir de
+  // fetchFromInstagram : ne remplit QUE les colonnes GA4 encore vides.
+  const fetchFromGa4 = useCallback(async () => {
+    if (!user) return;
+    setFetchingGa4(true);
+    try {
+      const { data, error } = await invokeWithTimeout("ga4-insights-fetch", {
+        body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
+      }, 60000);
+      const m = (data as any)?.metrics;
+      if (error || !m) {
+        const ctxBody = (error as any)?.context?.body;
+        const msg = ctxBody?.error || (data as any)?.error || "";
+        toast.error("Google Analytics indisponible", { description: msg || "Impossible de récupérer tes statistiques GA4 pour le moment." });
+        return;
+      }
+      const target = currentMonthDate;
+      const existing = allStats.find(s => s.month_date === target) || {};
+      const patch: any = {};
+      const filled: string[] = [];
+      // Ne remplit que les colonnes GA4 encore vides (jamais d'écrasement).
+      const setIfEmpty = (col: string, val: unknown, label: string) => {
+        if (typeof val === "number" && val > 0 && (existing as any)[col] == null) {
+          patch[col] = val; filled.push(label);
+        }
+      };
+      setIfEmpty("website_visitors", m.websiteVisitors, "visiteurs du site");
+      setIfEmpty("ga4_users", m.ga4Users, "utilisateurs GA4");
+      setIfEmpty("traffic_search", m.trafficSearch, "trafic recherche");
+      setIfEmpty("traffic_social", m.trafficSocial, "trafic réseaux");
+      setIfEmpty("traffic_pinterest", m.trafficPinterest, "trafic Pinterest");
+      setIfEmpty("traffic_instagram", m.trafficInstagram, "trafic Instagram");
+      if (!filled.length) {
+        toast("Aucune nouvelle donnée GA4", { description: "Les colonnes site web du mois sont déjà renseignées, ou GA4 n'a rien renvoyé cette fois." });
+        return;
+      }
+      const payload: any = {
+        ...existing, ...patch, user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        month_date: target, updated_at: new Date().toISOString(),
+      };
+      delete payload.id; delete payload.created_at;
+      if ((existing as any).id) {
+        const { error: upErr } = await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
+        if (upErr) { toast.error("Erreur d'enregistrement des stats GA4"); return; }
+      } else {
+        const { error: insErr } = await supabase.from("monthly_stats" as any).insert(payload);
+        if (insErr) { toast.error("Erreur d'enregistrement des stats GA4"); return; }
+      }
+      setSelectedMonth(target);
+      await loadStats();
+      toast.success(`✅ Stats Google Analytics récupérées — ${monthLabel(target)}`, {
+        description: `Rempli automatiquement : ${filled.join(", ")}. Complète le reste à la main si besoin.`,
+      });
+    } catch {
+      toast.error("Erreur lors de la récupération des stats Google Analytics");
+    } finally {
+      setFetchingGa4(false);
+    }
+  }, [user, workspaceId, allStats, currentMonthDate, loadStats]);
+
+  // Récupère l'HISTORIQUE GA4 : les 12 derniers mois révolus (fenêtres calendaires).
+  // On ne remplit QUE les colonnes GA4 vides — jamais d'écrasement. Miroir de backfillHistory.
+  const backfillGa4History = useCallback(async () => {
+    if (!user) return;
+    setBackfillingGa4("0/12");
+    try {
+      let filled = 0, skipped = 0, empty = 0;
+      for (let i = 1; i <= 12; i++) {
+        setBackfillingGa4(`${i}/12`);
+        const month = monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1));
+        const existing = allStats.find(s => s.month_date === month);
+        // On saute un mois seulement si toutes les colonnes GA4 clés sont déjà là.
+        if (existing?.website_visitors != null && existing?.ga4_users != null) { skipped++; continue; }
+        const { data, error } = await invokeWithTimeout("ga4-insights-fetch", {
+          body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined, month },
+        }, 60000);
+        const m = (data as any)?.metrics;
+        if (error || !m) { empty++; continue; }
+        const patch: any = {};
+        const setIfEmpty = (col: string, val: unknown) => {
+          if (typeof val === "number" && val > 0 && (existing as any)?.[col] == null) patch[col] = val;
+        };
+        setIfEmpty("website_visitors", m.websiteVisitors);
+        setIfEmpty("ga4_users", m.ga4Users);
+        setIfEmpty("traffic_search", m.trafficSearch);
+        setIfEmpty("traffic_social", m.trafficSocial);
+        setIfEmpty("traffic_pinterest", m.trafficPinterest);
+        setIfEmpty("traffic_instagram", m.trafficInstagram);
+        if (!Object.keys(patch).length) { empty++; continue; }
+        const payload: any = {
+          ...(existing || {}), ...patch, user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          month_date: month, updated_at: new Date().toISOString(),
+        };
+        delete payload.id; delete payload.created_at;
+        const { error: writeErr } = (existing as any)?.id
+          ? await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id)
+          : await supabase.from("monthly_stats" as any).insert(payload);
+        if (writeErr) { empty++; continue; }
+        filled++;
+      }
+      await loadStats();
+      toast.success(`✅ Historique GA4 récupéré : ${filled} mois rempli${filled > 1 ? "s" : ""}`, {
+        description: `${skipped} déjà renseigné${skipped > 1 ? "s" : ""}, ${empty} sans donnée exploitable.`,
+      });
+    } catch {
+      toast.error("Erreur pendant la récupération de l'historique Google Analytics");
+    } finally {
+      setBackfillingGa4(null);
+    }
+  }, [user, workspaceId, allStats, now, loadStats]);
+
   // « Ce qui marche pour toi » : agrégats déterministes (pas d'IA, gratuit) par
   // format / jour / créneau sur ~50 posts, persistés dans custom_data du mois
   // courant pour survivre au rechargement.
@@ -1018,6 +1134,31 @@ export default function InstagramStats() {
             <Button asChild variant="outline" size="sm" className="shrink-0">
               <Link to="/parametres/connexions">Connecter Instagram</Link>
             </Button>
+          </div>
+        )}
+
+        {/* ─── Remplissage auto depuis Google Analytics (si le site est suivi via GA4) ─── */}
+        {config?.uses_ga4 && (
+          <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <span>📈</span>
+              <span>
+                Récupère automatiquement les <strong className="text-foreground">visiteurs, utilisateurs et sources de trafic (recherche, réseaux, Pinterest, Instagram)</strong> de ton site depuis Google Analytics.
+                {" "}<span className="text-xs">Ne remplit que les colonnes « site web » encore vides — ta saisie manuelle n'est jamais écrasée.</span>
+              </span>
+            </div>
+            <div className="flex gap-2 shrink-0 flex-wrap">
+              <Button onClick={fetchFromGa4} disabled={fetchingGa4 || !!backfillingGa4} size="sm" className="gap-1.5">
+                {fetchingGa4
+                  ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Récupération…</>
+                  : <><Sparkles className="h-3.5 w-3.5" />Remplir depuis Google Analytics</>}
+              </Button>
+              <Button onClick={backfillGa4History} disabled={fetchingGa4 || !!backfillingGa4} variant="outline" size="sm" className="gap-1.5">
+                {backfillingGa4
+                  ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Historique {backfillingGa4}…</>
+                  : <><HistoryIcon className="h-3.5 w-3.5" />Récupérer 12 mois d'historique</>}
+              </Button>
+            </div>
           </div>
         )}
 
