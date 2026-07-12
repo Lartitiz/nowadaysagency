@@ -2649,14 +2649,18 @@ export default function CreerUnifie() {
         ? resolvePhotoIndexes(mappedSlides, totalPhotos)
         : mappedSlides;
 
+      // Photos VISION (allégées ~1024px, upload + analyse rapides). ⚠️ L'edge remplace
+      // les placeholders {{PHOTO_N}} par CES versions dans le HTML renvoyé — on garde
+      // donc la correspondance vision→master pour ré-hydrater le plein format au retour
+      // (audit carrousel photo 12/07 : l'aperçu, le PNG et la publication Instagram
+      // partaient des photos dégradées, cf docblock image-vision.ts).
+      const visionPhotos = hasPhotos && hasActualPhotos
+        ? await downscalePhotosForVision(photosForVisuals.map(p => ({ base64: p.base64, mimeType: p.mimeType })))
+        : null;
       const requestBody: any = {
         slides: slidesForVisuals,
-        ...(hasPhotos && hasActualPhotos ? {
-          // Photos envoyées en VISION uniquement (l'IA les regarde pour concevoir le
-          // layout ; le vrai placement se fait côté client via les placeholders {{PHOTO_N}}).
-          // → version allégée ~1024px : upload + analyse plus rapides, zéro impact sur le
-          // rendu final qui réutilise le plein format.
-          photos: await downscalePhotosForVision(photosForVisuals.map(p => ({ base64: p.base64, mimeType: p.mimeType }))),
+        ...(visionPhotos ? {
+          photos: visionPhotos,
           carousel_type: isMixCarousel ? "mix" : "photo",
         } : {
           template_style: null,
@@ -2761,7 +2765,25 @@ export default function CreerUnifie() {
         slide_number: typeof s?.slide_number === "number" ? s.slide_number : i + 1,
         html: String(s?.html ?? ""),
       }));
-      setVisualSlides(normalizedSlides);
+      // Ré-hydratation PLEIN FORMAT (audit 12/07) : resubstitue les masters aux
+      // versions vision injectées par l'edge — même forme data URL que lui
+      // (raw.startsWith("data:") ? raw : préfixe data:mime;base64,).
+      const asDataUrl = (ph: { base64: string; mimeType?: string }) =>
+        ph.base64.startsWith("data:") ? ph.base64 : `data:${ph.mimeType || "image/jpeg"};base64,${ph.base64}`;
+      const rehydratedSlides = visionPhotos
+        ? normalizedSlides.map((s) => {
+            let html = s.html;
+            visionPhotos.forEach((vp, i) => {
+              const master = photosForVisuals[i];
+              if (!master?.base64) return;
+              const from = asDataUrl(vp);
+              const to = asDataUrl(master);
+              if (from !== to && html.includes(from)) html = html.split(from).join(to);
+            });
+            return html === s.html ? s : { ...s, html };
+          })
+        : normalizedSlides;
+      setVisualSlides(rehydratedSlides);
       if (!opts?.background) {
         if (downgradeReason === "user_chose_text") {
           toast.success("Carrousel généré en mode texte (aucune photo disponible).");

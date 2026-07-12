@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
 import { exportCarouselPng } from "@/lib/export-carousel-png";
-import { exportCarouselHybridPptx } from "@/lib/export-carousel-hybrid-pptx";
+import { exportCarouselHybridPptx, type OriginalPhoto } from "@/lib/export-carousel-hybrid-pptx";
 import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
@@ -119,13 +119,34 @@ export function CalendarPostPreview({
     }
   }, [visualUrls, downloadingPng, theme]);
 
+  // Photos originales du post (storage) → data URLs pour la couche photo NATIVE
+  // du PPTX hybride (audit carrousel photo 12/07 : `undefined` ici = photos figées
+  // dans le raster, en version dégradée). Échec réseau → undefined = fallback legacy.
+  const loadOriginalPhotos = useCallback(async (): Promise<OriginalPhoto[] | undefined> => {
+    if (!photoUrls || photoUrls.length === 0) return undefined;
+    try {
+      return await Promise.all(photoUrls.map(async (u) => {
+        const blob = await (await fetch(u)).blob();
+        const base64 = await new Promise<string>((res, rej) => {
+          const r = new FileReader();
+          r.onload = () => res(String(r.result));
+          r.onerror = () => rej(new Error("read"));
+          r.readAsDataURL(blob);
+        });
+        return { base64 };
+      }));
+    } catch {
+      return undefined;
+    }
+  }, [photoUrls]);
+
   // ── Hybride : fond capturé fidèlement + texte natif éditable PPT ──
   const handleDownloadHybridPptx = useCallback(async () => {
     if (!visualHtml || visualHtml.length === 0 || downloadingHybrid) return;
     setDownloadingHybrid(true);
     try {
       const fileName = sanitize(`editable-${theme || "carrousel"}`);
-      await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName, undefined, includeLogo ? logoUrl : null);
+      await exportCarouselHybridPptx(visualHtml, slidesData || null, charterData || null, fileName, await loadOriginalPhotos(), includeLogo ? logoUrl : null);
       toast.success("PowerPoint éditable téléchargé");
     } catch (err) {
       console.error("Hybrid PPTX error:", err);
@@ -133,7 +154,7 @@ export function CalendarPostPreview({
     } finally {
       setDownloadingHybrid(false);
     }
-  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, includeLogo, logoUrl]);
+  }, [visualHtml, slidesData, charterData, downloadingHybrid, theme, includeLogo, logoUrl, loadOriginalPhotos]);
 
   // ── Pont Canva : même PPTX hybride que le téléchargement, importé dans Canva ──
   const handleOpenInCanva = useCallback(() => {
@@ -145,12 +166,12 @@ export function CalendarPostPreview({
         slidesData || null,
         charterData || null,
         fileName,
-        undefined,
+        await loadOriginalPhotos(),
         includeLogo ? logoUrl : null,
         { returnBlob: true },
       )) as Blob;
     }, theme || "Carrousel Nowadays");
-  }, [visualHtml, slidesData, charterData, theme, includeLogo, logoUrl, openInCanva]);
+  }, [visualHtml, slidesData, charterData, theme, includeLogo, logoUrl, openInCanva, loadOriginalPhotos]);
 
   const handleCopyCaption = useCallback(() => {
     if (!caption) return;
