@@ -30,8 +30,8 @@ describe("monthLabel", () => {
 });
 
 describe("monthLabelShort", () => {
-  it("'2025-03-01' → 'Mar. 2025'", () => {
-    expect(monthLabelShort("2025-03-01")).toBe("Mar. 2025");
+  it("'2025-03-01' → 'Mars 2025'", () => {
+    expect(monthLabelShort("2025-03-01")).toBe("Mars 2025");
   });
 });
 
