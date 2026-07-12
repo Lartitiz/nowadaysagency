@@ -56,6 +56,17 @@ Deno.serve(async (req) => {
 
     const metrics = await fetchInstagramInsights(supabase, conn);
 
+    // Token invalide / permission retirée détecté pendant la lecture : demander
+    // une reconnexion plutôt que de renvoyer un succès vide (avant, ces erreurs
+    // étaient avalées en console.warn et indistinguables d'un trou de données).
+    if (metrics.authError && !metrics.followers && !metrics.reach30d) {
+      return jsonError(
+        "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.",
+        corsHeaders,
+        409,
+      );
+    }
+
     return new Response(
       JSON.stringify({ success: true, accountName: conn.platform_account_name, metrics }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
