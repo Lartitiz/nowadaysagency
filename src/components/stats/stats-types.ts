@@ -21,7 +21,6 @@ export type DashboardKPIs = {
   followers: number | null;
   avgReach: number;
   avgEngagement: number;
-  engagementByFollowers: number | null;
   netGrowth: number | null;
   changeFollowers: { val: number; dir: "up" | "down" | "flat" } | null;
   changeReach: { val: number; dir: "up" | "down" | "flat" } | null;

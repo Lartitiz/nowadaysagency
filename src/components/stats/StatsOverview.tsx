@@ -26,8 +26,7 @@ export default function StatsOverview({ kpis, isSingleMonth }: StatsOverviewProp
         label={isSingleMonth ? "Engagement" : "Engagement moy."}
         value={fmtPct(kpis.avgEngagement)}
         change={kpis.changeEngagement}
-        sub={kpis.engagementByFollowers != null ? `${fmtPct(kpis.engagementByFollowers)} / abonné·es` : undefined}
-        help="Comptes engagés ÷ portée. Moyenne pondérée sur la période (les mois à forte portée comptent davantage)."
+        help="Comptes engagés ÷ portée : LA mesure de référence (celle d'Instagram Insights). Repères : 1-3 % correct, 3-6 % solide, au-delà excellent. Moyenne pondérée sur la période."
       />
       <DashboardCard
         icon="📈"
