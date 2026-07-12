@@ -62,9 +62,9 @@ export default function StatsCharts({
                 />
                 <Legend />
                 <ReferenceLine y={0} stroke="hsl(var(--border))" />
-                <Bar dataKey="gained" stackId="g" fill="#34D399" name="Gagnés" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="gained" stackId="g" fill="hsl(var(--success))" name="Gagnés" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="lost" stackId="g" fill="hsl(var(--primary))" name="Perdus" radius={[0, 0, 4, 4]} />
-                <Line type="monotone" dataKey="net" stroke="#8B5CF6" name="Net" strokeWidth={2.5} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="net" stroke="hsl(var(--info))" name="Net" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -80,9 +80,9 @@ export default function StatsCharts({
                 <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Legend />
-                <Line type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="profile_visits" stroke="#8B5CF6" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} />
-                <Line type="monotone" dataKey="website_clicks" stroke="#FFE561" name="Clics site" strokeWidth={2} dot={{ r: 3 }} />
+                <Line type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="profile_visits" stroke="hsl(var(--info))" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="website_clicks" stroke="hsl(var(--warning))" name="Clics site" strokeWidth={2} dot={{ r: 3 }} connectNulls />
               </ComposedChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -102,23 +102,33 @@ export default function StatsCharts({
           </ChartCard>
 
           <ChartCard title="Sources de trafic site web">
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
-                <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-                <Legend />
-                {(activeConfig.traffic_sources || []).map((src, i) => {
-                  const colors = ["hsl(var(--primary))", "#8B5CF6", "#FFE561", "#ffa7c6", "#34D399", "#60A5FA", "#F59E0B", "#A78BFA", "#FB923C"];
-                  const label = ALL_TRAFFIC_SOURCES.find(s => s.id === src)?.label || src;
-                  return (
-                    <Bar key={src} dataKey={`traffic_${src}`} stackId="a" fill={colors[i % colors.length]} name={label}
-                      radius={i === (activeConfig.traffic_sources || []).length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
-                  );
-                })}
-              </BarChart>
-            </ResponsiveContainer>
+            {/* Sans aucune donnée de trafic, une grille vide avec axes se faisait
+                passer pour un graphique : état vide pédagogique à la place. */}
+            {chartData.some(d =>
+              (activeConfig.traffic_sources || []).some(src => Number(d[`traffic_${src}`]) > 0),
+            ) ? (
+              <ResponsiveContainer width="100%" height={260}>
+                <BarChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                  <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
+                  <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
+                  <Legend />
+                  {(activeConfig.traffic_sources || []).map((src, i) => {
+                    const colors = ["hsl(var(--primary))", "hsl(var(--info))", "hsl(var(--warning))", "hsl(var(--bordeaux))", "hsl(var(--success))", "hsl(var(--raspberry))", "#7C3AED", "#0E7490", "#B45309"];
+                    const label = ALL_TRAFFIC_SOURCES.find(s => s.id === src)?.label || src;
+                    return (
+                      <Bar key={src} dataKey={`traffic_${src}`} stackId="a" fill={colors[i % colors.length]} name={label}
+                        radius={i === (activeConfig.traffic_sources || []).length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]} />
+                    );
+                  })}
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-sm text-muted-foreground py-6 text-center">
+                🌐 Renseigne tes sources de trafic dans « Saisir mes stats » (section Site web) pour voir ce graphique.
+              </p>
+            )}
           </ChartCard>
         </>
       )}
@@ -152,33 +162,38 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
 function FunnelChart({ data }: { data: StatsRow | undefined }) {
   if (!data) return <EmptyState {...MESSAGES.empty.stats} />;
 
-  const steps: { label: string; value: number }[] = [
-    { label: "Comptes touchés", value: data.reach || 0 },
-    { label: "Comptes engagés", value: data.accounts_engaged || 0 },
-    { label: "Visites profil", value: data.profile_visits || 0 },
-    { label: "Clics site", value: data.website_clicks || 0 },
+  // null = non renseigné (affiché « – », pas de taux de conversion) ; avant,
+  // un champ vide s'affichait « 0 (0.0%) » comme si le funnel s'effondrait.
+  const steps: { label: string; value: number | null }[] = [
+    { label: "Comptes touchés", value: data.reach ?? null },
+    { label: "Comptes engagés", value: data.accounts_engaged ?? null },
+    { label: "Visites profil", value: data.profile_visits ?? null },
+    { label: "Clics site", value: data.website_clicks ?? null },
   ];
 
-  const maxVal = Math.max(...steps.map(s => s.value), 1);
+  const maxVal = Math.max(...steps.map(s => s.value ?? 0), 1);
 
   return (
     <div className="space-y-2 py-2">
       {steps.map((step, i) => {
-        const pct = (step.value / maxVal) * 100;
-        const convRate = i > 0 && steps[i - 1].value > 0
-          ? ((step.value / steps[i - 1].value) * 100).toFixed(1) : null;
+        const pct = ((step.value ?? 0) / maxVal) * 100;
+        const prev = steps[i - 1]?.value;
+        const convRate = i > 0 && step.value != null && prev != null && prev > 0
+          ? ((step.value / prev) * 100).toFixed(1) : null;
         return (
           <div key={step.label} className="space-y-1">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">{step.label}</span>
               <span className="font-medium text-foreground">
-                {fmt(step.value)}
+                {step.value == null ? <span className="text-muted-foreground">non renseigné</span> : fmt(step.value)}
                 {convRate && <span className="text-muted-foreground ml-1">({convRate}%)</span>}
               </span>
             </div>
             <div className="h-5 bg-muted rounded-lg overflow-hidden">
-              <div className="h-full rounded-lg transition-all duration-500"
-                style={{ width: `${Math.max(pct, 2)}%`, background: `linear-gradient(90deg, #fb3d80, #ffa7c6)` }} />
+              {step.value != null && (
+                <div className="h-full rounded-lg transition-all duration-500"
+                  style={{ width: `${Math.max(pct, 2)}%`, background: `linear-gradient(90deg, #fb3d80, #ffa7c6)` }} />
+              )}
             </div>
           </div>
         );
