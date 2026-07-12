@@ -113,6 +113,8 @@ function findReversals(text: string): string[] {
 export interface RedacAnalysis {
   reversals: string[];
   overlongSlides: Array<{ slide: number; words: number }>;
+  /** Overlays photo > 28 mots (règle : 5-25, un overlay est une phrase posée SUR la photo). */
+  overlongOverlays: Array<{ slide: number; words: number }>;
   ctaDuplicated: boolean;
   moulded: string[];
   hashtagsCount: number;
@@ -133,6 +135,13 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>):
     .map((s: any) => ({ slide: s?.slide_number ?? 0, words: wordCount(slideBody(s)) }))
     .filter((x) => x.words > 55); // 50 (règle, corps seul) + tolérance de comptage
 
+  // Overlay = phrase posée SUR la photo : la règle 5-25 mots n'avait aucun gate
+  // (30 mots vus en live, audit 12/07 lot D). Seuil 28 = 25 + tolérance.
+  const overlongOverlays = slides
+    .filter((s: any) => typeof s?.overlay_text === "string" && s.overlay_text.trim())
+    .map((s: any) => ({ slide: s?.slide_number ?? 0, words: wordCount(s.overlay_text) }))
+    .filter((x) => x.words > 28);
+
   // CTA de caption ≡ CTA de la dernière slide (la caption doit COMPLÉTER, pas répéter)
   const lastSlide = slides[slides.length - 1];
   const ctaDuplicated = Boolean(
@@ -151,7 +160,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>):
     ? findFabricatedNumbers(allText + "\n" + schemaText, allowedNumbers)
     : [];
 
-  return { reversals, overlongSlides, ctaDuplicated, moulded, hashtagsCount, fabricatedNumbers };
+  return { reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded, hashtagsCount, fabricatedNumbers };
 }
 
 /**
@@ -183,6 +192,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
   const violations =
     Math.max(0, a.reversals.length - 1) + // 1 retournement est toléré (règle « 1 max »)
     a.overlongSlides.length +
+    a.overlongOverlays.length +
     (a.ctaDuplicated ? 1 : 0) +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length);
@@ -191,6 +201,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     score: Math.max(40, 100 - 10 * violations),
     reversal_negation_count: a.reversals.length,
     slides_over_50_words: a.overlongSlides,
+    overlays_over_28_words: a.overlongOverlays,
     caption_cta_duplicates_slide: a.ctaDuplicated,
     moulded_verbatims: a.moulded,
     fabricated_numbers: a.fabricatedNumbers.length,
@@ -235,6 +246,11 @@ function buildFixInstructions(a: RedacAnalysis): string {
   }
   for (const s of a.overlongSlides) {
     lines.push(`SLIDE ${s.slide} : ${s.words} mots, maximum 50. Coupe sans perdre le fait concret.`);
+  }
+  for (const s of a.overlongOverlays) {
+    lines.push(
+      `OVERLAY SLIDE ${s.slide} : ${s.words} mots posés SUR LA PHOTO, maximum 25. Réécris l'overlay_text en UNE phrase complète (sujet + verbe) de 25 mots max, sans perdre le fait concret ni casser l'enchaînement avec les slides voisines.`,
+    );
   }
   if (a.ctaDuplicated) {
     lines.push(
@@ -340,7 +356,15 @@ export async function runRedacGate(
     }
   }
 
-  const after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers);
+  let after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers);
+  // Duplication caption/slide PERSISTANTE malgré la re-passe (vue livrée avec le
+  // flag true, audit 12/07 lot D) : suppression déterministe — le CTA vit sur la
+  // slide, la caption garde sa chute (dernière ligne du body). Supprimer > inventer.
+  if (after.ctaDuplicated && finalDoc.parsed?.caption) {
+    console.log("[redac-gate] caption.cta supprimé (duplication de la dernière slide persistante après re-passe)");
+    finalDoc.parsed.caption.cta = "";
+    after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers);
+  }
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
   finalDoc.parsed.quality_check = buildQualityCheck(after, repassed);
 
@@ -356,7 +380,7 @@ export async function runRedacGate(
 }
 
 function emptyAnalysis(): RedacAnalysis {
-  return { reversals: [], overlongSlides: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [] };
+  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [] };
 }
 
 // ── Variante TEXTE (lot 4) : LinkedIn et newsletter ──

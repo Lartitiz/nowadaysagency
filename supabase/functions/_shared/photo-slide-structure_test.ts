@@ -1,6 +1,8 @@
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
   countCarouselSlides,
+  normalizeOverlayStyles,
+  analyzeMixComposition,
   maxStructurePhotoIndex,
   mergeConfirmedStructure,
   normalizePhotoIndexes,
@@ -164,4 +166,47 @@ Deno.test("merge puis normalize : le chemin complet structure→sortie de l'audi
   let out = mergeConfirmedStructure(content, structure);
   out = normalizePhotoIndexes(out, 4, { assumePhotoWhenTypeMissing: true });
   assertEquals(parse(out).slides.map((s: any) => s.photo_index), [1, 1, 2, 3, 3, 4, 4]);
+});
+
+// ── normalizeOverlayStyles (lot E, audit 12/07) ──
+
+Deno.test("styles : phrase de 23 mots en « technique » → « narratif » ; courts intouchés", () => {
+  const long = Array.from({ length: 23 }, (_, i) => `mot${i}`).join(" ");
+  const content = wrap([
+    { slide_number: 1, overlay_text: long, overlay_style: "technique" },
+    { slide_number: 2, overlay_text: "Cinq mots percutants suffisent ici.", overlay_style: "minimal" },
+    { slide_number: 3, overlay_text: long, overlay_style: "sensoriel" },
+  ]);
+  const out = parse(normalizeOverlayStyles(content));
+  assertEquals(out.slides.map((s: any) => s.overlay_style), ["narratif", "minimal", "sensoriel"]);
+});
+
+// ── analyzeMixComposition (lot D, télémétrie) ──
+
+Deno.test("composition mix : le cas de l'audit (33 % photo, 3 text_only consécutives) est flaggé", () => {
+  const content = wrap([
+    { slide_number: 1, slide_type: "photo_full" },
+    { slide_number: 2, slide_type: "text_only" },
+    { slide_number: 3, slide_type: "photo_integrated" },
+    { slide_number: 4, slide_type: "text_only" },
+    { slide_number: 5, slide_type: "text_only" },
+    { slide_number: 6, slide_type: "text_only" },
+  ]);
+  const r = analyzeMixComposition(content)!;
+  assertEquals(r.photoSlides, 2);
+  assertEquals(r.violatesRatio, true);
+  assertEquals(r.maxConsecutiveSameType, 3);
+  assertEquals(r.violatesRun, true);
+});
+
+Deno.test("composition mix : alternance saine → aucun flag", () => {
+  const content = wrap([
+    { slide_number: 1, slide_type: "photo_full" },
+    { slide_number: 2, slide_type: "text_only" },
+    { slide_number: 3, slide_type: "photo_full" },
+    { slide_number: 4, slide_type: "text_only" },
+  ]);
+  const r = analyzeMixComposition(content)!;
+  assertEquals(r.violatesRatio, false);
+  assertEquals(r.violatesRun, false);
 });

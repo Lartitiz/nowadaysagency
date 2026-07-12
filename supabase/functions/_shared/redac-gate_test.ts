@@ -159,3 +159,27 @@ Deno.test("captionEndingViolated : sans règle, jamais de violation", () => {
   const parsed = { caption: { hook: "h", body: "b", cta: "Une question ?" } };
   assertEquals(captionEndingViolated(parsed, undefined), false);
 });
+
+// ── Overlays > 28 mots (audit carrousel photo 12/07, lot D) ──
+
+Deno.test("analyzeCarouselRedac mesure les overlays photo trop longs (> 28 mots)", () => {
+  const long = Array.from({ length: 30 }, (_, i) => `mot${i}`).join(" ");
+  const parsed = {
+    slides: [
+      { slide_number: 1, overlay_text: "Une phrase courte qui tient sur la photo." },
+      { slide_number: 2, overlay_text: long },
+      { slide_number: 3, title: "t", body: "slide texte sans overlay" },
+    ],
+    caption: { hook: "h", body: "b", cta: "c" },
+  };
+  const a = analyzeCarouselRedac(parsed);
+  assertEquals(a.overlongOverlays.length, 1);
+  assertEquals(a.overlongOverlays[0].slide, 2);
+  assertEquals(a.overlongOverlays[0].words, 30);
+});
+
+Deno.test("analyzeCarouselRedac : overlay à 25 mots = conforme (tolérance 28)", () => {
+  const ok = Array.from({ length: 25 }, (_, i) => `mot${i}`).join(" ");
+  const a = analyzeCarouselRedac({ slides: [{ slide_number: 1, overlay_text: ok }], caption: {} });
+  assertEquals(a.overlongOverlays.length, 0);
+});
