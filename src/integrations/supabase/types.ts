@@ -4698,6 +4698,7 @@ export type Database = {
           posts_count: number | null
           profile_visits: number | null
           reach: number | null
+          reach_paid: number | null
           revenue: number | null
           sales_pages_data: Json | null
           stories_coverage: number | null
@@ -4749,6 +4750,7 @@ export type Database = {
           posts_count?: number | null
           profile_visits?: number | null
           reach?: number | null
+          reach_paid?: number | null
           revenue?: number | null
           sales_pages_data?: Json | null
           stories_coverage?: number | null
@@ -4800,6 +4802,7 @@ export type Database = {
           posts_count?: number | null
           profile_visits?: number | null
           reach?: number | null
+          reach_paid?: number | null
           revenue?: number | null
           sales_pages_data?: Json | null
           stories_coverage?: number | null
