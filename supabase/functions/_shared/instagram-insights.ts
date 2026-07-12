@@ -337,6 +337,160 @@ function deriveFrequency(postsLast30d: number): string {
   return "Irrégulier";
 }
 
+// ── Analyse de contenus : « ce qui marche pour toi » sur ~50 posts ───────────
+// Agrégats déterministes (pas d'IA) par FORMAT, JOUR de semaine et CRÉNEAU
+// horaire (heure de Paris), calculés sur les insights par post. Les moyennes ne
+// sont données que si n ≥ 2 posts par segment ; l'appelant affiche la taille
+// d'échantillon (une moyenne sur 50 posts reste indicative, pas une loi).
+export interface IgContentBucket {
+  label: string;
+  count: number;
+  avgEngagementRate?: number; // moyenne des taux par post du segment
+  avgReach?: number;
+  avgSaves?: number;
+}
+export interface IgContentAnalysis {
+  sampleSize: number; // nb de posts avec engagement mesurable
+  byFormat: IgContentBucket[];
+  byWeekday: IgContentBucket[]; // libellés FR, ordonnés lundi→dimanche
+  bySlot: IgContentBucket[]; // matin/midi/après-midi/soir
+  topPosts: IgPostMetrics[]; // 5 meilleurs par ER sur l'échantillon élargi
+  fetchedAt: string;
+  partial: boolean;
+  authError?: boolean;
+}
+
+const WEEKDAYS_FR = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+
+function parisParts(iso: string): { weekday: string; hour: number } {
+  const d = new Date(iso);
+  const fmt = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris", weekday: "long", hour: "numeric", hour12: false,
+  });
+  const parts = fmt.formatToParts(d);
+  const weekday = (parts.find((p) => p.type === "weekday")?.value || "").toLowerCase();
+  const hour = Number(parts.find((p) => p.type === "hour")?.value || "0");
+  return { weekday, hour };
+}
+
+function slotLabel(hour: number): string {
+  if (hour >= 6 && hour < 12) return "matin (6h-12h)";
+  if (hour >= 12 && hour < 15) return "midi (12h-15h)";
+  if (hour >= 15 && hour < 18) return "après-midi (15h-18h)";
+  if (hour >= 18 && hour < 23) return "soir (18h-23h)";
+  return "nuit";
+}
+
+function buildBuckets(
+  posts: IgPostMetrics[],
+  keyOf: (p: IgPostMetrics) => string,
+  order?: string[],
+): IgContentBucket[] {
+  const map = new Map<string, IgPostMetrics[]>();
+  for (const p of posts) {
+    const k = keyOf(p);
+    if (!k) continue;
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(p);
+  }
+  const buckets: IgContentBucket[] = [];
+  for (const [label, group] of map) {
+    const withER = group.filter((p) => typeof p.engagementRate === "number");
+    const b: IgContentBucket = { label, count: group.length };
+    if (withER.length >= 2) {
+      b.avgEngagementRate = withER.reduce((s, p) => s + (p.engagementRate || 0), 0) / withER.length;
+      const withReach = group.filter((p) => typeof p.reach === "number");
+      if (withReach.length >= 2) {
+        b.avgReach = Math.round(withReach.reduce((s, p) => s + (p.reach || 0), 0) / withReach.length);
+      }
+      const withSaves = group.filter((p) => typeof p.saves === "number");
+      if (withSaves.length >= 2) {
+        b.avgSaves = Math.round((withSaves.reduce((s, p) => s + (p.saves || 0), 0) / withSaves.length) * 10) / 10;
+      }
+    }
+    buckets.push(b);
+  }
+  if (order) {
+    buckets.sort((a, b) => order.indexOf(a.label.split(" ")[0]) - order.indexOf(b.label.split(" ")[0]));
+  } else {
+    buckets.sort((a, b) => (b.avgEngagementRate || 0) - (a.avgEngagementRate || 0));
+  }
+  return buckets;
+}
+
+export async function analyzeContentPerformance(
+  supabase: any,
+  conn: any,
+  opts: { max?: number } = {},
+): Promise<IgContentAnalysis> {
+  const token = await refreshTokenIfNeeded(supabase, conn);
+  const igId = conn.platform_account_id;
+  const ctx = newFetchContext();
+  const max = opts.max ?? 50;
+
+  const media = await fetchMediaList(igId, token, ctx, { max });
+  let partial = !media.length;
+
+  const measured = await mapPool(media, POST_CONCURRENCY, async (post) => {
+    const pm: IgPostMetrics = {
+      id: String(post.id),
+      subject: (post.caption || "").replace(/\s+/g, " ").trim().slice(0, 120),
+      format: String(post.media_type || "IMAGE"),
+      timestamp: post.timestamp,
+      permalink: post.permalink,
+    };
+    const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
+    const insUrl = new URL(`${GRAPH}/${post.id}/insights`);
+    insUrl.searchParams.set("metric", "reach,likes,comments,saved,shares");
+    insUrl.searchParams.set("access_token", token);
+    const viewsUrl = new URL(`${GRAPH}/${post.id}/insights`);
+    viewsUrl.searchParams.set("metric", "views");
+    viewsUrl.searchParams.set("access_token", token);
+    const [ins, vj] = await Promise.all([
+      getJson(insUrl, ctx),
+      isVideo ? getJson(viewsUrl, ctx) : Promise.resolve(null),
+    ]);
+    if (ins?.data) {
+      for (const m of ins.data) {
+        const val = m?.values?.[0]?.value ?? m?.total_value?.value;
+        if (m.name === "reach") pm.reach = val;
+        if (m.name === "likes") pm.likes = val;
+        if (m.name === "comments") pm.comments = val;
+        if (m.name === "saved") pm.saves = val;
+        if (m.name === "shares") pm.shares = val;
+      }
+    } else {
+      partial = true;
+    }
+    const v = vj?.data?.find((m: any) => m.name === "views");
+    const vVal = v?.values?.[0]?.value ?? v?.total_value?.value;
+    if (typeof vVal === "number") pm.views = vVal;
+    const interactions = (pm.likes || 0) + (pm.comments || 0) + (pm.saves || 0) + (pm.shares || 0);
+    const denom = (pm.reach && pm.reach > 0) ? pm.reach : (pm.views && pm.views > 0) ? pm.views : 0;
+    if (denom > 0) pm.engagementRate = interactions / denom;
+    return pm;
+  });
+
+  const usable = measured.filter((p) => typeof p.engagementRate === "number");
+  const ranked = [...usable].sort((a, b) => (b.engagementRate || 0) - (a.engagementRate || 0));
+
+  return {
+    sampleSize: usable.length,
+    byFormat: buildBuckets(usable, (p) => {
+      const u = p.format.toUpperCase();
+      if (u.includes("REEL") || u.includes("VIDEO")) return "Reels";
+      if (u.includes("CAROUSEL")) return "Carrousels";
+      return "Images";
+    }),
+    byWeekday: buildBuckets(usable, (p) => (p.timestamp ? parisParts(p.timestamp).weekday : ""), WEEKDAYS_FR),
+    bySlot: buildBuckets(usable, (p) => (p.timestamp ? slotLabel(parisParts(p.timestamp).hour) : "")),
+    topPosts: ranked.slice(0, 5),
+    fetchedAt: new Date().toISOString(),
+    partial,
+    authError: ctx.authError,
+  };
+}
+
 /**
  * Récupère UNIQUEMENT les ~25 derniers posts avec leurs métriques par post
  * (reach, likes, comments, saves, shares, views pour les Reels) + engagementRate.

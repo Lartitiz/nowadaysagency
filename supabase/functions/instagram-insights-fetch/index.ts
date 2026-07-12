@@ -4,7 +4,7 @@
 // Nécessite la permission instagram_business_manage_insights (revue Meta).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
-import { fetchInstagramInsights, fetchInstagramMonth } from "../_shared/instagram-insights.ts";
+import { fetchInstagramInsights, fetchInstagramMonth, analyzeContentPerformance } from "../_shared/instagram-insights.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
@@ -80,6 +80,23 @@ Deno.serve(async (req) => {
       }
       return new Response(
         JSON.stringify({ success: true, accountName: conn.platform_account_name, month, monthMetrics }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // Analyse de contenus : body.analysis === true → agrégats « ce qui marche
+    // pour toi » (par format / jour / créneau, heure de Paris) sur ~50 posts.
+    if (body?.analysis === true) {
+      const analysis = await analyzeContentPerformance(supabase, conn, { max: 50 });
+      if (analysis.authError && analysis.sampleSize === 0) {
+        return jsonError(
+          "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.",
+          corsHeaders,
+          409,
+        );
+      }
+      return new Response(
+        JSON.stringify({ success: true, accountName: conn.platform_account_name, analysis }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }

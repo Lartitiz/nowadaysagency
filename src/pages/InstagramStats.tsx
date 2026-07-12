@@ -69,6 +69,8 @@ export default function InstagramStats() {
   const [backfilling, setBackfilling] = useState<string | null>(null);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
+  const [contentInsights, setContentInsights] = useState<any | null>(null);
+  const [analyzingContent, setAnalyzingContent] = useState(false);
 
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("3_months");
   const [customFrom, setCustomFrom] = useState(() => monthKey(new Date(now.getFullYear(), now.getMonth() - 5, 1)));
@@ -191,6 +193,10 @@ export default function InstagramStats() {
       if (tp && (tp.top?.length || tp.flop?.length)) {
         setLivePosts({ top: tp.top || [], flop: tp.flop || [] });
       }
+    }
+    if (!contentInsights) {
+      const withCi = allStats.find(s => (s.custom_data as any)?.ig_content_insights);
+      if (withCi) setContentInsights((withCi.custom_data as any).ig_content_insights);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allStats]);
@@ -523,6 +529,45 @@ export default function InstagramStats() {
     }
   }, [user, workspaceId, allStats, now, loadStats]);
 
+  // « Ce qui marche pour toi » : agrégats déterministes (pas d'IA, gratuit) par
+  // format / jour / créneau sur ~50 posts, persistés dans custom_data du mois
+  // courant pour survivre au rechargement.
+  const analyzeContent = useCallback(async () => {
+    if (!user) return;
+    setAnalyzingContent(true);
+    try {
+      const { data, error } = await invokeWithTimeout("instagram-insights-fetch", {
+        body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined, analysis: true },
+      }, 90000);
+      const a = (data as any)?.analysis;
+      if (error || !a) {
+        toast.error("Analyse indisponible", { description: (data as any)?.error || "Réessaie dans un instant." });
+        return;
+      }
+      setContentInsights(a);
+      const existing = allStats.find(s => s.month_date === currentMonthDate) || {};
+      const payload: any = {
+        ...existing,
+        custom_data: { ...((existing as any).custom_data || {}), ig_content_insights: a },
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        month_date: currentMonthDate, updated_at: new Date().toISOString(),
+      };
+      delete payload.id; delete payload.created_at;
+      if ((existing as any).id) {
+        await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
+      } else {
+        await supabase.from("monthly_stats" as any).insert(payload);
+      }
+      await loadStats();
+      toast.success(`✅ ${a.sampleSize} posts analysés`);
+    } catch {
+      toast.error("Erreur pendant l'analyse de tes contenus");
+    } finally {
+      setAnalyzingContent(false);
+    }
+  }, [user, workspaceId, allStats, currentMonthDate, loadStats]);
+
   const handleAnalyze = useCallback(async () => {
     if (!user) return;
     setIsGenerating(true);
@@ -639,6 +684,30 @@ export default function InstagramStats() {
 
   // Affiche une liste compacte de posts (top ou flop) avec format, engagement et lien.
   // withRecycle : bouton ♻️ par post (top uniquement — recycler un flop n'a pas de sens).
+  // Affiche un segment d'analyse de contenus (par format / jour / créneau),
+  // trié par taux d'engagement décroissant.
+  const renderBucketGroup = (title: string, buckets: any[] | undefined) => {
+    if (!buckets?.length) return null;
+    const sorted = [...buckets].sort((a, b) => (b.avgEngagementRate || 0) - (a.avgEngagementRate || 0));
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{title}</p>
+        <ul className="space-y-1">
+          {sorted.slice(0, 4).map((b, i) => (
+            <li key={i} className="flex items-center justify-between gap-2 text-sm">
+              <span className="text-foreground">
+                {b.label} <span className="text-xs text-muted-foreground">({b.count} post{b.count > 1 ? "s" : ""})</span>
+              </span>
+              {typeof b.avgEngagementRate === "number"
+                ? <span className="text-xs font-semibold text-primary tabular-nums">{(b.avgEngagementRate * 100).toFixed(1)} %</span>
+                : <span className="text-xs text-muted-foreground" title="Pas assez de posts pour une moyenne fiable">–</span>}
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  };
+
   const renderPostGroup = (title: string, posts: any[] | undefined, withRecycle = false) => {
     if (!posts || !posts.length) return null;
     const fmtEmoji = (f: string) => {
@@ -945,6 +1014,43 @@ export default function InstagramStats() {
                 <p className="text-xs text-muted-foreground">
                   Le taux d'engagement = interactions ÷ portée (ou vues pour les Reels). Inspire-toi de ce qui marche pour tes prochains contenus.
                 </p>
+              </div>
+            ) : null}
+
+            {/* ─── Ce qui marche pour toi : formats / jours / créneaux sur ~50 posts ─── */}
+            {(igConnected || contentInsights) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-display text-sm font-bold text-foreground">
+                    🔬 Ce qui marche pour toi{" "}
+                    <span className="font-normal text-muted-foreground text-xs">
+                      — formats, jours et créneaux{contentInsights ? `, sur tes ${contentInsights.sampleSize} derniers posts` : ""}
+                    </span>
+                  </h3>
+                  {igConnected && (
+                    <Button onClick={analyzeContent} disabled={analyzingContent || fetchingLive} variant="outline" size="sm" className="gap-1.5 shrink-0">
+                      {analyzingContent
+                        ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse en cours…</>
+                        : <><Sparkles className="h-3.5 w-3.5" />{contentInsights ? "Actualiser" : "Analyser mes 50 derniers posts"}</>}
+                    </Button>
+                  )}
+                </div>
+                {contentInsights ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
+                      {renderBucketGroup("Par format", contentInsights.byFormat)}
+                      {renderBucketGroup("Par jour de publication", contentInsights.byWeekday)}
+                      {renderBucketGroup("Par créneau (heure de Paris)", contentInsights.bySlot)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Taux d'engagement moyen par segment{contentInsights.fetchedAt ? ` — analyse du ${new Date(contentInsights.fetchedAt).toLocaleDateString("fr-FR")}` : ""}. Indicatif : un segment avec peu de posts pèse peu, regarde le nombre entre parenthèses.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Lance l'analyse pour voir quels formats, quels jours et quels créneaux te réussissent le mieux — calculé sur tes vrais posts, pas des moyennes génériques.
+                  </p>
+                )}
               </div>
             ) : null}
 
