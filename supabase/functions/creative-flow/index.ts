@@ -15,7 +15,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, numbersIn, runRedacGate } from "../_shared/redac-gate.ts";
 import {
   countReelSpokenWords,
   enforceReelNoFaceCam,
@@ -246,7 +246,7 @@ Réponds UNIQUEMENT en JSON valide :
         { "slide_number": 7, "title": "...", "body": "..." },
         { "slide_number": 8, "title": "punchline + CTA", "body": "2-4 phrases" }
       ],
-      "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final" }
+      "caption": { "hook": "1-2 phrases d'accroche", "body": "développement de la légende", "cta": "appel à l'action final", "hashtags": ["3 hashtags ciblés maximum, sans #, en rapport avec le sujet"] }
     }`
       : `"${f}": "contenu complet ici"`).join(",\n    ")}
   },
@@ -1789,11 +1789,32 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
           fUsage,
         );
         const parsed = tryParseAiJson<any>(raw, `creative-flow:recycle:${f}`);
-        const resultVal = parsed?.results?.[f]
+        let resultVal = parsed?.results?.[f]
           ?? (parsed?.results && typeof parsed.results === "object" ? Object.values(parsed.results)[0] : null);
         const topicVal = parsed?.topics?.[f]
           ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
         if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
+
+        // Le carrousel recyclé (objet structuré {slides, caption}) passe par la
+        // MÊME garde rédactionnelle que /creer (carousel-ai) : anti-tics, chiffres
+        // sans source, hashtags normalisés (cap 3), quality_check calculé. Sans
+        // ça, un carrousel « Recycler » échappait à tout l'audit qualité (12/07).
+        // La re-passe LLM ne se déclenche QUE si des violations sont mesurées.
+        if ((f === "carrousel" || f === "carousel") && resultVal && typeof resultVal === "object" && Array.isArray(resultVal.slides)) {
+          try {
+            const gated = await runRedacGate(JSON.stringify(resultVal), {
+              isLinkedIn: false,
+              correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5" },
+              // Liste blanche des chiffres : ceux de la source recyclée (le contenu
+              // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
+              inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
+            });
+            const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
+            if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
+          } catch (e) {
+            console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
+          }
+        }
         return { f, resultVal, topicVal, usage: fUsage };
       };
 

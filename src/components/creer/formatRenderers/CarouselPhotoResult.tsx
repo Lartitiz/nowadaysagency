@@ -73,6 +73,8 @@ interface CarouselPhotoResultProps {
   onColorsChange?: (colors: CarouselColors | null) => void;
   /** Couleurs par défaut de la charte (pré-remplissent les sélecteurs). */
   charterColors?: CarouselColors;
+  /** Remonte l'état « visuels périmés » (slides éditées depuis le dernier rendu) pour bloquer publication/export en amont. */
+  onStaleChange?: (stale: boolean) => void;
 }
 
 // ─── VisualSlidesCarousel (unchanged) ───
@@ -219,7 +221,7 @@ const OVERLAY_STYLE_CLASS: Record<string, string> = {
   technique: "text-sm font-mono",
 };
 
-export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, onVisualSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors }: CarouselPhotoResultProps) {
+export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, visualSlides, onVisualSlidesUpdate, channel = "instagram", onRetry, captionLoading = false, onRegenerateCaption, onRegenerateVisuals, visualLoading = false, onAddPhoto, colors, onColorsChange, charterColors, onStaleChange }: CarouselPhotoResultProps) {
   const r = result?.raw || result;
 
   // Construit la version "fullText" mono-bloc à partir des sous-champs
@@ -326,6 +328,23 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   // En STATE (pas en ref) : sa mise à jour doit re-render pour recalculer isStale,
   // sinon la bannière « Mettre à jour les visuels » ne se referme pas après régénération.
   const [renderedSig, setRenderedSig] = useState<string>("");
+
+  // Périmé = slides éditées depuis le dernier rendu visuel. Calculé au niveau
+  // composant (pas seulement dans la bannière) pour le REMONTER : publication et
+  // export d'un visuel obsolète sont bloqués/avertis en amont (avant : la bannière
+  // avertissait mais rien n'empêchait de publier une version périmée).
+  const visualsStale = useMemo(
+    () =>
+      Boolean(
+        visualSlides && visualSlides.length > 0 && renderedSig !== "" &&
+        slidesSignature(slides, colors) !== renderedSig,
+      ),
+    [visualSlides, renderedSig, slides, colors, slidesSignature],
+  );
+  useEffect(() => { onStaleChange?.(visualsStale); }, [visualsStale, onStaleChange]);
+  // La bannière « Mettre à jour les visuels » disparaît quand le composant se
+  // démonte : on remet l'état à « à jour » pour ne pas bloquer d'autres formats.
+  useEffect(() => () => { onStaleChange?.(false); }, [onStaleChange]);
 
   // Aperçu par slide (vis-à-vis, lot F) : visuel apparié par slide_number
   const visualBySlide = useMemo(
@@ -1358,11 +1377,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       )}
 
       {visualSlides && visualSlides.length > 0 && (() => {
-        // Édité depuis le dernier rendu visuel ? Compare la signature courante
-        // (texte + photo + ordre) à celle photographiée au moment du rendu.
-        const isStale =
-          renderedSig !== "" &&
-          slidesSignature(slides, colors) !== renderedSig;
+        const isStale = visualsStale;
         return (
           <>
             {isStale && onRegenerateVisuals && (

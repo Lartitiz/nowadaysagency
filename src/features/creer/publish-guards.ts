@@ -31,14 +31,34 @@ export function findPublishableImageUrl(raw: RawResult, uploadedPhotoPreview?: s
 /** Texte à publier sur Instagram (inclut le champ caption, string ou objet). */
 export function extractInstagramCaption(raw: RawResult): string {
   const r: any = raw;
-  return (
+  const direct =
     r?.edited_text ||
     r?.full_text ||
     r?.content ||
-    (typeof r?.caption === "string" ? r.caption : (r?.caption?.text || r?.caption?.full || "")) ||
-    [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() ||
-    ""
-  );
+    (typeof r?.caption === "string" ? r.caption : "");
+  if (direct && String(direct).trim()) return String(direct);
+
+  // Caption structurée {hook, body, cta, hashtags} (carrousel /creer). Avant, ce
+  // cas ne lisait que caption.text/full (absents ici) → la légende ET les hashtags
+  // édités ne partaient pas. On préserve la priorité text/full, puis on assemble
+  // hook+body+cta et on ajoute les hashtags à la fin.
+  const c: any = r?.caption && typeof r.caption === "object" ? r.caption : null;
+  if (c) {
+    if (typeof c.text === "string" && c.text.trim()) return c.text;
+    if (typeof c.full === "string" && c.full.trim()) return c.full;
+    const parts = [c.hook, c.body, c.cta].filter(Boolean).map((s: string) => String(s).trim());
+    let text = parts.join("\n\n").trim();
+    if (Array.isArray(c.hashtags) && c.hashtags.length > 0) {
+      const tagLine = c.hashtags
+        .map((h: string) => `#${String(h).replace(/^#+/, "").replace(/\s+/g, "")}`)
+        .filter((h: string) => h.length > 1)
+        .join(" ");
+      if (tagLine) text = text ? `${text}\n\n${tagLine}` : tagLine;
+    }
+    if (text) return text;
+  }
+
+  return [r?.hook, r?.body, r?.cta].filter(Boolean).join("\n\n").trim() || "";
 }
 
 /** Texte à publier sur LinkedIn (chaîne historique, sans le champ caption). */

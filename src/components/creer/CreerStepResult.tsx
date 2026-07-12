@@ -240,6 +240,8 @@ interface Props {
   onExportVisualPng?: () => void;
   onSlidesUpdate?: (slides: any[], caption: any) => void;
   onStoriesUpdate?: (stories: any[]) => void;
+  /** Remonte l'état « visuels périmés » du carrousel photo (bloque publication/export en amont). */
+  onCarouselStaleChange?: (stale: boolean) => void;
   photos?: PhotoItem[];
   /** Remplacement de photo d'une slide de carrousel : ajoute la photo au set et renvoie son index 1-based. */
   onAddPhoto?: (photo: PhotoItem) => number;
@@ -301,6 +303,7 @@ export default function CreerStepResult({
   onExportVisualPng,
   onSlidesUpdate,
   onStoriesUpdate,
+  onCarouselStaleChange,
   photos,
   onAddPhoto,
   carouselColors,
@@ -479,7 +482,7 @@ export default function CreerStepResult({
     const hasCastingSlides = Array.isArray(r?.slides) && r.slides.some((s: any) => s?.photo_directive);
     if (format === "carousel" && (r?.carousel_type === "photo" || r?.carousel_type === "mix") && ((photos && photos.length > 0) || hasCastingSlides)) {
       return (
-        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} onVisualSlidesUpdate={onVisualSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} />
+        <CarouselPhotoResult result={result} photos={photos} onSlidesUpdate={onSlidesUpdate} visualSlides={visualSlides} onVisualSlidesUpdate={onVisualSlidesUpdate} channel={channel} onRetry={onRegenerate} captionLoading={captionLoading} onRegenerateCaption={onRegenerateCaption} onRegenerateVisuals={onGenerateVisuals} visualLoading={visualLoading} onAddPhoto={onAddPhoto} colors={carouselColors} onColorsChange={onCarouselColorsChange} charterColors={charterColors} onStaleChange={onCarouselStaleChange} />
       );
     }
 

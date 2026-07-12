@@ -272,11 +272,20 @@ export async function renderCarouselSlidesToBlobs(
   const logoBase64 = await fetchLogoAsBase64(logoUrl);
   const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, SLIDE_W) : "";
   const out: { slide_number: number; blob: Blob }[] = [];
+  const failed: number[] = [];
   for (const vs of visualSlides) {
     // JPEG 1080×1350 : reste sous les plafonds Instagram (1440px / 8 Mo). Un PNG retina
     // (2160px) d'une slide photo dépasse 8 Mo et Instagram rejette alors cette slide.
     const blob = await captureSlideWithRetry(vs.html, logoOverlayHtml, JPEG_INSTAGRAM);
     if (blob) out.push({ slide_number: vs.slide_number, blob });
+    else failed.push(vs.slide_number);
+  }
+  // Publication tout-ou-rien : une slide ratée ne doit PAS partir en carrousel
+  // amputé sur Instagram sans que l'utilisatrice le sache (avant : skip silencieux).
+  if (failed.length > 0) {
+    throw new Error(
+      `Le rendu ${failed.length > 1 ? `des slides ${failed.join(", ")} a` : `de la slide ${failed[0]} a`} échoué. Réessaie la publication.`,
+    );
   }
   return out;
 }
@@ -289,29 +298,41 @@ export async function renderCarouselSlidesToBlobs(
  *
  * Réutilisé par le calendrier (CalendarPostPreview) ET l'atelier (CreerUnifie).
  */
+export interface CarouselExportResult {
+  /** Nombre de slides demandées. */
+  total: number;
+  /** Nombre de slides effectivement exportées. */
+  exported: number;
+  /** Numéros des slides qui n'ont pas pu être rendues (ZIP amputé). */
+  failed: number[];
+}
+
 export async function exportCarouselPng(
   visualSlides: VisualSlide[],
   fileName = "carrousel",
   logoUrl?: string | null,
-): Promise<void> {
-  if (!visualSlides || visualSlides.length === 0) return;
+): Promise<CarouselExportResult> {
+  if (!visualSlides || visualSlides.length === 0) return { total: 0, exported: 0, failed: [] };
 
   // Pré-charge le logo une seule fois ; injecté dans chaque slide via overlay HTML.
   const logoBase64 = await fetchLogoAsBase64(logoUrl);
   const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, SLIDE_W) : "";
 
   const images: { name: string; blob: Blob }[] = [];
+  const failed: number[] = [];
 
   for (const vs of visualSlides) {
     const blob = await captureSlideWithRetry(vs.html, logoOverlayHtml);
     if (!blob) {
       console.warn(`[exportCarouselPng] slide ${vs.slide_number} skipped`);
+      failed.push(vs.slide_number);
       continue;
     }
     images.push({ name: `slide-${vs.slide_number}.png`, blob });
   }
 
-  if (images.length === 0) return;
+  const result: CarouselExportResult = { total: visualSlides.length, exported: images.length, failed };
+  if (images.length === 0) return result;
 
   if (images.length === 1) {
     const url = URL.createObjectURL(images[0].blob);
@@ -320,7 +341,7 @@ export async function exportCarouselPng(
     a.download = images[0].name;
     a.click();
     URL.revokeObjectURL(url);
-    return;
+    return result;
   }
 
   try {
@@ -346,6 +367,7 @@ export async function exportCarouselPng(
       await new Promise((r) => setTimeout(r, 200));
     }
   }
+  return result;
 }
 
 interface StoryFrame {

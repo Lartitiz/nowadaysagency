@@ -336,6 +336,25 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
     });
   }, [onSlidesUpdate]);
 
+  // Hashtags éditables : la saisie libre (« #a #b » ou « a, b ») est normalisée
+  // en tableau (sans « # », dédoublonné). Avant, les hashtags s'affichaient en
+  // texte mort, non modifiables — seul écart d'édition avec le carrousel photo.
+  const updateHashtags = useCallback((value: string) => {
+    const tags = Array.from(
+      new Set(
+        value
+          .split(/[\s,]+/)
+          .map((t) => t.trim().replace(/^#+/, ""))
+          .filter(Boolean),
+      ),
+    );
+    setCaption(prev => {
+      const updated = { ...prev, hashtags: tags };
+      onSlidesUpdate?.(slidesRef.current, updated);
+      return updated;
+    });
+  }, [onSlidesUpdate]);
+
   // Réordonne/filtre les visuels rendus pour rester appariés aux slides après
   // une suppression ou un déplacement : `orderedOrigNums` = les slide_number
   // d'AVANT l'opération, dans le nouvel ordre ; on renumérote 1..n comme les slides.
@@ -596,9 +615,16 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
                 placeholder="Call to action…"
               />
             )}
-            {caption.hashtags && (
-              <p className="text-xs text-muted-foreground">{Array.isArray(caption.hashtags) ? caption.hashtags.map((t: string) => (t.startsWith("#") ? t : `#${t}`)).join(" ") : caption.hashtags}</p>
-            )}
+            <InlineEditable
+              value={
+                Array.isArray(caption.hashtags)
+                  ? caption.hashtags.map((t: string) => (t.startsWith("#") ? t : `#${t}`)).join(" ")
+                  : (caption.hashtags || "")
+              }
+              onChange={updateHashtags}
+              className="text-xs text-muted-foreground"
+              placeholder="Hashtags (ex. #artisanat #savonnerie)…"
+            />
           </CardContent>
         </Card>
       )}
