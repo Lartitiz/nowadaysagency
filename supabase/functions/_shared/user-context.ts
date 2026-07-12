@@ -105,7 +105,7 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     // Coach et génération lisent la même histoire.
     supabase.from("storytelling").select("step_7_polished, step_6_full_story, imported_text").eq(col, val).order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     fetchPersona(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, target_description, target_problem, target_beliefs, channels, mission, offer").eq(col, val).maybeSingle(),
+    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, conviction_pairs, conviction_shift, conviction_verbatims, conviction_unspoken, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, target_description, target_problem, target_beliefs, channels, mission, offer").eq(col, val).maybeSingle(),
     // brand_proposition n'a pas de contrainte unique → tri + limit(1) pour éviter un crash
     // maybeSingle (PGRST116) si plusieurs lignes, et rester déterministe.
     supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -285,6 +285,15 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (t.combat_alternative) combatLines.push(`- Ce qu'elle propose à la place : ${t.combat_alternative}`);
     if (t.combat_refusals) combatLines.push(`- Ce qu'elle refuse : ${t.combat_refusals}`);
     if (combatLines.length) sections.push(`COMBATS & LIMITES :\n${combatLines.join("\n")}`);
+
+    // Convictions vécues (matière brute spiky — coaching « Ma voix & mes combats »).
+    // JAMAIS auto-remplies par l'IA : ce sont les mots de l'utilisatrice.
+    const convictionLines: string[] = [];
+    if (t.conviction_pairs) convictionLines.push(`- Son désaccord avec les pratiques de ses pairs : ${t.conviction_pairs}`);
+    if (t.conviction_shift) convictionLines.push(`- Croyance de débuts abandonnée : ${t.conviction_shift}`);
+    if (t.conviction_verbatims) convictionLines.push(`- Phrases de clientes qui lui sont restées : ${t.conviction_verbatims}`);
+    if (t.conviction_unspoken) convictionLines.push(`- Ce qu'elle n'ose pas dire tout haut : ${t.conviction_unspoken}`);
+    if (convictionLines.length) sections.push(`CONVICTIONS VÉCUES (matière brute, prioritaire pour les contre-pieds, confessions et prises de position — rester FIDÈLE à ces mots, ne pas inventer au-delà) :\n${convictionLines.join("\n")}`);
 
     if (t.mission || t.offer) {
       const idLines: string[] = [];

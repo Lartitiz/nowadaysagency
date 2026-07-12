@@ -419,6 +419,10 @@ export type Database = {
           channels: string[] | null
           combat_alternative: string | null
           combat_cause: string | null
+          conviction_pairs: string | null
+          conviction_shift: string | null
+          conviction_verbatims: string | null
+          conviction_unspoken: string | null
           combat_fights: string | null
           combat_refusals: string | null
           combats: string | null
@@ -472,6 +476,10 @@ export type Database = {
           channels?: string[] | null
           combat_alternative?: string | null
           combat_cause?: string | null
+          conviction_pairs?: string | null
+          conviction_shift?: string | null
+          conviction_verbatims?: string | null
+          conviction_unspoken?: string | null
           combat_fights?: string | null
           combat_refusals?: string | null
           combats?: string | null
@@ -525,6 +533,10 @@ export type Database = {
           channels?: string[] | null
           combat_alternative?: string | null
           combat_cause?: string | null
+          conviction_pairs?: string | null
+          conviction_shift?: string | null
+          conviction_verbatims?: string | null
+          conviction_unspoken?: string | null
           combat_fights?: string | null
           combat_refusals?: string | null
           combats?: string | null

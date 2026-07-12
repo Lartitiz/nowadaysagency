@@ -13,7 +13,7 @@ const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
   persona: ["frustrations", "transformation", "objections", "cliches", "aesthetic_world", "inspiration", "actions"],
   value_proposition: ["value_prop_problem", "value_prop_solution", "value_prop_difference", "value_prop_proof", "value_prop_sentence"],
-  tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
+  tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "conviction_pairs", "conviction_vecu", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
   content_series: ["series_count", "series_pitch", "series_pillar_link", "series_format", "series_signature"],
@@ -51,6 +51,8 @@ const TOPIC_LABELS: Record<string, string> = {
   tone_do: "Ce que tu fais",
   tone_dont: "Ce que tu ne fais jamais",
   combats: "Tes combats",
+  conviction_pairs: "Ton désaccord avec ton propre métier",
+  conviction_vecu: "Ce que le métier t'a appris (et les phrases qui restent)",
   visual_style: "Ton style visuel",
   content_pillars: "Tes piliers de contenu",
   content_twist: "Ton twist créatif",
@@ -89,6 +91,8 @@ const TOPIC_ALIASES: Record<string, string> = {
   "do": "tone_do", "je_fais": "tone_do",
   "dont": "tone_dont", "je_ne_fais_pas": "tone_dont", "limites": "tone_dont",
   "combat": "combats", "engagements": "combats", "valeurs_combat": "combats",
+  "convictions": "conviction_pairs", "desaccord_pairs": "conviction_pairs", "desaccord_metier": "conviction_pairs",
+  "vecu_metier": "conviction_vecu", "lecons_metier": "conviction_vecu", "phrases_clientes": "conviction_vecu",
   "style_visuel": "visual_style",
   // content_strategy
   "piliers": "content_pillars", "pillars": "content_pillars", "themes": "content_pillars", "thèmes": "content_pillars",
@@ -236,6 +240,19 @@ ${remainingTopics.length > 0 ? remainingTopics.map(t => `- ${TOPIC_LABELS[t] || 
 - Tu as MAXIMUM ${checklist.length + 3} questions au total pour cette session. Si tu atteins cette limite, termine la session (is_complete: true) même si certains sujets sont incomplets.
 - Le covered_topic que tu renvoies DOIT être EXACTEMENT l'une de ces clés : ${checklist.join(", ")}. Aucun synonyme, aucune variante. Copie-colle la clé exacte.
 - Chaque réponse de l'utilisatrice DOIT couvrir au moins un sujet. Ne renvoie JAMAIS covered_topic: null après la première question.
+${section === "tone_style" ? `
+══ MODE INTERVIEW — sujets "conviction_pairs" et "conviction_vecu" ══
+Ces deux sujets cherchent la matière BRUTE et SPIKY de ${prenom} : ce qui la distingue des autres personnes qui font LE MÊME MÉTIER qu'elle. Pas son positionnement marketing.
+
+Pour "conviction_pairs" (son désaccord avec son propre métier) :
+- Cherche : la pratique courante CHEZ SES PAIRS (pas chez "l'industrie") qui la fait lever les yeux au ciel ; ce qu'elle fait que ses consœurs trouveraient exagéré ou "pas rentable" ; la vérité de son métier qu'elle n'ose pas dire tout haut.
+- INTERDIT de te satisfaire d'un combat que n'importe quelle marque du secteur revendiquerait ("l'industriel", "la production de masse", "la surconsommation"). Si elle répond ça, relance UNE fois vers ses pairs : "Ok, ça c'est face à l'industrie. Mais chez les autres [son métier], il y a un truc qui te dérange que personne n'ose critiquer ?"
+- Si son CONTEXTE (combats existants, mission, site) contient un indice, ouvre en HYPOTHÈSE À RÉAGIR en citant l'indice : "Je vois que tu insistes sur [indice]. J'ai l'impression que derrière, il y a un agacement contre [hypothèse]. Je me trompe ?" Une hypothèse à corriger débloque plus qu'une question face à une page blanche.
+
+Pour "conviction_vecu" (ce que le métier lui a appris) :
+- Cherche : une croyance qu'elle avait à ses débuts et qu'elle a abandonnée (et CE QUI l'a fait craquer) ; ET une phrase entendue de la bouche d'une cliente qui lui est restée (les mots exacts).
+- Garde ses MOTS À ELLE dans l'extraction : pas de lissage marketing, pas de reformulation jolie. Une phrase maladroite mais vraie vaut mieux qu'une formule polie.
+` : ""}
 
 ══ CLÉS OBLIGATOIRES POUR extracted_insights ══
 Quand tu extrais des informations de la réponse, utilise EXACTEMENT ces clés dans extracted_insights (pas de variantes, pas de synonymes) :
@@ -284,6 +301,10 @@ section === "tone_style" ? `- "voice_description": string, comment tu parles / t
 - "tone_dont": string, ce que tu ne fais jamais
 - "combat_cause": string, ta cause principale / ton combat
 - "combat_fights": string, tes combats secondaires
+- "conviction_pairs": string, son désaccord avec les pratiques courantes de SES PAIRS (ce qui l'agace chez les autres du même métier, ce qu'elle fait qu'ils trouveraient exagéré, ce qu'elle n'ose pas dire tout haut) — FIDÈLE à ses mots, pas de lissage marketing, null si pas abordé
+- "conviction_shift": string, la croyance qu'elle avait à ses débuts et qu'elle a abandonnée, avec ce qui l'a fait changer — null si pas abordé
+- "conviction_verbatims": string, la ou les phrases de clientes qui lui sont restées, dans les mots EXACTS rapportés — null si pas abordé
+- "conviction_unspoken": string, la vérité de son métier qu'elle n'ose pas dire publiquement — null si pas abordé
 - "visual_style": string, ton style visuel` :
 section === "offers" ? `- "offer_name": string, nom de l'offre
 - "offer_price": string, prix et format de paiement
