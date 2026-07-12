@@ -71,6 +71,7 @@ export default function InstagramStats() {
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
   const [contentInsights, setContentInsights] = useState<any | null>(null);
   const [analyzingContent, setAnalyzingContent] = useState(false);
+  const [analysisMonthPosts, setAnalysisMonthPosts] = useState<any[] | null>(null);
 
   const [periodPreset, setPeriodPreset] = useState<PeriodPreset>("3_months");
   const [customFrom, setCustomFrom] = useState(() => monthKey(new Date(now.getFullYear(), now.getMonth() - 5, 1)));
@@ -177,6 +178,7 @@ export default function InstagramStats() {
     const row = allStats.find(s => s.month_date === selectedMonth);
     if (row) { setFormData(row); setFormId(row.id); setAiAnalysis(row.ai_analysis || ""); }
     else { setFormData({}); setFormId(null); setAiAnalysis(""); }
+    setAnalysisMonthPosts(null); // les contenus affichés appartiennent au mois analysé
   }, [selectedMonth, allStats]);
 
   // Ré-affiche au chargement les derniers snapshots persistés (audience, top/flop).
@@ -278,29 +280,50 @@ export default function InstagramStats() {
 
   // « Non renseigné » ≠ « zéro » : un mois sans donnée reste null (Recharts saute
   // le point) au lieu de tracer une fausse chute à 0 dans les courbes.
-  const chartData = useMemo(() =>
-    periodStats.map((s, idx) => {
+  const chartData = useMemo(() => {
+    // Compteur d'abonnés RECONSTITUÉ pour les mois sans relevé : Meta ne fournit
+    // pas l'historique du compteur (le backfill ne peut pas le remplir), donc la
+    // courbe ne montrait que les mois relevés à la main/au clic. On remonte
+    // depuis le relevé suivant : abonnés(m) ≈ abonnés(m+1) − gagnés(m+1)
+    // (+ perdus(m+1) si saisis) — marqué « estimé » au tooltip.
+    const followersDisplay: (number | null)[] = periodStats.map(s => s.followers ?? null);
+    const followersIsEst: boolean[] = periodStats.map(() => false);
+    for (let i = periodStats.length - 2; i >= 0; i--) {
+      if (followersDisplay[i] != null) continue;
+      const next = followersDisplay[i + 1];
+      const nextGained = periodStats[i + 1]?.followers_gained;
+      if (next != null && nextGained != null) {
+        followersDisplay[i] = Math.max(0, next - nextGained + (periodStats[i + 1]?.followers_lost ?? 0));
+        followersIsEst[i] = true;
+      }
+    }
+    return periodStats.map((s, idx) => {
       const engaged = s.accounts_engaged ?? s.interactions ?? null;
       const eng = engaged != null && s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : null;
       const gained = s.followers_gained ?? null;
       // Pertes : saisies si présentes ; sinon ESTIMÉES par gagnés − Δabonnés
       // (Meta ne fournit jamais les désabonnements — c'est la seule façon de
-      // les voir). Estimation possible seulement avec le compteur d'abonnés du
-      // mois précédent.
+      // les voir). Le Δ s'appuie sur le compteur (réel ou reconstitué).
       let lost = s.followers_lost != null ? -s.followers_lost : null;
       let lostEstimated = false;
-      if (lost == null && gained != null && s.followers != null) {
-        const prevF = idx > 0 ? periodStats[idx - 1]?.followers : null;
-        if (prevF != null) {
-          const est = Math.max(0, gained - (s.followers - prevF));
-          lost = -est;
-          lostEstimated = true;
-        }
+      const fCur = followersDisplay[idx];
+      const fPrev = idx > 0 ? followersDisplay[idx - 1] : null;
+      if (lost == null && gained != null && fCur != null && fPrev != null) {
+        const est = Math.max(0, gained - (fCur - fPrev));
+        lost = -est;
+        lostEstimated = true;
       }
+      // Portée organique estimée = portée totale − portée sponsorisée saisie.
+      const reachPaid = (s as any).reach_paid ?? null;
+      const reachOrganic = s.reach != null && reachPaid != null
+        ? Math.max(0, s.reach - reachPaid)
+        : null;
       return {
         month: monthLabelShort(s.month_date),
-        followers: s.followers ?? null,
+        followers: followersDisplay[idx],
+        followersIsEst: followersIsEst[idx],
         reach: s.reach ?? null,
+        reach_organic: reachOrganic,
         engagement: eng,
         profile_visits: s.profile_visits ?? null,
         website_clicks: s.website_clicks ?? null,
@@ -318,8 +341,8 @@ export default function InstagramStats() {
           return acc;
         }, {} as Record<string, number | null>),
       };
-    })
-  , [periodStats, config]);
+    });
+  }, [periodStats, config]);
 
   const monthOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
@@ -547,6 +570,14 @@ export default function InstagramStats() {
         toast.error("Analyse indisponible", { description: (data as any)?.error || "Réessaie dans un instant." });
         return;
       }
+      // Lecture de coach : interprétation IA des agrégats (gratuit, non bloquant
+      // — sans elle, les chiffres restent affichés seuls).
+      try {
+        const { data: rd } = await invokeWithTimeout("engagement-insight", {
+          body: { currentWeek: a, mode: "content_reading" },
+        }, 60000);
+        if ((rd as any)?.insight) a.reading = (rd as any).insight;
+      } catch { /* non bloquant */ }
       setContentInsights(a);
       const existing = allStats.find(s => s.month_date === currentMonthDate) || {};
       const payload: any = {
@@ -575,6 +606,23 @@ export default function InstagramStats() {
     if (!user) return;
     setIsGenerating(true);
     try {
+      // Les CONTENUS du mois analysé (si compte connecté) : c'est ce qui permet
+      // à l'analyse de répondre « pourquoi ce mois a marché » au lieu de
+      // commenter des courbes. Non bloquant : sans connexion, analyse chiffres seuls.
+      let monthPosts: any[] = [];
+      if (igConnected) {
+        try {
+          const { data: mp } = await invokeWithTimeout("instagram-insights-fetch", {
+            body: {
+              workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+              month: selectedMonth,
+              posts: true,
+            },
+          }, 60000);
+          monthPosts = (mp as any)?.monthPosts || [];
+          setAnalysisMonthPosts(monthPosts.length ? monthPosts : null);
+        } catch { /* non bloquant */ }
+      }
       // Historique = mois STRICTEMENT antérieurs au mois analysé. Avant, on
       // envoyait allStats.slice(0,6) qui INCLUAIT le mois analysé en tête :
       // l'edge le comparait à lui-même → « stable » systématique et faux.
@@ -586,6 +634,7 @@ export default function InstagramStats() {
           currentWeek: { ...formData, month_date: selectedMonth },
           history,
           mode: "monthly_stats",
+          monthPosts: monthPosts.slice(0, 10),
         },
       }, 60000);
       if (error) throw new Error(error.message);
@@ -601,7 +650,7 @@ export default function InstagramStats() {
       toast.error("Erreur lors de l'analyse");
     }
     setIsGenerating(false);
-  }, [user, allStats, formData, formId, selectedMonth]);
+  }, [user, allStats, formData, formId, selectedMonth, igConnected, workspaceId]);
 
   const saveConfig = useCallback(async (cfg: StatsConfig) => {
     if (!user) return;
@@ -1045,6 +1094,13 @@ export default function InstagramStats() {
                       {renderBucketGroup("Par jour de publication", contentInsights.byWeekday)}
                       {renderBucketGroup("Par créneau (heure de Paris)", contentInsights.bySlot)}
                     </div>
+                    {contentInsights.reading && (
+                      <div className="rounded-lg bg-muted/40 px-4 py-3 space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">🧠 La lecture du coach</p>
+                        <AiGeneratedMention />
+                        <p className="text-sm text-foreground leading-relaxed">{contentInsights.reading}</p>
+                      </div>
+                    )}
                     <p className="text-xs text-muted-foreground">
                       Taux d'engagement moyen par segment{contentInsights.fetchedAt ? ` — analyse du ${new Date(contentInsights.fetchedAt).toLocaleDateString("fr-FR")}` : ""}. Indicatif : un segment avec peu de posts pèse peu, regarde le nombre entre parenthèses.
                     </p>
@@ -1122,6 +1178,17 @@ export default function InstagramStats() {
                 >
                   <Sparkles className="h-3.5 w-3.5" /> Créer un contenu qui applique cette reco
                 </Button>
+                {/* Les contenus du mois analysé : la réponse à « pourquoi ce
+                    mois ? » se voit, elle ne se devine pas. */}
+                {analysisMonthPosts && analysisMonthPosts.length > 0 && (
+                  <div className="pt-2 border-t border-border/60 space-y-2">
+                    {renderPostGroup(
+                      `Les contenus de ${monthLabel(selectedMonth)} (par engagement)`,
+                      analysisMonthPosts.slice(0, 5),
+                      true,
+                    )}
+                  </div>
+                )}
               </div>
             )}
           </TabsContent>

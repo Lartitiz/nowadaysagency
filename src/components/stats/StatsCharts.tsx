@@ -75,7 +75,7 @@ export default function StatsCharts({
 
           <ChartCard
             title="Du contenu au profil"
-            subtitle="Rythme de publication (barres) face à la portée, aux visites profil et aux clics site : est-ce que publier plus te rapporte plus ?"
+            subtitle="Rythme de publication (barres) face à la portée, aux visites profil et aux clics site. Saisis ta « portée sponsorisée » les mois avec pub : la courbe organique (pointillés) montre alors ce que TES contenus ont réellement fait."
           >
             <ResponsiveContainer width="100%" height={260}>
               <ComposedChart data={chartData}>
@@ -86,7 +86,8 @@ export default function StatsCharts({
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Legend />
                 <Bar yAxisId="right" dataKey="posts_count" fill="hsl(var(--rose-medium))" name="Posts publiés (éch. droite)" radius={[4, 4, 0, 0]} barSize={18} />
-                <Line yAxisId="left" type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                <Line yAxisId="left" type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée totale" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                <Line yAxisId="left" type="monotone" dataKey="reach_organic" stroke="hsl(var(--bordeaux))" name="Portée organique (est.)" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3 }} connectNulls />
                 <Line yAxisId="left" type="monotone" dataKey="profile_visits" stroke="hsl(var(--info))" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} connectNulls />
                 <Line yAxisId="left" type="monotone" dataKey="website_clicks" stroke="hsl(var(--warning))" name="Clics site" strokeWidth={2} dot={{ r: 3 }} connectNulls />
               </ComposedChart>
@@ -219,6 +220,7 @@ function ComparisonTable({ allStats, compareA, compareB, setCompareA, setCompare
     { label: "Followers", key: "followers" },
     { label: "Posts publiés", key: "posts_count" },
     { label: "Portée", key: "reach" },
+    { label: "Portée sponsorisée", key: "reach_paid" },
     { label: "Comptes engagés", key: "accounts_engaged" },
     { label: "Interactions", key: "interactions" },
     { label: "Visites profil", key: "profile_visits" },

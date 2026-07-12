@@ -67,7 +67,11 @@ async function callGateway(system: string, prompt: string): Promise<string> {
 }
 
 // ── Mode mensuel (page Mes stats) ─────────────────────────────────────────────
-async function monthlyInsight(current: Record<string, unknown>, history: Record<string, unknown>[]): Promise<string> {
+async function monthlyInsight(
+  current: Record<string, unknown>,
+  history: Record<string, unknown>[],
+  monthPosts: Record<string, unknown>[] = [],
+): Promise<string> {
   // Jamais comparer le mois à lui-même : on ne garde que les mois STRICTEMENT
   // antérieurs, du plus récent au plus ancien (défense en profondeur, le front
   // filtre déjà).
@@ -120,11 +124,24 @@ async function monthlyInsight(current: Record<string, unknown>, history: Record<
   const objective = typeof current.objective === "string" && current.objective.trim()
     ? `\nOBJECTIF DÉCLARÉ DU MOIS : ${current.objective.trim()}` : "";
 
+  // Contenus publiés le mois analysé : c'est ce qui permet de répondre à
+  // « POURQUOI ce mois a marché/pas marché » au lieu de commenter des courbes.
+  const postsSection = (monthPosts || [])
+    .filter((p) => p && typeof p.subject === "string")
+    .slice(0, 6)
+    .map((p, i) => {
+      const er = typeof p.engagementRate === "number" ? `${(Number(p.engagementRate) * 100).toFixed(1)} % d'engagement` : "engagement non mesuré";
+      const reach = typeof p.reach === "number" ? `, portée ${p.reach}` : "";
+      return `${i + 1}. « ${String(p.subject).slice(0, 100)} » (${String(p.format || "post")}, ${er}${reach})`;
+    })
+    .join("\n");
+
   const metricsText =
     `MOIS ANALYSÉ : ${monthLabel(curDate)}${prev ? ` (comparé à ${monthLabel(prev.month_date)})` : " (premier mois suivi : pas de comparaison possible)"}\n` +
     lines.join("\n") +
     (trendParts.length ? `\nTENDANCE DE FOND (${prevMonths.length + 1} mois) : ${trendParts.join(" ; ")}` : "") +
-    objective;
+    objective +
+    (postsSection ? `\nCONTENUS PUBLIÉS CE MOIS (classés par engagement) :\n${postsSection}` : "");
 
   const system =
     "Tu es experte en stratégie Instagram pour des solopreneuses créatives. Tu réponds en français, tutoiement, direct et concret, sans jargon ni emphase.";
@@ -133,10 +150,10 @@ async function monthlyInsight(current: Record<string, unknown>, history: Record<
 
 ${metricsText}
 
-Écris une courte analyse (3 à 5 phrases, un seul paragraphe) :
+Écris une courte analyse (4 à 6 phrases, un seul paragraphe) :
 - commence par LA tendance la plus significative du mois (appuie-toi sur les variations fournies : ne dis jamais « stable » si les chiffres montrent une hausse ou une baisse)
-- donne une explication plausible, formulée comme une hypothèse
-- termine par UNE action concrète et précise pour le mois prochain
+- ${postsSection ? "EXPLIQUE cette tendance par les contenus du mois : cite entre guillemets le contenu le plus marquant et dis ce qu'il a de particulier (sujet, format)" : "donne une explication plausible, formulée comme une hypothèse"}
+- termine par UNE action concrète et précise pour le mois prochain${postsSection ? " (idéalement : refaire ce qui a marché, avec quel angle)" : ""}
 - cite au maximum 2 chiffres, uniquement ceux fournis ci-dessus (jamais de chiffre inventé)
 - interdit : « Spoiler », « Ce n'est pas X, c'est Y », listes à puces, hashtags, questions rhétoriques en série`;
 
@@ -155,6 +172,67 @@ ${metricsText}
     insight = await callGateway(
       system,
       `${basePrompt}\n\nTa première version comportait ces problèmes, corrige-les en réécrivant l'analyse complète :\n${fix}\n\nPremière version :\n${insight}`,
+    );
+  }
+  return insight;
+}
+
+// ── Lecture coach de « Ce qui marche pour toi » ──────────────────────────────
+// Reçoit les agrégats déterministes (byFormat/byWeekday/bySlot/topPosts sur
+// ~50 posts) et en tire une lecture stratégique courte : pas une redite des
+// chiffres, une interprétation + 2 actions.
+async function contentReading(a: Record<string, unknown>): Promise<string> {
+  const bucketLines = (arr: unknown, title: string): string => {
+    if (!Array.isArray(arr) || !arr.length) return "";
+    const lines = arr
+      .filter((b: any) => b && typeof b.label === "string")
+      .map((b: any) => {
+        const er = typeof b.avgEngagementRate === "number" ? `${(b.avgEngagementRate * 100).toFixed(1)} %` : "n.s.";
+        const reach = typeof b.avgReach === "number" ? `, portée moy. ${b.avgReach}` : "";
+        return `- ${b.label} : ${b.count} posts, engagement moy. ${er}${reach}`;
+      }).join("\n");
+    return `${title} :\n${lines}`;
+  };
+  const tops = Array.isArray(a.topPosts)
+    ? (a.topPosts as any[]).slice(0, 3).map((p, i) =>
+        `${i + 1}. « ${String(p?.subject || "").slice(0, 90)} » (${String(p?.format || "")}, ${typeof p?.engagementRate === "number" ? (p.engagementRate * 100).toFixed(1) : "?"} %)`,
+      ).join("\n")
+    : "";
+
+  const dataText = [
+    `Échantillon : ${a.sampleSize ?? "?"} posts analysés.`,
+    bucketLines(a.byFormat, "PAR FORMAT"),
+    bucketLines(a.byWeekday, "PAR JOUR"),
+    bucketLines(a.bySlot, "PAR CRÉNEAU (heure de Paris)"),
+    tops ? `TOP CONTENUS :\n${tops}` : "",
+  ].filter(Boolean).join("\n\n");
+
+  const system =
+    "Tu es experte en stratégie Instagram pour des solopreneuses créatives. Tu réponds en français, tutoiement, direct et concret, sans jargon ni emphase.";
+  const basePrompt = `Voici l'analyse chiffrée des ~50 derniers posts Instagram d'une utilisatrice :
+
+${dataText}
+
+Écris une lecture de coach (4 à 6 phrases, un seul paragraphe) :
+- ne récite PAS les chiffres : INTERPRÈTE (qu'est-ce que ça dit de son audience et de ce qu'elle devrait faire plus/moins ?)
+- signale les segments trop petits pour conclure (peu de posts) au lieu d'en tirer des lois
+- croise les dimensions quand c'est parlant (ex. format gagnant × créneau gagnant)
+- termine par 2 actions concrètes pour le mois prochain, intégrées dans le paragraphe
+- cite au maximum 3 chiffres, uniquement ceux fournis ci-dessus
+- interdit : « Spoiler », « Ce n'est pas X, c'est Y », listes à puces, hashtags`;
+
+  let insight = await callGateway(system, basePrompt);
+  const allowed = numbersIn(dataText);
+  for (const v of [...allowed]) {
+    const f = parseFloat(v);
+    if (Number.isFinite(f)) allowed.add(String(Math.round(f)));
+  }
+  const analysis = analyzeTextRedac(insight, allowed);
+  const fix = buildTextFixInstructions(analysis);
+  if (fix) {
+    insight = await callGateway(
+      system,
+      `${basePrompt}\n\nTa première version comportait ces problèmes, corrige-les en réécrivant la lecture complète :\n${fix}\n\nPremière version :\n${insight}`,
     );
   }
   return insight;
@@ -209,10 +287,16 @@ Deno.serve(async (req) => {
     const rateCheck = checkRateLimit(userId);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const { currentWeek, history, mode } = validateInput(await req.json(), EngagementInsightSchema);
+    const { currentWeek, history, mode, monthPosts } = validateInput(await req.json(), EngagementInsightSchema);
 
     const insight = mode === "monthly_stats"
-      ? await monthlyInsight(currentWeek as Record<string, unknown>, (history || []) as Record<string, unknown>[])
+      ? await monthlyInsight(
+          currentWeek as Record<string, unknown>,
+          (history || []) as Record<string, unknown>[],
+          (monthPosts || []) as Record<string, unknown>[],
+        )
+      : mode === "content_reading"
+      ? await contentReading(currentWeek as Record<string, unknown>)
       : await weeklyInsight(currentWeek, history);
 
     if (!insight) {

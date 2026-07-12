@@ -66,6 +66,9 @@ export default function StatsForm({
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NumInput label="Comptes touchés (portée)" value={formData.reach} onChange={v => onFieldChange("reach", v)} auto />
+              {/* Saisie manuelle depuis le Gestionnaire de pub : l'API Instagram ne
+                  sépare pas organique/payé — permet la courbe « organique (est.) ». */}
+              <NumInput label="Portée sponsorisée (pub)" value={formData.reach_paid} onChange={v => onFieldChange("reach_paid", v)} />
               <NumInput label="Couverture stories" value={formData.stories_coverage} onChange={v => onFieldChange("stories_coverage", v)} />
               <NumInput label="Nb de vues" value={formData.views} onChange={v => onFieldChange("views", v)} auto />
               <NumInput label="Visites du profil" value={formData.profile_visits} onChange={v => onFieldChange("profile_visits", v)} auto />

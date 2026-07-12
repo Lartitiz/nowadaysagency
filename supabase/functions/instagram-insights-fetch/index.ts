@@ -4,7 +4,7 @@
 // Nécessite la permission instagram_business_manage_insights (revue Meta).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
-import { fetchInstagramInsights, fetchInstagramMonth, analyzeContentPerformance } from "../_shared/instagram-insights.ts";
+import { fetchInstagramInsights, fetchInstagramMonth, analyzeContentPerformance, fetchMonthPosts } from "../_shared/instagram-insights.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
@@ -67,8 +67,26 @@ Deno.serve(async (req) => {
       const nowD = new Date();
       const currentMonthStart = Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), 1);
       const oldest = Date.UTC(nowD.getUTCFullYear() - 2, nowD.getUTCMonth(), 1);
-      if (start >= currentMonthStart || start < oldest) {
-        return jsonError("Mois hors de la fenêtre récupérable (mois révolus des 24 derniers mois).", corsHeaders, 400);
+      // body.posts === true → liste des CONTENUS du mois avec métriques (pour
+      // expliquer un mois dans l'analyse). Le mois en cours est autorisé ici.
+      const wantPosts = body?.posts === true;
+      const upperBound = wantPosts ? currentMonthStart + 1 : currentMonthStart;
+      if (start >= upperBound || start < oldest) {
+        return jsonError("Mois hors de la fenêtre récupérable (24 derniers mois).", corsHeaders, 400);
+      }
+      if (wantPosts) {
+        const { posts, authError } = await fetchMonthPosts(supabase, conn, month);
+        if (authError && !posts.length) {
+          return jsonError(
+            "Reconnecte ton compte Instagram pour autoriser la lecture de tes statistiques.",
+            corsHeaders,
+            409,
+          );
+        }
+        return new Response(
+          JSON.stringify({ success: true, accountName: conn.platform_account_name, month, monthPosts: posts }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
       }
       const monthMetrics = await fetchInstagramMonth(supabase, conn, month);
       if (monthMetrics.authError && monthMetrics.reach == null && monthMetrics.views == null) {
