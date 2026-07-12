@@ -273,11 +273,24 @@ export default function InstagramStats() {
   // « Non renseigné » ≠ « zéro » : un mois sans donnée reste null (Recharts saute
   // le point) au lieu de tracer une fausse chute à 0 dans les courbes.
   const chartData = useMemo(() =>
-    periodStats.map(s => {
+    periodStats.map((s, idx) => {
       const engaged = s.accounts_engaged ?? s.interactions ?? null;
       const eng = engaged != null && s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : null;
       const gained = s.followers_gained ?? null;
-      const lost = s.followers_lost != null ? -s.followers_lost : null;
+      // Pertes : saisies si présentes ; sinon ESTIMÉES par gagnés − Δabonnés
+      // (Meta ne fournit jamais les désabonnements — c'est la seule façon de
+      // les voir). Estimation possible seulement avec le compteur d'abonnés du
+      // mois précédent.
+      let lost = s.followers_lost != null ? -s.followers_lost : null;
+      let lostEstimated = false;
+      if (lost == null && gained != null && s.followers != null) {
+        const prevF = idx > 0 ? periodStats[idx - 1]?.followers : null;
+        if (prevF != null) {
+          const est = Math.max(0, gained - (s.followers - prevF));
+          lost = -est;
+          lostEstimated = true;
+        }
+      }
       return {
         month: monthLabelShort(s.month_date),
         followers: s.followers ?? null,
@@ -285,8 +298,10 @@ export default function InstagramStats() {
         engagement: eng,
         profile_visits: s.profile_visits ?? null,
         website_clicks: s.website_clicks ?? null,
+        posts_count: s.posts_count ?? null,
         gained,
         lost,
+        lostEstimated,
         net: gained != null || lost != null ? (gained ?? 0) + (lost ?? 0) : null,
         ...(activeConfig.traffic_sources || ["search", "social", "pinterest", "instagram"]).reduce((acc, src) => {
           if (s.website_data && typeof s.website_data === "object" && s.website_data.sources) {
@@ -400,6 +415,9 @@ export default function InstagramStats() {
       if (typeof m.followerGrowth30d === "number" && m.followerGrowth30d >= 0) {
         patch.followers_gained = m.followerGrowth30d; filled.push("abonnés gagnés");
       }
+      if (typeof m.postsMonthCount === "number") {
+        patch.posts_count = m.postsMonthCount; filled.push("posts publiés");
+      }
       // Persiste les snapshots du mois dans custom_data (JSONB) : audience ET
       // top/flop, pour que les encarts survivent au rechargement et que la
       // tendance d'audience se construise. Non bloquant : pas dans `filled`.
@@ -480,6 +498,7 @@ export default function InstagramStats() {
         setIfEmpty("accounts_engaged", m.accountsEngaged);
         setIfEmpty("profile_visits", m.profileViews);
         setIfEmpty("followers_gained", m.followersGained);
+        setIfEmpty("posts_count", m.postsCount);
         if (!Object.keys(patch).length) { empty++; continue; }
         const payload: any = {
           ...(existing || {}), ...patch, user_id: user.id,
