@@ -82,8 +82,10 @@ export default function StatsForm({
               = rempli par « Remplir depuis Instagram ». Les autres champs sont à compléter à la main.
             </p>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-              <ComputedField label="Engagement / portée" value={fmtPct(engagementRate)} />
-              <ComputedField label="Engagement / abonné·es" value={fmtPct(engagementByFollowers)} />
+              <ComputedField label="Taux d'engagement" value={fmtPct(engagementRate)} />
+              {/* Mesure secondaire d'intensité (interactions du mois ÷ abonné·es) :
+                  renommée pour ne plus concurrencer LE taux d'engagement (÷ portée). */}
+              <ComputedField label="Interactions / abonné·e (mois)" value={fmtPct(engagementByFollowers)} />
               <ComputedField label="% followers interagi" value={fmtPct(followersEngagedPct)} />
               <ComputedField label="Conversion profil" value={fmtPct(profileConversionRate)} />
             </div>

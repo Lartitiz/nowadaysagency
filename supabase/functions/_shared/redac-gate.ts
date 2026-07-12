@@ -199,6 +199,32 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
   };
 }
 
+// ── Chute de caption imposée (caption v2, 12/07) ──
+// Le tirage par code d'une forme de chute (question / affirmation / invitation
+// impérative / confidence / sobre) n'est PAS respecté de façon fiable par le
+// modèle (re-test v3 : 5/7 questions pour ~1-2 attendues). Le gate mesure la
+// conformité et la re-passe ciblée corrige — même patron que le reste du gate.
+
+export interface CaptionEndingRule {
+  /** true = la chute imposée est une question ; false = toute autre forme (aucun « ? »). */
+  requiresQuestion: boolean;
+  /** Description de la forme imposée, réinjectée telle quelle dans la re-passe. */
+  instruction: string;
+}
+
+/** La caption viole-t-elle la forme de chute imposée ? */
+export function captionEndingViolated(parsed: any, rule?: CaptionEndingRule): boolean {
+  if (!rule) return false;
+  const caption = parsed?.caption;
+  if (!caption || typeof caption !== "object") return false;
+  const cta = String(caption.cta || "").trim();
+  const bodyTail = String(caption.body || "").trim().split("\n").filter(Boolean).pop() || "";
+  const tail = (cta || bodyTail).trim();
+  if (rule.requiresQuestion) return !/\?/.test(cta + " " + bodyTail);
+  // Forme non-question : un « ? » dans le cta, ou une fin de caption en question, = violation.
+  return /\?/.test(cta) || /\?\s*$/.test(tail);
+}
+
 /** Construit les instructions ciblées de la re-passe à partir des mesures. */
 function buildFixInstructions(a: RedacAnalysis): string {
   const lines: string[] = [];
@@ -248,6 +274,8 @@ export async function runRedacGate(
     onStatus?: (s: string) => void;
     /** Texte d'entrée (brief, réponses, branding, actu) : liste blanche des chiffres autorisés. */
     inputText?: string;
+    /** Forme de chute de caption imposée par le tirage code (caption v2). */
+    captionEnding?: CaptionEndingRule;
   },
 ): Promise<RedacGateResult> {
   const parseFenced = (c: string): { parsed: any; raw: string } | null => {
@@ -268,7 +296,15 @@ export async function runRedacGate(
   let out = content;
   let repassed = false;
 
-  const fixes = buildFixInstructions(before);
+  let fixes = buildFixInstructions(before);
+  const endingViolatedBefore = captionEndingViolated(first.parsed, opts.captionEnding);
+  if (endingViolatedBefore && opts.captionEnding) {
+    fixes += (fixes ? "\n\n" : "") +
+      `CHUTE DE CAPTION NON CONFORME : la forme imposée pour cette génération est « ${opts.captionEnding.instruction} ». ` +
+      (opts.captionEnding.requiresQuestion
+        ? `La caption ne contient aucune question : réécris le champ "cta" de la CAPTION en question spécifique au sujet.`
+        : `La caption se termine par une question alors que la forme imposée n'en est pas une : réécris le champ "cta" de la CAPTION dans la forme imposée, SANS aucun point d'interrogation. Garde le sens, change la forme.`);
+  }
   if (fixes) {
     try {
       opts.onStatus?.("correcting");
@@ -313,7 +349,7 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
   return { content: out, repassed, before, after };

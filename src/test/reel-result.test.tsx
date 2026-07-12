@@ -77,3 +77,48 @@ describe("ReelResult — plan de tournage", () => {
     expect(screen.getByText("🎥 Ton plan de tournage")).toBeTruthy();
   });
 });
+
+// Caption / hashtags / stories d'amplification (audit reels 12/07) : champs
+// additifs, générés depuis toujours mais affichés seulement depuis ce chantier.
+describe("ReelResult — caption et amplification", () => {
+  it("affiche caption + hashtags + stories quand présents", () => {
+    render(
+      <ReelResult
+        result={{
+          ...baseResult,
+          caption: { text: "Une caption qui complète le script.", cta: "Dis-le moi en commentaire." },
+          hashtags: ["#ceramique", "#atelier"],
+          cover_text: "Le prix, c'est pas le problème",
+          amplification_stories: [
+            { text: "Tu flippes pour tes vues ?", sticker_type: "sondage", sticker_options: ["Oui", "Ça va"] },
+            { text: "Et toi, ton blocage ?", sticker_type: "question_ouverte", sticker_options: null },
+          ],
+        }}
+      />,
+    );
+    expect(screen.getByText("📝 Caption")).toBeTruthy();
+    expect(screen.getByText(/Une caption qui complète/)).toBeTruthy();
+    expect(screen.getByText("#ceramique")).toBeTruthy();
+    expect(screen.getByText(/Texte de la cover/)).toBeTruthy();
+    expect(screen.getByText("📣 À poster en story dans l'heure")).toBeTruthy();
+    expect(screen.getByText("Tu flippes pour tes vues ?")).toBeTruthy();
+    expect(screen.getByText("📊 Sondage")).toBeTruthy();
+    expect(screen.getByText("Oui · Ça va")).toBeTruthy();
+  });
+
+  it("n'affiche RIEN sans caption ni stories (contenus d'avant le chantier)", () => {
+    render(<ReelResult result={baseResult} />);
+    expect(screen.queryByText("📝 Caption")).toBeNull();
+    expect(screen.queryByText("📣 À poster en story dans l'heure")).toBeNull();
+  });
+
+  it("ne crashe pas sur des formes inattendues", () => {
+    render(
+      <ReelResult
+        result={{ ...baseResult, caption: "pas un objet", hashtags: "pas un tableau", amplification_stories: [{ sticker_type: "sondage" }] }}
+      />,
+    );
+    expect(screen.queryByText("📝 Caption")).toBeNull();
+    expect(screen.queryByText("📣 À poster en story dans l'heure")).toBeNull();
+  });
+});

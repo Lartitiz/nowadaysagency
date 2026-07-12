@@ -30,8 +30,12 @@ describe("monthLabel", () => {
 });
 
 describe("monthLabelShort", () => {
-  it("'2025-03-01' → 'Mar. 2025'", () => {
-    expect(monthLabelShort("2025-03-01")).toBe("Mar. 2025");
+  it("'2025-03-01' → 'Mars 2025' (mois court, pas d'abréviation)", () => {
+    expect(monthLabelShort("2025-03-01")).toBe("Mars 2025");
+  });
+  it("Juin et Juillet restent distincts sur les axes", () => {
+    expect(monthLabelShort("2025-06-01")).toBe("Juin 2025");
+    expect(monthLabelShort("2025-07-01")).toBe("Juil. 2025");
   });
 });
 

@@ -56,6 +56,22 @@ export function useIsOwnSpace(): boolean {
 }
 
 /**
+ * True once the WorkspaceContext has resolved (or when no provider is mounted).
+ * Gate the data effects on this: before resolution, useWorkspaceFilter renvoie
+ * le filtre user_id legacy → requêtes fantômes et flashs d'UI erronés
+ * (« Connecte ton compte » alors que la connexion existe, scopée workspace).
+ */
+export function useWorkspaceReady(): boolean {
+  let loading = false;
+  try {
+    loading = useWorkspace().loading;
+  } catch {
+    // provider absent : rien à attendre
+  }
+  return !loading;
+}
+
+/**
  * Returns the user_id of the workspace owner.
  * When viewing a client workspace (role = manager), returns the client's user_id.
  * When on own workspace (role = owner), returns auth user's id.

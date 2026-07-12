@@ -205,6 +205,9 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
 
   const generateIdeas = async (params?: { objectif: string; canal: string; format: string; sujet: string; intensity?: "bold" }) => {
     const p = params || { objectif, canal, format, sujet };
+    // Lentilles déjà affichées : exclues du prochain tirage pour que
+    // « Autres idées » propose vraiment d'autres angles.
+    const shownLenses = (result?.ideas || []).map((i) => i.lens).filter(Boolean);
     setStep("loading");
     setResult(null);
     setSelectedIdea(null);
@@ -223,6 +226,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
           },
           intensity: p.intensity,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
+          draw_nonce: Math.random().toString(36).slice(2, 10),
+          exclude_lenses: shownLenses.length > 0 ? shownLenses : undefined,
         },
       }, 120000);
       if (error) throw error;
@@ -258,6 +263,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
           },
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           regenerate_lens: idea.lens,
+          draw_nonce: Math.random().toString(36).slice(2, 10),
+          previous_subject: prevIdea.subject,
         },
       }, 120000);
       if (error) throw error;
