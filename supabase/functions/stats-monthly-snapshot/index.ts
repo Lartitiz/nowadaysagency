@@ -16,8 +16,8 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchInstagramInsights, countPostsInWindow, newFetchContext } from "../_shared/instagram-insights.ts";
 import { refreshTokenIfNeeded } from "../_shared/instagram-graph.ts";
-import { decryptConnTokens } from "../_shared/token-crypto.ts";
-import { fetchGa4Month } from "../_shared/ga4.ts";
+import { decryptConnTokens, encryptToken } from "../_shared/token-crypto.ts";
+import { fetchGa4Month, resolveGoogleUserToken, type Ga4Auth } from "../_shared/ga4.ts";
 
 function json(body: unknown, corsHeaders: Record<string, string>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -154,15 +154,14 @@ Deno.serve(async (req) => {
 
     console.log("stats-monthly-snapshot:", monthDate, JSON.stringify(results));
 
-    // ─── Google Analytics (Phase 1 : une seule propriété via GA4_PROPERTY_ID) ───
-    // Si le secret est absent → no-op total (ne casse jamais le snapshot IG).
-    // On fige les colonnes « site web » du mois écoulé pour les espaces qui ont
-    // activé GA4 (stats_config.uses_ga4). Ne remplit QUE les champs vides.
+    // ─── Google Analytics (Phase 1 compte de service + Phase 2 OAuth per-user) ───
+    // On fige les colonnes « site web » du mois écoulé pour les espaces connectés
+    // à GA4. Ne remplit QUE les champs vides. Chaque connexion est isolée.
     const ga4Results: { scope: string; status: string }[] = [];
     const ga4EnvProperty = Deno.env.get("GA4_PROPERTY_ID") || "";
-    const ga4Configured = !!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL")
+    const saConfigured = !!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL")
       && !!Deno.env.get("GOOGLE_SA_PRIVATE_KEY");
-    if (ga4Configured) {
+    {
       try {
         // Gate par la CONNEXION Google (social_connections platform='google'), pas
         // par uses_ga4 : on ne remplit que les espaces réellement connectés, ce qui
@@ -171,16 +170,36 @@ Deno.serve(async (req) => {
           .from("social_connections")
           .select("user_id, workspace_id, platform_account_id")
           .eq("platform", "google");
+        // Cache clé = mode:propertyId (les propertyId GA4 sont globalement uniques,
+        // donc mêmes données quel que soit le jeton — mais on sépare service/user
+        // par prudence, un jeton user pouvant manquer d'accès à la propriété globale).
         const metricsCache = new Map<string, Awaited<ReturnType<typeof fetchGa4Month>>>();
         for (const conn of ga4Conns || []) {
           const scope = conn.workspace_id || conn.user_id;
-          const propertyId = conn.platform_account_id || ga4EnvProperty;
           try {
+            // Résout le mode d'authentification (service vs user) + le jeton frais.
+            const resolved = await resolveGoogleUserToken(
+              supabase, conn.user_id, conn.workspace_id, { decryptConnTokens, encryptToken },
+            );
+            if (!resolved.conn) { ga4Results.push({ scope, status: "no_connection" }); continue; }
+
+            let auth: Ga4Auth;
+            let propertyId: string;
+            if (resolved.accessToken) {
+              auth = { mode: "user", accessToken: resolved.accessToken };
+              propertyId = resolved.conn.platform_account_id || "";
+            } else {
+              if (!saConfigured) { ga4Results.push({ scope, status: "sa_not_configured" }); continue; }
+              auth = { mode: "service" };
+              propertyId = resolved.conn.platform_account_id || ga4EnvProperty;
+            }
             if (!propertyId) { ga4Results.push({ scope, status: "no_property" }); continue; }
-            let ga4Metrics = metricsCache.get(propertyId);
+
+            const cacheKey = `${auth.mode}:${propertyId}`;
+            let ga4Metrics = metricsCache.get(cacheKey);
             if (!ga4Metrics) {
-              ga4Metrics = await fetchGa4Month(propertyId, monthDate);
-              metricsCache.set(propertyId, ga4Metrics);
+              ga4Metrics = await fetchGa4Month(propertyId, monthDate, auth);
+              metricsCache.set(cacheKey, ga4Metrics);
             }
             let gq = supabase.from("monthly_stats").select("*").eq("month_date", monthDate);
             if (conn.workspace_id) gq = gq.eq("workspace_id", conn.workspace_id);

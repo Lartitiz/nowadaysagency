@@ -70,6 +70,13 @@ export default function InstagramStats() {
   const [fetchingGa4, setFetchingGa4] = useState(false);
   const [backfillingGa4, setBackfillingGa4] = useState<string | null>(null);
   const [ga4Connected, setGa4Connected] = useState(false);
+  // GA4 per-user : la connexion Google peut exister sans propriété choisie (compte
+  // à plusieurs propriétés) → on propose alors un sélecteur.
+  const [ga4NeedsProperty, setGa4NeedsProperty] = useState(false);
+  const [ga4Properties, setGa4Properties] = useState<{ propertyId: string; displayName: string; account: string }[] | null>(null);
+  const [ga4PropLoading, setGa4PropLoading] = useState(false);
+  const [ga4SelectedProp, setGa4SelectedProp] = useState("");
+  const [ga4SavingProp, setGa4SavingProp] = useState(false);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
   const [contentInsights, setContentInsights] = useState<any | null>(null);
@@ -176,7 +183,9 @@ export default function InstagramStats() {
       // GA4 : le bloc de remplissage auto n'apparaît QUE si une connexion Google
       // existe pour cet espace (pas juste uses_ga4) — sinon la propriété globale
       // Phase 1 fuiterait chez les autres comptes.
-      setGa4Connected(conns.some((c: any) => c.platform === "google" && c.connected));
+      const googleConn = conns.find((c: any) => c.platform === "google" && c.connected);
+      setGa4Connected(!!googleConn);
+      setGa4NeedsProperty(!!googleConn?.needsProperty);
       setIgStatusChecked(true);
     }).catch(() => { setIgStatusChecked(true); /* non bloquant */ });
   }, [user?.id, workspaceId, workspaceReady]);
@@ -561,6 +570,45 @@ export default function InstagramStats() {
       setBackfilling(null);
     }
   }, [user, workspaceId, allStats, now, loadStats]);
+
+  // GA4 per-user : charge les propriétés accessibles (compte à plusieurs propriétés).
+  const loadGa4Properties = useCallback(async () => {
+    if (!user) return;
+    setGa4PropLoading(true);
+    try {
+      const { data, error } = await invokeWithTimeout("ga4-list-properties", {
+        body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
+      }, 30000);
+      if (error) throw new Error(error.message);
+      const props = ((data as any)?.properties || []) as { propertyId: string; displayName: string; account: string }[];
+      setGa4Properties(props);
+      if (props.length) setGa4SelectedProp(props[0].propertyId);
+    } catch (e: any) {
+      toast.error("Impossible de charger tes propriétés Google Analytics", { description: e?.message });
+    } finally {
+      setGa4PropLoading(false);
+    }
+  }, [user, workspaceId]);
+
+  // GA4 per-user : enregistre la propriété choisie sur la connexion Google.
+  const saveGa4Property = useCallback(async () => {
+    if (!user || !ga4SelectedProp) return;
+    setGa4SavingProp(true);
+    try {
+      const { data, error } = await invokeWithTimeout("ga4-select-property", {
+        body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined, propertyId: ga4SelectedProp },
+      }, 30000);
+      if (error) throw new Error(error.message);
+      if ((data as any)?.error) throw new Error((data as any).error);
+      toast.success("Propriété Google Analytics enregistrée");
+      setGa4NeedsProperty(false);
+      setGa4Properties(null);
+    } catch (e: any) {
+      toast.error("Échec de l'enregistrement de la propriété", { description: e?.message });
+    } finally {
+      setGa4SavingProp(false);
+    }
+  }, [user, workspaceId, ga4SelectedProp]);
 
   // Remplit les colonnes « site web » du mois en cours avec les vraies stats
   // Google Analytics (visiteurs, utilisateurs GA4, trafic par source). Miroir de
@@ -1143,7 +1191,48 @@ export default function InstagramStats() {
         )}
 
         {/* ─── Remplissage auto depuis Google Analytics (si une connexion Google existe) ─── */}
-        {igStatusChecked && ga4Connected && (
+        {igStatusChecked && ga4Connected && ga4NeedsProperty ? (
+          /* Connexion Google OK mais aucune propriété GA4 choisie (compte à
+             plusieurs propriétés) : on demande de sélectionner laquelle utiliser. */
+          <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-3">
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <span>📈</span>
+              <span>
+                Google Analytics est connecté. <strong className="text-foreground">Choisis la propriété</strong> dont tu veux suivre les statistiques.
+              </span>
+            </div>
+            {ga4Properties ? (
+              ga4Properties.length ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <select
+                    value={ga4SelectedProp}
+                    onChange={(e) => setGa4SelectedProp(e.target.value)}
+                    className="h-9 rounded-lg border border-border bg-background px-3 text-sm min-w-[220px] max-w-full"
+                  >
+                    {ga4Properties.map((p) => (
+                      <option key={p.propertyId} value={p.propertyId}>
+                        {p.displayName} — {p.account}
+                      </option>
+                    ))}
+                  </select>
+                  <Button onClick={saveGa4Property} disabled={ga4SavingProp || !ga4SelectedProp} size="sm" className="gap-1.5">
+                    {ga4SavingProp
+                      ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Enregistrement…</>
+                      : <>Valider cette propriété</>}
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">Aucune propriété Google Analytics trouvée sur ce compte.</p>
+              )
+            ) : (
+              <Button onClick={loadGa4Properties} disabled={ga4PropLoading} size="sm" variant="outline" className="gap-1.5">
+                {ga4PropLoading
+                  ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Chargement…</>
+                  : <>Choisir ma propriété Google Analytics</>}
+              </Button>
+            )}
+          </div>
+        ) : igStatusChecked && ga4Connected && (
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <span>📈</span>

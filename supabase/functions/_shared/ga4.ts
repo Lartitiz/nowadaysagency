@@ -12,6 +12,7 @@
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
 const GA4_DATA_API = "https://analyticsdata.googleapis.com/v1beta";
+const GA4_ADMIN_API = "https://analyticsadmin.googleapis.com/v1beta";
 const SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 
 export interface Ga4MonthMetrics {
@@ -22,6 +23,21 @@ export interface Ga4MonthMetrics {
   trafficPinterest: number;
   trafficInstagram: number;
 }
+
+// Une propriété GA4 accessible, aplatie depuis les accountSummaries.
+export interface Ga4Property {
+  propertyId: string;   // id numérique (sans le préfixe "properties/")
+  displayName: string;  // nom d'affichage de la propriété
+  account: string;      // "accounts/123456"
+  accountName: string;  // nom d'affichage du compte parent
+}
+
+// Deux modes d'authentification pour la GA4 Data API :
+//  - service  : compte de service Google (Phase 1, secrets d'env) — comportement inchangé.
+//  - user     : jeton d'accès OAuth de l'utilisatrice (Phase 2, per-user).
+export type Ga4Auth =
+  | { mode: "service" }
+  | { mode: "user"; accessToken: string };
 
 // ─── Encodage base64url (sans padding) ───
 function base64urlFromBytes(bytes: Uint8Array): string {
@@ -109,6 +125,130 @@ async function getAccessToken(): Promise<string> {
   return json.access_token as string;
 }
 
+// ─── Chemin PER-USER (Phase 2 : OAuth utilisateur) ───
+
+// Rafraîchit un access_token utilisateur à partir de son refresh_token
+// (grant_type=refresh_token). Renvoie le nouveau jeton + son expiration ISO.
+export async function refreshGoogleUserToken(
+  refreshToken: string,
+): Promise<{ accessToken: string; expiresAt: string }> {
+  const clientId = Deno.env.get("GOOGLE_CLIENT_ID");
+  const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET");
+  if (!clientId || !clientSecret) {
+    throw new Error("GA4 OAuth non configuré : GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET manquants.");
+  }
+  const res = await fetch(TOKEN_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+  const json = await res.json().catch(() => ({}));
+  if (!res.ok || !json?.access_token) {
+    throw new Error(`Échec du refresh OAuth Google (${res.status}): ${json?.error_description || json?.error || "inconnu"}`);
+  }
+  const expiresIn = Number(json.expires_in || 3600);
+  return {
+    accessToken: json.access_token as string,
+    expiresAt: new Date(Date.now() + expiresIn * 1000).toISOString(),
+  };
+}
+
+// Résultat de la résolution d'un jeton utilisateur Google pour un scope donné.
+export type ResolvedGoogleToken =
+  | { conn: null; accessToken: null }                       // pas de connexion google
+  | { conn: any; accessToken: null; serviceAccount: true }  // connexion Phase 1 (compte de service)
+  | { conn: any; accessToken: string };                     // jeton utilisateur valide
+
+// Charge la connexion Google de l'appelant (scope user OU workspace), déchiffre ses
+// jetons et renvoie un access_token utilisateur VALIDE — rafraîchi et persisté en
+// base s'il était expiré. Facteur commun aux edges GA4 per-user (list/select) et
+// aux chemins de fetch/cron. Les imports token-crypto sont passés en paramètres
+// pour éviter un cycle d'import _shared ↔ _shared.
+export async function resolveGoogleUserToken(
+  supabase: any,
+  userId: string,
+  workspaceId: string | null,
+  helpers: {
+    decryptConnTokens: (conn: any) => Promise<any>;
+    encryptToken: (v: string | null) => Promise<string | null>;
+  },
+): Promise<ResolvedGoogleToken> {
+  const filterCol = workspaceId ? "workspace_id" : "user_id";
+  const filterVal = workspaceId || userId;
+  let cq = supabase
+    .from("social_connections")
+    .select("id, access_token, refresh_token, token_expires_at, platform_account_id, platform_account_name")
+    .eq("platform", "google")
+    .eq(filterCol, filterVal);
+  if (workspaceId) cq = cq.eq("user_id", userId);
+  else cq = cq.is("workspace_id", null);
+  const { data: conn } = await cq.maybeSingle();
+  if (!conn) return { conn: null, accessToken: null };
+
+  await helpers.decryptConnTokens(conn);
+
+  // Connexion Phase 1 (compte de service) : pas de jeton utilisateur à résoudre.
+  if (conn.access_token === "service_account") {
+    return { conn, accessToken: null, serviceAccount: true };
+  }
+
+  let accessToken: string = conn.access_token;
+  const expMs = conn.token_expires_at ? new Date(conn.token_expires_at).getTime() : 0;
+  // Rafraîchit si expiré (ou expiration inconnue) et si un refresh_token existe.
+  if ((!expMs || expMs <= Date.now()) && conn.refresh_token) {
+    const refreshed = await refreshGoogleUserToken(conn.refresh_token);
+    accessToken = refreshed.accessToken;
+    await supabase
+      .from("social_connections")
+      .update({
+        access_token: await helpers.encryptToken(accessToken),
+        token_expires_at: refreshed.expiresAt,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", conn.id);
+  }
+  return { conn, accessToken };
+}
+
+// Énumère les propriétés GA4 auxquelles le jeton donne accès, via l'Analytics
+// Admin API (accountSummaries). Aplatit la hiérarchie compte → propriétés.
+export async function accountSummaries(accessToken: string): Promise<Ga4Property[]> {
+  const out: Ga4Property[] = [];
+  let pageToken: string | undefined;
+  do {
+    const u = new URL(`${GA4_ADMIN_API}/accountSummaries`);
+    u.searchParams.set("pageSize", "200");
+    if (pageToken) u.searchParams.set("pageToken", pageToken);
+    const res = await fetch(u, { headers: { Authorization: `Bearer ${accessToken}` } });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(`GA4 accountSummaries a échoué (${res.status}): ${json?.error?.message || "inconnu"}`);
+    }
+    for (const acc of (json?.accountSummaries || []) as any[]) {
+      const account = String(acc?.account || "");
+      const accountName = String(acc?.displayName || "Google Analytics");
+      for (const prop of (acc?.propertySummaries || []) as any[]) {
+        const raw = String(prop?.property || ""); // "properties/123456"
+        const propertyId = raw.replace(/^properties\//, "");
+        if (!propertyId) continue;
+        out.push({
+          propertyId,
+          displayName: String(prop?.displayName || `Propriété ${propertyId}`),
+          account,
+          accountName,
+        });
+      }
+    }
+    pageToken = json?.nextPageToken || undefined;
+  } while (pageToken);
+  return out;
+}
+
 // Appelle la GA4 Data API runReport sur une propriété donnée.
 export async function runReport(
   propertyId: string,
@@ -146,8 +286,14 @@ function toInt(v: unknown): number {
 }
 
 // Récupère les métriques « site web » d'un MOIS CALENDAIRE pour une propriété GA4.
-export async function fetchGa4Month(propertyId: string, monthISO: string): Promise<Ga4MonthMetrics> {
-  const token = await getAccessToken();
+// `auth` choisit la source du jeton : compte de service (défaut, Phase 1) ou jeton
+// utilisateur déjà résolu (Phase 2). Le reste (rapports A/B/C) est identique.
+export async function fetchGa4Month(
+  propertyId: string,
+  monthISO: string,
+  auth: Ga4Auth = { mode: "service" },
+): Promise<Ga4MonthMetrics> {
+  const token = auth.mode === "user" ? auth.accessToken : await getAccessToken();
   const { startDate, endDate } = monthBounds(monthISO);
   const dateRanges = [{ startDate, endDate }];
 

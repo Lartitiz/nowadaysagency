@@ -4,11 +4,12 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { getServiceClient } from "../_shared/auth.ts";
 import { verifyState } from "../_shared/oauth-state.ts";
 import { encryptToken } from "../_shared/token-crypto.ts";
+import { accountSummaries } from "../_shared/ga4.ts";
 
 interface StatePayload {
   user_id: string;
   workspace_id: string | null;
-  platform: "instagram" | "linkedin" | "canva" | "pinterest";
+  platform: "instagram" | "linkedin" | "canva" | "pinterest" | "google";
   origin: string;
   nonce: string;
   ts: number;
@@ -191,6 +192,56 @@ Deno.serve(async (req) => {
       }
       accountId = String(meJson?.username || "");
       accountName = String(meJson?.username || "Pinterest");
+    } else if (payload.platform === "google") {
+      const clientId = Deno.env.get("GOOGLE_CLIENT_ID")!;
+      const clientSecret = Deno.env.get("GOOGLE_CLIENT_SECRET")!;
+
+      // 1. Échange code -> tokens. Google renvoie un access_token court (~1 h) +
+      // un refresh_token long (grâce à access_type=offline & prompt=consent).
+      const form = new URLSearchParams();
+      form.set("grant_type", "authorization_code");
+      form.set("code", code);
+      form.set("redirect_uri", redirectUri);
+      form.set("client_id", clientId);
+      form.set("client_secret", clientSecret);
+      const tokRes = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+      });
+      const tokJson = await tokRes.json();
+      if (!tokRes.ok || !tokJson.access_token) {
+        console.error("Google token error:", tokJson);
+        return errorRedirect(origin, tokJson?.error_description || tokJson?.error || "Échange du code Google échoué.");
+      }
+      accessToken = tokJson.access_token;
+      refreshToken = tokJson.refresh_token || null;
+      const expiresIn = Number(tokJson.expires_in || 3600);
+      expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+      scopes = String(tokJson.scope || "https://www.googleapis.com/auth/analytics.readonly");
+
+      // 2. Énumère les propriétés GA4 accessibles (Analytics Admin API).
+      let properties: Awaited<ReturnType<typeof accountSummaries>>;
+      try {
+        properties = await accountSummaries(accessToken);
+      } catch (e) {
+        console.error("Google accountSummaries error:", e);
+        return errorRedirect(origin, "Lecture des propriétés Google Analytics échouée.");
+      }
+
+      // 3. Sélection de la propriété :
+      //   - 1 seule  → on la fixe directement (platform_account_id = id numérique).
+      //   - plusieurs → id vide : l'app affichera un sélecteur (ga4-select-property).
+      //   - aucune    → erreur explicite.
+      if (properties.length === 0) {
+        return errorRedirect(origin, "Aucune propriété Google Analytics trouvée sur ce compte.");
+      } else if (properties.length === 1) {
+        accountId = properties[0].propertyId;
+        accountName = properties[0].displayName;
+      } else {
+        accountId = ""; // déclenche le sélecteur côté app
+        accountName = properties[0].accountName || "Google Analytics";
+      }
     } else {
       const appId = Deno.env.get("INSTAGRAM_APP_ID")!;
       const appSecret = Deno.env.get("INSTAGRAM_APP_SECRET")!;
