@@ -89,6 +89,16 @@ Deno.test("analyzeTextRedac attrape la variante moulée « Je ne dis pas ça pou
   assertEquals(a.moulded.length, 1);
 });
 
+Deno.test("analyzeTextRedac attrape l'amorce moulée « Ce qui me dérange » (audit qualité 11/07)", () => {
+  const a = analyzeTextRedac("Ce qui me dérange dans la façon dont on regarde la céramique, c'est qu'on la juge comme un produit.");
+  assertEquals(a.moulded.length, 1);
+});
+
+Deno.test("analyzeTextRedac attrape la variante « Ce qui me gêne »", () => {
+  const a = analyzeTextRedac("Ce qui me gêne, c'est le discours ambiant sur la régularité.");
+  assertEquals(a.moulded.length, 1);
+});
+
 Deno.test("buildTextFixInstructions vide quand le texte est sain", () => {
   const a = analyzeTextRedac("Un bol met trois semaines à exister. Le séchage décide du rythme, pas moi.", new Set<string>());
   assertEquals(buildTextFixInstructions(a), "");
