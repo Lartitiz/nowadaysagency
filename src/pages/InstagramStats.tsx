@@ -167,6 +167,24 @@ export default function InstagramStats() {
     else { setFormData({}); setFormId(null); setAiAnalysis(""); }
   }, [selectedMonth, allStats]);
 
+  // Ré-affiche au chargement les derniers snapshots persistés (audience, top/flop).
+  // Avant, ces encarts ne vivaient que dans le state après un clic « Remplir
+  // depuis Instagram » et disparaissaient au rechargement de la page.
+  useEffect(() => {
+    if (!audience) {
+      const withAud = allStats.find(s => (s.custom_data as any)?.ig_audience);
+      if (withAud) setAudience((withAud.custom_data as any).ig_audience);
+    }
+    if (!livePosts) {
+      const withPosts = allStats.find(s => (s.custom_data as any)?.ig_top_posts);
+      const tp = withPosts ? (withPosts.custom_data as any).ig_top_posts : null;
+      if (tp && (tp.top?.length || tp.flop?.length)) {
+        setLivePosts({ top: tp.top || [], flop: tp.flop || [] });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allStats]);
+
   /* ── Derived ── */
   const periodRange = useMemo(() => {
     if (periodPreset === "custom") return { from: customFrom, to: customTo };
@@ -367,15 +385,22 @@ export default function InstagramStats() {
       if (typeof m.followerGrowth30d === "number" && m.followerGrowth30d >= 0) {
         patch.followers_gained = m.followerGrowth30d; filled.push("abonnés gagnés");
       }
-      // Persiste un snapshot de l'audience du mois (custom_data, JSONB inutilisé sinon)
-      // pour pouvoir tracer son évolution dans le temps. Non bloquant : pas dans `filled`.
+      // Persiste les snapshots du mois dans custom_data (JSONB) : audience ET
+      // top/flop, pour que les encarts survivent au rechargement et que la
+      // tendance d'audience se construise. Non bloquant : pas dans `filled`.
+      const customData: any = { ...((existing as any).custom_data || {}) };
       const aud = m.audience;
       if (aud && (aud.age?.length || aud.gender?.length || aud.cities?.length || aud.countries?.length)) {
-        patch.custom_data = {
-          ...((existing as any).custom_data || {}),
-          ig_audience: { ...aud, fetchedAt: m.fetchedAt || new Date().toISOString() },
+        customData.ig_audience = { ...aud, fetchedAt: m.fetchedAt || new Date().toISOString() };
+      }
+      if (m.topPosts?.length || m.flopPosts?.length) {
+        customData.ig_top_posts = {
+          top: m.topPosts || [],
+          flop: m.flopPosts || [],
+          fetchedAt: m.fetchedAt || new Date().toISOString(),
         };
       }
+      if (Object.keys(customData).length) patch.custom_data = customData;
       if (!filled.length) {
         toast("Aucune métrique exploitable", { description: "L'API n'a renvoyé aucun chiffre fiable cette fois. Réessaie un peu plus tard." });
         return;
@@ -398,6 +423,13 @@ export default function InstagramStats() {
       toast.success(`✅ Stats Instagram récupérées — ${monthLabel(target)}`, {
         description: `Rempli automatiquement : ${filled.join(", ")}. Complète le reste à la main dans « Saisir mes stats » si besoin.`,
       });
+      // Honnêteté : le back signale quand une partie des appels Meta a échoué.
+      // Sans ce message, l'utilisatrice croit ses stats complètes.
+      if (m.partial) {
+        toast.warning("Certaines statistiques n'ont pas pu être lues", {
+          description: "Instagram n'a pas renvoyé toutes les métriques cette fois : les champs manquants sont restés vides. Réessaie plus tard ou complète-les à la main.",
+        });
+      }
     } catch {
       toast.error("Erreur lors de la récupération des stats Instagram");
     } finally {
