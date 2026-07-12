@@ -49,6 +49,23 @@ describe("extractInstagramCaption / extractLinkedInText", () => {
     expect(extractLinkedInText({ hook: "H", cta: "C" })).toBe("H\n\nC");
     expect(extractInstagramCaption({})).toBe("");
   });
+
+  it("caption structurée {hook, body, cta} du carrousel : assemble le texte", () => {
+    // Avant : caption objet sans text/full → "" (légende jamais publiée).
+    expect(extractInstagramCaption({ caption: { hook: "H", body: "B", cta: "C" } })).toBe("H\n\nB\n\nC");
+  });
+
+  it("caption structurée : les hashtags édités partent bien dans la légende publiée", () => {
+    expect(
+      extractInstagramCaption({ caption: { hook: "H", body: "B", cta: "C", hashtags: ["artisanat", "#savonnerie", "made in france"] } }),
+    ).toBe("H\n\nB\n\nC\n\n#artisanat #savonnerie #madeinfrance");
+    // Hashtags seuls (hook/body/cta vides) : la ligne de hashtags reste publiable.
+    expect(extractInstagramCaption({ caption: { hashtags: ["a", "b"] } })).toBe("#a #b");
+  });
+
+  it("caption structurée : text/full historique gardent la priorité", () => {
+    expect(extractInstagramCaption({ caption: { text: "T", hook: "H", hashtags: ["x"] } })).toBe("T");
+  });
 });
 
 describe("instagramPublishDisabledReason", () => {

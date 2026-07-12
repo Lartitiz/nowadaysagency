@@ -405,6 +405,9 @@ export default function CreerUnifie() {
   const [visualChunkProgress, setVisualChunkProgress] = useState<{ done: number; total: number } | null>(null);
   // Surcharge de couleurs du carrousel (null = couleurs de la charte). Réinitialisée à chaque nouvelle génération.
   const [carouselColors, setCarouselColors] = useState<CarouselColors | null>(null);
+  // Visuels périmés (slides éditées depuis le dernier rendu) : bloque publication
+  // et avertit à l'export pour ne pas publier/télécharger une version obsolète.
+  const [carouselVisualsStale, setCarouselVisualsStale] = useState(false);
   
 
   // ── Persist generated result to sessionStorage ──
@@ -2905,12 +2908,17 @@ export default function CreerUnifie() {
   const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
 
   const isCarouselPublish = selectedFormat === "carousel";
-  const publishInstagramDisabledReason = instagramPublishDisabledReason({
-    selectedFormat,
-    isCarousel: isCarouselPublish,
-    visualSlidesCount: visualSlides.length,
-    publishableImageUrl,
-  });
+  const publishInstagramDisabledReason =
+    instagramPublishDisabledReason({
+      selectedFormat,
+      isCarousel: isCarouselPublish,
+      visualSlidesCount: visualSlides.length,
+      publishableImageUrl,
+    }) ||
+    // Visuels périmés : ne pas publier une version qui ne reflète plus les éditions.
+    (isCarouselPublish && carouselVisualsStale
+      ? "Tu as modifié des slides depuis le dernier rendu. Mets à jour les visuels avant de publier."
+      : undefined);
 
   const handlePublishInstagram = async () => {
     if (!session?.user) {
@@ -3033,13 +3041,23 @@ export default function CreerUnifie() {
 
   const handleExportVisualPng = async () => {
     if (visualSlides.length === 0) return;
+    if (isCarouselPublish && carouselVisualsStale) {
+      toast.warning("Les visuels ne reflètent pas tes dernières éditions. Mets-les à jour pour un export fidèle.");
+    }
     try {
       toast.info("Export PNG en cours…");
       const { exportCarouselPng } = await import("@/lib/export-carousel-png");
       const { getIncludeLogoPref } = await import("@/lib/export-logo");
       const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
-      await exportCarouselPng(visualSlides, ideaText || "carrousel", logoUrl);
-      toast.success(visualSlides.length > 1 ? "ZIP des images téléchargé !" : "PNG téléchargé !");
+      const res = await exportCarouselPng(visualSlides, ideaText || "carrousel", logoUrl);
+      if (res.failed.length > 0) {
+        // Avant : slides ratées supprimées du ZIP en silence. On le dit.
+        toast.warning(
+          `${res.exported}/${res.total} slides exportées. La slide ${res.failed.join(", ")} n'a pas pu être rendue — régénère les visuels puis réessaie.`,
+        );
+      } else {
+        toast.success(visualSlides.length > 1 ? "ZIP des images téléchargé !" : "PNG téléchargé !");
+      }
     } catch (e: any) {
       toast.error(e?.message || "Erreur lors de l'export");
     }
@@ -3047,6 +3065,9 @@ export default function CreerUnifie() {
 
   const handleExportHybridPptx = async () => {
     if (visualSlides.length === 0) return;
+    if (isCarouselPublish && carouselVisualsStale) {
+      toast.warning("Les visuels ne reflètent pas tes dernières éditions. Mets-les à jour pour un export fidèle.");
+    }
     try {
       toast.info("Export PowerPoint éditable en cours…");
       const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
@@ -3536,6 +3557,7 @@ export default function CreerUnifie() {
                 onAddPhoto={selectedFormat === "carousel" ? handleAddCarouselPhoto : undefined}
                 carouselColors={selectedFormat === "carousel" ? carouselColors : undefined}
                 onCarouselColorsChange={selectedFormat === "carousel" ? setCarouselColors : undefined}
+                onCarouselStaleChange={selectedFormat === "carousel" ? setCarouselVisualsStale : undefined}
                 charterColors={
                   selectedFormat === "carousel" && charterData?.color_primary
                     ? {

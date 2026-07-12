@@ -60,7 +60,10 @@ export function CalendarPostPreview({
     if (!visualHtml || visualHtml.length === 0 || downloadingPng) return;
     setDownloadingPng(true);
     try {
-      await exportCarouselPng(visualHtml, theme || "carrousel", includeLogo ? logoUrl : null);
+      const res = await exportCarouselPng(visualHtml, theme || "carrousel", includeLogo ? logoUrl : null);
+      if (res.failed.length > 0) {
+        toast.warning(`${res.exported}/${res.total} slides téléchargées — la slide ${res.failed.join(", ")} n'a pas pu être rendue.`);
+      }
     } catch (err) {
       console.error("Download error:", err);
       toast.error("Erreur lors du téléchargement");
