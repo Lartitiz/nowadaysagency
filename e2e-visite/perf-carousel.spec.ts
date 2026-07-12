@@ -142,7 +142,7 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
 
   const report = await validatePptx(pptxPath, { minSlides: 3, expectEditableText: true });
   console.log(
-    `📦 Contenu : ${report.slideCount} slides (UI : ${uiSlides} aperçus), ${report.mediaCount} images, plus petite image ${report.mediaMinBytes} o, ${report.texts.filter((t) => t.trim()).length} runs de texte`,
+    `📦 Contenu : ${report.slideCount} slides (UI : ${uiSlides} aperçus), ${report.mediaCount} images, plus petite image ${report.mediaMinBytes} o, encre mini ${report.mediaMinInk < 0 ? "n/a" : (report.mediaMinInk * 100).toFixed(2) + " %"}, ${report.texts.filter((t) => t.trim()).length} runs de texte`,
   );
   if (report.slideCount !== uiSlides) {
     // Informational : d'autres iframes peuvent exister sur la page — ne casse pas seul.
