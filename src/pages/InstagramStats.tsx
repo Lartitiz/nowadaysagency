@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { Link } from "react-router-dom";
-import { useWorkspaceFilter, useWorkspaceId, useIsOwnSpace } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useIsOwnSpace, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -42,6 +42,7 @@ export default function InstagramStats() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const isOwnSpace = useIsOwnSpace();
+  const workspaceReady = useWorkspaceReady();
 
   const now = useMemo(() => new Date(), []);
   const currentMonthDate = useMemo(() => monthKey(now), [now]);
@@ -62,6 +63,7 @@ export default function InstagramStats() {
 
   // Connexion Instagram + récupération auto des stats via l'API (instagram-insights-fetch).
   const [igConnected, setIgConnected] = useState(false);
+  const [igStatusChecked, setIgStatusChecked] = useState(false);
   const [fetchingLive, setFetchingLive] = useState(false);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
@@ -85,8 +87,11 @@ export default function InstagramStats() {
   });
 
   /* ── Data loaders ── */
+  // Tous les chargements attendent la résolution du workspace : avant elle, le
+  // filtre est user_id legacy → requêtes fantômes, doubles fetchs et flashs
+  // (onboarding ou « connecte ton compte » alors que tout existe côté workspace).
   const loadConfig = useCallback(async () => {
-    if (!user) return;
+    if (!user || !workspaceReady) return;
     try {
       const { data, error } = await (supabase.from("stats_config" as any) as any)
         .select("*").eq(column, value)
@@ -118,10 +123,10 @@ export default function InstagramStats() {
     } finally {
       setConfigLoaded(true);
     }
-  }, [user?.id, column, value, isOwnSpace]);
+  }, [user?.id, column, value, isOwnSpace, workspaceReady]);
 
   const loadStats = useCallback(async () => {
-    if (!user) return;
+    if (!user || !workspaceReady) return;
     // Reprise des stats d'avant les espaces et des imports Excel orphelins
     // (workspace_id null → invisibles au filtre workspace) : on les rattache à
     // l'espace propre, sauf si le mois existe déjà côté workspace (pas de doublon).
@@ -146,20 +151,23 @@ export default function InstagramStats() {
     setAllStats(rows);
     if (rows.length >= 2) { setCompareA(rows[0].month_date); setCompareB(rows[1].month_date); }
     else if (rows.length === 1) { setCompareA(rows[0].month_date); }
-  }, [user?.id, column, value, isOwnSpace]);
+  }, [user?.id, column, value, isOwnSpace, workspaceReady]);
 
   useEffect(() => { loadConfig(); loadStats(); }, [loadConfig, loadStats]);
 
   // Sait si un compte Instagram est connecté (pour proposer le remplissage auto).
+  // Gated sur workspaceReady + igStatusChecked : l'encart ne s'affiche qu'une
+  // fois la réponse reçue (avant, « Connecte ton compte » flashait à tort).
   useEffect(() => {
-    if (!user) return;
+    if (!user || !workspaceReady) return;
     supabase.functions.invoke("social-status", {
       body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
     }).then(({ data }) => {
       const conns = (data as any)?.connections || [];
       setIgConnected(conns.some((c: any) => c.platform === "instagram" && c.connected));
-    }).catch(() => { /* non bloquant */ });
-  }, [user?.id, workspaceId]);
+      setIgStatusChecked(true);
+    }).catch(() => { setIgStatusChecked(true); /* non bloquant */ });
+  }, [user?.id, workspaceId, workspaceReady]);
 
   useEffect(() => {
     const row = allStats.find(s => s.month_date === selectedMonth);
@@ -218,16 +226,13 @@ export default function InstagramStats() {
     );
     const avgEngagement = totalReach > 0 ? (totalEngaged / totalReach) * 100 : 0;
 
-    // Engagement by followers (Σ interactions / followers du dernier mois × 100, moyenné).
-    const totalInteractions = periodStats.reduce((s, r) => s + (r.interactions || 0), 0);
-    const engagementByFollowers = followers && followers > 0
-      ? (totalInteractions / periodStats.length / followers) * 100
-      : null;
-
     // Net growth: somme des followers_gained − followers_lost sur la période.
+    // null si AUCUN mois n'a de donnée : un « 0 (-100 %) » fabriqué à partir de
+    // champs vides faisait croire à un effondrement.
+    const hasGrowthData = periodStats.some(r => r.followers_gained != null || r.followers_lost != null);
     const totalGained = periodStats.reduce((s, r) => s + (r.followers_gained || 0), 0);
     const totalLost = periodStats.reduce((s, r) => s + (r.followers_lost || 0), 0);
-    const netGrowth = totalGained - totalLost;
+    const netGrowth = hasGrowthData ? totalGained - totalLost : null;
 
     const periodMonths = periodStats.length;
     const prevStats = allStats
@@ -247,12 +252,12 @@ export default function InstagramStats() {
       ? (prevTotalEngaged / prevTotalReach) * 100
       : null;
 
-    const prevNetGrowth = prevStats.length > 0
+    const prevNetGrowth = prevStats.some(r => r.followers_gained != null || r.followers_lost != null)
       ? prevStats.reduce((s, r) => s + (r.followers_gained || 0) - (r.followers_lost || 0), 0)
       : null;
 
     return {
-      followers, avgReach: Math.round(avgReach), avgEngagement, engagementByFollowers, netGrowth,
+      followers, avgReach: Math.round(avgReach), avgEngagement, netGrowth,
       changeFollowers: pctChange(followers, prevFollowers),
       changeReach: pctChange(avgReach, prevAvgReach),
       changeEngagement: pctChange(avgEngagement, prevAvgEngagement),
@@ -269,9 +274,6 @@ export default function InstagramStats() {
     periodStats.map(s => {
       const engaged = s.accounts_engaged ?? s.interactions ?? null;
       const eng = engaged != null && s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : null;
-      const engFollowers = s.followers && s.followers > 0 && s.interactions != null
-        ? (s.interactions / s.followers) * 100
-        : null;
       const gained = s.followers_gained ?? null;
       const lost = s.followers_lost != null ? -s.followers_lost : null;
       return {
@@ -279,7 +281,6 @@ export default function InstagramStats() {
         followers: s.followers ?? null,
         reach: s.reach ?? null,
         engagement: eng,
-        engagement_followers: engFollowers,
         profile_visits: s.profile_visits ?? null,
         website_clicks: s.website_clicks ?? null,
         gained,
@@ -757,7 +758,9 @@ export default function InstagramStats() {
         ) : dashboardKPIs && <StatsOverview kpis={dashboardKPIs} isSingleMonth={isSingleMonth} />}
 
         {/* ─── Remplissage auto depuis l'API Instagram ─── */}
-        {igConnected ? (
+        {/* Rien tant que social-status n'a pas répondu : « Connecte ton compte »
+            flashait à tort pendant la vérification. */}
+        {!igStatusChecked ? null : igConnected ? (
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <span>📸</span>

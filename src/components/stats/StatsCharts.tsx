@@ -89,7 +89,7 @@ export default function StatsCharts({
 
           <ChartCard
             title="Qualité de l'engagement"
-            subtitle="Taux d'engagement (par portée) et engagement par abonné·es."
+            subtitle="Comptes engagés ÷ portée, la mesure de référence. Repères : 1-3 % correct, 3-6 % solide, au-delà excellent."
           >
             <EngagementChart data={chartData as any} />
           </ChartCard>
