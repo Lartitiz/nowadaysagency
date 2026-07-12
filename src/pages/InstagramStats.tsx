@@ -761,7 +761,10 @@ export default function InstagramStats() {
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <span>📸</span>
-              <span>Récupère automatiquement tes <strong className="text-foreground">abonnés, reach, vues, interactions, comptes engagés, visites de profil et abonnés gagnés</strong> du mois en cours depuis ton compte Instagram connecté.</span>
+              <span>
+                Récupère automatiquement tes <strong className="text-foreground">abonnés, reach, vues, interactions, comptes engagés, visites de profil et abonnés gagnés</strong> depuis ton compte Instagram connecté.
+                {" "}<span className="text-xs">Instagram fournit une fenêtre glissante de 28 jours, rangée dans le mois en cours — et un instantané automatique fige tes chiffres en fin de mois, même sans clic.</span>
+              </span>
             </div>
             <Button onClick={fetchFromInstagram} disabled={fetchingLive} size="sm" className="gap-1.5 shrink-0">
               {fetchingLive
