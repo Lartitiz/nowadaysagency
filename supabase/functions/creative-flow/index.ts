@@ -19,6 +19,8 @@ import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_share
 import {
   countReelSpokenWords,
   enforceReelNoFaceCam,
+  enforceSelectedReelHook,
+  rebuildReelLectureTest,
   recalibrateReelTimings,
   reelAuditableText,
   reelTemplateLeaks,
@@ -2080,6 +2082,10 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
         console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
       }
+      // Hook CHOISI à l'étape hook_selection : verrouillé sur la section 1 AVANT
+      // la correction (la génération peut paraphraser, la correction peut « améliorer » —
+      // ni l'une ni l'autre ne décide à la place de l'utilisatrice).
+      const hasChosenHook = enforceSelectedReelHook(parsed, body.selected_hook);
       try {
         const reelAllowed = numbersIn([
           typeof body.context === "string" ? body.context : "",
@@ -2098,6 +2104,9 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
         }
         if (body.face_cam === "non") {
           extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
+        }
+        if (hasChosenHook || (typeof body.selected_hook?.text === "string" && body.selected_hook.text.trim() && !body.selected_hook.text.trim().startsWith("("))) {
+          extras.push(`LE HOOK ([SECTION 1 - PARLE] et [SECTION 1 - OVERLAY]) A ÉTÉ CHOISI PAR L'UTILISATRICE : recopie-le STRICTEMENT à l'identique, ne le réécris sous aucun prétexte (la règle "hook faible" ne s'applique pas à lui).`);
         }
         // Plafond de mots par objectif (calibrage du brief), mesuré en code :
         // au re-test post-#527, la visibilité sortait encore à ~95 mots (cible
@@ -2122,8 +2131,13 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       } catch (corrErr) {
         console.error("[creative-flow] correction-pass reel failed:", corrErr);
       }
-      // Recalibrage TOUJOURS appliqué, même si la correction a échoué : déterministe,
-      // et il doit compter les mots de la version FINALE du texte.
+      // Filets déterministes TOUJOURS appliqués, même si la correction a échoué :
+      // - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
+      // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
+      //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
+      // - timings recomptés sur la version FINALE du texte.
+      enforceSelectedReelHook(parsed, body.selected_hook);
+      rebuildReelLectureTest(parsed);
       recalibrateReelTimings(parsed);
     }
 

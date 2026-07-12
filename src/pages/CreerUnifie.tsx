@@ -3369,7 +3369,7 @@ export default function CreerUnifie() {
                 onSkip={handleSkipQuestions}
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
-                initialAnswers={briefPrefillAnswers ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
+                initialAnswers={briefPrefillAnswers ?? (Object.keys(answers).length > 0 ? answers : undefined) ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
                 autoFirstContent={paramAuto}
               />
             )}
