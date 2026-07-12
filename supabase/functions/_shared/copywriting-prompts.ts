@@ -1429,6 +1429,10 @@ export const IDEA_LENSES: Array<{ id: string; label: string; def: string }> = [
     def: "Et si on faisait exactement l'inverse de la pratique dominante ? Renverser une règle non-questionnée du métier et regarder ce que ça révèle." },
   { id: "coulisses_brutes", label: "RÉVÉLATION DE COULISSES",
     def: "Ce qui se passe AVANT ou APRÈS l'image polie publiée. La friction, le brouillon, les essais ratés, la conversation client honnête." },
+  { id: "moment_bascule", label: "MOMENT DE BASCULE",
+    def: "Ouvrir sur l'INSTANT où quelque chose a changé — pas le résultat, le moment précis du basculement (la décision, la phrase entendue, le geste raté qui a tout révélé). Le lecteur reste parce que la suite est impliquée mais retenue." },
+  { id: "arc_narratif", label: "ARC NARRATIF",
+    def: "Une vraie petite histoire avec structure (chaque jour c'était X… jusqu'au jour où Y… et depuis Z). Pas une anecdote plate : un avant, une rupture, un après — et ce que ça a changé de croyance ou de pratique." },
   { id: "intersection_angles", label: "INTERSECTION D'ANGLES",
     def: "Combinaison explicite de DEUX angles éditoriaux différents (ex : Build in public × Mythe à déconstruire). L'idée naît du frottement entre les deux." },
 ];
@@ -1438,6 +1442,7 @@ export const IDEA_LENSES: Array<{ id: string; label: string; def: string }> = [
 // session peut passer une journée entière sur des angles purement analytiques.
 export const HIGH_TENSION_LENS_IDS = [
   "analogie_inattendue",
+  "moment_bascule",
   "micro_scene",
   "question_taboue",
   "confession_couteuse",
