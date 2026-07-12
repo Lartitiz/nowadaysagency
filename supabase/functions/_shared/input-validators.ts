@@ -100,6 +100,9 @@ export const AuditBrandingSchema = z.object({
 export const EngagementInsightSchema = z.object({
   currentWeek: z.record(z.unknown()),
   history: z.array(z.record(z.unknown())).max(52).optional().nullable(),
+  // "monthly_stats" = analyse mensuelle (page Mes stats) ; absent = hebdo legacy.
+  // Sans ce champ dans le schéma, zod le retirait et l'edge ne le voyait jamais.
+  mode: z.string().max(40).optional(),
 });
 
 /* ─── inspire-ai ─── */
