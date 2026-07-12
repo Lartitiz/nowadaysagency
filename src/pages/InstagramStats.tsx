@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId, useIsOwnSpace, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,7 +13,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight, History as HistoryIcon } from "lucide-react";
+import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight, History as HistoryIcon, Recycle } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import ExcelImportDialog from "@/components/stats/ExcelImportDialog";
 import StatsPeriodSelector from "@/components/stats/StatsPeriodSelector";
@@ -39,6 +39,7 @@ import {
 
 export default function InstagramStats() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const isOwnSpace = useIsOwnSpace();
@@ -592,8 +593,34 @@ export default function InstagramStats() {
     );
   };
 
+  // Relance la création depuis un top post : même contrat que RecycleDialog
+  // (state { sujet, existingContent, fromRecycle } consommé par /creer), avec
+  // l'en-tête « RÉ-ANGLE » pour éviter la redite.
+  const recycleTopPost = (p: any) => {
+    const stats: string[] = [];
+    if (typeof p?.engagementRate === "number") stats.push(`${(p.engagementRate * 100).toFixed(1)} % d'engagement`);
+    if (p?.likes) stats.push(`${p.likes} ❤️`);
+    if (p?.comments) stats.push(`${p.comments} 💬`);
+    if (p?.saves) stats.push(`${p.saves} 🔖`);
+    const dateStr = p?.timestamp
+      ? new Date(p.timestamp).toLocaleDateString("fr-FR", { day: "numeric", month: "long" })
+      : "";
+    const contexte = [
+      `[POST DÉJÀ PUBLIÉ${dateStr ? ` le ${dateStr}` : ""}${stats.length ? ` — ${stats.join(" · ")}` : ""}.`,
+      `MISSION : ce sujet a fait ses preuves, RÉ-ANGLE-le : nouvel angle, nouvelle accroche, nouvel exemple — surtout PAS une redite du texte ci-dessous.]`,
+    ].join(" ");
+    navigate("/creer", {
+      state: {
+        sujet: (p?.subject || "").trim(),
+        existingContent: `${contexte}\n\n${(p?.subject || "").trim()}`,
+        fromRecycle: true,
+      },
+    });
+  };
+
   // Affiche une liste compacte de posts (top ou flop) avec format, engagement et lien.
-  const renderPostGroup = (title: string, posts: any[] | undefined) => {
+  // withRecycle : bouton ♻️ par post (top uniquement — recycler un flop n'a pas de sens).
+  const renderPostGroup = (title: string, posts: any[] | undefined, withRecycle = false) => {
     if (!posts || !posts.length) return null;
     const fmtEmoji = (f: string) => {
       const u = String(f || "").toUpperCase();
@@ -618,8 +645,18 @@ export default function InstagramStats() {
             return (
               <li key={i} className="flex items-center gap-2 text-sm">
                 {p?.permalink
-                  ? <a href={p.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 w-full hover:underline">{inner}</a>
-                  : inner}
+                  ? <a href={p.permalink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 min-w-0 flex-1 hover:underline">{inner}</a>
+                  : <span className="flex items-center gap-2 min-w-0 flex-1">{inner}</span>}
+                {withRecycle && (
+                  <Button
+                    variant="ghost" size="sm"
+                    className="h-7 px-2 gap-1 text-xs shrink-0 text-primary"
+                    title="Recycler ce sujet : repartir de ce qui a marché avec un nouvel angle"
+                    onClick={() => recycleTopPost(p)}
+                  >
+                    <Recycle className="h-3.5 w-3.5" /> Recycler
+                  </Button>
+                )}
               </li>
             );
           })}
@@ -879,7 +916,7 @@ export default function InstagramStats() {
                   🏆 Tes posts récents <span className="font-normal text-muted-foreground text-xs">— par taux d'engagement, 30 derniers jours</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                  {renderPostGroup("Ce qui a le mieux marché", livePosts.top)}
+                  {renderPostGroup("Ce qui a le mieux marché", livePosts.top, true)}
                   {/* On masque le « flop » s'il recoupe le « top » (cas < 4 posts mesurés). */}
                   {renderPostGroup(
                     "Ce qui a le moins marché",
@@ -946,6 +983,17 @@ export default function InstagramStats() {
                     Dernière analyse : {new Date(formData.ai_analyzed_at).toLocaleDateString("fr-FR")}
                   </p>
                 )}
+                {/* Que l'analyse débouche sur une création, pas juste un constat. */}
+                <Button
+                  size="sm" className="gap-1.5"
+                  onClick={() => navigate("/creer", {
+                    state: {
+                      sujet: `D'après l'analyse de mes stats Instagram de ${monthLabel(selectedMonth)} : « ${aiAnalysis.trim()} » — je veux créer un contenu qui applique cette recommandation.`,
+                    },
+                  })}
+                >
+                  <Sparkles className="h-3.5 w-3.5" /> Créer un contenu qui applique cette reco
+                </Button>
               </div>
             )}
           </TabsContent>
