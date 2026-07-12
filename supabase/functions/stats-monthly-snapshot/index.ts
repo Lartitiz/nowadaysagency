@@ -141,7 +141,23 @@ Deno.serve(async (req) => {
     }
 
     console.log("stats-monthly-snapshot:", monthDate, JSON.stringify(results));
-    return json({ success: true, month: monthDate, results }, corsHeaders);
+
+    // Les chiffres du mois sont figés → on enchaîne sur le rapport mensuel
+    // e-mail (event monthly_stats_report). Non bloquant : un échec d'envoi ne
+    // doit pas faire échouer le snapshot.
+    let emailReport: unknown = null;
+    try {
+      const r = await fetch(`${supabaseUrl}/functions/v1/email-trigger`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${serviceRoleKey}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "monthly_stats_report" }),
+      });
+      emailReport = await r.json().catch(() => ({ status: r.status }));
+    } catch (e) {
+      console.error("stats-monthly-snapshot: déclenchement du rapport e-mail échoué", e);
+    }
+
+    return json({ success: true, month: monthDate, results, emailReport }, corsHeaders);
   } catch (e) {
     console.error("stats-monthly-snapshot error:", e);
     return json({ error: "Erreur interne du serveur" }, corsHeaders, 500);
