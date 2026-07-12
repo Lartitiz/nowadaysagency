@@ -214,27 +214,48 @@ INDISTINGUABLE d'un humain ? Sinon → réécris.
 
 Réponds UNIQUEMENT avec la caption corrigée, rien d'autre.`,
 
-  reel: `Tu es un éditeur de scripts Reel exigeant.
+  reel: `Tu es un éditeur de scripts Reel exigeant. Tu reçois les TEXTES d'un reel
+(sections balisées [SECTION N - PARLE], [SECTION N - OVERLAY], [CAPTION], [STORY N])
+et tu dois les CORRIGER systématiquement, même subtils.
 
 ══ CORRECTIONS OBLIGATOIRES ══
 
-1. HOOK FAIBLE (0-3s) : remplace par une AFFIRMATION CHOC ou un FAIT concret.
+1. HOOK FAIBLE (section 1) : remplace par une AFFIRMATION CHOC ou un FAIT concret.
    ❌ "Aujourd'hui on va parler de..." → ✅ "Arrête de poster tous les jours."
 
 2. SCRIPT QUI LISTE au lieu de RACONTER : réécris en scène concrète.
+   La couche MÉCANISME (le POURQUOI) doit être présente ; si le mécanisme est un
+   décryptage psychologique de la spectatrice ("ta peur de", "ta posture de"),
+   remplace-le par une mécanique concrète du métier/du marché quand le contexte le permet.
 
-3. TEXTE OVERLAY qui répète mot pour mot le texte parlé : varie.
+3. TEXTE OVERLAY qui répète mot pour mot le texte parlé : varie (l'overlay COMPLÈTE).
 
-4. PHRASES COURTES CONSÉCUTIVES dans le texte parlé : fusionne.
+4. FUITES DE GABARIT (mesurées 8 fois sur 8 à l'audit) :
+   - Overlay "SAUVEGARDE" (seul ou "SAUVEGARDE CE REEL") → réécris en vraie
+     punchline finale de 3-8 mots liée au contenu.
+   - Story qui commence par "Nouveau Reel" → réécris : on entre direct dans le
+     sujet, avec complicité, sans annoncer le reel.
+   - Formule d'overlay "N X. ZÉRO Y." : autorisée UNE fois max, et seulement si
+     les deux chiffres sont réels (fournis dans le contenu). "ZÉRO" qui amplifie
+     un fait fourni (ex : "divisées par 3" devenu "ZÉRO VUE") = mensonge, corrige.
 
-5. CTA GÉNÉRIQUE : question spécifique ou ouverture.
+5. PHRASES COURTES CONSÉCUTIVES dans le texte parlé : fusionne en oral fluide.
+
+6. CTA GÉNÉRIQUE : question spécifique au sujet ou ouverture.
+
+7. CONNECTEURS ORAUX : chaque section parlée (hors hook) doit S'ENCHAÎNER sur la
+   précédente ("Sauf que", "Et là", "Le truc c'est que", "Donc"). Ne supprime
+   JAMAIS un connecteur existant : c'est le monologue voulu.
 
 ══ RÈGLES ABSOLUES ══
-- Garde le format de sortie original (timing, sections, overlay, cuts).
-- 150-300 mots de texte parlé total.
+- Réponds avec les MÊMES marqueurs de section, dans le MÊME ordre. Aucun marqueur
+  ajouté ni supprimé.
+- Le nombre de mots parlés total reste à ±10 % de l'original : le calibrage durée
+  est fait en amont, ne RALLONGE jamais, ne résume pas.
+- N'invente JAMAIS un chiffre, une statistique, un vécu.
 - JAMAIS de tiret cadratin (—).
 
-Réponds UNIQUEMENT avec le script corrigé en gardant la structure JSON originale.`,
+Réponds UNIQUEMENT avec les sections corrigées (marqueurs + textes), sans commentaire.`,
 
   stories: `Tu es un éditeur de séquences Stories Instagram exigeant.
 
@@ -608,5 +629,58 @@ export async function applyCorrectionPassCarousel(
     logger?.(`[correction-pass:carousel-json] ERROR: ${error}`);
     console.error(`[correction-pass:carousel-json] Failed, using original:`, error);
     return jsonContent;
+  }
+}
+
+/**
+ * Correction pass JSON-aware pour scripts Reel (audit qualité reels 12/07).
+ * Même approche que la variante carrousel : on extrait les textes corrigibles
+ * en bloc balisé, on corrige, on réinjecte — la structure JSON (timings, cuts,
+ * plan_tournage, checklist) ne passe jamais par le correcteur et ne peut pas
+ * casser. Fallback : retourne l'objet original si quoi que ce soit échoue.
+ */
+export async function applyCorrectionPassReel(
+  parsedReel: unknown,
+  options: CorrectionOptions = {},
+): Promise<unknown> {
+  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions } = options;
+
+  if (!enabled) {
+    logger?.(`[correction-pass:reel-json] SKIPPED (disabled)`);
+    return parsedReel;
+  }
+
+  try {
+    const { extractReelTexts, reinjectReelTexts } = await import("./reel-postprocess.ts");
+    const textBlock = extractReelTexts(parsedReel);
+    if (!textBlock || textBlock.length < skipIfShorterThan) {
+      logger?.(`[correction-pass:reel-json] SKIPPED (text too short: ${textBlock?.length})`);
+      return parsedReel;
+    }
+
+    logger?.(`[correction-pass:reel-json] STARTED, text block length: ${textBlock.length}`);
+
+    const correctedBlock = await callAnthropicSimple(
+      model ?? getModelForAction("content"),
+      CORRECTION_PROMPTS.reel,
+      extraInstructions
+        ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du reel à corriger :\n\n${textBlock}`
+        : `Voici les textes du reel à corriger :\n\n${textBlock}`,
+      0.3,
+      4096,
+    );
+
+    if (!correctedBlock || correctedBlock.length < 100 || !correctedBlock.includes("[SECTION 1")) {
+      logger?.(`[correction-pass:reel-json] FALLBACK (corrected block invalid: ${correctedBlock?.length})`);
+      return parsedReel;
+    }
+
+    const corrected = reinjectReelTexts(parsedReel, correctedBlock);
+    logger?.(`[correction-pass:reel-json] DONE`);
+    return corrected;
+  } catch (error) {
+    logger?.(`[correction-pass:reel-json] ERROR: ${error}`);
+    console.error(`[correction-pass:reel-json] Failed, using original:`, error);
+    return parsedReel;
   }
 }

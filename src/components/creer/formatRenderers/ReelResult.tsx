@@ -1,8 +1,11 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Copy } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
+import { toast } from "sonner";
 
 interface Props {
   result: any;
@@ -17,6 +20,22 @@ export default function ReelResult({ result }: Props) {
   // Shot list de tournage (chantier « scripts Reels ») — champ additif : les
   // contenus générés avant ce chantier ne l'ont pas, la section ne s'affiche pas.
   const planTournage = Array.isArray(result?.plan_tournage) ? result.plan_tournage : [];
+  // Caption + amplification (audit reels 12/07) : ces champs étaient générés et
+  // sauvegardés au calendrier mais invisibles ici — le moment où elle juge son reel.
+  const caption = result?.caption && typeof result.caption === "object" ? result.caption : null;
+  const hashtags: string[] = Array.isArray(result?.hashtags)
+    ? result.hashtags.filter((h: unknown) => typeof h === "string")
+    : [];
+  const coverText = typeof result?.cover_text === "string" && result.cover_text.trim() ? result.cover_text : null;
+  const amplificationStories = Array.isArray(result?.amplification_stories)
+    ? result.amplification_stories.filter((a: any) => a && typeof a.text === "string")
+    : [];
+
+  const handleCopyCaption = () => {
+    const parts = [caption?.text, caption?.cta, hashtags.length ? hashtags.join(" ") : null].filter(Boolean);
+    navigator.clipboard.writeText(parts.join("\n\n"));
+    toast.success("Caption copiée !");
+  };
 
   const fullText = sections
     .map((s: any) => [s.texte_parle, s.texte_overlay].filter(Boolean).join("\n"))
@@ -109,6 +128,60 @@ export default function ReelResult({ result }: Props) {
                   )}
                   {shot.conseil && <p className="text-xs text-muted-foreground">💡 {shot.conseil}</p>}
                 </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {caption?.text && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-foreground uppercase tracking-wide">📝 Caption</span>
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleCopyCaption}>
+              <Copy className="h-3 w-3" />
+              Copier
+            </Button>
+          </div>
+          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{caption.text}</p>
+          {caption.cta && <p className="text-sm font-medium text-foreground">{caption.cta}</p>}
+          {hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {hashtags.map((h, i) => (
+                <Badge key={i} variant="secondary" className="text-2xs font-normal">{h}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {coverText && (
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs font-semibold text-muted-foreground mb-1">🖼️ Texte de la cover</p>
+          <p className="text-sm text-foreground">{coverText}</p>
+        </div>
+      )}
+
+      {amplificationStories.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+          <span className="text-xs font-bold text-foreground uppercase tracking-wide">📣 À poster en story dans l'heure</span>
+          <p className="text-2xs text-muted-foreground">
+            Repartage ton reel en story avec ces accroches : c'est ce qui lance ses premières vues.
+          </p>
+          <div className="space-y-2">
+            {amplificationStories.map((story: any, i: number) => (
+              <div key={i} className="rounded-lg bg-muted/30 p-2.5 space-y-1">
+                <p className="text-sm text-foreground">{story.text}</p>
+                {story.sticker_type && (
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Badge variant="secondary" className="text-2xs">
+                      {story.sticker_type === "sondage" ? "📊 Sondage" : story.sticker_type === "question_ouverte" ? "💬 Question ouverte" : story.sticker_type}
+                    </Badge>
+                    {Array.isArray(story.sticker_options) && story.sticker_options.length > 0 && (
+                      <span className="text-2xs text-muted-foreground">{story.sticker_options.join(" · ")}</span>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>
