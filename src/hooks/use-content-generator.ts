@@ -36,6 +36,8 @@ export interface GenerateParams {
   // Carousel-specific
   slideCount?: number;
   carouselType?: string;
+  // pure_photo (photo dump) court-circuite la vision — cf. usage dans generate()
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
   // Photo-related
   photos?: { base64: string; context?: string; mimeType?: string; userPhotoId?: string }[];
   photoDescription?: string;
