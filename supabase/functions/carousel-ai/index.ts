@@ -16,6 +16,7 @@ import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.t
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
+import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex } from "../_shared/photo-slide-structure.ts";
 
 // ── Sortie structurée pour les deepening_questions ──
 // Même pattern que creative-flow (#359) : le tool forcé (tool_choice) fait
@@ -86,75 +87,6 @@ function pushPhotoWithContext(messageContent: any[], photo: { base64: string; co
     type: "image",
     source: { type: "base64", media_type, data },
   });
-}
-
-// ── Normalisation déterministe du photo_index ──
-// Filet de sécurité au cas où l'IA omettrait/dégénérerait l'assignation des photos
-// aux slides (ex: toutes les slides-photo pointent sur photo 1 → toutes les slides
-// finiraient avec la même image à l'export PPTX).
-// Stratégie : si l'assignation IA est invalide OU dégénérée, on réassigne
-// séquentiellement 1, 2, 3... (clamp sur la dernière photo si moins de photos que
-// de slides-photo). Les slides text_only sont forcées à photo_index: null.
-function normalizePhotoIndexes(content: string, photoCount: number): string {
-  if (!content || photoCount <= 0) return content;
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return content;
-    const parsed = JSON.parse(jsonMatch[0]);
-    const slides = parsed?.slides;
-    if (!Array.isArray(slides) || slides.length === 0) return content;
-
-    const isPhotoSlide = (s: any) =>
-      s?.slide_type === "photo_full" || s?.slide_type === "photo_integrated";
-
-    const photoSlides = slides.filter(isPhotoSlide);
-    if (photoSlides.length === 0) {
-      // Pas de slide-photo : juste forcer null sur les text_only
-      slides.forEach((s: any) => {
-        if (s && s.slide_type === "text_only") s.photo_index = null;
-      });
-    } else {
-      // Vérifier validité de l'assignation IA
-      const aiIndexes = photoSlides.map((s: any) => s.photo_index);
-      const allInRange = aiIndexes.every(
-        (v: any) => Number.isInteger(v) && v >= 1 && v <= photoCount
-      );
-      const distinctCount = new Set(aiIndexes).size;
-      // Dégénéré : plusieurs photos disponibles ET plusieurs slides-photo ET
-      // toutes les slides-photo pointent la même photo.
-      const degenerate =
-        photoCount > 1 && photoSlides.length > 1 && distinctCount === 1;
-      const needsRewrite = !allInRange || degenerate;
-
-      if (needsRewrite) {
-        let photoCursor = 0;
-        slides.forEach((s: any) => {
-          if (!s) return;
-          if (isPhotoSlide(s)) {
-            const assigned = Math.min(photoCursor + 1, photoCount);
-            s.photo_index = assigned;
-            photoCursor += 1;
-          } else if (s.slide_type === "text_only") {
-            s.photo_index = null;
-          }
-        });
-        console.log(
-          `[carousel-ai] photo_index normalisé : IA=${JSON.stringify(aiIndexes)} → final séquentiel (photoCount=${photoCount})`
-        );
-      } else {
-        // Assignation IA respectée ; on s'assure juste que les text_only sont null
-        slides.forEach((s: any) => {
-          if (s && s.slide_type === "text_only") s.photo_index = null;
-        });
-      }
-    }
-
-    const newJson = JSON.stringify(parsed, null, 2);
-    return content.replace(jsonMatch[0], newJson);
-  } catch (err) {
-    console.warn("[carousel-ai] normalizePhotoIndexes: échec, content laissé tel quel", err);
-    return content;
-  }
 }
 
 // ── Régime « texte d'abord » (lot 1 casting) ──
@@ -402,6 +334,45 @@ const STRUCTURE_PROPOSAL_TOOL = {
     },
   },
 };
+
+// ── Plancher déterministe de slides (audit carrousel photo 12/07) ──
+// Structure confirmée → on attend EXACTEMENT sa longueur ; sinon min(4, cible).
+function carouselSlideFloor(body: any, defaultTarget: number): number {
+  if (Array.isArray(body.confirmed_structure) && body.confirmed_structure.length > 0) {
+    return body.confirmed_structure.length;
+  }
+  return Math.min(4, body.slide_count || defaultTarget);
+}
+
+// UN retry quand le modèle livre un carrousel écrasé (entre 1 slide et le plancher).
+// 0 slide n'est PAS retryé : c'est le territoire de carouselMismatchResponse (refus
+// photo_mismatch légitime — re-générer re-refuserait en payant un appel de plus).
+// Les tokens du retry s'AJOUTENT au sink principal (Object.assign écraserait).
+async function retryIfTooShort(
+  content: string,
+  doGenerate: (sink: UsageSink) => Promise<string>,
+  usage: UsageSink,
+  floor: number,
+  label: string,
+): Promise<string> {
+  const got = countCarouselSlides(content);
+  if (got === 0 || got >= floor) return content;
+  console.warn(`[carousel-ai] ${label}: ${got} slide(s) < plancher ${floor} → retry unique`);
+  const retrySink: UsageSink = {};
+  try {
+    const retried = await doGenerate(retrySink);
+    usage.input_tokens = (usage.input_tokens || 0) + (retrySink.input_tokens || 0);
+    usage.output_tokens = (usage.output_tokens || 0) + (retrySink.output_tokens || 0);
+    usage.total_tokens = (usage.total_tokens || 0) + (retrySink.total_tokens || 0);
+    const retriedCount = countCarouselSlides(retried);
+    console.log(`[carousel-ai] ${label}: retry → ${retriedCount} slide(s)`);
+    // On garde le meilleur des deux runs — jamais pire qu'avant.
+    return retriedCount > got ? retried : content;
+  } catch (e) {
+    console.error(`[carousel-ai] ${label}: retry plancher échoué, contenu court conservé`, e);
+    return content;
+  }
+}
 
 // Refus structuré commun aux chemins mix et photo : à appeler AVANT correction,
 // post-traitements et logUsage. Si le tool forcé a renvoyé photo_mismatch (ou un
@@ -664,6 +635,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           ? buildMixCarouselNewsReactionPrompt(body, isLinkedIn)
           : buildMixCarouselPrompt(body, isLinkedIn);
         let content: string;
+        let doGenerate: (sink: UsageSink) => Promise<string>;
         const mixUsage: UsageSink = {};
         emitStatus("writing");
 
@@ -688,29 +660,36 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
             text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.`,
           });
 
-          content = await callAnthropic({
+          doGenerate = (sink: UsageSink) => callAnthropic({
             model: pickCarouselModel(body),
             system: systemPrompt + "\n\n" + mixPrompt,
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
             temperature: 0.85,
             tool: MIX_CAROUSEL_TOOL,
-          }, mixUsage);
+          }, sink);
         } else {
           const photoDescLine = body.text_first
             ? ""
             : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
           const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
-          content = await callAnthropic({
+          doGenerate = (sink: UsageSink) => callAnthropic({
             model: pickCarouselModel(body),
             system: systemPrompt,
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
             temperature: 0.85,
             tool: MIX_CAROUSEL_TOOL,
-          }, mixUsage);
+          }, sink);
         }
+
+        content = await doGenerate(mixUsage);
+        // Plancher déterministe de slides (audit carrousel photo 12/07) : le modèle
+        // peut renvoyer un carrousel écrasé (1 slide vue en live ~1 run/2 en photo).
+        // 0 slide = refus légitime (photo_mismatch), laissé au check ci-dessous ;
+        // entre 1 et le plancher → UN retry, puis on livre ce qu'on a (gates ensuite).
+        content = await retryIfTooShort(content, doGenerate, mixUsage, carouselSlideFloor(body, 8), "mix");
 
         {
           const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
@@ -733,9 +712,15 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           console.error("Correction pass failed in carousel-ai (mix):", correctionError);
         }
 
-        content = body.text_first
-          ? enforceTextFirstDirectives(content)
-          : normalizePhotoIndexes(content, body.photos?.length || 0);
+        if (body.text_first) {
+          content = enforceTextFirstDirectives(content);
+        } else {
+          // Restaure l'intention de la structure confirmée (photo_index/slide_type)
+          // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07).
+          content = mergeConfirmedStructure(content, body.confirmed_structure);
+          const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
+          content = normalizePhotoIndexes(content, photoCountForIndexes);
+        }
         {
           const capped = limitVisualSchemas(content);
           if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
@@ -762,6 +747,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           ? buildPhotoCarouselNewsReactionPrompt(body, isLinkedIn)
           : buildPhotoCarouselPrompt(body, isLinkedIn);
         let content: string;
+        let doGenerate: (sink: UsageSink) => Promise<string>;
         const photoUsage: UsageSink = {};
         emitStatus("writing");
 
@@ -773,7 +759,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           // 1. Brief + recap contexte AVANT les photos
           messageContent.push({
             type: "text",
-            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides : ${body.photos.length}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
+            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides cible : ${Math.max(body.slide_count || 6, Math.min(body.photos.length, 10))} — le nombre de slides suit la RICHESSE DU RÉCIT, pas le nombre de photos (une même photo peut porter plusieurs slides, cf CAS PARTICULIERS). Ne descends JAMAIS sous 4 slides.\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
           });
 
           // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -787,27 +773,33 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
             text: `Analyse chaque photo et génère le carrousel photo.`,
           });
 
-          content = await callAnthropic({
+          doGenerate = (sink: UsageSink) => callAnthropic({
             model: pickCarouselModel(body),
             system: systemPrompt + "\n\n" + photoPrompt,
             messages: [{ role: "user", content: messageContent }],
             max_tokens: 8192,
             temperature: 0.85,
             tool: PHOTO_CAROUSEL_TOOL,
-          }, photoUsage);
+          }, sink);
         } else {
           // Text-only mode: description without actual photos
-          const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides estimé : ${body.slide_count || 6}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+          const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides cible : ${body.slide_count || 6} — ne descends JAMAIS sous ${Math.min(4, body.slide_count || 6)} slides, quel que soit le nombre de photos (les textes portent la progression).\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
 
-          content = await callAnthropic({
+          doGenerate = (sink: UsageSink) => callAnthropic({
             model: pickCarouselModel(body),
             system: systemPrompt,
             messages: [{ role: "user", content: textPrompt }],
             max_tokens: 8192,
             temperature: 0.85,
             tool: PHOTO_CAROUSEL_TOOL,
-          }, photoUsage);
+          }, sink);
         }
+
+        content = await doGenerate(photoUsage);
+        // Plancher déterministe de slides (audit carrousel photo 12/07) : 1 slide
+        // livrée sur 6 demandées vue en live ~1 run/2. 0 slide = refus légitime
+        // (photo_mismatch), laissé au check ci-dessous.
+        content = await retryIfTooShort(content, doGenerate, photoUsage, carouselSlideFloor(body, 6), "photo");
 
         {
           const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
@@ -830,7 +822,15 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           console.error("Correction pass failed in carousel-ai (photo):", correctionError);
         }
 
-        content = normalizePhotoIndexes(content, body.photos?.length || 0);
+        // Restaure l'intention de la structure confirmée (photo_index/slide_type)
+        // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07 :
+        // null 13/13 malgré la consigne). En photo pur, une slide sans slide_type
+        // EST une slide photo (le renderer front fait déjà cette hypothèse).
+        content = mergeConfirmedStructure(content, body.confirmed_structure);
+        {
+          const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
+          content = normalizePhotoIndexes(content, photoCountForIndexes, { assumePhotoWhenTypeMissing: true });
+        }
         {
           const capped = limitVisualSchemas(content);
           if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
@@ -2304,7 +2304,7 @@ Le lecteur doit TOUJOURS savoir qui parle (la narratrice) et de qui on parle. Un
 ═══ CAS PARTICULIERS SELON LE NOMBRE DE PHOTOS ═══
 - 1 photo unique → elle apparaît sur toutes les slides. Tout repose sur les textes qui racontent l'histoire en plusieurs temps (contexte → tension → bascule → résolution → ouverture). Cible 4-6 slides, pas 8.
 - 2 photos (avant/après ou duo) → structure conseillée : 2-3 slides avec la photo "avant" (poser le contexte/problème) → 1 slide pivot (la bascule, le déclic) → 2-3 slides avec la photo "après" (résolution, nouveau regard). INTERDIT : alterner mécaniquement photo 1 / 2 / 1 / 2. Cible 5-7 slides.
-- 3-4 photos → chaque photo peut se répéter si son rôle narratif change. Une image-clé peut revenir en clôture pour boucler.
+- 3-4 photos → cible 6-8 slides : chaque photo peut se répéter si son rôle narratif change. Une image-clé peut revenir en clôture pour boucler. Ne te limite JAMAIS à une slide par photo.
 - 5+ photos → comportement classique (≈ 1 photo par slide), le chaînage des textes reste obligatoire.
 
 Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une vraie progression (zoom narratif, avancée temporelle, retournement) — JAMAIS trois variantes de la même idée.
