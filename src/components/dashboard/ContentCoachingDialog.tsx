@@ -39,7 +39,7 @@ interface ContentResult {
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => void;
+  onSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }) => void;
   onNewsjackingRedirect?: () => void;
 }
 
@@ -338,12 +338,15 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     let finalSubject: string;
     let finalObjective: string;
 
+    let chosenForAngle: ContentIdea | null = null;
     if (selectedIdea) {
       finalSubject = selectedIdea.subject;
       finalObjective = selectedIdea.objective_tag || objectif;
+      chosenForAngle = selectedIdea;
     } else if (result.ideas?.length) {
       finalSubject = result.ideas[0].subject;
       finalObjective = result.ideas[0].objective_tag || objectif;
+      chosenForAngle = result.ideas[0];
     } else {
       finalSubject = selectedSubject || result.recommended_subject || "";
       finalObjective = result.redirect_params?.objective || objectif;
@@ -376,6 +379,9 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
         format: finalFormat || "",
         objective: finalObjective,
         carouselSubMode: finalFormat === "carousel" ? (carouselSubMode || "text") : undefined,
+        editorialAngle: chosenForAngle
+          ? `${chosenForAngle.angle}${chosenForAngle.why_it_works ? ` — pourquoi ça marche : ${chosenForAngle.why_it_works}` : ""}`.slice(0, 400)
+          : undefined,
       });
       onOpenChange(false);
     } else {

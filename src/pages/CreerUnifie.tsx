@@ -853,9 +853,11 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }) => {
     setAnswers({});
-    setEditorialAngle(null);
+    // L'angle choisi dans le coach d'idées VOYAGE jusqu'à la génération :
+    // c'est lui qu'on a jugé « waouh », le perdre ici ruinait tout l'amont.
+    setEditorialAngle(data.editorialAngle ?? null);
     setEditContent("");
     setLaunchResults([]);
 
@@ -894,7 +896,7 @@ export default function CreerUnifie() {
     generateQuestions({
       format: safeFormat,
       subject: data.subject,
-      editorialAngle: undefined,
+      editorialAngle: data.editorialAngle ?? undefined,
       objective: data.objective || undefined,
     });
   }, [generateQuestions]);
@@ -979,7 +981,10 @@ export default function CreerUnifie() {
     }
 
     setSelectedFormat(format);
-    setEditorialAngle(angle || null);
+    // « L'IA choisit l'angle » à l'étape format ne doit pas effacer un angle
+    // hérité du coach d'idées : lui seul porte le choix éditorial déjà validé.
+    const inheritedAngle = angle || editorialAngle || null;
+    setEditorialAngle(inheritedAngle);
     if (format !== "pinterest" && format !== "pinterest_visual") setPinterestData(null);
     if (sub) setCarouselSubMode(sub);
     if (photos) { setUploadedPhotos(photos); if (photos.length > 0) savePhotos(photos); }
@@ -1086,7 +1091,7 @@ export default function CreerUnifie() {
     await generateQuestions({
       format,
       subject: safeSubject,
-      editorialAngle: angle,
+      editorialAngle: inheritedAngle || undefined,
       objective: objective || undefined,
       channel: channelForQuestions,
       photos: photosForQuestions && photosForQuestions.length > 0

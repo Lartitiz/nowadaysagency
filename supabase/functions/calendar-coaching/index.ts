@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
+import { WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
 import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -154,7 +155,8 @@ RÈGLES DE PROFONDEUR (NON NÉGOCIABLES)
 ═══════════════════════════════════════
 - Chaque sujet doit être HYPER-SPÉCIFIQUE au métier de l'utilisatrice — pas transposable à n'importe quel entrepreneur
 - Le sujet doit contenir une TENSION : un paradoxe, un point de vue, une surprise, un vécu
-- Pose-toi la question : "Est-ce qu'une IA générique aurait proposé ce sujet ?" → si oui, change
+- TEST DU NOM ÉCHANGEABLE : remplace mentalement l'utilisatrice par une concurrente du même métier — si le sujet tient encore tel quel, il est trop générique, change.
+- AUCUN chiffre inventé dans les sujets ou accroches ("j'ai analysé 50 comptes", "80% des…") : un chiffre n'apparaît que s'il vient du contexte branding.
 - Pense en termes de CONVERSATION : qu'est-ce qui ferait réagir la cible en story ?
 
 INTERDIT (éliminatoire) :
@@ -165,24 +167,21 @@ INTERDIT (éliminatoire) :
 ❌ Tout sujet qu'on trouverait en tapant 2 mots sur Google
 ❌ Sujet sans angle ni point de vue
 
-EXEMPLES WAHOU vs FADE :
-✅ "Le jour où une cliente m'a dit 'c'est trop cher' — et pourquoi elle avait raison" (storytelling + leçon)
-✅ "J'ai analysé les 20 posts les plus sauvegardés de ma niche : 80% n'avaient rien de visuel" (enquête)
-✅ "Arrête de 'créer du contenu de valeur'. Ton audience veut qu'on lui parle, pas qu'on lui fasse cours" (contre-intuitif)
-✅ "Pourquoi j'ai supprimé mon offre signature à 2000€ pour la remplacer par rien" (coup de gueule / build in public)
-❌ "3 astuces pour augmenter ton engagement"
-❌ "Comment créer un carrousel efficace"
-❌ "Les tendances Instagram 2025"
+${WOW_IDEA_EXAMPLES}
+
+RÈGLE D'OR — ANCRAGE MÉTIER : les sujets parlent du MÉTIER de l'utilisatrice (sa matière, ses clientes, ses gestes), JAMAIS de communication, d'engagement, d'algorithmes ou de « contenu » — SAUF si la communication EST son métier. Un sujet qui marcherait pour n'importe quel autre secteur est invalide.
+
+CONVICTIONS VÉCUES : si le contexte branding contient un bloc CONVICTIONS VÉCUES, AU MOINS 1 sujet de la semaine doit en partir explicitement (c'est sa matière la plus impossible à copier).
+
+DIVERSITÉ : MAXIMUM 1 sujet sur le prix/tarif dans la semaine. Les sujets couvrent des territoires différents du métier (technique/matière, relation client, coulisses, vision, transmission…).
 
 ═══════════════════════════════════════
 ACCROCHES (hook_idea)
 ═══════════════════════════════════════
 - C'est le TEXTE EXACT qui apparaîtra en première ligne du post — pas un titre, pas un résumé
 - Max 20 mots. Ton oral. Comme un message vocal à une amie.
-- Techniques : confession, chiffre choc, affirmation provocante, question dérangeante, scène visuelle
-- ✅ "J'ai perdu 3 clientes le même soir. C'est la meilleure chose qui me soit arrivée."
-- ✅ "Ton audience s'en fout de ton expertise. Ce qu'elle veut c'est savoir que t'as galéré aussi."
-- ✅ "12 likes. 47 sauvegardes. 8 DM. Mais toi tu vois que les 12 likes."
+- Techniques (des STRUCTURES, pas des phrases à recopier) : confession datée, chiffre RÉEL du contexte (jamais inventé), affirmation qui coûte à assumer, question que la cible se pose en secret, scène sensorielle du métier.
+- ⚠ ANTI-FUITE : n'importe JAMAIS un thème marketing/réseaux (likes, audience, engagement, bio) dans l'accroche — tout vient du MÉTIER et du contexte de l'utilisatrice.
 - ❌ "Mes conseils pour ta bio Instagram"
 - ❌ "Découvrez comment booster votre engagement"
 
@@ -227,6 +226,28 @@ Retourne UNIQUEMENT un JSON valide :
       const match = raw.match(/\{[\s\S]*\}/);
       if (match) parsed = JSON.parse(match[0]);
       else throw new Error("Format de réponse inattendu");
+    }
+
+    // Sonde de singularité (télémétrie, jamais bloquante) — même grille que
+    // content-coaching pour comparer les deux moteurs dans les logs.
+    try {
+      const plan = Array.isArray((parsed as any)?.planning) ? (parsed as any).planning : [];
+      if (plan.length > 0) {
+        const GENERIC = [
+          /\b(les|top)\s?\d+\s?(erreurs|astuces|conseils|raisons|tips|secrets)/i,
+          /la v[ée]rit[ée] sur/i, /ce que personne ne (dit|vous dit|te dit)/i,
+          /le secret (de|pour|derri[èe]re)/i, /tendances 20\d\d/i,
+          /\b(engagement|algorithme|ta bio|ton audience|likes)\b/i,
+        ];
+        const priceRe = /\b(prix|tarif|co[ûu]te|cher|€)\b/i;
+        const rows = plan.map((x: any) => `${x?.subject || ""} ${x?.hook_idea || ""}`);
+        const generic = rows.filter((t: string) => GENERIC.some((re) => re.test(t))).length;
+        const price = rows.filter((t: string) => priceRe.test(t)).length;
+        console.log("[sonde-singularite]", JSON.stringify({ module: "calendar", generic, price, total: plan.length }));
+        if (generic >= 2) console.warn("[sonde-singularite] ⚠ semaine à dominante générique", { userId: user.id, generic });
+      }
+    } catch (sondeErr) {
+      console.warn("[sonde-singularite] erreur télémétrie calendar", sondeErr);
     }
 
     await logUsage(user.id, "coach", "calendar_coaching", usage.total_tokens, usage.model, workspaceId || undefined);

@@ -16,7 +16,7 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 interface Props {
   onNext: (idea: string) => void;
-  onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => void;
+  onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
   onPhotosNext?: (photos: PhotoItem[], description: string, subject: string) => void;
   workspaceId?: string;
@@ -49,6 +49,24 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
   const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
+
+  // Nudge convictions : le moteur d'idées tourne mieux avec les convictions
+  // vécues (section « Ma voix & mes combats »), mais les utilisatrices
+  // existantes ne rouvriront jamais ce coaching spontanément.
+  const [showConvictionNudge, setShowConvictionNudge] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (supabase.from("brand_profile") as any)
+      .select("id, conviction_pairs, conviction_shift, conviction_verbatims, conviction_unspoken")
+      .eq(column, value)
+      .maybeSingle()
+      .then(({ data }: any) => {
+        if (cancelled || !data) return;
+        const empty = !data.conviction_pairs && !data.conviction_shift && !data.conviction_verbatims && !data.conviction_unspoken;
+        setShowConvictionNudge(empty);
+      });
+    return () => { cancelled = true; };
+  }, [column, value]);
 
   // L4 : idées personnalisées générées par le diagnostic (saved_ideas,
   // source_module="diagnostic") — remplacent les départs génériques quand elles existent.
@@ -211,6 +229,17 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               </button>
 
             </div>
+            {showConvictionNudge && (
+              <button
+                type="button"
+                onClick={() => navigate("/branding/section?section=tone_style")}
+                className="w-full text-left rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
+              >
+                <p className="text-2xs text-foreground">
+                  🌶️ <span className="font-semibold">Nouveau :</span> 2 questions dans « Ma voix & mes combats » rendent tes idées impossibles à copier. <span className="underline">Les remplir (2 min) →</span>
+                </p>
+              </button>
+            )}
             {/* Banner: Planifier ma semaine */}
             <button
               type="button"
