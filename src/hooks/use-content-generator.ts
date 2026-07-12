@@ -143,6 +143,39 @@ function escapeUnescapedControlChars(s: string): string {
   return out;
 }
 
+/**
+ * Dernier recours quand AUCUN parse JSON n'aboutit : le modèle (Sonnet, thinking
+ * off) enveloppe le post en ```json {"content":"…"} mais casse son JSON de
+ * plusieurs façons (sauts de ligne ET guillemets droits non échappés à
+ * l'intérieur de la valeur). Plutôt que de continuer à réparer un JSON arbitraire
+ * (sans fin), on EXTRAIT le seul champ qui compte — `content` — en s'ancrant sur
+ * la STRUCTURE (début de la valeur → frontière du champ suivant), pas sur un JSON
+ * valide. Robuste aux " et \n internes. Renvoie null si pas de champ `content`
+ * (ex. carrousel), pour ne rien casser des autres formats.
+ */
+function salvageContentField(txt: string): { content: string } | null {
+  const key = '"content"';
+  const k = txt.indexOf(key);
+  if (k < 0) return null;
+  const open = txt.indexOf('"', k + key.length + 1); // guillemet ouvrant de la valeur (après les ':')
+  if (open < 0) return null;
+  const start = open + 1;
+  // Frontière : un guillemet suivi soit du champ suivant ( , "cle": ), soit de la
+  // fin de l'objet ( } ). Insensible aux " / \n internes non échappés.
+  const boundary = txt.slice(start).match(/"\s*(?:,\s*"[a-zA-Z_]+"\s*:|}\s*$)/);
+  const end = boundary ? start + boundary.index! : txt.length;
+  let val = txt.slice(start, end);
+  // Dé-échappe les séquences JSON standard éventuellement présentes.
+  val = val
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, "\t")
+    .replace(/\\r/g, "\r")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\")
+    .trim();
+  return val ? { content: val } : null;
+}
+
 function parseAIJson(raw: string | object): any {
   if (typeof raw === "object" && raw !== null) return raw;
   if (typeof raw !== "string") return null;
@@ -215,6 +248,11 @@ function parseAIJson(raw: string | object): any {
   } catch {
     // ignore
   }
+
+  // Ultime filet : extraction structurelle du champ `content` d'un JSON
+  // irrécupérable, pour ne JAMAIS afficher le blob ```json brut au rendu du post.
+  const salvaged = salvageContentField(cleaned);
+  if (salvaged) return salvaged;
 
   return null;
 }
