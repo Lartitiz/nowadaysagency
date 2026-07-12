@@ -509,6 +509,22 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
         </div>
       )}
 
+      {/* Convictions vécues — état vide : nudge vers le coaching (jamais auto-rempli) */}
+      {!(data.conviction_pairs || data.conviction_shift || data.conviction_verbatims || data.conviction_unspoken) && (
+        <div>
+          <SectionLabel emoji="🌶️" title="Mes convictions vécues" />
+          <a
+            href="/branding/section?section=tone_style"
+            className="block rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4 hover:bg-primary/10 transition-colors"
+          >
+            <p className="text-sm text-foreground font-medium">Nouveau : la matière que personne ne peut te copier</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Ton désaccord avec les pratiques de ton métier, la croyance que tu as abandonnée, les phrases de clientes qui te restent… 2 questions de plus dans le coaching « Ma voix & mes combats » — c'est ce qui nourrit les idées les plus singulières. <span className="underline">Compléter (2 min) →</span>
+            </p>
+          </a>
+        </div>
+      )}
+
       {/* Convictions vécues — matière brute spiky (remplie en coaching, jamais auto-générée) */}
       {(data.conviction_pairs || data.conviction_shift || data.conviction_verbatims || data.conviction_unspoken) && (
         <div>
