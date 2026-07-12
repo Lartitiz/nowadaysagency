@@ -55,6 +55,7 @@ export interface IgLiveMetrics {
   audience?: IgAudience; // démographie des abonnés (follower_demographics)
   fetchedAt: string;
   partial: boolean; // true si une partie des appels a échoué
+  authError?: boolean; // true si Meta a signalé un token invalide / permission retirée
 }
 
 const GENDER_LABELS_FR: Record<string, string> = {
@@ -70,6 +71,7 @@ async function fetchDemographicBreakdown(
   igId: string,
   token: string,
   breakdown: "age" | "gender" | "city" | "country",
+  ctx?: IgFetchContext,
 ): Promise<IgAudienceBucket[] | undefined> {
   const u = new URL(`${GRAPH}/${igId}/insights`);
   u.searchParams.set("metric", "follower_demographics");
@@ -77,7 +79,7 @@ async function fetchDemographicBreakdown(
   u.searchParams.set("metric_type", "total_value");
   u.searchParams.set("breakdown", breakdown);
   u.searchParams.set("access_token", token);
-  const json = await getJson(u);
+  const json = await getJson(u, ctx);
   const results = json?.data?.[0]?.total_value?.breakdowns?.[0]?.results;
   if (!Array.isArray(results) || results.length === 0) return undefined;
   const buckets = results
@@ -90,12 +92,28 @@ async function fetchDemographicBreakdown(
   return buckets.length ? buckets : undefined;
 }
 
-async function getJson(url: URL): Promise<any | null> {
+// Contexte d'erreurs d'une récupération : permet de distinguer un token
+// expiré/permission retirée (→ 409 « reconnecte-toi » côté edge) d'un simple
+// trou de données, sans jamais casser les appels partiels.
+export interface IgFetchContext {
+  authError: boolean;
+  rateLimited: boolean;
+}
+export function newFetchContext(): IgFetchContext {
+  return { authError: false, rateLimited: false };
+}
+
+async function getJson(url: URL, ctx?: IgFetchContext): Promise<any | null> {
   try {
     const res = await fetch(url);
     const json = await res.json();
     if (!res.ok) {
-      console.warn("IG insights call failed:", url.pathname, json?.error?.message);
+      const err = json?.error;
+      // 190 = token invalide/expiré ; OAuthException 10/200+ = permission retirée.
+      if (ctx && (err?.code === 190 || err?.type === "OAuthException")) ctx.authError = true;
+      // 4/17/32/613 = rate limit Meta.
+      if (ctx && [4, 17, 32, 613].includes(err?.code)) ctx.rateLimited = true;
+      console.warn("IG insights call failed:", url.pathname, err?.code, err?.message);
       return null;
     }
     return json;
@@ -103,6 +121,24 @@ async function getJson(url: URL): Promise<any | null> {
     console.warn("IG insights fetch error:", url.pathname, e);
     return null;
   }
+}
+
+// Exécute des tâches avec une concurrence bornée (ordre des résultats préservé).
+// Meta tolère bien quelques appels simultanés ; en séquentiel, ~25 posts × 2
+// appels prenaient l'essentiel du temps de l'edge.
+const POST_CONCURRENCY = 5;
+async function mapPool<T, R>(items: T[], limit: number, fn: (item: T, i: number) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let next = 0;
+  const workers = Array.from({ length: Math.min(limit, Math.max(items.length, 1)) }, async () => {
+    while (true) {
+      const i = next++;
+      if (i >= items.length) return;
+      out[i] = await fn(items[i], i);
+    }
+  });
+  await Promise.all(workers);
+  return out;
 }
 
 // Lit la valeur agrégée d'une réponse insights (total_value, ou somme de la série).
@@ -134,6 +170,7 @@ async function fetchAccountTotalValue(
   igId: string,
   token: string,
   metric: string,
+  ctx?: IgFetchContext,
 ): Promise<number | undefined> {
   const until = Math.floor(Date.now() / 1000);
   const since = until - 28 * 24 * 3600;
@@ -145,7 +182,7 @@ async function fetchAccountTotalValue(
   windowed.searchParams.set("since", String(since));
   windowed.searchParams.set("until", String(until));
   windowed.searchParams.set("access_token", token);
-  const v1 = readTotalValue(await getJson(windowed));
+  const v1 = readTotalValue(await getJson(windowed, ctx));
   if (typeof v1 === "number") return v1;
 
   // Repli : agrégat days_28 sans fenêtre.
@@ -154,7 +191,7 @@ async function fetchAccountTotalValue(
   fallback.searchParams.set("period", "days_28");
   fallback.searchParams.set("metric_type", "total_value");
   fallback.searchParams.set("access_token", token);
-  return readTotalValue(await getJson(fallback));
+  return readTotalValue(await getJson(fallback, ctx));
 }
 
 function deriveFrequency(postsLast30d: number): string {
@@ -174,14 +211,17 @@ function deriveFrequency(postsLast30d: number): string {
 export async function fetchRecentPostMetrics(
   supabase: any,
   conn: any,
-): Promise<{ posts: IgPostMetrics[]; postsLast30d: number; partial: boolean }> {
+): Promise<{ posts: IgPostMetrics[]; postsLast30d: number; partial: boolean; authError?: boolean }> {
   const token = await refreshTokenIfNeeded(supabase, conn);
-  return fetchPostMetricsInternal(conn.platform_account_id, token);
+  const ctx = newFetchContext();
+  const res = await fetchPostMetricsInternal(conn.platform_account_id, token, ctx);
+  return { ...res, authError: ctx.authError };
 }
 
 async function fetchPostMetricsInternal(
   igId: string,
   token: string,
+  ctx: IgFetchContext,
 ): Promise<{ posts: IgPostMetrics[]; postsLast30d: number; partial: boolean }> {
   let partial = false;
   const media = await getJson(
@@ -192,27 +232,17 @@ async function fetchPostMetricsInternal(
       u.searchParams.set("access_token", token);
       return u;
     })(),
+    ctx,
   );
 
   const cutoff = Date.now() - 30 * 24 * 3600 * 1000;
   let postsLast30d = 0;
-  const measured: IgPostMetrics[] = [];
+  let measured: IgPostMetrics[] = [];
 
   if (media?.data?.length) {
-    for (const post of media.data) {
-      if (post.timestamp && new Date(post.timestamp).getTime() >= cutoff) postsLast30d++;
-
-      const ins = await getJson(
-        (() => {
-          const u = new URL(`${GRAPH}/${post.id}/insights`);
-          // saved/shares ne sont pas dispo sur tous les types de média → on demande
-          // un set large, les métriques absentes sont simplement ignorées.
-          u.searchParams.set("metric", "reach,likes,comments,saved,shares");
-          u.searchParams.set("access_token", token);
-          return u;
-        })(),
-      );
-
+    // Un pool borné remplace la boucle séquentielle (~25 posts × 2 appels en
+    // série = l'essentiel de la latence de l'edge). Ordre préservé par mapPool.
+    measured = await mapPool(media.data as any[], POST_CONCURRENCY, async (post) => {
       const pm: IgPostMetrics = {
         id: String(post.id),
         subject: (post.caption || "").replace(/\s+/g, " ").trim().slice(0, 120),
@@ -220,6 +250,25 @@ async function fetchPostMetricsInternal(
         timestamp: post.timestamp,
         permalink: post.permalink,
       };
+
+      const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
+      const insUrl = new URL(`${GRAPH}/${post.id}/insights`);
+      // saved/shares ne sont pas dispo sur tous les types de média → on demande
+      // un set large, les métriques absentes sont simplement ignorées.
+      insUrl.searchParams.set("metric", "reach,likes,comments,saved,shares");
+      insUrl.searchParams.set("access_token", token);
+
+      // Reels / vidéos : Meta sert souvent "views" plutôt que "reach". Appel
+      // isolé (pour ne pas casser l'appel éprouvé) mais en parallèle du premier.
+      const viewsUrl = new URL(`${GRAPH}/${post.id}/insights`);
+      viewsUrl.searchParams.set("metric", "views");
+      viewsUrl.searchParams.set("access_token", token);
+
+      const [ins, vj] = await Promise.all([
+        getJson(insUrl, ctx),
+        isVideo ? getJson(viewsUrl, ctx) : Promise.resolve(null),
+      ]);
+
       if (ins?.data) {
         for (const m of ins.data) {
           const val = m?.values?.[0]?.value ?? m?.total_value?.value;
@@ -233,23 +282,9 @@ async function fetchPostMetricsInternal(
         partial = true;
       }
 
-      // Reels / vidéos : Meta sert souvent "views" plutôt que "reach". On le récupère
-      // dans un appel isolé (pour ne pas casser l'appel éprouvé ci-dessus) afin que
-      // ces formats ne soient pas exclus du classement faute de dénominateur.
-      const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
-      if (isVideo) {
-        const vj = await getJson(
-          (() => {
-            const u = new URL(`${GRAPH}/${post.id}/insights`);
-            u.searchParams.set("metric", "views");
-            u.searchParams.set("access_token", token);
-            return u;
-          })(),
-        );
-        const v = vj?.data?.find((m: any) => m.name === "views");
-        const vVal = v?.values?.[0]?.value ?? v?.total_value?.value;
-        if (typeof vVal === "number") pm.views = vVal;
-      }
+      const v = vj?.data?.find((m: any) => m.name === "views");
+      const vVal = v?.values?.[0]?.value ?? v?.total_value?.value;
+      if (typeof vVal === "number") pm.views = vVal;
 
       const interactions =
         (pm.likes || 0) + (pm.comments || 0) + (pm.saves || 0) + (pm.shares || 0);
@@ -258,7 +293,11 @@ async function fetchPostMetricsInternal(
         : (pm.views && pm.views > 0) ? pm.views
         : 0;
       if (denom > 0) pm.engagementRate = interactions / denom;
-      measured.push(pm);
+      return pm;
+    });
+
+    for (const post of media.data) {
+      if (post.timestamp && new Date(post.timestamp).getTime() >= cutoff) postsLast30d++;
     }
   } else {
     partial = true;
@@ -277,6 +316,7 @@ export async function fetchInstagramInsights(
 ): Promise<IgLiveMetrics> {
   const token = await refreshTokenIfNeeded(supabase, conn);
   const igId = conn.platform_account_id;
+  const ctx = newFetchContext();
   let partial = false;
 
   const result: IgLiveMetrics = {
@@ -286,15 +326,78 @@ export async function fetchInstagramInsights(
     partial: false,
   };
 
+  // Les blocs 1/2/2bis/3/4 sont indépendants : ils partaient en SÉRIE (5 allers-
+  // retours Meta l'un après l'autre) → désormais en parallèle. La sémantique de
+  // chaque bloc (fenêtres, replis, gardes) est inchangée.
+
   // 1. Compteurs de base du compte.
-  const base = await getJson(
-    (() => {
-      const u = new URL(`${GRAPH}/${igId}`);
-      u.searchParams.set("fields", "followers_count,follows_count,media_count");
-      u.searchParams.set("access_token", token);
-      return u;
-    })(),
-  );
+  const fetchBase = async () => {
+    const u = new URL(`${GRAPH}/${igId}`);
+    u.searchParams.set("fields", "followers_count,follows_count,media_count");
+    u.searchParams.set("access_token", token);
+    return getJson(u, ctx);
+  };
+
+  // 2. Reach UNIQUE du compte sur les 28 derniers jours. Comme les autres métriques
+  //    compte, on interroge sur une fenêtre since/until EXPLICITE (period=day +
+  //    total_value) : sans fenêtre, days_28 renvoyait le reach d'UNE seule journée
+  //    (cause des reach aberrants/sous-évalués qui se faisaient écarter par la garde).
+  //    ⚠️ Le reach compte des utilisateurs UNIQUES → on lit l'agrégat total_value, on
+  //    ne SOMME JAMAIS la série journalière (ça doublonnerait les mêmes personnes).
+  const fetchReach28 = async (): Promise<number | undefined> => {
+    const until = Math.floor(Date.now() / 1000);
+    const since = until - 28 * 24 * 3600;
+    const windowed = new URL(`${GRAPH}/${igId}/insights`);
+    windowed.searchParams.set("metric", "reach");
+    windowed.searchParams.set("period", "day");
+    windowed.searchParams.set("metric_type", "total_value");
+    windowed.searchParams.set("since", String(since));
+    windowed.searchParams.set("until", String(until));
+    windowed.searchParams.set("access_token", token);
+    const total = (await getJson(windowed, ctx))?.data?.find((m: any) => m.name === "reach")
+      ?.total_value?.value;
+    if (typeof total === "number") return total;
+    // Repli : agrégat days_28 sans fenêtre (lit total_value uniquement, jamais la somme).
+    const fb = new URL(`${GRAPH}/${igId}/insights`);
+    fb.searchParams.set("metric", "reach");
+    fb.searchParams.set("period", "days_28");
+    fb.searchParams.set("metric_type", "total_value");
+    fb.searchParams.set("access_token", token);
+    const fbTotal = (await getJson(fb, ctx))?.data?.find((m: any) => m.name === "reach")
+      ?.total_value?.value;
+    return typeof fbTotal === "number" ? fbTotal : undefined;
+  };
+
+  // 3. Croissance d'abonnés sur 30 jours. follower_count (period=day) renvoie le nb
+  //    de nouveaux abonnés par jour → on somme. On ne garde la valeur QUE si la série
+  //    existe vraiment (sinon reduce([]) = 0 ferait passer "pas de données" pour "+0").
+  const fetchGrowth = async () => {
+    const u = new URL(`${GRAPH}/${igId}/insights`);
+    u.searchParams.set("metric", "follower_count");
+    u.searchParams.set("period", "day");
+    u.searchParams.set("access_token", token);
+    return getJson(u, ctx);
+  };
+
+  // 2bis. Métriques compte agrégées sur 28 j (views = remplace impressions ;
+  //       total_interactions, accounts_engaged, profile_views). Appels isolés et
+  //       optionnels : une métrique absente reste simplement vide (pas de partial),
+  //       on enrichit le remplissage auto sans jamais dégrader le reste.
+  const [base, reach28, accountVals, growth, postData] = await Promise.all([
+    fetchBase(),
+    fetchReach28(),
+    Promise.all([
+      fetchAccountTotalValue(igId, token, "views", ctx),
+      fetchAccountTotalValue(igId, token, "total_interactions", ctx),
+      fetchAccountTotalValue(igId, token, "accounts_engaged", ctx),
+      fetchAccountTotalValue(igId, token, "profile_views", ctx),
+    ]),
+    fetchGrowth(),
+    // 4. Posts récents + insights par post (logique partagée avec le recyclage
+    // intelligent via fetchRecentPostMetrics).
+    fetchPostMetricsInternal(igId, token, ctx),
+  ]);
+
   if (base) {
     result.followers = base.followers_count;
     result.follows = base.follows_count;
@@ -303,15 +406,33 @@ export async function fetchInstagramInsights(
     partial = true;
   }
 
+  if (typeof reach28 === "number") result.reach30d = reach28;
+  else partial = true;
+
+  const [views30d, totalInteractions30d, accountsEngaged30d, profileViews30d] = accountVals;
+  if (typeof views30d === "number") result.views30d = views30d;
+  if (typeof totalInteractions30d === "number") result.totalInteractions30d = totalInteractions30d;
+  if (typeof accountsEngaged30d === "number") result.accountsEngaged30d = accountsEngaged30d;
+  if (typeof profileViews30d === "number") result.profileViews30d = profileViews30d;
+
+  const growthValues = growth?.data?.[0]?.values;
+  if (Array.isArray(growthValues) && growthValues.length > 0) {
+    result.followerGrowth30d = growthValues.reduce(
+      (sum: number, v: any) => sum + (Number(v?.value) || 0),
+      0,
+    );
+  }
+
   // 1bis. Démographie de l'audience (follower_demographics). L'API exige ≥ 100
-  //       abonnés, sinon elle renvoie une erreur → on ne tente qu'au-dessus du seuil.
-  //       C'est un bonus : un échec ici ne dégrade pas le reste (pas de partial).
+  //       abonnés, sinon elle renvoie une erreur → on ne tente qu'au-dessus du seuil
+  //       (dépend du bloc 1, donc après le Promise.all). Bonus : un échec ici ne
+  //       dégrade pas le reste (pas de partial).
   if (typeof result.followers === "number" && result.followers >= 100) {
     const [age, gender, cities, countries] = await Promise.all([
-      fetchDemographicBreakdown(igId, token, "age"),
-      fetchDemographicBreakdown(igId, token, "gender"),
-      fetchDemographicBreakdown(igId, token, "city"),
-      fetchDemographicBreakdown(igId, token, "country"),
+      fetchDemographicBreakdown(igId, token, "age", ctx),
+      fetchDemographicBreakdown(igId, token, "gender", ctx),
+      fetchDemographicBreakdown(igId, token, "city", ctx),
+      fetchDemographicBreakdown(igId, token, "country", ctx),
     ]);
     const audience: IgAudience = {};
     if (age?.length) audience.age = age;
@@ -326,80 +447,6 @@ export async function fetchInstagramInsights(
     if (Object.keys(audience).length) result.audience = audience;
   }
 
-  // 2. Reach UNIQUE du compte sur les 28 derniers jours. Comme les autres métriques
-  //    compte, on interroge sur une fenêtre since/until EXPLICITE (period=day +
-  //    total_value) : sans fenêtre, days_28 renvoyait le reach d'UNE seule journée
-  //    (cause des reach aberrants/sous-évalués qui se faisaient écarter par la garde).
-  //    ⚠️ Le reach compte des utilisateurs UNIQUES → on lit l'agrégat total_value, on
-  //    ne SOMME JAMAIS la série journalière (ça doublonnerait les mêmes personnes).
-  {
-    const until = Math.floor(Date.now() / 1000);
-    const since = until - 28 * 24 * 3600;
-    const windowed = new URL(`${GRAPH}/${igId}/insights`);
-    windowed.searchParams.set("metric", "reach");
-    windowed.searchParams.set("period", "day");
-    windowed.searchParams.set("metric_type", "total_value");
-    windowed.searchParams.set("since", String(since));
-    windowed.searchParams.set("until", String(until));
-    windowed.searchParams.set("access_token", token);
-    const total = (await getJson(windowed))?.data?.find((m: any) => m.name === "reach")
-      ?.total_value?.value;
-    if (typeof total === "number") {
-      result.reach30d = total;
-    } else {
-      // Repli : agrégat days_28 sans fenêtre (lit total_value uniquement, jamais la somme).
-      const fb = new URL(`${GRAPH}/${igId}/insights`);
-      fb.searchParams.set("metric", "reach");
-      fb.searchParams.set("period", "days_28");
-      fb.searchParams.set("metric_type", "total_value");
-      fb.searchParams.set("access_token", token);
-      const fbTotal = (await getJson(fb))?.data?.find((m: any) => m.name === "reach")
-        ?.total_value?.value;
-      if (typeof fbTotal === "number") result.reach30d = fbTotal;
-      else partial = true;
-    }
-  }
-
-  // 2bis. Métriques compte agrégées sur 28 j (views = remplace impressions ;
-  //       total_interactions, accounts_engaged, profile_views). Appels isolés et
-  //       optionnels : une métrique absente reste simplement vide (pas de partial),
-  //       on enrichit le remplissage auto sans jamais dégrader le reste.
-  const [views30d, totalInteractions30d, accountsEngaged30d, profileViews30d] =
-    await Promise.all([
-      fetchAccountTotalValue(igId, token, "views"),
-      fetchAccountTotalValue(igId, token, "total_interactions"),
-      fetchAccountTotalValue(igId, token, "accounts_engaged"),
-      fetchAccountTotalValue(igId, token, "profile_views"),
-    ]);
-  if (typeof views30d === "number") result.views30d = views30d;
-  if (typeof totalInteractions30d === "number") result.totalInteractions30d = totalInteractions30d;
-  if (typeof accountsEngaged30d === "number") result.accountsEngaged30d = accountsEngaged30d;
-  if (typeof profileViews30d === "number") result.profileViews30d = profileViews30d;
-
-  // 3. Croissance d'abonnés sur 30 jours. follower_count (period=day) renvoie le nb
-  //    de nouveaux abonnés par jour → on somme. On ne garde la valeur QUE si la série
-  //    existe vraiment (sinon reduce([]) = 0 ferait passer "pas de données" pour "+0").
-  const growth = await getJson(
-    (() => {
-      const u = new URL(`${GRAPH}/${igId}/insights`);
-      u.searchParams.set("metric", "follower_count");
-      u.searchParams.set("period", "day");
-      u.searchParams.set("access_token", token);
-      return u;
-    })(),
-  );
-  const growthValues = growth?.data?.[0]?.values;
-  if (Array.isArray(growthValues) && growthValues.length > 0) {
-    result.followerGrowth30d = growthValues.reduce(
-      (sum: number, v: any) => sum + (Number(v?.value) || 0),
-      0,
-    );
-  }
-
-  // 4. Posts récents + insights par post (logique partagée avec le recyclage
-  // intelligent via fetchRecentPostMetrics — extraction sans changement de
-  // comportement).
-  const postData = await fetchPostMetricsInternal(igId, token);
   if (postData.partial) partial = true;
   const measured = postData.posts;
 
@@ -441,5 +488,6 @@ export async function fetchInstagramInsights(
   }
 
   result.partial = partial;
+  result.authError = ctx.authError;
   return result;
 }
