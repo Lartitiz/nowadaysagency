@@ -17,6 +17,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { fetchInstagramInsights, countPostsInWindow, newFetchContext } from "../_shared/instagram-insights.ts";
 import { refreshTokenIfNeeded } from "../_shared/instagram-graph.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
+import { fetchGa4Month } from "../_shared/ga4.ts";
 
 function json(body: unknown, corsHeaders: Record<string, string>, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -153,6 +154,82 @@ Deno.serve(async (req) => {
 
     console.log("stats-monthly-snapshot:", monthDate, JSON.stringify(results));
 
+    // ─── Google Analytics (Phase 1 : une seule propriété via GA4_PROPERTY_ID) ───
+    // Si le secret est absent → no-op total (ne casse jamais le snapshot IG).
+    // On fige les colonnes « site web » du mois écoulé pour les espaces qui ont
+    // activé GA4 (stats_config.uses_ga4). Ne remplit QUE les champs vides.
+    const ga4Results: { scope: string; status: string }[] = [];
+    const ga4EnvProperty = Deno.env.get("GA4_PROPERTY_ID") || "";
+    const ga4Configured = !!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL")
+      && !!Deno.env.get("GOOGLE_SA_PRIVATE_KEY");
+    if (ga4Configured) {
+      try {
+        // Gate par la CONNEXION Google (social_connections platform='google'), pas
+        // par uses_ga4 : on ne remplit que les espaces réellement connectés, ce qui
+        // empêche la propriété globale Phase 1 de fuiter dans d'autres comptes.
+        const { data: ga4Conns } = await supabase
+          .from("social_connections")
+          .select("user_id, workspace_id, platform_account_id")
+          .eq("platform", "google");
+        const metricsCache = new Map<string, Awaited<ReturnType<typeof fetchGa4Month>>>();
+        for (const conn of ga4Conns || []) {
+          const scope = conn.workspace_id || conn.user_id;
+          const propertyId = conn.platform_account_id || ga4EnvProperty;
+          try {
+            if (!propertyId) { ga4Results.push({ scope, status: "no_property" }); continue; }
+            let ga4Metrics = metricsCache.get(propertyId);
+            if (!ga4Metrics) {
+              ga4Metrics = await fetchGa4Month(propertyId, monthDate);
+              metricsCache.set(propertyId, ga4Metrics);
+            }
+            let gq = supabase.from("monthly_stats").select("*").eq("month_date", monthDate);
+            if (conn.workspace_id) gq = gq.eq("workspace_id", conn.workspace_id);
+            else gq = gq.eq("user_id", conn.user_id).is("workspace_id", null);
+            const { data: gExisting } = await gq.limit(1).maybeSingle();
+
+            const gcur = (gExisting || {}) as Record<string, unknown>;
+            const gpatch: Record<string, unknown> = {};
+            const setIfEmpty = (col: string, val: number) => {
+              if (typeof val === "number" && val > 0 && gcur[col] == null) gpatch[col] = val;
+            };
+            setIfEmpty("website_visitors", ga4Metrics.websiteVisitors);
+            setIfEmpty("ga4_users", ga4Metrics.ga4Users);
+            setIfEmpty("traffic_search", ga4Metrics.trafficSearch);
+            setIfEmpty("traffic_social", ga4Metrics.trafficSocial);
+            setIfEmpty("traffic_pinterest", ga4Metrics.trafficPinterest);
+            setIfEmpty("traffic_instagram", ga4Metrics.trafficInstagram);
+
+            if (!Object.keys(gpatch).length) { ga4Results.push({ scope, status: "already_filled" }); continue; }
+
+            if (gExisting?.id) {
+              const { error: upErr } = await supabase.from("monthly_stats")
+                .update({ ...gpatch, updated_at: new Date().toISOString() })
+                .eq("id", gExisting.id);
+              if (upErr) throw upErr;
+              ga4Results.push({ scope, status: "updated" });
+            } else {
+              const { error: insErr } = await supabase.from("monthly_stats").insert({
+                ...gpatch,
+                user_id: conn.user_id,
+                workspace_id: conn.workspace_id ?? null,
+                month_date: monthDate,
+                updated_at: new Date().toISOString(),
+              });
+              if (insErr) throw insErr;
+              ga4Results.push({ scope, status: "created" });
+            }
+          } catch (e) {
+            console.error("stats-monthly-snapshot: GA4 scope en échec", scope, e);
+            ga4Results.push({ scope, status: "error" });
+          }
+        }
+      } catch (e) {
+        // Toute erreur GA4 (secrets/API) reste isolée : le snapshot IG a déjà réussi.
+        console.error("stats-monthly-snapshot: bloc GA4 en échec", e);
+      }
+      console.log("stats-monthly-snapshot GA4:", monthDate, JSON.stringify(ga4Results));
+    }
+
     // Les chiffres du mois sont figés → on enchaîne sur le rapport mensuel
     // e-mail (event monthly_stats_report). Non bloquant : un échec d'envoi ne
     // doit pas faire échouer le snapshot.
@@ -168,7 +245,7 @@ Deno.serve(async (req) => {
       console.error("stats-monthly-snapshot: déclenchement du rapport e-mail échoué", e);
     }
 
-    return json({ success: true, month: monthDate, results, emailReport }, corsHeaders);
+    return json({ success: true, month: monthDate, results, ga4Results, emailReport }, corsHeaders);
   } catch (e) {
     console.error("stats-monthly-snapshot error:", e);
     return json({ error: "Erreur interne du serveur" }, corsHeaders, 500);
