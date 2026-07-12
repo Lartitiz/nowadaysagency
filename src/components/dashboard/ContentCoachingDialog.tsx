@@ -10,8 +10,9 @@ import { ArrowLeft, Rocket, RefreshCw, Sparkles, Bookmark, BookmarkCheck, Loader
 import { toast } from "sonner";
 import { normalizeFormat } from "@/lib/format-normalizer";
 import { useCreateIdea } from "@/hooks/use-saved-ideas";
+import { nextMarronniers } from "@/lib/marronniers";
 
-type Step = 1 | 2 | "loading" | "result";
+type Step = 1 | 2 | "seeds" | "loading" | "result";
 
 interface ContentIdea {
   subject: string;
@@ -127,6 +128,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(null);
   const [savedIdeas, setSavedIdeas] = useState<Set<number>>(new Set());
   const [regeneratingIdx, setRegeneratingIdx] = useState<number | null>(null);
+  const [seeds, setSeeds] = useState<Array<{ subject: string; why?: string }> | null>(null);
+  const [seedParams, setSeedParams] = useState<{ objectif: string; canal: string; format: string } | null>(null);
   const createIdea = useCreateIdea();
 
   const reset = () => {
@@ -203,7 +206,14 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     generateIdeas({ objectif, canal, format: "carousel", sujet });
   };
 
-  const generateIdeas = async (params?: { objectif: string; canal: string; format: string; sujet: string; intensity?: "bold" }) => {
+  const marronniersPayload = () =>
+    nextMarronniers(new Date(), 3).map((o) => ({
+      label: o.marronnier.label,
+      date: o.date.toISOString().slice(0, 10),
+      daysUntil: o.daysUntil,
+    }));
+
+  const generateIdeas = async (params?: { objectif: string; canal: string; format: string; sujet: string; intensity?: "bold"; skipSeeds?: boolean }) => {
     const p = params || { objectif, canal, format, sujet };
     // Lentilles déjà affichées : exclues du prochain tirage pour que
     // « Autres idées » propose vraiment d'autres angles.
@@ -212,6 +222,30 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
     setResult(null);
     setSelectedIdea(null);
     setSelectedSubject(null);
+
+    // ─── Deepening par défaut : sans sujet, proposer d'abord des sujets-graines ───
+    // (sauf mode Surprise « l'IA décide tout » et sauf refus explicite)
+    if (!p.sujet && !p.skipSeeds && !p.intensity && p.objectif !== "auto") {
+      try {
+        const { data } = await invokeWithTimeout("content-coaching", {
+          body: {
+            answers: { objectif: p.objectif, sujet: null, canal: p.canal, format: p.format, content_type: "auto", ton_envie: "auto" },
+            mode: "seeds",
+            workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
+            upcoming_marronniers: marronniersPayload(),
+          },
+        }, 60000);
+        const got = Array.isArray(data?.seeds) ? data.seeds.filter((s: any) => s?.subject) : [];
+        if (got.length >= 2) {
+          setSeeds(got);
+          setSeedParams({ objectif: p.objectif, canal: p.canal, format: p.format });
+          setStep("seeds");
+          return;
+        }
+      } catch {
+        // échec silencieux → génération directe (ancien comportement)
+      }
+    }
 
     try {
       const { data, error } = await invokeWithTimeout("content-coaching", {
@@ -228,6 +262,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
           draw_nonce: Math.random().toString(36).slice(2, 10),
           exclude_lenses: shownLenses.length > 0 ? shownLenses : undefined,
+          deepen: !!p.sujet,
+          upcoming_marronniers: marronniersPayload(),
         },
       }, 120000);
       if (error) throw error;
@@ -486,6 +522,39 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
         )}
 
         {/* ─── Loading ─── */}
+        {/* ─── Sujets-graines (deepening) ─── */}
+        {step === "seeds" && seeds && (
+          <div className="space-y-3 animate-fade-in py-2">
+            <div className="text-center space-y-1">
+              <p className="font-display text-base font-bold text-foreground">3 territoires à creuser</p>
+              <p className="text-sm text-muted-foreground">Choisis celui qui t'appelle — je te propose ensuite 4 angles différents dessus.</p>
+            </div>
+            <div className="space-y-2">
+              {seeds.map((s, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setSujet(s.subject);
+                    if (seedParams) generateIdeas({ ...seedParams, sujet: s.subject });
+                  }}
+                  className="w-full text-left rounded-xl border border-border bg-card p-4 hover:border-primary hover:bg-primary/5 transition-colors"
+                >
+                  <p className="text-sm font-medium text-foreground">{s.subject}</p>
+                  {s.why && <p className="text-xs text-muted-foreground mt-1">{s.why}</p>}
+                </button>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-muted-foreground"
+              onClick={() => { if (seedParams) generateIdeas({ ...seedParams, sujet: "", skipSeeds: true }); }}
+            >
+              Plutôt 4 idées libres, sans creuser un sujet →
+            </Button>
+          </div>
+        )}
+
         {step === "loading" && (
           <div className="space-y-3 animate-fade-in py-3">
             <div className="space-y-1.5">

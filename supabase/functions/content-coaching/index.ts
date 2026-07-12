@@ -7,6 +7,7 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { IDEA_LENSES, pickLenses, WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { fetchDepthMaterial } from "../_shared/depth-research.ts";
 
 const MAX_CONTEXT_CHARS = 12000;
 const MAX_LIVING_MATTER_CHARS = 4500;
@@ -51,12 +52,25 @@ Deno.serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const body = await req.json();
-    const { answers, workspace_id, intensity, regenerate_lens, draw_nonce, exclude_lenses, previous_subject } = body;
+    const { answers, workspace_id, intensity, regenerate_lens, draw_nonce, exclude_lenses, previous_subject, mode, deepen, upcoming_marronniers } = body;
     const { objectif, sujet, canal, format, content_type, ton_envie } = answers || {};
     const knownLensIds = IDEA_LENSES.map((l) => l.id);
     const excludeLensIds: string[] = Array.isArray(exclude_lenses)
       ? exclude_lenses.filter((id: unknown) => typeof id === "string" && knownLensIds.includes(id)).slice(0, 8)
       : [];
+    // Marronniers : calculés côté front (src/lib/marronniers.ts, source unique), juste validés ici.
+    const marronniers: Array<{ label: string; date: string; daysUntil: number | null }> = Array.isArray(upcoming_marronniers)
+      ? upcoming_marronniers.slice(0, 3)
+        .filter((m: unknown) => m && typeof (m as any).label === "string")
+        .map((m: any) => ({
+          label: String(m.label).slice(0, 60),
+          date: typeof m.date === "string" ? m.date.slice(0, 10) : "",
+          daysUntil: Number.isFinite(m.daysUntil) ? Number(m.daysUntil) : null,
+        }))
+      : [];
+    const marronniersBlock = marronniers.length
+      ? `\nMARRONNIERS À VENIR (temps forts du calendrier français) :\n${marronniers.map((m) => `- ${m.label}${m.date ? ` (${m.date}${m.daysUntil != null ? `, dans ${m.daysUntil} j` : ""})` : ""}`).join("\n")}\nRÈGLE MARRONNIERS : si et SEULEMENT si un lien naturel et non forcé existe avec le métier, AU PLUS 1 idée peut s'y adosser (le métier d'abord, le marronnier en toile de fond). Sinon ignore-les totalement — un marronnier plaqué est pire que pas de marronnier.\n`
+      : "";
 
     const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
@@ -285,6 +299,74 @@ Deno.serve(async (req) => {
       generatedContent ? `Contenus générés :\n${generatedContent}` : "",
     ].filter(Boolean).join("\n\n") || "Aucun historique", MAX_HISTORY_CHARS);
 
+    // ─── MODE "SEEDS" : 2-3 sujets-graines à creuser (deepening, étape 1) ───
+    // Appel léger, non facturé (le crédit part sur la génération des 4 idées).
+    if (mode === "seeds") {
+      const seedsUsage: UsageSink = {};
+      const activite = ctx?.profile?.activite || ctx?.profile?.type_activite || "non renseignée";
+      const seedsSystem = `Tu es la meilleure directrice éditoriale du monde. Tu proposes des SUJETS-GRAINES : des territoires de contenu à creuser, ancrés dans le métier réel de l'utilisatrice.
+
+CONTEXTE BRANDING :
+${contextText}
+${livingMatterBlock}${marronniersBlock}
+DATE : ${new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+
+HISTORIQUE (NE PAS reproposer ces territoires) :
+${recentPosts}
+
+RÈGLES :
+- EXACTEMENT 3 sujets-graines, chacun sur une FACETTE DIFFÉRENTE du métier (technique/matière, relation client, coulisses/économie, vision/valeurs, transmission…).
+- Un sujet-graine = 8 à 18 mots, formulé comme ELLE le dirait (pas de titre putaclic, pas de hook, pas de "Les 3 erreurs…").
+- Ancré dans SON métier précis : si le sujet marche pour un autre secteur, il est trop vague.
+- Si la MATIÈRE VIVANTE contient des convictions ou anecdotes, au moins 1 sujet-graine doit en partir.
+- MAXIMUM 1 sujet lié au prix. MAXIMUM 1 sujet adossé à un marronnier (et seulement si le lien est naturel).
+- AUCUN chiffre inventé.
+
+Réponds UNIQUEMENT avec ce JSON (aucune prose, commence par {) :
+{ "seeds": [ { "subject": "…", "why": "1 phrase : ce qu'il y a à creuser là-dessous pour SA cible" } ] }`;
+      const rawSeeds = await callAnthropic({
+        model: getModelForAction("coaching"),
+        system: truncateForPrompt(seedsSystem, MAX_CONTEXT_CHARS + MAX_LIVING_MATTER_CHARS + 4000),
+        messages: [{ role: "user", content: "Propose les 3 sujets-graines. JSON uniquement, commence par {." }],
+        temperature: 0.8,
+        max_tokens: 700,
+      }, seedsUsage);
+      try {
+        const s = rawSeeds.indexOf("{"); const e = rawSeeds.lastIndexOf("}");
+        const parsed = JSON.parse(rawSeeds.slice(s, e + 1));
+        const seeds = (Array.isArray(parsed?.seeds) ? parsed.seeds : [])
+          .filter((x: any) => x && typeof x.subject === "string" && x.subject.trim())
+          .slice(0, 3)
+          .map((x: any) => ({ subject: String(x.subject).slice(0, 200), why: typeof x.why === "string" ? x.why.slice(0, 240) : "" }));
+        if (!seeds.length) throw new Error("no seeds");
+        console.log("[content-coaching][seeds]", { count: seeds.length, tokens: seedsUsage.total_tokens });
+        return new Response(JSON.stringify({ seeds }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (seedsErr) {
+        // Échec silencieux : le front retombe sur la génération directe des 4 idées.
+        console.warn("[content-coaching][seeds] parse failed, fallback front", seedsErr);
+        return new Response(JSON.stringify({ seeds: [] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // ─── DEEPENING : recherche web sur le sujet (condiment, échec silencieux) ───
+    let depthBlock = "";
+    if (sujet && deepen === true && !regenerate_lens) {
+      const material = await fetchDepthMaterial({
+        subject: sujet,
+        activity: ctx?.profile?.activite,
+        model: getModelForAction("content"),
+        apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
+        logger: (m: string) => console.log(m),
+      });
+      if (material) {
+        depthBlock = `\n══════════════════════════════════════\nMATIÈRE DE PROFONDEUR (recherche web fraîche sur le sujet)\n══════════════════════════════════════\n${material}\nUSAGE : nourris les idées avec ces mécanismes, nuances et controverses RÉELS — c'est un condiment, pas le plat. Pas de résumé d'article. Tout chiffre repris reste attaché à sa source. Si un élément contredit le positionnement de l'utilisatrice, ignore-le.\n`;
+      }
+    }
+
     const strategy = strategyRes.data;
     const pillars = strategy
       ? [strategy.pillar_major, strategy.pillar_minor_1, strategy.pillar_minor_2, strategy.pillar_minor_3]
@@ -403,7 +485,7 @@ Tu N'AFFICHES PAS ces 3 cases dans le JSON — elles sont ton chain-of-thought.
 
 CONTEXTE BRANDING :
 ${contextText}
-${livingMatterBlock}
+${livingMatterBlock}${depthBlock}${marronniersBlock}
 PILIERS : ${pillars}
 DATE : ${dayOfWeek} ${now.getDate()} ${currentMonth} ${currentYear}
 
@@ -598,6 +680,54 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
         }
       }
       console.log("[content-coaching][ancrage]", { anchored, total: result.ideas.length, retried });
+    }
+
+    // ─── SONDE DE SINGULARITÉ (télémétrie, jamais bloquante) ───
+    // Version déterministe du « test du nom échangeable » : mesure les motifs
+    // génériques, la monomanie prix et l'usage réel des convictions vécues.
+    // Requête des logs : filtrer sur [sonde-singularite].
+    try {
+      if (Array.isArray(result?.ideas) && result.ideas.length > 0) {
+        const GENERIC_PATTERNS: RegExp[] = [
+          /\b(les|top)\s?\d+\s?(erreurs|astuces|conseils|raisons|tips|secrets)/i,
+          /la v[ée]rit[ée] sur/i,
+          /ce que personne ne (dit|vous dit|te dit)/i,
+          /le secret (de|pour|derri[èe]re)/i,
+          /pourquoi (vous|tu) devr(iez|ais)/i,
+          /production de masse/i,
+          /l'authenticit[ée] (sur|est)/i,
+          /dans un monde o[ùu]/i,
+        ];
+        const priceRe = /\b(prix|tarif|co[ûu]te|cher|€)\b/i;
+        const convSrc = [tone.conviction_pairs, tone.conviction_shift, tone.conviction_verbatims, tone.conviction_unspoken]
+          .filter(Boolean).map((s: any) => normalize(String(s)));
+        const convTokens = new Set<string>();
+        for (const ct of convSrc) for (const w of ct.split(/[^a-z0-9]+/)) if (w.length >= 6) convTokens.add(w.slice(0, 6));
+        const perIdea = result.ideas.map((i: any) => {
+          const text = `${i?.subject || ""} ${i?.why_it_works || ""}`;
+          const ntext = normalize(text);
+          return {
+            lens: i?.lens || "?",
+            generic: GENERIC_PATTERNS.some((re) => re.test(text)),
+            price: priceRe.test(text),
+            conviction: convTokens.size > 0 && [...convTokens].some((t) => ntext.includes(t)),
+          };
+        });
+        const genericCount = perIdea.filter((x: any) => x.generic).length;
+        const priceCount = perIdea.filter((x: any) => x.price).length;
+        console.log("[sonde-singularite]", JSON.stringify({
+          generic: genericCount,
+          price: priceCount,
+          conviction_hits: convTokens.size > 0 ? perIdea.filter((x: any) => x.conviction).length : null,
+          lenses: perIdea.map((x: any) => x.lens),
+          deepen: deepen === true,
+          bold: isBold,
+        }));
+        if (genericCount >= 2) console.warn("[sonde-singularite] ⚠ jeu à dominante générique", { userId: user.id, genericCount });
+        if (priceCount >= 2) console.warn("[sonde-singularite] ⚠ monomanie prix", { userId: user.id, priceCount });
+      }
+    } catch (sondeErr) {
+      console.warn("[sonde-singularite] erreur télémétrie (non bloquante)", sondeErr);
     }
 
     // Backwards compatibility: if the front expects the old format
