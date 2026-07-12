@@ -50,6 +50,58 @@ export async function streamAnthropicSSE(
 }
 
 /**
+ * Variante de `streamAnthropicSSE` qui FORCE un tool (`tool_choice`) — le JSON
+ * de sortie est alors garanti valide par l'API elle-même (assemblage des
+ * `input_json_delta`), au lieu d'un JSON en texte libre que Sonnet casse par
+ * intermittence (saut de ligne ou guillemet non échappé dans une valeur → blob
+ * ```json qui fuit au rendu du post ; cf. filets front #511/#524). Même couche
+ * de transport que le stream texte : `createClientSSEStream` sait déjà assembler
+ * les fragments `input_json_delta` et émettre le JSON complet au client, donc le
+ * live « L'IA rédige en temps réel » est préservé (le champ `content` grandit à
+ * l'identique côté front). `tool_choice` forcé est compatible avec un thinking
+ * DÉSACTIVÉ (adaptatif-ON provoquerait un 400) : on garde donc la même garde.
+ */
+export async function streamAnthropicToolSSE(
+  apiKey: string,
+  model: string,
+  systemPrompt: string,
+  messages: Array<{ role: string; content: string | any[] }>,
+  temperature: number,
+  maxTokens: number,
+  tool: { name: string; description?: string; input_schema: unknown },
+): Promise<ReadableStream> {
+  const sampled = supportsTemperature(model);
+  const finalMessages = sampled ? messages : stripTrailingAssistant(messages as any);
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "anthropic-beta": "prompt-caching-2024-07-31",
+    },
+    body: JSON.stringify({
+      model,
+      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+      messages: finalMessages,
+      tools: [tool],
+      tool_choice: { type: "tool", name: tool.name },
+      ...(sampled ? { temperature } : {}),
+      ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
+      max_tokens: maxTokens,
+      stream: true,
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Anthropic API error ${response.status}: ${errorText}`);
+  }
+
+  return response.body!;
+}
+
+/**
  * Source d'un stream Anthropic : soit un ReadableStream déjà ouvert (pas de
  * relance possible), soit une factory `() => Promise<ReadableStream>` qui
  * permet de RE-ouvrir le stream (relance serveur sur overloaded / complétion
@@ -81,7 +133,19 @@ export function createClientSSEStream(
   source: AnthropicStreamSource,
   corsHeaders: Record<string, string>,
   onDone?: (fullText: string, usage?: AnthropicUsage) => Promise<void>,
-  opts?: { maxRetries?: number },
+  opts?: {
+    maxRetries?: number;
+    /**
+     * Sortie tool forcé (`streamAnthropicToolSSE`) : le texte assemblé est du
+     * JSON dont la validité repose sur la COMPLÉTUDE de l'assemblage. Si le
+     * stream se coupe sur `stop_reason: "max_tokens"`, le JSON est tronqué donc
+     * invalide → on le traite comme une erreur (jamais un `done` avec un JSON
+     * amputé), pendant du garde `extractValidatedToolInput` du helper
+     * non-streaming. Sans ce flag, un stream texte tronqué reste renvoyé tel
+     * quel (comportement historique inchangé pour les autres consommateurs).
+     */
+    failOnTruncation?: boolean;
+  },
 ): Response {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();
@@ -116,6 +180,7 @@ export function createClientSSEStream(
         let fullText = "";          // texte assemblé de CETTE tentative
         let sawDelta = false;       // a-t-on reçu du texte sur cette tentative ?
         let streamError: string | null = null; // event `error` Anthropic dans un 200
+        let truncated = false;      // stop_reason "max_tokens" (JSON tool amputé)
 
         let reader: ReadableStreamDefaultReader<Uint8Array>;
         try {
@@ -157,11 +222,26 @@ export function createClientSSEStream(
                 sawDelta = true;
                 emittedDelta = true;
                 enqueue({ type: "delta", text });
+              } else if (event.type === "content_block_delta" && event.delta?.type === "input_json_delta") {
+                // Sortie tool forcé : les fragments `partial_json` s'assemblent
+                // en un JSON valide. On les relaie comme des `delta` texte —
+                // le front les recolle et `cleanStreamingContent` en extrait le
+                // champ `content` qui grandit, EXACTEMENT comme un stream texte.
+                const text = event.delta.partial_json || "";
+                if (text) {
+                  fullText += text;
+                  sawDelta = true;
+                  emittedDelta = true;
+                  enqueue({ type: "delta", text });
+                }
               } else if (event.type === "message_start") {
                 inputTokens = event.message?.usage?.input_tokens ?? inputTokens;
                 usageModel = event.message?.model ?? usageModel;
-              } else if (event.type === "message_delta" && event.usage?.output_tokens != null) {
-                outputTokens = event.usage.output_tokens; // cumulé : on garde la dernière valeur
+              } else if (event.type === "message_delta") {
+                if (event.usage?.output_tokens != null) {
+                  outputTokens = event.usage.output_tokens; // cumulé : on garde la dernière valeur
+                }
+                if (event.delta?.stop_reason === "max_tokens") truncated = true;
               } else if (event.type === "error") {
                 // event `error` DANS un stream 200 (overloaded_error, api_error…)
                 streamError = event.error?.message || event.error?.type || "stream_error";
@@ -173,6 +253,15 @@ export function createClientSSEStream(
           streamError = String((err as any)?.message || err);
         } finally {
           try { reader.releaseLock(); } catch { /* déjà libéré */ }
+        }
+
+        // ── Troncature d'une sortie tool : JSON amputé = invalide ──
+        // On la promeut en erreur explicite (le front propose « Réessaie » au
+        // lieu d'afficher un JSON cassé). N'affecte QUE les appelants qui
+        // opt-in (post/pinterest en tool forcé) ; les streams texte gardent
+        // leur comportement (une complétion tronquée reste renvoyée telle quelle).
+        if (opts?.failOnTruncation && truncated && !streamError) {
+          streamError = "La génération a été coupée car trop longue. Réessaie.";
         }
 
         // ── Succès : au moins un delta et pas d'erreur ──
