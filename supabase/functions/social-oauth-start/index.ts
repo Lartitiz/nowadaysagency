@@ -130,8 +130,11 @@ Deno.serve(async (req) => {
     if (platform === "google") {
       // access_type=offline + prompt=consent : force Google à renvoyer un
       // refresh_token à CHAQUE autorisation (sinon absent aux reconnexions).
+      // select_account : force le choix du compte Google — indispensable quand
+      // plusieurs comptes sont connectés dans le navigateur (sinon Google prend
+      // le compte actif par défaut, qui n'est pas forcément celui qui a accès à GA).
       url.searchParams.set("access_type", "offline");
-      url.searchParams.set("prompt", "consent");
+      url.searchParams.set("prompt", "select_account consent");
       url.searchParams.set("include_granted_scopes", "true");
     }
 
