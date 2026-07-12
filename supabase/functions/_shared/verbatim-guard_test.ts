@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { enforceAnchoredText, ensureAnchor, normalizeForCompare } from "./verbatim-guard.ts";
+import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, normalizeForCompare } from "./verbatim-guard.ts";
 
 const slide = (inner: string, field = "title", tag = "h1") =>
   `<div style="width:1080px"><${tag} data-slide-text="${field}" style="color:#111">${inner}</${tag}></div>`;
@@ -162,4 +162,51 @@ Deno.test("ensureAnchor puis enforceAnchoredText : l'ancre posée est vue fidèl
   const { html: anchored } = ensureAnchor(html, "title", "Ma checklist anti-burnout");
   const { fixes } = enforceAnchoredText(anchored, [{ field: "title", text: "Ma checklist anti-burnout" }]);
   assertEquals(fixes, []);
+});
+
+// ─── ensureAnchor + ensurePptxEditable : overlay des slides PHOTO ───
+// Cas de la cliente : slide "photo_full" dont l'overlay a été RENDU visible mais
+// SANS ancre (le modèle l'oublie ~régulièrement, cf. télémétrie carousel-visual).
+// Sans réparation : édition live no-op + export/Canva qui perd le texte.
+
+const photoFull = (inner: string) =>
+  `<div style="width:1080px;height:1350px;background-image:url(data:image/jpeg;base64,AAAA);background-size:cover;position:relative;">` +
+  `<div style="position:absolute;bottom:80px;left:80px;right:80px;">` +
+  `<p style="color:#fff;font-size:64px;text-shadow:0 4px 16px rgba(0,0,0,.6)">${inner}</p>` +
+  `</div></div>`;
+
+Deno.test("ensureAnchor overlay : pose l'ancre sur l'élément direct du texte (spans + ellipse)", () => {
+  const html = photoFull(
+    `<span style="text-decoration:underline">Solidays</span> et <span style="text-decoration:underline">Garorock</span> annulés en pleine <span style="text-decoration:underline">canicule</span>…`,
+  );
+  const { html: out, status } = ensureAnchor(html, "overlay", "Solidays et Garorock annulés en pleine canicule…");
+  assertEquals(status, "added");
+  // L'ancre va sur le <p> direct, pas sur un div conteneur.
+  assertStringIncludes(out, `<p style="color:#fff;font-size:64px;text-shadow:0 4px 16px rgba(0,0,0,.6)" data-slide-text="overlay">`);
+  assertEquals(out.includes(`background-image:url(data:image/jpeg;base64,AAAA);background-size:cover;position:relative;" data-slide-text`), false);
+});
+
+Deno.test("ensureAnchor overlay : mismatch d'ellipse toléré via normalizeForCompare (… ≡ ...)", () => {
+  const html = photoFull(`Solidays et Garorock annulés en pleine canicule…`);
+  // Le JSON overlay_text emploie 3 points ASCII, le rendu une vraie ellipse : doit matcher.
+  const { status } = ensureAnchor(html, "overlay", "Solidays et Garorock annulés en pleine canicule...");
+  assertEquals(status, "added");
+});
+
+Deno.test("ensurePptxEditable : ajoute l'annotation d'export sur l'ancre overlay", () => {
+  const html = photoFull(`Solidays et Garorock annulés en pleine canicule…`);
+  const { html: anchored } = ensureAnchor(html, "overlay", "Solidays et Garorock annulés en pleine canicule…");
+  const out = ensurePptxEditable(anchored, "overlay");
+  assertStringIncludes(out, `data-slide-text="overlay"`);
+  assertStringIncludes(out, `data-pptx-editable="overlay"`);
+});
+
+Deno.test("ensurePptxEditable : idempotent (annotation déjà présente → inchangé)", () => {
+  const html = `<p data-slide-text="overlay" data-pptx-editable="overlay">Texte</p>`;
+  assertEquals(ensurePptxEditable(html, "overlay"), html);
+});
+
+Deno.test("ensurePptxEditable : pas d'ancre → HTML inchangé", () => {
+  const html = `<p>Texte non ancré</p>`;
+  assertEquals(ensurePptxEditable(html, "overlay"), html);
 });
