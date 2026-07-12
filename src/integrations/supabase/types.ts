@@ -4695,6 +4695,7 @@ export type Database = {
           page_views_academy: number | null
           page_views_agency: number | null
           page_views_plan: number | null
+          posts_count: number | null
           profile_visits: number | null
           reach: number | null
           revenue: number | null
@@ -4745,6 +4746,7 @@ export type Database = {
           page_views_academy?: number | null
           page_views_agency?: number | null
           page_views_plan?: number | null
+          posts_count?: number | null
           profile_visits?: number | null
           reach?: number | null
           revenue?: number | null
@@ -4795,6 +4797,7 @@ export type Database = {
           page_views_academy?: number | null
           page_views_agency?: number | null
           page_views_plan?: number | null
+          posts_count?: number | null
           profile_visits?: number | null
           reach?: number | null
           revenue?: number | null
