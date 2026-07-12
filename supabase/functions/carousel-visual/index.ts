@@ -12,7 +12,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
-import { enforceAnchoredText, ensureAnchor, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
+import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 
@@ -1957,6 +1957,66 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       }
       if (verbatimFixes > 0) {
         console.warn(`carousel-visual: ${verbatimFixes} texte(s) ancré(s) réécrit(s) verbatim (garde déterministe)`);
+      }
+    }
+
+    // ═══ Ancres d'édition des slides PHOTO (parité avec les slides texte) ═══
+    // La passe ci-dessus ne couvre QUE text_only. Les slides photo n'avaient
+    // AUCUNE réparation d'ancre : overlay (photo_full) et titre/corps
+    // (photo_integrated) non ancrés ⇒ l'édition live est un no-op silencieux
+    // (carousel-html-edit.ts ne retrouve pas l'élément à patcher) ET l'export
+    // hybride/Canva perd le texte édité (le repli d'export re-matche l'overlay_text
+    // COURANT contre un HTML resté sur l'ancien texte → aucune correspondance).
+    // On pose ici l'ancre data-slide-text MANQUANTE + l'annotation d'export
+    // data-pptx-editable, sans réinjection verbatim : on préserve le traitement de
+    // lisibilité de l'overlay (voile/bandeau/spans d'accent). Le champ édité côté
+    // front dépend du type : photo_full → overlay ; photo_integrated → title/body
+    // (cf. CarouselPhotoResult.tsx).
+    if (Array.isArray(result?.slides_html)) {
+      const srcByNum = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+      const photoFields = (st: string): Array<{ field: string; key: string }> =>
+        st === "photo_full"
+          ? [{ field: "overlay", key: "overlay_text" }]
+          : st === "photo_integrated"
+            ? [{ field: "title", key: "title" }, { field: "body", key: "body" }]
+            : [];
+      let photoAnchorsAdded = 0;
+      let photoAnchorsUnmatched = 0;
+      result.slides_html = result.slides_html.map((slide: any) => {
+        const src = srcByNum.get(slide?.slide_number) as any;
+        const fields = src?.slide_type ? photoFields(src.slide_type) : [];
+        if (fields.length === 0) return slide;
+        let html: string = slide?.html || "";
+        let changed = false;
+        for (const { field, key } of fields) {
+          const text = typeof src[key] === "string" ? src[key].trim() : "";
+          if (!text) continue;
+          const ensured = ensureAnchor(html, field, text);
+          if (ensured.status === "added") {
+            html = ensured.html;
+            changed = true;
+            photoAnchorsAdded++;
+          } else if (ensured.status === "unmatched") {
+            photoAnchorsUnmatched++;
+          }
+          // Annotation d'export : l'ancre étant en place (ajoutée ou déjà présente),
+          // on garantit data-pptx-editable pour que Canva/PPTX traite le bloc comme
+          // texte éditable (Strategy A), au lieu du repli fragile par correspondance.
+          if (ensured.status !== "unmatched") {
+            const withEdit = ensurePptxEditable(html, field);
+            if (withEdit !== html) {
+              html = withEdit;
+              changed = true;
+            }
+          }
+        }
+        return changed ? { ...slide, html } : slide;
+      });
+      if (photoAnchorsAdded > 0) {
+        console.warn(`carousel-visual: ${photoAnchorsAdded} ancre(s) overlay/photo ajoutée(s) (garde déterministe)`);
+      }
+      if (photoAnchorsUnmatched > 0) {
+        console.warn(`carousel-visual: ${photoAnchorsUnmatched} texte(s) de slide photo sans élément au texte identique (repli côté édition)`);
       }
     }
 

@@ -52,6 +52,20 @@ describe("replaceSlideText", () => {
     expect(out!).not.toContain("Réponds en commentaire");
     expect(out!).toContain("data-slide-cta");
   });
+
+  // Slide photo_full telle que produite APRÈS la garde d'ancre serveur : l'overlay
+  // porte data-slide-text="overlay" → l'édition live doit le patcher de façon fiable
+  // (c'est ce qui manquait et faisait "disparaître" le texte sur l'aperçu/Canva).
+  it("édite l'overlay d'une slide photo_full via l'ancre data-slide-text=overlay", () => {
+    const html = `${STYLE}<div style="background-image:url(data:image/jpeg;base64,AAAA);position:relative">` +
+      `<div style="position:absolute;bottom:80px"><p data-slide-text="overlay" style="color:#fff">Solidays et Garorock annulés en pleine canicule…</p></div></div>`;
+    const out = replaceSlideText(html, "overlay", "Solidays et Garorock annulés en pleine canicule…", "Solidays et Garorock reportés au week-end prochain");
+    expect(out).not.toBeNull();
+    expect(out!).toContain("reportés au week-end prochain");
+    expect(out!).not.toContain("canicule");
+    // La photo (background-image) est préservée.
+    expect(out!).toContain("background-image:url(data:image/jpeg;base64,AAAA)");
+  });
 });
 
 describe("CTA retirable (data-slide-cta)", () => {

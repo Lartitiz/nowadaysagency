@@ -46,6 +46,10 @@ export function normalizeForCompare(s: string): string {
     .normalize("NFC")
     .replace(/[‘’ʼ]/g, "'")
     .replace(/\.{3}/g, "…")
+    // Espace parasite AVANT …/,/. : artefact de stripTags quand une balise collait
+    // la ponctuation (ex. `<span>canicule</span>…` → "canicule …"). En français il
+    // n'y a jamais d'espace avant ces signes → on le retire pour COMPARER seulement.
+    .replace(/\s([…,.])/g, "$1")
     .replace(/[\s ]+/g, " ")
     .trim();
 }
@@ -170,4 +174,21 @@ export function ensureAnchor(
     html: html.slice(0, best.openStart) + patched + html.slice(best.contentStart),
     status: "added",
   };
+}
+
+/**
+ * Pose data-pptx-editable="<val>" sur l'élément qui porte DÉJÀ data-slide-text="<field>"
+ * quand l'annotation d'export manque. Sans data-pptx-editable, l'export hybride
+ * (Canva/PPTX) ne traite ce texte comme un bloc éditable que par un repli fragile
+ * (correspondance de l'overlay_text courant contre le HTML) — qui casse dès que le
+ * texte a été édité. HTML inchangé si l'ancre est absente ou l'annotation déjà là.
+ * `val` = le champ tel quel (le prompt d'annotation PPTX attend overlay/title/body).
+ */
+export function ensurePptxEditable(html: string, field: string): string {
+  const loc = findAnchoredElement(html, field);
+  if (!loc) return html;
+  const openTag = html.slice(loc.openStart, loc.contentStart);
+  if (/\bdata-pptx-editable\s*=/.test(openTag)) return html;
+  const patched = openTag.replace(/>$/, ` data-pptx-editable="${field}">`);
+  return html.slice(0, loc.openStart) + patched + html.slice(loc.contentStart);
 }
