@@ -12,6 +12,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
+import { enforceMinFontSize } from "../_shared/font-size-guard.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -50,13 +51,13 @@ Voici le design pour chaque type :
 █ BEFORE_AFTER — Deux colonnes côte à côte
 <div style="display:flex;gap:24px;width:100%">
   <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
-      <p data-pptx-editable="caption" style="font-size:26px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
-      <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✗ ITEM</p>
+      <p data-pptx-editable="caption" style="font-size:30px;font-weight:600;color:#E74C3C;margin-bottom:16px">❌ AVANT_LABEL</p>
+      <p data-pptx-editable="body" style="font-size:38px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✗ ITEM</p>
       <!-- un <p> par item, TOUJOURS préfixé du glyphe ✗ — JAMAIS de ponctuation (virgule, tiret, point) comme puce -->
   </div>
   <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px">
-      <p data-pptx-editable="caption" style="font-size:26px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
-      <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✓ ITEM</p>
+      <p data-pptx-editable="caption" style="font-size:30px;font-weight:600;color:#27AE60;margin-bottom:16px">✅ APRÈS_LABEL</p>
+      <p data-pptx-editable="body" style="font-size:38px;color:${ch.color_text};line-height:1.6;margin:0 0 16px 0">✓ ITEM</p>
       <!-- un <p> par item, TOUJOURS préfixé du glyphe ✓ -->
   </div>
 </div>
@@ -72,10 +73,10 @@ Puces : ✗ pour la colonne mythe/imaginé, ✓ pour la colonne réalité — JA
   <div style="position:absolute;left:24px;top:0;bottom:0;width:3px;background:linear-gradient(to bottom, ${ch.color_primary}, ${ch.color_accent})"></div>
   <!-- Pour chaque step : -->
   <div style="display:flex;gap:20px;margin-bottom:24px;align-items:flex-start">
-    <div data-pptx-shape="pill" style="width:44px;height:44px;border-radius:50%;background:${ch.color_secondary};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:600;flex-shrink:0">01</div>
+    <div data-pptx-shape="pill" style="width:52px;height:52px;border-radius:50%;background:${ch.color_secondary};color:#FFF;display:flex;align-items:center;justify-content:center;font-size:30px;font-weight:600;flex-shrink:0">01</div>
     <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
-      <p data-pptx-editable="subtitle" style="font-size:32px;color:${ch.color_secondary}">LABEL</p>
-      <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};opacity:0.85;margin-top:6px">DESC</p>
+      <p data-pptx-editable="subtitle" style="font-size:36px;color:${ch.color_secondary}">LABEL</p>
+      <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};opacity:0.85;margin-top:6px">DESC</p>
     </div>
   </div>
 </div>
@@ -83,15 +84,15 @@ Puces : ✗ pour la colonne mythe/imaginé, ✓ pour la colonne réalité — JA
 █ CHECKLIST — Liste avec des badges ✅/❌
 Pour chaque item :
 <div data-pptx-shape="card" style="display:flex;align-items:center;gap:16px;padding:16px 24px;background:#FFF;border-radius:${ch.border_radius || 12}px;margin-bottom:12px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
-  <span style="font-size:28px">✅ ou ❌</span>
-  <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text}">TEXTE</p>
+  <span style="font-size:32px">✅ ou ❌</span>
+  <p data-pptx-editable="body" style="font-size:38px;color:${ch.color_text}">TEXTE</p>
 </div>
 
 █ STATS — Gros chiffres avec labels
 Pour chaque stat :
 <div style="text-align:center;padding:24px">
   <p data-pptx-editable="title" style="font-size:80px;font-weight:700;color:${ch.color_primary};line-height:1">73%</p>
-  <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
+  <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};margin-top:8px;opacity:0.8">description</p>
 </div>
 Dispose 2-3 stats en flex row avec des séparateurs visuels.
 
@@ -99,7 +100,7 @@ Dispose 2-3 stats en flex row avec des séparateurs visuels.
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
   <div data-pptx-shape="card" style="background:${ch.color_primary}15;border-radius:${ch.border_radius || 12}px;padding:24px;text-align:center">
     <span style="font-size:40px">EMOJI</span>
-    <p data-pptx-editable="body" style="font-size:26px;font-weight:600;margin-top:8px">LABEL</p>
+    <p data-pptx-editable="body" style="font-size:32px;font-weight:600;margin-top:8px">LABEL</p>
   </div>
 </div>
 
@@ -111,13 +112,13 @@ Le sommet = 50% de largeur, la base = 100%. Couleurs du plus foncé (sommet) au 
 █ EQUATION — A + B = C
 <div style="display:flex;align-items:center;justify-content:center;gap:24px">
   <div style="background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 32px;box-shadow:0 2px 12px rgba(0,0,0,0.06);text-align:center">
-    <p style="font-size:28px;font-weight:600;color:${ch.color_secondary}">A</p>
+    <p style="font-size:32px;font-weight:600;color:${ch.color_secondary}">A</p>
   </div>
   <span style="font-size:48px;color:${ch.color_primary}">+</span>
   <!-- ... -->
   <span style="font-size:48px;color:${ch.color_primary}">=</span>
   <div style="background:${ch.color_primary};border-radius:${ch.border_radius || 12}px;padding:24px 32px;text-align:center">
-    <p style="font-size:28px;font-weight:600;color:white">C</p>
+    <p style="font-size:32px;font-weight:600;color:white">C</p>
   </div>
 </div>
 
@@ -133,7 +134,7 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
 <div style="display:grid;grid-template-columns:repeat(3, 1fr);gap:24px">
   <div data-pptx-shape="card" style="text-align:center;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px;box-shadow:0 2px 8px rgba(0,0,0,0.04)">
     <span style="font-size:48px;display:block;margin-bottom:8px">EMOJI</span>
-    <p data-pptx-editable="body" style="font-size:26px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
+    <p data-pptx-editable="body" style="font-size:32px;font-weight:600;color:${ch.color_secondary}">LABEL</p>
   </div>
 </div>
 
@@ -142,11 +143,11 @@ Question en pilule ${ch.color_primary}, branches avec lignes verticales, résult
   <!-- Pour chaque step (i = index 0-based, formate "01", "02"…) : -->
   <div style="display:flex;gap:24px;align-items:flex-start">
     <div style="flex-shrink:0;width:64px;text-align:right;padding-top:8px">
-      <span data-pptx-editable="caption" style="font-size:36px;font-weight:700;color:${ch.color_primary};opacity:0.4;font-family:${ch.font_title};line-height:1">01</span>
+      <span data-pptx-editable="caption" style="font-size:40px;font-weight:700;color:${ch.color_primary};opacity:0.4;font-family:${ch.font_title};line-height:1">01</span>
     </div>
     <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:24px 28px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
-      <h3 data-pptx-editable="title" style="font-size:28px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
-      <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+      <h3 data-pptx-editable="title" style="font-size:34px;font-weight:600;color:${ch.color_primary};margin:0 0 8px 0;font-family:${ch.font_title}">LABEL</h3>
+      <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
     </div>
   </div>
   <!-- Filet pointillé entre steps (PAS après le dernier) : -->
@@ -157,13 +158,13 @@ Si story_arc.steps.length < 3 → rends comme une simple liste verticale sans fi
 █ QUOTE_BIG — Citation typographique (guillemet décoratif XL + citation italique + attribution discrète)
 <div style="position:relative;padding:60px;display:flex;flex-direction:column;justify-content:center;height:100%">
   <!-- Si "context" présent — sinon omettre ce bloc : -->
-  <p data-pptx-editable="caption" style="font-size:26px;color:${ch.color_secondary};margin:0 0 24px 0;font-family:${ch.font_body}">CONTEXT</p>
+  <p data-pptx-editable="caption" style="font-size:28px;color:${ch.color_secondary};margin:0 0 24px 0;font-family:${ch.font_body}">CONTEXT</p>
   <span aria-hidden="true" style="position:absolute;top:20px;left:30px;font-size:140px;line-height:1;color:${ch.color_primary};opacity:0.2;font-family:Georgia,serif">"</span>
-  <p data-pptx-editable="title" style="font-size:48px;font-style:italic;line-height:1.3;color:${ch.color_text};margin:0;font-family:${ch.font_title};font-weight:normal">QUOTE</p>
+  <p data-pptx-editable="title" style="font-size:56px;font-style:italic;line-height:1.3;color:${ch.color_text};margin:0;font-family:${ch.font_title};font-weight:normal">QUOTE</p>
   <!-- Si "attribution" présente — sinon omettre : -->
-  <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_secondary};margin:32px 0 0 0;font-family:${ch.font_body}">ATTRIBUTION</p>
+  <p data-pptx-editable="body" style="font-size:28px;color:${ch.color_secondary};margin:32px 0 0 0;font-family:${ch.font_body}">ATTRIBUTION</p>
 </div>
-RÈGLE TAILLE QUOTE : 56px si quote < 60 chars, 48px par défaut (60-120 chars), 40px si > 120 chars.
+RÈGLE TAILLE QUOTE : 64px si quote < 60 chars, 56px par défaut (60-120 chars), 48px si > 120 chars.
 RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la place.
 
 █ OBJECTION_RESPONSE — Déconstruction verticale (objection en haut grisé, response en bas dominante)
@@ -171,11 +172,11 @@ RÈGLE FALLBACK : si quote_big.quote est absent → utilise slide.title à la pl
   <div data-pptx-shape="card" style="background:${ch.color_secondary}15;border-radius:${ch.border_radius || 12}px;padding:32px;position:relative">
     <span aria-hidden="true" style="position:absolute;top:16px;right:24px;font-size:32px;color:${ch.color_primary};opacity:0.5">❝</span>
     <p data-pptx-editable="caption" style="font-size:28px;font-weight:600;color:${ch.color_secondary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">CE QU'ON DIT</p>
-    <p data-pptx-editable="body" style="font-size:32px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
+    <p data-pptx-editable="body" style="font-size:38px;color:${ch.color_text};line-height:1.4;margin:0;font-style:italic;font-family:${ch.font_body}">OBJECTION</p>
   </div>
   <div data-pptx-shape="card" style="background:#FFF;border-radius:${ch.border_radius || 12}px;padding:32px;box-shadow:0 4px 16px rgba(0,0,0,0.06)">
       <p data-pptx-editable="caption" style="font-size:28px;font-weight:600;color:${ch.color_primary};text-transform:uppercase;letter-spacing:1px;margin:0 0 12px 0;font-family:${ch.font_body}">MA POSITION</p>
-      <p data-pptx-editable="title" style="font-size:32px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
+      <p data-pptx-editable="title" style="font-size:40px;color:${ch.color_text};line-height:1.4;margin:0;font-weight:500;font-family:${ch.font_title}">RESPONSE</p>
   </div>
 </div>
 La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
@@ -185,8 +186,8 @@ La RESPONSE est typographiquement plus grande que l'OBJECTION — elle domine.
   <!-- Pour chaque stage (i = 0..2, formate "01", "02", "03") : -->
   <div data-pptx-shape="card" style="flex:1;background:#FFF;border-radius:${ch.border_radius || 12}px;padding:28px 20px;box-shadow:0 2px 12px rgba(0,0,0,0.05)">
     <span data-pptx-editable="caption" style="font-size:64px;font-weight:700;color:${ch.color_primary};opacity:0.25;line-height:1;font-family:${ch.font_title};display:block;margin-bottom:8px">01</span>
-    <h3 data-pptx-editable="title" style="font-size:28px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
-    <p data-pptx-editable="body" style="font-size:26px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
+    <h3 data-pptx-editable="title" style="font-size:32px;font-weight:600;color:${ch.color_secondary};margin:0 0 12px 0;font-family:${ch.font_title}">LABEL</h3>
+    <p data-pptx-editable="body" style="font-size:30px;color:${ch.color_text};line-height:1.4;margin:0;font-family:${ch.font_body}">DESC</p>
   </div>
   <!-- Flèche entre colonnes (PAS après la dernière) : -->
   <div style="display:flex;align-items:center;flex-shrink:0">
@@ -444,14 +445,14 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : ${ch.font_title}, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille : 52-64px pour le hook (slide 1), 42-52px pour les autres slides
+- Taille : 64-84px pour le hook (slide 1), 48-58px pour les autres slides
 - Couleur : ${ch.color_secondary} ou ${ch.color_text}
 - Line-height : 1.25
 - Certains MOTS-CLÉS en couleur accent ${ch.color_primary} et font-style: italic pour créer du contraste
 
 CORPS DE TEXTE :
 - Font : ${ch.font_body}, font-weight: 400
-- Taille : 28-32px
+- Taille : 34-40px
 - Couleur : ${ch.color_text}
 - Line-height : 1.6
 - Opacity: 0.85 pour le texte secondaire
@@ -460,13 +461,13 @@ BADGES "PILULES" (élément signature) :
 - Display: inline-block
 - Background : ${ch.color_primary}
 - Color: white, font-family: ${ch.font_body}, font-weight: 600
-- Font-size: 18-22px, text-transform: uppercase, letter-spacing: 2px
+- Font-size: 22-26px, text-transform: uppercase, letter-spacing: 2px
 - Padding: 8px 24px
 - Border-radius: 100px (pilule)
 - Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
 
 EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
-- Un eyebrow = une ligne courte au-dessus du titre : font-family: ${ch.font_body}, font-size: 20-22px, font-weight: 600, text-transform: uppercase, letter-spacing: 3px, couleur ${ch.color_primary}
+- Un eyebrow = une ligne courte au-dessus du titre : font-family: ${ch.font_body}, font-size: 24-26px, font-weight: 600, text-transform: uppercase, letter-spacing: 3px, couleur ${ch.color_primary}
 - Deux formes possibles : texte nu OU badge pilule (voir ci-dessus).
 - Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
 - L'absence d'eyebrow est le cas NORMAL. Un eyebrow sur chaque slide = effet template généré par IA, c'est un défaut.
@@ -544,7 +545,7 @@ HOOK (slide 1) — Design le plus fort, stoppe le scroll :
 
 CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Fond : ${darkBrand ? `${ch.color_background} ou une déclinaison à peine plus claire de ${ch.color_background} (même famille sombre — JAMAIS blanc)` : `blanc ou ${ch.color_background}`}
-- Titre en ${ch.font_title} (42-48px)
+- Titre en ${ch.font_title} (48-56px)
 - Corps en ${ch.font_body} avec un ton intime
 - Optionnel : bordure pointillée autour du bloc de texte
 - Optionnel : petit emoji en grand (48px) comme élément visuel
@@ -552,28 +553,28 @@ CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Fond : ${darkBrand ? `${ch.color_background} (les cartes posées dessus portent la clarté)` : "blanc"}
 - Optionnel : badge pilule en haut à gauche avec un label éditorial court ("Le piège", "À éviter", etc.) — jamais un numéro de slide.
-- Titre headline en ${ch.font_title} (42-48px), couleur ${ch.color_secondary}
-- Corps du tip en ${ch.font_body} (28-30px)
+- Titre headline en ${ch.font_title} (48-56px), couleur ${ch.color_secondary}
+- Corps du tip en ${ch.font_body} (34-38px)
 - Pour structurer le bloc : un mot-clé surligné ou un encadré pointillé — JAMAIS de barre verticale accolée au texte
 - Un mot-clé souligné en ${ch.color_accent} (soulignement jaune type highlighter)
 - Alterner les couleurs d'accent entre les slides pour la variété, UNIQUEMENT dans la palette de la charte : ${ch.color_primary}, ${ch.color_accent}, ${ch.color_secondary}. JAMAIS de couleur hors charte pour les accents.
 
 SLIDE SÉPARATEUR (optionnelle, entre les blocs) — Rupture visuelle :
 - Fond : ${ch.color_primary} (rose vif, plein)
-- Titre en BLANC, ${ch.font_title}, 56px, centré
+- Titre en BLANC, ${ch.font_title}, 64px, centré
 - Pas de body, juste le titre
 - Optionnel : numéro de bloc en très grand (200px) coupé en bas de slide, opacity 0.15
 
 DARK BOX (pour les punchlines fortes) :
 - Fond : #1A1A1A
-- Texte blanc en ${ch.font_title} (48px)
+- Texte blanc en ${ch.font_title} (56px)
 - Un mot en ${ch.color_accent} (jaune) pour le contraste
 - Padding généreux (80px)
 
 CTA (dernière slide) — Douce, invitante :
 - Fond : ${ch.color_background}
 - Carte blanche centrée
-- Texte du CTA en ${ch.font_title} (38-44px), couleur ${ch.color_primary}
+- Texte du CTA en ${ch.font_title} (44-52px), couleur ${ch.color_primary}
 - Badge pilule dessous avec "lien en bio" ou le CTA court
 - Ambiance chaleureuse, pas commerciale
 - Optionnel : petits badges de compétences/thèmes dispersés autour de la carte principale
@@ -589,7 +590,7 @@ CTA (dernière slide) — Douce, invitante :
 ═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
 - ❌ Texte centré nu sur un fond de couleur uni (c'est un PowerPoint 2003, pas du design)
 - ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
-- ❌ Texte trop petit (<26px) ou trop gros (>72px sauf numéros décoratifs)
+- ❌ Texte trop petit (<30px) ou trop gros (>84px sauf numéros décoratifs)
 - ❌ Pas de padding (texte qui touche les bords)
 - ❌ Cercles ou ronds comme éléments décoratifs
 - ❌ Font-weight bold sur ${ch.font_title} (toujours normal)
@@ -725,25 +726,25 @@ STYLE "sensoriel" (phrases évocatrices) :
 - Position : selon overlay_position (par défaut en bas)
 - Voile sombre ADAPTATIF : un linear-gradient(transparent, rgba(0,0,0,0.7)) dont la hauteur ÉPOUSE le bloc texte (≈ hauteur du texte + 120px de marge) et démarre du bord où est posé le texte (bas, haut OU centre). Le voile ne couvre que ce qu'il faut pour lire — pas plus, pas moins.
 - Si le texte est en haut ou au centre : le gradient part de ce bord-là (en haut : rgba(0,0,0,0.7) → transparent ; au centre : voile radial/horizontal centré). NE laisse JAMAIS un texte blanc sans voile parce que le gradient n'était "prévu qu'en bas".
-- Texte : font-family: ${ch.font_title}; font-size: 42-48px; color: white; font-weight: normal; font-style: italic
+- Texte : font-family: ${ch.font_title}; font-size: 48-58px; color: white; font-weight: normal; font-style: italic
 - Padding : 80px côtés, 60px du bord
 - Ombre texte : text-shadow: 0 2px 20px rgba(0,0,0,0.6)
 
 STYLE "narratif" (phrases d'histoire) :
 - Position : selon overlay_position
 - Bandeau CLAIR, annoté data-pptx-shape="card" : background: #FFFFFF (BLANC OPAQUE — JAMAIS rgba semi-transparent ni backdrop-filter : ils ne s'exportent pas et laissent voir la photo au travers) ; border-radius: ${ch.border_radius}; box-shadow: 0 8px 28px rgba(0,0,0,0.18)
-- Texte FONCÉ : font-family: ${ch.font_body}; font-size: 32-36px; color: ${ch.color_text}
+- Texte FONCÉ : font-family: ${ch.font_body}; font-size: 40-46px; color: ${ch.color_text}
 - Padding : 28px 40px
 - Le bandeau ne fait PAS toute la largeur : max-width: 85%, centré ou aligné
 
 STYLE "minimal" (phrases courtes percutantes) :
 - Position : selon overlay_position
-- Badge pilule : background ${ch.color_primary}; color white; font-family: ${ch.font_body}; font-size: 24-28px; text-transform: uppercase; letter-spacing: 2px; padding: 12px 32px; border-radius: 100px
+- Badge pilule : background ${ch.color_primary}; color white; font-family: ${ch.font_body}; font-size: 28-32px; text-transform: uppercase; letter-spacing: 2px; padding: 12px 32px; border-radius: 100px
 - Ou texte nu en blanc très grand (60-72px) avec ombre forte : text-shadow: 0 4px 30px rgba(0,0,0,0.8) ET un voile sombre adaptatif derrière si la zone est claire
 
 STYLE "technique" (détails produit) :
 - Position : coin ou bord selon overlay_position
-- Étiquette : background rgba(0,0,0,0.8); color white; font-family: ${ch.font_body}; font-size: 22-26px; padding: 12px 24px; border-radius: 8px
+- Étiquette : background rgba(0,0,0,0.8); color white; font-family: ${ch.font_body}; font-size: 28-32px; padding: 12px 24px; border-radius: 8px
 - Look "tag produit" discret mais lisible
 
 QUAND overlay_text est null :
@@ -762,7 +763,7 @@ QUAND overlay_text est null :
 - ❌ Voile "prévu en bas" alors que le texte est en haut/centre → le texte flotte sans fond
 - ❌ Texte par-dessus le visage / le sujet principal de la photo
 - ❌ Bandeau qui cache plus de 45% de la photo (le voile doit épouser le texte, pas noyer l'image)
-- ❌ Texte trop petit (< 22px)
+- ❌ Texte trop petit (< 28px)
 - ❌ Toutes les slides avec le même traitement (varier les styles)
 - ❌ Cercles ou ronds décoratifs
 - ❌ Font-weight bold sur ${ch.font_title}
@@ -1046,7 +1047,7 @@ Chaque slide (texte, photo, schéma) est une colonne flex pleine hauteur :
 
 display:flex;flex-direction:column;height:1350px (+ justify-content adapté au contenu).
 
-- CONTRAINTE DE SORTIE VÉRIFIABLE : le dernier élément visible de chaque slide se termine entre 1010px et 1240px de hauteur (75-92% des 1350px). Si ton contenu finit plus haut, AUGMENTE font-sizes, paddings et gaps jusqu'à atteindre cette zone — n'ajoute pas de texte, agrandis l'existant. Si au contraire ton contenu DÉPASSE 1240px : RACCOURCIS les textes (moins de mots, moins d'items) — ne réduis JAMAIS une font-size sous 26px pour faire tenir.
+- CONTRAINTE DE SORTIE VÉRIFIABLE : le dernier élément visible de chaque slide se termine entre 1010px et 1240px de hauteur (75-92% des 1350px). Si ton contenu finit plus haut, AUGMENTE font-sizes, paddings et gaps jusqu'à atteindre cette zone — n'ajoute pas de texte, agrandis l'existant. Si au contraire ton contenu DÉPASSE 1240px : RACCOURCIS les textes (moins de mots, moins d'items) — ne réduis JAMAIS une font-size sous 32px pour faire tenir.
 
 Une slide dont le contenu flotte dans le tiers central avec les deux autres tiers vides est un DÉFAUT à corriger avant de répondre.
 
@@ -1901,6 +1902,23 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       });
       if (contrastFixes > 0) {
         console.warn(`carousel-visual: ${contrastFixes} couleur(s) de texte illisible(s) corrigée(s) (garde contraste)`);
+      }
+    }
+
+    // ═══ Garde DÉTERMINISTE de taille de police (tous types de carrousel) ═══
+    // Audit lisibilité 12/07 : le modèle gravite vers les 26px des exemples →
+    // illisible sur un feed mobile. Le prompt prescrit 34-40px de corps, mais
+    // on ne dépend pas du modèle : tout élément texte éditable sous le plancher
+    // de son rôle est remonté au plancher (jamais réduit).
+    if (Array.isArray(result?.slides_html)) {
+      let fontFixes = 0;
+      result.slides_html = result.slides_html.map((slide: any) => {
+        const { html, fixes } = enforceMinFontSize(slide?.html || "");
+        fontFixes += fixes;
+        return fixes > 0 ? { ...slide, html } : slide;
+      });
+      if (fontFixes > 0) {
+        console.warn(`carousel-visual: ${fontFixes} font-size sous plancher remontée(s) (garde lisibilité)`);
       }
     }
 
