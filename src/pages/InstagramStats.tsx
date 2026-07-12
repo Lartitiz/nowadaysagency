@@ -579,7 +579,9 @@ export default function InstagramStats() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <main className="mx-auto max-w-2xl px-6 py-8 max-md:px-4 space-y-6">
+        {/* pb mobile : le bouton feedback flottant (fixed bottom) recouvrait le
+            CTA « Suivant » pleine largeur en bas d'écran à 390px. */}
+        <main className="mx-auto max-w-2xl px-6 py-8 max-md:px-4 max-md:pb-28 space-y-6">
           <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Mes stats" />
           <div className="rounded-xl border border-border bg-card p-6 space-y-6">
             <div className="text-center space-y-2">
@@ -720,7 +722,7 @@ export default function InstagramStats() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4 space-y-6">
+      <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4 max-md:pb-28 space-y-6">
         <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Mes stats" />
 
         <div className="flex items-center justify-between flex-wrap gap-2">
@@ -776,44 +778,6 @@ export default function InstagramStats() {
           </div>
         )}
 
-        {/* ─── Audience réelle (démographie des abonnés) ─── */}
-        {audience && (audience.age?.length || audience.gender?.length || audience.cities?.length || audience.countries?.length) ? (
-          <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-            <h3 className="font-display text-sm font-bold text-foreground">
-              👥 Ton audience <span className="font-normal text-muted-foreground text-xs">— qui te suit sur Instagram</span>
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-              {renderAudienceGroup("Âge", audience.age, 4)}
-              {renderAudienceGroup("Genre", audience.gender, 3)}
-              {renderAudienceGroup("Villes", audience.cities, 5)}
-              {renderAudienceGroup("Pays", audience.countries, 5)}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Sers-t'en pour choisir tes sujets et ton ton. Données Instagram, calculées sur les abonnés identifiés (peut être &lt; ton total), à ±48 h.
-            </p>
-          </div>
-        ) : null}
-
-        {/* ─── Top / flop posts (30 derniers jours, depuis l'API) ─── */}
-        {livePosts && (livePosts.top.length || livePosts.flop.length) ? (
-          <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
-            <h3 className="font-display text-sm font-bold text-foreground">
-              🏆 Tes posts récents <span className="font-normal text-muted-foreground text-xs">— par taux d'engagement, 30 derniers jours</span>
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-              {renderPostGroup("Ce qui a le mieux marché", livePosts.top)}
-              {/* On masque le « flop » s'il recoupe le « top » (cas < 4 posts mesurés). */}
-              {renderPostGroup(
-                "Ce qui a le moins marché",
-                livePosts.flop.filter(f => !livePosts.top.some(t => t.id === f.id)),
-              )}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Le taux d'engagement = interactions ÷ portée (ou vues pour les Reels). Inspire-toi de ce qui marche pour tes prochains contenus.
-            </p>
-          </div>
-        ) : null}
-
         {/* ─── Tabs ─── */}
         <Tabs defaultValue="overview" className="space-y-5">
           <TabsList className="w-full justify-start">
@@ -823,6 +787,45 @@ export default function InstagramStats() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
+            {/* Audience et top/flop vivent DANS la vue d'ensemble : empilés avant
+                les onglets, ils repoussaient la saisie et les graphiques sous
+                plusieurs écrans de scroll (surtout en mobile). */}
+            {audience && (audience.age?.length || audience.gender?.length || audience.cities?.length || audience.countries?.length) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
+                <h3 className="font-display text-sm font-bold text-foreground">
+                  👥 Ton audience <span className="font-normal text-muted-foreground text-xs">— qui te suit sur Instagram</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                  {renderAudienceGroup("Âge", audience.age, 4)}
+                  {renderAudienceGroup("Genre", audience.gender, 3)}
+                  {renderAudienceGroup("Villes", audience.cities, 5)}
+                  {renderAudienceGroup("Pays", audience.countries, 5)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sers-t'en pour choisir tes sujets et ton ton. Données Instagram, calculées sur les abonnés identifiés (peut être &lt; ton total), à ±48 h.
+                </p>
+              </div>
+            ) : null}
+
+            {livePosts && (livePosts.top.length || livePosts.flop.length) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
+                <h3 className="font-display text-sm font-bold text-foreground">
+                  🏆 Tes posts récents <span className="font-normal text-muted-foreground text-xs">— par taux d'engagement, 30 derniers jours</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                  {renderPostGroup("Ce qui a le mieux marché", livePosts.top)}
+                  {/* On masque le « flop » s'il recoupe le « top » (cas < 4 posts mesurés). */}
+                  {renderPostGroup(
+                    "Ce qui a le moins marché",
+                    livePosts.flop.filter(f => !livePosts.top.some(t => t.id === f.id)),
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Le taux d'engagement = interactions ÷ portée (ou vues pour les Reels). Inspire-toi de ce qui marche pour tes prochains contenus.
+                </p>
+              </div>
+            ) : null}
+
             <StatsCharts
               chartData={chartData} isSingleMonth={isSingleMonth}
               activeConfig={activeConfig} periodStats={periodStats}
