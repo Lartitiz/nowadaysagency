@@ -202,7 +202,12 @@ export default function InstagramStats() {
     if (periodStats.length === 0) return null;
     const last = periodStats[periodStats.length - 1];
     const followers = last.followers;
-    const avgReach = periodStats.reduce((s, r) => s + (r.reach || 0), 0) / periodStats.length;
+    // Moyenne sur les mois RENSEIGNÉS : diviser par tous les mois comptait les
+    // mois vides comme des zéros et sous-estimait la portée moyenne.
+    const reachMonths = periodStats.filter(r => r.reach != null && r.reach > 0);
+    const avgReach = reachMonths.length
+      ? reachMonths.reduce((s, r) => s + (r.reach || 0), 0) / reachMonths.length
+      : 0;
 
     // Weighted engagement rate by reach: Σ(accounts_engaged) / Σ(reach).
     // Fallback to interactions if accounts_engaged isn't filled in (legacy data).
@@ -231,7 +236,10 @@ export default function InstagramStats() {
       .slice(0, periodMonths).reverse();
 
     const prevFollowers = prevStats.length > 0 ? prevStats[prevStats.length - 1]?.followers : null;
-    const prevAvgReach = prevStats.length > 0 ? prevStats.reduce((s, r) => s + (r.reach || 0), 0) / prevStats.length : null;
+    const prevReachMonths = prevStats.filter(r => r.reach != null && r.reach > 0);
+    const prevAvgReach = prevReachMonths.length
+      ? prevReachMonths.reduce((s, r) => s + (r.reach || 0), 0) / prevReachMonths.length
+      : null;
 
     const prevTotalReach = prevStats.reduce((s, r) => s + (r.reach || 0), 0);
     const prevTotalEngaged = prevStats.reduce((s, r) => s + (r.accounts_engaged ?? r.interactions ?? 0), 0);
@@ -255,32 +263,36 @@ export default function InstagramStats() {
 
   const activeConfig = config || draftConfig;
 
+  // « Non renseigné » ≠ « zéro » : un mois sans donnée reste null (Recharts saute
+  // le point) au lieu de tracer une fausse chute à 0 dans les courbes.
   const chartData = useMemo(() =>
     periodStats.map(s => {
-      const engaged = s.accounts_engaged ?? s.interactions ?? 0;
-      const eng = s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : 0;
+      const engaged = s.accounts_engaged ?? s.interactions ?? null;
+      const eng = engaged != null && s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : null;
       const engFollowers = s.followers && s.followers > 0 && s.interactions != null
         ? (s.interactions / s.followers) * 100
-        : 0;
+        : null;
+      const gained = s.followers_gained ?? null;
+      const lost = s.followers_lost != null ? -s.followers_lost : null;
       return {
         month: monthLabelShort(s.month_date),
-        followers: s.followers ?? 0,
-        reach: s.reach ?? 0,
+        followers: s.followers ?? null,
+        reach: s.reach ?? null,
         engagement: eng,
         engagement_followers: engFollowers,
-        profile_visits: s.profile_visits ?? 0,
-        website_clicks: s.website_clicks ?? 0,
-        gained: s.followers_gained ?? 0,
-        lost: -(s.followers_lost ?? 0),
-        net: (s.followers_gained ?? 0) - (s.followers_lost ?? 0),
+        profile_visits: s.profile_visits ?? null,
+        website_clicks: s.website_clicks ?? null,
+        gained,
+        lost,
+        net: gained != null || lost != null ? (gained ?? 0) + (lost ?? 0) : null,
         ...(activeConfig.traffic_sources || ["search", "social", "pinterest", "instagram"]).reduce((acc, src) => {
           if (s.website_data && typeof s.website_data === "object" && s.website_data.sources) {
-            acc[`traffic_${src}`] = s.website_data.sources[src] ?? (s as any)[`traffic_${src}`] ?? 0;
+            acc[`traffic_${src}`] = s.website_data.sources[src] ?? (s as any)[`traffic_${src}`] ?? null;
           } else {
-            acc[`traffic_${src}`] = (s as any)[`traffic_${src}`] ?? 0;
+            acc[`traffic_${src}`] = (s as any)[`traffic_${src}`] ?? null;
           }
           return acc;
-        }, {} as Record<string, number>),
+        }, {} as Record<string, number | null>),
       };
     })
   , [periodStats, config]);

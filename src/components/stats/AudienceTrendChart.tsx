@@ -33,7 +33,7 @@ function topLabel(buckets: Bucket[] | undefined): string | null {
 
 // Trois lignes : on suit la part des segments DOMINANTS du dernier mois (genre, âge,
 // pays), pour montrer comment ils bougent dans le temps sans choisir à la main.
-const SERIES_COLORS = ["hsl(var(--primary))", "#8B5CF6", "#0EA5E9"];
+const SERIES_COLORS = ["hsl(var(--primary))", "hsl(var(--info))", "hsl(var(--success))"];
 
 export default function AudienceTrendChart({ rows }: AudienceTrendChartProps) {
   const snapshots = rows

@@ -12,9 +12,16 @@ export function monthLabel(dateStr: string) {
   return `${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+// Abréviations explicites : slice(0,3) donnait « Jui. » pour Juin ET Juillet
+// (deux libellés identiques côte à côte sur les axes des graphiques).
+const MONTHS_FR_SHORT = [
+  "Janv.", "Févr.", "Mars", "Avr.", "Mai", "Juin",
+  "Juil.", "Août", "Sept.", "Oct.", "Nov.", "Déc.",
+];
+
 export function monthLabelShort(dateStr: string) {
   const d = new Date(dateStr);
-  return `${MONTHS_FR[d.getMonth()].slice(0, 3)}. ${d.getFullYear()}`;
+  return `${MONTHS_FR_SHORT[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function pctChange(cur: number | null, prev: number | null): { val: number; dir: "up" | "down" | "flat" } | null {

@@ -13,9 +13,10 @@ export default function FollowersChart({ data }: FollowersChartProps) {
       <LineChart data={data}>
         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
         <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
-        <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" />
+        {/* Domaine auto : ancré à 0, une croissance de +30 % paraissait plate. */}
+        <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" domain={["auto", "auto"]} />
         <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
-        <Line type="monotone" dataKey="followers" stroke="hsl(var(--primary))" name="Abonné·es" strokeWidth={2.5} dot={{ r: 4 }} />
+        <Line type="monotone" dataKey="followers" stroke="hsl(var(--primary))" name="Abonné·es" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
       </LineChart>
     </ResponsiveContainer>
   );
