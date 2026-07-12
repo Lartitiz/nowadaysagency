@@ -488,7 +488,10 @@ export default function InstagramStats() {
         setBackfilling(`${i}/12`);
         const month = monthKey(new Date(now.getFullYear(), now.getMonth() - i, 1));
         const existing = allStats.find(s => s.month_date === month);
-        if (existing?.reach != null) { skipped++; continue; }
+        // On saute un mois seulement s'il est COMPLET côté auto (reach ET
+        // posts_count) : sinon les colonnes ajoutées après un premier backfill
+        // (ex. posts_count) ne se rempliraient jamais sur l'historique.
+        if (existing?.reach != null && existing?.posts_count != null) { skipped++; continue; }
         const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
           body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined, month },
         });
