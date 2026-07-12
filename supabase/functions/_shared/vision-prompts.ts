@@ -176,3 +176,53 @@ AUTRES INTERDITS :
     jsonShape: `{\n  "content": "...",\n  "accroche": "...",\n  "format": "caption_photo",\n  "pillar": "...",\n  "objectif": "..."\n}`,
   };
 }
+
+export interface VisionTool {
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+
+/**
+ * Tool forcé (`tool_choice`) pour la génération VISION (photo). Miroir EXACT de
+ * `buildVisionGenerateBrief().jsonShape` : le schéma DOIT rester synchro avec la
+ * forme demandée dans le prompt — les deux vivent donc côte à côte, unique source
+ * de vérité. Passer ce tool à `callAnthropic` fait garantir le JSON par l'API
+ * (assemblage du bloc `tool_use`) au lieu d'un JSON en texte que le modèle peut
+ * casser (même remède que le POST streaming, mais ici sur le chemin NON-streaming
+ * du post/caption/linkedin AVEC photos). `format` reste une chaîne fixe indicative
+ * (le consommateur lit surtout `content`/`accroche`).
+ */
+export function buildVisionTool(contentType: string | null | undefined): VisionTool {
+  const ctype = String(contentType || "").toLowerCase();
+  const base: Record<string, unknown> = {
+    content: { type: "string", description: "Le contenu complet, prêt à poster." },
+    accroche: { type: "string", description: "La première phrase / accroche." },
+    pillar: { type: "string" },
+    objectif: { type: "string" },
+  };
+  const make = (fmt: string, extra: Record<string, unknown> = {}, extraRequired: string[] = []): VisionTool => ({
+    name: "rediger_contenu_visuel",
+    description: "Retourne le contenu rédigé à partir de la/des photo(s), au format structuré.",
+    input_schema: {
+      type: "object",
+      properties: {
+        ...base,
+        ...extra,
+        format: { type: "string", description: `Valeur attendue : "${fmt}".` },
+      },
+      required: ["content", "accroche", ...extraRequired],
+    },
+  });
+
+  if (ctype.includes("linkedin")) return make("post_linkedin");
+  if (ctype.includes("reel")) return make("reel_script");
+  if (ctype.includes("story") || ctype.includes("stories")) return make("stories_sequence");
+  if (ctype.includes("newsletter")) {
+    return make("newsletter", {
+      subject: { type: "string", description: "Objet de l'email (<60 car)." },
+      preheader: { type: "string", description: "Pré-header (<90 car)." },
+    });
+  }
+  return make("caption_photo"); // défaut : légende photo Instagram
+}
