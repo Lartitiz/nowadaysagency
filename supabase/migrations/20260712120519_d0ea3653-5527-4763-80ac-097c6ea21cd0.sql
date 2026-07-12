@@ -1,0 +1,1 @@
+ALTER TABLE public.monthly_stats ADD COLUMN IF NOT EXISTS posts_count integer;
