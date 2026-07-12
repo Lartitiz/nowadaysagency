@@ -1,18 +1,20 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette, RefreshCw, AlertCircle } from "lucide-react";
+import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette, RefreshCw, AlertCircle, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
-type Platform = "instagram" | "linkedin" | "canva" | "pinterest";
+type Platform = "instagram" | "linkedin" | "canva" | "pinterest" | "google";
 
 type Connection = {
   platform: Platform;
   connected: boolean;
   accountName?: string | null;
   expiresAt?: string | null;
+  /** Google Analytics : connexion sans propriété GA4 encore choisie. */
+  needsProperty?: boolean;
 };
 
 function PinterestIcon(props: any) {
@@ -70,6 +72,14 @@ const PLATFORMS: PlatformMeta[] = [
     iconWrapClass: "bg-[#e60023]",
     atHandle: true,
   },
+  {
+    key: "google",
+    label: "Google Analytics",
+    icon: <BarChart3 className="h-4 w-4" />,
+    iconWrapClass: "bg-gradient-to-br from-amber-400 to-orange-500",
+    notConnectedHint: "Non connecté — pour remplir tes stats de site automatiquement",
+    // Google se rafraîchit seul via refresh_token → pas d'alerte d'expiration.
+  },
 ];
 
 export default function SocialConnectionsCard() {
@@ -117,12 +127,14 @@ export default function SocialConnectionsCard() {
       connected === "instagram" ||
       connected === "linkedin" ||
       connected === "canva" ||
-      connected === "pinterest"
+      connected === "pinterest" ||
+      connected === "google"
     ) {
       toast.success(
         connected === "linkedin" ? "LinkedIn connecté !"
           : connected === "canva" ? "Canva connecté !"
           : connected === "pinterest" ? "Pinterest connecté !"
+          : connected === "google" ? "Google Analytics connecté !"
           : "Instagram connecté !",
       );
       params.delete("connected");

@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
     const filterVal = workspaceId || userId;
     let q = supabase
       .from("social_connections")
-      .select("platform, platform_account_name, token_expires_at")
+      .select("platform, platform_account_name, platform_account_id, token_expires_at")
       .eq(filterCol, filterVal);
     if (workspaceId) q = q.eq("user_id", userId);
     else q = q.is("workspace_id", null);
@@ -28,6 +28,10 @@ Deno.serve(async (req) => {
       connected: true,
       accountName: r.platform_account_name,
       expiresAt: r.token_expires_at,
+      // Google Analytics : la connexion peut exister sans propriété choisie (compte
+      // à plusieurs propriétés) → l'app affiche un sélecteur. On n'expose pas l'id
+      // lui-même, juste s'il en manque un.
+      needsProperty: r.platform === "google" && !r.platform_account_id,
     }));
 
     return new Response(JSON.stringify({ connections }), {

@@ -21,6 +21,9 @@ const CANVA_SCOPES =
   "design:content:write design:meta:read profile:read";
 // Pinterest API v5 : lire le compte + les tableaux, et créer des épingles. Scopes séparés par des virgules.
 const PI_SCOPES = "user_accounts:read,boards:read,pins:read,pins:write";
+// Google Analytics : lecture seule des rapports GA4 + identité (openid/email) pour
+// nommer le compte connecté. Espace comme séparateur (convention OAuth Google).
+const GOOGLE_SCOPES = "https://www.googleapis.com/auth/analytics.readonly openid email";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -38,7 +41,8 @@ Deno.serve(async (req) => {
       platform !== "instagram" &&
       platform !== "linkedin" &&
       platform !== "canva" &&
-      platform !== "pinterest"
+      platform !== "pinterest" &&
+      platform !== "google"
     ) {
       return new Response(JSON.stringify({ error: "Plateforme non supportée pour l'instant." }), {
         status: 400,
@@ -53,6 +57,8 @@ Deno.serve(async (req) => {
         ? Deno.env.get("LINKEDIN_CLIENT_ID")
         : platform === "pinterest"
         ? Deno.env.get("PINTEREST_CLIENT_ID")
+        : platform === "google"
+        ? Deno.env.get("GOOGLE_CLIENT_ID")
         : Deno.env.get("INSTAGRAM_APP_ID");
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const stateSecret = Deno.env.get("OAUTH_STATE_SECRET");
@@ -97,6 +103,8 @@ Deno.serve(async (req) => {
         ? new URL("https://www.linkedin.com/oauth/v2/authorization")
         : platform === "pinterest"
         ? new URL("https://www.pinterest.com/oauth/")
+        : platform === "google"
+        ? new URL("https://accounts.google.com/o/oauth2/v2/auth")
         : new URL("https://www.instagram.com/oauth/authorize");
     url.searchParams.set("client_id", appId);
     url.searchParams.set("redirect_uri", redirectUri);
@@ -109,12 +117,21 @@ Deno.serve(async (req) => {
         ? LI_SCOPES
         : platform === "pinterest"
         ? PI_SCOPES
+        : platform === "google"
+        ? GOOGLE_SCOPES
         : IG_SCOPES,
     );
     url.searchParams.set("state", state);
     if (platform === "canva" && codeVerifier) {
       url.searchParams.set("code_challenge", await codeChallengeS256(codeVerifier));
       url.searchParams.set("code_challenge_method", "s256");
+    }
+    if (platform === "google") {
+      // access_type=offline + prompt=consent : force Google à renvoyer un
+      // refresh_token à CHAQUE autorisation (sinon absent aux reconnexions).
+      url.searchParams.set("access_type", "offline");
+      url.searchParams.set("prompt", "consent");
+      url.searchParams.set("include_granted_scopes", "true");
     }
 
     return new Response(JSON.stringify({ url: url.toString() }), {

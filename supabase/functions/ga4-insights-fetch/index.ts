@@ -7,7 +7,8 @@
 // platform='google' pour l'espace (platform_account_id).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
-import { fetchGa4Month } from "../_shared/ga4.ts";
+import { fetchGa4Month, resolveGoogleUserToken, type Ga4Auth } from "../_shared/ga4.ts";
+import { decryptConnTokens, encryptToken } from "../_shared/token-crypto.ts";
 
 function jsonError(message: string, corsHeaders: Record<string, string>, status = 400) {
   return new Response(JSON.stringify({ error: message }), {
@@ -30,42 +31,56 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const workspaceId: string | null = body?.workspace_id ?? null;
 
-    // Secrets du compte de service requis pour Phase 1.
-    if (!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL") || !Deno.env.get("GOOGLE_SA_PRIVATE_KEY")) {
-      return jsonError(
-        "Google Analytics n'est pas encore configuré côté serveur (compte de service manquant).",
-        corsHeaders,
-        503,
-      );
-    }
-
     // ─── Gate + résolution de la propriété GA4 ───
     // On EXIGE une connexion Google (ligne social_connections platform='google')
     // pour l'espace appelant : c'est elle qui autorise l'accès ET porte l'id de
     // propriété. Sans cette ligne → 404, même si GA4_PROPERTY_ID est défini. Cela
     // empêche qu'un autre compte tire les données de la propriété globale Phase 1.
+    //
+    // Deux chemins d'authentification :
+    //   - Phase 1 : access_token = 'service_account' → compte de service (secrets d'env).
+    //   - Phase 2 : jeton OAuth utilisateur (déchiffré, rafraîchi si besoin).
     const supabase = getServiceClient();
-    const filterCol = workspaceId ? "workspace_id" : "user_id";
-    const filterVal = workspaceId || userId;
-    let cq = supabase
-      .from("social_connections")
-      .select("platform_account_id")
-      .eq("platform", "google")
-      .eq(filterCol, filterVal);
-    if (workspaceId) cq = cq.eq("user_id", userId);
-    else cq = cq.is("workspace_id", null);
-    const { data: conn } = await cq.maybeSingle();
-    if (!conn) {
+    const resolved = await resolveGoogleUserToken(supabase, userId, workspaceId, {
+      decryptConnTokens,
+      encryptToken,
+    });
+    if (!resolved.conn) {
       return jsonError("Google Analytics n'est pas connecté sur ce compte.", corsHeaders, 404);
     }
-    // La ligne porte l'id de propriété ; sinon on retombe sur l'env (Phase 1).
-    const propertyId = conn.platform_account_id || Deno.env.get("GA4_PROPERTY_ID") || "";
-    if (!propertyId) {
-      return jsonError(
-        "Connexion Google présente mais aucune propriété GA4 (ni platform_account_id ni GA4_PROPERTY_ID).",
-        corsHeaders,
-        404,
-      );
+
+    let auth: Ga4Auth;
+    let propertyId: string;
+    if (resolved.accessToken) {
+      // Phase 2 : jeton utilisateur. La propriété DOIT venir de la connexion (pas
+      // d'env fallback ici : chaque utilisatrice pointe sa propre propriété).
+      auth = { mode: "user", accessToken: resolved.accessToken };
+      propertyId = resolved.conn.platform_account_id || "";
+      if (!propertyId) {
+        return jsonError(
+          "Aucune propriété Google Analytics sélectionnée. Choisis-en une pour continuer.",
+          corsHeaders,
+          409,
+        );
+      }
+    } else {
+      // Phase 1 : compte de service. Secrets requis, sinon 503.
+      if (!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL") || !Deno.env.get("GOOGLE_SA_PRIVATE_KEY")) {
+        return jsonError(
+          "Google Analytics n'est pas encore configuré côté serveur (compte de service manquant).",
+          corsHeaders,
+          503,
+        );
+      }
+      auth = { mode: "service" };
+      propertyId = resolved.conn.platform_account_id || Deno.env.get("GA4_PROPERTY_ID") || "";
+      if (!propertyId) {
+        return jsonError(
+          "Connexion Google présente mais aucune propriété GA4 (ni platform_account_id ni GA4_PROPERTY_ID).",
+          corsHeaders,
+          404,
+        );
+      }
     }
 
     // Backfill : body.month = "YYYY-MM-01" → agrégats de ce MOIS CALENDAIRE.
@@ -81,7 +96,7 @@ Deno.serve(async (req) => {
       if (start > currentMonthStart) {
         return jsonError("Mois dans le futur.", corsHeaders, 400);
       }
-      const metrics = await fetchGa4Month(propertyId, month);
+      const metrics = await fetchGa4Month(propertyId, month, auth);
       return new Response(
         JSON.stringify({ success: true, propertyId, month, metrics }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -92,7 +107,7 @@ Deno.serve(async (req) => {
     // aujourd'hui (contrairement à la fenêtre glissante 28 j d'Instagram), donc on
     // vise directement le mois courant — le cron figera le mois écoulé.
     const currentMonth = currentMonthKey(new Date());
-    const metrics = await fetchGa4Month(propertyId, currentMonth);
+    const metrics = await fetchGa4Month(propertyId, currentMonth, auth);
     return new Response(
       JSON.stringify({ success: true, propertyId, month: currentMonth, metrics }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
