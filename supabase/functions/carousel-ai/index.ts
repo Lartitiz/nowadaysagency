@@ -12,6 +12,7 @@ import { runRedacGate } from "../_shared/redac-gate.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
+import { fetchDepthMaterial, buildDepthBlock } from "../_shared/depth-research.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
@@ -535,6 +536,10 @@ serve(async (req) => {
       ? `\n\nVOCABULAIRE MÉTIER (à RÉUTILISER dans les questions, au moins 2/3) :\n${brandVocab.map(v => `- ${v}`).join("\n")}\n`
       : "";
 
+    // L'utilisatrice a-t-elle fourni de la VRAIE matière (réponses d'approfondissement) ?
+    // À capturer AVANT le fallback branding ci-dessous, qui remplit le même champ.
+    const hadUserDeepening = !!body.deepening_answers;
+
     // Fallback: inject branding as deepening_answers if none provided
     if (!body.deepening_answers && (type === "express_full" || type === "slides" || type === "hooks")) {
       const fallback = buildPreGenFallback(ctx);
@@ -549,8 +554,30 @@ serve(async (req) => {
 
     let systemPrompt = buildSystemPrompt(brandingContext, isLinkedIn, ctx.profile);
 
+    // Recherche « creuser le sujet » (lot D-bis, audit qualité 11-12/07) : quand la
+    // génération part SANS matière utilisatrice ni actu, on va chercher ce qu'il y a
+    // sous le sujet (mécanisme réel, contre-intuitif, limites) pour éviter le
+    // traitement de surface. Condiment : échec 100 % silencieux, borné à 25 s.
+    let depthBlock = "";
+    if (
+      type === "express_full" &&
+      !hadUserDeepening &&
+      body.carousel_type !== "photo" && body.carousel_type !== "mix" &&
+      !(typeof body.news_context === "string" && body.news_context.trim())
+    ) {
+      const material = await fetchDepthMaterial({
+        subject: body.subject || "",
+        activity: ctx?.profile?.activite,
+        model: getModelForAction("content"),
+        apiKey: Deno.env.get("ANTHROPIC_API_KEY") || "",
+        logger: (m) => console.log(m),
+      });
+      depthBlock = buildDepthBlock(material);
+      if (depthBlock) systemPrompt += depthBlock;
+    }
+
     // Liste blanche des chiffres autorisés en sortie (lot 3 anti-chiffres-inventés) :
-    // tout ce que l'utilisatrice, son branding ou l'actu ont réellement fourni.
+    // tout ce que l'utilisatrice, son branding, l'actu ou la recherche ont réellement fourni.
     const gateInputText = [
       body.subject,
       body.photo_description,
@@ -558,6 +585,7 @@ serve(async (req) => {
       body.objective,
       body.deepening_answers ? JSON.stringify(body.deepening_answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
+      depthBlock,
       Array.isArray(body.photos) ? body.photos.map((p: any) => p?.context || "").join("\n") : "",
       Array.isArray(body.photo_catalog) ? body.photo_catalog.map((p: any) => p?.description || "").join("\n") : "",
       brandingContext || "",
