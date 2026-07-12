@@ -44,6 +44,9 @@ import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { useUserPhotos } from "@/hooks/use-user-photos";
 const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
+const HookSelectionStep = lazy(() => import("@/components/creer/HookSelectionStep"));
+// Type-only : n'entre pas dans le bundle, le composant reste lazy.
+import type { ReelHook } from "@/components/creer/HookSelectionStep";
 import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
 import PhotoDumpProgress from "@/components/creer/PhotoDumpProgress";
 import { runPhotoDump, PremiumRequiredError, type DumpProgressItem } from "@/lib/photo-dump";
@@ -102,7 +105,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   );
 }
 
-type Step = "idea" | "format" | "questions" | "structure_review" | "inspiration_proposals" | "result" | "edit";
+type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_review" | "inspiration_proposals" | "result" | "edit";
 
 
 export default function CreerUnifie() {
@@ -186,6 +189,11 @@ export default function CreerUnifie() {
     if (ps.step === "structure_review") {
       return ps.selectedFormat ? "format" : "idea";
     }
+    // hook_selection dépend des hooks générés, non persistés → au reload
+    // l'écran serait vide. On retombe sur format (mêmes raisons que structure_review).
+    if (ps.step === "hook_selection") {
+      return ps.selectedFormat ? "format" : "idea";
+    }
     // Si flow photo/mix/pure_photo avec photos retrouvées, garder le step en cours
     if (["questions", "inspiration_proposals"].includes(ps.step)) {
       const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
@@ -207,6 +215,15 @@ export default function CreerUnifie() {
   const [selectedFormat, setSelectedFormat] = useState<string | null>(canalConflict ? null : (ps?.selectedFormat || paramFormat || null));
   const [editorialAngle, setEditorialAngle] = useState<string | null>(ps?.editorialAngle || null);
   const [answers, setAnswers] = useState<Record<string, string>>(ps?.answers || {});
+  // Lot 7 reels : choix de l'angle d'attaque avant génération. Les hooks ne sont
+  // PAS persistés (safeStep retombe sur "format" au reload) ; le hook choisi est
+  // gardé en state pour que « Régénérer » réécrive sur le MÊME angle.
+  const [reelHooks, setReelHooks] = useState<ReelHook[]>([]);
+  const [hooksLoading, setHooksLoading] = useState(false);
+  const [hooksRefreshing, setHooksRefreshing] = useState(false);
+  const [hooksError, setHooksError] = useState<string | null>(null);
+  const [selectedReelHook, setSelectedReelHook] = useState<ReelHook | null>(null);
+  const pendingReelAnswersRef = useRef<Record<string, string>>({});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
   const [existingCalendarContent, setExistingCalendarContent] = useState<string | null>(null);
   const [calendarPostId] = useState<string | null>(locState?.calendarPostId || null);
@@ -1082,6 +1099,62 @@ export default function CreerUnifie() {
     });
   };
 
+  // ─── Lot 7 reels : étape de choix du hook ───
+  // Appel GRATUIT (step "hooks" hors BILLED_STEPS côté edge). Jamais bloquant :
+  // en cas d'échec, l'écran propose « Continuer sans choisir » (= hook auto,
+  // comportement historique).
+  const fetchReelHooks = async (ans: Record<string, string>, excludeHooks?: string[]) => {
+    const isRefresh = !!excludeHooks?.length;
+    if (isRefresh) setHooksRefreshing(true);
+    else { setHooksLoading(true); setReelHooks([]); }
+    setHooksError(null);
+    try {
+      // Ré-indexation par le TEXTE de la question (même logique que doGenerate) :
+      // l'edge reçoit "vraie question → réponse", pas "q_0 → réponse".
+      const textById = new Map(questions.map((q) => [q.id, q.question]));
+      const answersArray = Object.entries(ans)
+        .filter(([, v]) => v && v.trim())
+        .map(([id, v]) => ({ question: textById.get(id) || id, answer: v }));
+      const { data, error: fnError } = await invokeWithTimeout("creative-flow", {
+        body: {
+          step: "hooks",
+          contentType: "reel",
+          context: ideaText,
+          objective: objective || null,
+          face_cam: "oui",
+          answers: answersArray.length > 0 ? answersArray : null,
+          workspace_id: workspaceId && workspaceId !== session?.user?.id ? workspaceId : null,
+          ...(excludeHooks?.length ? { exclude_hooks: excludeHooks.slice(0, 12) } : {}),
+        },
+      }, 60000);
+      if (fnError) throw fnError;
+      const hooks = Array.isArray((data as any)?.hooks) ? (data as any).hooks : [];
+      if (hooks.length === 0) throw new Error("empty");
+      setReelHooks(hooks.slice(0, 3));
+    } catch (e) {
+      console.error("[CreerUnifie] fetchReelHooks failed:", e);
+      // Un refresh raté garde les cartes précédentes (toujours utilisables).
+      if (!isRefresh) setHooksError("Je n'ai pas réussi à préparer les angles d'attaque.");
+    } finally {
+      setHooksLoading(false);
+      setHooksRefreshing(false);
+    }
+  };
+
+  const handleHookSelect = async (hook: ReelHook) => {
+    if (generating || streaming) return;
+    setSelectedReelHook(hook);
+    setStep("result");
+    await doGenerate(pendingReelAnswersRef.current, hook);
+  };
+
+  const handleHookSkip = async () => {
+    if (generating || streaming) return;
+    setSelectedReelHook(null);
+    setStep("result");
+    await doGenerate(pendingReelAnswersRef.current);
+  };
+
   const handleQuestionsNext = async (ans: Record<string, string>) => {
     if (generating || structureLoading || streaming) return; // garde anti double-clic (évite une 2e génération facturée)
     setAnswers(ans);
@@ -1120,6 +1193,15 @@ export default function CreerUnifie() {
       }
     }
 
+    // Lot 7 reels : détour par le choix de l'angle d'attaque (étape gratuite)
+    // avant la génération facturée. Les modes démo gardent le chemin direct.
+    if (selectedFormat === "reel" && !isDemoMode && !aurianaDemoActive && !paramAuto) {
+      pendingReelAnswersRef.current = ans;
+      setStep("hook_selection");
+      void fetchReelHooks(ans);
+      return;
+    }
+
     // On bascule TOUJOURS vers "result" pour afficher un loader pendant
     // que doGenerate tourne (pour les carrousels photo/mix, ce loader correspond
     // à l'écran "structureLoading"). Sinon l'écran questions reste figé 30-60s.
@@ -1130,12 +1212,21 @@ export default function CreerUnifie() {
   const handleSkipQuestions = async () => {
     if (generating || structureLoading || streaming) return; // garde anti double-clic (évite une 2e génération facturée)
     setAnswers({});
+    if (selectedFormat === "reel" && !isDemoMode && !aurianaDemoActive && !paramAuto) {
+      pendingReelAnswersRef.current = {};
+      setStep("hook_selection");
+      void fetchReelHooks({});
+      return;
+    }
     setStep("result");
     await doGenerate({});
   };
 
-  const doGenerate = async (ansInput: Record<string, string>) => {
+  const doGenerate = async (ansInput: Record<string, string>, reelHookOverride?: ReelHook | null) => {
     if (!selectedFormat) return;
+    // Hook choisi à l'étape hook_selection : l'override prime (setState async),
+    // le state prend le relais pour « Régénérer » (même angle réécrit).
+    const reelHook = reelHookOverride !== undefined ? reelHookOverride : selectedReelHook;
     if (generating || structureLoading || streaming || photoDumpResolving) return; // garde anti double-clic / réentrance (évite une 2e génération facturée)
     // Régime texte d'abord : on fige les lignes bibliothèque correspondant au catalogue
     // envoyé, pour résoudre library_photo_index au retour même si la biblio a bougé.
@@ -1544,6 +1635,7 @@ export default function CreerUnifie() {
       editorialAngle: editorialAngle || undefined,
       answers: Object.keys(ans).length > 0 ? ans : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
+      ...(selectedFormat === "reel" && reelHook ? { selectedHook: reelHook } : {}),
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix"
         ? (isTextFirstMix
@@ -3129,7 +3221,7 @@ export default function CreerUnifie() {
             const stepperKey: StepperKey | null = (() => {
               if (step === "idea") return "idea";
               if (step === "format") return "format";
-              if (step === "questions" || step === "structure_review" || step === "inspiration_proposals") return "brief";
+              if (step === "questions" || step === "hook_selection" || step === "structure_review" || step === "inspiration_proposals") return "brief";
               if (step === "result" || step === "edit") return "result";
               return null;
             })();
@@ -3279,6 +3371,19 @@ export default function CreerUnifie() {
                 previousBriefsCount={briefsCount}
                 initialAnswers={briefPrefillAnswers ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
                 autoFirstContent={paramAuto}
+              />
+            )}
+
+            {step === "hook_selection" && (
+              <HookSelectionStep
+                hooks={reelHooks}
+                loading={hooksLoading}
+                refreshing={hooksRefreshing}
+                error={hooksError}
+                onSelect={handleHookSelect}
+                onSkip={handleHookSkip}
+                onRefresh={() => fetchReelHooks(pendingReelAnswersRef.current, reelHooks.map((h) => h.text))}
+                onBack={() => setStep("questions")}
               />
             )}
 

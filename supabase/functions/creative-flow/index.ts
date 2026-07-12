@@ -55,6 +55,36 @@ const QUESTIONS_TOOL = {
   },
 };
 
+// Lot 7 reels : 3 hooks d'ouverture proposés AVANT la génération complète.
+// Le schéma reprend la forme exacte de `selected_hook` attendue par reelBrief
+// (format-briefs.ts) : le choix de l'utilisatrice repart tel quel au step generate.
+const HOOKS_TOOL = {
+  name: "proposer_hooks",
+  description: "Retourne 3 hooks d'ouverture de reel, de types différents.",
+  input_schema: {
+    type: "object",
+    properties: {
+      hooks: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            type: { type: "string", description: "vecu_perso | contre_intuition | objection_retournee | question_choc | fait_brut | scene_coupee" },
+            type_label: { type: "string", description: "label court lisible du type, ex. « Vécu perso »" },
+            text: { type: "string", description: "le hook PARLÉ, 8-20 mots, 1-2 phrases, tension immédiate" },
+            text_overlay: { type: "string", description: "overlay écran muet, 3-8 mots MAJUSCULES, autoporteur sans le son, ne répète pas le parlé mot pour mot" },
+            format_recommande: { type: "string", description: "face_cam_confession | voix_off_broll | hook_loop" },
+            format_label: { type: "string", description: "label lisible de la structure, ex. « Voix off + B-roll »" },
+            duree_cible: { type: "string", description: "durée estimée du reel avec ce hook, ex. « ~30 sec »" },
+          },
+          required: ["type", "type_label", "text", "text_overlay", "format_recommande", "format_label", "duree_cible"],
+        },
+      },
+    },
+    required: ["hooks"],
+  },
+};
+
 const FOLLOW_UP_TOOL = {
   name: "poser_questions_suivi",
   description: "Retourne 1 à 2 questions d'approfondissement.",
@@ -268,6 +298,7 @@ serve(async (req) => {
       time_available: z.string().max(50).optional().nullable(),
       is_launch: z.boolean().optional().nullable(),
       selected_hook: z.any().optional().nullable(),
+      exclude_hooks: z.array(z.string().max(300)).max(12).optional().nullable(),
       pre_gen_answers: z.any().optional().nullable(),
       inspiration_context: z.string().max(5000).optional().nullable(),
       editorial_angle: z.string().max(200).optional().nullable(),
@@ -624,6 +655,55 @@ Réponds UNIQUEMENT en JSON :
   ]
 }`;
       userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
+
+    } else if (step === "hooks") {
+      // Lot 7 reels : proposer 3 angles d'attaque AVANT la génération complète.
+      // Étape gratuite (hors BILLED_STEPS) ; le hook choisi repart en selected_hook.
+      const answersBlock = answers?.length
+        ? "\n\nMATIÈRE DU BRIEF (réponses de l'utilisatrice, sa vraie voix) :\n" +
+          answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
+        : "";
+      const excludeRaw = (body as Record<string, unknown>).exclude_hooks;
+      const excludeHooks: string[] = Array.isArray(excludeRaw)
+        ? excludeRaw.filter((x: unknown): x is string => typeof x === "string").slice(0, 12)
+        : [];
+      const excludeBlock = excludeHooks.length
+        ? `\n\nHOOKS DÉJÀ PROPOSÉS, REFUSÉS PAR L'UTILISATRICE :\n${excludeHooks.map((h) => `- "${h}"`).join("\n")}\nINTERDIT de les reproposer, même reformulés. Change d'angle, pas juste de mots.`
+        : "";
+      const noFaceCam = body.face_cam === "non";
+
+      systemPrompt = `${COMMON_PREFIX}
+
+TA MISSION : proposer 3 HOOKS d'ouverture pour un REEL Instagram sur le sujet donné.
+Le hook = les 3 premières secondes. 50 % des viewers scrollent avant la 3e seconde :
+c'est LE levier de rétention. L'utilisatrice choisit UN hook, le script complet sera
+écrit dessus.
+
+RÈGLES ABSOLUES :
+1. Les 3 hooks sont de TYPES DIFFÉRENTS, choisis parmi :
+   - vecu_perso (« Vécu perso ») : un moment vécu, raconté en Je. UNIQUEMENT si la
+     matière du brief contient un vrai vécu — n'invente JAMAIS une anecdote.
+   - contre_intuition (« Contre-intuition ») : affirmation qui renverse une croyance.
+   - objection_retournee (« Objection retournée ») : la phrase qu'on lui oppose, puis le retournement.
+   - question_choc (« Question choc ») : question qui pique, jamais rhétorique molle.
+   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), sec, sans emballage.
+   - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
+2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
+   ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
+3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
+   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
+4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
+5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
+   SA matière (contexte de marque ci-dessus).
+6. format_recommande = la structure que ce hook appelle naturellement
+   (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
+   cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
+7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
+   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${excludeBlock}`;
+      userPrompt = `SUJET DU REEL : "${context || "?"}"
+Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
+
+Propose-moi 3 hooks de types différents pour ce reel.`;
 
     } else if (step === "generate") {
       const answersBlock = answers?.length
@@ -1906,7 +1986,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       // + `lecture_test` + shot list) dépasse le défaut de 4096 de callAnthropicSimple
       // → stop_reason "max_tokens" → échec systématique en ~40 s. Un plafond haut ne
       // coûte rien tant qu'il n'est pas consommé.
-      const maxTokens = step === "questions" ? 800 : step === "recycle" ? 12288 : 8192;
+      const maxTokens = step === "questions" ? 800 : step === "hooks" ? 1400 : step === "recycle" ? 12288 : 8192;
       const isLinkedInText = !!contentType?.includes("linkedin") && step !== "questions";
       const tempText = isLinkedInText ? 0.7 : 0.85;
       // L1 : Haiku pour les steps `questions` et `follow-up` (3-5× plus rapide que Sonnet,
@@ -1917,8 +1997,10 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       // Questions/follow-up = appels Haiku courts et bornés : on plafonne chaque
       // tentative à 30s pour qu'un fetch qui traîne bascule vite en retry plutôt
       // que de faire patienter l'utilisatrice >1 min sur le chemin d'activation.
-      const abortMs = (step === "questions" || step === "follow-up") ? 30000 : undefined;
-      const structuredTool = step === "questions" ? QUESTIONS_TOOL : step === "follow-up" ? FOLLOW_UP_TOOL : undefined;
+      const abortMs = (step === "questions" || step === "follow-up") ? 30000 : step === "hooks" ? 45000 : undefined;
+      // `hooks` reste sur le modèle content (Sonnet) : le hook est LE levier de
+      // rétention du reel, la qualité prime sur les ~5 s gagnées avec Haiku.
+      const structuredTool = step === "questions" ? QUESTIONS_TOOL : step === "follow-up" ? FOLLOW_UP_TOOL : step === "hooks" ? HOOKS_TOOL : undefined;
       rawContent = structuredTool
         ? await callAnthropic({
             model: modelForCall,
