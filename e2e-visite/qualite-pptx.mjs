@@ -14,11 +14,13 @@
  * cette semaine » (la visite du matin ne l'a pas encore produit sur cette machine).
  */
 import fs from "fs";
+import os from "os";
 import path from "path";
-import { fileURLToPath } from "url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const histPath = path.join(__dirname, "results", "pptx-history.jsonl");
+// Dossier STABLE hors worktree (même chemin que l'écriture dans perf-carousel.spec.ts) :
+// la visite du matin tourne dans un worktree jetable, l'historique doit survivre.
+const HISTORY_DIR = process.env.NOWADAYS_VISITE_DATA || path.join(os.homedir(), ".nowadays-visite");
+const histPath = path.join(HISTORY_DIR, "pptx-history.jsonl");
 
 function readHistory() {
   if (!fs.existsSync(histPath)) return [];
