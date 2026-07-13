@@ -304,6 +304,21 @@ export interface AnthropicResult {
   usage?: AnthropicUsage;
 }
 
+/**
+ * Variante NON-LEVANTE d'`extractValidatedToolInput`, réservée à
+ * `callAnthropicWithMeta` : renvoie l'`input` du tool re-sérialisé (JSON valide
+ * par construction) ou "" s'il est absent. Contrairement à
+ * `extractValidatedToolInput`, ne LÈVE PAS sur troncature — l'appelant lit
+ * `stop_reason` et décide lui-même (retry avec un max_tokens plus haut, etc.).
+ */
+function toolInputText(data: any, toolName: string, keepDashes = false): string {
+  const block = Array.isArray(data?.content)
+    ? data.content.find((b: any) => b?.type === "tool_use" && b?.name === toolName)
+    : undefined;
+  if (!block || block.input == null) return "";
+  return JSON.stringify(keepDashes ? block.input : sanitizeStyleDeep(block.input));
+}
+
 export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<AnthropicResult> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
@@ -313,6 +328,14 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     messages: prepareMessages(options.model, options.messages),
     max_tokens: options.max_tokens || 4096,
   };
+
+  // Sortie structurée : force le modèle à répondre via ce tool. Le `text` renvoyé
+  // devient alors l'`input` du tool sérialisé (JSON valide par construction),
+  // ce qui élimine la classe d'échecs « prose au lieu de JSON » du parsing texte.
+  if (options.tool) {
+    body.tools = [options.tool];
+    body.tool_choice = { type: "tool", name: options.tool.name };
+  }
 
   // Sonnet 5 : thinking adaptatif ON si omis → on force `disabled` (comportement historique).
   if (forcesDisabledThinking(options.model)) {
@@ -364,7 +387,9 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     if (response.ok) {
       const data = await response.json();
       return {
-        text: sanitizeStyle(data.content?.[0]?.text || ""),
+        text: options.tool
+          ? toolInputText(data, options.tool.name, options.keepDashes)
+          : sanitizeStyle(data.content?.[0]?.text || ""),
         stop_reason: data.stop_reason || null,
         usage: extractUsage(data, options.model),
       };
@@ -410,7 +435,9 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
       if (fallbackRes.ok) {
         const data = await fallbackRes.json();
         return {
-          text: sanitizeStyle(data.content?.[0]?.text || ""),
+          text: options.tool
+            ? toolInputText(data, options.tool.name, options.keepDashes)
+            : sanitizeStyle(data.content?.[0]?.text || ""),
           stop_reason: data.stop_reason || null,
           usage: extractUsage(data, "claude-sonnet-4-6"),
         };
