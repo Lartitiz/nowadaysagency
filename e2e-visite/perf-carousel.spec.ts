@@ -154,6 +154,29 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   const shot = await extractLargestMedia(pptxPath, path.join(__dirname, "shots", "export-pptx-fond.png"));
   if (shot) console.log(`👀 Fond extrait pour le regard : ${shot}`);
 
+  // ── Historique hebdo de l'export PPTX (Brique 3 qualité) ──────────────────
+  // 1 ligne/jour, append-only, lue par qualite-pptx.mjs pour la section « export
+  // PPTX » du bilan du lundi (accumulation des exports RÉELS de la semaine, sans
+  // génération supplémentaire). Écrit AVANT l'assertion pour tracer aussi les
+  // exports défaillants. Non bloquant : jamais d'échec de test à cause de ça.
+  try {
+    fs.appendFileSync(
+      path.join(outDir, "pptx-history.jsonl"),
+      JSON.stringify({
+        date: new Date().toISOString(),
+        format: "carrousel_texte_design",
+        slideCount: report.slideCount,
+        mediaCount: report.mediaCount,
+        mediaMinInk: report.mediaMinInk,
+        textRuns: report.texts.filter((t) => t.trim()).length,
+        ok: report.problems.length === 0,
+        problems: report.problems,
+      }) + "\n",
+    );
+  } catch (e) {
+    console.log(`(historique PPTX non écrit : ${(e as Error).message})`);
+  }
+
   expect(report.problems, `Défauts PPTX détectés : ${report.problems.join(" | ")}`).toEqual([]);
   console.log("✅ Export PPTX hybride : contenu validé (zip, slides, fonds, texte éditable, pas de label technique).");
 });
