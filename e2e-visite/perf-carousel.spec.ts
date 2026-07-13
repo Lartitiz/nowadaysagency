@@ -20,8 +20,14 @@
 import { test, expect, Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
+import * as os from "os";
 import { fileURLToPath } from "url";
 import { validatePptx, extractLargestMedia } from "./pptx-validate";
+
+// Historique PPTX : dossier STABLE hors worktree (la visite du matin tourne dans
+// un worktree jetable supprimé chaque jour → results/ y serait effacé). Même
+// chemin côté lecteur (qualite-pptx.mjs). Surchargable par NOWADAYS_VISITE_DATA.
+const HISTORY_DIR = process.env.NOWADAYS_VISITE_DATA || path.join(os.homedir(), ".nowadays-visite");
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -160,8 +166,9 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   // génération supplémentaire). Écrit AVANT l'assertion pour tracer aussi les
   // exports défaillants. Non bloquant : jamais d'échec de test à cause de ça.
   try {
+    fs.mkdirSync(HISTORY_DIR, { recursive: true });
     fs.appendFileSync(
-      path.join(outDir, "pptx-history.jsonl"),
+      path.join(HISTORY_DIR, "pptx-history.jsonl"),
       JSON.stringify({
         date: new Date().toISOString(),
         format: "carrousel_texte_design",
