@@ -16,6 +16,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, numbersIn, runRedacGate } from "../_shared/redac-gate.ts";
+import { logContentQuality } from "../_shared/content-quality.ts";
 import {
   countReelSpokenWords,
   enforceReelNoFaceCam,
@@ -1811,6 +1812,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
             });
             const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
             if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
+            await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id);
           } catch (e) {
             console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
           }

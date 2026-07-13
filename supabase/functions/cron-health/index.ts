@@ -370,6 +370,30 @@ Deno.serve(async (req) => {
       };
     };
 
+    // Source COMPLÈTE du score de gate = content_quality_events (1 ligne par
+    // génération, écrite côté serveur par logContentQuality) ; repli sur
+    // generated_carousels.quality_score (écrit seulement si un brouillon est sauvé)
+    // tant que la table n'existe pas encore (migration Lovable en attente).
+    let cqEvents: any[] | null = null;
+    try {
+      const cqRes = await supabase
+        .from("content_quality_events")
+        .select("user_id, format, redac_score, redac_repassed, created_at")
+        .gte("created_at", since35d);
+      if (!cqRes.error) cqEvents = (cqRes.data || []).filter((e: any) => isClient(e.user_id));
+    } catch (_) { /* table absente : repli sur les brouillons */ }
+    const eventScoreStats = (rows: any[]) => {
+      const vals = rows.map((r) => r.redac_score).filter((v: any) => typeof v === "number");
+      if (!vals.length) return { n: 0, sur: rows.length, moyenne: null as number | null, sous_60: 0, repasses: 0 };
+      return {
+        n: vals.length,
+        sur: rows.length,
+        moyenne: Math.round(vals.reduce((s: number, v: number) => s + v, 0) / vals.length),
+        sous_60: vals.filter((v: number) => v < 60).length,
+        repasses: rows.filter((r: any) => r.redac_repassed).length,
+      };
+    };
+
     const RETRAVAIL_MS = 15 * 60 * 1000; // réédité >15 min après génération = 1er jet retouché en profondeur
     const estRetravaille = (c: any) =>
       !!(c.updated_at && c.created_at && new Date(c.updated_at).getTime() - new Date(c.created_at).getTime() > RETRAVAIL_MS);
@@ -413,7 +437,17 @@ Deno.serve(async (req) => {
     }));
 
     const qualite = {
-      score_gate: { cette_semaine: scoreStats(carCur), semaine_precedente: scoreStats(carPrev) },
+      score_gate: cqEvents && cqEvents.length
+        ? {
+            source: "events",
+            cette_semaine: eventScoreStats(cqEvents.filter((e: any) => inWindow(e.created_at, curFrom, curTo))),
+            semaine_precedente: eventScoreStats(cqEvents.filter((e: any) => inWindow(e.created_at, prevFrom, prevTo))),
+          }
+        : {
+            source: "brouillons",
+            cette_semaine: scoreStats(carCur),
+            semaine_precedente: scoreStats(carPrev),
+          },
       retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },
       par_format: parFormat,
       echantillon,

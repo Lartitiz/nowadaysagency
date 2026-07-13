@@ -9,6 +9,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 import { runRedacGate, type CaptionEndingRule } from "../_shared/redac-gate.ts";
+import { logContentQuality } from "../_shared/content-quality.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
@@ -736,14 +737,16 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           content = capped.content;
         }
         // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-        content = (await runRedacGate(content, {
+        const gateMix = await runRedacGate(content, {
           isLinkedIn,
           onStatus: emitStatus,
           inputText: gateInputText,
           captionEnding: captionEndingRule,
           correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
-        })).content;
+        });
+        content = gateMix.content;
         await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
+        await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -847,14 +850,16 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
           content = capped.content;
         }
-        content = (await runRedacGate(content, {
+        const gatePhoto = await runRedacGate(content, {
           isLinkedIn,
           onStatus: emitStatus,
           inputText: gateInputText,
           captionEnding: captionEndingRule,
           correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
-        })).content;
+        });
+        content = gatePhoto.content;
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
+        await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1256,13 +1261,15 @@ Réponds UNIQUEMENT en JSON valide :
       if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
       content = capped.content;
       // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-      content = (await runRedacGate(content, {
+      const gateExpress = await runRedacGate(content, {
         isLinkedIn,
         onStatus: emitStatus,
         inputText: gateInputText,
         captionEnding: captionEndingRule,
         correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
-      })).content;
+      });
+      content = gateExpress.content;
+      await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspace_id);
     }
 
     // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
