@@ -187,18 +187,29 @@ export function normalizeCaptionHashtags(parsed: any, isLinkedIn: boolean): void
   caption.hashtags = clean;
 }
 
-/** quality_check calculé (remplace l'auto-déclaré, qui rapportait faux). */
-function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
-  const violations =
+/** Nombre de violations rédactionnelles — formule partagée avec le quality_check. */
+export function redacViolations(a: RedacAnalysis): number {
+  return (
     Math.max(0, a.reversals.length - 1) + // 1 retournement est toléré (règle « 1 max »)
     a.overlongSlides.length +
     a.overlongOverlays.length +
     (a.ctaDuplicated ? 1 : 0) +
     a.moulded.length +
-    Math.min(3, a.fabricatedNumbers.length);
+    Math.min(3, a.fabricatedNumbers.length)
+  );
+}
+
+/** Score rédactionnel 0-100 (plancher 40), dérivé des violations. */
+export function redacScore(a: RedacAnalysis): number {
+  return Math.max(40, 100 - 10 * redacViolations(a));
+}
+
+/** quality_check calculé (remplace l'auto-déclaré, qui rapportait faux). */
+function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
+  const violations = redacViolations(a);
   return {
     source: "code",
-    score: Math.max(40, 100 - 10 * violations),
+    score: redacScore(a),
     reversal_negation_count: a.reversals.length,
     slides_over_50_words: a.overlongSlides,
     overlays_over_28_words: a.overlongOverlays,
@@ -273,6 +284,10 @@ export interface RedacGateResult {
   repassed: boolean;
   before: RedacAnalysis;
   after: RedacAnalysis;
+  /** Score rédactionnel 0-100 du document final (null si contenu illisible). */
+  score: number | null;
+  /** Nombre de violations du document final (null si contenu illisible). */
+  violations: number | null;
 }
 
 /**
@@ -305,7 +320,7 @@ export async function runRedacGate(
   };
 
   const first = parseFenced(content);
-  if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis() };
+  if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis(), score: null, violations: null };
 
   const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
   const before = analyzeCarouselRedac(first.parsed, allowedNumbers);
@@ -338,7 +353,7 @@ export async function runRedacGate(
   }
 
   const finalDoc = parseFenced(out) || parseFenced(content);
-  if (!finalDoc) return { content: out, repassed, before, after: before };
+  if (!finalDoc) return { content: out, repassed, before, after: before, score: redacScore(before), violations: redacViolations(before) };
 
   // Filet schémas : la re-passe ne voit que les textes — un visual_schema qui
   // porte encore des chiffres sans source est retiré en code (la slide redevient
@@ -376,7 +391,7 @@ export async function runRedacGate(
     `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
-  return { content: out, repassed, before, after };
+  return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after) };
 }
 
 function emptyAnalysis(): RedacAnalysis {

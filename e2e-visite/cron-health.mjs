@@ -105,12 +105,14 @@ try {
     if (q) {
       console.log("   ── qualité de la création de contenu (carrousels réels de la semaine) ──");
       const sc = q.score_gate?.cette_semaine, scP = q.score_gate?.semaine_precedente;
+      const src = q.score_gate?.source === "events" ? "toutes générations" : "brouillons sauvés seulement";
       if (sc?.moyenne != null) {
         const d9 = scP?.moyenne != null ? ` (S-1 : ${scP.moyenne}, ${delta(sc.moyenne, scP.moyenne)})` : "";
         const bas = sc.sous_60 ? `  🔴 ${sc.sous_60} sous 60` : "";
-        console.log(`   score de gate moyen : ${sc.moyenne}/100 sur ${sc.n}/${sc.sur} carrousels notés${d9}${bas}`);
+        const rep = sc.repasses != null ? `, ${sc.repasses} re-passe(s) LLM déclenchée(s)` : "";
+        console.log(`   score de gate moyen : ${sc.moyenne}/100 sur ${sc.n}/${sc.sur} notés [${src}]${d9}${bas}${rep}`);
       } else {
-        console.log(`   score de gate moyen : n/a (0/${sc?.sur ?? 0} noté — quality_score non persisté côté serveur, cf. Brique 1)`);
+        console.log(`   score de gate moyen : n/a (0/${sc?.sur ?? 0} noté — [${src}] ; si « brouillons », déployer la Brique 1 pour couvrir toutes les générations)`);
       }
       const rt = q.retravail;
       if (rt) {
