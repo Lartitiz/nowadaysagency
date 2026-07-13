@@ -1,7 +1,7 @@
 export const COACHING_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
   persona: ["frustrations", "transformation", "objections", "cliches", "aesthetic_world", "inspiration", "actions"],
-  tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "visual_style"],
+  tone_style: ["tone_description", "tone_do", "tone_dont", "combats", "conviction_pairs", "conviction_vecu", "visual_style"],
   content_strategy: ["content_pillars", "content_twist", "content_formats", "content_frequency", "content_editorial_line"],
   offers: ["offer_name", "offer_price", "offer_target", "offer_promise", "offer_includes"],
   charter: ["mood_place", "colors", "visual_style", "typography", "logo", "visual_donts"],
@@ -30,6 +30,8 @@ export const COACHING_LABELS: Record<string, Record<string, string>> = {
     tone_do: "Ce que tu fais",
     tone_dont: "Ce que tu ne fais jamais",
     combats: "Tes combats",
+    conviction_pairs: "Ton désaccord avec ton métier",
+    conviction_vecu: "Ce que le métier t'a appris",
     visual_style: "Ton style visuel",
   },
   content_strategy: {

@@ -108,13 +108,20 @@ function CoachingProgress({ section, coveredTopics }: { section: Section; covere
 interface BrandingCoachingFlowProps {
   section: Section;
   personaId?: string;
+  focus?: string;
   onComplete?: () => void;
   onBack?: () => void;
   autofillData?: Record<string, any> | null;
   autofillConfidence?: string | null;
 }
 
-export default function BrandingCoachingFlow({ section, personaId, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
+// Sujets « convictions vécues » : greffés sur la section tone_style, remplis
+// uniquement en coaching. Quand on arrive avec ?focus=convictions, on ne repose
+// QUE ces 2 sujets (les autres sont marqués couverts), même si la section est
+// déjà complète.
+const CONVICTION_TOPICS = ["conviction_pairs", "conviction_vecu"];
+
+export default function BrandingCoachingFlow({ section, personaId, focus, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -153,6 +160,10 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
   const demoQuestions = isDemoMode ? DEMO_COACHING_DATA[section]?.questions : null;
   const checklist = COACHING_CHECKLISTS[section] || [];
 
+  // Mode « compléter mes convictions » : on ne repose que les 2 questions
+  // convictions, même si tone_style est déjà complète.
+  const isConvictionFocus = focus === "convictions" && section === "tone_style";
+
   // Load existing session
   useEffect(() => {
     if (isDemoMode || !user) return;
@@ -165,6 +176,17 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
         .eq("section", section)
         .maybeSingle();
 
+      // Mode focus convictions : on démarre une mini-session fraîche qui ne
+      // repose QUE les 2 sujets convictions. On marque tout le reste comme
+      // couvert et on ignore l'état « complète » de la section pour ne pas
+      // atterrir sur l'écran de fin. Les champs déjà remplis sont préservés
+      // (on ne touche qu'à brand_profile en update).
+      if (isConvictionFocus) {
+        setCoveredTopics(checklist.filter((t) => !CONVICTION_TOPICS.includes(t)));
+        setMessages([]);
+        setHasExistingSession(false);
+        return;
+      }
 
       if (data && data.messages && (data.messages as any[]).length > 0) {
         setHasExistingSession(true);
@@ -635,6 +657,19 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
       startingRef.current = false;
     }
   }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section, completionPct]);
+
+  // Mode focus convictions : on lance directement la mini-session dès que les
+  // sujets non-convictions ont été marqués couverts par loadSession (pas d'écran
+  // d'intro à cliquer — la carte a déjà servi d'intro).
+  const focusStartedRef = useRef(false);
+  useEffect(() => {
+    if (!isConvictionFocus || isDemoMode || !user) return;
+    if (focusStartedRef.current || phase !== "intro") return;
+    // Attend que loadSession ait seedé les sujets couverts.
+    if (coveredTopics.length === 0) return;
+    focusStartedRef.current = true;
+    handleStart();
+  }, [isConvictionFocus, isDemoMode, user, phase, coveredTopics, handleStart]);
 
   const handleNext = useCallback(async () => {
     if (loading) return;
@@ -1292,6 +1327,24 @@ export default function BrandingCoachingFlow({ section, personaId, onComplete, o
   const estimatedTotal = checklist.length || 8;
   const estimatedRemaining = Math.max(0, estimatedTotal - coveredTopics.length);
   const timeRemaining = estimatedRemaining <= 1 ? "Presque fini !" : `Encore ~${Math.ceil(estimatedRemaining * 0.5)} min`;
+
+  // Mode focus convictions : on saute l'écran d'intro (auto-démarrage), on
+  // affiche juste un loader le temps que la 1ʳᵉ question arrive.
+  if (isConvictionFocus && phase === "intro") {
+    return (
+      <div className="min-h-screen bg-background flex flex-col">
+        <div className="px-4 pt-4 pb-2">
+          <button onClick={onBack || (() => navigate("/branding"))} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors">
+            <ArrowLeft className="h-4 w-4" /> Retour
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm text-muted-foreground">Encore 2 questions pour rendre tes idées impossibles à copier…</p>
+        </div>
+      </div>
+    );
+  }
 
   // Intro screen
   if (phase === "intro") {
