@@ -514,7 +514,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
         <div>
           <SectionLabel emoji="🌶️" title="Mes convictions vécues" />
           <a
-            href="/branding/section?section=tone_style"
+            href="/branding/coaching?section=tone_style&focus=convictions"
             className="block rounded-xl border border-dashed border-primary/40 bg-primary/5 p-4 hover:bg-primary/10 transition-colors"
           >
             <p className="text-sm text-foreground font-medium">Nouveau : la matière que personne ne peut te copier</p>

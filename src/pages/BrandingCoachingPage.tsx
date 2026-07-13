@@ -28,6 +28,7 @@ export default function BrandingCoachingPage() {
   const navigate = useNavigate();
   const rawSection = searchParams.get("section");
   const personaId = searchParams.get("personaId");
+  const focus = searchParams.get("focus");
 
   // Resolve aliases
   const resolved = SECTION_ALIAS[rawSection || ""] || rawSection;
@@ -50,6 +51,7 @@ export default function BrandingCoachingPage() {
       <BrandingCoachingFlow
         section={section}
         personaId={personaId || undefined}
+        focus={focus || undefined}
         onComplete={() => navigate(RECAP_ROUTES[section] || "/branding")}
         onBack={() => navigate("/branding")}
       />

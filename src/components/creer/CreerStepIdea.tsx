@@ -232,7 +232,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
             {showConvictionNudge && (
               <button
                 type="button"
-                onClick={() => navigate("/branding/section?section=tone_style")}
+                onClick={() => navigate("/branding/coaching?section=tone_style&focus=convictions")}
                 className="w-full text-left rounded-lg border border-dashed border-primary/40 bg-primary/5 px-3 py-2 hover:bg-primary/10 transition-colors"
               >
                 <p className="text-2xs text-foreground">
