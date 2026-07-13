@@ -18,6 +18,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition } from "../_shared/photo-slide-structure.ts";
+import { assignPhotoTemplates } from "../_shared/photo-template-assign.ts";
 
 // ── Sortie structurée pour les deepening_questions ──
 // Même pattern que creative-flow (#359) : le tool forcé (tool_choice) fait
@@ -873,6 +874,13 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
         });
         content = gatePhoto.content;
+        // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),
+        // pose le gabarit visuel de chaque slide. Décision prise sur le texte
+        // réel, aucun quota de variété, anti-invention par code, fail-open.
+        content = await assignPhotoTemplates(content, {
+          model: pickCorrectionModel(body),
+          logger: (m) => console.log(m),
+        });
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
         await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspace_id);
         return new Response(JSON.stringify({ content }), {
