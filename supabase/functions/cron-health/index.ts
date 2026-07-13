@@ -10,7 +10,9 @@
 // scope "weekly" : coûts IA (tokens par modèle, 7 j vs 7 j précédents), coûts estimés
 //                  en € (texte Anthropic + images gpt-image/Photoroom/Recraft), usage
 //                  (action_type), rétention par cohorte hebdo d'inscription,
-//                  volume de publications.
+//                  volume de publications, + QUALITÉ de la génération de contenu
+//                  (score de gate agrégé, retravail, funnel par format, échantillon
+//                  à juger) — voir le bloc `qualite`.
 //
 // Sécurité : lecture seule, pas de PII en sortie (compteurs, plateformes, erreurs
 // tronquées ; les noms de comptes sociaux sont des handles publics ; le texte des
@@ -231,7 +233,7 @@ Deno.serve(async (req) => {
         .gte("created_at", since35d),
       supabase
         .from("calendar_posts")
-        .select("user_id, created_at, published_at, publish_status, status"),
+        .select("id, user_id, created_at, published_at, publish_status, status"),
     ]);
     if (aiRes.error) throw aiRes.error;
     if (calRes.error) throw calRes.error;
@@ -331,6 +333,92 @@ Deno.serve(async (req) => {
     const publishedCur = cal.filter((c: any) => inWindow(c.published_at, curFrom, curTo)).length;
     const publishedPrev = cal.filter((c: any) => inWindow(c.published_at, prevFrom, prevTo)).length;
 
+    // ── Qualité de la génération de contenu (lecture seule) ────────────────────
+    // Ce que le quotidien ne voit pas : la QUALITÉ du contenu produit, pas le volume.
+    // Trois signaux sur les carrousels réellement générés (hors comptes test) :
+    //   1) score de gate (quality_score déjà en base) agrégé + delta S-1 — attrape
+    //      une non-régression après un swap de modèle (ex. bascule Sonnet 5) ou un
+    //      redéploiement edge ; n < total tant que Brique 1 (persistance serveur du
+    //      score de redac-gate) n'est pas livrée — le report l'affiche honnêtement ;
+    //   2) retravail = % de carrousels lourdement réédités après génération (proxy
+    //      d'un 1er jet raté) + sujets re-générés ;
+    //   3) funnel PAR FORMAT (généré → mis au calendrier → publié) : quel format
+    //      meurt en route éclaire la falaise « 0 publication ».
+    // + un échantillon anonymisé (le contenu à juger, tronqué, SANS identité d'autrice)
+    //   pour le juge de la routine (grille : singularité, hook, ancrage métier, tics,
+    //   fidélité au brief). Le contenu est du matériel marketing destiné à être publié
+    //   publiquement — pas de la PII.
+    const carRes = await supabase
+      .from("generated_carousels")
+      .select(
+        "user_id, carousel_type, subject, hook_text, caption, slides, slide_count, quality_score, calendar_post_id, status, created_at, updated_at",
+      )
+      .gte("created_at", since35d);
+    if (carRes.error) throw carRes.error;
+    const car = (carRes.data || []).filter((c: any) => isClient(c.user_id));
+    const carCur = car.filter((c: any) => inWindow(c.created_at, curFrom, curTo));
+    const carPrev = car.filter((c: any) => inWindow(c.created_at, prevFrom, prevTo));
+
+    const scoreStats = (rows: any[]) => {
+      const vals = rows.map((r) => r.quality_score).filter((v: any) => typeof v === "number");
+      if (!vals.length) return { n: 0, sur: rows.length, moyenne: null as number | null, sous_60: 0 };
+      return {
+        n: vals.length,
+        sur: rows.length,
+        moyenne: Math.round(vals.reduce((s: number, v: number) => s + v, 0) / vals.length),
+        sous_60: vals.filter((v: number) => v < 60).length,
+      };
+    };
+
+    const RETRAVAIL_MS = 15 * 60 * 1000; // réédité >15 min après génération = 1er jet retouché en profondeur
+    const estRetravaille = (c: any) =>
+      !!(c.updated_at && c.created_at && new Date(c.updated_at).getTime() - new Date(c.created_at).getTime() > RETRAVAIL_MS);
+    const retravailles = carCur.filter(estRetravaille).length;
+    const sujetKey = (c: any) => `${c.user_id}::${String(c.subject || "").trim().toLowerCase().slice(0, 60)}`;
+    const sujetCounts: Record<string, number> = {};
+    for (const c of carCur) sujetCounts[sujetKey(c)] = (sujetCounts[sujetKey(c)] || 0) + 1;
+    const sujets_regeneres = Object.values(sujetCounts).filter((n) => n > 1).length;
+
+    const publishedIds = new Set(cal.filter((c: any) => c.published_at).map((c: any) => c.id));
+    const parFormat: Record<string, { generes: number; au_calendrier: number; publies: number }> = {};
+    for (const c of carCur) {
+      const f = c.carousel_type || "inconnu";
+      parFormat[f] = parFormat[f] || { generes: 0, au_calendrier: 0, publies: 0 };
+      parFormat[f].generes++;
+      if (c.calendar_post_id) {
+        parFormat[f].au_calendrier++;
+        if (publishedIds.has(c.calendar_post_id)) parFormat[f].publies++;
+      }
+    }
+
+    const trunc = (s: any, n: number) => (typeof s === "string" ? s.replace(/\s+/g, " ").trim().slice(0, n) : "");
+    const slideApercu = (slides: any): string[] => {
+      if (!Array.isArray(slides)) return [];
+      return slides.slice(0, 4).map((sl: any) => {
+        const t = sl?.title || sl?.heading || sl?.text || sl?.body || sl?.content || "";
+        if (typeof t === "string" && t.trim()) return trunc(t, 120);
+        return trunc(typeof sl === "string" ? sl : JSON.stringify(sl), 120);
+      });
+    };
+    const echantillon = carCur.slice(0, 15).map((c: any, i: number) => ({
+      ref: `c${i + 1}`,
+      format: c.carousel_type,
+      sujet: trunc(c.subject, 100),
+      hook: trunc(c.hook_text, 140),
+      caption: trunc(c.caption, 300),
+      apercu_slides: slideApercu(c.slides),
+      quality_score: typeof c.quality_score === "number" ? c.quality_score : null,
+      retravaille: estRetravaille(c),
+      au_calendrier: !!c.calendar_post_id,
+    }));
+
+    const qualite = {
+      score_gate: { cette_semaine: scoreStats(carCur), semaine_precedente: scoreStats(carPrev) },
+      retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },
+      par_format: parFormat,
+      echantillon,
+    };
+
     return json({
       generated_at: new Date().toISOString(),
       scope,
@@ -339,6 +427,7 @@ Deno.serve(async (req) => {
       publications: { cette_semaine: publishedCur, semaine_precedente: publishedPrev },
       cohortes: cohorts,
       actives_cette_semaine: activeThisWeek.size,
+      qualite,
     });
   } catch (e) {
     return json({ error: String((e as any)?.message || e) }, 500);

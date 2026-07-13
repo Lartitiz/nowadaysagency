@@ -99,6 +99,39 @@ try {
     console.log(`   actives cette semaine : ${d.actives_cette_semaine}`);
     console.log("   rétention par cohorte d'inscription (active = ≥1 génération ou post sur 7 j) :");
     for (const c of d.cohortes || []) console.log(`      ${c.semaine} (du ${c.du}) : ${c.actives_cette_semaine}/${c.inscrites} actives (${pct(c.actives_cette_semaine, c.inscrites)})`);
+
+    // ── Qualité de la génération (absent si l'edge live n'est pas encore à jour) ──
+    const q = d.qualite;
+    if (q) {
+      console.log("   ── qualité de la création de contenu (carrousels réels de la semaine) ──");
+      const sc = q.score_gate?.cette_semaine, scP = q.score_gate?.semaine_precedente;
+      if (sc?.moyenne != null) {
+        const d9 = scP?.moyenne != null ? ` (S-1 : ${scP.moyenne}, ${delta(sc.moyenne, scP.moyenne)})` : "";
+        const bas = sc.sous_60 ? `  🔴 ${sc.sous_60} sous 60` : "";
+        console.log(`   score de gate moyen : ${sc.moyenne}/100 sur ${sc.n}/${sc.sur} carrousels notés${d9}${bas}`);
+      } else {
+        console.log(`   score de gate moyen : n/a (0/${sc?.sur ?? 0} noté — quality_score non persisté côté serveur, cf. Brique 1)`);
+      }
+      const rt = q.retravail;
+      if (rt) {
+        console.log(`   retravail : ${rt.retravailles}/${rt.total_carrousels} carrousels réédités >15 min (${pct(rt.retravailles, rt.total_carrousels)})${rt.sujets_regeneres ? `, ${rt.sujets_regeneres} sujet(s) re-généré(s)` : ""}`);
+      }
+      const pf = q.par_format || {};
+      const formats = Object.entries(pf).sort((a, b) => b[1].generes - a[1].generes);
+      if (formats.length) {
+        console.log("   funnel par format (généré → calendrier → publié) :");
+        for (const [f, v] of formats) console.log(`      ${String(f).padEnd(24)} ${String(v.generes).padStart(3)} → ${String(v.au_calendrier).padStart(3)} → ${String(v.publies).padStart(3)}`);
+      }
+      const ech = q.echantillon || [];
+      console.log(`   échantillon à juger (grille : singularité, hook, ancrage métier, tics, fidélité) : ${ech.length} contenu(s)`);
+      for (const e of ech) {
+        const flags = `${e.au_calendrier ? " 📅" : ""}${e.retravaille ? " ✏️retravaillé" : ""}${e.quality_score != null ? ` [gate ${e.quality_score}]` : ""}`;
+        console.log(`      • [${e.format}] ${e.sujet || "(sans sujet)"}${flags}`);
+        if (e.hook) console.log(`        hook : « ${e.hook} »`);
+        for (const s of e.apercu_slides || []) console.log(`          – ${s}`);
+        if (e.caption) console.log(`        caption : ${e.caption}`);
+      }
+    }
   }
 } catch (e) {
   console.log(`santé : erreur (${String(e.message).slice(0, 90)}) — étape sautée sans casser le run.`);
