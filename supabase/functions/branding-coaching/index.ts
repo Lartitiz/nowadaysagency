@@ -9,6 +9,68 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 
+/**
+ * Sortie structurée FORCÉE de la question de coaching. Sans ça, Opus « bavarde »
+ * parfois en prose au lieu du JSON attendu ; le filet de secours coupait alors le
+ * texte brut à 200 caractères + « ... », affichant une question tronquée en plein
+ * milieu (« ...ça se traduit comment dans un... »). Avec `tool_choice` forcé, le
+ * schéma DEVIENT le contrat : le modèle ne peut plus renvoyer que ce JSON.
+ */
+const COACHING_TOOL = {
+  name: "poser_question",
+  description: "Renvoie la prochaine question de coaching (ou la clôture de section) au format structuré.",
+  input_schema: {
+    type: "object",
+    properties: {
+      question: {
+        type: "string",
+        description: "La question bienveillante à poser, complète (jamais coupée). Vide uniquement si is_complete=true.",
+      },
+      question_type: {
+        type: "string",
+        enum: ["text", "textarea", "select", "multi_select"],
+        description: "Type d'entrée attendu pour la réponse.",
+      },
+      options: {
+        type: "array",
+        items: { type: "string" },
+        description: "Uniquement pour select/multi_select : les choix proposés.",
+      },
+      placeholder: {
+        type: "string",
+        description: "Exemple de réponse affiché en filigrane dans le champ.",
+      },
+      covered_topic: {
+        type: ["string", "null"],
+        description: "Le champ couvert par la DERNIÈRE réponse de l'utilisatrice (null à la première question).",
+      },
+      extracted_insights: {
+        type: "object",
+        additionalProperties: true,
+        description: "Les infos extraites de la dernière réponse, mappées aux clés du sujet couvert.",
+      },
+      is_complete: {
+        type: "boolean",
+        description: "true quand tous les sujets de la section sont couverts.",
+      },
+      completion_percentage: {
+        type: "number",
+        description: "Progression estimée de la section, entre 0 et 100.",
+      },
+      remaining_topics: {
+        type: "array",
+        items: { type: "string" },
+        description: "Sujets restant à couvrir.",
+      },
+      final_summary: {
+        type: "string",
+        description: "Uniquement si is_complete=true : 2-3 phrases de clôture (ce qu'on a posé + 1 prochaine étape).",
+      },
+    },
+    required: ["question", "question_type", "is_complete", "completion_percentage"],
+  },
+};
+
 const SECTION_CHECKLISTS: Record<string, string[]> = {
   story: ["story_origin", "story_turning_point", "story_struggles", "story_unique", "story_vision"],
   persona: ["frustrations", "transformation", "objections", "cliches", "aesthetic_world", "inspiration", "actions"],
@@ -715,6 +777,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       messages: mergedMessages,
       temperature: 0.7,
       max_tokens: 4096,
+      tool: COACHING_TOOL,
     });
     rawResponse = aiResult.text;
     wasTruncated = aiResult.stop_reason === "max_tokens";
@@ -728,6 +791,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
         messages: mergedMessages,
         temperature: 0.7,
         max_tokens: 6000,
+        tool: COACHING_TOOL,
       });
       rawResponse = retryResult.text;
       wasTruncated = retryResult.stop_reason === "max_tokens";
@@ -751,7 +815,10 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
         } catch {
           console.error("JSON parse failed after truncation handling. Raw:", rawResponse);
           parsed = {
-            question: cleaned.length > 20 ? cleaned.slice(0, 200) + "..." : "Peux-tu reformuler ta réponse ?",
+            // Ne JAMAIS recracher la prose brute tronquée (slice + "...") comme
+            // question : ça affichait une phrase coupée en plein milieu. On préfère
+            // une relance propre et complète — le tool forcé rend ce cas quasi mort.
+            question: "Je me suis un peu emmêlée 😅 On reprend : peux-tu me redire ta dernière réponse, ou la préciser en une phrase ?",
             question_type: "textarea",
             placeholder: "Ta réponse...",
             is_complete: false,
