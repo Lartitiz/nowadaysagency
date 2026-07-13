@@ -1570,8 +1570,17 @@ export default function CreerUnifie() {
         }
         if (data?.error) throw new Error(data.message || data.error);
         if (data?.result) {
+          // Plus d'écran de review en mode photo (comme le mode mix) : on
+          // auto-valide la proposition de l'IA et on enchaîne direct sur la
+          // génération. L'utilisatrice ajuste ensuite sur le VRAI carrousel
+          // (réordonner, swapper une photo, éditer le texte) plutôt que sur un
+          // plan abstrait. L'analyse vision + la répartition des photos + le
+          // garde photo_mismatch ci-dessus sont conservés.
           setStructureProposal(data.result);
-          setStep("structure_review");
+          // Coupe le loader "structure" avant d'enchaîner : sinon il cohabiterait
+          // avec le loader de génération sur l'écran result (double loader).
+          setStructureLoading(false);
+          await handleConfirmStructure(data.result.slides, data.result);
         } else {
           throw new Error("Structure non reçue");
         }
@@ -1811,13 +1820,19 @@ export default function CreerUnifie() {
   }, [result, carouselSubMode, generatedWithPhotos.length, uploadedPhotos.length]);
 
 
-  const handleConfirmStructure = async (confirmedSlides: SlideProposal[]) => {
+  const handleConfirmStructure = async (
+    confirmedSlides: SlideProposal[],
+    proposalOverride?: StructureProposal,
+  ) => {
     if (generating) return; // garde anti double-clic (évite une 2e génération facturée)
     const enrichedSubject = existingCalendarContent
       ? ideaText + "\n\n[Contenu existant à approfondir]\n" + existingCalendarContent
       : ideaText;
-    // Capture le fil narratif AVANT de reset structureProposal
-    const narrativeThread = structureProposal?.narrative_thread || undefined;
+    // Capture le fil narratif AVANT de reset structureProposal. En mode photo on
+    // saute l'écran de review : structureProposal n'est pas encore posé dans le
+    // state (setState async), donc on lit d'abord la proposition passée en argument.
+    const narrativeThread =
+      (proposalOverride ?? structureProposal)?.narrative_thread || undefined;
     setLastConfirmedStructure(confirmedSlides);
     setLastNarrativeThread(narrativeThread || null);
     setStructureProposal(null);
