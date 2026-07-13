@@ -15,11 +15,15 @@
  * est parfaitement uniforme (0 % d'encre) tout en pouvant peser 5–9 Ko. Seul le
  * taux d'encre sépare les deux : ~0 % = raté, tout contenu réel est bien au-dessus.
  *
- * Cas à part : une couche raster ENTIÈREMENT transparente (alpha=0 partout) est
- * LÉGITIME dans l'export hybride — quand tout le décor d'une slide est reposé en
- * natif (fond <p:bg> + cartes/textes natifs, ex. dark box), la couche « middle »
- * n'a plus rien à peindre. Elle est donc exclue du verdict « fond raté », qui ne
- * s'applique qu'aux images OPAQUES uniformes (constat du 12/07 sur perf-carousel).
+ * Cas à part : une couche raster DOMINÉE par la transparence est LÉGITIME dans
+ * l'export hybride — quand le décor d'une slide est reposé en natif (fond <p:bg>
+ * solidFill + cartes/textes natifs, ex. dark box ou fond crème), la couche
+ * « middle » ne peint qu'un décor épars par-dessus (souvent quelques pixels : une
+ * pilule, un trait). Le vrai fond n'est PAS cette image → jamais un « fond raté »,
+ * même s'il reste un petit reliquat opaque. Le verdict ne s'applique qu'aux images
+ * dont le fond DOMINANT est OPAQUE et uniforme (constat du 12/07 puis du 13/07 sur
+ * perf-carousel : image-3-1 = 99,94 % transparente + une box de schéma = 0,06 %
+ * d'encre était flaggée à tort ; l'exclusion #549 ne couvrait que le 100 % transp.).
  */
 import * as fs from "fs";
 import JSZip from "jszip";
@@ -40,7 +44,7 @@ export interface PptxReport {
   mediaMinBytes: number;
   /**
    * Plus faible taux d'encre parmi les images décodées (−1 si aucune décodée).
-   * Les couches 100 % transparentes (overlay hybride légitime) sont exclues.
+   * Les couches à fond dominant transparent (overlay hybride légitime) sont exclues.
    */
   mediaMinInk: number;
   /** Tous les runs de texte (<a:t>) du document. */
@@ -53,8 +57,9 @@ export interface PptxReport {
  * Taux d'encre d'un PNG : fraction de pixels qui diffèrent nettement de la
  * couleur de fond dominante. Retourne −1 si l'image n'est pas décodable (module
  * absent ou format inattendu) pour laisser l'appelant retomber sur une heuristique,
- * et −2 si l'image est ENTIÈREMENT transparente (aucun pixel avec alpha ≥ 8) —
- * couche overlay légitime de l'export hybride, à ne pas juger comme un fond.
+ * et −2 si le fond DOMINANT de l'image est transparent — couche overlay légitime
+ * de l'export hybride (le vrai fond est natif <p:bg>), à ne pas juger comme un
+ * fond, même s'il subsiste un petit reliquat opaque (pilule, trait).
  */
 async function inkRatio(buf: Buffer): Promise<number> {
   let decode: (b: Uint8Array) => { width: number; height: number; data: ArrayLike<number>; channels: number; depth: number };
@@ -101,30 +106,29 @@ async function inkRatio(buf: Buffer): Promise<number> {
   let domKey: number | "T" = "T";
   let domN = -1;
   for (const [k, n] of hist) if (n > domN) { domN = n; domKey = k; }
-  const domTransparent = domKey === "T";
-  const packed = domTransparent ? 0 : (domKey as number);
+  // Fond DOMINANT transparent = couche overlay hybride : le vrai fond de la slide
+  // est reposé en natif (<p:bg> solidFill), cette image ne peint qu'un décor épars
+  // par-dessus. Ce n'est pas un fond opaque, donc jamais un « fond raté » — même
+  // s'il reste un petit reliquat opaque (constat 13/07 : image-3-1 = 99,94 %
+  // transparente + une box de schéma → 0,06 % d'encre, faux positif). Élargit
+  // l'exclusion #549, qui n'exemptait que le 100 % transparent.
+  if (domKey === "T") return -2;
+  const packed = domKey as number;
   const dr = ((packed >> 10) & 31) << 3;
   const dg = ((packed >> 5) & 31) << 3;
   const db = (packed & 31) << 3;
-  // 2e passe : compte les pixels « encre » (≠ fond dominant).
+  // 2e passe (fond dominant OPAQUE) : compte les pixels « encre » (≠ fond dominant).
   let ink = 0;
   let seen = 0;
-  let opaque = 0;
   for (let y = 0; y < height; y += stride) {
     for (let x = 0; x < width; x += stride) {
       const [r, g, b, a] = px(y * width + x);
       seen++;
-      if (a >= 8) opaque++;
-      if (domTransparent) {
-        if (a >= 8) ink++; // sur fond transparent, tout pixel opaque = contenu
-      } else {
-        if (a < 8) continue; // pixel transparent sur fond opaque : on ignore
-        if (Math.max(Math.abs(r - dr), Math.abs(g - dg), Math.abs(b - db)) > INK_DELTA) ink++;
-      }
+      if (a < 8) continue; // pixel transparent sur fond opaque : on ignore
+      if (Math.max(Math.abs(r - dr), Math.abs(g - dg), Math.abs(b - db)) > INK_DELTA) ink++;
     }
   }
   if (!seen) return -1;
-  if (!opaque) return -2; // 100 % transparent : couche overlay vide, pas un fond raté
   return ink / seen;
 }
 
@@ -163,7 +167,7 @@ export async function validatePptx(
     // mais plein de sens ; une capture ratée est uniforme (0 % d'encre).
     const ink = await inkRatio(b);
     if (ink === -2) {
-      // Couche raster 100 % transparente : légitime quand tout le décor de la
+      // Couche raster à fond DOMINANT transparent : légitime quand le décor de la
       // slide est reposé en natif (<p:bg> + textes natifs) — on ne la juge pas
       // et elle n'entre pas dans mediaMinInk.
     } else if (ink >= 0) {
