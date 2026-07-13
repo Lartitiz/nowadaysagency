@@ -2574,6 +2574,17 @@ export default function CreerUnifie() {
             overlay_style: s.overlay_style || "sensoriel",
             note: s.note,
             photo_index: resolvedPhotoIndex,
+            // Gabarits composés par code (13/07) : le choix du gabarit et ses
+            // champs viennent de la structure — les tronquer ici casserait la
+            // composition côté carousel-visual.
+            ...(s.template ? { template: s.template } : {}),
+            ...(s.kicker ? { kicker: s.kicker } : {}),
+            ...(s.detail ? { detail: s.detail } : {}),
+            ...(Array.isArray(s.points) && s.points.length > 0 ? { points: s.points } : {}),
+            ...(s.big_number ? { big_number: s.big_number } : {}),
+            ...(typeof s.step_number === "number" ? { step_number: s.step_number } : {}),
+            ...(s.attribution ? { attribution: s.attribution } : {}),
+            ...(s.cta_label ? { cta_label: s.cta_label } : {}),
           } : {}),
           ...(slideType === "photo_integrated" ? {
             photo_index: resolvedPhotoIndex,
@@ -2660,10 +2671,20 @@ export default function CreerUnifie() {
       const visionPhotos = hasPhotos && hasActualPhotos
         ? await downscalePhotosForVision(photosForVisuals.map(p => ({ base64: p.base64, mimeType: p.mimeType })))
         : null;
+      // Luminance par bande (gabarits composés 13/07) : mesurée ici car l'edge
+      // n'a pas de décodeur d'image. Échec silencieux → l'edge dose le voile au
+      // pire cas (photo claire), jamais de texte illisible.
+      const visionPhotosWithLuminance = visionPhotos
+        ? await Promise.all(visionPhotos.map(async (p) => {
+            const { measureLuminanceZones } = await import("@/lib/photo-luminance");
+            const luminance = await measureLuminanceZones(p.base64);
+            return luminance ? { ...p, luminance } : p;
+          }))
+        : null;
       const requestBody: any = {
         slides: slidesForVisuals,
-        ...(visionPhotos ? {
-          photos: visionPhotos,
+        ...(visionPhotosWithLuminance ? {
+          photos: visionPhotosWithLuminance,
           carousel_type: isMixCarousel ? "mix" : "photo",
         } : {
           template_style: null,

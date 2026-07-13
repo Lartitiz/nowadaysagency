@@ -281,6 +281,21 @@ const PHOTO_CAROUSEL_TOOL = {
             overlay_style: { type: "string" },
             visual_anchor: { type: "string" },
             note: { type: "string" },
+            // ── Gabarits composés par code (chantier 13/07) : le modèle choisit
+            // le gabarit et fournit ses champs ; le rendu HTML est déterministe.
+            template: {
+              type: ["string", "null"],
+              enum: ["couverture", "profonde", "etiquette", "chiffre", "liste", "etape", "citation", "finale", null],
+              description:
+                "Gabarit visuel. couverture=slide 1 uniquement (affiche). profonde=texte 15-25 mots sur dégradé bas (défaut). etiquette=texte ≤4 mots en pastille (AVANT/APRÈS, connecteur). chiffre=big_number requis. liste=points requis. etape=step_number requis (processus). citation=attribution recommandée. finale=dernière slide uniquement (question ouverte).",
+            },
+            kicker: { type: ["string", "null"], description: "Sur-titre court (≤6 mots) : couverture, liste, etape (titre de l'étape)." },
+            detail: { type: ["string", "null"], description: "Ligne de détail (≤12 mots) : couverture, etiquette." },
+            points: { type: ["array", "null"], items: { type: "string" }, description: "Gabarit liste : 2-3 points courts (≤8 mots chacun)." },
+            big_number: { type: ["string", "null"], description: "Gabarit chiffre : le chiffre seul, court ('-40 %', '3×', '48 h')." },
+            step_number: { type: ["number", "null"], description: "Gabarit etape : numéro de l'étape du PROCESSUS (1, 2, 3…), pas de la slide." },
+            attribution: { type: ["string", "null"], description: "Gabarit citation : qui parle (≤5 mots)." },
+            cta_label: { type: ["string", "null"], description: "Gabarit finale : texte de la pastille d'invitation (≤6 mots)." },
           },
         },
       },
@@ -2292,6 +2307,18 @@ Test mental : si on retire les points, l'overlay doit pouvoir se prononcer d'un 
 - Positions : "bottom_left", "bottom_center", "top_left", "top_center", "center"
 - PRIVILÉGIE "sensoriel" et "narratif" — c'est ce qui fait qu'on lit vraiment le carrousel.
 
+═══ GABARITS VISUELS (champ "template" de chaque slide) ═══
+Le visuel de chaque slide est dessiné PAR CODE à partir du gabarit que tu choisis — tu ne décides ni les couleurs, ni le voile, ni la mise en page. Choisis le gabarit qui SERT le récit :
+- "couverture" (slide 1 UNIQUEMENT) : l'affiche. overlay_text = le hook (≤12 mots). Ajoute "kicker" (sur-titre ≤6 mots, ex "Home staging · salon") et éventuellement "detail" (≤12 mots, la promesse du carrousel).
+- "profonde" (le DÉFAUT) : l'overlay_text (15-25 mots) posé lisiblement en bas de la photo. C'est là que vit la matière du récit.
+- "etiquette" : texte ≤4 mots en pastille (AVANT / APRÈS, connecteur, respiration). "detail" optionnel = sous-ligne italique.
+- "chiffre" : la preuve en un regard. "big_number" = le chiffre SEUL et COURT ("-40 %", "3×", "48 h") ; overlay_text = la ligne de contexte (≤15 mots). N'invente JAMAIS un chiffre : uniquement s'il vient du brief/de la cliente.
+- "liste" : la méthode condensée. "points" = 2-3 points courts (≤8 mots chacun) ; overlay_text optionnel = titre de la liste.
+- "etape" : pour dérouler un processus slide après slide. "step_number" = numéro de l'ÉTAPE (1, 2, 3…), "kicker" = titre de l'étape, overlay_text = le développement (15-25 mots).
+- "citation" : verbatim de la cliente ou conviction forte. overlay_text = la citation, "attribution" = qui parle (≤5 mots).
+- "finale" (dernière slide UNIQUEMENT) : overlay_text = question OUVERTE au lecteur, "cta_label" = invitation en pastille (≤6 mots, ex "Dites-le-moi en commentaire").
+RYTHME : varie les gabarits (jamais deux "etiquette" ou deux "chiffre" d'affilée), mais ne force pas la collection — un carrousel courant = couverture + profondes/étapes + 1 respiration + finale. Une slide peut aussi rester SANS texte (photo qui se suffit) : overlay_text null, pas de template.
+
 ═══ PROGRESSION NARRATIVE ═══
 L'objectif est qu'en lisant les overlays slide après slide, on suive une vraie histoire qui se déploie, comme un mini-récit qu'on raconterait à l'oral. Pas une galerie d'images légendées.
 - Slide 1 (hook) : phrase qui arrête le scroll ET qui ENTRE DÉJÀ dans la scène ou dans la voix du récit. Si le carrousel raconte une histoire incarnée, ouvre DEDANS — pas sur une maxime générale qui s'adresse au lecteur ("ton corps dit stop avant ta tête…") puis bascule en "je/elle" dès la slide 2 (ce saut de voix casse la fluidité). Exemples d'accroches qui entrent dans la scène : "Léa est arrivée à notre rendez-vous en lâchant : 'je bloque'.", "Ce matin-là, elle fixait l'écran sans réussir à poster.". La tension naît DE la scène, pas d'une phrase d'accroche détachée du récit qui suit.
@@ -2366,6 +2393,14 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "overlay_text": "Une vraie phrase courte qui complète l'image",
       "overlay_position": "bottom_left",
       "overlay_style": "sensoriel",
+      "template": "couverture",
+      "kicker": "Sur-titre court si le gabarit en veut un (sinon null)",
+      "detail": null,
+      "points": null,
+      "big_number": null,
+      "step_number": null,
+      "attribution": null,
+      "cta_label": null,
       "visual_anchor": "3-8 mots pointant UN détail concret de CETTE photo (matière de composition pour la DA). Attendu sur chaque slide photo ; omets seulement si la photo n'offre aucun détail saisissable.",
       "note": "Note de direction artistique pour cette slide"
     }

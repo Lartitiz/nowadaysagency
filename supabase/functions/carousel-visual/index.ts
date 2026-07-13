@@ -14,6 +14,7 @@ import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_
 import { enforceTextContrast } from "../_shared/contrast-guard.ts";
 import { enforceMinFontSize } from "../_shared/font-size-guard.ts";
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
+import { composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
@@ -264,7 +265,18 @@ serve(async (req) => {
       charter: z.record(z.unknown()).optional().nullable(),
       custom_overrides: z.record(z.unknown()).optional().nullable(),
       template_reference_urls: z.array(z.string().url()).max(5).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional(), mimeType: z.string().max(50).optional() })).max(10).optional(),
+      photos: z.array(z.object({
+        base64: z.string(),
+        context: z.string().max(200).optional(),
+        mimeType: z.string().max(50).optional(),
+        // Luminance mesurée côté client (0..1 par bande) : dose le voile des
+        // gabarits composés. Optionnelle — sans mesure, pire cas (voile fort).
+        luminance: z.object({
+          top: z.number().min(0).max(1).optional(),
+          center: z.number().min(0).max(1).optional(),
+          bottom: z.number().min(0).max(1).optional(),
+        }).optional(),
+      })).max(10).optional(),
       carousel_type: z.string().max(50).optional().nullable(),
       workspace_id: z.string().uuid().optional().nullable(),
       quality_max: z.boolean().optional(),
@@ -1242,7 +1254,48 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
     const tStart = Date.now();
     let result: any;
 
-    if (useParallelChunks) {
+    // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
+    // Le modèle a déjà fourni le CONTENU (structure carousel-ai : overlay_text,
+    // gabarit, position, photo_index) ; le rendu HTML est déterministe. Lisibilité,
+    // safe zones, centrage et ancres sont garantis par construction — l'audit 13/07
+    // a montré que les gardes regex ne rattrapaient pas les variantes du modèle
+    // (5 motifs sur 6 passaient au travers). Zéro appel modèle = plus rapide et
+    // moins cher. Le mode MIXTE (slides design + photos) garde le chemin modèle.
+    const composedByCode = isPhotoCarousel;
+    if (composedByCode) {
+      emitStatus("visuals", { done: 0, total: 1 });
+      const specs = slides as any[];
+      const nums = specs.map((s, i) => Number(s?.slide_number) || i + 1);
+      const minNum = Math.min(...nums);
+      const maxNum = Math.max(...nums);
+      const templateCharter = {
+        color_accent: ch.color_accent,
+        font_title: ch.font_title,
+        font_body: ch.font_body,
+      };
+      const composed = specs.map((s: any, i: number) => {
+        const photoIndex = Number(s?.photo_index) >= 1
+          ? Number(s.photo_index)
+          : (i % Math.max(1, reqBody.photos?.length || 1)) + 1;
+        const luminance = (reqBody.photos?.[photoIndex - 1] as any)?.luminance;
+        return composePhotoSlide(
+          { ...s, slide_number: nums[i], photo_index: photoIndex },
+          templateCharter,
+          { isFirst: nums[i] === minNum, isLast: nums[i] === maxNum, luminance },
+        );
+      });
+      result = {
+        slides_html: composed.map(({ template: _t, ...slide }) => slide),
+      };
+      emitStatus("visuals", { done: 1, total: 1 });
+      console.log(JSON.stringify({
+        type: "carousel_visual_timing",
+        mode: "composed",
+        slides: specs.length,
+        templates: composed.map((c) => c.template),
+        duration_ms: Date.now() - tStart,
+      }));
+    } else if (useParallelChunks) {
       const chunks = buildChunks(slides.length, CHUNK_TARGET);
       const planBlock = (!isPhotoCarousel && !isMixCarousel) ? `\n\n${buildCoherencePlan()}` : "";
       let doneCount = 0;
@@ -1381,7 +1434,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
     // Chaque slide s'auto-évalue (contrast_ok). Pour celles que l'IA signale encore
     // douteuses, UNE passe ciblée de régénération impose un bandeau opaque. Tout est
     // gardé : au moindre échec on conserve les slides d'origine (jamais de régression).
-    if ((isPhotoCarousel || isMixCarousel) && Array.isArray(result?.slides_html)) {
+    if ((isPhotoCarousel || isMixCarousel) && !composedByCode && Array.isArray(result?.slides_html)) {
       // En mix, seules les slides porteuses d'une PHOTO sont concernées : une slide
       // design sombre de la charte avec texte blanc est légitime sans voile.
       const slideHasPhoto = (s: any) => /data:image\//.test(s?.html || "") || /\{\{PHOTO_\d+\}\}/.test(s?.html || "");
@@ -1465,7 +1518,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
     // Le modèle s'auto-déclare conforme (voile, 200px de marge basse, slide 1 « affiche »)
     // mais le rendu réel viole ces règles. Corrections par CODE, jamais par re-génération :
     // padding remonté au plancher, scrim injecté si texte clair sans voile, hook court agrandi.
-    if ((isPhotoCarousel || isMixCarousel) && Array.isArray(result?.slides_html)) {
+    if ((isPhotoCarousel || isMixCarousel) && !composedByCode && Array.isArray(result?.slides_html)) {
       const srcByNumber = new Map<number, any>();
       for (const s of (slides as any[])) {
         if (Number.isInteger((s as any)?.slide_number)) srcByNumber.set((s as any).slide_number, s);
