@@ -25,7 +25,7 @@ interface FlowState {
   pendingStream?: { text: string; format: string; ts: number } | null;
   demoScenario?: string | null;
   editingIdeaId?: string | null;
-  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | null;
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
   photoDescription?: string;
   isLinkedInCarousel?: boolean;
   ts: number;

@@ -20,14 +20,14 @@ export interface ParsedSlideBlock {
 }
 
 /** Ligne « Slide N … » (insensible à la casse) — démarre une nouvelle slide. */
-const SLIDE_LINE_RE = /^\s*slide\s*\d{1,2}\s*(?:[:.\/)\-–—]|\b)/i;
+const SLIDE_LINE_RE = /^\s*slide\s*\d{1,2}\s*(?:[:./)\-–—]|\b)/i;
 
 /** Marqueur « Slide N : » en tête de bloc, à retirer du texte. */
-const SLIDE_MARKER_RE = /^\s*slide\s*\d{1,2}\s*[:.\/)\-–—]?\s*/i;
+const SLIDE_MARKER_RE = /^\s*slide\s*\d{1,2}\s*[:./)\-–—]?\s*/i;
 
 /** Marqueur numérique court « 3. », « 3/ », « 3) », « 3 : » en tête de bloc.
  * Limité à 1-2 chiffres pour ne pas manger une année (« 2026. C'était… »). */
-const NUM_MARKER_RE = /^\s*\d{1,2}\s*[:.\/)]\s*/;
+const NUM_MARKER_RE = /^\s*\d{1,2}\s*[:./)]\s*/;
 
 /**
  * Découpe un texte collé en blocs-slides. Fonction PURE (testable).

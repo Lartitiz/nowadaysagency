@@ -68,7 +68,7 @@ interface Props {
   // d'un autre canal a été restauré. Null = aucun forçage (comportement normal).
   forcedChannel?: ChannelId | null;
   initialFormat?: string;
-  initialCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
+  initialCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
   suggestedFormat?: string;
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
@@ -76,11 +76,11 @@ interface Props {
   // n'exige plus de photos en amont — le texte est rédigé d'abord et les images
   // se choisissent ensuite, slide par slide, dans l'écran résultat (casting).
   newsjackingActive?: boolean;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean, photoDump?: boolean, textFirstMix?: boolean) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean, photoDump?: boolean, textFirstMix?: boolean) => void;
   // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
   // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
   // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
-  onSelectionChange?: (sel: { format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | null }) => void;
+  onSelectionChange?: (sel: { format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null }) => void;
   onBack: () => void;
 }
 
@@ -99,7 +99,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
     forcedChannel && initialFormat && deduceChannel(initialFormat) !== forcedChannel ? null : (initialFormat || null)
   );
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(initialCarouselSubMode ?? null);
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(initialCarouselSubMode ?? null);
   // Lot 4 : fourche du mixte hors newsjacking. null = pas encore choisi (on
   // affiche les deux entrées), false = « j'ai mes photos » (upload classique),
   // true = « j'écris d'abord » (régime texte d'abord, casting dans le résultat).
@@ -208,7 +208,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       )
     : { recommended: [], others: [] };
 
-  const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" }) => {
+  const handleFormatSelect = (id: string, opts?: { keepCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" }) => {
     if (CONTENT_TYPE_SPECS[id]?.comingSoon) return;
     const isFirstSelectionWithPhotos = !hasUserChangedFormat.current && (initialPhotos?.length ?? 0) > 0;
     hasUserChangedFormat.current = true;
@@ -340,7 +340,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
 
   // LinkedIn post en mode photo : on saute la sélection d'angle, l'IA choisit toute seule.
   const isLinkedInPhotoPost = selectedFormat === "linkedin" && photoMode;
-  const showAngles = selectedFormat && selectedFormat !== "pinterest_inspiration" && !isLinkedInPhotoPost && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin");
+  // « Mes slides » : le texte est déjà écrit par l'utilisatrice — l'angle
+  // éditorial (qui pilote l'écriture IA) n'a aucun sens dans ce mode.
+  const showAngles = selectedFormat && selectedFormat !== "pinterest_inspiration" && !isLinkedInPhotoPost && carouselSubMode !== "user_slides" && (selectedFormat !== "carousel" || carouselSubMode !== null || selectedChannel === "linkedin");
 
   const handleNext = () => {
     if (!selectedFormat) return;
@@ -728,6 +730,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
               photo: { emoji: "📸", label: "Tes photos en fond", desc: "Photos plein écran + texte par-dessus" },
               mix: { emoji: "✨", label: "Photos + slides design", desc: "Alternance photos et slides texte design" },
               pure_photo: { emoji: "🖼️", label: "Photos brutes", desc: "Photos cadrées, aucun texte par-dessus" },
+              user_slides: { emoji: "✍️", label: "Mes slides", desc: "Ton texte slide par slide, l'IA fait seulement le design" },
             }[carouselSubMode];
             return (
               <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2 animate-fade-in">
@@ -842,6 +845,30 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
                   <span className="text-sm font-semibold text-foreground">Photos brutes</span>
                 </div>
                 <p className="text-2xs leading-snug text-muted-foreground">Tes photos cadrées au bon format, zéro texte dessus. L'IA écrit juste la légende.</p>
+              </button>
+              <button
+                onClick={() => setCarouselSubMode("user_slides")}
+                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
+              >
+                <div className="flex gap-[3px] mb-1">
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
+                    <div className="h-[3px] bg-primary/70 rounded-full" />
+                    <div className="h-0.5 bg-primary/40 rounded-full" />
+                  </div>
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
+                    <div className="h-[3px] bg-primary/70 rounded-full" />
+                    <div className="h-0.5 bg-primary/40 rounded-full" />
+                  </div>
+                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
+                    <div className="h-[3px] bg-primary/70 rounded-full" />
+                    <div className="h-0.5 bg-primary/40 rounded-full" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xl">✍️</span>
+                  <span className="text-sm font-semibold text-foreground">Mes slides</span>
+                </div>
+                <p className="text-2xs leading-snug text-muted-foreground">Ton texte est prêt, slide par slide — l'IA fait seulement le design, sans le réécrire.</p>
               </button>
             </div>
           </div>
@@ -1131,7 +1158,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
           Suivant <ArrowRight className="h-4 w-4" />
         </Button>
         <p className="text-2xs text-muted-foreground text-center">
-          On affinera ensuite ton brief avec quelques questions rapides.
+          {carouselSubMode === "user_slides"
+            ? "Prochaine étape : tu colles ton texte, slide par slide."
+            : "On affinera ensuite ton brief avec quelques questions rapides."}
         </p>
         <div className="flex justify-center">
           <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground">
