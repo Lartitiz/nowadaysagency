@@ -205,7 +205,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                   {dayPosts.length > 1 && !expandedDays.has(dateStr) && (
                     <button
                       onClick={() => setExpandedDays(prev => new Set(prev).add(dateStr))}
-                      className="mt-1 w-full rounded-lg border border-dashed border-border py-1.5 text-xs font-medium text-primary text-center"
+                      className="mt-1 w-full rounded-lg border border-dashed border-border py-1.5 text-xs font-medium text-primary-text text-center"
                     >
                       Voir les {dayPosts.length - 1} autre{dayPosts.length - 1 > 1 ? "s" : ""} contenu{dayPosts.length - 1 > 1 ? "s" : ""} ↓
                     </button>
