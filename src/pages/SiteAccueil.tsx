@@ -225,7 +225,7 @@ export default function SiteAccueil() {
 
         {brandingPercent < 50 && (
           <div className="rounded-xl bg-rose-pale border border-primary/20 p-4 mb-6">
-            <p className="text-sm text-foreground">💡 Plus ton branding est complet, plus les textes générés seront pertinents. <Link to="/branding" className="text-primary font-semibold hover:underline">Compléter mon branding →</Link></p>
+            <p className="text-sm text-foreground">💡 Plus ton branding est complet, plus les textes générés seront pertinents. <Link to="/branding" className="text-primary-text font-semibold hover:underline">Compléter mon branding →</Link></p>
           </div>
         )}
 

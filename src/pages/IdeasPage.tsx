@@ -786,7 +786,7 @@ function StatusDropdown({ ideaId, current, onSelect, children }: { ideaId: strin
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <span onClick={(e) => { e.stopPropagation(); }}>{children}</span>
+        <button type="button" className="inline-flex" onClick={(e) => { e.stopPropagation(); }}>{children}</button>
       </PopoverTrigger>
       <PopoverContent className="w-48 p-1" align="start" onClick={(e) => e.stopPropagation()}>
         {STATUS_OPTIONS.map((s) => (
