@@ -170,3 +170,48 @@ RÈGLE D'OR : le gabarit sert le texte tel qu'il est écrit. N'invente ni chiffr
     return content;
   }
 }
+
+/**
+ * Type « assign_templates » de carousel-ai (mode « Mes slides », 15/07) : pose
+ * les gabarits sur des slides DÉJÀ ÉCRITES par l'utilisatrice. AUCUNE
+ * génération, AUCUN redac-gate, aucun texte modifié. Fail-open intégral :
+ * n'importe quel pépin → slides retournées telles quelles (le rendu dérive de
+ * toute façon un gabarit sûr via resolvePhotoTemplate).
+ *
+ * Verbatim garanti PAR CODE : quel que soit ce que renvoie la passe,
+ * overlay_text est réécrasé par le texte source de chaque slide.
+ * `assignFn` injectable pour les tests (défaut : assignPhotoTemplates).
+ */
+export async function assignTemplatesToProvidedSlides(
+  slides: unknown,
+  opts: {
+    model: AnthropicModel;
+    logger?: (m: string) => void;
+    assignFn?: typeof assignPhotoTemplates;
+  },
+): Promise<any[]> {
+  const input = Array.isArray(slides)
+    ? slides.filter((s) => s && typeof s === "object")
+    : [];
+  if (input.length === 0) return [];
+  try {
+    const fn = opts.assignFn ?? assignPhotoTemplates;
+    const out = await fn(JSON.stringify({ slides: input }), {
+      model: opts.model,
+      logger: opts.logger,
+    });
+    const parsed = JSON.parse(out);
+    if (!Array.isArray(parsed?.slides) || parsed.slides.length !== input.length) {
+      return input;
+    }
+    return parsed.slides.map((s: any, i: number) => ({
+      ...s,
+      overlay_text: (input[i] as any).overlay_text ?? null,
+    }));
+  } catch (err) {
+    opts.logger?.(
+      `[template-assign] endpoint fail-open : ${err instanceof Error ? err.message.slice(0, 200) : "erreur"}`,
+    );
+    return input;
+  }
+}

@@ -44,6 +44,9 @@ import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { useUserPhotos } from "@/hooks/use-user-photos";
 const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
+// Mode « Mes slides » : l'utilisatrice fournit le texte, l'IA ne fait que le design.
+const UserSlidesStep = lazy(() => import("@/components/creer/UserSlidesStep"));
+import type { UserSlideDraft } from "@/components/creer/UserSlidesStep";
 const HookSelectionStep = lazy(() => import("@/components/creer/HookSelectionStep"));
 // Type-only : n'entre pas dans le bundle, le composant reste lazy.
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
@@ -56,6 +59,7 @@ import type { SlideProposal, StructureProposal } from "@/components/creer/Struct
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { normalizeFormat } from "@/lib/format-normalizer";
+import { composeOverlayText } from "@/lib/user-slides-parse";
 import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo, normalizeObjective } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
@@ -105,7 +109,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   );
 }
 
-type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_review" | "inspiration_proposals" | "result" | "edit";
+type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_review" | "inspiration_proposals" | "user_slides" | "result" | "edit";
 
 
 export default function CreerUnifie() {
@@ -194,6 +198,11 @@ export default function CreerUnifie() {
     if (ps.step === "hook_selection") {
       return ps.selectedFormat ? "format" : "idea";
     }
+    // user_slides (mode « Mes slides ») : le texte collé vit dans le state local
+    // de l'écran, non persisté → au reload on repart de l'étape format.
+    if (ps.step === "user_slides") {
+      return ps.selectedFormat ? "format" : "idea";
+    }
     // Si flow photo/mix/pure_photo avec photos retrouvées, garder le step en cours
     if (["questions", "inspiration_proposals"].includes(ps.step)) {
       const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
@@ -231,7 +240,7 @@ export default function CreerUnifie() {
   const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
 
   // Photo states (carousel photo + post photo)
-  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | null>(canalConflict ? null : (ps?.carouselSubMode ?? null));
+  const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(canalConflict ? null : (ps?.carouselSubMode ?? null));
   // Init à [] : le base64 n'est plus stocké inline (cf use-flow-persistence
   // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
   // (IndexedDB pour les dépôts, refetch serveur pour la photothèque).
@@ -261,6 +270,12 @@ export default function CreerUnifie() {
   }>({ open: false, rawType: null });
   const [photoDescription, setPhotoDescription] = useState(ps?.photoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
+  // ═══ Mode « Mes slides » ═══
+  // Brouillon gardé au niveau page pour survivre à un aller-retour
+  // résultat → saisie (le stepper « Brief » ramène à l'écran de saisie).
+  const [userSlidesDraft, setUserSlidesDraft] = useState<{ slides: UserSlideDraft[]; caption: string } | null>(null);
+  // Passe gabarits en cours (petit appel assign_templates, fail-open).
+  const [userSlidesBuilding, setUserSlidesBuilding] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(canalConflict ? false : (ps?.isLinkedInCarousel ?? false));
@@ -510,6 +525,9 @@ export default function CreerUnifie() {
   const warnedCaptionRef = useRef<any>(null);
   useEffect(() => {
     if (selectedFormat !== "carousel") return;
+    // « Mes slides » : la légende est celle de l'utilisatrice (souvent vide,
+    // c'est un choix) — pas d'IA en cause, pas d'avertissement.
+    if (carouselSubMode === "user_slides") return;
     const r: any = (result as any)?.raw;
     if (!r?.slides || warnedCaptionRef.current === r) return;
     const c = r.caption || {};
@@ -532,7 +550,7 @@ export default function CreerUnifie() {
     if (!demo) return;
     setIdeaText(demo.subject);
     setSelectedFormat("carousel");
-    setCarouselSubMode((demo.carousel_type as "text" | "photo" | "mix" | "pure_photo") || "text");
+    setCarouselSubMode((demo.carousel_type as "text" | "photo" | "mix" | "pure_photo" | "user_slides") || "text");
     setObjective(demo.objective);
     setStep("format");
     setResult(null);
@@ -615,7 +633,7 @@ export default function CreerUnifie() {
     }
 
     const fmtRaw = paramFormat || locState?.format;
-    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | "pure_photo" | null;
+    const paramCarouselSubMode = searchParams.get("carouselSubMode") as "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
 
     // Mapping vers les formats canoniques de CreerUnifie/use-content-generator
     // Couvre les valeurs venues du calendrier ET de saved_ideas (boîte à idées).
@@ -856,7 +874,7 @@ export default function CreerUnifie() {
 
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides"; editorialAngle?: string }) => {
     setAnswers({});
     // L'angle choisi dans le coach d'idées VOYAGE jusqu'à la génération :
     // c'est lui qu'on a jugé « waouh », le perdre ici ruinait tout l'amont.
@@ -948,7 +966,7 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean; photoDump?: boolean; textFirstMix?: boolean }) => {
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean; photoDump?: boolean; textFirstMix?: boolean }) => {
     if (loadingQuestions || generating || structureLoading) return; // garde anti double-clic (évite une 2e génération facturée)
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal, photoDump, textFirstMix } = options || {};
     // Lot 4 : mémorise le choix explicite « J'écris d'abord » du mixte hors
@@ -993,6 +1011,14 @@ export default function CreerUnifie() {
     if (photos) { setUploadedPhotos(photos); if (photos.length > 0) savePhotos(photos); }
     if (desc) setPhotoDescription(desc);
     if (pm !== undefined) setPhotoMode(pm);
+
+    // « Mes slides » : AUCUN appel IA ici — ni proposition de structure, ni
+    // questions d'approfondissement, ni express_full. On va directement à
+    // l'écran de saisie du texte slide par slide.
+    if (format === "carousel" && sub === "user_slides") {
+      setStep("user_slides");
+      return;
+    }
 
     // Pinterest Inspiration: store image and trigger analysis instead of questions
     if (format === "pinterest_inspiration" && photos && photos.length > 0) {
@@ -1668,6 +1694,13 @@ export default function CreerUnifie() {
   };
 
   const handleRegenerate = async () => {
+    // « Mes slides » : le texte vient de l'utilisatrice — « Régénérer » ne doit
+    // JAMAIS réécrire. On refait uniquement le design (nouveaux visuels).
+    if (carouselSubMode === "user_slides") {
+      setVisualSlides([]);
+      await handleGenerateVisuals();
+      return;
+    }
     await doGenerate(answers);
   };
 
@@ -1865,6 +1898,122 @@ export default function CreerUnifie() {
 
   const handleSkipStructure = async (slides: SlideProposal[]) => {
     await handleConfirmStructure(slides);
+  };
+
+  // ═══ Mode « Mes slides » : construction des slides SANS écriture IA ═══
+  // Le texte de l'utilisatrice part VERBATIM vers le rendu : pas d'express_full,
+  // pas de redac-gate, pas d'enrichissement. Seule la passe gabarits
+  // (assign_templates, fail-open) choisit la mise en forme des slides photo.
+  const handleUserSlidesGenerate = async (payload: { slides: UserSlideDraft[]; photos: PhotoItem[]; caption: string }) => {
+    if (userSlidesBuilding || generating || visualLoading) return;
+    const { slides: drafts, photos, caption } = payload;
+    if (drafts.length < 2) {
+      toast.error("Il faut au moins 2 slides avec du texte.");
+      return;
+    }
+    setUserSlidesDraft({ slides: drafts, caption });
+
+    // Photos : mêmes states que les flux photo/mix existants (rendu, exports,
+    // sauvegardes et réhydratation au reload passent tous par là).
+    setUploadedPhotos(photos);
+    setGeneratedWithPhotos(photos);
+    if (photos.length > 0) savePhotos(photos);
+
+    const total = drafts.length;
+    const roleFor = (i: number) => (i === 0 ? "hook" : i === total - 1 ? "cta" : "point");
+    const baseSlides = drafts.map((d, i) => {
+      const hasPhoto = !!d.photoIndex && d.photoIndex >= 1 && d.photoIndex <= photos.length;
+      if (hasPhoto) {
+        return {
+          slide_number: i + 1,
+          role: roleFor(i),
+          slide_type: "photo_full" as const,
+          // Titre optionnel PRÉFIXÉ dans l'overlay (seul champ rendu par TOUS
+          // les gabarits — un kicker serait perdu sur « profonde », le défaut).
+          overlay_text: composeOverlayText(d.title, d.body),
+          overlay_position: "bottom_center",
+          photo_index: d.photoIndex as number,
+        };
+      }
+      return {
+        slide_number: i + 1,
+        role: roleFor(i),
+        slide_type: "text_only" as const,
+        // Pas de titre dérivé du texte : dupliquer la 1re phrase l'afficherait
+        // deux fois. Titre = uniquement celui fourni ; body = texte verbatim.
+        title: d.title.trim(),
+        body: d.body,
+      };
+    });
+
+    const photoSlideCount = baseSlides.filter((s) => s.slide_type === "photo_full").length;
+    const carouselType = photoSlideCount === 0 ? "text" : photoSlideCount === total ? "photo" : "mix";
+
+    // Reset de l'état post-génération (mêmes resets que doGenerate).
+    // NB : on reste sur l'étape de saisie pendant la passe gabarits (spinner
+    // sur le bouton) — passer sur "result" sans result afficherait l'écran
+    // « Session expirée ».
+    setSavedId(null);
+    setVisualSlides([]);
+    setCarouselColors(null);
+
+    // ── Passe gabarits (fail-open) : enrichit les slides photo (template,
+    // big_number, points…) SANS toucher au texte. Erreur / timeout / edge pas
+    // encore redéployée → on continue avec les slides telles quelles (le rendu
+    // dérive un gabarit sûr via resolvePhotoTemplate).
+    let finalSlides: any[] = baseSlides;
+    const photoFull = baseSlides.filter((s) => s.slide_type === "photo_full");
+    if (photoFull.length >= 2) {
+      setUserSlidesBuilding(true);
+      try {
+        const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
+          body: {
+            type: "assign_templates",
+            slides: photoFull,
+            workspace_id: workspaceId !== session?.user?.id ? workspaceId : undefined,
+          },
+        }, 30000);
+        const enriched = (data as any)?.result?.slides;
+        if (!fnError && !(data as any)?.error && Array.isArray(enriched) && enriched.length > 0) {
+          const byNumber = new Map<number, any>(
+            enriched.filter((s: any) => Number.isInteger(s?.slide_number)).map((s: any) => [s.slide_number, s]),
+          );
+          finalSlides = baseSlides.map((s) => {
+            const e = byNumber.get(s.slide_number);
+            if (!e || s.slide_type !== "photo_full") return s;
+            // Garde verbatim CÔTÉ FRONT en plus de celle de l'edge : le texte
+            // et la photo source reprennent toujours le dessus sur la passe.
+            return { ...e, ...s, ...(e.template ? { template: e.template } : {}),
+              ...(e.big_number ? { big_number: e.big_number } : {}),
+              ...(Array.isArray(e.points) && e.points.length > 0 ? { points: e.points } : {}),
+              ...(e.attribution ? { attribution: e.attribution } : {}),
+              ...(e.cta_label ? { cta_label: e.cta_label } : {}),
+              ...(typeof e.step_number === "number" ? { step_number: e.step_number } : {}),
+              ...(e.kicker ? { kicker: e.kicker } : {}),
+              ...(e.detail ? { detail: e.detail } : {}),
+            };
+          });
+        }
+      } catch (e: any) {
+        console.warn("[mes-slides] passe gabarits ignorée (fail-open):", e?.message || e);
+      } finally {
+        setUserSlidesBuilding(false);
+      }
+    }
+
+    // Résultat injecté dans le flux existant : handleGenerateVisuals lit
+    // result.raw.slides et l'effet d'auto-génération des visuels s'en charge.
+    setStep("result");
+    setResult({
+      type: "carousel",
+      raw: {
+        slides: finalSlides,
+        carousel_type: carouselType,
+        // Légende fournie gardée telle quelle (structure standard des carrousels).
+        caption: { hook: "", body: (caption || "").trim(), cta: "", hashtags: [] },
+        user_slides: true,
+      },
+    } as any);
   };
 
   const handleCopy = (text: string) => {
@@ -2207,7 +2356,7 @@ export default function CreerUnifie() {
       if (calendarPostId) {
         const storageUpdates: any = {};
 
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides") && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(calendarPostId);
             if (photoUrls.length > 0) storageUpdates.photo_urls = photoUrls;
@@ -2354,7 +2503,7 @@ export default function CreerUnifie() {
         const updates: any = {};
         
         // Upload photos originales dans Storage
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || photoMode) && uploadedPhotos.length > 0) {
+        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || photoMode) && uploadedPhotos.length > 0) {
           try {
             const photoUrls = await uploadPhotosToStorage(postId);
             if (photoUrls.length > 0) {
@@ -2621,7 +2770,9 @@ export default function CreerUnifie() {
       // - Slide 1 doit être visuelle (photo_full / photo_integrated) pour ouvrir fort
       // - Dernière slide doit être text_only (CTA)
       // On corrige silencieusement (log console) sans bloquer l'utilisateur.
-      if (isMixCarousel && mappedSlides.length >= 2) {
+      // « Mes slides » : JAMAIS de correction — l'ordre et le type de chaque
+      // slide sont un choix de l'utilisatrice, pas une sortie IA à rattraper.
+      if (isMixCarousel && carouselSubMode !== "user_slides" && mappedSlides.length >= 2) {
         const first = mappedSlides[0];
         const last = mappedSlides[mappedSlides.length - 1];
         if (first.slide_type === "text_only") {
@@ -2674,7 +2825,10 @@ export default function CreerUnifie() {
       // génération du HTML — sinon la photo se répète sur PNG / hybride / visuel / calendrier
       // (le HTML est figé une fois généré, on ne peut plus corriger à l'export).
       const { resolvePhotoIndexes } = await import("@/lib/resolve-photo-index");
-      const slidesForVisuals = totalPhotos > 0
+      // « Mes slides » : l'association photo↔slide est un CHOIX explicite de
+      // l'utilisatrice (y compris la même photo sur plusieurs slides) — le
+      // filet anti-dégénéré la « corrigerait » à tort, on le saute.
+      const slidesForVisuals = totalPhotos > 0 && carouselSubMode !== "user_slides"
         ? resolvePhotoIndexes(mappedSlides, totalPhotos)
         : mappedSlides;
 
@@ -3083,7 +3237,10 @@ export default function CreerUnifie() {
       const photosForExport = uploadedPhotos.length > 0 ? uploadedPhotos : undefined;
       // Filet déterministe : évite "une seule photo sur tous les slides" si l'IA a mal
       // (ou pas) renseigné photo_index. Couvre aussi les carrousels déjà sauvegardés.
-      const normalizedSlides = resolvePhotoIndexes(result.raw.slides, photosForExport?.length ?? 0);
+      // « Mes slides » : association photo↔slide choisie par l'utilisatrice → pas de filet.
+      const normalizedSlides = carouselSubMode === "user_slides"
+        ? result.raw.slides
+        : resolvePhotoIndexes(result.raw.slides, photosForExport?.length ?? 0);
       await exportCarouselPptx(
         normalizedSlides as any,
         ideaText || "carrousel",
@@ -3305,7 +3462,7 @@ export default function CreerUnifie() {
             const stepperKey: StepperKey | null = (() => {
               if (step === "idea") return "idea";
               if (step === "format") return "format";
-              if (step === "questions" || step === "hook_selection" || step === "structure_review" || step === "inspiration_proposals") return "brief";
+              if (step === "questions" || step === "hook_selection" || step === "structure_review" || step === "inspiration_proposals" || step === "user_slides") return "brief";
               if (step === "result" || step === "edit") return "result";
               return null;
             })();
@@ -3314,7 +3471,8 @@ export default function CreerUnifie() {
               // Allow jumping back only — never forward
               if (key === "idea") setStep("idea");
               else if (key === "format" && step !== "idea") setStep("format");
-              else if (key === "brief" && (step === "result" || step === "edit")) setStep("questions");
+              // « Mes slides » : le « brief », c'est l'écran de saisie du texte.
+              else if (key === "brief" && (step === "result" || step === "edit")) setStep(carouselSubMode === "user_slides" ? "user_slides" : "questions");
             };
             const credits =
               !planLoading && remainingWithBonus() < 9000 ? (
@@ -3471,6 +3629,18 @@ export default function CreerUnifie() {
               />
             )}
 
+            {/* Mode « Mes slides » : saisie du texte slide par slide, zéro écriture IA */}
+            {step === "user_slides" && (
+              <UserSlidesStep
+                initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
+                initialSlides={userSlidesDraft?.slides}
+                initialCaption={userSlidesDraft?.caption}
+                generating={userSlidesBuilding}
+                onBack={() => setStep("format")}
+                onGenerate={handleUserSlidesGenerate}
+              />
+            )}
+
             {step === "structure_review" && structureProposal && (
               <StructureReviewStep
                 structureProposal={structureProposal}
@@ -3577,7 +3747,7 @@ export default function CreerUnifie() {
                 streamingContent={streaming ? streamingContent : undefined}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}
-                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
+                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
                 onReset={requestReset}
@@ -3640,7 +3810,8 @@ export default function CreerUnifie() {
                     ? () => { captionAutoTriggeredRef.current = null; generateLinkedInCarouselCaption(); }
                     : undefined
                 }
-                onChangeAngle={handleChangeAngle}
+                // « Mes slides » : changer d'angle relancerait une écriture IA — interdit.
+                onChangeAngle={carouselSubMode === "user_slides" ? undefined : handleChangeAngle}
                 currentAngle={editorialAngle}
                 currentChannel={
                   selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin"

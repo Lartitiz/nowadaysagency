@@ -37,7 +37,7 @@ export interface GenerateParams {
   slideCount?: number;
   carouselType?: string;
   // pure_photo (photo dump) court-circuite la vision — cf. usage dans generate()
-  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
   // Photo-related
   photos?: { base64: string; context?: string; mimeType?: string; userPhotoId?: string }[];
   photoDescription?: string;
@@ -80,7 +80,7 @@ export interface GenerateQuestionsParams {
   // Photo-related — when present, ask vision-anchored questions
   photos?: Array<{ base64: string; context?: string; mimeType?: string; userPhotoId?: string }>;
   photoDescription?: string;
-  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
   photoMode?: boolean;
   // Newsjacking — anchors the questions in the actu instead of generic subject
   newsContext?: string;

@@ -18,7 +18,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition } from "../_shared/photo-slide-structure.ts";
-import { assignPhotoTemplates } from "../_shared/photo-template-assign.ts";
+import { assignPhotoTemplates, assignTemplatesToProvidedSlides } from "../_shared/photo-template-assign.ts";
 
 // ── Sortie structurée pour les deepening_questions ──
 // Même pattern que creative-flow (#359) : le tool forcé (tool_choice) fait
@@ -448,7 +448,10 @@ serve(async (req) => {
     const { userId, supabase } = r;
 
     validateInput(body, z.object({
-      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal"]),
+      type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal", "assign_templates"]),
+      // Mode « Mes slides » (assign_templates) : slides déjà écrites par
+      // l'utilisatrice — la passe ne fait que poser les gabarits, jamais le texte.
+      slides: z.array(z.record(z.unknown())).max(20).optional(),
       carousel_type: z.string().max(100).optional().nullable(),
       subject: z.string().max(15000).optional().nullable(),
       objective: z.string().max(100).optional().nullable(),
@@ -490,6 +493,23 @@ serve(async (req) => {
     }).passthrough());
     const { type, workspace_id, launch_context, series_id, episode_number, news_context: newsContext } = body;
     const isLinkedIn = body.channel === "linkedin";
+
+    // ── Mode « Mes slides » : passe gabarits SEULE (15/07) ──
+    // Le texte vient de l'utilisatrice : AUCUNE génération, AUCUN runRedacGate,
+    // aucun crédit débité (pas de checkQuota/logUsage — mini-passe Haiku de
+    // relecture, comme la RELECTURE-gabarits du flux photo). Fail-open : toute
+    // erreur renvoie les slides telles quelles, et si cette version de l'edge
+    // n'est pas déployée le front continue sans elle (le rendu dérive un
+    // gabarit sûr via resolvePhotoTemplate).
+    if (type === "assign_templates") {
+      const enriched = await assignTemplatesToProvidedSlides(body.slides, {
+        model: pickCorrectionModel(body),
+        logger: (m) => console.log(m),
+      });
+      return new Response(JSON.stringify({ result: { slides: enriched } }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     let category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
     // Les carrousels « Qualité Max » tournent sur Opus (~50× le coût d'un post) →
