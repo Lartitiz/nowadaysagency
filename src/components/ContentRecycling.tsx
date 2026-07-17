@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -19,12 +20,16 @@ import { posthog } from "@/lib/posthog";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 
+// Aucun format pré-coché : un format « sélectionné d'office » a déjà fait
+// croire à un bug (campagne QA du 17/07 : cliquer une case pré-cochée la
+// décoche). Le choix appartient à l'utilisatrice ; un point d'entrée peut
+// pré-cocher via l'URL (?format=stories ou ?format=carrousel,reel).
 const FORMATS = [
-  { id: "carrousel", label: "📑 Carrousel Instagram (8 slides)", checked: true },
-  { id: "reel", label: "🎬 Script Reel (30-60 sec)", checked: true },
-  { id: "stories", label: "📱 Séquence Stories (5 stories)", checked: true },
-  { id: "linkedin", label: "💼 Post LinkedIn", checked: false },
-  { id: "newsletter", label: "📧 Email / Newsletter", checked: false },
+  { id: "carrousel", label: "📑 Carrousel Instagram (8 slides)" },
+  { id: "reel", label: "🎬 Script Reel (30-60 sec)" },
+  { id: "stories", label: "📱 Séquence Stories (5 stories)" },
+  { id: "linkedin", label: "💼 Post LinkedIn" },
+  { id: "newsletter", label: "📧 Email / Newsletter" },
 ];
 
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg", "image/webp"];
@@ -44,10 +49,15 @@ function fileEmoji(mimeType: string) {
 export default function ContentRecycling() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const [searchParams] = useSearchParams();
   const [source, setSource] = useState("");
-  const [selectedFormats, setSelectedFormats] = useState<Record<string, boolean>>(
-    Object.fromEntries(FORMATS.map(f => [f.id, f.checked]))
-  );
+  const [selectedFormats, setSelectedFormats] = useState<Record<string, boolean>>(() => {
+    const fromUrl = (searchParams.get("format") || "")
+      .split(",")
+      .map(s => s.trim())
+      .filter(id => FORMATS.some(f => f.id === id));
+    return Object.fromEntries(FORMATS.map(f => [f.id, fromUrl.includes(f.id)]));
+  });
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<Record<string, string>>({});
   const [topics, setTopics] = useState<Record<string, string>>({});

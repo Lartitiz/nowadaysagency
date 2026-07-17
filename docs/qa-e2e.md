@@ -67,7 +67,7 @@ Critères d'acceptation :
 - ☐ **Aucune source/balise `<cite>` ne fuit** dans le texte rendu (régression PR #63).
 - ☐ Le **rate-limit (10/h)** déclenche un message clair une fois dépassé.
 
-⚠️ Piège du sous-mode « ♻️ Recycler » (même écran `/creer?mode=transform`) : les formats sont des **cases à cocher multi-sélection, avec Carrousel + Reel + Stories PRÉ-COCHÉS**. Un robot de test qui « sélectionne » un format en cliquant sa case le **décoche** — et l'écran de résultat s'ouvre sur le premier onglet renvoyé (souvent le carrousel), ce qui ressemble à un « format ignoré ». Faux positif du run 17/07 : serveur et client vérifiés sains (stories seule cochée → stories seule rendue). Toujours **lire `data-state` avant de cliquer**.
+⚠️ Sous-mode « ♻️ Recycler » (même écran `/creer?mode=transform`) : les formats sont des **cases à cocher multi-sélection, toutes décochées par défaut** depuis le 17/07. Avant, Carrousel + Reel + Stories étaient pré-cochés : un robot qui « sélectionnait » un format en cliquant sa case le **décochait**, et le résultat s'ouvrait sur l'onglet carrousel — faux positif « format ignoré » du run 17/07 (serveur et client vérifiés sains). Pour tester un format précis, arriver par `/creer?mode=transform&format=stories` (ou `format=carrousel,reel`) : le sous-mode Recycler s'ouvre direct avec ces cases cochées. Par prudence, toujours **lire `data-state` avant de cliquer** une case.
 
 ### T5 🔴 Onboarding complet (compte neuf ou reset)
 **Parcours** : `/parametres` → « Refaire le parcours initial » (`reset-onboarding`) → 12 étapes → diagnostic (`deep-diagnostic`) → `/welcome` → `/dashboard`.
