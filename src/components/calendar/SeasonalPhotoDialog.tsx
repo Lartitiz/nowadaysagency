@@ -35,6 +35,7 @@ import {
   useUserPhotos,
 } from "@/hooks/use-user-photos";
 import { getSignedPhotoUrl, getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
+import { derivedPhotoDescription, derivedPhotoName } from "@/lib/photo-naming";
 import { hexToFrenchColorName } from "@/lib/background-suggestions";
 import {
   nextMarronniers,
@@ -169,12 +170,14 @@ export function SeasonalPhotoDialog({
       const { photoId } = await generateVariant({
         sourcePhoto: selectedPhoto,
         backgroundPrompt: buildPrompt(),
-        name: `${selectedPhoto.name ?? "Produit"} — ${m.label}`,
+        name: derivedPhotoName(selectedPhoto.name, m.label, "Produit"),
         kind: selectedPhoto.kind ?? "produit",
         tags: Array.from(new Set(["saisonnier", m.key, ...(selectedPhoto.tags ?? [])])),
-        description: selectedPhoto.description
-          ? `Version ${m.label} — ${selectedPhoto.description}`
-          : `Photo produit en décor ${m.label}`,
+        description: derivedPhotoDescription(
+          `Version ${m.label}`,
+          selectedPhoto.description,
+          `Photo produit en décor ${m.label}`,
+        ),
       });
       await refreshResult(photoId);
     } catch (e: any) {
