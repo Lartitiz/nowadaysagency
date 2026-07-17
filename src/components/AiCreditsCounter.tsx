@@ -37,9 +37,14 @@ export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCr
 
   if (isUnlimited) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-success-bg text-success">
+      <span
+        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold bg-success-bg text-success"
+        title="Crédits illimités"
+      >
         <Sparkles className="h-3 w-3" />
-        Illimité
+        {/* icône seule sur mobile : le mot « Illimité » mangeait la place du
+            sélecteur d'espace dans la barre du haut (comptes multi-espaces) */}
+        <span className="hidden sm:inline">Illimité</span>
       </span>
     );
   }

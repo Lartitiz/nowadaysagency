@@ -249,8 +249,9 @@ function AppHeaderInner() {
       {/* ─── Tablet header (md–lg) : logo + icon-only nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden md:block lg:hidden">
         {/* pl-14 : dégage le hamburger fixe (AppSidebar, left-[14px] w-9, visible lg:hidden) qui sinon recouvre le début du nom */}
-        <div className="flex h-14 items-center justify-between pl-14 pr-4">
-          <div className="flex items-center gap-2 shrink-0">
+        {/* même garde-fou que la barre mobile : le bloc gauche doit pouvoir rétrécir */}
+        <div className="flex h-14 items-center justify-between gap-2 pl-14 pr-4">
+          <div className="flex items-center gap-2 min-w-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
               <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
@@ -304,15 +305,21 @@ function AppHeaderInner() {
       {/* ─── Mobile top bar (<md) : logo + bell+avatar only ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card md:hidden">
         {/* pl-14 : dégage le hamburger fixe (AppSidebar, left-[14px] w-9, visible lg:hidden) qui sinon recouvre le début du nom */}
-        <div className="flex h-12 items-center justify-between pl-14 pr-4">
-          <div className="flex items-center gap-2 shrink-0">
+        {/* min-w-0 à gauche (et JAMAIS shrink-0) : sur un compte multi-espaces, un bloc
+            gauche incompressible pousse la barre à ~457px et le navigateur mobile élargit
+            le layout viewport de TOUTES les pages → cloche/avatar coupés, dialogues rognés. */}
+        <div className="flex h-12 items-center justify-between gap-2 pl-14 pr-4">
+          <div className="flex items-center gap-2 min-w-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-              <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+              {/* multi-espaces : chaque pixel compte pour afficher le nom de l'espace → badge beta sacrifié */}
+              {!isMultiWorkspace && (
+                <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
+              )}
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
             <NotificationBell />
             <AvatarMenu
@@ -540,8 +547,10 @@ function WorkspaceSwitcher({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-secondary focus:outline-none">
-          <span className="font-medium truncate max-w-[120px]">{displayName}</span>
+        {/* min-w-0 sur le bouton ET le span : sans ça le nom refuse de se tronquer
+            et la barre du haut mobile déborde de l'écran (viewport élargi à ~457px) */}
+        <button className="flex items-center gap-1 min-w-0 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-secondary focus:outline-none">
+          <span className="font-medium truncate min-w-0 max-w-[120px]">{displayName}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0" />
         </button>
       </DropdownMenuTrigger>
