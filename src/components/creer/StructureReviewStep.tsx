@@ -37,7 +37,9 @@ interface StructureReviewStepProps {
   onBack: () => void;
   isLoading: boolean;
   photos?: PhotoItem[];
-  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo";
+  // "user_slides" n'atteint jamais cet écran (seul "photo" passe par structure_review),
+  // mais l'union doit couvrir tous les modes pour matcher le state de CreerUnifie
+  carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
 }
 
 export default function StructureReviewStep({
