@@ -133,15 +133,31 @@ export function useCreatePhotoRetouch() {
   return { mutate, isPending };
 }
 
+/** Carte optimiste : fichier en cours d'envoi, affiché dans la grille avant l'insert en base. */
+export interface PendingLibraryUpload {
+  localId: string;
+  /** Object URL de l'aperçu local (null si non générable) — révoqué au retrait. */
+  previewUrl: string | null;
+  name: string;
+  /** Ligne user_photos créée : la carte optimiste s'efface quand cette ligne arrive dans la grille. */
+  photoId?: string;
+}
+
 /**
  * Upload multiple simple vers la bibliothèque (sans retouche) : chaque photo
  * passe à status=ready dès l'upload, puis photo-describe (vision) remplit
  * description + tags en arrière-plan — le Realtime rafraîchit la grille.
+ *
+ * `pendingUploads` expose une carte optimiste par fichier dès la sélection :
+ * sans elle, la grille reste vide pendant l'envoi et l'utilisatrice croit
+ * l'envoi perdu → elle réessaie et crée des doublons.
  */
 export function useUploadLibraryPhotos() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [pendingUploads, setPendingUploads] = useState<PendingLibraryUpload[]>([]);
 
   async function mutate(files: File[]): Promise<{ uploaded: number; failed: number }> {
     if (!user?.id || !workspaceId) {
@@ -155,8 +171,23 @@ export function useUploadLibraryPhotos() {
     let uploaded = 0;
     let failed = 0;
     setProgress({ done: 0, total: files.length });
+    const batch: PendingLibraryUpload[] = files.map((f) => ({
+      localId: crypto.randomUUID(),
+      // Un HEIC d'iPhone peut ne pas s'afficher : la carte retombe sur son fond neutre (onError).
+      previewUrl: URL.createObjectURL(f),
+      name: f.name,
+    }));
+    setPendingUploads((prev) => [...prev, ...batch]);
+    const dropPending = (localId: string) => {
+      setPendingUploads((prev) => {
+        const entry = prev.find((p) => p.localId === localId);
+        if (entry?.previewUrl) URL.revokeObjectURL(entry.previewUrl);
+        return prev.filter((p) => p.localId !== localId);
+      });
+    };
     try {
-      for (const rawFile of files) {
+      for (let i = 0; i < files.length; i++) {
+        const rawFile = files[i];
         try {
           // Photos d'iPhone : HEIC → JPEG (même conversion que le flux création)
           const file = await convertHeicIfNeeded(rawFile);
@@ -167,6 +198,11 @@ export function useUploadLibraryPhotos() {
             purpose: "library",
           });
           uploaded++;
+          setPendingUploads((prev) =>
+            prev.map((p) => (p.localId === batch[i].localId ? { ...p, photoId } : p)),
+          );
+          // Fait apparaître la vraie carte sans attendre le Realtime.
+          queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
           // Description IA en arrière-plan : un échec laisse juste la photo
           // sans description (régénérable depuis le détail), jamais bloquant.
           invokeWithTimeout(
@@ -180,17 +216,30 @@ export function useUploadLibraryPhotos() {
             .catch((e) => console.warn("[photo-describe]", e));
         } catch (e) {
           failed++;
+          dropPending(batch[i].localId);
           console.error("[useUploadLibraryPhotos] upload failed:", e);
         }
         setProgress((prev) => (prev ? { ...prev, done: prev.done + 1 } : prev));
       }
     } finally {
       setProgress(null);
+      // Les vraies lignes doivent être dans le cache AVANT de retirer les
+      // cartes optimistes, sinon les photos « disparaissent » un instant.
+      await queryClient
+        .invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] })
+        .catch(() => {});
+      setPendingUploads((prev) => {
+        const batchIds = new Set(batch.map((b) => b.localId));
+        for (const p of prev) {
+          if (batchIds.has(p.localId) && p.previewUrl) URL.revokeObjectURL(p.previewUrl);
+        }
+        return prev.filter((p) => !batchIds.has(p.localId));
+      });
     }
     return { uploaded, failed };
   }
 
-  return { mutate, progress };
+  return { mutate, progress, pendingUploads };
 }
 
 /**

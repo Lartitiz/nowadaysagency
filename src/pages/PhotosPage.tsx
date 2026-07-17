@@ -32,6 +32,7 @@ import {
 } from "@/hooks/use-user-photos";
 import { deletePhotoCompletely } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
+import { PhotoUploadingCard } from "@/components/photos/PhotoUploadingCard";
 import { PhotoUploadDialog } from "@/components/photos/PhotoUploadDialog";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
@@ -64,7 +65,7 @@ const KIND_LABELS: Record<string, string> = {
 export default function PhotosPage() {
   const { data: photos = [], isLoading } = useUserPhotos();
   const { retry, isRetrying } = useRetryPhotoRetouch();
-  const { mutate: uploadLibrary, progress } = useUploadLibraryPhotos();
+  const { mutate: uploadLibrary, progress, pendingUploads } = useUploadLibraryPhotos();
   const { activeWorkspace, loading: wsLoading } = useWorkspace();
   const wsReady = !!activeWorkspace && !wsLoading;
 
@@ -128,6 +129,13 @@ export default function PhotosPage() {
         .filter((p) => (kindFilter ? p.kind === kindFilter : true))
         .filter((p) => (tagFilter ? (p.tags ?? []).includes(tagFilter) : true)),
     [photos, tagFilter, kindFilter],
+  );
+
+  // Cartes optimistes encore utiles : dès que la vraie ligne est dans la
+  // grille, la carte « envoi en cours » du même fichier s'efface.
+  const visiblePendingUploads = useMemo(
+    () => pendingUploads.filter((u) => !u.photoId || !photos.some((p) => p.id === u.photoId)),
+    [pendingUploads, photos],
   );
 
   async function handleFilesSelected(list: FileList | null) {
@@ -256,7 +264,7 @@ export default function PhotosPage() {
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : photos.length === 0 ? (
+        ) : photos.length === 0 && visiblePendingUploads.length === 0 ? (
           <PhotoShootEmptyState onAddPhotos={openFilePicker} uploadDisabled={!wsReady || uploading} />
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -315,12 +323,15 @@ export default function PhotosPage() {
                 </div>
               )}
 
-              {filteredPhotos.length === 0 ? (
+              {filteredPhotos.length === 0 && visiblePendingUploads.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">
                   Aucune photo avec ce tag.
                 </p>
               ) : (
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                  {visiblePendingUploads.map((u) => (
+                    <PhotoUploadingCard key={u.localId} upload={u} />
+                  ))}
                   {filteredPhotos.map((p) => (
                     <PhotoCard
                       key={p.id}
