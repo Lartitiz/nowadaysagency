@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import ContentRecycling from "@/components/ContentRecycling";
@@ -14,7 +15,11 @@ const MODES = [
 ];
 
 export default function CreerTransformTab() {
-  const [mode, setMode] = useState<TransformMode>("select");
+  // ?format=… (pré-cochage d'un format de recyclage) → ouvrir direct le
+  // sous-mode Recycler, sans écran de choix. Utilisé par les liens profonds
+  // et les tests (ex. /creer?mode=transform&format=stories).
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<TransformMode>(searchParams.get("format") ? "recycle" : "select");
 
   if (mode === "select") {
     return (
