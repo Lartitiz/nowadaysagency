@@ -36,6 +36,30 @@ import JSZip from "jszip";
 const FLAT_INK_RATIO = 0.001;
 /** Écart par canal (0-255) au-delà duquel un pixel compte comme « encre » (≠ fond). */
 const INK_DELTA = 24;
+/**
+ * Nombre de couleurs EXACTES distinctes en dessous duquel une image uniforme est
+ * un vrai APLAT (capture ratée). Discrimine mesuré (17/07) : capture blanche
+ * html2canvas ≈ 1-3 couleurs ; texture papier de marque = 68 (grain réel) — cette
+ * dernière est légitimement « sans encre » (0 %) mais n'est PAS une capture vide.
+ */
+const FLAT_MAX_COLORS = 24;
+/**
+ * Part de pixels pleinement opaques en dessous de laquelle l'image n'est pas un
+ * FOND mais un VOILE flottant : mesuré 17/07, le voile #1C1C20 (alpha 0,30→0,65)
+ * resté seul après disparition de la texture = 0 % d'opaque, contre 96 % pour une
+ * vraie texture de fond.
+ */
+const VEIL_MAX_OPAQUE_RATIO = 0.02;
+
+/** Mesures d'un raster décodé (cf. inkRatio). */
+interface RasterStats {
+  /** Fraction de pixels « encre » (≠ couleur dominante). */
+  ink: number;
+  /** Couleurs exactes distinctes rencontrées (plafonné — sert de seuil, pas de compte). */
+  colors: number;
+  /** Fraction de pixels pleinement opaques (alpha > 250). */
+  opaqueRatio: number;
+}
 
 export interface PptxReport {
   slideCount: number;
@@ -61,7 +85,7 @@ export interface PptxReport {
  * de l'export hybride (le vrai fond est natif <p:bg>), à ne pas juger comme un
  * fond, même s'il subsiste un petit reliquat opaque (pilule, trait).
  */
-async function inkRatio(buf: Buffer): Promise<number> {
+async function inkRatio(buf: Buffer): Promise<number | RasterStats> {
   let decode: (b: Uint8Array) => { width: number; height: number; data: ArrayLike<number>; channels: number; depth: number };
   try {
     // fast-png : décodeur PNG pur-JS déjà présent (dépendance transitive de jspdf).
@@ -117,19 +141,28 @@ async function inkRatio(buf: Buffer): Promise<number> {
   const dr = ((packed >> 10) & 31) << 3;
   const dg = ((packed >> 5) & 31) << 3;
   const db = (packed & 31) << 3;
-  // 2e passe (fond dominant OPAQUE) : compte les pixels « encre » (≠ fond dominant).
+  // 2e passe (fond dominant OPAQUE) : compte les pixels « encre » (≠ fond dominant),
+  // et relève de quoi distinguer une capture RATÉE d'un fond légitimement uniforme :
+  //  - `colors`  : couleurs exactes distinctes → le grain d'une vraie matière (texture
+  //                de marque) vs l'aplat d'une capture blanche ;
+  //  - `opaque`  : part de pixels pleinement opaques → un vrai FOND est opaque, un
+  //                VOILE resté seul (image dessous disparue) ne l'est jamais.
   let ink = 0;
   let seen = 0;
+  let opaque = 0;
+  const exact = new Set<number>();
   for (let y = 0; y < height; y += stride) {
     for (let x = 0; x < width; x += stride) {
       const [r, g, b, a] = px(y * width + x);
       seen++;
+      if (a > 250) opaque++;
       if (a < 8) continue; // pixel transparent sur fond opaque : on ignore
+      if (exact.size <= FLAT_MAX_COLORS) exact.add((r << 16) | (g << 8) | b);
       if (Math.max(Math.abs(r - dr), Math.abs(g - dg), Math.abs(b - db)) > INK_DELTA) ink++;
     }
   }
   if (!seen) return -1;
-  return ink / seen;
+  return { ink: ink / seen, colors: exact.size, opaqueRatio: opaque / seen };
 }
 
 export async function validatePptx(
@@ -165,16 +198,29 @@ export async function validatePptx(
     if (b.length < mediaMinBytes) mediaMinBytes = b.length;
     // Juge le CONTENU, pas le poids : un fond « texte d'abord » épuré est léger
     // mais plein de sens ; une capture ratée est uniforme (0 % d'encre).
-    const ink = await inkRatio(b);
-    if (ink === -2) {
+    const stats = await inkRatio(b);
+    if (stats === -2) {
       // Couche raster à fond DOMINANT transparent : légitime quand le décor de la
       // slide est reposé en natif (<p:bg> + textes natifs) — on ne la juge pas
       // et elle n'entre pas dans mediaMinInk.
-    } else if (ink >= 0) {
+    } else if (typeof stats === "object") {
+      const { ink, colors, opaqueRatio } = stats;
       if (ink < mediaMinInk) mediaMinInk = ink;
-      if (ink < FLAT_INK_RATIO) {
+      // VOILE FLOTTANT (17/07) : pas un seul pixel opaque = ce raster n'est pas un
+      // fond, c'est une couche d'assombrissement dont l'image (texture de marque,
+      // photo) a disparu à l'export. Elle se compose alors sur le fond natif clair
+      // → gris, et le texte clair prévu pour la matière devient illisible (1,36:1).
+      // Indépendant du taux d'encre : un voile est uniforme par nature.
+      if (opaqueRatio <= VEIL_MAX_OPAQUE_RATIO) {
         problems.push(
-          `fond raté : ${m} — image uniforme (${(ink * 100).toFixed(2)} % d'encre, ${b.length} o), capture vide probable`,
+          `voile sans fond : ${m} — couche 100 % semi-transparente (${b.length} o), l'image qu'elle assombrit a disparu de l'export`,
+        );
+      } else if (ink < FLAT_INK_RATIO && colors <= FLAT_MAX_COLORS) {
+        // APLAT : uniforme ET sans grain → vraie capture ratée. Le test des couleurs
+        // épargne les fonds légitimement unis mais MATIÉRÉS (texture papier de
+        // marque : 0 % d'encre mais 68 couleurs de grain — cf. FLAT_MAX_COLORS).
+        problems.push(
+          `fond raté : ${m} — image uniforme (${(ink * 100).toFixed(2)} % d'encre, ${colors} couleurs, ${b.length} o), capture vide probable`,
         );
       }
     } else if (b.length < 1_000) {

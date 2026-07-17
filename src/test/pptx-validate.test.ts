@@ -1,0 +1,111 @@
+import { describe, it, expect } from "vitest";
+import { encode } from "fast-png";
+import JSZip from "jszip";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
+import { validatePptx } from "../../e2e-visite/pptx-validate";
+
+/**
+ * Le validateur PPTX en est à sa 4e itération (#544 → #549 → #562 → 17/07) et a
+ * produit DEUX faux positifs en prod, à chaque fois sur des fonds légitimement
+ * ÉPURÉS. Ces cas verrouillent sa sémantique pour de bon :
+ *
+ *   aplat plein          → « fond raté »       (vraie capture html2canvas ratée)
+ *   voile 100 % semi-transp. → « voile sans fond » (image dessous disparue — bug 17/07)
+ *   texture matiérée     → RIEN                (0 % d'encre mais grain réel = légitime)
+ *   overlay transparent  → RIEN                (exemption #562)
+ *
+ * Les valeurs des fixtures sont MESURÉES sur les artefacts réels du 17/07 :
+ * voile #1C1C20 alpha 0,30→0,65 / 0 % opaque ; texture papier crème 96 % opaque.
+ */
+
+const W = 160;
+const H = 200;
+
+/** PNG RGBA construit pixel par pixel. */
+function png(fill: (x: number, y: number) => [number, number, number, number]): Buffer {
+  const data = new Uint8Array(W * H * 4);
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const [r, g, b, a] = fill(x, y);
+      const i = (y * W + x) * 4;
+      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = a;
+    }
+  }
+  return Buffer.from(encode({ width: W, height: H, data, channels: 4, depth: 8 }));
+}
+
+// Capture ratée : blanc pur, une seule couleur, opaque.
+const APLAT_BLANC = png(() => [255, 255, 255, 255]);
+
+// Bug 17/07 : voile #1C1C20 dégradé verticalement (alpha 0,30→0,65), AUCUN pixel
+// opaque — l'image qu'il devait assombrir a disparu.
+const VOILE_SANS_FOND = png((_x, y) => [28, 28, 32, Math.round(77 + (96 * y) / H)]);
+
+// Texture papier de marque : crème, opaque, grain fin → 0 % d'encre mais matière
+// réelle. Grain INDÉPENDANT par canal, comme la vraie texture (mesurée le 17/07 :
+// moyenne 240,7, écart-type 2,1, 68 couleurs exactes, 96 % opaque). L'amplitude
+// reste très sous INK_DELTA → le taux d'encre est bien 0 %.
+const TEXTURE_PAPIER = png((x, y) => {
+  const g = (k: number) => {
+    // Hash entier 32 bits (|0 partout : au-delà, les flottants JS écrasent les bits
+    // de poids faible et le grain s'effondre sur une seule valeur).
+    let h = (x * 374761393 + y * 668265263 + k * 1013904223) | 0;
+    h = Math.imul(h ^ (h >>> 13), 1274126177);
+    return ((h >>> 0) % 7) - 3; // ±3, très sous INK_DELTA
+  };
+  return [244 + g(1), 242 + g(2), 238 + g(3), 255];
+});
+
+// Overlay hybride légitime : dominante transparente + une pastille opaque (#562).
+const OVERLAY_TRANSPARENT = png((x, y) =>
+  x > 20 && x < 50 && y > 20 && y < 40 ? [28, 28, 32, 255] : [0, 0, 0, 0],
+);
+
+const SLIDE_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+ xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree>
+ <p:sp><p:txBody><a:p><a:r><a:t>Un titre bien réel</a:t></a:r></a:p></p:txBody></p:sp>
+ </p:spTree></p:cSld></p:sld>`;
+
+/** Fabrique un .pptx minimal contenant ces images, et le valide. */
+async function valide(medias: Record<string, Buffer>) {
+  const zip = new JSZip();
+  zip.file("ppt/slides/slide1.xml", SLIDE_XML);
+  for (const [nom, buf] of Object.entries(medias)) zip.file(`ppt/media/${nom}`, buf);
+  // Le validateur rejette les fichiers < 10 ko → on rembourre hors de ppt/media.
+  zip.file("docProps/thumbnail.txt", "x".repeat(20_000));
+  const buf = await zip.generateAsync({ type: "nodebuffer" });
+  const p = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "pptx-")), "t.pptx");
+  fs.writeFileSync(p, buf);
+  return validatePptx(p, { minSlides: 1, expectEditableText: true });
+}
+
+describe("validatePptx — fond raté vs fond légitimement uniforme", () => {
+  it("flagge un APLAT blanc (capture html2canvas ratée)", async () => {
+    const r = await valide({ "image-1-1.png": APLAT_BLANC });
+    expect(r.problems.join(" ")).toMatch(/fond raté/);
+  });
+
+  it("flagge un VOILE 100 % semi-transparent — bug 17/07 (l'image dessous a disparu)", async () => {
+    const r = await valide({ "image-1-1.png": VOILE_SANS_FOND });
+    expect(r.problems.join(" ")).toMatch(/voile sans fond/);
+  });
+
+  it("laisse passer la TEXTURE de marque (0 % d'encre mais grain réel)", async () => {
+    const r = await valide({ "image-1-1.png": TEXTURE_PAPIER });
+    expect(r.problems).toEqual([]);
+  });
+
+  it("laisse passer un overlay à dominante transparente (exemption #562)", async () => {
+    const r = await valide({ "image-1-1.png": OVERLAY_TRANSPARENT });
+    expect(r.problems).toEqual([]);
+  });
+
+  it("ne confond pas texture et aplat quand les deux coexistent", async () => {
+    const r = await valide({ "image-1-1.png": TEXTURE_PAPIER, "image-2-1.png": APLAT_BLANC });
+    expect(r.problems).toHaveLength(1);
+    expect(r.problems[0]).toMatch(/image-2-1\.png/);
+  });
+});
