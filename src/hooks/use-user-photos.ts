@@ -11,6 +11,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import type { UserPhotoRow } from "@/lib/photo-storage";
 import { uploadPhotoOriginal, USER_PHOTOS_BUCKET } from "@/lib/photo-storage";
+import { derivedPhotoDescription, derivedPhotoName } from "@/lib/photo-naming";
 import { convertHeicIfNeeded } from "@/lib/heic";
 
 export type { UserPhotoRow } from "@/lib/photo-storage";
@@ -541,12 +542,14 @@ export function useGeneratePortraitPro() {
     return generateVariant({
       sourcePhoto: source,
       backgroundPrompt: input.backgroundPrompt,
-      name: `${source.name ?? "Portrait"} — portrait pro`,
+      name: derivedPhotoName(source.name, "portrait pro", "Portrait"),
       kind: "portrait",
       tags: Array.from(new Set(["portrait-pro", ...(source.tags ?? [])])),
-      description: source.description
-        ? `Portrait pro — ${source.description}`
-        : "Portrait professionnel généré (fond remplacé)",
+      description: derivedPhotoDescription(
+        "Portrait pro",
+        source.description,
+        "Portrait professionnel généré (fond remplacé)",
+      ),
     });
   }
 

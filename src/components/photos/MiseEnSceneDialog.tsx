@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { derivedPhotoDescription, derivedPhotoName, rootPhotoName } from "@/lib/photo-naming";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -248,22 +249,24 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (!user?.id) return null;
     const dataUrl = proposals[selectedIdx];
     const blob = dataUrlToBlob(dataUrl);
-    const file = new File([blob], `${slugify(photo.name ?? "photo")}-mise-en-scene.jpg`, {
+    const file = new File([blob], `${slugify(rootPhotoName(photo.name, "photo"))}-mise-en-scene.jpg`, {
       type: blob.type || "image/jpeg",
     });
     const { photoId } = await uploadPhotoOriginal({
       file,
       userId: user.id,
       workspaceId: photo.workspace_id,
-      name: `${photo.name ?? "Photo"} — mise en scène`,
+      name: derivedPhotoName(photo.name, "mise en scène"),
       purpose: "library",
     });
 
     // Métadonnées héritées de la photo produit source (pas d'appel vision).
     const tags = Array.from(new Set(["mise-en-scene", ...(photo.tags ?? [])])).slice(0, 6);
-    const description = photo.description
-      ? `Mise en scène IA — ${photo.description}`
-      : "Produit mis en scène par IA";
+    const description = derivedPhotoDescription(
+      "Mise en scène IA",
+      photo.description,
+      "Produit mis en scène par IA",
+    );
     const { error: updError } = await supabase
       .from("user_photos")
       .update({

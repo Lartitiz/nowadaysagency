@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { derivedPhotoDescription, derivedPhotoName, rootPhotoName } from "@/lib/photo-naming";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -144,23 +145,25 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
     setIsSaving(true);
     try {
       const blob = dataUrlToBlob(resultBase64);
-      const file = new File([blob], `${slugify(photo.name ?? "photo")}-packshot.jpg`, {
+      const file = new File([blob], `${slugify(rootPhotoName(photo.name, "photo"))}-packshot.jpg`, {
         type: blob.type || "image/jpeg",
       });
       const { photoId } = await uploadPhotoOriginal({
         file,
         userId: user.id,
         workspaceId: photo.workspace_id,
-        name: `${photo.name ?? "Photo"} — packshot`,
+        name: derivedPhotoName(photo.name, "packshot"),
         purpose: "library",
       });
 
       // Métadonnées héritées de la source : pas besoin d'un appel vision,
       // on sait déjà ce que la photo contient.
       const tags = Array.from(new Set(["packshot", ...(photo.tags ?? [])])).slice(0, 6);
-      const description = photo.description
-        ? `Packshot fond blanc — ${photo.description}`
-        : "Packshot e-commerce sur fond blanc";
+      const description = derivedPhotoDescription(
+        "Packshot fond blanc",
+        photo.description,
+        "Packshot e-commerce sur fond blanc",
+      );
       const { error: updError } = await supabase
         .from("user_photos")
         .update({

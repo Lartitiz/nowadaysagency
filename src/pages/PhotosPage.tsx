@@ -215,7 +215,9 @@ export default function PhotosPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="container max-w-6xl mx-auto px-4 py-8">
-        <header className="flex flex-col gap-3 mb-8 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+        {/* Titre pleine largeur puis rangée d'actions : les 4 boutons côte à
+            côte écrasaient la colonne du titre (h1 cassé sur 2 lignes). */}
+        <header className="mb-8 space-y-4">
           <div>
             <h1 className="font-display text-3xl text-foreground mb-1">Mes photos</h1>
             <p className="text-sm text-muted-foreground max-w-xl">
@@ -223,7 +225,7 @@ export default function PhotosPage() {
               moment dans tes stories et tes posts.
             </p>
           </div>
-          <div className="flex flex-wrap gap-2 shrink-0 self-start">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" onClick={() => setAvantApresOpen(true)} disabled={!wsReady}>
               <ArrowLeftRight className="h-4 w-4 mr-2" /> Avant / Après
             </Button>
