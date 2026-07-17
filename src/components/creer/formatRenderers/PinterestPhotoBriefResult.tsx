@@ -2,16 +2,18 @@ import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy } from "lucide-react";
+import { Copy, ImageOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { stripFontImportLeak } from "@/lib/strip-font-import-leak";
 
 interface Props {
   result: any; // { raw: { photo_brief, overlay_html, title, description } }
   overlayHtml: string | null;
+  /** Relance une génération complète (1 crédit) quand l'aperçu manque. */
+  onRetry?: () => void;
 }
 
-export default function PinterestPhotoBriefResult({ result, overlayHtml }: Props) {
+export default function PinterestPhotoBriefResult({ result, overlayHtml, onRetry }: Props) {
   const r = result?.raw || {};
   const brief = r.photo_brief || {};
   const title = r.title || "";
@@ -67,28 +69,43 @@ export default function PinterestPhotoBriefResult({ result, overlayHtml }: Props
           className="relative overflow-hidden rounded-2xl shadow-lg w-full max-w-[340px] sm:max-w-[400px]"
           style={{ aspectRatio: "2 / 3", background: "hsl(var(--muted))" }}
         >
-          {html && scale > 0 ? (
-            <iframe
-              srcDoc={html}
-              title="Overlay Pinterest"
-              sandbox="allow-same-origin"
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "1000px",
-                height: "1500px",
-                transform: `scale(${scale})`,
-                transformOrigin: "top left",
-                border: "none",
-                pointerEvents: "none",
-              }}
-            />
+          {/* Sans HTML, rien ne tourne : afficher « Génération en cours » ici
+              serait un mensonge (même piège que PinterestVisualResult — le
+              faux libellé restait affiché indéfiniment quand l'overlay
+              manquait à la réponse). */}
+          {html ? (
+            scale > 0 && (
+              <iframe
+                srcDoc={html}
+                title="Overlay Pinterest"
+                sandbox="allow-same-origin"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "1000px",
+                  height: "1500px",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                  border: "none",
+                  pointerEvents: "none",
+                }}
+              />
+            )
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground animate-pulse">
-                Génération en cours...
+            <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+              <ImageOff className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">
+                L'aperçu n'a pas pu être créé cette fois.
               </p>
+              <p className="text-xs text-muted-foreground">
+                Ton brief photo et ta description sont prêts ci-dessous.
+              </p>
+              {onRetry && (
+                <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5 mt-1">
+                  <RefreshCw className="h-3.5 w-3.5" /> Réessayer (1 crédit)
+                </Button>
+              )}
             </div>
           )}
         </div>

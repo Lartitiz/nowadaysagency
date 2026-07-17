@@ -403,14 +403,19 @@ export default function CreerStepResult({
   }, [visualLoading, qualityMax]);
 
   // Détecte la fin de génération (true → false avec un résultat) → célèbre.
+  // Pas de confettis si le visuel Pinterest manque à l'appel : le renderer
+  // affiche alors « n'a pas pu être créé » — célébrer serait contradictoire.
+  const pinterestVisualMissing =
+    (format === "pinterest_visual" && !(pinterestPinHtml || result?.pin_html)) ||
+    (format === "pinterest_photo" && !(photoBriefOverlayHtml || result?.overlay_html));
   useEffect(() => {
-    const justFinished = prevGenerating.current && !generating && !!result;
+    const justFinished = prevGenerating.current && !generating && !!result && !pinterestVisualMissing;
     prevGenerating.current = generating;
     if (!justFinished) return;
     setShowCelebration(true);
     const t = setTimeout(() => setShowCelebration(false), 4500);
     return () => clearTimeout(t);
-  }, [generating, result]);
+  }, [generating, result, pinterestVisualMissing]);
 
   if (generating) {
     // Mode streaming : le contenu texte arrive progressivement
@@ -500,9 +505,9 @@ export default function CreerStepResult({
       case "newsletter":
         return <NewsletterResult result={result} />;
       case "pinterest_photo":
-        return <PinterestPhotoBriefResult result={{ raw: result }} overlayHtml={photoBriefOverlayHtml || result?.overlay_html || null} />;
+        return <PinterestPhotoBriefResult result={{ raw: result }} overlayHtml={photoBriefOverlayHtml || result?.overlay_html || null} onRetry={onRegenerate} />;
       case "pinterest_visual":
-        return <PinterestVisualResult result={{ raw: result }} pinHtml={pinterestPinHtml || null} />;
+        return <PinterestVisualResult result={{ raw: result }} pinHtml={pinterestPinHtml || null} onRetry={onRegenerate} />;
       default:
         return <PostResult result={result} photos={photos} />;
     }

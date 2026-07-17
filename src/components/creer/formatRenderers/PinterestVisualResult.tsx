@@ -2,16 +2,18 @@ import { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Copy } from "lucide-react";
+import { Copy, ImageOff, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { stripFontImportLeak } from "@/lib/strip-font-import-leak";
 
 interface Props {
   result: any; // { raw: { pin_html, title, description } }
   pinHtml: string | null;
+  /** Relance une génération complète (1 crédit) quand le visuel manque. */
+  onRetry?: () => void;
 }
 
-export default function PinterestVisualResult({ result, pinHtml }: Props) {
+export default function PinterestVisualResult({ result, pinHtml, onRetry }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
 
@@ -53,28 +55,43 @@ export default function PinterestVisualResult({ result, pinHtml }: Props) {
           className="relative overflow-hidden rounded-2xl shadow-lg w-full max-w-[340px] sm:max-w-[400px]"
           style={{ aspectRatio: "2 / 3", background: "#F5F5F5" }}
         >
-          {html && scale > 0 ? (
-            <iframe
-              srcDoc={html}
-              title="Épingle visuelle Pinterest"
-              sandbox="allow-same-origin"
-              style={{
-                position: "absolute",
-                top: 0,
-                left: 0,
-                width: "1000px",
-                height: "1500px",
-                transform: `scale(${scale})`,
-                transformOrigin: "top left",
-                border: "none",
-                pointerEvents: "none",
-              }}
-            />
+          {/* Sans HTML, rien ne tourne : afficher « Génération en cours » ici
+              serait un mensonge (vu au test live 17/07 : l'IA avait rendu le
+              titre/la description mais pas le pin_html, et le faux libellé
+              restait affiché indéfiniment). */}
+          {html ? (
+            scale > 0 && (
+              <iframe
+                srcDoc={html}
+                title="Épingle visuelle Pinterest"
+                sandbox="allow-same-origin"
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  left: 0,
+                  width: "1000px",
+                  height: "1500px",
+                  transform: `scale(${scale})`,
+                  transformOrigin: "top left",
+                  border: "none",
+                  pointerEvents: "none",
+                }}
+              />
+            )
           ) : (
-            <div className="flex items-center justify-center h-full">
-              <p className="text-sm text-muted-foreground animate-pulse">
-                Génération en cours...
+            <div className="flex flex-col items-center justify-center h-full gap-3 px-6 text-center">
+              <ImageOff className="h-6 w-6 text-muted-foreground" />
+              <p className="text-sm font-medium text-foreground">
+                Le visuel n'a pas pu être créé cette fois.
               </p>
+              <p className="text-xs text-muted-foreground">
+                Ton titre et ta description sont prêts ci-dessous.
+              </p>
+              {onRetry && (
+                <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5 mt-1">
+                  <RefreshCw className="h-3.5 w-3.5" /> Réessayer (1 crédit)
+                </Button>
+              )}
             </div>
           )}
         </div>
