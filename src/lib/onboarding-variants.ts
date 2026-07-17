@@ -43,7 +43,12 @@ export const OBJECTIVES_REAL_ESTATE = [
   { key: "credibility", emoji: "✅", label: "Renforcer ma crédibilité auprès des partenaires" },
 ];
 
-const REAL_ESTATE_DEMO_EMAILS = ["auriana.demo@nowadaysagency.com"];
+const REAL_ESTATE_DEMO_EMAILS = [
+  "auriana.demo@nowadaysagency.com",
+  // Compte personnel d'Auriana (partenaire Cercle MDB) — onboarding immobilier
+  // uniquement ; la démo scriptée (AURIANA_DEMO_EMAILS) reste sur le compte démo.
+  "auriana.p92@gmail.com",
+];
 
 export function getOnboardingVariant(email: string | null | undefined) {
   if (email && REAL_ESTATE_DEMO_EMAILS.includes(email.toLowerCase().trim())) {
