@@ -73,15 +73,34 @@ export function extractLinkedInText(raw: RawResult): string {
   );
 }
 
+/**
+ * Le contenu affiché est-il destiné au canal Instagram ? Conditionne l'AFFICHAGE
+ * du bouton « Publier sur Instagram » : un post LinkedIn, une épingle Pinterest ou
+ * une newsletter ne doivent pas le montrer du tout (même désactivé). Le crosspost
+ * vers un autre canal passe par /linkedin/crosspost (régénération), pas par ici.
+ */
+export function isInstagramPublishTarget(args: {
+  selectedFormat: string | null | undefined;
+  isLinkedInCarousel?: boolean;
+}): boolean {
+  const { selectedFormat, isLinkedInCarousel } = args;
+  if (!selectedFormat) return false;
+  // Un carrousel généré pour LinkedIn a selectedFormat="carousel" : sans ce test,
+  // il passerait pour un format Instagram.
+  if (isLinkedInCarousel) return false;
+  return ["carousel", "post", "story", "reel"].includes(selectedFormat);
+}
+
 /** Raison pour laquelle la publication Instagram est désactivée, ou null si publiable. */
 export function instagramPublishDisabledReason(args: {
   selectedFormat: string | null | undefined;
   isCarousel: boolean;
   visualSlidesCount: number;
   publishableImageUrl: string | null;
+  isLinkedInCarousel?: boolean;
 }): string | null {
-  const { selectedFormat, isCarousel, visualSlidesCount, publishableImageUrl } = args;
-  if (selectedFormat?.startsWith("pinterest") || selectedFormat === "linkedin" || selectedFormat === "newsletter") {
+  const { selectedFormat, isCarousel, visualSlidesCount, publishableImageUrl, isLinkedInCarousel } = args;
+  if (!isInstagramPublishTarget({ selectedFormat, isLinkedInCarousel })) {
     return "Publication Instagram disponible uniquement pour les formats Instagram.";
   }
   // L'edge social-instagram-publish ne gère que le feed (image simple + carrousel),

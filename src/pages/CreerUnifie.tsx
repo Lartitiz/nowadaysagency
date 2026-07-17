@@ -5,7 +5,7 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
-import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, linkedInPublishDisabledReason } from "@/features/creer/publish-guards";
+import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason } from "@/features/creer/publish-guards";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -3142,12 +3142,17 @@ export default function CreerUnifie() {
   const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
 
   const isCarouselPublish = selectedFormat === "carousel";
+  // Le bouton « Publier sur Instagram » n'apparaît que pour un contenu du canal
+  // Instagram : un post LinkedIn, un carrousel LinkedIn, une épingle Pinterest ou
+  // une newsletter ne doivent pas le proposer, même désactivé.
+  const showInstagramPublish = isInstagramPublishTarget({ selectedFormat, isLinkedInCarousel });
   const publishInstagramDisabledReason =
     instagramPublishDisabledReason({
       selectedFormat,
       isCarousel: isCarouselPublish,
       visualSlidesCount: visualSlides.length,
       publishableImageUrl,
+      isLinkedInCarousel,
     }) ||
     // Visuels périmés : ne pas publier une version qui ne reflète plus les éditions.
     (isCarouselPublish && carouselVisualsStale
@@ -3843,7 +3848,7 @@ export default function CreerUnifie() {
                 sourceIdea={ideaText}
                 sourceObjective={objective}
                 sourceAngle={editorialAngle}
-                onPublishInstagram={handlePublishInstagram}
+                onPublishInstagram={showInstagramPublish ? handlePublishInstagram : undefined}
                 publishInstagramLoading={publishingInstagram}
                 publishInstagramDisabledReason={publishInstagramDisabledReason}
                 onPublishLinkedIn={isLinkedInTextPost ? handlePublishLinkedIn : undefined}

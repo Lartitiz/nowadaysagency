@@ -4,8 +4,29 @@ import {
   extractInstagramCaption,
   extractLinkedInText,
   instagramPublishDisabledReason,
+  isInstagramPublishTarget,
   linkedInPublishDisabledReason,
 } from "@/features/creer/publish-guards";
+
+describe("isInstagramPublishTarget (affichage du bouton Publier sur Instagram)", () => {
+  it("vrai pour les formats du canal Instagram", () => {
+    for (const f of ["carousel", "post", "story", "reel"]) {
+      expect(isInstagramPublishTarget({ selectedFormat: f })).toBe(true);
+    }
+  });
+
+  it("faux pour les autres canaux : le bouton ne doit pas s'afficher du tout", () => {
+    for (const f of ["linkedin", "newsletter", "pinterest", "pinterest_visual", "pinterest_photo", "pinterest_inspiration"]) {
+      expect(isInstagramPublishTarget({ selectedFormat: f })).toBe(false);
+    }
+    expect(isInstagramPublishTarget({ selectedFormat: null })).toBe(false);
+  });
+
+  it("carrousel LinkedIn : selectedFormat vaut carousel mais le canal est LinkedIn", () => {
+    expect(isInstagramPublishTarget({ selectedFormat: "carousel", isLinkedInCarousel: true })).toBe(false);
+    expect(isInstagramPublishTarget({ selectedFormat: "carousel", isLinkedInCarousel: false })).toBe(true);
+  });
+});
 
 describe("findPublishableImageUrl", () => {
   it("retourne null sans résultat", () => {
@@ -75,6 +96,12 @@ describe("instagramPublishDisabledReason", () => {
     for (const f of ["pinterest_epingle", "linkedin", "newsletter"]) {
       expect(instagramPublishDisabledReason({ ...base, selectedFormat: f })).toMatch(/formats Instagram/);
     }
+  });
+
+  it("carrousel LinkedIn : bloqué même avec des visuels prêts (trou historique)", () => {
+    expect(
+      instagramPublishDisabledReason({ ...base, selectedFormat: "carousel", isCarousel: true, visualSlidesCount: 5, isLinkedInCarousel: true }),
+    ).toMatch(/formats Instagram/);
   });
 
   it("story : bloqué même avec une image publiable (l'edge ne fait pas media_type=STORIES)", () => {
