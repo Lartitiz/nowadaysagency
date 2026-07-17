@@ -67,6 +67,8 @@ Critères d'acceptation :
 - ☐ **Aucune source/balise `<cite>` ne fuit** dans le texte rendu (régression PR #63).
 - ☐ Le **rate-limit (10/h)** déclenche un message clair une fois dépassé.
 
+⚠️ Piège du sous-mode « ♻️ Recycler » (même écran `/creer?mode=transform`) : les formats sont des **cases à cocher multi-sélection, avec Carrousel + Reel + Stories PRÉ-COCHÉS**. Un robot de test qui « sélectionne » un format en cliquant sa case le **décoche** — et l'écran de résultat s'ouvre sur le premier onglet renvoyé (souvent le carrousel), ce qui ressemble à un « format ignoré ». Faux positif du run 17/07 : serveur et client vérifiés sains (stories seule cochée → stories seule rendue). Toujours **lire `data-state` avant de cliquer**.
+
 ### T5 🔴 Onboarding complet (compte neuf ou reset)
 **Parcours** : `/parametres` → « Refaire le parcours initial » (`reset-onboarding`) → 12 étapes → diagnostic (`deep-diagnostic`) → `/welcome` → `/dashboard`.
 
