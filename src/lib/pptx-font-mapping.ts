@@ -838,13 +838,22 @@ export function extractShapeBlocks(doc: Document): ShapeBlock[] {
       rawType === "pill" || rawType === "highlight" ? rawType : "card";
 
     // Skip défensif : conditions interdites par le prompt mais on ne fait pas confiance.
+    // Un shape natif ne sait porter qu'un APLAT : tout `background-image` (dégradé OU
+    // image) serait PERDU à la promotion — le masque `data-pptx-shape-hide` pose
+    // `background-image:none`, donc l'image disparaît AUSSI du raster et rien ne la
+    // repeint. Vu en prod le 17/07 : la TEXTURE DE MARQUE (`background:#F6F4F0
+    // url('…texture.svg') center/cover`, imposée par le prompt sur ce même div racine
+    // que le prompt fait annoter `data-pptx-shape="background"`) était effacée ; le
+    // voile sombre d'un enfant restait alors seul sur l'aplat crème → fond gris et
+    // texte illisible (1,36:1). Non promu = l'élément reste rasterisé avec son image,
+    // rendu par le navigateur = fidèle (juste non éditable — le compromis assumé).
     const bgImage = cs.backgroundImage || "none";
-    const hasGradient = /gradient\(/i.test(bgImage);
+    const hasBgImage = bgImage !== "none" && bgImage.trim() !== "";
     const hasTransform = (cs.transform || "none") !== "none";
-    if (hasGradient || hasTransform) {
+    if (hasBgImage || hasTransform) {
       console.debug("[hybrid] shape skipped (unsupported style)", {
         type,
-        reason: hasGradient ? "gradient" : "transform",
+        reason: hasBgImage ? (/gradient\(/i.test(bgImage) ? "gradient" : "background-image") : "transform",
       });
       continue;
     }
