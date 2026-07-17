@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { callAnthropic, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, AnthropicError, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
@@ -255,35 +255,7 @@ Si pin_type = "schema_visuel" :
 
 ${invariantsBlock}
 
-FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
-{
-  "pin_html": "<style>@import url(...);\\n</style><div style=\\"width:1000px;height:1500px;...\\">...</div>",
-  "title": "Titre SEO optimisé max 100 caractères",
-  "description": "Description SEO 100-200 mots...",
-  "pin_data": {
-    "pin_type": "infographie|checklist|mini_tuto|avant_apres|schema_visuel",
-    "main_title": "Le titre affiché sur le visuel",
-    "badge_label": "TUTO|CHECKLIST|INFOGRAPHIE|AVANT / APRÈS|etc.",
-    "elements": [
-      {
-        "number": 1,
-        "label": "Titre court de l'élément",
-        "description": "Description en 1-2 lignes",
-        "emoji": "🎯",
-        "side": "before|after"
-      }
-    ],
-    "cta_text": "Texte du CTA en bas si applicable",
-    "watermark": "Texte du watermark en bas (nom du projet)"
-  },
-  "pin_invariants": {
-    "palette_used": { "primary": "#...", "secondary": "#...", "accent": "#...", "bg": "#...", "text": "#..." },
-    "typography_used": { "title_pptx_safe": "Georgia", "body_pptx_safe": "Calibri", "title_pt": 40, "body_pt": 16 },
-    "motif": "carte_blanche_ombre_douce"
-  }
-}
-
-Le bloc \`pin_invariants\` confirme la palette/typo que TU as effectivement appliquée. Il pilote l'export PPTX éditable. S'il manque, l'export retombe sur les valeurs serveur.
+Tu réponds via l'outil save_pinterest_pin (le schéma de l'outil est le contrat de sortie).
 
 RÈGLES pour pin_data.elements :
 - Pour "infographie" et "mini_tuto" : chaque élément a number, label, description, emoji optionnel
@@ -313,7 +285,59 @@ CHARTE GRAPHIQUE :
 - Police corps : ${ch.font_body}
 - Ambiance : ${ch.mood_keywords}
 
-Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
+Réponds en appelant l'outil save_pinterest_pin.`;
+
+    // Sortie structurée par tool forcé (leçon audit formats : le schéma DEVIENT le
+    // contrat). Élimine le JSON tronqué/illisible qui faisait perdre le visuel
+    // (1 crédit facturé pour un résultat partiel) : troncature → erreur 422 propre
+    // AVANT logUsage, et l'input du tool est du JSON valide par construction.
+    const PIN_TOOL: AnthropicTool = {
+      name: "save_pinterest_pin",
+      description: "Enregistre l'épingle Pinterest générée (visuel HTML + SEO + version structurée)",
+      input_schema: {
+        type: "object",
+        properties: {
+          pin_html: {
+            type: "string",
+            description:
+              "HTML complet et autonome du visuel 1000×1500px, CSS 100% inline, commençant par <style>@import Google Fonts</style>",
+          },
+          title: { type: "string", description: "Titre SEO Pinterest, max 100 caractères" },
+          description: { type: "string", description: "Description SEO 100-200 mots, 2-3 paragraphes" },
+          pin_data: {
+            type: "object",
+            description:
+              "Version structurée du MÊME contenu que pin_html (mêmes textes, même structure) — sert à l'export PPTX éditable",
+            properties: {
+              pin_type: {
+                type: "string",
+                enum: ["infographie", "checklist", "mini_tuto", "avant_apres", "schema_visuel"],
+              },
+              main_title: { type: "string", description: "Le titre affiché sur le visuel" },
+              badge_label: { type: "string", description: "TUTO, CHECKLIST, INFOGRAPHIE, AVANT / APRÈS…" },
+              elements: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    number: { type: "number" },
+                    label: { type: "string", description: "Titre court de l'élément" },
+                    description: { type: "string", description: "Description en 1-2 lignes" },
+                    emoji: { type: "string" },
+                    side: { type: "string", enum: ["before", "after"] },
+                  },
+                  required: ["label"],
+                },
+              },
+              cta_text: { type: "string", description: "Texte du CTA en bas si applicable" },
+              watermark: { type: "string", description: "Watermark en bas (nom du projet)" },
+            },
+            required: ["pin_type", "main_title", "elements"],
+          },
+        },
+        required: ["pin_html", "title", "description", "pin_data"],
+      },
+    };
 
     const model = "claude-opus-4-8" as any;
     const hasReference = !!reqBody.reference_image_base64;
@@ -339,39 +363,25 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
     }
 
     const usage: UsageSink = {};
+    // max_tokens 8192 → 16384 : un pin_html dense + pin_data dépassait le plafond
+    // (JSON amputé). 16K reste sûr sans streaming ; au-delà, callAnthropic lève
+    // désormais une 422 « génération coupée » au lieu de renvoyer un JSON tronqué.
     const rawResponse = await callAnthropic({
       model,
       system: systemPrompt,
       messages,
       temperature: 0.5,
-      max_tokens: 8192,
+      max_tokens: 16384,
+      tool: PIN_TOOL,
     }, usage);
 
+    // Tool forcé : rawResponse = JSON.stringify(input) → valide par construction.
     let result: any;
     try {
-      let cleaned = rawResponse.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found");
-      }
-    } catch (parseErr) {
-      console.error("Failed to parse pinterest-visual response:", rawResponse.slice(0, 500));
-      // Fallback: depth-tracking brace matching
-      try {
-        let start = rawResponse.indexOf("{");
-        if (start === -1) throw parseErr;
-        let depth = 0;
-        let end = start;
-        for (let i = start; i < rawResponse.length; i++) {
-          if (rawResponse[i] === "{") depth++;
-          else if (rawResponse[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
-        }
-        result = JSON.parse(rawResponse.slice(start, end + 1));
-      } catch {
-        throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
-      }
+      result = JSON.parse(rawResponse);
+    } catch {
+      console.error("Failed to parse pinterest-visual tool input:", rawResponse.slice(0, 500));
+      throw new AnthropicError("L'IA n'a pas retourné un format valide. Réessaie.", 502);
     }
 
     // Post-processing: replace @import Google Fonts with <link> for iframe compatibility
@@ -396,8 +406,10 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
       result.pin_html = fontsLink + fontFloor.html;
     }
 
-    // Fallback : injecter les invariants serveur si Claude les a oubliés.
-    if (result && !result.pin_invariants) {
+    // Invariants : toujours les valeurs SERVEUR (déterministe). On ne les demande
+    // plus au modèle — personne ne lisait sa version côté front, et ça allégeait
+    // d'autant la sortie (moins de risque de troncature).
+    if (result) {
       result.pin_invariants = {
         palette_used: {
           primary: invariants.palette.primary_hex,
@@ -414,7 +426,6 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
         },
         motif: invariants.motif,
       };
-      console.warn("pinterest-visual: pin_invariants manquant → fallback serveur");
     }
 
     await logUsage(user.id, "content", "pinterest_visual", usage.total_tokens, usage.model, filterWs);
@@ -432,6 +443,15 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
     if (err instanceof ValidationError) {
       return new Response(JSON.stringify({ error: err.message }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Erreurs IA typées (troncature 422, surcharge, réponse vide…) : message clair
+    // pour l'utilisatrice au lieu du 500 générique — et logUsage n'a PAS tourné,
+    // donc l'échec n'est pas facturé.
+    if (err instanceof AnthropicError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: err.status >= 500 ? 502 : err.status,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
