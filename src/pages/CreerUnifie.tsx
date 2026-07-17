@@ -1836,9 +1836,12 @@ export default function CreerUnifie() {
     while (baseSlides.length < photoCount) {
       baseSlides.push({ slide_number: baseSlides.length + 1, role: "body" });
     }
+    // Liste blanche (pas de spread) : les champs des gabarits texte-sur-photo
+    // (kicker, points, big_number, template, cta_label…) transportent du texte
+    // qui serait re-composé sur la photo — ils ne doivent PAS survivre ici.
     const cleaned = baseSlides.map((s: any, i: number) => ({
-      ...s,
       slide_number: i + 1,
+      role: s.role || "body",
       slide_type: "photo_full",
       overlay_text: null,
       title: "",
@@ -2704,7 +2707,26 @@ export default function CreerUnifie() {
       let autoPhotoCursor = 0;
       const totalPhotos = photosForVisuals.length;
 
-      const mappedSlides = rawSlides.map((s: any, slideIdx: number) => {
+      // « Photos brutes » : la promesse du mode (1 photo = 1 slide, AUCUN texte
+      // sur la photo) se verrouille ICI, au dernier portillon avant l'edge.
+      // L'effet de nettoyage sur result.raw perd la course contre
+      // l'auto-déclenchement des visuels (les deux écoutent `result`) : les
+      // slides brutes de carousel-ai — 7 slides avec overlay/kicker — partaient
+      // telles quelles vers carousel-visual. On ne dépend plus de lui : les
+      // slides « photo nue » sont dérivées des photos elles-mêmes, le reste du
+      // flux (vision, luminance, charte, réponse) est inchangé.
+      const slidesSource =
+        carouselSubMode === "pure_photo" && totalPhotos > 0
+          ? photosForVisuals.map((_p: any, i: number) => ({
+              slide_number: i + 1,
+              role: i === 0 ? "hook" : i === totalPhotos - 1 ? "cta" : "body",
+              slide_type: "photo_full",
+              overlay_text: null,
+              photo_index: i + 1,
+            }))
+          : rawSlides;
+
+      const mappedSlides = slidesSource.map((s: any, slideIdx: number) => {
         const slideType = hasPhotos
           ? (s.slide_type || (isPhotoCarousel ? "photo_full" : "text_only"))
           : "text_only";
