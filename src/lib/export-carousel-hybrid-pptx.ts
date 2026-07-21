@@ -582,6 +582,61 @@ function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZon
   return zones;
 }
 
+/**
+ * Neutralise (pour la capture) les fonds UNIS et OPAQUES peints DERRIÈRE une
+ * zone photo masquée : l'élément de zone lui-même et chaque ancêtre que la
+ * zone recouvre entièrement.
+ *
+ * Sans ça, le raster « bouche le trou » : la racine des gabarits photo
+ * composés porte `background:#1a1815` SANS annotation data-pptx-shape
+ * (contrairement aux slides mix) → une fois la photo masquée, ce charbon est
+ * peint OPAQUE dans le PNG posé PAR-DESSUS la photo native → la photo est
+ * invisible, toute la slide est un bloc noir (vu en prod le 21/07 dans Canva
+ * sur un carrousel photo immo).
+ *
+ * On ne touche NI aux background-image (texture de marque : la retirer la
+ * perdrait des deux côtés, cf. #575) NI aux fonds semi-transparents (voiles :
+ * leur alpha traverse le PNG et reste fidèle sur la photo native). Les
+ * éléments déjà promus en shape natif (data-pptx-shape-hide) sont déjà
+ * transparents ici → ignorés naturellement.
+ *
+ * Retourne la couleur du plus GRAND fond neutralisé (hex sans #), à reporter
+ * sur slide.background — filet visuel si la photo native manque à l'arrivée.
+ */
+function clearOpaqueBackdropsBehindZone(zone: PhotoZone, doc: Document): string | null {
+  const win = doc.defaultView;
+  if (!win) return null;
+  const zr = zone.rect;
+  let best: { color: string; area: number } | null = null;
+  let el: HTMLElement | null = zone.el;
+  while (el && el !== doc.body && el !== doc.documentElement) {
+    const r = el.getBoundingClientRect();
+    const covered =
+      zr.x <= r.left + 1 && zr.y <= r.top + 1 &&
+      zr.x + zr.w >= r.right - 1 && zr.y + zr.h >= r.bottom - 1;
+    if (covered) {
+      const cs = win.getComputedStyle(el);
+      // Pour l'élément de zone lui-même, le background-image (photo, gradients
+      // conservés) est géré par le masquage de zone — seul son background-color
+      // nous concerne. Pour un ancêtre, une image de fond = on ne touche à rien.
+      const bgImage = el === zone.el ? "none" : (cs.backgroundImage || "none");
+      const bgColor = cs.backgroundColor || "transparent";
+      const alphaM = bgColor.match(/rgba\(\s*[\d.]+\s*,\s*[\d.]+\s*,\s*[\d.]+\s*,\s*([\d.]+)\s*\)/i);
+      const opaque =
+        bgColor !== "transparent" &&
+        bgColor !== "rgba(0, 0, 0, 0)" &&
+        (!alphaM || parseFloat(alphaM[1]) >= 0.99);
+      if (opaque && bgImage === "none") {
+        el.style.setProperty("background-color", "transparent", "important");
+        const area = r.width * r.height;
+        if (!best || area > best.area) best = { color: normalizeHex(bgColor, "FFFFFF"), area };
+      }
+    }
+    el = el.parentElement;
+  }
+  return best ? best.color : null;
+}
+
 /** Police à chasse fixe ? (IBM Plex Mono, Courier…) */
 function isMonoFont(fontFamily: string | undefined | null): boolean {
   return /mono|courier/i.test(fontFamily || "");
@@ -1117,6 +1172,10 @@ export async function exportCarouselHybridPptx(
       }
 
       // ---- Mask usable zones in iframe so captureBody produit du transparent dessus
+      // Fond opaque derrière une zone masquée (racine charbon des gabarits photo
+      // composés) : neutralisé pour que le trou du raster reste transparent au-dessus
+      // de la photo native, et reporté en fond NATIF de slide (cf. helper).
+      let photoBackdrop: string | null = null;
       for (const zone of usableZones) {
         if (zone.type === "img") {
           const target = zone.el.parentElement || zone.el;
@@ -1128,6 +1187,8 @@ export async function exportCarouselHybridPptx(
           // !important via setProperty pour battre les classes Tailwind / CSS overlay
           zone.el.style.setProperty("background-image", cleaned, "important");
         }
+        const cleared = clearOpaqueBackdropsBehindZone(zone, doc);
+        if (cleared && !photoBackdrop) photoBackdrop = cleared;
       }
 
       // Force layout flush après masquage texte + photos
@@ -1268,6 +1329,12 @@ export async function exportCarouselHybridPptx(
           continue;
         }
         drawNativeShape(sb);
+      }
+      // Fond neutralisé derrière les photos → fond NATIF de la slide (derrière la
+      // photo native ; visible seulement si celle-ci manque). Un shape background
+      // annoté garde la priorité (slides mix : déjà posé ci-dessus).
+      if (photoBackdrop && !usableShapes.some((s) => s.type === "background")) {
+        slide.background = { color: photoBackdrop };
       }
       const shadowedCount = usableShapes.filter((s) => s.type !== "background" && s.shadow).length;
       if (shadowedCount > 0) {

@@ -198,6 +198,22 @@ export async function validatePptx(
   // cette slide a du texte. OR-accumulé : un média partagé (logo) est « avec texte »
   // dès qu'une slide porteuse de texte le référence.
   const mediaSlideHasText = new Map<string, boolean>();
+  /**
+   * Médias peints PAR-DESSUS au moins une autre image de la même slide (ordre
+   * de peinture = ordre des <p:pic> dans le XML). Un raster « 100 % voile »
+   * est LÉGITIME dans ce cas : il assombrit la photo NATIVE posée dessous
+   * (export hybride des carrousels photo) — à ne pas confondre avec le voile
+   * orphelin de #575 dont l'image avait réellement disparu.
+   */
+  const overImageMedia = new Set<string>();
+  /** Piles d'images par slide, pour le test « photo occultée » (géométrie EMU). */
+  const slidePicStacks: { n: string; pics: { media: string; fullSlide: boolean }[] }[] = [];
+  const presXml = zip.files["ppt/presentation.xml"]
+    ? await zip.files["ppt/presentation.xml"].async("string")
+    : "";
+  const sldSz = presXml.match(/<p:sldSz[^>]*\bcx="(\d+)"[^>]*\bcy="(\d+)"/);
+  const sldW = sldSz ? Number(sldSz[1]) : 0;
+  const sldH = sldSz ? Number(sldSz[2]) : 0;
   for (const s of slideFiles) {
     const n = s.match(/slide(\d+)\.xml$/)?.[1];
     if (!n) continue;
@@ -206,15 +222,35 @@ export async function validatePptx(
     const slideXml = await zip.files[s].async("string");
     const hasText = [...slideXml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].some((mt) => mt[1].trim().length > 0);
     const relXml = await relFile.async("string");
-    for (const rm of relXml.matchAll(/Target="[^"]*\/media\/([^"]+)"/g)) {
-      const base = rm[1];
+    const ridToMedia = new Map<string, string>();
+    for (const rm of relXml.matchAll(/Id="(rId\d+)"[^>]*Target="[^"]*\/media\/([^"]+)"/g)) {
+      ridToMedia.set(rm[1], rm[2]);
+      const base = rm[2];
       mediaSlideHasText.set(base, (mediaSlideHasText.get(base) ?? false) || hasText);
     }
+    const pics: { media: string; fullSlide: boolean }[] = [];
+    for (const pm of slideXml.matchAll(/<p:pic>[\s\S]*?<\/p:pic>/g)) {
+      const frag = pm[0];
+      const rid = frag.match(/r:embed="(rId\d+)"/)?.[1];
+      const off = frag.match(/<a:off x="(-?\d+)" y="(-?\d+)"\/>/);
+      const ext = frag.match(/<a:ext cx="(\d+)" cy="(\d+)"\/>/);
+      const media = rid ? ridToMedia.get(rid) : undefined;
+      if (!media) continue;
+      const fullSlide =
+        !!off && !!ext && sldW > 0 && sldH > 0 &&
+        Number(ext[1]) >= sldW * 0.95 && Number(ext[2]) >= sldH * 0.95 &&
+        Math.abs(Number(off[1])) <= sldW * 0.03 && Math.abs(Number(off[2])) <= sldH * 0.03;
+      if (pics.length > 0) overImageMedia.add(media);
+      pics.push({ media, fullSlide });
+    }
+    slidePicStacks.push({ n, pics });
   }
 
   const mediaFiles = Object.keys(zip.files).filter((n) => /^ppt\/media\//.test(n) && !zip.files[n].dir);
   let mediaMinBytes = Infinity;
   let mediaMinInk = Infinity;
+  /** Stats raster par nom de média (PNG décodés uniquement) — sert au test « photo occultée ». */
+  const mediaStats = new Map<string, RasterStats>();
   for (const m of mediaFiles) {
     const b = await zip.files[m].async("nodebuffer");
     if (b.length < mediaMinBytes) mediaMinBytes = b.length;
@@ -227,6 +263,7 @@ export async function validatePptx(
       // et elle n'entre pas dans mediaMinInk.
     } else if (typeof stats === "object") {
       const { ink, colors, opaqueRatio } = stats;
+      mediaStats.set(m.split("/").pop() ?? m, stats);
       if (ink < mediaMinInk) mediaMinInk = ink;
       // VOILE FLOTTANT (17/07) : pas un seul pixel opaque = ce raster n'est pas un
       // fond, c'est une couche d'assombrissement dont l'image (texture de marque,
@@ -234,9 +271,13 @@ export async function validatePptx(
       // → gris, et le texte clair prévu pour la matière devient illisible (1,36:1).
       // Indépendant du taux d'encre : un voile est uniforme par nature.
       if (opaqueRatio <= VEIL_MAX_OPAQUE_RATIO) {
-        problems.push(
-          `voile sans fond : ${m} — couche 100 % semi-transparente (${b.length} o), l'image qu'elle assombrit a disparu de l'export`,
-        );
+        // Exemption : un voile posé PAR-DESSUS une autre image de la même slide
+        // assombrit la photo NATIVE dessous (carrousel photo hybride) — légitime.
+        if (!overImageMedia.has(m.split("/").pop() ?? m)) {
+          problems.push(
+            `voile sans fond : ${m} — couche 100 % semi-transparente (${b.length} o), l'image qu'elle assombrit a disparu de l'export`,
+          );
+        }
       } else if (ink < FLAT_INK_RATIO && colors <= FLAT_MAX_COLORS) {
         // APLAT : uniforme ET sans grain. Le test des couleurs épargne déjà les fonds
         // unis mais MATIÉRÉS (texture papier : 0 % d'encre mais 68 couleurs de grain).
@@ -268,6 +309,25 @@ export async function validatePptx(
   // L'export hybride = une image de fond PAR slide (+ logo éventuel).
   if (mediaFiles.length < slideCount) {
     problems.push(`${mediaFiles.length} image(s) pour ${slideCount} slides — fond(s) manquant(s)`);
+  }
+
+  // PHOTO OCCULTÉE (bug Canva 21/07) : dans l'export hybride, le raster posé
+  // PAR-DESSUS une photo native doit être transparent à l'emplacement de la
+  // photo (le masquage y perce un « trou »). Si une slide peint une image,
+  // puis une COUCHE PLEINE SLIDE ~100 % OPAQUE par-dessus, tout ce qui est
+  // dessous est invisible (la racine charbon des gabarits photo composés
+  // remplissait le trou → carrousel photo tout noir dans Canva).
+  for (const { n, pics } of slidePicStacks) {
+    for (let i = 1; i < pics.length; i++) {
+      const st = mediaStats.get(pics[i].media);
+      if (pics[i].fullSlide && st && st.opaqueRatio >= 0.98) {
+        problems.push(
+          `photo occultée : slide${n} — ${pics[i].media} est une couche pleine slide ` +
+            `${(st.opaqueRatio * 100).toFixed(0)} % opaque posée par-dessus ${i} image(s) ` +
+            `(la photo native dessous est invisible, bloc noir à l'import Canva)`,
+        );
+      }
+    }
   }
 
   const texts: string[] = [];
