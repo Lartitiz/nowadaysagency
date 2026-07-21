@@ -183,3 +183,32 @@ Deno.test("analyzeCarouselRedac : overlay à 25 mots = conforme (tolérance 28)"
   const a = analyzeCarouselRedac({ slides: [{ slide_number: 1, overlay_text: ok }], caption: {} });
   assertEquals(a.overlongOverlays.length, 0);
 });
+
+// ── Élisions françaises (re-tests 21/07 : « le avant/après qui brille ») ──
+
+Deno.test("fixFrenchElisions : le/de/que + avant/après", async () => {
+  const { fixFrenchElisions } = await import("./redac-gate.ts");
+  assertEquals(
+    fixFrenchElisions("On montre le avant/après qui brille, jamais les factures."),
+    "On montre l'avant/après qui brille, jamais les factures.",
+  );
+  assertEquals(fixFrenchElisions("Les photos de avant sont floues."), "Les photos d'avant sont floues.");
+  assertEquals(fixFrenchElisions("Plus vite que avant."), "Plus vite qu'avant.");
+  assertEquals(fixFrenchElisions("Le après est bluffant."), "L'après est bluffant.");
+});
+
+Deno.test("fixFrenchElisions : ne touche pas les formes légitimes", async () => {
+  const { fixFrenchElisions } = await import("./redac-gate.ts");
+  const ok = "Avant, c'était sombre. L'avant/après parle de lui-même. Le onze du mois. Je le veux avant demain.";
+  assertEquals(fixFrenchElisions(ok), ok);
+  // « le » élidé seulement devant avant/après, pas devant n'importe quelle voyelle
+  assertEquals(fixFrenchElisions("le atelier"), "le atelier");
+});
+
+Deno.test("fixElisionsInFields : mutation en place des champs texte", async () => {
+  const { fixElisionsInFields } = await import("./redac-gate.ts");
+  const obj: Record<string, unknown> = { content: "le avant/après", accroche: null, autre: 3 };
+  fixElisionsInFields(obj, ["content", "accroche", "absent"]);
+  assertEquals(obj.content, "l'avant/après");
+  assertEquals(obj.accroche, null);
+});

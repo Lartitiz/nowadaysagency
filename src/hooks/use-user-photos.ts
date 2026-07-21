@@ -36,6 +36,13 @@ export function useUserPhotos() {
       if (error) throw error;
       return (data ?? []) as UserPhotoRow[];
     },
+    // Filet quand le Realtime ne pousse rien (vécu 21/07 : retouche « Changer un
+    // fond » terminée côté serveur, grille jamais rafraîchie avant un F5) : tant
+    // qu'une photo est en cours de traitement, on re-lit la liste toutes les 4 s.
+    refetchInterval: (q) => {
+      const rows = q.state.data as UserPhotoRow[] | undefined;
+      return rows?.some((p) => p.status === "pending" || p.status === "processing") ? 4000 : false;
+    },
   });
 
   // Realtime subscription
@@ -84,6 +91,7 @@ export interface CreatePhotoRetouchInput {
 export function useCreatePhotoRetouch() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
 
   async function mutate(input: CreatePhotoRetouchInput): Promise<{ photoId: string }> {
@@ -109,6 +117,12 @@ export function useCreatePhotoRetouch() {
         backgroundPresetKey: input.backgroundPresetKey,
       });
 
+      // La ligne (status=pending) vient d'être insérée : rafraîchir la grille
+      // tout de suite pour afficher la carte « en cours » sans dépendre du
+      // Realtime — le polling de useUserPhotos prend ensuite le relais jusqu'à
+      // ready/failed.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
+
       const { error } = await invokeWithTimeout(
         "photo-background-replace",
         {
@@ -125,6 +139,8 @@ export function useCreatePhotoRetouch() {
       if (error) {
         throw new Error(error.message);
       }
+      // L'edge a fini (ready/failed) : re-lire la liste sans attendre le prochain tick.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
       return { photoId };
     } finally {
       setIsPending(false);

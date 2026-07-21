@@ -121,7 +121,7 @@ export default function CreerUnifie() {
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
   const { activityText } = useActivityExamples();
-  const { remainingWithBonus, loading: planLoading, plan, usage } = useUserPlan();
+  const { remainingWithBonus, loading: planLoading, plan, usage, refresh: refreshPlan } = useUserPlan();
 
   // URL params
   const paramFormat = searchParams.get("format");
@@ -414,6 +414,12 @@ export default function CreerUnifie() {
   // Visual states (carousel only)
   const [visualSlides, setVisualSlides] = useState<{ slide_number: number; html: string }[]>(stripFontImportLeakFromSlides(ps?.visualSlides || []));
   const [visualLoading, setVisualLoading] = useState(false);
+  // Échec des tentatives AUTO de visuels (elles sont volontairement muettes en
+  // toast) : sans ce message, le loader retombe sur le bouton « Créer les
+  // visuels » sans un mot — l'utilisatrice ne sait pas que ça a échoué ni
+  // qu'il faut recliquer (vécu 21/07, même famille que le faux « Génération
+  // en cours » Pinterest #584).
+  const [visualsAutoError, setVisualsAutoError] = useState<string | null>(null);
   // Progression RÉELLE de la génération des visuels (events SSE de l'edge :
   // lots de slides terminés). null = pas d'info (fallback barre simulée).
   const [visualChunkProgress, setVisualChunkProgress] = useState<{ done: number; total: number } | null>(null);
@@ -2690,6 +2696,7 @@ export default function CreerUnifie() {
       }
       return;
     }
+    setVisualsAutoError(null);
     setVisualLoading(true);
 
     // ═══ Demo bypass: return pre-built visuals only when user follows the script ═══
@@ -3002,8 +3009,12 @@ export default function CreerUnifie() {
       // AVANT le throw générique qui perdrait data.quota (en SSE, le 429 arrive
       // avec fnError ET data parsé — le quota se juge donc en premier).
       if (data?.error === "limit_reached" || data?.quota) {
-        // Pré-génération silencieuse : ne pas faire surgir le mur quota sans clic.
-        if (opts?.background) return;
+        // Pré-génération silencieuse : ne pas faire surgir le mur quota sans clic,
+        // mais le dire près du bouton (le clic ouvrira le mur avec le détail).
+        if (opts?.background) {
+          setVisualsAutoError("Tes crédits sont épuisés — les visuels n'ont pas pu être créés automatiquement.");
+          return;
+        }
         if (handleQuotaError({ data })) return;
       }
       if (fnError) throw fnError;
@@ -3055,6 +3066,7 @@ export default function CreerUnifie() {
           })
         : normalizedSlides;
       setVisualSlides(rehydratedSlides);
+      setVisualsAutoError(null);
       if (!opts?.background) {
         if (downgradeReason === "user_chose_text") {
           toast.success("Carrousel généré en mode texte (aucune photo disponible).");
@@ -3075,9 +3087,19 @@ export default function CreerUnifie() {
       });
       if (!opts?.background) {
         toast.error(e?.message || "Erreur lors de la génération des visuels");
+      } else {
+        // Tentative auto : pas de toast surgissant, mais un état honnête près du
+        // bouton — jamais un retour muet à « Créer les visuels ».
+        const msg = /fetch|network|réseau|timeout|signal|abort|504|502/i.test(String(e?.message || ""))
+          ? "Le réseau a flanché pendant la création des visuels."
+          : "La création automatique des visuels n'a pas abouti.";
+        setVisualsAutoError(msg);
       }
     } finally {
       setVisualLoading(false);
+      // Le débit (ou non-débit sur échec) vient d'être tranché côté serveur :
+      // resynchroniser le compteur de crédits affiché.
+      refreshPlan();
       setVisualChunkProgress(null);
     }
   };
@@ -3156,6 +3178,16 @@ export default function CreerUnifie() {
         return { ...prevR, raw: { ...prevR.raw, slides: nextSlides } };
       });
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
+  // Compteur de crédits honnête : le débit vient d'avoir lieu côté serveur quand
+  // un résultat arrive — sans ça, le cache 60 s de useUserPlan affiche l'ancien
+  // solde pendant toute la session de création (vécu 21/07 : « 6 restants » figé
+  // sur 3 générations d'affilée).
+  useEffect(() => {
+    if (!result) return;
+    refreshPlan();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
@@ -3896,6 +3928,7 @@ export default function CreerUnifie() {
                 publishOrScheduleLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
                 onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}
                 visualLoading={visualLoading}
+                visualsAutoError={visualsAutoError}
                 visualChunkProgress={visualChunkProgress}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onVisualSlidesUpdate={setVisualSlides}

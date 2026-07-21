@@ -416,6 +416,35 @@ export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>): Te
   return { reversals, moulded, fabricatedNumbers };
 }
 
+/**
+ * Élisions françaises manquantes — correction DÉTERMINISTE, classe non ambiguë
+ * uniquement : « le avant/après » → « l'avant/après », « de avant » → « d'avant »,
+ * « que après » → « qu'après » (vu au re-test du 21/07 : post LinkedIn « On
+ * montre le avant/après qui brille »). Volontairement étroit : pas de règle
+ * générale déterminant+voyelle (« le onze », « la ouate » sont légitimes), et
+ * « qu'on + nom » (→ « qu'un ») reste à la passe de correction probabiliste —
+ * indécidable sans lexique (« qu'on rénove » est correct).
+ */
+export function fixFrenchElisions(text: string): string {
+  if (!text) return text;
+  return text
+    .replace(/\b([Ll])e (?=(?:avant|après)\b)/g, (_m, l) => `${l}'`)
+    .replace(/\b([Dd])e (?=(?:avant|après)\b)/g, (_m, d) => `${d}'`)
+    .replace(/\b([Qq])ue (?=(?:avant|après)\b)/g, (_m, q) => `${q}u'`)
+    // Variantes tout-en-majuscules (overlays de reels, covers)
+    .replace(/\bLE (?=(?:AVANT|APRÈS)\b)/g, "L'")
+    .replace(/\bDE (?=(?:AVANT|APRÈS)\b)/g, "D'")
+    .replace(/\bQUE (?=(?:AVANT|APRÈS)\b)/g, "QU'");
+}
+
+/** Applique fixFrenchElisions à une liste de champs texte d'un objet (mutation en place). */
+export function fixElisionsInFields(obj: Record<string, unknown> | null | undefined, fields: string[]): void {
+  if (!obj || typeof obj !== "object") return;
+  for (const f of fields) {
+    if (typeof obj[f] === "string") obj[f] = fixFrenchElisions(obj[f] as string);
+  }
+}
+
 /** Instructions ciblées pour la passe de correction texte ("" si rien à corriger). */
 export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   const lines: string[] = [];

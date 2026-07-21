@@ -73,10 +73,12 @@ export default function CarouselStructureLoader({ hasPhotos = false }: { hasPhot
         </div>
       </div>
 
+      {/* Depuis #568, la structure est auto-validée (plus d'écran de review) :
+          ne rien promettre que le flux ne fait plus. */}
       <p className="text-xs text-muted-foreground">
         {hasPhotos
-          ? "J'analyse tes photos une par une — compte une trentaine de secondes. Tu valideras la structure avant la rédaction."
-          : "Je prépare la structure — quelques secondes. Tu la valideras avant la rédaction."}
+          ? "J'analyse tes photos une par une — compte une trentaine de secondes, puis je passe à la rédaction."
+          : "Je prépare la structure — quelques secondes, puis je passe à la rédaction."}
       </p>
     </div>
   );
