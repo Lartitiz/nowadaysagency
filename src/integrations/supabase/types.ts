@@ -2190,6 +2190,7 @@ export type Database = {
       }
       content_quality_events: {
         Row: {
+          content_preview: Json | null
           created_at: string
           format: string
           id: string
@@ -2201,6 +2202,7 @@ export type Database = {
           workspace_id: string | null
         }
         Insert: {
+          content_preview?: Json | null
           created_at?: string
           format: string
           id?: string
@@ -2212,6 +2214,7 @@ export type Database = {
           workspace_id?: string | null
         }
         Update: {
+          content_preview?: Json | null
           created_at?: string
           format?: string
           id?: string
