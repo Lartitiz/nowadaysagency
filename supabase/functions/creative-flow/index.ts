@@ -3,7 +3,7 @@ import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOUR
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -282,6 +282,17 @@ serve(async (req) => {
     });
     if (!r.ok) return r.response;
     const { userId, supabase } = r;
+
+    // Champs écrits par l'IA à une étape précédente puis renvoyés par le front
+    // (angle choisi, structure, accroches déjà proposées renvoyées en exclusion
+    // au refresh « 3 nouvelles accroches ») : on tronque au lieu de rejeter —
+    // même classe que narrative_thread (#594).
+    clampAiField(body, "editorial_angle", 200);
+    clampAiField(body, "content_structure", 5000);
+    if (Array.isArray(body?.exclude_hooks)) {
+      body.exclude_hooks = body.exclude_hooks
+        .map((h: unknown) => (typeof h === "string" ? h.slice(0, 300) : h));
+    }
 
     validateInput(body, z.object({
       step: z.string().max(50),

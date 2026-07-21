@@ -8,7 +8,7 @@ import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
-import { validateInput, ValidationError, GenerateContentSchema } from "../_shared/input-validators.ts";
+import { validateInput, ValidationError, GenerateContentSchema, clampAiField } from "../_shared/input-validators.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
@@ -88,6 +88,12 @@ serve(async (req) => {
     if (rawBody.ping) {
       return new Response(JSON.stringify({ pong: true }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    // Champs écrits par l'IA à une étape précédente puis renvoyés par le front
+    // (Rédaction guidée : structure/accroche générées, angle issu de l'idée) :
+    // on tronque au lieu de rejeter — même classe que narrative_thread (#594).
+    clampAiField(rawBody, "structure", 5000);
+    clampAiField(rawBody, "accroche", 500);
+    clampAiField(rawBody, "angle", 500);
     const body = validateInput(rawBody, GenerateContentSchema);
     const { type, format, sujet, profile, canal, objectif, structure: structureInput, accroche: accrocheInput, angle: angleInput, prompt: rawPrompt, playground_prompt, workspace_id, series_id, episode_number } = body;
 

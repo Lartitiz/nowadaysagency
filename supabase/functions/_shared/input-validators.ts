@@ -58,7 +58,9 @@ export const GenerateContentSchema = z.object({
   profile: z.record(z.unknown()).optional().nullable(),
   canal: z.enum(["instagram", "linkedin", "blog", "pinterest"]).optional().nullable(),
   objectif: z.enum(["visibilite", "confiance", "vente", "credibilite"]).optional().nullable(),
-  structure: shortText.optional().nullable(),
+  // Structure IA de la Rédaction guidée : « détaillée étape par étape avec
+  // exemples » dépasse presque toujours 500 → limite large + clamp côté edge.
+  structure: longText.optional().nullable(),
   accroche: shortText.optional().nullable(),
   angle: shortText.optional().nullable(),
   prompt: longText.optional().nullable(),
