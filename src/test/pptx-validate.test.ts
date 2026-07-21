@@ -185,3 +185,96 @@ describe("validatePptx — fond aplat hybride légitime (texte natif par-dessus)
     expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Photo occultée (bug Canva 21/07).
+//
+// Carrousel PHOTO hybride : la photo native est posée en couche BOTTOM, le
+// raster de fond par-dessus, avec un « trou » transparent à l'emplacement de
+// la photo. La racine charbon des gabarits composés (non annotée
+// data-pptx-shape) remplissait ce trou → raster pleine slide 100 % OPAQUE
+// par-dessus la photo = carrousel tout noir à l'import Canva. Deux règles :
+//   raster pleine slide ~100 % opaque AU-DESSUS d'une image → « photo occultée »
+//   raster 100 % voile AU-DESSUS d'une image → RIEN (il assombrit la photo
+//   native dessous — à distinguer du voile ORPHELIN #575, image seule)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Aplat charbon #1a1815 opaque : la racine des gabarits cuite dans le raster.
+const APLAT_CHARBON = png(() => [26, 24, 21, 255]);
+// « Photo » native : contenu contrasté opaque quelconque.
+const PHOTO_NATIVE = png((x, y) => [(x * 7) % 256, (y * 5) % 256, 120, 255]);
+
+const SLD_W = 6858000;
+const SLD_H = 8572500;
+const PRESENTATION_XML =
+  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+  `<p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">` +
+  `<p:sldSz cx="${SLD_W}" cy="${SLD_H}"/></p:presentation>`;
+
+const PIC = (rid: string, cx = SLD_W, cy = SLD_H) =>
+  `<p:pic><p:blipFill><a:blip r:embed="${rid}"></a:blip></p:blipFill>` +
+  `<p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm></p:spPr></p:pic>`;
+
+/** .pptx minimal : UNE slide, images empilées dans l'ordre de peinture. */
+async function valideStack(medias: { nom: string; buf: Buffer; cx?: number; cy?: number }[]) {
+  const zip = new JSZip();
+  const pics = medias.map((m, i) => PIC(`rId${i + 1}`, m.cx, m.cy)).join("");
+  zip.file("ppt/presentation.xml", PRESENTATION_XML);
+  zip.file(
+    "ppt/slides/slide1.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+ xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+ xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:cSld><p:spTree>
+ ${pics}
+ <p:sp><p:txBody><a:p><a:r><a:t>Un titre bien réel</a:t></a:r></a:p></p:txBody></p:sp>
+ </p:spTree></p:cSld></p:sld>`,
+  );
+  const rels = medias
+    .map(
+      (m, i) =>
+        `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${m.nom}"/>`,
+    )
+    .join("");
+  zip.file(
+    "ppt/slides/_rels/slide1.xml.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${rels}</Relationships>`,
+  );
+  for (const m of medias) zip.file(`ppt/media/${m.nom}`, m.buf);
+  zip.file("docProps/thumbnail.txt", "x".repeat(20_000));
+  const buf = await zip.generateAsync({ type: "nodebuffer" });
+  const p = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "pptx-")), "t.pptx");
+  fs.writeFileSync(p, buf);
+  return validatePptx(p, { minSlides: 1, expectEditableText: true, backgroundIsDecorative: true });
+}
+
+describe("validatePptx — photo occultée / voile sur photo native (21/07)", () => {
+  it("flagge un raster pleine slide opaque posé PAR-DESSUS la photo native", async () => {
+    const r = await valideStack([
+      { nom: "image-1-1.png", buf: PHOTO_NATIVE },
+      { nom: "image-1-2.png", buf: APLAT_CHARBON },
+    ]);
+    expect(r.problems.some((p) => p.startsWith("photo occultée") && p.includes("image-1-2.png"))).toBe(true);
+  });
+
+  it("laisse passer un VOILE posé par-dessus la photo native (il l'assombrit, cas sain)", async () => {
+    const r = await valideStack([
+      { nom: "image-1-1.png", buf: PHOTO_NATIVE },
+      { nom: "image-1-2.png", buf: VOILE_SANS_FOND },
+    ]);
+    expect(r.problems).toEqual([]);
+  });
+
+  it("ne flagge PAS un raster opaque partiel (carte photo mix : le trou est ailleurs)", async () => {
+    const r = await valideStack([
+      { nom: "image-1-1.png", buf: PHOTO_NATIVE },
+      { nom: "image-1-2.png", buf: APLAT_CHARBON, cx: Math.round(SLD_W * 0.5), cy: SLD_H },
+    ]);
+    expect(r.problems.some((p) => p.startsWith("photo occultée"))).toBe(false);
+  });
+
+  it("un voile ORPHELIN (image seule sur la slide) reste « voile sans fond » (#575)", async () => {
+    const r = await valideStack([{ nom: "image-1-1.png", buf: VOILE_SANS_FOND }]);
+    expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(true);
+  });
+});
