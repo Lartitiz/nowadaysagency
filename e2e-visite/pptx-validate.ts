@@ -167,7 +167,7 @@ async function inkRatio(buf: Buffer): Promise<number | RasterStats> {
 
 export async function validatePptx(
   filePath: string,
-  opts: { minSlides?: number; expectEditableText?: boolean } = {},
+  opts: { minSlides?: number; expectEditableText?: boolean; backgroundIsDecorative?: boolean } = {},
 ): Promise<PptxReport> {
   const problems: string[] = [];
   const empty: PptxReport = { slideCount: 0, mediaCount: 0, mediaMinBytes: 0, mediaMinInk: -1, texts: [], problems };
@@ -189,6 +189,28 @@ export async function validatePptx(
   const slideCount = slideFiles.length;
   const minSlides = opts.minSlides ?? 1;
   if (slideCount < minSlides) problems.push(`${slideCount} slide(s) — au moins ${minSlides} attendues`);
+
+  // Média → la slide qui le référence porte-t-elle du texte natif ? Un fond
+  // hybride légitimement APLAT (blanc/primaire, tirage normal de l'alternance
+  // texture/blanc/primaire) est TOUJOURS coiffé de texte natif ; une vraie capture
+  // ratée laisse la slide sans fond ET sans texte. On lit les _rels de chaque slide
+  // (Target="../media/xxx") pour savoir quel fond appartient à quelle slide, et si
+  // cette slide a du texte. OR-accumulé : un média partagé (logo) est « avec texte »
+  // dès qu'une slide porteuse de texte le référence.
+  const mediaSlideHasText = new Map<string, boolean>();
+  for (const s of slideFiles) {
+    const n = s.match(/slide(\d+)\.xml$/)?.[1];
+    if (!n) continue;
+    const relFile = zip.files[`ppt/slides/_rels/slide${n}.xml.rels`];
+    if (!relFile) continue;
+    const slideXml = await zip.files[s].async("string");
+    const hasText = [...slideXml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].some((mt) => mt[1].trim().length > 0);
+    const relXml = await relFile.async("string");
+    for (const rm of relXml.matchAll(/Target="[^"]*\/media\/([^"]+)"/g)) {
+      const base = rm[1];
+      mediaSlideHasText.set(base, (mediaSlideHasText.get(base) ?? false) || hasText);
+    }
+  }
 
   const mediaFiles = Object.keys(zip.files).filter((n) => /^ppt\/media\//.test(n) && !zip.files[n].dir);
   let mediaMinBytes = Infinity;
@@ -216,12 +238,24 @@ export async function validatePptx(
           `voile sans fond : ${m} — couche 100 % semi-transparente (${b.length} o), l'image qu'elle assombrit a disparu de l'export`,
         );
       } else if (ink < FLAT_INK_RATIO && colors <= FLAT_MAX_COLORS) {
-        // APLAT : uniforme ET sans grain → vraie capture ratée. Le test des couleurs
-        // épargne les fonds légitimement unis mais MATIÉRÉS (texture papier de
-        // marque : 0 % d'encre mais 68 couleurs de grain — cf. FLAT_MAX_COLORS).
-        problems.push(
-          `fond raté : ${m} — image uniforme (${(ink * 100).toFixed(2)} % d'encre, ${colors} couleurs, ${b.length} o), capture vide probable`,
-        );
+        // APLAT : uniforme ET sans grain. Le test des couleurs épargne déjà les fonds
+        // unis mais MATIÉRÉS (texture papier : 0 % d'encre mais 68 couleurs de grain).
+        // Reste l'ambiguïté d'un aplat PARFAIT : capture ratée (blanc html2canvas)
+        // OU fond uni VOULU (blanc/primaire de l'alternance). Un aplat de ~64-71 Ko
+        // pèse pareil dans les deux cas (fast-png compresse mal l'uni) → le poids ne
+        // tranche pas. Seul signal fiable : dans un export à fond DÉCORATIF (hybride
+        // « éditable », stories), le texte est posé en NATIF ; un fond aplat coiffé de
+        // texte natif est un CHOIX de design, pas un raté. Une vraie capture ratée
+        // laisse la slide sans fond ET sans texte → on ne l'exempte QUE si la slide
+        // porteuse de ce fond a bien du texte natif. (Les régressions #575 « texture
+        // disparue » restent couvertes par le VOILE ci-dessus + le fond manquant.)
+        const base = m.split("/").pop() ?? m;
+        const slideHasText = mediaSlideHasText.get(base) === true;
+        if (!(opts.backgroundIsDecorative && slideHasText)) {
+          problems.push(
+            `fond raté : ${m} — image uniforme (${(ink * 100).toFixed(2)} % d'encre, ${colors} couleurs, ${b.length} o), capture vide probable`,
+          );
+        }
       }
     } else if (b.length < 1_000) {
       // Filet de sécurité si le PNG n'est pas décodable (module absent / format

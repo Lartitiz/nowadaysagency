@@ -146,7 +146,11 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   await download.saveAs(pptxPath);
   console.log(`📦 PPTX téléchargé : ${download.suggestedFilename()} (${fs.statSync(pptxPath).size} o)`);
 
-  const report = await validatePptx(pptxPath, { minSlides: 3, expectEditableText: true });
+  // backgroundIsDecorative : l'export hybride « éditable » pose le texte en NATIF
+  // par-dessus le fond → un fond APLAT (blanc/primaire de l'alternance) est légitime
+  // tant que la slide porte du texte. Sans ça, un tirage sur fond uni était flaggé à
+  // tort « fond raté » (faux positif ~1 jour/3 selon la génération — cf. 21/07).
+  const report = await validatePptx(pptxPath, { minSlides: 3, expectEditableText: true, backgroundIsDecorative: true });
   console.log(
     `📦 Contenu : ${report.slideCount} slides (UI : ${uiSlides} aperçus), ${report.mediaCount} images, plus petite image ${report.mediaMinBytes} o, encre mini ${report.mediaMinInk < 0 ? "n/a" : (report.mediaMinInk * 100).toFixed(2) + " %"}, ${report.texts.filter((t) => t.trim()).length} runs de texte`,
   );
