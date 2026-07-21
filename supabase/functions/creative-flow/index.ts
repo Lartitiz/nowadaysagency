@@ -1812,7 +1812,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
             });
             const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
             if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
-            await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id);
+            await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id, typeof topicVal === "string" ? topicVal : undefined);
           } catch (e) {
             console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
           }

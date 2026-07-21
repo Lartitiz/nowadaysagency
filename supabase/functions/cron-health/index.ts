@@ -376,10 +376,19 @@ Deno.serve(async (req) => {
     // tant que la table n'existe pas encore (migration Lovable en attente).
     let cqEvents: any[] | null = null;
     try {
-      const cqRes = await supabase
+      // `content_preview` peut ne pas encore exister (migration Lovable déployée
+      // APRÈS l'edge) : on retente sans la colonne pour ne PAS perdre la source
+      // du score de gate — l'échantillon retombera alors sur les brouillons.
+      let cqRes: any = await supabase
         .from("content_quality_events")
-        .select("user_id, format, redac_score, redac_repassed, created_at")
+        .select("user_id, format, redac_score, redac_repassed, created_at, content_preview")
         .gte("created_at", since35d);
+      if (cqRes.error && /content_preview/.test(cqRes.error.message || "")) {
+        cqRes = await supabase
+          .from("content_quality_events")
+          .select("user_id, format, redac_score, redac_repassed, created_at")
+          .gte("created_at", since35d);
+      }
       if (!cqRes.error) cqEvents = (cqRes.data || []).filter((e: any) => isClient(e.user_id));
     } catch (_) { /* table absente : repli sur les brouillons */ }
     const eventScoreStats = (rows: any[]) => {
@@ -424,17 +433,43 @@ Deno.serve(async (req) => {
         return trunc(typeof sl === "string" ? sl : JSON.stringify(sl), 120);
       });
     };
-    const echantillon = carCur.slice(0, 15).map((c: any, i: number) => ({
-      ref: `c${i + 1}`,
-      format: c.carousel_type,
-      sujet: trunc(c.subject, 100),
-      hook: trunc(c.hook_text, 140),
-      caption: trunc(c.caption, 300),
-      apercu_slides: slideApercu(c.slides),
-      quality_score: typeof c.quality_score === "number" ? c.quality_score : null,
-      retravaille: estRetravaille(c),
-      au_calendrier: !!c.calendar_post_id,
-    }));
+    // Échantillon pour le juge : PRIORITÉ aux content_quality_events (écrits à
+    // CHAQUE génération → le juge n'est plus aveugle les semaines « génère-mais-
+    // jette »), repli sur les carrousels GARDÉS (generated_carousels) tant que les
+    // events n'ont pas de content_preview (rows d'avant la migration).
+    const cqCurPreview = (cqEvents || []).filter(
+      (e: any) => inWindow(e.created_at, curFrom, curTo) && e.content_preview,
+    );
+    let echantillon_source: "events" | "brouillons";
+    let echantillon: any[];
+    if (cqCurPreview.length) {
+      echantillon_source = "events";
+      echantillon = cqCurPreview.slice(0, 15).map((e: any, i: number) => {
+        const p = e.content_preview || {};
+        return {
+          ref: `c${i + 1}`,
+          format: e.format,
+          sujet: trunc(p.sujet, 100),
+          hook: trunc(p.hook, 140),
+          caption: trunc(p.caption, 300),
+          apercu_slides: Array.isArray(p.apercu_slides) ? p.apercu_slides.slice(0, 4) : [],
+          quality_score: typeof e.redac_score === "number" ? e.redac_score : null,
+        };
+      });
+    } else {
+      echantillon_source = "brouillons";
+      echantillon = carCur.slice(0, 15).map((c: any, i: number) => ({
+        ref: `c${i + 1}`,
+        format: c.carousel_type,
+        sujet: trunc(c.subject, 100),
+        hook: trunc(c.hook_text, 140),
+        caption: trunc(c.caption, 300),
+        apercu_slides: slideApercu(c.slides),
+        quality_score: typeof c.quality_score === "number" ? c.quality_score : null,
+        retravaille: estRetravaille(c),
+        au_calendrier: !!c.calendar_post_id,
+      }));
+    }
 
     const qualite = {
       score_gate: cqEvents && cqEvents.length
@@ -451,6 +486,7 @@ Deno.serve(async (req) => {
       retravail: { total_carrousels: carCur.length, retravailles, sujets_regeneres },
       par_format: parFormat,
       echantillon,
+      echantillon_source,
     };
 
     return json({

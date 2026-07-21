@@ -782,7 +782,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
         });
         content = gateMix.content;
         await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
-        await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspace_id);
+        await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspace_id, body.subject);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -902,7 +902,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           logger: (m) => console.log(m),
         });
         await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
-        await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspace_id);
+        await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspace_id, body.subject);
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -1312,7 +1312,7 @@ Réponds UNIQUEMENT en JSON valide :
         correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
       });
       content = gateExpress.content;
-      await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspace_id);
+      await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspace_id, body.subject);
     }
 
     // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
