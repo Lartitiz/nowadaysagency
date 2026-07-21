@@ -140,7 +140,10 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[720px]">
-        <DialogHeader>
+        {/* min-w-0 : sans lui, un nom long (fichier brut, suffixes) fixe la
+            largeur minimale de la grille du dialogue — le truncate ne joue
+            jamais et le dialogue déborde de l'écran en mobile. */}
+        <DialogHeader className="min-w-0">
           <DialogTitle className="truncate">{photo.name ?? "Photo"}</DialogTitle>
           {photo.background_prompt && (
             <DialogDescription className="line-clamp-2">
