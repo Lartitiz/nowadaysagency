@@ -120,14 +120,21 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   console.log(`📦 PPTX stories : ${report.slideCount} slides, ${report.texts.filter((t) => t.trim()).length} runs de texte`);
   expect(realProblems, `Défauts PPTX stories : ${realProblems.join(" | ")}`).toEqual([]);
 
-  // « Publier sur Instagram » ne doit PAS être actif pour une story : l'edge
+  // La publication directe ne doit PAS être active pour une story : l'edge
   // social-instagram-publish ne gère que le feed, une story partirait en post feed.
-  const publishIg = page.getByRole("button", { name: /publier sur instagram/i }).first();
-  if (await publishIg.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await expect(publishIg).toBeDisabled();
-    console.log("Bouton « Publier sur Instagram » présent mais désactivé (attendu pour une story)");
+  // Depuis le panneau « ultra-minimal », ça se vérifie DANS la fenêtre
+  // « Publier ou programmer » : options Maintenant/Programmer désactivées.
+  const publishEntry = page.getByTestId("publish-or-schedule").first();
+  if (await publishEntry.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await publishEntry.click();
+    const nowOption = page.getByTestId("publish-now-option");
+    await expect(nowOption).toBeVisible({ timeout: 5000 });
+    await expect(nowOption).toBeDisabled();
+    await expect(page.getByTestId("publish-schedule-option")).toBeDisabled();
+    console.log("Fenêtre de publication : Maintenant/Programmer désactivés (attendu pour une story)");
+    await page.keyboard.press("Escape");
   } else {
-    console.log("Bouton « Publier sur Instagram » absent pour une story (OK)");
+    console.log("Bouton « Publier ou programmer » absent pour une story (OK)");
   }
 
   // La zone sticker existe dans au moins un aperçu (contenu de l'iframe)

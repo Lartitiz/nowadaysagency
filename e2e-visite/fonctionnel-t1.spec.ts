@@ -2,12 +2,12 @@
  * T1 — Création post texte (Instagram + LinkedIn)
  *
  * Parcours : /creer → idée → format → "Générer directement" → résultat
- *            → "Ajouter au calendrier"
+ *            → "Publier ou programmer" → "Juste dans le calendrier"
  *
  * Critères couverts :
  * - Le streaming SSE s'affiche (texte visible dans les 60 s)
  * - Aucun JSON brut ne fuit dans le rendu
- * - "Ajouter au calendrier" déclenche bien le toast de succès
+ * - Le brouillon calendrier (option "Juste dans le calendrier") déclenche le toast de succès
  * - Variante LinkedIn : même flow, canal différent
  *
  * Note : le compte Camille est à 109 % de quota mais génère encore
@@ -160,7 +160,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
     throw new Error("Étape résultat jamais atteinte après 90 s (sans quota wall ni 429)");
   }
 
-  // ── Ajouter au calendrier ─────────────────────────────────────────────────
+  // ── Publier ou programmer → Juste dans le calendrier ─────────────────────
   // Ce bouton s'affiche UNIQUEMENT quand le streaming est terminé.
   // Si le quota bloque la génération, le spinner tourne indéfiniment :
   // on attrape le timeout et on vérifie la quota wall avant de skip/échouer.
@@ -169,7 +169,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
   // le timeout du front est à 180 s — le spec doit laisser au produit sa
   // fenêtre légitime avant de rougir (échec 2/2 du 10/07 = latence Sonnet 5,
   // pas un hang : diagnostic chip task_5b4a5a20).
-  const calBtn = page.getByRole("button", { name: /ajouter au calendrier/i }).first();
+  const calBtn = page.getByTestId("publish-or-schedule").first();
   let calBtnFound = false;
   try {
     await expect(calBtn).toBeVisible({ timeout: 150000 });
@@ -180,7 +180,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
       test.skip();
       return;
     }
-    throw new Error("Bouton 'Ajouter au calendrier' non trouvé après 150 s (sans quota wall ni 429)");
+    throw new Error("Bouton 'Publier ou programmer' non trouvé après 150 s (sans quota wall ni 429)");
   }
 
   await page.screenshot({ path: path.join(SHOTS, "t1a-instagram-result.png") });
@@ -191,11 +191,16 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
 
   await calBtn.click();
 
-  // La modal "Planifier la publication" s'ouvre avec un <input type="date"> natif
+  // La fenêtre « Publier ou programmer » s'ouvre → option « Juste dans le calendrier »
+  const draftOption = page.getByTestId("publish-draft-option");
+  await expect(draftOption).toBeVisible({ timeout: 5000 });
+  await draftOption.click();
+
+  // Le champ date natif apparaît sous l'option
   const dateInput = page.locator('input[type="date"]');
   await expect(dateInput).toBeVisible({ timeout: 5000 });
-  await dateInput.fill("2026-07-15");
-  // Bouton "Ajouter au calendrier" dans la modal (le dernier sur la page)
+  await dateInput.fill("2026-08-15");
+  // Bouton de confirmation "Ajouter au calendrier" dans la fenêtre
   const modalConfirm = page.getByRole("button", { name: /ajouter au calendrier/i }).last();
   await modalConfirm.click();
 

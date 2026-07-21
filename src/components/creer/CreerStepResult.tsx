@@ -1,5 +1,4 @@
-import { Loader2, Pencil, CalendarDays, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Instagram, Linkedin } from "lucide-react";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Loader2, Pencil, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Send, MoreHorizontal } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -15,7 +14,7 @@ import PinterestVisualResult from "@/components/creer/formatRenderers/PinterestV
 import PinterestPhotoBriefResult from "@/components/creer/formatRenderers/PinterestPhotoBriefResult";
 import Confetti from "@/components/Confetti";
 
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
 import { EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, type EditorialAngle } from "@/lib/content-structures";
 
@@ -224,8 +223,9 @@ interface Props {
   onRegenerate: () => void;
   onCopy: (text: string) => void;
   onSave?: () => void;
-  onCalendar?: () => void;
-  calendarLabel?: string;
+  /** Ouvre la fenêtre « Publier ou programmer » (ou sauvegarde directe si fromCalendar). */
+  onPublishOrSchedule?: () => void;
+  publishOrScheduleLabel?: string;
   onGenerateVisuals?: () => void;
   visualLoading?: boolean;
   /** Progression réelle des visuels (lots de slides terminés, SSE). null = barre simulée. */
@@ -266,14 +266,6 @@ interface Props {
   sourceIdea?: string;
   sourceObjective?: string;
   sourceAngle?: string | null;
-  /** Phase 1 publication directe Instagram. Si défini, affiche le bouton. */
-  onPublishInstagram?: () => void;
-  publishInstagramLoading?: boolean;
-  publishInstagramDisabledReason?: string | null;
-  /** Publication directe LinkedIn (texte). Si défini, affiche le bouton. */
-  onPublishLinkedIn?: () => void;
-  publishLinkedInLoading?: boolean;
-  publishLinkedInDisabledReason?: string | null;
 }
 
 export default function CreerStepResult({
@@ -289,8 +281,8 @@ export default function CreerStepResult({
   onRegenerate,
   onCopy,
   onSave,
-  onCalendar,
-  calendarLabel,
+  onPublishOrSchedule,
+  publishOrScheduleLabel,
   onGenerateVisuals,
   visualLoading,
   visualChunkProgress,
@@ -323,12 +315,6 @@ export default function CreerStepResult({
   sourceIdea,
   sourceObjective,
   sourceAngle,
-  onPublishInstagram,
-  publishInstagramLoading,
-  publishInstagramDisabledReason,
-  onPublishLinkedIn,
-  publishLinkedInLoading,
-  publishLinkedInDisabledReason,
 }: Props) {
   // ── Rotation des messages et tips pendant le loading ──
   const messages = PROGRESS_MESSAGES[format] || PROGRESS_MESSAGES.default;
@@ -516,6 +502,32 @@ export default function CreerStepResult({
   const hasVisuals = !!(visualSlides && visualSlides.length > 0);
   const isCarousel = format === "carousel";
 
+  // Texte propre à copier selon le format (déplacé tel quel dans le menu « Autres actions »).
+  const handleCopyText = () => {
+    if (format === "pinterest_photo" && result?.title) {
+      const b = result.photo_brief;
+      const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
+      onCopy(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
+      return;
+    }
+    if (format === "reel" && (result?.sections || result?.script)) {
+      const reelSections = result.sections || result.script || [];
+      const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
+      const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
+      onCopy(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
+      return;
+    }
+    if (format === "pinterest_visual" && result?.title) {
+      onCopy(`${result.title}\n\n${result.description || ""}`);
+      return;
+    }
+    const cleanText =
+      result?.full_text ||
+      result?.content ||
+      [result?.hook, result?.body, result?.cta].filter(Boolean).join("\n\n").trim();
+    onCopy(cleanText || JSON.stringify(result, null, 2));
+  };
+
   return (
     <div className="space-y-4 animate-fade-in">
       {showCelebration && <Confetti />}
@@ -593,8 +605,10 @@ export default function CreerStepResult({
         </Button>
       )}
 
-      {/* 3. CTAs principaux */}
-      {isCarousel && !hasVisuals ? (
+      {/* CTAs principaux — panneau « ultra-minimal » : 3 choix visibles
+          (Canva / Créer les visuels, Publier ou programmer, Autres actions).
+          Télécharger, Copier, les retouches et le rangement vivent dans le menu. */}
+      {isCarousel && !hasVisuals && (
         <div className="space-y-3">
           {visualLoading ? (
             <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 space-y-4">
@@ -640,227 +654,121 @@ export default function CreerStepResult({
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3">
-              {onGenerateVisuals && (
-                <Button
-                  onClick={onGenerateVisuals}
-                  className="h-11 gap-2 text-sm font-semibold"
-                >
-                  <Palette className="h-4 w-4" />
-                  Créer les visuels
-                </Button>
-              )}
-              {onCalendar && (
-                <Button
-                  variant="outline"
-                  onClick={onCalendar}
-                  className="h-11 gap-2 text-sm font-semibold"
-                >
-                  <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
-                </Button>
-              )}
-            </div>
-          )}
-          {visualLoading && onCalendar && (
-            <Button
-              variant="outline"
-              onClick={onCalendar}
-              className="w-full h-9 gap-2 text-xs text-muted-foreground"
-            >
-              <CalendarDays className="h-3.5 w-3.5" /> Ajouter au calendrier en attendant
-            </Button>
+            onGenerateVisuals && (
+              <Button
+                onClick={onGenerateVisuals}
+                className="w-full h-11 gap-2 text-sm font-semibold"
+              >
+                <Palette className="h-4 w-4" />
+                Créer les visuels
+              </Button>
+            )
           )}
         </div>
-      ) : (
-        onCalendar && (
-          <Button onClick={onCalendar} variant={isCarousel && hasVisuals ? "outline" : "default"} className="w-full gap-2 h-11 text-sm font-semibold">
-            <CalendarDays className="h-4 w-4" /> {calendarLabel || "Ajouter au calendrier"}
+      )}
+
+      {/* Publier ou programmer : porte d'entrée unique vers publication immédiate,
+          programmation auto et brouillon calendrier (fenêtre gérée par le parent). */}
+      {onPublishOrSchedule && (
+        <Button
+          data-testid="publish-or-schedule"
+          onClick={onPublishOrSchedule}
+          variant={isCarousel && ((hasVisuals && onOpenInCanva) || (!hasVisuals && onGenerateVisuals && !visualLoading)) ? "outline" : "default"}
+          className="w-full gap-2 h-11 text-sm font-semibold"
+        >
+          <Send className="h-4 w-4" /> {publishOrScheduleLabel || "Publier ou programmer"}
+        </Button>
+      )}
+
+      {/* Autres actions : télécharger, copier, retouches et rangement dans UN menu */}
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" data-testid="more-actions" className="w-full gap-1.5 h-10 text-sm text-muted-foreground">
+            <MoreHorizontal className="h-4 w-4" /> Autres actions <ChevronDown className="h-3 w-3 ml-0.5" />
           </Button>
-        )
-      )}
-
-      {/* Publication directe Instagram (phase 1 : 1 image) */}
-      {onPublishInstagram && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="w-full inline-block">
-                <Button
-                  variant="outline"
-                  onClick={onPublishInstagram}
-                  disabled={!!publishInstagramDisabledReason || publishInstagramLoading}
-                  className="w-full gap-2 h-10 text-sm"
-                >
-                  {publishInstagramLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Instagram className="h-4 w-4" />
-                  )}
-                  Publier sur Instagram
-                </Button>
-              </span>
-            </TooltipTrigger>
-            {publishInstagramDisabledReason && (
-              <TooltipContent>{publishInstagramDisabledReason}</TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {/* Publication directe LinkedIn (texte) */}
-      {onPublishLinkedIn && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="w-full inline-block">
-                <Button
-                  variant="outline"
-                  onClick={onPublishLinkedIn}
-                  disabled={!!publishLinkedInDisabledReason || publishLinkedInLoading}
-                  className="w-full gap-2 h-10 text-sm"
-                >
-                  {publishLinkedInLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Linkedin className="h-4 w-4" />
-                  )}
-                  Publier sur LinkedIn
-                </Button>
-              </span>
-            </TooltipTrigger>
-            {publishLinkedInDisabledReason && (
-              <TooltipContent>{publishLinkedInDisabledReason}</TooltipContent>
-            )}
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {/* 4. Actions secondaires — regroupées en blocs lisibles */}
-      <div className="space-y-3">
-
-      {/* ── Récupérer le visuel ── */}
-      <div className="space-y-1.5">
-        {isCarousel && hasVisuals && (
-          <p className="text-2xs text-muted-foreground text-center">Récupérer le visuel</p>
-        )}
-        <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="center" className="w-72">
+          {/* ── Récupérer le visuel / le texte ── */}
           {isCarousel && hasVisuals && (onExportVisualPng || onExportHybridPptx) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2">
+                <Download className="h-4 w-4" /> Télécharger
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-64">
                 <DownloadMenuItems
                   onPng={onExportVisualPng}
                   onPptxEditable={onExportHybridPptx}
                   count={visualSlides?.length ?? 1}
                 />
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           )}
           {isCarousel && !hasVisuals && onExportPptx && (
-            <Button variant="ghost" size="sm" onClick={onExportPptx} className="gap-1.5 text-xs text-muted-foreground">
-              <Download className="h-3.5 w-3.5" /> Télécharger PPTX
-            </Button>
+            <DropdownMenuItem onClick={onExportPptx} className="gap-2">
+              <Download className="h-4 w-4" /> Télécharger PPTX
+            </DropdownMenuItem>
           )}
           {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                  <Download className="h-3.5 w-3.5" /> Télécharger <ChevronDown className="h-3 w-3 ml-0.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2">
+                <Download className="h-4 w-4" /> Télécharger
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-64">
                 <DownloadMenuItems
                   onPng={onExportPinterestPng}
                   onPptxEditable={onExportPinterestEditablePptx}
                   count={1}
                 />
-              </DropdownMenuContent>
-            </DropdownMenu>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           )}
           {format === "pinterest_photo" && result?.overlay_html && onExportPinterestPng && (
-            <Button variant="ghost" size="sm" onClick={onExportPinterestPng} className="gap-1.5 text-xs text-muted-foreground">
-              <Download className="h-3.5 w-3.5" /> Télécharger PNG
-            </Button>
+            <DropdownMenuItem onClick={onExportPinterestPng} className="gap-2">
+              <Download className="h-4 w-4" /> Télécharger PNG
+            </DropdownMenuItem>
           )}
-          <Button variant="ghost" size="sm" onClick={() => {
-            if (format === "pinterest_photo" && result?.title) {
-              const b = result.photo_brief;
-              const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
-              onCopy(`📌 ${result.title}\n\n${result.description || ""}${briefText}`);
-              return;
-            }
-            if (format === "reel" && (result?.sections || result?.script)) {
-              const reelSections = result.sections || result.script || [];
-              const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
-              const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";
-              onCopy(`🎬 Script Reel (${result.duree_cible || ""})\n\n${scriptText}${tip}`);
-              return;
-            }
-            if (format === "pinterest_visual" && result?.title) {
-              onCopy(`${result.title}\n\n${result.description || ""}`);
-              return;
-            }
-            const cleanText =
-              result?.full_text ||
-              result?.content ||
-              [result?.hook, result?.body, result?.cta].filter(Boolean).join("\n\n").trim();
-            onCopy(cleanText || JSON.stringify(result, null, 2));
-          }} className="gap-1.5 text-xs text-muted-foreground">
-            <Copy className="h-3.5 w-3.5" /> Copier
-          </Button>
-        </div>
-      </div>
+          <DropdownMenuItem onClick={handleCopyText} className="gap-2">
+            <Copy className="h-4 w-4" /> Copier le texte
+          </DropdownMenuItem>
 
-      {/* ── Affiner ── */}
-      <div className="space-y-1.5">
-        {isCarousel && (
-          <p className="text-2xs text-muted-foreground text-center">Affiner</p>
-        )}
-        <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
-          {/* Éditer le texte — formats texte (le carrousel a son édition inline) */}
-          {!isCarousel && onEdit && result && !generating && (
-            <Button variant="ghost" size="sm" onClick={onEdit} className="gap-1.5 text-xs text-muted-foreground">
-              <Pencil className="h-3.5 w-3.5" /> Éditer le texte
-            </Button>
+          <DropdownMenuSeparator />
+
+          {/* ── Affiner ── */}
+          {!isCarousel && onEdit && result && (
+            <DropdownMenuItem onClick={onEdit} className="gap-2">
+              <Pencil className="h-4 w-4" /> Éditer le texte
+            </DropdownMenuItem>
           )}
           {isCarousel && hasVisuals && onGenerateVisuals && (
-            <Button variant="ghost" size="sm" onClick={onGenerateVisuals} disabled={visualLoading} className="gap-1.5 text-xs text-muted-foreground">
+            <DropdownMenuItem onClick={onGenerateVisuals} disabled={visualLoading} className="gap-2">
               {visualLoading ? (
-                <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Génération…</>
+                <><Loader2 className="h-4 w-4 animate-spin" /> Génération…</>
               ) : (
-                <><RefreshCw className="h-3.5 w-3.5" /> Regénérer visuels</>
+                <><RefreshCw className="h-4 w-4" /> Regénérer les visuels</>
               )}
-            </Button>
+            </DropdownMenuItem>
           )}
-          {isCarousel && !generating && result && (
-            <Button
-              variant="ghost"
-              size="sm"
+          {isCarousel && result && (
+            <DropdownMenuItem
               onClick={onRegenerate}
               title="Régénère le carrousel sur le même sujet (consomme 1 crédit)."
-              className="gap-1.5 text-xs text-muted-foreground"
+              className="gap-2"
             >
-              <RefreshCw className="h-3.5 w-3.5" /> Nouvelle proposition
-            </Button>
+              <RefreshCw className="h-4 w-4" /> Nouvelle proposition
+            </DropdownMenuItem>
           )}
-          {onChangeAngle && !generating && result && (() => {
+          {onChangeAngle && result && (() => {
             const angleList: EditorialAngle[] =
               currentChannel === "linkedin" ? LINKEDIN_EDITORIAL_ANGLES :
               currentChannel === "pinterest" ? PINTEREST_EDITORIAL_ANGLES :
               EDITORIAL_ANGLES;
             const currentLabel = currentAngle ? angleList.find(a => a.id === currentAngle)?.label : null;
             return (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                    <Palette className="h-3.5 w-3.5" /> Changer d'angle <ChevronDown className="h-3 w-3 ml-0.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-72 max-h-96 overflow-y-auto">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <Palette className="h-4 w-4" /> Changer d'angle
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-72 max-h-96 overflow-y-auto">
                   {currentLabel && (
                     <DropdownMenuLabel className="text-2xs text-muted-foreground font-normal">
                       Actuel : {currentLabel}
@@ -888,20 +796,18 @@ export default function CreerStepResult({
                       </div>
                     </DropdownMenuItem>
                   ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             );
           })()}
           {sourceIdea && sourceIdea.trim().length > 0 && (() => {
             const targets = TRANSFORM_TARGETS.filter((t) => t.id !== format);
             return (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 text-xs text-muted-foreground">
-                    <ArrowUpRight className="h-3.5 w-3.5" /> Transformer en <ChevronDown className="h-3 w-3 ml-0.5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger className="gap-2">
+                  <ArrowUpRight className="h-4 w-4" /> Transformer en
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent className="w-64">
                   <DropdownMenuLabel className="text-2xs font-normal text-muted-foreground">
                     Ouvre un nouvel onglet pré-rempli
                   </DropdownMenuLabel>
@@ -925,26 +831,24 @@ export default function CreerStepResult({
                       <span className="text-sm">{t.label}</span>
                     </DropdownMenuItem>
                   ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             );
           })()}
-        </div>
-      </div>
 
-      {/* ── Ranger ── */}
-      <div className="flex items-center justify-center gap-2 sm:gap-3 flex-wrap border-t border-border pt-3">
-        {onSave && (
-          <Button variant="ghost" size="sm" onClick={onSave} className="gap-1.5 text-xs text-muted-foreground">
-            <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
-          </Button>
-        )}
-        <Button variant="ghost" size="sm" onClick={onReset} className="gap-1.5 text-xs text-muted-foreground">
-          <RotateCcw className="h-3.5 w-3.5" /> Nouveau contenu
-        </Button>
-      </div>
+          <DropdownMenuSeparator />
 
-      </div>
+          {/* ── Ranger ── */}
+          {onSave && (
+            <DropdownMenuItem onClick={onSave} className="gap-2">
+              <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
+            </DropdownMenuItem>
+          )}
+          <DropdownMenuItem onClick={onReset} className="gap-2">
+            <RotateCcw className="h-4 w-4" /> Nouveau contenu
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }

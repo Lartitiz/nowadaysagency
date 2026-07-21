@@ -10,7 +10,8 @@ import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import PublishOrScheduleDialog from "@/components/creer/PublishOrScheduleDialog";
+import { useSocialConnections } from "@/hooks/use-social-connections";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,10 +22,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, CalendarDays, Palette, Sparkles } from "lucide-react";
+import { Loader2, Palette, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -408,8 +408,7 @@ export default function CreerUnifie() {
   const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? null);
-  const [calendarDialogOpen, setCalendarDialogOpen] = useState(false);
-  const [calendarDate, setCalendarDate] = useState(paramCalendarDate);
+  const [publishDialogOpen, setPublishDialogOpen] = useState(false);
   const [savingToCalendar, setSavingToCalendar] = useState(false);
 
   // Visual states (carousel only)
@@ -2446,7 +2445,7 @@ export default function CreerUnifie() {
       await handleSaveBackToCalendar();
       return;
     }
-    setCalendarDialogOpen(true);
+    setPublishDialogOpen(true);
   };
 
   // Upload helpers extraits dans src/features/creer/upload-helpers.ts (wrappers fins).
@@ -2457,14 +2456,29 @@ export default function CreerUnifie() {
   const uploadPinterestVisualToStorage = (postId: string, pinHtml: string): Promise<string[]> =>
     uploadPinterestVisualImpl(supabase, session?.user?.id, postId, pinHtml);
 
-  const handleConfirmCalendar = async () => {
-    if (!session?.user?.id || !calendarDate || savingToCalendar) return;
+  /**
+   * Sauvegarde le contenu dans calendar_posts.
+   * - Sans `scheduleAt` : brouillon éditorial classique (comportement historique).
+   * - Avec `scheduleAt` : pose EN PLUS l'auto-publication (auto_publish +
+   *   scheduled_publish_at) — le cron social-publish-scheduled publiera tout seul.
+   * Renvoie true si la programmation a bien été posée.
+   */
+  const handleConfirmCalendar = async ({ date, scheduleAt }: { date: string; scheduleAt?: Date }): Promise<boolean> => {
+    if (!session?.user?.id || !date || savingToCalendar) return false;
     setSavingToCalendar(true);
     try {
-      const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
+      let { contentDraft } = extractContentForCalendar();
+      const { accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
       const fmt = selectedFormat === "story" ? "story_serie" : (selectedFormat || "post");
       const canal = selectedFormat === "linkedin" || isLinkedInCarousel ? "linkedin" : selectedFormat === "pinterest" || selectedFormat === "pinterest_visual" || selectedFormat === "pinterest_photo" ? "pinterest" : selectedFormat === "newsletter" ? "newsletter" : "instagram";
+
+      // Programmation : le cron publie content_draft TEL QUEL comme légende.
+      // Le brouillon calendrier (déroulé « SLIDE 1 : … ») n'est pas publiable :
+      // on y met la légende propre, celle que la publication immédiate enverrait.
+      if (scheduleAt) {
+        contentDraft = canal === "linkedin" ? extractLinkedInText(r) : extractInstagramCaption(r);
+      }
 
       // Calculate calendar notes for inspiration-based pins
       let calendarNotes = "";
@@ -2479,7 +2493,7 @@ export default function CreerUnifie() {
       const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: session.user.id,
         ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
-        date: calendarDate,
+        date,
         theme: ideaText,
         status: "drafting",
         canal,
@@ -2501,6 +2515,9 @@ export default function CreerUnifie() {
       if (insertError) throw insertError;
 
       const postId = insertedPost?.id;
+      // Médias effectivement joints au post (visuels rendus > photos brutes) —
+      // c'est ce que le cron de publication programmée lira dans media_urls.
+      let attachedMedia: string[] | null = null;
 
       if (postId) {
         const updates: any = {};
@@ -2563,11 +2580,13 @@ export default function CreerUnifie() {
         if (Object.keys(updates).length > 0) {
           const currentDetail = storyDetail || {};
           // Surface les visuels/photos dans la colonne top-level media_urls :
-          // c'est elle que lisent la vue partagée et la vue liste (pas story_sequence_detail).
+          // c'est elle que lisent la vue partagée, la vue liste ET le cron de
+          // publication programmée (pas story_sequence_detail).
           const mediaForColumn =
             (updates.visual_urls && updates.visual_urls.length > 0)
               ? updates.visual_urls
               : (updates.photo_urls && updates.photo_urls.length > 0 ? updates.photo_urls : null);
+          attachedMedia = mediaForColumn;
           await supabase.from("calendar_posts").update({
             story_sequence_detail: {
               ...currentDetail,
@@ -2576,6 +2595,14 @@ export default function CreerUnifie() {
             ...(mediaForColumn ? { media_urls: mediaForColumn } : {}),
           }).eq("id", postId);
         }
+
+        // Programmation d'un post image simple sans upload (ex: photo Pexels) :
+        // l'image publiable vit à une URL https publique → on la met dans
+        // media_urls pour que le cron ait quelque chose à publier.
+        if (scheduleAt && canal === "instagram" && !attachedMedia && publishableImageUrl) {
+          attachedMedia = [publishableImageUrl];
+          await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
+        }
       }
 
       // Lier le brief au post calendrier
@@ -2583,17 +2610,46 @@ export default function CreerUnifie() {
         await supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId);
       }
 
-      toast.success("Ajouté au calendrier !");
-      setCalendarDialogOpen(false);
+      // Pose l'auto-publication (le cron social-publish-scheduled fera le reste).
+      let scheduled = false;
+      if (scheduleAt && postId) {
+        if (canal === "instagram" && (!attachedMedia || attachedMedia.length === 0)) {
+          toast.warning("Ajouté au calendrier en brouillon, mais pas programmé : aucun visuel n'a pu être joint. Réessaie la programmation depuis le calendrier.");
+        } else {
+          const { error: schedError } = await supabase.from("calendar_posts").update({
+            scheduled_publish_at: scheduleAt.toISOString(),
+            auto_publish: true,
+            publish_status: "scheduled",
+            publish_error: null,
+            updated_at: new Date().toISOString(),
+          } as any).eq("id", postId);
+          if (schedError) {
+            toast.warning("Ajouté au calendrier, mais la programmation a échoué. Programme-le depuis le calendrier.");
+          } else {
+            scheduled = true;
+          }
+        }
+      }
+
+      if (scheduled) {
+        toast.success("Publication programmée ! 🗓️", {
+          description: `${canal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce contenu automatiquement à l'heure prévue.`,
+        });
+      } else if (!scheduleAt) {
+        toast.success("Ajouté au calendrier !");
+      }
+      setPublishDialogOpen(false);
       clearFlowState();
 
       if (postId) {
-        navigate(`/calendrier?date=${calendarDate}&post=${postId}`);
+        navigate(`/calendrier?date=${date}&post=${postId}`);
       } else {
-        navigate(`/calendrier?date=${calendarDate}`);
+        navigate(`/calendrier?date=${date}`);
       }
+      return scheduled;
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
+      return false;
     } finally {
       setSavingToCalendar(false);
     }
@@ -3138,11 +3194,14 @@ export default function CreerUnifie() {
   // ═══ Publication directe Instagram (image simple OU carrousel) ═══
   const [publishingInstagram, setPublishingInstagram] = useState(false);
   const [publishingLinkedIn, setPublishingLinkedIn] = useState(false);
+  // Connexions sociales : conditionnent « Maintenant » / « Programmer » dans la
+  // fenêtre de publication (sans compte connecté, les deux échoueraient).
+  const { isConnected: isSocialConnected, getTokenExpiry } = useSocialConnections();
 
   const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
 
   const isCarouselPublish = selectedFormat === "carousel";
-  // Le bouton « Publier sur Instagram » n'apparaît que pour un contenu du canal
+  // L'option « Maintenant/Programmer » (Instagram) n'apparaît que pour un contenu du canal
   // Instagram : un post LinkedIn, un carrousel LinkedIn, une épingle Pinterest ou
   // une newsletter ne doivent pas le proposer, même désactivé.
   const showInstagramPublish = isInstagramPublishTarget({ selectedFormat, isLinkedInCarousel });
@@ -3253,6 +3312,58 @@ export default function CreerUnifie() {
       }
     } finally {
       setPublishingLinkedIn(false);
+    }
+  };
+
+  // ═══ Fenêtre « Publier ou programmer » ═══
+  // Canal de publication automatique du contenu affiché (null = brouillon seulement).
+  const publishChannel: "instagram" | "linkedin" | null =
+    isLinkedInTextPost ? "linkedin" : showInstagramPublish ? "instagram" : null;
+  const publishDialogDisabledReason =
+    publishChannel === "linkedin" ? publishLinkedInDisabledReason : publishInstagramDisabledReason;
+
+  const handlePublishNowFromDialog = async () => {
+    if (publishChannel === "linkedin") await handlePublishLinkedIn();
+    else await handlePublishInstagram();
+    setPublishDialogOpen(false);
+  };
+
+  // Programme la publication : mêmes gardes que la publication immédiate + compte
+  // connecté + date future, puis délègue à handleConfirmCalendar (insert + uploads
+  // + auto_publish). Le cron social-publish-scheduled publie à l'heure dite.
+  const handleScheduleFromDialog = async (input: string) => {
+    if (!publishChannel) return;
+    const reseau = publishChannel === "linkedin" ? "LinkedIn" : "Instagram";
+    if (publishDialogDisabledReason) {
+      toast.error(publishDialogDisabledReason);
+      return;
+    }
+    if (!isSocialConnected(publishChannel)) {
+      toast.error(`Compte ${reseau} non connecté`, {
+        description: "Connecte-le pour que ce contenu parte tout seul à l'heure prévue.",
+        action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") },
+      });
+      return;
+    }
+    const when = new Date(input);
+    if (!input || isNaN(when.getTime())) {
+      toast.error("Choisis une date et une heure.");
+      return;
+    }
+    if (when.getTime() < Date.now() + 60000) {
+      toast.error("Choisis une date/heure dans le futur.");
+      return;
+    }
+    const tokenExpiry = getTokenExpiry(publishChannel);
+    const scheduled = await handleConfirmCalendar({ date: input.split("T")[0], scheduleAt: when });
+    if (scheduled && tokenExpiry && when.getTime() > new Date(tokenExpiry).getTime()) {
+      // Programmé, mais le jeton OAuth sera expiré à l'heure dite → prévenir MAINTENANT
+      // plutôt que laisser la publication échouer en silence (même garde que le calendrier).
+      toast.warning("Programmé — mais reconnecte ton compte d'ici là ⚠️", {
+        duration: 12000,
+        description: `Ta connexion ${reseau} expire le ${new Date(tokenExpiry).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
+        action: { label: "Reconnecter", onClick: () => window.location.assign("/parametres/connexions") },
+      });
     }
   };
 
@@ -3781,8 +3892,8 @@ export default function CreerUnifie() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
-                onCalendar={effectiveHandleAddToCalendar}
-                calendarLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
+                onPublishOrSchedule={effectiveHandleAddToCalendar}
+                publishOrScheduleLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
                 onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}
                 visualLoading={visualLoading}
                 visualChunkProgress={visualChunkProgress}
@@ -3848,12 +3959,6 @@ export default function CreerUnifie() {
                 sourceIdea={ideaText}
                 sourceObjective={objective}
                 sourceAngle={editorialAngle}
-                onPublishInstagram={showInstagramPublish ? handlePublishInstagram : undefined}
-                publishInstagramLoading={publishingInstagram}
-                publishInstagramDisabledReason={publishInstagramDisabledReason}
-                onPublishLinkedIn={isLinkedInTextPost ? handlePublishLinkedIn : undefined}
-                publishLinkedInLoading={publishingLinkedIn}
-                publishLinkedInDisabledReason={publishLinkedInDisabledReason}
               />
             )}
 
@@ -3944,40 +4049,21 @@ export default function CreerUnifie() {
         </div>
       </div>
 
-      {/* Calendar date dialog */}
-      <Dialog open={calendarDialogOpen} onOpenChange={setCalendarDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5" />
-              Planifier la publication
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-foreground">Date de publication</label>
-              <Input
-                type="date"
-                value={calendarDate}
-                onChange={(e) => setCalendarDate(e.target.value)}
-                min={new Date().toISOString().split("T")[0]}
-              />
-            </div>
-            <Button
-              onClick={handleConfirmCalendar}
-              disabled={!calendarDate || savingToCalendar}
-              className="w-full gap-2"
-            >
-              {savingToCalendar ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <CalendarDays className="h-4 w-4" />
-              )}
-              {savingToCalendar ? "Ajout en cours..." : "Ajouter au calendrier"}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Fenêtre « Publier ou programmer » : publication immédiate, programmation
+          auto (cron social-publish-scheduled) ou simple brouillon calendrier. */}
+      <PublishOrScheduleDialog
+        open={publishDialogOpen}
+        onOpenChange={setPublishDialogOpen}
+        channel={publishChannel}
+        disabledReason={publishDialogDisabledReason}
+        channelConnected={publishChannel ? isSocialConnected(publishChannel) : false}
+        publishing={publishingInstagram || publishingLinkedIn}
+        onPublishNow={handlePublishNowFromDialog}
+        scheduling={savingToCalendar}
+        onSchedule={handleScheduleFromDialog}
+        onDraft={(d) => handleConfirmCalendar({ date: d })}
+        defaultDraftDate={paramCalendarDate || undefined}
+      />
 
       {/* Dialog "photos manquantes" : remplace le downgrade silencieux des
           carrousels mix/photo générés sans photos uploadées (cas typique :
