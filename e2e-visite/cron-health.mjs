@@ -125,7 +125,12 @@ try {
         for (const [f, v] of formats) console.log(`      ${String(f).padEnd(24)} ${String(v.generes).padStart(3)} → ${String(v.au_calendrier).padStart(3)} → ${String(v.publies).padStart(3)}`);
       }
       const ech = q.echantillon || [];
-      console.log(`   échantillon à juger (grille : singularité, hook, ancrage métier, tics, fidélité) : ${ech.length} contenu(s)`);
+      const srcLabel = q.echantillon_source === "events"
+        ? "toutes générations"
+        : q.echantillon_source === "brouillons"
+          ? "carrousels gardés seulement"
+          : q.echantillon_source || "?";
+      console.log(`   échantillon à juger (grille : singularité, hook, ancrage métier, tics, fidélité) : ${ech.length} contenu(s) [${srcLabel}]`);
       for (const e of ech) {
         const flags = `${e.au_calendrier ? " 📅" : ""}${e.retravaille ? " ✏️retravaillé" : ""}${e.quality_score != null ? ` [gate ${e.quality_score}]` : ""}`;
         console.log(`      • [${e.format}] ${e.sujet || "(sans sujet)"}${flags}`);
