@@ -551,7 +551,11 @@ export function useContentGenerator() {
               objective: objective || null,
               workspace_id: effectiveWorkspaceId || null,
               photo_mode: params.photoMode || undefined,
-              photos: params.photoMode && params.photos?.length ? params.photos.slice(0, 10).map(p => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context })) : undefined,
+              // Vision uniquement côté edge (jamais de rendu) : versions allégées,
+              // le master plein format reste côté client.
+              photos: params.photoMode && params.photos?.length
+                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map(p => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
+                : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
@@ -580,8 +584,9 @@ export function useContentGenerator() {
               editorialFormat: editorialAngle || null,
               workspace_id: effectiveWorkspaceId || null,
               photo_mode: params.photoMode || undefined,
+              // Vision uniquement (cf. case "post") : photos allégées.
               photos: params.photoMode && params.photos?.length
-                ? params.photos.slice(0, 10).map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
+                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
                 : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
@@ -749,8 +754,10 @@ export function useContentGenerator() {
               content_structure: structurePrompt || null,
               recent_briefs_context: recentBriefsContext || undefined,
               carousel_type: visionMode ? effectiveSubMode : undefined,
+              // Vision uniquement (questions ancrées) : photos allégées + cap à 10
+              // (le schéma zod de carousel-ai refuse au-delà de 10).
               photos: visionMode
-                ? params.photos!.map((p) => ({ base64: p.base64, context: p.context }))
+                ? (await downscalePhotosForVision(params.photos!.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType, context: p.context }))
                 : undefined,
               photo_description: visionMode ? params.photoDescription || undefined : undefined,
               ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
@@ -816,8 +823,9 @@ export function useContentGenerator() {
               objective: objective || null,
               recent_briefs_context: recentBriefsContext || undefined,
               photo_mode: photoModeCF || undefined,
+              // Vision uniquement (questions ancrées creative-flow) : photos allégées.
               photos: photoModeCF
-                ? params.photos!.slice(0, 10).map(p => ({
+                ? (await downscalePhotosForVision(params.photos!.slice(0, 10)))?.map(p => ({
                     base64: p.base64,
                     mimeType: p.mimeType || "image/jpeg",
                     context: p.context,
@@ -951,9 +959,11 @@ export function useContentGenerator() {
           ? {
               photo_mode: true,
               photo_description: photoDescription,
+              // Vision uniquement (stream post/LinkedIn/Pinterest) : photos
+              // allégées, le master plein format reste côté client.
               ...(photos && photos.length > 0 && photos[0]?.base64
                 ? {
-                    photos: photos.slice(0, 10).map((p) => ({
+                    photos: (await downscalePhotosForVision(photos.slice(0, 10)))?.map((p) => ({
                       base64: p.base64,
                       mimeType: p.mimeType || "image/jpeg",
                       context: p.context,
