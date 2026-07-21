@@ -1,8 +1,10 @@
 import { useCallback, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
+import { useSocialConnections } from "@/hooks/use-social-connections";
 
 // Onglet d'attente affiché PENDANT que Canva traite le fichier (1-2 min).
 // On l'ouvre dans le contexte du clic pour éviter le bloqueur de pop-up ;
@@ -32,11 +34,38 @@ function blobToBase64(blob: Blob): Promise<string> {
 export function useOpenInCanva() {
   const workspaceId = useWorkspaceId();
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { isConnected, known, refresh } = useSocialConnections();
   const [openingCanva, setOpeningCanva] = useState(false);
+
+  // false = on SAIT (réponse serveur) qu'aucun Canva n'est connecté ;
+  // null = statut encore inconnu (chargement ou échec réseau) → on ne bloque pas.
+  const canvaConnected: boolean | null = known ? isConnected("canva") : null;
+
+  const promptToConnect = useCallback(() => {
+    toast.error("Ton compte Canva n'est pas encore connecté.", {
+      description:
+        "Connecte-le une fois dans Paramètres → Connexions, et tes carrousels s'ouvriront dedans en un clic.",
+      action: {
+        label: "Connecter Canva",
+        onClick: () => navigate("/parametres/connexions"),
+      },
+      duration: 15000,
+    });
+    // Si la connexion vient d'être faite dans un autre onglet, ce refresh
+    // resynchronise le statut pour le prochain clic.
+    refresh();
+  }, [navigate, refresh]);
 
   const openInCanva = useCallback(
     async (buildBlob: () => Promise<Blob>, title: string) => {
       if (openingCanva) return;
+      // Garde AVANT tout travail : sans Canva connecté, inutile d'ouvrir un
+      // onglet et de préparer le fichier pendant 1-2 min pour échouer à la fin.
+      if (canvaConnected === false) {
+        promptToConnect();
+        return;
+      }
       // Onglet ouvert TOUT DE SUITE (geste utilisateur) pour ne pas être bloqué
       // par le pop-up blocker après les ~1-2 min d'import.
       const canvaTab = window.open("", "_blank");
@@ -85,11 +114,10 @@ export function useOpenInCanva() {
           120000,
         );
 
+        // Filet serveur (statut local périmé ou inconnu) : même invitation à connecter.
         if ((data as any)?.error === "not_connected") {
           if (canvaTab && !canvaTab.closed) canvaTab.close();
-          toast.error(
-            "Connecte d'abord ton compte Canva dans Paramètres → Réseaux sociaux.",
-          );
+          promptToConnect();
           return;
         }
         if (error) throw new Error(error.message);
@@ -125,8 +153,8 @@ export function useOpenInCanva() {
         setOpeningCanva(false);
       }
     },
-    [openingCanva, workspaceId, user?.id],
+    [openingCanva, workspaceId, user?.id, canvaConnected, promptToConnect],
   );
 
-  return { openInCanva, openingCanva };
+  return { openInCanva, openingCanva, canvaConnected };
 }

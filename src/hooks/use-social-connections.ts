@@ -17,6 +17,10 @@ export function useSocialConnections() {
   const [connected, setConnected] = useState<Record<string, boolean>>({});
   const [expiresAt, setExpiresAt] = useState<Record<string, string | null>>({});
   const [loading, setLoading] = useState(true);
+  // true uniquement après une réponse RÉUSSIE de social-status : permet de
+  // distinguer « vraiment pas connecté » d'un simple échec réseau (où l'on ne
+  // doit jamais bloquer l'utilisatrice sur un faux négatif).
+  const [known, setKnown] = useState(false);
 
   const load = useCallback(() => {
     if (!user) { setLoading(false); return; }
@@ -25,8 +29,10 @@ export function useSocialConnections() {
       .invoke("social-status", {
         body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
       })
-      .then(({ data }) => {
-        const conns = (data as any)?.connections || [];
+      .then(({ data, error }) => {
+        // Réponse en erreur (edge KO, cold start…) → statut inconnu, pas « déconnecté ».
+        if (error || !Array.isArray((data as any)?.connections)) return;
+        const conns = (data as any).connections;
         const map: Record<string, boolean> = {};
         const expMap: Record<string, string | null> = {};
         for (const c of conns) {
@@ -36,6 +42,7 @@ export function useSocialConnections() {
         }
         setConnected(map);
         setExpiresAt(expMap);
+        setKnown(true);
       })
       .catch(() => { /* non bloquant : on n'empêche jamais l'usage de l'app */ })
       .finally(() => setLoading(false));
@@ -54,5 +61,5 @@ export function useSocialConnections() {
     [expiresAt],
   );
 
-  return { connected, loading, isConnected, getTokenExpiry, refresh: load };
+  return { connected, loading, known, isConnected, getTokenExpiry, refresh: load };
 }
