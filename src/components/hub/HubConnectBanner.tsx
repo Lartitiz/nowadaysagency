@@ -19,7 +19,7 @@ const COPY: Record<string, { emoji: string; label: string; benefit: string }> = 
  * quand il ne l'est pas. Ne s'affiche jamais si le compte est déjà connecté
  * (ni pendant le chargement, pour éviter un flash anxiogène « déconnecté ?! »).
  */
-export default function HubConnectBanner({ platform }: { platform: SocialPlatform }) {
+export default function HubConnectBanner({ platform, benefit }: { platform: SocialPlatform; benefit?: string }) {
   const { isConnected, loading } = useSocialConnections();
   const copy = COPY[platform];
   if (!copy) return null;
@@ -30,7 +30,7 @@ export default function HubConnectBanner({ platform }: { platform: SocialPlatfor
       <div className="flex items-start gap-2.5 text-sm text-foreground min-w-0">
         <span className="text-lg leading-none shrink-0" aria-hidden="true">{copy.emoji}</span>
         <span>
-          Connecte ton compte <strong>{copy.label}</strong> pour {copy.benefit}.
+          Connecte ton compte <strong>{copy.label}</strong> pour {benefit || copy.benefit}.
         </span>
       </div>
       <Link
