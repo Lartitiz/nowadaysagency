@@ -2452,8 +2452,8 @@ export default function CreerUnifie() {
   // Upload helpers extraits dans src/features/creer/upload-helpers.ts (wrappers fins).
   const uploadPhotosToStorage = (postId: string): Promise<string[]> =>
     uploadPhotosImpl(supabase, session?.user?.id, postId, uploadedPhotos);
-  const uploadVisualsToStorage = (postId: string): Promise<string[]> =>
-    uploadVisualsImpl(supabase, session?.user?.id, postId, visualSlides);
+  const uploadVisualsToStorage = (postId: string, onProgress?: (done: number, total: number) => void): Promise<string[]> =>
+    uploadVisualsImpl(supabase, session?.user?.id, postId, visualSlides, onProgress);
   const uploadPinterestVisualToStorage = (postId: string, pinHtml: string): Promise<string[]> =>
     uploadPinterestVisualImpl(supabase, session?.user?.id, postId, pinHtml);
 

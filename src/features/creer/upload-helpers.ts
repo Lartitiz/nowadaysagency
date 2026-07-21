@@ -54,6 +54,7 @@ export async function uploadVisualsToStorage(
   userId: string | undefined,
   postId: string,
   visualSlides: VisualSlide[],
+  onProgress?: (done: number, total: number) => void,
 ): Promise<string[]> {
   if (!userId || visualSlides.length === 0) return [];
 
@@ -62,10 +63,11 @@ export async function uploadVisualsToStorage(
   document.body.appendChild(container);
 
   const urls: string[] = [];
+  let done = 0;
   try {
     for (const vs of visualSlides) {
       container.innerHTML = vs.html;
-      await document.fonts.ready;
+      await document.fonts?.ready;
       await new Promise(r => setTimeout(r, 400));
 
       const canvas = await (await import("html2canvas")).default(container, {
@@ -89,14 +91,16 @@ export async function uploadVisualsToStorage(
 
       if (error) {
         console.error(`Failed to upload slide ${vs.slide_number}:`, error);
-        continue;
+      } else {
+        const { data: urlData } = supabase.storage
+          .from("calendar-visuals")
+          .getPublicUrl(path);
+
+        urls.push(urlData.publicUrl);
       }
 
-      const { data: urlData } = supabase.storage
-        .from("calendar-visuals")
-        .getPublicUrl(path);
-
-      urls.push(urlData.publicUrl);
+      done += 1;
+      onProgress?.(done, visualSlides.length);
     }
   } finally {
     document.body.removeChild(container);
