@@ -109,3 +109,79 @@ describe("validatePptx — fond raté vs fond légitimement uniforme", () => {
     expect(r.problems[0]).toMatch(/image-2-1\.png/);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Faux positif « fond raté » sur un fond APLAT hybride (21/07).
+//
+// Dans l'export hybride « éditable », le texte est posé en NATIF par-dessus le
+// fond ; un fond aplat (blanc/primaire, tirage normal de l'alternance
+// texture/blanc/primaire) est un CHOIX de design, pas une capture ratée. Le poids
+// ne tranche pas (un aplat pèse pareil qu'une capture blanche). Seul signal : la
+// slide porte-t-elle du texte natif ? `backgroundIsDecorative` n'exempte l'aplat
+// QUE des slides qui ont du texte — une slide sans fond ET sans texte reste
+// flaggée. Les rels (slideN.xml.rels → media) portent la correspondance fond↔slide.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const SLIDE_SANS_TEXTE = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+ xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree>
+ </p:spTree></p:cSld></p:sld>`;
+
+const REL = (media: string) =>
+  `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+  `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+  `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" ` +
+  `Target="../media/${media}"/></Relationships>`;
+
+/** .pptx minimal AVEC rels : une slide par entrée, texte natif optionnel. */
+async function valideRels(
+  slides: { media: string; buf: Buffer; texte: boolean }[],
+  opts: Parameters<typeof validatePptx>[1] = {},
+) {
+  const zip = new JSZip();
+  slides.forEach((s, i) => {
+    const n = i + 1;
+    zip.file(`ppt/slides/slide${n}.xml`, s.texte ? SLIDE_XML : SLIDE_SANS_TEXTE);
+    zip.file(`ppt/slides/_rels/slide${n}.xml.rels`, REL(s.media));
+    zip.file(`ppt/media/${s.media}`, s.buf);
+  });
+  zip.file("docProps/thumbnail.txt", "x".repeat(20_000));
+  const buf = await zip.generateAsync({ type: "nodebuffer" });
+  const p = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "pptx-")), "t.pptx");
+  fs.writeFileSync(p, buf);
+  return validatePptx(p, opts);
+}
+
+describe("validatePptx — fond aplat hybride légitime (texte natif par-dessus)", () => {
+  it("garde-fou : les aplats sont bien décodés (mediaMinInk ~0, pas -1)", async () => {
+    const r = await valideRels([{ media: "image-1-1.png", buf: APLAT_BLANC, texte: true }], { minSlides: 1 });
+    expect(r.mediaMinInk).toBeGreaterThanOrEqual(0);
+    expect(r.mediaMinInk).toBeLessThan(0.001);
+  });
+
+  it("backgroundIsDecorative : exempte l'aplat de la slide AVEC texte, PAS celle sans texte", async () => {
+    const r = await valideRels(
+      [
+        { media: "image-1-1.png", buf: APLAT_BLANC, texte: true }, // fond uni VOULU
+        { media: "image-2-1.png", buf: APLAT_BLANC, texte: false }, // vraie capture ratée
+      ],
+      { minSlides: 2, backgroundIsDecorative: true },
+    );
+    const fondRates = r.problems.filter((p) => p.startsWith("fond raté"));
+    expect(fondRates.some((p) => p.includes("image-1-1.png"))).toBe(false);
+    expect(fondRates.some((p) => p.includes("image-2-1.png"))).toBe(true);
+  });
+
+  it("export VISUEL (sans backgroundIsDecorative) : l'aplat reste flaggé même avec du texte (strict inchangé)", async () => {
+    const r = await valideRels([{ media: "image-1-1.png", buf: APLAT_BLANC, texte: true }], { minSlides: 1 });
+    expect(r.problems.some((p) => p.startsWith("fond raté") && p.includes("image-1-1.png"))).toBe(true);
+  });
+
+  it("ne masque PAS un VOILE #575 : texture disparue reste flaggée même en décoratif + texte", async () => {
+    const r = await valideRels([{ media: "image-1-1.png", buf: VOILE_SANS_FOND, texte: true }], {
+      minSlides: 1,
+      backgroundIsDecorative: true,
+    });
+    expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(true);
+  });
+});
