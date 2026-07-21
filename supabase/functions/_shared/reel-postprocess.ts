@@ -10,6 +10,8 @@
 // 3. Détection des violations face_cam=non (l'utilisatrice ne veut pas se
 //    montrer : aucun plan ni format visuel face cam ne doit subsister).
 
+import { fixFrenchElisions } from "./redac-gate.ts";
+
 /** Rythme parlé naturel : 2,5 mots par seconde (~150 mots/min). */
 const WORDS_PER_SECOND = 2.5;
 
@@ -72,6 +74,43 @@ export function recalibrateReelTimings(parsed: any): void {
   parsed.duree_cible = `${cursor} sec`;
   // Miroir strict : l'UI lit `sections`, le calendrier lit `script`.
   if (Array.isArray(parsed.script)) parsed.sections = parsed.script;
+}
+
+/**
+ * Aligne la durée de la prise face cam du plan_tournage sur le chronométrage
+ * RÉEL du script (recalculé par recalibrateReelTimings — à appeler après).
+ * Le modèle recopie la durée de l'exemple du prompt (« 1 prise de 60 sec »)
+ * sans la relier au script : vu au re-test du 21/07, monologue chronométré
+ * 84 s mais plan annonçant « 1 prise de 45-50 sec ». Déterministe > déclaratif.
+ * On ne touche qu'au cas non ambigu : UNE seule prise face cam (elle porte
+ * forcément tout le monologue) ; plusieurs prises face cam = découpage voulu
+ * par le modèle, on ne sait pas répartir → inchangé.
+ */
+export function alignFaceCamTakeDuration(parsed: any): void {
+  const plans = Array.isArray(parsed?.plan_tournage) ? parsed.plan_tournage : [];
+  const faceCams = plans.filter((p: any) => String(p?.type || "") === "face_cam");
+  if (faceCams.length !== 1) return;
+  const totalSecs = Math.round(countReelSpokenWords(parsed) / WORDS_PER_SECOND);
+  if (totalSecs < 5) return;
+  faceCams[0].duree = `1 prise de ~${totalSecs} sec (tout le texte en continu)`;
+}
+
+/**
+ * Élisions françaises manquantes sur tous les textes du reel (sections, caption,
+ * cover) — filet déterministe, cf fixFrenchElisions. À appeler APRÈS
+ * enforceSelectedReelHook (corriger une coquille objective du hook choisi n'est
+ * pas le réécrire) et AVANT rebuildReelLectureTest (le monologue reconstruit
+ * reprend les textes corrigés).
+ */
+export function applyReelElisions(parsed: any): void {
+  for (const s of sectionsOf(parsed)) {
+    if (typeof s.texte_parle === "string") s.texte_parle = fixFrenchElisions(s.texte_parle);
+    if (typeof s.texte_overlay === "string") s.texte_overlay = fixFrenchElisions(s.texte_overlay);
+  }
+  if (typeof parsed?.caption?.text === "string") parsed.caption.text = fixFrenchElisions(parsed.caption.text);
+  if (typeof parsed?.caption?.cta === "string") parsed.caption.cta = fixFrenchElisions(parsed.caption.cta);
+  if (typeof parsed?.cover_text === "string") parsed.cover_text = fixFrenchElisions(parsed.cover_text);
+  if (Array.isArray(parsed?.script)) parsed.sections = parsed.script;
 }
 
 /**

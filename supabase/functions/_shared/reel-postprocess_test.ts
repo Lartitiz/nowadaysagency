@@ -1,5 +1,7 @@
 import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import {
+  alignFaceCamTakeDuration,
+  applyReelElisions,
   countReelSpokenWords,
   enforceReelNoFaceCam,
   enforceSelectedReelHook,
@@ -193,4 +195,59 @@ Deno.test("enforceSelectedReelHook : hook déjà identique = false (idempotent)"
   const reel = sampleReel() as any;
   enforceSelectedReelHook(reel, { text: "Nouveau hook choisi.", text_overlay: "OVERLAY CHOISI" });
   assertEquals(enforceSelectedReelHook(reel, { text: "Nouveau hook choisi.", text_overlay: "OVERLAY CHOISI" }), false);
+});
+
+
+// ── alignFaceCamTakeDuration (re-tests 21/07 : script 84 s vs « 1 prise de 45-50 sec ») ──
+
+Deno.test("alignFaceCamTakeDuration : la prise face cam unique couvre le monologue recompté", () => {
+  const reel: any = {
+    script: [
+      { section: "hook", texte_parle: Array(25).fill("mot").join(" ") },   // 10 s
+      { section: "body", texte_parle: Array(125).fill("mot").join(" ") },  // 50 s
+    ],
+    plan_tournage: [
+      { plan: "Toi face caméra", type: "face_cam", duree: "1 prise de 45-50 sec (tout le texte en continu)" },
+      { plan: "Gros plan budget", type: "insert", duree: "8-10 sec de rush" },
+    ],
+  };
+  alignFaceCamTakeDuration(reel);
+  assertEquals(reel.plan_tournage[0].duree, "1 prise de ~60 sec (tout le texte en continu)");
+  assertEquals(reel.plan_tournage[1].duree, "8-10 sec de rush"); // les autres plans ne bougent pas
+});
+
+Deno.test("alignFaceCamTakeDuration : plusieurs prises face cam = découpage voulu, inchangé", () => {
+  const reel: any = {
+    script: [{ section: "hook", texte_parle: Array(100).fill("mot").join(" ") }],
+    plan_tournage: [
+      { plan: "Face cam 1", type: "face_cam", duree: "1 prise de 20 sec" },
+      { plan: "Face cam 2", type: "face_cam", duree: "1 prise de 20 sec" },
+    ],
+  };
+  alignFaceCamTakeDuration(reel);
+  assertEquals(reel.plan_tournage[0].duree, "1 prise de 20 sec");
+});
+
+Deno.test("alignFaceCamTakeDuration : sans plan_tournage ou script vide, no-op", () => {
+  alignFaceCamTakeDuration({});
+  alignFaceCamTakeDuration({ plan_tournage: [{ type: "face_cam", duree: "x" }], script: [] });
+});
+
+// ── applyReelElisions ──
+
+Deno.test("applyReelElisions : corrige sections, caption et cover", () => {
+  const reel: any = {
+    script: [
+      { section: "hook", texte_parle: "On montre le avant/après qui brille.", texte_overlay: "LE AVANT/APRÈS" },
+    ],
+    caption: { text: "Les photos de avant.", cta: "Dis-moi que avant c'était mieux ?" },
+    cover_text: "le avant/après",
+  };
+  applyReelElisions(reel);
+  assertEquals(reel.script[0].texte_parle, "On montre l'avant/après qui brille.");
+  assertEquals(reel.script[0].texte_overlay, "L'AVANT/APRÈS");
+  assertEquals(reel.caption.text, "Les photos d'avant.");
+  assertEquals(reel.caption.cta, "Dis-moi qu'avant c'était mieux ?");
+  assertEquals(reel.cover_text, "l'avant/après");
+  assertEquals(reel.sections, reel.script);
 });

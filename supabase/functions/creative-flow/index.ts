@@ -15,9 +15,11 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, numbersIn, runRedacGate } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import {
+  alignFaceCamTakeDuration,
+  applyReelElisions,
   countReelSpokenWords,
   enforceReelNoFaceCam,
   enforceSelectedReelHook,
@@ -710,6 +712,9 @@ RÈGLES ABSOLUES :
 4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
 5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
    SA matière (contexte de marque ci-dessus).
+5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
+   jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
+   « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.
 6. format_recommande = la structure que ce hook appelle naturellement
    (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
    cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
@@ -2083,6 +2088,10 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
       // Objets valides uniquement : un hook sans texte parlé est inutilisable.
       parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
+      // Élisions déterministes AVANT affichage : le hook choisi est ensuite
+      // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
+      // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
+      for (const h of parsed.hooks) fixElisionsInFields(h, ["text", "text_overlay"]);
     }
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
@@ -2122,6 +2131,9 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       } catch (corrErr) {
         console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
       }
+      // Filet déterministe (hors try : s'applique même si la passe a échoué) :
+      // élisions manquantes type « le avant/après » (vécu 21/07).
+      fixElisionsInFields(parsed, ["content", "accroche"]);
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
@@ -2193,8 +2205,12 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
       // - timings recomptés sur la version FINALE du texte.
       enforceSelectedReelHook(parsed, body.selected_hook);
+      applyReelElisions(parsed);
       rebuildReelLectureTest(parsed);
       recalibrateReelTimings(parsed);
+      // La prise face cam du plan de tournage doit couvrir le monologue recompté
+      // (le modèle recopie la durée de l'exemple du prompt sans la relier au script).
+      alignFaceCamTakeDuration(parsed);
     }
 
     // ═══ RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories, lot B) ═══

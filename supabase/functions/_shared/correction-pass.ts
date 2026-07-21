@@ -74,6 +74,10 @@ Le critère : INDISTINGUABLE d'un humain.
 
 10. GENRÉ : ajoute le point médian.
 
+10bis. FAUTES DE FRANÇAIS (élisions, homophones) : corrige sans reformuler.
+   ❌ "le avant/après qui brille" → ✅ "l'avant/après qui brille"
+   ❌ "qu'on marchand de biens" → ✅ "qu'un marchand de biens"
+
 11. REDONDANCE : 2+ paragraphes même idée → garde le plus CONCRET.
 
 12. LONGUEUR : cible 1300-2000 caractères. Ne raccourcis PAS un post déjà dans cette fourchette.
@@ -246,6 +250,10 @@ et tu dois les CORRIGER systématiquement, même subtils.
 7. CONNECTEURS ORAUX : chaque section parlée (hors hook) doit S'ENCHAÎNER sur la
    précédente ("Sauf que", "Et là", "Le truc c'est que", "Donc"). Ne supprime
    JAMAIS un connecteur existant : c'est le monologue voulu.
+
+8. FAUTES DE FRANÇAIS (élisions, homophones) : corrige sans reformuler.
+   ❌ "qu'on marchand de biens ça cache" → ✅ "qu'un marchand de biens, ça cache"
+   ❌ "le avant/après" → ✅ "l'avant/après"
 
 ══ RÈGLES ABSOLUES ══
 - Réponds avec les MÊMES marqueurs de section, dans le MÊME ordre. Aucun marqueur

@@ -228,6 +228,9 @@ interface Props {
   publishOrScheduleLabel?: string;
   onGenerateVisuals?: () => void;
   visualLoading?: boolean;
+  /** Échec des tentatives AUTO de visuels : affiché près du bouton « Créer les visuels »
+      (les tentatives auto ne toastent pas — sans ce message, l'échec serait muet). */
+  visualsAutoError?: string | null;
   /** Progression réelle des visuels (lots de slides terminés, SSE). null = barre simulée. */
   visualChunkProgress?: { done: number; total: number } | null;
   visualSlides?: { slide_number: number; html: string }[];
@@ -285,6 +288,7 @@ export default function CreerStepResult({
   publishOrScheduleLabel,
   onGenerateVisuals,
   visualLoading,
+  visualsAutoError,
   visualChunkProgress,
   visualSlides,
   onVisualSlidesUpdate,
@@ -655,13 +659,23 @@ export default function CreerStepResult({
             </div>
           ) : (
             onGenerateVisuals && (
-              <Button
-                onClick={onGenerateVisuals}
-                className="w-full h-11 gap-2 text-sm font-semibold"
-              >
-                <Palette className="h-4 w-4" />
-                Créer les visuels
-              </Button>
+              <div className="space-y-2">
+                {visualsAutoError && (
+                  <p
+                    data-testid="visuals-auto-error"
+                    className="text-xs text-warning bg-warning-bg border border-warning/30 rounded-lg px-3 py-2"
+                  >
+                    {visualsAutoError} Relance quand tu veux avec le bouton ci-dessous.
+                  </p>
+                )}
+                <Button
+                  onClick={onGenerateVisuals}
+                  className="w-full h-11 gap-2 text-sm font-semibold"
+                >
+                  <Palette className="h-4 w-4" />
+                  {visualsAutoError ? "Réessayer les visuels" : "Créer les visuels"}
+                </Button>
+              </div>
             )
           )}
         </div>
