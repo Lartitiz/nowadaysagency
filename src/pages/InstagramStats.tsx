@@ -1232,7 +1232,7 @@ export default function InstagramStats() {
               </Button>
             )}
           </div>
-        ) : igStatusChecked && ga4Connected && (
+        ) : igStatusChecked && ga4Connected ? (
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <span>📈</span>
@@ -1253,6 +1253,15 @@ export default function InstagramStats() {
                   : <><HistoryIcon className="h-3.5 w-3.5" />Récupérer 12 mois d'historique</>}
               </Button>
             </div>
+          </div>
+        ) : igStatusChecked && (
+          /* Google non connecté : même invite que pour Instagram juste au-dessus —
+             sans elle, personne ne sait que le remplissage auto du site existe. */
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
+            <span className="flex items-start gap-2"><span>📈</span><span>Connecte Google Analytics pour remplir les stats de ton site web automatiquement.</span></span>
+            <Button asChild variant="outline" size="sm" className="shrink-0">
+              <Link to="/parametres/connexions">Connecter Google Analytics</Link>
+            </Button>
           </div>
         )}
 
