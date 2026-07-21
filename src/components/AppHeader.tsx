@@ -311,8 +311,11 @@ function AppHeaderInner() {
         <div className="flex h-12 items-center justify-between gap-2 pl-14 pr-4">
           <div className="flex items-center gap-2 min-w-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-              <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
-              {/* multi-espaces : chaque pixel compte pour afficher le nom de l'espace → badge beta sacrifié */}
+              {/* multi-espaces : chaque pixel compte pour afficher le nom de l'espace
+                  → logo raccourci (« L'Assistant ») et badge beta sacrifiés */}
+              <span className="font-display text-sm font-bold text-foreground">
+                {isMultiWorkspace ? "L'Assistant" : "L'Assistant Com'"}
+              </span>
               {!isMultiWorkspace && (
                 <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
               )}
