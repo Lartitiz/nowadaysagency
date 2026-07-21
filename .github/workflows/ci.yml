@@ -42,6 +42,12 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      # Type-check bloquant : le build Vite ne verifie PAS les types (lecon PR #496 :
+      # un identifiant non importe a atteint la prod en ReferenceError). tsc passe a
+      # 0 erreur sur main depuis #577 — on verrouille pour que ca le reste.
+      - name: Type-check
+        run: npx tsc --noEmit -p tsconfig.app.json
+
       - name: Unit tests
         run: npm test
 
