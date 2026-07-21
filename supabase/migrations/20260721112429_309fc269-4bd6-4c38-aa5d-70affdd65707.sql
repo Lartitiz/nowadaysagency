@@ -1,0 +1,1 @@
+ALTER TABLE public.content_quality_events ADD COLUMN IF NOT EXISTS content_preview jsonb;
