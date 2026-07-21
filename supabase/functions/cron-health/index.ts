@@ -85,6 +85,30 @@ async function photoroomCredits(now: number) {
   }
 }
 
+// PostgREST plafonne silencieusement chaque select à 1000 lignes (leçon PR #456 :
+// ai_usage avait dépassé le seuil et les stats étaient fausses sans aucune erreur).
+// Toute lecture de table qui grossit passe donc par cette boucle paginée — même
+// pattern que activation-funnel / admin-users. content_quality_events est écrite à
+// CHAQUE génération (PR #593) : c'est la première à franchir 1000 lignes sur 35 j.
+async function fetchAllRows(
+  supabase: any,
+  table: string,
+  columns: string,
+  modify?: (q: any) => any,
+): Promise<any[]> {
+  const PAGE = 1000;
+  const rows: any[] = [];
+  for (let from = 0; ; from += PAGE) {
+    let q = supabase.from(table).select(columns);
+    if (modify) q = modify(q);
+    const { data, error } = await q.range(from, from + PAGE - 1);
+    if (error) throw error;
+    rows.push(...(data || []));
+    if (!data || data.length < PAGE) break;
+  }
+  return rows;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors });
   try {
@@ -98,40 +122,41 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
-    const profRes = await supabase.from("profiles").select("user_id, email, created_at");
-    if (profRes.error) throw profRes.error;
+    const profiles = await fetchAllRows(supabase, "profiles", "user_id, email, created_at");
     const excludeFn = scope === "daily" ? isTestEmail : isExcludedEmail;
     const excludedIds = new Set(
-      (profRes.data || []).filter((p: any) => excludeFn(p.email)).map((p: any) => p.user_id),
+      profiles.filter((p: any) => excludeFn(p.email)).map((p: any) => p.user_id),
     );
     const isClient = (userId: string) => !excludedIds.has(userId);
     const now = Date.now();
 
     if (scope === "daily") {
-      const [postsRes, connRes, fbRes, fbNewRes, photoroom] = await Promise.all([
-        supabase
-          .from("calendar_posts")
-          .select("user_id, canal, publish_status, publish_error, scheduled_publish_at, published_at, updated_at")
-          .in("publish_status", ["failed", "publishing", "scheduled", "published"]),
-        supabase
-          .from("social_connections")
-          .select("user_id, platform, platform_account_name, token_expires_at, updated_at"),
-        supabase
-          .from("beta_feedback")
-          .select("user_id, type, severity, content, details, page_url, screenshot_url, status, created_at")
-          .gte("created_at", new Date(now - DAY).toISOString()),
+      const [postsRows, connRows, fbRows, fbNewRows, photoroom] = await Promise.all([
+        fetchAllRows(
+          supabase,
+          "calendar_posts",
+          "user_id, canal, publish_status, publish_error, scheduled_publish_at, published_at, updated_at",
+          (q) => q.in("publish_status", ["failed", "publishing", "scheduled", "published"]),
+        ),
+        fetchAllRows(
+          supabase,
+          "social_connections",
+          "user_id, platform, platform_account_name, token_expires_at, updated_at",
+        ),
+        fetchAllRows(
+          supabase,
+          "beta_feedback",
+          "user_id, type, severity, content, details, page_url, screenshot_url, status, created_at",
+          (q) => q.gte("created_at", new Date(now - DAY).toISOString()),
+        ),
         // Backstop : tout ce qui est encore en "new" quel que soit l'âge — si un run
         // de la routine saute, rien ne reste invisible (le passage à "seen"/"done"
         // dans l'onglet admin fait redescendre ce compteur).
-        supabase.from("beta_feedback").select("user_id").eq("status", "new"),
+        fetchAllRows(supabase, "beta_feedback", "user_id", (q) => q.eq("status", "new")),
         photoroomCredits(now),
       ]);
-      if (postsRes.error) throw postsRes.error;
-      if (connRes.error) throw connRes.error;
-      if (fbRes.error) throw fbRes.error;
-      if (fbNewRes.error) throw fbNewRes.error;
-      const posts = (postsRes.data || []).filter((p: any) => isClient(p.user_id));
-      const conns = (connRes.data || []).filter((c: any) => isClient(c.user_id));
+      const posts = postsRows.filter((p: any) => isClient(p.user_id));
+      const conns = connRows.filter((c: any) => isClient(c.user_id));
 
       // Échecs de publication des dernières 48 h (erreur tronquée, pas de contenu).
       const failedRecent = posts
@@ -190,7 +215,7 @@ Deno.serve(async (req) => {
       // sinon visibles seulement dans l'onglet admin) — les « blocking » d'abord.
       const SEVERITY_RANK: Record<string, number> = { blocking: 0, annoying: 1, minor: 2 };
       const sevRank = (s: string | null) => SEVERITY_RANK[s || ""] ?? 3;
-      const feedback24h = (fbRes.data || [])
+      const feedback24h = fbRows
         .filter((f: any) => isClient(f.user_id))
         .sort(
           (a: any, b: any) =>
@@ -207,7 +232,7 @@ Deno.serve(async (req) => {
           statut: f.status,
           quand: f.created_at,
         }));
-      const feedbackNewTotal = (fbNewRes.data || []).filter((f: any) => isClient(f.user_id)).length;
+      const feedbackNewTotal = fbNewRows.filter((f: any) => isClient(f.user_id)).length;
 
       return json({
         generated_at: new Date().toISOString(),
@@ -226,19 +251,17 @@ Deno.serve(async (req) => {
 
     // ── scope "weekly" ──────────────────────────────────────────────────────
     const since35d = new Date(now - 35 * DAY).toISOString();
-    const [aiRes, calRes] = await Promise.all([
-      supabase
-        .from("ai_usage")
-        .select("user_id, created_at, action_type, model_used, tokens_used")
-        .gte("created_at", since35d),
-      supabase
-        .from("calendar_posts")
-        .select("id, user_id, created_at, published_at, publish_status, status"),
+    const [aiRows, calRows] = await Promise.all([
+      fetchAllRows(
+        supabase,
+        "ai_usage",
+        "user_id, created_at, action_type, model_used, tokens_used",
+        (q) => q.gte("created_at", since35d),
+      ),
+      fetchAllRows(supabase, "calendar_posts", "id, user_id, created_at, published_at, publish_status, status"),
     ]);
-    if (aiRes.error) throw aiRes.error;
-    if (calRes.error) throw calRes.error;
-    const ai = (aiRes.data || []).filter((a: any) => isClient(a.user_id));
-    const cal = (calRes.data || []).filter((c: any) => isClient(c.user_id));
+    const ai = aiRows.filter((a: any) => isClient(a.user_id));
+    const cal = calRows.filter((c: any) => isClient(c.user_id));
 
     const inWindow = (iso: string | null, from: number, to: number) => {
       if (!iso) return false;
@@ -317,7 +340,7 @@ Deno.serve(async (req) => {
       ...ai.filter((a: any) => inWindow(a.created_at, curFrom, curTo)).map((a: any) => a.user_id),
       ...cal.filter((c: any) => inWindow(c.created_at, curFrom, curTo)).map((c: any) => c.user_id),
     ]);
-    const clients = (profRes.data || []).filter((p: any) => !isExcludedEmail(p.email));
+    const clients = profiles.filter((p: any) => !isExcludedEmail(p.email));
     const cohorts = [];
     for (let w = 0; w < 5; w++) {
       const [from, to] = week(w);
@@ -348,14 +371,13 @@ Deno.serve(async (req) => {
     //   pour le juge de la routine (grille : singularité, hook, ancrage métier, tics,
     //   fidélité au brief). Le contenu est du matériel marketing destiné à être publié
     //   publiquement — pas de la PII.
-    const carRes = await supabase
-      .from("generated_carousels")
-      .select(
-        "user_id, carousel_type, subject, hook_text, caption, slides, slide_count, quality_score, calendar_post_id, status, created_at, updated_at",
-      )
-      .gte("created_at", since35d);
-    if (carRes.error) throw carRes.error;
-    const car = (carRes.data || []).filter((c: any) => isClient(c.user_id));
+    const carRows = await fetchAllRows(
+      supabase,
+      "generated_carousels",
+      "user_id, carousel_type, subject, hook_text, caption, slides, slide_count, quality_score, calendar_post_id, status, created_at, updated_at",
+      (q) => q.gte("created_at", since35d),
+    );
+    const car = carRows.filter((c: any) => isClient(c.user_id));
     const carCur = car.filter((c: any) => inWindow(c.created_at, curFrom, curTo));
     const carPrev = car.filter((c: any) => inWindow(c.created_at, prevFrom, prevTo));
 
@@ -376,20 +398,27 @@ Deno.serve(async (req) => {
     // tant que la table n'existe pas encore (migration Lovable en attente).
     let cqEvents: any[] | null = null;
     try {
-      // `content_preview` peut ne pas encore exister (migration Lovable déployée
-      // APRÈS l'edge) : on retente sans la colonne pour ne PAS perdre la source
-      // du score de gate — l'échantillon retombera alors sur les brouillons.
-      let cqRes: any = await supabase
-        .from("content_quality_events")
-        .select("user_id, format, redac_score, redac_repassed, created_at, content_preview")
-        .gte("created_at", since35d);
-      if (cqRes.error && /content_preview/.test(cqRes.error.message || "")) {
-        cqRes = await supabase
-          .from("content_quality_events")
-          .select("user_id, format, redac_score, redac_repassed, created_at")
-          .gte("created_at", since35d);
+      let cqRows: any[];
+      try {
+        cqRows = await fetchAllRows(
+          supabase,
+          "content_quality_events",
+          "user_id, format, redac_score, redac_repassed, created_at, content_preview",
+          (q) => q.gte("created_at", since35d),
+        );
+      } catch (e) {
+        // `content_preview` peut ne pas encore exister (migration Lovable déployée
+        // APRÈS l'edge) : on retente sans la colonne pour ne PAS perdre la source
+        // du score de gate — l'échantillon retombera alors sur les brouillons.
+        if (!/content_preview/.test(String((e as any)?.message || ""))) throw e;
+        cqRows = await fetchAllRows(
+          supabase,
+          "content_quality_events",
+          "user_id, format, redac_score, redac_repassed, created_at",
+          (q) => q.gte("created_at", since35d),
+        );
       }
-      if (!cqRes.error) cqEvents = (cqRes.data || []).filter((e: any) => isClient(e.user_id));
+      cqEvents = cqRows.filter((e: any) => isClient(e.user_id));
     } catch (_) { /* table absente : repli sur les brouillons */ }
     const eventScoreStats = (rows: any[]) => {
       const vals = rows.map((r) => r.redac_score).filter((v: any) => typeof v === "number");
