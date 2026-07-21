@@ -104,9 +104,9 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   else await genBtn.click();
   console.log("🚀 Clic Générer");
 
-  // ⏲ Jalon TEXTE : les actions du résultat ("Ajouter au calendrier") ne
+  // ⏲ Jalon TEXTE : les actions du résultat ("Publier ou programmer") ne
   // s'affichent qu'une fois la génération terminée (generating=false + result).
-  await expect(page.getByRole("button", { name: /ajouter au calendrier/i }).first()).toBeVisible({ timeout: 300000 });
+  await expect(page.getByTestId("publish-or-schedule").first()).toBeVisible({ timeout: 300000 });
   const tTextReady = Date.now();
   console.log(`⏲ 📝 TEXTE affiché après ${((tTextReady - tClickGen) / 1000).toFixed(1)}s`);
 

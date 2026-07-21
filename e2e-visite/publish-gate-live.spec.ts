@@ -1,12 +1,16 @@
 /**
- * RE-TEST LIVE — fix #580 (17/07) : le bouton « Publier sur Instagram » ne doit
- * s'afficher QUE pour un contenu du canal Instagram.
+ * GATE CANAL DE PUBLICATION (né avec le fix #580, adapté au panneau « ultra-minimal ») :
+ * la publication directe ne doit être proposée QUE pour le bon canal.
+ *
+ * Depuis la refonte « Publier ou programmer », le gate vit DANS la fenêtre de
+ * publication : les options « Maintenant » / « Programmer » n'apparaissent que
+ * pour un canal publiable (Instagram, ou LinkedIn texte), avec le bon réseau.
  *
  * Trois parcours sur le site publié, génération MOCKÉE par interception réseau
  * (zéro crédit consommé) :
- *  1. Post LinkedIn   → bouton LinkedIn visible, bouton Instagram ABSENT.
- *  2. Post Instagram  → bouton Instagram visible (contrôle anti-sur-masquage).
- *  3. Épingle Pinterest visuelle → aucun des deux boutons.
+ *  1. Post LinkedIn   → option « Maintenant » = LinkedIn, PAS Instagram.
+ *  2. Post Instagram  → option « Maintenant » = Instagram (contrôle anti-sur-masquage).
+ *  3. Épingle Pinterest visuelle → NI Maintenant NI Programmer (brouillon seulement).
  */
 
 import { test, expect, Page } from "@playwright/test";
@@ -46,8 +50,20 @@ async function waitResult(page: Page) {
   await page.waitForTimeout(2500);
 }
 
-const igButton = (page: Page) => page.getByRole("button", { name: /Publier sur Instagram/i });
-const liButton = (page: Page) => page.getByRole("button", { name: /Publier sur LinkedIn/i });
+const publishEntry = (page: Page) => page.getByTestId("publish-or-schedule").first();
+const nowOption = (page: Page) => page.getByTestId("publish-now-option");
+const scheduleOption = (page: Page) => page.getByTestId("publish-schedule-option");
+const draftOption = (page: Page) => page.getByTestId("publish-draft-option");
+
+/** Ouvre la fenêtre « Publier ou programmer » depuis l'écran résultat. */
+async function openPublishDialog(page: Page) {
+  await expect(publishEntry(page)).toBeVisible({ timeout: 15_000 });
+  await publishEntry(page).scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await publishEntry(page).click();
+  // L'option brouillon est TOUJOURS présente : c'est le témoin d'ouverture.
+  await expect(draftOption(page)).toBeVisible({ timeout: 5000 });
+}
 
 test("post LinkedIn : bouton LinkedIn, PAS de bouton Instagram", async ({ page }) => {
   test.setTimeout(180_000);
@@ -75,14 +91,15 @@ test("post LinkedIn : bouton LinkedIn, PAS de bouton Instagram", async ({ page }
   await waitResult(page);
 
   await page.screenshot({ path: path.join(SHOTS, "linkedin-post.png"), fullPage: true });
-  await expect(liButton(page).first()).toBeVisible({ timeout: 15_000 });
-  await liButton(page).first().scrollIntoViewIfNeeded();
-  await page.waitForTimeout(400);
-  await page.screenshot({ path: path.join(SHOTS, "linkedin-post-bouton.png") });
-  await expect(igButton(page)).toHaveCount(0);
+  await openPublishDialog(page);
+  await page.screenshot({ path: path.join(SHOTS, "linkedin-post-dialog.png") });
+  // Canal LinkedIn : « Maintenant » parle de LinkedIn, jamais d'Instagram.
+  await expect(nowOption(page)).toBeVisible();
+  await expect(nowOption(page)).toContainText(/LinkedIn/i);
+  await expect(nowOption(page)).not.toContainText(/Instagram/i);
 });
 
-test("post Instagram : bouton Instagram toujours là (contrôle)", async ({ page }) => {
+test("post Instagram : option Instagram toujours là (contrôle)", async ({ page }) => {
   test.setTimeout(180_000);
 
   await page.route("**/functions/v1/creative-flow", async (route) => {
@@ -105,10 +122,13 @@ test("post Instagram : bouton Instagram toujours là (contrôle)", async ({ page
   await waitResult(page);
 
   await page.screenshot({ path: path.join(SHOTS, "instagram-post.png"), fullPage: true });
-  await expect(igButton(page).first()).toBeVisible({ timeout: 15_000 });
+  await openPublishDialog(page);
+  await page.screenshot({ path: path.join(SHOTS, "instagram-post-dialog.png") });
+  await expect(nowOption(page)).toBeVisible();
+  await expect(nowOption(page)).toContainText(/Instagram/i);
 });
 
-test("épingle Pinterest visuelle : aucun bouton Instagram/LinkedIn", async ({ page }) => {
+test("épingle Pinterest visuelle : ni Maintenant ni Programmer", async ({ page }) => {
   test.setTimeout(180_000);
 
   await page.route("**/functions/v1/pinterest-visual", async (route) => {
@@ -135,6 +155,9 @@ test("épingle Pinterest visuelle : aucun bouton Instagram/LinkedIn", async ({ p
   await waitResult(page);
 
   await page.screenshot({ path: path.join(SHOTS, "pinterest-visuel.png"), fullPage: true });
-  await expect(igButton(page)).toHaveCount(0);
-  await expect(liButton(page)).toHaveCount(0);
+  await openPublishDialog(page);
+  await page.screenshot({ path: path.join(SHOTS, "pinterest-visuel-dialog.png") });
+  // Pas de canal publiable → seule l'option brouillon calendrier est proposée.
+  await expect(nowOption(page)).toHaveCount(0);
+  await expect(scheduleOption(page)).toHaveCount(0);
 });
