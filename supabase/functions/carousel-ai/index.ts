@@ -6,7 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
-import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
 import { runRedacGate, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
@@ -446,6 +446,19 @@ serve(async (req) => {
     });
     if (!r.ok) return r.response;
     const { userId, supabase } = r;
+
+    // Champs écrits par l'IA à une étape précédente (structure_proposal, choix
+    // d'angle) puis renvoyés tels quels par le front pour la passe d'écriture :
+    // on tronque au lieu de rejeter (narrative_thread > 1000 le 21/07).
+    clampAiField(body, "editorial_angle", 100);
+    clampAiField(body, "content_structure", 5000);
+    clampAiField(body, "narrative_thread", 1000);
+    if (Array.isArray(body?.confirmed_structure)) {
+      for (const s of body.confirmed_structure) {
+        clampAiField(s, "story_beat", 300);
+        clampAiField(s, "visual_anchor", 120);
+      }
+    }
 
     validateInput(body, z.object({
       type: z.enum(["hooks", "slides", "suggest_topics", "suggest_angles", "deepening_questions", "express_full", "structure_proposal", "assign_templates"]),
