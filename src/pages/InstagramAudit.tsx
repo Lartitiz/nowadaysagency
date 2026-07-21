@@ -23,6 +23,7 @@ import AuditInputForm, { type AuditFormData } from "@/components/audit/AuditInpu
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import HubConnectBanner from "@/components/hub/HubConnectBanner";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 
@@ -838,6 +839,8 @@ export default function InstagramAudit() {
           </div>
         )}
         <div className={analyzing ? "hidden" : ""}>
+          {/* Compte non connecté : invite à le faire (l'encart gère lui-même connecté/chargement) */}
+          <HubConnectBanner platform="instagram" benefit="récupérer automatiquement ton reach, tes abonnés et tes meilleurs/pires posts — ton audit sera basé sur tes vraies stats" />
           <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} instagramConnected={igConnected} onFetchLiveMetrics={fetchLiveMetrics} />
         </div>
       </main>
