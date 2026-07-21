@@ -110,7 +110,10 @@ export function useOnboardingMissions() {
         eq(supabase.from("generated_carousels").select("id", { count: "exact", head: true })),
         eq(supabase.from("calendar_posts").select("id", { count: "exact", head: true })
           .not("date", "is", null)),
-        eq(supabase.from("social_connections").select("id", { count: "exact", head: true })),
+        // La mission dit « branche Instagram ou LinkedIn » : connecter Canva ou
+        // Google Analytics ne doit pas la marquer comme faite.
+        eq(supabase.from("social_connections").select("id", { count: "exact", head: true })
+          .in("platform", ["instagram", "linkedin"])),
       ]);
 
       return {
