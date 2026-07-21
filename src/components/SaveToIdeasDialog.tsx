@@ -29,7 +29,7 @@ interface Props {
   format?: string;
   objectif?: string;
   visualSlides?: { slide_number: number; html: string }[];
-  onUploadVisuals?: (ideaId: string) => Promise<string[]>;
+  onUploadVisuals?: (ideaId: string, onProgress?: (done: number, total: number) => void) => Promise<string[]>;
   editingIdeaId?: string | null;
 }
 
@@ -136,30 +136,39 @@ export function SaveToIdeasDialog({
       targetId = newIdea?.id ?? null;
     }
 
-    // Upload optionnel des visuels — ne bloque jamais la sauvegarde
-    if (visualSlides && visualSlides.length > 0 && onUploadVisuals && targetId) {
-      try {
-        const urls = await onUploadVisuals(targetId);
-        if (urls.length > 0) {
-          const { error: visualError } = await supabase
-            .from("saved_ideas")
-            .update({
-              content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
-            } as any)
-            .eq("id", targetId);
-          if (visualError) throw visualError;
-        }
-      } catch (e) {
-        console.warn("Visual upload failed (idea saved without visuals):", e);
-        toast.warning("Idée sauvegardée, mais ses visuels n'ont pas pu y être attachés.");
-      }
-    }
-
+    // L'idée est en base : on ferme tout de suite, l'attache des visuels
+    // (rasterisation + upload, plusieurs secondes par slide) se fait en arrière-plan.
     setSaving(false);
     onOpenChange(false);
     toast.success(isUpdate ? "💡 Idée mise à jour !" : "💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
     setSelectedTags([]);
     setNote("");
+
+    if (visualSlides && visualSlides.length > 0 && onUploadVisuals && targetId) {
+      void attachVisualsInBackground(targetId);
+    }
+  };
+
+  const attachVisualsInBackground = async (ideaId: string) => {
+    const total = visualSlides!.length;
+    const toastId = toast.loading(`Visuels en cours d'ajout… 0/${total}`);
+    try {
+      const urls = await onUploadVisuals!(ideaId, (done, t) => {
+        toast.loading(`Visuels en cours d'ajout… ${done}/${t}`, { id: toastId });
+      });
+      if (urls.length === 0) throw new Error("Aucun visuel n'a pu être uploadé");
+      const { error: visualError } = await supabase
+        .from("saved_ideas")
+        .update({
+          content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
+        } as any)
+        .eq("id", ideaId);
+      if (visualError) throw visualError;
+      toast.success("Visuels attachés à ton idée ✓", { id: toastId });
+    } catch (e) {
+      console.warn("Visual upload failed (idea saved without visuals):", e);
+      toast.warning("Idée sauvegardée, mais ses visuels n'ont pas pu y être attachés.", { id: toastId });
+    }
   };
 
   return (
