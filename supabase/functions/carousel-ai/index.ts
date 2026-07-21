@@ -430,14 +430,19 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
 
+  // Le corps DOIT être consommé avant de renvoyer la réponse SSE : si le stream
+  // démarre alors que le corps (photos en vision, plusieurs Mo) n'est pas encore
+  // lu, la passerelle Supabase se bloque — 502/504 sans en-têtes CORS, affiché
+  // « blocked by CORS policy » par le navigateur (repro 21/07 sur carousel-visual ;
+  // même pattern ici). creative-flow lit déjà son corps avant le stream.
+  let body: any = {};
+  if (req.method !== "OPTIONS") {
+    try { body = await req.json(); } catch { body = {}; }
+  }
+
   const handle = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
 
   try {
-    // Parse body first to extract workspace_id
-    let body: any = {};
-    if (req.method !== "OPTIONS") {
-      try { body = await req.json(); } catch { body = {}; }
-    }
 
     // Quota is handled below per-category, so we skip it here
     const r = await runPipeline(req, {

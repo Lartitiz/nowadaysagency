@@ -219,6 +219,14 @@ serve(async (req) => {
   // slides terminés) que le front affiche à la place d'une barre simulée.
   const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
 
+  // Le corps DOIT être consommé avant de renvoyer la réponse SSE : si le stream
+  // démarre alors que le corps (photos, plusieurs Mo) n'est pas encore lu, la
+  // passerelle Supabase se bloque — aucun octet ne part, puis 502/504 SANS
+  // en-têtes CORS, que le navigateur affiche « blocked by CORS policy »
+  // (repro 21/07 : 70 Ko passe, 7 Mo bloque ; le même corps passe hors SSE).
+  let parsedBody: any = {};
+  try { parsedBody = await req.json(); } catch { parsedBody = {}; }
+
   const handle = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
 
   try {
@@ -251,7 +259,7 @@ serve(async (req) => {
       .maybeSingle();
     const ownerWorkspaceId = wsMember?.workspace_id;
 
-    const reqBody = await req.json();
+    const reqBody = parsedBody;
     // Carrousel « Qualité Max » = Opus (~50× le coût d'un post) → quota dédié
     // `quality_max` (gratuit = 0, Premium = 20/mois).
     const quota = await checkQuota(user.id, reqBody?.quality_max ? "quality_max" : "content", ownerWorkspaceId);
