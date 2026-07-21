@@ -23,6 +23,23 @@ export class ValidationError extends Error {
   }
 }
 
+/**
+ * Tronque en place un champ texte écrit par l'IA à une étape précédente puis
+ * renvoyé par le front. Le tool forcé garantit le JSON, PAS les longueurs :
+ * quand le modèle déborde, rejeter la requête casse tout le flux pour
+ * l'utilisatrice (« Données invalides » + Réessayer qui re-plante avec le même
+ * payload). À appeler AVANT validateInput ; les max() du schéma restent le
+ * garde-fou anti-abus.
+ */
+export function clampAiField(obj: Record<string, unknown> | null | undefined, field: string, max: number): void {
+  if (!obj) return;
+  const value = obj[field];
+  if (typeof value === "string" && value.length > max) {
+    console.warn(`[input-validators] ${field} tronqué de ${value.length} à ${max} caractères`);
+    obj[field] = value.slice(0, max);
+  }
+}
+
 /* ─── Reusable field schemas ─── */
 
 export const uuidField = z.string().uuid();
