@@ -814,7 +814,7 @@ Chaque story reçoit un objet "visual" : c'est le plan du visuel 1080×1920 rend
 
 GABARITS DISPONIBLES (champ "gabarit") :
 - "photo_pills" : photo en fond + pastille titre + pastille texte. Le gabarit par défaut, le plus authentique.
-- "fond_pills" : fond uni aux couleurs de la marque + pastilles centrées. Pour les annonces et les stories sans photo.
+- "fond_pills" : fond uni aux couleurs de la marque + pastilles centrées. EXCEPTIONNEL : ne l'utilise pas, préfère toujours "photo_pills" (une story sur fond uni au milieu de photos casse l'authenticité).
 - "interaction" : une question courte en pastille + une ZONE RÉSERVÉE pour le sticker interactif (sondage/question/slider) que l'utilisateur·ice posera dans Instagram. OBLIGATOIRE quand la story a un sticker.
 - "liste" : pastille titre + 2-4 pastilles items empilées. Pour les tips et étapes.
 - "citation" : verbatim en italique élégant dans une grande pastille. Pour la preuve sociale, les retours clients.
@@ -824,8 +824,8 @@ RÈGLES DU PLAN VISUEL :
 2. "body_pill" : 1-2 phrases courtes, 120 caractères MAX (affiché en gras type "Classic" Instagram). Le texte complet de la story reste dans "text" ; les pastilles n'en sont que la version AFFICHABLE.
 3. "list_pills" : uniquement pour le gabarit "liste", 2-4 items de 6-10 mots.
 4. "quote" : uniquement pour le gabarit "citation". Verbatim court, jamais inventé : s'il n'y a pas de vrai retour client fourni, n'utilise PAS ce gabarit.
-5. "background" : "photo" ou "fond_couleur". Les stories, c'est d'abord des IMAGES : la MAJORITÉ des stories de la séquence (au moins 2 sur 3, hors face cam) doivent être en "photo" — le fond de chaque story illustre CE QU'ELLE DIT. Réserve "fond_couleur" aux annonces sèches et aux gabarits "citation"/"liste" quand aucune image n'aurait de sens ; une séquence entière sur fond couleur est un ÉCHEC. Si "photo", remplis "photo_directive" : quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle (comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo").
-6. Si "background": "photo", remplis AUSSI "photo_query_en" : 2-4 mots EN ANGLAIS décrivant une scène photographiable concrète équivalente à la directive (pour la recherche de photos libres de droits), ex "hands shaping clay bowl". Sinon null.
+5. "background" : "photo" ou "fond_couleur". Les stories, ce sont des IMAGES : "photo" est le fond de TOUTES les stories (hors face cam) — le fond de chaque story illustre CE QU'ELLE DIT. La SEULE exception tolérée : le gabarit "citation" (verbatim sur fond couleur, choix design). Une story texte sur fond coloré au milieu de photos casse l'authenticité : n'en produis pas.
+6. Pour CHAQUE story non face-cam (même "citation"), remplis TOUJOURS "photo_directive" (quelle photo prendre ou choisir, CONCRÈTE et ancrée dans l'activité réelle, comme un plan de tournage : "ton plan de travail avec les pots en cours de séchage", pas "une jolie photo") ET "photo_query_en" (2-4 mots EN ANGLAIS décrivant une scène photographiable concrète équivalente, pour la recherche de photos libres de droits, ex "hands shaping clay bowl"). Jamais null.
 7. Varie les gabarits dans la séquence : jamais deux fois le même d'affilée si la séquence fait 3+ stories.
 8. Story avec sticker → gabarit "interaction" (le sticker a besoin de sa zone).${p.photo_catalog && p.photo_catalog.length > 0 ? (() => {
     const chosen = p.photo_catalog!.filter((ph) => ph.chosen);
@@ -898,8 +898,8 @@ Réponds en JSON strict :
       "timing": "matin",
       "timing_emoji": "🌅",
       "role": "Hook",
-      "format": "texte_fond",
-      "format_label": "📝 Texte sur fond coloré",
+      "format": "photo",
+      "format_label": "📸 Photo avec texte",
       "text": "...",
       "hook_options": {
         "option_a": {
@@ -921,13 +921,13 @@ Réponds en JSON strict :
       },
       "visual": {
         "gabarit": "interaction",
-        "background": "fond_couleur",
+        "background": "photo",
         "title_pill": "[3-7 mots]",
         "body_pill": "[1-2 phrases courtes, 120 car. max]",
         "list_pills": null,
         "quote": null,
-        "photo_directive": null,
-        "photo_query_en": null${p.photo_catalog && p.photo_catalog.length > 0 ? `,
+        "photo_directive": "[quelle photo prendre/choisir, concrète, ancrée dans l'activité]",
+        "photo_query_en": "[2-4 mots anglais, scène photographiable]"${p.photo_catalog && p.photo_catalog.length > 0 ? `,
         "photo_index": null` : ""}
       },
       "tip": "...",
