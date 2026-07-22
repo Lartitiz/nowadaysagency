@@ -7,6 +7,8 @@ import { SocialMockup } from "@/components/social-mockup/SocialMockup";
 import { ContentPreview } from "@/components/ContentPreview";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { DownloadMenuItems } from "@/components/exports/DownloadMenuItems";
+import { StoryExportButtons } from "@/components/exports/StoryExportButtons";
+import { useStoryExport } from "@/hooks/use-story-export";
 import { toast } from "sonner";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
@@ -27,6 +29,8 @@ interface Props {
   hasTheme: boolean;
   slidesData?: any[] | null;
   photoUrls?: string[] | null;
+  /** Séquence stories persistée (story_sequence_detail.stories) : active Canva + Télécharger. */
+  storiesData?: any[] | null;
   compact?: boolean;
   onFullscreen?: () => void;
   syncStatus?: "synced" | "dirty";
@@ -35,8 +39,10 @@ interface Props {
 export function CalendarPostPreview({
   canal, format, caption, theme, username, displayName,
   mediaUrls, visualHtml, visualUrls, onNavigateToGenerator, hasAngle, hasTheme,
-  slidesData, photoUrls, compact = false, onFullscreen, syncStatus,
+  slidesData, photoUrls, storiesData, compact = false, onFullscreen, syncStatus,
 }: Props) {
+  // Exports stories (visuels reconstruits du JSON persisté) — inertes hors story_serie.
+  const storyExport = useStoryExport(storiesData, theme || "stories");
   // Fallback : si pas de mediaUrls fournis, utiliser les photos uploadées par l'utilisateur
   const effectiveMediaUrls = (mediaUrls && mediaUrls.length > 0)
     ? mediaUrls
@@ -201,6 +207,7 @@ export function CalendarPostPreview({
               <Copy className="h-3.5 w-3.5" />
             </Button>
           )}
+          {format === "story_serie" && <StoryExportButtons api={storyExport} />}
           {visualHtml && visualHtml.length > 0 && (
             <Button
               size="sm"
