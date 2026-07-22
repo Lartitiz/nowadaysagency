@@ -1511,6 +1511,32 @@ Réponds UNIQUEMENT en JSON :
           parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
         }
 
+        // Télémétrie qualité newsletter (retour SSE anticipé → loggée ici, pas
+        // dans la queue commune). Même mesure légère que les autres formats.
+        if (typeof parsed.content === "string" && parsed.content.trim()) {
+          try {
+            const nlAllowed = numbersIn([
+              typeof context === "string" ? context : "",
+              body.answers ? JSON.stringify(body.answers) : "",
+              typeof newsContext === "string" ? newsContext : "",
+              fullContext || "",
+            ].join("\n"));
+            const a = analyzeTextRedac(parsed.content, nlAllowed);
+            const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+            const score = Math.max(40, 100 - 10 * violations);
+            await logContentQuality(
+              userId,
+              "newsletter",
+              { score, violations, repassed: false, content: JSON.stringify({ subject: parsed.subject, content: parsed.content }) },
+              nlUsage.model,
+              workspace_id,
+              typeof context === "string" ? context : undefined,
+            );
+          } catch (e) {
+            console.error("[creative-flow] log qualité newsletter ignoré (génération intacte):", (e as any)?.message || e);
+          }
+        }
+
         await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
         return new Response(JSON.stringify(parsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2263,40 +2289,51 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       }
     }
 
-    // ═══ TÉLÉMÉTRIE QUALITÉ (stories) ═══
+    // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     // Les carrousels loggent leur score de gate à chaque génération (Brique 1,
-    // content_quality_events) → le juge du bilan hebdo les note. Les stories en
-    // étaient absentes (angle mort connu). Mesure LÉGÈRE (analyzeTextRedac, zéro
-    // appel LLM) sur le texte concaténé des stories, MÊME formule de score que
-    // redacScore sur les dimensions applicables au texte libre (retournements /
+    // content_quality_events) → le juge du bilan hebdo les note. Les autres
+    // formats en étaient absents (angle mort connu). Mesure LÉGÈRE
+    // (analyzeTextRedac, zéro appel LLM) sur le texte FINAL, MÊME formule de
+    // score que redacScore sur les dimensions du texte libre (retournements /
     // formules moulées / chiffres inventés), + aperçu pour l'échantillon du juge.
     // Fire-and-forget : logContentQuality n'interrompt jamais la génération et
-    // exclut déjà les comptes QA.
-    if (isStories && step === "generate" && Array.isArray(parsed?.stories)) {
-      try {
-        const storiesText = parsed.stories
-          .map((s: any) => (typeof s?.text === "string" ? s.text : ""))
-          .filter(Boolean)
-          .join("\n\n");
-        const allowed = numbersIn([
+    // exclut déjà les comptes QA. La newsletter (retour SSE anticipé) se logge
+    // dans son propre bloc ; le LinkedIn STREAMÉ reste hors couverture ici (il
+    // ne passe pas par cette queue) — angle mort résiduel connu.
+    if (step === "generate") {
+      const qualityAllowed = () =>
+        numbersIn([
           typeof context === "string" ? context : "",
+          body.answers ? JSON.stringify(body.answers) : "",
           body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
           typeof newsContext === "string" ? newsContext : "",
           fullContext || "",
         ].join("\n"));
-        const a = analyzeTextRedac(storiesText, allowed);
-        const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
-        const score = Math.max(40, 100 - 10 * violations);
-        await logContentQuality(
-          userId,
-          "stories",
-          { score, violations, repassed: false, content: JSON.stringify({ stories: parsed.stories }) },
-          finalUsage.model,
-          workspace_id,
-          typeof context === "string" ? context : undefined,
-        );
-      } catch (e) {
-        console.error("[creative-flow] log qualité stories ignoré (génération intacte):", (e as any)?.message || e);
+      const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
+        try {
+          const a = analyzeTextRedac(text, qualityAllowed());
+          const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+          const score = Math.max(40, 100 - 10 * violations);
+          await logContentQuality(
+            userId,
+            format,
+            { score, violations, repassed: false, content: JSON.stringify(previewDoc) },
+            finalUsage.model,
+            workspace_id,
+            typeof context === "string" ? context : undefined,
+          );
+        } catch (e) {
+          console.error(`[creative-flow] log qualité ${format} ignoré (génération intacte):`, (e as any)?.message || e);
+        }
+      };
+
+      if (isStories && Array.isArray(parsed?.stories)) {
+        const storiesText = parsed.stories.map((s: any) => (typeof s?.text === "string" ? s.text : "")).filter(Boolean).join("\n\n");
+        await logTextQuality("stories", storiesText, { stories: parsed.stories });
+      } else if (isReel && Array.isArray(parsed?.script)) {
+        await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
+      } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
+        await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content });
       }
     }
 

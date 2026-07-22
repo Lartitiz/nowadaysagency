@@ -38,7 +38,36 @@ Deno.test("stories : hook de repli sur hook_options si text vide", () => {
   assertEquals(p?.hook, "Faut qu'on parle.");
 });
 
+Deno.test("reel : aperçu depuis { script:[{texte_parle}] }", () => {
+  const content = JSON.stringify({
+    script: [
+      { section: "hook", texte_parle: "Mon premier devis faisait 9 pages." },
+      { section: "body", texte_parle: "Personne ne l'a lu." },
+    ],
+  });
+  const p = buildContentPreview(content, "Devis trop longs");
+  assertEquals(p?.sujet, "Devis trop longs");
+  assertEquals(p?.hook, "Mon premier devis faisait 9 pages.");
+  assertEquals((p?.apercu_slides as string[]).length, 2);
+});
+
+Deno.test("linkedin : aperçu depuis { content } (texte libre)", () => {
+  const content = JSON.stringify({ content: "Première ligne accroche.\n\nDeuxième paragraphe.\n\nTroisième." });
+  const p = buildContentPreview(content, "Mon sujet LinkedIn");
+  assertEquals(p?.sujet, "Mon sujet LinkedIn");
+  assertEquals(p?.hook, "Première ligne accroche.");
+  assertEquals((p?.apercu_slides as string[]).length, 3);
+});
+
+Deno.test("newsletter : hook = subject depuis { subject, content }", () => {
+  const content = JSON.stringify({ subject: "Objet accrocheur", content: "Corps de l'email.\n\nSuite." });
+  const p = buildContentPreview(content, undefined);
+  assertEquals(p?.hook, "Objet accrocheur");
+  assertEquals(p?.sujet, "Objet accrocheur");
+});
+
 Deno.test("séquence vide + pas de sujet → null (rien à stocker)", () => {
   assertEquals(buildContentPreview(JSON.stringify({ stories: [] }), undefined), null);
+  assertEquals(buildContentPreview(JSON.stringify({ script: [] }), undefined), null);
   assertEquals(buildContentPreview("pas du json", undefined), null);
 });

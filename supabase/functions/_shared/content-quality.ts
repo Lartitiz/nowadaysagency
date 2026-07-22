@@ -49,36 +49,56 @@ export function buildContentPreview(
     doc = gateContent;
   }
 
-  // Stories : forme { stories: [...] } (chaque story a un champ "text"), pas
-  // { slides, caption }. Le juge du bilan hebdo doit voir les séquences comme
-  // les carrousels → on construit le même aperçu depuis les textes de story.
+  const sujetIn = trunc(subject, 100);
+  // Constructeur commun aux formats non-carrousel (stories/reel/texte) :
+  // même forme d'aperçu, null si rien d'exploitable.
+  const make = (hook: string, apercu: string[]) =>
+    !sujetIn && !hook && apercu.length === 0 ? null : { sujet: sujetIn, hook, apercu_slides: apercu, caption: "" };
+
+  // Stories : { stories: [{ text }] }.
   if (Array.isArray(doc?.stories)) {
     const st = doc.stories;
     const hookS = trunc(st[0]?.text || st[0]?.hook_options?.option_a?.text, 140);
-    const apercuS = st
-      .slice(0, 4)
-      .map((s: any) => trunc(s?.text, 120))
-      .filter(Boolean);
-    const sujetS = trunc(subject, 100);
-    if (!sujetS && !hookS && apercuS.length === 0) return null;
-    return { sujet: sujetS, hook: hookS, apercu_slides: apercuS, caption: "" };
+    const apercuS = st.slice(0, 4).map((s: any) => trunc(s?.text, 120)).filter(Boolean);
+    return make(hookS, apercuS);
   }
 
-  const slides = doc?.slides;
-  const cap = doc?.caption;
-  const hook = trunc(doc?.slides?.[0]?.title || cap?.hook, 140);
-  const caption = [cap?.hook, cap?.body, cap?.cta]
-    .filter((x) => typeof x === "string" && x.trim())
-    .join(" ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 300);
-  const apercu = slidePreview(slides);
-  const sujet = trunc(subject, 100);
+  // Reel : { script: [{ texte_parle, texte_overlay }] }.
+  if (Array.isArray(doc?.script)) {
+    const sc = doc.script;
+    const hookR = trunc(sc[0]?.texte_parle || sc[0]?.texte_overlay, 140);
+    const apercuR = sc.slice(0, 4).map((s: any) => trunc(s?.texte_parle || s?.texte_overlay, 120)).filter(Boolean);
+    return make(hookR, apercuR);
+  }
 
-  // Rien de rien : pas la peine de stocker un objet vide.
-  if (!sujet && !hook && !caption && apercu.length === 0) return null;
-  return { sujet, hook, apercu_slides: apercu, caption };
+  // Carrousel : { slides, caption }.
+  if (Array.isArray(doc?.slides)) {
+    const cap = doc?.caption;
+    const hook = trunc(doc?.slides?.[0]?.title || cap?.hook, 140);
+    const caption = [cap?.hook, cap?.body, cap?.cta]
+      .filter((x) => typeof x === "string" && x.trim())
+      .join(" ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 300);
+    const apercu = slidePreview(doc.slides);
+    if (!sujetIn && !hook && !caption && apercu.length === 0) return null;
+    return { sujet: sujetIn, hook, apercu_slides: apercu, caption };
+  }
+
+  // Texte libre : LinkedIn { content }, newsletter { subject, content }.
+  const textBody = typeof doc?.content === "string" ? doc.content : typeof doc?.text === "string" ? doc.text : "";
+  if (textBody) {
+    const paras = textBody.split(/\n+/).map((s: string) => s.trim()).filter(Boolean);
+    const hookT = trunc(doc?.subject || paras[0], 140);
+    const apercuT = paras.slice(0, 4).map((p: string) => trunc(p, 120));
+    const sujetT = sujetIn || trunc(doc?.subject, 100);
+    return !sujetT && !hookT && apercuT.length === 0
+      ? null
+      : { sujet: sujetT, hook: hookT, apercu_slides: apercuT, caption: "" };
+  }
+
+  return null;
 }
 
 export async function logContentQuality(
