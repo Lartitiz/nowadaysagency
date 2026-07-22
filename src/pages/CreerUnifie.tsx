@@ -241,6 +241,10 @@ export default function CreerUnifie() {
 
   // Photo states (carousel photo + post photo)
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(canalConflict ? null : (ps?.carouselSubMode ?? null));
+  // Longueur choisie via les puces « Longueur » (CreerStepFormat).
+  // "auto" = aucun slide_count envoyé, l'edge applique ses cibles adaptatives.
+  const [slideLength, setSlideLength] = useState<"auto" | "short" | "classic">(ps?.slideLength ?? "auto");
+  const slideCountChoice = slideLength === "short" ? 4 : slideLength === "classic" ? 7 : undefined;
   // Init à [] : le base64 n'est plus stocké inline (cf use-flow-persistence
   // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
   // (IndexedDB pour les dépôts, refetch serveur pour la photothèque).
@@ -588,11 +592,12 @@ export default function CreerUnifie() {
         demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
         editingIdeaId,
         carouselSubMode,
+        slideLength,
         photoDescription,
         isLinkedInCarousel,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, photoDescription, isLinkedInCarousel]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -981,9 +986,12 @@ export default function CreerUnifie() {
     setStep("format");
   };
 
-  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean; photoDump?: boolean; textFirstMix?: boolean }) => {
+  const handleFormatNext = async (format: string, angle?: string, options?: { carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides"; photos?: any[]; photoDescription?: string; photoMode?: boolean; overrideSubject?: string; linkedinCarousel?: boolean; photoDump?: boolean; textFirstMix?: boolean; slideLength?: "auto" | "short" | "classic" }) => {
     if (loadingQuestions || generating || structureLoading) return; // garde anti double-clic (évite une 2e génération facturée)
     const { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, overrideSubject, linkedinCarousel: linkedinCarLocal, photoDump, textFirstMix } = options || {};
+    // Toujours resynchroniser (undefined = sous-mode sans choix de longueur,
+    // ex. pure_photo — on repasse en "auto" pour ne pas traîner un vieux choix).
+    setSlideLength(options?.slideLength ?? "auto");
     // Lot 4 : mémorise le choix explicite « J'écris d'abord » du mixte hors
     // newsjacking (source de vérité de isTextFirstMix avec le contexte actu).
     setExplicitTextFirstMix(!!textFirstMix);
@@ -1579,7 +1587,9 @@ export default function CreerUnifie() {
           subject: enrichedSubject,
           carousel_type: carouselSubMode || undefined,
           objective: objective || undefined,
-          slide_count: 7,
+          // Longueur : envoyé SEULEMENT si choisie explicitement (puces
+          // « Longueur ») — sinon l'edge applique ses cibles adaptatives.
+          ...(slideCountChoice ? { slide_count: slideCountChoice } : {}),
           editorial_angle: editorialAngle || undefined,
           deepening_answers: Object.keys(ans).length > 0 ? ans : undefined,
           workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
@@ -1644,6 +1654,7 @@ export default function CreerUnifie() {
             editorialAngle: editorialAngle || undefined,
             answers: Object.keys(ans).length > 0 ? ans : undefined,
             channel: isLinkedInCarousel ? "linkedin" : undefined,
+            slideCount: slideCountChoice,
             ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
             ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
             ...(qualityMax ? { qualityMax: true } : {}),
@@ -1669,6 +1680,7 @@ export default function CreerUnifie() {
         editorialAngle: editorialAngle || undefined,
         answers: Object.keys(ans).length > 0 ? ans : undefined,
         channel: isLinkedInCarousel ? "linkedin" : undefined,
+        slideCount: slideCountChoice,
         confirmedStructure: lastConfirmedStructure,
         ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
         ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
@@ -1696,6 +1708,7 @@ export default function CreerUnifie() {
       editorialAngle: editorialAngle || undefined,
       answers: Object.keys(ans).length > 0 ? ans : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
+      slideCount: slideCountChoice,
       ...(selectedFormat === "reel" && reelHook ? { selectedHook: reelHook } : {}),
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix"
@@ -1917,6 +1930,7 @@ export default function CreerUnifie() {
       editorialAngle: editorialAngle || undefined,
       answers: Object.keys(rekeyedAnswers).length > 0 ? rekeyedAnswers : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
+      slideCount: slideCountChoice,
       confirmedStructure: confirmedSlides,
       ...(narrativeThread ? { narrativeThread } : {}),
       ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
@@ -3712,15 +3726,16 @@ export default function CreerUnifie() {
                 forcedChannel={forcedChannel}
                 initialFormat={selectedFormat || undefined}
                 initialCarouselSubMode={carouselSubMode || undefined}
+                initialSlideLength={slideLength}
                 suggestedFormat={newsjackingSuggestedFormat || undefined}
                 initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined}
                 initialPhotoDescription={photoDescription || undefined}
                 newsjackingActive={!!newsjackingContext}
-                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar, photoDump, textFirstMix) => {
+                onNext={(fmt, angle, sub, photos, desc, pm, pintData, linkedinCar, photoDump, textFirstMix, slideLen) => {
                   if (pintData) setPinterestData(pintData);
                   if (linkedinCar) setIsLinkedInCarousel(true);
                   else setIsLinkedInCarousel(false);
-                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix });
+                  handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix, slideLength: slideLen });
                 }}
                 onSelectionChange={({ format, carouselSubMode: sub }) => {
                   // Persiste les choix en cours pour les restaurer au reload (avant « Suivant »).

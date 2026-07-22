@@ -37,6 +37,10 @@ function deduceChannel(format: string): ChannelId {
   return "instagram";
 }
 
+// Longueur du carrousel : "auto" = l'IA adapte (aucun slide_count envoyé),
+// "short"/"classic" = choix explicite transmis à l'edge via slide_count.
+export type SlideLength = "auto" | "short" | "classic";
+
 // Formats supporting a single attached photo (vision-anchored generation via creative-flow / future single-photo flows).
 // Excludes carousel (handled separately, multi-photo) and pinterest_* (own flow).
 function formatAcceptsSinglePhoto(format: string | null | undefined): boolean {
@@ -69,6 +73,7 @@ interface Props {
   forcedChannel?: ChannelId | null;
   initialFormat?: string;
   initialCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
+  initialSlideLength?: SlideLength;
   suggestedFormat?: string;
   initialPhotos?: PhotoItem[];
   initialPhotoDescription?: string;
@@ -76,7 +81,7 @@ interface Props {
   // n'exige plus de photos en amont — le texte est rédigé d'abord et les images
   // se choisissent ensuite, slide par slide, dans l'écran résultat (casting).
   newsjackingActive?: boolean;
-  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean, photoDump?: boolean, textFirstMix?: boolean) => void;
+  onNext: (format: string, editorialAngle?: string, carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides", photos?: PhotoItem[], photoDescription?: string, photoMode?: boolean, pinterestData?: { link?: string; boardId?: string; boardName?: string }, linkedinCarousel?: boolean, photoDump?: boolean, textFirstMix?: boolean, slideLength?: SlideLength) => void;
   // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
   // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
   // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
@@ -84,7 +89,7 @@ interface Props {
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, forcedChannel, initialFormat, initialCarouselSubMode, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, forcedChannel, initialFormat, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack }: Props) {
   // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
   // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
   // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
@@ -100,6 +105,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
   );
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(initialCarouselSubMode ?? null);
+  const [slideLength, setSlideLength] = useState<SlideLength>(initialSlideLength ?? "auto");
   // Lot 4 : fourche du mixte hors newsjacking. null = pas encore choisi (on
   // affiche les deux entrées), false = « j'ai mes photos » (upload classique),
   // true = « j'écris d'abord » (régime texte d'abord, casting dans le résultat).
@@ -399,6 +405,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       isLinkedInCarousel,
       isCarouselPurePhoto ? photoDump : undefined,
       isCarouselMix ? textFirstMix : undefined,
+      selectedFormat === "carousel" && (carouselSubMode === "text" || carouselSubMode === "photo" || carouselSubMode === "mix") ? slideLength : undefined,
     );
   };
 
@@ -873,6 +880,41 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
             </div>
           </div>
         )
+      )}
+
+      {/* Longueur du carrousel — puces discrètes, seulement pour les sous-modes
+          où l'IA décide du nombre de slides (pas pure_photo : 1 photo = 1 slide,
+          ni user_slides : l'utilisatrice écrit ses slides elle-même). */}
+      {selectedFormat === "carousel" &&
+        (carouselSubMode === "text" || carouselSubMode === "photo" || carouselSubMode === "mix") && (
+        <div className="space-y-1.5 animate-fade-in">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Longueur :</span>
+            {([
+              { id: "auto" as const, label: "Auto — l'IA adapte" },
+              { id: "short" as const, label: "Court · 4-5 slides" },
+              { id: "classic" as const, label: "Classique · 6-8 slides" },
+            ]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setSlideLength(opt.id)}
+                aria-pressed={slideLength === opt.id}
+                className={cn(
+                  "rounded-full px-3 py-1 text-xs transition-colors border",
+                  slideLength === opt.id
+                    ? "border-primary bg-primary/10 text-primary font-medium"
+                    : "border-border text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+          <p className="text-2xs text-muted-foreground pl-1">
+            Tu pourras toujours supprimer ou ajouter des slides après la génération.
+          </p>
+        </div>
       )}
 
       {/* Photo dump (pure_photo uniquement) : l'app complète la séquence photo —

@@ -26,6 +26,7 @@ interface FlowState {
   demoScenario?: string | null;
   editingIdeaId?: string | null;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
+  slideLength?: "auto" | "short" | "classic";
   photoDescription?: string;
   isLinkedInCarousel?: boolean;
   ts: number;

@@ -433,7 +433,9 @@ export function useContentGenerator() {
               subject: effectiveSubject,
               subject_details: existingContent || undefined,
               objective: objective || null,
-              slide_count: slideCount || 7,
+              // Longueur : envoyé SEULEMENT si l'utilisatrice a choisi (puces
+              // « Longueur »). Absent = l'edge applique ses cibles adaptatives.
+              slide_count: slideCount || undefined,
               deepening_answers: answers || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
