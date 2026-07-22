@@ -463,7 +463,23 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
 
   const updateSlideText = (idx: number, text: string) => {
     const oldText = slides[idx]?.overlay_text || "";
-    const next = slides.map((s, i) => (i === idx ? { ...s, overlay_text: text } : s));
+    const next = slides.map((s, i) => {
+      if (i !== idx) return s;
+      const edited: any = { ...s, overlay_text: text };
+      // Chiffre du gabarit ancré dans le texte : si l'édition le retire, on purge
+      // big_number — sinon un « -40 % » périmé resterait rendu en 170px à la
+      // prochaine mise à jour des visuels.
+      const big = String(edited.big_number || "").trim();
+      if (big) {
+        const normalize = (v: string) =>
+          v.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9%]+/g, " ").trim();
+        if (normalize(oldText).includes(normalize(big)) && !normalize(text).includes(normalize(big))) {
+          delete edited.big_number;
+          if (edited.template === "chiffre") delete edited.template;
+        }
+      }
+      return edited;
+    });
     setSlides(next);
     notify(next, caption);
     patchVisual(next, slides[idx]?.slide_number || idx + 1, "overlay", oldText, text);

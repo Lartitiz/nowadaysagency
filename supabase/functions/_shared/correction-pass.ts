@@ -141,7 +141,7 @@ Si oui → réécris.
     → "Des X, des Y, des Z" → casse la symétrie.
 
 11. OVERLAYS PHOTO (carrousels mixtes, marqueur [SLIDE N - OVERLAY]) :
-    → Si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo ("Quand la magie opère", "Un instant suspendu", "L'art du détail"), réécris-le en phrase ANCRÉE dans CE moment précis : un fait sensoriel (ce qu'on voit/entend/sent), un détail concret, ou une parole captée. 5-15 mots max. Pas d'abstraction décorative.
+    → Si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo ("Quand la magie opère", "Un instant suspendu", "L'art du détail"), réécris-le en phrase ANCRÉE dans CE moment précis : un fait sensoriel (ce qu'on voit/entend/sent), un détail concret, ou une parole captée. 5-25 mots (même règle que partout). Pas d'abstraction décorative.
     → NE JAMAIS supprimer le connecteur narratif ("Sauf que", "Et puis", "C'est là que"…) ou la reprise lexicale qui ouvre un overlay : c'est le chaînage voulu entre slides. Si tu réécris l'overlay, la version réécrite doit conserver un lien explicite avec la slide précédente (connecteur ou reprise d'un mot-clé).
     → Un overlay reste 1 phrase de 5-25 mots. Ne JAMAIS le développer en 2-4 phrases : la consigne globale de longueur ne s'applique PAS aux lignes [SLIDE N - OVERLAY].
     → Un overlay qui n'a de sens qu'après la slide précédente est un signe de qualité, pas un défaut à corriger.
@@ -435,6 +435,20 @@ function extractCarouselTexts(parsed: any): string {
 }
 
 /**
+ * Garde de fidélité DÉTERMINISTE : si la « correction » ne diffère de l'original
+ * que par des espaces en moins/en plus (mots collés type « je l'aitrouvé
+ * commeça » — typo de recopie du modèle qui devait rendre le texte verbatim),
+ * on garde l'original. Une vraie correction change des mots, pas juste des
+ * espaces. Sans cette garde, le verbatim-guard aval IMPOSE le texte corrompu.
+ */
+export function keepUnlessRealEdit(original: unknown, corrected: string): string {
+  const orig = typeof original === "string" ? original : "";
+  if (!orig) return corrected;
+  const strip = (s: string) => s.replace(/\s+/g, "");
+  return strip(orig) === strip(corrected) ? orig : corrected;
+}
+
+/**
  * Réinjecte les textes corrigés dans la structure JSON originale.
  */
 function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
@@ -455,7 +469,10 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     // Hook/title
     const titleKey = i === 0 ? `SLIDE ${num} - HOOK` : `SLIDE ${num} - TITLE`;
     if (corrections.has(titleKey)) {
-      const val = corrections.get(titleKey)!;
+      const val = keepUnlessRealEdit(
+        slides[i].title ?? slides[i].hook ?? slides[i].accroche,
+        corrections.get(titleKey)!,
+      );
       if (slides[i].title !== undefined) slides[i].title = val;
       else if (slides[i].hook !== undefined) slides[i].hook = val;
       else if (slides[i].accroche !== undefined) slides[i].accroche = val;
@@ -465,7 +482,10 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     // Body
     const bodyKey = `SLIDE ${num} - BODY`;
     if (corrections.has(bodyKey)) {
-      const val = corrections.get(bodyKey)!;
+      const val = keepUnlessRealEdit(
+        slides[i].body ?? slides[i].text ?? slides[i].content,
+        corrections.get(bodyKey)!,
+      );
       if (slides[i].body !== undefined) slides[i].body = val;
       else if (slides[i].text !== undefined) slides[i].text = val;
       else if (slides[i].content !== undefined) slides[i].content = val;
@@ -475,13 +495,13 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     // Punchline
     const punchKey = `SLIDE ${num} - PUNCHLINE`;
     if (corrections.has(punchKey)) {
-      slides[i].punchline = corrections.get(punchKey)!;
+      slides[i].punchline = keepUnlessRealEdit(slides[i].punchline, corrections.get(punchKey)!);
     }
 
     // Overlay text (mixte / photo_full)
     const overlayKey = `SLIDE ${num} - OVERLAY`;
     if (corrections.has(overlayKey)) {
-      slides[i].overlay_text = corrections.get(overlayKey)!;
+      slides[i].overlay_text = keepUnlessRealEdit(slides[i].overlay_text, corrections.get(overlayKey)!);
     }
   }
 
@@ -495,12 +515,12 @@ function reinjectCarouselTexts(parsed: any, correctedBlock: string): any {
     const original = result[captionTarget];
     if (original && typeof original === "object") {
       // Format objet : on réinjecte champ par champ, hashtags inchangés
-      if (corrections.has("CAPTION - HOOK")) original.hook = corrections.get("CAPTION - HOOK")!;
-      if (corrections.has("CAPTION - BODY")) original.body = corrections.get("CAPTION - BODY")!;
-      if (corrections.has("CAPTION - CTA")) original.cta = corrections.get("CAPTION - CTA")!;
+      if (corrections.has("CAPTION - HOOK")) original.hook = keepUnlessRealEdit(original.hook, corrections.get("CAPTION - HOOK")!);
+      if (corrections.has("CAPTION - BODY")) original.body = keepUnlessRealEdit(original.body, corrections.get("CAPTION - BODY")!);
+      if (corrections.has("CAPTION - CTA")) original.cta = keepUnlessRealEdit(original.cta, corrections.get("CAPTION - CTA")!);
     } else if (corrections.has("CAPTION")) {
       // Format string legacy
-      result[captionTarget] = corrections.get("CAPTION")!;
+      result[captionTarget] = keepUnlessRealEdit(result[captionTarget], corrections.get("CAPTION")!);
     }
   }
 

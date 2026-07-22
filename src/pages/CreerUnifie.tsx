@@ -263,6 +263,9 @@ export default function CreerUnifie() {
   // Le dump ne se résout qu'UNE fois par parcours (une régénération réutilise
   // les photos résolues au lieu de re-facturer les slides générées).
   const photoDumpDoneRef = useRef(false);
+  // Miroir synchrone de uploadedPhotos.length pour handleAddCarouselPhoto
+  // (deux ajouts avant re-render doivent produire des index distincts).
+  const carouselPhotoCountRef = useRef(0);
   // Dialog "photos manquantes" : remplace le downgrade silencieux.
   const [photoMissingDialog, setPhotoMissingDialog] = useState<{
     open: boolean;
@@ -869,8 +872,15 @@ export default function CreerUnifie() {
   // des photos. Évite la perte si le state UI est reset entre l'upload et la
   // génération du visuel (changement d'onglet, re-render, etc.).
   useEffect(() => {
+    carouselPhotoCountRef.current = uploadedPhotos.length;
     if (uploadedPhotos.length > 0) {
-      setGeneratedWithPhotos((prev) => (prev.length === uploadedPhotos.length ? prev : uploadedPhotos));
+      // Compare le CONTENU, pas juste la longueur : un swap de photo à cardinalité
+      // constante doit aussi rafraîchir le snapshot (sinon repli sur d'anciennes photos).
+      setGeneratedWithPhotos((prev) =>
+        prev.length === uploadedPhotos.length && prev.every((p, i) => p === uploadedPhotos[i])
+          ? prev
+          : uploadedPhotos,
+      );
       if (selectedFormat === "carousel" || photoMode) {
         savePhotos(uploadedPhotos);
       }
@@ -1649,6 +1659,9 @@ export default function CreerUnifie() {
     // Régénération carrousel : réutiliser la dernière structure confirmée
     if (selectedFormat === "carousel" && lastConfirmedStructure) {
       setStep("result");
+      // Même repli que les visuels : après une génération, uploadedPhotos peut avoir
+      // été reset (re-render, onglet) alors que le snapshot tient encore les photos.
+      const regenPhotos = uploadedPhotos.length > 0 ? uploadedPhotos : generatedWithPhotos;
       await generate({
         format: "carousel",
         subject: enrichedSubject,
@@ -1658,15 +1671,15 @@ export default function CreerUnifie() {
         channel: isLinkedInCarousel ? "linkedin" : undefined,
         confirmedStructure: lastConfirmedStructure,
         ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
-        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "mix"
         ? (isTextFirstMix
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
-            : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+            : { carouselType: "mix", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
         // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
         ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", carouselSubMode: "pure_photo", photoDescription: pureDumpDescription ?? photoDescription } : {}),
-        ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
+        ...(photoMode ? { photoMode: true, photos: regenPhotos.length > 0 ? regenPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
         ...(qualityMax ? { qualityMax: true } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
@@ -1878,6 +1891,21 @@ export default function CreerUnifie() {
     setLastNarrativeThread(narrativeThread || null);
     setStructureProposal(null);
     setStep("result");
+    // Ré-indexe les réponses par le TEXTE de la question, comme le chemin direct
+    // de doGenerate : keyées `q_0`/`q_1`, le modèle qui rédige perdrait tout le
+    // cadrage des questions (il ne connaît pas les IDs).
+    const rekeyedAnswers: Record<string, string> = (() => {
+      const textById = new Map(questions.map((q) => [q.id, q.question]));
+      const out: Record<string, string> = {};
+      for (const [id, v] of Object.entries(answers)) {
+        if (!v || !v.trim()) continue;
+        out[textById.get(id) || id] = v;
+      }
+      return out;
+    })();
+    // Même repli que les visuels : si le state UI a été reset entre l'upload et
+    // cette génération, le snapshot generatedWithPhotos tient encore les photos.
+    const photosForText = uploadedPhotos.length > 0 ? uploadedPhotos : generatedWithPhotos;
     // Snapshot des photos avant la génération finale (au cas où le state UI serait reset)
     if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo") && uploadedPhotos.length > 0) {
       setGeneratedWithPhotos(uploadedPhotos);
@@ -1887,18 +1915,18 @@ export default function CreerUnifie() {
       subject: enrichedSubject,
       objective: objective || undefined,
       editorialAngle: editorialAngle || undefined,
-      answers: Object.keys(answers).length > 0 ? answers : undefined,
+      answers: Object.keys(rekeyedAnswers).length > 0 ? rekeyedAnswers : undefined,
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       confirmedStructure: confirmedSlides,
       ...(narrativeThread ? { narrativeThread } : {}),
-      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix"
         ? (isTextFirstMix
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
-            : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+            : { carouselType: "mix", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
         : {}),
-      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: photosForText.length > 0 ? photosForText.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });
@@ -2671,7 +2699,10 @@ export default function CreerUnifie() {
         (photo.id && p.id === photo.id) || (p.base64 && p.base64 === photo.base64);
       const existingIdx = uploadedPhotos.findIndex(matches);
       if (existingIdx >= 0) return existingIdx + 1;
-      const newIndex = uploadedPhotos.length + 1;
+      // Deux ajouts avant re-render voient la même longueur closurée : le compteur
+      // ref garantit des index distincts (sinon deux slides pointent la même photo).
+      const newIndex = Math.max(uploadedPhotos.length, carouselPhotoCountRef.current) + 1;
+      carouselPhotoCountRef.current = newIndex;
       setUploadedPhotos((prev) => (prev.some(matches) ? prev : [...prev, photo]));
       return newIndex;
     },
@@ -2834,6 +2865,10 @@ export default function CreerUnifie() {
             ...(typeof s.step_number === "number" ? { step_number: s.step_number } : {}),
             ...(s.attribution ? { attribution: s.attribution } : {}),
             ...(s.cta_label ? { cta_label: s.cta_label } : {}),
+            // Le prompt de carousel-visual s'appuie sur visual_anchor (cadrage du
+            // texte hors du détail + zoom narratif sur photo répétée) : le tronquer
+            // ici rendait ces règles inertes.
+            ...(s.visual_anchor ? { visual_anchor: s.visual_anchor } : {}),
           } : {}),
           ...(slideType === "photo_integrated" ? {
             photo_index: resolvedPhotoIndex,
@@ -2841,6 +2876,7 @@ export default function CreerUnifie() {
             title: s.title || "",
             body: s.body || "",
             note: s.note,
+            ...(s.visual_anchor ? { visual_anchor: s.visual_anchor } : {}),
           } : {}),
           ...(slideType === "text_only" ? {
             title: s.title || s.overlay_text || "",
@@ -3950,6 +3986,10 @@ export default function CreerUnifie() {
                     const nextRaw = { ...prev.raw, slides };
                     if (prev.raw.caption) nextRaw.caption = caption;
                     else if (prev.raw.carousel?.caption) nextRaw.carousel = { ...prev.raw.carousel, caption };
+                    // L'IA n'avait fourni AUCUNE légende : sans cette branche, la légende
+                    // éditée par l'utilisatrice n'était jamais écrite dans raw → publication
+                    // avec légende vide alors que l'UI en affichait une.
+                    else if (caption) nextRaw.caption = caption;
                     return { ...prev, raw: nextRaw };
                   });
                 } : undefined}

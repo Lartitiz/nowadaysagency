@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     // Posts dus : auto-publication échue, en attente, sur un canal publiable (Instagram ou LinkedIn).
     const { data: due, error: dueErr } = await supabase
       .from("calendar_posts")
-      .select("id, workspace_id, user_id, canal, theme, content_draft, media_urls, scheduled_publish_at")
+      .select("id, workspace_id, user_id, canal, theme, content_draft, media_urls, scheduled_publish_at, story_sequence_detail")
       .eq("auto_publish", true)
       .eq("publish_status", "scheduled")
       .in("canal", ["instagram", "linkedin"])
@@ -129,6 +129,29 @@ Deno.serve(async (req) => {
     if (dueErr) throw dueErr;
 
     const results: any[] = [];
+
+    // Légende réelle du post : un carrousel sauvegardé en brouillon garde le
+    // dump « SLIDE 1 : … » dans content_draft (édité tel quel dans le dialog
+    // calendrier) alors que la vraie légende vit dans story_sequence_detail.
+    // Sans ce choix, le dump des slides partait TEL QUEL en légende.
+    const resolveCaption = (post: any): string => {
+      const draft = (post?.content_draft || "").trim();
+      const detail = post?.story_sequence_detail;
+      const cap = detail && typeof detail === "object" ? (detail as any).caption : null;
+      let capText = typeof cap === "string"
+        ? cap.trim()
+        : cap && typeof cap === "object"
+          ? [cap.hook, cap.body, cap.cta].filter(Boolean).join("\n\n").trim()
+          : "";
+      if (capText && cap && typeof cap === "object" && Array.isArray(cap.hashtags) && cap.hashtags.length) {
+        capText += "\n\n" + cap.hashtags.map((h: unknown) => `#${String(h).replace(/^#/, "")}`).join(" ");
+      }
+      const looksLikeSlideDump = /^\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft) || /\n\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft);
+      // Une légende éditée à la main dans le calendrier reste prioritaire — on ne
+      // bascule sur la légende structurée que si le draft est vide ou est un dump.
+      if (capText && (looksLikeSlideDump || !draft)) return capText;
+      return draft;
+    };
 
     for (const post of due || []) {
       // Verrou optimiste : passe à 'publishing' seulement si encore 'scheduled' (anti double-publi).

@@ -117,28 +117,32 @@ export function injectFallbackScrim(html: string, overlayPosition?: string | nul
   // contrat (le prompt impose blanc-sur-sombre ou foncé-sur-bandeau-clair). On
   // blanchit l'ancre puis on laisse le scrim sombre se poser en dessous.
   let work = html;
-  const anchorRe = /(<[a-z][a-z0-9]*[^>]*data-slide-text="overlay"[^>]*style=")([^"]*)(")/i;
-  const anchor = work.match(anchorRe);
-  const anchorColor = anchor?.[2].match(/color\s*:\s*#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
+  const anchor = matchOverlayStyle(work);
+  const anchorColor = anchor?.style.match(/color\s*:\s*#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
   const hasLightCard = /background[^;"']*:\s*(?:#fff\b|#ffffff\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(work);
   if (anchor && anchorColor && !hasLightCard) {
     const hex = anchorColor[1].length === 3 ? anchorColor[1].split("").map((c) => c + c).join("") : anchorColor[1];
     const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
     const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
     if (luminance < 0.5) {
-      const newStyle = anchor[2].replace(/color\s*:\s*#(?:[0-9a-f]{3}|[0-9a-f]{6})\b/i, "color:#FFFFFF");
-      work = work.replace(anchorRe, `$1${newStyle}$3`);
+      const newStyle = anchor.style.replace(/color\s*:\s*#(?:[0-9a-f]{3}|[0-9a-f]{6})\b/i, "color:#FFFFFF");
+      work = anchor.replaceStyle(newStyle);
       console.log("[photo-visual-guards] ancre overlay sombre sur photo sans carte → blanchie (scrim à suivre)");
     }
   }
 
-  const hasLightText = /color\s*:\s*(#fff(?:fff)?\b|white\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(work);
+  // Texte « clair » = quasi-blanc MAIS AUSSI gris clairs (#EEE, rgb(220,…)) et
+  // blancs nommés — l'ancien motif ne couvrait que le quasi-blanc pur et
+  // laissait passer du gris clair sur photo claire sans scrim.
+  const hasLightText = /color\s*:\s*(#[c-f]{3}\b|#[c-f][0-9a-f][c-f][0-9a-f][c-f][0-9a-f]\b|white\b|whitesmoke\b|ivory\b|snow\b|ghostwhite\b|floralwhite\b|rgba?\(\s*2[0-5]\d\s*,\s*2[0-5]\d\s*,\s*2[0-5]\d)/i.test(work);
   if (!hasLightText) return { html: work, injected: false };
   // Le text-shadow ne compte PAS comme protection (durcissement audit 12/07) :
   // on l'efface avant de chercher un voile/bandeau sombre réel.
   const htmlNoShadow = work.replace(/text-shadow\s*:[^;"']*/gi, "");
-  const darkVeil = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(htmlNoShadow);
-  const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-2]?\d|3[0-2])\s*,)/i.test(htmlNoShadow);
+  // Un voile sombre NON strictement noir (charcoal rgba(30,20,10,…)) protège
+  // aussi : l'ancien motif ne reconnaissait que rgba(0,0,0,…) et doublait le scrim.
+  const darkVeil = /rgba\(\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(htmlNoShadow);
+  const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-3]?\d|4[0-8])\s*,)/i.test(htmlNoShadow);
   if (darkVeil || darkSolid) return { html: work, injected: false };
 
   const pos = String(overlayPosition || "");
@@ -176,12 +180,29 @@ export function enforceHeroHook(html: string, overlayText?: string | null): { ht
   const words = String(overlayText).trim().split(/\s+/).filter(Boolean).length;
   if (words === 0 || words > HERO_MAX_WORDS) return { html, bumped: false };
 
-  const anchorRe = /(<[a-z][a-z0-9]*[^>]*data-slide-text="overlay"[^>]*style=")([^"]*)(")/i;
-  const m = html.match(anchorRe);
+  const m = matchOverlayStyle(html);
   if (!m) return { html, bumped: false };
   const sizeRe = /font-size\s*:\s*(\d+(?:\.\d+)?)px/i;
-  const size = m[2].match(sizeRe);
+  const size = m.style.match(sizeRe);
   if (!size || parseFloat(size[1]) >= HERO_MIN_PX) return { html, bumped: false };
-  const newStyle = m[2].replace(sizeRe, `font-size:${HERO_MIN_PX}px`);
-  return { html: html.replace(anchorRe, `$1${newStyle}$3`), bumped: true };
+  const newStyle = m.style.replace(sizeRe, `font-size:${HERO_MIN_PX}px`);
+  return { html: m.replaceStyle(newStyle), bumped: true };
+}
+
+/**
+ * Attribut style de l'ancre overlay, quel que soit l'ORDRE des attributs.
+ * Sortie modèle réelle : tantôt `data-slide-text` PUIS `style`, tantôt l'inverse
+ * — l'ancien motif exigeait style APRÈS et échouait en silence (héros non
+ * remonté, ancre sombre non blanchie) sur la moitié des variantes.
+ */
+function matchOverlayStyle(html: string): { style: string; replaceStyle: (ns: string) => string } | null {
+  const afterRe = /(<[a-z][a-z0-9]*[^>]*data-slide-text="overlay"[^>]*style=")([^"]*)(")/i;
+  const beforeRe = /(<[a-z][a-z0-9]*[^>]*style=")([^"]*)("[^>]*data-slide-text="overlay")/i;
+  const re = afterRe.test(html) ? afterRe : beforeRe.test(html) ? beforeRe : null;
+  if (!re) return null;
+  const m = html.match(re)!;
+  return {
+    style: m[2],
+    replaceStyle: (ns: string) => html.replace(re, `$1${ns.replace(/\$/g, "$$$$")}$3`),
+  };
 }

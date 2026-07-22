@@ -29,6 +29,7 @@ import {
   reelTemplateLeaks,
 } from "../_shared/reel-postprocess.ts";
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
+import { enforceStoriesPhotoFirst } from "../_shared/story-photo-gate.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -2211,6 +2212,15 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       // La prise face cam du plan de tournage doit couvrir le monologue recompté
       // (le modèle recopie la durée de l'exemple du prompt sans la relier au script).
       alignFaceCamTakeDuration(parsed);
+    }
+
+    // ═══ GARDE PHOTO-D'ABORD (stories) ═══
+    // La consigne « majorité de fonds photo » du brief est probabiliste et
+    // fuit (séquences quasi entières en fond_couleur). Garde déterministe,
+    // appliquée AVANT la résolution bibliothèque pour que les stories
+    // basculées soient éligibles au placement de photos.
+    if (isStories && step === "generate") {
+      enforceStoriesPhotoFirst(parsed);
     }
 
     // ═══ RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories, lot B) ═══
