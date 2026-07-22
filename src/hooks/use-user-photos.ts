@@ -320,6 +320,7 @@ export function useRetryPhotoRetouch() {
 export function useRetouchExistingPhoto() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
 
   async function mutate(input: { photo: UserPhotoRow; backgroundPrompt: string }): Promise<void> {
@@ -371,6 +372,13 @@ export function useRetouchExistingPhoto() {
         .eq("id", photo.id);
       if (updErr) throw new Error(updErr.message);
 
+      // La carte vient de repasser en pending : rafraîchir la grille tout de
+      // suite pour afficher « Retouche en cours » sans dépendre du Realtime —
+      // sinon le polling de useUserPhotos (déclenché par la présence d'une
+      // ligne pending) ne démarre jamais et l'ancien fond reste affiché
+      // jusqu'à un retour sur la page.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
+
       try {
         const { error } = await invokeWithTimeout(
           "photo-background-replace",
@@ -403,8 +411,13 @@ export function useRetouchExistingPhoto() {
             await supabase.storage.from(USER_PHOTOS_BUCKET).remove([snapshotPath]);
           }
         }
+        queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
         throw invokeErr;
       }
+
+      // L'edge a terminé (ready) : montrer le nouveau fond sans attendre le
+      // prochain tick de polling.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
     } finally {
       setIsPending(false);
     }
@@ -439,6 +452,7 @@ export interface GeneratePhotoVariantInput {
 export function useGeneratePhotoVariant() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
 
   async function mutate(input: GeneratePhotoVariantInput): Promise<{ photoId: string }> {
@@ -485,6 +499,11 @@ export function useGeneratePhotoVariant() {
       const newId = insertRes.data.id as string;
       const originalPath = `${user.id}/${newId}_original.jpg`;
       const resultPath = `${user.id}/${newId}.jpg`;
+
+      // Nouvelle ligne pending : afficher la carte « en cours » tout de suite
+      // (même filet anti-Realtime que useCreatePhotoRetouch) — le polling de
+      // useUserPhotos prend ensuite le relais jusqu'à ready/failed.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
 
       const cleanup = async () => {
         await supabase.from("user_photos").delete().eq("id", newId);
@@ -533,9 +552,11 @@ export function useGeneratePhotoVariant() {
           .eq("id", newId)
           .maybeSingle();
         if (!cur || cur.status === "pending") await cleanup();
+        queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
         throw invokeErr;
       }
 
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
       return { photoId: newId };
     } finally {
       setIsPending(false);
