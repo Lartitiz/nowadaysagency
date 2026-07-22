@@ -95,7 +95,15 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
 
     if (t === "chiffre") {
       const big = (a.big_number || "").trim();
-      if (!big || !norm(text).includes(norm(big))) {
+      const existing = String(s?.big_number || "").trim();
+      // Le chiffre du gabarit vit par DESIGN hors de l'overlay_text (prompt
+      // d'écriture) : exiger sa présence verbatim dans le texte rendait la
+      // relecture stérile sur ce gabarit. On accepte donc aussi la
+      // re-confirmation du chiffre déjà posé par la passe d'écriture (dont la
+      // véracité est contrôlée par le redac-gate, qui scanne big_number).
+      const fromText = !!big && norm(text).includes(norm(big));
+      const reaffirmed = !!big && !!existing && norm(existing) === norm(big);
+      if (!fromText && !reaffirmed) {
         return void rejected.push(`#${nums[i]} chiffre sans big_number issu du texte`);
       }
       s.big_number = big;
@@ -104,14 +112,26 @@ export function applyTemplateAssignments(parsed: any, assignments: TemplateAssig
       const pts = (a.points || []).filter((p) => typeof p === "string" && p.trim() && wordCount(p) <= 8).slice(0, 3);
       const textWords = new Set(norm(text).split(" "));
       const grounded = pts.filter((p) => norm(p).split(" ").some((w) => w.length > 3 && textWords.has(w)));
-      if (grounded.length < 2) return void rejected.push(`#${nums[i]} liste sans points ancrés dans le texte`);
-      s.points = grounded;
+      // Même logique que chiffre : des points identiques à ceux déjà posés par
+      // la passe d'écriture sont une re-confirmation, pas une invention.
+      const existingPts = Array.isArray(s?.points) ? s.points.map((p: any) => norm(String(p))).join("|") : "";
+      const reaffirmed = !!existingPts && pts.map((p) => norm(p)).join("|") === existingPts;
+      if (grounded.length < 2 && !reaffirmed) return void rejected.push(`#${nums[i]} liste sans points ancrés dans le texte`);
+      s.points = reaffirmed ? pts : grounded;
     }
     if (t === "citation" && a.attribution && wordCount(a.attribution) <= 5) s.attribution = a.attribution.trim();
     if (t === "finale" && a.cta_label && wordCount(a.cta_label) <= 8) s.cta_label = a.cta_label.trim();
     if (t === "etape" && Number.isInteger(a.step_number) && (a.step_number as number) > 0) s.step_number = a.step_number;
 
     s.template = t;
+    // Purge la matière des AUTRES gabarits, périmée après réassignation : un
+    // big_number restant sur une slide passée en « profonde » (ou dont le texte
+    // édité ne contient plus le chiffre) ressortirait quand même au rendu.
+    if (t !== "chiffre") delete s.big_number;
+    if (t !== "liste") delete s.points;
+    if (t !== "citation") delete s.attribution;
+    if (t !== "finale") delete s.cta_label;
+    if (t !== "etape") delete s.step_number;
     applied++;
   });
   return { applied, rejected };
@@ -137,6 +157,10 @@ export async function assignPhotoTemplates(
       overlay_text: s?.overlay_text || null,
       role: s?.role || null,
       template_actuel: s?.template || null,
+      // Matière déjà posée par la passe d'écriture : sans elle, la relecture ne
+      // peut ni re-confirmer un gabarit chiffre/liste ni juger sa cohérence.
+      ...(s?.big_number ? { big_number: s.big_number } : {}),
+      ...(Array.isArray(s?.points) && s.points.length ? { points: s.points } : {}),
     }));
 
     const { callAnthropic } = await import("./anthropic.ts");

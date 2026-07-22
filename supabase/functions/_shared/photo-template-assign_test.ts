@@ -130,3 +130,46 @@ Deno.test("assign_templates : entrée vide ou non-tableau → tableau vide, jama
   assertEquals(await assignTemplatesToProvidedSlides(null, { model: "m" as never, assignFn: stub as never }), []);
   assertEquals(await assignTemplatesToProvidedSlides("nope", { model: "m" as never, assignFn: stub as never }), []);
 });
+
+// ── Audit photo 22/07 : re-confirmation + purge des champs périmés ──────────
+
+Deno.test("chiffre : re-confirmation du big_number déjà posé (hors texte) → accepté", () => {
+  const parsed = parsedWith([
+    { slide_number: 1, overlay_text: "Le temps de vente a chuté après la mise en valeur.", big_number: "-40 %", template: "chiffre" },
+    { slide_number: 2, overlay_text: "Une phrase de fil narratif qui continue le récit." },
+  ]);
+  const { applied, rejected } = applyTemplateAssignments(parsed, [
+    { slide_number: 1, template: "chiffre", big_number: "-40 %" },
+    { slide_number: 2, template: "profonde" },
+  ]);
+  assertEquals(rejected.length, 0);
+  assertEquals(applied, 2);
+  assertEquals(parsed.slides[0].big_number, "-40 %");
+});
+
+Deno.test("purge : slide réassignée en profonde perd son big_number périmé", () => {
+  const parsed = parsedWith([
+    { slide_number: 1, overlay_text: "Un texte sans plus aucun chiffre dedans.", big_number: "-40 %", template: "chiffre" },
+    { slide_number: 2, overlay_text: "Une autre slide pour dépasser le seuil." },
+  ]);
+  const { applied } = applyTemplateAssignments(parsed, [
+    { slide_number: 1, template: "profonde" },
+    { slide_number: 2, template: "profonde" },
+  ]);
+  assertEquals(applied, 2);
+  assertEquals(parsed.slides[0].big_number, undefined);
+  assertEquals(parsed.slides[0].template, "profonde");
+});
+
+Deno.test("liste : re-confirmation de points identiques déjà posés → acceptée", () => {
+  const parsed = parsedWith([
+    { slide_number: 1, overlay_text: "Trois gestes qui changent la photo.", points: ["Ouvrir les volets", "Ranger le plan de travail", "Allumer une lampe"], template: "liste" },
+    { slide_number: 2, overlay_text: "Une autre slide de fil narratif." },
+  ]);
+  const { rejected } = applyTemplateAssignments(parsed, [
+    { slide_number: 1, template: "liste", points: ["Ouvrir les volets", "Ranger le plan de travail", "Allumer une lampe"] },
+    { slide_number: 2, template: "profonde" },
+  ]);
+  assertEquals(rejected.length, 0);
+  assertEquals(parsed.slides[0].points.length, 3);
+});

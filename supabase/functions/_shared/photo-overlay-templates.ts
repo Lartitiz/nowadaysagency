@@ -114,10 +114,10 @@ function zoneFor(position: string | null | undefined): keyof PhotoZoneLuminance 
 }
 
 /** Dégradé ancré au bord porteur du texte (bas par défaut). */
-function gradientScrim(position: string | null | undefined, peak: number): string {
+function gradientScrim(position: string | null | undefined, peak: number, heightPct = 54): string {
   const isTop = /^top/.test(String(position || ""));
   const dir = isTop ? "180deg" : "0deg";
-  return `<div data-injected-scrim="1" style="position:absolute;left:0;${isTop ? "top" : "bottom"}:0;width:${W}px;height:54%;background:linear-gradient(${dir},rgba(0,0,0,${peak}) 0%,rgba(0,0,0,0) 100%);"></div>`;
+  return `<div data-injected-scrim="1" style="position:absolute;left:0;${isTop ? "top" : "bottom"}:0;width:${W}px;height:${heightPct}%;background:linear-gradient(${dir},rgba(0,0,0,${peak}) 0%,rgba(0,0,0,0) 100%);"></div>`;
 }
 
 /** Voile uniforme (gabarits centrés). */
@@ -125,9 +125,14 @@ function fullDim(opacity: number): string {
   return `<div data-injected-scrim="1" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;background:rgba(0,0,0,${opacity});"></div>`;
 }
 
-function photoLayer(photoIndex: number): string {
+function photoLayer(photoIndex: number, zoom = false): string {
   const n = Math.max(1, Math.round(photoIndex || 1));
-  return `<div data-pptx-photo="${n}" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;background-image:url({{PHOTO_${n}}});background-size:cover;background-position:center;"></div>`;
+  // Zoom narratif : quand la MÊME photo porte deux slides consécutives, la
+  // seconde passe en plan serré (150 %) — jamais deux slides identiques d'affilée.
+  const sizing = zoom
+    ? `background-size:150%;background-position:center 38%;`
+    : `background-size:cover;background-position:center;`;
+  return `<div data-pptx-photo="${n}" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;background-image:url({{PHOTO_${n}}});${sizing}"></div>`;
 }
 
 function root(fontBody: string, inner: string): string {
@@ -166,7 +171,20 @@ function heroSize(text: string): number {
   const wc = wordCount(text);
   if (wc <= 6) return 84;
   if (wc <= 12) return 72;
-  return 58;
+  if (wc <= 20) return 58;
+  return 48; // hook anormalement long : réduit plutôt que clippé par overflow:hidden
+}
+
+/** Rétrécit la police quand le texte dépasse la longueur nominale du gabarit.
+ * Le chemin composé n'a AUCUN font-size-guard aval (D1/D1-bis gatés
+ * !composedByCode) et la racine est en overflow:hidden : sans cette échelle,
+ * un texte trop long serait coupé hors cadre par le haut. */
+function fitSize(base: number, text: string, nominalWords: number): number {
+  const wc = wordCount(text);
+  if (wc <= nominalWords) return base;
+  if (wc <= Math.round(nominalWords * 1.4)) return Math.round(base * 0.85);
+  if (wc <= Math.round(nominalWords * 1.8)) return Math.round(base * 0.72);
+  return Math.round(base * 0.62);
 }
 
 // ── Gabarits ────────────────────────────────────────────────────────────────
@@ -184,15 +202,17 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
     ),
   );
   if (s.detail) parts.push(detailHtml(s.detail));
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72)) +
+  // Bloc haut (kicker + hero + detail) : dégradé rallongé pour couvrir le sommet.
+  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), 66) +
     contentWrap(s.overlay_position || "bottom_center", "center", parts.join(""));
 }
 
 function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const fontBody = cssFont(ch.font_body, "sans-serif");
+  const text = s.overlay_text || "";
   const inner = overlayAnchor(
-    s.overlay_text || "",
-    `font-family:${fontBody};font-size:40px;line-height:1.45;color:#FFFFFF;max-width:880px;`,
+    text,
+    `font-family:${fontBody};font-size:${fitSize(40, text, 25)}px;line-height:1.45;color:#FFFFFF;max-width:880px;`,
   );
   return gradientScrim(s.overlay_position, scrimPeak(lum)) +
     contentWrap(s.overlay_position || "bottom_center", "center", inner);
@@ -218,7 +238,7 @@ function tplChiffre(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const line = s.overlay_text
     ? overlayAnchor(
       s.overlay_text,
-      `font-size:32px;line-height:1.5;color:rgba(255,255,255,0.9);max-width:760px;margin-top:20px;`,
+      `font-size:${fitSize(32, s.overlay_text, 15)}px;line-height:1.5;color:rgba(255,255,255,0.9);max-width:760px;margin-top:20px;`,
     )
     : "";
   return fullDim(Math.max(dimOpacity(lum), 0.3)) +
@@ -233,7 +253,7 @@ function tplListe(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   if (s.overlay_text) {
     parts.push(overlayAnchor(
       s.overlay_text,
-      `font-family:${fontTitle};font-size:44px;line-height:1.2;color:#FFFFFF;margin-bottom:26px;max-width:880px;`,
+      `font-family:${fontTitle};font-size:${fitSize(44, s.overlay_text, 12)}px;line-height:1.2;color:#FFFFFF;margin-bottom:26px;max-width:880px;`,
       "h2",
     ));
   }
@@ -241,7 +261,8 @@ function tplListe(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
     `<div style="font-size:34px;line-height:1.7;color:#FFFFFF;"><span style="font-family:${fontTitle};font-style:italic;color:${accent};margin-right:14px;">${i + 1}</span>${escapeHtml(p)}</div>`
   ).join("");
   parts.push(`<div style="display:flex;flex-direction:column;gap:10px;">${points}</div>`);
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72)) +
+  // Bloc haut (kicker + titre + points) : dégradé rallongé pour couvrir le sommet.
+  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), 66) +
     contentWrap(s.overlay_position || "bottom_left", "center", parts.join(""));
 }
 
@@ -255,7 +276,7 @@ function tplEtape(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const body = s.overlay_text
     ? overlayAnchor(
       s.overlay_text,
-      `font-size:34px;line-height:1.55;color:rgba(255,255,255,0.92);max-width:840px;margin-top:18px;`,
+      `font-size:${fitSize(34, s.overlay_text, 25)}px;line-height:1.55;color:rgba(255,255,255,0.92);max-width:840px;margin-top:18px;`,
     )
     : "";
   return fullDim(dimOpacity(lum)) + gradientScrim(s.overlay_position, 0.5) +
@@ -268,7 +289,7 @@ function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string 
   const mark = `<div style="font-family:${fontTitle};font-size:110px;line-height:0.5;color:${accent};">“</div>`;
   const quote = overlayAnchor(
     s.overlay_text || "",
-    `font-family:${fontTitle};font-style:italic;font-size:46px;line-height:1.4;color:#FFFFFF;max-width:840px;margin-top:26px;`,
+    `font-family:${fontTitle};font-style:italic;font-size:${fitSize(46, s.overlay_text || "", 25)}px;line-height:1.4;color:#FFFFFF;max-width:840px;margin-top:26px;`,
     "blockquote",
   );
   const who = s.attribution
@@ -282,7 +303,7 @@ function tplFinale(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const fontTitle = cssFont(ch.font_title, "Georgia, serif");
   const q = overlayAnchor(
     s.overlay_text || "",
-    `font-family:${fontTitle};font-size:52px;line-height:1.25;color:#FFFFFF;max-width:880px;`,
+    `font-family:${fontTitle};font-size:${fitSize(52, s.overlay_text || "", 20)}px;line-height:1.25;color:#FFFFFF;max-width:880px;`,
     "h2",
   );
   const cta = s.cta_label
@@ -317,10 +338,26 @@ export function resolvePhotoTemplate(
   const t = (s.template || "").trim() as PhotoTemplate;
   const hasText = !!(s.overlay_text || "").trim();
   if (KNOWN.includes(t)) {
-    // Cohérence gabarit/champs : un gabarit qui exige un champ absent est dégradé.
-    if (t === "chiffre" && !(s.big_number || "").trim()) return hasText ? "profonde" : "etiquette";
-    if (t === "liste" && !(s.points || []).length) return "profonde";
-    if (t === "citation" && !hasText) return "profonde";
+    // Cohérence gabarit/champs : un gabarit qui exige un champ absent est dégradé
+    // vers un gabarit dont le champ PORTEUR existe (sinon la dégradation rendait
+    // un overlay VIDE : ex. chiffre sans big_number → etiquette sans texte).
+    if (t === "chiffre" && !(s.big_number || "").trim()) {
+      if ((s.points || []).length >= 2) return "liste";
+      if (!hasText) return "etiquette"; // slide sans AUCUN contenu filtrée en amont (photo nue)
+      return wordCount(s.overlay_text || "") <= 4 ? "etiquette" : "profonde";
+    }
+    if (t === "liste" && !(s.points || []).length) {
+      if (!hasText && (s.big_number || "").trim()) return "chiffre";
+      return "profonde";
+    }
+    if (t === "citation" && !hasText) {
+      if ((s.big_number || "").trim()) return "chiffre";
+      if ((s.points || []).length >= 2) return "liste";
+      return "profonde";
+    }
+    // Pastille uppercase à fort letter-spacing : au-delà de ~6 mots elle déborde
+    // du cadre (aucun font-size-guard sur le chemin composé).
+    if (t === "etiquette" && wordCount(s.overlay_text || "") > 6) return "profonde";
     if (t === "couverture" && !opts.isFirst) return "profonde";
     if (t === "finale" && !opts.isLast) return "profonde";
     return t;
@@ -352,7 +389,7 @@ export interface ComposedSlide {
 export function composePhotoSlide(
   s: PhotoSlideSpec,
   charter: PhotoCharter,
-  opts: { isFirst: boolean; isLast: boolean; luminance?: PhotoZoneLuminance },
+  opts: { isFirst: boolean; isLast: boolean; luminance?: PhotoZoneLuminance; zoomOnRepeat?: boolean },
 ): ComposedSlide {
   const fontBody = cssFont(charter.font_body, "sans-serif");
   const hasText = !!(s.overlay_text || "").trim();
@@ -362,7 +399,7 @@ export function composePhotoSlide(
     // Photo nue (photo dump, respiration) : aucun voile, aucune ancre — légitime.
     return {
       slide_number: s.slide_number,
-      html: root(fontBody, photoLayer(s.photo_index)),
+      html: root(fontBody, photoLayer(s.photo_index, opts.zoomOnRepeat)),
       contrast_ok: true,
       legibility: "photo nue, aucun texte",
       template: "photo_nue",
@@ -390,7 +427,7 @@ export function composePhotoSlide(
   const measured = typeof lum === "number" ? `luminance mesurée ${lum.toFixed(2)}` : "luminance non mesurée (pire cas)";
   return {
     slide_number: s.slide_number,
-    html: root(fontBody, photoLayer(s.photo_index) + inner),
+    html: root(fontBody, photoLayer(s.photo_index, opts.zoomOnRepeat) + inner),
     contrast_ok: true,
     legibility: `gabarit ${template}, voile dosé (${measured})`,
     template,

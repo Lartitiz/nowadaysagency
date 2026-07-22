@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction, SONNET_MODEL, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION, SLIDE_TITLE_RULES, ANTI_FABRICATED_STORYTELLING, DEPTH_LAYER_DUAL } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -1139,6 +1139,19 @@ Propose la structure optimale.`;
         });
       }
 
+      // 0 slide SANS raison de mismatch : erreur explicite plutôt qu'une
+      // structure vide renvoyée en « succès » (le front auto-valide en mode
+      // photo et enchaînerait une génération sur du vide).
+      if (!(Array.isArray(structureResult.slides) && structureResult.slides.length > 0)) {
+        console.warn("[carousel-ai] structure_proposal: 0 slide sans photo_mismatch");
+        return new Response(JSON.stringify({
+          error: "structure_vide",
+          message: "La proposition de structure est revenue vide. Réessaie — aucun crédit n'a été décompté.",
+        }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       return new Response(JSON.stringify({ result: structureResult }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -1347,6 +1360,15 @@ Réponds UNIQUEMENT en JSON valide :
     if (e instanceof ValidationError) {
       return new Response(JSON.stringify({ error: e.message }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Erreur Anthropic typée (ex. génération coupée car trop longue, 422) :
+    // remonter son message actionnable au lieu d'un 500 « Erreur interne ».
+    if (e instanceof AnthropicError) {
+      console.error("carousel-ai AnthropicError:", e.status, e.message);
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status >= 400 && e.status < 600 ? e.status : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
     console.error("carousel-ai error:", e);
