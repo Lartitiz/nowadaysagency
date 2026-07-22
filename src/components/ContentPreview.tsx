@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import EditableTextStandalone from "@/components/EditableText";
 import { formatSlideRole } from "@/lib/slide-roles";
+import { StoryExportButtons } from "@/components/exports/StoryExportButtons";
+import { useStoryExport } from "@/hooks/use-story-export";
 
 interface ContentPreviewProps {
   contentData: any;
@@ -287,6 +289,9 @@ function StoriesPreview({ data, compact, editable, onContentChange }: { data: an
   const [localData, setLocalData] = useState(data);
   const storiesKey = localData.stories ? "stories" : "sequence";
   const stories = localData[storiesKey] || [];
+  // Exports (Canva / PNG / PPTX) reconstruits du JSON persisté — suivent les
+  // éditions locales (les pills éditées partent dans l'export).
+  const storyExport = useStoryExport(stories, localData.structure_type || "stories");
 
   useEffect(() => { setLocalData(data); }, [data]);
 
@@ -331,7 +336,12 @@ function StoriesPreview({ data, compact, editable, onContentChange }: { data: an
 
   return (
     <div className="space-y-3">
-      <p className="text-xs font-mono-ui font-semibold text-muted-foreground">📱 SÉQUENCE STORIES</p>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <p className="text-xs font-mono-ui font-semibold text-muted-foreground">📱 SÉQUENCE STORIES</p>
+        <div className="flex items-center gap-1">
+          <StoryExportButtons api={storyExport} />
+        </div>
+      </div>
 
       {stories.map((story: any, idx: number) => (
         <div key={idx} className="border-b border-border pb-3 last:border-0">
