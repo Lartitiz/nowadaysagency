@@ -38,3 +38,26 @@ Les sections en `opacity-0` révélées au scroll (IntersectionObserver, cf
 brute. La visite scrolle donc de bout en bout (`revealAllByScrolling`) **avant** chaque
 capture pleine page : `*-fold.png` reste prise avant scroll (première impression),
 `*-full.png` est prise après. À conserver si tu modifies le spec.
+
+## Règle anti-« grille figée » (bugs d'UX invisibles)
+
+Classe de bug vécue (#618, puis Packshot / Mise en scène) : on agit (nouveau
+fond, ajout d'une photo…), l'écriture en base réussit, **mais l'écran ne bouge
+pas** tant qu'on ne quitte/revient pas de la page — une mutation qui oublie
+d'invalider sa query. Deux règles pour l'attraper au lieu de la masquer :
+
+1. **Jamais de `page.goto` / reload entre l'action et la vérification.** Le test
+   doit voir ce que voit l'utilisatrice qui RESTE sur la page. Un rechargement
+   re-lit tout et rend le test vert alors que le bug est là. Vérifie le résultat
+   en place (la carte surgit toute seule), puis seulement navigue si besoin.
+2. **Tester aussi le Realtime en panne.** Le bug ne se montre que quand le
+   WebSocket Supabase ne pousse rien (flaky en prod) et que le filet de secours
+   (invalidation + polling) doit prendre le relais. `retouche-realtime-coupe.spec.ts`
+   coupe le WebSocket (`page.routeWebSocket(/\/realtime\/v1\//, …)` sans le relier
+   au serveur) et vérifie que la retouche s'affiche quand même, sans reload.
+
+Specs de garde dédiées :
+- `photos-refresh-inplace.spec.ts` — quotidien, **sans crédit** : un upload doit
+  produire une carte optimiste immédiate puis la vraie vignette, sans reload.
+- `retouche-realtime-coupe.spec.ts` — hebdo (lundi), ~1 crédit : « Modifier le
+  fond » temps réel coupé (force manuelle : `FORCE_RT_COUPE=1`).

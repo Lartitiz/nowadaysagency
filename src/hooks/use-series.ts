@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
@@ -31,8 +32,18 @@ export function useSeries() {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const queryClient = useQueryClient();
   const [series, setSeries] = useState<SerieSummary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Miroir du useState local, mais la table `series` alimente AUSSI les queries
+  // TanStack ["active-series"] / ["all-series-map"] (sélecteur « Série » du
+  // dialog calendrier). Sans invalidation, une série mise en pause/supprimée y
+  // reste proposée jusqu'au staleTime. Même classe que le fond figé /photos (#618).
+  const invalidateSeriesQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["active-series"] });
+    queryClient.invalidateQueries({ queryKey: ["all-series-map"] });
+  }, [queryClient]);
 
   const fetchSeries = useCallback(async () => {
     if (isDemoMode) {
@@ -85,7 +96,8 @@ export function useSeries() {
     };
     toast.success(labels[status]);
     await fetchSeries();
-  }, [fetchSeries]);
+    invalidateSeriesQueries();
+  }, [fetchSeries, invalidateSeriesQueries]);
 
   const deleteSerie = useCallback(async (id: string) => {
     const { error } = await (supabase.from("series" as any) as any)
@@ -97,7 +109,8 @@ export function useSeries() {
     }
     toast.success("Série supprimée");
     await fetchSeries();
-  }, [fetchSeries]);
+    invalidateSeriesQueries();
+  }, [fetchSeries, invalidateSeriesQueries]);
 
   const activeSeries = series.filter((s) => s.status === "active");
   const archivedSeries = series.filter((s) => s.status === "archived");
