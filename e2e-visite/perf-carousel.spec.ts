@@ -17,17 +17,10 @@
  * réels de #415/#420). LÀ il y a des assertions : un défaut = ROUGE export.
  */
 
-import { test, expect, Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import * as path from "path";
-import * as fs from "fs";
-import * as os from "os";
 import { fileURLToPath } from "url";
-import { validatePptx, extractLargestMedia } from "./pptx-validate";
-
-// Historique PPTX : dossier STABLE hors worktree (la visite du matin tourne dans
-// un worktree jetable supprimé chaque jour → results/ y serait effacé). Même
-// chemin côté lecteur (qualite-pptx.mjs). Surchargable par NOWADAYS_VISITE_DATA.
-const HISTORY_DIR = process.env.NOWADAYS_VISITE_DATA || path.join(os.homedir(), ".nowadays-visite");
+import { exportAndCheckPptx } from "./pptx-export-check";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -133,61 +126,19 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   }
   const uiSlides = await page.locator("iframe").count(); // aperçus srcdoc rendus
 
-  await page.getByRole("button", { name: /télécharger/i }).first().click();
-  const pptxItem = page.getByText(/PowerPoint — éditable/i).first();
-  await expect(pptxItem).toBeVisible({ timeout: 8000 });
-  const dlPromise = page.waitForEvent("download", { timeout: 240_000 }); // html2canvas × N slides
-  await pptxItem.click();
-  const download = await dlPromise;
-
-  const outDir = path.join(__dirname, "results");
-  fs.mkdirSync(outDir, { recursive: true });
-  const pptxPath = path.join(outDir, "export-carousel-hybride.pptx");
-  await download.saveAs(pptxPath);
-  console.log(`📦 PPTX téléchargé : ${download.suggestedFilename()} (${fs.statSync(pptxPath).size} o)`);
-
   // backgroundIsDecorative : l'export hybride « éditable » pose le texte en NATIF
   // par-dessus le fond → un fond APLAT (blanc/primaire de l'alternance) est légitime
   // tant que la slide porte du texte. Sans ça, un tirage sur fond uni était flaggé à
   // tort « fond raté » (faux positif ~1 jour/3 selon la génération — cf. 21/07).
-  const report = await validatePptx(pptxPath, { minSlides: 3, expectEditableText: true, backgroundIsDecorative: true });
-  console.log(
-    `📦 Contenu : ${report.slideCount} slides (UI : ${uiSlides} aperçus), ${report.mediaCount} images, plus petite image ${report.mediaMinBytes} o, encre mini ${report.mediaMinInk < 0 ? "n/a" : (report.mediaMinInk * 100).toFixed(2) + " %"}, ${report.texts.filter((t) => t.trim()).length} runs de texte`,
-  );
+  const report = await exportAndCheckPptx(page, __dirname, {
+    format: "carrousel_texte_design",
+    outName: "export-carousel-hybride.pptx",
+    shotName: "export-pptx-fond.png",
+    validate: { minSlides: 3, expectEditableText: true, backgroundIsDecorative: true },
+  });
   if (report.slideCount !== uiSlides) {
     // Informational : d'autres iframes peuvent exister sur la page — ne casse pas seul.
     console.log(`ℹ️ slides PPTX (${report.slideCount}) ≠ iframes UI (${uiSlides}) — à regarder si ça diverge fort.`);
   }
-
-  // Le fond le plus lourd est extrait pour « le regard » du cron (juger à l'œil
-  // wraps/contraste — les défauts que seule une humaine ou une capture attrape).
-  const shot = await extractLargestMedia(pptxPath, path.join(__dirname, "shots", "export-pptx-fond.png"));
-  if (shot) console.log(`👀 Fond extrait pour le regard : ${shot}`);
-
-  // ── Historique hebdo de l'export PPTX (Brique 3 qualité) ──────────────────
-  // 1 ligne/jour, append-only, lue par qualite-pptx.mjs pour la section « export
-  // PPTX » du bilan du lundi (accumulation des exports RÉELS de la semaine, sans
-  // génération supplémentaire). Écrit AVANT l'assertion pour tracer aussi les
-  // exports défaillants. Non bloquant : jamais d'échec de test à cause de ça.
-  try {
-    fs.mkdirSync(HISTORY_DIR, { recursive: true });
-    fs.appendFileSync(
-      path.join(HISTORY_DIR, "pptx-history.jsonl"),
-      JSON.stringify({
-        date: new Date().toISOString(),
-        format: "carrousel_texte_design",
-        slideCount: report.slideCount,
-        mediaCount: report.mediaCount,
-        mediaMinInk: report.mediaMinInk,
-        textRuns: report.texts.filter((t) => t.trim()).length,
-        ok: report.problems.length === 0,
-        problems: report.problems,
-      }) + "\n",
-    );
-  } catch (e) {
-    console.log(`(historique PPTX non écrit : ${(e as Error).message})`);
-  }
-
-  expect(report.problems, `Défauts PPTX détectés : ${report.problems.join(" | ")}`).toEqual([]);
-  console.log("✅ Export PPTX hybride : contenu validé (zip, slides, fonds, texte éditable, pas de label technique).");
+  console.log("✅ Export PPTX hybride (texte) : contenu validé (zip, slides, fonds, texte éditable, pas de label technique).");
 });

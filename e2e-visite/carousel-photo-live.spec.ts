@@ -18,6 +18,7 @@ import { test, expect } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
+import { exportAndCheckPptx } from "./pptx-export-check";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/carousel-photo");
@@ -101,7 +102,9 @@ test("carrousel photo réel : upload → génération → slides sans erreur de 
   console.log("🚀 Générer cliqué");
 
   // Résultat OU erreur de validation : on course les deux, l'erreur = rouge net.
-  const result = page.getByRole("button", { name: /ajouter au calendrier/i }).first();
+  // L'écran résultat #608 : le signal « génération finie » = le bouton « Publier
+  // ou programmer » (data-testid), plus « ajouter au calendrier » (déplacé).
+  const result = page.getByTestId("publish-or-schedule").first();
   const validationError = page.getByText(/Données invalides/i).first();
   await Promise.race([
     result.waitFor({ state: "visible", timeout: 780_000 }),
@@ -122,4 +125,29 @@ test("carrousel photo réel : upload → génération → slides sans erreur de 
     .catch(() => console.log("⚠️ moins de 2 slides visuelles détectées"));
   await page.screenshot({ path: path.join(SHOTS, "photo-2-resultat.png"), fullPage: true });
   console.log("Carrousel photo généré de bout en bout");
+
+  // ── EXPORT PPTX composé (photo + gabarits texte-sur-photo) : Brique 3 ────────
+  // Le vrai angle mort : la sonde export ne couvrait que le carrousel TEXTE, alors
+  // que les bugs « carré noir » / voile (#607, #611) vivent sur l'export PHOTO
+  // composé. On réutilise le carrousel qui vient d'être généré (zéro crédit) et on
+  // valide son PowerPoint éditable — `validatePptx` porte déjà le test « photo
+  // occultée » (couche opaque plein écran par-dessus une photo). Historisé en
+  // `carrousel_photo` → le bilan hebdo couvre enfin ce format.
+  // expectEditableText:false — en mode photo le texte peut être rastérisé sur le
+  // gabarit ; on ne veut pas de faux rouge « calque texte perdu » (à resserrer si
+  // la vérif live montre du texte natif). backgroundIsDecorative:true — une photo
+  // pleine est un fond légitime, jamais un « fond raté ».
+  const report = await exportAndCheckPptx(page, __dirname, {
+    format: "carrousel_photo",
+    outName: "export-carousel-photo.pptx",
+    shotName: "carousel-photo/export-pptx-fond-photo.png",
+    // 2 fixtures, dump OFF → 2 slides photo (vérifié live 22/07). minSlides:2 = un
+    // filet anti-« carrousel effondré à 1 slide » sans faux rouge. expectEditableText
+    // false : en photo brute le texte est rastérisé (0 run natif, constat live).
+    validate: { minSlides: 2, expectEditableText: false, backgroundIsDecorative: true },
+  });
+  console.log(
+    `✅ Export PPTX photo validé : ${report.slideCount} slides, ${report.mediaCount} images, ` +
+      `${report.problems.length} défaut(s).`,
+  );
 });

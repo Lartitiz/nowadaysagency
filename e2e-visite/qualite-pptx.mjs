@@ -1,10 +1,13 @@
 /**
  * Section « export PPTX » du bilan du lundi (Brique 3 qualité contenu).
  *
- * Ne génère RIEN : lit l'historique append-only `results/pptx-history.jsonl` que
- * `perf-carousel.spec.ts` écrit à chaque export PPTX validé (1 ligne/jour, run de
- * la visite du matin). Résume les 7 derniers jours : combien d'exports sains, quels
- * défauts vus, plus faible taux d'encre (fond trop vide / white-out), texte éditable.
+ * Ne génère RIEN : lit l'historique append-only `pptx-history.jsonl` alimenté par
+ * les specs de génération à chaque export PPTX validé (1 ligne/export) — carrousel
+ * TEXTE (`perf-carousel.spec.ts`), PHOTO (`carousel-photo-live.spec.ts`) et MIXTE
+ * (`carousel-mix-live.spec.ts`). Résume les 7 derniers jours GLOBALEMENT puis PAR
+ * FORMAT (texte/photo/mixte) : combien d'exports sains, quels défauts vus, plus
+ * faible taux d'encre (fond trop vide / white-out), texte éditable. Le détail par
+ * format est ce qui remonte les bugs « carré noir » / voile propres à photo/mixte.
  *
  * But : remonter dans le bilan hebdo la qualité du LIVRABLE PowerPoint téléchargeable
  * (demande de Laetitia 13/07) — le reste du contrôle qualité regarde le texte et le
@@ -51,7 +54,12 @@ try {
   const inks = rows.map((r) => r.mediaMinInk).filter((v) => typeof v === "number" && v >= 0);
   const worstInk = inks.length ? Math.min(...inks) : null;
   const slideCounts = rows.map((r) => r.slideCount).filter((v) => typeof v === "number");
-  const textRunsMin = Math.min(...rows.map((r) => (typeof r.textRuns === "number" ? r.textRuns : 0)));
+  // Le carrousel PHOTO (brut) n'a légitimement AUCUN texte éditable (photos 1:1) :
+  // on l'exclut du check « texte éditable », sinon il déclenche un faux ⚠️.
+  const textRows = rows.filter((r) => r.format !== "carrousel_photo");
+  const textRunsMin = textRows.length
+    ? Math.min(...textRows.map((r) => (typeof r.textRuns === "number" ? r.textRuns : 0)))
+    : 1;
 
   const alerte = sains < rows.length ? "  🔴 des exports défaillants cette semaine" : "";
   console.log(`   exports validés sains : ${sains}/${rows.length}${alerte}`);
@@ -65,13 +73,40 @@ try {
     console.log(`   taux d'encre le plus faible : ${(worstInk * 100).toFixed(2)} %${flag}`);
   }
 
-  // Défauts distincts vus dans la semaine (dédoublonnés).
-  const problems = [...new Set(rows.flatMap((r) => (Array.isArray(r.problems) ? r.problems : [])))];
+  // ── Détail PAR FORMAT (texte / photo / mixte) : c'est ce qui rend visible une
+  // régression export propre à photo/mixte (carré noir, voile) sans la noyer dans
+  // le global. Un format ABSENT = sa spec n'a pas tourné cette semaine (heavy/lundi).
+  const FORMS = [
+    { key: "carrousel_texte_design", label: "texte" },
+    { key: "carrousel_photo", label: "photo" },
+    { key: "carrousel_mix", label: "mixte" },
+  ];
+  console.log("   par format (sains / total) :");
+  for (const f of FORMS) {
+    const fr = rows.filter((r) => r.format === f.key);
+    if (!fr.length) { console.log(`      ${f.label.padEnd(6)} : — (aucun export cette semaine)`); continue; }
+    const fSains = fr.filter((r) => r.ok).length;
+    const fInks = fr.map((r) => r.mediaMinInk).filter((v) => typeof v === "number" && v >= 0);
+    const fWorst = fInks.length ? Math.min(...fInks) : null;
+    const fFlag = fSains < fr.length ? "  🔴" : "";
+    const inkStr = fWorst != null ? `, encre mini ${(fWorst * 100).toFixed(2)} %` : "";
+    console.log(`      ${f.label.padEnd(6)} : ${fSains}/${fr.length}${inkStr}${fFlag}`);
+  }
+  // Tout format présent dans l'historique mais hors de la liste connue (nouveau) :
+  const known = new Set(FORMS.map((f) => f.key));
+  const others = [...new Set(rows.map((r) => r.format).filter((k) => k && !known.has(k)))];
+  for (const k of others) {
+    const fr = rows.filter((r) => r.format === k);
+    console.log(`      ${String(k).padEnd(6)} : ${fr.filter((r) => r.ok).length}/${fr.length}`);
+  }
+
+  // Défauts distincts vus dans la semaine (dédoublonnés), avec leur format.
+  const problems = [...new Set(rows.flatMap((r) => (Array.isArray(r.problems) ? r.problems.map((p) => `[${r.format || "?"}] ${p}`) : [])))];
   if (problems.length) {
     console.log("   défauts vus cette semaine :");
-    for (const p of problems.slice(0, 8)) console.log(`      🔴 ${p}`);
+    for (const p of problems.slice(0, 10)) console.log(`      🔴 ${p}`);
   }
-  console.log("   👀 dernier fond extrait pour le regard : e2e-visite/shots/export-pptx-fond.png");
+  console.log("   👀 dernier fond extrait pour le regard : e2e-visite/shots/export-pptx-fond.png (photo : shots/carousel-photo/, mixte : shots/carousel-mix/)");
 } catch (e) {
   console.log(`export PPTX : lecture impossible (${String(e.message).slice(0, 90)}) — section sautée.`);
 }
