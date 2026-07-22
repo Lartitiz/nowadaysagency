@@ -49,6 +49,21 @@ export function buildContentPreview(
     doc = gateContent;
   }
 
+  // Stories : forme { stories: [...] } (chaque story a un champ "text"), pas
+  // { slides, caption }. Le juge du bilan hebdo doit voir les séquences comme
+  // les carrousels → on construit le même aperçu depuis les textes de story.
+  if (Array.isArray(doc?.stories)) {
+    const st = doc.stories;
+    const hookS = trunc(st[0]?.text || st[0]?.hook_options?.option_a?.text, 140);
+    const apercuS = st
+      .slice(0, 4)
+      .map((s: any) => trunc(s?.text, 120))
+      .filter(Boolean);
+    const sujetS = trunc(subject, 100);
+    if (!sujetS && !hookS && apercuS.length === 0) return null;
+    return { sujet: sujetS, hook: hookS, apercu_slides: apercuS, caption: "" };
+  }
+
   const slides = doc?.slides;
   const cap = doc?.caption;
   const hook = trunc(doc?.slides?.[0]?.title || cap?.hook, 140);
@@ -69,7 +84,9 @@ export function buildContentPreview(
 export async function logContentQuality(
   userId: string,
   format: string,
-  gate: RedacGateResult,
+  // Seuls score / violations / content sont lus : on accepte un objet minimal
+  // (les stories fabriquent un gate léger sans re-passe LLM, cf. creative-flow).
+  gate: Pick<RedacGateResult, "score" | "violations" | "content" | "repassed">,
   modelUsed?: string,
   workspaceId?: string,
   subject?: string,

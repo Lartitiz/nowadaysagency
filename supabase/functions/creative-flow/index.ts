@@ -2263,6 +2263,43 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       }
     }
 
+    // ═══ TÉLÉMÉTRIE QUALITÉ (stories) ═══
+    // Les carrousels loggent leur score de gate à chaque génération (Brique 1,
+    // content_quality_events) → le juge du bilan hebdo les note. Les stories en
+    // étaient absentes (angle mort connu). Mesure LÉGÈRE (analyzeTextRedac, zéro
+    // appel LLM) sur le texte concaténé des stories, MÊME formule de score que
+    // redacScore sur les dimensions applicables au texte libre (retournements /
+    // formules moulées / chiffres inventés), + aperçu pour l'échantillon du juge.
+    // Fire-and-forget : logContentQuality n'interrompt jamais la génération et
+    // exclut déjà les comptes QA.
+    if (isStories && step === "generate" && Array.isArray(parsed?.stories)) {
+      try {
+        const storiesText = parsed.stories
+          .map((s: any) => (typeof s?.text === "string" ? s.text : ""))
+          .filter(Boolean)
+          .join("\n\n");
+        const allowed = numbersIn([
+          typeof context === "string" ? context : "",
+          body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+          typeof newsContext === "string" ? newsContext : "",
+          fullContext || "",
+        ].join("\n"));
+        const a = analyzeTextRedac(storiesText, allowed);
+        const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+        const score = Math.max(40, 100 - 10 * violations);
+        await logContentQuality(
+          userId,
+          "stories",
+          { score, violations, repassed: false, content: JSON.stringify({ stories: parsed.stories }) },
+          finalUsage.model,
+          workspace_id,
+          typeof context === "string" ? context : undefined,
+        );
+      } catch (e) {
+        console.error("[creative-flow] log qualité stories ignoré (génération intacte):", (e as any)?.message || e);
+      }
+    }
+
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
     if (isBilledStep) {
       await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
