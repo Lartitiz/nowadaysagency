@@ -133,7 +133,13 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   }
   const uiSlides = await page.locator("iframe").count(); // aperçus srcdoc rendus
 
-  await page.getByRole("button", { name: /télécharger/i }).first().click();
+  // Depuis #608 (panneau /creer « ultra-minimal », Canva = bouton héros), le
+  // « Télécharger » direct a disparu : il vit désormais dans le menu « Autres
+  // actions » → sous-menu « Télécharger » → « PowerPoint — éditable ✨ ».
+  await page.getByTestId("more-actions").click();
+  const telechargerSub = page.getByRole("menuitem", { name: /^télécharger/i }).first();
+  await expect(telechargerSub).toBeVisible({ timeout: 8000 });
+  await telechargerSub.hover();
   const pptxItem = page.getByText(/PowerPoint — éditable/i).first();
   await expect(pptxItem).toBeVisible({ timeout: 8000 });
   const dlPromise = page.waitForEvent("download", { timeout: 240_000 }); // html2canvas × N slides
