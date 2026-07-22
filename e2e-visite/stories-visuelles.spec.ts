@@ -99,6 +99,42 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   console.log(`Aperçus visuels rendus : ${previewCount}`);
   expect(previewCount).toBeGreaterThan(0);
 
+  // ── GARDE 1 : « grande majorité, voire toutes les slides en photo » ──
+  // La garde serveur enforceStoriesPhotoFirst (#615) bascule toute story non
+  // face-cam en fond photo (sauf citation) et pose le badge format "photo".
+  // Compter les badges est robuste au chargement stock différé : le badge
+  // reflète le PLAN (background=photo), pas la photo effectivement chargée.
+  // Un résultat majoritairement "texte_fond" = régression du contenu OU edge
+  // creative-flow pas redéployée → rouge, alors que l'ancienne spec passait.
+  const totalCards = await page.getByText(/^Story \d+$/).count();
+  const faceCamBadges = await page.getByText(/^face_cam$/).count();
+  const photoBadges = await page.getByText(/^photo$/).count();
+  const texteFondBadges = await page.getByText(/^texte_fond$/).count();
+  // Dénominateur = stories À VISUEL (les face cam sont des vidéos à filmer,
+  // jamais un fond photo). Seuil 2/3 : tolère l'exception "citation".
+  const eligible = Math.max(1, totalCards - faceCamBadges);
+  console.log(`Fonds : ${photoBadges} photo / ${texteFondBadges} texte_fond / ${eligible} à visuel (${totalCards} stories, ${faceCamBadges} face cam)`);
+  expect(
+    photoBadges,
+    `Régression « stories en photo » : seulement ${photoBadges}/${eligible} slides à visuel en photo ` +
+      `(${texteFondBadges} en texte sur fond). La garde enforceStoriesPhotoFirst est-elle déployée ?`,
+  ).toBeGreaterThanOrEqual(Math.ceil((eligible * 2) / 3));
+
+  // ── GARDE 2 : cadre d'aperçu au bon format 9:16 (bug « cadre trop grand ») ──
+  // Le flex parent étirait l'iframe à la hauteur de la colonne texte (fix
+  // #615 = self-start). Mesurer le vrai rendu attrape la régression, que
+  // l'ancienne spec (« l'iframe existe ») ne voyait pas.
+  const box = await previews.first().boundingBox();
+  expect(box, "Aperçu story introuvable pour la mesure").not.toBeNull();
+  if (box) {
+    const ratio = box.height / box.width;
+    console.log(`Cadre aperçu : ${Math.round(box.width)}×${Math.round(box.height)} (ratio ${ratio.toFixed(3)}, cible 1.778)`);
+    expect(
+      Math.abs(ratio - 1920 / 1080),
+      `Cadre d'aperçu déformé (ratio ${ratio.toFixed(3)} au lieu de 1.778) — régression du 9:16`,
+    ).toBeLessThan(0.08);
+  }
+
   // Exports dans le panneau minimal (#608) : héros Canva visible, téléchargements
   // dans le menu « Autres actions » → Télécharger.
   await expect(page.getByRole("button", { name: /ouvrir dans canva/i })).toBeVisible();
