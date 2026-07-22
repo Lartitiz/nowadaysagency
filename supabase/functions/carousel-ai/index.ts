@@ -7,7 +7,7 @@ import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, P
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
-import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { applyCorrectionPassCarousel, carouselNeedsPolish } from "../_shared/correction-pass.ts";
 import { runRedacGate, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
@@ -753,17 +753,24 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           if (mismatch) return mismatch;
         }
 
-        // JSON-aware correction pass for carousels
+        // JSON-aware correction pass for carousels (conditionnelle : seulement si
+        // un scan déterministe repère un tic corrigible — sinon on épargne l'appel
+        // Haiku, sa latence, et un round-trip de réécriture ; le redac-gate en aval
+        // reste, lui, une re-passe mesurée qui rattrape les violations).
         try {
-          emitStatus("correcting");
-          const corrected = await applyCorrectionPassCarousel(content, {
-            enabled: true,
-            skipIfShorterThan: 300,
-            logger: (msg) => console.log(msg),
-            model: pickCorrectionModel(body),
-          });
-          if (corrected && corrected !== content) {
-            content = corrected;
+          if (carouselNeedsPolish(content)) {
+            emitStatus("correcting");
+            const corrected = await applyCorrectionPassCarousel(content, {
+              enabled: true,
+              skipIfShorterThan: 300,
+              logger: (msg) => console.log(msg),
+              model: pickCorrectionModel(body),
+            });
+            if (corrected && corrected !== content) {
+              content = corrected;
+            }
+          } else {
+            console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, mix)");
           }
         } catch (correctionError) {
           console.error("Correction pass failed in carousel-ai (mix):", correctionError);
@@ -872,17 +879,23 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           if (mismatch) return mismatch;
         }
 
-        // JSON-aware correction pass for carousels
+        // JSON-aware correction pass for carousels (conditionnelle : cf. mix).
+        // Les overlays photo sont courts par nature → le scan les épargne sauf
+        // slogan manufacturé, d'où beaucoup de sauts légitimes en mode photo.
         try {
-          emitStatus("correcting");
-          const corrected = await applyCorrectionPassCarousel(content, {
-            enabled: true,
-            skipIfShorterThan: 300,
-            logger: (msg) => console.log(msg),
-            model: pickCorrectionModel(body),
-          });
-          if (corrected && corrected !== content) {
-            content = corrected;
+          if (carouselNeedsPolish(content)) {
+            emitStatus("correcting");
+            const corrected = await applyCorrectionPassCarousel(content, {
+              enabled: true,
+              skipIfShorterThan: 300,
+              logger: (msg) => console.log(msg),
+              model: pickCorrectionModel(body),
+            });
+            if (corrected && corrected !== content) {
+              content = corrected;
+            }
+          } else {
+            console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, photo)");
           }
         } catch (correctionError) {
           console.error("Correction pass failed in carousel-ai (photo):", correctionError);
@@ -1312,18 +1325,22 @@ Réponds UNIQUEMENT en JSON valide :
       ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : {}),
     }, usage);
 
-    // JSON-aware correction pass for carousels
+    // JSON-aware correction pass for carousels (conditionnelle : cf. mix/photo).
     if (type === "express_full" || type === "slides" || type === "hooks") {
       try {
-        emitStatus("correcting");
-        const corrected = await applyCorrectionPassCarousel(content, {
-          enabled: true,
-          skipIfShorterThan: 300,
-          logger: (msg) => console.log(msg),
-          model: pickCorrectionModel(body),
-        });
-        if (corrected && corrected !== content) {
-          content = corrected;
+        if (carouselNeedsPolish(content)) {
+          emitStatus("correcting");
+          const corrected = await applyCorrectionPassCarousel(content, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+            model: pickCorrectionModel(body),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } else {
+          console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, texte)");
         }
       } catch (correctionError) {
         console.error("Correction pass failed in carousel-ai:", correctionError);

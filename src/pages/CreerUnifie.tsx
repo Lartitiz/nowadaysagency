@@ -270,6 +270,11 @@ export default function CreerUnifie() {
   // Miroir synchrone de uploadedPhotos.length pour handleAddCarouselPhoto
   // (deux ajouts avant re-render doivent produire des index distincts).
   const carouselPhotoCountRef = useRef(0);
+  // Cache de luminance par photo (session) : mesurer coûte un décodage canvas et
+  // peut échouer par intermittence → le voile retombait au pire cas. On mémorise
+  // la mesure réussie par identité de photo pour que les régénérations la
+  // réutilisent au lieu de re-mesurer (et de risquer un null → voile trop sombre).
+  const luminanceCacheRef = useRef<Map<string, { top: number; center: number; bottom: number }>>(new Map());
   // Dialog "photos manquantes" : remplace le downgrade silencieux.
   const [photoMissingDialog, setPhotoMissingDialog] = useState<{
     open: boolean;
@@ -854,7 +859,15 @@ export default function CreerUnifie() {
             };
           })
           .filter(Boolean) as PhotoItem[];
-        if (cancelled || merged.length === 0) return;
+        if (cancelled) return;
+        if (merged.length === 0) {
+          // Toutes les photos perdues (base64 local évincé + refetch impossible) :
+          // on le DIT au lieu de repartir en silence sur un carrousel sans photos.
+          if (manifest.length > 0) {
+            toast.warning("Tes photos n'ont pas pu être rechargées. Ré-ajoute-les avant de régénérer les visuels.");
+          }
+          return;
+        }
         setUploadedPhotos((prev) => (prev.length > 0 ? prev : merged));
         setGeneratedWithPhotos((prev) => (prev.length > 0 ? prev : merged));
         if (merged.length < manifest.length) {
@@ -2978,10 +2991,23 @@ export default function CreerUnifie() {
       // Luminance par bande (gabarits composés 13/07) : mesurée ici car l'edge
       // n'a pas de décodeur d'image. Échec silencieux → l'edge dose le voile au
       // pire cas (photo claire), jamais de texte illisible.
+      // Clé de cache = identité de la photo SOURCE (visionPhotos est mappé 1:1 sur
+      // photosForVisuals) : photothèque par id, sinon empreinte du base64.
+      const luminanceKey = (src: any, i: number): string =>
+        src?.id || src?.userPhotoId ||
+        (typeof src?.base64 === "string" ? `${src.base64.length}:${src.base64.slice(-48)}` : `idx${i}`);
       const visionPhotosWithLuminance = visionPhotos
-        ? await Promise.all(visionPhotos.map(async (p) => {
-            const { measureLuminanceZones } = await import("@/lib/photo-luminance");
-            const luminance = await measureLuminanceZones(p.base64);
+        ? await Promise.all(visionPhotos.map(async (p, i) => {
+            const key = luminanceKey(photosForVisuals[i], i);
+            let luminance = luminanceCacheRef.current.get(key);
+            if (!luminance) {
+              const { measureLuminanceZones } = await import("@/lib/photo-luminance");
+              const measured = await measureLuminanceZones(p.base64);
+              if (measured) {
+                luminance = measured;
+                luminanceCacheRef.current.set(key, measured);
+              }
+            }
             return luminance ? { ...p, luminance } : p;
           }))
         : null;
