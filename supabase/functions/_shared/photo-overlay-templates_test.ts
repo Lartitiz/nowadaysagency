@@ -146,3 +146,49 @@ Deno.test("un seul accent : la couverture n'utilise PAS la couleur d'accent (tex
   );
   assert(!out.html.includes("#7BC9A3"));
 });
+
+// ── Audit photo 22/07 : dégradations non-vides, etiquette longue, zoom répété ──
+
+Deno.test("resolvePhotoTemplate : chiffre sans big_number mais avec points → liste (pas d'overlay vide)", () => {
+  const t = resolvePhotoTemplate(
+    { slide_number: 2, photo_index: 1, overlay_text: "", template: "chiffre", points: ["un geste", "un autre geste"] } as any,
+    { isFirst: false, isLast: false },
+  );
+  assertEquals(t, "liste");
+});
+
+Deno.test("resolvePhotoTemplate : citation sans texte mais avec big_number → chiffre", () => {
+  const t = resolvePhotoTemplate(
+    { slide_number: 2, photo_index: 1, overlay_text: "", template: "citation", big_number: "3×" } as any,
+    { isFirst: false, isLast: false },
+  );
+  assertEquals(t, "chiffre");
+});
+
+Deno.test("resolvePhotoTemplate : etiquette > 6 mots → profonde (la pastille déborderait)", () => {
+  const t = resolvePhotoTemplate(
+    { slide_number: 2, photo_index: 1, overlay_text: "une phrase beaucoup trop longue pour une pastille uppercase", template: "etiquette" } as any,
+    { isFirst: false, isLast: false },
+  );
+  assertEquals(t, "profonde");
+});
+
+Deno.test("composePhotoSlide : zoomOnRepeat → plan serré (150 %), sinon cover", () => {
+  const spec = { slide_number: 2, photo_index: 1, overlay_text: "Une phrase posée sur la photo." } as any;
+  const charter = { color_accent: "#91014b", font_title: "Georgia", font_body: "Arial" } as any;
+  const zoomed = composePhotoSlide(spec, charter, { isFirst: false, isLast: false, zoomOnRepeat: true });
+  const normal = composePhotoSlide(spec, charter, { isFirst: false, isLast: false });
+  assert(zoomed.html.includes("background-size:150%"));
+  assert(normal.html.includes("background-size:cover"));
+});
+
+Deno.test("tplProfonde : texte long → police réduite (jamais clippée par overflow:hidden)", () => {
+  const charter = { color_accent: "#91014b", font_title: "Georgia", font_body: "Arial" } as any;
+  const long = Array(40).fill("mot").join(" ");
+  const out = composePhotoSlide(
+    { slide_number: 2, photo_index: 1, overlay_text: long } as any,
+    charter,
+    { isFirst: false, isLast: false },
+  );
+  assert(!out.html.includes("font-size:40px"));
+});

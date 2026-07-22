@@ -1269,7 +1269,26 @@ export async function exportCarouselHybridPptx(
       const allZones = extractPhotoZones(doc, (data as any)?.photo_index);
       const usableZones: PhotoZone[] = [];
       for (const zone of allZones) {
-        const photo = originalPhotos?.[zone.photoIndex - 1];
+        let photo = originalPhotos?.[zone.photoIndex - 1];
+        if (!photo?.base64 && originalPhotos && originalPhotos.length > 0 && originalPhotos[0]?.base64) {
+          // Index orphelin : même repli que l'aperçu (photo 1). Sans lui, la zone
+          // était droppée → la racine charbon des gabarits composés n'était jamais
+          // neutralisée ni recouverte → slide entièrement noire en export.
+          try {
+            Sentry.captureMessage("[hybrid] photo native introuvable → repli photo 1", {
+              level: "warning",
+              extra: {
+                photoIndex: zone.photoIndex,
+                slideNumber: vs.slide_number,
+                providedCount: originalPhotos.length,
+              },
+            });
+          } catch {
+            /* Sentry non initialisé : noop */
+          }
+          zone.photoIndex = 1;
+          photo = originalPhotos[0];
+        }
         if (!photo?.base64) {
           // Pas de photo native dispo : on warn (P4) seulement si l'appelant a tenté
           // de fournir des photos (sinon c'est juste le mode legacy).

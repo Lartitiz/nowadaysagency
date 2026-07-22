@@ -85,7 +85,20 @@ function tokenSimilarity(a: string, b: string): number {
 }
 
 function slideTexts(s: any): string {
-  return [s?.title, s?.body, s?.overlay_text].filter(Boolean).join(" ");
+  return [
+    s?.title,
+    s?.body,
+    s?.overlay_text,
+    // Champs de gabarit photo AFFICHÉS à l'écran (composés 13/07) : les ignorer
+    // laissait passer sans contrôle un big_number inventé (rendu en 170px), des
+    // tics ou des verbatims moulés logés dans kicker/detail/points/cta_label.
+    s?.kicker,
+    s?.detail,
+    s?.big_number,
+    ...(Array.isArray(s?.points) ? s.points : []),
+    s?.attribution,
+    s?.cta_label,
+  ].filter(Boolean).join(" ");
 }
 
 /** Corps mesurable d'une slide pour la règle « 50 mots » (titre exclu). */
@@ -367,6 +380,25 @@ export async function runRedacGate(
       if (fab.length) {
         console.log(`[redac-gate] visual_schema slide ${sl.slide_number} retiré (chiffres sans source : ${fab.map((f) => f.split(" ")[0]).join(", ")})`);
         sl.visual_schema = null;
+      }
+    }
+    // Filet gabarits photo : la re-passe LLM ne réécrit que les textes — elle ne
+    // peut pas corriger un big_number ou un point de liste. Un chiffre encore
+    // sans source ici est retiré EN CODE ; le rendu dégrade proprement le
+    // gabarit (resolvePhotoTemplate) plutôt que d'afficher une stat inventée en 170px.
+    for (const sl of slides) {
+      if (sl?.big_number && findFabricatedNumbers(String(sl.big_number), allowedNumbers).length) {
+        console.log(`[redac-gate] big_number slide ${sl.slide_number} retiré (chiffre sans source : ${sl.big_number})`);
+        sl.big_number = null;
+        if (sl.template === "chiffre") sl.template = null;
+      }
+      if (Array.isArray(sl?.points) && sl.points.length) {
+        const kept = sl.points.filter((p: any) => !findFabricatedNumbers(String(p), allowedNumbers).length);
+        if (kept.length !== sl.points.length) {
+          console.log(`[redac-gate] points slide ${sl.slide_number} : ${sl.points.length - kept.length} item(s) retiré(s) (chiffres sans source)`);
+          sl.points = kept.length >= 2 ? kept : null;
+          if (!sl.points && sl.template === "liste") sl.template = null;
+        }
       }
     }
   }

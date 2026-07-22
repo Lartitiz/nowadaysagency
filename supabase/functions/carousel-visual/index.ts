@@ -1281,15 +1281,25 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
         font_title: ch.font_title,
         font_body: ch.font_body,
       };
-      const composed = specs.map((s: any, i: number) => {
-        const photoIndex = Number(s?.photo_index) >= 1
+      const photoIdxs = specs.map((s: any, i: number) =>
+        Number(s?.photo_index) >= 1
           ? Number(s.photo_index)
-          : (i % Math.max(1, reqBody.photos?.length || 1)) + 1;
+          : (i % Math.max(1, reqBody.photos?.length || 1)) + 1
+      );
+      const composed = specs.map((s: any, i: number) => {
+        const photoIndex = photoIdxs[i];
         const luminance = (reqBody.photos?.[photoIndex - 1] as any)?.luminance;
         return composePhotoSlide(
           { ...s, slide_number: nums[i], photo_index: photoIndex },
           templateCharter,
-          { isFirst: nums[i] === minNum, isLast: nums[i] === maxNum, luminance },
+          {
+            isFirst: nums[i] === minNum,
+            isLast: nums[i] === maxNum,
+            luminance,
+            // Même photo que la slide précédente → plan serré (zoom narratif),
+            // sinon deux slides consécutives seraient visuellement identiques.
+            zoomOnRepeat: i > 0 && photoIdxs[i - 1] === photoIndex,
+          },
         );
       });
       result = {
@@ -1456,13 +1466,16 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
       const overlayLikelyUnreadable = (s: any): boolean => {
         const html: string = s?.html || "";
         if (!html) return false;
-        // Texte clair utilisé quelque part (couleur de l'overlay).
-        const hasLightText = /color\s*:\s*(#fff(?:fff)?\b|white\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(html);
+        // Texte clair utilisé quelque part (couleur de l'overlay) — quasi-blanc
+        // MAIS AUSSI gris clairs (#EEE, rgb(220,…)) et blancs nommés, qui
+        // passaient au travers de l'ancien motif.
+        const hasLightText = /color\s*:\s*(#[c-f]{3}\b|#[c-f][0-9a-f][c-f][0-9a-f][c-f][0-9a-f]\b|white\b|whitesmoke\b|ivory\b|snow\b|ghostwhite\b|floralwhite\b|rgba?\(\s*2[0-5]\d\s*,\s*2[0-5]\d\s*,\s*2[0-5]\d)/i.test(html);
         if (!hasLightText) return false;
-        // Signaux de scrim sombre qui rendent le texte clair lisible :
-        const darkVeil = /rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(html); // voile/bandeau rgba(0,0,0,≥0.35)
+        // Signaux de scrim sombre qui rendent le texte clair lisible (un voile
+        // sombre NON strictement noir — charcoal rgba(30,20,10,…) — compte aussi) :
+        const darkVeil = /rgba\(\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(html); // voile/bandeau sombre alpha ≥0.35
         const darkShadow = /text-shadow\s*:[^;"']*rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.[5-9]\d?|1)/i.test(html);   // ombre forte
-        const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-2]?\d|3[0-2])\s*,)/i.test(html);       // bandeau quasi-noir opaque
+        const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-3]?\d|4[0-8])\s*,)/i.test(html);       // bandeau sombre opaque
         return !(darkVeil || darkShadow || darkSolid);
       };
       const flagged = result.slides_html.filter(
