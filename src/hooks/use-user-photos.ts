@@ -3,7 +3,7 @@
  * Postgres Realtime keeping the list fresh (status transitions, inserts, deletes).
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,6 +70,21 @@ export function useUserPhotos() {
   }, [workspaceId, queryClient]);
 
   return query;
+}
+
+/**
+ * Rafraîchit la grille /photos à la demande. À appeler après TOUTE écriture
+ * dans user_photos faite hors des mutations de ce fichier (dialogues Packshot /
+ * Mise en scène qui passent par `uploadPhotoOriginal` en direct) : sans ça, la
+ * nouvelle photo n'apparaît que si le Realtime pousse — flaky connu — ou après
+ * un aller-retour sur la page. Même filet que le fix « Nouveau fond » (#618).
+ */
+export function useRefreshUserPhotos(): () => void {
+  const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
+  }, [queryClient, workspaceId]);
 }
 
 /* ─────────────────────────  Mutations  ───────────────────────── */
@@ -320,6 +335,7 @@ export function useRetryPhotoRetouch() {
 export function useRetouchExistingPhoto() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
 
   async function mutate(input: { photo: UserPhotoRow; backgroundPrompt: string }): Promise<void> {
@@ -371,6 +387,13 @@ export function useRetouchExistingPhoto() {
         .eq("id", photo.id);
       if (updErr) throw new Error(updErr.message);
 
+      // La carte vient de repasser en pending : rafraîchir la grille tout de
+      // suite pour afficher « Retouche en cours » sans dépendre du Realtime —
+      // sinon le polling de useUserPhotos (déclenché par la présence d'une
+      // ligne pending) ne démarre jamais et l'ancien fond reste affiché
+      // jusqu'à un retour sur la page.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
+
       try {
         const { error } = await invokeWithTimeout(
           "photo-background-replace",
@@ -403,8 +426,13 @@ export function useRetouchExistingPhoto() {
             await supabase.storage.from(USER_PHOTOS_BUCKET).remove([snapshotPath]);
           }
         }
+        queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
         throw invokeErr;
       }
+
+      // L'edge a terminé (ready) : montrer le nouveau fond sans attendre le
+      // prochain tick de polling.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
     } finally {
       setIsPending(false);
     }
@@ -439,6 +467,7 @@ export interface GeneratePhotoVariantInput {
 export function useGeneratePhotoVariant() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
   const [isPending, setIsPending] = useState(false);
 
   async function mutate(input: GeneratePhotoVariantInput): Promise<{ photoId: string }> {
@@ -485,6 +514,11 @@ export function useGeneratePhotoVariant() {
       const newId = insertRes.data.id as string;
       const originalPath = `${user.id}/${newId}_original.jpg`;
       const resultPath = `${user.id}/${newId}.jpg`;
+
+      // Nouvelle ligne pending : afficher la carte « en cours » tout de suite
+      // (même filet anti-Realtime que useCreatePhotoRetouch) — le polling de
+      // useUserPhotos prend ensuite le relais jusqu'à ready/failed.
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
 
       const cleanup = async () => {
         await supabase.from("user_photos").delete().eq("id", newId);
@@ -533,9 +567,11 @@ export function useGeneratePhotoVariant() {
           .eq("id", newId)
           .maybeSingle();
         if (!cur || cur.status === "pending") await cleanup();
+        queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
         throw invokeErr;
       }
 
+      queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
       return { photoId: newId };
     } finally {
       setIsPending(false);

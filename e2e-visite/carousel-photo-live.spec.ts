@@ -103,7 +103,8 @@ test("carrousel photo réel : upload → génération → slides sans erreur de 
 
   // Résultat OU erreur de validation : on course les deux, l'erreur = rouge net.
   // L'écran résultat #608 : le signal « génération finie » = le bouton « Publier
-  // ou programmer » (data-testid), plus « ajouter au calendrier » (déplacé).
+  // ou programmer » (data-testid, plus robuste que le texte), « ajouter au
+  // calendrier » a disparu (même correctif que perf-carousel #612 côté main).
   const result = page.getByTestId("publish-or-schedule").first();
   const validationError = page.getByText(/Données invalides/i).first();
   await Promise.race([

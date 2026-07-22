@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -18,8 +19,18 @@ export interface PersonaSummary {
 export function usePersonas() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  const queryClient = useQueryClient();
   const [personas, setPersonas] = useState<PersonaSummary[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Ce hook lit `persona` dans un useState local, mais la table est AUSSI lue
+  // par la query TanStack ["persona"] (use-branding → Dashboard, BrandingPage,
+  // bio Insta, récap proposition). Sans invalider cette query après écriture,
+  // ces écrans gardent l'ancienne persona jusqu'à leur staleTime (5 min). Même
+  // classe de bug que le fond figé de /photos (#618).
+  const invalidatePersonaQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["persona"] });
+  }, [queryClient]);
 
   const fetchPersonas = useCallback(async () => {
     if (!user) return;
@@ -43,17 +54,20 @@ export function usePersonas() {
       await supabase.from("persona").update({ is_primary: id === personaId } as any).eq("id", id);
     }
     await fetchPersonas();
-  }, [personas, fetchPersonas]);
+    invalidatePersonaQueries();
+  }, [personas, fetchPersonas, invalidatePersonaQueries]);
 
   const updateChannels = useCallback(async (personaId: string, channels: string[]) => {
     await supabase.from("persona").update({ channels } as any).eq("id", personaId);
     await fetchPersonas();
-  }, [fetchPersonas]);
+    invalidatePersonaQueries();
+  }, [fetchPersonas, invalidatePersonaQueries]);
 
   const deletePersona = useCallback(async (personaId: string) => {
     await supabase.from("persona").delete().eq("id", personaId);
     await fetchPersonas();
-  }, [fetchPersonas]);
+    invalidatePersonaQueries();
+  }, [fetchPersonas, invalidatePersonaQueries]);
 
   const getPersonaForChannel = useCallback((channel: string): PersonaSummary | null => {
     const match = personas.find((p) => p.channels?.includes(channel));

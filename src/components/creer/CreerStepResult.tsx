@@ -6,7 +6,7 @@ import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
 import CarouselPhotoResult, { type CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
-import StoryResult from "@/components/creer/formatRenderers/StoryResult";
+import StoryResult, { type StoryExportActions } from "@/components/creer/formatRenderers/StoryResult";
 import PostResult from "@/components/creer/formatRenderers/PostResult";
 import LinkedInResult from "@/components/creer/formatRenderers/LinkedInResult";
 import NewsletterResult from "@/components/creer/formatRenderers/NewsletterResult";
@@ -45,6 +45,33 @@ function cleanStreamingContent(raw: string): string {
 
   return cleaned;
 }
+/** Héros « Ouvrir dans Canva » — partagé carrousel/stories (panneau minimal #608). */
+function CanvaHeroButton({ onClick, loading }: { onClick: () => void; loading?: boolean }) {
+  return (
+    <Button
+      onClick={onClick}
+      disabled={loading}
+      className="w-full gap-2 h-12 text-base font-semibold bg-primary hover:bg-primary text-white border-none"
+    >
+      {loading ? (
+        <Loader2 className="h-5 w-5 animate-spin" />
+      ) : (
+        <svg viewBox="0 0 32 32" className="h-5 w-5 shrink-0" aria-hidden="true">
+          <defs>
+            <linearGradient id="canvaHeroG" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#00C4CC" />
+              <stop offset="100%" stopColor="#7D2AE8" />
+            </linearGradient>
+          </defs>
+          <circle cx="16" cy="16" r="16" fill="url(#canvaHeroG)" />
+          <text x="16" y="23" textAnchor="middle" fontSize="20" fontWeight="700" fill="#ffffff" fontFamily="Georgia, serif">C</text>
+        </svg>
+      )}
+      {loading ? "Ouverture…" : "Ouvrir dans Canva"}
+    </Button>
+  );
+}
+
 // ── Progress messages par format ──
 const PROGRESS_MESSAGES: Record<string, string[]> = {
   carousel: [
@@ -329,6 +356,9 @@ export default function CreerStepResult({
   const [visualProgressIndex, setVisualProgressIndex] = useState(0);
   const [visualProgress, setVisualProgress] = useState(0);
   const startTimeRef = useRef(Date.now());
+  // Actions d'export des stories, remontées par StoryResult (null = pas de frame) :
+  // le panneau minimal les affiche au même endroit que pour les carrousels.
+  const [storyActions, setStoryActions] = useState<StoryExportActions | null>(null);
 
   // ── Célébration à l'apparition du résultat ──
   // Ne se déclenche que sur la transition génération → résultat (pas sur un
@@ -487,7 +517,7 @@ export default function CreerStepResult({
       case "reel":
         return <ReelResult result={result} />;
       case "story":
-        return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} />;
+        return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
       case "post":
         return <PostResult result={result} photos={photos} />;
       case "linkedin":
@@ -505,6 +535,7 @@ export default function CreerStepResult({
 
   const hasVisuals = !!(visualSlides && visualSlides.length > 0);
   const isCarousel = format === "carousel";
+  const isStory = format === "story";
 
   // Texte propre à copier selon le format (déplacé tel quel dans le menu « Autres actions »).
   const handleCopyText = () => {
@@ -524,6 +555,20 @@ export default function CreerStepResult({
     if (format === "pinterest_visual" && result?.title) {
       onCopy(`${result.title}\n\n${result.description || ""}`);
       return;
+    }
+    if (format === "story" && Array.isArray(result?.stories)) {
+      const storiesText = result.stories
+        .map((s: any, i: number) => {
+          const text = s?.text || s?.texte || s?.content || "";
+          const sticker = s?.sticker?.type ? ` [sticker : ${s.sticker.type}]` : "";
+          return text ? `📱 Story ${i + 1}${s?.timing ? ` (${s.timing})` : ""}${sticker}\n${text}` : "";
+        })
+        .filter(Boolean)
+        .join("\n\n");
+      if (storiesText) {
+        onCopy(storiesText);
+        return;
+      }
     }
     const cleanText =
       result?.full_text ||
@@ -586,27 +631,13 @@ export default function CreerStepResult({
           génération (l'aperçu in-app est un brouillon ; l'asset final vit dans
           Canva). Publier/Calendrier deviennent secondaires. */}
       {isCarousel && hasVisuals && onOpenInCanva && (
-        <Button
-          onClick={onOpenInCanva}
-          disabled={openingCanva}
-          className="w-full gap-2 h-12 text-base font-semibold bg-primary hover:bg-primary text-white border-none"
-        >
-          {openingCanva ? (
-            <Loader2 className="h-5 w-5 animate-spin" />
-          ) : (
-            <svg viewBox="0 0 32 32" className="h-5 w-5 shrink-0" aria-hidden="true">
-              <defs>
-                <linearGradient id="canvaHeroG" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#00C4CC" />
-                  <stop offset="100%" stopColor="#7D2AE8" />
-                </linearGradient>
-              </defs>
-              <circle cx="16" cy="16" r="16" fill="url(#canvaHeroG)" />
-              <text x="16" y="23" textAnchor="middle" fontSize="20" fontWeight="700" fill="#ffffff" fontFamily="Georgia, serif">C</text>
-            </svg>
-          )}
-          {openingCanva ? "Ouverture…" : "Ouvrir dans Canva"}
-        </Button>
+        <CanvaHeroButton onClick={onOpenInCanva} loading={openingCanva} />
+      )}
+
+      {/* HÉROS stories : mêmes visuels prêts à publier que le carrousel — le
+          bouton Canva vit dans le panneau, pas caché au-dessus des cartes. */}
+      {isStory && storyActions && (
+        <CanvaHeroButton onClick={storyActions.openInCanva} loading={storyActions.openingCanva} />
       )}
 
       {/* CTAs principaux — panneau « ultra-minimal » : 3 choix visibles
@@ -687,7 +718,12 @@ export default function CreerStepResult({
         <Button
           data-testid="publish-or-schedule"
           onClick={onPublishOrSchedule}
-          variant={isCarousel && ((hasVisuals && onOpenInCanva) || (!hasVisuals && onGenerateVisuals && !visualLoading)) ? "outline" : "default"}
+          variant={
+            (isCarousel && ((hasVisuals && onOpenInCanva) || (!hasVisuals && onGenerateVisuals && !visualLoading))) ||
+            (isStory && !!storyActions)
+              ? "outline"
+              : "default"
+          }
           className="w-full gap-2 h-11 text-sm font-semibold"
         >
           <Send className="h-4 w-4" /> {publishOrScheduleLabel || "Publier ou programmer"}
@@ -721,6 +757,22 @@ export default function CreerStepResult({
             <DropdownMenuItem onClick={onExportPptx} className="gap-2">
               <Download className="h-4 w-4" /> Télécharger PPTX
             </DropdownMenuItem>
+          )}
+          {isStory && storyActions && (
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger className="gap-2">
+                <Download className="h-4 w-4" /> Télécharger
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="w-64">
+                <DownloadMenuItems
+                  onPng={storyActions.exportPng}
+                  onPptxEditable={storyActions.exportPptx}
+                  downloadingPng={storyActions.exporting}
+                  downloadingPptx={storyActions.exportingPptx}
+                  count={storyActions.frameCount}
+                />
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
           )}
           {format === "pinterest_visual" && (result?.pin_html || result?.title) && (onExportPinterestPng || onExportPinterestEditablePptx) && (
             <DropdownMenuSub>

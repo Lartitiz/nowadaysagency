@@ -7,7 +7,7 @@ import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, P
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
-import { applyCorrectionPassCarousel } from "../_shared/correction-pass.ts";
+import { applyCorrectionPassCarousel, carouselNeedsPolish } from "../_shared/correction-pass.ts";
 import { runRedacGate, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
@@ -703,7 +703,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           const photoCtxRecap = buildPhotoContextRecap(body.photos);
           messageContent.push({
             type: "text",
-            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
+            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.slide_count ? `Nombre de slides cible : ${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur toute autre fourchette, même avec ${body.photos.length} photo(s).\n` : ""}${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
           });
 
           // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -729,7 +729,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           const photoDescLine = body.text_first
             ? ""
             : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
-          const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
+          const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}${body.slide_count ? " — choix explicite de l'utilisatrice, il PRIME sur toute autre fourchette" : ""}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
           doGenerate = (sink: UsageSink) => callAnthropic({
             model: pickCarouselModel(body),
@@ -753,17 +753,24 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           if (mismatch) return mismatch;
         }
 
-        // JSON-aware correction pass for carousels
+        // JSON-aware correction pass for carousels (conditionnelle : seulement si
+        // un scan déterministe repère un tic corrigible — sinon on épargne l'appel
+        // Haiku, sa latence, et un round-trip de réécriture ; le redac-gate en aval
+        // reste, lui, une re-passe mesurée qui rattrape les violations).
         try {
-          emitStatus("correcting");
-          const corrected = await applyCorrectionPassCarousel(content, {
-            enabled: true,
-            skipIfShorterThan: 300,
-            logger: (msg) => console.log(msg),
-            model: pickCorrectionModel(body),
-          });
-          if (corrected && corrected !== content) {
-            content = corrected;
+          if (carouselNeedsPolish(content)) {
+            emitStatus("correcting");
+            const corrected = await applyCorrectionPassCarousel(content, {
+              enabled: true,
+              skipIfShorterThan: 300,
+              logger: (msg) => console.log(msg),
+              model: pickCorrectionModel(body),
+            });
+            if (corrected && corrected !== content) {
+              content = corrected;
+            }
+          } else {
+            console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, mix)");
           }
         } catch (correctionError) {
           console.error("Correction pass failed in carousel-ai (mix):", correctionError);
@@ -825,7 +832,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           // 1. Brief + recap contexte AVANT les photos
           messageContent.push({
             type: "text",
-            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides cible : ${Math.max(body.slide_count || 6, Math.min(body.photos.length, 10))} — le nombre de slides suit la RICHESSE DU RÉCIT, pas le nombre de photos (une même photo peut porter plusieurs slides, cf CAS PARTICULIERS). Ne descends JAMAIS sous 4 slides.\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
+            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides cible : ${body.slide_count ? `${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur les fourchettes des CAS PARTICULIERS, même avec ${body.photos.length} photo(s) (une même photo peut porter plusieurs slides, ou certaines photos ne pas servir)` : `${Math.max(6, Math.min(body.photos.length, 10))} — le nombre de slides suit la RICHESSE DU RÉCIT, pas le nombre de photos (une même photo peut porter plusieurs slides, cf CAS PARTICULIERS)`}. Ne descends JAMAIS sous 4 slides.\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
           });
 
           // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -872,17 +879,23 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
           if (mismatch) return mismatch;
         }
 
-        // JSON-aware correction pass for carousels
+        // JSON-aware correction pass for carousels (conditionnelle : cf. mix).
+        // Les overlays photo sont courts par nature → le scan les épargne sauf
+        // slogan manufacturé, d'où beaucoup de sauts légitimes en mode photo.
         try {
-          emitStatus("correcting");
-          const corrected = await applyCorrectionPassCarousel(content, {
-            enabled: true,
-            skipIfShorterThan: 300,
-            logger: (msg) => console.log(msg),
-            model: pickCorrectionModel(body),
-          });
-          if (corrected && corrected !== content) {
-            content = corrected;
+          if (carouselNeedsPolish(content)) {
+            emitStatus("correcting");
+            const corrected = await applyCorrectionPassCarousel(content, {
+              enabled: true,
+              skipIfShorterThan: 300,
+              logger: (msg) => console.log(msg),
+              model: pickCorrectionModel(body),
+            });
+            if (corrected && corrected !== content) {
+              content = corrected;
+            }
+          } else {
+            console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, photo)");
           }
         } catch (correctionError) {
           console.error("Correction pass failed in carousel-ai (photo):", correctionError);
@@ -938,7 +951,10 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       if (hasPhotos && (isPhotoMode || isMixMode)) {
         if (isPhotoMode) {
           const n = photos.length;
-          const slideTarget = n === 1 ? "4 à 6"
+          // slide_count explicite = choix de longueur de l'utilisatrice (puces
+          // « Longueur » du front) — il prime sur la fourchette adaptative.
+          const slideTarget = slide_count ? `${slide_count} à ${slide_count + 1}`
+            : n === 1 ? "4 à 6"
             : n === 2 ? "5 à 7"
             : n <= 4 ? "6 à 8"
             : `${n} à ${n + 2}`;
@@ -954,7 +970,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
 
           photoInstruction = `\nMODE PHOTO — ${n} photo(s) fournie(s).
 
-NOMBRE DE SLIDES : cible ${slideTarget} slides. Le nombre de slides s'ajuste à la richesse narrative du sujet ET au nombre de photos — il n'y a PAS de plancher rigide à 7-8 slides.
+NOMBRE DE SLIDES : cible ${slideTarget} slides. ${slide_count ? `C'est un CHOIX EXPLICITE de l'utilisatrice : respecte-le, même si le nombre de photos suggérerait autre chose (une même photo peut porter plusieurs slides, ou certaines photos ne pas servir).` : `Le nombre de slides s'ajuste à la richesse narrative du sujet ET au nombre de photos — il n'y a PAS de plancher rigide à 7-8 slides.`}
 
 RÉPARTITION DES PHOTOS :
 ${photoAssignmentRule}
@@ -1309,18 +1325,22 @@ Réponds UNIQUEMENT en JSON valide :
       ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : {}),
     }, usage);
 
-    // JSON-aware correction pass for carousels
+    // JSON-aware correction pass for carousels (conditionnelle : cf. mix/photo).
     if (type === "express_full" || type === "slides" || type === "hooks") {
       try {
-        emitStatus("correcting");
-        const corrected = await applyCorrectionPassCarousel(content, {
-          enabled: true,
-          skipIfShorterThan: 300,
-          logger: (msg) => console.log(msg),
-          model: pickCorrectionModel(body),
-        });
-        if (corrected && corrected !== content) {
-          content = corrected;
+        if (carouselNeedsPolish(content)) {
+          emitStatus("correcting");
+          const corrected = await applyCorrectionPassCarousel(content, {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+            model: pickCorrectionModel(body),
+          });
+          if (corrected && corrected !== content) {
+            content = corrected;
+          }
+        } else {
+          console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, texte)");
         }
       } catch (correctionError) {
         console.error("Correction pass failed in carousel-ai:", correctionError);
@@ -1627,7 +1647,7 @@ Type de carrousel : ${carousel_type}
 Sujet : ${subject}
 Objectif : ${objective}
 Hook choisi : "${selected_hook}"
-Nombre de slides : ${slide_count || 7}
+Nombre de slides : ${slide_count || 7}${slide_count ? " — choix explicite de l'utilisatrice : il PRIME sur les fourchettes indiquées dans les gabarits de type" : ""}
 ${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
 ${deepeningCtx}${angleCtx}
 STRUCTURE RECOMMANDÉE POUR CE TYPE :
@@ -2137,7 +2157,7 @@ PARAMÈTRES
 ══════════════════════════════════════
 
 Objectif : ${objective || "engagement"}
-Nombre de slides : ${slide_count || 7}
+Nombre de slides : ${slide_count || 7}${slide_count ? " — choix explicite de l'utilisatrice : il PRIME sur les fourchettes indiquées dans les gabarits de type" : ""}
 ${selected_offer ? `Offre à mentionner naturellement : ${selected_offer}` : "Pas d'offre à mentionner."}
 
 ══════════════════════════════════════

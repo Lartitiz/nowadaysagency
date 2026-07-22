@@ -6,7 +6,8 @@
  * Critères :
  * - La séquence de stories s'affiche (cartes "Story 1", "Story 2"…)
  * - Au moins un aperçu visuel 9:16 est rendu (iframe du renderer déterministe)
- * - Le bouton « Télécharger les visuels » est présent
+ * - Les exports vivent dans le panneau minimal (#608) : héros « Ouvrir dans
+ *   Canva » + menu « Autres actions » → Télécharger (PNG / PowerPoint éditable)
  * - La zone sticker de l'aperçu mentionne « à poser dans Instagram »
  */
 
@@ -98,14 +99,17 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   console.log(`Aperçus visuels rendus : ${previewCount}`);
   expect(previewCount).toBeGreaterThan(0);
 
-  // Boutons d'export
-  await expect(page.getByRole("button", { name: /télécharger les visuels/i })).toBeVisible();
+  // Exports dans le panneau minimal (#608) : héros Canva visible, téléchargements
+  // dans le menu « Autres actions » → Télécharger.
   await expect(page.getByRole("button", { name: /ouvrir dans canva/i })).toBeVisible();
+  await page.getByTestId("more-actions").first().click();
+  await page.getByRole("menuitem", { name: /télécharger/i }).first().click();
+  await expect(page.getByRole("menuitem", { name: /Images PNG/i })).toBeVisible();
 
   // Export PPTX natif : téléchargement + validation de CONTENU (jszip) — le nom
   // de fichier ne suffit pas, cf. e2e-visite/pptx-validate.ts.
   const dlPromise = page.waitForEvent("download", { timeout: 120_000 });
-  await page.getByRole("button", { name: /pptx éditable/i }).click();
+  await page.getByRole("menuitem", { name: /PowerPoint/i }).click();
   const download = await dlPromise;
   console.log(`PPTX téléchargé : ${download.suggestedFilename()}`);
   expect(download.suggestedFilename()).toMatch(/\.pptx$/);

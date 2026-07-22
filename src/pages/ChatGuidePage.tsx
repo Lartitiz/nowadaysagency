@@ -960,7 +960,6 @@ export default function ChatGuidePage() {
                                       carousel_type: carouselType,
                                       subject: sujet,
                                       objective: objectif,
-                                      slide_count: 7,
                                       workspace_id: workspaceId,
                                     },
                                   }, 120000);

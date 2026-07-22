@@ -38,6 +38,7 @@ import {
   userPhotoToRawBase64,
   type UserPhotoRow,
 } from "@/lib/photo-storage";
+import { useRefreshUserPhotos } from "@/hooks/use-user-photos";
 
 interface MiseEnSceneDialogProps {
   photo: UserPhotoRow | null;
@@ -100,6 +101,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDialogProps) {
   const { user } = useAuth();
+  const refreshPhotos = useRefreshUserPhotos();
   const navigate = useNavigate();
 
   const [sourceBase64, setSourceBase64] = useState<string | null>(null);
@@ -279,6 +281,8 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (updError) {
       console.warn("[MiseEnSceneDialog] metadata update failed:", updError.message);
     }
+    // Grille à jour sans dépendre du Realtime ni d'un rechargement de page.
+    refreshPhotos();
     return photoId;
   };
 

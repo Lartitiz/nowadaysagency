@@ -70,10 +70,14 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
     timeout: 30_000,
   });
 
-  // La nouvelle photo apparaît dans la grille (nom « … — packshot »)
-  await page.goto("/photos", { waitUntil: "networkidle" });
+  // La nouvelle photo apparaît dans la grille SANS rechargement de page.
+  // ⚠️ Ne PAS faire page.goto ici : un reload masquerait le bug de grille figée
+  // (même classe que #618 « Nouveau fond »). Le dialog s'est fermé, on est resté
+  // sur /photos, et la carte doit surgir via l'invalidation de la sauvegarde.
   const created = page.locator('img[alt*="packshot" i]').first();
-  await expect(created).toBeVisible({ timeout: 20_000 });
+  await expect(created, "Le packshot doit apparaître SANS quitter /photos").toBeVisible({
+    timeout: 20_000,
+  });
   await page.screenshot({ path: path.join(SHOTS, "packshot-3-grille.png"), fullPage: true });
 
   // Nettoyage : suppression du packshot créé (la bibliothèque reste stable

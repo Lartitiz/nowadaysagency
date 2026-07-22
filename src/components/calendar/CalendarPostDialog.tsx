@@ -680,6 +680,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       hasAngle={!!angle} hasTheme={!!theme.trim()}
       slidesData={ssd?.slides || null}
       photoUrls={ssd?.photo_urls || null}
+      storiesData={ssd?.type === "stories" ? ssd.stories || null : null}
       compact={compact}
       onFullscreen={ssd ? () => setShowContentViewer(true) : undefined}
       syncStatus={contentDraft ? syncStatus : undefined}

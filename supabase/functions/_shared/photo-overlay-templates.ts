@@ -295,8 +295,11 @@ function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string 
   const who = s.attribution
     ? `<div style="font-size:24px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,0.85);margin-top:28px;">${escapeHtml(s.attribution)}</div>`
     : "";
+  // Défaut BAS (pas centré) : un portrait a son visage en haut/milieu, une
+  // citation centrée atterrissait dessus. Le voile uniforme garantit le
+  // contraste où qu'elle soit ; on la pose donc dans le tiers bas par défaut.
   return fullDim(Math.max(dimOpacity(lum), 0.34)) +
-    contentWrap(s.overlay_position || "center", "center", mark + quote + who);
+    contentWrap(s.overlay_position || "bottom_center", "center", mark + quote + who);
 }
 
 function tplFinale(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
@@ -408,9 +411,11 @@ export function composePhotoSlide(
 
   const template = resolvePhotoTemplate(s, opts);
   const lum = (opts.luminance || {})[zoneFor(
-    template === "etiquette" || template === "chiffre" || template === "citation"
+    template === "etiquette" || template === "chiffre"
       ? (s.overlay_position || "center")
-      : s.overlay_position,
+      : template === "citation"
+        ? (s.overlay_position || "bottom_center") // citation posée en bas par défaut
+        : s.overlay_position,
   )];
 
   const bodyByTemplate: Record<PhotoTemplate, (x: PhotoSlideSpec, c: PhotoCharter, l?: number) => string> = {
