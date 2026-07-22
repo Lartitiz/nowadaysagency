@@ -38,7 +38,9 @@ const PREVIEW_W = 150;
 function StoryFramePreview({ html, title }: { html: string; title: string }) {
   return (
     <div
-      className="relative overflow-hidden rounded-lg border border-border shrink-0"
+      // self-start : sans lui, le flex parent étire le cadre à la hauteur de la
+      // colonne texte (align-items: stretch) et l'aperçu dépasse son 9:16.
+      className="relative overflow-hidden rounded-lg border border-border shrink-0 self-start"
       style={{ width: PREVIEW_W, aspectRatio: "1080 / 1920" }}
     >
       <iframe
