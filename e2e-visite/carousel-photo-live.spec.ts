@@ -101,7 +101,9 @@ test("carrousel photo réel : upload → génération → slides sans erreur de 
   console.log("🚀 Générer cliqué");
 
   // Résultat OU erreur de validation : on course les deux, l'erreur = rouge net.
-  const result = page.getByRole("button", { name: /ajouter au calendrier/i }).first();
+  // #608 a remplacé « Ajouter au calendrier » par la fenêtre « Publier ou
+  // programmer » sur l'écran résultat (même faux positif que perf-carousel #612).
+  const result = page.getByRole("button", { name: /publier ou programmer/i }).first();
   const validationError = page.getByText(/Données invalides/i).first();
   await Promise.race([
     result.waitFor({ state: "visible", timeout: 780_000 }),
