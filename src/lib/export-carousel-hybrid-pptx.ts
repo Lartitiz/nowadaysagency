@@ -138,6 +138,127 @@ async function cropToRatioBase64(
 
 
 // ---------------------------------------------------------------------------
+// Voiles de lisibilité (gabarits photo composés) : fusion dans la photo native.
+//
+// Les gabarits photo injectent un voile [data-injected-scrim] (dégradé noir ou
+// voile uniforme) entre la photo et le texte. Dans l'export, ce voile partait
+// dans le PNG de fond semi-transparent posé PAR-DESSUS la photo native — fidèle
+// dans PowerPoint, mais l'IMPORT CANVA ne rend pas ce calque de façon fiable :
+// le calque est bien importé (visible dans le panneau Calques, transparence
+// normale, géométrie pleine slide) mais son rendu est aléatoirement absent ou
+// déplacé, dans l'éditeur COMME dans les exports serveur Canva (vérifié le
+// 22/07 sur 4 fichiers de bissection + un export live). Résultat : texte blanc
+// posé à nu sur photo claire.
+//
+// Parade déterministe : retirer le voile du raster et le CUIRE dans le JPEG de
+// la photo native (une seule image opaque — toujours rendue). Seuls les voiles
+// au format connu (générés par photo-overlay-templates) et contenus dans une
+// zone photo réellement posée en natif sont fusionnés ; tout autre voile reste
+// dans le raster (comportement historique).
+// ---------------------------------------------------------------------------
+
+export interface ScrimSpec {
+  /** Rect du voile dans le repère de la slide (px iframe). */
+  rect: { x: number; y: number; w: number; h: number };
+  kind: "gradient" | "uniform";
+  /** gradient : bord porteur du noir ("bottom" = alpha max en bas). */
+  anchor?: "top" | "bottom";
+  /** Alpha max du noir (pic du dégradé ou opacité du voile uniforme). */
+  alpha: number;
+}
+
+/**
+ * Parse le style d'un [data-injected-scrim]. Formats générés par NOTRE code
+ * (photo-overlay-templates.ts : gradientScrim / fullDim) :
+ *   linear-gradient(0deg,   rgba(0,0,0,P) 0%, rgba(0,0,0,0) 100%)  → pic en bas
+ *   linear-gradient(180deg, rgba(0,0,0,P) 0%, rgba(0,0,0,0) 100%)  → pic en haut
+ *   background-color rgba(0,0,0,A) sans background-image            → uniforme
+ * ⚠️ getComputedStyle OMET l'angle quand c'est la direction par défaut :
+ * `180deg` (= to bottom) sérialise SANS angle → angle absent = pic en haut.
+ * Retourne null si le style ne matche pas — le voile reste alors dans le raster.
+ */
+export function parseScrimStyle(
+  backgroundImage: string,
+  backgroundColor: string,
+): Omit<ScrimSpec, "rect"> | null {
+  const grad = (backgroundImage || "").match(
+    /linear-gradient\(\s*(?:(0|180)deg\s*,\s*)?rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*([\d.]+)\s*\)(?:\s*0%)?\s*,\s*rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*0\s*\)(?:\s*100%)?\s*\)/i,
+  );
+  if (grad) {
+    const alpha = parseFloat(grad[2]);
+    if (!(alpha > 0 && alpha <= 1)) return null;
+    // CSS : 0deg = dégradé orienté vers le haut → premier stop (noir) au BAS.
+    // Angle absent (défaut 180deg = to bottom) → premier stop (noir) en HAUT.
+    return { kind: "gradient", anchor: grad[1] === "0" ? "bottom" : "top", alpha };
+  }
+  if (!backgroundImage || backgroundImage === "none") {
+    const uni = (backgroundColor || "").match(/rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*([\d.]+)\s*\)/i);
+    if (uni) {
+      const alpha = parseFloat(uni[1]);
+      if (alpha > 0 && alpha < 0.99) return { kind: "uniform", alpha };
+    }
+  }
+  return null;
+}
+
+/**
+ * Dessine les voiles par-dessus la photo déjà recadrée au ratio de la zone,
+ * et renvoie un JPEG (data URL). `zoneRect` et `scrims[].rect` sont dans le
+ * repère de la slide (px iframe) ; le mapping vers les pixels du canvas est
+ * proportionnel (le ratio de la photo recadrée = ratio de la zone).
+ */
+async function burnScrimsIntoPhoto(
+  photoDataUrl: string,
+  zoneRect: { x: number; y: number; w: number; h: number },
+  scrims: ScrimSpec[],
+  timeoutMs = 5000,
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    const t = setTimeout(() => { img.src = ""; resolve(null); }, timeoutMs);
+    img.onload = () => {
+      clearTimeout(t);
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx || !canvas.width || !canvas.height || !zoneRect.w || !zoneRect.h) {
+          resolve(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0);
+        const sx = canvas.width / zoneRect.w;
+        const sy = canvas.height / zoneRect.h;
+        for (const s of scrims) {
+          const rx = (s.rect.x - zoneRect.x) * sx;
+          const ry = (s.rect.y - zoneRect.y) * sy;
+          const rw = s.rect.w * sx;
+          const rh = s.rect.h * sy;
+          if (rw <= 0 || rh <= 0) continue;
+          if (s.kind === "uniform") {
+            ctx.fillStyle = `rgba(0,0,0,${s.alpha})`;
+          } else {
+            const from = s.anchor === "top" ? ry : ry + rh;
+            const to = s.anchor === "top" ? ry + rh : ry;
+            const g = ctx.createLinearGradient(0, from, 0, to);
+            g.addColorStop(0, `rgba(0,0,0,${s.alpha})`);
+            g.addColorStop(1, "rgba(0,0,0,0)");
+            ctx.fillStyle = g;
+          }
+          ctx.fillRect(rx, ry, rw, rh);
+        }
+        resolve(canvas.toDataURL("image/jpeg", 0.92));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => { clearTimeout(t); resolve(null); };
+    img.src = photoDataUrl;
+  });
+}
+
+// ---------------------------------------------------------------------------
 // iframe mounting + readiness
 // ---------------------------------------------------------------------------
 
@@ -1191,6 +1312,35 @@ export async function exportCarouselHybridPptx(
         if (cleared && !photoBackdrop) photoBackdrop = cleared;
       }
 
+      // ---- Voiles de lisibilité : retirés du raster, fusionnés dans la photo
+      // native (cf. bloc « Voiles de lisibilité » en tête de fichier — l'import
+      // Canva ne rend pas fiablement un calque PNG de voile séparé).
+      const scrimsByZone = new Map<PhotoZone, ScrimSpec[]>();
+      if (usableZones.length > 0) {
+        const scrimEls = Array.from(doc.querySelectorAll<HTMLElement>("[data-injected-scrim]"));
+        for (const sEl of scrimEls) {
+          const r = sEl.getBoundingClientRect();
+          if (r.width < 2 || r.height < 2) continue;
+          const cs = win.getComputedStyle(sEl);
+          const spec = parseScrimStyle(cs.backgroundImage || "", cs.backgroundColor || "");
+          if (!spec) continue;
+          // Fusion uniquement si une zone photo posée en natif CONTIENT le
+          // voile (à 2 px près) — sinon on le laisse dans le raster.
+          const zone = usableZones.find(
+            (z) =>
+              r.left >= z.rect.x - 2 &&
+              r.top >= z.rect.y - 2 &&
+              r.left + r.width <= z.rect.x + z.rect.w + 2 &&
+              r.top + r.height <= z.rect.y + z.rect.h + 2,
+          );
+          if (!zone) continue;
+          sEl.style.setProperty("visibility", "hidden", "important");
+          const list = scrimsByZone.get(zone) || [];
+          list.push({ rect: { x: r.left, y: r.top, w: r.width, h: r.height }, ...spec });
+          scrimsByZone.set(zone, list);
+        }
+      }
+
       // Force layout flush après masquage texte + photos
       void win.document.body.offsetHeight;
       await new Promise((r) => setTimeout(r, 50));
@@ -1222,9 +1372,28 @@ export async function exportCarouselHybridPptx(
           cropped = await cropToRatioBase64(photo.base64, frameRatio);
           cropCache.set(cacheKey, cropped);
         }
+        // Fusion des voiles dans la photo recadrée. Le voile dépend de la
+        // slide (dosé par luminance) alors que le crop est partagé par
+        // (photo, ratio) → clé de cache étendue par la signature des voiles.
+        // Si la fusion échoue (photo indécodable — le crop aurait échoué
+        // aussi), la photo part sans voile : même dégradation qu'avant.
+        let fused: string | null = null;
+        const zoneScrims = scrimsByZone.get(zone);
+        if (cropped && zoneScrims?.length) {
+          const sig = zoneScrims
+            .map((s) => `${s.kind}:${s.anchor || ""}:${s.alpha}:${Math.round(s.rect.y)}x${Math.round(s.rect.h)}`)
+            .join("|");
+          const fuseKey = `${cacheKey}|voiles:${sig}`;
+          if (cropCache.has(fuseKey)) {
+            fused = cropCache.get(fuseKey) ?? null;
+          } else {
+            fused = await burnScrimsIntoPhoto(cropped, zone.rect, zoneScrims);
+            cropCache.set(fuseKey, fused);
+          }
+        }
         try {
           slide.addImage({
-            data: cropped ?? photo.base64,
+            data: fused ?? cropped ?? photo.base64,
             x, y, w, h,
             ...(cropped ? {} : { sizing: { type: "cover", w, h } }),
           });
