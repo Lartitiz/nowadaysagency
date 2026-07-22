@@ -3,7 +3,7 @@
  * Postgres Realtime keeping the list fresh (status transitions, inserts, deletes).
  */
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -70,6 +70,21 @@ export function useUserPhotos() {
   }, [workspaceId, queryClient]);
 
   return query;
+}
+
+/**
+ * Rafraîchit la grille /photos à la demande. À appeler après TOUTE écriture
+ * dans user_photos faite hors des mutations de ce fichier (dialogues Packshot /
+ * Mise en scène qui passent par `uploadPhotoOriginal` en direct) : sans ça, la
+ * nouvelle photo n'apparaît que si le Realtime pousse — flaky connu — ou après
+ * un aller-retour sur la page. Même filet que le fix « Nouveau fond » (#618).
+ */
+export function useRefreshUserPhotos(): () => void {
+  const workspaceId = useWorkspaceId();
+  const queryClient = useQueryClient();
+  return useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
+  }, [queryClient, workspaceId]);
 }
 
 /* ─────────────────────────  Mutations  ───────────────────────── */

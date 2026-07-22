@@ -32,6 +32,7 @@ import {
   userPhotoToRawBase64,
   type UserPhotoRow,
 } from "@/lib/photo-storage";
+import { useRefreshUserPhotos } from "@/hooks/use-user-photos";
 
 interface PackshotDialogProps {
   photo: UserPhotoRow | null;
@@ -62,6 +63,7 @@ function dataUrlToBlob(dataUrl: string): Blob {
 
 export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProps) {
   const { user } = useAuth();
+  const refreshPhotos = useRefreshUserPhotos();
 
   const [sourceBase64, setSourceBase64] = useState<string | null>(null);
   const [square, setSquare] = useState(true);
@@ -177,6 +179,9 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
         console.warn("[PackshotDialog] metadata update failed:", updError.message);
       }
 
+      // Fait apparaître la nouvelle photo dans la grille sans dépendre du
+      // Realtime ni d'un aller-retour sur la page.
+      refreshPhotos();
       toast.success("Packshot ajouté à ta bibliothèque");
       onOpenChange(false);
     } catch (e: any) {

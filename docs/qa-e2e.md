@@ -166,7 +166,8 @@ Critères d'acceptation :
 
 ### T15 🟡 Photos / Idées
 Critères d'acceptation :
-- ☐ `/photos` : upload → prompt ambiance → `photo-background-replace` → statut `ready` en **Realtime** ; un échec → `failed` avec réessai possible.
+- ☐ `/photos` : upload → prompt ambiance → `photo-background-replace` → statut `ready`, **reflété dans la grille SANS quitter la page** — via Realtime OU, si le WebSocket ne pousse rien, via l'invalidation au lancement + le polling de secours (jamais dépendre du seul Realtime, cf. #618). Un échec → `failed` avec réessai possible.
+- ☐ « Modifier le fond » / Packshot / Mise en scène : la nouvelle photo apparaît **en place** (pas besoin de sortir/revenir). Garde : `photos-refresh-inplace.spec.ts` (quotidien) + `retouche-realtime-coupe.spec.ts` (lundi, temps réel coupé).
 - ☐ Suppression d'une photo retire **original + retouchée** (pas d'orphelin visible).
 - ☐ `/idees` : filtres (statut/objectif/canal/type) ; « Rédiger » → `/creer` ; « Planifier » → drag vers une date crée le `calendar_post`.
 

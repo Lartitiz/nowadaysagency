@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -33,6 +34,7 @@ export function useActiveChannels(): ActiveChannels {
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const profileUserId = useProfileUserId();
+  const queryClient = useQueryClient();
   const [channels, setChannelsState] = useState<ChannelId[]>(["instagram"]);
   const [loading, setLoading] = useState(true);
 
@@ -83,8 +85,13 @@ export function useActiveChannels(): ActiveChannels {
       console.error("setChannels: échec de la synchro des canaux", profileRes.error || planRes.error);
       setChannelsState(previous); // rollback
       toast.error("Tes canaux n'ont pas pu être enregistrés. Réessaie.");
+      return;
     }
-  }, [user?.id, profileUserId, channels]);
+    // `profiles.canaux` est aussi lu via la query TanStack ["profile"] (score de
+    // com, pages dérivées). Sans invalidation, ces écrans restent sur les
+    // anciens canaux jusqu'au staleTime. Même classe que le fond figé /photos (#618).
+    queryClient.invalidateQueries({ queryKey: ["profile"] });
+  }, [user?.id, profileUserId, channels, queryClient]);
 
   return {
     channels,
