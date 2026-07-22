@@ -119,7 +119,11 @@ export function injectFallbackScrim(html: string, overlayPosition?: string | nul
   let work = html;
   const anchor = matchOverlayStyle(work);
   const anchorColor = anchor?.style.match(/color\s*:\s*#([0-9a-f]{3}|[0-9a-f]{6})\b/i);
-  const hasLightCard = /background[^;"']*:\s*(?:#fff\b|#ffffff\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i.test(work);
+  // Une VRAIE carte claire derrière le texte, pas une pastille/badge décoratif :
+  // scanner tout le HTML faisait qu'un petit badge blanc n'importe où (« APRÈS »,
+  // puce déco) annulait le blanchiment du texte sombre réellement posé sur la
+  // photo → illisible. On ne compte donc que les fonds clairs NON-pilule.
+  const hasLightCard = hasLightNonPillCard(work);
   if (anchor && anchorColor && !hasLightCard) {
     const hex = anchorColor[1].length === 3 ? anchorColor[1].split("").map((c) => c + c).join("") : anchorColor[1];
     const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16));
@@ -205,4 +209,23 @@ function matchOverlayStyle(html: string): { style: string; replaceStyle: (ns: st
     style: m[2],
     replaceStyle: (ns: string) => html.replace(re, `$1${ns.replace(/\$/g, "$$$$")}$3`),
   };
+}
+
+/**
+ * Y a-t-il une VRAIE carte claire (fond clair d'un bloc), et non une simple
+ * pastille/badge décoratif (pill à `border-radius:999px`/`50%`) ? Le test global
+ * comptait n'importe quel fond clair, si bien qu'un badge « APRÈS » posé ailleurs
+ * annulait la correction du texte sombre réellement sur la photo. On scanne donc
+ * chaque `style="…"` et on ignore les fonds clairs portés par une pilule.
+ */
+export function hasLightNonPillCard(html: string): boolean {
+  const lightBg = /background[^;]*:\s*(?:#fff\b|#ffffff\b|rgba?\(\s*2[45]\d\s*,\s*2[45]\d\s*,\s*2[45]\d)/i;
+  const pill = /border-radius\s*:\s*(?:\d{3,}px|9{2,}%|50%|100%)/i;
+  const styleRe = /style="([^"]*)"/gi;
+  let m: RegExpExecArray | null;
+  while ((m = styleRe.exec(html)) !== null) {
+    const style = m[1];
+    if (lightBg.test(style) && !pill.test(style)) return true;
+  }
+  return false;
 }

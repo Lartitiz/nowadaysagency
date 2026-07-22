@@ -192,3 +192,13 @@ Deno.test("tplProfonde : texte long → police réduite (jamais clippée par ove
   );
   assert(!out.html.includes("font-size:40px"));
 });
+
+Deno.test("citation : posée dans le tiers bas par défaut (évite le visage centré)", () => {
+  const charter = { color_accent: "#91014b", font_title: "Georgia", font_body: "Arial" } as any;
+  const out = composePhotoSlide(
+    { slide_number: 2, photo_index: 1, overlay_text: "On a eu trois visites la première semaine.", template: "citation" } as any,
+    charter,
+    { isFirst: false, isLast: false },
+  );
+  assert(out.html.includes("justify-content:flex-end"));
+});

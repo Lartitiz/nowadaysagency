@@ -1,5 +1,5 @@
 import { assertEquals, assert } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "./photo-visual-guards.ts";
+import { enforceSafeZones, injectFallbackScrim, enforceHeroHook, hasLightNonPillCard } from "./photo-visual-guards.ts";
 
 // Gabarits calqués sur les HTML réels du corpus (audit 12/07, S2-branded / P2 / P1-run2).
 const ROOT = (inner: string) =>
@@ -142,4 +142,21 @@ Deno.test("scrim cas 2 : texte sombre SUR carte blanche (narratif) → intouché
   const { html: out, injected } = injectFallbackScrim(html, "bottom_center");
   assertEquals(injected, false);
   assert(out.includes("color:#3B382F"));
+});
+
+// ── Audit photo 22/07 : hasLightCard restreint (pill ≠ carte) ──────────────
+Deno.test("hasLightNonPillCard : pastille blanche (pill) → false ; carte blanche → true", () => {
+  assertEquals(hasLightNonPillCard(`<div style="background:#fff;border-radius:999px;padding:8px 20px;">APRÈS</div>`), false);
+  assertEquals(hasLightNonPillCard(`<div style="background:#FFFFFF;border-radius:12px;padding:28px 40px;">x</div>`), true);
+});
+
+Deno.test("scrim : un badge blanc décoratif (pill) ailleurs n'empêche PAS le blanchiment du texte sombre sur photo", () => {
+  const html = ROOT(
+    `<div style="background:#FFFFFF;border-radius:999px;padding:8px 20px;color:#3B382F;">APRÈS</div>` +
+    `<div style="display:flex;flex-direction:column;justify-content:flex-end;padding:0 80px 200px 80px;">` +
+      OVERLAY_P("font-size:60px;color:#2A2620;", "Le champ que j'ai transformé.") + `</div>`,
+  );
+  const { html: out, injected } = injectFallbackScrim(html, "bottom_left");
+  assertEquals(injected, true);
+  assert(out.includes("color:#FFFFFF"));
 });
