@@ -26,10 +26,28 @@ interface PhotoLike {
   mimeType?: string;
 }
 
+/** Actions d'export remontées au panneau minimal (#608) quand des frames existent. */
+export interface StoryExportActions {
+  exportPng: () => void;
+  exportPptx: () => void;
+  openInCanva: () => void;
+  exporting: boolean;
+  exportingPptx: boolean;
+  openingCanva: boolean;
+  /** Nombre de frames rendues (affichage "(ZIP)" du menu Télécharger). */
+  frameCount: number;
+}
+
 interface Props {
   result: any;
   onStoriesUpdate?: (stories: any[]) => void;
   photos?: PhotoLike[];
+  /**
+   * Quand fourni, les exports vivent dans le panneau d'actions du parent
+   * (héros Canva + menu « Autres actions ») et la rangée de boutons locale
+   * n'est pas rendue. null = aucune frame exportable.
+   */
+  onExportActionsChange?: (actions: StoryExportActions | null) => void;
 }
 
 const PREVIEW_W = 150;
@@ -63,7 +81,7 @@ function StoryFramePreview({ html, title }: { html: string; title: string }) {
   );
 }
 
-export default function StoryResult({ result, onStoriesUpdate, photos }: Props) {
+export default function StoryResult({ result, onStoriesUpdate, photos, onExportActionsChange }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
   const [stories, setStories] = useState(rawStories);
 
@@ -228,6 +246,36 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
     );
   }, [openInCanva, buildExportFrames, result?.structure_label, result?.structure_type]);
 
+  // Remonte les actions d'export au panneau minimal du parent (#608) : les
+  // stories y gagnent le même héros « Ouvrir dans Canva » que les carrousels.
+  useEffect(() => {
+    if (!onExportActionsChange) return;
+    onExportActionsChange(
+      hasFrames
+        ? {
+            exportPng: handleExport,
+            exportPptx: handleExportPptx,
+            openInCanva: handleOpenInCanva,
+            exporting,
+            exportingPptx,
+            openingCanva,
+            frameCount: frames.filter(Boolean).length,
+          }
+        : null,
+    );
+    return () => onExportActionsChange(null);
+  }, [
+    onExportActionsChange,
+    hasFrames,
+    handleExport,
+    handleExportPptx,
+    handleOpenInCanva,
+    exporting,
+    exportingPptx,
+    openingCanva,
+    frames,
+  ]);
+
   const fullText = stories
     .map((s: any) => s.text || s.texte || s.content || "")
     .filter(Boolean)
@@ -369,7 +417,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos }: Props) 
             <span className="text-xs text-muted-foreground">{result.structure_label}</span>
           )}
         </div>
-        {hasFrames && (
+        {hasFrames && !onExportActionsChange && (
           <div className="flex items-center gap-1.5 flex-wrap">
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
               {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
