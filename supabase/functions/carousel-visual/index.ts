@@ -1286,6 +1286,15 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
           ? Number(s.photo_index)
           : (i % Math.max(1, reqBody.photos?.length || 1)) + 1
       );
+      // Zoom narratif en ALTERNANCE : sur une suite de slides portées par la
+      // même photo, on alterne plan large / plan serré. Zoomer TOUTES les
+      // répétitions (version #614) redonnait des slides identiques entre elles
+      // dès la 2e répétition (vu au re-test live : 5 slides même cadrage).
+      const zoomFlags: boolean[] = [];
+      specs.forEach((_s: any, i: number) => {
+        const repeat = i > 0 && photoIdxs[i - 1] === photoIdxs[i];
+        zoomFlags.push(repeat && !zoomFlags[i - 1]);
+      });
       const composed = specs.map((s: any, i: number) => {
         const photoIndex = photoIdxs[i];
         const luminance = (reqBody.photos?.[photoIndex - 1] as any)?.luminance;
@@ -1296,9 +1305,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
             isFirst: nums[i] === minNum,
             isLast: nums[i] === maxNum,
             luminance,
-            // Même photo que la slide précédente → plan serré (zoom narratif),
-            // sinon deux slides consécutives seraient visuellement identiques.
-            zoomOnRepeat: i > 0 && photoIdxs[i - 1] === photoIndex,
+            zoomOnRepeat: zoomFlags[i],
           },
         );
       });
