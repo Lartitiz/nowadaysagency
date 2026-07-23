@@ -28,7 +28,7 @@ serve(async (req) => {
       });
     }
 
-    const { userId, workspaceId, userPrompt, savedDiagId } = await req.json();
+    const { userId, workspaceId, userPrompt, savedDiagId, isOnboarding } = await req.json();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
