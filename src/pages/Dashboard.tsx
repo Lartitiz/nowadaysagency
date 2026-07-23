@@ -203,6 +203,23 @@ export default function Dashboard() {
     return (profileRaw as UserProfile | null) ?? null;
   }, [profileRaw, isDemoMode, demoData]);
 
+  // Un squelette ne doit JAMAIS être un état FINAL.
+  // Le profil peut ne jamais arriver SANS qu'aucune erreur ne soit levée :
+  // `useProfile` est `enabled: !!value`, et `value` (l'id résolu via le
+  // workspace) reste vide quand les requêtes échouent → la query n'est même pas
+  // lancée, donc `isError` reste faux et on restait sur le squelette
+  // indéfiniment. `profileError` seul ne suffisait donc pas.
+  // On borne l'attente, comme les fetch de #637. Trouvé par `ecran-fige-sonde`.
+  const [profilIntrouvable, setProfilIntrouvable] = useState(false);
+  useEffect(() => {
+    if (profile) {
+      setProfilIntrouvable(false);
+      return;
+    }
+    const t = setTimeout(() => setProfilIntrouvable(true), 12_000);
+    return () => clearTimeout(t);
+  }, [profile]);
+
   const defaultDashData: DashboardData = {
     brandingCompletion: { storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0 },
     igAuditScore: null, liAuditScore: null,
@@ -373,7 +390,7 @@ export default function Dashboard() {
   // ci-dessous — qui s'affichait alors indéfiniment, sans message ni recours
   // (trouvé par `e2e-visite/ecran-fige-sonde.spec.ts` le 23/07 : squelette
   // toujours là 30 s après un 500). Même famille que le spinner infini #631.
-  if (!profile && profileError) {
+  if (!profile && (profileError || profilIntrouvable)) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
