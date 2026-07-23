@@ -14,6 +14,7 @@ import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { fetchBrandingData, fetchBrandingDataWithStatus, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
+import { resolveFirstContentDestination } from "@/lib/first-content-destination";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
@@ -113,6 +114,10 @@ export default function BrandingPage() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [lastImportData, setLastImportData] = useState<{ website?: string; instagram?: string; linkedin?: string; files: File[] } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  // Onboarding : la fiche « à valider » est produite par l'IA lourde (Opus,
+  // ~30-90s). Tant qu'elle n'est pas arrivée, on affiche un écran d'attente
+  // plutôt que de retomber sur l'accueil marque vide.
+  const [awaitingEnrichment, setAwaitingEnrichment] = useState(false);
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [hasProposition, setHasProposition] = useState(false);
   const [generatingProp, setGeneratingProp] = useState(false);
@@ -176,6 +181,11 @@ export default function BrandingPage() {
   const fromAudit = searchParams.get("from") === "audit";
   const coachingModule = searchParams.get("module");
   const coachingRecId = searchParams.get("rec_id") || undefined;
+  // Fin d'onboarding : on arrive ici pour RELIRE + VALIDER la marque captée par
+  // le diagnostic (au lieu de sauter direct sur /creer). `next=creer` = une fois
+  // validée, on enchaîne sur « générer mon 1er contenu ».
+  const fromOnboarding = searchParams.get("from") === "onboarding";
+  const nextTarget = searchParams.get("next");
   const [coachingActive, setCoachingActive] = useState(fromAudit && !!coachingModule);
 
   useEffect(() => {
@@ -307,7 +317,9 @@ export default function BrandingPage() {
         // instead of forcing the user back into the review screen
         const filledCount = (["storytelling", "persona", "proposition", "tone", "strategy", "offers"] as const)
           .filter((k) => comp[k] > 0).length;
-        if (filledCount >= 5) {
+        // fromOnboarding : ne JAMAIS auto-compléter la review — c'est justement
+        // l'étape « relis + valide » qu'on veut imposer après l'inscription.
+        if (filledCount >= 5 && !fromOnboarding) {
           // Silently mark as completed — user already has their branding
           await (supabase.from("branding_autofill") as any)
             .update({ autofill_status: "completed", autofill_pending_review: false })
@@ -330,6 +342,52 @@ export default function BrandingPage() {
     };
     load();
   }, [user?.id, isDemoMode, column, value, retryKey, workspaceLoading]);
+
+  // Onboarding → attente de la fiche « à valider ». L'enrichment (Opus) tourne
+  // en fire-and-forget depuis la fin du diagnostic ; on poll `branding_autofill`
+  // jusqu'à ce que la ligne pending_review apparaisse, puis on ouvre la review.
+  // Filet de sécurité : au bout de ~90s sans résultat, on ne bloque pas — on
+  // laisse créer quand même (fallback /creer).
+  useEffect(() => {
+    if (!fromOnboarding || isDemoMode || !user || workspaceLoading) return;
+    if (analysisResult) return; // fiche déjà chargée (fast path via load())
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    let attempts = 0;
+    const MAX_ATTEMPTS = 30; // ~90s à 3s d'intervalle
+    setAwaitingEnrichment(true);
+    const tick = async () => {
+      attempts += 1;
+      const { data: pending } = await (supabase.from("branding_autofill") as any)
+        .select("analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
+        .eq(column, value)
+        .eq("autofill_status", "pending_review")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      if (pending?.analysis_result) {
+        setAnalysisResult(pending.analysis_result as AnalysisResult);
+        setImportPhaseNew("reviewing");
+        setReanalyzeUrls({
+          website: pending.website_url || "",
+          instagram: pending.instagram_handle || "",
+          linkedin: pending.linkedin_url || "",
+        });
+        setAwaitingEnrichment(false);
+        return;
+      }
+      if (attempts >= MAX_ATTEMPTS) {
+        setAwaitingEnrichment(false);
+        const dest = await resolveFirstContentDestination({ column, value, userId: user.id });
+        if (!cancelled) navigate(dest, { replace: true });
+        return;
+      }
+      timer = setTimeout(tick, 3000);
+    };
+    timer = setTimeout(tick, 0);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [fromOnboarding, isDemoMode, user?.id, workspaceLoading, column, value, analysisResult, navigate]);
 
   const generateProposition = async () => {
     if (!user) return;
@@ -583,16 +641,18 @@ export default function BrandingPage() {
   const showNewImport = (filledSections < 2 && !skipImport && !isDemoMode && !coachingActive) || reanalyzeMode;
   const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
 
-  // Determine which top-level view to show: "loading" | "error" | "import" | "review" | "identity"
-  const topView: "loading" | "error" | "import" | "review" | "identity" = loading
+  // Determine which top-level view to show: "loading" | "error" | "awaiting" | "import" | "review" | "identity"
+  const topView: "loading" | "error" | "awaiting" | "import" | "review" | "identity" = loading
     ? "loading"
     : loadError
       ? "error"
       : (importPhaseNew === "reviewing" && analysisResult)
         ? "review"
-        : (showNewImport || showNewImportDemo || forceImport)
-          ? "import"
-          : "identity";
+        : awaitingEnrichment
+          ? "awaiting"
+          : (showNewImport || showNewImportDemo || forceImport)
+            ? "import"
+            : "identity";
 
   return (
     <div className="min-h-screen bg-background">
@@ -677,6 +737,19 @@ export default function BrandingPage() {
             </motion.div>
           )}
 
+          {/* === ATTENTE ENRICHMENT (onboarding) === */}
+          {topView === "awaiting" && (
+            <motion.div key="awaiting" initial={false} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
+              <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4 mt-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
+                <h2 className="text-xl font-semibold">Je finis de préparer ta marque…</h2>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Encore quelques secondes : je rassemble ton positionnement, ton ton, ta cible et tes piliers pour que tu puisses les relire et valider avant de créer.
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           {/* === REVIEW === */}
           {topView === "review" && analysisResult && (
             <motion.div key="review" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
@@ -699,6 +772,14 @@ export default function BrandingPage() {
                   setReanalyzeMode(false);
                   setForceImport(false);
                   localStorage.setItem(`branding_skip_import_${workspaceId}`, "true");
+                  // Onboarding : la marque validée, on enchaîne sur « générer mon
+                  // 1er contenu ». Le cas import (fromOnboarding=false) reste sur
+                  // l'accueil marque comme avant.
+                  if (fromOnboarding && nextTarget === "creer") {
+                    const dest = await resolveFirstContentDestination({ column, value, userId: user?.id });
+                    navigate(dest, { replace: true });
+                    return;
+                  }
                   await reloadCompletion();
                 }}
               />
