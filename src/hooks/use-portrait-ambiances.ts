@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceFilter } from "./use-workspace-query";
 
 export interface PortraitAmbiance {
@@ -29,7 +29,10 @@ export function usePortraitAmbiances(enabled: boolean) {
   const queryKey = ["portrait-ambiances", column, value];
 
   const invoke = async (regenerate: boolean): Promise<PortraitAmbiance[]> => {
-    const { data, error } = await supabase.functions.invoke("photo-describe", {
+    // Via invokeWithTimeout : en cas de fonction injoignable, error.message est
+    // déjà un message clair (« Le service est momentanément indisponible… »),
+    // jamais le brut du SDK (« Failed to send a request… »). Cf PR #632.
+    const { data, error } = await invokeWithTimeout("photo-describe", {
       body: {
         mode: "portrait_ambiances",
         workspace_id: column === "workspace_id" ? value : undefined,
