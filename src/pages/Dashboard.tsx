@@ -182,7 +182,7 @@ export default function Dashboard() {
 
   const welcomeMessage = useMemo(() => getWelcomeMessage(), []);
   // ── Profile query ──
-  const { data: profileRaw } = useProfile();
+  const { data: profileRaw, isError: profileError } = useProfile();
   const { data: brandProfileRaw } = useBrandProfile();
   const { data: storytellingListHook } = useStorytellingList();
   const { data: personaHook } = usePersona();
@@ -365,6 +365,31 @@ export default function Dashboard() {
             queryClient.invalidateQueries({ queryKey: ["client-has-data"] });
           }}
         />
+      </div>
+    );
+  }
+
+  // Le profil a ÉCHOUÉ à charger : sans ce cas, on retombait sur le squelette
+  // ci-dessous — qui s'affichait alors indéfiniment, sans message ni recours
+  // (trouvé par `e2e-visite/ecran-fige-sonde.spec.ts` le 23/07 : squelette
+  // toujours là 30 s après un 500). Même famille que le spinner infini #631.
+  if (!profile && profileError) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="mx-auto max-w-[1100px] px-4 sm:px-6 py-6 sm:py-8">
+          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-sm text-foreground">
+              Impossible de charger ton profil — réessaie dans un instant.
+            </p>
+            <button
+              onClick={() => queryClient.invalidateQueries({ queryKey: ["profile"] })}
+              className="shrink-0 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors"
+            >
+              Réessayer
+            </button>
+          </div>
+        </main>
       </div>
     );
   }
