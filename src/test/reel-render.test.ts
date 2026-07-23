@@ -66,6 +66,19 @@ describe("buildRenderPlan", () => {
     expect(plan.sections[1].voice_text).toBe("Phrase deux.");
   });
 
+  it("accepte un clip objet {url, seek} : la fenêtre choisie est transmise", () => {
+    const plan = buildRenderPlan(sections, [{ url: "mine.mp4", seek: 7.5 }, "b.mp4"]);
+    expect(plan.sections[0].clip_url).toBe("mine.mp4");
+    expect(plan.sections[0].seek).toBe(7.5);
+    // Une simple string reste acceptée (seek 0).
+    expect(plan.sections[1].seek).toBe(0);
+  });
+
+  it("un seek négatif est ramené à 0", () => {
+    const plan = buildRenderPlan(sections, [{ url: "mine.mp4", seek: -3 }]);
+    expect(plan.sections[0].seek).toBe(0);
+  });
+
   it("mode recorded : les URLs voix suivent l'index des SECTIONS, pas des clips", () => {
     // La section du milieu n'a pas de clip : sa voix ne doit pas glisser sur la suivante.
     const plan = buildRenderPlan(sections, ["a.mp4", null, "c.mp4"], {
