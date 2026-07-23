@@ -349,6 +349,9 @@ Précisions importantes :
       return new Response(JSON.stringify({ success: true, mode: "onboarding_pending_review" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+
+
 
     // brand_profile upsert — enriched with value proposition, target, tone details
     const { data: existingProfile } = await supabaseAdmin
