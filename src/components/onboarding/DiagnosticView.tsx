@@ -50,13 +50,15 @@ function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, h
   };
 
   const sections: ReactNode[] = [
-    <AccrocheSection key="a" prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />,
+    <AccrocheSection key="a" prenom={prenom} isFallback={data.isFallback} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} />,
   ];
   if (hasSummary) sections.push(<SummarySection key="sum" summary={data.summary!} />);
+  sections.push(<ScoreSection key="b" score={data.totalScore} />);
+  // Sections masquées quand elles sont vides (le fallback serveur pouvait
+  // renvoyer 0 faiblesse → titre « Ce qu'on va travailler » sans contenu)
+  if (data.strengths.length > 0) sections.push(<StrengthsSection key="c" strengths={data.strengths} />);
+  if (data.weaknesses.length > 0) sections.push(<WeaknessesSection key="d" weaknesses={data.weaknesses} />);
   sections.push(
-    <ScoreSection key="b" score={data.totalScore} />,
-    <StrengthsSection key="c" strengths={data.strengths} />,
-    <WeaknessesSection key="d" weaknesses={data.weaknesses} />,
     <PrioritiesSection key="e" priorities={data.priorities} />,
     <ChannelScoresSection key="f" channelScores={data.channelScores} />,
     // Slide toujours présente (état d'attente inclus) : l'enrichissement est
@@ -121,11 +123,11 @@ function DesktopScroll({ data, prenom, onComplete, onCreateFirst, hasInstagram, 
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="max-w-[640px] mx-auto px-6 py-16 space-y-24">
-        <AnimatedSection><AccrocheSection prenom={prenom} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} /></AnimatedSection>
+        <AnimatedSection><AccrocheSection prenom={prenom} isFallback={data.isFallback} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={sourcesUsed} sourcesFailed={sourcesFailed} /></AnimatedSection>
         {data.summary && <AnimatedSection><SummarySection summary={data.summary} /></AnimatedSection>}
         <AnimatedSection><ScoreSection score={data.totalScore} /></AnimatedSection>
-        <AnimatedSection><StrengthsSection strengths={data.strengths} /></AnimatedSection>
-        <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>
+        {data.strengths.length > 0 && <AnimatedSection><StrengthsSection strengths={data.strengths} /></AnimatedSection>}
+        {data.weaknesses.length > 0 && <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>}
         <AnimatedSection><PrioritiesSection priorities={data.priorities} /></AnimatedSection>
         <AnimatedSection><ChannelScoresSection channelScores={data.channelScores} /></AnimatedSection>
         <AnimatedSection><BrandLearnedSection /></AnimatedSection>
@@ -158,7 +160,7 @@ const SOURCE_LABELS: Record<string, { emoji: string; label: string }> = {
   documents: { emoji: "📄", label: "Documents" },
 };
 
-function AccrocheSection({ prenom, hasWebsite, sourcesUsed = [], sourcesFailed = [] }: { prenom: string; hasInstagram?: boolean; hasWebsite?: boolean; sourcesUsed?: string[]; sourcesFailed?: string[] }) {
+function AccrocheSection({ prenom, isFallback, hasWebsite, sourcesUsed = [], sourcesFailed = [] }: { prenom: string; isFallback?: boolean; hasInstagram?: boolean; hasWebsite?: boolean; sourcesUsed?: string[]; sourcesFailed?: string[] }) {
   // Build list of all relevant sources to display (exclude instagram from diagnostic display)
   const allSources = new Set<string>();
   sourcesUsed.filter(s => s !== "instagram").forEach(s => allSources.add(s));
@@ -202,6 +204,15 @@ function AccrocheSection({ prenom, hasWebsite, sourcesUsed = [], sourcesFailed =
         </div>
       )}
       <p className="text-sm text-muted-foreground">{baseText}</p>
+      {isFallback && (
+        <div className="max-w-md mx-auto rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-left">
+          <p className="text-sm text-foreground">
+            ⚠️ <span className="font-medium">Diagnostic simplifié.</span> Mon analyse
+            complète n'a pas abouti cette fois — ce que tu vois ici est une version de
+            base. Tu pourras relancer le diagnostic depuis ton espace.
+          </p>
+        </div>
+      )}
     </div>
   );
 }
