@@ -56,23 +56,31 @@ export interface RenderPlan {
 /**
  * Construit le plan de rendu à partir des sections du script et du clip choisi
  * pour chacune. Ignore les sections sans clip (rien à montrer).
+ *
+ * Voix : en mode "recorded", chaque section reçoit l'enregistrement de la
+ * créatrice si disponible (`voiceAudioUrls`). Le texte parlé est TOUJOURS
+ * embarqué : côté moteur, il sert de repli voix générée pour les sections
+ * sans enregistrement (une phrase ratée ne rend pas le reel muet).
  */
 export function buildRenderPlan(
   sections: Array<{ timing?: unknown; texte_parle?: unknown }>,
   clipUrlBySection: Array<string | null | undefined>,
-  opts: { voice_mode: "recorded" | "tts" } = { voice_mode: "tts" },
+  opts: {
+    voice_mode: "recorded" | "tts";
+    voiceAudioUrls?: Array<string | null | undefined>;
+  } = { voice_mode: "tts" },
 ): RenderPlan {
   const built: RenderSectionInput[] = [];
   sections.forEach((s, i) => {
     const clip = clipUrlBySection[i];
     if (!clip) return;
+    const voiceUrl = opts.voice_mode === "recorded" ? opts.voiceAudioUrls?.[i] : undefined;
     built.push({
       clip_url: clip,
       seek: 0,
       duration: sectionDuration(s),
-      ...(opts.voice_mode === "tts" && typeof s.texte_parle === "string"
-        ? { voice_text: s.texte_parle }
-        : {}),
+      ...(voiceUrl ? { voice_audio_url: voiceUrl } : {}),
+      ...(typeof s.texte_parle === "string" ? { voice_text: s.texte_parle } : {}),
     });
   });
   return { sections: built, voice_mode: opts.voice_mode };
