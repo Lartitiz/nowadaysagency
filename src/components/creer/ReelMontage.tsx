@@ -16,8 +16,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Film, Download } from "lucide-react";
+import { Loader2, Search, Film, Download, Mic, Wand2 } from "lucide-react";
 import { toast } from "sonner";
+import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
 import {
   searchStockVideos,
   suggestStockKeywords,
@@ -55,6 +56,12 @@ export default function ReelMontage({ sections, subject }: Props) {
   const [tick, setTick] = useState(0);
   const [mp4Url, setMp4Url] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+
+  // Voix : "recorded" = la créatrice lit le script (téléprompteur) ;
+  // "tts" = voix générée. Les phrases non enregistrées retombent sur la
+  // voix générée (repli géré par buildRenderPlan + le moteur).
+  const [voiceMode, setVoiceMode] = useState<"recorded" | "tts">("recorded");
+  const [voiceUrls, setVoiceUrls] = useState<(string | null)[]>(() => spoken.map(() => null));
 
   // Suggestion initiale : un clip par section.
   useEffect(() => {
@@ -108,7 +115,10 @@ export default function ReelMontage({ sections, subject }: Props) {
     setMp4Url(null);
     setErrorMsg("");
     try {
-      const plan = buildRenderPlan(spoken, chosen, { voice_mode: "tts" });
+      const plan = buildRenderPlan(spoken, chosen, {
+        voice_mode: voiceMode,
+        voiceAudioUrls: voiceUrls,
+      });
       const project = await submitReelRender(plan);
       const url = await pollReelRender(project, { onTick: setTick });
       setMp4Url(url);
@@ -131,9 +141,42 @@ export default function ReelMontage({ sections, subject }: Props) {
         <Badge variant="secondary" className="text-2xs">beta</Badge>
       </div>
       <p className="text-2xs text-muted-foreground">
-        Un clip libre de droit par phrase. Voix de synthèse pour ce test — ta voix et tes propres
-        vidéos arrivent bientôt.
+        Un clip libre de droit par phrase, ta voix par-dessus, les sous-titres suivent.
       </p>
+
+      <div className="flex gap-2">
+        <button
+          type="button"
+          onClick={() => setVoiceMode("recorded")}
+          className={`flex-1 rounded-md border px-3 py-2 text-left ${
+            voiceMode === "recorded" ? "border-primary bg-primary/5" : "border-border"
+          }`}
+        >
+          <span className="flex items-center gap-1.5 text-xs font-medium">
+            <Mic className="h-3.5 w-3.5" /> Ma voix
+          </span>
+          <span className="block text-2xs text-muted-foreground">J'enregistre en lisant le script</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setVoiceMode("tts")}
+          className={`flex-1 rounded-md border px-3 py-2 text-left ${
+            voiceMode === "tts" ? "border-primary bg-primary/5" : "border-border"
+          }`}
+        >
+          <span className="flex items-center gap-1.5 text-xs font-medium">
+            <Wand2 className="h-3.5 w-3.5" /> Voix générée
+          </span>
+          <span className="block text-2xs text-muted-foreground">Lecture automatique du script</span>
+        </button>
+      </div>
+
+      {voiceMode === "recorded" && (
+        <ReelVoiceRecorder
+          texts={spoken.map((s) => s.texte_parle as string)}
+          onVoicesChange={setVoiceUrls}
+        />
+      )}
 
       <div className="space-y-2">
         {spoken.map((s, i) => (

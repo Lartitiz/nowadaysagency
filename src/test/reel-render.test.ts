@@ -53,8 +53,26 @@ describe("buildRenderPlan", () => {
     expect(plan.sections[0].duration).toBe(4);
   });
 
-  it("mode recorded : n'injecte pas le texte comme voix TTS", () => {
-    const plan = buildRenderPlan(sections, ["a.mp4"], { voice_mode: "recorded" });
-    expect(plan.sections[0].voice_text).toBeUndefined();
+  it("mode recorded : pose l'enregistrement et garde le texte en repli", () => {
+    const plan = buildRenderPlan(sections, ["a.mp4", "b.mp4"], {
+      voice_mode: "recorded",
+      voiceAudioUrls: ["voix1.wav", null],
+    });
+    expect(plan.sections[0].voice_audio_url).toBe("voix1.wav");
+    // Le texte reste présent : repli voix générée côté moteur.
+    expect(plan.sections[0].voice_text).toBe("Phrase une.");
+    // Section sans enregistrement : pas d'URL audio, le texte fera le travail.
+    expect(plan.sections[1].voice_audio_url).toBeUndefined();
+    expect(plan.sections[1].voice_text).toBe("Phrase deux.");
+  });
+
+  it("mode recorded : les URLs voix suivent l'index des SECTIONS, pas des clips", () => {
+    // La section du milieu n'a pas de clip : sa voix ne doit pas glisser sur la suivante.
+    const plan = buildRenderPlan(sections, ["a.mp4", null, "c.mp4"], {
+      voice_mode: "recorded",
+      voiceAudioUrls: ["voix1.wav", "voix2.wav", "voix3.wav"],
+    });
+    expect(plan.sections).toHaveLength(2);
+    expect(plan.sections[1].voice_audio_url).toBe("voix3.wav");
   });
 });
