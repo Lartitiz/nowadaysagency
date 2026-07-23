@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Copy } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
+import ReelMontage from "@/components/creer/ReelMontage";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -43,6 +44,13 @@ export default function ReelResult({ result }: Props) {
     .join("\n\n");
 
   const [checkedText, setCheckedText] = useState(fullText);
+
+  // Montage vidéo (Phase 1, beta) : masqué par défaut. À activer dans la console
+  // avec localStorage.setItem("nowadays.reelMontageBeta", "1") le temps des tests
+  // live, avant l'ouverture à toutes.
+  const montageBeta =
+    typeof window !== "undefined" &&
+    window.localStorage.getItem("nowadays.reelMontageBeta") === "1";
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -193,6 +201,10 @@ export default function ReelResult({ result }: Props) {
           <p className="text-xs font-semibold text-primary mb-1">🎯 Conseil personnalisé</p>
           <p className="text-sm text-foreground">{personalTip}</p>
         </div>
+      )}
+
+      {montageBeta && sections.length > 0 && (
+        <ReelMontage sections={sections} subject={result?.subject || result?.pillar} />
       )}
 
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
