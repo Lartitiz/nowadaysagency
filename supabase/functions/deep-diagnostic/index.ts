@@ -508,6 +508,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
           workspaceId,
           userPrompt: enrichmentPrompt,
           savedDiagId: savedDiag?.id || null,
+          isOnboarding,
         }),
       }).catch(() => {});
     } catch {
