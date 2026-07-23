@@ -5,18 +5,19 @@
  * (recherche Pexels via `searchStockVideos`), laisse relancer la recherche par
  * section, puis assemble le tout en MP4 via le moteur `reel-render`.
  *
- * (Commit de synchro : pousse l'état complet de main vers Lovable.)
- * Limite volontaire de cette 1re version : la voix est une voix de SYNTHÈSE
- * (test) et les clips viennent de la banque libre. La voix de la créatrice
- * (enregistrement) et ses propres vidéos arrivent aux lots suivants.
+ * Sources d'un clip : les VIDÉOS DE LA CRÉATRICE (dépôt ou bibliothèque
+ * `reel-videos`, avec fenêtre de lecture réglable — la coupe est faite par le
+ * moteur via `seek`, on ne découpe rien côté client) et la banque libre en
+ * secours. La voix : enregistrée au téléprompteur (ReelVoiceRecorder) ou
+ * générée, avec repli phrase par phrase.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Film, Download, Mic, Wand2 } from "lucide-react";
+import { Loader2, Search, Film, Download, Mic, Wand2, Upload } from "lucide-react";
 import { toast } from "sonner";
 import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
 import {
@@ -30,6 +31,12 @@ import {
   pollReelRender,
   sectionDuration,
 } from "@/lib/reel-render";
+import {
+  uploadReelVideo,
+  listReelVideos,
+  loadVideoDuration,
+  type UserReelVideo,
+} from "@/lib/reel-user-videos";
 
 interface Section {
   timing?: string;
@@ -44,13 +51,56 @@ interface Props {
 
 type Phase = "idle" | "rendering" | "done" | "error";
 
+/** Clip retenu pour une section : banque libre ou vidéo de la créatrice. */
+interface SelectedClip {
+  id: string;
+  url: string;
+  thumbnail: string | null;
+  /** Durée du clip source (pour la fenêtre), null si inconnue. */
+  duration: number | null;
+  source: "stock" | "mine";
+  label: string;
+  /** Seconde d'entrée dans le clip (fenêtre choisie). */
+  seek: number;
+}
+
+function fromStock(v: StockVideo): SelectedClip {
+  return {
+    id: `stock-${v.id}`,
+    url: v.url,
+    thumbnail: v.thumbnail || null,
+    duration: v.duration,
+    source: "stock",
+    label: "Banque libre",
+    seek: 0,
+  };
+}
+
+function fromMine(v: UserReelVideo, duration: number | null): SelectedClip {
+  return {
+    id: `mine-${v.url}`,
+    url: v.url,
+    thumbnail: null,
+    duration,
+    source: "mine",
+    label: v.name,
+    seek: 0,
+  };
+}
+
 export default function ReelMontage({ sections, subject }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
 
   const [keywords, setKeywords] = useState<string[]>(() => spoken.map(() => ""));
   const [results, setResults] = useState<StockVideo[][]>(() => spoken.map(() => []));
-  const [clips, setClips] = useState<(StockVideo | null)[]>(() => spoken.map(() => null));
+  const [clips, setClips] = useState<(SelectedClip | null)[]>(() => spoken.map(() => null));
   const [loading, setLoading] = useState<boolean[]>(() => spoken.map(() => true));
+
+  // Mes vidéos : bibliothèque perso (dépôts précédents) + upload en cours.
+  const [myVideos, setMyVideos] = useState<UserReelVideo[]>([]);
+  const [uploadingSection, setUploadingSection] = useState<number | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const uploadTargetRef = useRef(0);
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [tick, setTick] = useState(0);
@@ -96,7 +146,10 @@ export default function ReelMontage({ sections, subject }: Props) {
         : [];
       if (o?.cancelledRef?.()) return;
       setResults((R) => set(R, i, vids));
-      setClips((C) => set(C, i, vids[0] ?? C[i]));
+      // Ne remplace jamais une vidéo perso déjà choisie par un résultat stock.
+      setClips((C) =>
+        set(C, i, C[i]?.source === "mine" ? C[i] : vids[0] ? fromStock(vids[0]) : C[i]),
+      );
     } catch (e) {
       if (!o?.cancelledRef?.()) toast.error(e instanceof Error ? e.message : "Recherche impossible.");
     } finally {
@@ -104,8 +157,44 @@ export default function ReelMontage({ sections, subject }: Props) {
     }
   }
 
+  // Bibliothèque perso, chargée une fois (best-effort).
+  useEffect(() => {
+    listReelVideos().then(setMyVideos).catch(() => {});
+  }, []);
+
+  function openFilePicker(i: number) {
+    uploadTargetRef.current = i;
+    fileInputRef.current?.click();
+  }
+
+  async function handleFileChosen(files: FileList | null) {
+    const file = files?.[0];
+    if (!file) return;
+    const i = uploadTargetRef.current;
+    setUploadingSection(i);
+    try {
+      const video = await uploadReelVideo(file);
+      const duration = await loadVideoDuration(video.url);
+      setMyVideos((v) => [video, ...v]);
+      setClips((C) => set(C, i, fromMine(video, duration)));
+      toast.success("Ta vidéo est prête pour cette section.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "L'envoi de la vidéo a échoué.");
+    } finally {
+      setUploadingSection(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function pickFromLibrary(i: number, url: string) {
+    const video = myVideos.find((v) => v.url === url);
+    if (!video) return;
+    const duration = await loadVideoDuration(video.url);
+    setClips((C) => set(C, i, fromMine(video, duration)));
+  }
+
   async function handleAssemble() {
-    const chosen = clips.map((c) => c?.url ?? null);
+    const chosen = clips.map((c) => (c ? { url: c.url, seek: c.seek } : null));
     if (!chosen.some(Boolean)) {
       toast.error("Choisis au moins un clip avant d'assembler.");
       return;
@@ -212,12 +301,12 @@ export default function ReelMontage({ sections, subject }: Props) {
               {results[i]?.length > 0 && (
                 <div className="flex gap-1.5 overflow-x-auto pb-1">
                   {results[i].map((v) => {
-                    const selected = clips[i]?.id === v.id;
+                    const selected = clips[i]?.id === `stock-${v.id}`;
                     return (
                       <button
                         key={v.id}
                         type="button"
-                        onClick={() => setClips((C) => set(C, i, v))}
+                        onClick={() => setClips((C) => set(C, i, fromStock(v)))}
                         className={`relative shrink-0 rounded-md overflow-hidden border-2 ${
                           selected ? "border-primary" : "border-transparent"
                         }`}
@@ -229,10 +318,82 @@ export default function ReelMontage({ sections, subject }: Props) {
                   })}
                 </div>
               )}
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 text-2xs"
+                  onClick={() => openFilePicker(i)}
+                  disabled={uploadingSection !== null}
+                >
+                  {uploadingSection === i ? (
+                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                  ) : (
+                    <Upload className="h-3.5 w-3.5 mr-1" />
+                  )}
+                  Ma vidéo
+                </Button>
+                {myVideos.length > 0 && (
+                  <select
+                    className="h-7 rounded-md border border-input bg-background px-2 text-2xs text-muted-foreground max-w-[190px]"
+                    value={clips[i]?.source === "mine" ? clips[i]?.url : ""}
+                    onChange={(e) => e.target.value && pickFromLibrary(i, e.target.value)}
+                    aria-label="Reprendre une de mes vidéos"
+                  >
+                    <option value="">Mes vidéos déjà déposées…</option>
+                    {myVideos.map((v) => (
+                      <option key={v.url} value={v.url}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {clips[i]?.source === "mine" && (
+                  <Badge variant="secondary" className="text-2xs max-w-[160px] truncate">
+                    Ma vidéo · {clips[i]?.label}
+                  </Badge>
+                )}
+              </div>
+
+              {clips[i]?.source === "mine" &&
+                clips[i]?.duration != null &&
+                (clips[i]!.duration as number) > sectionDuration(s) + 0.5 && (
+                  <div className="space-y-1">
+                    <label className="text-2xs text-muted-foreground">
+                      Fenêtre : {Math.round(clips[i]!.seek)} s →{" "}
+                      {Math.round(clips[i]!.seek + sectionDuration(s))} s (sur{" "}
+                      {Math.round(clips[i]!.duration as number)} s)
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={Math.max(0, (clips[i]!.duration as number) - sectionDuration(s))}
+                      step={0.5}
+                      value={clips[i]!.seek}
+                      onChange={(e) =>
+                        setClips((C) => {
+                          const c = C[i];
+                          return c ? set(C, i, { ...c, seek: Number(e.target.value) }) : C;
+                        })
+                      }
+                      className="w-full"
+                      aria-label="Choisir la fenêtre de lecture dans ma vidéo"
+                    />
+                  </div>
+                )}
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="video/*"
+        className="hidden"
+        onChange={(e) => handleFileChosen(e.target.files)}
+      />
 
       <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
         <span className="text-2xs text-muted-foreground">

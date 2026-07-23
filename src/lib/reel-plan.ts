@@ -62,9 +62,12 @@ export interface RenderPlan {
  * embarqué : côté moteur, il sert de repli voix générée pour les sections
  * sans enregistrement (une phrase ratée ne rend pas le reel muet).
  */
+/** Clip choisi pour une section : URL + seconde d'entrée dans le clip source. */
+export type ClipChoice = string | { url: string; seek?: number } | null | undefined;
+
 export function buildRenderPlan(
   sections: Array<{ timing?: unknown; texte_parle?: unknown }>,
-  clipUrlBySection: Array<string | null | undefined>,
+  clipBySection: ClipChoice[],
   opts: {
     voice_mode: "recorded" | "tts";
     voiceAudioUrls?: Array<string | null | undefined>;
@@ -72,12 +75,14 @@ export function buildRenderPlan(
 ): RenderPlan {
   const built: RenderSectionInput[] = [];
   sections.forEach((s, i) => {
-    const clip = clipUrlBySection[i];
-    if (!clip) return;
+    const choice = clipBySection[i];
+    const url = typeof choice === "string" ? choice : choice?.url;
+    if (!url) return;
+    const seek = typeof choice === "object" && choice ? Math.max(0, choice.seek ?? 0) : 0;
     const voiceUrl = opts.voice_mode === "recorded" ? opts.voiceAudioUrls?.[i] : undefined;
     built.push({
-      clip_url: clip,
-      seek: 0,
+      clip_url: url,
+      seek,
       duration: sectionDuration(s),
       ...(voiceUrl ? { voice_audio_url: voiceUrl } : {}),
       ...(typeof s.texte_parle === "string" ? { voice_text: s.texte_parle } : {}),
