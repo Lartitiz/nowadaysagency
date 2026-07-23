@@ -5,6 +5,7 @@
  * (recherche Pexels via `searchStockVideos`), laisse relancer la recherche par
  * section, puis assemble le tout en MP4 via le moteur `reel-render`.
  *
+ * (Commit de synchro : pousse l'état complet de main vers Lovable.)
  * Limite volontaire de cette 1re version : la voix est une voix de SYNTHÈSE
  * (test) et les clips viennent de la banque libre. La voix de la créatrice
  * (enregistrement) et ses propres vidéos arrivent aux lots suivants.
