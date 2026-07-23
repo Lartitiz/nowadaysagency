@@ -442,8 +442,6 @@ export default function BrandingPage() {
     // Log event
     logEvent("autofill_started");
 
-    setTimeout(() => setImportPhaseNew("analyzing"), 1000);
-
     try {
       // Validate at least one source is provided
       const hasSource = data.website?.trim() || data.instagram?.trim() || data.linkedin?.trim() || (data.files && data.files.length > 0);
@@ -492,6 +490,11 @@ export default function BrandingPage() {
           return;
         }
       }
+
+      // Bascule sur l'écran d'analyse UNIQUEMENT quand l'appel réel démarre
+      // (après les validations). Évite qu'un minuteur parasite ré-écrase l'état
+      // "error" quand l'analyse échoue en moins d'une seconde (spinner infini).
+      setImportPhaseNew("analyzing");
 
       const { data: result, error } = await invokeWithTimeout("analyze-brand", {
         body: {
