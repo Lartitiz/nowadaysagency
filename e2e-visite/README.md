@@ -56,8 +56,23 @@ d'invalider sa query. Deux règles pour l'attraper au lieu de la masquer :
    coupe le WebSocket (`page.routeWebSocket(/\/realtime\/v1\//, …)` sans le relier
    au serveur) et vérifie que la retouche s'affiche quand même, sans reload.
 
+3. **Tester aussi le serveur EN PANNE.** Un chargement bloqué ne se voit jamais
+   quand tout va bien : il faut PROVOQUER la panne (interception réseau) puis
+   vérifier que l'écran s'en sort. `ecran-fige-sonde.spec.ts` force un 500 sur
+   tous les écrans et exige qu'aucun chargement ne tourne encore après 30 s.
+   ⚠️ Le sélecteur DOIT inclure `animate-bounce-dot` (le loader 3 points de
+   `SuspenseFallback`/`ProtectedRoute`) : sans lui la sonde est un vert menteur.
+   À l'inverse, ne PAS cibler `[role=progressbar]` (c'est `<Progress>`, une
+   progression de contenu — « Tes premiers pas 0/6 » — pas un chargement).
+
 Specs de garde dédiées :
 - `photos-refresh-inplace.spec.ts` — quotidien, **sans crédit** : un upload doit
   produire une carte optimiste immédiate puis la vraie vignette, sans reload.
 - `retouche-realtime-coupe.spec.ts` — hebdo (lundi), ~1 crédit : « Modifier le
   fond » temps réel coupé (force manuelle : `FORCE_RT_COUPE=1`).
+- `ecran-fige-sonde.spec.ts` — quotidien, **zéro crédit** (appels interceptés,
+  ils n'atteignent jamais le serveur) : « le chargement tourne sans fin ».
+  Mode quotidien = 500 immédiat sur les écrans de `ecrans.ts` ; mode lundi =
+  serveur muet sur le mini-diagnostic, pour vérifier les minuteurs de sécurité
+  (force manuelle : `FORCE_ECRAN_FIGE_MUET=1`). A trouvé dès sa création le
+  squelette éternel de `/dashboard/complet` quand le profil échoue à charger.
