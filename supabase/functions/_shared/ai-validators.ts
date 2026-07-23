@@ -32,6 +32,16 @@ export const CoachingResponseSchema = z.object({
 
 /* ─── Utility ─── */
 
+export function validateRequiredFields(data: Record<string, unknown>, required: string[]): string | null {
+  for (const field of required) {
+    const value = data[field];
+    if (value === undefined || value === null || (typeof value === "string" && value.trim() === "")) {
+      return `Le champ "${field}" est requis.`;
+    }
+  }
+  return null;
+}
+
 export function safeParseAIResponse<T>(
   raw: string,
   schema: z.ZodSchema<T>
