@@ -212,11 +212,14 @@ export default function SharedCalendarPage() {
       params.set("period", "all");
     }
 
+    // Garde-fou : abandonne au bout de 20 s si le serveur ne répond jamais,
+    // sinon le spinner plein écran resterait bloqué sans message d'erreur.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
     try {
-      const res = await fetch(`${baseUrl}/public-calendar?${params}`);
+      const res = await fetch(`${baseUrl}/public-calendar?${params}`, { signal: controller.signal });
       if (!res.ok) {
         setError(res.status === 404 ? "expired" : "error");
-        setLoading(false);
         return;
       }
       const data = await res.json();
@@ -232,8 +235,10 @@ export default function SharedCalendarPage() {
       }
     } catch {
       setError("error");
+    } finally {
+      clearTimeout(timeoutId);
+      setLoading(false);
     }
-    setLoading(false);
   }, [token, periodMode, weekStart, monthStart, guestName, storageKey]);
 
   useEffect(() => {

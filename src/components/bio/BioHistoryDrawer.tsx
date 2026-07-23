@@ -43,7 +43,8 @@ export default function BioHistoryDrawer({ platform, open, onOpenChange, onReuse
       .then(({ data }: any) => {
         setEntries(data || []);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [open, user?.id]);
 
   const copy = (text: string, id: string) => {

@@ -43,7 +43,8 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
       .then(({ data }: any) => {
         setComments(data || []);
         setLoading(false);
-      });
+      })
+      .catch(() => setLoading(false));
   }, [postId]);
 
   // share_id de repli : permet au proprio d'écrire même sur un post sans commentaire,
