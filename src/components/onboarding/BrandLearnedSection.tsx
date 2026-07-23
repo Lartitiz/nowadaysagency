@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
@@ -27,6 +27,14 @@ export default function BrandLearnedSection() {
   const { column, value } = useWorkspaceFilter();
   const { isDemoMode } = useDemoContext();
   const pollCount = useRef(0);
+  // Fin de la fenêtre de polling : on remplace l'attente infinie (« Je remplis
+  // ton espace… » qui pulse pour toujours si l'enrichissement a échoué) par un
+  // message honnête et une porte de sortie.
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTimedOut(true), MAX_POLLS * 5000 + 10000);
+    return () => clearTimeout(t);
+  }, []);
 
   const { data } = useQuery<LearnedData | null>({
     queryKey: ["diagnostic-brand-learned", column, value],
@@ -74,9 +82,17 @@ export default function BrandLearnedSection() {
       </p>
 
       {!arrived ? (
-        <p className="text-sm text-muted-foreground animate-pulse mt-2">
-          ✨ Je remplis ton espace en arrière-plan pendant que tu lis ton diagnostic…
-        </p>
+        timedOut ? (
+          <p className="text-sm text-muted-foreground mt-2">
+            Je n'ai pas réussi à pré-remplir ton espace cette fois. Pas grave :
+            ton Branding t'attend, tu pourras tout compléter là-bas (et c'est
+            souvent mieux avec tes mots à toi).
+          </p>
+        ) : (
+          <p className="text-sm text-muted-foreground animate-pulse mt-2">
+            ✨ Je remplis ton espace en arrière-plan pendant que tu lis ton diagnostic…
+          </p>
+        )
       ) : (
         <>
           <p className="text-sm text-muted-foreground mb-5">

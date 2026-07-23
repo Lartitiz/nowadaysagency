@@ -466,6 +466,7 @@ function mapEdgeResponseToDiagnostic(data: any, answers?: { canaux?: string[] })
 
   return {
     totalScore,
+    isFallback: analysis._fallback === true,
     summary: analysis.summary || undefined,
     strengths,
     weaknesses,

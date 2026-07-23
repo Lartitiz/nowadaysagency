@@ -23,6 +23,8 @@ export interface DiagnosticScores {
 export interface DiagnosticData {
   totalScore: number;
   summary?: string;
+  /** true si l'IA a échoué et que le serveur a renvoyé le diagnostic de secours. */
+  isFallback?: boolean;
   strengths: (string | DiagnosticStrength)[];
   weaknesses: DiagnosticWeakness[];
   priorities: {
@@ -135,6 +137,7 @@ export function computeDiagnosticData(
 
   return {
     totalScore,
+    isFallback: true,
     strengths: strengths.slice(0, 4),
     weaknesses: weaknesses.slice(0, 4),
     priorities: priorities.slice(0, 3),

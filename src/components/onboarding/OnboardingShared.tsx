@@ -54,6 +54,7 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
             placeholder={placeholder}
             aria-label={placeholder}
             autoFocus={autoFocus}
+            autoComplete="off"
             rows={4}
             className="w-full text-base p-4 pr-12 border-2 border-border rounded-xl focus:border-primary outline-none bg-card transition-colors text-foreground placeholder:text-muted-foreground/50 resize-none"
           />
@@ -87,6 +88,7 @@ export function VoiceInput({ value, onChange, placeholder, onEnter, autoFocus = 
           placeholder={placeholder}
           aria-label={placeholder}
           autoFocus={autoFocus}
+          autoComplete="off"
           className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
         />
         <div className="absolute right-2 top-1/2 -translate-y-1/2">

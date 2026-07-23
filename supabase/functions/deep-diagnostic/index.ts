@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo, isSafePublicUrl } from "../_shared/scraping.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type UsageSink, type AnthropicTool } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -10,6 +10,81 @@ import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/w
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
+
+// Sortie structurée forcée : l'API garantit un `input` conforme — élimine la
+// classe d'échecs « JSON tronqué/illisible » du parsing texte (cf #640).
+const DIAGNOSTIC_TOOL: AnthropicTool = {
+  name: "rendre_diagnostic",
+  description: "Renvoie le diagnostic de communication structuré.",
+  input_schema: {
+    type: "object",
+    properties: {
+      summary: { type: "string", description: "3-4 phrases qui reformulent les mots de la personne" },
+      strengths: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            detail: { type: "string" },
+            source: { type: "string", enum: ["website", "profile", "about", "instagram", "linkedin", "documents"] },
+          },
+          required: ["title", "detail"],
+        },
+      },
+      weaknesses: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            detail: { type: "string" },
+            source: { type: "string", enum: ["website", "profile", "about", "instagram", "linkedin", "documents"] },
+            fix_hint: { type: "string" },
+          },
+          required: ["title", "detail"],
+        },
+      },
+      scores: {
+        type: "object",
+        properties: {
+          total: { type: ["number", "null"] },
+          branding: { type: ["number", "null"] },
+          instagram: { type: ["number", "null"] },
+          website: { type: ["number", "null"] },
+          linkedin: { type: ["number", "null"] },
+        },
+        required: ["total", "branding"],
+      },
+      priorities: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            title: { type: "string" },
+            why: { type: "string" },
+            time: { type: "string" },
+            route: { type: "string" },
+            impact: { type: "string", enum: ["high", "medium"] },
+          },
+          required: ["title", "why", "route"],
+        },
+      },
+      branding_prefill: {
+        type: "object",
+        properties: {
+          positioning: { type: ["string", "null"] },
+          mission: { type: ["string", "null"] },
+          target_description: { type: ["string", "null"] },
+          tone_keywords: { type: "array", items: { type: "string" } },
+          values: { type: "array", items: { type: "string" } },
+          offers: { type: "array" },
+        },
+      },
+    },
+    required: ["summary", "strengths", "weaknesses", "scores", "priorities"],
+  },
+};
 
 /**
  * Robust JSON parser that handles common AI response issues:
@@ -392,20 +467,18 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
         });
       }
 
-      let rawText: string;
-      if (instagramScreenshots.length > 0) {
-        // Use vision-capable call
-        rawText = await callAnthropic({
-          model: fastModel,
-          system: systemPrompt,
-          messages: [{ role: "user", content: userContentBlocks }],
-          temperature: 0.6,
-          max_tokens: 2000,
-        }, diagUsage);
-      } else {
-        // Simple text-only call
-        rawText = await callAnthropicSimple(fastModel, systemPrompt, userPrompt, 0.7, 2000, diagUsage);
-      }
+      // Sortie structurée par tool forcé : le JSON est valide par construction.
+      // (Cause du bug « domaine Mattioli » : en texte libre, une réponse riche
+      // dépassait max_tokens 2000 → JSON tronqué imparsable → fallback silencieux.
+      // Reproduit avec type "consultante" + site web analysé.)
+      const rawText = await callAnthropic({
+        model: fastModel,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userContentBlocks }],
+        temperature: instagramScreenshots.length > 0 ? 0.6 : 0.7,
+        max_tokens: 4000,
+        tool: DIAGNOSTIC_TOOL,
+      }, diagUsage);
 
       // Parse JSON with robust cleaning
       analysisResult = robustJsonParse(rawText);
@@ -651,7 +724,18 @@ function buildFallbackDiagnostic(
     });
   }
 
-  const totalScore = Math.min(100, Math.max(10, 
+  // Filet de sécurité : jamais de section « Ce qu'on va travailler » vide
+  // (avant, présence web + blocage ≠ invisible → zéro faiblesse → section fantôme).
+  if (weaknesses.length === 0) {
+    weaknesses.push({
+      title: "On manque de données pour un diagnostic précis",
+      detail: "Je n'ai pas pu faire l'analyse complète cette fois. Plus tu renseignes d'infos (site web, réseaux), plus le diagnostic sera pertinent et actionnable.",
+      source: "profile",
+      fix_hint: "Relance ton diagnostic depuis ton espace, ou lance les audits dédiés (site, Instagram).",
+    });
+  }
+
+  const totalScore = Math.min(100, Math.max(10,
     (profile?.activity ? 15 : 0) +
     (freeformAnswers?.uniqueness ? 15 : 0) +
     (hasWebPresence ? 20 : 0) +
@@ -659,18 +743,19 @@ function buildFallbackDiagnostic(
     10 // base
   ));
 
-  // Build summary
-  const activityLabel = profile?.activityType || "entrepreneure";
-  const activityDomain = profile?.activity || "ton activité";
+  // Build summary — sans gabarit « Tu es X dans le domaine "Y" » : `activity`
+  // est du texte libre (parfois pollué par l'autofill, ex. un nom de famille)
+  // et la tournure produisait des phrases absurdes (« le domaine "Mattioli" »).
+  const activityLine = profile?.activity ? ` Ton activité, avec tes mots : « ${profile.activity} ».` : "";
   const blockerLine = profile?.blocker === "invisible"
-    ? "Tu te sens invisible et cherches à gagner en visibilité."
-    : "Tu veux développer ta communication.";
+    ? " Tu te sens invisible et cherches à gagner en visibilité."
+    : " Tu veux développer ta communication.";
   const insightLine = insights?.tips[0] ? ` Mon conseil : ${insights.tips[0].toLowerCase()}.` : "";
   const sourceLine = hasWebPresence
     ? ""
     : " J'ai pas eu accès à tes réseaux ni à ton site, donc je me base sur ce que tu m'as dit. Ajoute tes liens pour un diagnostic plus poussé.";
 
-  const summary = `Tu es ${activityLabel} dans le domaine "${activityDomain}". ${blockerLine}${insightLine}${sourceLine}`;
+  const summary = `Voici un premier aperçu, basé sur tes réponses.${activityLine}${blockerLine}${insightLine}${sourceLine}`;
 
   // Build priorities — use activity-specific first priority if available
   const priorities = [

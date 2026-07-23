@@ -24,12 +24,15 @@ export default function OnboardingPhase1Profile({ prenom, activite, onPrenomChan
       <div className="space-y-6">
         <div>
           <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Ton prénom</label>
+          {/* given-name (et pas name) : l'autofill navigateur mettait le NOM de
+              famille dans le champ « Tu fais quoi ? » juste en dessous */}
           <input
             type="text"
             value={prenom}
             onChange={e => onPrenomChange(e.target.value)}
             placeholder="Léa"
             autoFocus
+            autoComplete="given-name"
             aria-label="Ton prénom"
             onKeyDown={e => { if (e.key === "Enter" && prenom.trim().length >= 2) { e.preventDefault(); } }}
             className="w-full text-xl p-4 border-b-2 border-border focus:border-primary outline-none bg-transparent transition-colors text-foreground placeholder:text-muted-foreground/50"
