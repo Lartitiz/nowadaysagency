@@ -202,6 +202,154 @@ Précisions importantes :
       });
     }
 
+    // ── Contexte onboarding : fiche « à valider » (branding_autofill) ──────
+    // On ne touche PAS aux tables de marque : l'écran BrandingReview affichera
+    // la ligne pending_review et l'utilisateur·ice validera/ajustera avant
+    // écriture. Ré-audit hors onboarding : comportement inchangé (bloc en bas).
+    if (isOnboarding) {
+      const voice = enrichmentResult.voice_prefill || {};
+      const personaP = enrichmentResult.persona_prefill || {};
+      const strat = enrichmentResult.content_strategy_prefill || {};
+      const charter = enrichmentResult.charter_prefill || {};
+
+      const analysisResult = {
+        story: {
+          confidence: "medium",
+          full_story: prefill.story_draft || null,
+        },
+        persona: {
+          confidence: personaP.confidence || "medium",
+          description: prefill.target_description || personaP.description || null,
+          goals: personaP.goals || [],
+          frustrations: personaP.frustrations || [],
+          desires: personaP.desires || [],
+          beautiful_world: personaP.beautiful_world || null,
+          first_actions: personaP.first_actions || null,
+        },
+        value_proposition: {
+          confidence: "medium",
+          key_phrase: prefill.value_prop_sentence || null,
+          problem: prefill.value_prop_problem || null,
+          solution: prefill.value_prop_solution || null,
+          differentiator: prefill.value_prop_difference || null,
+          proofs: prefill.value_prop_proof ? [prefill.value_prop_proof] : [],
+        },
+        tone_style: {
+          confidence: "medium",
+          tone_keywords: prefill.tone_keywords || [],
+          voice_description: voice.voice_description || prefill.tone_style || null,
+          tone_register: voice.tone_register || null,
+          tone_level: voice.tone_level || null,
+          tone_style_chip: voice.tone_style_chip || null,
+          tone_humor: voice.tone_humor || null,
+          tone_engagement: voice.tone_engagement || null,
+          i_do: voice.tone_patterns || voice.signature_expressions || [],
+          i_never_do: voice.banned_expressions || [],
+          fights: prefill.combats || [],
+          key_expressions: voice.key_expressions || null,
+          things_to_avoid: voice.things_to_avoid || null,
+          target_verbatims: voice.target_verbatims || null,
+          channels: voice.channels || [],
+        },
+        content_strategy: {
+          confidence: strat.confidence || "medium",
+          pillars: (strat.pillars || [])
+            .map((p: any) => (typeof p === "string" ? p : p?.label))
+            .filter(Boolean),
+          creative_twist: strat.creative_twist || null,
+          formats: strat.formats || [],
+          rhythm: strat.rhythm || null,
+          editorial_line: strat.editorial_line || null,
+        },
+        offers: {
+          confidence: "medium",
+          offers: prefill.offers || [],
+        },
+        charter: {
+          confidence: charter.confidence || "low",
+          color_primary: charter.color_primary || null,
+          color_secondary: charter.color_secondary || null,
+          color_accent: charter.color_accent || null,
+          color_background: charter.color_background || null,
+          font_title: charter.font_title || null,
+          font_body: charter.font_body || null,
+          mood_keywords: charter.mood_keywords || [],
+          visual_style_description: charter.photo_style || null,
+        },
+        sources_used: [],
+        sources_failed: [],
+        overall_confidence: "medium",
+      };
+
+      // Idempotence : ne pas empiler plusieurs fiches à valider
+      const { data: existingPending } = await supabaseAdmin
+        .from("branding_autofill")
+        .select("id")
+        .eq(filterCol, filterVal)
+        .eq("autofill_status", "pending_review")
+        .maybeSingle();
+
+      if (!existingPending) {
+        await supabaseAdmin.from("branding_autofill").insert({
+          user_id: userId,
+          workspace_id: workspaceId || null,
+          analysis_result: analysisResult,
+          sources_used: [],
+          sources_failed: [],
+          overall_confidence: "medium",
+          autofill_status: "pending_review",
+          autofill_pending_review: true,
+        });
+      }
+
+      // starter_ideas → saved_ideas (nécessaire au « 1er contenu »)
+      const starterIdeasOnb = Array.isArray(enrichmentResult?.starter_ideas) ? enrichmentResult.starter_ideas : [];
+      if (starterIdeasOnb.length > 0) {
+        let profileUserIdOnb = userId;
+        if (workspaceId) {
+          const { data: ownerRow } = await supabaseAdmin
+            .from("workspace_members")
+            .select("user_id")
+            .eq("workspace_id", workspaceId)
+            .eq("role", "owner")
+            .maybeSingle();
+          if (ownerRow?.user_id) profileUserIdOnb = ownerRow.user_id;
+        }
+        const { count: diagIdeasCount } = await supabaseAdmin
+          .from("saved_ideas")
+          .select("id", { count: "exact", head: true })
+          .eq(filterCol, filterVal)
+          .eq("source_module", "diagnostic");
+        if ((diagIdeasCount || 0) === 0) {
+          const IDEA_FORMATS = ["post", "carousel", "reel", "story", "linkedin"];
+          const IDEA_OBJECTIFS = ["visibilite", "confiance", "vente"];
+          const ideaRows = starterIdeasOnb
+            .filter((i: any) => typeof i?.titre === "string" && i.titre.trim().length > 0)
+            .slice(0, 5)
+            .map((i: any) => ({
+              user_id: profileUserIdOnb,
+              workspace_id: workspaceId || null,
+              titre: i.titre.trim().slice(0, 200),
+              angle: typeof i.angle === "string" ? i.angle.slice(0, 200) : "",
+              format: IDEA_FORMATS.includes(i.format) ? i.format : "post",
+              canal: i.canal === "linkedin" ? "linkedin" : "instagram",
+              objectif: IDEA_OBJECTIFS.includes(i.objectif) ? i.objectif : "visibilite",
+              status: "to_explore",
+              source_module: "diagnostic",
+              notes: "✨ Proposée à partir de ton diagnostic",
+            }));
+          if (ideaRows.length > 0) {
+            const { error: ideasError } = await supabaseAdmin.from("saved_ideas").insert(ideaRows);
+            if (ideasError) console.error("[diagnostic-enrichment] insert starter_ideas failed:", ideasError.message);
+          }
+        }
+      }
+
+      console.log("Enrichment phase 2 (onboarding) → pending_review created");
+      return new Response(JSON.stringify({ success: true, mode: "onboarding_pending_review" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+
     // brand_profile upsert — enriched with value proposition, target, tone details
     const { data: existingProfile } = await supabaseAdmin
       .from("brand_profile")
