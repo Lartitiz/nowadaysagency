@@ -119,6 +119,11 @@ export default function MiniDiagnostic() {
     setPhraseIdx(0);
     setProgress(0);
 
+    // Garde-fou : si le serveur ne répond jamais (réseau suspendu), on abandonne
+    // au bout de 30 s → le catch ci-dessous bascule sur le résultat de secours
+    // au lieu de laisser le spinner "loading" tourner indéfiniment.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mini-audit-instagram`;
       const resp = await fetch(url, {
@@ -128,6 +133,7 @@ export default function MiniDiagnostic() {
           Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
         },
         body: JSON.stringify({ handle: clean }),
+        signal: controller.signal,
       });
 
       const data = await resp.json();
@@ -146,7 +152,7 @@ export default function MiniDiagnostic() {
       setProgress(100);
       setTimeout(() => setPhase("result"), 400);
     } catch {
-      // Fallback result
+      // Fallback result (couvre aussi l'abandon après timeout)
       setResult({
         handle: clean,
         score: 52,
@@ -155,6 +161,8 @@ export default function MiniDiagnostic() {
       });
       setProgress(100);
       setTimeout(() => setPhase("result"), 400);
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 

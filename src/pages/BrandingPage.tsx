@@ -723,7 +723,6 @@ export default function BrandingPage() {
               <BrandingAnalysisLoader
                 sources={analysisSources}
                 error={importPhaseNew === "error" ? analysisError : null}
-                done={false}
                 onRetry={() => {
                   setImportPhaseNew("form");
                   setImportAnalyzing(false);
