@@ -1,3 +1,4 @@
+// build 2026-07-23c
 /**
  * ReelMontage — écran de montage d'un reel (Phase 1, beta).
  *
