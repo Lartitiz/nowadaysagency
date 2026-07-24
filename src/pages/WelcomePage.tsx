@@ -532,6 +532,27 @@ export default function WelcomePage() {
       });
   };
 
+  // CTA « Générer mon premier contenu » : si la marque captée à l'inscription
+  // attend sa relecture (fiche branding_autofill pending_review), on route vers
+  // l'écran de validation (même chemin que la fin de diagnostic, #633) ; sinon
+  // comportement historique — direct sur la 1re création. Vérifié AU CLIC (pas
+  // au mount) : l'enrichment est async, la fiche peut arriver pendant que la
+  // personne lit cette page. En cas d'erreur réseau → chemin historique.
+  const handleCreateFirst = async () => {
+    const creerUrl = `/creer?sujet=${encodeURIComponent(starterIdea?.titre || "3 erreurs fréquentes dans mon domaine (et comment les éviter)")}&format=${starterIdea?.format === "carousel" ? "carousel" : "post"}&auto=1`;
+    let pendingReview = false;
+    try {
+      const { data } = await (supabase.from("branding_autofill") as any)
+        .select("id")
+        .eq(column, value)
+        .eq("autofill_status", "pending_review")
+        .limit(1)
+        .maybeSingle();
+      pendingReview = !!data;
+    } catch { /* réseau KO → on ne bloque jamais la 1re création */ }
+    markSeen(pendingReview ? "/branding?from=onboarding&next=creer" : creerUrl);
+  };
+
   const handleCardSave = useCallback(async (cardIndex: number, newValue: string) => {
     const card = brandingCards[cardIndex];
     if (!card.dbTable || !card.dbField || !user) return;
@@ -795,10 +816,14 @@ export default function WelcomePage() {
         </div>
 
         {/* F) CTAs — 1ère génération guidée (L5) : sujet + format pré-remplis, on saute
-            direct aux questions (auto=1). Le « waouh » dès l'onboarding, sans page blanche. */}
+            direct aux questions (auto=1). Le « waouh » dès l'onboarding, sans page blanche.
+            MAIS si la marque captée attend encore sa relecture (fiche pending_review,
+            flux #633), on passe d'abord par l'écran de validation — c'était le bouton
+            JUMEAU qui court-circuitait la review. Une fois la fiche validée, ce
+            détour disparaît (le chemin rapide L5 reste le cas nominal). */}
         <div className="flex flex-col gap-3">
           <Button
-            onClick={() => markSeen(`/creer?sujet=${encodeURIComponent(starterIdea?.titre || "3 erreurs fréquentes dans mon domaine (et comment les éviter)")}&format=${starterIdea?.format === "carousel" ? "carousel" : "post"}&auto=1`)}
+            onClick={handleCreateFirst}
             className="w-full rounded-pill gap-2"
             size="lg"
           >
