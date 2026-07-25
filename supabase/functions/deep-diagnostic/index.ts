@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo, isSafePublicUrl } from "../_shared/scraping.ts";
+import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo, fetchExternalCss, isSafePublicUrl } from "../_shared/scraping.ts";
 import { callAnthropic, getModelForAction, type UsageSink, type AnthropicTool } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
@@ -259,7 +259,9 @@ serve(async (req) => {
                   });
                   if (resp.ok) {
                     const html = await resp.text();
-                    cachedStyleHints = extractVisualInfo(html);
+                    // CSS externes = là où vivent les vraies couleurs (cf pre-scrape-website)
+                    const externalCss = await fetchExternalCss(html, formattedUrl, controller.signal);
+                    cachedStyleHints = extractVisualInfo(html, externalCss);
                   }
                 } catch { /* style hints are nice-to-have */ }
               } else {

@@ -162,10 +162,39 @@ export function extractStylesheetUrls(html: string, baseUrl: string): string[] {
     const hrefMatch = tag.match(/href=["']([^"']+)["']/i);
     if (!hrefMatch) continue;
     try {
-      urls.push(new URL(hrefMatch[1], baseUrl).toString());
+      // Les href sont souvent HTML-encodés (&amp;) : sans décodage, les params
+      // suivants (ex: 2e famille Google Fonts) deviennent `amp;family=` et sautent.
+      urls.push(new URL(hrefMatch[1].replace(/&amp;/g, "&"), baseUrl).toString());
     } catch { /* href invalide, on ignore */ }
   }
   return urls;
+}
+
+/**
+ * Récupère le contenu des feuilles de style EXTERNES (max 3) d'une page.
+ * Les sites modernes (Vite/React, Webflow, Squarespace, Tailwind…) n'ont
+ * quasiment aucune couleur dans le HTML : tout vit dans ces fichiers .css.
+ * À passer en `extraCss` à extractVisualInfo. Anti-SSRF vérifié par URL.
+ */
+export async function fetchExternalCss(html: string, baseUrl: string, signal?: AbortSignal): Promise<string> {
+  let externalCss = "";
+  const cssUrls = extractStylesheetUrls(html, baseUrl).slice(0, 3);
+  for (const cssUrl of cssUrls) {
+    if (!isSafePublicUrl(cssUrl)) continue;
+    try {
+      const resp = await fetch(cssUrl, {
+        signal,
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+      });
+      if (resp.ok) {
+        externalCss += "\n" + (await resp.text()).slice(0, 120000);
+      } else {
+        await resp.body?.cancel().catch(() => {});
+      }
+    } catch { /* feuille de style optionnelle */ }
+    if (externalCss.length > 300000) break;
+  }
+  return externalCss;
 }
 
 /**
@@ -223,16 +252,38 @@ export function extractVisualInfo(html: string, extraCss: string = ""): string {
   // c'est là que vivent les couleurs des sites modernes (React, Webflow, Tailwind…).
   const allCss = styleBlocks.join("\n") + "\n" + extraCss;
 
-  // Extract hex colors
-  const hexColors = new Set<string>();
-  const hexRegex = /#([0-9a-fA-F]{3,8})\b/g;
-  let hm: RegExpExecArray | null;
-  while ((hm = hexRegex.exec(allCss)) !== null) {
-    const hex = hm[1].toLowerCase();
-    if (!["fff", "ffffff", "000", "000000", "333", "333333", "666", "666666", "999", "999999", "ccc", "cccccc", "eee", "eeeeee", "f5f5f5", "e5e5e5", "d4d4d4"].includes(hex)) {
-      hexColors.add(`#${hex}`);
+  // Couleurs comptées par FRÉQUENCE : un vrai CSS contient des dizaines de
+  // couleurs parasites (framework, ombres, un dégradé isolé…). Les couleurs de
+  // marque sont celles qui REVIENNENT — un simple Set dans l'ordre d'apparition
+  // faisait remonter le bruit en tête et l'IA choisissait dedans.
+  const colorCounts = new Map<string, number>();
+  // Normalise en #rrggbb : les variantes alpha (#91014b1a = même couleur à 10 %)
+  // sont FUSIONNÉES avec leur couleur de base (ça renforce son score, c'est le
+  // même pigment), le transparent pur et les gris (r=g=b) sont exclus — sinon
+  // #0000 et les ombres noires trustaient la tête du classement.
+  const normalizeHexColor = (raw: string): string | null => {
+    let h = raw.toLowerCase();
+    if (h.length === 4 || h.length === 8) {
+      const alpha = h.length === 4 ? h.slice(3) : h.slice(6);
+      if (/^0+$/.test(alpha)) return null; // transparent pur
+      h = h.length === 4 ? h.slice(0, 3) : h.slice(0, 6);
     }
-  }
+    if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+    if (h.length !== 6) return null;
+    if (h.slice(0, 2) === h.slice(2, 4) && h.slice(2, 4) === h.slice(4, 6)) return null; // gris
+    return `#${h}`;
+  };
+  const bumpColor = (key: string | null) => {
+    if (key) colorCounts.set(key, (colorCounts.get(key) || 0) + 1);
+  };
+  const countHexIn = (css: string) => {
+    const hexRegex = /#([0-9a-fA-F]{3,8})\b/g;
+    let hm: RegExpExecArray | null;
+    while ((hm = hexRegex.exec(css)) !== null) {
+      bumpColor(normalizeHexColor(hm[1]));
+    }
+  };
+  countHexIn(allCss);
 
   // Extract rgb/rgba colors
   const rgbRegex = /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/g;
@@ -240,47 +291,28 @@ export function extractVisualInfo(html: string, extraCss: string = ""): string {
   while ((rm = rgbRegex.exec(allCss)) !== null) {
     const r = parseInt(rm[1]), g = parseInt(rm[2]), b = parseInt(rm[3]);
     if (r === g && g === b) continue;
-    const hex = `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
-    hexColors.add(hex);
+    bumpColor(`#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`);
   }
 
-  // Extract CSS custom properties
-  const varRegex = /--([\w-]*(?:color|brand|primary|secondary|accent|bg|background|text|heading|main)[\w-]*)\s*:\s*([^;]+)/gi;
-  let vm: RegExpExecArray | null;
-  while ((vm = varRegex.exec(allCss)) !== null) {
-    const varName = vm[1].trim();
-    const varValue = vm[2].trim();
-    parts.push(`CSS variable: --${varName}: ${varValue}`);
-  }
-
-  if (hexColors.size > 0) {
-    parts.push(`Couleurs détectées dans le CSS: ${[...hexColors].slice(0, 15).join(", ")}`);
-  }
-
-  // Extract font-family declarations
+  // Fonts (déclarations CSS)
   const fonts = new Set<string>();
   const fontRegex = /font-family\s*:\s*([^;}]+)/gi;
   let fm: RegExpExecArray | null;
   while ((fm = fontRegex.exec(allCss)) !== null) {
     const fontVal = fm[1].trim().replace(/["']/g, "").split(",")[0].trim();
+    if (fontVal.startsWith("var(")) continue; // référence de variable, pas un nom de police
     if (fontVal && !["inherit", "initial", "unset", "sans-serif", "serif", "monospace", "system-ui", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Arial", "Helvetica"].includes(fontVal)) {
       fonts.add(fontVal);
     }
   }
 
-  // Also check inline styles in HTML
+  // Styles inline du HTML (comptés AVANT de composer la ligne « Couleurs » —
+  // avant, ils étaient scannés après coup et n'apparaissaient jamais dans le résultat)
   const inlineStyleRegex = /style=["']([^"']+)["']/gi;
   let ism: RegExpExecArray | null;
   while ((ism = inlineStyleRegex.exec(html)) !== null) {
     const style = ism[1];
-    const inlineHexRegex = /#([0-9a-fA-F]{3,8})\b/g;
-    let ihm: RegExpExecArray | null;
-    while ((ihm = inlineHexRegex.exec(style)) !== null) {
-      const hex = ihm[1].toLowerCase();
-      if (!["fff", "ffffff", "000", "000000", "333", "666", "999", "ccc", "eee"].includes(hex)) {
-        hexColors.add(`#${hex}`);
-      }
-    }
+    countHexIn(style);
     const inlineFontRegex = /font-family\s*:\s*([^;}"']+)/gi;
     let ifm: RegExpExecArray | null;
     while ((ifm = inlineFontRegex.exec(style)) !== null) {
@@ -291,16 +323,42 @@ export function extractVisualInfo(html: string, extraCss: string = ""): string {
     }
   }
 
-  // Extract Google Fonts links
+  // Google Fonts : décoder &amp; d'abord, sinon seule la 1re famille est vue
+  // (l'URL contient `…&amp;family=…` → le `&` HTML-encodé coupait la capture).
   const gfRegex = /fonts\.googleapis\.com\/css2?\?family=([^"'&>]+)/gi;
   let gm: RegExpExecArray | null;
-  while ((gm = gfRegex.exec(html)) !== null) {
+  const decodedHtml = html.replace(/&amp;/g, "&");
+  while ((gm = gfRegex.exec(decodedHtml)) !== null) {
     const families = decodeURIComponent(gm[1]).split("|").map(f => f.split(":")[0].replace(/\+/g, " ").trim());
     families.forEach(f => fonts.add(f));
   }
 
+  // ORDRE DES SECTIONS : couleurs puis typos d'abord — le cache
+  // scrape_cache.style_hints est tronqué à 3000 caractères, l'essentiel doit
+  // survivre à la coupe (les variables CSS passent après).
+  if (colorCounts.size > 0) {
+    const ranked = [...colorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
+    parts.push(`Couleurs détectées dans le CSS (triées par fréquence d'usage): ${ranked.map(([c, n]) => `${c} (×${n})`).join(", ")}`);
+  }
+
   if (fonts.size > 0) {
     parts.push(`Typographies détectées: ${[...fonts].join(", ")}`);
+  }
+
+  // Variables CSS : seulement celles dont la VALEUR est une couleur. Les thèmes
+  // Tailwind/shadcn déclarent des centaines de variables (tailles, ombres,
+  // `initial`, `var(...)`) qui noyaient les vraies couleurs dans le prompt.
+  const varRegex = /--([\w-]*(?:color|brand|primary|secondary|accent|bg|background|text|heading|main)[\w-]*)\s*:\s*([^;}]+)/gi;
+  let vm: RegExpExecArray | null;
+  let varCount = 0;
+  while ((vm = varRegex.exec(allCss)) !== null && varCount < 20) {
+    const varValue = vm[2].trim();
+    // Formes acceptées : hex, fonctions couleur, ou triplet HSL nu (« 346 77% 50% », convention shadcn)
+    const isColorValue = /^(#[0-9a-fA-F]{3,8}\b|(rgb|hsl|oklch|oklab)a?\()/.test(varValue)
+      || /^\d{1,3}(\.\d+)?(deg)?[ ,]+\d{1,3}(\.\d+)?%[ ,]+\d{1,3}(\.\d+)?%$/.test(varValue);
+    if (!isColorValue) continue;
+    parts.push(`CSS variable: --${vm[1].trim()}: ${varValue}`);
+    varCount++;
   }
 
   // Extract meta theme-color
