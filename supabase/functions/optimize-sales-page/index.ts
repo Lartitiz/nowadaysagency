@@ -1,12 +1,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { corsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
+const SALES_PAGE_TOOL: AnthropicTool = {
+  name: "rendre_optimisation_page",
+  description: "Renvoie le diagnostic et les recommandations de la page de vente.",
+  input_schema: {
+    type: "object",
+    properties: {
+      score_global: { type: "number" },
+      diagnostic: { type: "string" },
+      quick_win: { type: "object" },
+      top_3_changements: { type: "array" },
+      sections_existantes: { type: "array" },
+      sections_manquantes: { type: "array" },
+    },
+    required: ["score_global", "diagnostic", "sections_existantes"],
+  },
+};
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
-import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isSafePublicUrl } from "../_shared/scraping.ts";
 
@@ -364,18 +381,20 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
 }`;
 
     const usage: UsageSink = {};
-    const rawResponse = await callAnthropicSimple(
-      getModelForAction("generation"),
-      BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP,
-      "Analyse cette page de vente et produis les recommandations en JSON.",
-      0.5,
-      8192,
-      usage
-    );
-
-    // Parse JSON response — plus de fallback { raw } muet : illisible = erreur claire.
-    const parsed = tryParseAiJson<any>(rawResponse, "optimize-sales-page");
-    if (parsed === null) {
+    // Tool forcé : JSON garanti — l'erreur claire reste le filet (appel raté, troncature 422).
+    let parsed: any;
+    try {
+      parsed = await callAnthropicToolSimple(
+        getModelForAction("generation"),
+        BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP,
+        "Analyse cette page de vente et produis les recommandations en JSON.",
+        SALES_PAGE_TOOL,
+        0.5,
+        8192,
+        usage
+      );
+    } catch (e) {
+      console.error("optimize-sales-page: appel IA échoué:", e);
       return new Response(
         JSON.stringify({ error: "L'IA a renvoyé une réponse illisible. Réessaie." }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
