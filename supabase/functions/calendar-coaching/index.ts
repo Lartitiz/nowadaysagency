@@ -3,7 +3,36 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti.
+const PLANNING_TOOL: AnthropicTool = {
+  name: "rendre_planning_semaine",
+  description: "Renvoie le planning de la semaine, le fil rouge et le conseil.",
+  input_schema: {
+    type: "object",
+    properties: {
+      planning: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            day: { type: "string" },
+            pillar: { type: "string" },
+            subject: { type: "string" },
+            format: { type: "string" },
+            hook_idea: { type: "string" },
+            objective: { type: "string" },
+          },
+          required: ["day", "subject", "format"],
+        },
+      },
+      week_theme: { type: "string" },
+      tip: { type: "string" },
+    },
+    required: ["planning", "week_theme", "tip"],
+  },
+};
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -210,23 +239,15 @@ Retourne UNIQUEMENT un JSON valide :
 }`;
 
     const usage: UsageSink = {};
-    const raw = await callAnthropicSimple(
+    const parsed: any = await callAnthropicToolSimple(
       getModelForAction("coaching"),
       systemPrompt,
       `Planifie ${posts_per_week} posts pour ma semaine. Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
+      PLANNING_TOOL,
       0.9,
       4096,
       usage
     );
-
-    let parsed;
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      const match = raw.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
-      else throw new Error("Format de réponse inattendu");
-    }
 
     // Sonde de singularité (télémétrie, jamais bloquante) — même grille que
     // content-coaching pour comparer les deux moteurs dans les logs.

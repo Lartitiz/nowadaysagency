@@ -1,5 +1,50 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getDefaultModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tools forcés (chantier éradication parse texte, 26/07). NB : le chemin
+// STREAMING SSE de la phase diagnostic reste en texte (dette notée) — seuls
+// les appels non-stream sont migrés ici.
+const QUESTIONS_TOOL: AnthropicTool = {
+  name: "rendre_questions",
+  description: "Renvoie les questions personnalisées et l'intro.",
+  input_schema: {
+    type: "object",
+    properties: {
+      questions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { numero: { type: "number" }, question: { type: "string" }, placeholder: { type: "string" } },
+          required: ["numero", "question"],
+        },
+      },
+      intro: { type: "string" },
+    },
+    required: ["questions", "intro"],
+  },
+};
+
+const COACH_DIAG_TOOL: AnthropicTool = {
+  name: "rendre_diagnostic_coaching",
+  description: "Renvoie le diagnostic, le pourquoi, les conséquences et les propositions.",
+  input_schema: {
+    type: "object",
+    properties: {
+      diagnostic: { type: "string" },
+      pourquoi: { type: "string" },
+      consequences: { type: "array", items: { type: "string" } },
+      proposals: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { label: { type: "string" }, field: { type: "string" }, value: { type: "string" } },
+          required: ["label", "field", "value"],
+        },
+      },
+    },
+    required: ["diagnostic", "pourquoi", "consequences", "proposals"],
+  },
+};
 import { streamAnthropicSSE, createClientSSEStream } from "../_shared/anthropic-stream.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -159,13 +204,10 @@ Retourne UNIQUEMENT un JSON :
 }`;
 
       const qUsage: UsageSink = {};
-      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000, qUsage);
 
       let result;
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON");
-        result = JSON.parse(jsonMatch[0]);
+        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 2000, qUsage);
       } catch {
         // Fallback to base questions
         result = {
@@ -260,15 +302,12 @@ Pour le module editorial, propose piliers de contenu.`;
       }
 
       const diagUsage: UsageSink = {};
-      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000, diagUsage);
 
       let result;
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON");
-        result = JSON.parse(jsonMatch[0]);
-      } catch {
-        console.error("Failed to parse coaching diagnostic:", raw);
+        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", COACH_DIAG_TOOL, 0.5, 4000, diagUsage);
+      } catch (e) {
+        console.error("coaching-module diagnostic: appel IA échoué:", e);
         return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -369,15 +408,12 @@ Pour le module editorial, propose piliers de contenu.`;
       }
 
       const adjUsage: UsageSink = {};
-      const raw = await callAnthropicSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", 0.5, 4000, adjUsage);
 
       let result;
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON");
-        result = JSON.parse(jsonMatch[0]);
-      } catch {
-        console.error("Failed to parse coaching adjust:", raw);
+        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", COACH_DIAG_TOOL, 0.5, 4000, adjUsage);
+      } catch (e) {
+        console.error("coaching-module adjust: appel IA échoué:", e);
         return new Response(JSON.stringify({ error: "Erreur lors de l'ajustement. Réessaie." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

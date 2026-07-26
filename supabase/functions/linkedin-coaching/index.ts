@@ -1,5 +1,49 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tools forcés (chantier éradication parse texte, 26/07) : JSON garanti.
+const QUESTIONS_TOOL: AnthropicTool = {
+  name: "rendre_questions",
+  description: "Renvoie les questions personnalisées et l'intro.",
+  input_schema: {
+    type: "object",
+    properties: {
+      questions: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { numero: { type: "number" }, question: { type: "string" }, placeholder: { type: "string" } },
+          required: ["numero", "question"],
+        },
+      },
+      intro: { type: "string" },
+    },
+    required: ["questions", "intro"],
+  },
+};
+
+const COACH_DIAG_TOOL: AnthropicTool = {
+  name: "rendre_diagnostic_coaching",
+  description: "Renvoie le diagnostic, le pourquoi, les conséquences et les propositions.",
+  input_schema: {
+    type: "object",
+    properties: {
+      diagnostic: { type: "string" },
+      pourquoi: { type: "string" },
+      consequences: { type: "array", items: { type: "string" } },
+      proposals: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: { label: { type: "string" }, field: { type: "string" }, value: { type: "string" } },
+          required: ["label", "field", "value"],
+        },
+      },
+    },
+    required: ["diagnostic", "pourquoi", "consequences", "proposals"],
+  },
+};
+
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -134,13 +178,9 @@ Retourne UNIQUEMENT un JSON :
 }`;
 
       const questionsUsage: UsageSink = {};
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), systemPrompt, "Génère les questions personnalisées.", 0.4, 2000, questionsUsage);
-
       let result;
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON");
-        result = JSON.parse(jsonMatch[0]);
+        result = await callAnthropicToolSimple(getModelForAction("coaching_light"), systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 2000, questionsUsage);
       } catch {
         result = {
           questions: baseQuestions.map((q, i) => ({ numero: i + 1, question: q, placeholder: "" })),
@@ -215,15 +255,11 @@ Retourne un JSON :
 Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
 
       const diagnosticUsage: UsageSink = {};
-      const raw = await callAnthropicSimple(getModelForAction("coaching_light"), systemPrompt, "Génère ton diagnostic et tes propositions.", 0.5, 4000, diagnosticUsage);
-
       let result;
       try {
-        const jsonMatch = raw.match(/\{[\s\S]*\}/);
-        if (!jsonMatch) throw new Error("No JSON");
-        result = JSON.parse(jsonMatch[0]);
-      } catch {
-        console.error("Failed to parse linkedin coaching diagnostic:", raw);
+        result = await callAnthropicToolSimple(getModelForAction("coaching_light"), systemPrompt, "Génère ton diagnostic et tes propositions.", COACH_DIAG_TOOL, 0.5, 4000, diagnosticUsage);
+      } catch (e) {
+        console.error("Failed to parse linkedin coaching diagnostic:", e);
         return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
           status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
