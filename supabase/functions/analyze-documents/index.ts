@@ -1,5 +1,24 @@
 import { authenticateRequest, getServiceClient, AuthError } from "../_shared/auth.ts";
-import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getDefaultModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti.
+const DOC_EXTRACT_TOOL: AnthropicTool = {
+  name: "rendre_extraction_documents",
+  description: "Renvoie les informations de branding extraites des documents.",
+  input_schema: {
+    type: "object",
+    properties: {
+      positioning: { type: ["string", "null"] },
+      mission: { type: ["string", "null"] },
+      target_description: { type: ["string", "null"] },
+      tone_keywords: { type: ["array", "null"], items: { type: "string" } },
+      offers: { type: ["array", "null"] },
+      values: { type: ["array", "null"], items: { type: "string" } },
+      story: { type: ["string", "null"] },
+    },
+    required: ["positioning", "mission", "target_description"],
+  },
+};
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { extractFromBlob } from "../_shared/scraping.ts";
@@ -110,24 +129,21 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
 }`;
 
     const usage: UsageSink = {};
-    const result = await callAnthropicSimple(
-      getDefaultModel(),
-      systemPrompt,
-      `Voici les documents de marque à analyser :\n\n${combinedText}`,
-      0.3,
-      2048,
-      usage
-    );
-
-    // Parse JSON from response
+    // extracted_data reste null si l'appel échoue (comportement historique),
+    // mais un JSON coupé/illisible ne peut plus en être la cause.
     let extracted_data = null;
     try {
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        extracted_data = JSON.parse(jsonMatch[0]);
-      }
+      extracted_data = await callAnthropicToolSimple(
+        getDefaultModel(),
+        systemPrompt,
+        `Voici les documents de marque à analyser :\n\n${combinedText}`,
+        DOC_EXTRACT_TOOL,
+        0.3,
+        2048,
+        usage
+      );
     } catch (e) {
-      console.error("Failed to parse AI response:", e);
+      console.error("analyze-documents: appel IA échoué:", e);
     }
 
     // Save extracted data to each document
