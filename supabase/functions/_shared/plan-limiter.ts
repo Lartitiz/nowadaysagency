@@ -228,9 +228,18 @@ export async function resolveBillingWorkspaceId(
     .select("workspace_id")
     .eq("user_id", userId)
     .eq("role", "owner")
-    .order("created_at", { ascending: true })
+    // FIX 26/07 : `workspace_members` n'a PAS de colonne `created_at` (seulement
+    // `joined_at`) → l'ancien `.order("created_at")` renvoyait une erreur PostgREST
+    // silencieuse → `data=null` → le périmètre de facturation retombait TOUJOURS
+    // en user-scope (le fix déterministe du 10/07 était donc muet).
+    .order("joined_at", { ascending: true })
     .limit(1)
     .maybeSingle();
+  if (!data?.workspace_id) {
+    console.warn(
+      `[plan-limiter] resolveBillingWorkspaceId: aucun espace owner pour ${userId} — périmètre facturation = user (dégradé).`,
+    );
+  }
   return data?.workspace_id ?? undefined;
 }
 
@@ -239,7 +248,7 @@ export async function getBonusCredits(sb: any, userId: string): Promise<number> 
     .from("profiles")
     .select("bonus_credits")
     .eq("user_id", userId)
-    .single();
+    .maybeSingle();
   return data?.bonus_credits || 0;
 }
 
