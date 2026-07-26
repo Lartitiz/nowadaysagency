@@ -337,7 +337,13 @@ Précisions importantes :
         overall_confidence: "medium",
       };
 
-      // Idempotence : ne pas empiler plusieurs fiches à valider
+      // Idempotence : UNE seule fiche à valider — mais on la RAFRAÎCHIT.
+      // Avant, une fiche pending_review existante faisait sauter l'écriture
+      // entière : le nouveau résultat (souvent meilleur — cf #644 qui a appris
+      // à lire les CSS externes) était calculé puis jeté en silence, et l'UI
+      // continuait d'afficher l'ancienne analyse. Une fiche `pending_review`
+      // n'est par définition PAS encore appliquée à l'espace : la réécrire ne
+      // détruit aucun choix de l'utilisatrice.
       const { data: existingPending } = await supabaseAdmin
         .from("branding_autofill")
         .select("id")
@@ -345,16 +351,27 @@ Précisions importantes :
         .eq("autofill_status", "pending_review")
         .maybeSingle();
 
-      if (!existingPending) {
+      const fichePayload = {
+        analysis_result: analysisResult,
+        sources_used: [],
+        sources_failed: [],
+        overall_confidence: "medium",
+        autofill_status: "pending_review",
+        autofill_pending_review: true,
+      };
+
+      if (existingPending) {
+        const { error: updErr } = await supabaseAdmin
+          .from("branding_autofill")
+          .update(fichePayload)
+          .eq("id", existingPending.id);
+        if (updErr) console.error("[diagnostic-enrichment] refresh fiche pending_review KO:", updErr);
+        else console.log(`[diagnostic-enrichment] fiche pending_review RAFRAÎCHIE (id=${existingPending.id})`);
+      } else {
         await supabaseAdmin.from("branding_autofill").insert({
           user_id: userId,
           workspace_id: workspaceId || null,
-          analysis_result: analysisResult,
-          sources_used: [],
-          sources_failed: [],
-          overall_confidence: "medium",
-          autofill_status: "pending_review",
-          autofill_pending_review: true,
+          ...fichePayload,
         });
       }
 
