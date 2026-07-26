@@ -272,7 +272,7 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
   if (!data) return null;
 
   const colors = CHARTER_COLOR_SLOTS
-    .map((s) => ({ label: s.label, hex: data[s.key] }))
+    .map((s) => ({ label: s.label as string, hex: data[s.key] }))
     .filter((c): c is { label: string; hex: string } => !!c.hex);
 
   // Honnêteté sur la provenance : « détectées » SEULEMENT si elles sortent

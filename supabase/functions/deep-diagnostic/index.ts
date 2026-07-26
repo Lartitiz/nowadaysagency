@@ -135,6 +135,29 @@ function robustJsonParse(raw: string): Record<string, unknown> {
   throw new Error("Réponse IA invalide : impossible de parser le JSON après nettoyage");
 }
 
+/** Balise XML/HTML dans une chaîne (ex. `</summary>`, `<strengths>`). */
+const MARKUP_RE = /<\/?[a-z_][a-z0-9_-]*\s*\/?>/i;
+
+/**
+ * Sortie « dégénérée » du tool forcé : le modèle a mis sa réponse en
+ * pseudo-XML dans `summary` au lieu de remplir les champs, ou a laissé
+ * forces ET faiblesses vides. Dans les deux cas le diagnostic est inutilisable
+ * tel quel — mieux vaut réessayer, puis basculer sur le fallback assumé.
+ */
+function isDegenerateDiagnostic(result: Record<string, unknown>): boolean {
+  const strengths = Array.isArray(result.strengths) ? result.strengths : [];
+  const weaknesses = Array.isArray(result.weaknesses) ? result.weaknesses : [];
+  return strengths.length === 0 && weaknesses.length === 0;
+}
+
+/** Filet ultime : si une balise résiduelle traîne dans un summary par ailleurs sain, on coupe avant. */
+function stripMarkupFromSummary(result: Record<string, unknown>): Record<string, unknown> {
+  const summary = typeof result.summary === "string" ? result.summary : "";
+  const m = summary.match(MARKUP_RE);
+  if (!m || m.index === undefined) return result;
+  return { ...result, summary: summary.slice(0, m.index).trim() };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -473,17 +496,38 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       // (Cause du bug « domaine Mattioli » : en texte libre, une réponse riche
       // dépassait max_tokens 2000 → JSON tronqué imparsable → fallback silencieux.
       // Reproduit avec type "consultante" + site web analysé.)
-      const rawText = await callAnthropic({
-        model: fastModel,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userContentBlocks }],
-        temperature: instagramScreenshots.length > 0 ? 0.6 : 0.7,
-        max_tokens: 4000,
-        tool: DIAGNOSTIC_TOOL,
-      }, diagUsage);
+      const runDiagnosticCall = async (extraInstruction?: string) => {
+        const blocks = extraInstruction
+          ? [...userContentBlocks, { type: "text", text: extraInstruction }]
+          : userContentBlocks;
+        const rawText = await callAnthropic({
+          model: fastModel,
+          system: systemPrompt,
+          messages: [{ role: "user", content: blocks }],
+          temperature: instagramScreenshots.length > 0 ? 0.6 : 0.7,
+          max_tokens: 4000,
+          tool: DIAGNOSTIC_TOOL,
+        }, diagUsage);
+        return robustJsonParse(rawText);
+      };
 
-      // Parse JSON with robust cleaning
-      analysisResult = robustJsonParse(rawText);
+      analysisResult = await runDiagnosticCall();
+
+      // Le tool forcé garantit le TRANSPORT (JSON valide), pas le contenu :
+      // vu en prod le 26/07, le modèle peut fourrer toute sa réponse en
+      // pseudo-XML dans le seul champ `summary` et laisser les tableaux vides
+      // (affichage de balises brutes + score 0). Un réessai avec consigne
+      // corrective suffit (raté stochastique) ; sinon → fallback honnête.
+      if (isDegenerateDiagnostic(analysisResult)) {
+        console.warn("Degenerate tool output (XML-in-summary / empty arrays) — retrying once");
+        analysisResult = await runDiagnosticCall(
+          "⚠️ ATTENTION : ta précédente réponse était invalide. Remplis CHAQUE champ du tool séparément : `summary` = 3-4 phrases de texte pur SANS AUCUNE balise <...>, `strengths`/`weaknesses`/`priorities` = tableaux remplis conformément au schéma. N'écris JAMAIS de XML dans un champ texte."
+        );
+      }
+      if (isDegenerateDiagnostic(analysisResult)) {
+        throw new Error("Sortie IA dégénérée après réessai (XML dans summary ou sections vides)");
+      }
+      analysisResult = stripMarkupFromSummary(analysisResult);
     } catch (claudeError) {
       console.error("Claude fast diagnostic failed, using fallback:", claudeError);
       analysisResult = buildFallbackDiagnostic(profile, freeformAnswers, sourcesUsed);
