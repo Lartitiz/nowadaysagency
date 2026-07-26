@@ -2,7 +2,15 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé souple : la forme varie selon l'étape (reaction, propositions…),
+// le contrat porte sur le transport JSON (chantier éradication parse texte, 26/07).
+const OFFER_COACH_TOOL: AnthropicTool = {
+  name: "rendre_reponse_coaching_offre",
+  description: "Renvoie la réponse de coaching (reaction et champs de l'étape).",
+  input_schema: { type: "object" },
+};
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -194,15 +202,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, userPrompt, 0.7, 2000, usage) || "{}";
-    
-    let parsed;
-    try {
-      const cleaned = content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      parsed = { reaction: content };
-    }
+    const parsed = await callAnthropicToolSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, userPrompt, OFFER_COACH_TOOL, 0.7, 2000, usage);
 
     await logUsage(user.id, "content", "offer_coaching", usage.total_tokens, usage.model, workspace_id);
 

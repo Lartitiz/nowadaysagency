@@ -2,7 +2,22 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti.
+const LAUNCH_PLAN_TOOL: AnthropicTool = {
+  name: "rendre_plan_lancement",
+  description: "Renvoie le plan de slots de lancement (structure du prompt).",
+  input_schema: {
+    type: "object",
+    properties: {
+      total_slots: { type: "number" },
+      estimated_weekly_hours: { type: "number" },
+      phases: { type: "array", items: { type: "object" } },
+    },
+    required: ["total_slots", "phases"],
+  },
+};
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -149,16 +164,7 @@ Réponds UNIQUEMENT en JSON :
 }`;
 
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", 0.7, 8192, usage);
-
-    let parsed: any;
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
-      else throw new Error("Format de réponse inattendu");
-    }
+    const parsed: any = await callAnthropicToolSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", LAUNCH_PLAN_TOOL, 0.7, 8192, usage);
 
     await logUsage(user.id, "content", "launch_plan", usage.total_tokens, usage.model);
 
