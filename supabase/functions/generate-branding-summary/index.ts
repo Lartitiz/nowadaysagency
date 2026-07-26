@@ -1,6 +1,15 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getDefaultModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti. Schéma souple (clés nullables décrites
+// dans le prompt) — le contrat porte sur la validité du JSON, plus jamais de
+// « Erreur lors de la génération des résumés » sur une réponse coupée.
+const SUMMARY_TOOL: AnthropicTool = {
+  name: "rendre_resumes_branding",
+  description: "Renvoie les résumés de branding (toutes les clés du format décrit, null si pas de données).",
+  input_schema: { type: "object" },
+};
 import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -185,24 +194,17 @@ Retourne UNIQUEMENT un JSON valide, sans markdown, sans backticks :
 Si une section n'a pas de données, mets null pour cette clé. Pour les arrays vides, mets [].`;
 
     const usage: UsageSink = {};
-    const raw = await callAnthropicSimple(
+    // 2048 → 4096 : le format compte ~20 clés ; à 2048 une réponse riche
+    // pouvait être coupée (classe « domaine Mattioli »).
+    const summaries: any = await callAnthropicToolSimple(
       getDefaultModel(),
       systemPrompt + "\n\n" + ANTI_SLOP,
       `Voici les données complètes du branding :\n\n${brandingText}`,
+      SUMMARY_TOOL,
       0.7,
-      2048,
+      4096,
       usage
     );
-
-    // Parse JSON from response
-    let summaries: any;
-    try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      summaries = JSON.parse(jsonMatch?.[0] || raw);
-    } catch {
-      console.error("Failed to parse AI response:", raw);
-      throw new Error("Erreur lors de la génération des résumés");
-    }
 
     // Save to cache (upsert)
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);

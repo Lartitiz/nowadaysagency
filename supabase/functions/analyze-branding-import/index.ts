@@ -1,5 +1,33 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getDefaultModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Sortie structurée par tool forcé (chantier éradication parse texte, 26/07) :
+// 16 champs {value, confidence} — le JSON est valide par construction.
+const EXTRACTION_FIELDS = [
+  "positioning", "mission", "voice_description", "values", "unique_proposition",
+  "for_whom", "target_description", "target_frustrations", "target_desires",
+  "story", "content_pillars", "key_expressions", "things_to_avoid",
+  "combat_cause", "channels", "offers",
+] as const;
+
+const FIELD_SCHEMA = {
+  type: "object",
+  properties: {
+    value: { type: ["string", "null"] },
+    confidence: { type: "string", enum: ["high", "medium", "low"] },
+  },
+  required: ["value"],
+};
+
+const EXTRACTION_TOOL: AnthropicTool = {
+  name: "rendre_extraction",
+  description: "Renvoie les informations de branding extraites du document.",
+  input_schema: {
+    type: "object",
+    properties: Object.fromEntries(EXTRACTION_FIELDS.map((f) => [f, FIELD_SCHEMA])),
+    required: [...EXTRACTION_FIELDS],
+  },
+};
 import { logUsage, checkQuota } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
@@ -233,23 +261,19 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
     const userPrompt = `Voici le document à analyser :\n\n${documentText}`;
 
     const usage: UsageSink = {};
-    const raw = await callAnthropicSimple(
-      getDefaultModel(),
-      systemPrompt,
-      userPrompt,
-      0.3,
-      4096,
-      usage
-    );
-
-    // Parse JSON from response
     let extraction: Record<string, any>;
     try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON found");
-      extraction = JSON.parse(jsonMatch[0]);
+      extraction = await callAnthropicToolSimple(
+        getDefaultModel(),
+        systemPrompt,
+        userPrompt,
+        EXTRACTION_TOOL,
+        0.3,
+        4096,
+        usage
+      );
     } catch (e) {
-      console.error("Failed to parse AI response:", raw);
+      console.error("analyze-branding-import: appel IA échoué:", e);
       return new Response(
         JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

@@ -2,7 +2,30 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
+const MIRROR_TOOL: AnthropicTool = {
+  name: "rendre_miroir",
+  description: "Renvoie l'analyse de cohérence ton déclaré vs pratiqué.",
+  input_schema: {
+    type: "object",
+    properties: {
+      coherence_score: { type: "number" },
+      summary: { type: "string" },
+      alignments: {
+        type: "array",
+        items: { type: "object", properties: { aspect: { type: "string" }, detail: { type: "string" } }, required: ["aspect", "detail"] },
+      },
+      gaps: {
+        type: "array",
+        items: { type: "object", properties: { aspect: { type: "string" }, declared: { type: "string" }, actual: { type: "string" }, suggestion: { type: "string" } }, required: ["aspect"] },
+      },
+      quick_wins: { type: "array", items: { type: "string" } },
+    },
+    required: ["coherence_score", "summary", "alignments", "gaps", "quick_wins"],
+  },
+};
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
@@ -157,12 +180,7 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
 
     const model = getModelForAction("content"); // Sonnet
     const usage: UsageSink = {};
-    const raw = await callAnthropicSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.7, 4096, usage);
-
-    // Parse JSON
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Invalid AI response format");
-    const result = JSON.parse(jsonMatch[0]);
+    const result = await callAnthropicToolSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, MIRROR_TOOL, 0.7, 4096, usage);
 
     // Log usage
     await logUsage(user.id, "audit", "branding_mirror", usage.total_tokens, usage.model, workspace_id);
