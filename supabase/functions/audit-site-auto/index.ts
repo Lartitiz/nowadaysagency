@@ -7,7 +7,7 @@ import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { isSafePublicUrl, fetchExternalCss, extractVisualInfo } from "../_shared/scraping.ts";
 
 /* ─── Constants ─── */
 const GLOBAL_TIMEOUT_MS = 60_000;
@@ -117,38 +117,6 @@ function extractVisibleText(html: string): string {
   return cleaned;
 }
 
-function extractStyleHints(html: string): string {
-  const hints: string[] = [];
-  let m;
-
-  // Extract inline style colors
-  const colorRegex = /(?:color|background-color|background|border-color)\s*:\s*(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|rgba\([^)]+\))/gi;
-  const colors = new Set<string>();
-  while ((m = colorRegex.exec(html)) !== null) {
-    colors.add(m[1].toLowerCase());
-  }
-  if (colors.size > 0) hints.push(`Couleurs détectées dans le CSS : ${[...colors].slice(0, 10).join(", ")}`);
-
-  // Extract font-family
-  const fontRegex = /font-family\s*:\s*([^;}"]+)/gi;
-  const fonts = new Set<string>();
-  while ((m = fontRegex.exec(html)) !== null) {
-    const cleaned = m[1].replace(/['"]/g, "").split(",")[0].trim();
-    if (cleaned && cleaned.length < 50) fonts.add(cleaned);
-  }
-  if (fonts.size > 0) hints.push(`Polices détectées : ${[...fonts].slice(0, 5).join(", ")}`);
-
-  // Extract CSS custom properties
-  const cssVarRegex = /--[\w-]*(color|primary|secondary|accent|bg|background|font|text)[\w-]*\s*:\s*([^;}"]+)/gi;
-  const vars: string[] = [];
-  while ((m = cssVarRegex.exec(html)) !== null) {
-    vars.push(`${m[0].split(":")[0].trim()}: ${m[2].trim()}`);
-  }
-  if (vars.length > 0) hints.push(`Variables CSS : ${vars.slice(0, 8).join(", ")}`);
-
-  return hints.join("\n");
-}
-
 function truncateText(text: string, maxChars: number): string {
   if (text.length <= maxChars) return text;
   return text.slice(0, maxChars) + "…";
@@ -171,7 +139,7 @@ interface PageData {
   socialLinks: string[];
 }
 
-async function fetchPage(url: string, path: string): Promise<PageData> {
+async function fetchPage(url: string, path: string, withExternalCss = false): Promise<PageData> {
   const fullUrl = path === "/" || path === "" ? url : new URL(path, url).href;
   const result: PageData = {
     path: path || "/",
@@ -229,13 +197,21 @@ async function fetchPage(url: string, path: string): Promise<PageData> {
 
     const html = await resp.text();
 
+    // Les sites modernes (Webflow, Squarespace, React…) n'ont quasi aucune couleur
+    // dans le HTML brut : il faut aller lire les feuilles de style externes.
+    // Un seul fetch (première page) suffit, le CSS est le même sur tout le site.
+    let extraCss = "";
+    if (withExternalCss) {
+      extraCss = await fetchExternalCss(html, fullUrl, AbortSignal.timeout(PAGE_TIMEOUT_MS));
+    }
+
     result.title = extractTag(html, "title") || undefined;
     result.metaDescription = extractMetaContent(html, "description") || undefined;
     result.headings.h1 = extractAllTags(html, "h1");
     result.headings.h2 = extractAllTags(html, "h2").slice(0, 15);
     result.headings.h3 = extractAllTags(html, "h3").slice(0, 15);
     result.visibleText = truncateText(extractVisibleText(html), MAX_TEXT_PER_PAGE * 4); // ~4 chars/token
-    result.styleHints = extractStyleHints(html);
+    result.styleHints = extractVisualInfo(html, extraCss).replace(/^\s*INFORMATIONS VISUELLES:\s*/, "").trim();
     result.navLinks = extractNavLinks(html);
     result.images = extractImages(html);
     result.ctas = extractCTAs(html);
@@ -342,7 +318,7 @@ serve(async (req) => {
 
     // Fetch all pages in parallel
     console.log(`[audit-site-auto] Fetching ${pages.length} pages for ${baseUrl}`);
-    const pageResults = await Promise.all(pages.map(p => fetchPage(baseUrl, p)));
+    const pageResults = await Promise.all(pages.map((p, i) => fetchPage(baseUrl, p, i === 0)));
 
     const pagesOk = pageResults.filter(p => !p.error || p.visibleText);
     const pagesError = pageResults.filter(p => p.error && !p.visibleText).map(p => `${p.path} (${p.error})`);
@@ -491,7 +467,8 @@ ${hasEmptyFields ? `
 BLOC OPTIONNEL — BRANDING PREFILL :
 Si tu détectes des informations sur le ton, les valeurs, le positionnement, les combats ou l'identité visuelle du site, remplis le bloc "branding_prefill_from_site" pour proposer de pré-remplir le branding de l'utilisatrice.
 - Ne mets un champ que si tu as des PREUVES concrètes dans le contenu du site
-- Pour les couleurs, essaie de les identifier depuis le HTML (couleurs des boutons, fonds, titres)
+- Pour "detected_colors" : recopie UNIQUEMENT des codes HEX présents tels quels dans les « Indices visuels (CSS) » ci-dessus (privilégie les plus fréquents). Si aucun code HEX n'y figure, mets null sur CHAQUE champ de detected_colors. Il est INTERDIT d'estimer ou d'inventer une couleur à partir du texte, des descriptions ou d'une supposition.
+- Même règle pour "detected_fonts" : uniquement des polices listées dans les indices CSS, sinon null
 - Pour le ton, décris le style d'écriture observé
 - Le champ "empty_fields" liste les champs branding actuellement vides chez l'utilisatrice
 - Ne propose QUE ce qui correspond à des champs vides (pas la peine de suggérer un ton si elle en a déjà un)
