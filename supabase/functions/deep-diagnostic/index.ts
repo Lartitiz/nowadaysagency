@@ -188,14 +188,19 @@ serve(async (req) => {
       return workspaceDeniedResponse(corsHeaders);
     }
 
-    // Get workspace
+    // Get workspace (owner). maybeSingle : 0 ligne est un état réel possible
+    // (bug « membership owner manquante » 26/07) → on ne veut pas d'erreur
+    // PGRST116 parasite, juste un fallback lisible.
     const { data: wsData } = await supabaseAdmin
       .from("workspace_members")
       .select("workspace_id")
       .eq("user_id", userId)
       .eq("role", "owner")
       .limit(1)
-      .single();
+      .maybeSingle();
+    if (!wsData?.workspace_id) {
+      console.warn(`[deep-diagnostic] Aucun espace owner pour ${userId} — le front devrait auto-réparer (ensure_owner_workspace).`);
+    }
 
     // Défense en profondeur (étape 3) : en mode ONBOARDING, on FORCE l'espace
     // owner du caller et on ignore tout `workspace_id` ambiant envoyé par le

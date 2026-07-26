@@ -52,13 +52,25 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
     let cancelled = false;
 
-    async function load() {
-      setLoading(true);
-
-      const { data, error } = await supabase
+    const fetchMemberships = () =>
+      supabase
         .from("workspace_members")
         .select("role, workspaces:workspace_id(id, name, slug, avatar_url, plan)")
         .eq("user_id", user!.id);
+
+    const buildLoaded = (rows: any[]): (Workspace & { _role: string })[] => {
+      const out: (Workspace & { _role: string })[] = [];
+      for (const row of rows) {
+        const ws = row.workspaces as any;
+        if (ws) out.push({ ...ws, _role: row.role });
+      }
+      return out;
+    };
+
+    async function load() {
+      setLoading(true);
+
+      const { data, error } = await fetchMemberships();
 
       if (cancelled) return;
 
@@ -68,11 +80,27 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const loaded: (Workspace & { _role: string })[] = [];
-      for (const row of data) {
-        const ws = row.workspaces as any;
-        if (ws) {
-          loaded.push({ ...ws, _role: row.role });
+      let loaded = buildLoaded(data);
+
+      // SELF-HEAL (bug « Camille » 26/07) : un·e utilisateur·ice authentifié·e
+      // doit TOUJOURS avoir son espace `owner`. S'il manque (échec partiel du
+      // bootstrap au signup, ou suppression ultérieure de la ligne
+      // `workspace_members`), on le recrée via le RPC idempotent
+      // `ensure_owner_workspace` au lieu de rester bloqué·e à vie
+      // (activeWorkspace=null → section Membres absente, /photos inerte…), puis
+      // on relit une fois. Le RPC est auth.uid()-only → aucune escalade.
+      if (!loaded.some((w) => w._role === "owner")) {
+        console.warn(
+          "[workspace] Aucun espace owner pour cet utilisateur — auto-réparation via ensure_owner_workspace…",
+        );
+        const { error: healErr } = await supabase.rpc("ensure_owner_workspace" as any);
+        if (cancelled) return;
+        if (healErr) {
+          console.error("[workspace] auto-réparation échouée:", healErr);
+        } else {
+          const retry = await fetchMemberships();
+          if (cancelled) return;
+          if (!retry.error && retry.data) loaded = buildLoaded(retry.data);
         }
       }
 

@@ -183,13 +183,18 @@ serve(async (req) => {
     const analysisResult = await callClaude(scrapedContent, sourcesUsed, styleHints, usage, brandImageUrl, controller.signal);
 
     // --- 6. SAVE TO DB ---
+    // maybeSingle : 0 ligne owner est un état réel possible (bug « membership
+    // manquante » 26/07) → pas d'erreur PGRST116, fallback workspace_id null lisible.
     const { data: wsData } = await supabaseAdmin
       .from("workspace_members")
       .select("workspace_id")
       .eq("user_id", userId)
       .eq("role", "owner")
       .limit(1)
-      .single();
+      .maybeSingle();
+    if (!wsData?.workspace_id) {
+      console.warn(`[analyze-brand] Aucun espace owner pour ${userId} — branding_autofill écrit sans workspace_id.`);
+    }
 
     const { data: savedData, error: saveError } = await supabaseAdmin
       .from("branding_autofill")
