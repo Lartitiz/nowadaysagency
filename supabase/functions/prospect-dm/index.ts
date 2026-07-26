@@ -3,7 +3,19 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 import { CORE_PRINCIPLES, ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti — toute
+// la chaîne de réparation regex (sauts de ligne non échappés…) devient inutile.
+const DM_TOOL: AnthropicTool = {
+  name: "rendre_variantes_dm",
+  description: "Renvoie les deux variantes du message.",
+  input_schema: {
+    type: "object",
+    properties: { variant_a: { type: "string" }, variant_b: { type: "string" } },
+    required: ["variant_a", "variant_b"],
+  },
+};
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -151,34 +163,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
 }`;
 
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("dm_comment"), "", prompt, 0.8, undefined, usage);
-
-    // Clean AI response
-    let cleaned = content.replace(/```json\s*/gi, "").replace(/```\s*/gi, "").trim();
-    const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("Failed to parse AI response");
-
-    let variants: { variant_a: string; variant_b: string };
-    try {
-      variants = JSON.parse(jsonMatch[0]);
-    } catch {
-      const fixed = jsonMatch[0]
-        .replace(/(?<=:\s*")([\s\S]*?)(?="[\s,}])/g, (match) =>
-          match.replace(/\n/g, "\\n").replace(/\r/g, "\\r").replace(/\t/g, "\\t")
-        );
-      try {
-        variants = JSON.parse(fixed);
-      } catch {
-        const matchA = jsonMatch[0].match(/"variant_a"\s*:\s*"([\s\S]*?)"\s*,\s*"variant_b"/);
-        const matchB = jsonMatch[0].match(/"variant_b"\s*:\s*"([\s\S]*?)"\s*\}?$/);
-        if (matchA && matchB) {
-          variants = { variant_a: matchA[1].replace(/\\n/g, "\n"), variant_b: matchB[1].replace(/\\n/g, "\n") };
-        } else {
-          console.error("Unparseable AI JSON:", jsonMatch[0]);
-          throw new Error("Format de réponse IA invalide, réessaie.");
-        }
-      }
-    }
+    const variants: { variant_a: string; variant_b: string } = await callAnthropicToolSimple(getModelForAction("dm_comment"), "", prompt, DM_TOOL, 0.8, undefined, usage);
 
     await logUsage(user.id, "dm_comment", "dm", usage.total_tokens, usage.model);
 

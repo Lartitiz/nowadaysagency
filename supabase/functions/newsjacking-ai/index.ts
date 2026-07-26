@@ -5,7 +5,23 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
-import { getModelForAction, callAnthropic, callAnthropicSimple, forcesDisabledThinking, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+import { getModelForAction, callAnthropic, callAnthropicToolSimple, forcesDisabledThinking, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti.
+const UNIVERSE_TOOL: AnthropicTool = {
+  name: "rendre_univers_marque",
+  description: "Renvoie l'univers de marque (4 listes).",
+  input_schema: {
+    type: "object",
+    properties: {
+      univers_emotionnel: { type: "array", items: { type: "string" } },
+      moments_de_vie_cible: { type: "array", items: { type: "string" } },
+      valeurs_combat: { type: "array", items: { type: "string" } },
+      themes_lifestyle: { type: "array", items: { type: "string" } },
+    },
+    required: ["univers_emotionnel", "moments_de_vie_cible", "valeurs_combat", "themes_lifestyle"],
+  },
+};
 import { fetchHotNews, evergreenPatternsForMode, type PerplexityActu } from "../_shared/perplexity.ts";
 
 // Perplexity insère parfois ses balises de citation (<cite index="40-3">…</cite>)
@@ -79,14 +95,7 @@ Règles :
 - Pas de hashtags, pas de #, pas de majuscules sauf noms propres.`;
 
   try {
-    const raw = await callAnthropicSimple(getModelForAction("strategy"), system, "Génère le JSON maintenant.", 0.7);
-    let parsed: any;
-    try {
-      parsed = JSON.parse(raw.trim());
-    } catch {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (m) parsed = JSON.parse(m[0]);
-    }
+    const parsed: any = await callAnthropicToolSimple(getModelForAction("strategy"), system, "Génère le JSON maintenant.", UNIVERSE_TOOL, 0.7);
     if (isUniverseUsable(parsed)) {
       return {
         univers_emotionnel: (parsed.univers_emotionnel || []).slice(0, 8),

@@ -1,6 +1,21 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getDefaultModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti.
+const MAPPING_TOOL: AnthropicTool = {
+  name: "rendre_mapping_excel",
+  description: "Renvoie la feuille, la colonne date et le mapping des colonnes.",
+  input_schema: {
+    type: "object",
+    properties: {
+      sheet: { type: "string" },
+      date_column: { type: ["number", "null"] },
+      mapping: { type: "object" },
+    },
+    required: ["sheet", "mapping"],
+  },
+};
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -103,19 +118,15 @@ Règles :
     if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
 
     const usage: UsageSink = {};
-    let content = await callAnthropicSimple(
+    const mapping = await callAnthropicToolSimple(
       getDefaultModel(),
       "Tu es un expert en analyse de fichiers Excel. Tu retournes UNIQUEMENT du JSON valide, sans markdown, sans commentaires.",
       prompt,
+      MAPPING_TOOL,
       0.1,
       undefined,
       usage
     );
-
-    // Clean markdown wrapping if any
-    content = content.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-
-    const mapping = JSON.parse(content);
 
     await logUsage(user.id, "import", "excel_mapping", usage.total_tokens, usage.model);
 
