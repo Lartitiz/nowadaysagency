@@ -603,8 +603,15 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
           if (fullCache?.content && fullCache.content.length > MAX_TEXT_PER_SOURCE) {
             enrichmentPrompt += `\n\n=== CONTENU COMPLET DU SITE (pour enrichissement approfondi) ===\n${fullCache.content}`;
           }
+          // Repli si le cache n'a pas d'indices visuels (cache périmé > 1 h, ou
+          // ligne écrite avant le fix CSS) : on a déjà pu les extraire nous-mêmes
+          // au scrape direct plus haut. Sans ce `else if`, ces couleurs étaient
+          // calculées puis PERDUES ici — l'IA recevait 0 couleur et inventait une
+          // palette d'ambiance (cas 2 du prompt d'enrichissement).
           if (fullCache?.style_hints) {
             enrichmentPrompt += `\n\n${fullCache.style_hints}`;
+          } else if (cachedStyleHints) {
+            enrichmentPrompt += `\n\n${cachedStyleHints}`;
           }
         } catch {
           // Fallback: use cached style hints already extracted

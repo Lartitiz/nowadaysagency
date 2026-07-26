@@ -27,6 +27,23 @@ type LearnedData = {
   completionTotal: number;
   /** true si les données viennent de la fiche à valider (pas encore appliquées à l'espace). */
   pendingReview: boolean;
+  /**
+   * Provenance des couleurs, telle que déclarée par l'enrichissement :
+   * high = lues dans le CSS du site, medium = estimées, low = PROPOSÉES par l'IA.
+   * `null` = couleurs déjà appliquées à l'espace (donc validées par la personne).
+   */
+  charterConfidence: string | null;
+};
+
+/* Honnêteté sur la provenance — même règle que BrandingReview/CharterSection.
+   Sans ça, une palette d'ambiance inventée (cas 2 du prompt d'enrichissement)
+   s'affichait sous « Tes couleurs », donc comme une lecture du site. Une
+   invention présentée comme une détection est un bug invisible. */
+export const colorsLabel = (conf: string | null): string => {
+  if (!conf) return "Tes couleurs";
+  if (conf === "high") return "Tes couleurs, détectées sur ton site";
+  if (conf === "medium") return "Tes couleurs, estimées depuis ton logo";
+  return "Palette proposée d'après ton univers";
 };
 
 const MAX_POLLS = 30; // ~2min30 à 5 s d'intervalle
@@ -77,7 +94,7 @@ export default function BrandLearnedSection() {
       const pillars: string[] = Array.isArray(profileRes.data?.content_pillars) ? profileRes.data.content_pillars : [];
       const completionTotal = calculateBrandingCompletion(brandingRes.data).total;
 
-      const direct: LearnedData = { colors, fonts, toneKeywords, pillars, completionTotal, pendingReview: false };
+      const direct: LearnedData = { colors, fonts, toneKeywords, pillars, completionTotal, pendingReview: false, charterConfidence: null };
       if (hasContent(direct)) return direct;
 
       // Rien dans les tables directes → la fiche à valider (chemin onboarding #633)
@@ -96,6 +113,7 @@ export default function BrandLearnedSection() {
           pillars: fiche.content_strategy?.pillars || [],
           completionTotal: 0,
           pendingReview: true,
+          charterConfidence: fCharter?.confidence || "low",
         };
         if (hasContent(fromFiche)) return fromFiche;
       }
@@ -143,7 +161,7 @@ export default function BrandLearnedSection() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {(data.colors.length > 0 || data.fonts) && (
               <div>
-                <p className="text-xs text-muted-foreground mb-2">Tes couleurs</p>
+                <p className="text-xs text-muted-foreground mb-2">{colorsLabel(data.charterConfidence)}</p>
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {data.colors.map((c) => (
                     <span
