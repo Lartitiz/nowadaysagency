@@ -1,5 +1,24 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getDefaultModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
+const BRANDING_AUDIT_TOOL: AnthropicTool = {
+  name: "rendre_audit_branding",
+  description: "Renvoie l'audit de branding complet (structure décrite dans le prompt).",
+  input_schema: {
+    type: "object",
+    properties: {
+      score_global: { type: "number" },
+      synthese: { type: "string" },
+      points_forts: { type: "array" },
+      points_faibles: { type: "array" },
+      audit_detail: { type: "object" },
+      plan_action_recommande: { type: "array" },
+      extraction_branding: { type: "object" },
+    },
+    required: ["score_global", "synthese", "points_forts", "points_faibles"],
+  },
+};
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -346,22 +365,19 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     const userPrompt = `Voici les sources de communication de l'utilisatrice :\n${sourceText}`;
 
     const usage: UsageSink = {};
-    const raw = await callAnthropicSimple(
-      getDefaultModel(),
-      systemPrompt,
-      userPrompt,
-      0.3,
-      6000,
-      usage
-    );
-
     let auditResult: Record<string, any>;
     try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) throw new Error("No JSON found");
-      auditResult = JSON.parse(jsonMatch[0]);
+      auditResult = await callAnthropicToolSimple(
+        getDefaultModel(),
+        systemPrompt,
+        userPrompt,
+        BRANDING_AUDIT_TOOL,
+        0.3,
+        6000,
+        usage
+      );
     } catch (e) {
-      console.error("Failed to parse AI response:", raw);
+      console.error("audit-branding: appel IA échoué:", e);
       return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
         status: 500, headers: { ...cors, "Content-Type": "application/json" },
       });

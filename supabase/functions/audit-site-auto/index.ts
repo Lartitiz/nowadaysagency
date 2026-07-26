@@ -2,7 +2,28 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti. Schéma sur la structure de tête ; la
+// garde de validité existante (piliers + score_global) reste le filet contenu.
+const SITE_AUDIT_TOOL: AnthropicTool = {
+  name: "rendre_audit_site",
+  description: "Renvoie l'audit complet du site (structure décrite dans le prompt).",
+  input_schema: {
+    type: "object",
+    properties: {
+      score_global: { type: "number" },
+      synthese: { type: "string" },
+      piliers: { type: "object" },
+      points_forts: { type: "array" },
+      priorites: { type: "array" },
+      plan_action: { type: "array" },
+      analyse_par_page: { type: "object" },
+      branding_prefill_from_site: { type: "object" },
+    },
+    required: ["score_global", "synthese", "piliers", "points_forts", "priorites", "plan_action"],
+  },
+};
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
@@ -513,24 +534,21 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
 }`;
 
     const usage: UsageSink = {};
-    const rawResponse = await callAnthropicSimple(
-      getModelForAction("audit"),
-      systemPrompt + "\n\n" + ANTI_SLOP,
-      "Analyse ce site et produis l'audit complet en JSON.",
-      0.5,
-      8192,
-      usage
-    );
-
-    // Parse JSON response
+    // Tool forcé (chantier éradication parse texte, 26/07) : JSON garanti.
     let parsed: any = null;
     try {
-      parsed = JSON.parse(rawResponse);
-    } catch {
-      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try { parsed = JSON.parse(jsonMatch[0]); } catch { parsed = null; }
-      }
+      parsed = await callAnthropicToolSimple(
+        getModelForAction("audit"),
+        systemPrompt + "\n\n" + ANTI_SLOP,
+        "Analyse ce site et produis l'audit complet en JSON.",
+        SITE_AUDIT_TOOL,
+        0.5,
+        8192,
+        usage
+      );
+    } catch (aiErr) {
+      console.error("[audit-site-auto] Appel IA échoué:", aiErr);
+      parsed = null;
     }
 
     // Validity guard: never return a "successful" but empty audit. If the model output
@@ -542,7 +560,7 @@ Réponds UNIQUEMENT en JSON (sans backticks) avec cette structure :
       (typeof parsed.score_global === "number");
     if (!isValidAudit) {
       clearTimeout(globalTimeout);
-      console.error("[audit-site-auto] Réponse IA non exploitable:", rawResponse?.slice(0, 500));
+      console.error("[audit-site-auto] Réponse IA non exploitable");
       return new Response(
         JSON.stringify({ error: "L'analyse n'a pas pu être générée. Réessaie dans un instant." }),
         { status: 502, headers: { ...cors, "Content-Type": "application/json" } }
