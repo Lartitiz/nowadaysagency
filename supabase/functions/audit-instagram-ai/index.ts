@@ -533,14 +533,32 @@ Réponds en JSON :
       try { return JSON.parse(s.substring(start, end + 1)); } catch { return {}; }
     };
 
-    const [visualRaw, sectionsRaw, overviewRaw, recoRaw] = await Promise.all(
-      PARTS.map((p) => runPart(p.instr, p.label))
-    );
+    const nonEmpty = (v: any) =>
+      v != null && (typeof v === "object"
+        ? Object.keys(v).length > 0
+        : typeof v === "string"
+          ? v.trim().length > 0
+          : true);
 
-    const visualObj = extractJson(visualRaw);
-    const sectionsObj = extractJson(sectionsRaw);
-    const overviewObj = extractJson(overviewRaw);
-    const recoObj = extractJson(recoRaw);
+    // Une part illisible ne devient plus {} en silence (audit à trous présenté
+    // comme complet) : réessai ciblé de LA part ratée, une fois. Bien moins cher
+    // que de relancer l'audit entier, et le raté JSON est souvent stochastique.
+    const runPartParsed = async (p: { label: string; instr: string }): Promise<any> => {
+      let obj = extractJson(await runPart(p.instr, p.label));
+      if (!nonEmpty(obj)) {
+        console.warn(`[audit-instagram-ai] part ${p.label} vide/illisible — réessai ciblé`);
+        obj = extractJson(await runPart(
+          p.instr + " ⚠️ ATTENTION : ta précédente réponse était illisible. Renvoie UNIQUEMENT le JSON demandé, valide et complet, sans markdown.",
+          p.label
+        ));
+        if (!nonEmpty(obj)) console.error(`[audit-instagram-ai] part ${p.label} toujours vide après réessai`);
+      }
+      return obj;
+    };
+
+    const [visualObj, sectionsObj, overviewObj, recoObj] = await Promise.all(
+      PARTS.map(runPartParsed)
+    );
 
     const merged = {
       ...overviewObj,
@@ -549,27 +567,27 @@ Réponds en JSON :
       visual_audit: visualObj.visual_audit,
     };
 
-    // Parse-gate : ne JAMAIS facturer un audit cassé. Si les parts sont revenues vides
-    // (JSON illisible des 2 modèles, sans planter), on renvoie une erreur réessayable
-    // SANS décompter le crédit. Si au moins une part a abouti, on facture et on rend le partiel.
-    const nonEmpty = (v: any) =>
-      v != null && (typeof v === "object"
-        ? Object.keys(v).length > 0
-        : typeof v === "string"
-          ? v.trim().length > 0
-          : true);
-    const hasContent =
-      nonEmpty(merged.sections) ||
-      nonEmpty(merged.visual_audit) ||
-      merged.score_global != null ||
-      nonEmpty((merged as any).resume);
+    // Parts encore vides après réessai : le CŒUR de l'audit (sections + vue
+    // d'ensemble) est non négociable → erreur réessayable SANS facturer.
+    // Une part secondaire manquante (visuel, reco) → audit partiel rendu, mais
+    // MARQUÉ (missing_parts dans details) au lieu du silence d'avant.
+    const missingParts = [
+      !nonEmpty(merged.visual_audit) ? "visual" : null,
+      !nonEmpty(merged.sections) ? "sections" : null,
+      (merged.score_global == null && !nonEmpty((merged as any).resume)) ? "overview" : null,
+      (!nonEmpty((merged as any).content_dna) && !nonEmpty((merged as any).editorial_recommendations) && !nonEmpty((merged as any).combo_gagnant)) ? "reco" : null,
+    ].filter(Boolean) as string[];
 
-    if (!hasContent) {
-      console.error("[audit-instagram-ai] toutes les parts sont vides — audit non facturé");
+    if (missingParts.includes("sections") && missingParts.includes("overview")) {
+      console.error("[audit-instagram-ai] cœur de l'audit vide (sections + overview) — non facturé");
       return new Response(
         JSON.stringify({ error: "L'audit n'a pas pu être généré, réessaie dans un instant.", retryable: true }),
         { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+    if (missingParts.length > 0) {
+      console.warn(`[audit-instagram-ai] audit partiel rendu, parts manquantes : ${missingParts.join(", ")}`);
+      (merged as any).missing_parts = missingParts;
     }
 
     // Sauvegarde serveur de l'audit AVANT de rendre la main. Le crédit est débité
