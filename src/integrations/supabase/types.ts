@@ -8237,6 +8237,7 @@ export type Database = {
         Args: { _workspace_id: string }
         Returns: undefined
       }
+      ensure_owner_workspace: { Args: never; Returns: string }
       get_dashboard_summary: {
         Args: { p_user_id: string; p_workspace_id?: string }
         Returns: Json
