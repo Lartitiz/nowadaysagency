@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
 // (import logUsage retiré — l'enrichissement ne décompte plus de crédit, voir note dans le handler)
 
 /**
@@ -9,6 +9,56 @@ import { callAnthropicSimple, getModelForAction } from "../_shared/anthropic.ts"
  * Runs in its own worker to avoid memory limits.
  * Called internally by deep-diagnostic via fetch (fire-and-forget).
  */
+
+// Sortie structurée par tool forcé : le JSON est valide par construction — fini
+// le parse texte + rustine regex qui perdait TOUTE la fiche sur une troncature
+// (même recette que deep-diagnostic #640/#645). Schéma volontairement souple
+// (pas de `required` profond) : le contrat porte sur le TRANSPORT et la
+// présence des 7 sections ; le contenu est vérifié par la garde ci-dessous.
+const ENRICHMENT_TOOL: AnthropicTool = {
+  name: "rendre_enrichissement",
+  description: "Renvoie les 7 sections de branding pré-remplies.",
+  input_schema: {
+    type: "object",
+    properties: {
+      branding_prefill: { type: "object", description: "positioning, mission, cible, ton, combats, valeurs, piliers, story_draft, offres, proposition de valeur — cf structure du prompt" },
+      voice_prefill: { type: "object" },
+      charter_prefill: { type: "object" },
+      combat_structured: { type: "object" },
+      persona_prefill: { type: "object" },
+      content_strategy_prefill: { type: "object" },
+      starter_ideas: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            titre: { type: "string" },
+            format: { type: "string" },
+            canal: { type: "string" },
+            objectif: { type: "string" },
+            angle: { type: "string" },
+          },
+          required: ["titre"],
+        },
+      },
+    },
+    required: ["branding_prefill", "voice_prefill", "charter_prefill", "persona_prefill", "content_strategy_prefill", "starter_ideas"],
+  },
+};
+
+/**
+ * Sortie « dégénérée » : la fiche est inutilisable si branding_prefill est
+ * vide/absent (aucun champ significatif) — vu sur deep-diagnostic le 26/07,
+ * le modèle peut techniquement respecter le schéma en laissant tout vide.
+ */
+function isDegenerateEnrichment(result: Record<string, unknown>): boolean {
+  const prefill = result?.branding_prefill as Record<string, unknown> | undefined;
+  if (!prefill || typeof prefill !== "object") return true;
+  const meaningful = Object.values(prefill).filter((v) =>
+    v !== null && v !== undefined && v !== "" && (!Array.isArray(v) || v.length > 0)
+  );
+  return meaningful.length === 0;
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -143,32 +193,38 @@ Précisions importantes :
 - Pour starter_ideas : EXACTEMENT 5 idées de premiers contenus, ULTRA-spécifiques à CETTE activité — jamais de générique passe-partout type "Les coulisses de mon travail" sans contexte métier. TEST DU NOM ÉCHANGEABLE : si l'idée fonctionnerait telle quelle pour une concurrente du même secteur, elle est trop vague — ancre-la dans un détail spécifique de CETTE activité. Jamais de sujet sur la communication/les réseaux (sauf si c'est son métier), jamais de chiffre inventé. Chaque titre = un sujet concret prêt à être généré tel quel (10-15 mots max), formulé comme la personne le dirait elle-même. Ancre chaque idée dans les piliers de contenu, l'activité, la cible et les combats détectés (exemple céramiste : "Pourquoi je refuse de produire en série, même quand ça se vend"). Varie les objectifs (visibilité, confiance, vente) et privilégie le canal principal détecté. Formats simples de préférence (post, carousel).`;
 
     const opusModel = getModelForAction("branding_audit");
-    const enrichmentRaw = await callAnthropicSimple(opusModel, enrichmentSystemPrompt, userPrompt, 0.7, 8192);
-
     // Pas de logUsage ici : le diagnostic = 1 acte métier = 1 crédit "audit", déjà
     // décompté par deep-diagnostic (le parent). En logger un 2e ici facturait l'audit
     // en double — et même 1 crédit parasite pendant l'onboarding (où le parent skippe).
 
-    let enrichmentResult: any;
-    try {
-      enrichmentResult = JSON.parse(enrichmentRaw);
-    } catch {
-      const jsonMatch = enrichmentRaw.match(/\{[\s\S]*\}/);
-      if (jsonMatch) enrichmentResult = JSON.parse(jsonMatch[0]);
-      else {
-        console.error("Enrichment: could not parse response");
-        return new Response(JSON.stringify({ success: false }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-    }
+    const runEnrichmentCall = async (extraInstruction?: string) => {
+      const prompt = extraInstruction ? `${userPrompt}\n\n${extraInstruction}` : userPrompt;
+      const raw = await callAnthropic({
+        model: opusModel,
+        system: enrichmentSystemPrompt,
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.7,
+        max_tokens: 8192,
+        tool: ENRICHMENT_TOOL,
+      });
+      return JSON.parse(raw); // JSON valide par construction (tool forcé)
+    };
 
-    const prefill = enrichmentResult?.branding_prefill;
-    if (!prefill) {
-      return new Response(JSON.stringify({ success: false, reason: "no_prefill" }), {
+    let enrichmentResult: any = await runEnrichmentCall();
+    if (isDegenerateEnrichment(enrichmentResult)) {
+      console.warn("Enrichment: sortie dégénérée (branding_prefill vide) — réessai");
+      enrichmentResult = await runEnrichmentCall(
+        "⚠️ ATTENTION : ta précédente réponse était vide. Remplis CHAQUE section du tool avec du contenu concret tiré des données fournies (branding_prefill ne doit PAS être vide)."
+      );
+    }
+    if (isDegenerateEnrichment(enrichmentResult)) {
+      console.error("Enrichment: sortie dégénérée après réessai — abandon");
+      return new Response(JSON.stringify({ success: false, reason: "degenerate_after_retry" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const prefill = enrichmentResult.branding_prefill;
 
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || userId;
