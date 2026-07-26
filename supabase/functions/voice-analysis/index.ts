@@ -1,6 +1,23 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
+const VOICE_TOOL: AnthropicTool = {
+  name: "rendre_profil_voix",
+  description: "Renvoie le profil de voix analysé.",
+  input_schema: {
+    type: "object",
+    properties: {
+      structure_patterns: { type: "array", items: { type: "string" } },
+      tone_patterns: { type: "array", items: { type: "string" } },
+      signature_expressions: { type: "array", items: { type: "string" } },
+      voice_summary: { type: "string" },
+      formatting_habits: { type: "array", items: { type: "string" } },
+    },
+    required: ["structure_patterns", "tone_patterns", "signature_expressions", "voice_summary", "formatting_habits"],
+  },
+};
 
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
@@ -78,24 +95,15 @@ RÈGLES :
     }
 
     const usage: UsageSink = {};
-    const rawContent = await callAnthropicSimple(
+    const parsed = await callAnthropicToolSimple(
       getModelForAction("voice"),
       systemPrompt,
       "Analyse ces textes et retourne le profil de voix.",
+      VOICE_TOOL,
       undefined,
       undefined,
       usage
     );
-
-    let parsed;
-    try {
-      const cleaned = rawContent.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      const match = rawContent.match(/\{[\s\S]*\}/);
-      if (match) parsed = JSON.parse(match[0]);
-      else throw new Error("Impossible de parser la réponse IA");
-    }
 
     await logUsage(user.id, "bio_profile", "voice_analysis", usage.total_tokens, usage.model);
 

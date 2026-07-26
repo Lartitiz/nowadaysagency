@@ -1,6 +1,29 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
+const GUIDE_TOOL: AnthropicTool = {
+  name: "rendre_guide_voix",
+  description: "Renvoie le guide de voix de marque complet.",
+  input_schema: {
+    type: "object",
+    properties: {
+      brand_name: { type: "string" },
+      voice_summary: { type: "string" },
+      tone_keywords: { type: "array", items: { type: "string" } },
+      do_say: { type: "array", items: { type: "string" } },
+      dont_say: { type: "array", items: { type: "string" } },
+      words_to_use: { type: "array", items: { type: "string" } },
+      words_to_avoid: { type: "array", items: { type: "string" } },
+      rhythm: { type: "string" },
+      emotions_to_create: { type: "array", items: { type: "string" } },
+      post_template: { type: "string" },
+      bio_example: { type: "string" },
+    },
+    required: ["voice_summary", "tone_keywords", "do_say", "dont_say", "words_to_use", "words_to_avoid"],
+  },
+};
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -91,11 +114,7 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
 
     const model = getModelForAction("voice");
     const usage: UsageSink = {};
-    const raw = await callAnthropicSimple(model, systemPrompt, contextText, 0.7, 4096, usage);
-
-    // Parse JSON
-    const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    const guide = JSON.parse(cleaned);
+    const guide = await callAnthropicToolSimple(model, systemPrompt, contextText, GUIDE_TOOL, 0.7, 4096, usage);
 
     // Upsert into voice_guides
     const { data: existing } = await serviceClient

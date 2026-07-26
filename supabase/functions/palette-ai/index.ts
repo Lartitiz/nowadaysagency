@@ -1,6 +1,40 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+
+// Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
+const PALETTE_TOOL: AnthropicTool = {
+  name: "rendre_palettes",
+  description: "Renvoie 3 palettes de couleurs personnalisées.",
+  input_schema: {
+    type: "object",
+    properties: {
+      palettes: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            explanation: { type: "string" },
+            colors: {
+              type: "object",
+              properties: {
+                primary: { type: "string" },
+                secondary: { type: "string" },
+                accent: { type: "string" },
+                background: { type: "string" },
+                text: { type: "string" },
+              },
+              required: ["primary", "secondary", "accent", "background", "text"],
+            },
+          },
+          required: ["name", "colors"],
+        },
+      },
+    },
+    required: ["palettes"],
+  },
+};
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -87,15 +121,12 @@ Retourne ce JSON exactement :
 
     const model = getModelForAction("content");
     const usage: UsageSink = {};
-    const raw = await callAnthropicSimple(model, systemPrompt, userPrompt, 0.9, 2048, usage);
+    const parsed: any = await callAnthropicToolSimple(model, systemPrompt, userPrompt, PALETTE_TOOL, 0.9, 2048, usage);
 
-    // Extract JSON from response
-    let parsed;
-    try {
-      const jsonMatch = raw.match(/\{[\s\S]*\}/);
-      parsed = JSON.parse(jsonMatch?.[0] || raw);
-    } catch {
-      console.error("Failed to parse AI response:", raw);
+    // Garde de contenu : le schéma garantit la FORME, pas la présence — zéro
+    // palette = inutilisable, erreur franche sans facturer.
+    if (!Array.isArray(parsed.palettes) || parsed.palettes.length === 0) {
+      console.error("palette-ai: sortie sans palettes");
       return new Response(JSON.stringify({ error: "Erreur de format dans la réponse IA. Réessaie." }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

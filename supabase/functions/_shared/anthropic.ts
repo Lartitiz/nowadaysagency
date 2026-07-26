@@ -691,6 +691,33 @@ export class AnthropicError extends Error {
   }
 }
 
+/**
+ * Pendant « tool forcé » de callAnthropicSimple (chantier éradication parse
+ * texte, 26/07) : sortie structurée garantie par l'API, renvoie l'objet DÉJÀ
+ * parsé (l'input du tool est du JSON valide par construction). Une troncature
+ * (stop_reason max_tokens) lève une AnthropicError 422 claire au lieu de
+ * produire un JSON coupé imparsable. À utiliser pour toute migration.
+ */
+export async function callAnthropicToolSimple<T = Record<string, unknown>>(
+  model: AnthropicModel,
+  systemPrompt: string,
+  userPrompt: string,
+  tool: AnthropicTool,
+  temperature = 0.7,
+  max_tokens = 4096,
+  usageOut?: UsageSink
+): Promise<T> {
+  const raw = await callAnthropic({
+    model,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    temperature,
+    max_tokens,
+    tool,
+  }, usageOut);
+  return JSON.parse(raw) as T;
+}
+
 // Convenience: convert OpenAI-style system+user to Anthropic format
 export async function callAnthropicSimple(
   model: AnthropicModel,
