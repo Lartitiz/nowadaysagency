@@ -60,6 +60,14 @@ export const OBJECTIVES = [
   { key: "expert", emoji: "🌟", label: "Être reconnue comme experte dans mon domaine" },
 ];
 
+// Étape 3 (« Tu vends plutôt… ») — vit ici et non dans ProductServiceScreen :
+// la liste sert aussi à traduire la clé en libellé pour l'IA (onboardingLabel).
+export const PRODUCT_OPTIONS = [
+  { key: "produits", emoji: "🎁", label: "Des produits" },
+  { key: "services", emoji: "🤝", label: "Des services" },
+  { key: "les_deux", emoji: "✨", label: "Les deux" },
+];
+
 export const TIME_OPTIONS = [
   { key: "15min", emoji: "😅", label: "15 min par-ci par-là" },
   { key: "30min", emoji: "⏱️", label: "30 minutes" },
@@ -86,3 +94,32 @@ export const VALUE_CHIPS = [
 ];
 
 export const TOTAL_STEPS = 12; // 0=welcome, 1=prenom+activite, 2=activity_type, 3=product_or_service, 4=links+docs, 5=canaux_combined, 6=objectif, 7=blocage, 8=temps, 9-10=affinage, 11=diagnostic_loading, (12=diagnostic_view via step>TOTAL_STEPS)
+
+/**
+ * Libellé humain d'une option d'onboarding à partir de sa CLÉ.
+ *
+ * 🔑 Les réponses du questionnaire sont stockées en clés techniques
+ * (`invisible`, `system`, `15min`, `produits`…). Envoyées telles quelles à une
+ * edge IA, le modèle les recopie mot pour mot dans sa prose — le diagnostic
+ * affichait « tu ressens de l'"invisible" », « mettre en place un "system" »,
+ * « avec seulement "15min" par semaine » sur le TOUT PREMIER écran vu par une
+ * nouvelle inscrite (constaté au run exploratoire qa-neuf du 29/07/2026).
+ *
+ * Toujours passer les réponses par ce helper AVANT de les envoyer à l'IA.
+ * Repli : la clé elle-même (jamais de chaîne vide, l'IA garde un contexte).
+ */
+export function onboardingLabel(
+  key: string | undefined | null,
+  ...lists: ReadonlyArray<ReadonlyArray<{ key: string; label: string }>>
+): string {
+  const k = (key || "").trim();
+  if (!k) return "";
+  for (const list of lists) {
+    const hit = list.find(o => o.key === k);
+    if (hit) return hit.label;
+  }
+  return k;
+}
+
+/** Options d'activité aplaties (ACTIVITY_SECTIONS est groupé par famille). */
+export const ACTIVITY_OPTIONS = ACTIVITY_SECTIONS.flatMap(s => s.items);

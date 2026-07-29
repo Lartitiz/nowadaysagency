@@ -4,6 +4,8 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { type DiagnosticData, computeDiagnosticData, DEMO_DIAGNOSTIC } from "@/lib/diagnostic-data";
+import { onboardingLabel, ACTIVITY_OPTIONS, BLOCKERS, OBJECTIVES, TIME_OPTIONS, PRODUCT_OPTIONS } from "@/lib/onboarding-constants";
+import { ACTIVITY_SECTIONS_REAL_ESTATE, BLOCKERS_REAL_ESTATE, OBJECTIVES_REAL_ESTATE } from "@/lib/onboarding-variants";
 import { Progress } from "@/components/ui/progress";
 
 interface Props {
@@ -253,19 +255,34 @@ export default function DiagnosticLoading({
           instagramHandle: answers.instagram || null,
           linkedinUrl: (answers as any).linkedin || null,
           documentIds: uploadedFileIds || [],
+          // 🔑 Les réponses sont stockées en CLÉS techniques (`invisible`,
+          // `system`, `15min`…). Envoyées brutes, l'IA les recopie dans sa
+          // prose (« tu ressens de l'"invisible" », « un "system" », « avec
+          // seulement "15min" ») sur le TOUT PREMIER écran d'une nouvelle
+          // inscrite — constaté au run exploratoire qa-neuf du 29/07/2026.
+          //
+          // ⚠️ Deux champs doivent RESTER des clés côté edge, ne pas les
+          // « humaniser » ici : `blocker` (comparé à "invisible",
+          // deep-diagnostic L776/L808) et `activityType` (clé de lookup dans
+          // ACTIVITY_INSIGHTS, L738). On envoie donc la clé ET un libellé
+          // compagnon `*Label`, à consommer par le PROMPT de l'edge.
+          // Les autres champs ne servent QUE de texte de prompt (L418-434) →
+          // libellé humain directement, sans risque.
           profile: {
             activity: answers.activite || "",
             activityType: answers.activity_type || "",
-            objective: answers.objectif || "",
+            activityTypeLabel: onboardingLabel(answers.activity_type, ACTIVITY_OPTIONS, ACTIVITY_SECTIONS_REAL_ESTATE.flatMap(s => s.items)),
+            objective: onboardingLabel(answers.objectif, OBJECTIVES, OBJECTIVES_REAL_ESTATE),
             blocker: answers.blocage || "",
-            weeklyTime: answers.temps || "",
+            blockerLabel: onboardingLabel(answers.blocage, BLOCKERS, BLOCKERS_REAL_ESTATE),
+            weeklyTime: onboardingLabel(answers.temps, TIME_OPTIONS),
           },
           freeformAnswers: {
             positioning: brandingAnswers.positioning || "",
             mission: brandingAnswers.mission || "",
             target_description: brandingAnswers.target_description || "",
             change_priority: answers.change_priority || "",
-            product_or_service: answers.product_or_service || "",
+            product_or_service: onboardingLabel(answers.product_or_service, PRODUCT_OPTIONS),
             uniqueness: answers.uniqueness || "",
             linkedin_summary: (answers as any).linkedin_summary || "",
           },

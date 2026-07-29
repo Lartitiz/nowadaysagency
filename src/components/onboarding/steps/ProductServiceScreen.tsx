@@ -1,10 +1,5 @@
 import { Button } from "@/components/ui/button";
-
-const PRODUCT_OPTIONS = [
-  { key: "produits", emoji: "🎁", label: "Des produits" },
-  { key: "services", emoji: "🤝", label: "Des services" },
-  { key: "les_deux", emoji: "✨", label: "Les deux" },
-];
+import { PRODUCT_OPTIONS } from "@/lib/onboarding-constants";
 
 interface Props {
   value: string;
