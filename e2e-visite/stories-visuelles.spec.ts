@@ -99,26 +99,78 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   console.log(`Aperçus visuels rendus : ${previewCount}`);
   expect(previewCount).toBeGreaterThan(0);
 
-  // ── GARDE 1 : « grande majorité, voire toutes les slides en photo » ──
-  // La garde serveur enforceStoriesPhotoFirst (#615) bascule toute story non
-  // face-cam en fond photo (sauf citation) et pose le badge format "photo".
-  // Compter les badges est robuste au chargement stock différé : le badge
-  // reflète le PLAN (background=photo), pas la photo effectivement chargée.
-  // Un résultat majoritairement "texte_fond" = régression du contenu OU edge
-  // creative-flow pas redéployée → rouge, alors que l'ancienne spec passait.
+  // ── GARDE 1 : « photo d'abord » (le contrat de enforceStoriesPhotoFirst) ──
+  // La garde serveur (#615) bascule toute story non face-cam en fond photo et
+  // réécrit son badge format "texte_fond" → "photo". Compter les badges est
+  // robuste au chargement stock différé : le badge reflète le PLAN
+  // (background=photo), pas la photo effectivement chargée.
+  //
+  // 🔑 Ce que la garde NE promet PAS : elle exempte VOLONTAIREMENT le gabarit
+  // "citation" (verbatim sur fond encre, choix design assumé — cf.
+  // supabase/functions/_shared/story-photo-gate.ts). Une séquence avec 2
+  // citations sur 5 rend donc légitimement 3 photo — et l'ancien seuil
+  // (⌈2/3⌉ des éligibles, soit 4 sur 5) la déclarait rouge à tort : rouge le
+  // 26/07, 28/07 et 30/07, vert au re-run à chaque fois. Le front n'expose pas
+  // `visual.gabarit` dans le DOM, donc on ne peut pas retirer les citations du
+  // dénominateur ; on asserte à la place l'invariant que la garde tient
+  // vraiment, et que la panne réelle viole franchement.
+  //
+  // Signature de la VRAIE panne (garde absente / edge creative-flow pas
+  // redéployée, constatée le 22/07) : la séquence part quasi entière en fond
+  // couleur — 1 seule story photo sur toute la séquence. Les 3 assertions
+  // ci-dessous l'attrapent, tout en laissant passer les citations.
   const totalCards = await page.getByText(/^Story \d+$/).count();
   const faceCamBadges = await page.getByText(/^face_cam$/).count();
   const photoBadges = await page.getByText(/^photo$/).count();
   const texteFondBadges = await page.getByText(/^texte_fond$/).count();
   // Dénominateur = stories À VISUEL (les face cam sont des vidéos à filmer,
-  // jamais un fond photo). Seuil 2/3 : tolère l'exception "citation".
+  // jamais un fond photo). Inclut encore les citations, faute de pouvoir les
+  // distinguer — d'où un plancher volontairement bas, épaulé par le
+  // « photo ≥ texte_fond » qui, lui, ne dépend pas du dénominateur.
   const eligible = Math.max(1, totalCards - faceCamBadges);
   console.log(`Fonds : ${photoBadges} photo / ${texteFondBadges} texte_fond / ${eligible} à visuel (${totalCards} stories, ${faceCamBadges} face cam)`);
+
+  // Inventaire COMPLET des badges : le jour où cette garde retombe en rouge, on
+  // veut savoir en UN run ce que sont les slides non comptées (un gabarit
+  // "citation" ? un format inédit ? un badge pas encore peint ?) — le 30/07 le
+  // log ne disait que « 3/5 » et il a fallu relire le code de la garde pour
+  // trancher. Purement informatif, n'asserte rien.
+  // Scopé au conteneur des cartes stories (StoryResult.tsx), sinon `text-2xs`
+  // ratisse toute la page (sidebar, compteur de crédits, barre du bas…) et
+  // noie l'information utile sous 30 entrées.
+  const storyList = page.locator('[data-selection-enabled="true"]').first();
+  const badgeTexts = await storyList.locator('[class*="text-2xs"]').allInnerTexts();
+  const tally = new Map<string, number>();
+  for (const raw of badgeTexts) {
+    const t = raw.trim();
+    if (!t || /^Story \d+$/.test(t)) continue;
+    tally.set(t, (tally.get(t) ?? 0) + 1);
+  }
+  const inventaire = [...tally.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([t, n]) => `${t}×${n}`)
+    .join(" · ");
+  console.log(`Inventaire badges : ${inventaire || "(aucun)"}`);
+
+  const diag =
+    `${photoBadges} photo / ${texteFondBadges} texte_fond sur ${eligible} slides à visuel. ` +
+    `Badges : ${inventaire}. La garde enforceStoriesPhotoFirst est-elle déployée ?`;
+
+  // (a) au moins une photo : la garde en produit toujours au moins une.
+  expect(photoBadges, `Aucune story en fond photo — ${diag}`).toBeGreaterThanOrEqual(1);
+  // (b) le cœur du contrat : la photo ne doit JAMAIS être minoritaire face au
+  //     texte-sur-fond. Indépendant du nombre de citations, donc stable.
   expect(
     photoBadges,
-    `Régression « stories en photo » : seulement ${photoBadges}/${eligible} slides à visuel en photo ` +
-      `(${texteFondBadges} en texte sur fond). La garde enforceStoriesPhotoFirst est-elle déployée ?`,
-  ).toBeGreaterThanOrEqual(Math.ceil((eligible * 2) / 3));
+    `Le texte-sur-fond domine la photo — ${diag}`,
+  ).toBeGreaterThanOrEqual(texteFondBadges);
+  // (c) plancher quantitatif avec de la marge (⌈1/3⌉ : 5→2, 4→2, 3→1) : attrape
+  //     « la séquence entière est partie en fond couleur » sans se casser sur
+  //     une séquence riche en citations.
+  expect(
+    photoBadges,
+    `Trop peu de stories en fond photo — ${diag}`,
+  ).toBeGreaterThanOrEqual(Math.ceil(eligible / 3));
 
   // ── GARDE 2 : cadre d'aperçu au bon format 9:16 (bug « cadre trop grand ») ──
   // Le flex parent étirait l'iframe à la hauteur de la colonne texte (fix
