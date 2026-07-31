@@ -963,6 +963,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
             onQuickDuplicate={handleQuickDuplicate}
             onQuickDelete={handleQuickDelete}
             onQuickGenerate={handleQuickGenerate}
+            filtersActive={filtersActive}
+            nearestOutsidePost={nearestOutsidePost}
+            onJumpToDate={jumpToDate}
             onQuickAttachSeries={(post) => { setEditingPost(post); setSelectedDate(post.date); setDialogOpen(true); }}
             ownerUsername={igUsername}
             ownerDisplayName={ownerName}

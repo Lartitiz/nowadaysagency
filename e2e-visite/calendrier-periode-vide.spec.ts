@@ -34,3 +34,36 @@ test("mois vide (futur lointain) : l'indice pointe vers le dernier contenu", asy
   await expect(page.getByText(/Ton dernier contenu était le\s+\S+/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Le revoir" })).toBeVisible();
 });
+
+// ── Vue SEMAINE ──
+// Même grille nue, même angle mort : `CalendarWeekGrid` a lui aussi deux rendus
+// (desktop / mobile) et n'avait d'état vide dans NI l'un NI l'autre.
+
+async function passerEnVueSemaine(page: import("@playwright/test").Page) {
+  await page.getByRole("button", { name: "Semaine", exact: true }).click();
+}
+
+test("semaine vide (passé lointain) : état vide + indice vers le prochain contenu", async ({ page }) => {
+  await page.goto("/calendrier?date=2019-03-01");
+  await expect(page.getByText(/Rien de prévu ce mois-ci/i)).toBeVisible({ timeout: 20000 });
+
+  await passerEnVueSemaine(page);
+
+  await expect(page.getByText(/Rien de prévu cette semaine/i)).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Ton prochain contenu est le\s+\S+/i)).toBeVisible();
+
+  // Le raccourci doit amener sur une semaine qui contient vraiment du contenu.
+  await page.getByRole("button", { name: "Y aller" }).click();
+  await expect(page.getByText(/Rien de prévu cette semaine/i)).toHaveCount(0, { timeout: 10000 });
+});
+
+test("semaine vide (futur lointain) : l'indice pointe vers le dernier contenu", async ({ page }) => {
+  await page.goto("/calendrier?date=2029-03-01");
+  await expect(page.getByText(/Rien de prévu ce mois-ci/i)).toBeVisible({ timeout: 20000 });
+
+  await passerEnVueSemaine(page);
+
+  await expect(page.getByText(/Rien de prévu cette semaine/i)).toBeVisible({ timeout: 15000 });
+  await expect(page.getByText(/Ton dernier contenu était le\s+\S+/i)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Le revoir" })).toBeVisible();
+});

@@ -11,6 +11,8 @@ import { cn, toLocalDateStr } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
+import { CalendarEmptyPeriod, type NearestOutsidePost } from "./CalendarEmptyPeriod";
+
 interface Props {
   weekDays: Date[];
   postsByDate: Record<string, CalendarPost[]>;
@@ -30,6 +32,12 @@ interface Props {
   ownerUsername?: string;
   ownerDisplayName?: string;
   seriesNameById?: Record<string, string>;
+  /** Vrai si un filtre masque des contenus : la semaine n'est alors pas « vide », elle est FILTRÉE. */
+  filtersActive?: boolean;
+  /** Contenu le plus proche hors de la semaine affichée, pour orienter au lieu de laisser sur du vide. */
+  nearestOutsidePost?: NearestOutsidePost | null;
+  /** Saute à la semaine contenant cette date (AAAA-MM-JJ). */
+  onJumpToDate?: (dateStr: string) => void;
 }
 
 /* ── Draggable content card ── */
@@ -326,7 +334,7 @@ function MobileWeekDay({ date, dateStr, isToday, posts, onCreatePost, onEditPost
 }
 
 /* ── Main (no DndContext — parent provides it) ── */
-export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onImport, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById }: Props) {
+export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onImport, onQuickCreate, onQuickStatusChange, onQuickDuplicate, onQuickDelete, onQuickGenerate, onQuickAttachSeries, ownerUsername, ownerDisplayName, seriesNameById, filtersActive, nearestOutsidePost, onJumpToDate }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const todayRef = useRef<HTMLDivElement>(null);
@@ -363,6 +371,15 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
     return (
       <>
         <div className="space-y-2">
+          {weekAllPosts.length === 0 && (
+            <CalendarEmptyPeriod
+              periodLabel="cette semaine"
+              isMobile
+              filtersActive={filtersActive}
+              nearestOutsidePost={nearestOutsidePost}
+              onJumpToDate={onJumpToDate}
+            />
+          )}
           {weekDays.map((d) => {
             const dateStr = toLocalDateStr(d);
             const dayPosts = postsByDate[dateStr] || [];
@@ -406,6 +423,19 @@ export function CalendarWeekGrid({ weekDays, postsByDate, todayStr, isMobile, on
 
   return (
     <>
+      {/* Semaine vide : le dire AVANT la grille, comme pour le mois (PR #658) —
+          sinon 7 colonnes nues sans savoir si c'est vide ou mal placé. */}
+      {weekAllPosts.length === 0 && (
+        <div className="mb-3">
+          <CalendarEmptyPeriod
+            periodLabel="cette semaine"
+            isMobile={false}
+            filtersActive={filtersActive}
+            nearestOutsidePost={nearestOutsidePost}
+            onJumpToDate={onJumpToDate}
+          />
+        </div>
+      )}
       <div className="rounded-2xl bg-card border border-border overflow-hidden">
         <div className="flex">
           {weekDays.map((d) => {
