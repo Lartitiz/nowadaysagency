@@ -28,7 +28,7 @@ import { CalendarShareDialog } from "@/components/calendar/CalendarShareDialog";
 
 import CalendarCoachingDialog from "@/components/calendar/CalendarCoachingDialog";
 import { CANAL_FILTERS, STATUS_LABELS, type CalendarPost } from "@/lib/calendar-constants";
-import { CalendarGrid } from "@/components/calendar/CalendarGrid";
+import { CalendarGrid, type NearestOutsidePost } from "@/components/calendar/CalendarGrid";
 import { CalendarWeekGrid } from "@/components/calendar/CalendarWeekGrid";
 import { CalendarPostDialog } from "@/components/calendar/CalendarPostDialog";
 import { CalendarFilterBar } from "@/components/calendar/CalendarFilterBar";
@@ -301,6 +301,18 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     return d;
   }), [weekStart]);
 
+  // Bornes de la période affichée — partagées par le fetch des posts ET par la
+  // recherche du contenu le plus proche hors période (état vide du mois).
+  const periodRange = useMemo(() => {
+    if (viewMode === "week") {
+      return { startDate: toLocalDateStr(weekDays[0]), endDate: toLocalDateStr(weekDays[6]) };
+    }
+    return {
+      startDate: toLocalDateStr(new Date(year, month, 1)),
+      endDate: toLocalDateStr(new Date(year, month + 1, 0)),
+    };
+  }, [viewMode, weekDays, year, month]);
+
   const fetchPosts = useCallback(async () => {
     setPostsLoading(true);
     try {
@@ -328,14 +340,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     if (!user) { return; }
 
     // Vue mois ou semaine : on récupère les posts de la période visible.
-    let startDate: string, endDate: string;
-    if (viewMode === "week") {
-      startDate = toLocalDateStr(weekDays[0]);
-      endDate = toLocalDateStr(weekDays[6]);
-    } else {
-      startDate = toLocalDateStr(new Date(year, month, 1));
-      endDate = toLocalDateStr(new Date(year, month + 1, 0));
-    }
+    const { startDate, endDate } = periodRange;
     const { data } = await (supabase.from("calendar_posts") as any)
       .select("*").eq(column, value)
       .gte("date", startDate).lte("date", endDate)
@@ -344,9 +349,39 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     } finally {
       setPostsLoading(false);
     }
-  }, [user, year, month, viewMode, weekStart, isDemoMode, column, value]);
+  }, [user, periodRange, isDemoMode, column, value]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+  // Contenu le plus proche HORS de la période affichée.
+  // Sans ça, un mois vide est une grille nue : on ne sait pas s'il n'y a rien du
+  // tout ou si on regarde simplement au mauvais endroit — alors que le dashboard,
+  // lui, sait déjà nommer le prochain contenu. On ne le cherche QUE si la période
+  // est vide (1 ligne max, aucun coût quand le mois est rempli).
+  const [nearestOutsidePost, setNearestOutsidePost] = useState<NearestOutsidePost | null>(null);
+  useEffect(() => {
+    if (postsLoading) return;
+    if (posts.length > 0 || !user || isDemoMode) { setNearestOutsidePost(null); return; }
+    let cancelled = false;
+    (async () => {
+      const base = () => (supabase.from("calendar_posts") as any).select("date").eq(column, value);
+      // À venir d'abord (c'est ce qui aide à avancer), sinon le plus récent passé.
+      const { data: future } = await base().gt("date", periodRange.endDate).order("date", { ascending: true }).limit(1);
+      if (cancelled) return;
+      if (future?.[0]) { setNearestOutsidePost({ date: future[0].date, direction: "future" }); return; }
+      const { data: past } = await base().lt("date", periodRange.startDate).order("date", { ascending: false }).limit(1);
+      if (cancelled) return;
+      setNearestOutsidePost(past?.[0] ? { date: past[0].date, direction: "past" } : null);
+    })();
+    return () => { cancelled = true; };
+  }, [posts.length, postsLoading, user, isDemoMode, column, value, periodRange]);
+
+  // Un filtre actif change le sens du vide : « rien de prévu » ≠ « rien qui matche ».
+  const filtersActive = canalFilter !== "all" || categoryFilter !== "all" || seriesFilter !== "all";
+
+  const jumpToDate = useCallback((dateStr: string) => {
+    setCurrentDate(new Date(dateStr + "T00:00:00"));
+  }, []);
 
   // Open post dialog from ?post=ID query param
   useEffect(() => {
@@ -913,6 +948,9 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onAddIdea={openCreateDialog}
           onImport={openImportDialog}
           seriesNameById={seriesNameById}
+          filtersActive={filtersActive}
+          nearestOutsidePost={nearestOutsidePost}
+          onJumpToDate={jumpToDate}
         />
       ) : (
         <>
