@@ -103,8 +103,11 @@ try {
       if (pa?.erreur) {
         console.log(`   abonnements Stripe             : ⚠️ non lus (${pa.erreur})`);
       } else if (pa) {
+        const horsApp = fa.abonnements_hors_app
+          ? ` (+ ${fa.abonnements_hors_app} hors app : liens de paiement « Ta binôme de com' », normal)`
+          : "";
         console.log(
-          `   payantes SANS accès en base    : ${pa.count}${pa.count ? "  🔴 elle a payé et n'a pas ses accès — à réparer à la main" : " ✅"}`,
+          `   payantes SANS accès en base    : ${pa.count} / ${fa.abonnements_app_chez_stripe ?? "?"} abos app${pa.count ? "  🔴 elle a payé et n'a pas ses accès — à réparer à la main" : " ✅"}${horsApp}`,
         );
         for (const o of pa.items || []) console.log(`      🔴 ${o.abo} — actif chez Stripe depuis ${o.depuis}, aucune ligne \`subscriptions\``);
       }
