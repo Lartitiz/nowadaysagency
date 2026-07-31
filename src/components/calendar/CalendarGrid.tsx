@@ -11,6 +11,9 @@ import { cn, toLocalDateStr } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
+/** Contenu le plus proche HORS du mois affiché (voir Calendar.tsx). */
+export type NearestOutsidePost = { date: string; direction: "future" | "past" };
+
 interface Props {
   calendarDays: { date: Date; inMonth: boolean }[];
   postsByDate: Record<string, CalendarPost[]>;
@@ -22,6 +25,69 @@ interface Props {
   onAddIdea?: (dateStr: string) => void;
   onImport?: (dateStr: string, files?: File[]) => void;
   seriesNameById?: Record<string, string>;
+  /** Vrai si un filtre masque des contenus : le mois n'est alors pas « vide », il est FILTRÉ. */
+  filtersActive?: boolean;
+  /** Contenu le plus proche hors du mois affiché, pour orienter au lieu de laisser sur du vide. */
+  nearestOutsidePost?: NearestOutsidePost | null;
+  /** Saute au mois contenant cette date (AAAA-MM-JJ). */
+  onJumpToDate?: (dateStr: string) => void;
+}
+
+/* ── État vide du mois (partagé desktop + mobile) ──
+   Une grille nue ne dit rien : ni que le mois est vide, ni qu'il y a du contenu
+   ailleurs. Le dashboard sait déjà nommer le prochain contenu — on dit la même
+   chose ici, avec le raccourci pour y aller. */
+function MonthEmptyState({
+  isMobile,
+  filtersActive,
+  nearestOutsidePost,
+  onJumpToDate,
+}: {
+  isMobile: boolean;
+  filtersActive?: boolean;
+  nearestOutsidePost?: NearestOutsidePost | null;
+  onJumpToDate?: (dateStr: string) => void;
+}) {
+  // Un mois « vide » à cause d'un filtre n'est pas un mois vide : le dire, sinon
+  // on invite à créer un contenu qui existe déjà mais qui est masqué.
+  if (filtersActive) {
+    return (
+      <div className="rounded-xl border border-dashed border-border p-6 text-center">
+        <CalendarIcon className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" aria-hidden="true" />
+        <p className="text-sm text-muted-foreground">
+          Aucun contenu ne correspond à tes filtres ce mois-ci. Enlève un filtre pour voir le reste.
+        </p>
+      </div>
+    );
+  }
+
+  const nearestLabel = nearestOutsidePost
+    ? format(new Date(nearestOutsidePost.date + "T00:00:00"), "EEEE d MMMM", { locale: fr })
+    : null;
+
+  return (
+    <div className="rounded-xl border border-dashed border-border p-6 text-center">
+      <CalendarIcon className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" aria-hidden="true" />
+      <p className="text-sm text-muted-foreground">
+        Rien de prévu ce mois-ci. {isMobile ? "Touche" : "Clique"} <span className="font-semibold text-foreground">＋</span> sur un jour pour planifier un contenu 🌸
+      </p>
+      {nearestOutsidePost && nearestLabel && (
+        <p className="mt-3 text-sm text-muted-foreground">
+          {nearestOutsidePost.direction === "future" ? "Ton prochain contenu est le " : "Ton dernier contenu était le "}
+          <span className="font-medium text-foreground">{nearestLabel}</span>.{" "}
+          {onJumpToDate && (
+            <button
+              type="button"
+              onClick={() => onJumpToDate(nearestOutsidePost.date)}
+              className="font-medium text-primary-text underline underline-offset-2 hover:text-primary transition-colors"
+            >
+              {nearestOutsidePost.direction === "future" ? "Y aller" : "Le revoir"}
+            </button>
+          )}
+        </p>
+      )}
+    </div>
+  );
 }
 
 /* ── Draggable content card (desktop) ── */
@@ -140,12 +206,18 @@ function MobilePostCard({ post, onSelect, onMove, seriesNameById }: { post: Cale
 }
 
 /* ── Main component (no DndContext — parent provides it) ── */
-export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onImport, seriesNameById }: Props) {
+export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, onCreatePost, onEditPost, onMovePost, onAddIdea, onImport, seriesNameById, filtersActive, nearestOutsidePost, onJumpToDate }: Props) {
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
 
   const addIdeaHandler = onAddIdea || onCreatePost;
+
+  // Un mois sans AUCUN contenu visible : desktop comme mobile, la grille seule ne
+  // dit rien. Calculé une fois pour les deux vues.
+  const monthHasPosts = calendarDays.some(
+    (d) => d.inMonth && (postsByDate[toLocalDateStr(d.date)] || []).length > 0,
+  );
 
   const handleMobileMove = (post: CalendarPost) => {
     setMoveDialogPost(post);
@@ -165,20 +237,17 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
   if (isMobile) {
     // Agenda mobile : on n'affiche que les jours AVEC contenu (+ aujourd'hui).
     // Mois vide → ça se réduisait à la seule carte « aujourd'hui » sans aucune
-    // indication. On ajoute un état vide qui guide vers la création.
-    const monthHasPosts = calendarDays.some(
-      (d) => d.inMonth && (postsByDate[toLocalDateStr(d.date)] || []).length > 0,
-    );
+    // indication. L'état vide partagé guide vers la création OU vers le contenu voisin.
     return (
       <>
         <div className="space-y-2">
           {!monthHasPosts && (
-            <div className="rounded-xl border border-dashed border-border p-6 text-center">
-              <CalendarIcon className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" />
-              <p className="text-sm text-muted-foreground">
-                Rien de prévu ce mois-ci. Touche <span className="font-semibold text-foreground">＋</span> sur un jour pour planifier ton premier contenu 🌸
-              </p>
-            </div>
+            <MonthEmptyState
+              isMobile={isMobile}
+              filtersActive={filtersActive}
+              nearestOutsidePost={nearestOutsidePost}
+              onJumpToDate={onJumpToDate}
+            />
           )}
           {calendarDays.filter((d) => d.inMonth).map((d) => {
              const dateStr = toLocalDateStr(d.date);
@@ -263,7 +332,18 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
   }
 
   return (
-    <div className="rounded-2xl bg-card border border-border overflow-hidden">
+    <div className="space-y-3">
+      {/* Mois vide : le dire AVANT la grille, sinon on atterrit sur 35 cases nues
+          sans savoir s'il n'y a rien ou si on est au mauvais endroit. */}
+      {!monthHasPosts && (
+        <MonthEmptyState
+          isMobile={isMobile}
+          filtersActive={filtersActive}
+          nearestOutsidePost={nearestOutsidePost}
+          onJumpToDate={onJumpToDate}
+        />
+      )}
+      <div className="rounded-2xl bg-card border border-border overflow-hidden">
       {/* Header */}
       <div className="grid grid-cols-7 border-b border-border">
         {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((d) => (
@@ -307,6 +387,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
           </div>
         );
       })}
+      </div>
     </div>
   );
 }
