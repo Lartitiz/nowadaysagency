@@ -208,13 +208,25 @@ async function facturationHealth(supabase: any, now: number) {
   }
 
   // (2) L'écart qui coûte de l'argent : payante chez Stripe, sans accès dans l'app.
+  //
+  // ⚠️ Le compte Stripe est PARTAGÉ : il porte aussi les abonnements « Ta binôme de
+  // com' » vendus par lien de paiement, qui n'ont jamais eu de ligne `subscriptions`
+  // et n'en auront jamais (ce ne sont pas des accès à l'app). Les compter ici ferait
+  // 11 fausses alertes par jour — et une sonde qui crie au loup finit ignorée.
+  // Le discriminant est déterministe : `create-checkout` pose TOUJOURS
+  // `subscription_data.metadata.user_id` (index.ts, mode subscription), et un lien de
+  // paiement ne le pose jamais. Un abonnement app SANS ligne en base = vraie alerte.
   try {
     const subs = await stripeGet(key, "/subscriptions?status=active&limit=100");
     const connus = new Set(rowsStripe.map((s: any) => s.stripe_subscription_id));
-    const orphelines = (subs.data || [])
+    const toutes = subs.data || [];
+    const issuesDeLApp = toutes.filter((s: any) => s.metadata?.user_id);
+    const orphelines = issuesDeLApp
       .filter((s: any) => !connus.has(s.id))
       .map((s: any) => ({ abo: s.id, depuis: isoFromUnix(s.created) }));
     out.payantes_sans_acces = { count: orphelines.length, items: orphelines.slice(0, 10) };
+    out.abonnements_app_chez_stripe = issuesDeLApp.length;
+    out.abonnements_hors_app = toutes.length - issuesDeLApp.length; // info, jamais une alerte
   } catch (e) {
     out.payantes_sans_acces = { erreur: String((e as any)?.message || e).slice(0, 90) };
   }
