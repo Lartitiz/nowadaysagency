@@ -1,9 +1,10 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image, BarChart3 } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image, BarChart3, IdCard } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAccountSwitcher } from "@/hooks/use-account-switcher";
@@ -80,12 +81,25 @@ export default function AppSidebar() {
   const planLabel = plan === "binome" ? "Binôme ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
   const isBinome = plan === "binome";
 
+  const { pending: brandReviewPending } = usePendingBrandReview();
   const [open, setOpen] = useState(false);
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   // Modules désactivés (feature-flags) : mêmes règles que ProtectedRoute, sinon la
   // sidebar affiche des liens morts (clic → redirection dashboard) aux non-admins.
+  /* Fiche de marque d'abord : tant qu'elle attend d'être relue, « Créer un
+     contenu » est une fausse piste (la page renvoie sur la fiche de toute
+     façon). On remplace l'entrée par « Valider ma fiche », qui EST la
+     prochaine action. Elle redevient « Créer un contenu » une fois validée. */
   const visibleSections = NAV_SECTIONS
     .map((section) => ({ ...section, items: section.items.filter((i) => isRouteVisible(i.path, isAdmin)) }))
+    .map((section) => ({
+      ...section,
+      items: brandReviewPending
+        ? section.items.map((i) => (i.path === "/creer"
+          ? ({ label: "Valider ma fiche", path: "/branding?from=onboarding&next=creer", icon: <IdCard size={16} /> } as NavItem)
+          : i))
+        : section.items,
+    }))
     .filter((section) => section.items.length > 0);
   // Garde anti-perte : "Nouveau contenu" (fresh start) efface le flux + les
   // photos en cours. Si un travail est en cours, on confirme avant de vider.

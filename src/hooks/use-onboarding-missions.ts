@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
+import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 
 export interface OnboardingMission {
   id: string;
@@ -66,6 +67,19 @@ const MISSIONS_META = [
   },
 ] as const;
 
+/* Étape injectée EN TÊTE tant que la fiche de marque attend d'être relue :
+   la prochaine action n'est pas « crée ton premier contenu » (la page renvoie
+   de toute façon sur la fiche), c'est de valider la fiche. Elle disparaît de
+   la liste dès qu'il n'y a plus de fiche en attente. */
+const BRAND_REVIEW_MISSION = {
+  id: "brand_review",
+  title: "Valide ta fiche de marque",
+  emoji: "📋",
+  time: "1 min",
+  route: "/branding?from=onboarding&next=creer",
+  description: "Relis ce que j'ai compris de ta marque : c'est elle que j'utilise pour écrire à ta place.",
+} as const;
+
 const DISMISS_KEY = "missions_dismissed_at";
 const DISMISS_DURATION_MS = 14 * 24 * 60 * 60 * 1000; // 14 days
 
@@ -83,6 +97,7 @@ export function useOnboardingMissions() {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const filter = useWorkspaceFilter();
+  const { pending: brandReviewPending } = usePendingBrandReview();
 
   const [dismissed, setDismissed] = useState(() => isDismissedNow());
 
@@ -128,14 +143,15 @@ export function useOnboardingMissions() {
   });
 
   const missions: OnboardingMission[] = useMemo(() => {
-    if (isDemoMode) {
-      return MISSIONS_META.map((m) => ({ ...m, completed: DEMO_COMPLETED.has(m.id) }));
-    }
-    return MISSIONS_META.map((m) => ({ ...m, completed: completionMap?.[m.id] ?? false }));
-  }, [completionMap, isDemoMode]);
+    const base = isDemoMode
+      ? MISSIONS_META.map((m) => ({ ...m, completed: DEMO_COMPLETED.has(m.id) }))
+      : MISSIONS_META.map((m) => ({ ...m, completed: completionMap?.[m.id] ?? false }));
+    // Fiche à valider → elle passe devant « crée ton premier contenu ».
+    return brandReviewPending ? [{ ...BRAND_REVIEW_MISSION, completed: false }, ...base] : base;
+  }, [completionMap, isDemoMode, brandReviewPending]);
 
   const completedCount = missions.filter((m) => m.completed).length;
-  const allDone = completedCount === MISSIONS_META.length;
+  const allDone = completedCount === missions.length;
   const nextMission = missions.find((m) => !m.completed) ?? null;
 
   // Once all done and dismissed, stay dismissed permanently
