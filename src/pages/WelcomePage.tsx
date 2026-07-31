@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -289,6 +290,9 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
 export default function WelcomePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  // L'enrichissement est async : on re-interroge pendant la lecture de la page
+  // pour que le bouton dise la vérité quand la fiche arrive en cours de route.
+  const { pending: brandReviewPending } = usePendingBrandReview({ pollMs: 5000 });
   const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const { data: profileData } = useProfile();
@@ -818,18 +822,24 @@ export default function WelcomePage() {
         {/* F) CTAs — 1ère génération guidée (L5) : sujet + format pré-remplis, on saute
             direct aux questions (auto=1). Le « waouh » dès l'onboarding, sans page blanche.
             MAIS si la marque captée attend encore sa relecture (fiche pending_review,
-            flux #633), on passe d'abord par l'écran de validation — c'était le bouton
-            JUMEAU qui court-circuitait la review. Une fois la fiche validée, ce
-            détour disparaît (le chemin rapide L5 reste le cas nominal). */}
+            flux #633), la prochaine action n'est PAS de créer : c'est de valider sa
+            fiche. Le bouton le DIT (au lieu de promettre un contenu puis de rediriger),
+            et handleCreateFirst re-vérifie au clic — l'enrichissement est async, la
+            fiche peut arriver pendant la lecture de cette page. */}
         <div className="flex flex-col gap-3">
           <Button
             onClick={handleCreateFirst}
             className="w-full rounded-pill gap-2"
             size="lg"
           >
-            ✨ Générer mon premier contenu
+            {brandReviewPending ? "📋 Valider ma fiche de marque" : "✨ Générer mon premier contenu"}
           </Button>
-          {starterIdea && (
+          {brandReviewPending && (
+            <p className="text-xs text-muted-foreground text-center -mt-1">
+              Une minute de relecture, et tes contenus parleront vraiment de toi.
+            </p>
+          )}
+          {starterIdea && !brandReviewPending && (
             <p className="text-xs text-muted-foreground text-center -mt-1">
               💡 On démarre sur « {starterIdea.titre} » — une idée tirée de ton diagnostic.
             </p>

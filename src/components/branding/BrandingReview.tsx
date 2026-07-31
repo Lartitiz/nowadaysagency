@@ -1,6 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { CheckCircle2, Sparkles, ArrowLeft, Lock, Instagram, Pencil, Trash2, X, Check } from "lucide-react";
+import { CheckCircle2, Sparkles, ArrowLeft, Lock, Instagram, Pencil, Trash2, X, Check, ChevronLeft, ChevronRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -44,6 +44,12 @@ interface Props {
   onDescribeProject?: (text: string) => void;
   /** If true, all sources failed */
   allSourcesFailed?: boolean;
+  /**
+   * Parcours d'inscription : valider sa fiche EST l'étape en cours (pas de
+   * « finir plus tard », pas de raccourci vers la création). Hors onboarding
+   * — retour sur /branding plus tard — la porte de sortie reste ouverte.
+   */
+  mandatory?: boolean;
 }
 
 const COACHING_SECTION_MAP: Record<SectionKey, string> = {
@@ -737,7 +743,7 @@ function sectionHasData(key: SectionKey, analysis: AnalysisResult): boolean {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, preFilledSections, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false }: Props) {
+export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, preFilledSections, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false, mandatory = false }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
@@ -752,19 +758,52 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     }
     return initial;
   });
-  const [collapsed, setCollapsed] = useState<Set<SectionKey>>(() => {
-    const initial = new Set<SectionKey>();
-    if (preFilledSections) {
-      for (const s of preFilledSections) {
-        if (SECTIONS.some(sec => sec.key === s)) initial.add(s as SectionKey);
-      }
-    }
-    return initial;
-  });
   const [savingSection, setSavingSection] = useState<SectionKey | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
   const [refinedSections, setRefinedSections] = useState<Set<SectionKey>>(new Set());
+
+  /* ── Carrousel : une section par carte ────────────────────────────────────
+     La longue page qui empilait les 7 sections ne disait ni où on en était ni
+     ce qu'il restait à faire. Une carte à la fois, avec une réponse explicite
+     (« c'est bon » / « à revoir »), rend l'étape lisible ; les « à revoir »
+     sont rappelées à la fin au lieu de se perdre dans le scroll.
+     Le swipe est un RACCOURCI tactile, jamais le seul moyen de répondre :
+     sur ordinateur il n'y a pas de doigt, et un swipe seul ne dit pas si on a
+     validé ou seulement regardé. ── */
+  const total = SECTIONS.length;
+  const [index, setIndex] = useState(0);
+  const [toReview, setToReview] = useState<Set<SectionKey>>(new Set());
+  const [validatingAll, setValidatingAll] = useState(false);
+  const touchStartX = useRef<number | null>(null);
+  const finished = index >= total;
+
+  const goTo = useCallback((i: number) => setIndex(Math.max(0, Math.min(total, i))), [total]);
+  const goNext = useCallback(() => setIndex((i) => Math.min(total, i + 1)), [total]);
+  const goPrev = useCallback(() => setIndex((i) => Math.max(0, i - 1)), []);
+
+  useEffect(() => {
+    if (coachingSection) return;
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      // On ne vole pas les flèches d'un champ en cours de saisie (couleurs, offres…).
+      if (t && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      if (e.key === "ArrowRight") goNext();
+      if (e.key === "ArrowLeft") goPrev();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [coachingSection, goNext, goPrev]);
+
+  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.touches[0]?.clientX ?? null; };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    const start = touchStartX.current;
+    touchStartX.current = null;
+    if (start == null) return;
+    const dx = (e.changedTouches[0]?.clientX ?? start) - start;
+    if (Math.abs(dx) < 60) return; // seuil : un scroll vertical ne doit pas changer de carte
+    if (dx < 0) goNext(); else goPrev();
+  };
 
   // Editable offers state
   const [editedOffers, setEditedOffers] = useState<OfferItem[]>(() => analysis.offers?.offers ? [...analysis.offers.offers] : []);
@@ -808,11 +847,28 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
     } catch { /* silent */ }
   }, [user?.id, workspaceId]);
 
+  const clearToReview = useCallback((key: SectionKey) => {
+    setToReview((prev) => {
+      if (!prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next;
+    });
+  }, []);
+
   // « Garder tel quel » : on valide sans rien réécrire (l'existant prime).
   const handleKeepAsIs = useCallback((key: SectionKey) => {
     setValidated((prev) => new Set(prev).add(key));
-    setCollapsed((prev) => new Set(prev).add(key));
-  }, []);
+    clearToReview(key);
+    goNext();
+  }, [clearToReview, goNext]);
+
+  // « À revoir » : on ne jette rien — la section est mise de côté et rappelée
+  // sur la carte de fin, avec le lien pour y revenir.
+  const handleToReview = useCallback((key: SectionKey) => {
+    setToReview((prev) => new Set(prev).add(key));
+    goNext();
+  }, [goNext]);
 
   const handleValidate = useCallback(async (key: SectionKey) => {
     if (!user?.id) return;
@@ -827,28 +883,62 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       await SAVE_FNS[key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
       for (const qk of QUERY_KEYS[key]) queryClient.invalidateQueries({ queryKey: [qk] });
       setValidated((prev) => new Set(prev).add(key));
-      setCollapsed((prev) => new Set(prev).add(key));
+      clearToReview(key);
       toast.success("Section sauvegardée ✓");
       logEvent("section_validated");
       if (validated.size === 6) {
         setShowConfetti(true);
         setTimeout(() => setShowConfetti(false), 4000);
       }
+      goNext();
     } catch (e) {
       console.error("Save error:", e);
       toast.error("Erreur lors de la sauvegarde");
     } finally {
       setSavingSection(null);
     }
-  }, [user?.id, workspaceId, analysis, editedOffers, editedCharter, validated.size, queryClient, preFilledSections, logEvent]);
+  }, [user?.id, workspaceId, analysis, editedOffers, editedCharter, validated.size, queryClient, preFilledSections, logEvent, clearToReview, goNext]);
 
-  const toggleCollapse = (key: SectionKey) => {
-    setCollapsed((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key); else next.add(key);
-      return next;
-    });
-  };
+  /* « Je valide tout » : le raccourci pour qui fait confiance à l'analyse.
+     On enregistre section par section (les save* écrivent dans 7 tables
+     différentes) et on NE dit jamais « tout est validé » si l'une d'elles a
+     échoué — on ramène alors la carte fautive à l'écran. Une section vide est
+     marquée validée sans écriture : les save* sortent tôt sur données nulles. */
+  const handleValidateAll = useCallback(async () => {
+    if (!user?.id || validatingAll) return;
+    setValidatingAll(true);
+    const failed: SectionKey[] = [];
+    try {
+      for (const sec of SECTIONS) {
+        if (validated.has(sec.key)) continue;
+        const dataToSave = sec.key === "offers" ? { ...analysis.offers, offers: editedOffers }
+          : sec.key === "charter" ? editedCharter
+          : analysis[sec.key];
+        try {
+          await SAVE_FNS[sec.key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
+          for (const qk of QUERY_KEYS[sec.key]) queryClient.invalidateQueries({ queryKey: [qk] });
+          setValidated((prev) => new Set(prev).add(sec.key));
+          clearToReview(sec.key);
+        } catch (e) {
+          console.error("[valider tout]", sec.key, e);
+          failed.push(sec.key);
+        }
+      }
+      logEvent("branding_validate_all", { failed: failed.length });
+      if (failed.length > 0) {
+        const labels = failed.map((k) => SECTIONS.find((s) => s.key === k)?.title || k).join(", ");
+        toast.error(`Je n'ai pas réussi à enregistrer : ${labels}. Reprends ${failed.length > 1 ? "ces cartes" : "cette carte"} une par une.`);
+        setIndex(SECTIONS.findIndex((s) => s.key === failed[0]));
+      } else {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 4000);
+        toast.success("Toute ta fiche est validée ✓");
+        setIndex(total);
+      }
+    } finally {
+      setValidatingAll(false);
+    }
+  }, [user?.id, validatingAll, validated, analysis, editedOffers, editedCharter, workspaceId, queryClient, clearToReview, logEvent, total]);
 
   const overallConf = analysis.overall_confidence || "medium";
   const confMessages: Record<string, { emoji: string; text: string }> = {
@@ -882,7 +972,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           Voici ce que j'ai compris de ton projet
         </h1>
         <p className="font-mono-ui text-sm text-muted-foreground mb-4 leading-relaxed">
-          J'ai analysé {subtitleSources}. Vérifie, ajuste, et valide section par section.
+          J'ai analysé {subtitleSources}. Une carte par morceau de ta marque : tu valides, ou tu mets de côté pour y revenir.
         </p>
 
         {hasPreFilled && (
@@ -952,13 +1042,14 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               autofillConfidence={getConfidence(analysis[coachingSection])}
               onComplete={() => {
                 setValidated((prev) => new Set(prev).add(coachingSection));
-                setCollapsed((prev) => new Set(prev).add(coachingSection));
                 setRefinedSections((prev) => new Set(prev).add(coachingSection));
                 for (const qk of QUERY_KEYS[coachingSection]) queryClient.invalidateQueries({ queryKey: [qk] });
+                clearToReview(coachingSection);
                 setCoachingSection(null);
                 toast.success("Section affinée et sauvegardée ✓");
                 logEvent("section_validated");
                 if (validated.size === 6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
+                goNext();
               }}
               onBack={() => setCoachingSection(null)}
             />
@@ -966,140 +1057,260 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         )}
       </AnimatePresence>
 
-      {/* Section cards */}
-      {!coachingSection && (
-        <div className="space-y-4">
-          {SECTIONS.map((sec, idx) => {
-            const conf = getConfidence(analysis[sec.key]);
-            const isPreFilled = preFilledSections?.has(sec.key) ?? false;
-            const isValidated = validated.has(sec.key);
-            const isCollapsed_ = collapsed.has(sec.key);
-            const hasData = sectionHasData(sec.key, analysis);
-            const isLow = conf === "low" && !hasData;
-            const isSaving = savingSection === sec.key;
-            const isRefined = refinedSections.has(sec.key);
+      {/* Carrousel : une carte par section */}
+      {!coachingSection && !finished && (() => {
+        const sec = SECTIONS[index];
+        const conf = getConfidence(analysis[sec.key]);
+        const isPreFilled = preFilledSections?.has(sec.key) ?? false;
+        const isValidated = validated.has(sec.key);
+        const isMarked = toReview.has(sec.key);
+        const hasData = sectionHasData(sec.key, analysis);
+        const isLow = conf === "low" && !hasData;
+        const isSaving = savingSection === sec.key;
+        const isRefined = refinedSections.has(sec.key);
+        const sectionBody = sec.key === "offers"
+          ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} />
+          : sec.key === "charter"
+            ? <CharterSection data={editedCharter} onUpdate={handleCharterUpdate} />
+            : RENDERERS[sec.key](analysis);
 
-            return (
-              <motion.div key={sec.key} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: idx * 0.08 }}>
-                <div className="bg-card rounded-[20px] shadow-card border border-border overflow-hidden">
-                  {/* Card header */}
+        return (
+          <div>
+            {/* Fil de progression : où j'en suis, et ce que j'ai déjà répondu */}
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <p className="font-mono-ui text-xs text-muted-foreground">Carte {index + 1} sur {total}</p>
+              <div className="flex items-center gap-1.5">
+                {SECTIONS.map((s, i) => (
                   <button
-                    onClick={() => (isValidated || isPreFilled) && toggleCollapse(sec.key)}
-                    className="w-full flex items-center justify-between p-5 sm:p-6 text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="text-xl">{sec.emoji}</span>
-                      <h2 className="font-display text-lg text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
-                      {isValidated && <CheckCircle2 className="h-5 w-5 text-success" />}
-                      {isRefined && <span className="text-2xs text-success font-medium">Affiné</span>}
-                      {isPreFilled && !isRefined && (
-                        <span className="inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full bg-info-bg text-info">
-                          <Lock className="h-3 w-3" /> Déjà complété
-                        </span>
-                      )}
-                    </div>
-                    {!isValidated && !isPreFilled && <ConfidenceBadge level={conf} />}
-                  </button>
+                    key={s.key}
+                    type="button"
+                    onClick={() => goTo(i)}
+                    aria-label={`Aller à « ${s.title} »`}
+                    aria-current={i === index ? "step" : undefined}
+                    className={`h-2 rounded-full transition-all ${
+                      i === index ? "w-6 bg-primary"
+                        : validated.has(s.key) ? "w-2 bg-success"
+                          : toReview.has(s.key) ? "w-2 bg-warning"
+                            : "w-2 bg-border"
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
 
-                  {/* Card body */}
-                  <AnimatePresence initial={false}>
-                    {!isCollapsed_ && (
-                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} className="overflow-hidden">
-                        <div className="px-5 sm:px-6 pb-5 sm:pb-6">
-                          {isPreFilled && !isRefined ? (
-                            <>
-                              <p className="text-sm text-muted-foreground mb-3 bg-info-bg border border-info/20 rounded-[12px] px-3 py-2">
-                                Tu avais déjà commencé cette section. Voici ce que l'analyse a trouvé en plus — je <strong>complète seulement les champs vides</strong>, sans toucher à ce que tu as écrit.
-                              </p>
-                              <div className="mb-5">
-                                {sec.key === "offers"
-                                  ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} />
-                                  : sec.key === "charter"
-                                    ? <CharterSection data={editedCharter} onUpdate={handleCharterUpdate} />
-                                    : RENDERERS[sec.key](analysis)}
-                              </div>
-                              <div className="flex flex-col sm:flex-row gap-2">
-                                <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
-                                  {isSaving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
-                                  Compléter les champs vides ✓
-                                </button>
-                                <button onClick={() => handleKeepAsIs(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
-                                  <CheckCircle2 className="h-4 w-4" /> Garder tel quel
-                                </button>
-                                <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
-                                  <Sparkles className="h-4 w-4" /> On affine ensemble →
-                                </button>
-                              </div>
-                            </>
-                          ) : isLow ? (
-                            <div className="text-center py-6">
-                              <p className="text-sm text-muted-foreground mb-4">Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?</p>
-                              <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
-                                <Sparkles className="h-4 w-4" /> On la remplit ensemble →
-                              </button>
-                            </div>
-                          ) : (
-                            <>
-                              <div className="mb-5">
-                                {sec.key === "offers"
-                                  ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} />
-                                  : sec.key === "charter"
-                                    ? <CharterSection data={editedCharter} onUpdate={handleCharterUpdate} />
-                                    : RENDERERS[sec.key](analysis)}
-                              </div>
-                              {!isValidated && (
-                                <div className="flex flex-col sm:flex-row gap-2">
-                                  <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
-                                    {isSaving ? <Spinner className="h-4 w-4 text-success" /> : <CheckCircle2 className="h-4 w-4" />}
-                                    C'est bon ✓
-                                  </button>
-                                  <button onClick={() => setCoachingSection(sec.key)} className={`inline-flex items-center justify-center gap-2 rounded-[12px] px-5 py-2 text-sm font-semibold transition-all ${conf === "low" ? "bg-primary text-white hover:scale-[1.02] hover:shadow-lg" : "border-[1.5px] border-primary text-primary hover:bg-rose-pale"}`}>
-                                    <Sparkles className="h-4 w-4" /> On affine ensemble →
-                                  </button>
-                                </div>
-                              )}
-                              {conf === "low" && !isValidated && (
-                                <p className="text-xs text-muted-foreground mt-2">Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.</p>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+            {/* La carte. `key` force le remontage à chaque section → l'animation
+                d'entrée rejoue, et aucun état de carte ne fuit d'une section à l'autre. */}
+            <div
+              key={sec.key}
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="bg-card rounded-[20px] shadow-card border border-border overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300"
+            >
+              <div className="flex items-center justify-between gap-3 p-5 sm:p-6 pb-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xl shrink-0">{sec.emoji}</span>
+                  <h2 className="font-display text-lg text-foreground" style={{ fontWeight: 400 }}>{sec.title}</h2>
+                  {isValidated && <CheckCircle2 className="h-5 w-5 text-success shrink-0" />}
+                  {isRefined && <span className="text-2xs text-success font-medium">Affiné</span>}
+                  {isMarked && !isValidated && (
+                    <span className="inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full bg-warning-bg text-warning shrink-0">
+                      À revoir
+                    </span>
+                  )}
+                  {isPreFilled && !isRefined && (
+                    <span className="inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full bg-info-bg text-info shrink-0">
+                      <Lock className="h-3 w-3" /> Déjà complété
+                    </span>
+                  )}
                 </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
+                {!isValidated && !isPreFilled && <ConfidenceBadge level={conf} />}
+              </div>
+
+              <div className="px-5 sm:px-6 py-5 sm:py-6">
+                {isPreFilled && !isRefined ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-3 bg-info-bg border border-info/20 rounded-[12px] px-3 py-2">
+                      Tu avais déjà commencé cette section. Voici ce que l'analyse a trouvé en plus — je <strong>complète seulement les champs vides</strong>, sans toucher à ce que tu as écrit.
+                    </p>
+                    <div className="mb-5">{sectionBody}</div>
+                    <div className="flex flex-col sm:flex-row gap-2">
+                      <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
+                        {isSaving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
+                        Compléter les champs vides ✓
+                      </button>
+                      <button onClick={() => handleKeepAsIs(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-success text-success rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-success-bg transition-all disabled:opacity-50">
+                        <CheckCircle2 className="h-4 w-4" /> Garder tel quel
+                      </button>
+                      <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
+                        <Sparkles className="h-4 w-4" /> On affine ensemble →
+                      </button>
+                    </div>
+                  </>
+                ) : isLow ? (
+                  <div className="text-center py-6">
+                    <p className="text-sm text-muted-foreground mb-4">Je n'ai pas assez d'éléments pour cette section. On la remplit ensemble ?</p>
+                    <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                      <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
+                        <Sparkles className="h-4 w-4" /> On la remplit ensemble →
+                      </button>
+                      <button onClick={() => handleToReview(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-border text-muted-foreground rounded-[12px] px-5 py-2 text-sm font-semibold hover:border-warning hover:text-warning transition-all">
+                        Plus tard
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="mb-5">{sectionBody}</div>
+                    {isValidated ? (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <p className="text-sm text-success font-medium flex-1">✅ Cette carte est enregistrée.</p>
+                        <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:underline">
+                          <Sparkles className="h-4 w-4" /> L'affiner quand même
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex flex-col sm:flex-row gap-2">
+                          <button onClick={() => handleValidate(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-5 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
+                            {isSaving ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
+                            C'est bon ✓
+                          </button>
+                          <button onClick={() => handleToReview(sec.key)} disabled={isSaving} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-warning text-warning rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-warning-bg transition-all disabled:opacity-50">
+                            <Pencil className="h-4 w-4" /> À revoir
+                          </button>
+                          <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2 text-sm font-semibold hover:bg-rose-pale transition-all">
+                            <Sparkles className="h-4 w-4" /> On affine ensemble →
+                          </button>
+                        </div>
+                        {conf === "low" && (
+                          <p className="text-xs text-muted-foreground mt-2">Je n'ai pas trouvé assez d'infos pour cette partie. Quelques questions vont m'aider à compléter.</p>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Navigation — le swipe est un raccourci, ces boutons restent la voie sûre */}
+            <div className="flex items-center justify-between gap-3 mt-3">
+              <button
+                onClick={goPrev}
+                disabled={index === 0}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground disabled:opacity-40 disabled:hover:text-muted-foreground transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" /> Précédent
+              </button>
+              <p className="text-2xs text-muted-foreground hidden sm:block">Flèches ← → du clavier</p>
+              <p className="text-2xs text-muted-foreground sm:hidden">Glisse pour changer de carte</p>
+              <button
+                onClick={goNext}
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Suivant <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Carte de fin : ce qui est enregistré, et ce qui attend encore une réponse */}
+      {!coachingSection && finished && (() => {
+        const pending = SECTIONS.filter((s) => !validated.has(s.key));
+        const done = pending.length === 0;
+        return (
+          <div className="bg-card rounded-[20px] shadow-card border border-border p-6 sm:p-8 text-center animate-in fade-in duration-300">
+            <div className="text-3xl mb-2">{done ? "🎉" : "📝"}</div>
+            <h2 className="font-display text-2xl text-foreground mb-2" style={{ fontWeight: 400 }}>
+              {done ? "Ta marque est prête" : "Il reste des cartes sans réponse"}
+            </h2>
+            <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto leading-relaxed">
+              {done
+                ? "Tout est enregistré. C'est cette fiche que j'utilise pour écrire à ta place — tu pourras la retoucher quand tu veux depuis ton Branding."
+                : `${pending.length} carte${pending.length > 1 ? "s attendent" : " attend"} encore ta réponse. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si l'analyse te convient.`}
+            </p>
+
+            {!done && (
+              <div className="flex flex-wrap justify-center gap-2 mb-5">
+                {pending.map((s) => (
+                  <button
+                    key={s.key}
+                    onClick={() => goTo(SECTIONS.findIndex((x) => x.key === s.key))}
+                    className="inline-flex items-center gap-1.5 rounded-pill border border-border bg-background px-3 py-1.5 text-sm text-foreground hover:border-primary transition-colors"
+                  >
+                    <span>{s.emoji}</span> {s.title}
+                    {toReview.has(s.key) && <span className="text-2xs text-warning font-medium">à revoir</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-2 justify-center">
+              {done ? (
+                <button onClick={onDone} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
+                  {mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
+                </button>
+              ) : (
+                <>
+                  <button onClick={handleValidateAll} disabled={validatingAll} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
+                    {validatingAll ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
+                    Valider tout le reste
+                  </button>
+                  <button onClick={() => goTo(SECTIONS.findIndex((s) => !validated.has(s.key)))} className="inline-flex items-center justify-center gap-2 border-[1.5px] border-primary text-primary rounded-[12px] px-5 py-2.5 text-sm font-semibold hover:bg-rose-pale transition-all">
+                    Reprendre les cartes
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Sticky bottom bar — décalée au-dessus de la barre d'onglets mobile (bottom-14 = 3.5rem) */}
       <div className="fixed bottom-14 md:bottom-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-sm border-t border-border px-4 py-3">
         <div className="mx-auto max-w-[900px] flex items-center gap-4">
           <div className="flex-1">
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between gap-3 mb-1.5">
               <span className="text-sm font-semibold text-foreground">
-                {allDone ? "Branding complété ! 🎉" : `${validatedCount}/7 sections validées`}
+                {allDone ? "Fiche validée ! 🎉" : `${validatedCount}/${total} validées`}
               </span>
-              {allDone ? (
-                <motion.button initial={{ opacity: 0, x: 10 }} animate={{ opacity: 1, x: 0 }} onClick={onDone} className="text-sm font-semibold text-primary hover:underline">
-                  Voir mon branding complet →
-                </motion.button>
-              ) : (
-                // Porte de sortie : sans elle, la review remplace /branding
-                // à chaque visite tant que les 7 sections ne sont pas validées.
-                <button
-                  onClick={onDone}
-                  className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
-                  title="Les sections validées sont gardées ; tu pourras compléter le reste depuis ta page branding."
-                >
-                  Finir plus tard
-                </button>
-              )}
+              <div className="flex items-center gap-3 shrink-0">
+                {allDone ? (
+                  <button onClick={onDone} className="text-sm font-semibold text-primary hover:underline whitespace-nowrap">
+                    {mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
+                  </button>
+                ) : (
+                  <>
+                    {/* Le raccourci demandé : tout valider d'un coup, sans parcourir les 7 cartes. */}
+                    <button
+                      onClick={handleValidateAll}
+                      disabled={validatingAll}
+                      className="inline-flex items-center gap-1.5 bg-primary text-white rounded-pill px-4 py-1.5 text-xs font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {validatingAll ? <Spinner className="h-3.5 w-3.5 text-white" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+                      Je valide tout
+                    </button>
+                    {/* Hors onboarding, la porte de sortie reste : sans elle, la
+                        review remplacerait /branding à chaque visite. Dans
+                        l'onboarding (mandatory), valider sa fiche EST l'étape. */}
+                    {!mandatory && (
+                      <button
+                        onClick={onDone}
+                        className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
+                        title="Les cartes validées sont gardées ; tu pourras finir le reste depuis ta page branding."
+                      >
+                        Finir plus tard
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
             <div className="h-[6px] rounded-full bg-rose-pale overflow-hidden">
-              <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }} animate={{ width: `${(validatedCount / 7) * 100}%` }} transition={{ type: "spring", stiffness: 60, damping: 20 }} />
+              {/* `initial` explicite : sans lui, framer-motion part de la largeur
+                  mesurée (= 100 %) et la barre s'affiche PLEINE une fraction de
+                  seconde alors que rien n'est validé. */}
+              <motion.div className="h-full rounded-full" style={{ background: "linear-gradient(90deg, #ffa7c6, #fb3d80)" }} initial={{ width: 0 }} animate={{ width: `${(validatedCount / total) * 100}%` }} transition={{ type: "spring", stiffness: 60, damping: 20 }} />
             </div>
           </div>
         </div>

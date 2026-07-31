@@ -325,6 +325,9 @@ export default function BrandingPage() {
             .update({ autofill_status: "completed", autofill_pending_review: false })
             .eq(column, value)
             .eq("autofill_status", "pending_review");
+          // La garde de /creer lit cette même fiche : sans invalidation, son
+          // cache garderait « fiche en attente » et bloquerait la création.
+          queryClient.invalidateQueries({ queryKey: ["pending-brand-review"] });
           localStorage.setItem(`branding_skip_import_${value}`, "true");
           setSkipImport(true);
         } else {
@@ -758,12 +761,17 @@ export default function BrandingPage() {
                 sourcesFailed={analysisResult.sources_failed || []}
                 preFilledSections={preFilledSections}
                 onReanalyzeWithBio={handleReanalyzeWithBio}
+                // Parcours d'inscription : valider sa fiche EST l'étape en cours.
+                // On retire donc « finir plus tard » — la création attend la fiche.
+                mandatory={fromOnboarding}
                 onDone={async () => {
                   if (user?.id && !isDemoMode) {
                     await (supabase.from("branding_autofill") as any)
                       .update({ autofill_status: "completed", autofill_pending_review: false })
                       .eq(column, value)
                       .eq("autofill_status", "pending_review");
+                    // Idem : la garde de /creer doit relire la vérité tout de suite.
+                    queryClient.invalidateQueries({ queryKey: ["pending-brand-review"] });
                   }
                   setImportPhaseNew("form");
                   setAnalysisResult(null);

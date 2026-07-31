@@ -29,6 +29,8 @@ import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
+import BrandReviewGate from "@/components/branding/BrandReviewGate";
+import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
 // (chunk /creer initial allégé → premier écran plus rapide).
@@ -118,6 +120,8 @@ export default function CreerUnifie() {
   const location = useLocation();
   const { session } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
+  // Fiche de marque en attente de validation → on renvoie vers elle (voir plus bas).
+  const { pending: brandReviewPending, checking: brandReviewChecking } = usePendingBrandReview();
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
   const { activityText } = useActivityExamples();
@@ -3669,6 +3673,32 @@ export default function CreerUnifie() {
   const effectiveHandleExportPptx = isDemoMode ? demoToast : handleExportPptx;
   const effectiveHandleExportVisualPng = isDemoMode ? demoToast : handleExportVisualPng;
   const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
+
+  /* Fiche de marque d'abord. Tant que la fiche captée à l'inscription attend
+     sa relecture, la marque n'est pas encore écrite dans les tables lues par la
+     génération : créer maintenant produirait un contenu générique. La prochaine
+     action est donc de valider sa fiche, pas de créer.
+     `checking` borne l'attente (cf. use-pending-brand-review) : réseau lent ou
+     KO → on laisse créer plutôt que d'immobiliser l'écran. */
+  if (brandReviewChecking) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <div className="flex flex-col items-center justify-center gap-2 py-24 text-foreground">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <p className="text-sm font-medium">Un instant…</p>
+        </div>
+      </div>
+    );
+  }
+  if (brandReviewPending) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <BrandReviewGate />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
