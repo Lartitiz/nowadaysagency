@@ -4,7 +4,10 @@
  * Sans argument : scope "daily" (étape 8bis de la visite quotidienne) — santé des
  * publications réelles (échecs, posts bloqués, programmés en retard, tokens sociaux)
  * + retours bêta des 24 h (widget beta_feedback), les « blocking » en tête,
- * + crédits Photoroom restants (épuisés = 402 sur toutes les retouches photo).
+ * + crédits Photoroom restants (épuisés = 402 sur toutes les retouches photo)
+ * + santé de la FACTURATION (incident Stripe 24-31/07 : 8 jours de webhook en 500 sans
+ *   qu'aucune sonde ne le voie) — événements que Stripe n'arrive pas à livrer,
+ *   abonnements payés sans accès en base, périodes de facturation périmées.
  * Avec `--hebdo` : scope "weekly" (routine du lundi) — coûts IA, usage features,
  * rétention par cohorte, volume de publications.
  *
@@ -79,6 +82,46 @@ try {
     } else if (pr) {
       const conso = pr.consommes_mois != null ? `, consommés ${pr.consommes_mois} (~${pr.moyenne_par_jour}/j sur ${pr.jours_depuis_reset} j)` : "";
       console.log(`   crédits Photoroom restants     : ${pr.restants}${pr.abonnement ? ` / ${pr.abonnement}` : ""}${conso}${pr.alerte ? `  🔴 ${pr.alerte}` : ""}`);
+    }
+
+    // ── Facturation (incident Stripe 24-31/07) ────────────────────────────────
+    // Absent si l'edge live n'est pas encore la version qui remonte le bloc.
+    const fa = d.facturation;
+    if (fa) {
+      console.log("💳 Facturation (source Stripe + base)");
+      const li = fa.livraisons_en_echec;
+      if (li?.erreur) {
+        console.log(`   livraisons Stripe              : ⚠️ non lues (${li.erreur})`);
+      } else if (li) {
+        const types = (li.types || []).map((t) => `${t.type}×${t.n}`).join(", ");
+        console.log(
+          `   événements non livrés (>30 min) : ${li.count}${li.count ? `  🔴 le webhook renvoie une erreur — Stripe COUPE l'endpoint au bout de ~9 j` : " ✅"}`,
+        );
+        if (li.count) console.log(`      plus ancien : ${li.plus_ancien} — ${types}`);
+      }
+      const pa = fa.payantes_sans_acces;
+      if (pa?.erreur) {
+        console.log(`   abonnements Stripe             : ⚠️ non lus (${pa.erreur})`);
+      } else if (pa) {
+        console.log(
+          `   payantes SANS accès en base    : ${pa.count}${pa.count ? "  🔴 elle a payé et n'a pas ses accès — à réparer à la main" : " ✅"}`,
+        );
+        for (const o of pa.items || []) console.log(`      🔴 ${o.abo} — actif chez Stripe depuis ${o.depuis}, aucune ligne \`subscriptions\``);
+      }
+      const pe = fa.periodes_perimees;
+      if (pe?.erreur) {
+        console.log(`   périodes de facturation        : ⚠️ non lues (${pe.erreur})`);
+      } else if (pe) {
+        console.log(
+          `   périodes périmées (>2 j)       : ${pe.count} / ${fa.abonnements_stripe_actifs ?? "?"} actifs${pe.count ? "  🔴 le webhook ne met plus la base à jour (bug silencieux)" : " ✅"}`,
+        );
+        for (const p of pe.items || []) console.log(`      🔴 ${p.abo} (${p.plan}) — fin de période ${p.fin_periode || "JAMAIS renseignée"}`);
+      }
+      const ev = fa.evenements_recus;
+      if (ev && !ev.erreur) {
+        console.log(`   événements webhook reçus       : ${ev.h24} sur 24 h, ${ev.j7} sur 7 j (dernier : ${ev.dernier || "aucun"})`);
+      }
+      if (fa.erreur_stripe) console.log(`   ⚠️ ${fa.erreur_stripe}`);
     }
   } else {
     const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "n/a");
