@@ -15,6 +15,37 @@ const log = (step: string, details?: unknown) => {
   console.log(`[STRIPE-WEBHOOK] ${step}`, details ? JSON.stringify(details) : "");
 };
 
+type AnyRec = Record<string, any>;
+
+// Convertit un timestamp Unix Stripe en ISO. Renvoie null si la valeur est absente
+// ou invalide, au lieu de lever une RangeError qui ferait tomber tout le webhook.
+function toIso(unixSeconds: unknown): string | null {
+  if (typeof unixSeconds !== "number" || !Number.isFinite(unixSeconds)) return null;
+  const d = new Date(unixSeconds * 1000);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+}
+
+// Stripe Basil (2025-03-31+) : les périodes de facturation ont quitté l'objet
+// Subscription pour aller sur ses items. On lit les deux emplacements pour rester
+// compatible quelle que soit la version d'API de l'endpoint.
+function getPeriod(sub: Stripe.Subscription): { start: string | null; end: string | null } {
+  const s = sub as unknown as AnyRec;
+  const item = (s.items?.data?.[0] ?? {}) as AnyRec;
+  return {
+    start: toIso(item.current_period_start ?? s.current_period_start),
+    end: toIso(item.current_period_end ?? s.current_period_end),
+  };
+}
+
+// Stripe Basil : invoice.subscription remplacé par
+// invoice.parent.subscription_details.subscription
+function getInvoiceSubscriptionId(invoice: Stripe.Invoice): string | null {
+  const i = invoice as unknown as AnyRec;
+  const raw = i.parent?.subscription_details?.subscription ?? i.subscription ?? null;
+  if (!raw) return null;
+  return typeof raw === "string" ? raw : (raw.id ?? null);
+}
+
 // Déclenche une séquence e-mail (via email-trigger). Fire-and-forget : ne bloque jamais le webhook.
 async function fireEmailEvent(event: string, userId: string | null | undefined) {
   if (!userId) return;
@@ -111,8 +142,8 @@ serve(async (req) => {
             stripe_subscription_id: sub.id,
             stripe_price_id: priceId,
             status: "active",
-            current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+            current_period_start: getPeriod(sub).start,
+            current_period_end: getPeriod(sub).end,
             studio_start_date: plan === "studio" ? new Date().toISOString() : null,
             studio_end_date: plan === "studio" ? new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000).toISOString() : null,
             cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
@@ -209,8 +240,8 @@ serve(async (req) => {
         const sub = event.data.object as Stripe.Subscription;
         await supabase.from("subscriptions").update({
           status: sub.status === "active" ? "active" : sub.status,
-          current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+          current_period_start: getPeriod(sub).start,
+          current_period_end: getPeriod(sub).end,
           cancel_at: sub.cancel_at ? new Date(sub.cancel_at * 1000).toISOString() : null,
           canceled_at: sub.canceled_at ? new Date(sub.canceled_at * 1000).toISOString() : null,
           updated_at: new Date().toISOString(),
@@ -244,8 +275,8 @@ serve(async (req) => {
 
       case "invoice.payment_failed": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subId = invoice.subscription as string;
-        if (!subId) break;
+        const subId = getInvoiceSubscriptionId(invoice);
+        if (!subId) { log("No subscription id on invoice", { invoiceId: invoice.id }); break; }
 
         // Look up user_id from subscription
         const { data: failedSub } = await supabase
@@ -278,8 +309,8 @@ serve(async (req) => {
 
       case "invoice.paid": {
         const invoice = event.data.object as Stripe.Invoice;
-        const subId = invoice.subscription as string;
-        if (!subId) break;
+        const subId = getInvoiceSubscriptionId(invoice);
+        if (!subId) { log("No subscription id on invoice", { invoiceId: invoice.id }); break; }
 
         // Increment studio_months_paid for studio plans
         const { data: subData } = await supabase
