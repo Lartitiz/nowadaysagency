@@ -9,6 +9,7 @@ import { getActivityExamples } from "@/lib/activity-examples";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { type DiagnosticData } from "@/lib/diagnostic-data";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
+import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { posthog } from "@/lib/posthog";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 
@@ -97,6 +98,7 @@ export function useOnboarding() {
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
+  const { ownWorkspace } = useWorkspace();
   const navigate = useNavigate();
 
   const demoDefaults = demoData?.onboarding;
@@ -106,6 +108,16 @@ export function useOnboarding() {
     const saved = localStorage.getItem("lac_onboarding_step");
     return saved ? parseInt(saved, 10) : 0;
   });
+
+  // ── Espace déjà brandé : prévenir plutôt que geler ────────────────────────
+  // `diagnostic-enrichment` refuse d'écrire dès qu'un positionnement/mission
+  // existe (garde-fou anti-injection sur le mauvais espace). Utile, mais du
+  // coup refaire son onboarding volontairement ne rafraîchissait plus RIEN :
+  // le diagnostic tournait, l'identité restait celle d'avant. On détecte donc
+  // le cas ici pour poser la question à l'écran, et on ne remplace que sur un
+  // « oui » explicite (`overwriteConfirmed`), transmis jusqu'à l'edge.
+  const [brandedSpaceName, setBrandedSpaceName] = useState<string | null>(null);
+  const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
   const [restoredFromSave, setRestoredFromSave] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -264,6 +276,28 @@ export function useOnboarding() {
     check();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, isDemoMode]);
+
+  // Cet espace porte-t-il déjà une identité de marque écrite ?
+  // Effet SÉPARÉ et calé sur `ownWorkspace.id` : l'espace arrive de façon
+  // asynchrone (WorkspaceContext), donc le tester dans l'effet ci-dessus le
+  // trouvait encore vide une fois sur deux → avertissement jamais affiché,
+  // panne silencieuse. On interroge l'espace OWNER, pas l'espace actif : c'est
+  // celui que le diagnostic écrit réellement (cf DiagnosticLoading, 30/06).
+  useEffect(() => {
+    if (isDemoMode || !user || !ownWorkspace?.id) return;
+    let cancelled = false;
+    (async () => {
+      const { data: branded } = await (supabase.from("brand_profile") as any)
+        .select("mission, positioning")
+        .eq("workspace_id", ownWorkspace.id)
+        .maybeSingle();
+      if (cancelled) return;
+      setBrandedSpaceName(
+        branded && (branded.mission || branded.positioning) ? (ownWorkspace.name || "") : null
+      );
+    })();
+    return () => { cancelled = true; };
+  }, [user, isDemoMode, ownWorkspace?.id, ownWorkspace?.name]);
 
   const set = useCallback(<K extends keyof Answers>(key: K, val: Answers[K]) => {
     setAnswers(prev => ({ ...prev, [key]: val }));
@@ -432,10 +466,15 @@ export function useOnboarding() {
         onboarding_completed_at: new Date().toISOString(),
         onboarding_step: TOTAL_STEPS,
       };
-      if (answers.instagram) profileData.instagram_username = answers.instagram.replace(/^@/, "");
-      if (answers.website) profileData.website_url = answers.website;
-      if (answers.linkedin) profileData.linkedin_url = answers.linkedin;
-      if (answers.linkedin_summary) profileData.linkedin_summary = answers.linkedin_summary;
+      // Écriture INCONDITIONNELLE : le formulaire fait foi, y compris quand il
+      // est vide. En « n'écrire que si non vide », un mauvais handle ou un vieux
+      // texte « à propos » devenait indéboulonnable — l'onboarding le re-pré-
+      // remplit depuis le profil, donc l'effacer à l'écran ne l'effaçait jamais
+      // en base, et deep-diagnostic continuait de le manger à chaque passage.
+      profileData.instagram_username = answers.instagram ? answers.instagram.replace(/^@/, "") : null;
+      profileData.website_url = answers.website || null;
+      profileData.linkedin_url = answers.linkedin || null;
+      profileData.linkedin_summary = answers.linkedin_summary || null;
 
       if (existingProfile) {
         const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", profileUserId);
@@ -491,12 +530,17 @@ export function useOnboarding() {
       // NOTE: brand_profile and persona are now filled by the deep-diagnostic edge function, not here.
 
       // 3. BRAND_PROPOSITION — save positioning if available
+      // Lecture ET écriture scopées à l'espace actif, puis update PAR ID :
+      // filtrer sur le seul `user_id` écrasait la proposition de TOUS les
+      // espaces de la personne (dont ceux de ses clientes) d'un coup.
       if (brandingAnswers.positioning) {
-        const { data: existingProp } = await supabase
-          .from("brand_proposition").select("id").eq("user_id", profileUserId).maybeSingle();
+        // `as any` : le nom de colonne est dynamique (user_id | workspace_id),
+        // ce que les types générés de Supabase ne savent pas résoudre (TS2589).
+        const { data: existingProp } = await (supabase.from("brand_proposition") as any)
+          .select("id").eq(column, value).maybeSingle();
         const propData = { version_complete: brandingAnswers.positioning };
         if (existingProp) {
-          await supabase.from("brand_proposition").update(propData).eq("user_id", profileUserId);
+          await supabase.from("brand_proposition").update(propData).eq("id", existingProp.id);
         } else {
           await supabase.from("brand_proposition").insert({
             user_id: profileUserId,
@@ -530,10 +574,11 @@ export function useOnboarding() {
         strategyData.step_1_hidden_facets = blockerToInsight[answers.blocage] || null;
       }
       if (Object.keys(strategyData).length > 0) {
-        const { data: existingStrategy } = await supabase
-          .from("brand_strategy").select("id").eq("user_id", profileUserId).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+        // Même scoping espace + update par id que brand_proposition ci-dessus.
+        const { data: existingStrategy } = await (supabase.from("brand_strategy") as any)
+          .select("id").eq(column, value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
         if (existingStrategy) {
-          await supabase.from("brand_strategy").update(strategyData).eq("user_id", profileUserId);
+          await supabase.from("brand_strategy").update(strategyData).eq("id", existingStrategy.id);
         } else {
           await supabase.from("brand_strategy").insert({
             user_id: profileUserId,
@@ -662,6 +707,9 @@ export function useOnboarding() {
     removeFile,
     handleFinish,
     handleSkipDemo,
+    brandedSpaceName,
+    overwriteConfirmed,
+    setOverwriteConfirmed,
     handleDiagnosticComplete,
     getPlaceholder,
     getTimeRemaining,
