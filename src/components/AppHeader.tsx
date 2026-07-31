@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench, IdCard } from "lucide-react";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import { useUserPlan } from "@/hooks/use-user-plan";
+import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
 import AiCreditsCounter from "@/components/AiCreditsCounter";
@@ -126,6 +127,7 @@ function AppHeaderInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage, bonusCredits, isBinome, isPaid } = useUserPlan();
+  const { pending: brandReviewPending } = usePendingBrandReview();
   const { activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [searchParams] = useSearchParams();
@@ -169,11 +171,23 @@ function AppHeaderInner() {
     });
   }, [user?.id]);
 
-  const desktopNav = isBinome ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS;
-  const mobileNav = isBinome ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV;
+  /* Fiche de marque d'abord : tant qu'elle attend d'être relue, proposer
+     « Créer » est une fausse piste — la page renvoie de toute façon sur la
+     fiche. On remplace donc l'entrée par « Ma fiche », qui EST la prochaine
+     action. Elle redevient « Créer » dès la fiche validée. */
+  const brandFicheItem = { to: "/branding?from=onboarding&next=creer", label: "Ma fiche", icon: IdCard, matchExact: false };
+  const swapCreer = (items: typeof NAV_ITEMS) =>
+    brandReviewPending ? items.map((i) => (i.to === "/creer" ? brandFicheItem : i)) : items;
 
-  const isActive = (item: { to: string; matchExact: boolean }) =>
-    item.matchExact ? location.pathname === item.to : location.pathname.startsWith(item.to);
+  const desktopNav = swapCreer(isBinome ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS);
+  const mobileNav = swapCreer(isBinome ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV);
+
+  // `to` peut porter une query (« Ma fiche » → /branding?from=onboarding…) :
+  // on compare toujours sur le chemin seul, sinon l'onglet ne s'allume jamais.
+  const isActive = (item: { to: string; matchExact: boolean }) => {
+    const base = item.to.split("?")[0];
+    return item.matchExact ? location.pathname === base : location.pathname.startsWith(base);
+  };
 
   const planLabel = plan === "binome" ? "🤝 Binôme de com" : plan === "outil" ? "Outil (39€)" : "Gratuit";
   const planBadge = plan === "binome" ? "🤝 Binôme" : plan === "outil" ? "Pro" : null;
@@ -208,7 +222,7 @@ function AppHeaderInner() {
                 <Link
                   key={item.to}
                   to={item.to}
-                  data-tour={`nav-${item.to.replace(/\//g, "") || "dashboard"}`}
+                  data-tour={`nav-${item.to.split("?")[0].replace(/\//g, "") || "dashboard"}`}
                   className={`flex items-center gap-1.5 rounded-pill px-2.5 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap shrink-0 ${
                     isActive(item)
                       ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
