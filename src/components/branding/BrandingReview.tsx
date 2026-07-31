@@ -23,6 +23,8 @@ export interface AnalysisResult {
   content_strategy?: { confidence?: string; pillars?: string[]; creative_twist?: string; formats?: string[]; rhythm?: string; editorial_line?: string };
   offers?: { confidence?: string; offers?: { name?: string; price?: string; description?: string; target?: string; promise?: string }[] };
   charter?: { confidence?: string; color_primary?: string; color_secondary?: string; color_accent?: string; color_background?: string; font_title?: string; font_body?: string; mood_keywords?: string[]; visual_style_description?: string };
+  /** Reprise d'onboarding confirmée : valider une section écrase l'existant. */
+  allow_overwrite?: boolean;
   sources_used?: string[];
   sources_failed?: string[];
   overall_confidence?: string;
@@ -437,6 +439,7 @@ async function fillBrandProfileSynthesis(
   fields: Record<string, any>,
   userId: string,
   workspaceId: string,
+  overwrite = false,
 ) {
   if (Object.keys(fields).length === 0) return;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
@@ -445,7 +448,7 @@ async function fillBrandProfileSynthesis(
   const { data: existing } = await (supabase.from("brand_profile") as any)
     .select(selectCols).eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
-    const toWrite = fillOnlyEmpty(fields, existing);
+    const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length === 0) return;
     await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.synthesis.update");
   } else {
@@ -453,7 +456,7 @@ async function fillBrandProfileSynthesis(
   }
 }
 
-async function saveStory(data: AnalysisResult["story"], userId: string, workspaceId: string) {
+async function saveStory(data: AnalysisResult["story"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
 
   const fields: Record<string, any> = {};
@@ -475,7 +478,7 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
     .maybeSingle();
 
   if (existing?.id) {
-    const toWrite = fillOnlyEmpty(fields, existing);
+    const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length === 0) return; // rien à compléter
     await writeOrThrow((supabase.from("storytelling") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "storytelling.update");
   } else {
@@ -493,9 +496,9 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
 
   // La vision tient lieu de mission tant que celle-ci est vide : brand_profile.mission
   // est injectée dans le prompt de génération (section IDENTITÉ) et restait vide.
-  if (data.vision) await fillBrandProfileSynthesis({ mission: data.vision }, userId, workspaceId);
+  if (data.vision) await fillBrandProfileSynthesis({ mission: data.vision }, userId, workspaceId, overwrite);
 }
-async function savePersona(data: AnalysisResult["persona"], userId: string, workspaceId: string) {
+async function savePersona(data: AnalysisResult["persona"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
 
   const fields: Record<string, any> = {};
@@ -524,7 +527,7 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
     .maybeSingle();
 
   if (existing?.id) {
-    const toWrite = fillOnlyEmpty(fields, existing);
+    const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     // Merge l'âge + le métier dans portrait.qui_elle_est, uniquement s'ils manquent.
     const baseQui = (existing?.portrait?.qui_elle_est && typeof existing.portrait.qui_elle_est === "object")
       ? existing.portrait.qui_elle_est
@@ -559,9 +562,9 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
 
   // La description de la cible est lue par la génération (brand_profile.target_description)
   // et restait vide après l'autofill — on la complète depuis le persona.
-  if (data.description) await fillBrandProfileSynthesis({ target_description: data.description }, userId, workspaceId);
+  if (data.description) await fillBrandProfileSynthesis({ target_description: data.description }, userId, workspaceId, overwrite);
 }
-async function saveValueProp(data: AnalysisResult["value_proposition"], userId: string, workspaceId: string) {
+async function saveValueProp(data: AnalysisResult["value_proposition"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
   const fields: Record<string, any> = {};
   // version_final = source de vérité lue par la génération/synthèse/Coach. On la
@@ -580,7 +583,7 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
   const { data: existing } = await (supabase.from("brand_proposition") as any)
     .select("id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom, step_2c_feedback").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
-    const toWrite = fillOnlyEmpty(fields, existing);
+    const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length > 0) {
       await writeOrThrow((supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_proposition.update");
     }
@@ -590,12 +593,12 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
 
   // Le problème principal de la cible est lu par la génération (brand_profile.target_problem)
   // et restait vide — on le complète depuis le problème de la proposition de valeur.
-  if (data.problem) await fillBrandProfileSynthesis({ target_problem: data.problem }, userId, workspaceId);
+  if (data.problem) await fillBrandProfileSynthesis({ target_problem: data.problem }, userId, workspaceId, overwrite);
   // L'offre (brand_profile.offer) est injectée dans le prompt de génération (section
   // IDENTITÉ) et restait vide — on la complète depuis la solution de la proposition.
-  if (data.solution) await fillBrandProfileSynthesis({ offer: data.solution }, userId, workspaceId);
+  if (data.solution) await fillBrandProfileSynthesis({ offer: data.solution }, userId, workspaceId, overwrite);
 }
-async function saveTone(data: AnalysisResult["tone_style"], userId: string, workspaceId: string) {
+async function saveTone(data: AnalysisResult["tone_style"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
   const fields: Record<string, any> = {};
   if (data.tone_keywords?.length) fields.tone_keywords = data.tone_keywords;
@@ -618,14 +621,14 @@ async function saveTone(data: AnalysisResult["tone_style"], userId: string, work
   const { data: existing } = await (supabase.from("brand_profile") as any)
     .select("id, tone_keywords, voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, tone_do, tone_dont, combat_cause, key_expressions, things_to_avoid, target_verbatims, channels, visual_style").eq(filterCol, filterVal).maybeSingle();
   if (existing?.id) {
-    const toWrite = fillOnlyEmpty(fields, existing);
+    const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length === 0) return;
     await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.update");
   } else {
     await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.insert");
   }
 }
-async function saveStrategy(data: AnalysisResult["content_strategy"], userId: string, workspaceId: string) {
+async function saveStrategy(data: AnalysisResult["content_strategy"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
@@ -638,7 +641,7 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
   const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
     .select("id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
   if (existingStrat?.id) {
-    const toWrite = fillOnlyEmpty(stratFields, existingStrat);
+    const toWrite = fillOnlyEmpty(stratFields, existingStrat, overwrite);
     if (Object.keys(toWrite).length > 0) {
       await writeOrThrow((supabase.from("brand_strategy") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingStrat.id), "brand_strategy.update");
     }
@@ -654,7 +657,7 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
     const { data: existingProfile } = await (supabase.from("brand_profile") as any)
       .select("id, content_pillars, content_editorial_line, content_formats, content_frequency").eq(filterCol, filterVal).maybeSingle();
     if (existingProfile?.id) {
-      const toWrite = fillOnlyEmpty(profileFields, existingProfile);
+      const toWrite = fillOnlyEmpty(profileFields, existingProfile, overwrite);
       if (Object.keys(toWrite).length > 0) {
         await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingProfile.id), "brand_profile.content.update");
       }
@@ -663,7 +666,7 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
     }
   }
 }
-async function saveOffers(data: AnalysisResult["offers"], userId: string, workspaceId: string) {
+async function saveOffers(data: AnalysisResult["offers"], userId: string, workspaceId: string, overwrite = false) {
   if (!data?.offers?.length) return;
   const col = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const val = workspaceId && workspaceId !== userId ? workspaceId : userId;
@@ -692,7 +695,7 @@ async function saveOffers(data: AnalysisResult["offers"], userId: string, worksp
   }
 }
 
-async function saveCharter(data: AnalysisResult["charter"], userId: string, workspaceId: string) {
+async function saveCharter(data: AnalysisResult["charter"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
   const payload: Record<string, any> = { updated_at: new Date().toISOString() };
   if (data.color_primary) payload.color_primary = data.color_primary;
@@ -714,7 +717,7 @@ async function saveCharter(data: AnalysisResult["charter"], userId: string, work
   }
 }
 
-const SAVE_FNS: Record<SectionKey, (data: any, uid: string, wsId: string) => Promise<void>> = {
+const SAVE_FNS: Record<SectionKey, (data: any, uid: string, wsId: string, overwrite?: boolean) => Promise<void>> = {
   story: saveStory, persona: savePersona, value_proposition: saveValueProp, tone_style: saveTone, content_strategy: saveStrategy, offers: saveOffers, charter: saveCharter,
 };
 
@@ -818,7 +821,10 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       const dataToSave = key === "offers" ? { ...analysis.offers, offers: editedOffers }
         : key === "charter" ? editedCharter
         : analysis[key];
-      await SAVE_FNS[key](dataToSave, user.id, workspaceId);
+      // `allow_overwrite` est posé par diagnostic-enrichment quand la reprise
+      // d'onboarding a été confirmée à l'écran : dans ce cas seulement, ce que
+      // la personne valide ici écrase ce qui était en place.
+      await SAVE_FNS[key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
       for (const qk of QUERY_KEYS[key]) queryClient.invalidateQueries({ queryKey: [qk] });
       setValidated((prev) => new Set(prev).add(key));
       setCollapsed((prev) => new Set(prev).add(key));

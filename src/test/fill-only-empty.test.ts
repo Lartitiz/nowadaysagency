@@ -56,4 +56,33 @@ describe("fillOnlyEmpty", () => {
     const existing = { a: "déjà", b: "déjà" };
     expect(fillOnlyEmpty(fields, existing)).toEqual({});
   });
+
+  // ── Reprise d'onboarding confirmée ────────────────────────────────────────
+  // C'est LE cas qui gelait une vieille identité : tant que « ne remplir que
+  // les trous » s'appliquait aussi au clic « Valider », relire et valider une
+  // fiche corrigée ne changeait rien tant que l'ancienne valeur existait.
+  describe("overwrite = true (« oui, remplacer » confirmé à l'écran)", () => {
+    it("écrase une valeur existante non vide", () => {
+      const fields = { positioning: "nouveau positionnement" };
+      const existing = { positioning: "studio boudoir intime à Marseille" };
+      expect(fillOnlyEmpty(fields, existing, true)).toEqual({
+        positioning: "nouveau positionnement",
+      });
+    });
+
+    it("écrase aussi les tableaux déjà remplis", () => {
+      const fields = { tone_keywords: ["direct", "chaleureux"] };
+      const existing = { tone_keywords: ["sensuel", "intimiste"] };
+      expect(fillOnlyEmpty(fields, existing, true)).toEqual({
+        tone_keywords: ["direct", "chaleureux"],
+      });
+    });
+
+    it("laisse le comportement protecteur intact quand overwrite est absent ou false", () => {
+      const fields = { positioning: "nouveau" };
+      const existing = { positioning: "écrit à la main" };
+      expect(fillOnlyEmpty(fields, existing)).toEqual({});
+      expect(fillOnlyEmpty(fields, existing, false)).toEqual({});
+    });
+  });
 });

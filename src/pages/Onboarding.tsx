@@ -9,6 +9,10 @@ import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { useOnboarding } from "@/hooks/use-onboarding";
 import type { Answers, BrandingAnswers } from "@/hooks/use-onboarding";
 import { toast } from "sonner";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
 import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
@@ -72,9 +76,28 @@ export default function Onboarding() {
     isDemoMode, demoData,
     handleFileUpload, removeFile, handleFinish, handleSkipDemo,
     handleDiagnosticComplete, getPlaceholder, getTimeRemaining, triggerPreScrape,
+    brandedSpaceName, setOverwriteConfirmed, overwriteConfirmed,
   } = useOnboarding();
 
   const [pendingAutoNext, setPendingAutoNext] = useState(false);
+  const [confirmOverwriteOpen, setConfirmOverwriteOpen] = useState(false);
+
+  // Dernière étape avant le diagnostic. Si l'espace porte déjà une identité de
+  // marque, on demande AVANT de lancer : c'est le seul moment où l'on sait
+  // encore distinguer « je refais mon onboarding exprès » de « je me suis
+  // trompée d'espace ». Sans ce oui/non, l'edge se contentait de tout ignorer.
+  const launchDiagnostic = useCallback(() => {
+    next();
+    void handleFinish();
+  }, [next, handleFinish]);
+
+  const handleUniquenessNext = useCallback(() => {
+    if (brandedSpaceName !== null) {
+      setConfirmOverwriteOpen(true);
+      return;
+    }
+    launchDiagnostic();
+  }, [brandedSpaceName, launchDiagnostic]);
 
   const validatedNext = useCallback(() => {
     const validator = stepValidators[step];
@@ -155,7 +178,7 @@ export default function Onboarding() {
                       lui-même (DiagnosticLoading, step 11) est rendu HORS de l'AnimatePresence
                       ci-dessous : sinon l'animation de sortie de l'étape 10 suspendait son
                       montage → écran « blanc » pendant le calcul deep-diagnostic (run QA T5). */}
-                  {step === 10 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={() => { next(); void handleFinish(); }} />}
+                  {step === 10 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={handleUniquenessNext} />}
                 </motion.div>
               </AnimatePresence>
             </div>
@@ -171,12 +194,41 @@ export default function Onboarding() {
         // plus suspendu par l'animation de sortie de l'étape précédente (cause du blanc).
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full">
-            <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} onReady={(data) => { setDiagnosticData(data); setStep(12); }} />
+            <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} allowOverwrite={overwriteConfirmed} onReady={(data) => { setDiagnosticData(data); setStep(12); }} />
           </div>
         </div>
       ) : diagnosticData ? (
         <DiagnosticView data={diagnosticData} prenom={answers.prenom} onComplete={() => handleDiagnosticComplete()} onCreateFirst={() => handleDiagnosticComplete(true)} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={diagnosticData.sources_used} sourcesFailed={diagnosticData.sources_failed} />
       ) : null}
+
+      <AlertDialog open={confirmOverwriteOpen} onOpenChange={setConfirmOverwriteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              L'espace {brandedSpaceName ? `« ${brandedSpaceName} »` : "actif"} a déjà une marque enregistrée
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Un positionnement, une mission et un ton y sont déjà écrits. Ce nouveau
+              diagnostic peut les remplacer, ou les laisser tels quels et se contenter
+              de te donner son analyse.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel
+              className="rounded-full"
+              onClick={() => { setOverwriteConfirmed(false); launchDiagnostic(); }}
+            >
+              Garder ma marque actuelle
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full"
+              onClick={() => { setOverwriteConfirmed(true); launchDiagnostic(); }}
+            >
+              Oui, remplacer par le nouveau
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

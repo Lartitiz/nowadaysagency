@@ -66,6 +66,18 @@ const PROFILE_RESET = {
   weekly_time: null,
   diagnostic_data: null,
   level: null,
+  // ── Sources d'import : DOIVENT être vidées elles aussi ────────────────────
+  // Sans ça, « repartir de zéro » effaçait le branding mais gardait le texte
+  // « à propos » et les liens du run précédent. L'onboarding les re-pré-remplit
+  // (use-onboarding, pré-remplissage depuis le profil), le champ « à propos »
+  // se rouvre tout seul, et deep-diagnostic les remange → le NOUVEAU diagnostic
+  // reconstruit à l'identique l'ANCIENNE identité. Un reset qui laisse ses
+  // propres entrées derrière lui ne remet rien à zéro.
+  linkedin_summary: null,
+  instagram_username: null,
+  website_url: null,
+  linkedin_url: null,
+  activity_detail: null,
 };
 
 const PLAN_CONFIG_RESET = {

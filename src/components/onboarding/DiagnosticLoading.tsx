@@ -21,6 +21,8 @@ interface Props {
   };
   uploadedFileIds?: string[];
   activityType?: string;
+  /** « Oui, remplacer » confirmé à l'écran quand l'espace était déjà brandé. */
+  allowOverwrite?: boolean;
   onReady: (data: DiagnosticData) => void;
 }
 
@@ -123,7 +125,7 @@ const LOADING_TIPS: Record<string, string[]> = {
 
 export default function DiagnosticLoading({
   hasInstagram, hasWebsite, hasDocuments, isDemoMode,
-  answers, brandingAnswers, uploadedFileIds, activityType, onReady,
+  answers, brandingAnswers, uploadedFileIds, activityType, allowOverwrite, onReady,
 }: Props) {
   const { user } = useAuth();
   // L'onboarding configure SON espace : on cible l'espace dont l'utilisateur·ice
@@ -300,7 +302,7 @@ export default function DiagnosticLoading({
         );
         const diagnosticTimeout = hasExternalSources ? 120000 : 60000;
 
-        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: onboardingWorkspaceId } }, diagnosticTimeout);
+        const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: onboardingWorkspaceId, allowOverwrite: allowOverwrite === true } }, diagnosticTimeout);
 
         if (error || !data) {
           console.warn("Edge function failed, using fallback:", error);

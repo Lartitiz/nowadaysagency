@@ -78,7 +78,10 @@ serve(async (req) => {
       });
     }
 
-    const { userId, workspaceId, userPrompt, savedDiagId, isOnboarding } = await req.json();
+    const { userId, workspaceId, userPrompt, savedDiagId, isOnboarding, allowOverwrite } = await req.json();
+    // `allowOverwrite` ne vaut true que si l'utilisatrice a répondu « oui,
+    // remplacer » à l'écran (Onboarding.tsx) devant le nom de son espace.
+    const overwrite = allowOverwrite === true;
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -246,12 +249,17 @@ Précisions importantes :
     // d'onboarding) car on teste la présence de contenu, pas le flag.
     // NB : au 1er onboarding, `brand_profile.mission` est encore vide (c'est CE
     // diagnostic qui le remplit), donc le cas légitime passe.
+    // ⚠️ Le garde-fou ne doit protéger que de l'ERREUR d'espace, pas d'une
+    // reprise VOULUE : tant qu'il sautait dans tous les cas, refaire son
+    // onboarding ne rafraîchissait plus rien et l'ancienne identité restait
+    // gelée pour toujours (même famille que l'anti-doublon de la palette, #652).
+    // D'où `overwrite` : l'écran a nommé l'espace et la réponse a été « oui ».
     const { data: brandedCheck } = await supabaseAdmin
       .from("brand_profile")
       .select("mission, positioning")
       .eq(filterCol, filterVal)
       .maybeSingle();
-    if (brandedCheck && (brandedCheck.mission || brandedCheck.positioning)) {
+    if (brandedCheck && (brandedCheck.mission || brandedCheck.positioning) && !overwrite) {
       console.warn(`[diagnostic-enrichment] Espace déjà brandé (mission/positioning présents) — enrichissement IGNORÉ pour ne pas écraser/injecter. workspace=${workspaceId} user=${userId}`);
       return new Response(JSON.stringify({ success: true, skipped: "already_branded" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -269,6 +277,10 @@ Précisions importantes :
       const charter = enrichmentResult.charter_prefill || {};
 
       const analysisResult = {
+        // Voyage jusqu'à BrandingReview : sans ce drapeau, valider une section
+        // de la fiche n'écrasait pas l'ancienne marque (fillOnlyEmpty) et la
+        // reprise d'onboarding restait sans effet visible.
+        allow_overwrite: overwrite,
         story: {
           confidence: "medium",
           full_story: prefill.story_draft || null,
@@ -437,11 +449,15 @@ Précisions importantes :
     const voicePrefill = prefill.voice_prefill || enrichmentResult?.voice_prefill;
 
     const buildProfileFields = (target: Record<string, unknown>, existing: any) => {
+      // En mode `overwrite`, « ne remplir que les trous » ne suffit pas : c'est
+      // exactement ce qui gelait champ par champ (positionnement, mission, ton,
+      // proposition de valeur…) le résultat du tout premier passage. Confirmation
+      // donnée = la nouvelle valeur gagne, quand elle existe.
       const setIfEmpty = (field: string, value: unknown) => {
-        if (value && (!existing || !existing[field])) target[field] = value;
+        if (value && (overwrite || !existing || !existing[field])) target[field] = value;
       };
       const setArrayIfEmpty = (field: string, value: unknown[]) => {
-        if (value?.length > 0 && (!existing || !existing[field] || (Array.isArray(existing[field]) && existing[field].length === 0))) {
+        if (value?.length > 0 && (overwrite || !existing || !existing[field] || (Array.isArray(existing[field]) && existing[field].length === 0))) {
           target[field] = value;
         }
       };
@@ -461,7 +477,7 @@ Précisions importantes :
       setArrayIfEmpty("values", prefill.values);
       setArrayIfEmpty("content_pillars", prefill.content_pillars);
 
-      if (prefill.combats?.length > 0 && (!existing || !existing.combats)) {
+      if (prefill.combats?.length > 0 && (overwrite || !existing || !existing.combats)) {
         target.combats = Array.isArray(prefill.combats) ? prefill.combats.join("\n") : prefill.combats;
       }
 

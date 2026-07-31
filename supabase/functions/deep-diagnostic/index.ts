@@ -174,7 +174,7 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(userId);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding, workspace_id: bodyWorkspaceId } = await req.json();
+    const { websiteUrl, instagramHandle, linkedinUrl, documentIds, profile, freeformAnswers, isOnboarding, workspace_id: bodyWorkspaceId, allowOverwrite } = await req.json();
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -640,6 +640,8 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
           userPrompt: enrichmentPrompt,
           savedDiagId: savedDiag?.id || null,
           isOnboarding,
+          // Remplacement explicitement confirmé à l'écran (espace déjà brandé).
+          allowOverwrite: allowOverwrite === true,
         }),
       }).catch(() => {});
     } catch {
