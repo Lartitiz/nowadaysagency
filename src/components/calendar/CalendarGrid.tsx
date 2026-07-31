@@ -10,9 +10,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { cn, toLocalDateStr } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { CalendarEmptyPeriod, type NearestOutsidePost } from "./CalendarEmptyPeriod";
 
-/** Contenu le plus proche HORS du mois affiché (voir Calendar.tsx). */
-export type NearestOutsidePost = { date: string; direction: "future" | "past" };
+export type { NearestOutsidePost };
 
 interface Props {
   calendarDays: { date: Date; inMonth: boolean }[];
@@ -31,63 +31,6 @@ interface Props {
   nearestOutsidePost?: NearestOutsidePost | null;
   /** Saute au mois contenant cette date (AAAA-MM-JJ). */
   onJumpToDate?: (dateStr: string) => void;
-}
-
-/* ── État vide du mois (partagé desktop + mobile) ──
-   Une grille nue ne dit rien : ni que le mois est vide, ni qu'il y a du contenu
-   ailleurs. Le dashboard sait déjà nommer le prochain contenu — on dit la même
-   chose ici, avec le raccourci pour y aller. */
-function MonthEmptyState({
-  isMobile,
-  filtersActive,
-  nearestOutsidePost,
-  onJumpToDate,
-}: {
-  isMobile: boolean;
-  filtersActive?: boolean;
-  nearestOutsidePost?: NearestOutsidePost | null;
-  onJumpToDate?: (dateStr: string) => void;
-}) {
-  // Un mois « vide » à cause d'un filtre n'est pas un mois vide : le dire, sinon
-  // on invite à créer un contenu qui existe déjà mais qui est masqué.
-  if (filtersActive) {
-    return (
-      <div className="rounded-xl border border-dashed border-border p-6 text-center">
-        <CalendarIcon className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" aria-hidden="true" />
-        <p className="text-sm text-muted-foreground">
-          Aucun contenu ne correspond à tes filtres ce mois-ci. Enlève un filtre pour voir le reste.
-        </p>
-      </div>
-    );
-  }
-
-  const nearestLabel = nearestOutsidePost
-    ? format(new Date(nearestOutsidePost.date + "T00:00:00"), "EEEE d MMMM", { locale: fr })
-    : null;
-
-  return (
-    <div className="rounded-xl border border-dashed border-border p-6 text-center">
-      <CalendarIcon className="mx-auto mb-2 h-7 w-7 text-muted-foreground/40" aria-hidden="true" />
-      <p className="text-sm text-muted-foreground">
-        Rien de prévu ce mois-ci. {isMobile ? "Touche" : "Clique"} <span className="font-semibold text-foreground">＋</span> sur un jour pour planifier un contenu 🌸
-      </p>
-      {nearestOutsidePost && nearestLabel && (
-        <p className="mt-3 text-sm text-muted-foreground">
-          {nearestOutsidePost.direction === "future" ? "Ton prochain contenu est le " : "Ton dernier contenu était le "}
-          <span className="font-medium text-foreground">{nearestLabel}</span>.{" "}
-          {onJumpToDate && (
-            <button
-              type="button"
-              onClick={() => onJumpToDate(nearestOutsidePost.date)}
-              className="font-medium text-primary-text underline underline-offset-2 hover:text-primary transition-colors"
-            >
-              {nearestOutsidePost.direction === "future" ? "Y aller" : "Le revoir"}
-            </button>
-          )}
-        </p>
-      )}
-    </div>
-  );
 }
 
 /* ── Draggable content card (desktop) ── */
@@ -242,7 +185,8 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
       <>
         <div className="space-y-2">
           {!monthHasPosts && (
-            <MonthEmptyState
+            <CalendarEmptyPeriod
+              periodLabel="ce mois-ci"
               isMobile={isMobile}
               filtersActive={filtersActive}
               nearestOutsidePost={nearestOutsidePost}
@@ -336,7 +280,8 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
       {/* Mois vide : le dire AVANT la grille, sinon on atterrit sur 35 cases nues
           sans savoir s'il n'y a rien ou si on est au mauvais endroit. */}
       {!monthHasPosts && (
-        <MonthEmptyState
+        <CalendarEmptyPeriod
+          periodLabel="ce mois-ci"
           isMobile={isMobile}
           filtersActive={filtersActive}
           nearestOutsidePost={nearestOutsidePost}
