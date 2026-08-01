@@ -65,6 +65,20 @@ export interface RenderPlan {
 /** Clip choisi pour une section : URL + seconde d'entrée dans le clip source. */
 export type ClipChoice = string | { url: string; seek?: number } | null | undefined;
 
+/**
+ * Sections qui partiront au montage SANS la voix de la créatrice (mode
+ * "recorded") : un clip est choisi mais aucune phrase enregistrée. Le moteur
+ * les basculera en voix générée — c'est voulu (une phrase ratée ne rend pas le
+ * reel muet), mais SANS prévenir, la cliente découvre un reel où sa voix
+ * alterne avec une voix robot et croit à un bug. L'UI confirme avant.
+ */
+export function countSectionsWithoutVoice(
+  clips: ClipChoice[],
+  voiceUrls: Array<string | null | undefined>,
+): number {
+  return clips.reduce((n, clip, i) => (clip && !voiceUrls[i] ? n + 1 : n), 0);
+}
+
 export function buildRenderPlan(
   sections: Array<{ timing?: unknown; texte_parle?: unknown }>,
   clipBySection: ClipChoice[],
