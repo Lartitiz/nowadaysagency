@@ -119,3 +119,23 @@ dans un worktree frais).
 - premier passage → `VERDICT: SEED` (pose la référence, ne peut rien détecter ce jour-là)
 - écart détecté → `VERDICT: WARN` + la liste + le prompt Lovable prêt à coller
 - après confirmation de Lovable → `node e2e-visite/edges-a-redeployer.mjs --marque <fn> [<fn>…]`
+
+Trois états par fonction dans le registre :
+
+| valeur | sens | signalée ? |
+|---|---|---|
+| un sha | déploiement confirmé à ce commit | seulement si le code a bougé depuis |
+| `""` | déploiement **jamais confirmé** (retard connu) | oui, chaque matin, jusqu'au `--marque` |
+| absente | fonction neuve | non — l'absence est couverte par `edge-deploy-health.mjs` |
+
+`--a-redeployer <fn>…` pose l'état `""`. Utilisé le 01/08 pour faire remonter les
+retards antérieurs à la pose de la référence : `analyze-brand`, `audit-site-auto`
+et le lot D (`prospect-dm`, `analyze-documents`, `analyze-excel-mapping`,
+`newsjacking-ai`), qui traînaient depuis le 26/07 sans que rien ne les rappelle.
+
+⚠️ **Un retard ASSUMÉ n'est pas un retard oublié.** Le correctif de facturation vit
+dans `_shared/plan-limiter.ts` et concerne ~65 consommateurs : le choix documenté
+est de le laisser embarquer au prochain redéploiement groupé plutôt que de forcer
+une passe massive (risque type 23/07). Ces fonctions restent marquées déployées
+**exprès** — ne pas les « démarquer » : une sonde qui sort 65 lignes chaque matin
+ne sera pas lue.
