@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { versTarifs } from "@/lib/retour-apres-detour";
 
 interface QuotaExhaustedCardProps {
   category: string;
@@ -62,7 +63,7 @@ function QuotaExhaustedCard({
       {plan === "free" ? (
         <div className="mt-6 text-center">
           <button
-            onClick={() => navigate("/mon-plan")}
+            onClick={() => versTarifs(navigate)}
             className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-2.5 text-sm font-medium text-white hover:bg-primary transition-colors"
           >
             Passer au Premium — création illimitée ✨

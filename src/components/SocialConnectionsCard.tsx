@@ -6,7 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
-import { lireRetour, oublieRetour } from "@/lib/retour-apres-connexion";
+import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
 
 type Platform = "instagram" | "linkedin" | "canva" | "pinterest" | "google";
 

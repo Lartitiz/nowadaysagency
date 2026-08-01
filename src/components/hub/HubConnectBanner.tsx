@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { memoriseRetour } from "@/lib/retour-apres-connexion";
+import { memoriseRetour } from "@/lib/retour-apres-detour";
 import { useSocialConnections, type SocialPlatform } from "@/hooks/use-social-connections";
 
 const COPY: Record<string, { emoji: string; label: string; benefit: string }> = {

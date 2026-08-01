@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { versTarifs } from "@/lib/retour-apres-detour";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Sparkles, Calendar, ArrowRight } from "lucide-react";
 import { posthog } from "@/lib/posthog";
@@ -36,7 +37,8 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
   const handleCtaClick = () => {
     posthog.capture("quota_wall_cta_clicked", { plan });
     onClose();
-    navigate("/mon-plan");
+    // /mon-plan = le plan de COM (éditorial) : ce bouton-là parle d'abonnement.
+    versTarifs(navigate);
   };
 
   const nextMonth = new Date();

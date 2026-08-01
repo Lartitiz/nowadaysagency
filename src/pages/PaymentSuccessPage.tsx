@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
 import AppHeader from "@/components/AppHeader";
 import Confetti from "@/components/Confetti";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ export default function PaymentSuccessPage() {
   const [searchParams] = useSearchParams();
   const [showConfetti, setShowConfetti] = useState(true);
   const sessionId = searchParams.get("session_id");
+  const navigate = useNavigate();
+  const [retour] = useState(() => lireRetour());
 
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 4000);
@@ -35,12 +38,29 @@ export default function PaymentSuccessPage() {
         </p>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
-          <Button asChild className="rounded-full gap-2">
-            <Link to="/dashboard">
+          {/* Elle a payé DEPUIS un travail en cours (crédits épuisés) : on la
+              ramène là où elle en était plutôt que sur le tableau de bord. Un
+              bouton et pas une redirection : la confirmation doit rester
+              lisible. */}
+          {retour ? (
+            <Button
+              className="rounded-full gap-2"
+              onClick={() => {
+                oublieRetour();
+                navigate(retour.chemin);
+              }}
+            >
               <Sparkles className="h-4 w-4" />
-              Commencer
-            </Link>
-          </Button>
+              Reprendre {retour.quoi}
+            </Button>
+          ) : (
+            <Button asChild className="rounded-full gap-2">
+              <Link to="/dashboard">
+                <Sparkles className="h-4 w-4" />
+                Commencer
+              </Link>
+            </Button>
+          )}
           <Button asChild variant="outline" className="rounded-full gap-2">
             <Link to="/parametres">
               Voir mon abonnement

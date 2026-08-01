@@ -6,8 +6,8 @@ import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
 import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason } from "@/features/creer/publish-guards";
-import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
-import { versConnexions } from "@/lib/retour-apres-connexion";
+import { useSearchParams, useLocation, useNavigate, Link } from "react-router-dom";
+import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
@@ -101,13 +101,17 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
           {" "}Utilise-les pour ce qui compte le plus pour toi.
         </p>
       </div>
-      <a
-        href="/mon-plan"
-        onClick={() => posthog.capture("low_credits_banner_cta_clicked", { remaining, plan })}
+      <Link
+        to="/pricing"
+        onClick={() => {
+          posthog.capture("low_credits_banner_cta_clicked", { remaining, plan });
+          // Elle est en pleine création : les tarifs proposeront d'y revenir.
+          memoriseRetour();
+        }}
         className="shrink-0 text-xs font-medium text-warning hover:text-warning underline underline-offset-2 transition-colors"
       >
         Découvrir le Premium
-      </a>
+      </Link>
     </div>
   );
 }

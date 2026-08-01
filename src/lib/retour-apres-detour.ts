@@ -1,28 +1,33 @@
 /**
- * « D'où je viens » avant un détour par Paramètres → Connexions.
+ * « D'où je viens » avant un détour imposé par l'app.
  *
- * Parcours cassé jusqu'ici : depuis /creer, cliquer « Connecter Canva » emmenait
- * sur /parametres/connexions, l'autorisation partait chez Canva, revenait sur
- * /parametres/connexions… et plus rien ne ramenait la cliente à son contenu.
- * Son travail était pourtant toujours là (use-flow-persistence le garde 2 h),
- * mais invisible : elle repartait de zéro en croyant l'avoir perdu.
+ * Deux détours arrachent la cliente à son travail en cours :
+ *  - connecter un compte (Canva, Instagram, LinkedIn…) → Paramètres → Connexions
+ *  - tomber à court de crédits → la page des tarifs, puis Stripe
  *
- * On note donc le chemin de départ AVANT de partir, et la page des connexions y
- * ramène dès que la connexion est réussie. Même mécanisme pour tous les points
- * de départ (atelier, calendrier, hubs) plutôt qu'une rustine par endroit.
+ * Dans les deux cas le travail est toujours là (use-flow-persistence le garde
+ * 2 h) mais devenait invisible, faute de chemin de retour : on repartait de zéro
+ * en croyant l'avoir perdu.
+ *
+ * On note donc le chemin de départ AVANT de partir, et la page d'arrivée y
+ * ramène — automatiquement quand le détour est fini (compte connecté), ou par un
+ * bouton quand la cliente peut vouloir rester (tarifs, confirmation de
+ * paiement). Un seul mécanisme pour tous les points de départ plutôt qu'une
+ * rustine par endroit.
  *
  * sessionStorage et pas localStorage : le mémo appartient à CET onglet, celui
- * qui fait l'aller-retour OAuth. Il survit au passage par canva.com (même
- * onglet, même origine au retour) et meurt avec l'onglet — c'est voulu.
+ * qui fait l'aller-retour. Il survit au passage par canva.com ou stripe.com
+ * (même onglet, même origine au retour) et meurt avec l'onglet — c'est voulu.
  */
 
-const KEY = "retour_apres_connexion";
+const KEY = "retour_apres_detour";
 
-/** Le temps d'un OAuth (login + autorisation), pas plus : au-delà, un vieux
- *  chemin qui ressurgit serait plus déroutant qu'utile. */
+/** Le temps d'un détour (autorisation OAuth, paiement Stripe), pas plus :
+ *  au-delà, un vieux chemin qui ressurgit serait plus déroutant qu'utile. */
 const MAX_AGE_MS = 30 * 60 * 1000;
 
 export const CHEMIN_CONNEXIONS = "/parametres/connexions";
+export const CHEMIN_TARIFS = "/pricing";
 
 export type RetourMemo = {
   /** Chemin interne à re-visiter, avec sa query (ex. "/creer"). */
@@ -56,6 +61,18 @@ export function quoiPour(chemin: string): string {
 }
 
 /**
+ * Les pages DU détour lui-même : s'y mémoriser n'aurait pas de sens (on veut
+ * revenir à ce qu'on faisait AVANT, pas à la page des tarifs).
+ */
+const PAGES_DE_DETOUR = [
+  CHEMIN_CONNEXIONS,
+  CHEMIN_TARIFS,
+  "/payment/success",
+  "/checkout/",
+  "/abonnement",
+];
+
+/**
  * Mémorise d'où l'on part. Sans argument, prend la page courante (chemin +
  * query, pour ne pas perdre un ?format= ou un ?sujet=).
  */
@@ -63,8 +80,7 @@ export function memoriseRetour(chemin?: string, quoi?: string): void {
   const cible =
     chemin ?? `${window.location.pathname}${window.location.search}`;
   if (!cheminInterneValide(cible)) return;
-  // Partir de la page des connexions pour y revenir n'aurait aucun sens.
-  if (cible.startsWith(CHEMIN_CONNEXIONS)) return;
+  if (PAGES_DE_DETOUR.some((p) => cible.startsWith(p))) return;
   try {
     const stocke: Stocke = {
       chemin: cible,
@@ -118,4 +134,25 @@ export function versConnexions(
 ): void {
   memoriseRetour(opts?.depuis, opts?.quoi);
   navigate(CHEMIN_CONNEXIONS);
+}
+
+/** Part vers les tarifs en se souvenant d'où l'on vient (crédits épuisés). */
+export function versTarifs(
+  navigate: (chemin: string) => void,
+  opts?: { depuis?: string; quoi?: string },
+): void {
+  memoriseRetour(opts?.depuis, opts?.quoi);
+  navigate(CHEMIN_TARIFS);
+}
+
+/**
+ * Même chose, mais depuis un module hors composant React (pas de `navigate`
+ * sous la main) : `handleQuotaError` est appelé au fond d'une vingtaine de
+ * gestionnaires async. Rechargement complet assumé ici — on part vers un tunnel
+ * de paiement, pas pour revenir dans la seconde, et le travail en cours est
+ * persisté de toute façon.
+ */
+export function partirVersTarifs(quoi?: string): void {
+  memoriseRetour(undefined, quoi);
+  window.location.assign(CHEMIN_TARIFS);
 }
