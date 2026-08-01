@@ -21,11 +21,24 @@
  * Registre hors worktree (comme edge-deploy-seen.json) : le cron tourne dans un
  * worktree frais chaque jour.
  *
+ * Trois états possibles pour une fonction dans le registre :
+ *   - sha         → déploiement confirmé à ce commit ; signalée si le code a bougé depuis
+ *   - ""          → déploiement JAMAIS confirmé ; signalée tant qu'on ne l'a pas marquée
+ *   - absente     → fonction neuve, enregistrée en silence (l'absence est déjà couverte
+ *                   par edge-deploy-health.mjs)
+ *
+ * ⚠️ Un retard ASSUMÉ n'est pas un retard oublié. Le correctif de facturation vit dans
+ * `_shared/plan-limiter.ts` et concerne ~65 consommateurs : le choix documenté est de le
+ * laisser embarquer au prochain redéploiement groupé plutôt que de forcer une passe
+ * massive (risque type 23/07). Ces fonctions restent donc marquées déployées EXPRÈS —
+ * ne pas les « démarquer » : une sonde qui signale 65 lignes chaque matin ne sera pas lue.
+ *
  * Usage :
- *   node e2e-visite/edges-a-redeployer.mjs              → VERDICT: OK | WARN | SEED
- *   node e2e-visite/edges-a-redeployer.mjs --marque chat-guide [autre…]
+ *   node e2e-visite/edges-a-redeployer.mjs                  → VERDICT: OK | WARN | SEED
+ *   node e2e-visite/edges-a-redeployer.mjs --marque <fn>…   → déploiement confirmé
+ *   node e2e-visite/edges-a-redeployer.mjs --a-redeployer <fn>… → à rechasser (état "")
  *   node e2e-visite/edges-a-redeployer.mjs --marque-tout
- *   node e2e-visite/edges-a-redeployer.mjs --seed <sha>  → (re)pose la référence
+ *   node e2e-visite/edges-a-redeployer.mjs --seed <sha>     → (re)pose la référence
  *
  * Exit 0 toujours — c'est la routine qui juge le VERDICT imprimé.
  */
@@ -150,6 +163,27 @@ if (argv[0] === "--seed") {
   process.exit(0);
 }
 
+if (argv[0] === "--a-redeployer") {
+  // Déclare qu'on ne SAIT PAS si la fonction est en ligne (retard connu, jamais
+  // confirmé). Elle sera signalée chaque matin jusqu'à un `--marque`.
+  const store = readStore() || {};
+  const cibles = argv.slice(1);
+  if (!cibles.length) {
+    console.log("Usage : --a-redeployer <nom-de-fonction> [autre…]");
+    process.exit(0);
+  }
+  for (const fn of cibles) {
+    if (!fns.includes(fn)) {
+      console.log(`⚠️ fonction inconnue, ignorée : ${fn}`);
+      continue;
+    }
+    store[fn] = "";
+    console.log(`🚚 ${fn} : déploiement à confirmer — sera signalée jusqu'au --marque`);
+  }
+  writeStore(store);
+  process.exit(0);
+}
+
 if (argv[0] === "--marque" || argv[0] === "--marque-tout") {
   const store = readStore() || {};
   const cibles = argv[0] === "--marque-tout" ? fns : argv.slice(1);
@@ -208,7 +242,9 @@ for (const fn of fns) {
     } catch {
       /* commit introuvable (historique réécrit) */
     }
-    enRetard.push({ fn, sha: source.slice(0, 8), quand, sujet });
+    // "" = on n'a jamais eu de confirmation ; sinon = le code a bougé depuis.
+    const jamaisConfirme = store[fn] === "";
+    enRetard.push({ fn, sha: source.slice(0, 8), quand, sujet, jamaisConfirme });
   }
 }
 
@@ -228,9 +264,23 @@ console.log(
   `🚚 ${enRetard.length} edge function(s) ont du code mergé qui n'est PAS en ligne ` +
     "(un Publish Lovable ne redéploie que le front) :\n",
 );
-for (const e of enRetard) {
-  console.log(`  • ${e.fn}`);
-  console.log(`      dernier changement : ${e.quand} ${e.sha} — ${e.sujet}`);
+const jamais = enRetard.filter((e) => e.jamaisConfirme);
+const bouge = enRetard.filter((e) => !e.jamaisConfirme);
+
+if (bouge.length) {
+  console.log("  Code modifié depuis le dernier déploiement confirmé :");
+  for (const e of bouge) {
+    console.log(`  • ${e.fn}`);
+    console.log(`      dernier changement : ${e.quand} ${e.sha} — ${e.sujet}`);
+  }
+}
+if (jamais.length) {
+  if (bouge.length) console.log("");
+  console.log("  Déploiement jamais confirmé (retard connu, à rechasser) :");
+  for (const e of jamais) {
+    console.log(`  • ${e.fn}`);
+    console.log(`      code en attente depuis : ${e.quand} ${e.sha} — ${e.sujet}`);
+  }
 }
 console.log(
   "\n→ Prompt Lovable : « Redéploie les edge functions suivantes sans modifier leur code : " +
