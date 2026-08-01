@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { Link, useNavigate } from "react-router-dom";
-import { memoriseRetour } from "@/lib/retour-apres-connexion";
+import { memoriseRetour } from "@/lib/retour-apres-detour";
 import { useWorkspaceFilter, useWorkspaceId, useIsOwnSpace, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";

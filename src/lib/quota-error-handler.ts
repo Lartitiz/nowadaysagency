@@ -1,4 +1,5 @@
 import { toast } from "sonner";
+import { partirVersTarifs } from "@/lib/retour-apres-detour";
 
 // Callback global pour ouvrir le modal quand quota total épuisé
 let _quotaWallCallback: ((data: {
@@ -67,9 +68,9 @@ export function handleQuotaError(error: any): boolean {
     description: friendlyDescription,
     action: {
       label: "Voir les plans →",
-      onClick: () => {
-        window.location.href = "/pricing";
-      },
+      // On note d'où l'on part : les tarifs (et la confirmation de paiement)
+      // proposeront de revenir au travail en cours.
+      onClick: () => partirVersTarifs(),
     },
     duration: 8000,
   });

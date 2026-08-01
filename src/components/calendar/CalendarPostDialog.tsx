@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { versConnexions } from "@/lib/retour-apres-connexion";
+import { versConnexions } from "@/lib/retour-apres-detour";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
 import { trackError } from "@/lib/error-tracker";

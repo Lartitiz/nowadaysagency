@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
@@ -15,7 +16,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Check, X, Sparkles } from "lucide-react";
+import { Check, X, Sparkles, ArrowLeft } from "lucide-react";
 import PromoCodeInput from "@/components/PromoCodeInput";
 
 /* ─── Feature comparison data (2 plans : Gratuit / Premium) ─── */
@@ -97,6 +98,10 @@ export default function PricingPage() {
   const { user } = useAuth();
   const { plan } = useUserPlan();
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const navigate = useNavigate();
+  // Lu une seule fois au montage : un paiement Stripe part et revient sur
+  // /payment/success, c'est là-bas que le mémo sera consommé.
+  const [retour] = useState(() => lireRetour());
 
   usePageSEO({
     title: "Tarifs — Gratuit ou Premium",
@@ -154,6 +159,22 @@ export default function PricingPage() {
       </div>
 
       <main className="mx-auto max-w-5xl px-4 py-12 sm:py-16">
+        {/* Venue d'un travail en cours (crédits épuisés) : le chemin du retour
+            reste visible, sinon on croit avoir perdu ce qu'on faisait. */}
+        {retour && (
+          <button
+            type="button"
+            onClick={() => {
+              oublieRetour();
+              navigate(retour.chemin);
+            }}
+            className="mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Revenir à {retour.quoi}
+          </button>
+        )}
+
         {/* ── Header ── */}
         <div className="text-center mb-12">
           <h1 className="font-display text-3xl sm:text-5xl font-bold text-foreground leading-tight">

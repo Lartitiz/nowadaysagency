@@ -1,5 +1,6 @@
 import { useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { memoriseRetour } from "@/lib/retour-apres-detour";
 import { Sparkles } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Progress } from "@/components/ui/progress";
@@ -130,7 +131,8 @@ export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCr
             <p className="text-xs text-muted-foreground">C'est bon signe : tu travailles ta com' !</p>
             <p className="text-xs text-muted-foreground">Tes crédits reviennent le {nextMonthLabel}.</p>
             <Link
-              to="/mon-plan"
+              to="/pricing"
+              onClick={() => memoriseRetour()}
               className="inline-block rounded-full bg-primary text-white px-4 py-2 text-xs font-medium hover:bg-primary transition-colors"
             >
               Passer à L'Assistant Com' — création illimitée
@@ -183,14 +185,16 @@ export default function AiCreditsCounter({ plan, usage, bonusCredits = 0 }: AiCr
             {plan === "free" && (
               isUrgent ? (
                 <Link
-                  to="/mon-plan"
+                  to="/pricing"
+                  onClick={() => memoriseRetour()}
                   className="inline-block mt-3 rounded-full bg-primary text-white px-4 py-2 text-xs font-medium hover:bg-primary transition-colors"
                 >
                   Passer à L'Assistant Com' →
                 </Link>
               ) : (
                 <Link
-                  to="/mon-plan"
+                  to="/pricing"
+                  onClick={() => memoriseRetour()}
                   className="block mt-3 text-xs font-semibold text-primary hover:underline"
                 >
                   Passer à L'Assistant Com' →

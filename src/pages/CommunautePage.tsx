@@ -3,6 +3,7 @@ import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
+import { memoriseRetour } from "@/lib/retour-apres-detour";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import AppHeader from "@/components/AppHeader";
@@ -186,7 +187,7 @@ const CommunautePage = () => {
           <Card className="p-4 flex items-center gap-3">
             <Sparkles className="h-5 w-5 text-primary shrink-0" />
             <p className="text-sm text-muted-foreground flex-1">
-              Envie de participer ? <Link to="/mon-plan" className="text-primary font-semibold hover:underline">Passe au Premium</Link> pour poster et commenter.
+              Envie de participer ? <Link to="/pricing" onClick={() => memoriseRetour()} className="text-primary font-semibold hover:underline">Passe au Premium</Link> pour poster et commenter.
             </p>
           </Card>
         )}

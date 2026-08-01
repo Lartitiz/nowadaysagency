@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, renderHook, act, waitFor } from "@testing-library/react";
 
-// Parcours cassé du 01/08 : depuis /creer, « Ouvrir dans Canva » sans compte
+// Parcours cassés du 01/08. (1) Depuis /creer, « Ouvrir dans Canva » sans compte
 // connecté envoyait dans Paramètres → Connexions ; après l'autorisation Canva on
 // retombait sur la page des connexions, et RIEN ne ramenait au contenu en cours.
 // Ces tests fabriquent le parcours complet : le départ (mémo posé) et le retour
@@ -40,7 +40,7 @@ import {
   lireRetour,
   memoriseRetour,
   oublieRetour,
-} from "@/lib/retour-apres-connexion";
+} from "@/lib/retour-apres-detour";
 
 function allerSur(url: string) {
   window.history.replaceState({}, "", url);
@@ -78,7 +78,7 @@ describe("mémo « d'où je viens »", () => {
   it("oublie un mémo trop vieux (plus de 30 min)", () => {
     memoriseRetour("/creer");
     const perime = { chemin: "/creer", quoi: "ton contenu en cours", ts: Date.now() - 31 * 60 * 1000 };
-    sessionStorage.setItem("retour_apres_connexion", JSON.stringify(perime));
+    sessionStorage.setItem("retour_apres_detour", JSON.stringify(perime));
     expect(lireRetour()).toBeNull();
   });
 });
