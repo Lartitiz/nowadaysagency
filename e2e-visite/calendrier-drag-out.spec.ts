@@ -64,6 +64,23 @@ async function gridOccurrence(page: Page, panelHeading: Locator, title: string):
   throw new Error(`« ${title} » introuvable dans la grille calendrier (${n} occurrence(s), toutes dans le panneau)`);
 }
 
+/** Une cellule jour où l'on peut déposer SANS déclencher l'auto-scroll de dnd-kit.
+ * Piège vécu le 01/08/2026 : le jour était codé en dur (28). Sur un mois affiché
+ * sur 6 semaines (août 2026 commence un samedi), le 28 tombait à 14 px du bord bas
+ * du viewport 900 px — dnd-kit auto-scrolle quand le pointeur approche du bord, la
+ * grille glissait sous le curseur et le post atterrissait UNE LIGNE plus bas
+ * (2026-09-04 au lieu du 28/08), invisible là où le test le cherchait. On choisit
+ * donc le premier jour dont le repère reste à distance des deux bords. */
+async function safeDayCell(page: Page): Promise<Locator> {
+  const vh = page.viewportSize()?.height ?? 900;
+  for (const day of ["12", "13", "11", "19", "20", "18", "5", "6", "7"]) {
+    const cell = page.locator("div").filter({ hasText: new RegExp(`^${day}$`) }).last();
+    const box = await cell.boundingBox().catch(() => null);
+    if (box && box.y > 140 && box.y + box.height < vh - 180) return cell;
+  }
+  throw new Error("aucune cellule jour hors des bords (zone d'auto-scroll) dans la grille");
+}
+
 test.describe("Drag & drop calendrier ↔ panneau idées", () => {
   test.skip(({ viewport }) => (viewport?.width ?? 0) < 1024, "desktop uniquement");
 
@@ -88,8 +105,8 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     await expect(ideaCard).toBeVisible({ timeout: 8_000 });
     await page.screenshot({ path: path.join(SHOTS, "01-idee-creee.png") });
 
-    // 1) Idée → jour 28 du mois affiché
-    const dayCell = page.locator("div").filter({ hasText: /^28$/ }).last();
+    // 1) Idée → un jour du mois affiché, choisi hors des bords (cf. safeDayCell)
+    const dayCell = await safeDayCell(page);
     await dragTo(page, ideaCard, dayCell);
     await expect(page.getByText(/planifié !/i).first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: path.join(SHOTS, "02-planifie.png") });
