@@ -42,11 +42,24 @@ jobs:
         run: npm run lint
         continue-on-error: true
 
+      # Bloquant, contrairement au Lint ci-dessus : cette config ne charge QUE des
+      # règles à zéro dette. Aujourd'hui, l'obligation de titre dans les fenêtres
+      # Radix (leçon PR #668/#670 : trois modales laissaient les lecteurs d'écran
+      # sans rien annoncer, l'avertissement ne se voyait qu'en ouvrant la modale).
+      - name: Lint accessibilité (bloquant)
+        run: npm run lint:a11y
+
       # Type-check bloquant : le build Vite ne verifie PAS les types (lecon PR #496 :
       # un identifiant non importe a atteint la prod en ReferenceError). tsc passe a
       # 0 erreur sur main depuis #577 — on verrouille pour que ca le reste.
       - name: Type-check
         run: npx tsc --noEmit -p tsconfig.app.json
+
+      # Code mort : fichiers sans importeur, dépendances déclarées mais jamais
+      # utilisées, et l'inverse (utilisées sans être déclarées). La dette du
+      # 01/08/2026 est gelée dans knip.jsonc — cette étape bloque ce qui s'y AJOUTE.
+      - name: Code mort (knip)
+        run: npm run knip
 
       - name: Unit tests
         run: npm test

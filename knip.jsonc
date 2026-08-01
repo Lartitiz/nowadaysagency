@@ -1,0 +1,120 @@
+{
+  "$schema": "https://unpkg.com/knip@5/schema.json",
+
+  // Points d'entrée lancés par un runtime (Playwright, scripts, ESLint) et donc
+  // importés par personne. Vite / Vitest / Tailwind sont détectés tout seuls.
+  "entry": [
+    "eslint-rules/*.js",
+    "playwright*.config.ts",
+    "e2e/**/*.{spec,setup}.ts",
+    "e2e-visite/**/*.{spec,setup}.ts",
+    "e2e-visite/*.mjs",
+    "scripts/**",
+    "src/**/*.{test,spec}.{ts,tsx}"
+  ],
+
+  "project": ["src/**/*.{ts,tsx}", "e2e/**/*.ts", "e2e-visite/**/*.ts"],
+
+  // On ne bloque que sur ce qui a un vrai coût : fichiers morts, dépendances
+  // mortes, dépendances utilisées mais non déclarées. Les exports inutilisés
+  // restent en observation — un dépôt shadcn en compte des dizaines par
+  // construction (chaque primitive ré-exporte tout Radix), le signal s'y noie.
+  "rules": {
+    "files": "error",
+    "dependencies": "error",
+    "devDependencies": "error",
+    "unlisted": "error",
+    "binaries": "error",
+    "unresolved": "off",
+    "exports": "off",
+    "nsExports": "off",
+    "types": "off",
+    "nsTypes": "off",
+    "enumMembers": "off",
+    "classMembers": "off",
+    "duplicates": "off"
+  },
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DETTE GELÉE AU 01/08/2026
+  //
+  // Ce qui suit existait déjà le jour où knip a été branché. On l'inscrit ici
+  // pour que la CI passe au vert et bloque tout ce qui s'AJOUTE : le but est
+  // d'arrêter l'hémorragie, pas de faire semblant que le dépôt est propre.
+  //
+  // Chaque ligne retirée d'ici = du code mort en moins. À résorber par lots, en
+  // vérifiant à chaque fois qu'il s'agit d'un abandon et non d'un chantier en
+  // pause.
+  // ─────────────────────────────────────────────────────────────────────────
+  "ignore": [
+    // -- 35 fichiers sans aucun importeur (dette 01/08/2026) --
+    // Primitives shadcn jamais branchées, comme sidebar.tsx et command.tsx (#673).
+    "src/components/ui/alert.tsx",
+    "src/components/ui/breadcrumb.tsx",
+    "src/components/ui/carousel.tsx",
+    "src/components/ui/chart.tsx",
+    "src/components/ui/form.tsx",
+    "src/components/ui/table.tsx",
+    // Composants applicatifs : vérifier avant de supprimer, certains peuvent
+    // être des chantiers en pause plutôt que des abandons.
+    "src/components/ABTestAccroches.tsx",
+    "src/components/ContentActions.tsx",
+    "src/components/ContentProgressBar.tsx",
+    "src/components/CreditWarning.tsx",
+    "src/components/DraftRestoredBanner.tsx",
+    "src/components/FloatingChatButton.tsx",
+    "src/components/PlanMiniRecap.tsx",
+    "src/components/RedactionFlow.tsx",
+    "src/components/RoomTour.tsx",
+    "src/components/RoutinesPanel.tsx",
+    "src/components/VoiceOnboarding.tsx",
+    "src/components/WeekCard.tsx",
+    "src/components/assistant/AssistantButton.tsx",
+    "src/components/branding/BrandingCoachingHistory.tsx",
+    "src/components/branding/PersonaBadge.tsx",
+    "src/components/calendar/ObjectifBadge.tsx",
+    "src/components/dashboard/EngagementRoutineWidget.tsx",
+    "src/components/engagement/MetricsSection.tsx",
+    "src/components/engagement/StickerGuide.tsx",
+    // Hooks et libs sans appelant.
+    "src/hooks/use-branding-data.ts",
+    "src/hooks/use-can-edit.ts",
+    "src/hooks/use-coaching-flow.ts",
+    "src/lib/breadcrumb-config.ts",
+    "src/lib/com-score.ts",
+    "src/lib/email-templates.ts",
+    "src/lib/linkedin-data.ts",
+    "src/lib/pinterest-publish.ts",
+    "src/lib/plan-content.ts",
+    "src/lib/supabase-helpers.ts"
+  ],
+
+  "ignoreDependencies": [
+    // -- Légitime, à garder --
+    // Peer de @axe-core/playwright, lui bien utilisé (e2e-visite/sonde.spec.ts).
+    "axe-core",
+
+    // -- Dette 01/08/2026 : déclarées, jamais importées --
+    // Radix installés « au cas où » par shadcn, aucun composant ne s'en sert.
+    "@radix-ui/react-aspect-ratio",
+    "@radix-ui/react-context-menu",
+    "@radix-ui/react-hover-card",
+    "@radix-ui/react-menubar",
+    "@radix-ui/react-navigation-menu",
+    "@radix-ui/react-toast",
+    "@tailwindcss/typography",
+    "embla-carousel-react",
+    "input-otp",
+    "react-resizable-panels",
+    // Orpheline depuis la suppression de ui/command.tsx (#673) — retrait en cours.
+    "cmdk",
+
+    // -- Dette 01/08/2026 : l'INVERSE, et celle-là est un vrai risque --
+    // fast-png est importé par e2e-visite/pptx-validate.ts et
+    // src/test/pptx-validate.test.ts mais n'est PAS dans package.json : il ne
+    // résout que parce que jspdf le tire en transitif. Le jour où jspdf change
+    // de version ou de dépendances, les tests cassent sans prévenir.
+    // À déclarer explicitement en dependencies.
+    "fast-png"
+  ]
+}
