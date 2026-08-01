@@ -38,6 +38,7 @@ type Sonde = {
   network: Array<{ status: number; method: string; url: string }>;
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[];
+  clipped: Array<{ selector: string; hiddenPx: number; sample: string }>;
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
@@ -89,6 +90,17 @@ export default function () {
       obs.push({ bac: "observation", type: "console-error", ecran, detail: `${ce.text} (${ce.location})` });
     if (s.overflowPx > OVERFLOW_TOL)
       obs.push({ bac: "observation", type: "débordement-h", ecran, detail: `${s.overflowPx}px hors viewport` });
+    // Contenu caché par un conteneur trop court. Observation et non « dur » :
+    // une coupe peut être un choix de design. C'est le REGARD qui tranche —
+    // mais on ne peut trancher que ce qu'on voit passer (le calendrier coupait
+    // ses contenus depuis longtemps sans qu'aucune sonde ne le dise).
+    for (const c of s.clipped || [])
+      obs.push({
+        bac: "observation",
+        type: "contenu-coupé",
+        ecran,
+        detail: `${c.hiddenPx}px cachés dans ${c.selector} — « ${c.sample} »`,
+      });
     const goto = s.gotoMs ?? null;
     if (goto && goto > PERF_GOTO_MS)
       obs.push({ bac: "observation", type: "lenteur", ecran, detail: `chargement ${goto}ms (> ${PERF_GOTO_MS}ms)` });

@@ -76,3 +76,46 @@ Specs de garde dédiées :
   serveur muet sur le mini-diagnostic, pour vérifier les minuteurs de sécurité
   (force manuelle : `FORCE_ECRAN_FIGE_MUET=1`). A trouvé dès sa création le
   squelette éternel de `/dashboard/complet` quand le profil échoue à charger.
+
+## Sonde « contenu coupé » (quotidien)
+
+Classe de bug du 01/08/2026 : la case du calendrier portait un plafond CSS
+(`max-h-[150px] overflow-hidden`) **en plus** de la limite de 3 cartes déjà
+appliquée en JS. Le plafond étant plus bas que 3 cartes, la 3ᵉ était tranchée en
+deux et le bouton « +6 autres » poussé hors du cadre — la journée devenait
+illisible **et sans issue**. Rien ne le voyait : ni le type-check, ni les 468
+tests, ni aucune sonde (pas d'erreur console, pas de 4xx, et le seul débordement
+surveillé était **horizontal**).
+
+`detect-clipped.ts` cherche donc les conteneurs qui **cachent** une partie de
+leur contenu à la verticale (`scrollHeight - clientHeight > 16px`). Il écarte
+tout ce qui coupe **volontairement** : `line-clamp`, `text-overflow: ellipsis`,
+zones scrollables, éléments masqués, conteneurs animés. Sur le site live, 0
+signal sur 5 écrans — une sonde qui crie au loup finit ignorée.
+
+Le signal atterrit en 🟡 observation (une coupe *peut* être un choix de design) :
+c'est le regard qui tranche, mais on ne tranche que ce qu'on voit passer.
+
+`sonde-contenu-coupe.spec.ts` **fabrique le bug** (la case réelle plafonnée) et
+vérifie que le détecteur le voit, puis qu'il se tait sur les coupes volontaires.
+Une sonde ne vaut que si on a prouvé qu'elle attrape ce qu'elle surveille.
+
+## Sonde « code mergé pas en ligne » (quotidien)
+
+`node e2e-visite/edges-a-redeployer.mjs` — l'angle mort du 01/08/2026 : la PR
+#666 a mergé un correctif de l'Assistant, le Publish Lovable a bien mis le
+**front** en ligne… mais Publish **ne redéploie pas les edge functions**. Le
+front attendait des données que l'edge n'émettait pas, et rien ne le disait.
+`edge-deploy-health.mjs` voit une fonction **absente**, pas une fonction
+**périmée** — d'où cette seconde sonde.
+
+Purement git : zéro réseau, zéro login, zéro crédit. Pour chaque fonction, on
+prend le dernier commit touchant son dossier **ou un `_shared/` qu'elle importe**
+(transitivement — un `_shared/` modifié ne redéploie pas ses consommateurs, piège
+connu : une modif de `plan-limiter.ts` concerne 74 fonctions) et on le compare au
+registre `~/.nowadays-visite/edges-deployed.json` (hors worktree, le cron tourne
+dans un worktree frais).
+
+- premier passage → `VERDICT: SEED` (pose la référence, ne peut rien détecter ce jour-là)
+- écart détecté → `VERDICT: WARN` + la liste + le prompt Lovable prêt à coller
+- après confirmation de Lovable → `node e2e-visite/edges-a-redeployer.mjs --marque <fn> [<fn>…]`
