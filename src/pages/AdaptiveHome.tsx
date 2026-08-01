@@ -42,7 +42,14 @@ import { toLocalDateStr } from "@/lib/utils";
 const COLLAPSED_KEY = "lac_missions_collapsed";
 const FIRST_SEEN_KEY = "lac_missions_first_seen";
 
-function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void }) {
+/**
+ * `heroOwnsNextStep` : quand le hero affiche déjà « 👉 Ta prochaine étape », le
+ * bandeau ne doit PAS en annoncer une seconde. Constaté le 01/08 : le bandeau
+ * disait « Crée ton premier contenu » et le hero, 150 px plus bas, « Fais ton
+ * diagnostic » — deux réponses à la même question. Une seule voix à la fois :
+ * ici le bandeau retombe sur sa barre de progression (et son dépliage).
+ */
+function OnboardingBanner({ onNavigate, heroOwnsNextStep }: { onNavigate: (route: string) => void; heroOwnsNextStep: boolean }) {
   const { missions, completedCount, allDone, nextMission, dismissed, isLoading } = useOnboardingMissions();
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -92,7 +99,7 @@ function OnboardingBanner({ onNavigate }: { onNavigate: (route: string) => void 
       </button>
 
       {/* Replié : une seule action guidée (la prochaine étape) au lieu d'un mur de 6 cartes */}
-      {collapsed && nextMission && (
+      {collapsed && nextMission && !heroOwnsNextStep && (
         <button
           onClick={() => onNavigate(nextMission.route)}
           className="mt-3 w-full text-left rounded-xl border border-primary/40 bg-card p-3 flex items-center gap-3 hover:border-primary transition-colors"
@@ -401,7 +408,9 @@ export default function AdaptiveHome() {
         {/* Bandeau premiers pas — owner uniquement : les missions guident le
             setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
             pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
-        {activeRole === "owner" && <OnboardingBanner onNavigate={handleNavigate} />}
+        {activeRole === "owner" && (
+          <OnboardingBanner onNavigate={handleNavigate} heroOwnsNextStep={!launched} />
+        )}
 
         {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit
             gagner sa place pour que la page tienne dans une fenêtre */}
@@ -488,7 +497,9 @@ export default function AdaptiveHome() {
         {/* Zone Cette semaine — la bande semaine EST le calendrier : ce qui est
             prévu (réseau + format) et ce qui est libre, lisible en une seconde */}
         <section>
-          <SectionLabel hint="ce qui est prévu, ce qui est libre">Cette semaine</SectionLabel>
+          {/* « Cette semaine » mentait : la bande couvre 7 jours GLISSANTS depuis
+              aujourd'hui, donc à cheval sur deux semaines dès le jeudi. */}
+          <SectionLabel hint="ce qui est prévu, ce qui est libre">Tes 7 prochains jours</SectionLabel>
           <WeekStrip posts={upcomingPosts} isLoading={upcomingLoading} />
         </section>
 

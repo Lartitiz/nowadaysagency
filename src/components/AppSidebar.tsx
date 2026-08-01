@@ -72,6 +72,8 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
+const MENU_SEEN_KEY = "lac_menu_discovered";
+
 export default function AppSidebar() {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
@@ -83,6 +85,11 @@ export default function AppSidebar() {
 
   const { pending: brandReviewPending } = usePendingBrandReview();
   const [open, setOpen] = useState(false);
+  // Le libellé "Menu" à côté de la pastille disparaît une fois le menu ouvert
+  // au moins une fois : guidant à l'arrivée, discret ensuite.
+  const [menuDiscovered, setMenuDiscovered] = useState(
+    () => typeof localStorage !== "undefined" && localStorage.getItem(MENU_SEEN_KEY) === "true",
+  );
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   // Modules désactivés (feature-flags) : mêmes règles que ProtectedRoute, sinon la
   // sidebar affiche des liens morts (clic → redirection dashboard) aux non-admins.
@@ -159,6 +166,12 @@ export default function AppSidebar() {
     return () => clearCloseTimer();
   }, [clearCloseTimer]);
 
+  useEffect(() => {
+    if (!open || menuDiscovered) return;
+    setMenuDiscovered(true);
+    try { localStorage.setItem(MENU_SEEN_KEY, "true"); } catch { /* mode privé */ }
+  }, [open, menuDiscovered]);
+
   // Tous les chemins de navigation, pour la règle "le plus précis l'emporte".
   const navPaths = visibleSections
     .flatMap((s) => s.items)
@@ -201,21 +214,36 @@ export default function AppSidebar() {
         onMouseLeave={handleMouseLeaveTrigger}
         style={{ pointerEvents: open ? "none" : "auto" }}
       >
-        {/* Logo "N" button with menu hint — always visible on desktop */}
-        <Tooltip delayDuration={800}>
+        {/* Pastille "N" — la seule trace du menu sur grand écran.
+            C'était un <div> muet : rien ne disait que c'était un menu, le mot
+            "Menu" n'arrivait qu'après 800 ms de survol (donc jamais si on ne
+            soupçonne pas déjà qu'il y a quelque chose là), et le clavier ne
+            pouvait pas l'atteindre du tout. C'est un vrai bouton, et le mot
+            "Menu" reste affiché tant que le menu n'a jamais été ouvert. */}
+        <Tooltip delayDuration={400}>
           <TooltipTrigger asChild>
-            <div
-              className="absolute top-[14px] left-[14px] flex items-center gap-1 cursor-pointer select-none group"
+            <button
+              type="button"
+              aria-label="Ouvrir le menu"
+              aria-expanded={open}
+              onClick={() => setOpen(true)}
+              onFocus={handleMouseEnterTrigger}
+              className="absolute top-[14px] left-[14px] flex items-center gap-1.5 cursor-pointer select-none group rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               style={{ pointerEvents: "auto" }}
             >
-              <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shadow-none transition-transform duration-200 group-hover:scale-105">
+              <span className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shadow-none transition-transform duration-200 group-hover:scale-105">
                 <span className="text-white font-bold text-sm leading-none">N</span>
-              </div>
+              </span>
+              {!menuDiscovered && (
+                <span className="text-xs font-medium text-foreground/70 group-hover:text-foreground transition-colors">
+                  Menu
+                </span>
+              )}
               <ChevronRight
                 size={12}
-                className="text-muted-foreground opacity-40 group-hover:opacity-80 transition-all duration-200"
+                className={`text-muted-foreground transition-all duration-200 group-hover:opacity-90 ${menuDiscovered ? "opacity-40" : "opacity-70"}`}
               />
-            </div>
+            </button>
           </TooltipTrigger>
           <TooltipContent side="right" className="text-xs">
             Menu
