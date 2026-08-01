@@ -109,8 +109,19 @@ test("T5 — DiagnosticLoading s'affiche en < 500 ms après l'étape 10", async 
   const btn = page.getByRole("button", { name: /voir mon diagnostic|passer et voir/i });
   await expect(btn).toBeVisible({ timeout: 3000 });
 
-  const t0 = Date.now();
+  let t0 = Date.now();
   await btn.click();
+
+  // Depuis #657, un espace qui a DÉJÀ une marque enregistrée demande confirmation
+  // avant de la remplacer — c'est le cas de Camille, notre compte mûr. On choisit
+  // « Garder ma marque actuelle » (non destructif : la marque de référence n'est
+  // pas écrasée par le diagnostic mocké) et on repart le chrono à CE clic, seul
+  // moment où le loader est réellement demandé.
+  const keepBrand = page.getByRole("button", { name: /garder ma marque actuelle/i });
+  if (await keepBrand.isVisible({ timeout: 3000 }).catch(() => false)) {
+    t0 = Date.now();
+    await keepBrand.click();
+  }
 
   // DiagnosticLoading doit être monté et visible en < 500 ms.
   // Avant le fix PR #267, cette attente prenait ~25 000 ms (blancs + animation).
