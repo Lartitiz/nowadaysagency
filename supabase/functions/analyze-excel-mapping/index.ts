@@ -19,6 +19,8 @@ const MAPPING_TOOL: AnthropicTool = {
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { ExcelMappingSchema, MAX_HEADERS, MAX_SHEETS, normalizeSheets } from "./payload.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -50,14 +52,19 @@ serve(async (req) => {
 
     // Anthropic API key checked in shared helper
 
-    const { sheets } = await req.json();
-    // sheets: [{ name: string, headers: string[], sampleRows: any[][] }]
+    const body = await req.json().catch(() => {
+      throw new ValidationError("Corps de requête illisible (JSON attendu).");
+    });
+    const { sheets: sheetsRaw } = validateInput(body, ExcelMappingSchema);
+
+    const { sheets, truncated } = normalizeSheets(sheetsRaw);
 
     const prompt = `Voici les feuilles d'un fichier Excel de suivi de stats réseaux sociaux / business.
 
 FEUILLES DISPONIBLES :
 ${sheets.map((s: any) => `- "${s.name}" : ${s.headers.length} colonnes\n  Headers: ${s.headers.map((h: any, i: number) => `[${i}] ${h ?? '(vide)'}`).join(' | ')}\n  Ligne 2: ${(s.sampleRows[0] || []).map((v: any) => v ?? '–').join(' | ')}\n  Ligne 3: ${(s.sampleRows[1] || []).map((v: any) => v ?? '–').join(' | ')}\n  Ligne 4: ${(s.sampleRows[2] || []).map((v: any) => v ?? '–').join(' | ')}`).join('\n\n')}
 
+${truncated ? `\n(Aperçu tronqué : au plus ${MAX_SHEETS} feuilles et ${MAX_HEADERS} colonnes par feuille sont montrées.)\n` : ""}
 Identifie quelle colonne correspond à quelle métrique.
 Retourne UNIQUEMENT un JSON valide, sans commentaires, sans markdown :
 
@@ -134,6 +141,13 @@ Règles :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
+    // Une entrée invalide n'est pas une panne serveur : on NOMME ce qui manque,
+    // comme les fonctions voisines (prospect-dm, analyze-documents…).
+    if (err instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: err.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.error("analyze-excel-mapping error:", err);
     return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
