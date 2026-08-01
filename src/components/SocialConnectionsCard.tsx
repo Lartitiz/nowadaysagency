@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useNavigate } from "react-router-dom";
+import { lireRetour, oublieRetour } from "@/lib/retour-apres-connexion";
 
 type Platform = "instagram" | "linkedin" | "canva" | "pinterest" | "google";
 
@@ -85,6 +87,7 @@ const PLATFORMS: PlatformMeta[] = [
 export default function SocialConnectionsCard() {
   const { session } = useAuth();
   const workspaceId = useWorkspaceId();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -130,16 +133,24 @@ export default function SocialConnectionsCard() {
       connected === "pinterest" ||
       connected === "google"
     ) {
+      // Si on est arrivée ici DEPUIS un travail en cours (atelier, calendrier,
+      // hub), on y retourne au lieu de la laisser plantée dans les paramètres.
+      const retour = lireRetour();
       toast.success(
         connected === "linkedin" ? "LinkedIn connecté !"
           : connected === "canva" ? "Canva connecté !"
           : connected === "pinterest" ? "Pinterest connecté !"
           : connected === "google" ? "Google Analytics connecté !"
           : "Instagram connecté !",
+        retour ? { description: `On te ramène à ${retour.quoi}.` } : undefined,
       );
       params.delete("connected");
       const qs = params.toString();
       window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      if (retour) {
+        oublieRetour();
+        navigate(retour.chemin);
+      }
     } else if (connected === "error") {
       toast.error(params.get("message") || "Échec de la connexion.");
       params.delete("connected");
@@ -147,7 +158,7 @@ export default function SocialConnectionsCard() {
       const qs = params.toString();
       window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
     }
-  }, [reload]);
+  }, [reload, navigate]);
 
   const handleConnect = async (platform: Platform) => {
     setConnecting(platform);

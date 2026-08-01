@@ -7,6 +7,7 @@ import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/f
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
 import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason } from "@/features/creer/publish-guards";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
+import { versConnexions } from "@/lib/retour-apres-connexion";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
@@ -3374,7 +3375,7 @@ export default function CreerUnifie() {
     } catch (e: any) {
       const msg = e?.message || "Échec de la publication Instagram.";
       if (msg.toLowerCase().includes("aucun compte instagram")) {
-        toast.error(msg, { action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") } });
+        toast.error(msg, { action: { label: "Connecter", onClick: () => versConnexions(navigate) } });
       } else {
         toast.error(msg);
       }
@@ -3418,7 +3419,7 @@ export default function CreerUnifie() {
     } catch (e: any) {
       const msg = e?.message || "Échec de la publication LinkedIn.";
       if (isLinkedInNotConnectedError(msg)) {
-        toast.error(msg, { action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") } });
+        toast.error(msg, { action: { label: "Connecter", onClick: () => versConnexions(navigate) } });
       } else {
         toast.error(msg);
       }
@@ -3453,7 +3454,7 @@ export default function CreerUnifie() {
     if (!isSocialConnected(publishChannel)) {
       toast.error(`Compte ${reseau} non connecté`, {
         description: "Connecte-le pour que ce contenu parte tout seul à l'heure prévue.",
-        action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") },
+        action: { label: "Connecter", onClick: () => versConnexions(navigate) },
       });
       return;
     }
@@ -3474,7 +3475,7 @@ export default function CreerUnifie() {
       toast.warning("Programmé — mais reconnecte ton compte d'ici là ⚠️", {
         duration: 12000,
         description: `Ta connexion ${reseau} expire le ${new Date(tokenExpiry).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
-        action: { label: "Reconnecter", onClick: () => window.location.assign("/parametres/connexions") },
+        action: { label: "Reconnecter", onClick: () => versConnexions(navigate) },
       });
     }
   };

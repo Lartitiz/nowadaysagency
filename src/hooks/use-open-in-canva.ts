@@ -5,6 +5,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocialConnections } from "@/hooks/use-social-connections";
+import { versConnexions } from "@/lib/retour-apres-connexion";
 
 // Onglet d'attente affiché PENDANT que Canva traite le fichier (1-2 min).
 // On l'ouvre dans le contexte du clic pour éviter le bloqueur de pop-up ;
@@ -45,10 +46,11 @@ export function useOpenInCanva() {
   const promptToConnect = useCallback(() => {
     toast.error("Ton compte Canva n'est pas encore connecté.", {
       description:
-        "Connecte-le une fois dans Paramètres → Connexions, et tes carrousels s'ouvriront dedans en un clic.",
+        "Connecte-le une fois, et on te ramène tout de suite à ton contenu — tu ne perds rien.",
       action: {
         label: "Connecter Canva",
-        onClick: () => navigate("/parametres/connexions"),
+        // On note d'où l'on part : la page des connexions y ramènera.
+        onClick: () => versConnexions(navigate),
       },
       duration: 15000,
     });

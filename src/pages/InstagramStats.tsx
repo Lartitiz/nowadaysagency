@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { Link, useNavigate } from "react-router-dom";
+import { memoriseRetour } from "@/lib/retour-apres-connexion";
 import { useWorkspaceFilter, useWorkspaceId, useIsOwnSpace, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -1185,7 +1186,7 @@ export default function InstagramStats() {
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
             <span className="flex items-start gap-2"><span>📸</span><span>Connecte ton compte Instagram pour remplir tes stats automatiquement.</span></span>
             <Button asChild variant="outline" size="sm" className="shrink-0">
-              <Link to="/parametres/connexions">Connecter Instagram</Link>
+              <Link to="/parametres/connexions" onClick={() => memoriseRetour()}>Connecter Instagram</Link>
             </Button>
           </div>
         )}
@@ -1260,7 +1261,7 @@ export default function InstagramStats() {
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
             <span className="flex items-start gap-2"><span>📈</span><span>Connecte Google Analytics pour remplir les stats de ton site web automatiquement.</span></span>
             <Button asChild variant="outline" size="sm" className="shrink-0">
-              <Link to="/parametres/connexions">Connecter Google Analytics</Link>
+              <Link to="/parametres/connexions" onClick={() => memoriseRetour()}>Connecter Google Analytics</Link>
             </Button>
           </div>
         )}
