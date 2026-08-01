@@ -3,6 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { CalendarDays, Clock, Loader2, Zap } from "lucide-react";
+import AlreadyPlannedNotice from "@/components/calendar/AlreadyPlannedNotice";
 
 export type PublishChannel = "instagram" | "linkedin" | null;
 
@@ -21,6 +22,10 @@ interface Props {
   onSchedule: (isoLocalDateTime: string) => void;
   onDraft: (date: string) => void;
   defaultDraftDate?: string;
+  /** Sujet du contenu — sert à prévenir s'il est DÉJÀ prévu à la date choisie. */
+  theme?: string | null;
+  /** Réseau visé (le doublon se juge par jour + réseau + sujet). */
+  canal?: string | null;
 }
 
 /** Valeur datetime-local par défaut : demain 09:00 (heure locale). */
@@ -57,6 +62,8 @@ export default function PublishOrScheduleDialog({
   onSchedule,
   onDraft,
   defaultDraftDate,
+  theme,
+  canal,
 }: Props) {
   const [mode, setMode] = useState<"schedule" | "draft" | null>(null);
   const [scheduleInput, setScheduleInput] = useState("");
@@ -139,6 +146,7 @@ export default function PublishOrScheduleDialog({
                     onChange={(e) => setScheduleInput(e.target.value)}
                     min={new Date(Date.now() + 5 * 60000).toISOString().slice(0, 16)}
                   />
+                  <AlreadyPlannedNotice date={scheduleInput.slice(0, 10)} theme={theme} canal={canal} />
                   <Button
                     className="w-full gap-2"
                     disabled={!scheduleInput || scheduling}
@@ -179,6 +187,7 @@ export default function PublishOrScheduleDialog({
                 onChange={(e) => setDraftDate(e.target.value)}
                 min={todayISO()}
               />
+              <AlreadyPlannedNotice date={draftDate} theme={theme} canal={canal} />
               <Button
                 className="w-full gap-2"
                 disabled={!draftDate || scheduling}

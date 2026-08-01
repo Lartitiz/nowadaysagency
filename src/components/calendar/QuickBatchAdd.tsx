@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, KeyboardEvent } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { dropAlreadyPlanned, duplicateMessage } from "@/lib/calendar-duplicates";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -108,12 +109,27 @@ export function QuickBatchAdd({ open, onOpenChange, weekStartDate, defaultCanal,
       status: "idea",
     }));
 
-    const { error } = await (supabase.from("calendar_posts") as any).insert(inserts);
+    // Un même sujet, un même jour, un même réseau : c'est le même post.
+    const { fresh, duplicates } = await dropAlreadyPlanned(inserts, {
+      userId: user.id,
+      workspaceId,
+    });
+
+    if (fresh.length === 0) {
+      toast(duplicateMessage(duplicates.length, inserts.length));
+      setSaving(false);
+      onOpenChange(false);
+      return;
+    }
+
+    const { error } = await (supabase.from("calendar_posts") as any).insert(fresh);
 
     if (error) {
       toast.error("Erreur", { description: "Impossible d'ajouter les posts." });
     } else {
-      toast.success(`${filledRows.length} post${filledRows.length > 1 ? "s" : ""} ajouté${filledRows.length > 1 ? "s" : ""} !`);
+      toast.success(`${fresh.length} post${fresh.length > 1 ? "s" : ""} ajouté${fresh.length > 1 ? "s" : ""} !`, {
+        description: duplicates.length ? duplicateMessage(duplicates.length, inserts.length) : undefined,
+      });
       onPostsAdded();
       onOpenChange(false);
     }

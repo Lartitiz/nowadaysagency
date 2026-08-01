@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { dropAlreadyPlanned } from "@/lib/calendar-duplicates";
 import {
   ChatPlanItem,
   PLAN_FORMAT_EMOJI,
@@ -69,6 +70,18 @@ export default function ChatPlanCards({ items }: { items: ChatPlanItem[] }) {
         notes: "Proposé par l'Assistant Com'",
       };
       if (scope) row.workspace_id = scope;
+
+      // Le pré-cochage au rendu ne suffit pas : entre l'affichage et le clic, le
+      // contenu a pu être posé ailleurs (autre onglet, « Planifier ma semaine »).
+      const { duplicates } = await dropAlreadyPlanned(
+        [{ date, theme: item.subject, canal: "instagram" }],
+        { userId: user.id, workspaceId: scope },
+      );
+      if (duplicates.length > 0) {
+        setAdded((prev) => ({ ...prev, [index]: date }));
+        return true;
+      }
+
       const { error } = await supabase.from("calendar_posts").insert(row as any);
       if (error) return false;
       setAdded((prev) => ({ ...prev, [index]: date }));

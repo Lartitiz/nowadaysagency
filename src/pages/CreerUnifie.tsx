@@ -4216,6 +4216,8 @@ export default function CreerUnifie() {
         onSchedule={handleScheduleFromDialog}
         onDraft={(d) => handleConfirmCalendar({ date: d })}
         defaultDraftDate={paramCalendarDate || undefined}
+        theme={ideaText}
+        canal={publishChannel || "instagram"}
       />
 
       {/* Dialog "photos manquantes" : remplace le downgrade silencieux des
