@@ -4,55 +4,7 @@ import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
-
-const ICON_MAP: Record<string, string> = {
-  branding: "Palette",
-  persona: "Users",
-  story: "PenLine",
-  proposition: "Target",
-  calendar: "CalendarDays",
-  calendrier: "CalendarDays",
-  post: "PenLine",
-  instagram: "PenLine",
-  linkedin: "PenLine",
-  carrousel: "Layers",
-  carousel: "Layers",
-  reels: "Film",
-  newsletter: "Mail",
-  audit: "Search",
-  idées: "Lightbulb",
-  idees: "Lightbulb",
-  contenu: "Sparkles",
-  créer: "Sparkles",
-  creer: "Sparkles",
-  site: "Globe",
-  pinterest: "Pin",
-  ton: "MessageCircle",
-  offres: "ShoppingBag",
-  charte: "Palette",
-};
-
-function guessIcon(route: string, label: string): string {
-  const text = (route + " " + label).toLowerCase();
-  for (const [key, icon] of Object.entries(ICON_MAP)) {
-    if (text.includes(key)) return icon;
-  }
-  return "ArrowRight";
-}
-
-/** Parse [ACTION_LINK:/route|Label] from AI text */
-function parseActionLinks(text: string): { cleanText: string; actions: Array<{ route: string; label: string; icon: string }> } {
-  const actions: Array<{ route: string; label: string; icon: string }> = [];
-  const regex = /\[ACTION_LINK:([^\]|]+)\|([^\]]+)\]/g;
-  let match;
-  while ((match = regex.exec(text)) !== null) {
-    const route = match[1].trim();
-    const label = match[2].trim();
-    actions.push({ route, label, icon: guessIcon(route, label) });
-  }
-  const cleanText = text.replace(regex, "").replace(/\n{3,}/g, "\n\n").trim();
-  return { cleanText, actions };
-}
+import { parseActionLinks, parsePlanPosts } from "../_shared/chat-markers.ts";
 
 /** Parse [SUGGESTION:...] from AI text */
 function parseSuggestions(text: string): { cleanText: string; suggestions: string[] } {
@@ -430,9 +382,37 @@ Exemples de redirections intelligentes :
 - "Un reel sur mes coulisses" → [ACTION_LINK:/instagram/reels?sujet=Mes%20coulisses%20de%20créatrice&objectif=confiance|Créer le reel]
 - "Mon branding est pas clair" → [ACTION_LINK:/branding/coaching?section=story|Travailler ton storytelling]
 - "J'ai peur de poster" → Conseils de déblocage + [ACTION_LINK:/atelier?canal=instagram|Créer un post ensemble]
-- "Je veux planifier" → [ACTION_LINK:/calendrier|Ouvrir le calendrier]
+- "Je veux planifier" → un bloc [PLAN_POST:...] (voir RÈGLE N°2 BIS), PAS un simple lien
+
+⚠️ INTERDIT : un [ACTION_LINK:/calendrier|...] ne fait qu'OUVRIR la page calendrier, il n'ajoute RIEN. Ne lui donne JAMAIS un libellé qui promet un ajout ("Ajouter au calendrier", "Planifier mes posts", "Caler ma semaine"). Pour ajouter, utilise [PLAN_POST:...].
 
 Routes valides : /creer, /calendrier, /branding, /branding/coaching?section=story, /branding/coaching?section=persona, /branding/coaching?section=tone_style, /branding/coaching?section=content_strategy, /branding/offres, /branding/charter, /branding/proposition/recap, /instagram, /instagram/audit, /instagram/carousel, /instagram/reels, /instagram/stories, /instagram/routine, /linkedin, /linkedin/post, /linkedin/audit, /atelier, /contacts, /transformer, /pricing, /mon-plan, /idees, /dashboard/guide
+
+═══ RÈGLE N°2 BIS : TU SAIS PLANIFIER (ne dis JAMAIS le contraire) ═══
+Tu PEUX poser des contenus dans le calendrier éditorial. Dès que tu proposes
+plusieurs contenus pour une semaine (ou que l'utilisatrice demande de planifier,
+caler, programmer, "ajoute à mon calendrier"), termine ta réponse par UNE ligne
+[PLAN_POST:...] par contenu proposé :
+
+[PLAN_POST:Jour|format|sujet|objectif]
+
+- Jour : Lundi, Mardi, Mercredi, Jeudi, Vendredi, Samedi ou Dimanche
+- format : post, carrousel, reel, story ou newsletter
+- sujet : le sujet concret, en clair (pas de guillemets, pas de "|")
+- objectif : visibilite, confiance, vente ou credibilite
+
+Exemple pour une semaine de 3 contenus :
+[PLAN_POST:Lundi|carrousel|Les 3 erreurs qui plombent la visibilité des solopreneuses|credibilite]
+[PLAN_POST:Mercredi|reel|Mes coulisses : comment je bosse vraiment|confiance]
+[PLAN_POST:Vendredi|post|Le pourquoi derrière mon projet|visibilite]
+
+Règles :
+- UNE ligne par contenu, à la toute fin du message, chacune sur sa propre ligne
+- Mets un [PLAN_POST:...] pour CHAQUE contenu que tu proposes, jamais seulement le premier
+- Ne décris pas le marqueur dans ton texte : l'utilisatrice voit des cartes avec
+  un bouton "Ajouter au calendrier" (elle choisit lesquelles ajouter)
+- Ne dis JAMAIS "je ne peux pas ajouter à ta place" : tu peux, via ces cartes
+- Pas de [PLAN_POST:...] si tu ne proposes aucun contenu daté
 
 ═══ MODULES DÉSACTIVÉS (NE JAMAIS proposer de liens vers ces routes) ═══
 - Site Web (/site, /site/accueil, /site/a-propos, /site/audit, /site/optimiser) : en cours de développement
@@ -579,9 +559,10 @@ Règles pour les suggestions :
             }
           }
 
-          // Parse action links and suggestions from full text
+          // Parse action links, plan cards and suggestions from full text
           const { cleanText: textAfterActions, actions } = parseActionLinks(fullText);
-          const { cleanText, suggestions: aiSuggestions } = parseSuggestions(textAfterActions);
+          const { cleanText: textAfterPlan, plan } = parsePlanPosts(textAfterActions);
+          const { cleanText, suggestions: aiSuggestions } = parseSuggestions(textAfterPlan);
 
           let finalSuggestions: string[];
           if (aiSuggestions.length >= 2) {
@@ -595,6 +576,7 @@ Règles pour les suggestions :
             type: "done",
             cleanText,
             actions,
+            plan,
             suggestions: finalSuggestions,
             creditsUsed: 1,
           })}\n\n`));
@@ -615,11 +597,13 @@ Règles pour les suggestions :
           const partial = fullText.trim();
           if (partial) {
             const { cleanText: ta, actions: partialActions } = parseActionLinks(fullText);
-            const { cleanText: partialClean } = parseSuggestions(ta);
+            const { cleanText: tp, plan: partialPlan } = parsePlanPosts(ta);
+            const { cleanText: partialClean } = parseSuggestions(tp);
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: "done",
               cleanText: partialClean + "\n\n*(Réponse interrompue : réessaie pour la suite.)*",
               actions: partialActions,
+              plan: partialPlan,
               suggestions: [],
               creditsUsed: 0,
               interrupted: true,

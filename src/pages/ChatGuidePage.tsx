@@ -17,6 +17,8 @@ import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
 import SuggestedContents from "@/components/dashboard/SuggestedContents";
+import ChatPlanCards from "@/components/dashboard/ChatPlanCards";
+import { ChatPlanItem, guardCalendarLabel, splitStoredActions } from "@/lib/chat-plan";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from "@/components/ui/drawer";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -31,6 +33,8 @@ interface ChatMessage {
   content: string;
   suggestions?: Suggestion[];
   actions?: ActionLink[];
+  /** Contenus proposés, ajoutables au calendrier un par un (voir ChatPlanCards) */
+  plan?: ChatPlanItem[];
   created_at: string;
 }
 
@@ -418,7 +422,7 @@ export default function ChatGuidePage() {
             id: m.id,
             role: m.role,
             content: m.content,
-            actions: m.actions || undefined,
+            ...splitStoredActions<ActionLink>(m.actions),
             created_at: m.created_at,
           })));
           setSuggestionsVisible(false);
@@ -469,14 +473,17 @@ export default function ChatGuidePage() {
   }, []);
 
   // Save message to DB
-  const saveMessage = useCallback(async (msg: Pick<ChatMessage, "role" | "content"> & { actions?: ActionLink[] }) => {
+  const saveMessage = useCallback(async (msg: Pick<ChatMessage, "role" | "content"> & { actions?: ActionLink[]; plan?: ChatPlanItem[] }) => {
     if (!user || isDemoMode || !conversationId) return;
+    // Liens et cartes de planning partagent la colonne jsonb `actions`
+    // (splitStoredActions les redistingue au chargement) : pas de migration.
+    const stored = [...(msg.actions || []), ...(msg.plan || [])];
     const row: any = {
       user_id: user.id,
       conversation_id: conversationId,
       role: msg.role,
       content: msg.content,
-      actions: msg.actions || null,
+      actions: stored.length > 0 ? stored : null,
     };
     if (workspaceId && workspaceId !== user.id) row.workspace_id = workspaceId;
     await supabase.from("chat_guide_messages").insert(row);
@@ -606,7 +613,8 @@ export default function ChatGuidePage() {
         const payload = await resp.json().catch(() => null);
         setIsTyping(false);
         const replyText = payload?.reply || "Je suis un peu dans les choux là... Réessaie dans quelques secondes !";
-        const jsonActions: ActionLink[] = Array.isArray(payload?.actions) ? payload.actions : [];
+        const jsonActions: ActionLink[] = (Array.isArray(payload?.actions) ? payload.actions : [])
+          .map((a: ActionLink) => ({ ...a, label: guardCalendarLabel(a.route, a.label) }));
         const jsonSuggestions = Array.isArray(payload?.suggestions) && payload.suggestions.length > 0
           ? payload.suggestions.map((s: string) => ({ icon: guessIconForSuggestion(s), label: s }))
           : undefined;
@@ -682,14 +690,20 @@ export default function ChatGuidePage() {
                 ].slice(0, 5);
               }
 
+              const finalActions: ActionLink[] = (event.actions || []).map((a: ActionLink) => ({
+                ...a,
+                label: guardCalendarLabel(a.route, a.label),
+              }));
+              const finalPlan: ChatPlanItem[] = Array.isArray(event.plan) ? event.plan : [];
+
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === aiMsgId
-                    ? { ...m, content: event.cleanText || streamingContent, actions: event.actions || [], suggestions: finalSuggestions }
+                    ? { ...m, content: event.cleanText || streamingContent, actions: finalActions, plan: finalPlan, suggestions: finalSuggestions }
                     : m
                 )
               );
-              await saveMessage({ role: "assistant", content: event.cleanText || streamingContent, actions: event.actions });
+              await saveMessage({ role: "assistant", content: event.cleanText || streamingContent, actions: finalActions, plan: finalPlan });
             }
 
             if (event.type === "error") {
@@ -790,7 +804,7 @@ export default function ChatGuidePage() {
         id: m.id,
         role: m.role,
         content: m.content,
-        actions: m.actions || undefined,
+        ...splitStoredActions<ActionLink>(m.actions),
         created_at: m.created_at,
       })));
       setSuggestionsVisible(false);
@@ -1025,6 +1039,9 @@ export default function ChatGuidePage() {
                         ))}
                       </div>
                     )}
+
+                    {/* Contenus proposés : ajout réel au calendrier, un par un */}
+                    {msg.plan && msg.plan.length > 0 && <ChatPlanCards items={msg.plan} />}
 
                     {/* Tone buttons removed — coaching now handled by AI */}
 
