@@ -107,14 +107,6 @@
     "input-otp",
     "react-resizable-panels",
     // Orpheline depuis la suppression de ui/command.tsx (#673) — retrait en cours.
-    "cmdk",
-
-    // -- Dette 01/08/2026 : l'INVERSE, et celle-là est un vrai risque --
-    // fast-png est importé par e2e-visite/pptx-validate.ts et
-    // src/test/pptx-validate.test.ts mais n'est PAS dans package.json : il ne
-    // résout que parce que jspdf le tire en transitif. Le jour où jspdf change
-    // de version ou de dépendances, les tests cassent sans prévenir.
-    // À déclarer explicitement en dependencies.
-    "fast-png"
+    "cmdk"
   ]
 }

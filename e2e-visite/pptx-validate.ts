@@ -88,7 +88,7 @@ export interface PptxReport {
 async function inkRatio(buf: Buffer): Promise<number | RasterStats> {
   let decode: (b: Uint8Array) => { width: number; height: number; data: ArrayLike<number>; channels: number; depth: number };
   try {
-    // fast-png : décodeur PNG pur-JS déjà présent (dépendance transitive de jspdf).
+    // fast-png : décodeur PNG pur-JS, déclaré en dependencies (#681).
     ({ decode } = await import("fast-png"));
   } catch {
     return -1;
