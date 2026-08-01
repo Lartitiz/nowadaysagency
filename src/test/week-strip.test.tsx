@@ -58,6 +58,25 @@ describe("WeekStrip", () => {
     expect(screen.getAllByRole("button", { name: /rien de prévu/i })).toHaveLength(7);
     // …mais la ligne de détail annonce bien le prochain contenu
     expect(screen.getByText(/post Instagram — 3 erreurs fréquentes/i)).toBeTruthy();
+    // …et elle DIT que la bande est vide, au lieu de laisser croire à une
+    // contradiction (7 cases libres + « Prochain — sam. 15 »).
+    expect(screen.getByText(/^Rien ces 7 jours — prochain/i)).toBeTruthy();
+  });
+
+  it("dit simplement « Prochain » quand le contenu est DANS les 7 jours", () => {
+    const posts: WeekPost[] = [
+      { date: daysFromNow(3), theme: "Coulisses", format: "Reel", canal: "instagram" },
+    ];
+    renderStrip(posts);
     expect(screen.getByText(/^Prochain —/)).toBeTruthy();
+    expect(screen.queryByText(/Rien ces 7 jours/i)).toBeNull();
+  });
+
+  it("le 7ᵉ jour compte comme DANS la bande (pas de faux « rien »)", () => {
+    const posts: WeekPost[] = [
+      { date: daysFromNow(6), theme: "Dernier jour", format: "Post", canal: "instagram" },
+    ];
+    renderStrip(posts);
+    expect(screen.queryByText(/Rien ces 7 jours/i)).toBeNull();
   });
 });

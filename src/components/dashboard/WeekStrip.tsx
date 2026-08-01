@@ -60,6 +60,13 @@ export default function WeekStrip({ posts, isLoading }: { posts: WeekPost[]; isL
   // posts arrive triés par date croissante depuis aujourd'hui : [0] = prochain contenu
   const nextPost = posts[0] ?? null;
 
+  // Le prochain contenu peut tomber APRÈS la bande (ex. le 15 alors qu'on
+  // affiche le 1er → 7). La bande semblait alors vide pendant que la ligne du
+  // dessous annonçait « Prochain — sam. 15 » : deux messages contradictoires
+  // (constaté le 01/08). On le dit maintenant explicitement.
+  const lastDayStr = toLocalDateStr(days[days.length - 1]);
+  const nextPostIsBeyond = !!nextPost && nextPost.date > lastDayStr;
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-7 gap-1.5">
@@ -136,7 +143,9 @@ export default function WeekStrip({ posts, isLoading }: { posts: WeekPost[]; isL
         {nextPost ? (
           <>
             <span className="shrink-0 font-medium text-bordeaux">
-              Prochain — {formatShortDate(nextPost.date).toLowerCase()} :
+              {nextPostIsBeyond
+                ? `Rien ces 7 jours — prochain ${formatShortDate(nextPost.date).toLowerCase()} :`
+                : `Prochain — ${formatShortDate(nextPost.date).toLowerCase()} :`}
             </span>
             <span className="truncate">
               {formatLabel(nextPost.format)}

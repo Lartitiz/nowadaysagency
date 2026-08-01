@@ -90,8 +90,12 @@ function DroppableDay({
       ref={setNodeRef}
       {...fileDnd}
       className={cn(
+        // Pas de max-h ici : le nombre de cartes est DÉJÀ borné par `maxVisible`
+        // (slice plus bas). Le plafond CSS de 150px faisait doublon et coupait la
+        // 3ᵉ carte en deux, en poussant le bouton « +N autres » hors du cadre :
+        // une journée chargée devenait illisible ET sans issue (constaté le 01/08,
+        // 9 contenus le 15 août). La case grandit maintenant avec son contenu.
         "min-h-[110px] border-b border-r border-border p-1.5 group relative transition-colors",
-        !expanded && "max-h-[150px] overflow-hidden",
         !inMonth && "opacity-65",
         isToday && "bg-rose-pale",
         isOver && "bg-primary/10 ring-2 ring-primary/30 ring-inset",
@@ -113,9 +117,9 @@ function DroppableDay({
         {posts.length > maxVisible && (
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="text-2xs text-muted-foreground hover:text-primary cursor-pointer px-1"
+            className="mt-0.5 w-full rounded-md py-0.5 text-2xs font-medium text-primary-text hover:bg-primary/10 cursor-pointer transition-colors"
           >
-            {expanded ? "Réduire" : `+${posts.length - maxVisible} autre${posts.length - maxVisible > 1 ? "s" : ""}`}
+            {expanded ? "Réduire ↑" : `+${posts.length - maxVisible} autre${posts.length - maxVisible > 1 ? "s" : ""} ↓`}
           </button>
         )}
       </div>
