@@ -45,13 +45,6 @@ export default function ReelResult({ result }: Props) {
 
   const [checkedText, setCheckedText] = useState(fullText);
 
-  // Montage vidéo (Phase 1, beta) : masqué par défaut. À activer dans la console
-  // avec localStorage.setItem("nowadays.reelMontageBeta", "1") le temps des tests
-  // live, avant l'ouverture à toutes.
-  const montageBeta =
-    typeof window !== "undefined" &&
-    window.localStorage.getItem("nowadays.reelMontageBeta") === "1";
-
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center gap-2 flex-wrap">
@@ -203,7 +196,7 @@ export default function ReelResult({ result }: Props) {
         </div>
       )}
 
-      {montageBeta && sections.length > 0 && (
+      {sections.length > 0 && (
         <ReelMontage sections={sections} subject={result?.subject || result?.pillar} />
       )}
 

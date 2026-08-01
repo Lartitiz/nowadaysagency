@@ -261,6 +261,15 @@ export default function ReelMontage({ sections, subject }: Props) {
         </button>
       </div>
 
+      {/* Mention honnête : le moteur coupe le son des clips (`muted: true` dans
+          recipe.ts) et pose la voix par-dessus. Une prise face cam où elle parle
+          sort donc muette — tant que le son par plan n'est pas fait, on le dit
+          plutôt que de la laisser croire à un micro cassé. */}
+      <p className="text-2xs text-muted-foreground">
+        Le son de tes vidéos n'est pas encore conservé : c'est la voix choisie ici qui est posée
+        par-dessus. Pour une prise face cam où tu parles, enregistre ta voix au téléprompteur.
+      </p>
+
       {voiceMode === "recorded" && (
         <ReelVoiceRecorder
           texts={spoken.map((s) => s.texte_parle as string)}
