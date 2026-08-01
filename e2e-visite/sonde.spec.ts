@@ -4,6 +4,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { fileURLToPath } from "url";
 import { ECRANS } from "./ecrans";
+import { detectClipped, type Clipped } from "./detect-clipped";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SONDE_DIR = path.join(__dirname, "sonde");
@@ -38,6 +39,10 @@ type Sonde = {
   network: Array<{ status: number; method: string; url: string }>; // 4xx/5xx de notre réseau
   requestFailed: Array<{ url: string; error: string }>;
   brokenImages: string[]; // <img> chargées mais cassées (naturalWidth=0)
+  // Contenu VERTICALEMENT coupé par un conteneur qui le cache (overflow:hidden
+  // trop court). Cf. le calendrier du 01/08 : la 3ᵉ carte tranchée en deux et le
+  // bouton « +6 autres » poussé hors du cadre — une journée sans issue.
+  clipped: Clipped[];
   a11y: Array<{ id: string; impact: string; help: string; nodes: number; sample: string }> | null;
 };
 
@@ -57,6 +62,7 @@ for (const e of ECRANS) {
       network: [],
       requestFailed: [],
       brokenImages: [],
+      clipped: [],
       a11y: null,
     };
 
@@ -138,6 +144,19 @@ for (const e of ECRANS) {
           .map((i) => (i.currentSrc || i.src).slice(0, 200))
           .slice(0, 10),
       );
+    } catch {
+      /* ignore */
+    }
+
+    // Contenu coupé à la verticale : un conteneur qui CACHE une partie de son
+    // contenu. Classe de bug du 01/08 (case calendrier trop courte : 3ᵉ carte
+    // tranchée + bouton « +N autres » invisible → journée sans issue).
+    //
+    // Zéro faux positif par construction : on écarte tout ce qui coupe
+    // VOLONTAIREMENT — line-clamp, ellipsis, conteneurs scrollables, éléments
+    // masqués — et on exige une coupe franche (> 16 px), pas un arrondi.
+    try {
+      s.clipped = await page.evaluate(detectClipped);
     } catch {
       /* ignore */
     }
