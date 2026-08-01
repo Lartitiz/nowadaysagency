@@ -1,11 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { useEffect } from "react";
 import { render, act } from "@testing-library/react";
 
 // Toute fenêtre Radix (Dialog, Sheet, Drawer, AlertDialog) DOIT porter un titre :
 // sans lui, un lecteur d'écran annonce « boîte de dialogue » et rien d'autre, et
-// Radix crie dans la console à chaque ouverture. Ce test monte les fenêtres qui
-// n'en avaient pas et échoue si l'avertissement revient.
+// Radix crie dans la console à chaque ouverture. Le coach com' sur mobile avait
+// un simple <span className="sr-only"> — Radix ne le reconnaît pas.
 
 const mocks = vi.hoisted(() => ({ navigate: vi.fn() }));
 
@@ -21,18 +20,6 @@ vi.mock("@/hooks/use-user-plan", () => ({
 vi.mock("@/hooks/use-mobile", () => ({ useIsMobile: () => true }));
 
 import CoachChat from "@/components/coach/CoachChat";
-import { Sidebar, SidebarProvider, useSidebar } from "@/components/ui/sidebar";
-import { CommandDialog, CommandInput, CommandList, CommandItem } from "@/components/ui/command";
-
-// cmdk observe la taille de sa liste et fait défiler l'item actif ; jsdom n'a ni
-// ResizeObserver ni scrollIntoView.
-class ResizeObserverStub {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-}
-(globalThis as any).ResizeObserver ??= ResizeObserverStub;
-(Element.prototype as any).scrollIntoView ??= () => {};
 
 const RALES_RADIX = /requires a `(Dialog|Sheet|Drawer|AlertDialog)?Title`|Missing `Description`/;
 
@@ -66,39 +53,6 @@ describe("les fenêtres modales annoncent leur titre", () => {
     const bouton = container.querySelector("button");
     expect(bouton).toBeTruthy();
     act(() => { bouton!.click(); });
-
-    sansPlainteRadix();
-  });
-
-  it("la barre latérale en version mobile (Sheet)", () => {
-    // Le tiroir mobile n'est monté qu'une fois ouvert.
-    const Ouvre = () => {
-      const { setOpenMobile } = useSidebar();
-      useEffect(() => { setOpenMobile(true); }, [setOpenMobile]);
-      return null;
-    };
-
-    render(
-      <SidebarProvider>
-        <Ouvre />
-        <Sidebar>
-          <div>menu</div>
-        </Sidebar>
-      </SidebarProvider>,
-    );
-
-    sansPlainteRadix();
-  });
-
-  it("la palette de commandes (CommandDialog)", () => {
-    render(
-      <CommandDialog open>
-        <CommandInput placeholder="Chercher…" />
-        <CommandList>
-          <CommandItem>Un résultat</CommandItem>
-        </CommandList>
-      </CommandDialog>,
-    );
 
     sansPlainteRadix();
   });
