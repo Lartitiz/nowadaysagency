@@ -11,6 +11,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
 import { toLocalDateStr } from "@/lib/utils";
 import { friendlyError } from "@/lib/error-messages";
+import { normalizeObjectif } from "@/lib/chat-plan";
 
 interface PlanningItem {
   day: string;
@@ -151,7 +152,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         format: item.format === "carousel" ? "post_carrousel" : item.format === "story" || item.format === "story_serie" ? "story_serie" : item.format,
         canal: "instagram",
         status: "a_rediger",
-        objectif: item.objective,
+        objectif: normalizeObjectif(item.objective),
         accroche: item.hook_idea,
         notes: `Pilier : ${item.pillar}`,
       } as any);
@@ -167,7 +168,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     const route = FORMAT_ROUTES[item.format] || "/creer";
     onOpenChange(false);
     const formatParam = item.format === "newsletter" ? "&format=newsletter" : "";
-    navigate(`${route}?subject=${encodeURIComponent(item.subject)}&objective=${encodeURIComponent(item.objective)}${formatParam}`);
+    navigate(`${route}?subject=${encodeURIComponent(item.subject)}&objective=${encodeURIComponent(normalizeObjectif(item.objective) || item.objective)}${formatParam}`);
   };
 
   return (
