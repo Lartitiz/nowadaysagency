@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { dropAlreadyPlanned, duplicateMessage } from "@/lib/calendar-duplicates";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { format, addDays } from "date-fns";
@@ -359,8 +360,16 @@ export default function InstagramLaunchPlan() {
         launch_id: launch.id,
       }));
 
-      const { error: insertError } = await supabase.from("calendar_posts").insert(calendarRows);
-      if (insertError) throw new Error(insertError.message);
+      // Renvoyer le plan deux fois ne doit pas dupliquer tout le calendrier.
+      const { fresh, duplicates } = await dropAlreadyPlanned(calendarRows, {
+        userId: user.id,
+        workspaceId,
+      });
+      if (fresh.length > 0) {
+        const { error: insertError } = await supabase.from("calendar_posts").insert(fresh);
+        if (insertError) throw new Error(insertError.message);
+      }
+      if (duplicates.length > 0) toast(duplicateMessage(duplicates.length, calendarRows.length));
 
       const { error: launchError } = await supabase.from("launches").update({ plan_sent_to_calendar: true }).eq("id", launch.id);
       if (launchError) throw new Error(launchError.message);

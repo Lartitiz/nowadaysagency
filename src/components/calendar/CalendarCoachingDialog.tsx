@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { toLocalDateStr } from "@/lib/utils";
 import { friendlyError } from "@/lib/error-messages";
 import { normalizeObjectif } from "@/lib/chat-plan";
+import { dropAlreadyPlanned, duplicateMessage } from "@/lib/calendar-duplicates";
 
 interface PlanningItem {
   day: string;
@@ -144,6 +145,16 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     if (!user) return;
     try {
       const date = getNextDayDate(item.day);
+      // Déjà prévu ce jour-là ? On coche la carte au lieu d'empiler un 2ᵉ exemplaire.
+      const { duplicates } = await dropAlreadyPlanned(
+        [{ date, theme: item.subject, canal: "instagram" }],
+        { userId: user.id, workspaceId },
+      );
+      if (duplicates.length > 0) {
+        setAddedItems((prev) => new Set(prev).add(index));
+        toast(duplicateMessage(1, 1));
+        return;
+      }
       await supabase.from("calendar_posts").insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
