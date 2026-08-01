@@ -12,6 +12,19 @@ import { budgetExportMs } from "@/lib/export-budget";
 // (« slide 3 sur 10 ») plutôt qu'une pile de toasts.
 const TOAST_ID = "canva-export";
 
+// Temps accordé à l'edge `social-canva-import` pour déposer le fichier, lancer
+// l'import et attendre que Canva ait fini.
+//
+// ⚠️ Ce nombre a un JUMEAU côté serveur : CANVA_POLL_BUDGET_MS dans
+// supabase/functions/social-canva-import/index.ts. Deux runtimes différents,
+// donc pas de module partagé possible — c'est ainsi qu'ils avaient divergé :
+// l'edge abandonnait à 60 s pendant qu'on attendait ici jusqu'à 120 s, et un
+// import de 70 s échouait alors qu'il ne restait qu'à patienter.
+//
+// L'invariant (ce nombre > celui de l'edge + marge) est verrouillé par
+// src/test/budget-canva-edge.test.ts, qui LIT les deux fichiers.
+const CANVA_IMPORT_TIMEOUT_MS = 120000;
+
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -125,7 +138,7 @@ export function useOpenInCanva() {
                 workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
             },
           },
-          120000,
+          CANVA_IMPORT_TIMEOUT_MS,
         );
 
         // Filet serveur (statut local périmé ou inconnu) : même invitation à connecter.
