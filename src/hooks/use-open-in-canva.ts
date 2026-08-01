@@ -6,12 +6,11 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import { versConnexions } from "@/lib/retour-apres-detour";
+import { budgetExportMs } from "@/lib/export-budget";
 
-// Onglet d'attente affiché PENDANT que Canva traite le fichier (1-2 min).
-// On l'ouvre dans le contexte du clic pour éviter le bloqueur de pop-up ;
-// on bascule ensuite sur l'URL d'édition Canva quand l'import est prêt.
-const PLACEHOLDER_HTML =
-  `<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Préparation… · Canva</title></head><body style="margin:0;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#FFF4F8;color:#1A1A2E"><div style="text-align:center;padding:24px;max-width:420px"><div style="font-size:40px;margin-bottom:12px">🎨</div><div style="font-size:18px;font-weight:600">Préparation de ton carrousel dans Canva…</div><div style="margin-top:10px;color:#6b6b80;line-height:1.5">Ça peut prendre une à deux minutes (Canva traite ton fichier).<br>Ne ferme pas cet onglet : ton carrousel va apparaître ici tout seul.</div></div></body></html>`;
+// Identifiant du bandeau d'avancement : un seul message, mis à jour sur place
+// (« slide 3 sur 10 ») plutôt qu'une pile de toasts.
+const TOAST_ID = "canva-export";
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -60,49 +59,62 @@ export function useOpenInCanva() {
   }, [navigate, refresh]);
 
   const openInCanva = useCallback(
-    async (buildBlob: () => Promise<Blob>, title: string) => {
+    async (
+      buildBlob: (
+        onProgress?: (faites: number, total: number) => void,
+      ) => Promise<Blob>,
+      title: string,
+      opts?: { etapes?: number },
+    ) => {
       if (openingCanva) return;
-      // Garde AVANT tout travail : sans Canva connecté, inutile d'ouvrir un
-      // onglet et de préparer le fichier pendant 1-2 min pour échouer à la fin.
+      // Garde AVANT tout travail : sans Canva connecté, inutile de préparer le
+      // fichier pendant plusieurs minutes pour échouer à la fin.
       if (canvaConnected === false) {
         promptToConnect();
         return;
       }
-      // Onglet ouvert TOUT DE SUITE (geste utilisateur) pour ne pas être bloqué
-      // par le pop-up blocker après les ~1-2 min d'import.
-      const canvaTab = window.open("", "_blank");
-      if (canvaTab) {
-        try {
-          canvaTab.document.write(PLACEHOLDER_HTML);
-          canvaTab.document.close();
-        } catch {
-          /* noop */
-        }
-      }
+      // ⚠️ On n'ouvre PLUS d'onglet d'attente avant de travailler. Il prenait le
+      // focus, donc l'app passait en arrière-plan — où Chrome ralentit fortement
+      // les minuteries dont dépend toute la fabrication du PPTX. L'app créait
+      // elle-même la panne, puis affichait « reste sur l'onglet de l'app ».
+      // L'onglet Canva s'ouvre à la fin, depuis le bouton du message de succès
+      // (un clic = geste utilisateur → jamais bloqué par le pop-up blocker).
       setOpeningCanva(true);
       try {
-        toast.info("Préparation du carrousel pour Canva…");
-        // Filet de sécurité : la construction du PPTX (html2canvas) peut se figer
-        // si l'onglet reste en arrière-plan trop longtemps. On borne l'attente
-        // pour surfacer une erreur claire au lieu de rester coincé sur
-        // « Préparation… » indéfiniment.
+        toast.loading("Préparation de ton carrousel…", {
+          id: TOAST_ID,
+          description: "Reste sur cet onglet : ça peut prendre une à trois minutes.",
+        });
+        // Filet de sécurité : la construction du PPTX peut se figer sur certains
+        // contenus. Le budget se DÉDUIT des garde-fous internes du fabricant
+        // (25 s par capture, 3 slides de front) au lieu d'être un nombre écrit à
+        // côté : à 90 s en dur, un carrousel de 10 slides échouait par
+        // construction, avant même que ces garde-fous puissent jouer.
         const blob = await Promise.race([
-          buildBlob(),
+          buildBlob((faites, total) => {
+            toast.loading(`Préparation de ton carrousel… (${faites}/${total})`, {
+              id: TOAST_ID,
+              description: "Reste sur cet onglet : ça peut prendre une à trois minutes.",
+            });
+          }),
           new Promise<never>((_, reject) =>
             setTimeout(
               () =>
                 reject(
                   new Error(
-                    "La préparation du carrousel a échoué. Reste sur l'onglet de l'app pendant l'export, puis réessaie.",
+                    "La préparation du carrousel a pris trop de temps. Réessaie, ou retire quelques photos si le carrousel est très chargé.",
                   ),
                 ),
-              90000,
+              budgetExportMs(opts?.etapes ?? 0),
             ),
           ),
         ]);
         const fileBase64 = await blobToBase64(blob);
 
-        toast.info("Import dans Canva en cours…");
+        toast.loading("Import dans Canva en cours…", {
+          id: TOAST_ID,
+          description: "Canva traite ton fichier.",
+        });
         const { data, error } = await invokeWithTimeout(
           "social-canva-import",
           {
@@ -118,7 +130,7 @@ export function useOpenInCanva() {
 
         // Filet serveur (statut local périmé ou inconnu) : même invitation à connecter.
         if ((data as any)?.error === "not_connected") {
-          if (canvaTab && !canvaTab.closed) canvaTab.close();
+          toast.dismiss(TOAST_ID);
           promptToConnect();
           return;
         }
@@ -128,29 +140,20 @@ export function useOpenInCanva() {
         const editUrl = (data as any)?.editUrl;
         if (!editUrl) throw new Error("URL d'édition Canva manquante.");
 
-        // Best-effort : naviguer l'onglet pré-ouvert (peu fiable sur import long,
-        // Chrome throttle/discarde l'onglet d'arrière-plan).
-        if (canvaTab && !canvaTab.closed) {
-          try {
-            canvaTab.location.href = editUrl;
-          } catch {
-            /* onglet discardé : on s'appuie sur le bouton du toast ci-dessous */
-          }
-        }
-        // Bouton « Ouvrir » TOUJOURS proposé (clic = geste utilisateur → jamais
-        // bloqué), au cas où l'onglet auto reste figé sur « Préparation… ».
+        // L'onglet s'ouvre ICI, sur clic : un geste utilisateur n'est jamais
+        // bloqué par le pop-up blocker, et l'app garde le focus tant qu'elle
+        // travaille. Message persistant tant qu'elle n'a pas cliqué.
         toast.success("Ton carrousel est prêt dans Canva 🎨", {
-          description:
-            "L'onglet Canva devrait s'ouvrir tout seul. S'il reste sur « Préparation… », clique ici :",
+          id: TOAST_ID,
+          description: "Clique pour l'ouvrir et finir le visuel.",
           action: {
             label: "Ouvrir dans Canva",
             onClick: () => window.open(editUrl, "_blank", "noopener"),
           },
-          duration: 60000,
+          duration: Infinity,
         });
       } catch (e: any) {
-        if (canvaTab && !canvaTab.closed) canvaTab.close();
-        toast.error(e?.message || "Impossible d'ouvrir dans Canva.");
+        toast.error(e?.message || "Impossible d'ouvrir dans Canva.", { id: TOAST_ID });
       } finally {
         setOpeningCanva(false);
       }

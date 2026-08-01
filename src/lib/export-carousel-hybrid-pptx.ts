@@ -1,6 +1,7 @@
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
 import * as Sentry from "@sentry/react";
+import { CAPTURE_TIMEOUT_MS, RENDER_CONCURRENCY } from "@/lib/export-budget";
 import {
   mapFontToPptx,
   normalizeHex,
@@ -389,7 +390,8 @@ function raceTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
   ]);
 }
 
-const CAPTURE_TIMEOUT_MS = 25000;
+// CAPTURE_TIMEOUT_MS vit désormais dans export-budget.ts (importé en tête) :
+// le pont Canva en déduit son budget global, les deux ne doivent plus diverger.
 
 // Échelle de rastérisation html2canvas. Le PNG de fond ne porte QUE le résiduel
 // décoratif (texte, formes et photos sont posés en NATIF) → 1.5 suffit largement
@@ -1053,7 +1055,11 @@ export async function exportCarouselHybridPptx(
   fileName = "carrousel-editable",
   originalPhotos?: OriginalPhoto[],
   logoUrl?: string | null,
-  opts?: { returnBlob?: boolean },
+  opts?: {
+    returnBlob?: boolean;
+    /** Appelé après chaque slide rastérisée, pour un avancement visible. */
+    onProgress?: (faites: number, total: number) => void;
+  },
 ): Promise<Blob | void> {
   const pptx = new PptxGenJS();
   pptx.defineLayout({ name: "INSTAGRAM", width: PPTX_W_IN, height: PPTX_H_IN });
@@ -1590,13 +1596,18 @@ export async function exportCarouselHybridPptx(
   // plus lourd ; en traiter quelques-unes en parallèle réduit fortement le temps total.
   // L'ordre du deck est garanti par la pré-création des slides ci-dessus, et chaque slide
   // a son propre iframe (aucun état partagé hormis cropCache, sûr en mono-thread JS).
-  const RENDER_CONCURRENCY = 3;
   const tAll0 = performance.now(); // perf instrumentation
+  let slidesFaites = 0;
   for (let start = 0; start < visualSlides.length; start += RENDER_CONCURRENCY) {
     await Promise.all(
       visualSlides
         .slice(start, start + RENDER_CONCURRENCY)
-        .map((_, k) => renderSlideAt(start + k)),
+        .map((_, k) =>
+          renderSlideAt(start + k).then(() => {
+            slidesFaites += 1;
+            opts?.onProgress?.(slidesFaites, visualSlides.length);
+          }),
+        ),
     );
   }
   console.log(`[hybrid][perf] ${visualSlides.length} slides rasterisées en ${Math.round(performance.now() - tAll0)}ms (scale ${RASTER_SCALE}, gradient-captures ${MAX_GRADIENT_CAPTURES})`);
