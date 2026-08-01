@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { memoriseRetour } from "@/lib/retour-apres-connexion";
 import { useSocialConnections, type SocialPlatform } from "@/hooks/use-social-connections";
 
 const COPY: Record<string, { emoji: string; label: string; benefit: string }> = {
@@ -35,6 +36,9 @@ export default function HubConnectBanner({ platform, benefit }: { platform: Soci
       </div>
       <Link
         to="/parametres/connexions"
+        // Une fois connectée, on la ramène sur ce hub plutôt que de la laisser
+        // dans les paramètres.
+        onClick={() => memoriseRetour()}
         className="shrink-0 inline-flex items-center rounded-pill bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
       >
         Connecter {copy.label}

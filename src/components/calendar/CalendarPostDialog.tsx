@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { versConnexions } from "@/lib/retour-apres-connexion";
 import { PostCommentsSection } from "@/components/calendar/PostCommentsSection";
 import { friendlyError } from "@/lib/error-messages";
 import { trackError } from "@/lib/error-tracker";
@@ -401,7 +402,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const reseau = postCanal === "linkedin" ? "LinkedIn" : "Instagram";
       toast.error(`Compte ${reseau} non connecté`, {
         description: `Connecte-le pour que ce post parte tout seul à l'heure prévue.`,
-        action: { label: "Connecter", onClick: () => window.location.assign("/parametres/connexions") },
+        action: { label: "Connecter", onClick: () => versConnexions(navigate) },
       });
       return;
     }
@@ -433,7 +434,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         toast.warning("Programmé — mais reconnecte ton compte d'ici là ⚠️", {
           duration: 12000,
           description: `Ta connexion ${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} expire le ${new Date(scheduleTokenExpiry!).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
-          action: { label: "Reconnecter", onClick: () => window.location.assign("/parametres/connexions") },
+          action: { label: "Reconnecter", onClick: () => versConnexions(navigate) },
         });
       } else {
         toast.success("Publication programmée ! 🗓️", { description: `${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} publiera ce post automatiquement à l'heure prévue.` });
@@ -797,7 +798,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           {scheduleNeedsConnection && (
             <div className="rounded-[8px] border border-amber-300/60 bg-amber-50/60 px-2.5 py-2 text-2xs text-amber-900 flex items-center justify-between gap-2 flex-wrap dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
               <span>⚠️ Connecte ton compte {postCanal === "linkedin" ? "LinkedIn" : "Instagram"} pour que la publication parte automatiquement.</span>
-              <button type="button" onClick={() => window.location.assign("/parametres/connexions")} className="font-medium underline shrink-0">Connecter</button>
+              <button type="button" onClick={() => versConnexions(navigate)} className="font-medium underline shrink-0">Connecter</button>
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
