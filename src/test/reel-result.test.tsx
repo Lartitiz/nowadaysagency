@@ -122,3 +122,27 @@ describe("ReelResult — caption et amplification", () => {
     expect(screen.queryByText("📣 À poster en story dans l'heure")).toBeNull();
   });
 });
+
+// Ouverture du montage vidéo (01/08) : le panneau vivait derrière un flag
+// localStorage posé à la main — personne ne le voyait, ni Laetitia ni les
+// clientes. Ce test verrouille l'ouverture : sans rien poser dans le
+// navigateur, « Monter la vidéo » doit être là.
+describe("ReelResult — montage vidéo ouvert à toutes", () => {
+  it("affiche le panneau de montage sans aucun flag posé", () => {
+    window.localStorage.clear();
+    render(<ReelResult result={baseResult} />);
+    expect(screen.getByText(/Monter la vidéo/)).toBeTruthy();
+  });
+
+  it("dit franchement que le son des vidéos n'est pas encore gardé", () => {
+    window.localStorage.clear();
+    render(<ReelResult result={baseResult} />);
+    expect(screen.getByText(/son de tes vidéos n'est pas encore conservé/)).toBeTruthy();
+  });
+
+  it("n'affiche pas le montage quand le script n'a aucune section", () => {
+    window.localStorage.clear();
+    render(<ReelResult result={{ ...baseResult, script: [], sections: [] }} />);
+    expect(screen.queryByText(/Monter la vidéo/)).toBeNull();
+  });
+});
