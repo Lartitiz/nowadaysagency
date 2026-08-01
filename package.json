@@ -8,6 +8,8 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
+    "lint:a11y": "eslint --config eslint.a11y.config.js .",
+    "knip": "npx --yes knip@5.88.1 --no-progress",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -3,6 +3,7 @@ import globals from "globals";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
+import nowadays from "./eslint-rules/require-dialog-title.js";
 
 export default tseslint.config(
   { ignores: ["dist"] },
@@ -16,9 +17,13 @@ export default tseslint.config(
     plugins: {
       "react-hooks": reactHooks,
       "react-refresh": reactRefresh,
+      nowadays,
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Doublon assumé avec eslint.a11y.config.js : ici pour le retour dans
+      // l'éditeur, là-bas pour le verrou CI (ce fichier est `continue-on-error`).
+      "nowadays/require-dialog-title": "error",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
       // `any` est omniprésent (surtout Edge Functions Deno) et noie le vrai signal
