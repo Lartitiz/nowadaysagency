@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { versTarifs } from "@/lib/retour-apres-detour";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sparkles, Calendar, ArrowRight } from "lucide-react";
 import { posthog } from "@/lib/posthog";
 import type { CategoryUsage } from "@/hooks/use-user-plan";
@@ -62,12 +62,14 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Sparkles className="h-7 w-7 text-primary" />
           </div>
-          <h2 className="text-lg font-display font-semibold text-bordeaux">
+          {/* DialogTitle / DialogDescription : le titre visible sert aussi de titre accessible
+              (exigé par Radix), sans rien changer au rendu. */}
+          <DialogTitle className="text-lg font-display font-semibold text-bordeaux leading-normal tracking-normal">
             Tes crédits du mois sont utilisés
-          </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          </DialogTitle>
+          <DialogDescription className="mt-2 text-sm text-muted-foreground">
             Et c'est une bonne nouvelle : ça veut dire que tu avances ! 💪
-          </p>
+          </DialogDescription>
         </div>
 
         {/* Bilan du mois */}
