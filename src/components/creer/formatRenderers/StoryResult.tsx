@@ -243,8 +243,9 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       async () =>
         (await exportStoryPptx(await buildExportFrames(), { returnBlob: true })) as Blob,
       `Stories — ${result?.structure_label || result?.structure_type || "séquence"}`,
+      { etapes: frames.length },
     );
-  }, [openInCanva, buildExportFrames, result?.structure_label, result?.structure_type]);
+  }, [openInCanva, buildExportFrames, frames.length, result?.structure_label, result?.structure_type]);
 
   // Remonte les actions d'export au panneau minimal du parent (#608) : les
   // stories y gagnent le même héros « Ouvrir dans Canva » que les carrousels.

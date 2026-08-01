@@ -10,6 +10,8 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 const mocks = vi.hoisted(() => ({
   toast: {
     info: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
     success: vi.fn(),
     error: vi.fn(),
   },
@@ -77,8 +79,7 @@ describe("garde « Ouvrir dans Canva » sans compte connecté", () => {
 
   it("statut inconnu (échec réseau) → ne bloque pas, le serveur reste le filet", async () => {
     mocks.social.known = false;
-    const fakeTab = makeFakeTab();
-    const openSpy = vi.spyOn(window, "open").mockReturnValue(fakeTab);
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(makeFakeTab());
     mocks.invokeWithTimeout.mockResolvedValue({ data: { error: "not_connected" }, error: null });
 
     const { result } = renderHook(() => useOpenInCanva());
@@ -87,17 +88,16 @@ describe("garde « Ouvrir dans Canva » sans compte connecté", () => {
     await act(() => result.current.openInCanva(async () => new Blob(["x"]), "Mon carrousel"));
 
     // Le flux a tenté sa chance, le serveur a répondu « pas connecté » :
-    // l'onglet d'attente se ferme et la même invitation s'affiche.
-    await waitFor(() => expect(fakeTab.close).toHaveBeenCalled());
-    expect(mocks.toast.error).toHaveBeenCalledTimes(1);
+    // le bandeau d'avancement disparaît et la même invitation s'affiche.
+    await waitFor(() => expect(mocks.toast.error).toHaveBeenCalledTimes(1));
+    expect(mocks.toast.dismiss).toHaveBeenCalledWith("canva-export");
     expect(mocks.toast.error.mock.calls[0][1].action.label).toBe("Connecter Canva");
     openSpy.mockRestore();
   });
 
-  it("Canva connecté → le flux normal se déroule jusqu'à l'URL d'édition", async () => {
+  it("Canva connecté → le flux va jusqu'à l'URL d'édition, SANS ouvrir d'onglet en route", async () => {
     mocks.social.connectedMap = { canva: true };
-    const fakeTab = makeFakeTab();
-    const openSpy = vi.spyOn(window, "open").mockReturnValue(fakeTab);
+    const openSpy = vi.spyOn(window, "open").mockReturnValue(makeFakeTab());
     mocks.invokeWithTimeout.mockResolvedValue({
       data: { editUrl: "https://www.canva.com/design/xyz/edit" },
       error: null,
@@ -109,8 +109,19 @@ describe("garde « Ouvrir dans Canva » sans compte connecté", () => {
     await act(() => result.current.openInCanva(async () => new Blob(["x"]), "Mon carrousel"));
 
     await waitFor(() => expect(mocks.toast.success).toHaveBeenCalled());
-    expect(fakeTab.location.href).toBe("https://www.canva.com/design/xyz/edit");
-    expect(fakeTab.close).not.toHaveBeenCalled();
+    // Bug du 01/08 : l'onglet d'attente ouvert AVANT le travail faisait passer
+    // l'app en arrière-plan, où Chrome ralentit les minuteries dont dépend toute
+    // la fabrication du PPTX. Plus aucun onglet ne doit s'ouvrir tout seul.
+    expect(openSpy).not.toHaveBeenCalled();
+    // L'onglet s'ouvre sur clic — geste utilisateur, jamais bloqué.
+    const [, opts] = mocks.toast.success.mock.calls[0];
+    expect(opts.action.label).toBe("Ouvrir dans Canva");
+    opts.action.onClick();
+    expect(openSpy).toHaveBeenCalledWith(
+      "https://www.canva.com/design/xyz/edit",
+      "_blank",
+      "noopener",
+    );
     openSpy.mockRestore();
   });
 });

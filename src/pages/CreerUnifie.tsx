@@ -3563,20 +3563,24 @@ export default function CreerUnifie() {
   const { openInCanva, openingCanva } = useOpenInCanva();
   const handleOpenInCanva = () => {
     if (visualSlides.length === 0) return;
-    return openInCanva(async () => {
-      const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
-      const { getIncludeLogoPref } = await import("@/lib/export-logo");
-      const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
-      return (await exportCarouselHybridPptx(
-        visualSlides,
-        result?.raw?.slides || null,
-        charterData || null,
-        ideaText || "carrousel",
-        generatedWithPhotos.length > 0 ? generatedWithPhotos : uploadedPhotos,
-        logoUrl,
-        { returnBlob: true },
-      )) as Blob;
-    }, ideaText || "Carrousel Nowadays");
+    return openInCanva(
+      async (onProgress) => {
+        const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
+        const { getIncludeLogoPref } = await import("@/lib/export-logo");
+        const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
+        return (await exportCarouselHybridPptx(
+          visualSlides,
+          result?.raw?.slides || null,
+          charterData || null,
+          ideaText || "carrousel",
+          generatedWithPhotos.length > 0 ? generatedWithPhotos : uploadedPhotos,
+          logoUrl,
+          { returnBlob: true, onProgress },
+        )) as Blob;
+      },
+      ideaText || "Carrousel Nowadays",
+      { etapes: visualSlides.length },
+    );
   };
 
   const handleExportPinterestPng = async () => {

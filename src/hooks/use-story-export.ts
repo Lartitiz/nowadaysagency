@@ -131,8 +131,9 @@ export function useStoryExport(
     openCanva(
       async () => (await exportStoryPptx(await buildExportFrames(), { returnBlob: true })) as Blob,
       `Stories — ${name}`,
+      { etapes: frameCount },
     );
-  }, [openCanva, buildExportFrames, name]);
+  }, [openCanva, buildExportFrames, name, frameCount]);
 
   return {
     hasFrames: frameCount > 0,

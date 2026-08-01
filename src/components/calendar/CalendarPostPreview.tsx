@@ -168,18 +168,22 @@ export function CalendarPostPreview({
   // ── Pont Canva : même PPTX hybride que le téléchargement, importé dans Canva ──
   const handleOpenInCanva = useCallback(() => {
     if (!visualHtml || visualHtml.length === 0) return;
-    return openInCanva(async () => {
-      const fileName = sanitize(`editable-${theme || "carrousel"}`);
-      return (await exportCarouselHybridPptx(
-        visualHtml,
-        slidesData || null,
-        charterData || null,
-        fileName,
-        await loadOriginalPhotos(),
-        includeLogo ? logoUrl : null,
-        { returnBlob: true },
-      )) as Blob;
-    }, theme || "Carrousel Nowadays");
+    return openInCanva(
+      async (onProgress) => {
+        const fileName = sanitize(`editable-${theme || "carrousel"}`);
+        return (await exportCarouselHybridPptx(
+          visualHtml,
+          slidesData || null,
+          charterData || null,
+          fileName,
+          await loadOriginalPhotos(),
+          includeLogo ? logoUrl : null,
+          { returnBlob: true, onProgress },
+        )) as Blob;
+      },
+      theme || "Carrousel Nowadays",
+      { etapes: visualHtml.length },
+    );
   }, [visualHtml, slidesData, charterData, theme, includeLogo, logoUrl, openInCanva, loadOriginalPhotos]);
 
   const handleCopyCaption = useCallback(() => {
