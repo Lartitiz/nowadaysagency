@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -164,6 +164,10 @@ const Sidebar = React.forwardRef<
           }
           side={side}
         >
+          {/* Titre exigé par Radix pour les lecteurs d'écran : le tiroir n'a pas
+              d'en-tête visible, on le masque à l'œil. */}
+          <SheetTitle className="sr-only">Menu de navigation</SheetTitle>
+          <SheetDescription className="sr-only">Les rubriques de L'Assistant Com'.</SheetDescription>
           <div className="flex h-full w-full flex-col">{children}</div>
         </SheetContent>
       </Sheet>
