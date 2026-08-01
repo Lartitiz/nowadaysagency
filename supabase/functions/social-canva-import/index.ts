@@ -10,6 +10,23 @@ const CANVA_API = "https://api.canva.com/rest/v1";
 // Le jeton d'accès Canva est court (~4 h). On rafraîchit s'il expire dans < 10 min.
 const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
 
+// Temps accordé à Canva pour traiter le fichier.
+//
+// ⚠️ Ce nombre a un JUMEAU côté front : CANVA_IMPORT_TIMEOUT_MS dans
+// src/hooks/use-open-in-canva.ts. Les deux vivent dans des runtimes différents
+// (Deno ici, navigateur là-bas) et ne peuvent donc pas partager un module —
+// c'est exactement pour ça qu'ils avaient divergé : l'edge abandonnait à 60 s
+// pendant que le front attendait patiemment jusqu'à 120 s. Un import de 70 s
+// échouait alors qu'il ne restait qu'à attendre.
+//
+// L'invariant (front > edge + marge) est verrouillé par
+// src/test/budget-canva-edge.test.ts, qui LIT les deux fichiers. Modifier l'un
+// sans l'autre fait tomber la CI.
+//
+// La marge restante (120 - 95 = 25 s) couvre le reste du travail de l'edge :
+// dépôt du PPTX, URL signée, lancement de l'import, lecture du design.
+const CANVA_POLL_BUDGET_MS = 95000;
+
 function json(body: unknown, status: number, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
     status,
@@ -55,7 +72,7 @@ async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<stri
 }
 
 // Attend la fin du job d'import et renvoie l'id du design créé.
-async function pollImport(jobId: string, token: string, maxMs = 60000): Promise<string> {
+async function pollImport(jobId: string, token: string, maxMs = CANVA_POLL_BUDGET_MS): Promise<string> {
   const deadline = Date.now() + maxMs;
   while (Date.now() < deadline) {
     const res = await fetch(`${CANVA_API}/url-imports/${jobId}`, {
@@ -79,7 +96,9 @@ async function pollImport(jobId: string, token: string, maxMs = 60000): Promise<
     }
     await new Promise((r) => setTimeout(r, 2000));
   }
-  throw new Error("L'import Canva a expiré (trop long).");
+  throw new Error(
+    "Canva met trop de temps à traiter ton carrousel. Réessaie, ou allège-le (moins de photos, ou des photos moins lourdes).",
+  );
 }
 
 Deno.serve(async (req) => {
