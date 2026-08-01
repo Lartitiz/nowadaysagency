@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { MessageCircle, X, Send, Trash2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { MarkdownText } from "@/components/ui/markdown-text";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -363,7 +363,12 @@ export default function CoachChat() {
         )}
         <Sheet open={open} onOpenChange={setOpen}>
           <SheetContent side="bottom" className="h-[85vh] p-0 rounded-t-2xl [&>button:last-child]:hidden">
-            <span className="sr-only">Coach Com'</span>
+            {/* Titre visible dans l'en-tête de chatContent : ici, la version que
+                Radix exige pour les lecteurs d'écran, masquée à l'œil. */}
+            <SheetTitle className="sr-only">Coach Com'</SheetTitle>
+            <SheetDescription className="sr-only">
+              Pose ta question à ton coach com', il répond à partir de ton branding.
+            </SheetDescription>
             {chatContent}
           </SheetContent>
         </Sheet>
