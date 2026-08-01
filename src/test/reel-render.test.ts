@@ -3,7 +3,26 @@ import {
   parseTimingSeconds,
   sectionDuration,
   buildRenderPlan,
+  countSectionsWithoutVoice,
 } from "@/lib/reel-plan";
+
+// Garde « voix mixte » : compte les sections qui partiraient au montage avec
+// un clip mais SANS la voix enregistrée (donc basculées en voix générée par
+// le moteur). L'UI s'en sert pour confirmer avant d'assembler.
+describe("countSectionsWithoutVoice", () => {
+  it("compte les sections avec clip mais sans voix", () => {
+    const clips = [{ url: "a" }, { url: "b" }, { url: "c" }];
+    expect(countSectionsWithoutVoice(clips, ["v1", null, undefined])).toBe(2);
+  });
+
+  it("ignore les sections sans clip (elles ne partent pas au montage)", () => {
+    expect(countSectionsWithoutVoice([null, { url: "b" }], [null, "v2"])).toBe(0);
+  });
+
+  it("0 quand toutes les voix sont là", () => {
+    expect(countSectionsWithoutVoice([{ url: "a" }], ["v1"])).toBe(0);
+  });
+});
 
 describe("parseTimingSeconds", () => {
   it("extrait la durée d'un intervalle", () => {

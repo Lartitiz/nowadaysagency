@@ -11,6 +11,7 @@ export {
   parseTimingSeconds,
   sectionDuration,
   buildRenderPlan,
+  countSectionsWithoutVoice,
 } from "@/lib/reel-plan";
 export type { RenderPlan, RenderSectionInput } from "@/lib/reel-plan";
 

@@ -1,7 +1,7 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Copy } from "lucide-react";
+import { ChevronDown, Copy, Film } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import ReelMontage from "@/components/creer/ReelMontage";
@@ -44,6 +44,14 @@ export default function ReelResult({ result }: Props) {
     .join("\n\n");
 
   const [checkedText, setCheckedText] = useState(fullText);
+
+  // Montage vidéo REPLIÉ derrière un clic, pour deux raisons qui n'en font
+  // qu'une : (1) ReelMontage lance dès son montage un appel IA (mots-clés) +
+  // une recherche Pexels par section — le monter d'office ferait payer ces
+  // appels à CHAQUE affichage de script, même quand la cliente se fiche de la
+  // vidéo ; (2) le panneau ouvert était noyé en bas de page, personne ne le
+  // trouvait. Un bouton d'appel visible règle les deux.
+  const [montageOpen, setMontageOpen] = useState(false);
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -102,6 +110,26 @@ export default function ReelResult({ result }: Props) {
           </Card>
         ))}
       </div>
+
+      {sections.length > 0 && !montageOpen && (
+        <button
+          type="button"
+          onClick={() => setMontageOpen(true)}
+          className="w-full rounded-lg border border-primary/20 bg-primary/5 p-4 flex items-center gap-3 text-left hover:bg-primary/10 transition-colors"
+        >
+          <Film className="h-5 w-5 text-primary shrink-0" />
+          <span className="flex-1 min-w-0">
+            <span className="block text-sm font-semibold text-primary">Monter la vidéo</span>
+            <span className="block text-xs text-muted-foreground">
+              Tes clips ou une banque libre, ta voix, sous-titres automatiques — un MP4 prêt à poster.
+            </span>
+          </span>
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        </button>
+      )}
+      {sections.length > 0 && montageOpen && (
+        <ReelMontage sections={sections} subject={result?.subject || result?.pillar} />
+      )}
 
       {planTournage.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-4 space-y-3">
@@ -194,10 +222,6 @@ export default function ReelResult({ result }: Props) {
           <p className="text-xs font-semibold text-primary mb-1">🎯 Conseil personnalisé</p>
           <p className="text-sm text-foreground">{personalTip}</p>
         </div>
-      )}
-
-      {sections.length > 0 && (
-        <ReelMontage sections={sections} subject={result?.subject || result?.pillar} />
       )}
 
       <RedFlagsChecker content={checkedText} onFix={setCheckedText} />

@@ -28,6 +28,7 @@ import {
 } from "@/lib/stock-videos";
 import {
   buildRenderPlan,
+  countSectionsWithoutVoice,
   submitReelRender,
   pollReelRender,
   sectionDuration,
@@ -199,6 +200,20 @@ export default function ReelMontage({ sections, subject }: Props) {
     if (!chosen.some(Boolean)) {
       toast.error("Choisis au moins un clip avant d'assembler.");
       return;
+    }
+    // Garde « voix mixte » : en mode "Ma voix", les phrases non enregistrées
+    // partent en voix générée (repli moteur). Sans confirmation, le reel sort
+    // avec sa voix UNE phrase sur deux et ça ressemble à un bug.
+    if (voiceMode === "recorded") {
+      const missing = countSectionsWithoutVoice(chosen, voiceUrls);
+      if (missing > 0) {
+        const ok = window.confirm(
+          missing === 1
+            ? "1 phrase n'a pas ta voix : elle aura la voix générée. Assembler quand même ?"
+            : `${missing} phrases n'ont pas ta voix : elles auront la voix générée. Assembler quand même ?`,
+        );
+        if (!ok) return;
+      }
     }
     setPhase("rendering");
     setTick(0);

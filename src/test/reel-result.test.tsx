@@ -1,6 +1,21 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
+import { suggestStockKeywords, searchStockVideos } from "@/lib/stock-videos";
+import { listReelVideos } from "@/lib/reel-user-videos";
+
+// ReelMontage appelle le réseau dès son montage (mots-clés IA + Pexels +
+// bibliothèque perso) : on mocke les trois libs pour tester le REPLI sans
+// toucher ni Supabase ni Pexels.
+vi.mock("@/lib/stock-videos", () => ({
+  suggestStockKeywords: vi.fn().mockResolvedValue({ keywords: [], primary: "savon" }),
+  searchStockVideos: vi.fn().mockResolvedValue([]),
+}));
+vi.mock("@/lib/reel-user-videos", () => ({
+  uploadReelVideo: vi.fn(),
+  loadVideoDuration: vi.fn().mockResolvedValue(null),
+  listReelVideos: vi.fn().mockResolvedValue([]),
+}));
 
 // Le plan de tournage (shot list) est un champ ADDITIF du JSON reel : les
 // contenus générés avant le chantier « scripts Reels » ne l'ont pas et le
@@ -123,25 +138,40 @@ describe("ReelResult — caption et amplification", () => {
   });
 });
 
-// Ouverture du montage vidéo (01/08) : le panneau vivait derrière un flag
-// localStorage posé à la main — personne ne le voyait, ni Laetitia ni les
-// clientes. Ce test verrouille l'ouverture : sans rien poser dans le
-// navigateur, « Monter la vidéo » doit être là.
-describe("ReelResult — montage vidéo ouvert à toutes", () => {
-  it("affiche le panneau de montage sans aucun flag posé", () => {
+// Ouverture du montage vidéo (01/08) : visible pour toutes SANS flag, mais
+// REPLIÉ derrière un clic. Raison double : le panneau déplié lance dès son
+// montage un appel IA (mots-clés) + une recherche Pexels par section — le
+// déplier d'office ferait payer ces appels à chaque affichage de script — et
+// le panneau ouvert en bas de page était introuvable. Ces tests verrouillent
+// les deux : bouton visible d'emblée, ZÉRO appel avant le clic.
+describe("ReelResult — montage vidéo : bouton visible, replié par défaut", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("affiche le bouton d'appel sans aucun flag posé", () => {
     window.localStorage.clear();
     render(<ReelResult result={baseResult} />);
     expect(screen.getByText(/Monter la vidéo/)).toBeTruthy();
   });
 
-  it("dit franchement que le son des vidéos n'est pas encore gardé", () => {
-    window.localStorage.clear();
+  it("ne lance AUCUN appel (mots-clés, Pexels, bibliothèque) avant le clic", () => {
     render(<ReelResult result={baseResult} />);
-    expect(screen.getByText(/son de tes vidéos n'est pas encore conservé/)).toBeTruthy();
+    expect(suggestStockKeywords).not.toHaveBeenCalled();
+    expect(searchStockVideos).not.toHaveBeenCalled();
+    expect(listReelVideos).not.toHaveBeenCalled();
   });
 
-  it("n'affiche pas le montage quand le script n'a aucune section", () => {
-    window.localStorage.clear();
+  it("déplie le panneau au clic, et là seulement les appels partent", async () => {
+    render(<ReelResult result={baseResult} />);
+    fireEvent.click(screen.getByText(/Monter la vidéo/));
+    // Le panneau est là (la mention honnête sur le son en fait partie)…
+    expect(await screen.findByText(/son de tes vidéos n'est pas encore conservé/)).toBeTruthy();
+    // …et la suggestion de clips démarre.
+    await waitFor(() => expect(suggestStockKeywords).toHaveBeenCalledTimes(1));
+  });
+
+  it("n'affiche pas le bouton quand le script n'a aucune section", () => {
     render(<ReelResult result={{ ...baseResult, script: [], sections: [] }} />);
     expect(screen.queryByText(/Monter la vidéo/)).toBeNull();
   });
