@@ -88,6 +88,9 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CoachingResult | null>(null);
   const [addedItems, setAddedItems] = useState<Set<number>>(new Set());
+  /** Jour choisi à la main pour une carte (index → "Mardi"), avant l'ajout */
+  const [dayOverrides, setDayOverrides] = useState<Record<number, string>>({});
+  const [addingAll, setAddingAll] = useState(false);
 
   // Reset when opening
   useEffect(() => {
