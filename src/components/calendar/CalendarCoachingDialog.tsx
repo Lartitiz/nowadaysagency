@@ -119,6 +119,8 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     setLoading(false);
     setResult(null);
     setAddedItems(new Set());
+    setDayOverrides({});
+    setAddingAll(false);
   };
 
   const handleGenerate = async () => {
