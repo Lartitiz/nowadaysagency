@@ -833,8 +833,23 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             : theme.trim() ? "Enregistrement automatique" : "Ajoute un sujet pour commencer"}
         </span>
 
+        {/* Supprimer : visible directement, plus enterré dans le menu « Options »
+            (qui est même désactivé tant qu'il n'y a pas de sujet). */}
+        {effectiveId && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto rounded-pill text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5"
+            onClick={async () => {
+              if (await confirm({ title: "Supprimer ce post du calendrier ?", description: "Cette action est irréversible.", confirmText: "Supprimer", destructive: true })) onDelete(effectiveId);
+            }}
+          >
+            <Trash2 className="h-4 w-4" /> Supprimer
+          </Button>
+        )}
+
         {/* Un seul bouton d'action principal */}
-        <div className="ml-auto">
+        <div className={effectiveId ? "" : "ml-auto"}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button disabled={!theme.trim()} className="rounded-pill bg-primary text-primary-foreground hover:bg-primary/90">
