@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Loader2, ArrowRight, CalendarPlus, Sparkles } from "lucide-react";
+import { Loader2, ArrowRight, CalendarPlus, Sparkles, ChevronDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
@@ -63,6 +64,8 @@ const DAY_DATES: Record<string, number> = {
   Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5, Samedi: 6, Dimanche: 0,
 };
 
+const WEEK_DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+
 function getNextDayDate(dayName: string): string {
   const target = DAY_DATES[dayName];
   if (target === undefined) return toLocalDateStr(new Date());
@@ -88,6 +91,9 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CoachingResult | null>(null);
   const [addedItems, setAddedItems] = useState<Set<number>>(new Set());
+  /** Jour choisi à la main pour une carte (index → "Mardi"), avant l'ajout */
+  const [dayOverrides, setDayOverrides] = useState<Record<number, string>>({});
+  const [addingAll, setAddingAll] = useState(false);
 
   // Reset when opening
   useEffect(() => {
@@ -101,6 +107,8 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       setLoading(false);
       setResult(null);
       setAddedItems(new Set());
+      setDayOverrides({});
+      setAddingAll(false);
     }
   }, [open, existingPosts]);
 
@@ -114,6 +122,8 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     setLoading(false);
     setResult(null);
     setAddedItems(new Set());
+    setDayOverrides({});
+    setAddingAll(false);
   };
 
   const handleGenerate = async () => {
@@ -141,10 +151,14 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     }
   };
 
-  const handleAddToCalendar = async (item: PlanningItem, index: number) => {
-    if (!user) return;
+  /** Jour effectif d'une carte : celui choisi par l'utilisatrice, sinon celui de l'IA. */
+  const dayOf = (item: PlanningItem, index: number) => dayOverrides[index] || item.day;
+
+  const handleAddToCalendar = async (item: PlanningItem, index: number): Promise<boolean> => {
+    if (!user) return false;
+    const day = dayOf(item, index);
     try {
-      const date = getNextDayDate(item.day);
+      const date = getNextDayDate(day);
       // Déjà prévu ce jour-là ? On coche la carte au lieu d'empiler un 2ᵉ exemplaire.
       const { duplicates } = await dropAlreadyPlanned(
         [{ date, theme: item.subject, canal: "instagram" }],
@@ -153,7 +167,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       if (duplicates.length > 0) {
         setAddedItems((prev) => new Set(prev).add(index));
         toast(duplicateMessage(1, 1));
-        return;
+        return true;
       }
       await supabase.from("calendar_posts").insert({
         user_id: user.id,
@@ -168,19 +182,50 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         notes: `Pilier : ${item.pillar}`,
       } as any);
       setAddedItems(prev => new Set(prev).add(index));
-      toast.success(`📅 "${item.subject}" ajouté au ${item.day}`);
+      toast.success(`📅 "${item.subject}" ajouté au ${day.toLowerCase()}`);
       onPostAdded?.();
+      return true;
     } catch (e: any) {
       toast.error("Erreur lors de l'ajout");
+      return false;
     }
   };
 
-  const handleCreateContent = (item: PlanningItem) => {
+  /** Poser toute la semaine d'un coup : les cartes déjà ajoutées sont ignorées. */
+  const handleAddAll = async () => {
+    if (!result) return;
+    const pending = result.planning
+      .map((item, i) => ({ item, i }))
+      .filter(({ i }) => !addedItems.has(i));
+    if (pending.length === 0) return;
+    setAddingAll(true);
+    let ok = 0;
+    for (const { item, i } of pending) {
+      if (await handleAddToCalendar(item, i)) ok++;
+    }
+    setAddingAll(false);
+    if (ok === pending.length) toast.success(`📅 Ta semaine est posée : ${ok} contenu${ok > 1 ? "s" : ""}`);
+    else if (ok > 0) toast.warning(`${ok} sur ${pending.length} ajoutés. Réessaie pour le reste.`);
+  };
+
+  const pendingCount = result ? result.planning.filter((_, i) => !addedItems.has(i)).length : 0;
+
+
+  /**
+   * Créer un contenu ne doit pas faire perdre le reste de la semaine : on pose
+   * d'abord l'idée au calendrier, puis on part dans le générateur.
+   */
+  const handleCreateContent = async (item: PlanningItem, index: number) => {
+    if (!addedItems.has(index)) {
+      const ok = await handleAddToCalendar(item, index);
+      if (!ok) return;
+    }
     const route = FORMAT_ROUTES[item.format] || "/creer";
     onOpenChange(false);
     const formatParam = item.format === "newsletter" ? "&format=newsletter" : "";
     navigate(`${route}?subject=${encodeURIComponent(item.subject)}&objective=${encodeURIComponent(normalizeObjectif(item.objective) || item.objective)}${formatParam}`);
   };
+
 
   return (
     <CoachingShell
@@ -325,18 +370,73 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
               <p className="text-xs text-muted-foreground italic">💡 {result.tip}</p>
             </div>
 
+            {/* Récap de la semaine : elle se remplit au fur et à mesure des ajouts */}
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-2xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Ma semaine</p>
+              <div className="grid grid-cols-7 gap-1.5">
+                {WEEK_DAYS.map((day) => {
+                  const posed = result.planning
+                    .map((item, i) => ({ item, i }))
+                    .filter(({ item, i }) => addedItems.has(i) && dayOf(item, i) === day);
+                  return (
+                    <div key={day} className="text-center">
+                      <p className="text-2xs text-muted-foreground mb-1">{day.slice(0, 3)}</p>
+                      <div
+                        className={`rounded-lg h-9 flex items-center justify-center text-xs transition-colors ${
+                          posed.length > 0 ? "bg-[hsl(var(--rose-pale))] border border-primary/30" : "bg-muted/40 border border-transparent"
+                        }`}
+                      >
+                        {posed.length > 0
+                          ? posed.map(({ item }) => FORMAT_ICONS[item.format] || "📝").join("")
+                          : <span className="text-muted-foreground/50">·</span>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Planning cards */}
             <div className="space-y-3">
               {result.planning.map((item, i) => {
                 const isAdded = addedItems.has(i);
+                const day = dayOf(item, i);
                 return (
                   <div key={i} className={`rounded-xl border p-4 space-y-2 transition-all ${isAdded ? "border-success/30 bg-success-bg/50" : "border-border bg-card"}`}>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-pill">{item.day}</span>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {isAdded ? (
+                          <span className="text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-pill">{day}</span>
+                        ) : (
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`Changer le jour (actuellement ${day})`}
+                                className="text-xs font-bold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-0.5 rounded-pill inline-flex items-center gap-1 transition-colors"
+                              >
+                                {day} <ChevronDown className="h-3 w-3" />
+                              </button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-36 p-1.5" align="start">
+                              {WEEK_DAYS.map((d) => (
+                                <button
+                                  key={d}
+                                  type="button"
+                                  onClick={() => setDayOverrides((prev) => ({ ...prev, [i]: d }))}
+                                  className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted/60 transition-colors ${
+                                    d === day ? "font-semibold text-primary" : "text-foreground"
+                                  }`}
+                                >
+                                  {d}
+                                </button>
+                              ))}
+                            </PopoverContent>
+                          </Popover>
+                        )}
                         <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-pill">{item.pillar}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground shrink-0">
                         {FORMAT_ICONS[item.format] || "📝"} {item.format}
                         {OBJ_LABELS[item.objective] && ` · ${OBJ_LABELS[item.objective]}`}
                       </span>
@@ -348,15 +448,17 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
                         size="sm"
                         variant="outline"
                         className="text-xs gap-1 flex-1"
-                        disabled={isAdded || loading}
+                        disabled={isAdded || loading || addingAll}
                         onClick={() => handleAddToCalendar(item, i)}
                       >
-                        {isAdded ? "✅ Ajouté" : <><CalendarPlus className="h-3 w-3" /> Ajouter au calendrier</>}
+                        {isAdded ? "✅ Posé" : <><CalendarPlus className="h-3 w-3" /> Ajouter à ma semaine</>}
                       </Button>
                       <Button
                         size="sm"
+                        variant={isAdded ? "default" : "secondary"}
                         className="text-xs gap-1 flex-1"
-                        onClick={() => handleCreateContent(item)}
+                        disabled={addingAll}
+                        onClick={() => handleCreateContent(item, i)}
                       >
                         <Sparkles className="h-3 w-3" /> Créer ce contenu
                       </Button>
@@ -365,7 +467,38 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
                 );
               })}
             </div>
+
+            {/* Poser toute la semaine d'un coup */}
+            {pendingCount > 1 && (
+              <Button className="w-full gap-2" disabled={addingAll} onClick={handleAddAll}>
+                {addingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarPlus className="h-4 w-4" />}
+                Tout ajouter à ma semaine ({pendingCount})
+              </Button>
+            )}
+
+            {/* Fin de parcours : on sort quand la semaine est posée */}
+            {addedItems.size > 0 && (
+              <div className="flex items-center justify-between gap-3 flex-wrap border-t border-border pt-3">
+                <p className="text-xs text-muted-foreground">
+                  ✅ {addedItems.size} contenu{addedItems.size > 1 ? "s" : ""} posé{addedItems.size > 1 ? "s" : ""} cette semaine
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => { reset(); onOpenChange(false); }}>
+                    Fermer
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-xs gap-1"
+                    onClick={() => { onOpenChange(false); navigate("/calendrier"); }}
+                  >
+                    Voir mon calendrier <ArrowRight className="h-3 w-3" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
+
         )}
     </CoachingShell>
   );
