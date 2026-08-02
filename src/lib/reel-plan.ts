@@ -54,6 +54,25 @@ export interface RenderPlan {
 }
 
 /**
+ * Petit silence gardé après la voix, pour ne jamais rogner la dernière syllabe
+ * ni la respiration finale.
+ */
+export const VOICE_TAIL_SECONDS = 0.4;
+
+/**
+ * Durée de scène quand la créatrice a enregistré sa voix : c'est SA prise qui
+ * commande, pas la durée estimée du script.
+ *
+ * Sans ça, la scène s'arrêtait à la durée déduite du script (2,5 mots/seconde) :
+ * une lecture posée (≈ 2,2 mots/s) se faisait couper en fin de phrase, et une
+ * lecture rapide laissait un blanc.
+ */
+export function voiceSectionDuration(voiceDuration: number): number {
+  const withTail = voiceDuration + VOICE_TAIL_SECONDS;
+  return clamp(Math.round(withTail * 10) / 10, 2, 90);
+}
+
+/**
  * Construit le plan de rendu à partir des sections du script et du clip choisi
  * pour chacune. Ignore les sections sans clip (rien à montrer).
  *
@@ -79,13 +98,17 @@ export function countSectionsWithoutVoice(
   return clips.reduce((n, clip, i) => (clip && !voiceUrls[i] ? n + 1 : n), 0);
 }
 
+export interface RenderPlanOptions {
+  voice_mode: "recorded" | "tts";
+  voiceAudioUrls?: Array<string | null | undefined>;
+  /** Durée RÉELLE de chaque prise, en secondes (même index que les sections). */
+  voiceDurations?: Array<number | null | undefined>;
+}
+
 export function buildRenderPlan(
   sections: Array<{ timing?: unknown; texte_parle?: unknown }>,
   clipBySection: ClipChoice[],
-  opts: {
-    voice_mode: "recorded" | "tts";
-    voiceAudioUrls?: Array<string | null | undefined>;
-  } = { voice_mode: "tts" },
+  opts: RenderPlanOptions = { voice_mode: "tts" },
 ): RenderPlan {
   const built: RenderSectionInput[] = [];
   sections.forEach((s, i) => {
@@ -94,13 +117,35 @@ export function buildRenderPlan(
     if (!url) return;
     const seek = typeof choice === "object" && choice ? Math.max(0, choice.seek ?? 0) : 0;
     const voiceUrl = opts.voice_mode === "recorded" ? opts.voiceAudioUrls?.[i] : undefined;
+    // Une prise enregistrée fixe elle-même la durée de sa scène.
+    const voiceDuration = voiceUrl ? opts.voiceDurations?.[i] : undefined;
+    const duration =
+      typeof voiceDuration === "number" && voiceDuration > 0
+        ? voiceSectionDuration(voiceDuration)
+        : sectionDuration(s);
     built.push({
       clip_url: url,
       seek,
-      duration: sectionDuration(s),
+      duration,
       ...(voiceUrl ? { voice_audio_url: voiceUrl } : {}),
       ...(typeof s.texte_parle === "string" ? { voice_text: s.texte_parle } : {}),
     });
   });
   return { sections: built, voice_mode: opts.voice_mode };
+}
+
+/**
+ * L'autre moitié de la garde : les phrases DÉJÀ enregistrées qui n'ont pas de
+ * clip. `buildRenderPlan` écarte toute section sans clip — la prise part avec,
+ * sans un mot. Renvoie les NUMÉROS de phrase (1, 2, 3…), tels qu'affichés.
+ */
+export function sectionsWithVoiceButNoClip(
+  clips: ClipChoice[],
+  voiceUrls: Array<string | null | undefined>,
+): number[] {
+  const out: number[] = [];
+  voiceUrls.forEach((voice, i) => {
+    if (voice && !clips[i]) out.push(i + 1);
+  });
+  return out;
 }

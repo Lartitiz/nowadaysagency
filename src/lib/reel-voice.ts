@@ -10,8 +10,21 @@
 import { supabase } from "@/integrations/supabase/client";
 import { encodeWav, downmixToMono } from "@/lib/audio-wav";
 
-/** Convertit un blob audio (WebM/Opus…) en WAV mono via WebAudio. */
-export async function blobToWav(blob: Blob): Promise<Blob> {
+/** Une prise de voix convertie : le fichier WAV et sa durée RÉELLE, en secondes. */
+export interface VoiceTake {
+  wav: Blob;
+  /** Durée mesurée de la prise. Sert à caler la scène sur la voix, pas sur le script. */
+  duration: number;
+}
+
+/**
+ * Convertit un blob audio (WebM/Opus…) en WAV mono via WebAudio.
+ *
+ * Renvoie AUSSI la durée décodée : c'est la seule mesure fiable de la longueur
+ * de la prise, et c'est elle qui doit fixer la durée de la scène au montage
+ * (sinon une lecture posée se fait couper par la durée estimée du script).
+ */
+export async function blobToWav(blob: Blob): Promise<VoiceTake> {
   const arrayBuffer = await blob.arrayBuffer();
   const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
   const ctx = new Ctx();
@@ -20,10 +33,16 @@ export async function blobToWav(blob: Blob): Promise<Blob> {
     const channels: Float32Array[] = [];
     for (let c = 0; c < decoded.numberOfChannels; c++) channels.push(decoded.getChannelData(c));
     const wav = encodeWav(downmixToMono(channels), decoded.sampleRate);
-    return new Blob([wav], { type: "audio/wav" });
+    return { wav: new Blob([wav], { type: "audio/wav" }), duration: decoded.duration };
   } finally {
     void ctx.close();
   }
+}
+
+/** Prise déposée : son URL publique et sa durée réelle, en secondes. */
+export interface VoiceClip {
+  url: string;
+  duration: number;
 }
 
 /**
