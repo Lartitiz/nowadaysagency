@@ -208,6 +208,9 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     else if (ok > 0) toast.warning(`${ok} sur ${pending.length} ajoutés. Réessaie pour le reste.`);
   };
 
+  const pendingCount = result ? result.planning.filter((_, i) => !addedItems.has(i)).length : 0;
+
+
   /**
    * Créer un contenu ne doit pas faire perdre le reste de la semaine : on pose
    * d'abord l'idée au calendrier, puis on part dans le générateur.
