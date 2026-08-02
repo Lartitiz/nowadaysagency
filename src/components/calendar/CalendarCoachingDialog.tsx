@@ -64,6 +64,8 @@ const DAY_DATES: Record<string, number> = {
   Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5, Samedi: 6, Dimanche: 0,
 };
 
+const WEEK_DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
+
 function getNextDayDate(dayName: string): string {
   const target = DAY_DATES[dayName];
   if (target === undefined) return toLocalDateStr(new Date());
