@@ -141,10 +141,14 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
     }
   };
 
-  const handleAddToCalendar = async (item: PlanningItem, index: number) => {
-    if (!user) return;
+  /** Jour effectif d'une carte : celui choisi par l'utilisatrice, sinon celui de l'IA. */
+  const dayOf = (item: PlanningItem, index: number) => dayOverrides[index] || item.day;
+
+  const handleAddToCalendar = async (item: PlanningItem, index: number): Promise<boolean> => {
+    if (!user) return false;
+    const day = dayOf(item, index);
     try {
-      const date = getNextDayDate(item.day);
+      const date = getNextDayDate(day);
       // Déjà prévu ce jour-là ? On coche la carte au lieu d'empiler un 2ᵉ exemplaire.
       const { duplicates } = await dropAlreadyPlanned(
         [{ date, theme: item.subject, canal: "instagram" }],
@@ -153,7 +157,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       if (duplicates.length > 0) {
         setAddedItems((prev) => new Set(prev).add(index));
         toast(duplicateMessage(1, 1));
-        return;
+        return true;
       }
       await supabase.from("calendar_posts").insert({
         user_id: user.id,
@@ -168,19 +172,47 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         notes: `Pilier : ${item.pillar}`,
       } as any);
       setAddedItems(prev => new Set(prev).add(index));
-      toast.success(`📅 "${item.subject}" ajouté au ${item.day}`);
+      toast.success(`📅 "${item.subject}" ajouté au ${day.toLowerCase()}`);
       onPostAdded?.();
+      return true;
     } catch (e: any) {
       toast.error("Erreur lors de l'ajout");
+      return false;
     }
   };
 
-  const handleCreateContent = (item: PlanningItem) => {
+  /** Poser toute la semaine d'un coup : les cartes déjà ajoutées sont ignorées. */
+  const handleAddAll = async () => {
+    if (!result) return;
+    const pending = result.planning
+      .map((item, i) => ({ item, i }))
+      .filter(({ i }) => !addedItems.has(i));
+    if (pending.length === 0) return;
+    setAddingAll(true);
+    let ok = 0;
+    for (const { item, i } of pending) {
+      if (await handleAddToCalendar(item, i)) ok++;
+    }
+    setAddingAll(false);
+    if (ok === pending.length) toast.success(`📅 Ta semaine est posée : ${ok} contenu${ok > 1 ? "s" : ""}`);
+    else if (ok > 0) toast.warning(`${ok} sur ${pending.length} ajoutés. Réessaie pour le reste.`);
+  };
+
+  /**
+   * Créer un contenu ne doit pas faire perdre le reste de la semaine : on pose
+   * d'abord l'idée au calendrier, puis on part dans le générateur.
+   */
+  const handleCreateContent = async (item: PlanningItem, index: number) => {
+    if (!addedItems.has(index)) {
+      const ok = await handleAddToCalendar(item, index);
+      if (!ok) return;
+    }
     const route = FORMAT_ROUTES[item.format] || "/creer";
     onOpenChange(false);
     const formatParam = item.format === "newsletter" ? "&format=newsletter" : "";
     navigate(`${route}?subject=${encodeURIComponent(item.subject)}&objective=${encodeURIComponent(normalizeObjectif(item.objective) || item.objective)}${formatParam}`);
   };
+
 
   return (
     <CoachingShell
