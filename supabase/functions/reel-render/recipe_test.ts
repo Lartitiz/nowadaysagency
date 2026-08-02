@@ -53,6 +53,11 @@ Deno.test("sous-titres au niveau film par défaut, en français", () => {
   assertEquals(r.elements[0].settings["max-words-per-line"], 3);
 });
 
+Deno.test("sous-titres placés en bas, pas en travers du visage", () => {
+  const r = buildReelRecipe(base) as any;
+  assertEquals(r.elements[0].settings.position, "bottom-center");
+});
+
 Deno.test("subtitles:false retire complètement l'élément sous-titres", () => {
   const r = buildReelRecipe({ ...base, subtitles: false }) as any;
   assertEquals(r.elements, undefined);

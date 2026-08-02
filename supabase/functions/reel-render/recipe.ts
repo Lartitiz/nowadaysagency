@@ -46,12 +46,17 @@ const DEFAULT_WIDTH = 1080;
 const DEFAULT_HEIGHT = 1920;
 const DEFAULT_TTS_VOICE = "fr-FR-DeniseNeural";
 
-// Style de sous-titres validé au test : mot à mot, lisible, centré.
+// Style de sous-titres validé au test : mot à mot, lisible.
+//
+// Position : au BAS de l'image, pas au centre. Centrés, ils tombaient en plein
+// sur le visage ou le sujet du clip — la convention Reels les place bas, où ils
+// ne mangent pas l'image. À vérifier sur un rendu réel : si le bandeau
+// Instagram les recouvre, on passera à des coordonnées sur mesure.
 const DEFAULT_SUBTITLE_SETTINGS = {
   style: "boxed-word",
   "font-family": "Montserrat",
   "font-size": 90,
-  position: "center-center",
+  position: "bottom-center",
   "word-color": "#FFFFFF",
   "line-color": "#FFFFFF",
   "outline-color": "#000000",

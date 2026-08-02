@@ -10,10 +10,12 @@ import type { RenderPlan } from "@/lib/reel-plan";
 export {
   parseTimingSeconds,
   sectionDuration,
+  voiceSectionDuration,
   buildRenderPlan,
   countSectionsWithoutVoice,
+  sectionsWithVoiceButNoClip,
 } from "@/lib/reel-plan";
-export type { RenderPlan, RenderSectionInput } from "@/lib/reel-plan";
+export type { RenderPlan, RenderSectionInput, RenderPlanOptions } from "@/lib/reel-plan";
 
 /** Lance un rendu. Renvoie l'identifiant de projet. */
 export async function submitReelRender(plan: RenderPlan): Promise<string> {

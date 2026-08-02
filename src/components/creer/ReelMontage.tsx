@@ -29,10 +29,12 @@ import {
 import {
   buildRenderPlan,
   countSectionsWithoutVoice,
+  sectionsWithVoiceButNoClip,
   submitReelRender,
   pollReelRender,
   sectionDuration,
 } from "@/lib/reel-render";
+import type { VoiceClip } from "@/lib/reel-voice";
 import {
   uploadReelVideo,
   listReelVideos,
@@ -113,7 +115,10 @@ export default function ReelMontage({ sections, subject }: Props) {
   // "tts" = voix générée. Les phrases non enregistrées retombent sur la
   // voix générée (repli géré par buildRenderPlan + le moteur).
   const [voiceMode, setVoiceMode] = useState<"recorded" | "tts">("recorded");
-  const [voiceUrls, setVoiceUrls] = useState<(string | null)[]>(() => spoken.map(() => null));
+  // Prises de voix : URL publique ET durée réelle. La durée cale la scène.
+  const [voiceClips, setVoiceClips] = useState<(VoiceClip | null)[]>(() => spoken.map(() => null));
+  const voiceUrls = voiceClips.map((c) => c?.url ?? null);
+  const voiceDurations = voiceClips.map((c) => c?.duration ?? null);
 
   // Suggestion initiale : un clip par section.
   useEffect(() => {
@@ -201,6 +206,21 @@ export default function ReelMontage({ sections, subject }: Props) {
       toast.error("Choisis au moins un clip avant d'assembler.");
       return;
     }
+    // Garde « prise perdue » : une phrase enregistrée mais sans clip est
+    // écartée du montage, la voix avec. C'est le travail de la cliente qui
+    // disparaît — on le dit AVANT, pas après.
+    if (voiceMode === "recorded") {
+      const orphans = sectionsWithVoiceButNoClip(chosen, voiceUrls);
+      if (orphans.length > 0) {
+        const list = orphans.join(", ");
+        const ok = window.confirm(
+          orphans.length === 1
+            ? `La phrase ${list} est enregistrée mais n'a aucun clip : elle ne sera PAS dans la vidéo, ta voix non plus. Assembler quand même ?`
+            : `Les phrases ${list} sont enregistrées mais n'ont aucun clip : elles ne seront PAS dans la vidéo, ta voix non plus. Assembler quand même ?`,
+        );
+        if (!ok) return;
+      }
+    }
     // Garde « voix mixte » : en mode "Ma voix", les phrases non enregistrées
     // partent en voix générée (repli moteur). Sans confirmation, le reel sort
     // avec sa voix UNE phrase sur deux et ça ressemble à un bug.
@@ -223,6 +243,7 @@ export default function ReelMontage({ sections, subject }: Props) {
       const plan = buildRenderPlan(spoken, chosen, {
         voice_mode: voiceMode,
         voiceAudioUrls: voiceUrls,
+        voiceDurations,
       });
       const project = await submitReelRender(plan);
       const url = await pollReelRender(project, { onTick: setTick });
@@ -288,7 +309,7 @@ export default function ReelMontage({ sections, subject }: Props) {
       {voiceMode === "recorded" && (
         <ReelVoiceRecorder
           texts={spoken.map((s) => s.texte_parle as string)}
-          onVoicesChange={setVoiceUrls}
+          onVoicesChange={setVoiceClips}
         />
       )}
 

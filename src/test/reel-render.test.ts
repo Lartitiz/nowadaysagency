@@ -2,9 +2,28 @@ import { describe, it, expect } from "vitest";
 import {
   parseTimingSeconds,
   sectionDuration,
+  voiceSectionDuration,
   buildRenderPlan,
   countSectionsWithoutVoice,
+  sectionsWithVoiceButNoClip,
 } from "@/lib/reel-plan";
+
+// Garde « prise perdue » : une phrase enregistrée mais sans clip est écartée du
+// montage, la voix avec. L'UI prévient avant d'assembler.
+describe("sectionsWithVoiceButNoClip", () => {
+  it("renvoie les NUMÉROS de phrase enregistrées mais sans clip", () => {
+    const clips = [{ url: "a" }, null, null];
+    expect(sectionsWithVoiceButNoClip(clips, ["v1", "v2", "v3"])).toEqual([2, 3]);
+  });
+
+  it("ignore les phrases sans voix (rien à perdre)", () => {
+    expect(sectionsWithVoiceButNoClip([null, null], [null, undefined])).toEqual([]);
+  });
+
+  it("vide quand chaque prise a son clip", () => {
+    expect(sectionsWithVoiceButNoClip([{ url: "a" }, { url: "b" }], ["v1", "v2"])).toEqual([]);
+  });
+});
 
 // Garde « voix mixte » : compte les sections qui partiraient au montage avec
 // un clip mais SANS la voix enregistrée (donc basculées en voix générée par
@@ -48,6 +67,20 @@ describe("sectionDuration", () => {
   });
   it("plancher à 2 s", () => {
     expect(sectionDuration({ texte_parle: "court" })).toBe(2);
+  });
+});
+
+// La prise de la créatrice commande sa scène : sinon une lecture posée se fait
+// couper par la durée estimée du script, et une lecture rapide laisse un blanc.
+describe("voiceSectionDuration", () => {
+  it("garde un petit silence après la voix (0,4 s)", () => {
+    expect(voiceSectionDuration(4)).toBe(4.4);
+    expect(voiceSectionDuration(7.25)).toBe(7.7);
+  });
+
+  it("plancher à 2 s et plafond à 90 s", () => {
+    expect(voiceSectionDuration(0.5)).toBe(2);
+    expect(voiceSectionDuration(200)).toBe(90);
   });
 });
 
@@ -96,6 +129,34 @@ describe("buildRenderPlan", () => {
   it("un seek négatif est ramené à 0", () => {
     const plan = buildRenderPlan(sections, [{ url: "mine.mp4", seek: -3 }]);
     expect(plan.sections[0].seek).toBe(0);
+  });
+
+  it("mode recorded : la durée de la prise commande la scène, pas le script", () => {
+    // Le script annonce 4 s ; la lecture réelle en fait 6,2 → la scène suit la voix.
+    const plan = buildRenderPlan(sections, ["a.mp4"], {
+      voice_mode: "recorded",
+      voiceAudioUrls: ["voix1.wav"],
+      voiceDurations: [6.2],
+    });
+    expect(plan.sections[0].duration).toBe(6.6);
+  });
+
+  it("sans durée de prise, on retombe sur l'estimation du script", () => {
+    const plan = buildRenderPlan(sections, ["a.mp4"], {
+      voice_mode: "recorded",
+      voiceAudioUrls: ["voix1.wav"],
+    });
+    expect(plan.sections[0].duration).toBe(4);
+  });
+
+  it("une durée de prise sans enregistrement ne s'applique pas", () => {
+    // Voix non enregistrée : la scène reste calée sur le script (voix générée).
+    const plan = buildRenderPlan(sections, ["a.mp4"], {
+      voice_mode: "recorded",
+      voiceAudioUrls: [null],
+      voiceDurations: [30],
+    });
+    expect(plan.sections[0].duration).toBe(4);
   });
 
   it("mode recorded : les URLs voix suivent l'index des SECTIONS, pas des clips", () => {
