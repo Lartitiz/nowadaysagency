@@ -1,28 +1,44 @@
-# Reels : « Monter la vidéo » devient l'action principale
+# Reel : un parcours en 4 étapes au lieu d'une page fleuve
 
-## Ce qui se passe aujourd'hui
+## Le constat
 
-Sur un script de Reel, l'écran de résultat empile : script → bloc « Monter la vidéo » (au milieu, juste après les sections) → plan de tournage → caption → cover → stories → conseil → vérif. Puis, tout en bas, le bouton plein « Publier ou programmer ».
+Aujourd'hui, quand un script de Reel est généré, tout arrive d'un bloc sur un seul écran : lecture face cam, sections du script, bloc « Monter la vidéo » (au milieu), plan de tournage, caption, hashtags, cover, stories d'amplification, conseil, vérif anti red-flags, puis « Publier ou programmer ».
 
-Résultat : l'action qui vient logiquement en premier (monter le clip) est noyée au milieu, et l'action de fin (publier) est la seule qui ressemble à un vrai bouton — alors qu'on ne peut pas publier un reel qui n'existe pas encore.
+Deux problèmes : on ne sait pas par où commencer, et l'ordre ne suit pas la réalité (on ne peut pas publier une vidéo qui n'est pas encore montée).
 
-## Ce qu'on change
+## Le nouveau parcours
 
-1. **Le bloc « Monter la vidéo » descend en fin de fiche**, juste avant les boutons d'action : il devient le dernier pas du parcours, après avoir lu le script, le plan de tournage et la caption.
-2. **Il prend l'allure d'un CTA principal** (bouton plein, pas une carte discrète), avec son libellé actuel et le badge beta. Il reste replié tant qu'on ne clique pas — l'ouverture déclenche des appels IA + banque vidéo, on ne les paie pas d'office.
-3. **« Publier ou programmer » passe en secondaire** (contour) sur le format Reel tant que la vidéo n'est pas montée, comme c'est déjà le cas pour le carrousel quand Canva est l'action héros. Une fois le MP4 rendu (ou si on referme le montage), il redevient le bouton plein.
-4. Une fois le montage ouvert, le panneau s'affiche sur place et peut être replié.
+Le résultat Reel devient un mini-parcours en 4 étapes, avec une barre de progression en haut (même style que le stepper de /creer) et un seul bouton d'avancement en bas de chaque étape. On peut revenir en arrière à tout moment en cliquant sur une étape passée.
 
-Aucun changement sur les autres formats, ni sur la génération, ni sur le moteur de rendu vidéo.
+**Étape 1 — Mon script**
+Lecture face cam + les sections (timing, texte parlé, overlay, cut, tips) + la vérif anti red-flags sur le texte.
+→ bouton : « Passer au tournage »
+
+**Étape 2 — Mon tournage**
+Le plan de tournage (shot list) et le conseil personnalisé. Si le script n'a pas de plan de tournage, cette étape est sautée automatiquement.
+→ bouton : « Monter ma vidéo »
+
+**Étape 3 — Le montage**
+Le panneau de montage actuel (clips, voix, sous-titres, rendu MP4). Il ne se charge qu'à l'arrivée sur cette étape, donc aucun appel IA / banque vidéo tant qu'on n'y est pas.
+→ bouton : « Ma légende » (et une fois le MP4 rendu, le bouton devient l'action principale)
+→ lien discret : « Je monte plus tard » pour filer à l'étape 4
+
+**Étape 4 — Légende et publication**
+Caption + hashtags + texte de cover + stories d'amplification. C'est ici, et seulement ici, qu'apparaît « Publier ou programmer ».
+
+Le menu « Autres actions » (copier, télécharger, ranger) reste accessible en bas quelle que soit l'étape.
 
 ## Détail technique
 
-- `src/components/creer/formatRenderers/ReelResult.tsx`
-  - Déplacer le bloc `montageOpen` (bouton + `<ReelMontage />`) de sa position actuelle (lignes ~114-132) vers la fin du rendu, après `RedFlagsChecker` / `AiGeneratedMention`.
-  - Restyler le déclencheur en `Button` pleine largeur (`h-12`, icône `Film`, badge « beta »), avec sous-titre en dessous, et ajouter un lien « Replier le montage » quand il est ouvert.
-  - Nouvelle prop optionnelle `onMontageStateChange?: (s: { open: boolean; done: boolean }) => void` pour remonter l'état au parent.
-- `src/components/creer/ReelMontage.tsx`
-  - Prop optionnelle `onPhaseChange?: (phase: Phase) => void`, appelée dans un `useEffect` sur `phase` — permet de savoir quand la vidéo est rendue (`done`). Aucun autre changement de logique.
-- `src/components/creer/CreerStepResult.tsx`
-  - État local `reelMontage` alimenté par `onMontageStateChange` ; passer la prop à `<ReelResult />` (ligne 518).
-  - Étendre la condition de `variant` du bouton `publish-or-schedule` (lignes 721-726) : `outline` quand `format === "reel" && !reelMontage.done`.
+- Nouveau composant `src/components/creer/formatRenderers/ReelSteps.tsx` : possède l'état `step` (1-4), affiche un stepper réutilisant le pattern de `CreerStepper.tsx` (étapes passées cliquables), calcule les étapes disponibles (étape 2 masquée si `plan_tournage` vide) et rend le contenu de l'étape courante.
+- `src/components/creer/formatRenderers/ReelResult.tsx` : découpé en 4 sous-blocs de présentation (`ScriptStep`, `TournageStep`, `MontageStep`, `CaptionStep`) dans le même fichier, consommés par `ReelSteps`. Aucun changement des champs lus dans `result`.
+  - `ReelMontage` n'est monté que quand `step === 3` (comportement « lazy » actuel conservé, le clic devient l'arrivée sur l'étape).
+  - Nouvelle prop `onStepChange?: (s: { step: number; isLast: boolean; montageDone: boolean }) => void`.
+- `src/components/creer/ReelMontage.tsx` : prop optionnelle `onPhaseChange?: (phase: Phase) => void` appelée dans un `useEffect` sur `phase`, pour savoir quand le MP4 est prêt. Aucune autre modification de logique.
+- `src/components/creer/CreerStepResult.tsx` :
+  - état local `reelStep` alimenté par `onStepChange`, passé à `<ReelResult />` (ligne 518).
+  - le bouton `publish-or-schedule` (lignes 717-731) n'est rendu, pour `format === "reel"`, que si `reelStep.isLast`. Les autres formats sont inchangés.
+  - `AiGeneratedMention` et `Autres actions` restent où ils sont.
+- Tests : `src/test/reel-result.test.tsx` sera ajusté (il mocke déjà `ReelMontage` pour éviter les appels réseau) pour vérifier que l'étape 1 s'affiche par défaut et que le montage n'est pas monté avant l'étape 3.
+
+Aucun changement de route, de schéma, d'edge function ou de prompt.
