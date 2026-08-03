@@ -51,6 +51,11 @@ interface Section {
 interface Props {
   sections: Section[];
   subject?: string;
+  /**
+   * Remonte l'avancée du rendu au parent (le parcours ReelResult), qui s'en
+   * sert pour savoir si un MP4 existe. Aucune logique de montage n'en dépend.
+   */
+  onPhaseChange?: (phase: Phase) => void;
 }
 
 type Phase = "idle" | "rendering" | "done" | "error";
@@ -92,7 +97,7 @@ function fromMine(v: UserReelVideo, duration: number | null): SelectedClip {
   };
 }
 
-export default function ReelMontage({ sections, subject }: Props) {
+export default function ReelMontage({ sections, subject, onPhaseChange }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
 
   const [keywords, setKeywords] = useState<string[]>(() => spoken.map(() => ""));
@@ -110,6 +115,10 @@ export default function ReelMontage({ sections, subject }: Props) {
   const [tick, setTick] = useState(0);
   const [mp4Url, setMp4Url] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string>("");
+
+  useEffect(() => {
+    onPhaseChange?.(phase);
+  }, [onPhaseChange, phase]);
 
   // Voix : "recorded" = la créatrice lit le script (téléprompteur) ;
   // "tts" = voix générée. Les phrases non enregistrées retombent sur la

@@ -1,25 +1,58 @@
+/**
+ * ReelResult — le résultat d'un script de Reel, en PARCOURS de 4 étapes.
+ *
+ * Avant, tout arrivait d'un bloc sur un seul écran : script, montage (au
+ * milieu), plan de tournage, caption, publication. Deux problèmes : on ne
+ * savait pas par où commencer, et l'ordre ne suivait pas la réalité — on ne
+ * peut pas publier une vidéo qui n'est pas encore tournée ni montée.
+ *
+ * Les 4 étapes suivent le vrai geste : j'écris → je tourne → je monte → je
+ * légende et je publie. L'étape « tournage » est sautée quand le script n'a
+ * pas de plan de tournage (champ additif), l'étape « montage » quand il n'a
+ * aucune section.
+ *
+ * Le stepper est ENTIÈREMENT cliquable (pas seulement les étapes passées) :
+ * beaucoup de créatrices ne montent jamais dans l'app — elles tournent au
+ * téléphone et montent ailleurs — et pour elles la légende est le livrable
+ * principal. Un parcours en aller simple la leur enterrerait derrière 3 clics.
+ */
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, Copy, Film } from "lucide-react";
+import { ArrowRight, Check, Copy } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import ReelMontage from "@/components/creer/ReelMontage";
-import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
+type StepKey = "script" | "tournage" | "montage" | "caption";
+
+interface StepDef {
+  key: StepKey;
+  label: string;
+  /** Verbe affiché sous le stepper pour l'étape courante. */
+  verb: string;
+}
 
 interface Props {
   result: any;
+  /**
+   * Remonte l'avancée du parcours au parent (CreerStepResult), qui s'en sert
+   * pour n'afficher « Publier ou programmer » qu'à la dernière étape.
+   */
+  onStepChange?: (s: { step: number; isLast: boolean; montageDone: boolean }) => void;
 }
 
-export default function ReelResult({ result }: Props) {
+export default function ReelResult({ result, onStepChange }: Props) {
   const formatType = result?.format_type || result?.format;
   const dureeCible = result?.duree_cible || result?.duration;
   const sections = result?.sections || (Array.isArray(result?.script) ? result.script : result?.script?.sections) || [];
   const personalTip = result?.personal_tip || result?.conseil_personnalise;
   const lectureTest = result?.lecture_test;
   // Shot list de tournage (chantier « scripts Reels ») — champ additif : les
-  // contenus générés avant ce chantier ne l'ont pas, la section ne s'affiche pas.
+  // contenus générés avant ce chantier ne l'ont pas, l'étape est sautée.
   const planTournage = Array.isArray(result?.plan_tournage) ? result.plan_tournage : [];
   // Caption + amplification (audit reels 12/07) : ces champs étaient générés et
   // sauvegardés au calendrier mais invisibles ici — le moment où elle juge son reel.
@@ -43,15 +76,52 @@ export default function ReelResult({ result }: Props) {
     .filter(Boolean)
     .join("\n\n");
 
+  // Vit ICI, pas dans ScriptStep : l'étape est démontée quand on la quitte,
+  // les corrections anti red-flags doivent lui survivre.
   const [checkedText, setCheckedText] = useState(fullText);
 
-  // Montage vidéo REPLIÉ derrière un clic, pour deux raisons qui n'en font
-  // qu'une : (1) ReelMontage lance dès son montage un appel IA (mots-clés) +
-  // une recherche Pexels par section — le monter d'office ferait payer ces
-  // appels à CHAQUE affichage de script, même quand la cliente se fiche de la
-  // vidéo ; (2) le panneau ouvert était noyé en bas de page, personne ne le
-  // trouvait. Un bouton d'appel visible règle les deux.
-  const [montageOpen, setMontageOpen] = useState(false);
+  // Étapes réellement disponibles pour CE script.
+  const steps: StepDef[] = [
+    { key: "script", label: "Script", verb: "Relis ton script" },
+    ...(planTournage.length > 0
+      ? [{ key: "tournage" as const, label: "Tournage", verb: "Ton plan de tournage" }]
+      : []),
+    ...(sections.length > 0
+      ? [{ key: "montage" as const, label: "Montage", verb: "Monte ta vidéo" }]
+      : []),
+    { key: "caption", label: "Légende", verb: "Légende et publication" },
+  ];
+
+  const [stepKey, setStepKey] = useState<StepKey>("script");
+  const currentIndex = Math.max(0, steps.findIndex((s) => s.key === stepKey));
+  const current = steps[currentIndex] ?? steps[0];
+  const isLast = currentIndex === steps.length - 1;
+
+  // Le montage est MONTÉ à la première visite et gardé en vie ensuite (masqué
+  // en CSS) : il lance un appel IA + une recherche Pexels par section, et
+  // surtout les clips choisis et les prises de voix ne doivent pas disparaître
+  // parce qu'on est allé lire sa légende.
+  const [montageVisited, setMontageVisited] = useState(false);
+  const [montageDone, setMontageDone] = useState(false);
+  useEffect(() => {
+    if (stepKey === "montage") setMontageVisited(true);
+  }, [stepKey]);
+
+  useEffect(() => {
+    onStepChange?.({ step: currentIndex + 1, isLast, montageDone });
+  }, [onStepChange, currentIndex, isLast, montageDone]);
+
+  const goNext = () => {
+    const next = steps[currentIndex + 1];
+    if (next) setStepKey(next.key);
+  };
+
+  const nextLabel =
+    steps[currentIndex + 1]?.key === "tournage"
+      ? "Passer au tournage"
+      : steps[currentIndex + 1]?.key === "montage"
+        ? "Monter ma vidéo"
+        : "Écrire ma légende";
 
   return (
     <div className="space-y-4 animate-fade-in">
@@ -64,6 +134,119 @@ export default function ReelResult({ result }: Props) {
         )}
       </div>
 
+      {/* Stepper — même pattern visuel que CreerStepper, mais toutes les
+          étapes sont atteignables (voir l'en-tête du fichier). */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-1.5">
+          {steps.map((s, i) => (
+            <div key={s.key} className="flex items-center gap-1.5 flex-1 last:flex-none">
+              <button
+                type="button"
+                onClick={() => setStepKey(s.key)}
+                aria-current={i === currentIndex ? "step" : undefined}
+                aria-label={`Étape ${i + 1} sur ${steps.length} — ${s.label}`}
+                className={cn(
+                  "flex items-center justify-center h-6 w-6 rounded-full text-2xs font-bold shrink-0 transition-all cursor-pointer",
+                  i < currentIndex && "bg-primary/40 text-primary-foreground hover:bg-primary/60",
+                  i === currentIndex && "bg-primary text-primary-foreground shadow-sm scale-110",
+                  i > currentIndex && "bg-muted text-muted-foreground hover:bg-muted-foreground/20",
+                )}
+              >
+                {i < currentIndex ? <Check className="h-3 w-3" /> : i + 1}
+              </button>
+              {i < steps.length - 1 && (
+                <div
+                  className={cn(
+                    "h-0.5 rounded-full flex-1 transition-colors",
+                    i < currentIndex ? "bg-primary/40" : "bg-muted",
+                  )}
+                />
+              )}
+            </div>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          <span className="font-medium text-foreground">Étape {currentIndex + 1} sur {steps.length}</span>
+          {" — "}
+          {current.verb}
+        </p>
+      </div>
+
+      {stepKey === "script" && (
+        <ScriptStep
+          lectureTest={lectureTest}
+          sections={sections}
+          checkedText={checkedText}
+          onCheckedTextChange={setCheckedText}
+        />
+      )}
+
+      {stepKey === "tournage" && (
+        <TournageStep planTournage={planTournage} personalTip={personalTip} />
+      )}
+
+      {/* Monté à la première visite, jamais démonté ensuite. */}
+      {montageVisited && (
+        <div className={cn(stepKey !== "montage" && "hidden")}>
+          <ReelMontage
+            sections={sections}
+            subject={result?.subject || result?.pillar}
+            onPhaseChange={(phase) => setMontageDone(phase === "done")}
+          />
+        </div>
+      )}
+
+      {stepKey === "caption" && (
+        <CaptionStep
+          caption={caption}
+          hashtags={hashtags}
+          coverText={coverText}
+          amplificationStories={amplificationStories}
+          personalTip={planTournage.length > 0 ? null : personalTip}
+          montageDone={montageDone}
+          onCopyCaption={handleCopyCaption}
+        />
+      )}
+
+      {!isLast && (
+        <div className="space-y-2">
+          <Button onClick={goNext} className="w-full gap-2 h-11 text-sm font-semibold">
+            {nextLabel} <ArrowRight className="h-4 w-4" />
+          </Button>
+          {/* Sortie de secours pour celles qui ne montent pas dans l'app :
+              leur livrable, c'est la légende, pas le MP4. */}
+          {stepKey !== "montage" && steps[currentIndex + 1]?.key !== "caption" && (
+            <button
+              type="button"
+              onClick={() => setStepKey("caption")}
+              className="w-full text-xs text-muted-foreground underline underline-offset-2 hover:text-foreground transition-colors"
+            >
+              Je monte ailleurs — aller directement à la légende
+            </button>
+          )}
+        </div>
+      )}
+
+      <AiGeneratedMention />
+    </div>
+  );
+}
+
+/* ── Étape 1 — Mon script ─────────────────────────────────────────────── */
+
+function ScriptStep({
+  lectureTest,
+  sections,
+  checkedText,
+  onCheckedTextChange,
+}: {
+  lectureTest?: string;
+  sections: any[];
+  checkedText: string;
+  onCheckedTextChange: (t: string) => void;
+}) {
+  return (
+    <div className="space-y-4">
       {lectureTest && (
         <div className="rounded-lg bg-accent/30 border border-accent p-4 space-y-2">
           <div className="flex items-center gap-2">
@@ -111,55 +294,86 @@ export default function ReelResult({ result }: Props) {
         ))}
       </div>
 
-      {sections.length > 0 && !montageOpen && (
-        <button
-          type="button"
-          onClick={() => setMontageOpen(true)}
-          className="w-full rounded-lg border border-primary/20 bg-primary/5 p-4 flex items-center gap-3 text-left hover:bg-primary/10 transition-colors"
-        >
-          <Film className="h-5 w-5 text-primary shrink-0" />
-          <span className="flex-1 min-w-0">
-            <span className="block text-sm font-semibold text-primary">Monter la vidéo</span>
-            <span className="block text-xs text-muted-foreground">
-              Tes clips ou une banque libre, ta voix, sous-titres automatiques — un MP4 prêt à poster.
-            </span>
-          </span>
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-        </button>
-      )}
-      {sections.length > 0 && montageOpen && (
-        <ReelMontage sections={sections} subject={result?.subject || result?.pillar} />
-      )}
+      <RedFlagsChecker content={checkedText} onFix={onCheckedTextChange} />
+    </div>
+  );
+}
 
-      {planTournage.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-foreground uppercase tracking-wide">🎥 Ton plan de tournage</span>
-            <Badge variant="secondary" className="text-2xs">{planTournage.length} plans</Badge>
-          </div>
-          <p className="text-2xs text-muted-foreground">
-            Tout se tourne au téléphone, dans cet ordre — les prises face cam d'abord, les plans de coupe ensuite.
-          </p>
-          <div className="space-y-2">
-            {planTournage.map((shot: any, i: number) => (
-              <div key={i} className="flex gap-2.5 items-start rounded-lg bg-muted/30 p-2.5">
-                <span className="font-mono text-2xs text-muted-foreground pt-0.5 shrink-0">{i + 1}.</span>
-                <div className="min-w-0 space-y-0.5">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <Badge variant="secondary" className="text-2xs">
-                      {shot.type === "face_cam" ? "🎤 Face cam" : shot.type === "insert" ? "🔍 Insert" : "🎬 B-roll"}
-                    </Badge>
-                    {shot.duree && <span className="font-mono text-2xs text-muted-foreground">{shot.duree}</span>}
-                  </div>
-                  {shot.plan && <p className="text-sm text-foreground leading-snug">{shot.plan}</p>}
-                  {shot.sert_pour && (
-                    <p className="text-2xs text-muted-foreground">Sert pour : {shot.sert_pour}</p>
-                  )}
-                  {shot.conseil && <p className="text-xs text-muted-foreground">💡 {shot.conseil}</p>}
+/* ── Étape 2 — Mon tournage ───────────────────────────────────────────── */
+
+function TournageStep({ planTournage, personalTip }: { planTournage: any[]; personalTip?: string }) {
+  return (
+    <div className="space-y-4">
+      <div className="rounded-lg border border-border bg-card p-4 space-y-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-bold text-foreground uppercase tracking-wide">🎥 Ton plan de tournage</span>
+          <Badge variant="secondary" className="text-2xs">{planTournage.length} plans</Badge>
+        </div>
+        <p className="text-2xs text-muted-foreground">
+          Tout se tourne au téléphone, dans cet ordre — les prises face cam d'abord, les plans de coupe ensuite.
+        </p>
+        <div className="space-y-2">
+          {planTournage.map((shot: any, i: number) => (
+            <div key={i} className="flex gap-2.5 items-start rounded-lg bg-muted/30 p-2.5">
+              <span className="font-mono text-2xs text-muted-foreground pt-0.5 shrink-0">{i + 1}.</span>
+              <div className="min-w-0 space-y-0.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Badge variant="secondary" className="text-2xs">
+                    {shot.type === "face_cam" ? "🎤 Face cam" : shot.type === "insert" ? "🔍 Insert" : "🎬 B-roll"}
+                  </Badge>
+                  {shot.duree && <span className="font-mono text-2xs text-muted-foreground">{shot.duree}</span>}
                 </div>
+                {shot.plan && <p className="text-sm text-foreground leading-snug">{shot.plan}</p>}
+                {shot.sert_pour && (
+                  <p className="text-2xs text-muted-foreground">Sert pour : {shot.sert_pour}</p>
+                )}
+                {shot.conseil && <p className="text-xs text-muted-foreground">💡 {shot.conseil}</p>}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {personalTip && (
+        <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
+          <p className="text-xs font-semibold text-primary mb-1">🎯 Conseil personnalisé</p>
+          <p className="text-sm text-foreground">{personalTip}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Étape 4 — Légende et publication ─────────────────────────────────── */
+
+function CaptionStep({
+  caption,
+  hashtags,
+  coverText,
+  amplificationStories,
+  personalTip,
+  montageDone,
+  onCopyCaption,
+}: {
+  caption: any;
+  hashtags: string[];
+  coverText: string | null;
+  amplificationStories: any[];
+  personalTip?: string | null;
+  montageDone: boolean;
+  onCopyCaption: () => void;
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Honnêteté sur le MP4 : le fichier monté à l'étape 3 n'est PAS rattaché
+          au contenu — « Publier ou programmer » ne le connaît pas. Tant que ce
+          chaînage n'existe pas, on le dit au lieu de le laisser croire. */}
+      {montageDone && (
+        <div className="rounded-lg border border-warning/30 bg-warning-bg p-3">
+          <p className="text-xs font-semibold text-warning mb-1">📼 Ta vidéo montée n'est pas jointe ici</p>
+          <p className="text-xs text-foreground">
+            Reviens à l'étape « Montage » pour télécharger ton MP4, puis choisis-le toi-même au moment de publier.
+          </p>
         </div>
       )}
 
@@ -167,7 +381,7 @@ export default function ReelResult({ result }: Props) {
         <div className="rounded-lg border border-border bg-card p-4 space-y-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-foreground uppercase tracking-wide">📝 Caption</span>
-            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={handleCopyCaption}>
+            <Button variant="ghost" size="sm" className="h-7 gap-1.5 text-xs" onClick={onCopyCaption}>
               <Copy className="h-3 w-3" />
               Copier
             </Button>
@@ -217,16 +431,14 @@ export default function ReelResult({ result }: Props) {
         </div>
       )}
 
+      {/* Le conseil personnalisé vit à l'étape « tournage ». Sans plan de
+          tournage cette étape n'existe pas : on le remonte ici. */}
       {personalTip && (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
           <p className="text-xs font-semibold text-primary mb-1">🎯 Conseil personnalisé</p>
           <p className="text-sm text-foreground">{personalTip}</p>
         </div>
       )}
-
-      <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
-
-      <AiGeneratedMention />
     </div>
   );
 }
