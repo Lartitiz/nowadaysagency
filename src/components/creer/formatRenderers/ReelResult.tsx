@@ -11,42 +11,53 @@
  * pas de plan de tournage (champ additif), l'étape « montage » quand il n'a
  * aucune section.
  *
- * Le stepper est ENTIÈREMENT cliquable (pas seulement les étapes passées) :
+ * La navigation est ENTIÈREMENT libre (pas seulement vers les étapes passées) :
  * beaucoup de créatrices ne montent jamais dans l'app — elles tournent au
  * téléphone et montent ailleurs — et pour elles la légende est le livrable
  * principal. Un parcours en aller simple la leur enterrerait derrière 3 clics.
+ *
+ * ⚠️ Pourquoi des ONGLETS NOMMÉS et pas un stepper à pastilles : la page
+ * /creer affiche DÉJÀ son propre stepper « Étape 4 sur 4 — Ton contenu prêt »
+ * juste au-dessus. Un second stepper au même dessin et au même « sur 4 » se
+ * lisait comme une contradiction (constaté en live le 03/08/2026 : deux barres
+ * empilées, deux significations). Des onglets portant leur nom sont
+ * visiblement un SOUS-niveau, et rendent le saut direct vers « Légende »
+ * évident au lieu de le cacher derrière une pastille « 4 ».
  */
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Check, Copy } from "lucide-react";
+import { ArrowRight, Copy, Loader2 } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import ReelMontage from "@/components/creer/ReelMontage";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-type StepKey = "script" | "tournage" | "montage" | "caption";
+export type ReelStepKey = "script" | "tournage" | "montage" | "caption";
+type StepKey = ReelStepKey;
 
 interface StepDef {
   key: StepKey;
   label: string;
-  /** Verbe affiché sous le stepper pour l'étape courante. */
-  verb: string;
 }
 
 interface Props {
   result: any;
   /**
    * Remonte l'avancée du parcours au parent (CreerStepResult), qui s'en sert
-   * pour n'afficher « Publier ou programmer » qu'à la dernière étape.
+   * pour n'afficher « Publier ou programmer » qu'à la dernière étape et pour
+   * que « Autres actions → Copier » copie ce qui est À L'ÉCRAN.
    */
-  onStepChange?: (s: { step: number; isLast: boolean; montageDone: boolean }) => void;
+  onStepChange?: (s: { key: StepKey; step: number; isLast: boolean; montageDone: boolean }) => void;
 }
 
 export default function ReelResult({ result, onStepChange }: Props) {
-  const formatType = result?.format_type || result?.format;
+  // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
+  // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
+  // On affichait la clé — même bug que #688 ailleurs dans l'app.
+  const formatType = result?.format_label || result?.format_type || result?.format;
   const dureeCible = result?.duree_cible || result?.duration;
   const sections = result?.sections || (Array.isArray(result?.script) ? result.script : result?.script?.sections) || [];
   const personalTip = result?.personal_tip || result?.conseil_personnalise;
@@ -80,21 +91,21 @@ export default function ReelResult({ result, onStepChange }: Props) {
   // les corrections anti red-flags doivent lui survivre.
   const [checkedText, setCheckedText] = useState(fullText);
 
+  // Le montage ne sait travailler que sur les sections qui ont un texte parlé
+  // (`spoken` dans ReelMontage). Un script sans aucun texte parlé ouvrirait une
+  // étape vide où « Assembler » est impossible : autant ne pas la proposer.
+  const hasSpoken = sections.some((s: any) => typeof s?.texte_parle === "string" && s.texte_parle.trim());
+
   // Étapes réellement disponibles pour CE script.
   const steps: StepDef[] = [
-    { key: "script", label: "Script", verb: "Relis ton script" },
-    ...(planTournage.length > 0
-      ? [{ key: "tournage" as const, label: "Tournage", verb: "Ton plan de tournage" }]
-      : []),
-    ...(sections.length > 0
-      ? [{ key: "montage" as const, label: "Montage", verb: "Monte ta vidéo" }]
-      : []),
-    { key: "caption", label: "Légende", verb: "Légende et publication" },
+    { key: "script", label: "Script" },
+    ...(planTournage.length > 0 ? [{ key: "tournage" as const, label: "Tournage" }] : []),
+    ...(hasSpoken ? [{ key: "montage" as const, label: "Montage" }] : []),
+    { key: "caption", label: "Légende" },
   ];
 
   const [stepKey, setStepKey] = useState<StepKey>("script");
   const currentIndex = Math.max(0, steps.findIndex((s) => s.key === stepKey));
-  const current = steps[currentIndex] ?? steps[0];
   const isLast = currentIndex === steps.length - 1;
 
   // Le montage est MONTÉ à la première visite et gardé en vie ensuite (masqué
@@ -102,14 +113,32 @@ export default function ReelResult({ result, onStepChange }: Props) {
   // surtout les clips choisis et les prises de voix ne doivent pas disparaître
   // parce qu'on est allé lire sa légende.
   const [montageVisited, setMontageVisited] = useState(false);
-  const [montageDone, setMontageDone] = useState(false);
+  const [montagePhase, setMontagePhase] = useState<"idle" | "rendering" | "done" | "error">("idle");
+  const montageDone = montagePhase === "done";
   useEffect(() => {
     if (stepKey === "montage") setMontageVisited(true);
   }, [stepKey]);
 
+  // Régénération : le parcours et la vérif anti red-flags doivent repartir du
+  // NOUVEAU script. Sans ça, régénérer depuis l'étape « Légende » laissait la
+  // cliente sur la légende du nouveau contenu sans jamais voir son script, et
+  // RedFlagsChecker continuait d'analyser l'ANCIEN texte.
+  // On se cale sur le texte du script (et pas sur l'objet `result`, dont
+  // l'identité peut changer à chaque rendu du parent, ce qui bloquerait tout
+  // le monde à l'étape 1).
+  const prevScript = useRef(fullText);
   useEffect(() => {
-    onStepChange?.({ step: currentIndex + 1, isLast, montageDone });
-  }, [onStepChange, currentIndex, isLast, montageDone]);
+    if (prevScript.current === fullText) return;
+    prevScript.current = fullText;
+    setStepKey("script");
+    setCheckedText(fullText);
+    setMontageVisited(false);
+    setMontagePhase("idle");
+  }, [fullText]);
+
+  useEffect(() => {
+    onStepChange?.({ key: stepKey, step: currentIndex + 1, isLast, montageDone });
+  }, [onStepChange, stepKey, currentIndex, isLast, montageDone]);
 
   const goNext = () => {
     const next = steps[currentIndex + 1];
@@ -134,44 +163,48 @@ export default function ReelResult({ result, onStepChange }: Props) {
         )}
       </div>
 
-      {/* Stepper — même pattern visuel que CreerStepper, mais toutes les
-          étapes sont atteignables (voir l'en-tête du fichier). */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-1.5">
+      {/* Onglets nommés — surtout PAS un second stepper à pastilles
+          numérotées : voir l'en-tête du fichier. */}
+      <div className="space-y-1.5">
+        <p className="text-2xs text-muted-foreground">Ton reel, dans l'ordre</p>
+        <div role="tablist" aria-label="Étapes de ton reel" className="flex flex-wrap gap-1.5">
           {steps.map((s, i) => (
-            <div key={s.key} className="flex items-center gap-1.5 flex-1 last:flex-none">
-              <button
-                type="button"
-                onClick={() => setStepKey(s.key)}
-                aria-current={i === currentIndex ? "step" : undefined}
-                aria-label={`Étape ${i + 1} sur ${steps.length} — ${s.label}`}
-                className={cn(
-                  "flex items-center justify-center h-6 w-6 rounded-full text-2xs font-bold shrink-0 transition-all cursor-pointer",
-                  i < currentIndex && "bg-primary/40 text-primary-foreground hover:bg-primary/60",
-                  i === currentIndex && "bg-primary text-primary-foreground shadow-sm scale-110",
-                  i > currentIndex && "bg-muted text-muted-foreground hover:bg-muted-foreground/20",
-                )}
-              >
-                {i < currentIndex ? <Check className="h-3 w-3" /> : i + 1}
-              </button>
-              {i < steps.length - 1 && (
-                <div
-                  className={cn(
-                    "h-0.5 rounded-full flex-1 transition-colors",
-                    i < currentIndex ? "bg-primary/40" : "bg-muted",
-                  )}
-                />
+            <button
+              key={s.key}
+              type="button"
+              role="tab"
+              id={`reel-tab-${s.key}`}
+              aria-selected={i === currentIndex}
+              aria-controls="reel-step-panel"
+              tabIndex={i === currentIndex ? 0 : -1}
+              onClick={() => setStepKey(s.key)}
+              onKeyDown={(e) => {
+                if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+                e.preventDefault();
+                const delta = e.key === "ArrowRight" ? 1 : -1;
+                const next = steps[(currentIndex + delta + steps.length) % steps.length];
+                setStepKey(next.key);
+                document.getElementById(`reel-tab-${next.key}`)?.focus();
+              }}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm transition-colors",
+                i === currentIndex
+                  ? "bg-primary text-primary-foreground font-medium"
+                  : "border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted/50",
               )}
-            </div>
+            >
+              {s.label}
+              {/* Le rendu MP4 continue quand on quitte l'étape : sans ce
+                  signal, elle croit avoir tout perdu en allant lire sa légende. */}
+              {s.key === "montage" && montagePhase === "rendering" && (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-label="montage en cours" />
+              )}
+            </button>
           ))}
         </div>
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Étape {currentIndex + 1} sur {steps.length}</span>
-          {" — "}
-          {current.verb}
-        </p>
       </div>
 
+      <div id="reel-step-panel" role="tabpanel" aria-labelledby={`reel-tab-${stepKey}`} className="space-y-4">
       {stepKey === "script" && (
         <ScriptStep
           lectureTest={lectureTest}
@@ -191,7 +224,7 @@ export default function ReelResult({ result, onStepChange }: Props) {
           <ReelMontage
             sections={sections}
             subject={result?.subject || result?.pillar}
-            onPhaseChange={(phase) => setMontageDone(phase === "done")}
+            onPhaseChange={setMontagePhase}
           />
         </div>
       )}
@@ -207,6 +240,7 @@ export default function ReelResult({ result, onStepChange }: Props) {
           onCopyCaption={handleCopyCaption}
         />
       )}
+      </div>
 
       {!isLast && (
         <div className="space-y-2">
