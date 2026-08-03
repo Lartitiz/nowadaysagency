@@ -365,7 +365,9 @@ export default function CreerStepResult({
   // pas une vidéo qui n'est pas encore tournée. Reste `null` tant que rien
   // n'est remonté, et le bouton s'affiche alors comme avant (fail-open) : un
   // reel sans signal ne doit JAMAIS devenir impubliable en silence.
-  const [reelStep, setReelStep] = useState<{ step: number; isLast: boolean; montageDone: boolean } | null>(null);
+  const [reelStep, setReelStep] = useState<
+    { key: "script" | "tournage" | "montage" | "caption"; step: number; isLast: boolean; montageDone: boolean } | null
+  >(null);
 
   // ── Célébration à l'apparition du résultat ──
   // Ne se déclenche que sur la transition génération → résultat (pas sur un
@@ -553,6 +555,30 @@ export default function CreerStepResult({
       return;
     }
     if (format === "reel" && (result?.sections || result?.script)) {
+      // « Copier » suit l'ÉTAPE affichée. Sans ça, à l'étape « Légende » ce
+      // menu copiait le script alors qu'un bouton « Copier » juste au-dessus
+      // copiait la caption : deux boutons du même nom, deux résultats.
+      if (reelStep?.key === "caption") {
+        const c = result?.caption && typeof result.caption === "object" ? result.caption : null;
+        const tags = Array.isArray(result?.hashtags) ? result.hashtags.filter((h: unknown) => typeof h === "string") : [];
+        const captionText = [c?.text, c?.cta, tags.length ? tags.join(" ") : null].filter(Boolean).join("\n\n");
+        if (captionText) {
+          onCopy(captionText);
+          return;
+        }
+      }
+      if (reelStep?.key === "tournage" && Array.isArray(result?.plan_tournage) && result.plan_tournage.length > 0) {
+        const shots = result.plan_tournage
+          .map((s: any, i: number) => {
+            const type = s?.type === "face_cam" ? "Face cam" : s?.type === "insert" ? "Insert" : "B-roll";
+            return [`${i + 1}. [${type}${s?.duree ? ` · ${s.duree}` : ""}] ${s?.plan || ""}`, s?.conseil ? `   💡 ${s.conseil}` : ""]
+              .filter(Boolean)
+              .join("\n");
+          })
+          .join("\n\n");
+        onCopy(`🎥 Plan de tournage\n\n${shots}`);
+        return;
+      }
       const reelSections = result.sections || result.script || [];
       const scriptText = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}`).join("\n\n");
       const tip = result.personal_tip ? `\n\n🎯 ${result.personal_tip}` : "";

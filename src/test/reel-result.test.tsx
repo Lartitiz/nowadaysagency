@@ -75,11 +75,14 @@ const captionResult = {
   ],
 };
 
-/** Les pastilles du stepper, dans l'ordre. */
-const stepDots = () => screen.getAllByRole("button", { name: /^Étape \d+ sur \d+ —/ });
+/** Les onglets du parcours, dans l'ordre. */
+const stepDots = () => screen.getAllByRole("tab");
 
-/** Va à l'étape voulue en cliquant sa pastille (le stepper est tout cliquable). */
+/** Va à l'étape voulue en cliquant son onglet (tous sont atteignables). */
 const goToStep = (n: number) => fireEvent.click(stepDots()[n - 1]);
+
+/** Les libellés d'onglets affichés, dans l'ordre. */
+const tabLabels = () => stepDots().map((t) => t.textContent?.trim());
 
 // ── Le parcours lui-même ────────────────────────────────────────────────
 // Avant, tout arrivait d'un bloc : on ne savait pas par où commencer et
@@ -91,7 +94,8 @@ describe("ReelResult — parcours en 4 étapes", () => {
 
   it("démarre à l'étape 1 : le script, et RIEN d'autre", () => {
     render(<ReelResult result={{ ...captionResult, plan_tournage: planTournage }} />);
-    expect(screen.getByText(/Étape 1 sur 4/)).toBeTruthy();
+    expect(tabLabels()).toEqual(["Script", "Tournage", "Montage", "Légende"]);
+    expect(stepDots()[0].getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText(/On m'a dit que c'était un hobby/)).toBeTruthy();
     // Ni le tournage, ni la légende ne sont là tant qu'on n'y est pas allée.
     expect(screen.queryByText("🎥 Ton plan de tournage")).toBeNull();
@@ -100,8 +104,7 @@ describe("ReelResult — parcours en 4 étapes", () => {
 
   it("saute l'étape tournage quand plan_tournage est vide (3 pastilles, pas 4)", () => {
     render(<ReelResult result={captionResult} />);
-    expect(screen.getByText(/Étape 1 sur 3/)).toBeTruthy();
-    expect(stepDots()).toHaveLength(3);
+    expect(tabLabels()).toEqual(["Script", "Montage", "Légende"]);
     // Le bouton d'avancement saute donc directement au montage.
     expect(screen.getByText("Monter ma vidéo")).toBeTruthy();
     expect(screen.queryByText("Passer au tournage")).toBeNull();
@@ -116,7 +119,7 @@ describe("ReelResult — parcours en 4 étapes", () => {
   it("avance script → tournage → légende avec le bouton du bas", () => {
     render(<ReelResult result={{ ...captionResult, plan_tournage: planTournage }} />);
     fireEvent.click(screen.getByText("Passer au tournage"));
-    expect(screen.getByText(/Étape 2 sur 4/)).toBeTruthy();
+    expect(stepDots()[1].getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("🎥 Ton plan de tournage")).toBeTruthy();
     expect(screen.getByText("2 plans")).toBeTruthy();
     expect(screen.getByText(/Toi face caméra dans ton atelier/)).toBeTruthy();
@@ -139,16 +142,16 @@ describe("ReelResult — parcours en 4 étapes", () => {
   it("offre une sortie directe vers la légende dès l'étape 1", () => {
     render(<ReelResult result={{ ...captionResult, plan_tournage: planTournage }} />);
     fireEvent.click(screen.getByText(/aller directement à la légende/));
-    expect(screen.getByText(/Étape 4 sur 4/)).toBeTruthy();
+    expect(stepDots()[3].getAttribute("aria-selected")).toBe("true");
     expect(screen.getByText("📝 Caption")).toBeTruthy();
   });
 
   it("remonte l'avancée au parent, isLast seulement à la fin", () => {
     const onStepChange = vi.fn();
     render(<ReelResult result={captionResult} onStepChange={onStepChange} />);
-    expect(onStepChange).toHaveBeenLastCalledWith({ step: 1, isLast: false, montageDone: false });
+    expect(onStepChange).toHaveBeenLastCalledWith({ key: "script", step: 1, isLast: false, montageDone: false });
     goToStep(3);
-    expect(onStepChange).toHaveBeenLastCalledWith({ step: 3, isLast: true, montageDone: false });
+    expect(onStepChange).toHaveBeenLastCalledWith({ key: "caption", step: 3, isLast: true, montageDone: false });
   });
 });
 
@@ -242,5 +245,66 @@ describe("ReelResult — montage vidéo : monté seulement à son étape", () =>
     goToStep(2);
     // Un seul appel au total : le panneau n'a pas été démonté/remonté.
     expect(suggestStockKeywords).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── Les correctifs de la passe du 03/08 ─────────────────────────────────
+describe("ReelResult — correctifs de la passe live", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("affiche le libellé LISIBLE du format, pas la clé technique", () => {
+    render(<ReelResult result={{ ...baseResult, format_label: "Face cam confession" }} />);
+    expect(screen.getByText("Face cam confession")).toBeTruthy();
+    expect(screen.queryByText("face_cam_confession")).toBeNull();
+  });
+
+  it("retombe sur format_type quand le libellé lisible manque (anciens contenus)", () => {
+    render(<ReelResult result={baseResult} />);
+    expect(screen.getByText("face_cam_confession")).toBeTruthy();
+  });
+
+  it("n'ouvre PAS d'étape montage quand aucune section n'a de texte parlé", () => {
+    const muet = {
+      ...baseResult,
+      script: [{ section: "hook", timing: "0-3 sec", texte_overlay: "UN HOBBY ?" }],
+      sections: [{ section: "hook", timing: "0-3 sec", texte_overlay: "UN HOBBY ?" }],
+    };
+    render(<ReelResult result={muet} />);
+    expect(tabLabels()).toEqual(["Script", "Légende"]);
+  });
+
+  it("remet le parcours à l'étape 1 quand le script est régénéré", () => {
+    const { rerender } = render(<ReelResult result={captionResult} />);
+    goToStep(3);
+    expect(stepDots()[2].getAttribute("aria-selected")).toBe("true");
+
+    const regenere = {
+      ...captionResult,
+      script: [{ section: "hook", timing: "0-3 sec", texte_parle: "Un tout nouveau script." }],
+      sections: [{ section: "hook", timing: "0-3 sec", texte_parle: "Un tout nouveau script." }],
+    };
+    rerender(<ReelResult result={regenere} />);
+    // On revient au script, et c'est bien le NOUVEAU qui s'affiche.
+    expect(stepDots()[0].getAttribute("aria-selected")).toBe("true");
+    expect(screen.getByText(/Un tout nouveau script/)).toBeTruthy();
+    expect(screen.queryByText(/On m'a dit que c'était un hobby/)).toBeNull();
+  });
+
+  it("ne se remet PAS à l'étape 1 quand le parent re-rend le même script", () => {
+    const { rerender } = render(<ReelResult result={captionResult} />);
+    goToStep(3);
+    // Même contenu, nouvel objet : la cliente ne doit pas être éjectée.
+    rerender(<ReelResult result={{ ...captionResult }} />);
+    expect(stepDots()[2].getAttribute("aria-selected")).toBe("true");
+  });
+
+  it("navigue aux flèches du clavier entre les onglets", () => {
+    render(<ReelResult result={captionResult} />);
+    fireEvent.keyDown(stepDots()[0], { key: "ArrowRight" });
+    expect(stepDots()[1].getAttribute("aria-selected")).toBe("true");
+    fireEvent.keyDown(stepDots()[1], { key: "ArrowLeft" });
+    expect(stepDots()[0].getAttribute("aria-selected")).toBe("true");
   });
 });
