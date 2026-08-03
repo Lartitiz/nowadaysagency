@@ -415,9 +415,14 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       const profileLines = [
         `=== PROFIL ===`,
         `Activité : ${profile.activity || "non renseignée"}`,
-        `Type : ${profile.activityType || "non renseigné"}`,
+        // `activityType` et `blocker` sont des CLÉS (comparées plus bas à
+        // "invisible" et utilisées en lookup ACTIVITY_INSIGHTS) : telles quelles
+        // dans le prompt, le modèle les recopie entre guillemets et l'inscrite
+        // lit « tu te sens "invisible" ». Le front envoie exprès un libellé
+        // compagnon `*Label` pour le prompt — c'est LUI qu'on interpole ici.
+        `Type : ${profile.activityTypeLabel || profile.activityType || "non renseigné"}`,
         `Objectif principal : ${profile.objective || "non renseigné"}`,
-        `Blocage principal : ${profile.blocker || "non renseigné"}`,
+        `Blocage principal : ${profile.blockerLabel || profile.blocker || "non renseigné"}`,
         `Temps disponible/semaine : ${profile.weeklyTime || "non renseigné"}`,
       ];
       const channels = profile.channels || freeformAnswers?.canaux;
