@@ -360,6 +360,13 @@ export default function CreerStepResult({
   // le panneau minimal les affiche au même endroit que pour les carrousels.
   const [storyActions, setStoryActions] = useState<StoryExportActions | null>(null);
 
+  // Avancée du parcours Reel (4 étapes), remontée par ReelResult : sert à ne
+  // proposer « Publier ou programmer » qu'à la dernière étape — on ne publie
+  // pas une vidéo qui n'est pas encore tournée. Reste `null` tant que rien
+  // n'est remonté, et le bouton s'affiche alors comme avant (fail-open) : un
+  // reel sans signal ne doit JAMAIS devenir impubliable en silence.
+  const [reelStep, setReelStep] = useState<{ step: number; isLast: boolean; montageDone: boolean } | null>(null);
+
   // ── Célébration à l'apparition du résultat ──
   // Ne se déclenche que sur la transition génération → résultat (pas sur un
   // reload qui restaure un résultat déjà existant).
@@ -515,7 +522,7 @@ export default function CreerStepResult({
       case "carousel":
         return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} />;
       case "reel":
-        return <ReelResult result={result} />;
+        return <ReelResult result={result} onStepChange={setReelStep} />;
       case "story":
         return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
       case "post":
@@ -713,8 +720,12 @@ export default function CreerStepResult({
       )}
 
       {/* Publier ou programmer : porte d'entrée unique vers publication immédiate,
-          programmation auto et brouillon calendrier (fenêtre gérée par le parent). */}
-      {onPublishOrSchedule && (
+          programmation auto et brouillon calendrier (fenêtre gérée par le parent).
+          Pour un reel, n'apparaît qu'à la DERNIÈRE étape du parcours : proposer
+          de publier avant que la vidéo soit tournée n'a pas de sens. Le test est
+          écrit à l'envers (`!== false`) exprès — tant qu'aucune étape n'est
+          remontée, on montre le bouton. */}
+      {onPublishOrSchedule && (format !== "reel" || reelStep?.isLast !== false) && (
         <Button
           data-testid="publish-or-schedule"
           onClick={onPublishOrSchedule}
