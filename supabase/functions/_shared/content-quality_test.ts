@@ -12,6 +12,35 @@ Deno.test("carrousel : aperçu depuis { slides, caption }", () => {
   assertEquals((p?.apercu_slides as string[]).length, 2);
 });
 
+// Régression 03/08/2026 : le hook lisait `slides[0].title` en dur, que le mixte
+// et le photo n'ont pas (ils portent `overlay_text`) → il retombait sur la
+// LÉGENDE, et le juge de la routine hebdo notait l'accroche de ces 2 formats sur
+// un texte qui n'était pas leur slide 1.
+Deno.test("carrousel mixte/photo : le hook vient de overlay_text, PAS de la légende", () => {
+  const content = JSON.stringify({
+    slides: [
+      { slide_number: 1, photo_index: 1, overlay_text: "On cherche des visages. Pas des mannequins." },
+      { slide_number: 2, slide_type: "text_only", overlay_text: "20 ans à ne pas être crue" },
+    ],
+    caption: {
+      hook: "Le 22 août, on ne shoote pas des mannequins. On shoote des femmes qui savent exactement ce que c'est, cette douleur qu'on ne croit jamais assez sérieuse.",
+      body: "Chez Calyra, j'ai mis presque 20 ans à être entendue.",
+    },
+  });
+  const p = buildContentPreview(content, "Casting Calyra");
+  assertEquals(p?.hook, "On cherche des visages. Pas des mannequins.");
+  // La légende reste lisible à part, elle ne sert juste plus de hook.
+  assertEquals(typeof p?.caption === "string" && (p!.caption as string).startsWith("Le 22 août"), true);
+});
+
+Deno.test("carrousel : la légende reste le repli si la slide 1 est vide", () => {
+  const content = JSON.stringify({
+    slides: [{ slide_number: 1, photo_index: 1, overlay_text: "   " }],
+    caption: { hook: "Accroche de secours." },
+  });
+  assertEquals(buildContentPreview(content, "Sujet")?.hook, "Accroche de secours.");
+});
+
 Deno.test("stories : aperçu depuis { stories:[{text}] }", () => {
   const content = JSON.stringify({
     stories: [

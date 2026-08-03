@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } fro
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { handleQuotaError } from "@/lib/quota-error-handler";
+import { slideText } from "@/lib/slide-text";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
@@ -2358,7 +2359,8 @@ export default function CreerUnifie() {
     if (selectedFormat === "carousel" && r?.slides) {
       setSaving(true);
       try {
-        const hookText = r.slides?.[0]?.title || "";
+        // Slide 1 quel que soit le format (texte=title, mixte/photo=overlay_text).
+        const hookText = slideText(r.slides?.[0]);
         const captionText = [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n\n");
         const { data } = await supabase.from("generated_carousels" as any).insert({
           user_id: session.user.id,
