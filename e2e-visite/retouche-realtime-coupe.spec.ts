@@ -30,6 +30,54 @@ const FIXTURE = path.join(__dirname, "fixtures-cover-test.jpg");
 const SHOTS = path.join(__dirname, "shots/retouche-rt-coupe");
 fs.mkdirSync(SHOTS, { recursive: true });
 
+/** Posé dès que la fixture est uploadée : le nettoyage n'a de sens qu'après. */
+let fixtureUploaded = false;
+
+/**
+ * Nettoyage GARANTI de la photo jetable, même si une assertion a échoué.
+ *
+ * Le 03/08 le test s'est arrêté sur l'étape 3 : le nettoyage, qui vivait à la
+ * fin du corps du test, n'a jamais tourné. La fixture (une slide graphique
+ * orange « 5 rituels slow pour ta com' ») est restée dans la bibliothèque du
+ * compte de démo — et le lendemain `carousel-mix-live` l'a piochée, s'est fait
+ * refuser par la garde de cohérence photo/idée (à raison : ce n'est pas une
+ * vraie photo) et a attendu 13 min avant de tomber. Un test qui échoue ne doit
+ * pas empoisonner le compte partagé des autres specs.
+ *
+ * La boucle ramasse aussi d'éventuels restes d'un run précédent.
+ */
+test.afterEach(async ({ page }) => {
+  if (!fixtureUploaded) return;
+  fixtureUploaded = false;
+  await page.goto("/photos", { waitUntil: "domcontentloaded" }).catch(() => {});
+  const fixtures = page.locator('img[alt*="cover-test" i]');
+  // Les `alt` sont posés APRÈS le rendu de la grille : sans ce répit, le filtre
+  // ne matche rien et on repart en annonçant « rien à nettoyer » (faux vert).
+  await fixtures.first().waitFor({ state: "visible", timeout: 30_000 }).catch(() => {});
+
+  for (let i = 0; i < 5; i++) {
+    const restant = await fixtures.count().catch(() => 0);
+    if (restant === 0) break;
+    const card = page.locator(".grid .group.relative").filter({ has: fixtures }).first();
+    await card.hover().catch(() => {});
+    await card
+      .getByRole("button", { name: "Supprimer" })
+      .click()
+      .catch(() => {});
+    await page
+      .getByRole("button", { name: "Supprimer" })
+      .last()
+      .click()
+      .catch(() => {});
+    // On attend que le COMPTE baisse, pas le toast : « Photo supprimée » reste
+    // affiché d'une itération à l'autre et ferait tourner la boucle à vide.
+    await expect(fixtures)
+      .toHaveCount(restant - 1, { timeout: 20_000 })
+      .catch(() => {});
+  }
+  console.log(`nettoyage fixture : ${await fixtures.count().catch(() => "?")} restante(s)`);
+});
+
 test("modifier le fond, temps réel coupé : la grille se met à jour sans reload", async ({
   page,
   viewport,
@@ -57,6 +105,7 @@ test("modifier le fond, temps réel coupé : la grille se met à jour sans reloa
     page.getByRole("button", { name: /Ajouter des photos/i }).click(),
   ]);
   await chooser.setFiles(FIXTURE);
+  fixtureUploaded = true;
   const thumb = page.locator('img[alt*="cover-test" i]').first();
   await expect(thumb).toBeVisible({ timeout: 45_000 });
 
@@ -101,14 +150,7 @@ test("modifier le fond, temps réel coupé : la grille se met à jour sans reloa
   await expect(page.getByText("Retouchée").first()).toBeVisible({ timeout: 10_000 });
   await page.keyboard.press("Escape");
 
-  // Nettoyage : suppression de la photo jetable
-  const card = page
-    .locator(".grid .group.relative")
-    .filter({ has: page.locator('img[alt*="cover-test" i]') })
-    .first();
-  await card.hover();
-  await card.getByRole("button", { name: "Supprimer" }).click();
-  await page.getByRole("button", { name: "Supprimer" }).last().click();
-  await expect(page.getByText("Photo supprimée")).toBeVisible({ timeout: 15_000 });
-  console.log("Temps réel coupé : retouche reflétée en place via polling, badge OK, nettoyé");
+  // Le nettoyage de la photo jetable vit dans le afterEach ci-dessus : il doit
+  // tourner AUSSI quand une assertion casse.
+  console.log("Temps réel coupé : retouche reflétée en place via polling, badge OK");
 });

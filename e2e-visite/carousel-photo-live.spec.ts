@@ -107,10 +107,26 @@ test("carrousel photo réel : upload → génération → slides sans erreur de 
   // calendrier » a disparu (même correctif que perf-carousel #612 côté main).
   const result = page.getByTestId("publish-or-schedule").first();
   const validationError = page.getByText(/Données invalides/i).first();
+  // 3e issue : refus LÉGITIME de la garde de cohérence photo/idée (`carousel-ai`,
+  // message figé, aucun crédit décompté). Sans ce concurrent, on patiente les
+  // 13 min du timeout pour rien — vu sur le jumeau `carousel-mix-live` le 03/08.
+  const coherenceRefusal = page
+    .getByText(/ne semble(?:nt)? pas correspondre à ton idée/i)
+    .first();
   await Promise.race([
     result.waitFor({ state: "visible", timeout: 780_000 }),
     validationError.waitFor({ state: "visible", timeout: 780_000 }),
+    coherenceRefusal.waitFor({ state: "visible", timeout: 780_000 }),
   ]);
+  if (await coherenceRefusal.isVisible().catch(() => false)) {
+    await page.screenshot({ path: path.join(SHOTS, "photo-REFUS-coherence.png"), fullPage: true });
+    const raison = (await coherenceRefusal.textContent().catch(() => "")) ?? "";
+    console.log(`⏭️ garde de cohérence photo/idée déclenchée : ${raison.slice(0, 220)}`);
+    test.skip(
+      true,
+      "la garde de cohérence a refusé les photos de la bibliothèque : génération non exercée aujourd'hui",
+    );
+  }
   if (await validationError.isVisible().catch(() => false)) {
     await page.screenshot({ path: path.join(SHOTS, "photo-ERREUR-validation.png"), fullPage: true });
     throw new Error("Régression classe #594 : « Données invalides » à la génération du carrousel photo");
