@@ -69,6 +69,37 @@ async function publishContainer(igUserId: string, token: string, creationId: str
  * Publie 1 à 10 images publiques sur le compte Instagram de la connexion donnée.
  * Renvoie l'id du post publié. Lève une Error avec un message lisible sinon.
  */
+/**
+ * Publie un REEL vidéo (media_type=REELS).
+ *
+ * Le budget d'attente est de 5 minutes, pas 30 secondes : Instagram TRANSCODE
+ * la vidéo avant de la rendre publiable. Avec le budget des images, un reel
+ * parfaitement valide ressortait en échec.
+ */
+export async function publishReelToInstagram(
+  supabase: any,
+  conn: any,
+  caption: string,
+  videoUrl: string,
+): Promise<string> {
+  const token = await refreshTokenIfNeeded(supabase, conn);
+  const igUserId = conn.platform_account_id;
+  const creationId = await createContainer(igUserId, token, {
+    media_type: "REELS",
+    video_url: videoUrl,
+    ...(caption ? { caption } : {}),
+  });
+  const status = await pollStatus(creationId, token, 300000);
+  if (status !== "FINISHED") {
+    throw new Error(
+      status === "ERROR"
+        ? "Instagram a refusé la vidéo (format ou durée)."
+        : `Instagram n'a pas fini de préparer la vidéo (statut : ${status}).`,
+    );
+  }
+  return await publishContainer(igUserId, token, creationId);
+}
+
 export async function publishImagesToInstagram(
   supabase: any,
   conn: any,

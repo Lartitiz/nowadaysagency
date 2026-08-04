@@ -2668,6 +2668,14 @@ export default function CreerUnifie() {
           }).eq("id", postId);
         }
 
+        // Reel monté : la VIDÉO est le média du post, elle passe avant tout
+        // visuel de repli. Son URL est déjà durable (bucket `calendar-media`),
+        // donc publiable par le cron comme par la publication immédiate.
+        if (selectedFormat === "reel" && reelMp4Url) {
+          attachedMedia = [reelMp4Url];
+          await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
+        }
+
         // Programmation d'un post image simple sans upload (ex: photo Pexels) :
         // l'image publiable vit à une URL https publique → on la met dans
         // media_urls pour que le cron ait quelque chose à publier.
@@ -3318,6 +3326,9 @@ export default function CreerUnifie() {
   const { isConnected: isSocialConnected, getTokenExpiry } = useSocialConnections();
 
   const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
+  // Reel monté : URL durable (bucket `calendar-media`) remontée par ReelResult.
+  // Vaut `null` tant qu'aucune vidéo n'est rattachable — voir `archiveReelMp4`.
+  const [reelMp4Url, setReelMp4Url] = useState<string | null>(null);
 
   const isCarouselPublish = selectedFormat === "carousel";
   // L'option « Maintenant/Programmer » (Instagram) n'apparaît que pour un contenu du canal
@@ -4042,6 +4053,7 @@ export default function CreerUnifie() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
+                onReelMp4Change={setReelMp4Url}
                 onPublishOrSchedule={effectiveHandleAddToCalendar}
                 publishOrScheduleLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
                 onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}

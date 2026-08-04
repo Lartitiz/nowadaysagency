@@ -25,7 +25,7 @@ import { format as formatDate } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { publishToInstagram, isPublicImageUrl, isNotConnectedError } from "@/lib/instagram-publish";
+import { publishToInstagram, publishReelToInstagram, isPublicImageUrl, isPublicVideoUrl, isNotConnectedError } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
@@ -275,14 +275,18 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (contentDraft) { navigator.clipboard.writeText(contentDraft); toast.success("Texte copié !"); }
   };
 
-  // ── Publication directe Instagram (image simple OU carrousel : media_urls déjà publiques) ──
+  // ── Publication directe Instagram (reel vidéo, image simple OU carrousel) ──
   const igValidImages = mediaUrls.filter(isPublicImageUrl);
+  // Un reel monté est rangé dans media_urls comme les images : c'est lui qui
+  // décide du média publié (media_type=REELS), pas un visuel de repli.
+  const igVideo = mediaUrls.find(isPublicVideoUrl) ?? null;
   const instagramPublishDisabledReason = (() => {
     if (postCanal !== "instagram") return "Publication directe réservée aux posts Instagram.";
     // L'edge social-instagram-publish ne gère que le feed (pas media_type=STORIES) :
     // publier une story d'ici partirait en post feed.
     if (format === "story_serie") return "La publication directe des stories arrive bientôt — publie-la depuis l'app Instagram.";
-    if (igValidImages.length === 0) return "Ajoute un visuel (image) pour publier.";
+    if (igVideo) return null;
+    if (igValidImages.length === 0) return "Ajoute un visuel (image) ou monte ta vidéo pour publier.";
     if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
     return null;
   })();
@@ -321,22 +325,33 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
   const handlePublishInstagram = async () => {
     if (!user) { toast.error("Tu dois être connectée."); return; }
-    if (instagramPublishDisabledReason || igValidImages.length === 0) {
-      toast.error(instagramPublishDisabledReason || "Image non disponible");
+    if (instagramPublishDisabledReason || (!igVideo && igValidImages.length === 0)) {
+      toast.error(instagramPublishDisabledReason || "Média non disponible");
       return;
     }
     setPublishingInstagram(true);
     try {
-      const { permalink } = await publishToInstagram({
-        caption: contentDraft || theme || "",
-        imageUrls: igValidImages,
-        workspaceId,
-        userId: user.id,
-      });
+      // Instagram TRANSCODE la vidéo avant publication : ça peut prendre
+      // plusieurs minutes, on le dit au lieu de laisser un spinner muet.
+      if (igVideo) toast.info("Instagram prépare ta vidéo — ça peut prendre quelques minutes.");
+      const { permalink } = igVideo
+        ? await publishReelToInstagram({
+            caption: contentDraft || theme || "",
+            videoUrl: igVideo,
+            workspaceId,
+            userId: user.id,
+          })
+        : await publishToInstagram({
+            caption: contentDraft || theme || "",
+            imageUrls: igValidImages,
+            workspaceId,
+            userId: user.id,
+          });
       await markPostPublished(permalink ?? null);
-      toast.success(igValidImages.length > 1 ? "Carrousel publié sur Instagram ! 🎉" : "Publié sur Instagram ! 🎉", {
-        description: permalink ? "Ouvre ton profil Instagram pour le voir." : undefined,
-      });
+      toast.success(
+        igVideo ? "Reel publié sur Instagram ! 🎉" : igValidImages.length > 1 ? "Carrousel publié sur Instagram ! 🎉" : "Publié sur Instagram ! 🎉",
+        { description: permalink ? "Ouvre ton profil Instagram pour le voir." : undefined },
+      );
     } catch (e: any) {
       const msg = e?.message as string | undefined;
       toast.error(isNotConnectedError(msg) ? "Compte Instagram non connecté" : "Échec de la publication", {

@@ -26,9 +26,51 @@ export function resolveWorkspaceParam(
   return workspaceId && userId && workspaceId !== userId ? workspaceId : undefined;
 }
 
+/** Vrai si l'URL est une VIDÉO publique exploitable par l'API Instagram (reel monté). */
+export function isPublicVideoUrl(url: unknown): url is string {
+  return typeof url === "string" && /^https:\/\//i.test(url) && /\.mp4(\?|$)/i.test(url);
+}
+
 /** Vrai si l'URL est une image publique exploitable par l'API Instagram (https, pas blob/data). */
 export function isPublicImageUrl(url: unknown): url is string {
-  return typeof url === "string" && /^https:\/\//i.test(url) && !url.startsWith("blob:") && !url.startsWith("data:");
+  return (
+    typeof url === "string" &&
+    /^https:\/\//i.test(url) &&
+    !url.startsWith("blob:") &&
+    !url.startsWith("data:") &&
+    // Un reel monté vit dans media_urls comme les images : sans ce filtre il
+    // partirait en `image_url` et Instagram refuserait le média.
+    !isPublicVideoUrl(url)
+  );
+}
+
+/**
+ * Publie un REEL vidéo sur le compte connecté (media_type=REELS côté edge).
+ *
+ * Le délai par défaut est volontairement long : Instagram TRANSCODE la vidéo
+ * avant de la publier, ce qui prend des dizaines de secondes à plusieurs
+ * minutes. Le budget des images (2 min) faisait échouer un reel valide.
+ */
+export async function publishReelToInstagram(opts: {
+  caption: string;
+  videoUrl: string;
+  workspaceId?: string | null;
+  userId?: string | null;
+  timeoutMs?: number;
+}): Promise<InstagramPublishResult> {
+  const { caption, videoUrl, workspaceId, userId, timeoutMs = 330000 } = opts;
+  const { data, error } = await invokeWithTimeout(
+    "social-instagram-publish",
+    { body: { caption, videoUrl, workspace_id: resolveWorkspaceParam(workspaceId, userId) } },
+    timeoutMs,
+  );
+  if (error) throw error;
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return {
+    success: true,
+    permalink: (data as any)?.permalink,
+    postId: (data as any)?.postId,
+  };
 }
 
 /**

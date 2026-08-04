@@ -4,7 +4,7 @@
 // la date de publication auto est échue, selon leur canal, et met à jour leur statut.
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { publishImagesToInstagram } from "../_shared/instagram-graph.ts";
+import { publishImagesToInstagram, publishReelToInstagram } from "../_shared/instagram-graph.ts";
 import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl } from "../_shared/linkedin-graph.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 
@@ -198,11 +198,20 @@ Deno.serve(async (req) => {
             throw new Error("Aucun contenu à publier sur LinkedIn.");
           }
         } else {
-          const imageUrls = (post.media_urls || []).filter(
+          const publicUrls = (post.media_urls || []).filter(
             (u: unknown): u is string => typeof u === "string" && /^https?:\/\//.test(u),
           );
-          if (imageUrls.length === 0) throw new Error("Aucune image publique à publier.");
-          postId = await publishImagesToInstagram(supabase, conn, post.content_draft || "", imageUrls);
+          // Un reel monté vit dans media_urls comme les images : sans ce tri il
+          // partirait en `image_url` et Instagram refuserait le média.
+          const isMp4 = (u: string) => /\.mp4(\?|$)/i.test(u);
+          const videoUrl = publicUrls.find(isMp4);
+          const imageUrls = publicUrls.filter((u: string) => !isMp4(u));
+          if (videoUrl) {
+            postId = await publishReelToInstagram(supabase, conn, post.content_draft || "", videoUrl);
+          } else {
+            if (imageUrls.length === 0) throw new Error("Aucun média public à publier.");
+            postId = await publishImagesToInstagram(supabase, conn, post.content_draft || "", imageUrls);
+          }
         }
 
         await supabase
