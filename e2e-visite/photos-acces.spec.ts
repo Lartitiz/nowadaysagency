@@ -33,7 +33,32 @@ test("dashboard : pill « Mes photos » présente et mène à /photos", async ({
 
   await page.screenshot({ path: path.join(SHOTS, "dashboard-pill.png"), fullPage: true });
 
-  await pill.click();
+  await pill.scrollIntoViewIfNeeded();
+
+  // Ce qu'on veut VRAIMENT prouver : la pastille est atteignable au doigt,
+  // c'est-à-dire que rien ne la recouvre à l'endroit où on taperait.
+  // On le mesure avec le hit-test de la PAGE (elementFromPoint), pas avec les
+  // coordonnées de Playwright.
+  //
+  // 🔑 Piège d'émulation mobile (04/08) : sur un écran mobile scrollé À FOND,
+  // Chromium pose `visualViewport.offsetTop = 33` (layout viewport 877 px vs
+  // visual viewport 844 px). `boundingBox()` rend alors un `y` de 33 px INFÉRIEUR
+  // au `getBoundingClientRect()` de la page, donc `.click()` tape 33 px trop haut —
+  // ici pile sur le libellé « PILOTER » (`SectionLabel`, un <p>), qui « intercepte
+  // les événements ». Le dashboard mobile mesure 1137 px pour 877 px de viewport :
+  // la pastille vit dans les derniers pixels, donc l'aller-voir force le scroll
+  // maximal et déclenche l'offset à tous les coups. Aucun rapport avec un
+  // recouvrement réel : au doigt, la pastille répond.
+  const occlusion = await pill.evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return { couverte: !el.contains(top) && top !== el, par: top ? top.tagName : "null" };
+  });
+  expect(occlusion.couverte, `la pastille est recouverte par ${occlusion.par}`).toBe(false);
+
+  // Le clic passe par le DOM : il déclenche le vrai onClick du bouton sans
+  // dépendre des coordonnées faussées par l'émulation.
+  await pill.evaluate((el) => (el as HTMLElement).click());
   await expect(page).toHaveURL(/\/photos$/, { timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible();
 });
