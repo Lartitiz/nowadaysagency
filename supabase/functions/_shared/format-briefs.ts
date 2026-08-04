@@ -366,8 +366,11 @@ L'utilisatrice n'a pas fourni d'éléments personnels.
 Génère le script normalement mais REMPLIS le champ "personal_tip" du JSON :
 "Ce script sera 10x plus fort avec ton anecdote perso. Ajoute un truc vécu avant de filmer."`;
 
-  // ── Hook choisi (fallback auto si absent) ──
-  const selectedHook = params.selected_hook || {
+  // ── Hook choisi (fallback auto champ par champ) ──
+  // Un hook récupéré côté `step:"hooks"` peut n'avoir que son `text`. On fusionne
+  // sur les valeurs auto plutôt que de remplacer le bloc entier : sinon les champs
+  // absents partaient en « undefined » littéral dans le prompt de génération.
+  const HOOK_AUTO = {
     type: "auto",
     type_label: "Auto-généré",
     text: "(génère un hook percutant de 5-12 mots adapté au sujet)",
@@ -376,6 +379,15 @@ Génère le script normalement mais REMPLIS le champ "personal_tip" du JSON :
     format_recommande: "auto",
     duree_cible: "30-45 sec",
   };
+  const providedHook =
+    params.selected_hook && typeof params.selected_hook === "object"
+      ? Object.fromEntries(
+          Object.entries(params.selected_hook).filter(
+            ([, v]) => typeof v === "string" && v.trim(),
+          ),
+        )
+      : {};
+  const selectedHook = { ...HOOK_AUTO, ...providedHook } as typeof HOOK_AUTO;
   const hookBlock = `
 
 HOOK CHOISI :

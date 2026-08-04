@@ -80,6 +80,73 @@ describe("HookSelectionStep", () => {
     expect(onSkip).toHaveBeenCalled();
   });
 
+  // ── Anti-cul-de-sac (bug live 03/08) ──────────────────────────────────────
+  // L'écran restait affiché avec ses angles, ses boutons inertes et AUCUN
+  // message : « 3 autres angles » échouait en silence. Trois garanties tenues
+  // ici : on dit ce qui s'est passé, on garde les cartes, la sortie de secours
+  // ne se verrouille jamais.
+  it("refresh raté : le message s'affiche SANS faire disparaître les angles", () => {
+    render(
+      <HookSelectionStep
+        hooks={HOOKS}
+        loading={false}
+        error="Je n'ai pas réussi à trouver 3 autres angles."
+        onSelect={noop}
+        onSkip={noop}
+        onRefresh={noop}
+        onBack={noop}
+      />,
+    );
+    expect(screen.getByRole("alert").textContent).toMatch(/3 autres angles/);
+    expect(screen.getAllByRole("radio")).toHaveLength(3);
+    expect(screen.getByRole("button", { name: /Écrire le script complet/ })).toBeTruthy();
+  });
+
+  it("pendant un refresh, seul « 3 autres angles » se verrouille : les sorties restent ouvertes", () => {
+    const onSkip = vi.fn();
+    const onBack = vi.fn();
+    render(
+      <HookSelectionStep
+        hooks={HOOKS}
+        loading={false}
+        refreshing
+        onSelect={noop}
+        onSkip={onSkip}
+        onRefresh={noop}
+        onBack={onBack}
+      />,
+    );
+    expect((screen.getByRole("button", { name: /3 autres angles/ }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: /Laisser l'IA choisir/ }));
+    expect(onSkip).toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /Revenir aux questions/ }));
+    expect(onBack).toHaveBeenCalled();
+  });
+
+  it("écran vide : « Revenir aux questions » est là aussi (sinon on est enfermée)", () => {
+    const onBack = vi.fn();
+    render(
+      <HookSelectionStep hooks={[]} loading={false} error="oups" onSelect={noop} onSkip={noop} onRefresh={noop} onBack={onBack} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Revenir aux questions/ }));
+    expect(onBack).toHaveBeenCalled();
+  });
+
+  it("hook récupéré sans habillage : le texte s'affiche, aucun « undefined » à l'écran", () => {
+    render(
+      <HookSelectionStep
+        hooks={[{ text: "9 euros le savon ? Oui, et c'est le moins cher." }]}
+        loading={false}
+        onSelect={noop}
+        onSkip={noop}
+        onRefresh={noop}
+        onBack={noop}
+      />,
+    );
+    expect(screen.getByText(/9 euros le savon/)).toBeTruthy();
+    expect(document.body.textContent).not.toMatch(/undefined/);
+  });
+
   it("état loading : affiche le loader, pas les cartes", () => {
     render(
       <HookSelectionStep hooks={[]} loading={true} onSelect={noop} onSkip={noop} onRefresh={noop} onBack={noop} />,
