@@ -51,9 +51,14 @@ interface Props {
    * que « Autres actions → Copier » copie ce qui est À L'ÉCRAN.
    */
   onStepChange?: (s: { key: StepKey; step: number; isLast: boolean; montageDone: boolean }) => void;
+  /**
+   * Remonte l'URL DURABLE du reel monté (bucket `calendar-media`) : c'est elle
+   * que le contenu joindra à `media_urls` et que la publication utilisera.
+   */
+  onMp4Change?: (url: string | null) => void;
 }
 
-export default function ReelResult({ result, onStepChange }: Props) {
+export default function ReelResult({ result, onStepChange, onMp4Change }: Props) {
   // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
   // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
   // On affichait la clé — même bug que #688 ailleurs dans l'app.
@@ -114,6 +119,8 @@ export default function ReelResult({ result, onStepChange }: Props) {
   // parce qu'on est allé lire sa légende.
   const [montageVisited, setMontageVisited] = useState(false);
   const [montagePhase, setMontagePhase] = useState<"idle" | "rendering" | "done" | "error">("idle");
+  // URL durable du montage — `null` tant qu'aucune vidéo n'est rattachable.
+  const [mp4Url, setMp4Url] = useState<string | null>(null);
   const montageDone = montagePhase === "done";
   useEffect(() => {
     if (stepKey === "montage") setMontageVisited(true);
@@ -134,7 +141,12 @@ export default function ReelResult({ result, onStepChange }: Props) {
     setCheckedText(fullText);
     setMontageVisited(false);
     setMontagePhase("idle");
+    setMp4Url(null);
   }, [fullText]);
+
+  useEffect(() => {
+    onMp4Change?.(mp4Url);
+  }, [onMp4Change, mp4Url]);
 
   useEffect(() => {
     onStepChange?.({ key: stepKey, step: currentIndex + 1, isLast, montageDone });
@@ -225,6 +237,7 @@ export default function ReelResult({ result, onStepChange }: Props) {
             sections={sections}
             subject={result?.subject || result?.pillar}
             onPhaseChange={setMontagePhase}
+            onMp4Ready={setMp4Url}
           />
         </div>
       )}
@@ -237,6 +250,7 @@ export default function ReelResult({ result, onStepChange }: Props) {
           amplificationStories={amplificationStories}
           personalTip={planTournage.length > 0 ? null : personalTip}
           montageDone={montageDone}
+          mp4Url={mp4Url}
           onCopyCaption={handleCopyCaption}
         />
       )}
@@ -387,6 +401,7 @@ function CaptionStep({
   amplificationStories,
   personalTip,
   montageDone,
+  mp4Url,
   onCopyCaption,
 }: {
   caption: any;
@@ -395,18 +410,26 @@ function CaptionStep({
   amplificationStories: any[];
   personalTip?: string | null;
   montageDone: boolean;
+  mp4Url: string | null;
   onCopyCaption: () => void;
 }) {
   return (
     <div className="space-y-4">
-      {/* Honnêteté sur le MP4 : le fichier monté à l'étape 3 n'est PAS rattaché
-          au contenu — « Publier ou programmer » ne le connaît pas. Tant que ce
-          chaînage n'existe pas, on le dit au lieu de le laisser croire. */}
-      {montageDone && (
-        <div className="rounded-lg border border-warning/30 bg-warning-bg p-3">
-          <p className="text-xs font-semibold text-warning mb-1">📼 Ta vidéo montée n'est pas jointe ici</p>
+      {/* État RÉEL du rattachement — jamais une promesse par défaut :
+          la vidéo n'est annonçable que si elle est rangée chez nous. */}
+      {montageDone && mp4Url && (
+        <div className="rounded-lg border border-success/30 bg-success-bg p-3">
+          <p className="text-xs font-semibold text-success mb-1">📼 Ta vidéo montée est jointe</p>
           <p className="text-xs text-foreground">
-            Reviens à l'étape « Montage » pour télécharger ton MP4, puis choisis-le toi-même au moment de publier.
+            Elle part avec ce contenu quand tu publies ou que tu programmes.
+          </p>
+        </div>
+      )}
+      {montageDone && !mp4Url && (
+        <div className="rounded-lg border border-warning/30 bg-warning-bg p-3">
+          <p className="text-xs font-semibold text-warning mb-1">📼 Ta vidéo montée n'a pas pu être jointe</p>
+          <p className="text-xs text-foreground">
+            Reviens à l'étape « Montage » pour la télécharger, puis choisis-la toi-même au moment de publier.
           </p>
         </div>
       )}

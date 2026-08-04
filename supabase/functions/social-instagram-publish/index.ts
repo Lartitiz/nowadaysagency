@@ -1,8 +1,9 @@
-// redeploy 2026-06-26
+// redeploy 2026-08-04
 // Publie sur le compte Instagram Business connecté :
-//  - une image simple (body.imageUrl), ou
-//  - un carrousel de 2 à 10 images (body.imageUrls[]).
-// Toutes les images doivent être à une URL https publique (Instagram les cURL).
+//  - une image simple (body.imageUrl),
+//  - un carrousel de 2 à 10 images (body.imageUrls[]), ou
+//  - un REEL vidéo (body.videoUrl) — media_type=REELS.
+// Tous les médias doivent être à une URL https publique (Instagram les cURL).
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
 import { encryptToken, decryptConnTokens } from "../_shared/token-crypto.ts";
@@ -32,6 +33,9 @@ async function refreshTokenIfNeeded(supabase: any, conn: any): Promise<string> {
   return json.access_token as string;
 }
 
+// maxMs = 30 s pour une image. Pour une VIDÉO, Instagram transcode avant de
+// passer FINISHED : compter des dizaines de secondes à plusieurs minutes. Avec
+// le budget des images, un reel parfaitement valide sortait en échec.
 async function pollStatus(creationId: string, token: string, maxMs = 30000): Promise<string> {
   const deadline = Date.now() + maxMs;
   let lastStatus = "UNKNOWN";
@@ -87,14 +91,18 @@ Deno.serve(async (req) => {
     const caption: string = typeof body?.caption === "string" ? body.caption : "";
     const workspaceId: string | null = body?.workspace_id ?? null;
 
+    // Reel vidéo : prioritaire sur les images (pour un reel, la vidéo EST le média).
+    const videoUrl: string | null =
+      typeof body?.videoUrl === "string" && /^https:\/\//.test(body.videoUrl) ? body.videoUrl : null;
+
     // Liste d'images : imageUrls[] (carrousel) ou imageUrl (image simple).
     const rawList: unknown[] = Array.isArray(body?.imageUrls)
       ? body.imageUrls
       : (typeof body?.imageUrl === "string" ? [body.imageUrl] : []);
     const urls = rawList.filter((u): u is string => typeof u === "string" && /^https?:\/\//.test(u));
 
-    if (urls.length === 0) {
-      return jsonError("Au moins une URL d'image publique (https) est requise.", corsHeaders);
+    if (!videoUrl && urls.length === 0) {
+      return jsonError("Au moins une URL de média publique (https) est requise.", corsHeaders);
     }
     if (urls.length > 10) {
       return jsonError("Un carrousel Instagram accepte au maximum 10 images.", corsHeaders);
@@ -120,10 +128,25 @@ Deno.serve(async (req) => {
     const token = await refreshTokenIfNeeded(supabase, conn);
     const igUserId = conn.platform_account_id;
 
-    // 1. Préparer le container à publier (image simple ou carrousel).
+    // 1. Préparer le container à publier (reel vidéo, image simple ou carrousel).
     let creationId: string;
     try {
-      if (urls.length === 1) {
+      if (videoUrl) {
+        creationId = await createContainer(igUserId, token, {
+          media_type: "REELS",
+          video_url: videoUrl,
+          ...(caption ? { caption } : {}),
+        });
+        // 5 min : c'est le transcodage Meta qu'on attend, pas le réseau.
+        const status = await pollStatus(creationId, token, 300000);
+        if (status !== "FINISHED") {
+          throw new Error(
+            status === "ERROR"
+              ? "Instagram a refusé la vidéo. Vérifie qu'elle est en MP4 vertical et dure entre 3 secondes et 15 minutes."
+              : `Instagram n'a pas fini de préparer la vidéo (statut : ${status}). Réessaie dans quelques minutes.`,
+          );
+        }
+      } else if (urls.length === 1) {
         creationId = await createContainer(igUserId, token, {
           image_url: urls[0],
           ...(caption ? { caption } : {}),

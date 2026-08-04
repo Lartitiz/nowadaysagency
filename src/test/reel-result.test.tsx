@@ -308,3 +308,35 @@ describe("ReelResult — correctifs de la passe live", () => {
     expect(stepDots()[0].getAttribute("aria-selected")).toBe("true");
   });
 });
+
+// ── Chaînage du MP4 monté (04/08) ───────────────────────────────────────
+// Le rendu vit chez JSON2Video et y expire : tant qu'il n'est pas recopié
+// chez nous, il n'est PAS rattachable. L'étape « Légende » doit dire l'état
+// RÉEL, jamais promettre par défaut.
+describe("ReelResult — le MP4 joint au contenu", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("ne promet rien tant qu'aucun montage n'a été fait", () => {
+    render(<ReelResult result={captionResult} />);
+    goToStep(3);
+    expect(screen.queryByText(/Ta vidéo montée est jointe/)).toBeNull();
+    expect(screen.queryByText(/n'a pas pu être jointe/)).toBeNull();
+  });
+
+  it("remonte l'URL durable au parent, et la retire quand le script change", () => {
+    const onMp4Change = vi.fn();
+    const { rerender } = render(<ReelResult result={captionResult} onMp4Change={onMp4Change} />);
+    expect(onMp4Change).toHaveBeenLastCalledWith(null);
+
+    const autre = {
+      ...captionResult,
+      script: [{ section: "hook", timing: "0-3 sec", texte_parle: "Un tout autre script." }],
+      sections: [{ section: "hook", timing: "0-3 sec", texte_parle: "Un tout autre script." }],
+    };
+    rerender(<ReelResult result={autre} onMp4Change={onMp4Change} />);
+    // Une vidéo montée pour l'ancien script ne doit JAMAIS suivre le nouveau.
+    expect(onMp4Change).toHaveBeenLastCalledWith(null);
+  });
+});

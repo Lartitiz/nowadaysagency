@@ -252,6 +252,11 @@ interface Props {
   onSave?: () => void;
   /** Ouvre la fenêtre « Publier ou programmer » (ou sauvegarde directe si fromCalendar). */
   onPublishOrSchedule?: () => void;
+  /**
+   * Remonte l'URL durable du reel monté : le parent la joint au contenu
+   * (`media_urls`) pour que publication et programmation l'emportent.
+   */
+  onReelMp4Change?: (url: string | null) => void;
   publishOrScheduleLabel?: string;
   onGenerateVisuals?: () => void;
   visualLoading?: boolean;
@@ -313,6 +318,7 @@ export default function CreerStepResult({
   onSave,
   onPublishOrSchedule,
   publishOrScheduleLabel,
+  onReelMp4Change,
   onGenerateVisuals,
   visualLoading,
   visualsAutoError,
@@ -524,7 +530,7 @@ export default function CreerStepResult({
       case "carousel":
         return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} />;
       case "reel":
-        return <ReelResult result={result} onStepChange={setReelStep} />;
+        return <ReelResult result={result} onStepChange={setReelStep} onMp4Change={onReelMp4Change} />;
       case "story":
         return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
       case "post":

@@ -32,6 +32,7 @@ import {
   sectionsWithVoiceButNoClip,
   submitReelRender,
   pollReelRender,
+  archiveReelMp4,
   sectionDuration,
 } from "@/lib/reel-render";
 import type { VoiceClip } from "@/lib/reel-voice";
@@ -56,6 +57,12 @@ interface Props {
    * sert pour savoir si un MP4 existe. Aucune logique de montage n'en dépend.
    */
   onPhaseChange?: (phase: Phase) => void;
+  /**
+   * Remonte l'URL DURABLE du MP4 (celle de notre bucket, pas celle du moteur
+   * de rendu qui expire), pour que le contenu puisse la joindre et la publier.
+   * `null` = plus de vidéo rattachable (nouveau rendu lancé, ou échec).
+   */
+  onMp4Ready?: (url: string | null) => void;
 }
 
 type Phase = "idle" | "rendering" | "done" | "error";
@@ -97,7 +104,7 @@ function fromMine(v: UserReelVideo, duration: number | null): SelectedClip {
   };
 }
 
-export default function ReelMontage({ sections, subject, onPhaseChange }: Props) {
+export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Ready }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
 
   const [keywords, setKeywords] = useState<string[]>(() => spoken.map(() => ""));
@@ -114,6 +121,8 @@ export default function ReelMontage({ sections, subject, onPhaseChange }: Props)
   const [phase, setPhase] = useState<Phase>("idle");
   const [tick, setTick] = useState(0);
   const [mp4Url, setMp4Url] = useState<string | null>(null);
+  // La vidéo est-elle bien rangée CHEZ NOUS (donc rattachable au contenu) ?
+  const [archived, setArchived] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
   useEffect(() => {
@@ -247,6 +256,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange }: Props)
     setPhase("rendering");
     setTick(0);
     setMp4Url(null);
+    onMp4Ready?.(null);
     setErrorMsg("");
     try {
       const plan = buildRenderPlan(spoken, chosen, {
@@ -256,7 +266,21 @@ export default function ReelMontage({ sections, subject, onPhaseChange }: Props)
       });
       const project = await submitReelRender(plan);
       const url = await pollReelRender(project, { onTick: setTick });
+      // Le rendu vit chez JSON2Video et y expire : on le recopie chez nous
+      // AVANT d'annoncer que la vidéo est prête. Si l'archivage échoue, la
+      // vidéo reste regardable et téléchargeable (on garde l'URL du rendu),
+      // mais elle n'est pas rattachable — et on le dit.
       setMp4Url(url);
+      try {
+        const durable = await archiveReelMp4(url);
+        setMp4Url(durable);
+        setArchived(true);
+        onMp4Ready?.(durable);
+      } catch (e) {
+        console.error("[ReelMontage] archivage du MP4 échoué:", e);
+        setArchived(false);
+        onMp4Ready?.(null);
+      }
       setPhase("done");
       toast.success("Ton reel est monté !");
     } catch (e) {
@@ -482,12 +506,23 @@ export default function ReelMontage({ sections, subject, onPhaseChange }: Props)
       {phase === "done" && mp4Url && (
         <div className="space-y-2">
           <video src={mp4Url} controls playsInline className="w-full max-h-[420px] rounded-lg bg-black" />
-          <a href={mp4Url} download className="inline-flex">
-            <Button variant="outline" size="sm">
-              <Download className="h-4 w-4 mr-1.5" />
-              Télécharger le MP4
-            </Button>
-          </a>
+          <div className="flex items-center gap-2 flex-wrap">
+            <a href={mp4Url} download className="inline-flex">
+              <Button variant="outline" size="sm">
+                <Download className="h-4 w-4 mr-1.5" />
+                Télécharger le MP4
+              </Button>
+            </a>
+            {archived ? (
+              <span className="text-2xs text-muted-foreground">
+                Rangée dans ta bibliothèque — elle part avec ton contenu à la publication.
+              </span>
+            ) : (
+              <span className="text-2xs text-warning">
+                Pas rangée dans ta bibliothèque : télécharge-la, elle ne pourra pas être publiée d'ici.
+              </span>
+            )}
+          </div>
         </div>
       )}
     </div>

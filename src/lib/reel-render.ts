@@ -67,3 +67,23 @@ export async function pollReelRender(
   }
   throw new Error("Le montage prend plus de temps que prévu. Réessaie dans un instant.");
 }
+
+/**
+ * Recopie le MP4 rendu dans le bucket `calendar-media` et renvoie SON url.
+ *
+ * L'URL renvoyée par le rendu est celle de JSON2Video, un service externe dont
+ * les rendus expirent : la joindre à un contenu programmerait un lien mort.
+ * Tant que ce n'est pas passé par ici, la vidéo n'appartient pas à la cliente.
+ */
+export async function archiveReelMp4(renderUrl: string): Promise<string> {
+  const { data, error } = await supabase.functions.invoke("reel-render", {
+    body: { action: "archive", url: renderUrl },
+  });
+  if (error) {
+    console.error("[archiveReelMp4] échec de l'appel à reel-render:", error);
+    throw new Error("La vidéo montée n'a pas pu être rangée dans ta bibliothèque.");
+  }
+  if (data?.error) throw new Error(data.error);
+  if (!data?.url) throw new Error("La vidéo montée n'a pas pu être rangée dans ta bibliothèque.");
+  return data.url as string;
+}
