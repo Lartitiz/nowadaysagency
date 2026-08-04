@@ -1213,8 +1213,21 @@ export default function CreerUnifie() {
       setReelHooks(hooks.slice(0, 3));
     } catch (e) {
       console.error("[CreerUnifie] fetchReelHooks failed:", e);
-      // Un refresh raté garde les cartes précédentes (toujours utilisables).
-      if (!isRefresh) setHooksError("Je n'ai pas réussi à préparer les angles d'attaque.");
+      // Un refresh raté garde les cartes précédentes (toujours utilisables) —
+      // mais il DOIT le dire. Sans message, l'écran affichait des angles et des
+      // boutons qui semblaient ne rien faire, sans la moindre explication
+      // (vécu live 03/08, sujet « brader mes savons »).
+      const raw = (e as any)?.message;
+      // "empty" = charge vide renvoyée en 200 par une edge pas encore
+      // redéployée : message technique, jamais montré tel quel.
+      const detail = typeof raw === "string" && raw.trim() && raw !== "empty" ? raw.trim() : null;
+      setHooksError(
+        isRefresh
+          ? detail
+            ? `Pas de nouveaux angles : ${detail.charAt(0).toLowerCase()}${detail.slice(1)}`
+            : "Je n'ai pas réussi à trouver 3 autres angles. Ceux-ci restent valables."
+          : detail || "Je n'ai pas réussi à préparer les angles d'attaque.",
+      );
     } finally {
       setHooksLoading(false);
       setHooksRefreshing(false);

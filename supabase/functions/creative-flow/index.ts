@@ -2108,17 +2108,48 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
     // JSON au lieu du tableau d'objets. On déballe en déterministe — sinon le front
     // tombe en fallback « Continuer sans choisir » alors que les hooks existent.
     if (step === "hooks" && parsed && typeof parsed === "object") {
+      // Forme reçue AVANT normalisation : c'est la seule trace exploitable le
+      // jour où l'écran des angles retombe à zéro (03/08 : aucun log ne disait
+      // par quelle branche le tableau s'était vidé).
+      const shapeIn = Array.isArray(parsed.hooks)
+        ? `array[${parsed.hooks.length}]`
+        : typeof parsed.hooks;
       if (typeof parsed.hooks === "string") {
         const inner = tryParseAiJson<any>(parsed.hooks, "creative-flow:hooks-unwrap");
         parsed.hooks = Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : [];
       }
       if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
+      // Entrées en simple CHAÎNE : même dérive que le `hooks` stringifié du
+      // 12/07, un cran plus bas (le modèle liste les phrases sans les
+      // envelopper). Récupérable → on reconstruit l'objet minimal. Le front
+      // n'affiche que les champs présents, il ne manquera qu'un badge.
+      parsed.hooks = parsed.hooks.map((h: any) =>
+        typeof h === "string" && h.trim() ? { text: h.trim() } : h
+      );
       // Objets valides uniquement : un hook sans texte parlé est inutilisable.
       parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
       // Élisions déterministes AVANT affichage : le hook choisi est ensuite
       // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
       // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
       for (const h of parsed.hooks) fixElisionsInFields(h, ["text", "text_overlay"]);
+
+      // ZÉRO angle récupérable = échec, pas un succès. Un 200 avec `hooks: []`
+      // est un « 200 menteur » : le front le lisait comme une réponse valide et
+      // n'avait plus qu'un `throw new Error("empty")` illisible à afficher.
+      if (parsed.hooks.length === 0) {
+        console.warn(JSON.stringify({
+          type: "hooks_vides",
+          shape_in: shapeIn,
+          exclude_count: Array.isArray((body as Record<string, unknown>).exclude_hooks)
+            ? ((body as Record<string, unknown>).exclude_hooks as unknown[]).length
+            : 0,
+          raw: String(rawContent || "").slice(0, 500),
+        }));
+        return new Response(
+          JSON.stringify({ error: "Je n'ai pas réussi à préparer les angles d'attaque. Réessaie, ou laisse l'IA choisir." }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══

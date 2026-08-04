@@ -70,6 +70,26 @@ Specs de garde dédiées :
   produire une carte optimiste immédiate puis la vraie vignette, sans reload.
 - `retouche-realtime-coupe.spec.ts` — hebdo (lundi), ~1 crédit : « Modifier le
   fond » temps réel coupé (force manuelle : `FORCE_RT_COUPE=1`).
+- `reel-angles-live.spec.ts` — quotidien, **zéro crédit** : l'écran « Choisis ton
+  angle d'attaque » du reel (étape `hook_selection`, lot 7) n'était couvert par
+  rien. On PROVOQUE la panne vécue le 03/08 — `creative-flow` `step:"hooks"` qui
+  répond **200 avec `hooks: []`** — sur le « 3 autres angles », et on exige un
+  message lisible + des sorties (« Laisser l'IA choisir », « Revenir aux
+  questions ») jamais désactivées. Le 2ᵉ test du fichier joue le parcours réel
+  (lundi, ~1-2 crédits, `FORCE_REEL_ANGLES=1`).
+  Le test tient les deux entrées possibles : des angles (cas nominal) **ou** le
+  repli si le 1er appel réel revient déjà vide — au 04/08 c'est le cas sur le
+  workspace de Camille, l'edge n'étant pas encore redéployé. La charge vide de
+  l'edge ressort alors en `⚠️ SIGNAL EDGE` dans la sortie **sans faire rougir le
+  run** : ce test garde le front, c'est celui du lundi qui sanctionne l'edge.
+  ⚠️ Ne JAMAIS relire la réponse via `route.fetch()` + `route.fulfill()` : le
+  détour renvoie les en-têtes d'origine (`content-encoding: gzip`) avec un corps
+  déjà décodé, le SDK Supabase lit une charge vide, et on fabrique soi-même le
+  bug qu'on croit observer (perdu 40 min dessus le 04/08). `page.on("response")`
+  + `res.text()` lit sans rien altérer.
+  ⚠️ Signal « reel généré » = les onglets `role=tab` (Script / Légende), **pas**
+  `publish-or-schedule` : depuis la PR #689 ce bouton n'apparaît qu'à la dernière
+  étape du parcours reel — l'attendre, c'est attendre le timeout.
 - `ecran-fige-sonde.spec.ts` — quotidien, **zéro crédit** (appels interceptés,
   ils n'atteignent jamais le serveur) : « le chargement tourne sans fin ».
   Mode quotidien = 500 immédiat sur les écrans de `ecrans.ts` ; mode lundi =
