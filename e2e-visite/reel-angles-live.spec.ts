@@ -88,6 +88,15 @@ test("angles du reel : une charge vide ne laisse JAMAIS l'écran sans issue", as
 
   // Lecture SEULE de la réponse réelle (pas de `route.fetch`) : c'est la seule
   // façon de distinguer « l'edge a rendu 0 angle » de « le front a mal lu ».
+  //
+  // ⚠️ Le listener voit AUSSI les réponses que ce test fabrique lui-même au
+  // `route.fulfill` ci-dessous. Sans discrimination, `charge200Vide` serait vrai
+  // à TOUS les runs (on y lirait notre propre `{ hooks: [] }`) et le signal de
+  // fin crierait au loup tous les jours — vécu le 06/08, où il a fait croire à
+  // tort que `creative-flow` n'était pas redéployée. Le drapeau ne regarde donc
+  // QUE la requête réellement partie au serveur, identifiée par son objet
+  // `Request` mémorisé au moment du `continue()`.
+  let requeteReelle: import("@playwright/test").Request | null = null;
   let charge200Vide = false;
   page.on("response", async (res) => {
     if (!res.url().includes("/functions/v1/creative-flow")) return;
@@ -104,7 +113,11 @@ test("angles du reel : une charge vide ne laisse JAMAIS l'écran sans issue", as
     } catch {
       /* corps déjà consommé */
     }
-    console.log(`⏱️ creative-flow step=hooks → ${res.status()} | ${corps}`);
+    const fabriquee = res.request() !== requeteReelle;
+    console.log(
+      `⏱️ creative-flow step=hooks → ${res.status()}${fabriquee ? " (charge FABRIQUÉE par le test)" : ""} | ${corps}`,
+    );
+    if (fabriquee) return;
     if (res.status() === 200 && /"hooks"\s*:\s*\[\s*\]/.test(corps)) charge200Vide = true;
   });
   page.on("console", (msg) => {
@@ -129,7 +142,10 @@ test("angles du reel : une charge vide ne laisse JAMAIS l'écran sans issue", as
     // ce détour renvoie les en-têtes d'origine (`content-encoding: gzip`) avec un
     // corps déjà décodé, et le SDK Supabase lit alors une charge vide — on
     // fabriquerait le bug qu'on prétend observer.
-    if (appelsHooks === 1) return route.continue();
+    if (appelsHooks === 1) {
+      requeteReelle = req;
+      return route.continue();
+    }
     return route.fulfill({
       status: 200,
       headers: { "content-type": "application/json", "access-control-allow-origin": "*" },
