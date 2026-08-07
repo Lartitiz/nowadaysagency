@@ -273,7 +273,7 @@ export default function DiagnosticLoading({
           profile: {
             activity: answers.activite || "",
             activityType: answers.activity_type || "",
-            activityTypeLabel: onboardingLabel(answers.activity_type, ACTIVITY_OPTIONS, ACTIVITY_SECTIONS_REAL_ESTATE.flatMap(s => s.items)),
+            activityTypeLabel: onboardingLabel(answers.activity_type, ACTIVITY_OPTIONS, PRODUCT_OPTIONS, ACTIVITY_SECTIONS_REAL_ESTATE.flatMap(s => s.items)),
             objective: onboardingLabel(answers.objectif, OBJECTIVES, OBJECTIVES_REAL_ESTATE),
             blocker: answers.blocage || "",
             blockerLabel: onboardingLabel(answers.blocage, BLOCKERS, BLOCKERS_REAL_ESTATE),
