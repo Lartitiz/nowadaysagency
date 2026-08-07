@@ -674,7 +674,7 @@ export function useOnboarding() {
   };
 
   const getPlaceholder = (field: string) => {
-    const examples = getActivityExamples(answers.activity_type || answers.activite);
+    const examples = getActivityExamples(answers.activity_detail || answers.activite || answers.activity_type);
     const map: Record<string, string> = {
       positioning: (examples as any).post_examples?.[0] || "Ex: Je capture la confiance. Photographe portrait pour les femmes entrepreneures.",
       mission: "Ex: Rendre visible les femmes qui créent. Par l'image, par le regard, par la confiance.",
