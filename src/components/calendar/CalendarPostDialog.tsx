@@ -588,7 +588,16 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     <div className="space-y-4 min-w-0">
       <div>
         <label className="text-xs font-semibold mb-1.5 block text-foreground">Thème / sujet</label>
-        <Input autoFocus value={theme} onChange={(e) => setTheme(e.target.value)} placeholder="De quoi parle ce post ?" className="rounded-[10px] h-11" />
+        <textarea
+          ref={themeRef}
+          autoFocus
+          rows={1}
+          value={theme}
+          onChange={(e) => setTheme(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
+          placeholder="De quoi parle ce post ?"
+          className="flex w-full rounded-[10px] border border-input bg-background px-3 py-2.5 text-sm leading-6 ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 resize-none overflow-y-auto max-h-[7rem]"
+        />
       </div>
 
       <CalendarPostContent
