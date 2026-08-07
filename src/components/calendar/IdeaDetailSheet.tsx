@@ -78,11 +78,12 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
   useEffect(() => {
     if (idea) {
+      const readableDraft = renderIdeaDraft(idea.content_draft, idea.format);
       setTitle(idea.titre);
       setIdeaFormat(idea.format || "post");
       setObjective(idea.objectif || "visibilite");
       setNotes(idea.notes || "");
-      setContentDraft(idea.content_draft || "");
+      setContentDraft(readableDraft);
       setShowDatePicker(false);
       setShowTransformPicker(false);
       setPlanDate(undefined);
@@ -90,10 +91,11 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       // Baseline calculée depuis l'idée elle-même → pas d'auto-save parasite à l'ouverture.
       baselineRef.current = serializeIdea({
         title: idea.titre || "", ideaFormat: idea.format || "post", objective: idea.objectif || "visibilite",
-        notes: idea.notes || "", contentDraft: idea.content_draft || "",
+        notes: idea.notes || "", contentDraft: readableDraft,
       });
     }
   }, [idea]);
+
 
   // Persistance silencieuse (update par id, l'idée existe toujours).
   const persistIdea = async () => {
