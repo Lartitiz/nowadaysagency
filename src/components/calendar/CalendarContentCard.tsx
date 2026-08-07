@@ -176,9 +176,10 @@ function CalendarContentCardImpl({
                     </span>
                   )}
                   <p className={cn(
-                    "font-medium text-xs leading-snug",
+                    "font-body font-bold text-sm leading-snug text-foreground",
                     post.status === "published" && "line-through",
                   )}
+
                   style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
@@ -299,9 +300,10 @@ function CalendarContentCardImpl({
                 </span>
               )}
               <p className={cn(
-                "font-medium text-xs leading-snug flex-1 min-w-0",
+                "font-body font-bold text-sm leading-snug flex-1 min-w-0 text-foreground",
                 post.status === "published" && "line-through",
               )}
+
               style={{
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
