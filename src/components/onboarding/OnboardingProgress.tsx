@@ -21,7 +21,7 @@ export default function OnboardingProgress({ step, totalSteps, progress, onBack 
       )}
 
       {/* Back button */}
-      {step > 0 && step < 11 && (
+      {step > 0 && step < totalSteps - 1 && (
         <button
           onClick={onBack}
           className="fixed top-5 left-16 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"
