@@ -14,11 +14,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
-        heading: ['"Libre Baskerville"', "Georgia", "serif"],
-        display: ['"Libre Baskerville"', "Georgia", "serif"],
-        body: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
-        "mono-ui": ['"IBM Plex Sans"', "system-ui", "sans-serif"],
+        sans: ['"Hanken Grotesk"', "system-ui", "sans-serif"],
+        heading: ['"Instrument Serif"', "Georgia", "serif"],
+        display: ['"Instrument Serif"', "Georgia", "serif"],
+        body: ['"Hanken Grotesk"', "system-ui", "sans-serif"],
+        "mono-ui": ['"Hanken Grotesk"', "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",

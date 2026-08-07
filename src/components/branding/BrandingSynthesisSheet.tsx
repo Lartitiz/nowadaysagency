@@ -319,7 +319,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               </div>
             )}
             {(brand.combat_cause || brand.combat_fights) && (
-              <div className="rounded-2xl bg-gradient-to-br from-rose-pale/60 to-card border border-primary/10 p-6 sm:p-8 space-y-5">
+              <div className="rounded-2xl bg-rose-pale/60 border border-primary/10 p-6 sm:p-8 space-y-5">
                 <p className="text-xs font-semibold uppercase tracking-wider text-primary/70">Mes combats</p>
                 {summaries?.combats_hook ? (
                   <>

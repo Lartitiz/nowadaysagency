@@ -96,7 +96,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   if (!shouldShow) return null;
 
   return (
-    <div className="mb-4 rounded-xl border border-warning/30 bg-gradient-to-r from-orange-50 to-amber-50 px-4 py-3 flex items-center justify-between gap-3">
+    <div className="mb-4 rounded-xl border border-warning/30 bg-warning-bg px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
         <span className="text-lg shrink-0">✨</span>
         <p className="text-sm text-warning">

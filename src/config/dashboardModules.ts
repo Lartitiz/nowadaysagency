@@ -117,7 +117,7 @@ export interface SpaceModule {
   title: string;
   subtitle: string;
   icon: string;
-  gradient: string;
+  bgClass: string;
   route: string;
   badge?: string;
   external?: boolean;
@@ -132,7 +132,7 @@ export const spaceModules: SpaceModule[] = [
     title: "Mon identité",
     subtitle: "Ta marque, ton positionnement, ta cible, tes offres.",
     icon: "🎨",
-    gradient: "from-[hsl(var(--bento-lavande))] to-[hsl(340_100%_97%)]",
+    bgClass: "bg-rose-pale",
     route: "/branding",
     enabled: true,
     order: 0,
@@ -142,7 +142,7 @@ export const spaceModules: SpaceModule[] = [
     title: "Instagram",
     subtitle: "Profil, contenus, bio, engagement",
     icon: "📱",
-    gradient: "from-[hsl(338_96%_90%)] to-[hsl(340_100%_97%)]",
+    bgClass: "bg-secondary/60",
     route: "/instagram",
     enabled: true,
     order: 1,
@@ -152,7 +152,7 @@ export const spaceModules: SpaceModule[] = [
     title: "Site Web",
     subtitle: "Audit, pages, templates, témoignages",
     icon: "🌍",
-    gradient: "from-[hsl(var(--bento-mint))] to-[hsl(160_50%_97%)]",
+    bgClass: "bg-rose-pale",
     route: "/site",
     enabled: true,
     order: 2,
@@ -163,7 +163,7 @@ export const spaceModules: SpaceModule[] = [
     title: "LinkedIn",
     subtitle: "Profil, posts, réseau",
     icon: "💼",
-    gradient: "from-[hsl(var(--bento-blue))] to-[hsl(220_60%_97%)]",
+    bgClass: "bg-rose-pale",
     route: "/linkedin",
     enabled: true,
     order: 3,
@@ -173,7 +173,7 @@ export const spaceModules: SpaceModule[] = [
     title: "SEO",
     subtitle: "Mots-clés, référencement",
     icon: "🔎",
-    gradient: "from-[hsl(var(--bento-violet))] to-[hsl(270_50%_97%)]",
+    bgClass: "bg-[hsl(var(--bento-yellow))]",
     route: "/seo",
     enabled: true,
     order: 4,

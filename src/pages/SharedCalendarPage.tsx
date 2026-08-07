@@ -453,10 +453,10 @@ export default function SharedCalendarPage() {
 
   if (error) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
-        <div className="mb-6 text-2xl font-semibold" style={{ fontFamily: "'Libre Baskerville', serif" }}>Nowadays</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 p-6 text-center" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
+        <div className="mb-6 text-2xl font-semibold" style={{ fontFamily: "'Instrument Serif', serif" }}>Nowadays</div>
         <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
-        <h1 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+        <h1 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: "'Instrument Serif', serif" }}>
           Ce lien a expiré ou n'existe plus.
         </h1>
         <p className="text-sm text-gray-500 max-w-xs">Contacte la personne qui te l'a envoyé pour obtenir un nouveau lien.</p>
@@ -487,7 +487,7 @@ export default function SharedCalendarPage() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 bg-white shrink-0">
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-gray-900 truncate" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+            <p className="text-sm font-semibold text-gray-900 truncate" style={{ fontFamily: "'Instrument Serif', serif" }}>
               {selectedPost.theme}
             </p>
             <p className="text-2xs text-gray-500 mt-0.5">
@@ -603,13 +603,13 @@ export default function SharedCalendarPage() {
   // ═══════════════════════════════════════════
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+    <div className="min-h-screen bg-gray-50 flex flex-col" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1" style={{ fontFamily: "'Libre Baskerville', serif" }}>Nowadays</p>
-            <h1 className="text-lg sm:text-xl text-gray-900" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+            <p className="text-xs font-semibold tracking-widest text-gray-400 uppercase mb-1" style={{ fontFamily: "'Instrument Serif', serif" }}>Nowadays</p>
+            <h1 className="text-lg sm:text-xl text-gray-900" style={{ fontFamily: "'Instrument Serif', serif" }}>
               📅 Calendrier éditorial de {profile.prenom || "…"}
             </h1>
             {profile.activite && <p className="text-sm text-gray-500 mt-0.5">{profile.activite}</p>}
@@ -653,7 +653,7 @@ export default function SharedCalendarPage() {
               <Button variant="ghost" size="sm" onClick={() => navigatePeriod("prev")} className="text-gray-600 hover:text-gray-900 h-8">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="text-sm font-medium text-gray-700 min-w-[140px] text-center" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+              <span className="text-sm font-medium text-gray-700 min-w-[140px] text-center" style={{ fontFamily: "'Instrument Serif', serif" }}>
                 {periodMode === "week"
                   ? `${format(weekStart, "d MMM", { locale: fr })} — ${format(new Date(weekStart.getTime() + 6 * 86400000), "d MMM yyyy", { locale: fr })}`
                   : format(monthStart, "MMMM yyyy", { locale: fr })
@@ -731,7 +731,7 @@ export default function SharedCalendarPage() {
             <div className="grid gap-0 border-b border-gray-200 bg-white sticky top-0 z-10"
               style={{
                 gridTemplateColumns: buildGridCols(showColumns, !!share?.guest_can_edit_status),
-                fontFamily: "'IBM Plex Sans', system-ui, sans-serif",
+                fontFamily: "'Hanken Grotesk', system-ui, sans-serif",
               }}
             >
               {showColumns.includes("date") && (
@@ -784,7 +784,7 @@ export default function SharedCalendarPage() {
                   )}
                   {showColumns.includes("theme") && (
                     <div className="px-3 py-2.5">
-                      <p className="text-sm text-gray-900 leading-snug" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+                      <p className="text-sm text-gray-900 leading-snug" style={{ fontFamily: "'Instrument Serif', serif" }}>
                         {post.theme}
                       </p>
                     </div>
@@ -1038,7 +1038,7 @@ function MobilePostCard({ post, share, comments, unresolvedCount, onOpenComments
     >
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-900 leading-snug" style={{ fontFamily: "'Libre Baskerville', serif" }}>
+          <p className="text-sm text-gray-900 leading-snug" style={{ fontFamily: "'Instrument Serif', serif" }}>
             {post.theme}
           </p>
           <p className="text-2xs text-gray-400 mt-1 font-body">

@@ -19,7 +19,7 @@ function QuotaExhaustedCard({
   const navigate = useNavigate();
 
   return (
-    <div className="rounded-2xl border border-secondary bg-gradient-to-br from-[#FFF4F8] to-white p-6 sm:p-8 max-w-lg mx-auto mb-6">
+    <div className="rounded-2xl border border-secondary bg-rose-pale p-6 sm:p-8 max-w-lg mx-auto mb-6">
       {/* Icon */}
       <div className="flex justify-center mb-4">
         <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">

@@ -58,7 +58,7 @@ export default function BrandingActionCTA({ section }: BrandingActionCTAProps) {
   };
 
   return (
-    <div className="rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/10 p-5 sm:p-6 mt-8 animate-fade-in">
+    <div className="rounded-2xl bg-rose-pale border border-primary/10 p-5 sm:p-6 mt-8 animate-fade-in">
       <p className="font-display text-base font-bold text-foreground mb-1">
         ✨ Ta section est complète ! Et maintenant ?
       </p>

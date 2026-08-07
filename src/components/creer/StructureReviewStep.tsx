@@ -222,13 +222,13 @@ export default function StructureReviewStep({
       <div className="space-y-4">
         <h2
           className="text-xl"
-          style={{ fontFamily: "'Libre Baskerville', serif", color: "hsl(var(--bordeaux))" }}
+          style={{ fontFamily: "'Instrument Serif', serif", color: "hsl(var(--bordeaux))" }}
         >
           La structure proposée pour ton carrousel
         </h2>
 
         <div className="bg-rose-pale border-l-[3px] border-primary p-4 rounded-xl">
-          <p className="text-sm italic text-gray-600" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+          <p className="text-sm italic text-gray-600" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
             {sanitizeInternalLabels(structureProposal.strategic_rationale)}
           </p>
         </div>

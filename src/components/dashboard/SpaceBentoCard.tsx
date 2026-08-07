@@ -5,7 +5,7 @@ interface SpaceBentoCardProps {
   title: string;
   subtitle: string;
   icon: string;
-  gradient: string;
+  bgClass: string;
   badge?: string;
   onClick: () => void;
   animationDelay?: number;
@@ -15,7 +15,7 @@ function SpaceBentoCard({
   title,
   subtitle,
   icon,
-  gradient,
+  bgClass,
   badge,
   onClick,
   animationDelay = 0,
@@ -28,7 +28,7 @@ function SpaceBentoCard({
         group relative col-span-2 sm:col-span-3 lg:col-span-3
         row-span-2
         rounded-[20px] p-5
-        bg-gradient-to-br ${gradient}
+        ${bgClass}
         border border-border/50
         shadow-[var(--shadow-bento)]
         hover:shadow-[var(--shadow-bento-hover)] hover:-translate-y-[3px]

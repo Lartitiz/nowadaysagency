@@ -61,7 +61,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
         <div className="flex items-center gap-2.5 px-3 py-2.5">
           <Avatar className="h-8 w-8">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={brandName} />}
-            <AvatarFallback className="bg-gradient-to-br from-pink-500 to-amber-400 text-2xs font-semibold text-white">
+            <AvatarFallback className="bg-primary text-2xs font-semibold text-white">
               {initials(brandName)}
             </AvatarFallback>
           </Avatar>
@@ -117,7 +117,7 @@ export default function FeedPreview({ variant, text, photos, hashtags }: Props) 
       <div className="flex items-start gap-2 px-4 pt-3">
         <Avatar className="h-12 w-12">
           {avatarUrl && <AvatarImage src={avatarUrl} alt={brandName} />}
-          <AvatarFallback className="bg-gradient-to-br from-sky-600 to-sky-400 text-sm font-semibold text-white">
+          <AvatarFallback className="bg-sky-600 text-sm font-semibold text-white">
             {initials(brandName)}
           </AvatarFallback>
         </Avatar>

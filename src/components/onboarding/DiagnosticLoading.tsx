@@ -389,7 +389,7 @@ export default function DiagnosticLoading({
                   ? "text-primary font-medium"
                   : "text-muted-foreground italic"
               }`}
-              style={{ fontFamily: currentMessage.type === "insight" ? "'IBM Plex Mono', monospace" : undefined }}
+              style={{ fontFamily: currentMessage.type === "insight" ? "'Hanken Grotesk', sans-serif" : undefined }}
             >
               {currentMessage.text}
             </motion.p>

@@ -58,7 +58,7 @@ export default function QuotaWallModal({ open, onClose, plan, usage }: QuotaWall
     <Dialog open={open} onOpenChange={(v) => { if (!v) handleClose(); }}>
       <DialogContent className="max-w-lg p-0 overflow-hidden border-0 gap-0">
         {/* Header gradient */}
-        <div className="bg-gradient-to-b from-[#FFF4F8] to-white px-6 pt-8 pb-6 text-center">
+        <div className="bg-rose-pale px-6 pt-8 pb-6 text-center">
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Sparkles className="h-7 w-7 text-primary" />
           </div>

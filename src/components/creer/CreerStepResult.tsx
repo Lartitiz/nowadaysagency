@@ -622,7 +622,7 @@ export default function CreerStepResult({
 
       {/* Moment de victoire : matérialise le résultat après l'attente */}
       {showCelebration && (
-        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-gradient-to-r from-primary/10 to-accent/40 border border-primary/20 animate-fade-in">
+        <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-rose-pale border border-primary/20 animate-fade-in">
           <Sparkles className="h-4 w-4 text-primary shrink-0" />
           <p className="text-sm font-semibold text-foreground">
             {(FORMAT_DONE_LABELS[format] || "Ton contenu est prêt")} ✨
