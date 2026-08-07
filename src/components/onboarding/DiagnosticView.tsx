@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage } from "@/lib/diagnostic-data";
 import BrandLearnedSection from "./BrandLearnedSection";
+import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
+
 import Confetti from "@/components/Confetti";
 
 const SOURCE_BADGES: Record<string, { emoji: string; label: string }> = {
@@ -445,6 +447,10 @@ function ChannelBar({ emoji, label, score }: { emoji: string; label: string; sco
 /* ═══ Section: Final ═══ */
 function FinalSection({ onComplete, onCreateFirst }: { onComplete: () => void; onCreateFirst?: () => void }) {
   const [showConfetti, setShowConfetti] = useState(false);
+  // L'enrichissement est async : la fiche « à valider » peut arriver PENDANT la
+  // lecture du diagnostic → on poll, sinon le bouton garderait le mauvais
+  // libellé (il promettrait un contenu alors qu'on route vers la validation).
+  const { pending: brandReviewPending } = usePendingBrandReview({ pollMs: 5000 });
 
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(true), 500);
@@ -465,15 +471,21 @@ function FinalSection({ onComplete, onCreateFirst }: { onComplete: () => void; o
       <p className="text-lg font-display font-bold text-foreground">On y va ?</p>
       {onCreateFirst ? (
         <div className="flex flex-col items-center gap-3">
-          {/* Le fer est chaud : on propose de CRÉER tout de suite plutôt que
-              d'enchaîner un 2e écran récapitulatif (welcome). */}
+          {/* Si une fiche de marque attend sa relecture, la prochaine action
+              n'est PAS de créer : c'est de valider ce qu'on a capté. Le bouton
+              le dit, au lieu de promettre un contenu puis de rediriger. */}
           <Button
             onClick={onCreateFirst}
             size="lg"
             className="rounded-full px-10 text-base shadow-lg"
           >
-            ✨ Générer mon premier contenu
+            {brandReviewPending ? "📋 Valider ce que j'ai capté sur ta marque" : "✨ Générer mon premier contenu"}
           </Button>
+          {brandReviewPending && (
+            <p className="text-xs text-muted-foreground max-w-xs">
+              Une minute de relecture, et tes contenus parleront vraiment de toi.
+            </p>
+          )}
           <button
             onClick={onComplete}
             className="text-sm text-muted-foreground underline-offset-4 hover:underline"
@@ -493,3 +505,4 @@ function FinalSection({ onComplete, onCreateFirst }: { onComplete: () => void; o
     </div>
   );
 }
+
