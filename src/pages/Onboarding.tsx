@@ -184,17 +184,18 @@ export default function Onboarding() {
             </div>
           </div>
 
-          {step > 0 && step < 9 && (
+          {step > 0 && step < 8 && (
             <p className="text-center text-xs text-muted-foreground/60 pb-4 mt-2">{getTimeRemaining(step)}</p>
           )}
         </div>
-      ) : step === 11 ? (
+      ) : step === 10 ? (
         // Le diagnostic (étape de chargement) est rendu HORS de l'AnimatePresence :
-        // monté immédiatement et de façon déterministe quand step passe à 11, il n'est
+        // monté immédiatement et de façon déterministe quand step passe à 10, il n'est
         // plus suspendu par l'animation de sortie de l'étape précédente (cause du blanc).
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full">
-            <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} allowOverwrite={overwriteConfirmed} onReady={(data) => { setDiagnosticData(data); setStep(12); }} />
+            <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} allowOverwrite={overwriteConfirmed} onReady={(data) => { setDiagnosticData(data); setStep(11); }} />
+
           </div>
         </div>
       ) : diagnosticData ? (
