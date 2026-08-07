@@ -165,20 +165,20 @@ export default function Onboarding() {
 
                   {step === 0 && <WelcomeStep onNext={next} />}
                   {step === 1 && <OnboardingPhase1Profile prenom={answers.prenom} activite={answers.activite} onPrenomChange={v => set("prenom", v)} onActiviteChange={v => set("activite", v)} onNext={validatedNext} />}
-                  {step === 2 && <ActivityStep value={answers.activity_type} detailValue={answers.activity_detail} onChange={v => { set("activity_type", v); if (v !== "autre") set("activity_detail", ""); }} onDetailChange={v => set("activity_detail", v)} onNext={validatedNext} />}
-                  {step === 3 && <ProductServiceScreen value={answers.product_or_service} onChange={v => { set("product_or_service", v); setPendingAutoNext(true); }} onNext={validatedNext} />}
-                  {step === 4 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />}
-                  {step === 5 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
-                  {step === 6 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
-                  {step === 7 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
-                  {step === 8 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
-                  {step === 9 && <ChangeScreen value={answers.change_priority} onChange={v => set("change_priority", v)} onNext={validatedNext} />}
-                  {/* Étape 10 : on affiche le loader du diagnostic TOUT DE SUITE (next() d'abord),
+                  {step === 2 && <ProductServiceScreen value={answers.product_or_service} onChange={v => { set("product_or_service", v); set("activity_type", v); }} detailValue={answers.activity_detail} onDetailChange={v => set("activity_detail", v)} activite={answers.activite} onNext={validatedNext} />}
+                  {step === 3 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />}
+                  {step === 4 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
+                  {step === 5 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
+                  {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
+                  {step === 7 && <TempsScreen value={answers.temps} onChange={v => { set("temps", v); setPendingAutoNext(true); }} />}
+                  {step === 8 && <ChangeScreen value={answers.change_priority} onChange={v => set("change_priority", v)} onNext={validatedNext} />}
+                  {/* Étape 9 : on affiche le loader du diagnostic TOUT DE SUITE (next() d'abord),
                       puis la sauvegarde profil (handleFinish) part en arrière-plan. Le loader
-                      lui-même (DiagnosticLoading, step 11) est rendu HORS de l'AnimatePresence
-                      ci-dessous : sinon l'animation de sortie de l'étape 10 suspendait son
+                      lui-même (DiagnosticLoading, step 10) est rendu HORS de l'AnimatePresence
+                      ci-dessous : sinon l'animation de sortie de l'étape 9 suspendait son
                       montage → écran « blanc » pendant le calcul deep-diagnostic (run QA T5). */}
-                  {step === 10 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={handleUniquenessNext} />}
+                  {step === 9 && <UniquenessScreen value={answers.uniqueness} onChange={v => set("uniqueness", v)} onNext={handleUniquenessNext} />}
+
                 </motion.div>
               </AnimatePresence>
             </div>
