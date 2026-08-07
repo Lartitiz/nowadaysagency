@@ -19,6 +19,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { CalendarIcon, Sparkles, Trash2, RefreshCw, Newspaper, Check, Loader2, ChevronDown } from "lucide-react";
 import type { SavedIdea } from "./CalendarIdeasSidebar";
+import { renderIdeaDraft } from "@/lib/render-idea-draft";
+
 
 const FORMAT_OPTIONS = [
   { id: "post", label: "📝 Post" },
