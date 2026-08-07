@@ -1,25 +1,23 @@
-# Nouveau post : montrer la suite dès que le sujet est rempli
+# Thème / sujet : voir le texte en entier quand il est long
 
 ## Le problème
 
-Quand tu ouvres un nouveau post dans le calendrier et que tu tapes le thème/sujet, rien n'apparaît en dessous : pas de bloc « Contenu », pas de bouton « Rédiger avec l'IA ». Le seul bouton actif est « Options » en bas, qui ne dit pas comment créer le contenu.
-
-Raison technique confirmée : le bloc contenu (`CalendarPostContent`) sort immédiatement (`return null`) tant qu'il n'y a pas de `editingPost`, c'est-à-dire tant qu'on n'a pas rouvert un post déjà existant — même si le post vient d'être auto-enregistré.
+Le champ « Thème / sujet » du post du calendrier est un champ d'une seule ligne. Dès que le sujet est un peu long, la fin du texte sort du cadre : on ne lit que le début (ou que la fin quand le curseur est au bout), et il faut faire défiler horizontalement dans le champ pour relire ce qu'on a écrit.
 
 ## Ce qu'on change
 
-Dès que le sujet est rempli, le bloc « ✍️ Contenu » s'affiche aussi pour un nouveau post, avec l'état vide déjà prévu :
+Le champ devient une zone de texte qui s'agrandit toute seule :
 
-- « Pas encore de contenu. »
-- bouton principal « ✨ Rédiger avec l'IA »
-- lien secondaire « ou écrire moi-même »
-- l'astuce « 💡 Choisis un angle pour un meilleur résultat » si aucun angle
+- Elle démarre sur une ligne (même hauteur qu'aujourd'hui, même style arrondi).
+- Dès que le texte dépasse, elle passe sur deux, puis trois lignes, jusqu'à afficher le sujet en entier.
+- Au-delà de quatre lignes environ, elle arrête de grandir et devient scrollable, pour ne pas pousser le reste du formulaire hors de l'écran.
+- Entrée n'ajoute pas de retour à la ligne : un sujet reste une seule phrase.
 
-Les actions qui n'ont de sens que sur un post déjà généré (voir les slides, télécharger les visuels, générer les visuels, nouvelle version IA sur contenu existant) restent conditionnées à l'existence du post et de son contenu — elles n'apparaissent pas sur un post neuf.
-
-Petit renfort de lisibilité : le texte de bas de page « Ajoute un sujet pour commencer » devient, une fois le sujet saisi, la mention d'enregistrement automatique déjà existante — inchangé, mais du coup l'utilisatrice voit bien que la suite est plus haut.
+Le reste ne bouge pas : même libellé, même placeholder « De quoi parle ce post ? », même enregistrement automatique.
 
 ## Détails techniques
 
-- `src/components/calendar/CalendarPostContent.tsx` : remplacer `if (!editingPost || !theme.trim()) return null;` par une garde sur le seul sujet (`if (!theme.trim()) return null;`), et sécuriser les accès à `editingPost` (`editingPost?.generated_content_id`, `VisualActions` déjà basé sur `story_sequence_detail` → renvoie `null` sans post).
-- `src/components/calendar/CalendarPostDialog.tsx` : aucun changement de logique de génération. `handleSmartGenerate` vérifie déjà `theme.trim()` et l'auto-save crée l'enregistrement (`createdIdRef`), donc la génération depuis un post neuf fonctionne.
+- `src/components/calendar/CalendarPostDialog.tsx` (ligne ~589) : remplacer le `<Input>` du thème par un `<textarea>` `rows={1}` avec `resize-none`, `overflow-hidden`, `max-h-[7rem]` et les mêmes classes visuelles que l'Input (bordure, `rounded-[10px]`, padding, focus ring).
+- Auto-grow via un `ref` + effet : `el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight, maxPx) + "px"` à chaque changement de `theme` et à l'ouverture du dialogue (pour un post existant au sujet déjà long).
+- `onKeyDown` : `if (e.key === "Enter") e.preventDefault()`.
+- `autoFocus` conservé ; aucun changement de state, de `buildSaveData` ni de l'auto-save.
