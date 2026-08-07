@@ -126,7 +126,7 @@ export default function ContentPlayground({ section }: Props) {
 
 
   return (
-    <div className="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/5 via-background to-accent/5 p-6 mt-8">
+    <div className="rounded-2xl border border-primary/20 bg-rose-pale p-6 mt-8">
       <div className="flex items-center gap-2.5 mb-1">
         <span className="text-xl">🎮</span>
         <h3 className="font-display text-base font-bold text-foreground">Teste ton branding en action</h3>

@@ -118,13 +118,13 @@ function GuideBanner() {
 
   return (
     <div className="flex items-center gap-3 bg-muted/40 border border-border/40 rounded-xl px-4 py-3 mb-4">
-      <p className="flex-1 text-sm text-muted-foreground" style={{ fontFamily: "'IBM Plex Mono', monospace" }}>
+      <p className="flex-1 text-sm text-muted-foreground" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
         C'est ici que tu retrouves tous les modules. Ton assistant reste disponible depuis le menu.
       </p>
       <button
         onClick={() => navigate("/dashboard")}
         className="text-xs text-primary hover:underline whitespace-nowrap flex items-center gap-1"
-        style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+        style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}
       >
         <ArrowLeft className="h-3 w-3" />
         Retour à mon assistant
@@ -152,7 +152,7 @@ function PhaseBadge() {
         <TooltipTrigger asChild>
           <span
             className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-2xs font-medium cursor-default ${cfg.className}`}
-            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}
           >
             {cfg.emoji} {cfg.label}
           </span>
@@ -568,13 +568,13 @@ export default function Dashboard() {
                 transition-all duration-[250ms] ease-out
                 cursor-pointer
                 opacity-0 animate-reveal-up
-                bg-gradient-to-br from-[hsl(var(--bento-lavande))] to-[hsl(270_50%_97%)]
+                bg-rose-pale
                 border border-border/50 text-foreground
                 flex flex-col justify-between min-h-[130px]"
               style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
             >
               <div className="flex justify-between items-start">
-                <div className="w-9 h-9 rounded-xl bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-white border border-white flex items-center justify-center">
                   <Lightbulb className="h-5 w-5 text-primary" />
                 </div>
                 {dashData.ideaCount > 0 && (
@@ -599,13 +599,13 @@ export default function Dashboard() {
                 transition-all duration-[250ms] ease-out
                 cursor-pointer
                 opacity-0 animate-reveal-up
-                bg-gradient-to-br from-[hsl(var(--bento-mint))] to-[hsl(160_50%_97%)]
+                bg-[hsl(var(--bento-yellow))]
                 border border-border/50 text-foreground
                 flex flex-col justify-between min-h-[130px]"
               style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
             >
               <div className="flex justify-between items-start">
-                <div className="w-9 h-9 rounded-xl bg-white/60 backdrop-blur-sm border border-white/40 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-white border border-white flex items-center justify-center">
                   <ImageIcon className="h-5 w-5 text-primary" />
                 </div>
                 {dashData.photoCount > 0 && (
@@ -647,7 +647,7 @@ export default function Dashboard() {
                   ? `Complété à ${dashData.brandingCompletion.total}%`
                   : space.subtitle}
                 icon={space.icon}
-                gradient={space.gradient}
+                bgClass={space.bgClass}
                 badge={space.moduleFlag && isModuleHidden(space.moduleFlag) ? "Masqué" : space.badge}
                 onClick={() => {
                   if (space.external) window.open(space.route, "_blank");
@@ -709,7 +709,7 @@ export default function Dashboard() {
               title=""
               colSpan={hasSeo ? 4 : 8}
               rowSpan={2}
-              bgColor="bg-gradient-to-br from-[hsl(var(--bento-lavande))] to-rose-pale border border-border/50 text-foreground"
+              bgColor="bg-rose-pale border border-border/50 text-foreground"
               onClick={() => navigate("/site/accueil")}
               animationDelay={nextDelay()}
             >
@@ -734,7 +734,7 @@ export default function Dashboard() {
         {/* ─── Coming Soon ─── */}
         {comingSoonChannels.length > 0 && (
           <div
-            className="rounded-[20px] bg-gradient-to-r from-rose-pale via-card to-accent/10 border border-border p-3 sm:p-5 mb-6 sm:mb-8 shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up"
+            className="rounded-[20px] bg-rose-pale border border-border p-3 sm:p-5 mb-6 sm:mb-8 shadow-[var(--shadow-bento)] opacity-0 animate-reveal-up"
             style={{ animationDelay: `${nextDelay()}s`, animationFillMode: "forwards" }}
           >
             <div className="flex items-center gap-2 mb-1">

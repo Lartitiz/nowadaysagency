@@ -16,7 +16,7 @@ export default function OnboardingMissions({ prenom }: OnboardingMissionsProps) 
 
   if (allDone) {
     return (
-      <div className="rounded-[20px] bg-gradient-to-r from-green-50 to-emerald-50 border border-success/30 p-5 mb-6 shadow-[var(--shadow-bento)]">
+      <div className="rounded-[20px] bg-success-bg border border-success/30 p-5 mb-6 shadow-[var(--shadow-bento)]">
         <Confetti />
         <p className="font-heading font-bold text-foreground">
           Bravo {prenom || "toi"} ! Tu as posé tes fondations 🎉

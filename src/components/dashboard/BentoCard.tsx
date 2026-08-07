@@ -19,7 +19,7 @@ const variantStyles: Record<string, string> = {
   default:
     "bg-card border border-border text-foreground",
   highlight:
-    "bg-gradient-to-br from-rose-pale via-secondary to-[hsl(var(--bento-lavande))] border border-primary/10 text-foreground",
+    "bg-rose-pale border border-primary/10 text-foreground",
   dark:
     "bg-[hsl(var(--bento-dark))] border-none text-white",
   accent:

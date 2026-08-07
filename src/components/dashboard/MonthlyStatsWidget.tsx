@@ -143,7 +143,7 @@ export default function MonthlyStatsWidget({ animationDelay = 0 }: Props) {
           <div className="flex-1">
             <Progress
               value={pubPercent}
-              className="h-1.5 bg-white/10 [&>div]:bg-gradient-to-r [&>div]:from-primary [&>div]:to-accent"
+              className="h-1.5 bg-white/10 [&>div]:bg-primary"
             />
           </div>
           <span className="text-xs text-white/80 font-mono-ui w-12 text-right">

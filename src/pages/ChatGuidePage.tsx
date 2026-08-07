@@ -89,7 +89,7 @@ function TypingIndicator() {
       aria-label="Le coach rédige une réponse"
       role="status"
     >
-      <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold" style={{ backgroundColor: "hsl(var(--primary))", fontFamily: "'IBM Plex Sans', sans-serif" }}>
+      <div className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold" style={{ backgroundColor: "hsl(var(--primary))", fontFamily: "'Hanken Grotesk', sans-serif" }}>
         AC
       </div>
       <div className="bg-white rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)] px-4 py-3">
@@ -837,7 +837,7 @@ export default function ChatGuidePage() {
             </div>
             <h1
               className="text-base font-semibold text-foreground"
-              style={{ fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 16 }}
+              style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 16 }}
             >
               Ton coach com' IA
             </h1>
@@ -880,7 +880,7 @@ export default function ChatGuidePage() {
                 {showOldDivider && msg.id === "welcome-new" && (
                   <div className="flex items-center gap-3 my-4" aria-hidden="true">
                     <div className="flex-1 h-px bg-border/50" />
-                    <span className="text-xs text-muted-foreground" style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+                    <span className="text-xs text-muted-foreground" style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
                       Aujourd'hui
                     </span>
                     <div className="flex-1 h-px bg-border/50" />
@@ -900,7 +900,7 @@ export default function ChatGuidePage() {
                   {msg.role === "assistant" && (
                     <div
                       className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center text-white text-xs font-semibold mt-0.5 bg-primary"
-                      style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                      style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}
                       aria-hidden="true"
                     >
                       AC
@@ -917,7 +917,7 @@ export default function ChatGuidePage() {
                           : "bg-background rounded-2xl rounded-tl-lg shadow-[0_1px_4px_rgba(0,0,0,0.06)]"
                       )}
                       style={{
-                        fontFamily: "'IBM Plex Sans', sans-serif",
+                        fontFamily: "'Hanken Grotesk', sans-serif",
                         fontSize: 15,
                         lineHeight: "1.55",
                       }}
@@ -1022,7 +1022,7 @@ export default function ChatGuidePage() {
                               }
                             }}
                             className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-all bg-primary/10 text-primary hover:bg-primary/20 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                            style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}
                           >
                             {expressLoading === action.route ? (
                               <span className="flex items-center gap-2">
@@ -1056,7 +1056,7 @@ export default function ChatGuidePage() {
                             transition={{ duration: 0.2, delay: i * 0.05 }}
                             onClick={() => sendMessage(sug.label)}
                             className="inline-flex items-center gap-2 bg-background border border-primary/30 rounded-xl px-3 py-2.5 text-sm transition-all hover:shadow-sm hover:-translate-y-0.5 flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-primary/30"
-                            style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                            style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}
                           >
                             {getIcon(sug.icon, "h-4 w-4 text-primary")}
                             <span className="text-foreground whitespace-nowrap">{sug.label}</span>
@@ -1111,7 +1111,7 @@ export default function ChatGuidePage() {
               rows={1}
               className="flex-1 resize-none border border-border/50 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 transition-all bg-muted/20"
               style={{
-                fontFamily: "'IBM Plex Sans', sans-serif",
+                fontFamily: "'Hanken Grotesk', sans-serif",
                 fontSize: 15,
                 maxHeight: 120,
                 lineHeight: "1.4",
@@ -1141,7 +1141,7 @@ export default function ChatGuidePage() {
       <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader className="flex items-center justify-between">
-            <DrawerTitle style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}>
+            <DrawerTitle style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}>
               Conversations
             </DrawerTitle>
           </DrawerHeader>
@@ -1161,7 +1161,7 @@ export default function ChatGuidePage() {
                 <div className="flex items-center justify-between">
                   <span
                     className="text-sm font-medium text-foreground truncate max-w-[70%]"
-                    style={{ fontFamily: "'IBM Plex Sans', sans-serif" }}
+                    style={{ fontFamily: "'Hanken Grotesk', sans-serif" }}
                   >
                     {conv.title}
                   </span>
