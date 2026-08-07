@@ -33,30 +33,31 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     message: "Ton prénom et ton activité doivent faire au moins 2 caractères",
   },
   2: {
-    schema: z.object({ activity_type: z.string().min(1), activity_detail: z.string() }).refine(data => data.activity_type !== "autre" || data.activity_detail.trim().length >= 5, { message: "Décris ton activité en au moins 5 caractères" }),
-    getData: (a) => ({ activity_type: a.activity_type, activity_detail: a.activity_detail || "" }),
-    message: "Choisis un type d'activité pour continuer",
+    schema: z.object({ product_or_service: z.string().min(1), activity_detail: z.string().trim().min(5) }),
+    getData: (a) => ({ product_or_service: a.product_or_service, activity_detail: a.activity_detail || "" }),
+    message: "Choisis produits/services et décris ton activité en quelques mots",
   },
-  5: {
+  4: {
     schema: z.object({ canaux: z.array(z.string()).min(1) }),
     getData: (a) => ({ canaux: a.canaux }),
     message: "Sélectionne au moins un canal (ou 'Rien pour l'instant')",
   },
-  6: {
+  5: {
     schema: z.object({ objectif: z.string().min(1) }),
     getData: (a) => ({ objectif: a.objectif }),
     message: "Choisis un objectif pour continuer",
   },
-  7: {
+  6: {
     schema: z.object({ blocage: z.string().min(1) }),
     getData: (a) => ({ blocage: a.blocage }),
     message: "Choisis ton blocage principal pour continuer",
   },
-  8: {
+  7: {
     schema: z.object({ temps: z.string().min(1) }),
     getData: (a) => ({ temps: a.temps }),
     message: "Indique le temps que tu peux y consacrer",
   },
+
   // Steps 9 & 10 (rédactions libres) sont FACULTATIFS — on ne bloque pas une
   // inscription pressée sur « ce que tu changerais » / « ce qui te rend
   // différente ». Les valeurs vides sont gérées en aval (diagnostic + branding).
