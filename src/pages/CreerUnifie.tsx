@@ -55,6 +55,8 @@ const HookSelectionStep = lazy(() => import("@/components/creer/HookSelectionSte
 // Type-only : n'entre pas dans le bundle, le composant reste lazy.
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
 import CarouselStructureLoader from "@/components/creer/CarouselStructureLoader";
+import CarouselAdvancedOptions from "@/components/creer/CarouselAdvancedOptions";
+
 import PhotoDumpProgress from "@/components/creer/PhotoDumpProgress";
 import { runPhotoDump, PremiumRequiredError, type DumpProgressItem } from "@/lib/photo-dump";
 import { usePhotoWishlistMutations } from "@/hooks/use-photo-wishlist";
