@@ -156,7 +156,7 @@ export default function Onboarding() {
 
       <OnboardingProgress step={step} totalSteps={TOTAL_STEPS} progress={progress} onBack={prev} />
 
-      {step <= 10 ? (
+      {step <= 9 ? (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full flex-1 flex items-center">
             <div className="w-full">
