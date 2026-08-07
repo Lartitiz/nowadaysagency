@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { type DiagnosticData, type DiagnosticStrength, type DiagnosticWeakness, normalizeStrength, getScoreMessage } from "@/lib/diagnostic-data";
 import BrandLearnedSection from "./BrandLearnedSection";
+import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
+
 import Confetti from "@/components/Confetti";
 
 const SOURCE_BADGES: Record<string, { emoji: string; label: string }> = {
