@@ -11,7 +11,7 @@ export default function OnboardingProgress({ step, totalSteps, progress, onBack 
   return (
     <>
       {/* Progress bar */}
-      {step <= totalSteps - 1 && step < 11 && (
+      {step <= totalSteps - 1 && step < totalSteps - 1 && (
         <div className="fixed top-0 left-0 right-0 z-40 h-1 bg-border/30">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
@@ -21,7 +21,7 @@ export default function OnboardingProgress({ step, totalSteps, progress, onBack 
       )}
 
       {/* Back button */}
-      {step > 0 && step < 11 && (
+      {step > 0 && step < totalSteps - 1 && (
         <button
           onClick={onBack}
           className="fixed top-5 left-16 z-40 text-muted-foreground hover:text-foreground text-sm flex items-center gap-1 transition-colors"

@@ -41,17 +41,17 @@ function getStepName(step: number): string {
   const names: Record<number, string> = {
     0: "welcome",
     1: "prenom_activite",
-    2: "activity_type",
-    3: "product_or_service",
-    4: "links_docs",
-    5: "canaux_combined",
-    6: "objectif",
-    7: "blocage",
-    8: "temps",
-    9: "affinage_1",
-    10: "affinage_2",
-    11: "building_diagnostic",
+    2: "product_or_service",
+    3: "links_docs",
+    4: "canaux_combined",
+    5: "objectif",
+    6: "blocage",
+    7: "temps",
+    8: "affinage_1",
+    9: "affinage_2",
+    10: "building_diagnostic",
   };
+
   return names[step] || "unknown_" + step;
 }
 
@@ -674,7 +674,7 @@ export function useOnboarding() {
   };
 
   const getPlaceholder = (field: string) => {
-    const examples = getActivityExamples(answers.activity_type || answers.activite);
+    const examples = getActivityExamples(answers.activity_detail || answers.activite || answers.activity_type);
     const map: Record<string, string> = {
       positioning: (examples as any).post_examples?.[0] || "Ex: Je capture la confiance. Photographe portrait pour les femmes entrepreneures.",
       mission: "Ex: Rendre visible les femmes qui créent. Par l'image, par le regard, par la confiance.",
