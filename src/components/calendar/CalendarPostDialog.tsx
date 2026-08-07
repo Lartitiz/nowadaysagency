@@ -81,6 +81,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [savingSchedule, setSavingSchedule] = useState(false);
 
   const [theme, setTheme] = useState("");
+  // Le sujet peut être long : champ auto-extensible pour le lire en entier (max ~4 lignes).
+  const themeRef = useRef<HTMLTextAreaElement | null>(null);
   const [angle, setAngle] = useState<string | null>(null);
   const [status, setStatus] = useState("idea");
   const [notes, setNotes] = useState("");
