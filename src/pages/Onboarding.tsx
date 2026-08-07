@@ -16,7 +16,6 @@ import {
 
 import OnboardingProgress from "@/components/onboarding/OnboardingProgress";
 import WelcomeStep from "@/components/onboarding/steps/WelcomeStep";
-import ActivityStep from "@/components/onboarding/steps/ActivityStep";
 import ProductServiceScreen from "@/components/onboarding/steps/ProductServiceScreen";
 import OnboardingPhase1Profile from "@/components/onboarding/OnboardingPhase1Profile";
 import OnboardingPhase2Import from "@/components/onboarding/OnboardingPhase2Import";
@@ -58,7 +57,7 @@ const stepValidators: Record<number, { schema: z.ZodType<any>; getData: (a: Answ
     message: "Indique le temps que tu peux y consacrer",
   },
 
-  // Steps 9 & 10 (rédactions libres) sont FACULTATIFS — on ne bloque pas une
+  // Steps 8 & 9 (rédactions libres) sont FACULTATIFS — on ne bloque pas une
   // inscription pressée sur « ce que tu changerais » / « ce qui te rend
   // différente ». Les valeurs vides sont gérées en aval (diagnostic + branding).
 };
