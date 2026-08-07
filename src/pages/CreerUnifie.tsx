@@ -3837,80 +3837,6 @@ export default function CreerUnifie() {
               />
             )}
 
-            {step === "questions" && selectedFormat === "carousel" && (
-              <label
-                className={`flex items-start gap-3 rounded-xl border border-border bg-card/60 p-3 mb-4 animate-fade-in ${qualityMaxLocked ? "cursor-default" : "cursor-pointer"}`}
-              >
-                <Sparkles className={`h-4 w-4 mt-0.5 shrink-0 ${qualityMaxLocked ? "text-muted-foreground" : "text-primary"}`} />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-foreground inline-flex items-center gap-2">
-                    Mode qualité Max
-                    {qualityMaxLocked && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                        Premium
-                      </span>
-                    )}
-                  </span>
-                  <p className="text-xs text-muted-foreground">
-                    Texte <strong>et</strong> visuels dessinés par le modèle le plus puissant. À activer pour
-                    les contenus importants — c'est nettement plus long. Désactivé = rapide (qualité déjà très bonne).
-                  </p>
-                  {qualityMaxLocked && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); navigate("/abonnement"); }}
-                      className="mt-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
-                    >
-                      Passe en Premium pour l'activer →
-                    </button>
-                  )}
-                </div>
-                <Switch
-                  checked={qualityMax && !qualityMaxLocked}
-                  onCheckedChange={setQualityMax}
-                  disabled={qualityMaxLocked}
-                  className="mt-0.5 shrink-0"
-                />
-              </label>
-            )}
-
-            {step === "questions" && selectedFormat === "carousel" && (
-              <label
-                className={`flex items-start gap-3 rounded-xl border border-border bg-card/60 p-3 mb-4 animate-fade-in ${coverIllustrationLocked ? "cursor-default" : "cursor-pointer"}`}
-              >
-                <Palette className={`h-4 w-4 mt-0.5 shrink-0 ${coverIllustrationLocked ? "text-muted-foreground" : "text-primary"}`} />
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-medium text-foreground inline-flex items-center gap-2">
-                    Illustration de couverture
-                    {coverIllustrationLocked && (
-                      <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
-                        Premium
-                      </span>
-                    )}
-                  </span>
-                  <p className="text-xs text-muted-foreground">
-                    Une grande illustration dans tes couleurs sur la première slide. À réserver aux carrousels
-                    où tu veux marquer le coup — ça ajoute quelques secondes à la génération.
-                  </p>
-                  {coverIllustrationLocked && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.preventDefault(); navigate("/abonnement"); }}
-                      className="mt-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
-                    >
-                      Passe en Premium pour l'activer →
-                    </button>
-                  )}
-                </div>
-                <Switch
-                  checked={coverIllustration && !coverIllustrationLocked}
-                  onCheckedChange={setCoverIllustration}
-                  disabled={coverIllustrationLocked}
-                  className="mt-0.5 shrink-0"
-                />
-              </label>
-            )}
-
             {step === "questions" && (
               <CreerStepQuestions
                 format={selectedFormat || ""}
@@ -3927,6 +3853,20 @@ export default function CreerUnifie() {
                 autoFirstContent={paramAuto}
               />
             )}
+
+            {/* Réglages secondaires : APRÈS le bloc principal, repliés par défaut. */}
+            {step === "questions" && selectedFormat === "carousel" && (
+              <CarouselAdvancedOptions
+                qualityMax={qualityMax}
+                onQualityMaxChange={setQualityMax}
+                qualityMaxLocked={qualityMaxLocked}
+                coverIllustration={coverIllustration}
+                onCoverIllustrationChange={setCoverIllustration}
+                coverIllustrationLocked={coverIllustrationLocked}
+              />
+            )}
+
+
 
             {step === "hook_selection" && (
               <HookSelectionStep
