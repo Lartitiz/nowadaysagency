@@ -122,17 +122,17 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (!pendingAutoNext) return;
-    if (step !== 3 && step !== 6 && step !== 7 && step !== 8) return;
-    const field = step === 3 ? answers.product_or_service
-      : step === 6 ? answers.objectif
-      : step === 7 ? answers.blocage
-      : step === 8 ? answers.temps
+    if (step !== 5 && step !== 6 && step !== 7) return;
+    const field = step === 5 ? answers.objectif
+      : step === 6 ? answers.blocage
+      : step === 7 ? answers.temps
       : null;
     if (field) {
       const timer = setTimeout(() => { validatedNext(); setPendingAutoNext(false); }, 400);
       return () => clearTimeout(timer);
     }
-  }, [pendingAutoNext, answers.product_or_service, answers.objectif, answers.blocage, answers.temps, step, validatedNext]);
+  }, [pendingAutoNext, answers.objectif, answers.blocage, answers.temps, step, validatedNext]);
+
 
   const hasInstagram = uploadedFiles.some(f =>
     ['png', 'jpg', 'jpeg', 'webp'].includes(f.name.split('.').pop()?.toLowerCase() || '')
