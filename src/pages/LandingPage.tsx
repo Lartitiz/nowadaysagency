@@ -684,8 +684,8 @@ export default function LandingPage() {
           {/* 2 colonnes : Gratuit + Premium */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mt-12 max-w-2xl mx-auto">
             {/* Gratuit */}
-            <Reveal delay={0}>
-              <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full hover:shadow-card-hover transition-shadow">
+            <Reveal>
+              <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full transition-shadow">
                 <span className="text-2xl mb-2">🆓</span>
                 <h3 className="font-display text-lg font-bold">Gratuit</h3>
                 <p className="text-primary font-bold text-xl mt-1">0€</p>
@@ -711,7 +711,7 @@ export default function LandingPage() {
             </Reveal>
 
             {/* Premium */}
-            <Reveal delay={0.1}>
+            <Reveal>
               <div className="rounded-2xl bg-card border-2 border-primary p-6 text-left flex flex-col relative shadow-card-hover h-full">
                 <span className="text-2xl mb-2">💎</span>
                 <h3 className="font-display text-lg font-bold">Premium</h3>
