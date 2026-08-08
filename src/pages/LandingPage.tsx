@@ -393,7 +393,7 @@ export default function LandingPage() {
           {/* App screenshot mockup */}
           <div className="hidden lg:block">
             <div className="relative">
-              <div className="rounded-2xl bg-card border border-border shadow-strong p-5 transform rotate-1 hover:rotate-0 transition-transform duration-500 space-y-4">
+              <div className="rounded-2xl bg-card border border-border shadow-strong p-5 space-y-4">
 
                 {/* Mini calendrier semaine */}
                 <div>
@@ -422,7 +422,7 @@ export default function LandingPage() {
                       <span key={pilier} className="rounded-pill bg-secondary px-2.5 py-1 text-2xs font-medium text-secondary-foreground">{pilier}</span>
                     ))}
                   </div>
-                  <div className="h-8 w-36 rounded-pill bg-primary/90 flex items-center justify-center gap-1.5 text-2xs font-medium text-primary-foreground animate-pulse-subtle">
+                  <div className="h-8 w-36 rounded-pill bg-primary/90 flex items-center justify-center gap-1.5 text-2xs font-medium text-primary-foreground">
                     ✨ Générer un post
                   </div>
                 </div>
@@ -469,7 +469,7 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
             {PAIN_POINTS.map((p, i) => (
               <Reveal key={i} delay={i * 0.1}>
-                <div className="rounded-2xl bg-card border border-border shadow-card hover:shadow-card-hover transition-shadow h-full overflow-hidden">
+                <div className="rounded-2xl bg-card border border-border shadow-card h-full overflow-hidden">
                   {/* Partie haute : la douleur */}
                   <div className="p-6 pb-4">
                     <span className="text-3xl mb-3 block">{p.emoji}</span>
