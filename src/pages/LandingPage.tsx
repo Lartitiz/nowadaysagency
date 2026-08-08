@@ -468,7 +468,7 @@ export default function LandingPage() {
           </Reveal>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 mb-12">
             {PAIN_POINTS.map((p, i) => (
-              <Reveal key={i} delay={i * 0.1}>
+              <Reveal key={i}>
                 <div className="rounded-2xl bg-card border border-border shadow-card h-full overflow-hidden">
                   {/* Partie haute : la douleur */}
                   <div className="p-6 pb-4">
@@ -488,7 +488,7 @@ export default function LandingPage() {
               </Reveal>
             ))}
           </div>
-          <Reveal delay={0.3}>
+          <Reveal>
             <blockquote className="text-center">
               <p className="font-display text-xl sm:text-2xl font-bold text-foreground leading-snug max-w-2xl mx-auto">
                 "Le problème, c'est pas toi.
