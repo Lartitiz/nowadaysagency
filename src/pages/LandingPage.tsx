@@ -739,7 +739,7 @@ export default function LandingPage() {
           </div>
 
           {/* Bandeau Binôme séparé */}
-          <Reveal delay={0.2}>
+          <Reveal>
             <div className="mt-10 max-w-2xl mx-auto rounded-2xl bg-rose-pale border border-border p-6 sm:p-8">
               <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
                 <div className="text-left flex-1">
@@ -753,7 +753,7 @@ export default function LandingPage() {
             </div>
           </Reveal>
 
-          <Reveal delay={0.3}>
+          <Reveal>
             <Link to="/pricing" className="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline mt-6">
               Voir le détail des plans <ArrowRight className="h-3.5 w-3.5" />
             </Link>
