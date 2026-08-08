@@ -2309,6 +2309,30 @@ export type Database = {
           },
         ]
       }
+      dashboard_clicks: {
+        Row: {
+          created_at: string
+          id: string
+          porte: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          porte: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          porte?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: []
+      }
       diagnostic_results: {
         Row: {
           branding_prefill: Json | null
