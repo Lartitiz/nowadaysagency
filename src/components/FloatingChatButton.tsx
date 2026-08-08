@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 const HIDDEN_ROUTES = [
   "/dashboard",
   "/dashboard/guide",
-  "/dashboard/complet",
   "/onboarding",
   "/login",
   "/register",
