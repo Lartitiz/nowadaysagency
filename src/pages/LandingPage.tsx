@@ -643,7 +643,7 @@ export default function LandingPage() {
             <h2 className="font-display text-2xl sm:text-4xl font-bold mb-10">Elles ont fait confiance à Nowadays</h2>
           </Reveal>
           <BrandMarquee />
-          <Reveal delay={0.2}>
+          <Reveal>
             <p className="text-sm text-muted-foreground mt-8 mb-6">+ des dizaines de créatrices, coachs, freelances et solopreneuses accompagnées depuis 2017.</p>
             <p className="text-xs text-muted-foreground">
               <strong className="text-foreground">Enseignante :</strong> ENSAD-PSL · Sup de Pub · Bureau du Design, de la Mode et des Métiers d'Art · CESACOM
@@ -662,7 +662,7 @@ export default function LandingPage() {
           </Reveal>
           <div className="space-y-4">
             {TARGET_LIST.map((item, i) => (
-              <Reveal key={i} delay={i * 0.06}>
+              <Reveal key={i}>
                 <div className="flex items-start gap-3 rounded-xl bg-card border border-border p-4">
                   <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
                   <p className="text-sm text-foreground leading-relaxed">{item}</p>
