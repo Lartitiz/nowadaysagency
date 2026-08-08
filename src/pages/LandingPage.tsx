@@ -521,7 +521,7 @@ export default function LandingPage() {
 
           <div className="space-y-16 sm:space-y-24">
             {FEATURES.map((f, i) => (
-              <Reveal key={i} delay={0.1}>
+              <Reveal key={i}>
                 <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center`}>
                   {/* Texte */}
                   <div className={i % 2 === 1 ? "md:order-2" : ""}>
@@ -577,7 +577,7 @@ export default function LandingPage() {
                 nowDesc: "Le calendrier est vivant : connecté à tes générateurs, à ta stratégie, à tes canaux. Tu crées un contenu, il tombe dans le calendrier. Tu vois ta semaine, ton mois, tes trous.",
               },
             ].map((item, i) => (
-              <Reveal key={i} delay={i * 0.1}>
+              <Reveal key={i}>
                 <div className="rounded-2xl bg-card border border-border overflow-hidden shadow-card">
                   <div className="grid grid-cols-1 sm:grid-cols-2">
                     {/* L'alternative */}
@@ -613,7 +613,7 @@ export default function LandingPage() {
                 <FounderPhoto />
               </div>
             </Reveal>
-            <Reveal delay={0.15}>
+            <Reveal>
               <div>
                 <h2 className="font-display text-2xl sm:text-3xl font-bold mb-6">Moi c'est Laetitia.</h2>
                 <div className="space-y-4 text-muted-foreground leading-relaxed text-base">
