@@ -105,7 +105,7 @@ function buildRecommendation(
           ctaRoute: "/onboarding",
           icon: "ClipboardCheck",
           alternatives: [
-            { title: "Explorer l'outil librement", route: "/dashboard/complet", icon: "LayoutGrid" },
+            { title: "Explorer l'outil librement", route: "/dashboard", icon: "LayoutGrid" },
           ],
         }
       : {
@@ -115,7 +115,7 @@ function buildRecommendation(
           ctaRoute: "/onboarding",
           icon: "ClipboardCheck",
           alternatives: [
-            { title: "Explorer l'outil librement", route: "/dashboard/complet", icon: "LayoutGrid" },
+            { title: "Explorer l'outil librement", route: "/dashboard", icon: "LayoutGrid" },
           ],
         };
   }

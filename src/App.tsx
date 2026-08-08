@@ -32,7 +32,6 @@ import AdminRoute from "./components/AdminRoute";
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const Onboarding = lazy(() => import("./pages/Onboarding"));
 const WelcomePage = lazy(() => import("./pages/WelcomePage"));
-const Dashboard = lazy(() => import("./pages/Dashboard"));
 const AdaptiveHome = lazy(() => import("./pages/AdaptiveHome"));
 
 const ChatGuidePage = lazy(() => import("./pages/ChatGuidePage"));
@@ -230,7 +229,7 @@ function AnimatedRoutes() {
               <Route path="/welcome" element={<ProtectedRoute><WelcomePage /></ProtectedRoute>} />
               <Route path="/dashboard" element={<ProtectedRoute><AdaptiveHome /></ProtectedRoute>} />
               <Route path="/dashboard/guide" element={<ProtectedRoute><ChatGuidePage /></ProtectedRoute>} />
-              <Route path="/dashboard/complet" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/dashboard/complet" element={<Navigate to="/dashboard" replace />} />
               <Route path="/idees" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "idees" }} />} />
               <Route element={<ErrorBoundaryLayout />}>
                 <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />

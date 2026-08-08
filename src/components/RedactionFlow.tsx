@@ -6,10 +6,30 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { toast } from "sonner";
 import { Check, ChevronLeft, ChevronRight, Copy, RefreshCw, Sparkles, X, BookOpen } from "lucide-react";
-import type { UserProfile } from "@/pages/Dashboard";
 import { getGuide } from "@/lib/production-guides";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { friendlyError } from "@/lib/error-messages";
+
+/* Rapatrié de l'ancienne page Dashboard (supprimée au lot 2 charte) :
+   RedactionFlow en était le seul consommateur. */
+interface UserProfile {
+  prenom: string;
+  activite: string;
+  type_activite: string;
+  cible: string;
+  probleme_principal: string;
+  piliers: string[];
+  tons: string[];
+  plan_start_date: string | null;
+  mission?: string;
+  offre?: string;
+  croyances_limitantes?: string;
+  verbatims?: string;
+  expressions_cles?: string;
+  ce_quon_evite?: string;
+  style_communication?: string[];
+  canaux?: string[];
+}
 
 interface RedactionIdea {
   titre: string;

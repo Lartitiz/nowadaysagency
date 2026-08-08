@@ -121,7 +121,7 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
 
   if (isDemoMode) {
     const DEMO_READY_ROUTES = [
-      "/dashboard", "/dashboard/complet", "/dashboard/guide",
+      "/dashboard", "/dashboard/guide",
       "/branding", "/branding/section", "/branding/coaching",
       "/branding/offres",
       "/calendrier", "/accompagnement",
