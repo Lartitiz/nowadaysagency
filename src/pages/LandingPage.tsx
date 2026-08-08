@@ -769,7 +769,7 @@ export default function LandingPage() {
           </Reveal>
           <Accordion type="single" collapsible className="space-y-3">
             {FAQ_DATA.map((faq, i) => (
-              <Reveal key={i} delay={i * 0.05}>
+              <Reveal key={i}>
                 <AccordionItem value={`faq-${i}`} className="rounded-2xl border border-border bg-card px-5">
                   <AccordionTrigger className="text-left text-sm font-semibold text-foreground hover:no-underline py-4">{faq.q}</AccordionTrigger>
                   <AccordionContent className="text-sm text-muted-foreground leading-relaxed pb-4">{faq.a}</AccordionContent>
