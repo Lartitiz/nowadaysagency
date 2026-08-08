@@ -19,7 +19,7 @@ export function useReveal(threshold = 0.15) {
 export default function Reveal({ children, className = "", delay = 0 }: { children: React.ReactNode; className?: string; delay?: number }) {
   const { ref, visible } = useReveal();
   return (
-    <div ref={ref} className={`${className} ${visible ? "animate-reveal-up" : "opacity-0"}`} style={{ animationDelay: `${delay}s` }}>
+    <div ref={ref} className={`${className} ${visible ? "animate-fade-in" : "opacity-0"}`} style={{ animationDelay: `${delay}s` }}>
       {children}
     </div>
   );

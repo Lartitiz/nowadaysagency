@@ -23,7 +23,7 @@ export default function BrandMarquee() {
 
   return (
     <div ref={marqueeRef} className="overflow-hidden relative py-4">
-      <div className={`flex whitespace-nowrap gap-8 ${isVisible ? "animate-marquee" : ""}`}>
+      <div className={`flex whitespace-nowrap gap-8 ${isVisible ? "animate-marquee" : ""}`} style={{ animationDuration: "60s" }}>
         {[...BRANDS, ...BRANDS].map((b, i) => (
           <span key={i} className="inline-block px-6 py-2.5 rounded-xl bg-card border border-border text-sm font-semibold text-foreground shrink-0">
             {b}
