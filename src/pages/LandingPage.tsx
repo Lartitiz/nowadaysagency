@@ -342,7 +342,7 @@ export default function LandingPage() {
           </div>
           <div className="hidden md:flex items-center gap-3">
             <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
-            <a href="#signup-section" onClick={scrollTo("signup-section")} className="rounded-pill bg-primary text-primary-foreground px-6 py-2.5 text-sm font-medium shadow-cta hover:bg-bordeaux transition-all hover:-translate-y-px">
+            <a href="#signup-section" onClick={scrollTo("signup-section")} className="rounded-pill bg-primary text-primary-foreground px-6 py-2.5 text-sm font-medium shadow-cta hover:bg-bordeaux transition-colors">
               Commencer gratuitement
             </a>
           </div>
@@ -367,11 +367,11 @@ export default function LandingPage() {
       <main id="main-content" role="main">
       <section aria-label="Présentation de L'Assistant Com'" className="relative py-16 sm:py-24 lg:py-32 px-4 overflow-hidden">
         {/* Background shapes */}
-        <div className="absolute -top-20 -right-32 w-[500px] h-[320px] bg-rose-soft/40 blur-[80px] pointer-events-none animate-float" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
-        <div className="absolute bottom-0 -left-24 w-[400px] h-[250px] bg-accent/20 blur-[80px] pointer-events-none animate-float" style={{ animationDelay: "2s", clipPath: "polygon(25% 0%, 75% 0%, 100% 40%, 85% 100%, 15% 100%, 0% 40%)" }} />
+        <div className="absolute -top-20 -right-32 w-[500px] h-[320px] bg-rose-soft/40 blur-[80px] pointer-events-none" style={{ clipPath: "polygon(20% 0%, 80% 0%, 100% 50%, 80% 100%, 20% 100%, 0% 50%)" }} />
+        <div className="absolute bottom-0 -left-24 w-[400px] h-[250px] bg-accent/20 blur-[80px] pointer-events-none" style={{ clipPath: "polygon(25% 0%, 75% 0%, 100% 40%, 85% 100%, 15% 100%, 0% 40%)" }} />
 
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 lg:gap-16 items-center">
-          <div className="animate-reveal-up">
+          <div>
             <span className="inline-flex items-center gap-1.5 rounded-pill bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 mb-6">
               🚀 Gratuit · Sans carte bancaire · En 30 secondes
             </span>
@@ -391,7 +391,7 @@ export default function LandingPage() {
           </div>
 
           {/* App screenshot mockup */}
-          <div className="hidden lg:block animate-reveal-up" style={{ animationDelay: "0.2s" }}>
+          <div className="hidden lg:block">
             <div className="relative">
               <div className="rounded-2xl bg-card border border-border shadow-strong p-5 transform rotate-1 hover:rotate-0 transition-transform duration-500 space-y-4">
 
