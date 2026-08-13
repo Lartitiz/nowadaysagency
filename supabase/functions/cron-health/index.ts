@@ -433,14 +433,26 @@ Deno.serve(async (req) => {
       "recraftv3-vector": 0.04,
     };
 
-    // Coût texte estimé (€/million de tokens, tarifs Anthropic ~juillet 2026 :
-    // Haiku 4.5 = 1$/5$, Sonnet 4.6 = 3$/15$, Opus 4.8 = 5$/25$ in/out).
+    // Coût texte estimé (€/million de tokens, tarifs Anthropic ~août 2026 :
+    // Haiku 4.5 = 1$/5$, Sonnet 5 = 2$/10$, Sonnet 4.6 = 3$/15$,
+    // Opus 4.8 et Opus 5 = 5$/25$ in/out).
     // `tokens_used` mélange input+output ; on applique un tarif MIXTE avec une
     // hypothèse 75 % input / 25 % output (les prompts contexte+charte dominent).
     // Approximation assumée — l'ordre de grandeur suffit pour la tendance hebdo.
+    //
+    // ⚠️ TOUT modèle absent de ce map était compté ZÉRO EN SILENCE (le `|| 0`
+    // plus bas). C'est exactement ce qui est arrivé à `claude-sonnet-5` : la
+    // bascule prod de mi-juillet 2026 (secret `AI_MODEL_SONNET`, le défaut du
+    // code étant resté `claude-sonnet-4-6`) a rendu le compteur aveugle au
+    // modèle DOMINANT pendant ~1 mois — le rapport du 03/08 affichait 1,92 €
+    // là où le réel était ~4,8 €. D'où `modeles_non_tarifes` renvoyé plus bas :
+    // un modèle inconnu doit CRIER, pas coûter 0. À chaque nouveau modèle,
+    // l'ajouter ici (sinon il ressortira dans l'alerte du rapport hebdo).
     const TEXT_COST_EUR_PER_MTOKEN: Record<string, number> = {
       "claude-haiku-4-5": 2,
+      "claude-sonnet-5": 4,
       "claude-sonnet-4-6": 6,
+      "claude-opus-5": 10,
       "claude-opus-4-8": 10,
       "claude-opus-4-7": 10,
     };
@@ -470,6 +482,14 @@ Deno.serve(async (req) => {
         (s, [m, v]) => s + ((TEXT_COST_EUR_PER_MTOKEN[m] || 0) * v.tokens) / 1_000_000,
         0,
       );
+      // Garde déterministe contre le sous-comptage silencieux : tout modèle vu
+      // dans ai_usage mais absent des DEUX grilles tarifaires a contribué 0 € au
+      // total. On le remonte au lieu de le taire — le total reste affiché (il
+      // reste utile), mais il est explicitement signalé comme INCOMPLET.
+      const modelesNonTarifes = Object.entries(byModel)
+        .filter(([m]) => !(m in TEXT_COST_EUR_PER_MTOKEN) && !(m in IMAGE_COST_EUR))
+        .map(([m, v]) => ({ modele: m, appels: v.appels, tokens: v.tokens }))
+        .sort((a, b) => b.tokens - a.tokens);
       const round2 = (n: number) => Math.round(n * 100) / 100;
       return {
         appels: rows.length,
@@ -480,6 +500,8 @@ Deno.serve(async (req) => {
         cout_images_estime_eur: round2(coutImagesEur),
         cout_texte_estime_eur: round2(coutTexteEur),
         cout_total_estime_eur: round2(coutImagesEur + coutTexteEur),
+        modeles_non_tarifes: modelesNonTarifes,
+        cout_incomplet: modelesNonTarifes.length > 0,
       };
     };
     const aiCur = summarize(ai.filter((a: any) => inWindow(a.created_at, curFrom, curTo)));

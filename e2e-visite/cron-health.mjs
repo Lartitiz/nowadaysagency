@@ -135,8 +135,13 @@ try {
     for (const [m, v] of Object.entries(cur.byModel || {})) console.log(`      modèle ${m} : ${v.appels} appels, ${v.tokens} tokens`);
     if (cur.cout_total_estime_eur != null) {
       console.log(
-        `   coût estimé 7 j : ${cur.cout_total_estime_eur} € (texte ${cur.cout_texte_estime_eur} € + images ${cur.cout_images_estime_eur} €)  (S-1 : ${prev.cout_total_estime_eur ?? "?"} €)`
+        `   coût estimé 7 j : ${cur.cout_total_estime_eur} €${cur.cout_incomplet ? " ⚠️ INCOMPLET" : ""} (texte ${cur.cout_texte_estime_eur} € + images ${cur.cout_images_estime_eur} €)  (S-1 : ${prev.cout_total_estime_eur ?? "?"} €${prev.cout_incomplet ? " ⚠️ incomplet" : ""})`
       );
+    }
+    // Un modèle absent des grilles tarifaires compte 0 € : il doit CRIER, sinon
+    // le total ment en silence (cas `claude-sonnet-5`, ~1 mois de sous-comptage).
+    for (const m of cur.modeles_non_tarifes || []) {
+      console.log(`      🔴 modèle NON TARIFÉ « ${m.modele} » : ${m.appels} appels / ${m.tokens} tokens comptés 0 € → ajouter son tarif dans cron-health/index.ts`);
     }
     console.log("   top actions 7 j (vs S-1) :");
     const prevActions = Object.fromEntries((prev.topActions || []).map((a) => [a.action, a.count]));
