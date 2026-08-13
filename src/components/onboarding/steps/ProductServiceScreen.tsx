@@ -25,7 +25,9 @@ export default function ProductServiceScreen({
     }
   }, [activite, detailValue, onDetailChange]);
 
-  const canNext = !!value && detailValue.trim().length >= 5;
+  // Le bouton Suivant est TOUJOURS visible (règle unifiée de l'onboarding :
+  // choix simple = auto-avance, écran à plusieurs saisies = bouton permanent).
+  // La validation reste portée par validatedNext (toast explicite si incomplet).
 
   return (
     <div className="space-y-6">
@@ -76,7 +78,7 @@ export default function ProductServiceScreen({
         </p>
       </div>
 
-      {canNext && onNext && (
+      {onNext && (
         <div className="flex justify-center">
           <Button type="button" onClick={onNext} className="rounded-full px-8">
             Suivant →
