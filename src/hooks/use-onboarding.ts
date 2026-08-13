@@ -617,16 +617,31 @@ export function useOnboarding() {
       navigate("/welcome", { replace: true });
       return;
     }
-    try {
-      // Safety net: ensure onboarding_completed is saved even if handleFinish failed
-      await supabase
+    // ── Écritures de COMPLETION : elles décident si toute l'app laisse passer ──
+    // Tant qu'aucune des deux tables ne dit onboarding_completed=true,
+    // ProtectedRoute renvoie vers /onboarding depuis n'importe quelle page.
+    // supabase-js ne LÈVE pas ses erreurs : sans lire `error`, un échec
+    // (réseau, RLS) partait en console.error muet et l'utilisatrice se faisait
+    // téléporter au début de l'onboarding un peu plus tard (vécu 13/08, en
+    // plein 1er contenu). On vérifie donc, on retente une fois, et on prévient
+    // clairement si rien n'a pu être écrit.
+    const completionProfile = {
+      onboarding_completed: true,
+      onboarding_completed_at: new Date().toISOString(),
+      onboarding_step: TOTAL_STEPS,
+    };
+    let profileCompletionError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { error } = await supabase
         .from("profiles")
-        .update({
-          onboarding_completed: true,
-          onboarding_completed_at: new Date().toISOString(),
-          onboarding_step: TOTAL_STEPS,
-        })
+        .update(completionProfile)
         .eq("user_id", profileUserId);
+      profileCompletionError = error;
+      if (!error) break;
+      console.error("[onboarding] completion write (profiles) failed:", error);
+    }
+
+    try {
 
       if (diagnosticData) {
         // Save diagnostic as branding audit
@@ -653,12 +668,24 @@ export function useOnboarding() {
 
     // Ensure user_plan_config.onboarding_completed is set
     // (safety net in case handleFinish had a silent failure)
-    try {
-      await (supabase.from("user_plan_config") as any)
+    let configCompletionError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { error } = await (supabase.from("user_plan_config") as any)
         .update({ onboarding_completed: true })
         .eq("user_id", user.id);
-    } catch (e) {
-      console.error("Failed to update user_plan_config:", e);
+      configCompletionError = error;
+      if (!error) break;
+      console.error("[onboarding] completion write (user_plan_config) failed:", error);
+    }
+
+    // Les DEUX écritures ont échoué (après retry) : le compte serait renvoyé
+    // au début de l'onboarding à la prochaine vérification. On le dit au lieu
+    // de continuer comme si de rien n'était.
+    if (profileCompletionError && configCompletionError) {
+      toast.error("Ta fin d'onboarding n'a pas pu être enregistrée", {
+        description: "Vérifie ta connexion — sans ça, l'app te redemandera l'onboarding à la prochaine visite.",
+        duration: 10000,
+      });
     }
 
     if (goCreate) {

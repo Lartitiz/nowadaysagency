@@ -182,6 +182,19 @@
   .font-heading, .font-display {
     font-weight: 400 !important;
   }
+
+  /* Sous-titres (h2 à h6) : le serif devient illisible à petite taille.
+     On repasse en Hanken Grotesk semi-bold, sauf demande explicite de serif. */
+  h2:not(.font-heading):not(.font-display),
+  h3:not(.font-heading):not(.font-display),
+  h4:not(.font-heading):not(.font-display),
+  h5:not(.font-heading):not(.font-display),
+  h6:not(.font-heading):not(.font-display) {
+    font-family: 'Hanken Grotesk', system-ui, sans-serif;
+    font-weight: 600 !important;
+    letter-spacing: -0.01em;
+  }
+
 }
 
 @layer utilities {

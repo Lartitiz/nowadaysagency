@@ -28,11 +28,19 @@ import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, buildIdentityBlock } from "../_shared/user-context.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { isSafePublicUrl, fetchExternalCss, extractVisualInfo } from "../_shared/scraping.ts";
+import {
+  isSafePublicUrl,
+  fetchExternalCss,
+  extractVisualInfo,
+  fetchSitemapUrls,
+  discoverLinksFromHtml,
+  isSameSite,
+} from "../_shared/scraping.ts";
 
 /* ─── Constants ─── */
 const GLOBAL_TIMEOUT_MS = 60_000;
 const PAGE_TIMEOUT_MS = 10_000;
+const MAX_SECONDARY_PAGES = 4; // en plus de l'accueil : garde le temps d'analyse raisonnable
 const MAX_TEXT_PER_PAGE = 3000; // ~tokens
 const MAX_HTML_BYTES = 5_000_000; // skip pages whose declared body is absurdly large
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
@@ -143,6 +151,12 @@ function truncateText(text: string, maxChars: number): string {
   return text.slice(0, maxChars) + "…";
 }
 
+/** Clé de dédoublonnage : /Offres/ et /offres sont la même page. */
+function normalizePath(path: string): string {
+  const p = path.trim().toLowerCase().replace(/\/+$/, "");
+  return p === "" ? "/" : p;
+}
+
 /* ─── Page fetcher ─── */
 
 interface PageData {
@@ -158,9 +172,11 @@ interface PageData {
   ctas: string[];
   hasForms: boolean;
   socialLinks: string[];
+  /** HTML brut, gardé uniquement pour la page d'accueil (découverte des liens). */
+  rawHtml?: string;
 }
 
-async function fetchPage(url: string, path: string, withExternalCss = false): Promise<PageData> {
+async function fetchPage(url: string, path: string, withExternalCss = false, keepHtml = false): Promise<PageData> {
   const fullUrl = path === "/" || path === "" ? url : new URL(path, url).href;
   const result: PageData = {
     path: path || "/",
@@ -238,6 +254,7 @@ async function fetchPage(url: string, path: string, withExternalCss = false): Pr
     result.ctas = extractCTAs(html);
     result.hasForms = hasForms(html);
     result.socialLinks = extractSocialLinks(html);
+    if (keepHtml) result.rawHtml = html;
   } catch (e: any) {
     result.error = e.name === "AbortError" ? "Timeout (10s)" : (e.message || "Erreur inconnue");
   }
@@ -329,17 +346,65 @@ serve(async (req) => {
       });
     }
 
-    // Build pages list
-    const pages: string[] = ["/"];
+    // ── Pages secondaires : on LIT le plan du site, on ne devine plus ──
+    // 1. chemins forcés par l'utilisatrice (champ « chemin personnalisé ») ;
+    // 2. sitemap.xml du site (classé par pertinence : offres > à propos > blog) ;
+    // 3. à défaut, les liens de la page d'accueil déjà téléchargée.
+    const forcedPaths: string[] = [];
     if (Array.isArray(pages_to_audit)) {
-      for (const p of pages_to_audit.slice(0, 5)) {
-        if (typeof p === "string" && p.startsWith("/")) pages.push(p);
+      for (const p of pages_to_audit.slice(0, MAX_SECONDARY_PAGES)) {
+        if (typeof p === "string" && p.startsWith("/")) forcedPaths.push(p);
       }
     }
 
-    // Fetch all pages in parallel
-    console.log(`[audit-site-auto] Fetching ${pages.length} pages for ${baseUrl}`);
-    const pageResults = await Promise.all(pages.map((p, i) => fetchPage(baseUrl, p, i === 0)));
+    // Accueil et sitemap en parallèle : le sitemap n'est qu'un fetch de plus.
+    const [homePage, sitemapUrls] = await Promise.all([
+      fetchPage(baseUrl, "/", true, true),
+      fetchSitemapUrls(baseUrl, AbortSignal.timeout(PAGE_TIMEOUT_MS), {
+        limit: MAX_SECONDARY_PAGES,
+        followIndex: true,
+      }),
+    ]);
+
+    let discovered = sitemapUrls;
+    let discoverySource = "sitemap";
+    if (discovered.length === 0) {
+      discovered = homePage.rawHtml
+        ? discoverLinksFromHtml(homePage.rawHtml, baseUrl, MAX_SECONDARY_PAGES)
+        : [];
+      discoverySource = discovered.length > 0 ? "liens accueil" : "aucune";
+    }
+    delete homePage.rawHtml; // plus besoin : on ne le trimballe pas jusqu'à l'IA
+
+    const baseHostname = new URL(baseUrl).hostname;
+    const seenPaths = new Set<string>(["/", ...forcedPaths.map(normalizePath)]);
+    const secondaryPaths = [...forcedPaths];
+    for (const u of discovered) {
+      if (secondaryPaths.length >= MAX_SECONDARY_PAGES) break;
+      let path: string;
+      try {
+        const parsed = new URL(u);
+        // Même site uniquement (www et apex comptent pour le même site).
+        // On ne garde que le chemin : fetchPage le rebranche sur l'origine
+        // validée du site, donc aucune sortie possible vers un autre domaine.
+        if (!isSameSite(parsed.hostname, baseHostname)) continue;
+        path = parsed.pathname + parsed.search;
+      } catch {
+        continue;
+      }
+      const key = normalizePath(path);
+      if (seenPaths.has(key)) continue;
+      seenPaths.add(key);
+      secondaryPaths.push(path);
+    }
+
+    console.log(
+      `[audit-site-auto] ${baseUrl} — découverte via ${discoverySource} → pages secondaires : ${secondaryPaths.join(", ") || "(aucune)"}`
+    );
+    const pageResults = [
+      homePage,
+      ...(await Promise.all(secondaryPaths.map(p => fetchPage(baseUrl, p)))),
+    ];
 
     const pagesOk = pageResults.filter(p => !p.error || p.visibleText);
     const pagesError = pageResults.filter(p => p.error && !p.visibleText).map(p => `${p.path} (${p.error})`);

@@ -136,12 +136,23 @@ export default function BrandingAuditPage() {
         .select("website_url, instagram_url, linkedin_url")
         .eq("user_id", profileUserId)
         .maybeSingle();
-      if (profile?.website_url) setSiteUrl(profile.website_url);
+      // Source pré-remplie = source cochée : avant, tout restait décoché et le
+      // bouton « Lancer » était grisé alors que toutes les données étaient là.
+      if (profile?.website_url) {
+        setSiteUrl(profile.website_url);
+        setUseSite(true);
+      }
       if (profile?.instagram_url) {
         const match = profile.instagram_url.match(/instagram\.com\/([^/?]+)/);
-        if (match) setInstagramUsername(match[1]);
+        if (match) {
+          setInstagramUsername(match[1]);
+          setUseInstagram(true);
+        }
       }
-      if (profile?.linkedin_url) setLinkedinUrl(profile.linkedin_url);
+      if (profile?.linkedin_url) {
+        setLinkedinUrl(profile.linkedin_url);
+        setUseLinkedin(true);
+      }
 
       const { data: prevAudit } = await (supabase
         .from("branding_audits") as any)

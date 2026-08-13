@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw, Search, Camera, User, FileText, Target, Users, ClipboardList, Lightbulb, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Link2, Microscope, PenLine, type LucideIcon } from "lucide-react";
+import { Sparkles, Upload, X, Loader2, ArrowRight, ChevronRight, ChevronDown, ChevronUp, RotateCcw } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link, useNavigate } from "react-router-dom";
@@ -37,7 +37,9 @@ interface AuditResult {
 }
 
 // ── Constants ──
-const STEPS = ["Screenshots", "Profil", "Contenu", "Stratégie", "Réseau"];
+// Écran unique : on ne demande QUE ce que ni l'app ni le profil public ne savent
+// (vues, connexions, recommandations = données privées LinkedIn sans API analytics).
+// Le reste (à propos, checklist profil, vrais posts) est récupéré automatiquement.
 const OBJECTIVE_OPTIONS = [
   "Trouver des client·es (accompagnement)",
   "Trouver des client·es (services)",
@@ -49,16 +51,17 @@ const OBJECTIVE_OPTIONS = [
 const RHYTHM_OPTIONS = ["Jamais (ou presque)", "1-2 fois par mois", "1 fois par semaine", "2-3 fois par semaine", "Tous les jours"];
 const VIEWS_OPTIONS = ["< 100 vues", "100-500 vues", "500-2 000 vues", "> 2 000 vues", "Je ne sais pas"];
 const CONNECTIONS_OPTIONS = ["< 200", "200-500", "500-1 000", "1 000-3 000", "> 3 000"];
-const CONNECTION_TYPE_OPTIONS = ["Des gens de mon secteur", "Des client·es potentiel·les", "D'ancien·nes collègues", "Des gens ajouté·es en masse", "Des partenaires", "Un mix de tout ça"];
-const ACCEPTANCE_OPTIONS = ["Toutes", "Seulement celles avec un message", "Seulement celles de mon secteur", "Je n'y pense pas souvent"];
-const PROACTIVE_OPTIONS = ["Jamais", "Parfois (quand je rencontre quelqu'un)", "Régulièrement (stratégie de networking)"];
 const RECO_OPTIONS = ["0", "1-3", "4-10", "Plus de 10"];
-const CONTENT_TYPE_OPTIONS = ["Posts texte (opinion)", "Carrousels PDF", "Partage d'articles", "Vidéos", "Storytelling personnel", "Contenu éducatif", "Actualité du secteur", "Je publie rarement"];
-const ENGAGEMENT_TYPE_OPTIONS = ["Beaucoup de likes mais peu de commentaires", "Peu de likes et peu de commentaires", "Des commentaires de qualité", "Rien du tout"];
-const ACCROCHE_OPTIONS = ["Je suis content·e de partager...", "J'ai une question pour vous...", "Ce matin, j'ai réalisé un truc...", "Je ne sais jamais comment commencer"];
-const RECYCLING_OPTIONS = ["Oui, je copie-colle", "Oui, j'adapte le ton et le format", "Non, je crée du contenu séparé", "Non, je ne publie pas sur Instagram"];
-const PUB_ORG_OPTIONS = ["Quand j'ai le temps / l'inspiration", "J'essaie de tenir un rythme mais j'y arrive pas", "J'ai un créneau dédié chaque semaine", "J'ai un calendrier éditorial"];
-const INBOUND_OPTIONS = ["Jamais", "Rarement (1-2/mois)", "Régulièrement (1-2/semaine)", "Souvent (presque chaque jour)"];
+
+// Rythme déduit des posts LinkedIn créés dans l'app sur 30 j. On ne présume RIEN
+// à zéro (elle publie peut-être hors de l'app) : pas de pré-sélection dans ce cas.
+function deriveRhythm(count: number): string {
+  if (count >= 12) return "Tous les jours";
+  if (count >= 6) return "2-3 fois par semaine";
+  if (count >= 3) return "1 fois par semaine";
+  if (count >= 1) return "1-2 fois par mois";
+  return "";
+}
 
 const UPLOAD_ZONES: { type: ScreenshotType; label: string; hint: string }[] = [
   { type: "profile", label: "Profil (haut de page)", hint: "Photo, bannière, titre" },
@@ -97,21 +100,15 @@ function ChipSelect({ options, value, onChange, multi = false }: { options: stri
 
 // ── Score color ──
 function getScoreInfo(score: number) {
-  if (score >= 70) return { color: "text-success", bg: "bg-success-bg", icon: CheckCircle2 };
-  if (score >= 40) return { color: "text-warning", bg: "bg-warning-bg", icon: AlertTriangle };
-  return { color: "text-error", bg: "bg-error-bg", icon: AlertCircle };
+  if (score >= 70) return { color: "text-success", bg: "bg-success-bg", emoji: "🟢" };
+  if (score >= 40) return { color: "text-warning", bg: "bg-warning-bg", emoji: "🟡" };
+  return { color: "text-error", bg: "bg-error-bg", emoji: "🔴" };
 }
 
-function ImpactIcon({ impact }: { impact: string }) {
-  if (impact === "high") return <AlertCircle className="h-4 w-4 shrink-0 text-error" strokeWidth={1.75} aria-hidden="true" />;
-  if (impact === "medium") return <AlertTriangle className="h-4 w-4 shrink-0 text-warning" strokeWidth={1.75} aria-hidden="true" />;
-  return <CheckCircle2 className="h-4 w-4 shrink-0 text-success" strokeWidth={1.75} aria-hidden="true" />;
-}
-
-function StatusIcon({ status }: { status: string }) {
-  if (status === "good") return <CheckCircle2 className="inline h-4 w-4 align-[-2px] text-success" strokeWidth={1.75} aria-hidden="true" />;
-  if (status === "warning") return <AlertTriangle className="inline h-4 w-4 align-[-2px] text-warning" strokeWidth={1.75} aria-hidden="true" />;
-  return <XCircle className="inline h-4 w-4 align-[-2px] text-error" strokeWidth={1.75} aria-hidden="true" />;
+function impactEmoji(impact: string) {
+  if (impact === "high") return "🔴";
+  if (impact === "medium") return "🟡";
+  return "🟢";
 }
 
 export default function LinkedInAudit() {
@@ -122,38 +119,70 @@ export default function LinkedInAudit() {
   const { plan } = useUserPlan();
   const [quotaExhausted, setQuotaExhausted] = useState<{ message?: string } | null>(null);
 
-  const [step, setStep] = useState(0);
+  // view : "form" (écran unique) ou "results"
+  const [view, setView] = useState<"form" | "results">("form");
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [previousScore, setPreviousScore] = useState<number | null>(null);
   const [auditDate, setAuditDate] = useState<string | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
 
-  // Step 1 data
+  // Les seules questions restantes (données privées LinkedIn, pas d'API)
   const [screenshots, setScreenshots] = useState<ScreenshotFile[]>([]);
+  const [showScreenshots, setShowScreenshots] = useState(false);
   const [profileUrl, setProfileUrl] = useState("");
   const [objective, setObjective] = useState("");
   const [rhythm, setRhythm] = useState("");
   const [avgViews, setAvgViews] = useState("");
   const [connectionsCount, setConnectionsCount] = useState("");
-
-  // Step 3 data
-  const [contentTypes, setContentTypes] = useState<string[]>([]);
-  const [engagementType, setEngagementType] = useState("");
-  const [accrocheStyle, setAccrocheStyle] = useState("");
-
-  // Step 4 data
-  const [recycling, setRecycling] = useState("");
-  const [pubOrg, setPubOrg] = useState("");
-  const [inboundRequests, setInboundRequests] = useState("");
-
-  // Step 5 data
-  const [connectionTypes, setConnectionTypes] = useState<string[]>([]);
-  const [acceptancePolicy, setAcceptancePolicy] = useState("");
-  const [proactiveRequests, setProactiveRequests] = useState("");
   const [recommendationsCount, setRecommendationsCount] = useState("");
 
+  // Données récupérées automatiquement (profil app + posts créés dans l'app)
+  const [autoData, setAutoData] = useState<{
+    aboutText: string;
+    checklist: Record<string, unknown> | null;
+    appPostsCount30d: number;
+    recentPosts: { date: string; excerpt: string }[];
+  } | null>(null);
+
   const fileInputRefs = useRef<Record<ScreenshotType, HTMLInputElement | null>>({} as any);
+
+  // Pré-remplissage automatique : URL depuis le profil, à propos + checklist depuis
+  // le module LinkedIn, rythme déduit des posts créés dans l'app sur 30 jours.
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data: prof } = await (supabase.from("profiles") as any)
+        .select("linkedin_url, linkedin_summary").eq(column, value).maybeSingle();
+      if (prof?.linkedin_url) setProfileUrl((cur) => cur || prof.linkedin_url);
+
+      const { data: lp } = await (supabase.from("linkedin_profile") as any)
+        .select("title, title_done, url_done, photo_done, banner_done, featured_done, creator_mode_done, summary_final, resume_current")
+        .eq(column, value).maybeSingle();
+
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const { data: posts } = await (supabase.from("calendar_posts") as any)
+        .select("date, content_draft, accroche")
+        .eq(column, value).eq("canal", "linkedin").gte("date", thirtyDaysAgo)
+        .order("date", { ascending: false }).limit(20);
+
+      const appPosts = (posts || []) as any[];
+      const aboutText = lp?.summary_final || lp?.resume_current || prof?.linkedin_summary || "";
+      setAutoData({
+        aboutText,
+        checklist: lp ? {
+          title: lp.title, title_done: lp.title_done, url_done: lp.url_done, photo_done: lp.photo_done,
+          banner_done: lp.banner_done, featured_done: lp.featured_done, creator_mode_done: lp.creator_mode_done,
+        } : null,
+        appPostsCount30d: appPosts.length,
+        recentPosts: appPosts
+          .map((p) => ({ date: p.date || "", excerpt: (p.content_draft || p.accroche || "").slice(0, 400) }))
+          .filter((p) => p.excerpt).slice(0, 3),
+      });
+      const derived = deriveRhythm(appPosts.length);
+      if (derived) setRhythm((cur) => cur || derived);
+    })();
+  }, [user?.id, column, value]);
 
   // Load existing audit on mount
   useEffect(() => {
@@ -171,7 +200,7 @@ export default function LinkedInAudit() {
         if (latest.audit_result) {
           setResult(latest.audit_result as unknown as AuditResult);
           setAuditDate(latest.created_at);
-          setStep(5);
+          setView("results");
         }
         if (audits.length > 1 && audits[1].score_global) {
           setPreviousScore(audits[1].score_global);
@@ -236,17 +265,13 @@ export default function LinkedInAudit() {
           currentRhythm: rhythm,
           avgViews,
           connectionsCount,
-          connectionTypes,
-          acceptancePolicy,
-          proactiveRequests,
           recommendationsCount,
-          contentTypes,
-          engagementType,
-          accrocheStyle: accrocheStyle,
-          recycling,
-          publicationOrg: pubOrg,
-          inboundRequests,
           screenshots: uploadedScreenshots,
+          // Données récupérées automatiquement par l'app (remplacent l'ancien questionnaire)
+          aboutText: autoData?.aboutText || undefined,
+          profileChecklist: autoData?.checklist || undefined,
+          appPostsCount30d: autoData?.appPostsCount30d,
+          recentPosts: autoData?.recentPosts?.length ? autoData.recentPosts : undefined,
         },
       }, 120000);
 
@@ -274,21 +299,13 @@ export default function LinkedInAudit() {
       // Save to DB
       await supabase.from("linkedin_audit").insert({
         user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         profile_url: profileUrl || null,
         objective,
         current_rhythm: rhythm,
         avg_views: avgViews,
         connections_count: connectionsCount,
-        connection_types: connectionTypes,
-        acceptance_policy: acceptancePolicy,
-        proactive_requests: proactiveRequests,
         recommendations_count: recommendationsCount,
-        content_types: contentTypes,
-        engagement_type: engagementType,
-        accroche_style: accrocheStyle,
-        recycling,
-        publication_org: pubOrg,
-        inbound_requests: inboundRequests,
         screenshots: uploadedScreenshots,
         score_global: parsed.score_global,
         score_profil: parsed.sections?.profil?.score ?? 0,
@@ -299,7 +316,7 @@ export default function LinkedInAudit() {
         top_priorities: parsed.top_5_priorities,
       } as any);
 
-      setStep(5); // results
+      setView("results");
       toast.success("Audit terminé ! 🎉");
     } catch (e: any) {
       const errStr = e?.message || String(e);
@@ -313,73 +330,26 @@ export default function LinkedInAudit() {
     }
   };
 
-  const canProceed = (s: number) => {
-    if (s === 0) return true; // screenshots optional
-    return true;
-  };
+  // ── Écran unique ──
+  const autoFound: string[] = [];
+  if (autoData?.aboutText) autoFound.push("ta section À propos");
+  if (autoData?.checklist && Object.values(autoData.checklist).some((v) => v === true || typeof v === "string")) autoFound.push("ta checklist profil");
+  if (autoData?.appPostsCount30d) autoFound.push(`tes ${autoData.appPostsCount30d} posts LinkedIn créés dans l'app (30 j)`);
 
-  const handleNext = () => {
-    if (step === 4) {
-      handleAnalyze();
-    } else {
-      setStep((s) => s + 1);
-    }
-  };
-
-  // ── Render steps ──
-  const renderStep0 = () => (
+  const renderForm = () => (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2"><Camera className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Montre-moi ton profil LinkedIn</h2>
-        <p className="text-sm text-muted-foreground mb-4">
-          Upload tes screenshots pour que l'IA puisse analyser ton profil en détail. Plus tu en mets, plus l'audit sera précis.
-        </p>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {UPLOAD_ZONES.map((zone) => {
-            const zoneFiles = screenshots.filter((s) => s.type === zone.type);
-            return (
-              <div key={zone.type}>
-                <div
-                  onClick={() => fileInputRefs.current[zone.type]?.click()}
-                  className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-4 text-center cursor-pointer hover:border-primary/50 transition-colors min-h-[120px] flex flex-col items-center justify-center"
-                >
-                  <Upload className="h-5 w-5 text-muted-foreground mb-1" />
-                  <p className="text-xs font-medium text-foreground">{zone.label}</p>
-                  <p className="text-2xs text-muted-foreground">{zone.hint}</p>
-                </div>
-                <input
-                  ref={(el) => { fileInputRefs.current[zone.type] = el; }}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => handleFileAdd(zone.type, e.target.files)}
-                />
-                {zoneFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {zoneFiles.map((s) => {
-                      const idx = screenshots.indexOf(s);
-                      return (
-                        <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-border">
-                          <img loading="lazy" src={s.preview} alt="Aperçu du post LinkedIn" className="w-full h-full object-cover" />
-                          <button onClick={() => removeScreenshot(idx)} aria-label="Retirer cette capture" title="Retirer cette capture" className="absolute top-0 right-0 bg-background/80 rounded-full p-0.5"><X className="h-3 w-3" /></button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            );
-          })}
+      {autoFound.length > 0 && (
+        <div className="rounded-2xl border border-primary/30 bg-rose-pale p-4">
+          <p className="text-sm text-foreground">
+            ✅ Déjà récupéré automatiquement : {autoFound.join(", ")}. L'audit s'appuie sur ces vraies données — plus rien à recopier.
+          </p>
         </div>
-        <div className="rounded-xl bg-rose-pale p-3 mt-3">
-          <p className="text-xs text-muted-foreground"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Plus tu uploades de screenshots, plus l'audit sera précis. Mais même 1 seul suffit pour commencer.</p>
-        </div>
-      </div>
+      )}
 
       <div>
-        <label className="text-sm font-medium text-foreground mb-1 block"><Link2 className="inline h-4 w-4 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />URL de ton profil LinkedIn (optionnel)</label>
+        <label className="text-sm font-medium text-foreground mb-1 block">🔗 URL de ton profil LinkedIn</label>
         <Input value={profileUrl} onChange={(e) => setProfileUrl(e.target.value)} placeholder="https://linkedin.com/in/..." />
+        <p className="text-xs text-muted-foreground mt-1 italic">On va lire ce que ta page publique montre.</p>
       </div>
 
       <div>
@@ -388,10 +358,14 @@ export default function LinkedInAudit() {
       </div>
 
       <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Ton rythme actuel de publication ?</label>
+        <label className="text-sm font-medium text-foreground mb-2 block">
+          Ton rythme de publication ?
+          {autoData?.appPostsCount30d ? <span className="text-xs text-muted-foreground font-normal"> (pré-rempli d'après tes posts créés dans l'app — corrige si tu publies aussi ailleurs)</span> : null}
+        </label>
         <ChipSelect options={RHYTHM_OPTIONS} value={rhythm} onChange={setRhythm} />
       </div>
 
+      {/* Les 3 données que LinkedIn ne laisse lire à personne (pas d'API analytics) */}
       <div>
         <label className="text-sm font-medium text-foreground mb-2 block">Tes 3 derniers posts ont eu combien de vues en moyenne ?</label>
         <ChipSelect options={VIEWS_OPTIONS} value={avgViews} onChange={setAvgViews} />
@@ -401,95 +375,69 @@ export default function LinkedInAudit() {
         <label className="text-sm font-medium text-foreground mb-2 block">Combien de connexions ?</label>
         <ChipSelect options={CONNECTIONS_OPTIONS} value={connectionsCount} onChange={setConnectionsCount} />
       </div>
-    </div>
-  );
-
-  const renderStep1 = () => (
-    <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><User className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Audit de ton profil</h2>
-      <p className="text-sm text-muted-foreground">
-        L'IA va évaluer chaque élément de ton profil : photo, bannière, titre, À propos, expériences, recommandations, etc.
-      </p>
-      <div className="rounded-2xl bg-rose-pale p-5">
-        <p className="text-sm text-muted-foreground">
-          <ClipboardList className="inline h-4 w-4 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Les éléments analysés : Photo de profil, Bannière, Titre (headline), Section À propos, Expériences, Formation, Compétences, Recommandations, Sélection de contenus, URL personnalisée, Mode Créateur.
-        </p>
-      </div>
-      <p className="text-xs text-muted-foreground italic">L'analyse sera basée sur tes screenshots et les infos fournies. Continue pour compléter les questions.</p>
-    </div>
-  );
-
-  const renderStep2 = () => (
-    <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><FileText className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Audit de ton contenu</h2>
-      <p className="text-sm text-muted-foreground mb-2">Quelques questions sur tes publications LinkedIn.</p>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Quel type de contenu tu publies le plus ?</label>
-        <ChipSelect options={CONTENT_TYPE_OPTIONS} value={contentTypes} onChange={setContentTypes} multi />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tes posts génèrent plutôt :</label>
-        <ChipSelect options={ENGAGEMENT_TYPE_OPTIONS} value={engagementType} onChange={setEngagementType} />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tes 3 premiers mots quand tu écris un post :</label>
-        <ChipSelect options={ACCROCHE_OPTIONS} value={accrocheStyle} onChange={setAccrocheStyle} />
-      </div>
-    </div>
-  );
-
-  const renderStep3 = () => (
-    <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Target className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ta stratégie LinkedIn</h2>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tu publies plutôt :</label>
-        <ChipSelect options={PUB_ORG_OPTIONS} value={pubOrg} onChange={setPubOrg} />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tu recycles tes contenus Instagram sur LinkedIn ?</label>
-        <ChipSelect options={RECYCLING_OPTIONS} value={recycling} onChange={setRecycling} />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tu commentes les posts des autres ?</label>
-        <ChipSelect options={["Rarement", "Parfois (quand ça me parle)", "Régulièrement (5-10 commentaires/semaine)", "Beaucoup (presque tous les jours)"]} value={engagementType || ""} onChange={setEngagementType} />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tu reçois des demandes entrantes via LinkedIn ?</label>
-        <ChipSelect options={INBOUND_OPTIONS} value={inboundRequests} onChange={setInboundRequests} />
-      </div>
-    </div>
-  );
-
-  const renderStep4 = () => (
-    <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Users className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ton réseau LinkedIn</h2>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tes connexions sont principalement :</label>
-        <ChipSelect options={CONNECTION_TYPE_OPTIONS} value={connectionTypes} onChange={setConnectionTypes} multi />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tu acceptes les demandes de connexion :</label>
-        <ChipSelect options={ACCEPTANCE_OPTIONS} value={acceptancePolicy} onChange={setAcceptancePolicy} />
-      </div>
-
-      <div>
-        <label className="text-sm font-medium text-foreground mb-2 block">Tu envoies des demandes de connexion proactives ?</label>
-        <ChipSelect options={PROACTIVE_OPTIONS} value={proactiveRequests} onChange={setProactiveRequests} />
-      </div>
 
       <div>
         <label className="text-sm font-medium text-foreground mb-2 block">Tu as des recommandations LinkedIn ?</label>
         <ChipSelect options={RECO_OPTIONS} value={recommendationsCount} onChange={setRecommendationsCount} />
       </div>
+
+      {/* Captures facultatives, repliées : seul moyen de juger le visuel (photo, bannière, feed) */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowScreenshots((s) => !s)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showScreenshots ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          📸 Ajouter des captures d'écran (facultatif — pour juger photo, bannière et feed)
+        </button>
+        {showScreenshots && (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+            {UPLOAD_ZONES.map((zone) => {
+              const zoneFiles = screenshots.filter((s) => s.type === zone.type);
+              return (
+                <div key={zone.type}>
+                  <div
+                    onClick={() => fileInputRefs.current[zone.type]?.click()}
+                    className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-4 text-center cursor-pointer hover:border-primary/50 transition-colors min-h-[120px] flex flex-col items-center justify-center"
+                  >
+                    <Upload className="h-5 w-5 text-muted-foreground mb-1" />
+                    <p className="text-xs font-medium text-foreground">{zone.label}</p>
+                    <p className="text-2xs text-muted-foreground">{zone.hint}</p>
+                  </div>
+                  <input
+                    ref={(el) => { fileInputRefs.current[zone.type] = el; }}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => handleFileAdd(zone.type, e.target.files)}
+                  />
+                  {zoneFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {zoneFiles.map((s) => {
+                        const idx = screenshots.indexOf(s);
+                        return (
+                          <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border border-border">
+                            <img loading="lazy" src={s.preview} alt="Aperçu du post LinkedIn" className="w-full h-full object-cover" />
+                            <button onClick={() => removeScreenshot(idx)} aria-label="Retirer cette capture" title="Retirer cette capture" className="absolute top-0 right-0 bg-background/80 rounded-full p-0.5"><X className="h-3 w-3" /></button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <Button onClick={handleAnalyze} disabled={analyzing} className="w-full rounded-pill gap-2 h-12 text-base">
+        {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+        {analyzing ? "Analyse en cours..." : "🔍 Lancer l'audit"}
+      </Button>
+      {analyzing && <AiLoadingIndicator context="audit" isLoading={analyzing} />}
     </div>
   );
 
@@ -497,10 +445,10 @@ export default function LinkedInAudit() {
     if (!result) return null;
     const g = getScoreInfo(result.score_global);
     const sections = [
-      { key: "profil", label: "Profil", icon: User },
-      { key: "contenu", label: "Contenu", icon: FileText },
-      { key: "strategie", label: "Stratégie", icon: Target },
-      { key: "reseau", label: "Réseau", icon: Users },
+      { key: "profil", label: "👤 Profil", icon: "👤" },
+      { key: "contenu", label: "📝 Contenu", icon: "📝" },
+      { key: "strategie", label: "🎯 Stratégie", icon: "🎯" },
+      { key: "reseau", label: "🤝 Réseau", icon: "🤝" },
     ] as const;
 
     return (
@@ -509,7 +457,7 @@ export default function LinkedInAudit() {
          <div className="rounded-2xl border-l-[3px] border-l-primary bg-rose-pale p-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-              <Search className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ton Audit LinkedIn
+              🔍 Ton Audit LinkedIn
             </h2>
             <div className="flex items-center gap-3">
               {auditDate && (
@@ -518,7 +466,7 @@ export default function LinkedInAudit() {
                 </span>
               )}
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-sm font-bold ${g.bg} ${g.color}`}>
-                <g.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> {result.score_global}/100
+                {g.emoji} {result.score_global}/100
               </span>
             </div>
           </div>
@@ -536,12 +484,12 @@ export default function LinkedInAudit() {
 
         {/* ─── Section scores ─── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {sections.map(({ key, label, icon: Icon }) => {
+          {sections.map(({ key, label }) => {
             const s = result.sections[key];
             const si = getScoreInfo(s.score);
             return (
               <div key={key} className="rounded-2xl border border-border bg-card p-4 text-center">
-                <p className="text-sm font-medium text-foreground flex items-center justify-center gap-1.5"><Icon className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />{label}</p>
+                <p className="text-sm font-medium text-foreground">{label}</p>
                 <p className={`text-2xl font-bold ${si.color}`}>{s.score}/100</p>
                 <Progress value={s.score} className="mt-2 h-2" />
               </div>
@@ -551,8 +499,8 @@ export default function LinkedInAudit() {
 
         {/* ─── Top 5 priorities as cards ─── */}
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui flex items-center gap-1.5">
-            <Target className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Tes 5 priorités
+          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
+            🎯 Tes 5 priorités
           </h3>
           {result.top_5_priorities?.map((p) => (
             <div key={p.rank} className="bg-card border border-border rounded-xl p-5 space-y-3">
@@ -563,7 +511,7 @@ export default function LinkedInAudit() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="text-base font-semibold text-foreground leading-tight">{p.title}</h4>
-                    <ImpactIcon impact={p.impact} />
+                    <span className="text-xs">{impactEmoji(p.impact)}</span>
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{p.why}</p>
                 </div>
@@ -574,7 +522,7 @@ export default function LinkedInAudit() {
                     to={p.action_route}
                     className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium bg-rose-pale px-3 py-1.5 rounded-pill"
                   >
-                    <Sparkles className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {p.action_label} <ChevronRight className="h-3 w-3" />
+                    ✨ {p.action_label} <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
               )}
@@ -584,13 +532,12 @@ export default function LinkedInAudit() {
 
         {/* ─── Detail accordions ─── */}
         <Accordion type="multiple" className="space-y-2">
-          {sections.map(({ key, label, icon: Icon }) => {
+          {sections.map(({ key, label }) => {
             const s = result.sections[key];
             return (
               <AccordionItem key={key} value={key} className="rounded-2xl border border-border bg-card px-4">
                 <AccordionTrigger className="hover:no-underline">
                   <span className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />
                     <span>{label}</span>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${getScoreInfo(s.score).bg} ${getScoreInfo(s.score).color}`}>
                       {s.score}/100
@@ -600,10 +547,11 @@ export default function LinkedInAudit() {
                 <AccordionContent>
                   <div className="space-y-4 pt-2">
                     {s.elements?.map((el, i) => {
+                      const statusIcon = el.status === "good" ? "✅" : el.status === "warning" ? "⚠️" : "❌";
                       return (
                         <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-foreground"><StatusIcon status={el.status} /> {el.name}</p>
+                            <p className="text-sm font-semibold text-foreground">{statusIcon} {el.name}</p>
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${getScoreInfo(Math.round((el.score / el.max_score) * 100)).bg} ${getScoreInfo(Math.round((el.score / el.max_score) * 100)).color}`}>
                               {el.score}/{el.max_score}
                             </span>
@@ -611,7 +559,7 @@ export default function LinkedInAudit() {
                           <p className="text-sm text-muted-foreground leading-relaxed">{el.feedback}</p>
                           {el.recommendation && (
                             <div className="bg-accent/30 border-l-[3px] border-l-accent rounded-r-lg px-4 py-2">
-                              <p className="text-sm text-foreground/80 italic"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />{el.recommendation}</p>
+                              <p className="text-sm text-foreground/80 italic">💡 {el.recommendation}</p>
                             </div>
                           )}
                         </div>
@@ -626,11 +574,11 @@ export default function LinkedInAudit() {
 
         {/* ─── LinkedIn Pillar Action Plan ─── */}
         {(() => {
-          const LINKEDIN_PILLAR_ACTIONS: Record<string, { label: string; route: string; icon: LucideIcon }> = {
-            profil: { label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil", icon: User },
-            contenu: { label: "Créer du contenu LinkedIn", route: "/creer?canal=linkedin", icon: FileText },
-            strategie: { label: "Structurer ma stratégie LinkedIn", route: "/linkedin/recommandations", icon: Target },
-            reseau: { label: "Développer mon réseau", route: "/linkedin/engagement", icon: Users },
+          const LINKEDIN_PILLAR_ACTIONS: Record<string, { label: string; route: string; emoji: string }> = {
+            profil: { label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil", emoji: "👤" },
+            contenu: { label: "Créer du contenu LinkedIn", route: "/creer?canal=linkedin", emoji: "📝" },
+            strategie: { label: "Structurer ma stratégie LinkedIn", route: "/linkedin/recommandations", emoji: "🎯" },
+            reseau: { label: "Développer mon réseau", route: "/linkedin/engagement", emoji: "🤝" },
           };
           const sorted = (["profil", "contenu", "strategie", "reseau"] as const)
             .map(key => ({ key, ...LINKEDIN_PILLAR_ACTIONS[key], score: result.sections[key]?.score ?? 0 }))
@@ -639,15 +587,15 @@ export default function LinkedInAudit() {
 
           return (
             <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui flex items-center gap-1.5">
-                <ClipboardList className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ton plan d'action (par priorité)
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
+                📋 Ton plan d'action (par priorité)
               </h3>
               {sorted.map((item, i) => (
                 <div key={item.key} className={`rounded-xl border p-4 flex items-center gap-3 ${i === 0 ? "border-primary/30 bg-[hsl(var(--rose-pale))]" : "border-border bg-card"}`}>
                   <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><item.icon className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} aria-hidden="true" />{item.label}</p>
+                      <p className="text-sm font-medium text-foreground">{item.emoji} {item.label}</p>
                       {i === 0 && <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
                     </div>
                     <p className="text-xs text-muted-foreground">{item.score}/100</p>
@@ -658,7 +606,7 @@ export default function LinkedInAudit() {
                     className="shrink-0 text-xs gap-1"
                     onClick={() => navigate(item.route)}
                   >
-                    Y aller <ChevronRight className="h-3 w-3" />
+                    {item.emoji} Y aller <ChevronRight className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
@@ -675,7 +623,7 @@ export default function LinkedInAudit() {
 
         {/* ─── Actions ─── */}
         <div className="flex flex-col sm:flex-row gap-3">
-          <Button onClick={() => { setPreviousScore(result?.score_global ?? null); setStep(0); setResult(null); setAuditDate(null); }} variant="outline" className="gap-2 rounded-pill">
+          <Button onClick={() => { setPreviousScore(result?.score_global ?? null); setView("form"); setResult(null); setAuditDate(null); }} variant="outline" className="gap-2 rounded-pill">
             <RotateCcw className="h-4 w-4" /> Refaire l'audit
           </Button>
           <Button onClick={() => navigate("/linkedin")} className="gap-2 rounded-pill">
@@ -692,7 +640,7 @@ export default function LinkedInAudit() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon LinkedIn" parentTo="/linkedin" currentLabel="Audit" useFromParam />
 
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-2"><Search className="h-6 w-6 text-primary" strokeWidth={1.75} aria-hidden="true" /> Audit de ton profil LinkedIn</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔍 Audit de ton profil LinkedIn</h1>
         <p className="text-sm text-muted-foreground mb-6">
           L'IA analyse ton profil, ton contenu, ta stratégie et ton réseau pour te donner un score et des priorités d'action.
         </p>
@@ -703,23 +651,6 @@ export default function LinkedInAudit() {
           </div>
         ) : (
         <>
-        {/* Stepper */}
-        {step < 5 && (
-          <div className="flex items-center gap-1 mb-8">
-            {STEPS.map((s, i) => (
-              <div key={s} className="flex items-center gap-1 flex-1">
-                <div className={`flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold transition-all ${
-                  i < step ? "bg-primary text-primary-foreground" : i === step ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"
-                }`}>
-                  {i < step ? "✓" : i + 1}
-                </div>
-                <span className="text-2xs font-medium text-muted-foreground hidden sm:inline">{s}</span>
-                {i < STEPS.length - 1 && <div className={`flex-1 h-0.5 ${i < step ? "bg-primary" : "bg-border"}`} />}
-              </div>
-            ))}
-          </div>
-        )}
-
         {/* Quota exhausted */}
         {quotaExhausted && !analyzing && (
           <QuotaExhaustedCard
@@ -729,40 +660,7 @@ export default function LinkedInAudit() {
           />
         )}
 
-        {/* Step content */}
-        {step === 0 && renderStep0()}
-        {step === 1 && renderStep1()}
-        {step === 2 && renderStep2()}
-        {step === 3 && renderStep3()}
-        {step === 4 && renderStep4()}
-        {step === 5 && renderResults()}
-
-        {/* Navigation */}
-        {step < 5 && (
-          <>
-            <div className="flex justify-between mt-8">
-              {step > 0 ? (
-                <Button variant="outline" onClick={() => setStep((s) => s - 1)} className="gap-2 rounded-pill">
-                  <ArrowLeft className="h-4 w-4" /> Retour
-                </Button>
-              ) : <div />}
-              <Button onClick={handleNext} disabled={analyzing} className="gap-2 rounded-pill">
-                {step === 4 && !analyzing ? (
-                  <><Sparkles className="h-4 w-4" /> Voir mon audit complet</>
-                ) : step === 4 && analyzing ? (
-                  <><Loader2 className="h-4 w-4 animate-spin" /> Analyse en cours...</>
-                ) : (
-                  <>Suivant <ArrowRight className="h-4 w-4" /></>
-                )}
-              </Button>
-            </div>
-            {analyzing && (
-              <div className="mt-6">
-                <AiLoadingIndicator context="audit" isLoading={analyzing} />
-              </div>
-            )}
-          </>
-        )}
+        {view === "form" ? renderForm() : renderResults()}
         </>
         )}
       </main>
@@ -810,7 +708,7 @@ function GranularScoresSection({ granular }: { granular: { headline?: GranularSe
   const renderSection = (
     data: GranularSection | undefined,
     criteriaMap: Record<string, string>,
-    Icon: LucideIcon,
+    emoji: string,
     title: string,
     maxTotal: number,
   ) => {
@@ -822,8 +720,7 @@ function GranularScoresSection({ granular }: { granular: { headline?: GranularSe
       <AccordionItem value={title} className="rounded-2xl border border-border bg-card px-4">
         <AccordionTrigger className="hover:no-underline">
           <span className="flex items-center gap-2">
-            <Icon className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />
-            <span>{title}</span>
+            <span>{emoji} {title}</span>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${si.bg} ${si.color}`}>
               {total}/{maxTotal}
             </span>
@@ -845,12 +742,12 @@ function GranularScoresSection({ granular }: { granular: { headline?: GranularSe
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui flex items-center gap-1.5">
-        <Microscope className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Scoring granulaire
+      <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
+        🔬 Scoring granulaire
       </h3>
       <Accordion type="multiple" className="space-y-2">
-        {renderSection(granular.headline, HEADLINE_CRITERIA, PenLine, "Headline", 25)}
-        {renderSection(granular.about, ABOUT_CRITERIA, FileText, "À propos", 25)}
+        {renderSection(granular.headline, HEADLINE_CRITERIA, "📝", "Headline", 25)}
+        {renderSection(granular.about, ABOUT_CRITERIA, "📄", "À propos", 25)}
       </Accordion>
     </div>
   );

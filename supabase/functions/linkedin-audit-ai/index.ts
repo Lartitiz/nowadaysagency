@@ -9,6 +9,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
+import { scrapeLinkedin } from "../_shared/scraping.ts";
 
 // Branding data now fetched via getUserContext
 
@@ -63,6 +64,49 @@ serve(async (req) => {
       if (s.url) {
         contentParts.push({ type: "image", source: { type: "url", url: s.url } });
       }
+    }
+
+    // Profil public : best-effort (LinkedIn bloque souvent le scraping) — un échec
+    // n'empêche jamais l'audit, on juge alors avec les données app + captures.
+    let publicProfileBlock = "";
+    if (body.profileUrl) {
+      const scrapeController = new AbortController();
+      const scrapeTimeout = setTimeout(() => scrapeController.abort(), 8000);
+      const scraped = await scrapeLinkedin(body.profileUrl, scrapeController.signal).catch(() => null);
+      clearTimeout(scrapeTimeout);
+      if (scraped) publicProfileBlock = `\nPROFIL PUBLIC (récupéré automatiquement — données limitées, ne devine pas ce qui manque) :\n${scraped}\n`;
+    }
+
+    // Données récupérées automatiquement par l'app (remplacent l'ancien questionnaire) :
+    // à propos, checklist du module profil, vrais posts créés dans l'app.
+    let autoDataBlock = "";
+    {
+      const lines: string[] = [];
+      if (typeof body.aboutText === "string" && body.aboutText.trim()) {
+        lines.push(`SECTION « À PROPOS » (texte réel) :\n${String(body.aboutText).slice(0, 3000)}`);
+      }
+      const cl = body.profileChecklist;
+      if (cl && typeof cl === "object") {
+        const labels: Record<string, string> = {
+          title_done: "titre optimisé", url_done: "URL personnalisée", photo_done: "photo pro",
+          banner_done: "bannière", featured_done: "sélection de contenus", creator_mode_done: "mode créateur",
+        };
+        const done = Object.keys(labels).filter((k) => cl[k] === true).map((k) => labels[k]);
+        const todo = Object.keys(labels).filter((k) => cl[k] === false).map((k) => labels[k]);
+        if (cl.title) lines.push(`TITRE (headline) déclaré dans l'app : "${String(cl.title).slice(0, 300)}"`);
+        if (done.length || todo.length) {
+          lines.push(`CHECKLIST PROFIL (déclarée dans l'app) — fait : ${done.join(", ") || "rien"} ; à faire : ${todo.join(", ") || "rien"}`);
+        }
+      }
+      if (typeof body.appPostsCount30d === "number") {
+        lines.push(`POSTS LINKEDIN CRÉÉS DANS L'APP SUR 30 JOURS : ${body.appPostsCount30d} (donnée mesurée, prioritaire sur le déclaratif)`);
+      }
+      if (Array.isArray(body.recentPosts) && body.recentPosts.length) {
+        const posts = body.recentPosts.slice(0, 3).map((p: any, i: number) =>
+          `Post ${i + 1} (${String(p.date || "").slice(0, 10)}) : ${String(p.excerpt || "").slice(0, 400)}`).join("\n");
+        lines.push(`DERNIERS POSTS LINKEDIN (texte réel — juge les accroches, la longueur et les formats LÀ-DESSUS, pas sur du déclaratif) :\n${posts}`);
+      }
+      if (lines.length) autoDataBlock = `\nDONNÉES RÉCUPÉRÉES AUTOMATIQUEMENT PAR L'APP :\n${lines.join("\n\n")}\n`;
     }
 
     const systemPrompt = `${BASE_SYSTEM_RULES}
@@ -121,16 +165,20 @@ DONNÉES DE L'AUDIT :
 - Rythme actuel : ${body.currentRhythm || "non précisé"}
 - Vues moyennes : ${body.avgViews || "non précisé"}
 - Nombre de connexions : ${body.connectionsCount || "non précisé"}
-- Type de connexions : ${JSON.stringify(body.connectionTypes || [])}
-- Politique d'acceptation : ${body.acceptancePolicy || "non précisé"}
-- Demandes proactives : ${body.proactiveRequests || "non précisé"}
 - Recommandations : ${body.recommendationsCount || "non précisé"}
-- Type de contenu : ${JSON.stringify(body.contentTypes || [])}
-- Type d'engagement : ${body.engagementType || "non précisé"}
-- Style d'accroche : ${body.accrochestyle || "non précisé"}
-- Recyclage cross-canal : ${body.recycling || "non précisé"}
-- Organisation publication : ${body.publicationOrg || "non précisé"}
-- Demandes entrantes : ${body.inboundRequests || "non précisé"}
+${[
+  body.connectionTypes?.length ? `- Type de connexions : ${JSON.stringify(body.connectionTypes)}` : "",
+  body.acceptancePolicy ? `- Politique d'acceptation : ${body.acceptancePolicy}` : "",
+  body.proactiveRequests ? `- Demandes proactives : ${body.proactiveRequests}` : "",
+  body.contentTypes?.length ? `- Type de contenu : ${JSON.stringify(body.contentTypes)}` : "",
+  body.engagementType ? `- Type d'engagement : ${body.engagementType}` : "",
+  body.accrocheStyle || body.accrochestyle ? `- Style d'accroche : ${body.accrocheStyle || body.accrochestyle}` : "",
+  body.recycling ? `- Recyclage cross-canal : ${body.recycling}` : "",
+  body.publicationOrg ? `- Organisation publication : ${body.publicationOrg}` : "",
+  body.inboundRequests ? `- Demandes entrantes : ${body.inboundRequests}` : "",
+].filter(Boolean).join("\n")}
+${publicProfileBlock}${autoDataBlock}
+IMPORTANT : quand une information n'est ni fournie ni visible sur les captures, dis « non évaluable » plutôt que d'inventer un verdict.
 
 ${contextStr}
 
@@ -226,6 +274,11 @@ Réponds UNIQUEMENT en JSON sans backticks :
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
       temperature: 0.7,
+      // Le JSON demandé (4 sections × éléments + granular_scores + top 5) dépasse
+      // largement les 4096 tokens par défaut → stop_reason max_tokens → la garde
+      // anti-troncature d'extractValidatedText jette → 500 systématique (vécu 13/08
+      // au premier redéploiement avec le _shared moderne).
+      max_tokens: 12000,
     }, usage);
 
     await logUsage(user.id, "audit", "audit_linkedin", usage.total_tokens, usage.model, workspace_id);

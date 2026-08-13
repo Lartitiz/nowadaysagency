@@ -401,6 +401,7 @@ const SCORE_HIGH: string[] = [
 ];
 const SCORE_MEDIUM: string[] = [
   "about", "propos", "histoire", "mission", "qui", "manifeste", "equipe", "fondatrice",
+  "contact", "rendez-vous", "reserver",
 ];
 const SCORE_LOW: string[] = [
   "blog", "article", "actualit", "ressource", "template", "guide",
@@ -428,11 +429,20 @@ interface JinaLink {
 
 const MAX_TEXT_PER_SOURCE = 8000;
 
+/**
+ * Même site ? Beaucoup de sites redirigent www.monsite.fr → monsite.fr (ou
+ * l'inverse) : sans ça, tous les liens du site sont pris pour de l'externe.
+ */
+export function isSameSite(hostA: string, hostB: string): boolean {
+  const strip = (h: string) => h.toLowerCase().replace(/^www\./, "");
+  return strip(hostA) === strip(hostB);
+}
+
 function scoreUrl(href: string, baseHostname: string): number {
   try {
     const linkUrl = new URL(href);
-    // Must be same domain
-    if (linkUrl.hostname !== baseHostname) return -10;
+    // Must be same domain (www et apex = même site)
+    if (!isSameSite(linkUrl.hostname, baseHostname)) return -10;
     // Must not be the homepage itself
     if (linkUrl.pathname === "/" || linkUrl.pathname === "") return -10;
     // Check exclusion patterns
@@ -445,35 +455,121 @@ function scoreUrl(href: string, baseHostname: string): number {
     if (SCORE_HIGH.some(kw => pathLower.includes(kw))) score += 3;
     if (SCORE_MEDIUM.some(kw => pathLower.includes(kw))) score += 2;
     if (SCORE_LOW.some(kw => pathLower.includes(kw))) score += 1;
+
+    // Les vraies pages de marque sont à la racine (/offres, /a-propos).
+    // Un article profond (/blog/2024/08/mon-service-de-reve) est du bruit :
+    // sans ça, sur un gros sitemap, les articles noient les pages qui comptent.
+    const depth = pathLower.split("/").filter(Boolean).length;
+    if (depth >= 3) score -= 2;
+    else if (depth === 2) score -= 1;
+
     return score;
   } catch {
     return -10;
   }
 }
 
-async function fetchSitemapUrls(baseUrl: string, signal: AbortSignal): Promise<string[]> {
+/** Récupère le XML d'un sitemap. Retourne "" si absent/illisible. */
+async function fetchSitemapXml(sitemapUrl: string, signal: AbortSignal): Promise<string> {
   try {
-    const sitemapUrl = new URL("/sitemap.xml", baseUrl).href;
+    if (!isSafePublicUrl(sitemapUrl)) return "";
     const resp = await fetch(sitemapUrl, {
       signal,
       headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
     });
-    if (!resp.ok) return [];
+    if (!resp.ok) return "";
     const xml = await resp.text();
-    if (!xml.includes("<urlset") && !xml.includes("<sitemapindex")) return [];
+    if (!xml.includes("<urlset") && !xml.includes("<sitemapindex")) return "";
+    return xml;
+  } catch {
+    return "";
+  }
+}
+
+function extractLocs(xml: string): string[] {
+  const locRegex = /<loc>\s*(.*?)\s*<\/loc>/g;
+  const out: string[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = locRegex.exec(xml)) !== null) out.push(m[1].trim());
+  return out;
+}
+
+export interface SitemapOptions {
+  /** Nombre max d'URL retournées (défaut 3). */
+  limit?: number;
+  /** Suivre un <sitemapindex> (sitemap de sitemaps) sur un niveau (défaut false). */
+  followIndex?: boolean;
+}
+
+/**
+ * Lit /sitemap.xml et renvoie les URL secondaires les plus pertinentes,
+ * classées par score (offres/services > à propos > blog…).
+ * Comportement par défaut inchangé : top 3, sans suivre les sitemapindex.
+ */
+export async function fetchSitemapUrls(
+  baseUrl: string,
+  signal: AbortSignal,
+  opts: SitemapOptions = {},
+): Promise<string[]> {
+  const limit = opts.limit ?? 3;
+  try {
+    const xml = await fetchSitemapXml(new URL("/sitemap.xml", baseUrl).href, signal);
+    if (!xml) return [];
 
     const baseHostname = new URL(baseUrl).hostname;
-    const locRegex = /<loc>\s*(.*?)\s*<\/loc>/g;
+    let locs = extractLocs(xml);
+
+    // Beaucoup de sites (WordPress/Yoast, Wix…) servent un sitemap de sitemaps :
+    // aucune vraie page à ce niveau. On descend d'UN cran sur les 2 premiers enfants.
+    if (opts.followIndex && xml.includes("<sitemapindex")) {
+      const children = locs
+        .filter(u => {
+          try { return isSameSite(new URL(u).hostname, baseHostname); } catch { return false; }
+        })
+        .slice(0, 2);
+      const childXmls = await Promise.all(children.map(u => fetchSitemapXml(u, signal)));
+      locs = childXmls.flatMap(extractLocs);
+    }
+
     const scored: { url: string; score: number }[] = [];
-    let m: RegExpExecArray | null;
-    while ((m = locRegex.exec(xml)) !== null) {
-      const loc = m[1].trim();
+    for (const loc of locs) {
       const s = scoreUrl(loc, baseHostname);
       if (s > 0) scored.push({ url: loc, score: s });
     }
-    // Sort by score descending, take top 3
     scored.sort((a, b) => b.score - a.score);
-    return scored.slice(0, 3).map(s => s.url);
+    return scored.slice(0, limit).map(s => s.url);
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Repli quand il n'y a pas de sitemap : lit les liens d'une page HTML déjà
+ * téléchargée et garde les plus pertinents (même scoring que le sitemap).
+ * Évite un aller-retour réseau supplémentaire.
+ */
+export function discoverLinksFromHtml(html: string, baseUrl: string, limit = 3): string[] {
+  try {
+    const baseHostname = new URL(baseUrl).hostname;
+    const hrefRe = /<a[^>]*href=["']([^"']+)["']/gi;
+    const seen = new Set<string>();
+    const scored: { url: string; score: number }[] = [];
+    let m: RegExpExecArray | null;
+    while ((m = hrefRe.exec(html)) !== null) {
+      let fullHref: string;
+      try {
+        fullHref = new URL(m[1], baseUrl).href;
+      } catch {
+        continue;
+      }
+      const normalized = fullHref.replace(/\/$/, "");
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      const s = scoreUrl(fullHref, baseHostname);
+      if (s > 0) scored.push({ url: fullHref, score: s });
+    }
+    scored.sort((a, b) => b.score - a.score);
+    return scored.slice(0, limit).map(s => s.url);
   } catch {
     return [];
   }

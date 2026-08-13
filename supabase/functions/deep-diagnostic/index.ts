@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo, fetchExternalCss, isSafePublicUrl } from "../_shared/scraping.ts";
+import { scrapeInstagram, scrapeLinkedin, processScreenshots, scrapeWebsite, extractVisualInfo, fetchExternalCss, isSafePublicUrl } from "../_shared/scraping.ts";
 import { callAnthropic, getModelForAction, type UsageSink, type AnthropicTool } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
@@ -322,6 +322,23 @@ serve(async (req) => {
             }
           })
           .catch(() => { sourcesFailed.push("linkedin"); })
+      );
+    }
+
+    // Profil Instagram public : le @ suffit (nom + description via og:tags), la
+    // capture d'écran devient un complément et non plus le seul chemin.
+    if (instagramHandle) {
+      scrapePromises.push(
+        scrapeInstagram(instagramHandle, controller.signal)
+          .then((text) => {
+            if (text) {
+              scrapedContent.instagram = text.slice(0, MAX_TEXT_PER_SOURCE);
+              sourcesUsed.push("instagram");
+            } else {
+              sourcesFailed.push("instagram");
+            }
+          })
+          .catch(() => { sourcesFailed.push("instagram"); })
       );
     }
 

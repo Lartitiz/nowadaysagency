@@ -79,6 +79,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos, loadPhotosLocal } from "@/hooks/use-flow-persistence";
+import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
@@ -130,6 +131,14 @@ export default function CreerUnifie() {
   const { isDemoMode, demoData } = useDemoContext();
   // Fiche de marque en attente de validation → on renvoie vers elle (voir plus bas).
   const { pending: brandReviewPending, checking: brandReviewChecking } = usePendingBrandReview();
+  // Le portail fiche de marque ne s'applique qu'à l'ENTRÉE du parcours. La
+  // fiche peut passer en pending_review PENDANT le travail (diagnostic-
+  // enrichment est asynchrone) : au prochain refetch de la requête
+  // (reconnexion réseau, remontage), l'écran de création était REMPLACÉ en
+  // plein travail par le portail — état des questions/réponses perdu (vécu
+  // 13/08, 1er contenu post-onboarding). Une fois le flux affiché, on ne
+  // l'arrache plus ; le portail attendra la prochaine entrée sur /creer.
+  const flowShownRef = useRef(false);
   const workspaceId = useWorkspaceId();
   const { data: charterData } = useBrandCharter();
   const { activityText } = useActivityExamples();
@@ -169,12 +178,57 @@ export default function CreerUnifie() {
   }
   const existingFlowState = isFreshStart ? null : loadFlowState();
   const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
-  const shouldRestore = hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea");
+
+  // ── Garde-fou « il y a déjà un contenu en cours » ──
+  // Une nouvelle intention de création (recyclage, actu, brief, raccourci sujet…)
+  // qui arrive alors qu'un brouillon significatif existe : on demande au lieu de
+  // silencieusement restaurer l'ancien contenu (et donc ignorer la demande).
+  const [draftConflict] = useState(() => {
+    if (isFreshStart || aurianaDemoActive) return null;
+    const d = existingFlowState;
+    if (!d || d.step === "idea") return null;
+    const hasDraftContent = !!(d.ideaText || d.result || d.editContent || d.selectedFormat);
+    if (!hasDraftContent) return null;
+    const newSubject = (paramSujet || locState.sujet || locState.subject || "").trim();
+    const hasNewIntent = !!(
+      newSubject ||
+      locState.fromRecycle ||
+      locState.fromBrief ||
+      locState.fromCalendar ||
+      locState.context ||
+      paramFormat
+    );
+    if (!hasNewIntent) return null;
+    // Même sujet que le brouillon → pas de conflit, on reprend simplement.
+    if (newSubject && d.ideaText && newSubject.slice(0, 80) === d.ideaText.trim().slice(0, 80)) return null;
+    return {
+      draft: {
+        step: d.step,
+        ideaText: d.ideaText || "",
+        selectedFormat: d.selectedFormat ?? null,
+        result: d.result ?? null,
+        editContent: d.editContent || "",
+        editingIdeaId: d.editingIdeaId ?? null,
+      },
+      newSubject,
+    };
+  });
+  const [conflictResolved, setConflictResolved] = useState(false);
+  const conflictPending = !!draftConflict && !conflictResolved;
+
+  const shouldRestore = !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea"));
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
   const autoOpenTransform = paramMode === "transform";
+  // Mode « 1er contenu » (auto=1) figé pour TOUTE la session du parcours :
+  // le paramètre d'URL est retiré une fois l'init consommée (voir plus bas),
+  // donc paramAuto retombe à false — le mode doit survivre en state + dans la
+  // persistance du flux pour que le récap « Ton premier contenu » tienne au
+  // reload. On n'hérite du flag persisté QUE sans nouveaux params d'URL (une
+  // nouvelle entrée avec params est un NOUVEAU parcours, jamais un 1er contenu).
+  const [autoFlow] = useState<boolean>(paramAuto || (!hasUrlParams && !!ps?.autoFlow));
 
   // ── Canal forcé via URL (?canal=) vs canal du brouillon restauré ──
   // Les raccourcis "Créer/Programmer sur tel réseau" (dashboard) doivent PRIMER sur
@@ -219,6 +273,14 @@ export default function CreerUnifie() {
     if (["questions", "inspiration_proposals"].includes(ps.step)) {
       const isPhotoFlow = ps.carouselSubMode === "photo" || ps.carouselSubMode === "mix" || ps.carouselSubMode === "pure_photo";
       if (isPhotoFlow && loadPhotos().length > 0) return ps.step as Step;
+      // Questions persistées → on peut restaurer l'étape telle quelle (elles
+      // sont réhydratées dans useContentGenerator par l'effet de mount plus
+      // bas). Sans ça, un reload en pleines questions renvoyait à l'étape
+      // format et RÉGÉNÉRAIT d'autres questions (réponses orphelines).
+      if (ps.step === "questions" && (ps.questions?.length ?? 0) > 0) return "questions";
+      // Mode 1er contenu : le récap « Générer mon premier contenu » se suffit
+      // du sujet (pas besoin des questions) → on y revient tel quel.
+      if (ps.step === "questions" && ps.autoFlow && ps.ideaText) return "questions";
       return ps.selectedFormat ? "format" : "idea";
     }
     // États avec données volatiles non persistées (result/edit invalides)
@@ -505,6 +567,16 @@ export default function CreerUnifie() {
     streamReset,
   } = useContentGenerator();
 
+  // Réhydrate les questions persistées : elles vivent dans useContentGenerator
+  // (initialisées à [] à chaque mount) alors que le flux les sauvegarde. Sans
+  // ça, restaurer l'étape "questions" afficherait un écran vide.
+  useEffect(() => {
+    if (safeStep === "questions" && (ps?.questions?.length ?? 0) > 0 && questions.length === 0) {
+      setQuestions(ps!.questions as any);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Restore result from persisted state
   useEffect(() => {
     if (ps?.result && !result) {
@@ -612,6 +684,7 @@ export default function CreerUnifie() {
         slideLength,
         photoDescription,
         isLinkedInCarousel,
+        autoFlow,
       });
     }
   }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel]);
@@ -639,7 +712,19 @@ export default function CreerUnifie() {
 
   // Pre-fill from URL/state & auto-advance (only when URL params are present)
   const initDone = useRef(false);
+  // L'effet dépend de location.search : notre propre nettoyage des paramètres
+  // (plus bas) le re-déclenche une fois. Ce drapeau absorbe cet écho — sans
+  // lui, le re-run voyait sujet/format vides et pouvait renvoyer à l'étape
+  // idée alors que l'init venait de lancer le parcours.
+  const justStrippedRef = useRef(false);
   useEffect(() => {
+    // Conflit brouillon vs nouvelle demande : on ne touche à rien tant que
+    // l'utilisatrice n'a pas tranché (voir DraftConflictDialog).
+    if (conflictPending) return;
+    if (justStrippedRef.current) {
+      justStrippedRef.current = false;
+      return;
+    }
     // If we restored from persistence, skip URL-based init
     if (ps && !hasUrlParams) {
       initDone.current = true;
@@ -740,8 +825,27 @@ export default function CreerUnifie() {
     if (location.state) {
       window.history.replaceState({}, '', window.location.href);
     }
+
+    // ── Paramètres « à usage unique » : consommés = retirés ──
+    // ?sujet/?format/?auto/… sont des ORDRES de démarrage, pas un état d'URL.
+    // Laissés collés, chaque remontage de la page (reload, onglet recyclé,
+    // retour de veille) REJOUAIT toute cette init : questions régénérées,
+    // résultat effacé par resetGenerator, retour au récap — vécu le 13/08 sur
+    // le 1er contenu post-onboarding (« ça a sauté, revenu au début »). La
+    // reprise après reload passe désormais par la persistance du flux
+    // (use-flow-persistence), comme pour ?new=1. ?canal/?from/?mode restent :
+    // ils ne déclenchent pas d'auto-avancée destructrice.
+    // Exception : en ?mode=transform, ?format pré-coche le sous-mode Recycler
+    // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
+    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode"];
+    if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
+      const cleaned = new URLSearchParams(searchParams);
+      ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
+      justStrippedRef.current = true;
+      setSearchParams(cleaned, { replace: true });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, conflictPending]);
 
   // ── Library photos → preload as if uploaded (chemin /photos → /creer) ──
   // Capturé une seule fois au mount pour survivre au cleanup replaceState.
@@ -1290,7 +1394,7 @@ export default function CreerUnifie() {
 
     // Lot 7 reels : détour par le choix de l'angle d'attaque (étape gratuite)
     // avant la génération facturée. Les modes démo gardent le chemin direct.
-    if (selectedFormat === "reel" && !isDemoMode && !aurianaDemoActive && !paramAuto) {
+    if (selectedFormat === "reel" && !isDemoMode && !aurianaDemoActive && !autoFlow) {
       pendingReelAnswersRef.current = ans;
       setStep("hook_selection");
       void fetchReelHooks(ans);
@@ -1307,7 +1411,7 @@ export default function CreerUnifie() {
   const handleSkipQuestions = async () => {
     if (generating || structureLoading || streaming) return; // garde anti double-clic (évite une 2e génération facturée)
     setAnswers({});
-    if (selectedFormat === "reel" && !isDemoMode && !aurianaDemoActive && !paramAuto) {
+    if (selectedFormat === "reel" && !isDemoMode && !aurianaDemoActive && !autoFlow) {
       pendingReelAnswersRef.current = {};
       setStep("hook_selection");
       void fetchReelHooks({});
@@ -3717,7 +3821,7 @@ export default function CreerUnifie() {
      action est donc de valider sa fiche, pas de créer.
      `checking` borne l'attente (cf. use-pending-brand-review) : réseau lent ou
      KO → on laisse créer plutôt que d'immobiliser l'écran. */
-  if (brandReviewChecking) {
+  if (brandReviewChecking && !flowShownRef.current) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
@@ -3728,7 +3832,7 @@ export default function CreerUnifie() {
       </div>
     );
   }
-  if (brandReviewPending) {
+  if (brandReviewPending && !flowShownRef.current) {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
@@ -3736,10 +3840,31 @@ export default function CreerUnifie() {
       </div>
     );
   }
+  // À partir d'ici le flux de création est affiché : verrouillé pour la durée
+  // de vie du composant (cf. commentaire à la déclaration de flowShownRef).
+  flowShownRef.current = true;
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
+
+      {conflictPending && draftConflict && (
+        <DraftConflictDialog
+          open
+          draft={draftConflict.draft}
+          newSubject={draftConflict.newSubject}
+          onResume={() => {
+            // On repart proprement du brouillon persisté : rechargement sans
+            // location.state ni paramètres de démarrage.
+            window.location.replace(location.pathname);
+          }}
+          onStartNew={() => {
+            clearFlowState();
+            setConflictResolved(true);
+          }}
+        />
+      )}
+
 
       {isLoadingLibraryPhotos && (
         <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center">
@@ -3767,7 +3892,7 @@ export default function CreerUnifie() {
         {/* Levier A : sur le 1er contenu (auto=1, juste après le diagnostic), on masque
             la bannière « remplis ton identité de marque » — contradictoire avec le diagnostic
             qu'on vient de finir. Elle reste sur les créations suivantes. */}
-        {!paramAuto && <BrandingStatusBanner />}
+        {!autoFlow && <BrandingStatusBanner />}
 
         <div className="mt-4">
           {/* Unified stepper — visible from step 1, hidden on result/edit screens to give content full focus */}
@@ -3798,7 +3923,7 @@ export default function CreerUnifie() {
                 current={stepperKey}
                 onStepClick={handleStepClick}
                 rightSlot={credits}
-                verbOverride={paramAuto && stepperKey === "brief" ? "Ton premier contenu" : undefined}
+                verbOverride={autoFlow && stepperKey === "brief" ? "Ton premier contenu" : undefined}
               />
             );
           })()}
@@ -3852,7 +3977,7 @@ export default function CreerUnifie() {
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
                 initialAnswers={briefPrefillAnswers ?? (Object.keys(answers).length > 0 ? answers : undefined) ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
-                autoFirstContent={paramAuto}
+                autoFirstContent={autoFlow}
               />
             )}
 

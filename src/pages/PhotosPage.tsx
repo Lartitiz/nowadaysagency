@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, BookOpen, Loader2, Plus, Sparkles } from "lucide-react";
+import { ArrowLeftRight, BookOpen, Globe, Loader2, Plus, Sparkles } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -42,6 +42,7 @@ import { PortraitProDialog } from "@/components/photos/PortraitProDialog";
 import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
 import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
 import { PhotoWishlistPanel } from "@/components/photos/PhotoWishlistPanel";
+import { SitePhotoImportDialog } from "@/components/photos/SitePhotoImportDialog";
 import { PhotoShootEmptyState } from "@/components/photos/PhotoShootEmptyState";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
@@ -70,6 +71,7 @@ export default function PhotosPage() {
   const wsReady = !!activeWorkspace && !wsLoading;
 
   const [retoucheOpen, setRetoucheOpen] = useState(false);
+  const [siteImportOpen, setSiteImportOpen] = useState(false);
   const [detailPhoto, setDetailPhoto] = useState<UserPhotoRow | null>(null);
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
@@ -138,7 +140,7 @@ export default function PhotosPage() {
     [pendingUploads, photos],
   );
 
-  async function handleFilesSelected(list: FileList | null) {
+  async function handleFilesSelected(list: FileList | File[] | null) {
     if (!list?.length) return;
     const files: File[] = [];
     const rejected: string[] = [];
@@ -235,6 +237,13 @@ export default function PhotosPage() {
             <Button variant="outline" onClick={() => setRetoucheOpen(true)} disabled={!wsReady}>
               <Sparkles className="h-4 w-4 mr-2" /> Changer un fond
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setSiteImportOpen(true)}
+              disabled={!wsReady || uploading}
+            >
+              <Globe className="h-4 w-4 mr-2" /> Depuis mon site ou Instagram
+            </Button>
             <Button onClick={openFilePicker} disabled={!wsReady || uploading}>
               {uploading ? (
                 <>
@@ -267,7 +276,11 @@ export default function PhotosPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : photos.length === 0 && visiblePendingUploads.length === 0 ? (
-          <PhotoShootEmptyState onAddPhotos={openFilePicker} uploadDisabled={!wsReady || uploading} />
+          <PhotoShootEmptyState
+            onAddPhotos={openFilePicker}
+            uploadDisabled={!wsReady || uploading}
+            onImport={() => setSiteImportOpen(true)}
+          />
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="flex-1 min-w-0 w-full">
@@ -356,6 +369,12 @@ export default function PhotosPage() {
       </main>
 
       <PhotoUploadDialog open={retoucheOpen} onOpenChange={setRetoucheOpen} />
+      <SitePhotoImportDialog
+        open={siteImportOpen}
+        onOpenChange={setSiteImportOpen}
+        maxSelectable={MAX_BATCH}
+        onImportFiles={handleFilesSelected}
+      />
       <PhotoDetailDialog
         photo={detailPhoto}
         open={!!detailPhoto}

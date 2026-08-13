@@ -163,6 +163,9 @@ export default function InstagramBio() {
       const prof = profileHookData;
       if (prof) {
         setProfile(prof);
+        // Bio déjà connue (saisie ou récupérée par l'audit / la connexion Instagram) :
+        // on la pré-remplit au lieu de la faire recopier. Jamais par-dessus une saisie.
+        if ((prof as any).instagram_bio) setCurrentBioText((cur) => cur || (prof as any).instagram_bio);
         if ((prof as any).differentiation_type) setDiffAngle((prof as any).differentiation_type);
         if ((prof as any).differentiation_text) setDiffText((prof as any).differentiation_text);
         if ((prof as any).bio_cta_type) setCtaType((prof as any).bio_cta_type);
@@ -500,7 +503,11 @@ export default function InstagramBio() {
           <div className="space-y-6 animate-fade-in">
             <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
               <h2 className="font-body text-base font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4 text-primary" strokeWidth={1.75} /> Ta bio actuelle</h2>
-              <p className="text-sm text-muted-foreground">Colle ta bio Instagram ici pour recevoir une analyse détaillée.</p>
+              <p className="text-sm text-muted-foreground">
+                {currentBioText
+                  ? "Ta bio enregistrée est déjà là — vérifie qu'elle est à jour, puis lance l'analyse."
+                  : "Colle ta bio Instagram ici pour recevoir une analyse détaillée."}
+              </p>
               <Textarea
                 value={currentBioText}
                 onChange={e => setCurrentBioText(e.target.value)}

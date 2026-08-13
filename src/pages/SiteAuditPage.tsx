@@ -8,7 +8,6 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -91,13 +90,6 @@ const ANSWER_OPTIONS: { value: AnswerValue; label: string }[] = [
   { value: "pas_sure", label: "Pas sûr·e 🤷" },
 ];
 
-// ── Additional page paths ──
-const EXTRA_PAGES = [
-  { path: "/a-propos", label: "À propos" },
-  { path: "/offres", label: "Offres / Services" },
-  { path: "/contact", label: "Contact" },
-];
-
 type AuditData = {
   id: string;
   audit_mode: string | null;
@@ -131,7 +123,6 @@ const SiteAuditPage = () => {
 
   // Auto audit state
   const [siteUrl, setSiteUrl] = useState("");
-  const [extraPages, setExtraPages] = useState<string[]>([]);
   const [customPath, setCustomPath] = useState("");
   const [showExtraPages, setShowExtraPages] = useState(false);
   const [autoResult, setAutoResult] = useState<AutoAuditResult | null>(null);
@@ -190,6 +181,17 @@ const SiteAuditPage = () => {
 
   useEffect(() => { loadAudit(); }, [loadAudit]);
 
+  // Premier audit : l'URL du site est déjà dans le profil (onboarding/branding) →
+  // on la pré-remplit au lieu de la faire retaper. Jamais par-dessus une saisie
+  // ni par-dessus l'URL d'un audit précédent.
+  useEffect(() => {
+    if (!user) return;
+    (supabase.from("profiles") as any).select("website_url").eq(column, value).maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.website_url) setSiteUrl((cur) => cur || data.website_url);
+      });
+  }, [user?.id, column, value]);
+
   // Check if URL param wants screenshot mode
   useEffect(() => {
     if (searchParams.get("mode") === "screenshot") setStep("screenshot");
@@ -225,7 +227,9 @@ const SiteAuditPage = () => {
     setStep("loading");
 
     try {
-      const pages_to_audit: string[] = [...extraPages];
+      // Les pages secondaires sont découvertes côté serveur (sitemap du site).
+      // Ici on ne transmet que la page forcée à la main, si elle est renseignée.
+      const pages_to_audit: string[] = [];
       if (customPath.trim() && customPath.trim().startsWith("/")) {
         pages_to_audit.push(customPath.trim());
       }
@@ -311,7 +315,6 @@ const SiteAuditPage = () => {
     setAnswers({});
     setPbpAnswers({});
     setCurrentSection(0);
-    setExtraPages([]);
     setCustomPath("");
     setStep("input");
     localStorage.removeItem("site-audit-checklist");
@@ -358,10 +361,6 @@ const SiteAuditPage = () => {
       try { const str = typeof raw === "string" ? raw : JSON.stringify(raw); parsed = typeof raw === "object" && raw.first_impression ? raw : JSON.parse(str.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim()); } catch { throw new Error("Format de réponse inattendu"); }
       setScreenshotResult(parsed);
     } catch (err) { toast.error(friendlyError(err)); } finally { setScreenshotLoading(false); }
-  };
-
-  const toggleExtraPage = (path: string) => {
-    setExtraPages(prev => prev.includes(path) ? prev.filter(p => p !== path) : [...prev, path]);
   };
 
   const hasOldAudit = existing && (existing.audit_mode === "global" || existing.audit_mode === "page_by_page") && existing.completed;
@@ -455,25 +454,27 @@ const SiteAuditPage = () => {
                 />
               </div>
 
-              {/* Extra pages */}
+              {/* Découverte automatique des pages secondaires (côté serveur) */}
+              <p className="rounded-xl bg-muted/50 border border-border p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <MapIcon className="h-4 w-4 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <span>
+                  On lit le plan de ton site pour trouver tes pages importantes toutes seules
+                  (à propos, offres, contact…). Pas besoin de les indiquer.
+                </span>
+              </p>
+
               <Collapsible open={showExtraPages} onOpenChange={setShowExtraPages}>
                 <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                   <ChevronDown className={`h-4 w-4 transition-transform ${showExtraPages ? "rotate-180" : ""}`} />
-                  <FileText className="h-4 w-4" strokeWidth={1.75} /> Pages supplémentaires à auditer (optionnel)
+                  <FileText className="h-4 w-4" strokeWidth={1.75} /> Ajouter une page précise (optionnel)
                 </CollapsibleTrigger>
-                <CollapsibleContent className="pt-3 space-y-3">
-                  <div className="space-y-2">
-                    {EXTRA_PAGES.map(ep => (
-                      <label key={ep.path} className="flex items-center gap-3 cursor-pointer group">
-                        <Checkbox checked={extraPages.includes(ep.path)} onCheckedChange={() => toggleExtraPage(ep.path)} />
-                        <span className="text-sm text-foreground group-hover:text-primary transition-colors">{ep.label}</span>
-                        <span className="text-xs text-muted-foreground">{ep.path}</span>
-                      </label>
-                    ))}
-                  </div>
+                <CollapsibleContent className="pt-3">
                   <div className="space-y-1">
-                    <Label htmlFor="site-audit-custom-path" className="text-xs text-muted-foreground">Chemin personnalisé</Label>
+                    <Label htmlFor="site-audit-custom-path" className="text-xs text-muted-foreground">
+                      Chemin de la page, à partir de la barre oblique
+                    </Label>
                     <Input id="site-audit-custom-path" placeholder="/portfolio" value={customPath} onChange={(e) => setCustomPath(e.target.value)} className="max-w-xs" />
+                    <p className="text-2xs text-muted-foreground">Elle s'ajoutera aux pages trouvées automatiquement.</p>
                   </div>
                 </CollapsibleContent>
               </Collapsible>
