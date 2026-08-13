@@ -127,8 +127,8 @@ export default function SalesPageOptimizer() {
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const { data: prof } = await supabase
-        .from("profiles").select("website_url").eq(column, value).maybeSingle();
+      const { data: prof } = await (supabase.from("profiles") as any)
+        .select("website_url").eq(column, value).maybeSingle();
       const prefill = (offer as any)?.url_sales_page || (prof as any)?.website_url;
       if (prefill) setSiteUrl((cur) => cur || prefill);
     };

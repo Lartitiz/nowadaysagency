@@ -195,9 +195,9 @@ const SiteAuditPage = () => {
   // ni par-dessus l'URL d'un audit précédent.
   useEffect(() => {
     if (!user) return;
-    supabase.from("profiles").select("website_url").eq(column, value).maybeSingle()
-      .then(({ data }) => {
-        if ((data as any)?.website_url) setSiteUrl((cur) => cur || (data as any).website_url);
+    (supabase.from("profiles") as any).select("website_url").eq(column, value).maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.website_url) setSiteUrl((cur) => cur || data.website_url);
       });
   }, [user?.id, column, value]);
 
