@@ -6,7 +6,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isDemoUser } from "../_shared/guard-demo.ts";
-import { isSafePublicUrl } from "../_shared/scraping.ts";
+import { isSafePublicUrl, scrapeInstagram } from "../_shared/scraping.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -37,6 +37,9 @@ const AuditInstagramSchema = z.object({
   failPostsData: z.array(z.record(z.unknown())).optional().nullable(),
   // Statistiques réelles tirées de l'API Instagram (instagram-insights-fetch).
   liveMetrics: z.record(z.unknown()).optional().nullable(),
+  // Mode « juste le @ » : le serveur va chercher ce que la page publique Instagram
+  // expose (nom, description) pour auditer sans connexion ni saisie manuelle.
+  fetchPublicProfile: z.boolean().optional().nullable(),
   workspace_id: z.string().uuid().optional().nullable(),
   // Legacy fields
   bestContent: z.string().optional().nullable(),
@@ -208,7 +211,26 @@ serve(async (req) => {
       // Best/worst post URLs (for reference in text-only mode)
       if (atd.bestPostUrls?.length) lines.push(`- URLs des posts qui marchent : ${atd.bestPostUrls.join(", ")}`);
       if (atd.worstPostUrls?.length) lines.push(`- URLs des posts qui ne marchent pas : ${atd.worstPostUrls.join(", ")}`);
-      profileTextBlock = "\nPROFIL INSTAGRAM (saisi par l'utilisatrice) :\n" + lines.join("\n");
+      profileTextBlock = "\nPROFIL INSTAGRAM :\n" + lines.join("\n");
+    }
+
+    // Mode « juste le @ » : on va chercher ce que la page publique Instagram expose
+    // (nom + description via og:tags). Complète le peu qu'on a sans connexion ; un
+    // échec (page privée, blocage) n'empêche pas l'audit de tourner.
+    let publicProfileBlock = "";
+    if (body.fetchPublicProfile && atd?.username) {
+      const scrapeController = new AbortController();
+      const scrapeTimeout = setTimeout(() => scrapeController.abort(), 8000);
+      const scraped = await scrapeInstagram(atd.username, scrapeController.signal).catch(() => null);
+      clearTimeout(scrapeTimeout);
+      if (scraped) {
+        publicProfileBlock =
+          "\nPROFIL PUBLIC (récupéré automatiquement depuis la page Instagram publique — données limitées, ne devine pas ce qui manque) :\n" +
+          scraped;
+      } else {
+        publicProfileBlock =
+          "\nNOTE : le profil public n'a pas pu être récupéré (page privée ou indisponible). Audite avec les seules données fournies, sans inventer.";
+      }
     }
 
     // Bloc statistiques RÉELLES (API Instagram). Priorité au factuel sur le déclaratif.
@@ -261,6 +283,7 @@ serve(async (req) => {
 
     const systemPrompt = `${CORE_PRINCIPLES}
 ${profileTextBlock}
+${publicProfileBlock}
 
 ${bc || wc || rh || obj ? `RÉPONSES COMPLÉMENTAIRES :
 ${bc ? `- Contenus qui marchent le mieux : "${bc}"` : ""}
