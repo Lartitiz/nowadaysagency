@@ -17,6 +17,8 @@
 export interface SiteImageCandidate {
   url: string;
   alt: string | null;
+  /** Nom de fichier suggéré (sans extension) — utilisé quand l'URL est illisible. */
+  name?: string | null;
 }
 
 /** Extensions qu'on refuse toujours (vectoriel, icônes, animations). */
@@ -159,5 +161,61 @@ export function extractImageCandidates(html: string, baseUrl: string): SiteImage
     if (src) push(src, alt);
   }
 
+  return out;
+}
+
+/* ───────────────────────── Instagram ───────────────────────── */
+
+/**
+ * Élément brut renvoyé par GET /{ig-user-id}/media (Graph API).
+ * Champs demandés : id, caption, media_type, media_url, thumbnail_url,
+ * timestamp, children{media_type,media_url}.
+ */
+export interface InstagramMediaItem {
+  id: string;
+  caption?: string;
+  media_type?: string;
+  media_url?: string;
+  thumbnail_url?: string;
+  timestamp?: string;
+  children?: { data?: Array<{ media_type?: string; media_url?: string }> };
+}
+
+/**
+ * Aplatit la liste de posts Instagram en photos importables :
+ *  - IMAGE → media_url ;
+ *  - CAROUSEL_ALBUM → chaque enfant IMAGE (le carrousel = plusieurs photos) ;
+ *  - VIDEO / reels → écartés (v1 photos uniquement — thumbnail_url serait
+ *    une capture basse qualité, pas une photo de la marque).
+ * alt = début de la légende (repris comme description à l'import),
+ * name = insta-AAAA-MM-JJ pour des fichiers lisibles (les URLs lookaside
+ * sont des hachages illisibles).
+ */
+export function flattenInstagramMedia(
+  items: InstagramMediaItem[],
+  max = MAX_CANDIDATES,
+): SiteImageCandidate[] {
+  const out: SiteImageCandidate[] = [];
+  const seen = new Set<string>();
+  for (const item of items) {
+    if (out.length >= max) break;
+    const alt = (item.caption || "").trim().slice(0, 140) || null;
+    const day = (item.timestamp || "").slice(0, 10) || null;
+    const name = day ? `insta-${day}` : "insta";
+    const urls: string[] = [];
+    if (item.media_type === "IMAGE" && item.media_url) {
+      urls.push(item.media_url);
+    } else if (item.media_type === "CAROUSEL_ALBUM") {
+      for (const child of item.children?.data ?? []) {
+        if (child.media_type === "IMAGE" && child.media_url) urls.push(child.media_url);
+      }
+    }
+    for (const url of urls) {
+      if (out.length >= max) break;
+      if (seen.has(url)) continue;
+      seen.add(url);
+      out.push({ url, alt, name });
+    }
+  }
   return out;
 }

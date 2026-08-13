@@ -101,3 +101,63 @@ Deno.test("plafond à 60 candidates", () => {
   const many = Array.from({ length: 80 }, (_, i) => `<img src="/photos/p${i}.jpg">`).join("\n");
   assertEquals(extractImageCandidates(many, BASE).length, 60);
 });
+
+// ── flattenInstagramMedia ──
+
+import { flattenInstagramMedia } from "./site-photos.ts";
+
+Deno.test("Instagram : IMAGE gardée, VIDEO écartée, légende → alt, date → name", () => {
+  const out = flattenInstagramMedia([
+    {
+      id: "1",
+      media_type: "IMAGE",
+      media_url: "https://lookaside.fbsbx.com/a.jpg",
+      caption: "Nouveau savon au calendula 🌼",
+      timestamp: "2026-08-01T10:00:00+0000",
+    },
+    { id: "2", media_type: "VIDEO", media_url: "https://cdn/video.mp4", thumbnail_url: "https://cdn/thumb.jpg" },
+  ]);
+  assertEquals(out.length, 1);
+  assertEquals(out[0].url, "https://lookaside.fbsbx.com/a.jpg");
+  assertEquals(out[0].alt, "Nouveau savon au calendula 🌼");
+  assertEquals(out[0].name, "insta-2026-08-01");
+});
+
+Deno.test("Instagram : carrousel aplati en photos, enfants VIDEO écartés", () => {
+  const out = flattenInstagramMedia([
+    {
+      id: "3",
+      media_type: "CAROUSEL_ALBUM",
+      caption: "Atelier",
+      timestamp: "2026-07-15T08:00:00+0000",
+      children: {
+        data: [
+          { media_type: "IMAGE", media_url: "https://cdn/c1.jpg" },
+          { media_type: "VIDEO", media_url: "https://cdn/c2.mp4" },
+          { media_type: "IMAGE", media_url: "https://cdn/c3.jpg" },
+        ],
+      },
+    },
+  ]);
+  assertEquals(out.map((o) => o.url), ["https://cdn/c1.jpg", "https://cdn/c3.jpg"]);
+  assertEquals(out[0].name, "insta-2026-07-15");
+});
+
+Deno.test("Instagram : dédup par URL et plafond respectés", () => {
+  const items = Array.from({ length: 80 }, (_, i) => ({
+    id: String(i),
+    media_type: "IMAGE",
+    media_url: `https://cdn/p${i % 70}.jpg`,
+  }));
+  const out = flattenInstagramMedia(items);
+  assertEquals(out.length, 60);
+  assertEquals(new Set(out.map((o) => o.url)).size, 60);
+});
+
+Deno.test("Instagram : légende vide → alt null, sans timestamp → name insta", () => {
+  const out = flattenInstagramMedia([
+    { id: "9", media_type: "IMAGE", media_url: "https://cdn/x.jpg", caption: "  " },
+  ]);
+  assertEquals(out[0].alt, null);
+  assertEquals(out[0].name, "insta");
+});

@@ -242,7 +242,7 @@ export default function PhotosPage() {
               onClick={() => setSiteImportOpen(true)}
               disabled={!wsReady || uploading}
             >
-              <Globe className="h-4 w-4 mr-2" /> Depuis mon site
+              <Globe className="h-4 w-4 mr-2" /> Depuis mon site ou Instagram
             </Button>
             <Button onClick={openFilePicker} disabled={!wsReady || uploading}>
               {uploading ? (
@@ -276,7 +276,11 @@ export default function PhotosPage() {
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
         ) : photos.length === 0 && visiblePendingUploads.length === 0 ? (
-          <PhotoShootEmptyState onAddPhotos={openFilePicker} uploadDisabled={!wsReady || uploading} />
+          <PhotoShootEmptyState
+            onAddPhotos={openFilePicker}
+            uploadDisabled={!wsReady || uploading}
+            onImport={() => setSiteImportOpen(true)}
+          />
         ) : (
           <div className="flex flex-col lg:flex-row gap-6 items-start">
             <div className="flex-1 min-w-0 w-full">

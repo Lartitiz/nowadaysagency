@@ -10,6 +10,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   Camera,
   Eye,
+  Globe,
   Hand,
   Home,
   ListChecks,
@@ -57,9 +58,12 @@ const FALLBACK_IDEAS: ShootIdea[] = [
 interface PhotoShootEmptyStateProps {
   onAddPhotos: () => void;
   uploadDisabled?: boolean;
+  /** Ouvre l'import depuis le site / Instagram (bibliothèque vide = le meilleur
+   * moment pour récupérer ce qui est déjà publié). */
+  onImport?: () => void;
 }
 
-export function PhotoShootEmptyState({ onAddPhotos, uploadDisabled }: PhotoShootEmptyStateProps) {
+export function PhotoShootEmptyState({ onAddPhotos, uploadDisabled, onImport }: PhotoShootEmptyStateProps) {
   const workspaceId = useWorkspaceId();
   const { addMany } = usePhotoWishlistMutations();
   const [ideas, setIdeas] = useState<ShootIdea[] | null>(null);
@@ -152,6 +156,11 @@ export function PhotoShootEmptyState({ onAddPhotos, uploadDisabled }: PhotoShoot
         <Button onClick={onAddPhotos} disabled={uploadDisabled}>
           <Upload className="h-4 w-4 mr-2" /> J'ai mes photos — les ajouter
         </Button>
+        {onImport && (
+          <Button variant="outline" onClick={onImport} disabled={uploadDisabled}>
+            <Globe className="h-4 w-4 mr-2" /> Importer depuis mon site ou Instagram
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={handleKeepList}

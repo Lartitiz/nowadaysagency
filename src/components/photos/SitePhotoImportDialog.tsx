@@ -1,20 +1,23 @@
 /**
  * SitePhotoImportDialog — importe dans la bibliothèque les photos déjà
- * publiées sur le site web de l'utilisatrice.
+ * publiées par l'utilisatrice, depuis deux sources au choix (onglets) :
  *
- * Flux : URL (pré-remplie depuis profiles.website_url) → edge site-photos-scan
- * mode "scan" (liste d'images candidates) → grille à cocher → mode "fetch"
- * image par image (le navigateur ne peut pas lire les octets cross-origin) →
- * les File repartent dans le circuit d'upload EXISTANT via onImportFiles
- * (compression, user_photos, description IA, cartes optimistes : rien à refaire).
+ *  - « Mon site » : edge site-photos-scan mode "scan" (liste des images de la
+ *    page) ; le tri visuel se fait côté client (la grille AFFICHE les images
+ *    cross-origin sans CORS et écarte celles qui ne chargent pas ou < 200 px).
+ *  - « Instagram » : mode "instagram" — photos des derniers posts du compte
+ *    CONNECTÉ via l'API officielle (jamais de scraping). ⚠️ les URLs Meta
+ *    expirent : on rapatrie immédiatement, on ne stocke jamais l'URL.
  *
- * Tri visuel côté client : la grille AFFICHE les images distantes (l'affichage
- * cross-origin ne demande pas de CORS) et écarte silencieusement celles qui ne
- * chargent pas ou font moins de 200 px (naturalWidth lisible sans CORS).
+ * Dans les deux cas : grille à cocher → mode "fetch" image par image (le
+ * navigateur ne peut pas lire les octets cross-origin) → les File repartent
+ * dans le circuit d'upload EXISTANT via onImportFiles (compression,
+ * user_photos, description IA, cartes optimistes : rien à refaire).
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Check, Globe, Loader2, ImageOff, AlertCircle } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Check, Globe, Instagram, Loader2, ImageOff, AlertCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -29,12 +32,18 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useSocialConnections } from "@/hooks/use-social-connections";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
 interface SiteImageCandidate {
   url: string;
   alt: string | null;
+  /** Nom de fichier suggéré par l'edge (Instagram : insta-AAAA-MM-JJ). */
+  name?: string | null;
 }
+
+type PhotoImportSource = "site" | "instagram";
 
 interface SitePhotoImportDialogProps {
   open: boolean;
@@ -42,6 +51,8 @@ interface SitePhotoImportDialogProps {
   maxSelectable: number;
   /** Circuit d'upload de la page (useUploadLibraryPhotos.mutate + toasts). */
   onImportFiles: (files: File[]) => Promise<void>;
+  /** Onglet affiché à l'ouverture (défaut : site). */
+  initialSource?: PhotoImportSource;
 }
 
 /** En dessous de 200 px réels, ce n'est pas une photo exploitable. */
@@ -49,14 +60,17 @@ const MIN_REAL_WIDTH = 200;
 /** Téléchargements simultanés côté edge (petites rafales, pas de matraquage). */
 const FETCH_CONCURRENCY = 3;
 
-function fileNameFromUrl(url: string, contentType: string): string {
-  let base = "photo-site";
-  try {
-    const segments = new URL(url).pathname.split("/").filter(Boolean);
-    const last = segments[segments.length - 1];
-    if (last) base = decodeURIComponent(last).replace(/\.[^.]*$/, "").slice(0, 80) || base;
-  } catch {
-    /* URL déjà validée côté edge, on garde le nom générique */
+function fileNameFromUrl(url: string, contentType: string, suggested?: string | null): string {
+  let base = suggested || "";
+  if (!base) {
+    base = "photo-site";
+    try {
+      const segments = new URL(url).pathname.split("/").filter(Boolean);
+      const last = segments[segments.length - 1];
+      if (last) base = decodeURIComponent(last).replace(/\.[^.]*$/, "").slice(0, 80) || base;
+    } catch {
+      /* URL déjà validée côté edge, on garde le nom générique */
+    }
   }
   const ext = contentType === "image/png" ? "png" : contentType === "image/webp" ? "webp" : "jpg";
   return `${base}.${ext}`;
@@ -74,8 +88,14 @@ export function SitePhotoImportDialog({
   onOpenChange,
   maxSelectable,
   onImportFiles,
+  initialSource = "site",
 }: SitePhotoImportDialogProps) {
   const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const { connected, known: connectionsKnown } = useSocialConnections();
+  const instagramConnected = !!connected.instagram;
+
+  const [source, setSource] = useState<PhotoImportSource>(initialSource);
   const [url, setUrl] = useState("");
   const [candidates, setCandidates] = useState<SiteImageCandidate[]>([]);
   const [hiddenUrls, setHiddenUrls] = useState<Set<string>>(new Set());
@@ -86,17 +106,25 @@ export function SitePhotoImportDialog({
   const [error, setError] = useState<string | null>(null);
   // Pré-remplissage une seule fois par ouverture (pas d'écrasement d'une saisie).
   const prefilledFor = useRef<string | null>(null);
+  // Un seul scan Instagram auto par ouverture d'onglet.
+  const instaScanFor = useRef<string | null>(null);
 
-  useEffect(() => {
-    if (!open) {
-      prefilledFor.current = null;
-      return;
-    }
+  function resetResults() {
     setCandidates([]);
     setHiddenUrls(new Set());
     setSelectedUrls([]);
     setScanned(false);
     setError(null);
+  }
+
+  useEffect(() => {
+    if (!open) {
+      prefilledFor.current = null;
+      instaScanFor.current = null;
+      return;
+    }
+    setSource(initialSource);
+    resetResults();
     if (!user?.id || prefilledFor.current === user.id) return;
     prefilledFor.current = user.id;
     void supabase
@@ -113,7 +141,7 @@ export function SitePhotoImportDialog({
           setUrl((cur) => cur || candidate);
         }
       });
-  }, [open, user?.id]);
+  }, [open, user?.id, initialSource]);
 
   async function runScan() {
     const target = url.trim();
@@ -140,6 +168,51 @@ export function SitePhotoImportDialog({
     }
   }
 
+  async function runInstagramScan() {
+    setScanning(true);
+    setScanned(true);
+    setError(null);
+    setCandidates([]);
+    setHiddenUrls(new Set());
+    setSelectedUrls([]);
+    try {
+      const { data, error: invokeError } = await invokeWithTimeout(
+        "site-photos-scan",
+        {
+          body: {
+            mode: "instagram",
+            workspace_id: user?.id && workspaceId !== user.id ? workspaceId : undefined,
+          },
+        },
+        45_000,
+      );
+      if (invokeError || data?.error || !data?.images) {
+        setError(data?.error || invokeError?.message || "La lecture de tes posts a échoué.");
+        return;
+      }
+      setCandidates(data.images as SiteImageCandidate[]);
+    } finally {
+      setScanning(false);
+    }
+  }
+
+  // Onglet Instagram + compte connecté → scan lancé tout seul (rien à saisir).
+  useEffect(() => {
+    if (!open || source !== "instagram" || !instagramConnected) return;
+    const signature = `${user?.id}:${workspaceId}`;
+    if (instaScanFor.current === signature) return;
+    instaScanFor.current = signature;
+    void runInstagramScan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, source, instagramConnected]);
+
+  function switchSource(next: PhotoImportSource) {
+    if (next === source || scanning || importing) return;
+    setSource(next);
+    instaScanFor.current = null;
+    resetResults();
+  }
+
   const visible = candidates.filter((c) => !hiddenUrls.has(c.url));
   const atMax = selectedUrls.length >= maxSelectable;
 
@@ -160,6 +233,7 @@ export function SitePhotoImportDialog({
     if (selectedUrls.length === 0) return;
     setImporting(true);
     try {
+      const byUrl = new Map(candidates.map((c) => [c.url, c]));
       const queue = [...selectedUrls];
       const files: File[] = [];
       let failed = 0;
@@ -176,7 +250,13 @@ export function SitePhotoImportDialog({
             continue;
           }
           const contentType: string = data.contentType || "image/jpeg";
-          files.push(base64ToFile(data.base64, contentType, fileNameFromUrl(imageUrl, contentType)));
+          files.push(
+            base64ToFile(
+              data.base64,
+              contentType,
+              fileNameFromUrl(imageUrl, contentType, byUrl.get(imageUrl)?.name),
+            ),
+          );
         }
       };
       await Promise.all(
@@ -184,7 +264,7 @@ export function SitePhotoImportDialog({
       );
 
       if (files.length === 0) {
-        toast.error("Aucune photo n'a pu être récupérée depuis le site. Réessaie.");
+        toast.error("Aucune photo n'a pu être récupérée. Réessaie.");
         return;
       }
       if (failed > 0) {
@@ -202,46 +282,84 @@ export function SitePhotoImportDialog({
     <Dialog open={open} onOpenChange={(v) => !importing && onOpenChange(v)}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Importer depuis mon site</DialogTitle>
+          <DialogTitle>Importer mes photos</DialogTitle>
           <DialogDescription>
-            Récupère en un clic les photos déjà publiées sur ton site. Choisis
-            uniquement des images qui t'appartiennent (pas de photos de banque
-            d'images sous licence).
+            {source === "site"
+              ? "Récupère en un clic les photos déjà publiées sur ton site. Choisis uniquement des images qui t'appartiennent (pas de photos de banque d'images sous licence)."
+              : "Récupère les photos de tes derniers posts Instagram (compte connecté, via l'API officielle)."}
           </DialogDescription>
         </DialogHeader>
 
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void runScan();
-          }}
-          className="flex gap-2"
-        >
-          <Input
-            value={url}
-            onChange={(e) => setUrl(e.target.value)}
-            placeholder="Ex : www.mon-site.fr"
-            inputMode="url"
-            autoFocus
-            // min-w-0 : sans lui, une valeur longue empêche l'input de rétrécir
-            // et pousse le bouton hors de l'écran sur mobile (vu en QA).
-            className="min-w-0 flex-1"
-          />
-          <Button type="submit" aria-label="Analyser" disabled={scanning || !url.trim()}>
-            {scanning ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Globe className="h-4 w-4" />
-            )}
-            <span className="ml-1.5 hidden sm:inline">Analyser</span>
-          </Button>
-        </form>
+        {/* Onglets source — mêmes chips que les filtres de la bibliothèque */}
+        <div className="flex items-center gap-1.5">
+          {(
+            [
+              { key: "site" as const, label: "Mon site", icon: Globe },
+              { key: "instagram" as const, label: "Instagram", icon: Instagram },
+            ]
+          ).map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => switchSource(key)}
+              disabled={scanning || importing}
+              className={cn(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-colors",
+                source === key
+                  ? "bg-primary text-primary-foreground border-primary font-medium"
+                  : "bg-background text-foreground border-border hover:border-primary/40",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5" /> {label}
+            </button>
+          ))}
+        </div>
+
+        {source === "site" && (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void runScan();
+            }}
+            className="flex gap-2"
+          >
+            <Input
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              placeholder="Ex : www.mon-site.fr"
+              inputMode="url"
+              autoFocus
+              // min-w-0 : sans lui, une valeur longue empêche l'input de rétrécir
+              // et pousse le bouton hors de l'écran sur mobile (vu en QA).
+              className="min-w-0 flex-1"
+            />
+            <Button type="submit" aria-label="Analyser" disabled={scanning || !url.trim()}>
+              {scanning ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Globe className="h-4 w-4" />
+              )}
+              <span className="ml-1.5 hidden sm:inline">Analyser</span>
+            </Button>
+          </form>
+        )}
 
         <div className="min-h-[220px] max-h-[55vh] overflow-y-auto">
-          {scanning ? (
+          {source === "instagram" && connectionsKnown && !instagramConnected ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-3 text-muted-foreground">
+              <Instagram className="h-8 w-8" />
+              <p className="text-sm max-w-sm">
+                Ton compte Instagram n'est pas encore connecté. Une fois connecté, tes
+                photos publiées s'importent en deux clics.
+              </p>
+              <Button asChild variant="outline">
+                <Link to="/parametres/connexions">Connecter mon compte</Link>
+              </Button>
+            </div>
+          ) : scanning || (source === "instagram" && !connectionsKnown && visible.length === 0 && !error) ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
-              Lecture du site…
+              {source === "site" ? "Lecture du site…" : "Lecture de tes posts…"}
             </div>
           ) : error ? (
             <div className="flex flex-col items-center justify-center py-12 text-center gap-2 text-muted-foreground">
@@ -253,7 +371,9 @@ export function SitePhotoImportDialog({
               <ImageOff className="h-8 w-8" />
               <p className="text-sm max-w-sm">
                 {scanned
-                  ? "Aucune photo exploitable trouvée sur cette page."
+                  ? source === "site"
+                    ? "Aucune photo exploitable trouvée sur cette page."
+                    : "Aucune photo trouvée dans tes derniers posts."
                   : "Entre l'adresse de ton site puis lance l'analyse."}
               </p>
             </div>
