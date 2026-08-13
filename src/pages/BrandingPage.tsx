@@ -9,7 +9,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, CheckCircle2, AlertTriangle, Zap, Download, Lightbulb } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, LayoutGrid, CheckCircle2, AlertTriangle, Zap, Download, Lightbulb } from "lucide-react";
 import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -25,6 +25,7 @@ import BrandingDangerZone from "@/components/branding/BrandingDangerZone";
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
 
 import BrandingImport from "@/components/branding/BrandingImport";
+import BrandEnrichmentWait from "@/components/branding/BrandEnrichmentWait";
 import BrandingAnalysisLoader from "@/components/branding/BrandingAnalysisLoader";
 import BrandingImportReview from "@/components/branding/BrandingImportReview";
 import BrandingReview, { type AnalysisResult } from "@/components/branding/BrandingReview";
@@ -357,7 +358,7 @@ export default function BrandingPage() {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
     let attempts = 0;
-    const MAX_ATTEMPTS = 30; // ~90s à 3s d'intervalle
+    const MAX_ATTEMPTS = 45; // ~90s à 2s d'intervalle
     setAwaitingEnrichment(true);
     const tick = async () => {
       attempts += 1;
@@ -386,7 +387,7 @@ export default function BrandingPage() {
         if (!cancelled) navigate(dest, { replace: true });
         return;
       }
-      timer = setTimeout(tick, 3000);
+      timer = setTimeout(tick, 2000);
     };
     timer = setTimeout(tick, 0);
     return () => { cancelled = true; clearTimeout(timer); };
@@ -742,13 +743,7 @@ export default function BrandingPage() {
           {/* === ATTENTE ENRICHMENT (onboarding) === */}
           {topView === "awaiting" && (
             <motion.div key="awaiting" initial={false} animate={{ opacity: 1 }} transition={{ duration: 0.25 }}>
-              <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4 mt-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto" />
-                <h2 className="text-xl font-semibold">Je finis de préparer ta marque…</h2>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Encore quelques secondes : je rassemble ton positionnement, ton ton, ta cible et tes piliers pour que tu puisses les relire et valider avant de créer.
-                </p>
-              </div>
+              <BrandEnrichmentWait />
             </motion.div>
           )}
 
