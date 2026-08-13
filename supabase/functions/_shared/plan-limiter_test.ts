@@ -75,6 +75,12 @@ function fakeClient(cfg: FakeConfig): FakeClient {
       return Promise.resolve({ data: null, error: null });
     };
     b.maybeSingle = () => {
+      // getBonusCredits lit profiles via .maybeSingle() depuis le 26/07 (799ffe9d,
+      // hygiène .single() → .maybeSingle()) : le fake doit servir la ligne dans
+      // les deux variantes, comme un vrai client PostgREST.
+      if (table === "profiles") {
+        return Promise.resolve({ data: { bonus_credits: cfg.bonusCredits ?? 0 }, error: null });
+      }
       if (table === "coaching_programs") {
         return Promise.resolve({ data: cfg.coaching ? { id: "c1" } : null, error: null });
       }
