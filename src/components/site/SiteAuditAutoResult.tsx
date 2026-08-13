@@ -298,6 +298,11 @@ export default function SiteAuditAutoResult({
             </span>
           )}
         </div>
+        {displayResult.pages_analysees?.length > 1 && (
+          <p className="mt-2 text-2xs text-muted-foreground">
+            Pages lues : {displayResult.pages_analysees.join(" · ")}
+          </p>
+        )}
         <div className="mt-4 flex flex-wrap gap-3 justify-center">
           {!viewingOld && onRerun && (
             <Button variant="outline" size="sm" className="gap-2 rounded-pill" onClick={onRerun}>
