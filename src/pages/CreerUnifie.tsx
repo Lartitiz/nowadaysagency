@@ -79,6 +79,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos, loadPhotosLocal } from "@/hooks/use-flow-persistence";
+import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
@@ -177,7 +178,45 @@ export default function CreerUnifie() {
   }
   const existingFlowState = isFreshStart ? null : loadFlowState();
   const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
-  const shouldRestore = hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea");
+
+  // ── Garde-fou « il y a déjà un contenu en cours » ──
+  // Une nouvelle intention de création (recyclage, actu, brief, raccourci sujet…)
+  // qui arrive alors qu'un brouillon significatif existe : on demande au lieu de
+  // silencieusement restaurer l'ancien contenu (et donc ignorer la demande).
+  const [draftConflict] = useState(() => {
+    if (isFreshStart || aurianaDemoActive) return null;
+    const d = existingFlowState;
+    if (!d || d.step === "idea") return null;
+    const hasDraftContent = !!(d.ideaText || d.result || d.editContent || d.selectedFormat);
+    if (!hasDraftContent) return null;
+    const newSubject = (paramSujet || locState.sujet || locState.subject || "").trim();
+    const hasNewIntent = !!(
+      newSubject ||
+      locState.fromRecycle ||
+      locState.fromBrief ||
+      locState.fromCalendar ||
+      locState.context ||
+      paramFormat
+    );
+    if (!hasNewIntent) return null;
+    // Même sujet que le brouillon → pas de conflit, on reprend simplement.
+    if (newSubject && d.ideaText && newSubject.slice(0, 80) === d.ideaText.trim().slice(0, 80)) return null;
+    return {
+      draft: {
+        step: d.step,
+        ideaText: d.ideaText || "",
+        selectedFormat: d.selectedFormat ?? null,
+        result: d.result ?? null,
+        editContent: d.editContent || "",
+        editingIdeaId: d.editingIdeaId ?? null,
+      },
+      newSubject,
+    };
+  });
+  const [conflictResolved, setConflictResolved] = useState(false);
+  const conflictPending = !!draftConflict && !conflictResolved;
+
+  const shouldRestore = !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea"));
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
@@ -679,6 +718,9 @@ export default function CreerUnifie() {
   // idée alors que l'init venait de lancer le parcours.
   const justStrippedRef = useRef(false);
   useEffect(() => {
+    // Conflit brouillon vs nouvelle demande : on ne touche à rien tant que
+    // l'utilisatrice n'a pas tranché (voir DraftConflictDialog).
+    if (conflictPending) return;
     if (justStrippedRef.current) {
       justStrippedRef.current = false;
       return;
@@ -803,7 +845,7 @@ export default function CreerUnifie() {
       setSearchParams(cleaned, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, conflictPending]);
 
   // ── Library photos → preload as if uploaded (chemin /photos → /creer) ──
   // Capturé une seule fois au mount pour survivre au cleanup replaceState.
@@ -3805,6 +3847,24 @@ export default function CreerUnifie() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
+
+      {conflictPending && draftConflict && (
+        <DraftConflictDialog
+          open
+          draft={draftConflict.draft}
+          newSubject={draftConflict.newSubject}
+          onResume={() => {
+            // On repart proprement du brouillon persisté : rechargement sans
+            // location.state ni paramètres de démarrage.
+            window.location.replace(location.pathname);
+          }}
+          onStartNew={() => {
+            clearFlowState();
+            setConflictResolved(true);
+          }}
+        />
+      )}
+
 
       {isLoadingLibraryPhotos && (
         <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center">
