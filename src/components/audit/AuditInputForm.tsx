@@ -1,555 +1,161 @@
 import { useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
-import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Button } from "@/components/ui/button";
-import { Upload, X, Sparkles, Loader2, ImagePlus, RotateCcw } from "lucide-react";
+import { ImagePlus, Loader2, Sparkles, X, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
+import { memoriseRetour } from "@/lib/retour-apres-detour";
 
-const FREQUENCY_OPTIONS = ["Tous les jours", "3-4x/semaine", "1-2x/semaine", "Moins d'1x/semaine", "Irrégulier"];
-
+// Écran d'audit « deux portes » : soit le compte Instagram est connecté et TOUT est
+// récupéré automatiquement (bio, abonnés, vraies stats, top/flop posts), soit on
+// audite depuis le @ public. Les captures d'écran restent possibles mais facultatives
+// (repliées) : elles servent uniquement à l'analyse visuelle du feed.
 export interface AuditFormData {
-  displayName: string;
+  mode: "connected" | "handle";
   username: string;
-  bio: string;
-  bioLink: string;
-  photoDescription: string;
-  profilePhotoFile: File | null;
-  profilePhotoUrl: string | null;
-  highlights: string;
-  highlightsCount: string;
-  hasPinned: boolean | null;
-  pinnedPost1: string;
-  pinnedPost2: string;
-  pinnedPost3: string;
-  pinnedFile1: File | null;
-  pinnedFile2: File | null;
-  pinnedFile3: File | null;
-  feedDescription: string;
-  followers: string;
-  postsPerMonth: string;
-  frequency: string;
-  pillars: string;
-  // Screenshots (optional, complement text)
   profileScreenshots: File[];
-  feedScreenshot: File | null;
-  highlightsScreenshot: File | null;
-  // Post analysis uploads
-  bestPostFiles: File[];
-  worstPostFiles: File[];
-  bestPostsComment: string;
-  worstPostsComment: string;
 }
 
 interface AuditInputFormProps {
-  initial?: Partial<AuditFormData> & { profilePhotoUrl?: string | null };
+  initialUsername?: string;
   onSubmit: (data: AuditFormData) => void;
   loading: boolean;
   isRedo?: boolean;
-  // Compte Instagram connecté → on propose de récupérer les vraies stats. Le callback
-  // renvoie un pré-remplissage (abonnés, fréquence) à fusionner dans le formulaire.
-  instagramConnected?: boolean;
-  onFetchLiveMetrics?: () => Promise<Partial<AuditFormData> | null>;
+  // null = statut de connexion pas encore connu (social-status en cours)
+  instagramConnected: boolean | null;
 }
 
-function FileUploadGrid({ files, onAdd, onRemove, maxFiles = 5, label }: {
-  files: File[];
-  onAdd: (files: FileList) => void;
-  onRemove: (index: number) => void;
-  maxFiles?: number;
-  label: string;
-}) {
-  const ref = useRef<HTMLInputElement>(null);
-  return (
-    <div>
-      <div className="flex flex-wrap gap-3">
-        {files.map((f, i) => (
-          <div key={i} className="relative w-24 h-24 rounded-xl border border-border bg-muted/30 overflow-hidden group">
-            <img loading="lazy" src={URL.createObjectURL(f)} alt="Aperçu de la capture d'écran importée" className="w-full h-full object-cover" />
-            <button
-              onClick={() => onRemove(i)}
-              className="absolute top-1 right-1 bg-background/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <X className="h-3 w-3" />
-            </button>
-            <span className="absolute bottom-1 left-1 text-2xs bg-background/80 rounded px-1 py-0.5">✅</span>
-          </div>
-        ))}
-        {files.length < maxFiles && (
-          <button
-            onClick={() => ref.current?.click()}
-            className="w-24 h-24 rounded-xl border-2 border-dashed border-border bg-muted/20 flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition-colors"
-          >
-            <ImagePlus className="h-5 w-5 text-muted-foreground" />
-            <span className="text-2xs text-muted-foreground">Ajouter</span>
-          </button>
-        )}
-      </div>
-      <input
-        ref={ref}
-        type="file"
-        accept="image/png,image/jpeg,image/jpg,application/pdf"
-        multiple
-        className="hidden"
-        onChange={(e) => { if (e.target.files) onAdd(e.target.files); e.target.value = ""; }}
-      />
-    </div>
-  );
-}
+export default function AuditInputForm({ initialUsername, onSubmit, loading, isRedo, instagramConnected }: AuditInputFormProps) {
+  const [username, setUsername] = useState(initialUsername || "");
+  const [screenshots, setScreenshots] = useState<File[]>([]);
+  const [showScreenshots, setShowScreenshots] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-export default function AuditInputForm({ initial, onSubmit, loading, isRedo, instagramConnected, onFetchLiveMetrics }: AuditInputFormProps) {
-  const [rapidMode, setRapidMode] = useState(!isRedo);
-  const [fetchingLive, setFetchingLive] = useState(false);
-  const [liveDone, setLiveDone] = useState(false);
-  const [form, setForm] = useState<AuditFormData>({
-    displayName: initial?.displayName || "",
-    username: initial?.username || "",
-    bio: initial?.bio || "",
-    bioLink: initial?.bioLink || "",
-    photoDescription: initial?.photoDescription || "",
-    profilePhotoFile: null,
-    profilePhotoUrl: initial?.profilePhotoUrl || null,
-    highlights: initial?.highlights || "",
-    highlightsCount: initial?.highlightsCount || "",
-    hasPinned: initial?.hasPinned ?? null,
-    pinnedPost1: initial?.pinnedPost1 || "",
-    pinnedPost2: initial?.pinnedPost2 || "",
-    pinnedPost3: initial?.pinnedPost3 || "",
-    pinnedFile1: null,
-    pinnedFile2: null,
-    pinnedFile3: null,
-    feedDescription: initial?.feedDescription || "",
-    followers: initial?.followers || "",
-    postsPerMonth: initial?.postsPerMonth || "",
-    frequency: initial?.frequency || "",
-    pillars: initial?.pillars || "",
-    profileScreenshots: [],
-    feedScreenshot: null,
-    highlightsScreenshot: null,
-    bestPostFiles: [],
-    worstPostFiles: [],
-    bestPostsComment: initial?.bestPostsComment || "",
-    worstPostsComment: initial?.worstPostsComment || "",
-  });
+  const cleanHandle = username.trim().replace(/^@/, "");
 
-  const profileRef = useRef<HTMLInputElement>(null);
-  const photoRef = useRef<HTMLInputElement>(null);
-  const feedRef = useRef<HTMLInputElement>(null);
-  const hlRef = useRef<HTMLInputElement>(null);
-
-  const set = (field: keyof AuditFormData | string, value: any) => setForm((p) => ({ ...p, [field]: value }));
-
-  const handleFetchLive = async () => {
-    if (!onFetchLiveMetrics) return;
-    setFetchingLive(true);
-    try {
-      const prefill = await onFetchLiveMetrics();
-      if (prefill) {
-        const clean = Object.fromEntries(Object.entries(prefill).filter(([, v]) => v !== undefined));
-        setForm((p) => ({ ...p, ...clean }));
-        setLiveDone(true);
-      }
-    } finally {
-      setFetchingLive(false);
-    }
-  };
-
-  const handleProfileFiles = (fl: FileList | null) => {
+  const addFiles = (fl: FileList | null) => {
     if (!fl) return;
     const all = Array.from(fl);
     const kept = all.filter((f) => f.size <= UX_UPLOAD_LIMITS.media);
     // Un fichier écarté sans message = échec silencieux : on prévient
     all.filter((f) => f.size > UX_UPLOAD_LIMITS.media).forEach((f) => toast.error(uxSizeError(f, UX_UPLOAD_LIMITS.media)!));
-    set("profileScreenshots", [...form.profileScreenshots, ...kept].slice(0, 5));
-  };
-
-  const addPostFiles = (field: "bestPostFiles" | "worstPostFiles", fl: FileList) => {
-    const current = form[field];
-    const all = Array.from(fl);
-    const kept = all.filter((f) => f.size <= UX_UPLOAD_LIMITS.lightAsset);
-    all.filter((f) => f.size > UX_UPLOAD_LIMITS.lightAsset).forEach((f) => toast.error(uxSizeError(f, UX_UPLOAD_LIMITS.lightAsset)!));
-    const combined = [...current, ...kept].slice(0, 5);
-    set(field, combined);
+    setScreenshots((prev) => [...prev, ...kept].slice(0, 5));
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-4">
       {isRedo && (
         <div className="rounded-2xl border border-primary/30 bg-rose-pale p-4">
           <p className="text-sm text-foreground">
-            🔄 Tes infos du dernier audit sont <strong>pré-remplies</strong>. Mets à jour ce qui a changé.
+            🔄 On relance une analyse complète avec tes données à jour.
           </p>
         </div>
       )}
 
-      {instagramConnected && onFetchLiveMetrics && (
-        <div className="rounded-2xl border border-primary/30 bg-rose-pale p-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">📊 Utiliser tes vraies statistiques Instagram</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {liveDone
-                ? "Stats récupérées : abonnés, fréquence et tes posts les plus/moins performants sont pris en compte."
-                : "Récupère automatiquement ton reach, ta croissance d'abonnés et tes meilleurs/pires posts pour un audit basé sur des données réelles."}
-            </p>
-          </div>
+      {/* ── Porte 1 : compte connecté ── */}
+      <div className="rounded-2xl border-2 border-primary/40 bg-card p-5">
+        <span className="inline-block rounded-pill bg-rose-pale px-3 py-1 text-xs font-semibold text-primary">Recommandé</span>
+        <h3 className="mt-3 text-base font-bold text-foreground">📊 Avec ton compte connecté</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Bio, abonnés, vraies statistiques et tes meilleurs/pires posts sont récupérés automatiquement. L'audit le plus précis, sans rien recopier.
+        </p>
+        {instagramConnected === null ? (
+          <Button disabled className="mt-4 w-full rounded-pill gap-2 h-11">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Vérification de ta connexion...
+          </Button>
+        ) : instagramConnected ? (
+          <Button onClick={() => onSubmit({ mode: "connected", username: cleanHandle, profileScreenshots: screenshots })} disabled={loading} className="mt-4 w-full rounded-pill gap-2 h-11">
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {loading ? "Analyse en cours..." : "Lancer l'audit avec mes vraies stats"}
+          </Button>
+        ) : (
+          <Button asChild className="mt-4 w-full rounded-pill gap-2 h-11">
+            {/* Une fois connectée, on la ramène ici plutôt que de la laisser dans les paramètres. */}
+            <Link to="/parametres/connexions" onClick={() => memoriseRetour()}>
+              🔗 Connecter mon compte Instagram
+            </Link>
+          </Button>
+        )}
+      </div>
+
+      {/* ── Porte 2 : juste le @ ── */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <h3 className="text-base font-bold text-foreground">✍️ Sans connexion</h3>
+        <p className="mt-1 text-sm text-muted-foreground">
+          On récupère ce que ta page publique montre (nom, description). Audit plus léger, sans les statistiques.
+        </p>
+        <div className="mt-4 flex gap-2 max-sm:flex-col">
+          <Input
+            aria-label="Ton nom d'utilisateur Instagram"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="@toncompte"
+            className="flex-1"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && cleanHandle && !loading) {
+                onSubmit({ mode: "handle", username: cleanHandle, profileScreenshots: screenshots });
+              }
+            }}
+          />
           <Button
-            type="button"
-            variant={liveDone ? "outline" : "default"}
-            size="sm"
-            onClick={handleFetchLive}
-            disabled={fetchingLive}
-            className="shrink-0"
+            variant="outline"
+            onClick={() => onSubmit({ mode: "handle", username: cleanHandle, profileScreenshots: screenshots })}
+            disabled={loading || (!cleanHandle && screenshots.length === 0)}
+            className="rounded-pill gap-2 shrink-0"
           >
-            {fetchingLive ? (
-              <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />Récupération...</>
-            ) : liveDone ? (
-              <><RotateCcw className="h-3.5 w-3.5 mr-1.5" />Actualiser</>
-            ) : (
-              <><Sparkles className="h-3.5 w-3.5 mr-1.5" />Récupérer mes stats</>
-            )}
+            {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "🔍"}
+            Lancer l'audit
           </Button>
         </div>
-      )}
-
-      {/* ── Mode toggle ── */}
-      <div className="flex rounded-full border border-border overflow-hidden mb-6">
-        <button
-          onClick={() => setRapidMode(true)}
-          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${rapidMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-        >
-          ⚡ Rapide
-        </button>
-        <button
-          onClick={() => setRapidMode(false)}
-          className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${!rapidMode ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}
-        >
-          🔬 Complet
-        </button>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <p className="text-sm text-muted-foreground mb-1">
-          {rapidMode
-            ? "Mode rapide : bio + captures suffisent pour un premier audit. Tu pourras refaire un audit complet ensuite."
-            : "Remplis les infos de ton profil. Plus c'est précis, plus l'audit sera pertinent."}
-          <br />
-          <strong>Ces infos alimentent TOUT l'outil</strong> (bio, contenu, stratégie).
-        </p>
-      </div>
-
-      {/* ── Nom (complet only) ── */}
-      {!rapidMode && (
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">👤 TON NOM</h3>
-        <div>
-          <label htmlFor="audit-display-name" className="text-xs text-muted-foreground mb-1 block">Nom d'affichage</label>
-          <Input id="audit-display-name" value={form.displayName} onChange={(e) => set("displayName", e.target.value)} placeholder="Laetitia | Nowadays Agency" />
-        </div>
-        <div>
-          <label htmlFor="audit-username" className="text-xs text-muted-foreground mb-1 block">Nom d'utilisateur (@)</label>
-          <Input id="audit-username" value={form.username} onChange={(e) => set("username", e.target.value)} placeholder="@nowadaysagency" />
-        </div>
-      </section>
-      )}
-
-      {/* ── Bio ── */}
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📝 TA BIO</h3>
-        <div>
-          <label htmlFor="audit-bio" className="text-xs text-muted-foreground mb-1 block">Copie-colle ta bio Instagram ici :</label>
-          <Textarea id="audit-bio" value={form.bio} onChange={(e) => set("bio", e.target.value)} placeholder={"Ta spécialité en 1 ligne ✨\nTon titre ou rôle\nCe que tu apportes à ta cible\n↓ Lien ou CTA"} className="min-h-[100px]" />
-          <p className="text-xs text-muted-foreground mt-1 italic">💡 Tu la trouves dans Instagram › Modifier le profil</p>
-        </div>
-      </section>
-
-      {/* ── Lien (complet only) ── */}
-      {!rapidMode && (
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">🔗 TON LIEN</h3>
-        <Input aria-label="Ton lien (bio)" value={form.bioLink} onChange={(e) => set("bioLink", e.target.value)} placeholder="https://linktr.ee/toncompte" />
-      </section>
-      )}
-
-      {/* ── Photo de profil (complet only) ── */}
-      {!rapidMode && (
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📸 TA PHOTO DE PROFIL</h3>
-        <div className="flex items-start gap-4">
-          <div 
-            className="relative w-20 h-20 rounded-full border-2 border-dashed border-border bg-muted/20 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden shrink-0"
-            onClick={() => photoRef.current?.click()}
-          >
-            {form.profilePhotoFile ? (
-              <img loading="lazy" src={URL.createObjectURL(form.profilePhotoFile)} alt="Photo de profil" className="w-full h-full object-cover" />
-            ) : form.profilePhotoUrl ? (
-              <img loading="lazy" src={form.profilePhotoUrl} alt="Photo de profil" className="w-full h-full object-cover" />
-            ) : (
-              <span className="text-2xl">📷</span>
+      {/* ── Captures facultatives (repliées) ── */}
+      <div>
+        <button
+          type="button"
+          onClick={() => setShowScreenshots((s) => !s)}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          {showScreenshots ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+          📸 Ajouter des captures d'écran (facultatif)
+        </button>
+        {showScreenshots && (
+          <div className="mt-3 space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Avec une capture de ton profil ou de ton feed, l'IA analyse aussi ton identité visuelle et l'ambiance de ton compte.
+            </p>
+            <div
+              onClick={() => fileRef.current?.click()}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("border-primary", "bg-primary/5"); }}
+              onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); }}
+              onDrop={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files); }}
+              className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            >
+              <ImagePlus className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
+              <p className="text-xs text-muted-foreground">Glisse tes captures ici ou clique pour parcourir (5 max)</p>
+            </div>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
+            {screenshots.length > 0 && (
+              <div className="flex flex-wrap gap-3">
+                {screenshots.map((f, i) => (
+                  <div key={i} className="relative w-24 h-24 rounded-xl border border-border bg-muted/30 overflow-hidden group">
+                    <img loading="lazy" src={URL.createObjectURL(f)} alt="Aperçu de la capture d'écran importée" className="w-full h-full object-cover" />
+                    <button
+                      aria-label="Retirer cette capture"
+                      onClick={() => setScreenshots(screenshots.filter((_, j) => j !== i))}
+                      className="absolute top-1 right-1 bg-background/80 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
-          <input 
-            ref={photoRef} 
-            type="file" 
-            accept="image/*" 
-            className="hidden" 
-            onChange={(e) => {
-              if (e.target.files?.[0]) set("profilePhotoFile", e.target.files[0]);
-            }} 
-          />
-          <div className="flex-1 space-y-2">
-            <p className="text-xs text-muted-foreground">Clique sur le cercle pour uploader ta photo de profil Instagram.</p>
-            <label htmlFor="audit-photo-description" className="text-xs text-muted-foreground mb-1 block">OU décris-la en 1 phrase :</label>
-            <Input id="audit-photo-description" value={form.photoDescription} onChange={(e) => set("photoDescription", e.target.value)} placeholder="Photo souriante, fond rose, cheveux détachés" />
-          </div>
-        </div>
-      </section>
-      )}
-
-      {/* ── Stories à la une (complet only) ── */}
-      {!rapidMode && (
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📱 TES STORIES À LA UNE</h3>
-        <div>
-          <label htmlFor="audit-highlights" className="text-xs text-muted-foreground mb-1 block">Liste les noms de tes highlights (séparés par des virgules) :</label>
-          <Input id="audit-highlights" value={form.highlights} onChange={(e) => set("highlights", e.target.value)} placeholder="Avis, FAQ, Perso, Coulisses, Offres" />
-        </div>
-        <div>
-          <label htmlFor="audit-highlights-count" className="text-xs text-muted-foreground mb-1 block">Combien de highlights :</label>
-          <Input id="audit-highlights-count" type="number" value={form.highlightsCount} onChange={(e) => set("highlightsCount", e.target.value)} placeholder="5" className="w-24" />
-        </div>
-        <div>
-          <button onClick={() => hlRef.current?.click()} className="text-xs text-primary hover:underline">📷 OU uploader un screenshot de tes highlights</button>
-          <input ref={hlRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) set("highlightsScreenshot", e.target.files[0]); }} />
-          {form.highlightsScreenshot && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-foreground">{form.highlightsScreenshot.name}</span>
-              <button onClick={() => set("highlightsScreenshot", null)}><X className="h-3 w-3" /></button>
-            </div>
-          )}
-        </div>
-      </section>
-      )}
-
-      {/* ── Posts épinglés (complet only) ── */}
-      {!rapidMode && (
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📌 TES POSTS ÉPINGLÉS</h3>
-        <div className="flex gap-3">
-          <Button variant={form.hasPinned === true ? "default" : "outline"} size="sm" onClick={() => set("hasPinned", true)} className="rounded-pill">Oui</Button>
-          <Button variant={form.hasPinned === false ? "default" : "outline"} size="sm" onClick={() => set("hasPinned", false)} className="rounded-pill">Non</Button>
-        </div>
-        {form.hasPinned && (
-          <div className="space-y-4 mt-3">
-            {[
-              { key: "pinnedPost1", fileKey: "pinnedFile1", label: "Post épinglé 1 : Qui tu es", emoji: "📖" },
-              { key: "pinnedPost2", fileKey: "pinnedFile2", label: "Post épinglé 2 : Ton expertise", emoji: "🎁" },
-              { key: "pinnedPost3", fileKey: "pinnedFile3", label: "Post épinglé 3 : Tes résultats", emoji: "⭐" },
-            ].map(({ key, fileKey, label, emoji }) => (
-              <div key={key} className="rounded-xl border border-border bg-card p-4 space-y-2">
-                <p className="text-xs font-semibold text-foreground">{emoji} {label}</p>
-                <div className="flex items-start gap-3">
-                  <div 
-                    className="relative w-16 h-16 rounded-lg border border-dashed border-border bg-muted/20 flex items-center justify-center cursor-pointer hover:border-primary/50 transition-colors overflow-hidden shrink-0"
-                    onClick={() => {
-                      const input = document.getElementById(`pinned-upload-${key}`) as HTMLInputElement;
-                      input?.click();
-                    }}
-                  >
-                    {(form as any)[fileKey] ? (
-                      <img loading="lazy" src={URL.createObjectURL((form as any)[fileKey])} alt={label} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-lg">📷</span>
-                    )}
-                  </div>
-                  <input 
-                    id={`pinned-upload-${key}`}
-                    type="file" 
-                    accept="image/*" 
-                    className="hidden" 
-                    onChange={(e) => {
-                      if (e.target.files?.[0]) set(fileKey, e.target.files[0]);
-                    }} 
-                  />
-                  <div className="flex-1">
-                    <label htmlFor={`audit-pinned-desc-${key}`} className="text-xs text-muted-foreground mb-1 block">OU décris le contenu :</label>
-                    <Input
-                      id={`audit-pinned-desc-${key}`}
-                      value={(form as any)[key]}
-                      onChange={(e) => set(key, e.target.value)}
-                      placeholder="Carrousel storytelling sur mon parcours"
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
         )}
-      </section>
-      )}
-
-      {/* ── Feed (complet only) ── */}
-      {!rapidMode && (
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">🎨 TON FEED</h3>
-        <div>
-          <label htmlFor="audit-feed-description" className="text-xs text-muted-foreground mb-1 block">Décris ton feed en quelques mots :</label>
-          <Textarea id="audit-feed-description" value={form.feedDescription} onChange={(e) => set("feedDescription", e.target.value)} placeholder="Palette rose + blanc, carrousels éducatifs, quelques Reels face cam, pas beaucoup de photos perso" className="min-h-[80px]" />
-        </div>
-        <div>
-          <button onClick={() => feedRef.current?.click()} className="text-xs text-primary hover:underline">📷 OU uploader un screenshot de ton feed (les 9 derniers)</button>
-          <input ref={feedRef} type="file" accept="image/*" className="hidden" onChange={(e) => { if (e.target.files?.[0]) set("feedScreenshot", e.target.files[0]); }} />
-          {form.feedScreenshot && (
-            <div className="flex items-center gap-2 mt-1">
-              <span className="text-xs text-foreground">{form.feedScreenshot.name}</span>
-              <button onClick={() => set("feedScreenshot", null)}><X className="h-3 w-3" /></button>
-            </div>
-          )}
-        </div>
-      </section>
-      )}
-
-      {/* ── Mes Posts (meilleurs + pires) — complet only ── */}
-      {!rapidMode && (
-      <section className="space-y-4">
-        <h3 className="text-sm font-bold text-foreground">📊 MES POSTS</h3>
-
-        {isRedo && (
-          <div className="rounded-xl border border-warning/30 bg-warning-bg/50 p-3">
-            <p className="text-xs text-warning">
-              ⚠️ Les captures du dernier audit ne sont pas réutilisées (tes stats ont changé). Uploade les nouveaux.
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-3">
-          <label className="text-xs font-semibold text-foreground block">
-            🟢 Tes posts qui ont LE MIEUX marché ce mois :
-          </label>
-          <FileUploadGrid
-            files={form.bestPostFiles}
-            onAdd={(fl) => addPostFiles("bestPostFiles", fl)}
-            onRemove={(i) => set("bestPostFiles", form.bestPostFiles.filter((_, j) => j !== i))}
-            label="meilleur post"
-          />
-          <div>
-            <label htmlFor="audit-best-comment" className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils ont bien marché ? (optionnel)</label>
-            <Textarea
-              id="audit-best-comment"
-              value={form.bestPostsComment}
-              onChange={(e) => set("bestPostsComment", e.target.value)}
-              placeholder="Le carrousel sur les erreurs de bio a eu beaucoup de saves et le Reel a bien tourné en organique"
-              className="min-h-[60px]"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <label className="text-xs font-semibold text-foreground block">
-            🔴 Tes posts qui ont LE MOINS marché :
-          </label>
-          <FileUploadGrid
-            files={form.worstPostFiles}
-            onAdd={(fl) => addPostFiles("worstPostFiles", fl)}
-            onRemove={(i) => set("worstPostFiles", form.worstPostFiles.filter((_, j) => j !== i))}
-            label="pire post"
-          />
-          <div>
-            <label htmlFor="audit-worst-comment" className="text-xs text-muted-foreground mb-1 block">Pourquoi tu penses qu'ils n'ont pas marché ? (optionnel)</label>
-            <Textarea
-              id="audit-worst-comment"
-              value={form.worstPostsComment}
-              onChange={(e) => set("worstPostsComment", e.target.value)}
-              placeholder="Le post citation a fait 0 save et le Reel tuto était trop long"
-              className="min-h-[60px]"
-            />
-          </div>
-        </div>
-
-        <p className="text-xs text-muted-foreground italic">
-          💡 Tu peux uploader des PNG, JPG ou PDF (5 Mo max par fichier). Les captures d'écran des stats du post sont idéales : Instagram › Post › "Voir les statistiques"
-        </p>
-      </section>
-      )}
-
-      {/* ── Chiffres — followers visible in rapid, rest complet only ── */}
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📊 QUELQUES CHIFFRES</h3>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label htmlFor="audit-followers" className="text-xs text-muted-foreground mb-1 block">Nombre d'abonné·es</label>
-            <Input id="audit-followers" type="number" value={form.followers} onChange={(e) => set("followers", e.target.value)} placeholder="6 292" />
-          </div>
-          {!rapidMode && (
-          <div>
-            <label htmlFor="audit-posts-per-month" className="text-xs text-muted-foreground mb-1 block">Posts publiés ce mois</label>
-            <Input id="audit-posts-per-month" type="number" value={form.postsPerMonth} onChange={(e) => set("postsPerMonth", e.target.value)} placeholder="4" />
-          </div>
-          )}
-        </div>
-        {!rapidMode && (
-        <div>
-          <label className="text-xs text-muted-foreground mb-2 block">Fréquence de publication :</label>
-          <div className="flex flex-wrap gap-2">
-            {FREQUENCY_OPTIONS.map((f) => (
-              <button
-                key={f}
-                onClick={() => set("frequency", f)}
-                className={`rounded-pill px-4 py-2 text-sm font-medium border transition-all ${form.frequency === f ? "border-primary bg-rose-pale text-primary" : "border-border bg-card text-foreground hover:border-primary/40"}`}
-              >
-                {f}
-              </button>
-            ))}
-          </div>
-        </div>
-        )}
-      </section>
-
-      {/* ── Ligne éditoriale (complet only) ── */}
-      {!rapidMode && (
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📝 TA LIGNE ÉDITORIALE</h3>
-        <div>
-          <label htmlFor="audit-pillars" className="text-xs text-muted-foreground mb-1 block">Tes piliers de contenu (séparés par des virgules) :</label>
-          <Input id="audit-pillars" value={form.pillars} onChange={(e) => set("pillars", e.target.value)} placeholder="Éducation, Storytelling, Engagement, Inspiration" />
-          <p className="text-xs text-muted-foreground mt-1 italic">Laisse vide si pas encore définis.</p>
-        </div>
-      </section>
-      )}
-
-      {/* ── Screenshots ── */}
-      <section className="space-y-3">
-        <h3 className="text-sm font-bold text-foreground">📸 SCREENSHOTS {rapidMode ? "(fortement recommandé pour un audit précis)" : "(recommandé pour enrichir l'audit)"}</h3>
-        <p className="text-xs text-muted-foreground -mt-1">Sans capture d'écran de ton feed, l'audit se base uniquement sur le texte que tu renseignes. Avec des screenshots, l'IA analyse aussi ton identité visuelle, ta cohérence graphique et l'ambiance de ton profil.</p>
-        <div
-          onClick={() => profileRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.add("border-primary", "bg-primary/5"); }}
-          onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); }}
-          onDrop={(e) => { e.preventDefault(); e.stopPropagation(); e.currentTarget.classList.remove("border-primary", "bg-primary/5"); if (e.dataTransfer.files?.length) handleProfileFiles(e.dataTransfer.files); }}
-          className="rounded-2xl border-2 border-dashed border-border bg-muted/30 p-6 text-center cursor-pointer hover:border-primary/50 transition-colors"
-        >
-          <Upload className="h-5 w-5 text-muted-foreground mx-auto mb-1" />
-          <p className="text-xs text-muted-foreground">Glisse tes screenshots ici ou clique pour parcourir</p>
-        </div>
-        <input ref={profileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleProfileFiles(e.target.files)} />
-        {form.profileScreenshots.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {form.profileScreenshots.map((f, i) => (
-              <div key={i} className="flex items-center gap-1 text-xs bg-muted rounded-pill px-2 py-1">
-                <span>{f.name.substring(0, 15)}...</span>
-                <button onClick={() => set("profileScreenshots", form.profileScreenshots.filter((_, j) => j !== i))}><X className="h-3 w-3" /></button>
-              </div>
-            ))}
-          </div>
-        )}
-        <p className="text-xs text-muted-foreground italic mt-1">
-          💡 La première capture de ton profil sera analysée visuellement par l'IA. Les autres sont sauvegardées pour référence.
-        </p>
-      </section>
-
-      <Button onClick={() => onSubmit(form)} disabled={loading || (!form.bio && !form.displayName && form.profileScreenshots.length === 0)} className="w-full rounded-pill gap-2 h-12 text-base">
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        {loading ? "Analyse en cours..." : "🔍 Lancer l'audit"}
-      </Button>
+      </div>
     </div>
   );
 }

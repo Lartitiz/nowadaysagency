@@ -23,7 +23,6 @@ import AuditInputForm, { type AuditFormData } from "@/components/audit/AuditInpu
 import ContentAnalysisResults from "@/components/audit/ContentAnalysisResults";
 import { calculateAuditScore, type ProfileForScore } from "@/lib/audit-score";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
-import HubConnectBanner from "@/components/hub/HubConnectBanner";
 import { useUserPlan } from "@/hooks/use-user-plan";
 import QuotaExhaustedCard from "@/components/QuotaExhaustedCard";
 
@@ -64,11 +63,11 @@ export default function InstagramAudit() {
   // Reprise après un rechargement survenu pendant un audit : "done" = il a abouti
   // côté serveur entre-temps, "interrupted" = il a été coupé, on réinvite à relancer.
   const [resumeNotice, setResumeNotice] = useState<null | "done" | "interrupted">(null);
-  // Connexion Instagram + stats réelles récupérées via l'API (instagram-insights-fetch).
-  const [igConnected, setIgConnected] = useState(false);
-  const [liveMetrics, setLiveMetrics] = useState<any>(null);
+  // Connexion Instagram : null = statut pas encore connu (l'écran affiche un loader
+  // sur la porte « compte connecté » tant qu'on ne sait pas).
+  const [igConnected, setIgConnected] = useState<boolean | null>(null);
 
-  // Sait si un compte Instagram est connecté (pour proposer la récupération des stats).
+  // Sait si un compte Instagram est connecté (porte 1 de l'écran d'audit).
   useEffect(() => {
     if (!user) return;
     supabase.functions.invoke("social-status", {
@@ -76,13 +75,12 @@ export default function InstagramAudit() {
     }).then(({ data }) => {
       const conns = (data as any)?.connections || [];
       setIgConnected(conns.some((c: any) => c.platform === "instagram" && c.connected));
-    }).catch(() => { /* non bloquant */ });
+    }).catch(() => setIgConnected(false));
   }, [user?.id, workspaceId]);
 
-  // Récupère les statistiques réelles du compte et renvoie un pré-remplissage du
-  // formulaire (abonnés, fréquence). Les top/flop posts sont gardés dans liveMetrics
-  // pour être envoyés à l'audit au moment de la soumission.
-  const fetchLiveMetrics = async (): Promise<Partial<AuditFormData> | null> => {
+  // Récupère profil + statistiques réelles du compte connecté (bio, abonnés,
+  // fréquence, top/flop posts). Renvoie l'objet metrics brut, ou null si échec.
+  const fetchLiveMetrics = async (): Promise<any | null> => {
     if (!user) return null;
     const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
       body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
@@ -98,15 +96,10 @@ export default function InstagramAudit() {
       return null;
     }
     const m = (data as any).metrics;
-    setLiveMetrics(m);
     if (m.partial) {
       toast("Stats partiellement récupérées", { description: "Certaines métriques manquaient, mais l'essentiel est là." });
     }
-    return {
-      followers: typeof m.followers === "number" ? String(m.followers) : undefined,
-      postsPerMonth: typeof m.postsLast30d === "number" ? String(m.postsLast30d) : undefined,
-      frequency: m.frequencyLabel || undefined,
-    };
+    return m;
   };
 
   // Progressive loading messages during audit
@@ -207,7 +200,9 @@ export default function InstagramAudit() {
     return signed.signedUrl;
   };
 
-  const handleSubmit = async (form: AuditFormData, retryCount = 0) => {
+  // liveOverride : stats déjà récupérées lors d'une première tentative — les retries
+  // les réutilisent au lieu de re-taper l'API Meta.
+  const handleSubmit = async (form: AuditFormData, retryCount = 0, liveOverride?: any) => {
     if (!user) return;
 
     // Pre-check: block if no audit credits left
@@ -215,6 +210,8 @@ export default function InstagramAudit() {
       setQuotaExhausted({ message: "" });
       return;
     }
+
+    let live: any = liveOverride ?? null;
 
     setLastSubmitData(form);
     setLastError(null);
@@ -233,82 +230,77 @@ export default function InstagramAudit() {
       // Refresh session preemptively to avoid JWT expiry during long audit
       await supabase.auth.refreshSession();
 
-      // 1. Save profile data
-      const highlightsArray = form.highlights ? form.highlights.split(",").map((s) => s.trim()).filter(Boolean) : [];
-      const pinnedPosts = [form.pinnedPost1, form.pinnedPost2, form.pinnedPost3].filter(Boolean).map((d) => ({ description: d }));
-      const pillarsArray = form.pillars ? form.pillars.split(",").map((s) => s.trim()).filter(Boolean) : [];
+      // 1. Compte connecté : bio, abonnés, stats et top/flop posts viennent de l'API.
+      // Un échec ici arrête l'audit (le toast d'explication est déjà affiché) plutôt
+      // que de produire un audit vide.
+      if (form.mode === "connected" && !live) {
+        live = await fetchLiveMetrics();
+        if (!live) return;
+      }
 
-      await (supabase.from("profiles") as any).update({
-        instagram_display_name: form.displayName || null,
-        instagram_username: form.username || null,
-        instagram_bio: form.bio || null,
-        instagram_bio_link: form.bioLink || null,
-        instagram_photo_description: form.photoDescription || null,
-        instagram_highlights: highlightsArray.length ? highlightsArray : null,
-        instagram_highlights_count: form.highlightsCount ? parseInt(form.highlightsCount) : highlightsArray.length || null,
-        instagram_pinned_posts: pinnedPosts.length ? pinnedPosts : null,
-        instagram_feed_description: form.feedDescription || null,
-        instagram_followers: form.followers ? parseInt(form.followers) : null,
-        instagram_posts_per_month: form.postsPerMonth ? parseInt(form.postsPerMonth) : null,
-        instagram_frequency: form.frequency || null,
-        instagram_pillars: pillarsArray.length ? pillarsArray : null,
-      } as any).eq(column, value);
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      // 2. Données du profil pour l'audit : issues de l'API (compte connecté), sinon
+      // du @ public — complétées par ce qu'on connaît déjà en base.
+      const handle = form.username || undefined;
+      const atd: Record<string, any> = form.mode === "connected" ? {
+        displayName: live.displayName || profileData?.instagram_display_name || undefined,
+        username: live.username || handle || profileData?.instagram_username || undefined,
+        bio: live.biography || profileData?.instagram_bio || undefined,
+        bioLink: live.website || profileData?.instagram_bio_link || undefined,
+        followers: typeof live.followers === "number" ? live.followers : null,
+        postsPerMonth: typeof live.postsLast30d === "number" ? live.postsLast30d : null,
+        frequency: live.frequencyLabel || profileData?.instagram_frequency || undefined,
+        pillars: (profileData?.instagram_pillars as string[] | null) || undefined,
+      } : {
+        username: handle || profileData?.instagram_username || undefined,
+        displayName: profileData?.instagram_display_name || undefined,
+        bio: profileData?.instagram_bio || undefined,
+        bioLink: profileData?.instagram_bio_link || undefined,
+        followers: profileData?.instagram_followers ?? null,
+        frequency: profileData?.instagram_frequency || undefined,
+        pillars: (profileData?.instagram_pillars as string[] | null) || undefined,
+      };
 
-      // 2. Upload screenshots (non-blocking: audit works with text data if uploads fail)
-      let screenshotUrls: string[] = [];
-      let bestPostUrls: string[] = [];
-      let worstPostUrls: string[] = [];
+      // 3. Sauvegarde dans le profil : uniquement ce qu'on SAIT — jamais de null qui
+      // écraserait une info existante (highlights, piliers… restent intacts).
+      const profileUpdate: Record<string, any> = {};
+      if (atd.username) profileUpdate.instagram_username = atd.username;
+      if (atd.displayName) profileUpdate.instagram_display_name = atd.displayName;
+      if (atd.bio) profileUpdate.instagram_bio = atd.bio;
+      if (atd.bioLink) profileUpdate.instagram_bio_link = atd.bioLink;
+      if (typeof atd.followers === "number") profileUpdate.instagram_followers = atd.followers;
+      if (typeof atd.postsPerMonth === "number") profileUpdate.instagram_posts_per_month = atd.postsPerMonth;
+      if (atd.frequency) profileUpdate.instagram_frequency = atd.frequency;
+      if (form.mode === "connected" && live?.profilePictureUrl) profileUpdate.instagram_photo_url = live.profilePictureUrl;
+      if (Object.keys(profileUpdate).length) {
+        await (supabase.from("profiles") as any).update(profileUpdate as any).eq(column, value);
+        queryClient.invalidateQueries({ queryKey: ["profile"] });
+      }
+
+      // 4. Upload des captures facultatives (non bloquant : l'audit tourne sans)
+      const screenshotUrls: string[] = [];
       try {
         for (const f of form.profileScreenshots) {
           screenshotUrls.push(await uploadFile(f, "audit-screenshots", "profile"));
-        }
-        if (form.feedScreenshot) screenshotUrls.push(await uploadFile(form.feedScreenshot, "audit-screenshots", "feed"));
-        if (form.highlightsScreenshot) screenshotUrls.push(await uploadFile(form.highlightsScreenshot, "audit-screenshots", "highlights"));
-
-        // 3. Upload best/worst post files
-        for (const f of form.bestPostFiles) {
-          bestPostUrls.push(await uploadFile(f, "audit-posts", "best"));
-        }
-        for (const f of form.worstPostFiles) {
-          worstPostUrls.push(await uploadFile(f, "audit-posts", "worst"));
         }
       } catch (uploadErr) {
         console.warn("[Audit] Screenshot upload failed, continuing with text data:", uploadErr);
       }
 
-
-      // 4. Call AI audit (send URLs instead of base64 to avoid memory issues)
+      // 5. Call AI audit (send URLs instead of base64 to avoid memory issues)
       const res = await invokeWithTimeout("audit-instagram-ai", {
         body: {
           screenshotUrls: screenshotUrls.length ? screenshotUrls : undefined,
-          auditTextData: {
-            displayName: form.displayName,
-            username: form.username,
-            bio: form.bio,
-            bioLink: form.bioLink,
-            photoDescription: form.photoDescription,
-            highlights: highlightsArray,
-            highlightsCount: form.highlightsCount ? parseInt(form.highlightsCount) : highlightsArray.length,
-            pinnedPosts,
-            feedDescription: form.feedDescription,
-            followers: form.followers ? parseInt(form.followers) : null,
-            postsPerMonth: form.postsPerMonth ? parseInt(form.postsPerMonth) : null,
-            frequency: form.frequency,
-            pillars: pillarsArray,
-            bestPostUrls,
-            worstPostUrls,
-            bestPostsComment: form.bestPostsComment || null,
-            worstPostsComment: form.worstPostsComment || null,
-          },
-          // Statistiques réelles (si récupérées) : alimentent le bloc factuel du prompt
+          auditTextData: atd,
+          // Mode « juste le @ » : le serveur va chercher ce que la page publique expose.
+          fetchPublicProfile: form.mode === "handle" || undefined,
+          // Statistiques réelles (compte connecté) : alimentent le bloc factuel du prompt
           // + les top/flop posts mesurés deviennent les données structurées de l'audit.
-          liveMetrics: liveMetrics || undefined,
-          successPostsData: liveMetrics?.topPosts?.length
-            ? liveMetrics.topPosts.map((p: any) => ({ format: p.format, subject: p.subject, reach: p.reach, likes: p.likes, comments: p.comments, saves: p.saves, shares: p.shares }))
+          liveMetrics: live || undefined,
+          successPostsData: live?.topPosts?.length
+            ? live.topPosts.map((p: any) => ({ format: p.format, subject: p.subject, reach: p.reach, likes: p.likes, comments: p.comments, saves: p.saves, shares: p.shares }))
             : undefined,
-          failPostsData: liveMetrics?.flopPosts?.length
-            ? liveMetrics.flopPosts.map((p: any) => ({ format: p.format, subject: p.subject, reach: p.reach, likes: p.likes, comments: p.comments, saves: p.saves, shares: p.shares }))
+          failPostsData: live?.flopPosts?.length
+            ? live.flopPosts.map((p: any) => ({ format: p.format, subject: p.subject, reach: p.reach, likes: p.likes, comments: p.comments, saves: p.saves, shares: p.shares }))
             : undefined,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         },
@@ -337,7 +329,7 @@ export default function InstagramAudit() {
         console.log("[Audit] Retryable error, auto-retrying in 3s...", res.data.error);
         setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
-        return handleSubmit(form, retryCount + 1);
+        return handleSubmit(form, retryCount + 1, live);
       }
 
       if (res.data?.error && !res.data?.retryable) {
@@ -436,9 +428,6 @@ export default function InstagramAudit() {
       let newAuditDate: string | null = res.data?.auditDate ?? null;
 
       if (!newAuditId) {
-        const bestPostsJson = bestPostUrls.map((url, i) => ({ image_url: url, comment: i === 0 ? form.bestPostsComment : null }));
-        const worstPostsJson = worstPostUrls.map((url, i) => ({ image_url: url, comment: i === 0 ? form.worstPostsComment : null }));
-
         const { data: insertData } = await supabase.from("instagram_audit").insert({
           user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
           score_global: parsed.score_global,
@@ -450,10 +439,6 @@ export default function InstagramAudit() {
           score_edito: parsed.sections?.edito?.score ?? 0,
           resume: parsed.resume,
           details: parsed,
-          best_posts: bestPostsJson.length ? bestPostsJson : null,
-          worst_posts: worstPostsJson.length ? worstPostsJson : null,
-          best_posts_comment: form.bestPostsComment || null,
-          worst_posts_comment: form.worstPostsComment || null,
           posts_analysis: parsed.posts_analysis || null,
           profile_url: null,
         } as any).select("id, created_at").single();
@@ -484,7 +469,7 @@ export default function InstagramAudit() {
         console.log("[Audit] Transient error, auto-retrying in 3s...", errStr);
         setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
-        return handleSubmit(form, retryCount + 1);
+        return handleSubmit(form, retryCount + 1, live);
       }
 
       // Contextual error messages
@@ -759,27 +744,8 @@ export default function InstagramAudit() {
   }
 
   // ══════════════════════════════════════════════
-  // FORM VIEW — input form (pre-filled if redo)
+  // FORM VIEW — écran « deux portes » (connexion ou @)
   // ══════════════════════════════════════════════
-  const initialForm: Partial<AuditFormData> = profileData ? {
-    displayName: profileData.instagram_display_name || "",
-    username: profileData.instagram_username || "",
-    bio: profileData.instagram_bio || "",
-    bioLink: profileData.instagram_bio_link || "",
-    photoDescription: profileData.instagram_photo_description || "",
-    highlights: (profileData.instagram_highlights as string[] || []).join(", "),
-    highlightsCount: profileData.instagram_highlights_count?.toString() || "",
-    hasPinned: profileData.instagram_pinned_posts ? true : null,
-    pinnedPost1: (profileData.instagram_pinned_posts as any)?.[0]?.description || "",
-    pinnedPost2: (profileData.instagram_pinned_posts as any)?.[1]?.description || "",
-    pinnedPost3: (profileData.instagram_pinned_posts as any)?.[2]?.description || "",
-    feedDescription: profileData.instagram_feed_description || "",
-    followers: profileData.instagram_followers?.toString() || "",
-    postsPerMonth: profileData.instagram_posts_per_month?.toString() || "",
-    frequency: profileData.instagram_frequency || "",
-    pillars: (profileData.instagram_pillars as string[] || []).join(", "),
-  } : undefined;
-
   const showDiagBanner = !hasExistingAudit && diagIsRecent && diagCache && diagCache.scores?.instagram != null;
 
   return (
@@ -792,8 +758,8 @@ export default function InstagramAudit() {
         </h1>
         <p className="mt-2 text-sm text-muted-foreground italic mb-8">
           {hasExistingAudit
-            ? "Mets à jour tes infos et relance l'analyse."
-            : "Remplis les infos de ton profil. On analyse tout et on te donne un score avec des recommandations concrètes."}
+            ? "Relance l'analyse : tout est récupéré automatiquement."
+            : "Rien à recopier : connecte ton compte ou donne ton @, on analyse tout et on te donne un score avec des recommandations concrètes."}
         </p>
         {(quotaExhausted || !canAudit()) && !analyzing && (
           <QuotaExhaustedCard
@@ -810,8 +776,8 @@ export default function InstagramAudit() {
         {resumeNotice === "interrupted" && !analyzing && (
           <div className="rounded-2xl border border-warning/40 bg-warning-bg/60 p-4 mb-6">
             <p className="text-sm text-foreground">
-              ⏸️ Ton audit a été interrompu par un rechargement de la page. Tes infos sont conservées —
-              re-dépose tes captures et relance l'analyse. S'il a malgré tout abouti, il apparaîtra dans tes résultats.
+              ⏸️ Ton audit a été interrompu par un rechargement de la page. Relance l'analyse —
+              s'il a malgré tout abouti, il apparaîtra dans tes résultats.
             </p>
           </div>
         )}
@@ -839,9 +805,13 @@ export default function InstagramAudit() {
           </div>
         )}
         <div className={analyzing ? "hidden" : ""}>
-          {/* Compte non connecté : invite à le faire (l'encart gère lui-même connecté/chargement) */}
-          <HubConnectBanner platform="instagram" benefit="récupérer automatiquement ton reach, tes abonnés et tes meilleurs/pires posts — ton audit sera basé sur tes vraies stats" />
-          <AuditInputForm initial={initialForm} onSubmit={handleSubmit} loading={analyzing} isRedo={hasExistingAudit} instagramConnected={igConnected} onFetchLiveMetrics={fetchLiveMetrics} />
+          <AuditInputForm
+            initialUsername={profileData?.instagram_username || ""}
+            onSubmit={handleSubmit}
+            loading={analyzing}
+            isRedo={hasExistingAudit}
+            instagramConnected={igConnected}
+          />
         </div>
       </main>
     </div>

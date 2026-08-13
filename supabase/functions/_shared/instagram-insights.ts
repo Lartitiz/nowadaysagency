@@ -38,6 +38,11 @@ export interface IgAudience {
 }
 
 export interface IgLiveMetrics {
+  username?: string;
+  displayName?: string; // champ "name" du profil
+  biography?: string; // bio du profil
+  profilePictureUrl?: string;
+  website?: string; // lien en bio
   followers?: number;
   follows?: number;
   mediaCount?: number;
@@ -691,6 +696,16 @@ export async function fetchInstagramInsights(
     return getJson(u, ctx);
   };
 
+  // 1ter. Champs texte du profil (bio, nom, lien, photo) — couverts par le scope
+  //       instagram_business_basic déjà accordé. Appel SÉPARÉ des compteurs : si Meta
+  //       rejette un de ces champs, on ne perd pas followers/media_count pour autant.
+  const fetchProfileFields = async () => {
+    const u = new URL(`${GRAPH}/${igId}`);
+    u.searchParams.set("fields", "username,name,biography,website,profile_picture_url");
+    u.searchParams.set("access_token", token);
+    return getJson(u, ctx);
+  };
+
   // 2. Reach UNIQUE du compte sur les 28 derniers jours. Comme les autres métriques
   //    compte, on interroge sur une fenêtre since/until EXPLICITE (period=day +
   //    total_value) : sans fenêtre, days_28 renvoyait le reach d'UNE seule journée
@@ -741,8 +756,9 @@ export async function fetchInstagramInsights(
   const nowD = new Date();
   const monthStartSec = Math.floor(Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth(), 1) / 1000);
 
-  const [base, reach28, accountVals, growth, postData, postsMonthCount] = await Promise.all([
+  const [base, profileFields, reach28, accountVals, growth, postData, postsMonthCount] = await Promise.all([
     fetchBase(),
+    fetchProfileFields(),
     fetchReach28(),
     Promise.all([
       fetchAccountTotalValue(igId, token, "views", ctx),
@@ -763,6 +779,15 @@ export async function fetchInstagramInsights(
     result.mediaCount = base.media_count;
   } else {
     partial = true;
+  }
+
+  // Champs texte du profil : optionnels, un échec ici ne dégrade rien (pas de partial).
+  if (profileFields) {
+    if (typeof profileFields.username === "string" && profileFields.username) result.username = profileFields.username;
+    if (typeof profileFields.name === "string" && profileFields.name) result.displayName = profileFields.name;
+    if (typeof profileFields.biography === "string" && profileFields.biography) result.biography = profileFields.biography;
+    if (typeof profileFields.website === "string" && profileFields.website) result.website = profileFields.website;
+    if (typeof profileFields.profile_picture_url === "string" && profileFields.profile_picture_url) result.profilePictureUrl = profileFields.profile_picture_url;
   }
 
   if (typeof reach28 === "number") result.reach30d = reach28;
