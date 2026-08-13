@@ -844,7 +844,7 @@ export default function CreerUnifie() {
       setSearchParams(cleaned, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, conflictPending]);
 
   // ── Library photos → preload as if uploaded (chemin /photos → /creer) ──
   // Capturé une seule fois au mount pour survivre au cleanup replaceState.
