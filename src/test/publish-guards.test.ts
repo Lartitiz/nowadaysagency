@@ -6,6 +6,7 @@ import {
   instagramPublishDisabledReason,
   isInstagramPublishTarget,
   linkedInPublishDisabledReason,
+  REASON_IMAGE_MANQUANTE,
 } from "@/features/creer/publish-guards";
 
 describe("isInstagramPublishTarget (affichage du bouton Publier sur Instagram)", () => {
@@ -114,8 +115,8 @@ describe("instagramPublishDisabledReason", () => {
     expect(instagramPublishDisabledReason({ ...base, isCarousel: true, visualSlidesCount: 2 })).toBeNull();
   });
 
-  it("image simple : exige une URL publique", () => {
-    expect(instagramPublishDisabledReason({ ...base, publishableImageUrl: null })).toMatch(/image publique/);
+  it("image simple : exige une image, avec un message en langage courant (REASON_IMAGE_MANQUANTE)", () => {
+    expect(instagramPublishDisabledReason({ ...base, publishableImageUrl: null })).toBe(REASON_IMAGE_MANQUANTE);
     expect(instagramPublishDisabledReason(base)).toBeNull();
   });
 });
