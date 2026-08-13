@@ -183,8 +183,9 @@
     font-weight: 400 !important;
   }
 
-  /* Sous-titres (h3 à h6) : le serif devient illisible à petite taille.
+  /* Sous-titres (h2 à h6) : le serif devient illisible à petite taille.
      On repasse en Hanken Grotesk semi-bold, sauf demande explicite de serif. */
+  h2:not(.font-heading):not(.font-display),
   h3:not(.font-heading):not(.font-display),
   h4:not(.font-heading):not(.font-display),
   h5:not(.font-heading):not(.font-display),
