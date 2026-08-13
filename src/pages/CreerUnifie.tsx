@@ -3847,6 +3847,24 @@ export default function CreerUnifie() {
     <div className="min-h-screen bg-background">
       <AppHeader />
 
+      {conflictPending && draftConflict && (
+        <DraftConflictDialog
+          open
+          draft={draftConflict.draft}
+          newSubject={draftConflict.newSubject}
+          onResume={() => {
+            // On repart proprement du brouillon persisté : rechargement sans
+            // location.state ni paramètres de démarrage.
+            window.location.replace(location.pathname);
+          }}
+          onStartNew={() => {
+            clearFlowState();
+            setConflictResolved(true);
+          }}
+        />
+      )}
+
+
       {isLoadingLibraryPhotos && (
         <div className="fixed inset-0 z-50 bg-background/70 backdrop-blur-sm flex items-center justify-center">
           <div className="flex flex-col items-center gap-2 text-foreground">
