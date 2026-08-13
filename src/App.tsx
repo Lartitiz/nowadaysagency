@@ -203,6 +203,9 @@ function AnimatedRoutes() {
   }, []);
 
   const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/") && !location.pathname.startsWith("/calendrier/partage/");
+  // Onboarding = tunnel : pas de menu latéral (13 portes de sortie avant le
+  // premier contenu, cf audit de simplicité 13/08). Le menu revient dès /welcome.
+  const showSidebar = showAppWidgets && location.pathname !== "/onboarding";
   const showCoach = showAppWidgets && location.pathname !== "/onboarding" && location.pathname !== "/welcome";
 
   return (
@@ -213,7 +216,7 @@ function AnimatedRoutes() {
       <Suspense fallback={null}><AiDebugShortcut /></Suspense>
       <Suspense fallback={null}><UpdateBanner /></Suspense>
       
-      {showAppWidgets && <Suspense fallback={null}><AppSidebar /></Suspense>}
+      {showSidebar && <Suspense fallback={null}><AppSidebar /></Suspense>}
       {/* BETA_MODE: replace CoachChat with BetaFeedbackWidget during beta */}
       {showCoach && <Suspense fallback={null}><BetaFeedbackWidget /></Suspense>}
       {/* {showCoach && <Suspense fallback={null}><CoachChat /></Suspense>} */}

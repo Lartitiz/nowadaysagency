@@ -249,26 +249,31 @@ export function useOnboarding() {
       }
 
       // Pre-fill from DB when profile has data but onboarding not completed
-      // Only if localStorage doesn't already have saved answers
-      if (!done && profile?.prenom && !prefillDone.current) {
+      // Only if localStorage doesn't already have saved answers.
+      // Fallback user_metadata : l'inscription y écrit prénom/activité (SignupForm),
+      // seul canal qui survit à une confirmation d'email sur un autre appareil
+      // (localStorage vide + insert profiles raté faute de session).
+      const metaPrenom = typeof user.user_metadata?.prenom === "string" ? user.user_metadata.prenom : "";
+      const metaActivite = typeof user.user_metadata?.activite === "string" ? user.user_metadata.activite : "";
+      if (!done && (profile?.prenom || metaPrenom) && !prefillDone.current) {
         prefillDone.current = true;
         const hasLocalSave = !!localStorage.getItem("lac_onboarding_answers");
         if (!hasLocalSave) {
           console.log("[onboarding] Pre-filling answers from existing profile data");
           setAnswers(prev => ({
             ...prev,
-            prenom: profile.prenom || prev.prenom,
-            activite: profile.activite || prev.activite,
-            activity_type: profile.type_activite || prev.activity_type,
-            activity_detail: profile.activity_detail || prev.activity_detail,
-            canaux: (profile.canaux?.length ? profile.canaux : prev.canaux),
-            blocage: profile.main_blocker || prev.blocage,
-            objectif: profile.main_goal || prev.objectif,
-            temps: profile.weekly_time || prev.temps,
-            instagram: profile.instagram_username ? `@${profile.instagram_username}` : prev.instagram,
-            website: profile.website_url || prev.website,
-            linkedin: profile.linkedin_url || prev.linkedin,
-            linkedin_summary: profile.linkedin_summary || prev.linkedin_summary,
+            prenom: profile?.prenom || metaPrenom || prev.prenom,
+            activite: profile?.activite || metaActivite || prev.activite,
+            activity_type: profile?.type_activite || prev.activity_type,
+            activity_detail: profile?.activity_detail || prev.activity_detail,
+            canaux: (profile?.canaux?.length ? profile.canaux : prev.canaux),
+            blocage: profile?.main_blocker || prev.blocage,
+            objectif: profile?.main_goal || prev.objectif,
+            temps: profile?.weekly_time || prev.temps,
+            instagram: profile?.instagram_username ? `@${profile.instagram_username}` : prev.instagram,
+            website: profile?.website_url || prev.website,
+            linkedin: profile?.linkedin_url || prev.linkedin,
+            linkedin_summary: profile?.linkedin_summary || prev.linkedin_summary,
           }));
         }
       }

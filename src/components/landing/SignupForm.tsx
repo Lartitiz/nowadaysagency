@@ -61,7 +61,14 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
-        options: { emailRedirectTo: window.location.origin },
+        options: {
+          emailRedirectTo: window.location.origin,
+          // Prénom/activité voyagent dans les métadonnées du compte : si la
+          // confirmation d'email s'ouvre sur un AUTRE appareil, localStorage et
+          // l'insert profiles (qui échoue sans session) ne suffisent pas —
+          // l'onboarding se pré-remplit alors depuis user_metadata.
+          data: { prenom: values.prenom, activite: values.activite?.trim() || "" },
+        },
       });
       if (error) throw error;
       if (data.user) {
