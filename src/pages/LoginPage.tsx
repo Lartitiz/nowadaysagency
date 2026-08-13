@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useState, useEffect } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -125,7 +126,7 @@ export default function LoginPage() {
       <div className="w-full max-w-md animate-fade-in">
         <div className="mb-8 text-center">
           <Link to="/" className="inline-block">
-            <h1 className="font-display text-4xl font-bold text-bordeaux">L'Assistant Com'</h1>
+            <BrandLogo className="h-14 mx-auto" />
           </Link>
           <p className="mt-1 font-body text-sm text-muted-foreground">par Nowadays Agency</p>
           <span className="mt-2 inline-block rounded-pill bg-secondary px-3 py-1 text-xs font-medium text-primary">
