@@ -274,6 +274,11 @@ Réponds UNIQUEMENT en JSON sans backticks :
       system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
       temperature: 0.7,
+      // Le JSON demandé (4 sections × éléments + granular_scores + top 5) dépasse
+      // largement les 4096 tokens par défaut → stop_reason max_tokens → la garde
+      // anti-troncature d'extractValidatedText jette → 500 systématique (vécu 13/08
+      // au premier redéploiement avec le _shared moderne).
+      max_tokens: 12000,
     }, usage);
 
     await logUsage(user.id, "audit", "audit_linkedin", usage.total_tokens, usage.model, workspace_id);
