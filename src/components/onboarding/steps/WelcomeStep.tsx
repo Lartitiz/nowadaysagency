@@ -13,10 +13,10 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
         </p>
         <div className="space-y-4 text-left">
           <p className="text-base text-muted-foreground leading-relaxed">
-            Ici, on ne va pas juste "créer un compte". En 3 minutes de questions, je vais comprendre ton activité, tes objectifs et là où tu en es dans ta com.
+            Ici, on ne va pas juste "créer un compte". En 3 minutes, je vais comprendre ton activité et là où tu en es dans ta com.
           </p>
-          <p className="text-base text-foreground font-medium leading-relaxed">L'idée ? Que tu arrêtes de poster au hasard. Que tu saches enfin quoi dire, à qui, sur quel canal, et quand. Pas dans trois mois, mais dès aujourd'hui.
-
+          <p className="text-base text-foreground font-medium leading-relaxed">
+            L'idée ? Que tu puisses gagner un max de temps dans ta communication.
           </p>
         </div>
         <div className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm text-primary">
@@ -27,6 +27,6 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
       <Button onClick={onNext} size="lg" className="rounded-full px-8 gap-2">
         C'est parti →
       </Button>
-    </div>);
-
+    </div>
+  );
 }
