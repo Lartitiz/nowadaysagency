@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
@@ -210,7 +211,7 @@ function AppHeaderInner() {
         <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
           <div className="flex items-center gap-2 shrink-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-              <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+              <BrandLogo className="h-6" />
               <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
@@ -267,7 +268,7 @@ function AppHeaderInner() {
         <div className="flex h-14 items-center justify-between gap-2 pl-14 pr-4">
           <div className="flex items-center gap-2 min-w-0">
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-              <span className="font-display text-sm font-bold text-foreground">L'Assistant Com'</span>
+              <BrandLogo className="h-6" />
               <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
             </Link>
             {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
@@ -327,9 +328,7 @@ function AppHeaderInner() {
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               {/* multi-espaces : chaque pixel compte pour afficher le nom de l'espace
                   → logo raccourci (« L'Assistant ») et badge beta sacrifiés */}
-              <span className="font-display text-sm font-bold text-foreground">
-                {isMultiWorkspace ? "L'Assistant" : "L'Assistant Com'"}
-              </span>
+              <BrandLogo className={isMultiWorkspace ? "h-4" : "h-5"} />
               {!isMultiWorkspace && (
                 <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
               )}

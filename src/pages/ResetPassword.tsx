@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Link } from "react-router-dom";
@@ -80,7 +81,7 @@ export default function ResetPassword() {
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="mb-8 text-center">
-          <h1 className="font-display text-4xl font-bold text-bordeaux">L'Assistant Com'</h1>
+          <BrandLogo className="h-14 mx-auto" />
           <p className="mt-1 font-body text-sm text-muted-foreground">par Nowadays Agency</p>
         </div>
         <div className="rounded-2xl bg-card p-8 shadow-sm border border-border">
