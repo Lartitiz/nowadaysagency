@@ -190,6 +190,17 @@ const SiteAuditPage = () => {
 
   useEffect(() => { loadAudit(); }, [loadAudit]);
 
+  // Premier audit : l'URL du site est déjà dans le profil (onboarding/branding) →
+  // on la pré-remplit au lieu de la faire retaper. Jamais par-dessus une saisie
+  // ni par-dessus l'URL d'un audit précédent.
+  useEffect(() => {
+    if (!user) return;
+    (supabase.from("profiles") as any).select("website_url").eq(column, value).maybeSingle()
+      .then(({ data }: any) => {
+        if (data?.website_url) setSiteUrl((cur) => cur || data.website_url);
+      });
+  }, [user?.id, column, value]);
+
   // Check if URL param wants screenshot mode
   useEffect(() => {
     if (searchParams.get("mode") === "screenshot") setStep("screenshot");
