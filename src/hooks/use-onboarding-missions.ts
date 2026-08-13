@@ -21,7 +21,7 @@ const MISSIONS_META = [
     id: "create",
     title: "Crée ton premier contenu",
     emoji: "✨",
-    time: "10 min",
+    time: "2 min",
     route: "/creer",
     description: "Génère un post avec l'IA qui connaît ta marque. Tu vas voir, c'est bluffant.",
   },
@@ -113,7 +113,7 @@ export function useOnboardingMissions() {
     queryFn: async () => {
       const eq = (q: any) => q.eq(filter.column, filter.value);
 
-      const [storytelling, persona, audit, posts, carousels, calendar, connections] = await Promise.all([
+      const [storytelling, persona, audit, posts, carousels, drafted, calendar, connections] = await Promise.all([
         eq(supabase.from("storytelling").select("id", { count: "exact", head: true })
           .or("step_7_polished.not.is.null,imported_text.not.is.null")),
         eq(supabase.from("persona").select("id", { count: "exact", head: true })
@@ -123,6 +123,13 @@ export function useOnboardingMissions() {
           .not("score_global", "is", null)),
         eq(supabase.from("generated_posts").select("id", { count: "exact", head: true })),
         eq(supabase.from("generated_carousels").select("id", { count: "exact", head: true })),
+        // Le flux /creer actuel n'écrit plus dans generated_posts : un post généré
+        // vit dans calendar_posts avec son texte en content_draft. C'est ce signal
+        // qui doit cocher « Crée ton premier contenu » (les deux tables ci-dessus
+        // restent comptées pour les anciens comptes).
+        eq(supabase.from("calendar_posts").select("id", { count: "exact", head: true })
+          .not("content_draft", "is", null)
+          .neq("content_draft", "")),
         eq(supabase.from("calendar_posts").select("id", { count: "exact", head: true })
           .not("date", "is", null)),
         // La mission dit « branche Instagram ou LinkedIn » : connecter Canva ou
@@ -135,7 +142,7 @@ export function useOnboardingMissions() {
         storytelling: (storytelling.count ?? 0) > 0,
         persona: (persona.count ?? 0) > 0,
         audit: (audit.count ?? 0) > 0,
-        create: ((posts.count ?? 0) + (carousels.count ?? 0)) > 0,
+        create: ((posts.count ?? 0) + (carousels.count ?? 0) + (drafted.count ?? 0)) > 0,
         calendar: (calendar.count ?? 0) >= 2,
         connect: (connections.count ?? 0) > 0,
       } as Record<string, boolean>;
