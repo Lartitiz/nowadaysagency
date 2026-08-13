@@ -1,10 +1,15 @@
 /**
- * site-photos-scan — propose les photos du site de l'utilisatrice à l'import
- * dans sa bibliothèque (/photos). Deux modes sur la même edge :
+ * site-photos-scan — propose les photos du site OU du compte Instagram de
+ * l'utilisatrice à l'import dans sa bibliothèque (/photos). Trois modes :
  *
  *  - mode "scan"  : { websiteUrl } → liste d'images candidates (URLs absolues).
  *    Le tri fin (dimensions réelles, images mortes) se fait côté client, qui
  *    peut AFFICHER les images cross-origin sans CORS.
+ *
+ *  - mode "instagram" : { workspace_id? } → photos des 50 derniers posts du
+ *    compte connecté (API Graph officielle, jamais de scraping) : images
+ *    simples + enfants de carrousels, vidéos écartées. ⚠️ les media_url
+ *    expirent → à rapatrier immédiatement via le mode fetch.
  *
  *  - mode "fetch" : { imageUrl } → l'image en base64. Nécessaire parce que le
  *    navigateur ne peut pas LIRE les octets d'une image cross-origin : le
@@ -19,8 +24,16 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { encode as base64Encode } from "https://deno.land/std@0.168.0/encoding/base64.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { safeFetchFollow } from "../_shared/scraping.ts";
-import { extractImageCandidates } from "../_shared/site-photos.ts";
-import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import {
+  extractImageCandidates,
+  flattenInstagramMedia,
+  type InstagramMediaItem,
+} from "../_shared/site-photos.ts";
+import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
+import { decryptConnTokens } from "../_shared/token-crypto.ts";
+import { refreshTokenIfNeeded } from "../_shared/instagram-graph.ts";
+
+const IG_GRAPH = "https://graph.instagram.com/v23.0";
 
 const HTML_MAX_BYTES = 5_000_000; // page HTML
 const IMAGE_MAX_BYTES = 10_000_000; // une photo web dépasse rarement 10 Mo
@@ -73,8 +86,8 @@ serve(async (req) => {
   const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    await authenticateRequest(req);
-    const { mode, websiteUrl, imageUrl } = await req.json();
+    const { userId } = await authenticateRequest(req);
+    const { mode, websiteUrl, imageUrl, workspace_id: workspaceId } = await req.json();
 
     if (mode === "scan") {
       if (!websiteUrl || typeof websiteUrl !== "string") {
@@ -131,7 +144,50 @@ serve(async (req) => {
       });
     }
 
-    return json(corsHeaders, { error: "mode invalide (scan | fetch)" }, 400);
+    if (mode === "instagram") {
+      // Même chargement de connexion que instagram-insights-fetch : scoping
+      // workspace (ou compte perso), token déchiffré puis rafraîchi si besoin.
+      const supabase = getServiceClient();
+      const filterCol = workspaceId ? "workspace_id" : "user_id";
+      const filterVal = workspaceId || userId;
+      let q = supabase
+        .from("social_connections")
+        .select("*")
+        .eq("platform", "instagram")
+        .eq(filterCol, filterVal);
+      if (workspaceId) q = q.eq("user_id", userId);
+      else q = q.is("workspace_id", null);
+      const { data: conn, error: connErr } = await q.maybeSingle();
+      if (connErr || !conn) {
+        return json(corsHeaders, {
+          error: "Aucun compte Instagram connecté. Connecte-le dans Paramètres > Connexions.",
+        }, 404);
+      }
+      await decryptConnTokens(conn);
+      const token = await refreshTokenIfNeeded(supabase, conn);
+
+      const u = new URL(`${IG_GRAPH}/${conn.platform_account_id}/media`);
+      u.searchParams.set(
+        "fields",
+        "id,caption,media_type,media_url,thumbnail_url,timestamp,children{media_type,media_url}",
+      );
+      u.searchParams.set("limit", "50");
+      u.searchParams.set("access_token", token);
+      const res = await fetch(u, { signal: controller.signal });
+      const body = await res.json().catch(() => null);
+      if (!res.ok || !Array.isArray(body?.data)) {
+        console.error("IG media list failed:", res.status, body?.error?.message);
+        return json(corsHeaders, {
+          error: "Impossible de lire tes posts Instagram. Reconnecte ton compte et réessaie.",
+        }, 502);
+      }
+      // ⚠️ Les media_url Meta EXPIRENT : le front doit les rapatrier (mode
+      // fetch) dans la foulée, jamais les stocker.
+      const images = flattenInstagramMedia(body.data as InstagramMediaItem[]);
+      return json(corsHeaders, { success: true, images });
+    }
+
+    return json(corsHeaders, { error: "mode invalide (scan | fetch | instagram)" }, 400);
   } catch (e) {
     if (e instanceof AuthError) {
       return json(corsHeaders, { error: e.message }, e.status);
