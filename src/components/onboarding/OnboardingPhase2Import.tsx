@@ -12,7 +12,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 }: {answers: Answers;set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;files: UploadedFile[];uploading: boolean;onUpload: (files: FileList | null) => void;onRemove: (id: string) => void;onNext: () => void;onLeave?: () => void;isDemoMode?: boolean;}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkedinOpen, setLinkedinOpen] = useState(() => !!answers.linkedin_summary);
-  const hasAnyLink = !!(answers.website || answers.linkedin_summary);
+  const hasAnyLink = !!(answers.website || answers.instagram || answers.linkedin_summary);
   const hasAnything = hasAnyLink || files.length > 0;
 
   const webStatus: "valid" | "warn" | "none" = !answers.website ? "none" :
@@ -53,12 +53,19 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           </div>
         </div>
 
-        {/* Instagram — le plan A-bis assumé, pas une option noyée */}
+        {/* Instagram — le plan A-bis assumé : le @ suffit, la capture complète */}
         <div className="rounded-2xl border border-border bg-card p-4">
           <p className="text-sm font-semibold text-foreground">📸 Pas de site ? Ton Instagram suffit.</p>
           <p className="text-xs text-muted-foreground mt-1 mb-3">
-            Une capture d'écran de ton profil (bio + grille) et j'en lis ton univers.
+            Donne ton @ : je vais lire ta page publique. Une capture de ton profil en plus, et je lis aussi ton univers visuel.
           </p>
+          <input
+            type="text"
+            value={answers.instagram}
+            onChange={(e) => set("instagram", e.target.value)}
+            placeholder="@toncompte"
+            aria-label="Ton nom d'utilisateur Instagram"
+            className="w-full text-base p-3 mb-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
 
           {!isDemoMode && files.length < 3 &&
           <div

@@ -117,6 +117,20 @@ export default function SalesPageOptimizer() {
         setRecentDate(data.created_at);
         setRecentResult(data.raw_result as OptResult);
       }
+
+      // Pré-remplissage de l'URL : page de vente d'une offre (atelier offre) en
+      // priorité, sinon le site du profil. Jamais par-dessus une saisie.
+      const { data: offer } = await (supabase.from("offers") as any)
+        .select("url_sales_page")
+        .eq(column, value)
+        .not("url_sales_page", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const { data: prof } = await supabase
+        .from("profiles").select("website_url").eq(column, value).maybeSingle();
+      const prefill = (offer as any)?.url_sales_page || (prof as any)?.website_url;
+      if (prefill) setSiteUrl((cur) => cur || prefill);
     };
     load();
   }, [user?.id]);
