@@ -492,6 +492,78 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
     const userPrompt = userParts.join("\n\n");
 
+    // ====== PHASE 2 EN PARALLÈLE : Enrichissement branding — fire-and-forget ======
+    // Lancé AVANT l'appel diagnostic : l'enrichissement (Opus, 60-90 s) n'utilise
+    // que les données sources — jamais le résultat du diagnostic — donc le faire
+    // attendre la fin de la phase 1 (comme avant) ajoutait toute la durée du
+    // diagnostic à l'attente de la fiche « à valider ». Mesuré le 13/08 : 79 s
+    // bloquée sur « Je finis de préparer ta marque… » après le clic. En parallèle,
+    // l'enrichissement court pendant le diagnostic ET pendant la lecture du
+    // résultat. `savedDiagId` n'existe pas encore → null : l'edge retrouve la
+    // dernière ligne diagnostic_results au moment d'écrire branding_prefill.
+    try {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+      // Build enrichment prompt: include style hints + full cached website content
+      let enrichmentPrompt = userPrompt.slice(0, 16000);
+
+      // Add full cached content if available (the userPrompt already has a truncated version)
+      if (websiteUrl) {
+        try {
+          const { data: fullCache } = await supabaseAdmin
+            .from("scrape_cache")
+            .select("content, style_hints")
+            .eq("user_id", profileUserId)
+            .eq("url", websiteUrl)
+            .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (fullCache?.content && fullCache.content.length > MAX_TEXT_PER_SOURCE) {
+            enrichmentPrompt += `\n\n=== CONTENU COMPLET DU SITE (pour enrichissement approfondi) ===\n${fullCache.content}`;
+          }
+          // Repli si le cache n'a pas d'indices visuels (cache périmé > 1 h, ou
+          // ligne écrite avant le fix CSS) : on a déjà pu les extraire nous-mêmes
+          // au scrape direct plus haut. Sans ce `else if`, ces couleurs étaient
+          // calculées puis PERDUES ici — l'IA recevait 0 couleur et inventait une
+          // palette d'ambiance (cas 2 du prompt d'enrichissement).
+          if (fullCache?.style_hints) {
+            enrichmentPrompt += `\n\n${fullCache.style_hints}`;
+          } else if (cachedStyleHints) {
+            enrichmentPrompt += `\n\n${cachedStyleHints}`;
+          }
+        } catch {
+          // Fallback: use cached style hints already extracted
+          if (cachedStyleHints) {
+            enrichmentPrompt += `\n\n${cachedStyleHints}`;
+          }
+        }
+      } else if (cachedStyleHints) {
+        enrichmentPrompt += `\n\n${cachedStyleHints}`;
+      }
+
+      fetch(`${supabaseUrl}/functions/v1/diagnostic-enrichment`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${serviceRoleKey}`,
+        },
+        body: JSON.stringify({
+          userId,
+          workspaceId,
+          userPrompt: enrichmentPrompt,
+          savedDiagId: null,
+          isOnboarding,
+          // Remplacement explicitement confirmé à l'écran (espace déjà brandé).
+          allowOverwrite: allowOverwrite === true,
+        }),
+      }).catch(() => {});
+    } catch {
+      // Ignorer
+    }
+
     // ====== CALL CLAUDE — PHASE 1 : Diagnostic rapide (Sonnet) ======
     let analysisResult: Record<string, unknown>;
     const diagUsage: UsageSink = {};
@@ -606,69 +678,8 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
     await Promise.allSettled(fastSaves);
 
-    // ====== PHASE 2 : Enrichissement branding — fire-and-forget ======
-    try {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      
-      // Build enrichment prompt: include style hints + full cached website content
-      let enrichmentPrompt = userPrompt.slice(0, 16000);
-
-      // Add full cached content if available (the userPrompt already has a truncated version)
-      if (websiteUrl) {
-        try {
-          const { data: fullCache } = await supabaseAdmin
-            .from("scrape_cache")
-            .select("content, style_hints")
-            .eq("user_id", profileUserId)
-            .eq("url", websiteUrl)
-            .gte("created_at", new Date(Date.now() - 60 * 60 * 1000).toISOString())
-            .order("created_at", { ascending: false })
-            .limit(1)
-            .maybeSingle();
-
-          if (fullCache?.content && fullCache.content.length > MAX_TEXT_PER_SOURCE) {
-            enrichmentPrompt += `\n\n=== CONTENU COMPLET DU SITE (pour enrichissement approfondi) ===\n${fullCache.content}`;
-          }
-          // Repli si le cache n'a pas d'indices visuels (cache périmé > 1 h, ou
-          // ligne écrite avant le fix CSS) : on a déjà pu les extraire nous-mêmes
-          // au scrape direct plus haut. Sans ce `else if`, ces couleurs étaient
-          // calculées puis PERDUES ici — l'IA recevait 0 couleur et inventait une
-          // palette d'ambiance (cas 2 du prompt d'enrichissement).
-          if (fullCache?.style_hints) {
-            enrichmentPrompt += `\n\n${fullCache.style_hints}`;
-          } else if (cachedStyleHints) {
-            enrichmentPrompt += `\n\n${cachedStyleHints}`;
-          }
-        } catch {
-          // Fallback: use cached style hints already extracted
-          if (cachedStyleHints) {
-            enrichmentPrompt += `\n\n${cachedStyleHints}`;
-          }
-        }
-      } else if (cachedStyleHints) {
-        enrichmentPrompt += `\n\n${cachedStyleHints}`;
-      }
-      
-      fetch(`${supabaseUrl}/functions/v1/diagnostic-enrichment`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${serviceRoleKey}`,
-        },
-        body: JSON.stringify({
-          userId,
-          workspaceId,
-          userPrompt: enrichmentPrompt,
-          savedDiagId: savedDiag?.id || null,
-          isOnboarding,
-          // Remplacement explicitement confirmé à l'écran (espace déjà brandé).
-          allowOverwrite: allowOverwrite === true,
-        }),
-      }).catch(() => {});
-    } catch {
-      // Ignorer
-    }
+    // (Phase 2 — enrichissement branding — désormais tirée AVANT la phase 1,
+    // en parallèle du diagnostic : voir le bloc au-dessus de l'appel Sonnet.)
 
     clearTimeout(timeout);
     return new Response(

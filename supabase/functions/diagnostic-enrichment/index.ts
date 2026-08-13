@@ -232,11 +232,29 @@ Précisions importantes :
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || userId;
 
-    // Update diagnostic_results with branding_prefill
-    if (savedDiagId) {
+    // Update diagnostic_results with branding_prefill.
+    // savedDiagId peut être null : depuis la parallélisation (13/08), le parent
+    // nous tire AVANT d'avoir inséré sa ligne. L'appel Opus ci-dessus dure bien
+    // plus longtemps que la phase 1 du parent → au moment d'écrire, la ligne
+    // existe (presque) toujours ; on retrouve la plus récente de l'espace.
+    // Si elle manque quand même, on passe : branding_prefill sur
+    // diagnostic_results n'est qu'un cache d'affichage, la fiche « à valider »
+    // (branding_autofill) reste écrite plus bas.
+    let diagRowId = savedDiagId || null;
+    if (!diagRowId) {
+      const { data: latestDiag } = await supabaseAdmin
+        .from("diagnostic_results")
+        .select("id")
+        .eq(filterCol, filterVal)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      diagRowId = latestDiag?.id || null;
+    }
+    if (diagRowId) {
       await supabaseAdmin.from("diagnostic_results")
         .update({ branding_prefill: prefill })
-        .eq("id", savedDiagId);
+        .eq("id", diagRowId);
     }
 
     // ── Garde-fou anti-écrasement (étape 2) ───────────────────────────────
