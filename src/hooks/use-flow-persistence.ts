@@ -29,6 +29,9 @@ interface FlowState {
   slideLength?: "auto" | "short" | "classic";
   photoDescription?: string;
   isLinkedInCarousel?: boolean;
+  /** Mode « 1er contenu » (?auto=1) : l'URL est nettoyée après l'init, le mode
+   *  survit ici pour que le récap « Ton premier contenu » tienne au reload. */
+  autoFlow?: boolean;
   ts: number;
 }
 

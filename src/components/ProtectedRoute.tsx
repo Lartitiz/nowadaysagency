@@ -22,6 +22,15 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
   const gaveUpRef = useRef(false);
   const gatingStartedAtRef = useRef<number | null>(null);
   const lastUserIdRef = useRef<string | null>(null);
+  // La page a déjà été affichée dans CE mount : on ne la retire plus pour
+  // renvoyer vers /onboarding. L'effet se re-déclenche en pleine session
+  // (refresh du token ~1 h) et une re-vérification qui bascule à « needs »
+  // (écriture de fin d'onboarding perdue, lag DB) TÉLÉPORTAIT l'utilisatrice
+  // au début de l'onboarding en plein travail — vécu 13/08 sur le 1er contenu.
+  // La redirection reste active à l'ENTRÉE d'une page (chaque navigation
+  // remonte ProtectedRoute) : on ne laisse pas passer un compte non onboardé,
+  // on arrête juste de l'arracher d'une page déjà affichée.
+  const shownChildrenRef = useRef(false);
 
   useEffect(() => {
     // Reset per-mount refs when user changes (login/logout).
@@ -202,9 +211,10 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  if (needsOnboarding && location.pathname !== "/onboarding") {
+  if (needsOnboarding && location.pathname !== "/onboarding" && !shownChildrenRef.current) {
     return <Navigate to="/onboarding" replace />;
   }
 
+  shownChildrenRef.current = true;
   return <>{children}</>;
 }
