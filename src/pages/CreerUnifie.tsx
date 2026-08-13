@@ -79,6 +79,7 @@ import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
 import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos, loadPhotosLocal } from "@/hooks/use-flow-persistence";
+import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
 // Phase 4: streaming SSE is now encapsulated inside useContentGenerator
