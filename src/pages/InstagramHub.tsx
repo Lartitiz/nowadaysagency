@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, BarChart3, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, BarChart3, Calendar, Lightbulb, MessageCircle, Rocket, Sparkles, TrendingUp, UserRound } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { ZoneSection, HubCard, FormatPill, HubConnectBanner } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -126,10 +126,10 @@ export default function InstagramHub() {
               </div>
             </button>
             <FirstTimeTooltip id="instagram-profil" text="Analyse ton profil : bio, feed, cohérence visuelle.">
-              <HubCard to="/instagram/profil" emoji="👤" title="Auditer mon profil" desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom." />
+              <HubCard to="/instagram/profil" icon={UserRound} title="Auditer mon profil" desc="Audit complet : bio, feed, stories à la une, posts épinglés, nom." />
             </FirstTimeTooltip>
             <FirstTimeTooltip id="instagram-stats" text="Tes KPIs mensuels avec graphiques d'évolution.">
-              <HubCard to="/instagram/stats" emoji="📈" title="Suivre mes stats" desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution." />
+              <HubCard to="/instagram/stats" icon={TrendingUp} title="Suivre mes stats" desc="Tes KPIs mensuels : Instagram, site, CA. Avec graphiques d'évolution." />
             </FirstTimeTooltip>
           </div>
         </ZoneSection>
@@ -153,10 +153,10 @@ export default function InstagramHub() {
         {/* ─── ZONE 3 : ENGAGER & PLANIFIER ─── */}
         <ZoneSection title={<><span className="text-primary font-bold">3.</span> <MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.75} /> Engager & Planifier</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <HubCard to="/instagram/routine" emoji="💬" title="Faire ma routine d'engagement" desc="Tes actions hebdo pour créer du lien avec ta communauté." />
-            <HubCard to="/calendrier?canal=instagram" emoji="📅" title="Planifier mon mois" desc="Ton calendrier Instagram : pose tes posts, visualise ta régularité." />
-            <HubCard to="/idees?canal=instagram" emoji="💡" title="Piocher dans mes idées" desc="Ta banque d'idées sauvegardées." />
-            <HubCard to="/instagram/lancement" emoji="🚀" title="Préparer mon lancement" desc="Plan de lancement guidé, étape par étape." />
+            <HubCard to="/instagram/routine" icon={MessageCircle} title="Faire ma routine d'engagement" desc="Tes actions hebdo pour créer du lien avec ta communauté." />
+            <HubCard to="/calendrier?canal=instagram" icon={Calendar} title="Planifier mon mois" desc="Ton calendrier Instagram : pose tes posts, visualise ta régularité." />
+            <HubCard to="/idees?canal=instagram" icon={Lightbulb} title="Piocher dans mes idées" desc="Ta banque d'idées sauvegardées." />
+            <HubCard to="/instagram/lancement" icon={Rocket} title="Préparer mon lancement" desc="Plan de lancement guidé, étape par étape." />
           </div>
         </ZoneSection>
 

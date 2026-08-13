@@ -15,7 +15,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { applyPositioningToProposition } from "@/lib/positioning-write";
 import { toast } from "sonner";
 import { extractTextFromFile, isAcceptedFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
-import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight } from "lucide-react";
+import { Search, Loader2, Upload, FileText, X, ChevronDown, ChevronUp, ArrowRight, Target, User, MessageCircle, Gift, BookOpen, Palette, Link2, ClipboardList, RefreshCw, CheckCircle2, AlertTriangle, Lightbulb, type LucideIcon } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
@@ -51,15 +51,15 @@ interface AuditResult {
 }
 
 /* ─── Pillar labels ─── */
-const PILLAR_META: Record<string, { emoji: string; label: string }> = {
-  positionnement: { emoji: "🎯", label: "Positionnement" },
-  cible: { emoji: "👤", label: "Cible" },
-  ton_voix: { emoji: "🗣️", label: "Ton / Voix" },
-  offres: { emoji: "🎁", label: "Offres" },
-  storytelling: { emoji: "📖", label: "Storytelling" },
-  identite_visuelle: { emoji: "🎨", label: "Identité visuelle" },
-  coherence_cross_canal: { emoji: "🔗", label: "Cohérence canaux" },
-  contenu: { emoji: "📝", label: "Contenu" },
+const PILLAR_META: Record<string, { icon: LucideIcon; label: string }> = {
+  positionnement: { icon: Target, label: "Positionnement" },
+  cible: { icon: User, label: "Cible" },
+  ton_voix: { icon: MessageCircle, label: "Ton / Voix" },
+  offres: { icon: Gift, label: "Offres" },
+  storytelling: { icon: BookOpen, label: "Storytelling" },
+  identite_visuelle: { icon: Palette, label: "Identité visuelle" },
+  coherence_cross_canal: { icon: Link2, label: "Cohérence canaux" },
+  contenu: { icon: FileText, label: "Contenu" },
 };
 
 const STATUT_COLORS: Record<string, string> = {
@@ -392,7 +392,7 @@ export default function BrandingAuditPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
-        <SubPageHeader currentLabel="🔍 Audit de ta communication" parentLabel="Mon identité" parentTo="/branding" />
+        <SubPageHeader currentLabel="Audit de ta communication" parentLabel="Mon identité" parentTo="/branding" />
 
         {/* Quota exhausted */}
         {quotaExhausted && !loading && (
@@ -426,7 +426,7 @@ export default function BrandingAuditPage() {
             <Collapsible open={formOpen} onOpenChange={setFormOpen}>
               <CollapsibleTrigger asChild>
                 <button className="w-full rounded-xl border border-border bg-card hover:bg-muted/50 transition-colors p-4 mt-6 text-left flex items-center justify-between">
-                  <span className="text-sm font-medium flex items-center gap-2">🔄 Refaire un audit</span>
+                  <span className="text-sm font-medium flex items-center gap-2"><RefreshCw className="h-4 w-4 text-primary" strokeWidth={1.75} />Refaire un audit</span>
                   {formOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                 </button>
               </CollapsibleTrigger>
@@ -576,7 +576,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       {/* Date */}
       {previousAudit?.created_at && (
         <p className="text-xs text-muted-foreground">
-          🔍 Audit du {new Date(previousAudit.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
+          Audit du {new Date(previousAudit.created_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
         </p>
       )}
 
@@ -598,7 +598,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
           <div className="space-y-2">
             {result.points_forts.map((p, i) => (
               <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
-                <p className="text-sm font-medium text-foreground">✅ {asText(p.titre)}</p>
+                <p className="text-sm font-medium text-foreground flex items-start gap-1.5"><CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" strokeWidth={1.75} /><span>{asText(p.titre)}</span></p>
                 <p className="text-xs text-muted-foreground mt-1">{asText(p.detail)}</p>
                 <p className="text-2xs text-muted-foreground/70 mt-1">Source : {asText(p.source)}</p>
               </div>
@@ -614,12 +614,12 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
           <div className="space-y-2">
             {result.points_faibles.map((p, i) => (
               <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
-                <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {asText(p.titre)}</p>
+                <p className="text-sm font-medium text-foreground flex items-start gap-1.5"><AlertTriangle className={`h-4 w-4 shrink-0 mt-0.5 ${p.priorite === "haute" ? "text-error" : "text-warning"}`} strokeWidth={1.75} /><span>{asText(p.titre)}</span></p>
                 <p className="text-xs text-muted-foreground mt-1">{asText(p.detail)}</p>
                 <p className="text-2xs text-muted-foreground/70 mt-1">Priorité : {asText(p.priorite)}</p>
                 {p.action && (
                   <div className="mt-3 pt-3 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground mb-2">💡 {asText(p.action.conseil)}</p>
+                    <p className="text-xs text-muted-foreground mb-2 flex items-start gap-1.5"><Lightbulb className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" strokeWidth={1.75} /><span>{asText(p.action.conseil)}</span></p>
                     <Button
                       size="sm"
                       className="gap-1.5 text-xs"
@@ -640,12 +640,12 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
         <h3 className="font-body font-bold text-sm mb-3">Détail par pilier</h3>
         <div className="space-y-2">
           {Object.entries(result.audit_detail || {}).map(([key, pillar]) => {
-            const meta = PILLAR_META[key] || { emoji: "📋", label: key };
+            const meta = PILLAR_META[key] || { icon: ClipboardList, label: key };
             const isExpanded = expandedPillar === key;
             return (
               <div key={key} className="rounded-xl border border-border bg-card overflow-hidden">
                 <button className="w-full flex items-center gap-3 p-4 text-left" onClick={() => setExpandedPillar(isExpanded ? null : key)}>
-                  <span className="text-base">{meta.emoji}</span>
+                  <meta.icon className="h-5 w-5 text-primary shrink-0" strokeWidth={1.75} />
                   <span className="text-sm font-medium flex-1">{meta.label}</span>
                   <span className={`text-xs font-mono ${STATUT_COLORS[pillar.statut] || "text-muted-foreground"}`}>
                     {pillar.score}/100 · {asText(pillar.statut)}
@@ -677,7 +677,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       {/* Plan d'action */}
       {result.plan_action_recommande?.length > 0 && (
         <div>
-          <h3 className="font-body font-bold text-sm mb-2">📋 Ton plan d'action</h3>
+          <h3 className="font-body font-bold text-sm mb-2 flex items-center gap-1.5"><ClipboardList className="h-4 w-4 text-primary" strokeWidth={1.75} />Ton plan d'action</h3>
           <p className="text-xs text-muted-foreground mb-3">Par quoi commencer ? Voici l'ordre recommandé :</p>
           <div className="space-y-2">
             {result.plan_action_recommande.map((a, i) => (
@@ -709,11 +709,11 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       <div className="space-y-3 pt-2">
         {result.extraction_branding && (
           <Button variant="outline" className="w-full gap-2" disabled={autofilling} onClick={onAutofillBranding}>
-            {autofilling ? <Loader2 className="h-4 w-4 animate-spin" /> : "📋"} Pré-remplir mon branding avec les infos extraites
+            {autofilling ? <Loader2 className="h-4 w-4 animate-spin" /> : <ClipboardList className="h-4 w-4" strokeWidth={1.75} />} Pré-remplir mon branding avec les infos extraites
           </Button>
         )}
         <Button variant="outline" className="w-full gap-2" onClick={onRedo}>
-          🔄 Refaire l'audit
+          <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Refaire l'audit
         </Button>
       </div>
     </div>

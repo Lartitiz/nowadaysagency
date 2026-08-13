@@ -14,7 +14,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
-import { Sparkles, Copy, Check } from "lucide-react";
+import { Sparkles, Copy, Check, Briefcase, BookOpen, Lightbulb, Smartphone, Save } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 const TOTAL_SECTIONS = 6;
@@ -135,7 +135,7 @@ export default function LinkedInProfil() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Mon profil" useFromParam />
 
-        <h1 className="font-display text-2xl font-bold text-foreground">💼 Mon profil LinkedIn</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2"><Briefcase className="h-6 w-6 text-primary" strokeWidth={1.75} aria-hidden="true" /> Mon profil LinkedIn</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">
           Optimise chaque élément de ton profil. Chaque case cochée, c'est un profil qui inspire confiance.
         </p>
@@ -158,24 +158,24 @@ export default function LinkedInProfil() {
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">C'est la petite phrase sous ta photo. C'est elle qui donne envie de cliquer. Max 220 caractères, avec des mots-clés SEO.</p>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-2">
-                <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
+                <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1"><BookOpen className="inline h-3 w-3 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />Exemple</span>
                 <p className="font-semibold">2 façons simples de le rédiger :</p>
                 <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3"><span className="not-italic font-mono-ui text-2xs uppercase text-muted-foreground mr-1">Ex :</span><strong className="not-italic">Option A :</strong> Ta proposition de valeur : "J'aide [type de personnes] à [résultat] grâce à [ta méthode]."</p>
                 <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3"><span className="not-italic font-mono-ui text-2xs uppercase text-muted-foreground mr-1">Ex :</span><strong className="not-italic">Option B :</strong> Qui es-tu : "[Poste] + [Mots-clés] pour apparaître dans les recherches."</p>
               </div>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
-                <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemples concrets</span>
+                <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1"><BookOpen className="inline h-3 w-3 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />Exemples concrets</span>
                 <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">🌿 J'aide les femmes à oser la couleur avec une mode éthique artisanale</p>
                 <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">☀️ J'accompagne les marques éthiques à construire une communication sincère</p>
               </div>
               {propValue && (
                 <div className="rounded-xl bg-accent/30 border border-accent p-4 text-sm">
-                  💡 Ta proposition de valeur : "<strong>{propValue}</strong>" — tu peux l'utiliser directement comme titre !
+                  <Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Ta proposition de valeur : "<strong>{propValue}</strong>" — tu peux l'utiliser directement comme titre !
                 </div>
               )}
               <Button onClick={generateTitle} disabled={generating} variant="outline" className="gap-2 rounded-pill">
                 <Sparkles className="h-4 w-4" />
-                {generating ? "Génération..." : "✨ Générer mon titre LinkedIn"}
+                {generating ? "Génération..." : "Générer mon titre LinkedIn"}
               </Button>
               {titleSuggestions.length > 0 && (
                 <>
@@ -201,7 +201,7 @@ export default function LinkedInProfil() {
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={titleDone} onCheckedChange={v => setTitleDone(!!v)} />
-                <span className="text-sm">✅ Mon titre est à jour sur LinkedIn</span>
+                <span className="text-sm">Mon titre est à jour sur LinkedIn</span>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -215,7 +215,7 @@ export default function LinkedInProfil() {
               <Input value={customUrl} onChange={e => setCustomUrl(e.target.value)} placeholder="linkedin.com/in/..." />
               <div className="flex items-center gap-2">
                 <Checkbox checked={urlDone} onCheckedChange={v => setUrlDone(!!v)} />
-                <span className="text-sm">✅ Mon URL est personnalisée</span>
+                <span className="text-sm">Mon URL est personnalisée</span>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -237,7 +237,7 @@ export default function LinkedInProfil() {
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={photoDone} onCheckedChange={v => setPhotoDone(!!v)} />
-                <span className="text-sm">✅ Ma photo de profil est à jour</span>
+                <span className="text-sm">Ma photo de profil est à jour</span>
               </div>
             </AccordionContent>
           </AccordionItem>
@@ -248,21 +248,21 @@ export default function LinkedInProfil() {
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">La bannière permet au visiteur de comprendre immédiatement ton univers. Dimensions : <strong>1584×396 px</strong>.</p>
               <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
-                <p>💡 Ressources :</p>
+                <p><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Ressources :</p>
                 <p>Photos libres de droit : <a href="https://unsplash.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Unsplash</a></p>
                 <p>Templates : utilise <a href="https://canva.com" target="_blank" rel="noopener noreferrer" className="text-primary underline">Canva</a> pour créer une bannière à tes couleurs</p>
-                <p className="text-muted-foreground italic mt-1">📱 Pense mobile : le texte doit être lisible sur petit écran.</p>
+                <p className="text-muted-foreground italic mt-1"><Smartphone className="inline h-3.5 w-3.5 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />Pense mobile : le texte doit être lisible sur petit écran.</p>
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={bannerDone} onCheckedChange={v => setBannerDone(!!v)} />
-                <span className="text-sm">✅ Ma bannière est à jour</span>
+                <span className="text-sm">Ma bannière est à jour</span>
               </div>
             </AccordionContent>
           </AccordionItem>
 
           {/* Section 5: Featured */}
           <AccordionItem value="featured" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-body text-base font-bold"><span className="flex-1 text-left">5. 📌 Ma sélection (Featured)</span>{sectionBadge(featuredDone)}</AccordionTrigger>
+            <AccordionTrigger className="font-body text-base font-bold"><span className="flex-1 text-left">5. Ma sélection (Featured)</span>{sectionBadge(featuredDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">Épingle jusqu'à 5 contenus en haut de ton profil. C'est un espace stratégique que presque personne n'utilise.</p>
               <div className="space-y-2 text-sm">
@@ -273,18 +273,18 @@ export default function LinkedInProfil() {
                 <p>☐ Au moins 1 contenu dirige vers mon offre (lead magnet, page de vente, newsletter)</p>
               </div>
               <div className="rounded-xl bg-rose-pale p-4 text-sm">
-                💡 Pense ta sélection comme une vitrine : qu'est-ce qu'un·e prospect doit voir en premier ?
+                <Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Pense ta sélection comme une vitrine : qu'est-ce qu'un·e prospect doit voir en premier ?
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={featuredDone} onCheckedChange={v => setFeaturedDone(!!v)} />
-                <span className="text-sm">✅ Ma sélection Featured est configurée</span>
+                <span className="text-sm">Ma sélection Featured est configurée</span>
               </div>
             </AccordionContent>
           </AccordionItem>
 
           {/* Section 6: Creator Mode */}
           <AccordionItem value="creator" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-body text-base font-bold"><span className="flex-1 text-left">6. 🎨 Mode Créateur·ice</span>{sectionBadge(creatorModeDone)}</AccordionTrigger>
+            <AccordionTrigger className="font-body text-base font-bold"><span className="flex-1 text-left">6. Mode Créateur·ice</span>{sectionBadge(creatorModeDone)}</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">Le Creator Mode te donne accès à des outils d'audience (newsletter LinkedIn, bouton Suivre, analytics avancés).</p>
               <div className="space-y-2 text-sm">
@@ -294,17 +294,17 @@ export default function LinkedInProfil() {
                 <p>☐ J'ai exploré les analytics créateur·ice</p>
               </div>
               <div className="rounded-xl bg-rose-pale p-4 text-sm">
-                💡 Le Creator Mode est fait pour les personnes qui publient régulièrement et veulent développer une audience. Si tu publies 2+ fois par semaine, active-le.
+                <Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Le Creator Mode est fait pour les personnes qui publient régulièrement et veulent développer une audience. Si tu publies 2+ fois par semaine, active-le.
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox checked={creatorModeDone} onCheckedChange={v => setCreatorModeDone(!!v)} />
-                <span className="text-sm">✅ Le Mode Créateur·ice est activé</span>
+                <span className="text-sm">Le Mode Créateur·ice est activé</span>
               </div>
             </AccordionContent>
           </AccordionItem>
         </Accordion>
 
-        <Button onClick={save} className="mt-8 rounded-pill gap-2">💾 Enregistrer mon profil</Button>
+        <Button onClick={save} className="mt-8 rounded-pill gap-2"><Save className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Enregistrer mon profil</Button>
       </main>
     </div>
   );

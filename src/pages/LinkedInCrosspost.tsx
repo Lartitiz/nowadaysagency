@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
-import { RefreshCw, Copy, Check, Sparkles, Loader2, CalendarDays, Lightbulb } from "lucide-react";
+import { RefreshCw, Copy, Check, Sparkles, Loader2, CalendarDays, Lightbulb, Instagram, Linkedin, FileText, Clapperboard, Smartphone, PenLine, Paperclip, BarChart3 } from "lucide-react";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import BaseReminder from "@/components/BaseReminder";
 import CrosspostFileUploader, { type UploadedFile } from "@/components/crosspost/CrosspostFileUploader";
@@ -23,17 +23,17 @@ import { useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 
 const SOURCE_TYPES = [
   // TODO: à réactiver quand le générateur newsletter sera prêt
-  // { id: "newsletter", label: "📧 Ma newsletter" },
-  { id: "instagram", label: "📸 Mon post Instagram" },
-  { id: "linkedin", label: "💼 Mon post LinkedIn" },
-  { id: "libre", label: "📝 Texte libre" },
+  // { id: "newsletter", label: "Ma newsletter", icon: Mail },
+  { id: "instagram", label: "Mon post Instagram", icon: Instagram },
+  { id: "linkedin", label: "Mon post LinkedIn", icon: Linkedin },
+  { id: "libre", label: "Texte libre", icon: FileText },
 ];
 
 const TARGET_CHANNELS = [
-  { id: "linkedin", label: "💼 Post LinkedIn", desc: "Version expert·e, données" },
-  { id: "instagram", label: "📸 Carrousel Instagram", desc: "Version visuelle, pédago" },
-  { id: "reel", label: "🎬 Script Reel", desc: "Version punchy, 30-60 sec" },
-  { id: "stories", label: "📱 Séquence Stories", desc: "Version intime, 5 stories" },
+  { id: "linkedin", label: "Post LinkedIn", icon: Linkedin, desc: "Version expert·e, données" },
+  { id: "instagram", label: "Carrousel Instagram", icon: Instagram, desc: "Version visuelle, pédago" },
+  { id: "reel", label: "Script Reel", icon: Clapperboard, desc: "Version punchy, 30-60 sec" },
+  { id: "stories", label: "Séquence Stories", icon: Smartphone, desc: "Version intime, 5 stories" },
 ];
 
 interface CrosspostResult {
@@ -270,7 +270,7 @@ export default function LinkedInCrosspost() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentTo="/linkedin" parentLabel="LinkedIn" currentLabel="Crossposting" />
 
-        <h1 className="font-display text-2xl font-bold text-foreground mb-1">🔄 Crossposting intelligent</h1>
+        <h1 className="font-display text-2xl font-bold text-foreground mb-1 flex items-center gap-2"><RefreshCw className="h-6 w-6 text-primary" strokeWidth={1.75} aria-hidden="true" /> Crossposting intelligent</h1>
         <p className="text-sm text-muted-foreground mb-6">Un contenu source → adapté pour chaque canal. Pas du copier-coller : chaque version apporte un angle spécifique.</p>
 
         {/* Input mode toggle */}
@@ -278,9 +278,9 @@ export default function LinkedInCrosspost() {
           <p className="text-sm font-medium text-foreground mb-2">Ton contenu source :</p>
           <div className="flex gap-2 mb-3">
             {([
-              { key: "text" as const, label: "✏️ Texte" },
-              { key: "files" as const, label: "📎 Fichiers" },
-              { key: "both" as const, label: "✏️📎 Les deux" },
+              { key: "text" as const, label: "Texte", icons: [PenLine] },
+              { key: "files" as const, label: "Fichiers", icons: [Paperclip] },
+              { key: "both" as const, label: "Les deux", icons: [PenLine, Paperclip] },
             ]).map((m) => (
               <button
                 key={m.key}
@@ -290,6 +290,7 @@ export default function LinkedInCrosspost() {
                   inputMode === m.key ? "bg-primary text-primary-foreground border-primary" : "border-border hover:border-primary/40"
                 )}
               >
+                {m.icons.map((MIcon, i) => <MIcon key={i} className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />)}
                 {m.label}
               </button>
             ))}
@@ -301,7 +302,7 @@ export default function LinkedInCrosspost() {
               <div className="flex flex-wrap gap-2 mb-2">
                 {SOURCE_TYPES.map((s) => (
                   <button key={s.id} onClick={() => setSourceType(s.id)} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${sourceType === s.id ? "bg-primary/10 text-primary border-primary/30" : "border-border hover:border-primary/40 text-muted-foreground"}`}>
-                    {s.label}
+                    <s.icon className="inline h-3.5 w-3.5 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />{s.label}
                   </button>
                 ))}
               </div>
@@ -345,7 +346,7 @@ export default function LinkedInCrosspost() {
                   {isActive && (
                     <span className="absolute top-2 right-2 text-primary text-xs font-bold">✓</span>
                   )}
-                  <span className="text-sm font-semibold block">{ch.label}</span>
+                  <span className="text-sm font-semibold block"><ch.icon className="inline h-4 w-4 align-[-2px] text-primary mr-1.5" strokeWidth={1.75} aria-hidden="true" />{ch.label}</span>
                   <span className="text-xs text-muted-foreground">{ch.desc}</span>
                 </button>
               );
@@ -364,7 +365,7 @@ export default function LinkedInCrosspost() {
             ? files.length > 0
               ? `Extraction de ${files.length} fichier${files.length > 1 ? "s" : ""} + adaptation...`
               : "Adaptation en cours..."
-            : "✨ Adapter pour chaque canal"
+            : "Adapter pour chaque canal"
           }
         </Button>
 
@@ -382,8 +383,13 @@ export default function LinkedInCrosspost() {
             <Tabs defaultValue={Object.keys(result.versions)[0]} onValueChange={setActiveVersionKey}>
               <TabsList>
                 {Object.keys(result.versions).map((key) => {
-                  const label = TARGET_CHANNELS.find((c) => c.id === key)?.label || key;
-                  return <TabsTrigger key={key} value={key}>{label}</TabsTrigger>;
+                  const channel = TARGET_CHANNELS.find((c) => c.id === key);
+                  return (
+                    <TabsTrigger key={key} value={key} className="gap-1.5">
+                      {channel && <channel.icon className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" />}
+                      {channel?.label || key}
+                    </TabsTrigger>
+                  );
                 })}
               </TabsList>
               {Object.entries(result.versions).map(([key, version]) => {
@@ -393,9 +399,9 @@ export default function LinkedInCrosspost() {
                     <div className="rounded-xl border border-border bg-card p-5">
                       <p className="whitespace-pre-line text-sm text-foreground leading-relaxed">{text}</p>
                       {version.character_count && (
-                        <p className="text-xs text-muted-foreground mt-3">📊 {version.character_count} caractères</p>
+                        <p className="text-xs text-muted-foreground mt-3"><BarChart3 className="inline h-3.5 w-3.5 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />{version.character_count} caractères</p>
                       )}
-                      <p className="text-xs text-primary mt-1">💡 Angle choisi : {version.angle_choisi}</p>
+                      <p className="text-xs text-primary mt-1"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />Angle choisi : {version.angle_choisi}</p>
                     </div>
                     <RedFlagsChecker content={text} onFix={(fixed) => {
                       if (!result) return;
@@ -428,8 +434,8 @@ export default function LinkedInCrosspost() {
               onOpenChange={setShowCalendarDialog}
               onConfirm={planMode === "all" ? handleAddAllToCalendar : handleAddToCalendar}
               contentLabel={planMode === "all"
-                ? `🔄 Planifier les ${versionCount} versions à la même date`
-                : `🔄 Crosspost ${getActiveChannelLabel()}`}
+                ? `Planifier les ${versionCount} versions à la même date`
+                : `Crosspost ${getActiveChannelLabel()}`}
               contentEmoji="🔄"
               loading={addingToCalendar}
             />

@@ -11,7 +11,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { Loader2, Sparkles, BarChart3, RotateCcw } from "lucide-react";
+import { Loader2, Sparkles, BarChart3, RotateCcw, Search, TrendingUp, CheckCircle2, PauseCircle, FileText, User } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { useDiagnosticCache } from "@/hooks/use-diagnostic-cache";
 import DiagnosticCacheBanner from "@/components/audit/DiagnosticCacheBanner";
@@ -606,7 +606,7 @@ export default function InstagramAudit() {
         <AppHeader />
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Audit" useFromParam />
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔍 Audit de ton profil Instagram</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-2"><Search className="h-5 w-5 text-primary" strokeWidth={1.75} /> Audit de ton profil Instagram</h1>
 
           <div className="rounded-2xl border border-border bg-card p-6 mt-6">
             {score !== null && (
@@ -622,8 +622,8 @@ export default function InstagramAudit() {
 
             {liveScore !== null && score !== null && liveScore > score && (
               <div className="rounded-xl border border-success/30 bg-success-bg/50 p-3 mb-4">
-                <p className="text-sm text-foreground">
-                  📈 Tu as amélioré des éléments. Score estimé : <strong>{score}</strong> → <strong>{liveScore}</strong>
+                <p className="flex items-start gap-1.5 text-sm text-foreground">
+                  <TrendingUp className="h-4 w-4 shrink-0 mt-0.5 text-success" strokeWidth={1.75} /> <span>Tu as amélioré des éléments. Score estimé : <strong>{score}</strong> → <strong>{liveScore}</strong></span>
                 </p>
               </div>
             )}
@@ -631,11 +631,11 @@ export default function InstagramAudit() {
             <div className="flex flex-wrap gap-3 justify-center">
               <Button onClick={() => setView("results")} className="rounded-pill gap-2">
                 <BarChart3 className="h-4 w-4" />
-                📊 Voir mes résultats
+                Voir mes résultats
               </Button>
               <Button variant="outline" onClick={() => setView("form")} className="rounded-pill gap-2">
                 <RotateCcw className="h-4 w-4" />
-                🔄 Refaire l'audit
+                Refaire l'audit
               </Button>
             </div>
           </div>
@@ -658,7 +658,7 @@ export default function InstagramAudit() {
         <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Résultats audit" useFromParam />
           <div className="flex items-center justify-between mb-6 flex-wrap gap-2">
-            <h1 className="font-display text-3xl font-bold text-foreground">🔍 Résultat de ton audit</h1>
+            <h1 className="font-display text-3xl font-bold text-foreground flex items-center gap-2"><Search className="h-5 w-5 text-primary" strokeWidth={1.75} /> Résultat de ton audit</h1>
             {auditDate && (
               <span className="text-xs text-muted-foreground">
                 {new Date(auditDate).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}
@@ -668,19 +668,19 @@ export default function InstagramAudit() {
 
           {resumeNotice === "done" && (
             <div className="rounded-2xl border border-success/40 bg-success-bg/60 p-4 mb-6">
-              <p className="text-sm text-foreground">
-                ✅ Ton audit a bien abouti pendant le rechargement de la page — le voici.
+              <p className="flex items-start gap-1.5 text-sm text-foreground">
+                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-success" strokeWidth={1.75} /> Ton audit a bien abouti pendant le rechargement de la page — le voici.
               </p>
             </div>
           )}
 
           {liveScore !== null && auditResult.score_global && liveScore > auditResult.score_global && (
             <div className="rounded-2xl border border-border bg-success-bg/50 p-4 mb-6">
-              <p className="text-sm text-foreground">
-                📈 Tu as amélioré des éléments depuis cet audit. Ton score estimé est passé de <strong>{auditResult.score_global}</strong> à <strong>{liveScore}</strong>.
+              <p className="flex items-start gap-1.5 text-sm text-foreground">
+                <TrendingUp className="h-4 w-4 shrink-0 mt-0.5 text-success" strokeWidth={1.75} /> <span>Tu as amélioré des éléments depuis cet audit. Ton score estimé est passé de <strong>{auditResult.score_global}</strong> à <strong>{liveScore}</strong>.</span>
               </p>
               <Button variant="outline" size="sm" className="rounded-pill mt-2 gap-1.5" onClick={() => setView("form")}>
-                🔍 Relancer l'audit complet
+                <Search className="h-3.5 w-3.5" strokeWidth={1.75} /> Relancer l'audit complet
               </Button>
             </div>
           )}
@@ -694,7 +694,7 @@ export default function InstagramAudit() {
 
           {bioElement && bioElement.lignes && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-5 space-y-4">
-              <h3 className="font-body text-base font-bold text-foreground">📝 Détail de ta bio</h3>
+              <h3 className="font-body text-base font-bold text-foreground flex items-center gap-2"><FileText className="h-4 w-4 text-primary" strokeWidth={1.75} /> Détail de ta bio</h3>
               <AuditBioBeforeAfter
                 currentBio={bioElement.current || profileData?.instagram_bio || ""}
                 lignes={bioElement.lignes}
@@ -732,10 +732,10 @@ export default function InstagramAudit() {
 
           <div className="flex flex-wrap gap-3 mt-8">
             <Button variant="outline" onClick={() => setView("form")} className="rounded-pill gap-2">
-              🔄 Refaire l'audit
+              <RotateCcw className="h-4 w-4" strokeWidth={1.75} /> Refaire l'audit
             </Button>
             <Button onClick={() => navigate("/instagram/profil")} className="rounded-pill gap-2">
-              👤 Voir mon profil
+              <User className="h-4 w-4" strokeWidth={1.75} /> Voir mon profil
             </Button>
           </div>
         </main>
@@ -753,8 +753,10 @@ export default function InstagramAudit() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel={hasExistingAudit ? "Refaire l'audit" : "Audit"} useFromParam />
-        <h1 className="font-display text-3xl font-bold text-foreground">
-          {hasExistingAudit ? "🔄 Refaire l'audit" : "🔍 Audit de ton profil Instagram"}
+        <h1 className="font-display text-3xl font-bold text-foreground flex items-center gap-2">
+          {hasExistingAudit
+            ? <><RotateCcw className="h-5 w-5 text-primary" strokeWidth={1.75} /> Refaire l'audit</>
+            : <><Search className="h-5 w-5 text-primary" strokeWidth={1.75} /> Audit de ton profil Instagram</>}
         </h1>
         <p className="mt-2 text-sm text-muted-foreground italic mb-8">
           {hasExistingAudit
@@ -775,9 +777,9 @@ export default function InstagramAudit() {
         )}
         {resumeNotice === "interrupted" && !analyzing && (
           <div className="rounded-2xl border border-warning/40 bg-warning-bg/60 p-4 mb-6">
-            <p className="text-sm text-foreground">
-              ⏸️ Ton audit a été interrompu par un rechargement de la page. Relance l'analyse —
-              s'il a malgré tout abouti, il apparaîtra dans tes résultats.
+            <p className="flex items-start gap-1.5 text-sm text-foreground">
+              <PauseCircle className="h-4 w-4 shrink-0 mt-0.5 text-warning" strokeWidth={1.75} /> <span>Ton audit a été interrompu par un rechargement de la page. Relance l'analyse —
+              s'il a malgré tout abouti, il apparaîtra dans tes résultats.</span>
             </p>
           </div>
         )}
@@ -791,7 +793,7 @@ export default function InstagramAudit() {
                 className="rounded-full gap-2"
                 onClick={() => handleSubmit(lastSubmitData)}
               >
-                🔄 Réessayer avec les mêmes données
+                <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} /> Réessayer avec les mêmes données
               </Button>
             )}
           </div>

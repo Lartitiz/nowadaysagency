@@ -1,15 +1,16 @@
 import { Link } from "react-router-dom";
+import { Instagram, Linkedin, type LucideIcon } from "lucide-react";
 import { memoriseRetour } from "@/lib/retour-apres-detour";
 import { useSocialConnections, type SocialPlatform } from "@/hooks/use-social-connections";
 
-const COPY: Record<string, { emoji: string; label: string; benefit: string }> = {
+const COPY: Record<string, { icon: LucideIcon; label: string; benefit: string }> = {
   instagram: {
-    emoji: "📸",
+    icon: Instagram,
     label: "Instagram",
     benefit: "publier tes posts en 1 clic et récupérer tes vraies stats automatiquement",
   },
   linkedin: {
-    emoji: "💼",
+    icon: Linkedin,
     label: "LinkedIn",
     benefit: "publier tes posts en 1 clic, sans copier-coller",
   },
@@ -25,11 +26,12 @@ export default function HubConnectBanner({ platform, benefit }: { platform: Soci
   const copy = COPY[platform];
   if (!copy) return null;
   if (loading || isConnected(platform)) return null;
+  const Icon = copy.icon;
 
   return (
     <div className="mb-6 rounded-2xl border border-primary/30 bg-primary/5 px-4 py-3.5 flex items-center justify-between gap-3 flex-wrap">
       <div className="flex items-start gap-2.5 text-sm text-foreground min-w-0">
-        <span className="text-lg leading-none shrink-0" aria-hidden="true">{copy.emoji}</span>
+        <Icon className="h-[18px] w-[18px] shrink-0 text-primary" strokeWidth={1.75} aria-hidden="true" />
         <span>
           Connecte ton compte <strong>{copy.label}</strong> pour {benefit || copy.benefit}.
         </span>

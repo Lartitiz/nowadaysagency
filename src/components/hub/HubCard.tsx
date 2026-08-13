@@ -1,10 +1,11 @@
 import { memo } from "react";
 import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, type LucideIcon } from "lucide-react";
 
 function HubCard({
   to,
   emoji,
+  icon: Icon,
   title,
   desc,
   badge,
@@ -14,7 +15,9 @@ function HubCard({
   onClick,
 }: {
   to: string;
-  emoji: string;
+  /** Legacy : préférer `icon` (charte : icônes filaires, pas d'emoji-icône). */
+  emoji?: string;
+  icon?: LucideIcon;
   title: string;
   desc: string;
   badge?: string;
@@ -31,7 +34,13 @@ function HubCard({
           {displayTag}
         </span>
       )}
-      <span className="text-2xl mb-2 block">{emoji}</span>
+      {Icon ? (
+        <span className="mb-2.5 flex h-9 w-9 items-center justify-center rounded-xl bg-rose-pale">
+          <Icon className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" />
+        </span>
+      ) : emoji ? (
+        <span className="text-2xl mb-2 block">{emoji}</span>
+      ) : null}
       {/* Flèche toujours visible : sans elle, rien n'indique que la card est cliquable */}
       <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary transition-colors flex items-center justify-between gap-2">
         <span>{title}</span>

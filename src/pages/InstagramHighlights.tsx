@@ -8,7 +8,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { Save, Loader2, BookOpen, Sparkles, Check, X, Lightbulb } from "lucide-react";
+import { Save, Loader2, BookOpen, Sparkles, Check, X, Lightbulb, Star, BarChart3, Palette, CheckCircle2, Hand, Briefcase, MessageCircle, HelpCircle, Gift, Clapperboard, type LucideIcon } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import AuditInsight from "@/components/AuditInsight";
 import ProfileSectionValidation from "@/components/ProfileSectionValidation";
@@ -35,6 +35,17 @@ interface RecommendedHighlight {
   structure: { step: number; text: string }[];
   tip: string;
 }
+
+/* Icônes filaires affichées à l'écran (charte). Le champ `emoji` reste : il est PERSISTÉ
+   en base (colonne instagram_highlights.emoji) — ne pas le retirer. */
+const HIGHLIGHT_ICONS: Record<string, LucideIcon> = {
+  qui_suis_je: Hand,
+  offre: Briefcase,
+  retours: MessageCircle,
+  faq: HelpCircle,
+  ressources: Gift,
+  coulisses: Clapperboard,
+};
 
 const RECOMMENDED_HIGHLIGHTS: RecommendedHighlight[] = [
   {
@@ -295,7 +306,7 @@ export default function InstagramHighlights() {
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon profil" parentTo="/instagram/profil" currentLabel="Stories à la une" />
 
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">⭐ Tes stories à la une</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-2"><Star className="h-5 w-5 text-primary" strokeWidth={1.75} /> Tes stories à la une</h1>
         <p className="mt-2 text-base text-muted-foreground italic mb-6">
           Les highlights sont ta vitrine permanente. C'est la 2ème chose qu'un·e visiteur·se regarde après ta bio. L'ordre compte.
         </p>
@@ -318,8 +329,8 @@ export default function InstagramHighlights() {
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-body text-base font-bold text-foreground">
-                      {h.emoji} {h.label}
+                    <h3 className="font-body text-base font-bold text-foreground flex items-center gap-1.5 flex-wrap">
+                      {(() => { const Icon = HIGHLIGHT_ICONS[h.type]; return Icon ? <Icon className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> : null; })()} {h.label}
                       {h.optional && <span className="text-xs font-normal text-muted-foreground ml-2">(optionnel)</span>}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-0.5">{h.description}</p>
@@ -383,8 +394,8 @@ export default function InstagramHighlights() {
 
         {/* ── Recap bar ── */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-8">
-          <p className="text-sm font-bold text-foreground mb-2">
-            📊 Récap : {doneCount}/6 highlights créés
+          <p className="flex items-center gap-1.5 text-sm font-bold text-foreground mb-2">
+            <BarChart3 className="h-4 w-4 text-primary" strokeWidth={1.75} /> Récap : {doneCount}/6 highlights créés
           </p>
           {doneCount < 2 && (
             <p className="text-sm text-muted-foreground">
@@ -402,14 +413,14 @@ export default function InstagramHighlights() {
 
         {/* ── Covers audit section ── */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-8">
-          <h2 className="font-body text-base font-bold text-foreground mb-3">
-            🎨 Tes covers de highlights
+          <h2 className="font-body text-base font-bold text-foreground mb-3 flex items-center gap-2">
+            <Palette className="h-4 w-4 text-primary" strokeWidth={1.75} /> Tes covers de highlights
           </h2>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>✅ <strong>Cohérentes entre elles ?</strong> Même style, mêmes couleurs.</li>
-            <li>✅ <strong>Simples ?</strong> 1 icône ou 1 mot sur fond coloré.</li>
-            <li>✅ <strong>Lisibles en petit ?</strong> Pas de texte trop fin.</li>
-            <li>✅ <strong>Alignées avec ta charte graphique ?</strong></li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-success" strokeWidth={1.75} /><span><strong>Cohérentes entre elles ?</strong> Même style, mêmes couleurs.</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-success" strokeWidth={1.75} /><span><strong>Simples ?</strong> 1 icône ou 1 mot sur fond coloré.</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-success" strokeWidth={1.75} /><span><strong>Lisibles en petit ?</strong> Pas de texte trop fin.</span></li>
+            <li className="flex items-start gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-success" strokeWidth={1.75} /><span><strong>Alignées avec ta charte graphique ?</strong></span></li>
           </ul>
           <div className="mt-3 rounded-xl bg-rose-pale p-3">
             <p className="text-xs text-foreground">
@@ -425,7 +436,7 @@ export default function InstagramHighlights() {
         <div className="flex flex-wrap gap-3">
           <Button onClick={handleSave} disabled={saving} className="rounded-full gap-2">
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-            {saving ? "Enregistrement..." : "💾 Sauvegarder"}
+            {saving ? "Enregistrement..." : "Sauvegarder"}
           </Button>
           <Button variant="outline" onClick={() => setShowIdeasDialog(true)} className="rounded-full gap-2">
             <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
@@ -448,8 +459,8 @@ export default function InstagramHighlights() {
           {structureModal && (
             <>
               <DialogHeader>
-                <DialogTitle className="font-display text-lg">
-                  📖 Structure : {structureModal.emoji} {structureModal.label}
+                <DialogTitle className="font-display text-lg flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary" strokeWidth={1.75} /> Structure : {structureModal.label}
                 </DialogTitle>
                 <DialogDescription className="sr-only">Structure détaillée de la story à la une</DialogDescription>
               </DialogHeader>

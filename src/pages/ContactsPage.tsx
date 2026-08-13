@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { Plus, ExternalLink, MessageCircle, SkipForward, Trash2, ArrowRight } from "lucide-react";
+import { Plus, ExternalLink, MessageCircle, SkipForward, Trash2, ArrowRight, Tag, Newspaper, Handshake, Megaphone, Sparkles, Eye, Send, CheckCircle2, Users, Target, Circle, CalendarDays, Clock, Check, AlertTriangle, Bell, TrendingUp, type LucideIcon } from "lucide-react";
 import InstagramLink, { cleanPseudo } from "@/components/InstagramLink";
 import Confetti from "@/components/Confetti";
 
@@ -64,27 +64,27 @@ export interface ContactInteraction {
 
 /* ─── Constants ─── */
 const NETWORK_CATEGORIES = [
-  { key: "pair", label: "🏷️ Paire", desc: "Solopreneuses, freelances" },
-  { key: "media", label: "📰 Média", desc: "Journalistes, podcasts" },
-  { key: "partner", label: "🤝 Partenaire", desc: "Profils complémentaires" },
-  { key: "prescriber", label: "📣 Prescriptrice", desc: "Recommandent à leur audience" },
-  { key: "inspiration", label: "✨ Inspiration", desc: "Veille, pas d'interaction" },
+  { key: "pair", label: "Paire", icon: Tag, desc: "Solopreneuses, freelances" },
+  { key: "media", label: "Média", icon: Newspaper, desc: "Journalistes, podcasts" },
+  { key: "partner", label: "Partenaire", icon: Handshake, desc: "Profils complémentaires" },
+  { key: "prescriber", label: "Prescriptrice", icon: Megaphone, desc: "Recommandent à leur audience" },
+  { key: "inspiration", label: "Inspiration", icon: Sparkles, desc: "Veille, pas d'interaction" },
 ];
 
 const PROSPECT_STAGES = [
-  { key: "to_contact", label: "👀 À contacter", color: "bg-success-bg text-success" },
-  { key: "in_conversation", label: "💬 En conversation", color: "bg-info-bg text-info" },
-  { key: "offer_proposed", label: "📩 Offre proposée", color: "bg-warning-bg text-warning" },
-  { key: "converted", label: "✅ Cliente", color: "bg-success-bg text-success" },
+  { key: "to_contact", label: "À contacter", icon: Eye, color: "bg-success-bg text-success" },
+  { key: "in_conversation", label: "En conversation", icon: MessageCircle, color: "bg-info-bg text-info" },
+  { key: "offer_proposed", label: "Offre proposée", icon: Send, color: "bg-warning-bg text-warning" },
+  { key: "converted", label: "Cliente", icon: CheckCircle2, color: "bg-success-bg text-success" },
 ];
 
-const CATEGORY_FILTERS = [
+const CATEGORY_FILTERS: { value: string; label: string; icon?: LucideIcon }[] = [
   { value: "all", label: "Tous" },
-  { value: "pair", label: "🏷️ Paires" },
-  { value: "media", label: "📰 Médias" },
-  { value: "partner", label: "🤝 Partenaires" },
-  { value: "prescriber", label: "📣 Prescriptrices" },
-  { value: "inspiration", label: "✨ Inspirations" },
+  { value: "pair", label: "Paires", icon: Tag },
+  { value: "media", label: "Médias", icon: Newspaper },
+  { value: "partner", label: "Partenaires", icon: Handshake },
+  { value: "prescriber", label: "Prescriptrices", icon: Megaphone },
+  { value: "inspiration", label: "Inspirations", icon: Sparkles },
 ];
 
 function daysSince(dateStr?: string | null) {
@@ -92,10 +92,11 @@ function daysSince(dateStr?: string | null) {
   return Math.floor((Date.now() - new Date(dateStr).getTime()) / 86400000);
 }
 
-function interactionDot(days: number) {
-  if (days <= 3) return "🟢";
-  if (days <= 7) return "🟡";
-  return "🔴";
+// Pastille d'interaction : couleur charte (vert < 3 j, jaune 3-7 j, rouge > 7 j)
+function interactionDotColor(days: number) {
+  if (days <= 3) return "text-success";
+  if (days <= 7) return "text-warning";
+  return "text-error";
 }
 
 /* ─── Main Page ─── */
@@ -174,17 +175,17 @@ export default function ContactsPage() {
         {/* Stats bar */}
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap gap-4 text-sm">
-            <span>👥 <strong>{networkContacts.length}</strong> contacts réseau</span>
-            <span>🎯 <strong>{prospectContacts.length}</strong> prospects</span>
-            {inConvo > 0 && <span>💬 <strong>{inConvo}</strong> en conversation</span>}
-            {offerProp > 0 && <span>📩 <strong>{offerProp}</strong> offre{offerProp > 1 ? "s" : ""} proposée{offerProp > 1 ? "s" : ""}</span>}
+            <span className="inline-flex items-center gap-1.5"><Users className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> <strong>{networkContacts.length}</strong> contacts réseau</span>
+            <span className="inline-flex items-center gap-1.5"><Target className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> <strong>{prospectContacts.length}</strong> prospects</span>
+            {inConvo > 0 && <span className="inline-flex items-center gap-1.5"><MessageCircle className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> <strong>{inConvo}</strong> en conversation</span>}
+            {offerProp > 0 && <span className="inline-flex items-center gap-1.5"><Send className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> <strong>{offerProp}</strong> offre{offerProp > 1 ? "s" : ""} proposée{offerProp > 1 ? "s" : ""}</span>}
           </div>
         </div>
 
         <Tabs value={tab} onValueChange={setTab} className="w-full">
           <TabsList className="w-full grid grid-cols-2">
-            <TabsTrigger value="network">👥 Mon réseau</TabsTrigger>
-            <TabsTrigger value="prospects">🎯 Mes prospects</TabsTrigger>
+            <TabsTrigger value="network" className="gap-1.5"><Users className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Mon réseau</TabsTrigger>
+            <TabsTrigger value="prospects" className="gap-1.5"><Target className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Mes prospects</TabsTrigger>
           </TabsList>
 
           <TabsContent value="network" className="mt-4">
@@ -358,7 +359,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
                 filter === f.value ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground hover:border-primary/40"
               }`}
             >
-              {f.label}
+              {f.icon && <f.icon className="inline h-3 w-3 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />}{f.label}
             </button>
           ))}
         </div>
@@ -371,8 +372,8 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
       {routineContacts.length > 0 && (
         <div className="rounded-xl border-2 border-primary/20 bg-secondary/30 p-4 space-y-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-bold">🗓️ Routine du jour</span>
-            <span className="text-2xs text-muted-foreground">⏰ ~10 min</span>
+            <span className="text-sm font-bold inline-flex items-center gap-1.5"><CalendarDays className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Routine du jour</span>
+            <span className="text-2xs text-muted-foreground inline-flex items-center gap-1"><Clock className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> ~10 min</span>
           </div>
           <p className="text-xs text-muted-foreground">Commente 3 comptes aujourd'hui :</p>
           {routineContacts.map(c => {
@@ -395,8 +396,8 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
                 <InstagramLink username={c.username} className="inline-flex items-center gap-1 h-7 px-2 text-2xs rounded-md hover:bg-accent text-foreground" showCopy>
                   <ExternalLink className="h-3 w-3" /> IG
                 </InstagramLink>
-                <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs" onClick={() => onInteract(c.id)}>
-                  ✅ Fait
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-2xs gap-1" onClick={() => onInteract(c.id)}>
+                  <Check className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> Fait
                 </Button>
               </div>
             );
@@ -409,11 +410,11 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
         <h3 className="text-sm font-bold text-foreground">Tous mes contacts</h3>
         {filtered.map(c => {
           const days = daysSince(c.last_interaction_at);
-          const dot = interactionDot(days);
+          const dotColor = interactionDotColor(days);
           const catLabel = NETWORK_CATEGORIES.find(nc => nc.key === c.network_category)?.label || "";
           return (
             <div key={c.id} className="flex items-center gap-2 rounded-lg border border-border p-2.5 hover:border-primary/30 transition-colors text-sm group">
-              <span className="text-xs">{dot}</span>
+              <Circle className={`h-2.5 w-2.5 shrink-0 fill-current ${dotColor}`} strokeWidth={1.75} aria-hidden="true" />
               <span className="font-mono font-semibold text-primary">@{cleanPseudo(c.username)}</span>
               <span className="text-2xs text-muted-foreground">{catLabel}</span>
               <span className="text-2xs text-muted-foreground flex-1 truncate">
@@ -421,10 +422,10 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
               </span>
               <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                 <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs" onClick={() => onInteract(c.id)} title="Marquer interagi">
-                  ✅
+                  <Check className="h-3 w-3" strokeWidth={1.75} />
                 </Button>
                 <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs" onClick={() => onPromoteToProspect(c.id)} title="Passer en prospect">
-                  🎯
+                  <Target className="h-3 w-3" strokeWidth={1.75} />
                 </Button>
                 <Button size="sm" variant="ghost" className="h-6 px-1.5 text-2xs text-destructive" onClick={() => onDelete(c.id)} title="Supprimer">
                   <Trash2 className="h-3 w-3" />
@@ -440,8 +441,10 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
 
       {/* Legend */}
       {contacts.length > 0 && (
-        <p className="text-2xs text-muted-foreground">
-          🟢 &lt; 3 jours · 🟡 3-7 jours · 🔴 &gt; 7 jours
+        <p className="text-2xs text-muted-foreground flex items-center gap-1 flex-wrap">
+          <Circle className="h-2 w-2 fill-current text-success" strokeWidth={1.75} aria-hidden="true" /> &lt; 3 jours ·
+          <Circle className="h-2 w-2 fill-current text-warning" strokeWidth={1.75} aria-hidden="true" /> 3-7 jours ·
+          <Circle className="h-2 w-2 fill-current text-error" strokeWidth={1.75} aria-hidden="true" /> &gt; 7 jours
         </p>
       )}
 
@@ -460,7 +463,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
                   newCategory === cat.key ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border text-muted-foreground"
                 }`}
               >
-                {cat.label}
+                <cat.icon className="inline h-3 w-3 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />{cat.label}
               </button>
             ))}
           </div>
@@ -511,7 +514,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
       {/* Reminders */}
       {todayReminders.length > 0 && (
         <div className="rounded-xl border-2 border-primary/20 bg-secondary/30 p-4 space-y-3">
-          <h3 className="text-sm font-bold">📩 Relances du jour</h3>
+          <h3 className="text-sm font-bold flex items-center gap-1.5"><Send className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Relances du jour</h3>
           {todayReminders.map(c => (
             <div key={c.id} className="flex items-center gap-2 text-sm">
               <span className="flex-1 min-w-0 truncate">
@@ -553,7 +556,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
           return (
             <div key={stage.key} className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stage.color}`}>{stage.label}</span>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${stage.color}`}><stage.icon className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" />{stage.label}</span>
                 <span className="text-2xs text-muted-foreground">({stageContacts.length})</span>
               </div>
               {stageContacts.map(c => {
@@ -574,7 +577,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
                           {c.activity && (
                             <span className="text-2xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{c.activity}</span>
                           )}
-                          {stale && <span className="text-2xs">⚠️</span>}
+                          {stale && <AlertTriangle className="h-3 w-3 shrink-0 text-warning" strokeWidth={1.75} aria-hidden="true" />}
                         </div>
                         {c.display_name && <p className="text-2xs text-muted-foreground">{c.display_name}</p>}
                         <p className="text-2xs text-muted-foreground mt-0.5">
@@ -583,7 +586,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
                             : "Dernier contact : jamais"}
                         </p>
                         {c.next_followup_at && new Date(c.next_followup_at) <= new Date() && (
-                          <p className="text-2xs text-primary font-semibold mt-0.5">🔔 Relance prévue</p>
+                          <p className="text-2xs text-primary font-semibold mt-0.5"><Bell className="inline h-3 w-3 align-[-2px] mr-1" strokeWidth={1.75} aria-hidden="true" />Relance prévue</p>
                         )}
                       </div>
                       <div className="flex gap-1 shrink-0" onClick={e => e.stopPropagation()}>
@@ -609,7 +612,7 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
       {/* Pipeline value */}
       {pipelineValue > 0 && (
         <p className="text-xs text-muted-foreground text-center">
-          💰 Pipeline : {contacts.filter(c => c.prospect_stage === "offer_proposed").length} offre{contacts.filter(c => c.prospect_stage === "offer_proposed").length > 1 ? "s" : ""} proposée{contacts.filter(c => c.prospect_stage === "offer_proposed").length > 1 ? "s" : ""} · Valeur potentielle : {pipelineValue}€
+          <TrendingUp className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Pipeline : {contacts.filter(c => c.prospect_stage === "offer_proposed").length} offre{contacts.filter(c => c.prospect_stage === "offer_proposed").length > 1 ? "s" : ""} proposée{contacts.filter(c => c.prospect_stage === "offer_proposed").length > 1 ? "s" : ""} · Valeur potentielle : {pipelineValue}€
         </p>
       )}
     </div>

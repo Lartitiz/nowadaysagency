@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CalendarDays, Clock, Video, MessageCircle, ChevronDown, ChevronUp, Lock, Download, ExternalLink, Sparkles } from "lucide-react";
+import { Loader2, CalendarDays, Clock, Video, MessageCircle, ChevronDown, ChevronUp, Lock, Download, ExternalLink, Sparkles, Handshake, GraduationCap, ClipboardList, CheckCircle2, Gift, Lightbulb, Target, Mail } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -233,7 +233,7 @@ export default function AccompagnementPage() {
           <AppHeader />
           <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
             <div className="rounded-2xl bg-rose-pale border border-primary/10 p-8 text-center space-y-6">
-              <span className="text-5xl block">🤝</span>
+              <Handshake className="h-10 w-10 mx-auto text-primary" strokeWidth={1.75} />
               <h1 className="font-display text-2xl font-bold text-foreground">Ta binôme de com, c'est quoi ?</h1>
               <div className="text-left space-y-3 max-w-md mx-auto">
                {[
@@ -269,7 +269,7 @@ export default function AccompagnementPage() {
         <AppHeader />
         <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
           <div className="rounded-2xl bg-rose-pale border border-primary/10 p-8 text-center space-y-6">
-            <span className="text-5xl block">🤝</span>
+            <Handshake className="h-10 w-10 mx-auto text-primary" strokeWidth={1.75} />
             <h1 className="font-display text-2xl font-bold text-foreground">Envie d'être accompagnée ?</h1>
             <div className="text-left space-y-3 max-w-md mx-auto">
                {[
@@ -307,7 +307,7 @@ export default function AccompagnementPage() {
         <AppHeader />
         <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in space-y-6">
           <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4">
-            <span className="text-5xl block">🎓</span>
+            <GraduationCap className="h-10 w-10 mx-auto text-primary" strokeWidth={1.75} />
             <h1 className="font-display text-2xl font-bold text-foreground">Programme terminé</h1>
             <p className="text-sm text-muted-foreground">
               Ton accompagnement est terminé. Bravo pour tout le chemin parcouru ! 🎉
@@ -321,11 +321,11 @@ export default function AccompagnementPage() {
           {/* Sessions recap */}
           {completedSess.length > 0 && (
             <div className="rounded-2xl border border-border bg-card p-6">
-              <h2 className="font-display text-lg font-bold text-foreground mb-4">📋 Récap de tes sessions</h2>
+              <h2 className="font-display text-lg font-bold text-foreground mb-4 flex items-center gap-2"><ClipboardList className="h-5 w-5 text-primary" strokeWidth={1.75} />Récap de tes sessions</h2>
               <div className="space-y-3">
                 {completedSess.map(s => (
                   <div key={s.id} className="flex items-center gap-3 text-sm">
-                    <span className="text-muted-foreground">✅</span>
+                    <CheckCircle2 className="h-4 w-4 text-success shrink-0" strokeWidth={1.75} />
                     <span className="font-medium text-foreground">{s.title || `Session ${s.session_number}`}</span>
                     {s.scheduled_date && (
                       <span className="text-muted-foreground text-xs">
@@ -387,7 +387,7 @@ export default function AccompagnementPage() {
         {/* HEADER */}
         <div className="rounded-2xl border border-primary/20 bg-card p-6">
           <div className="flex items-center gap-3 mb-3">
-            <span className="text-2xl">🤝</span>
+            <Handshake className="h-6 w-6 text-primary shrink-0" strokeWidth={1.75} />
             <div>
               <h1 className="font-display text-xl font-bold text-foreground">Mon accompagnement</h1>
               <p className="text-sm text-muted-foreground">Binôme de com · 6 mois · Avec Laetitia</p>
@@ -410,7 +410,7 @@ export default function AccompagnementPage() {
 
         {/* MON PARCOURS — Unified Timeline */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-display text-lg font-bold text-foreground mb-5">🗓️ Mon parcours</h2>
+          <h2 className="font-display text-lg font-bold text-foreground mb-5 flex items-center gap-2"><CalendarDays className="h-5 w-5 text-primary" strokeWidth={1.75} />Mon parcours</h2>
 
           <div className="relative">
             {/* Vertical line */}
@@ -442,7 +442,7 @@ export default function AccompagnementPage() {
 
         {/* WHATSAPP */}
         <div className="rounded-2xl border border-border bg-card p-6">
-          <h2 className="font-display text-lg font-bold text-foreground mb-3">💬 Contacter Laetitia</h2>
+          <h2 className="font-display text-lg font-bold text-foreground mb-3 flex items-center gap-2"><MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.75} />Contacter Laetitia</h2>
           {program.whatsapp_link ? (
             <div>
               <Button asChild className="rounded-full gap-2 bg-[#25D366] hover:bg-[#1ebe57] text-white">
@@ -490,7 +490,11 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
   const opacityClass = isUpcoming ? "opacity-70" : "";
 
   const icon = getSessionIcon(session);
-  const statusIcon = isCompleted ? "✅" : hasDate ? "📅" : "🔜";
+  const statusIcon = isCompleted
+    ? <CheckCircle2 className="h-4 w-4 text-success shrink-0" strokeWidth={1.75} />
+    : hasDate
+    ? <CalendarDays className="h-4 w-4 text-primary shrink-0" strokeWidth={1.75} />
+    : <Clock className="h-4 w-4 text-muted-foreground shrink-0" strokeWidth={1.75} />;
 
   const unlockedDelivs = deliverables.filter(d => d.status === "delivered");
   const lockedDelivs = deliverables.filter(d => d.status !== "delivered");
@@ -511,7 +515,7 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
           className={`w-full text-left flex items-center justify-between ${isCompleted ? "cursor-pointer" : "cursor-default"}`}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="text-sm">{statusIcon}</span>
+            {statusIcon}
             <span className="text-sm">{icon}</span>
             <span className="text-sm font-semibold text-foreground truncate">{session.title || "À définir"}</span>
           </div>
@@ -539,7 +543,7 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
             {/* Laetitia's note */}
             {session.laetitia_note && (
               <div className="rounded-xl bg-secondary/50 p-3">
-                <p className="text-xs font-semibold text-primary mb-1">💌 Mot de Laetitia :</p>
+                <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" strokeWidth={1.75} />Mot de Laetitia :</p>
                 <p className="text-sm text-foreground italic whitespace-pre-line">{session.laetitia_note}</p>
               </div>
             )}
@@ -547,7 +551,7 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
             {/* Unlocked deliverables */}
             {unlockedDelivs.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">✨ Livrables débloqués :</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />Livrables débloqués :</p>
                 <div className="space-y-1.5">
                   {unlockedDelivs.map(d => (
                     <div key={d.id} className="flex items-center justify-between rounded-lg border border-primary/20 bg-card p-2.5">
@@ -576,7 +580,7 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
             {/* Actions */}
             {actions.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-muted-foreground mb-2">📋 À faire :</p>
+                <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><ClipboardList className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />À faire :</p>
                 <div className="space-y-1.5">
                   {actions.map(a => (
                     <label key={a.id} className="flex items-start gap-2.5 cursor-pointer group">
@@ -608,12 +612,12 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
         {isScheduled && (
           <div className="mt-2 space-y-3">
             {/* Focus */}
-            {session.focus && <p className="text-xs text-muted-foreground">🎯 {session.focus}</p>}
+            {session.focus && <p className="text-xs text-muted-foreground flex items-start gap-1.5"><Target className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" strokeWidth={1.75} /><span>{session.focus}</span></p>}
 
             {/* Prep notes */}
             {session.prep_notes && (
               <div className="rounded-xl bg-rose-pale p-3">
-                <p className="text-xs font-semibold text-primary mb-1">💡 Avant la session :</p>
+                <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5" strokeWidth={1.75} />Avant la session :</p>
                 <p className="text-sm text-foreground whitespace-pre-line">{session.prep_notes}</p>
               </div>
             )}
@@ -621,7 +625,7 @@ function SessionCard({ session, expanded, onToggle, actions, deliverables, onTog
             {/* Locked deliverables */}
             {lockedDelivs.length > 0 && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1.5">🔒 Livrables prévus :</p>
+                <p className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" strokeWidth={1.75} />Livrables prévus :</p>
                 {lockedDelivs.map(d => (
                   <p key={d.id} className="text-xs text-muted-foreground flex items-center gap-1.5 ml-1">
                     <Lock className="h-3 w-3" /> {d.title}
@@ -673,8 +677,9 @@ function DeliverablesRecap({ deliverables, unlockedCount, progressPct }: {
     <div className="rounded-2xl border border-border bg-card p-6">
       <button onClick={() => setExpanded(!expanded)} className="w-full text-left">
         <div className="flex items-center justify-between mb-2">
-          <h2 className="font-display text-lg font-bold text-foreground">
-            🎁 Tes livrables · {unlockedCount}/{deliverables.length} débloqués
+          <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
+            <Gift className="h-5 w-5 text-primary" strokeWidth={1.75} />
+            Tes livrables · {unlockedCount}/{deliverables.length} débloqués
           </h2>
           {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
         </div>

@@ -196,7 +196,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
     if (briefsData) {
       const briefsAsIdeas: SavedIdea[] = (briefsData as any[]).map((b: any) => ({
         id: b.id,
-        titre: `📋 ${b.subject}`,
+        titre: b.subject,
         angle: b.editorial_angle || "libre",
         format: b.format || "post",
         canal: b.format === "linkedin" ? "linkedin" : b.format === "newsletter" ? "newsletter" : "instagram",
@@ -301,14 +301,14 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
 
   const handleRediger = (idea: SavedIdea) => {
     // Navigate to /creer with sujet+angle pré-remplis pour aller direct aux questions
-    const params = new URLSearchParams({ sujet: idea.titre.replace(/^📋 /, ""), angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
+    const params = new URLSearchParams({ sujet: idea.titre, angle: idea.angle, format: idea.format, canal: idea.canal, objectif: idea.objectif || "", idea_id: idea.id });
     navigate(`/creer?${params.toString()}`);
   };
 
   // Brief créatif → /creer en réutilisant les questions/réponses déjà saisies
   // (atterrit sur l'étape questions pré-remplie au lieu de tout recommencer).
   const handleCreateFromBrief = (idea: SavedIdea) => {
-    const subject = idea.titre.replace(/^📋 /, "");
+    const subject = idea.titre;
     let data: any = idea.content_data;
     if (typeof data === "string") { try { data = JSON.parse(data); } catch { data = null; } }
     const questions = Array.isArray(data?.questions) ? data.questions : [];

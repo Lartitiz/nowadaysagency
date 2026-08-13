@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
-import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw } from "lucide-react";
+import { Sparkles, Upload, X, Loader2, ArrowRight, ArrowLeft, ChevronRight, Download, RotateCcw, Search, Camera, User, FileText, Target, Users, ClipboardList, Lightbulb, CheckCircle2, AlertTriangle, AlertCircle, XCircle, Link2, Microscope, PenLine, type LucideIcon } from "lucide-react";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { Link, useNavigate } from "react-router-dom";
@@ -97,15 +97,21 @@ function ChipSelect({ options, value, onChange, multi = false }: { options: stri
 
 // ── Score color ──
 function getScoreInfo(score: number) {
-  if (score >= 70) return { color: "text-success", bg: "bg-success-bg", emoji: "🟢" };
-  if (score >= 40) return { color: "text-warning", bg: "bg-warning-bg", emoji: "🟡" };
-  return { color: "text-error", bg: "bg-error-bg", emoji: "🔴" };
+  if (score >= 70) return { color: "text-success", bg: "bg-success-bg", icon: CheckCircle2 };
+  if (score >= 40) return { color: "text-warning", bg: "bg-warning-bg", icon: AlertTriangle };
+  return { color: "text-error", bg: "bg-error-bg", icon: AlertCircle };
 }
 
-function impactEmoji(impact: string) {
-  if (impact === "high") return "🔴";
-  if (impact === "medium") return "🟡";
-  return "🟢";
+function ImpactIcon({ impact }: { impact: string }) {
+  if (impact === "high") return <AlertCircle className="h-4 w-4 shrink-0 text-error" strokeWidth={1.75} aria-hidden="true" />;
+  if (impact === "medium") return <AlertTriangle className="h-4 w-4 shrink-0 text-warning" strokeWidth={1.75} aria-hidden="true" />;
+  return <CheckCircle2 className="h-4 w-4 shrink-0 text-success" strokeWidth={1.75} aria-hidden="true" />;
+}
+
+function StatusIcon({ status }: { status: string }) {
+  if (status === "good") return <CheckCircle2 className="inline h-4 w-4 align-[-2px] text-success" strokeWidth={1.75} aria-hidden="true" />;
+  if (status === "warning") return <AlertTriangle className="inline h-4 w-4 align-[-2px] text-warning" strokeWidth={1.75} aria-hidden="true" />;
+  return <XCircle className="inline h-4 w-4 align-[-2px] text-error" strokeWidth={1.75} aria-hidden="true" />;
 }
 
 export default function LinkedInAudit() {
@@ -324,7 +330,7 @@ export default function LinkedInAudit() {
   const renderStep0 = () => (
     <div className="space-y-6">
       <div>
-        <h2 className="text-lg font-bold text-foreground mb-2">📸 Montre-moi ton profil LinkedIn</h2>
+        <h2 className="text-lg font-bold text-foreground mb-2 flex items-center gap-2"><Camera className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Montre-moi ton profil LinkedIn</h2>
         <p className="text-sm text-muted-foreground mb-4">
           Upload tes screenshots pour que l'IA puisse analyser ton profil en détail. Plus tu en mets, plus l'audit sera précis.
         </p>
@@ -367,12 +373,12 @@ export default function LinkedInAudit() {
           })}
         </div>
         <div className="rounded-xl bg-rose-pale p-3 mt-3">
-          <p className="text-xs text-muted-foreground">💡 Plus tu uploades de screenshots, plus l'audit sera précis. Mais même 1 seul suffit pour commencer.</p>
+          <p className="text-xs text-muted-foreground"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Plus tu uploades de screenshots, plus l'audit sera précis. Mais même 1 seul suffit pour commencer.</p>
         </div>
       </div>
 
       <div>
-        <label className="text-sm font-medium text-foreground mb-1 block">🔗 URL de ton profil LinkedIn (optionnel)</label>
+        <label className="text-sm font-medium text-foreground mb-1 block"><Link2 className="inline h-4 w-4 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />URL de ton profil LinkedIn (optionnel)</label>
         <Input value={profileUrl} onChange={(e) => setProfileUrl(e.target.value)} placeholder="https://linkedin.com/in/..." />
       </div>
 
@@ -400,13 +406,13 @@ export default function LinkedInAudit() {
 
   const renderStep1 = () => (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground">👤 Audit de ton profil</h2>
+      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><User className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Audit de ton profil</h2>
       <p className="text-sm text-muted-foreground">
         L'IA va évaluer chaque élément de ton profil : photo, bannière, titre, À propos, expériences, recommandations, etc.
       </p>
       <div className="rounded-2xl bg-rose-pale p-5">
         <p className="text-sm text-muted-foreground">
-          📋 Les éléments analysés : Photo de profil, Bannière, Titre (headline), Section À propos, Expériences, Formation, Compétences, Recommandations, Sélection de contenus, URL personnalisée, Mode Créateur.
+          <ClipboardList className="inline h-4 w-4 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Les éléments analysés : Photo de profil, Bannière, Titre (headline), Section À propos, Expériences, Formation, Compétences, Recommandations, Sélection de contenus, URL personnalisée, Mode Créateur.
         </p>
       </div>
       <p className="text-xs text-muted-foreground italic">L'analyse sera basée sur tes screenshots et les infos fournies. Continue pour compléter les questions.</p>
@@ -415,7 +421,7 @@ export default function LinkedInAudit() {
 
   const renderStep2 = () => (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground">📝 Audit de ton contenu</h2>
+      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><FileText className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Audit de ton contenu</h2>
       <p className="text-sm text-muted-foreground mb-2">Quelques questions sur tes publications LinkedIn.</p>
 
       <div>
@@ -437,7 +443,7 @@ export default function LinkedInAudit() {
 
   const renderStep3 = () => (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground">🎯 Ta stratégie LinkedIn</h2>
+      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Target className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ta stratégie LinkedIn</h2>
 
       <div>
         <label className="text-sm font-medium text-foreground mb-2 block">Tu publies plutôt :</label>
@@ -463,7 +469,7 @@ export default function LinkedInAudit() {
 
   const renderStep4 = () => (
     <div className="space-y-6">
-      <h2 className="text-lg font-bold text-foreground">🤝 Ton réseau LinkedIn</h2>
+      <h2 className="text-lg font-bold text-foreground flex items-center gap-2"><Users className="h-5 w-5 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ton réseau LinkedIn</h2>
 
       <div>
         <label className="text-sm font-medium text-foreground mb-2 block">Tes connexions sont principalement :</label>
@@ -491,10 +497,10 @@ export default function LinkedInAudit() {
     if (!result) return null;
     const g = getScoreInfo(result.score_global);
     const sections = [
-      { key: "profil", label: "👤 Profil", icon: "👤" },
-      { key: "contenu", label: "📝 Contenu", icon: "📝" },
-      { key: "strategie", label: "🎯 Stratégie", icon: "🎯" },
-      { key: "reseau", label: "🤝 Réseau", icon: "🤝" },
+      { key: "profil", label: "Profil", icon: User },
+      { key: "contenu", label: "Contenu", icon: FileText },
+      { key: "strategie", label: "Stratégie", icon: Target },
+      { key: "reseau", label: "Réseau", icon: Users },
     ] as const;
 
     return (
@@ -503,7 +509,7 @@ export default function LinkedInAudit() {
          <div className="rounded-2xl border-l-[3px] border-l-primary bg-rose-pale p-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
-              🔍 Ton Audit LinkedIn
+              <Search className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ton Audit LinkedIn
             </h2>
             <div className="flex items-center gap-3">
               {auditDate && (
@@ -512,7 +518,7 @@ export default function LinkedInAudit() {
                 </span>
               )}
               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-pill text-sm font-bold ${g.bg} ${g.color}`}>
-                {g.emoji} {result.score_global}/100
+                <g.icon className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> {result.score_global}/100
               </span>
             </div>
           </div>
@@ -530,12 +536,12 @@ export default function LinkedInAudit() {
 
         {/* ─── Section scores ─── */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {sections.map(({ key, label }) => {
+          {sections.map(({ key, label, icon: Icon }) => {
             const s = result.sections[key];
             const si = getScoreInfo(s.score);
             return (
               <div key={key} className="rounded-2xl border border-border bg-card p-4 text-center">
-                <p className="text-sm font-medium text-foreground">{label}</p>
+                <p className="text-sm font-medium text-foreground flex items-center justify-center gap-1.5"><Icon className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />{label}</p>
                 <p className={`text-2xl font-bold ${si.color}`}>{s.score}/100</p>
                 <Progress value={s.score} className="mt-2 h-2" />
               </div>
@@ -545,8 +551,8 @@ export default function LinkedInAudit() {
 
         {/* ─── Top 5 priorities as cards ─── */}
         <div className="space-y-3">
-          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
-            🎯 Tes 5 priorités
+          <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui flex items-center gap-1.5">
+            <Target className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Tes 5 priorités
           </h3>
           {result.top_5_priorities?.map((p) => (
             <div key={p.rank} className="bg-card border border-border rounded-xl p-5 space-y-3">
@@ -557,7 +563,7 @@ export default function LinkedInAudit() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <h4 className="text-base font-semibold text-foreground leading-tight">{p.title}</h4>
-                    <span className="text-xs">{impactEmoji(p.impact)}</span>
+                    <ImpactIcon impact={p.impact} />
                   </div>
                   <p className="text-sm text-muted-foreground mt-1">{p.why}</p>
                 </div>
@@ -568,7 +574,7 @@ export default function LinkedInAudit() {
                     to={p.action_route}
                     className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium bg-rose-pale px-3 py-1.5 rounded-pill"
                   >
-                    ✨ {p.action_label} <ChevronRight className="h-3 w-3" />
+                    <Sparkles className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> {p.action_label} <ChevronRight className="h-3 w-3" />
                   </Link>
                 </div>
               )}
@@ -578,12 +584,13 @@ export default function LinkedInAudit() {
 
         {/* ─── Detail accordions ─── */}
         <Accordion type="multiple" className="space-y-2">
-          {sections.map(({ key, label }) => {
+          {sections.map(({ key, label, icon: Icon }) => {
             const s = result.sections[key];
             return (
               <AccordionItem key={key} value={key} className="rounded-2xl border border-border bg-card px-4">
                 <AccordionTrigger className="hover:no-underline">
                   <span className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />
                     <span>{label}</span>
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${getScoreInfo(s.score).bg} ${getScoreInfo(s.score).color}`}>
                       {s.score}/100
@@ -593,11 +600,10 @@ export default function LinkedInAudit() {
                 <AccordionContent>
                   <div className="space-y-4 pt-2">
                     {s.elements?.map((el, i) => {
-                      const statusIcon = el.status === "good" ? "✅" : el.status === "warning" ? "⚠️" : "❌";
                       return (
                         <div key={i} className="bg-card border border-border rounded-xl p-4 space-y-2">
                           <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-foreground">{statusIcon} {el.name}</p>
+                            <p className="text-sm font-semibold text-foreground"><StatusIcon status={el.status} /> {el.name}</p>
                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${getScoreInfo(Math.round((el.score / el.max_score) * 100)).bg} ${getScoreInfo(Math.round((el.score / el.max_score) * 100)).color}`}>
                               {el.score}/{el.max_score}
                             </span>
@@ -605,7 +611,7 @@ export default function LinkedInAudit() {
                           <p className="text-sm text-muted-foreground leading-relaxed">{el.feedback}</p>
                           {el.recommendation && (
                             <div className="bg-accent/30 border-l-[3px] border-l-accent rounded-r-lg px-4 py-2">
-                              <p className="text-sm text-foreground/80 italic">💡 {el.recommendation}</p>
+                              <p className="text-sm text-foreground/80 italic"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />{el.recommendation}</p>
                             </div>
                           )}
                         </div>
@@ -620,11 +626,11 @@ export default function LinkedInAudit() {
 
         {/* ─── LinkedIn Pillar Action Plan ─── */}
         {(() => {
-          const LINKEDIN_PILLAR_ACTIONS: Record<string, { label: string; route: string; emoji: string }> = {
-            profil: { label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil", emoji: "👤" },
-            contenu: { label: "Créer du contenu LinkedIn", route: "/creer?canal=linkedin", emoji: "📝" },
-            strategie: { label: "Structurer ma stratégie LinkedIn", route: "/linkedin/recommandations", emoji: "🎯" },
-            reseau: { label: "Développer mon réseau", route: "/linkedin/engagement", emoji: "🤝" },
+          const LINKEDIN_PILLAR_ACTIONS: Record<string, { label: string; route: string; icon: LucideIcon }> = {
+            profil: { label: "Optimiser mon profil LinkedIn", route: "/linkedin/profil", icon: User },
+            contenu: { label: "Créer du contenu LinkedIn", route: "/creer?canal=linkedin", icon: FileText },
+            strategie: { label: "Structurer ma stratégie LinkedIn", route: "/linkedin/recommandations", icon: Target },
+            reseau: { label: "Développer mon réseau", route: "/linkedin/engagement", icon: Users },
           };
           const sorted = (["profil", "contenu", "strategie", "reseau"] as const)
             .map(key => ({ key, ...LINKEDIN_PILLAR_ACTIONS[key], score: result.sections[key]?.score ?? 0 }))
@@ -633,15 +639,15 @@ export default function LinkedInAudit() {
 
           return (
             <div className="space-y-3">
-              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
-                📋 Ton plan d'action (par priorité)
+              <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui flex items-center gap-1.5">
+                <ClipboardList className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Ton plan d'action (par priorité)
               </h3>
               {sorted.map((item, i) => (
                 <div key={item.key} className={`rounded-xl border p-4 flex items-center gap-3 ${i === 0 ? "border-primary/30 bg-[hsl(var(--rose-pale))]" : "border-border bg-card"}`}>
                   <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">{i + 1}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-medium text-foreground">{item.emoji} {item.label}</p>
+                      <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><item.icon className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} aria-hidden="true" />{item.label}</p>
                       {i === 0 && <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
                     </div>
                     <p className="text-xs text-muted-foreground">{item.score}/100</p>
@@ -652,7 +658,7 @@ export default function LinkedInAudit() {
                     className="shrink-0 text-xs gap-1"
                     onClick={() => navigate(item.route)}
                   >
-                    {item.emoji} Y aller <ChevronRight className="h-3 w-3" />
+                    Y aller <ChevronRight className="h-3 w-3" />
                   </Button>
                 </div>
               ))}
@@ -686,7 +692,7 @@ export default function LinkedInAudit() {
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon LinkedIn" parentTo="/linkedin" currentLabel="Audit" useFromParam />
 
-        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔍 Audit de ton profil LinkedIn</h1>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-2"><Search className="h-6 w-6 text-primary" strokeWidth={1.75} aria-hidden="true" /> Audit de ton profil LinkedIn</h1>
         <p className="text-sm text-muted-foreground mb-6">
           L'IA analyse ton profil, ton contenu, ta stratégie et ton réseau pour te donner un score et des priorités d'action.
         </p>
@@ -804,7 +810,7 @@ function GranularScoresSection({ granular }: { granular: { headline?: GranularSe
   const renderSection = (
     data: GranularSection | undefined,
     criteriaMap: Record<string, string>,
-    emoji: string,
+    Icon: LucideIcon,
     title: string,
     maxTotal: number,
   ) => {
@@ -816,7 +822,8 @@ function GranularScoresSection({ granular }: { granular: { headline?: GranularSe
       <AccordionItem value={title} className="rounded-2xl border border-border bg-card px-4">
         <AccordionTrigger className="hover:no-underline">
           <span className="flex items-center gap-2">
-            <span>{emoji} {title}</span>
+            <Icon className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />
+            <span>{title}</span>
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-pill ${si.bg} ${si.color}`}>
               {total}/{maxTotal}
             </span>
@@ -838,12 +845,12 @@ function GranularScoresSection({ granular }: { granular: { headline?: GranularSe
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui">
-        🔬 Scoring granulaire
+      <h3 className="text-xs font-semibold text-foreground uppercase tracking-wider font-mono-ui flex items-center gap-1.5">
+        <Microscope className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Scoring granulaire
       </h3>
       <Accordion type="multiple" className="space-y-2">
-        {renderSection(granular.headline, HEADLINE_CRITERIA, "📝", "Headline", 25)}
-        {renderSection(granular.about, ABOUT_CRITERIA, "📄", "À propos", 25)}
+        {renderSection(granular.headline, HEADLINE_CRITERIA, PenLine, "Headline", 25)}
+        {renderSection(granular.about, ABOUT_CRITERIA, FileText, "À propos", 25)}
       </Accordion>
     </div>
   );
