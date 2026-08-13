@@ -290,3 +290,7 @@ verify_jwt = false
 
 [functions.news-photo-search]
 verify_jwt = false
+
+[functions.extract-offer-from-url]
+verify_jwt = false
+
