@@ -394,6 +394,24 @@ export async function checkQuota(
   };
 }
 
+/**
+ * Étiquette `model_used` des générations rendues SANS appel modèle (rendu
+ * déterministe côté serveur — aujourd'hui le carrousel photo pur, composé par
+ * code depuis le chantier gabarits du 13/07).
+ *
+ * Pourquoi une étiquette plutôt que NULL : un `model_used` NULL est ambigu. Il
+ * peut vouloir dire « aucun modèle appelé, coût API nul » (le cas ici, sain) ou
+ * « modèle appelé mais oublié dans la grille tarifaire » (le bug corrigé par la
+ * PR #697, qui rendait le compteur € aveugle à `claude-sonnet-5`). La garde
+ * `modeles_non_tarifes` de `cron-health` ne peut pas distinguer les deux et
+ * signale les deux — à raison. On lève donc l'ambiguïté À LA SOURCE.
+ *
+ * ⚠️ Ce littéral est recopié dans `cron-health/index.ts` (`ZERO_COST_LABELS`),
+ * qui n'importe VOLONTAIREMENT rien de `_shared/` pour rester déployable seule.
+ * Toute modification doit toucher les deux.
+ */
+export const COMPOSED_BY_CODE_MODEL = "composition-code";
+
 export async function logUsage(
   userId: string,
   category: string,

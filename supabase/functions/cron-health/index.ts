@@ -457,6 +457,18 @@ Deno.serve(async (req) => {
       "claude-opus-4-7": 10,
     };
 
+    // Générations RÉELLES mais sans appel modèle : coût API nul, et c'est VOULU.
+    // Aujourd'hui le carrousel photo pur, dont le HTML est composé par code
+    // (chantier gabarits 13/07) — un crédit est bien débité, aucun modèle n'est
+    // appelé. Ces libellés sont donc « tarifés à 0 », pas « inconnus » : sans
+    // cette liste, la garde `modeles_non_tarifes` crierait à chaque carrousel
+    // photo et on réapprendrait à ignorer l'alerte, ce qui recréerait le bug
+    // qu'elle est censée empêcher.
+    // ⚠️ `composition-code` est la recopie de COMPOSED_BY_CODE_MODEL
+    // (`_shared/plan-limiter.ts`) : cette edge n'importe rien de `_shared/` pour
+    // rester déployable seule. Toute modification doit toucher les deux.
+    const ZERO_COST_LABELS = new Set<string>(["composition-code"]);
+
     const summarize = (rows: any[]) => {
       const byModel: Record<string, { appels: number; tokens: number }> = {};
       const byAction: Record<string, number> = {};
@@ -487,7 +499,7 @@ Deno.serve(async (req) => {
       // total. On le remonte au lieu de le taire — le total reste affiché (il
       // reste utile), mais il est explicitement signalé comme INCOMPLET.
       const modelesNonTarifes = Object.entries(byModel)
-        .filter(([m]) => !(m in TEXT_COST_EUR_PER_MTOKEN) && !(m in IMAGE_COST_EUR))
+        .filter(([m]) => !(m in TEXT_COST_EUR_PER_MTOKEN) && !(m in IMAGE_COST_EUR) && !ZERO_COST_LABELS.has(m))
         .map(([m, v]) => ({ modele: m, appels: v.appels, tokens: v.tokens }))
         .sort((a, b) => b.tokens - a.tokens);
       const round2 = (n: number) => Math.round(n * 100) / 100;

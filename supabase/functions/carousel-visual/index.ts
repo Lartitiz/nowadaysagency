@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { checkQuota, logUsage, quotaDeniedResponse, COMPOSED_BY_CODE_MODEL } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { callAnthropic, SONNET_MODEL, type AnthropicModel, type UsageSink } from "../_shared/anthropic.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
@@ -1312,6 +1312,14 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
       result = {
         slides_html: composed.map(({ template: _t, ...slide }) => slide),
       };
+      // Traçabilité du coût : ce chemin ne fait AUCUN appel modèle, donc `usage`
+      // reste vide et la ligne ai_usage partait avec model_used ET tokens_used à
+      // NULL. Vu de la compta, « pas de modèle » était indiscernable d'« un modèle
+      // qu'on a oublié de tarifer » : le bilan hebdo du 13/08 a signalé ces lignes
+      // comme NON TARIFÉES (garde `modeles_non_tarifes`, PR #697). On étiquette
+      // donc explicitement le rendu par code — le crédit reste débité (c'est bien
+      // une génération), mais son coût API est zéro et c'est désormais DIT.
+      usage.model = COMPOSED_BY_CODE_MODEL;
       emitStatus("visuals", { done: 1, total: 1 });
       console.log(JSON.stringify({
         type: "carousel_visual_timing",
