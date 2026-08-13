@@ -172,7 +172,7 @@ export default function PhotosPage() {
       if (uploaded > 0) {
         toast.success(
           uploaded === 1
-            ? "Photo ajoutée — description IA en cours"
+            ? "Photo ajoutée : description IA en cours"
             : `${uploaded} photos ajoutées — descriptions IA en cours`,
         );
       }

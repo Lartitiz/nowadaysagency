@@ -154,8 +154,8 @@ export default function BrandLearnedSection() {
         <>
           <p className="text-sm text-muted-foreground mb-5">
             {data.pendingReview
-              ? "Ta fiche de marque est prête — rien n'est appliqué sans toi, tu la valideras dans ton espace."
-              : "Ton espace est déjà pré-rempli avec tout ça — tu pourras tout ajuster."}
+              ? "Ta fiche de marque est prête : rien n'est appliqué sans toi, tu la valideras dans ton espace."
+              : "Ton espace est déjà pré-rempli avec tout ça : tu pourras tout ajuster."}
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">

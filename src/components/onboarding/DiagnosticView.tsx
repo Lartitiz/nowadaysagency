@@ -224,7 +224,7 @@ function SummarySection({ summary }: { summary: string }) {
   return (
     <div className="space-y-3">
       <h2 className="text-xl font-display font-bold text-foreground">💡 Ce que j'ai compris de ton projet</h2>
-      <p className="font-display text-base text-foreground leading-relaxed" style={{ fontSize: "16px" }}>
+      <p className="font-body text-base text-foreground leading-relaxed" style={{ fontSize: "16px" }}>
         {summary}
       </p>
     </div>

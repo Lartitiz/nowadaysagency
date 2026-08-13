@@ -310,7 +310,7 @@ function InscritesView() {
                 {filtered.map(u => (
                   <tr key={u.user_id} className="hover:bg-muted/30 transition-colors">
                     <td className="py-2.5 px-3"><Checkbox checked={selected.has(u.user_id)} onCheckedChange={() => toggle(u.user_id)} /></td>
-                    <td className="py-2.5 px-3 font-medium">{u.prenom || "—"}</td>
+                    <td className="py-2.5 px-3 font-medium">{u.prenom || "-"}</td>
                     <td className="py-2.5 px-3 text-muted-foreground text-xs max-w-[180px] truncate">{u.email}</td>
                     <td className="py-2.5 px-3">{planBadge(u.plan)}</td>
                     <td className="py-2.5 px-3 text-xs text-muted-foreground">{relativeDate(u.last_sign_in)}</td>
@@ -445,7 +445,7 @@ function SequencesView() {
       const tplIds = [...new Set((data as any[]).map((s: any) => s.template_id))];
       const { data: tpls } = await supabase.from("email_templates").select("id, name").in("id", tplIds);
       const tplMap = new Map((tpls || []).map((t: any) => [t.id, t.name]));
-      setSteps((data as any[]).map((s: any) => ({ ...s, template_name: tplMap.get(s.template_id) || "—" })));
+      setSteps((data as any[]).map((s: any) => ({ ...s, template_name: tplMap.get(s.template_id) || "-" })));
     } else {
       setSteps([]);
     }
@@ -664,7 +664,7 @@ function HistoriqueView() {
                       {s.status === "failed" && <Badge variant="destructive" className="text-xs">❌ Échoué</Badge>}
                       {s.status === "skipped" && <Badge variant="outline" className="text-xs">⏭ Ignoré</Badge>}
                     </td>
-                    <td className="py-2.5 px-3 text-xs text-muted-foreground">{s.sent_at ? formatShortDate(s.sent_at) : "—"}</td>
+                    <td className="py-2.5 px-3 text-xs text-muted-foreground">{s.sent_at ? formatShortDate(s.sent_at) : "-"}</td>
                   </tr>
                 ))}
               </tbody>

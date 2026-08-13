@@ -259,7 +259,7 @@ export default function NewsjackingPanel({ onSelect, onClose, workspaceId }: New
         // On bascule sur l'écran dédié (avec porte de sortie "élargir").
         setEmptyMsg(
           data.message ||
-            "Pas de phénomène assez connectable cette fois — aucun pont solide vers ta marque."
+            "Pas de phénomène assez connectable cette fois : aucun pont solide vers ta marque."
         );
         setBroadenedEmpty(broaden);
       }

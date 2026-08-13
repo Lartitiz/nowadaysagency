@@ -212,7 +212,7 @@ export default function InstagramProfileEpingles() {
                     {idx + 1}
                   </span>
                   <div>
-                    <h3 className="font-display text-base font-bold text-foreground">
+                    <h3 className="font-body text-base font-bold text-foreground">
                       {slot.emoji} {slot.label}
                     </h3>
                     <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
@@ -283,7 +283,7 @@ export default function InstagramProfileEpingles() {
 
         {/* Récap */}
         <div className="rounded-2xl border border-border bg-card p-5 space-y-3 mb-6">
-          <h3 className="font-display text-base font-bold text-foreground">
+          <h3 className="font-body text-base font-bold text-foreground">
             ✅ Récap de tes épingles
           </h3>
           <div className="space-y-2">

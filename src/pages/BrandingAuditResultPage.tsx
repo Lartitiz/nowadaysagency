@@ -119,7 +119,7 @@ function asText(value: unknown): string {
     const heading = o.titre ?? o.title ?? o.label;
     const body = o.detail ?? o.description ?? o.text;
     const parts = [heading, body].filter((p) => typeof p === "string" && p) as string[];
-    return parts.join(" — ");
+    return parts.join(" : ");
   }
   return "";
 }
@@ -337,7 +337,7 @@ export default function BrandingAuditResultPage() {
           {/* Points forts */}
           {result.points_forts?.length > 0 && (
             <div>
-              <h3 className="font-display font-bold text-sm mb-3">Ce qui marche ✅</h3>
+              <h3 className="font-body font-bold text-sm mb-3">Ce qui marche ✅</h3>
               <div className="space-y-2">
                 {result.points_forts.map((p, i) => (
                   <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
@@ -353,7 +353,7 @@ export default function BrandingAuditResultPage() {
           {/* Points faibles */}
           {result.points_faibles?.length > 0 && (
             <div>
-              <h3 className="font-display font-bold text-sm mb-3">Ce qui manque ⚠️</h3>
+              <h3 className="font-body font-bold text-sm mb-3">Ce qui manque ⚠️</h3>
               <div className="space-y-2">
                 {result.points_faibles.map((p, i) => (
                   <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
@@ -369,7 +369,7 @@ export default function BrandingAuditResultPage() {
           {/* Detail par pilier */}
           {Object.keys(result.audit_detail || {}).length > 0 && (
             <div>
-              <h3 className="font-display font-bold text-sm mb-3">Détail par pilier</h3>
+              <h3 className="font-body font-bold text-sm mb-3">Détail par pilier</h3>
               <div className="space-y-2">
                 {Object.entries(result.audit_detail).map(([key, pillar]) => {
                   const meta = PILLAR_META[key] || { emoji: "📋", label: key, coachingModule: "branding", actionLabel: "Travailler ce pilier", hasCoaching: false };
@@ -465,7 +465,7 @@ export default function BrandingAuditResultPage() {
 
             return (
               <div>
-                <h3 className="font-display font-bold text-sm mb-3">Plan d'action recommandé</h3>
+                <h3 className="font-body font-bold text-sm mb-3">Plan d'action recommandé</h3>
                 {/* Progress */}
                 <div className="rounded-xl border border-border bg-card p-4 mb-3">
                   <div className="flex items-center justify-between mb-2">
@@ -569,7 +569,7 @@ export default function BrandingAuditResultPage() {
           {/* Fallback: show plan_action if no audit_recommendations exist */}
           {auditRecs.length === 0 && result.plan_action_recommande?.length > 0 && (
             <div>
-              <h3 className="font-display font-bold text-sm mb-3">Plan d'action recommandé</h3>
+              <h3 className="font-body font-bold text-sm mb-3">Plan d'action recommandé</h3>
               <div className="space-y-2">
                 {result.plan_action_recommande.map((a, i) => {
                   const route = getRouteForAction(a);
@@ -613,7 +613,7 @@ export default function BrandingAuditResultPage() {
 
             return (
               <div>
-                <h3 className="font-display font-bold text-sm mb-3">📋 Ton plan d'action Instagram (par priorité)</h3>
+                <h3 className="font-body font-bold text-sm mb-3">📋 Ton plan d'action Instagram (par priorité)</h3>
                 <div className="space-y-2">
                   {sorted.map((item, i) => (
                     <div key={item.key} className={`rounded-xl border p-4 flex items-center gap-3 ${i === 0 ? "border-primary/30 bg-[hsl(var(--rose-pale))]" : "border-border bg-card"}`}>

@@ -12,11 +12,11 @@ export default function Step7WhoYouAre({ data, save, callAI, aiLoading, aiResult
       <h2 className="font-display text-xl font-bold">👋 Présente-toi et rassure</h2>
       {data.framework === "storybrand" && (
         <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground mb-3">
-          📖 <strong>StoryBrand — Le guide :</strong> empathie d'abord ("Je sais ce que c'est...") puis autorité.
+          📖 <strong>StoryBrand : Le guide :</strong> empathie d'abord ("Je sais ce que c'est...") puis autorité.
         </div>
       )}
       <div>
-        <h3 className="font-display text-base font-bold mb-2">A. Ta présentation</h3>
+        <h3 className="font-body text-base font-bold mb-2">A. Ta présentation</h3>
         <Button variant="outline" size="sm" onClick={() => callAI("presentation")} disabled={aiLoading === "presentation"}>
           <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "presentation" ? "Génération..." : "Générer ma présentation"}
         </Button>
@@ -28,7 +28,7 @@ export default function Step7WhoYouAre({ data, save, callAI, aiLoading, aiResult
         {data.presentation_block && <Button variant="ghost" size="sm" onClick={() => copyText(data.presentation_block)}><Copy className="h-4 w-4 mr-1" /> Copier</Button>}
       </div>
       <div>
-        <h3 className="font-display text-base font-bold mb-2">B. Preuve sociale</h3>
+        <h3 className="font-body text-base font-bold mb-2">B. Preuve sociale</h3>
         <p className="text-sm text-muted-foreground mb-3">87% des acheteur·euses disent que la preuve sociale influence leur achat.</p>
         <label className="flex items-center gap-2 text-sm"><Checkbox checked={data.social_proof_done} onCheckedChange={(v) => save({ social_proof_done: !!v })} /> J'ai ajouté au moins 2 témoignages sur ma page</label>
         <Link to="/site/temoignages" className="block mt-2 text-sm text-primary font-semibold hover:underline">💬 Récolter et structurer mes témoignages →</Link>

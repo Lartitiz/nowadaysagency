@@ -157,7 +157,7 @@ export default function LinkedInParcours() {
         <Accordion type="multiple" defaultValue={["experiences"]} className="space-y-4">
           {/* Experiences */}
           <AccordionItem value="experiences" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">💼 Tes expériences professionnelles</AccordionTrigger>
+            <AccordionTrigger className="font-body text-base font-bold">💼 Tes expériences professionnelles</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <div className="rounded-xl bg-rose-pale p-4 text-sm">
                 <p className="font-semibold mb-1">Structure recommandée :</p>
@@ -200,7 +200,7 @@ export default function LinkedInParcours() {
 
           {/* Formations */}
           <AccordionItem value="formations" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">🎓 Tes formations</AccordionTrigger>
+            <AccordionTrigger className="font-body text-base font-bold">🎓 Tes formations</AccordionTrigger>
             <AccordionContent className="space-y-3 pb-5">
               <p className="text-sm text-muted-foreground">Ajoute tes études avec le détail des matières et des réalisations.</p>
               <div className="space-y-2">
@@ -221,7 +221,7 @@ export default function LinkedInParcours() {
 
           {/* Skills */}
           <AccordionItem value="skills" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">⚡ Tes compétences</AccordionTrigger>
+            <AccordionTrigger className="font-body text-base font-bold">⚡ Tes compétences</AccordionTrigger>
             <AccordionContent className="space-y-4 pb-5">
               <p className="text-sm text-muted-foreground">Ajoute des compétences qui te différencient. Pas de "Microsoft Office".</p>
               <div className="rounded-xl bg-rose-pale p-4 text-sm">
@@ -255,7 +255,7 @@ export default function LinkedInParcours() {
 
           {/* Rich media */}
           <AccordionItem value="media" className="rounded-xl border border-border bg-card px-5">
-            <AccordionTrigger className="font-display text-base font-bold">📎 Rich media</AccordionTrigger>
+            <AccordionTrigger className="font-body text-base font-bold">📎 Rich media</AccordionTrigger>
             <AccordionContent className="space-y-3 pb-5">
               <p className="text-sm text-muted-foreground">Ajoute du contenu concret à ton profil.</p>
               <div className="space-y-2">

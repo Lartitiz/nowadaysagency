@@ -170,7 +170,7 @@ export default function SessionOverlay() {
           <div className="flex-1 flex flex-col items-center justify-center min-w-0">
             {currentTask && (
               <>
-                <span className="font-heading text-sm font-bold truncate">
+                <span className="font-body text-sm font-bold truncate">
                   {currentTask.emoji} {currentTask.title}
                 </span>
                 <span

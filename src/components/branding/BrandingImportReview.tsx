@@ -268,7 +268,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
       {/* Field comparisons by section */}
       {Object.entries(sections).map(([sectionName, fields]) => (
         <div key={sectionName} className="space-y-4">
-          <h3 className="font-display font-bold text-foreground text-sm flex items-center gap-2 border-b border-border pb-2">
+          <h3 className="font-body font-bold text-foreground text-sm flex items-center gap-2 border-b border-border pb-2">
             <span>{fields[0].emoji}</span> {sectionName}
           </h3>
 
@@ -286,7 +286,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
                     {comp.current?.trim() ? (
                       <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{comp.current}</p>
                     ) : (
-                      <p className="text-sm text-muted-foreground/60 italic">— Vide —</p>
+                      <p className="text-sm text-muted-foreground/60 italic"> : Vide : </p>
                     )}
                   </div>
 

@@ -15,7 +15,30 @@ import {
   ArrowRight,
   Menu,
   X,
-  
+  Palette,
+  Calendar,
+  PenLine,
+  Search,
+  LayoutGrid,
+  Smartphone,
+  Target,
+  MessageCircle,
+  Sparkles,
+  Copy,
+  Camera,
+  FileText,
+  Images,
+  Clapperboard,
+  AlertTriangle,
+  Pin,
+  Globe,
+  Mail,
+  Rocket,
+  Bot,
+  Tv,
+  BarChart3,
+  Gift,
+  Gem,
 } from "lucide-react";
 
 import Reveal from "@/components/landing/Reveal";
@@ -28,31 +51,31 @@ import MiniDiagnostic from "@/components/landing/MiniDiagnostic";
 /* ─── Features grid data ─── */
 const FEATURES = [
   {
-    emoji: "🎨",
+    icon: Palette,
     title: "Ton identité de marque",
     desc: "Mission, cible, ton, positionnement, storytelling, offres : pose les fondations de ta com' avec un atelier guidé. L'IA te pose les bonnes questions, tu réponds, et ta marque prend forme.",
     visual: "branding",
   },
   {
-    emoji: "📅",
+    icon: Calendar,
     title: "Ton calendrier éditorial",
     desc: "Ton calendrier est déjà structuré : vue mensuelle, drag & drop, contenus classés par canal et par objectif. Tu ouvres l'outil, tu sais quoi poster cette semaine. C'est ce que ChatGPT ne fera jamais.",
     visual: "calendar",
   },
   {
-    emoji: "✍️",
+    icon: PenLine,
     title: "Création de contenu IA",
     desc: "Choisis un format (carrousel, reel, post, story, newsletter…), un angle, et l'IA rédige pour toi. Avec TA voix, parce qu'elle connaît ton branding.",
     visual: "content",
   },
   {
-    emoji: "🔍",
+    icon: Search,
     title: "Audits Instagram et SEO",
     desc: "Colle ton @ ou ton URL, et l'outil analyse tout : bio, posts, régularité, hashtags, mots-clés, structure du site. Tu repars avec des actions concrètes.",
     visual: "audit",
   },
   {
-    emoji: "📱",
+    icon: LayoutGrid,
     title: "Espaces par canal",
     desc: "Instagram, LinkedIn, Pinterest, Site web, Newsletter : chaque canal a son espace dédié avec ses guides, ses checklists et ses générateurs.",
     visual: "channels",
@@ -61,22 +84,22 @@ const FEATURES = [
 
 const PAIN_POINTS = [
   {
-    emoji: "📱",
+    icon: Smartphone,
     pain: "Tu ouvres Instagram, tu fixes l'écran, tu refermes. Notion, Excel, un carnet… tu passes plus de temps à organiser qu'à créer.",
     flip: "Ton calendrier est déjà structuré. Tu ouvres, tu sais quoi poster cette semaine.",
-    flipEmoji: "📅",
+    flipIcon: Calendar,
   },
   {
-    emoji: "🎯",
+    icon: Target,
     pain: "Tu postes au feeling : un carrousel par-ci, une story par-là. Sans jamais savoir si ça marche.",
     flip: "L'outil diagnostique ta com' et te donne un plan d'action clair. Fini le bricolage.",
-    flipEmoji: "🔍",
+    flipIcon: Search,
   },
   {
-    emoji: "😶",
+    icon: MessageCircle,
     pain: "Tu t'es formée, tu as vu les tutos. Mais seule devant ton écran, rien ne sort.",
     flip: "Chaque étape est guidée. Tu réponds, l'outil structure. Fini la page blanche.",
-    flipEmoji: "✨",
+    flipIcon: Sparkles,
   },
 ];
 
@@ -131,7 +154,7 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "branding") {
     return (
       <div className={baseClass}>
-        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🎨 Mon identité</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono flex items-center gap-1.5"><Palette className="h-4 w-4 text-primary" strokeWidth={1.75} /> Mon identité</p>
         <div className="space-y-2.5">
           {[
             { label: "Mon histoire", value: "De l'ingénierie à la céramique : comment j'ai tout plaqué", pct: 100 },
@@ -158,7 +181,7 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "content") {
     return (
       <div className={baseClass}>
-        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">✍️ Générer un contenu</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono flex items-center gap-1.5"><PenLine className="h-4 w-4 text-primary" strokeWidth={1.75} /> Générer un contenu</p>
         <div className="flex flex-wrap gap-1.5 mb-3">
           {["Carrousel", "Reel", "Post photo", "Story", "Newsletter"].map((format) => (
             <span key={format} className="rounded-pill bg-secondary px-2.5 py-1 text-2xs font-medium text-secondary-foreground">{format}</span>
@@ -173,8 +196,8 @@ function FeatureVisual({ type }: { type: string }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-7 rounded-pill bg-primary/90 px-3 flex items-center text-2xs font-medium text-primary-foreground">✨ Régénérer</div>
-          <div className="h-7 rounded-pill border border-border px-3 flex items-center text-2xs font-medium text-foreground">📋 Copier</div>
+          <div className="h-7 rounded-pill bg-primary/90 px-3 flex items-center gap-1.5 text-2xs font-medium text-primary-foreground"><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Régénérer</div>
+          <div className="h-7 rounded-pill border border-border px-3 flex items-center gap-1.5 text-2xs font-medium text-foreground"><Copy className="h-4 w-4" strokeWidth={1.75} /> Copier</div>
         </div>
       </div>
     );
@@ -183,7 +206,7 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "calendar") {
     return (
       <div className={baseClass}>
-        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📅 Mars 2026</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono flex items-center gap-1.5"><Calendar className="h-4 w-4 text-primary" strokeWidth={1.75} /> Mars 2026</p>
         <div className="grid grid-cols-7 gap-1">
           {["L", "M", "M", "J", "V", "S", "D"].map((j, idx) => (
             <span key={idx} className="text-2xs text-muted-foreground text-center font-medium py-1">{j}</span>
@@ -202,7 +225,7 @@ function FeatureVisual({ type }: { type: string }) {
                       : "bg-pink-100 border-pink-200 text-pink-600"
                   : "border-border"
               }`}>
-                {hasPost ? (isPublished ? "📸" : isDraft ? "📝" : "🎠") : ""}
+                {hasPost ? (isPublished ? <Camera className="h-4 w-4" strokeWidth={1.75} /> : isDraft ? <FileText className="h-4 w-4" strokeWidth={1.75} /> : <Images className="h-4 w-4" strokeWidth={1.75} />) : ""}
               </div>
             );
           })}
@@ -219,7 +242,7 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "audit") {
     return (
       <div className={baseClass}>
-        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">🔍 Audit Instagram</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono flex items-center gap-1.5"><Search className="h-4 w-4 text-primary" strokeWidth={1.75} /> Audit Instagram</p>
         <div className="flex items-center gap-4 mb-4">
           <div className="relative w-16 h-16 shrink-0">
             <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
@@ -235,12 +258,13 @@ function FeatureVisual({ type }: { type: string }) {
         </div>
         <div className="space-y-2">
           {[
-            { label: "✅ Univers visuel fort et reconnaissable", good: true },
-            { label: "✅ Stories à la une bien organisées", good: true },
-            { label: "⚠️ Bio sans appel à l'action clair", good: false },
-            { label: "⚠️ Pas de lien vers la boutique dans les posts", good: false },
+            { label: "Univers visuel fort et reconnaissable", good: true },
+            { label: "Stories à la une bien organisées", good: true },
+            { label: "Bio sans appel à l'action clair", good: false },
+            { label: "Pas de lien vers la boutique dans les posts", good: false },
           ].map((item) => (
-            <div key={item.label} className={`text-2xs px-3 py-1.5 rounded-lg ${item.good ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
+            <div key={item.label} className={`text-2xs px-3 py-1.5 rounded-lg flex items-center gap-1.5 ${item.good ? "bg-success-bg text-success" : "bg-warning-bg text-warning"}`}>
+              {item.good ? <CheckCircle2 className="h-4 w-4 shrink-0" strokeWidth={1.75} /> : <AlertTriangle className="h-4 w-4 shrink-0" strokeWidth={1.75} />}
               {item.label}
             </div>
           ))}
@@ -252,18 +276,18 @@ function FeatureVisual({ type }: { type: string }) {
   if (type === "channels") {
     return (
       <div className={baseClass}>
-        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono">📱 Tes canaux</p>
+        <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 font-mono flex items-center gap-1.5"><LayoutGrid className="h-4 w-4 text-primary" strokeWidth={1.75} /> Tes canaux</p>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { emoji: "📸", name: "Instagram", status: "Score : 72/100", active: true },
-            { emoji: "💼", name: "LinkedIn", status: "À configurer", active: false },
-            { emoji: "📌", name: "Pinterest", status: "12 épingles planifiées", active: true },
-            { emoji: "🌐", name: "Site web", status: "Score SEO : 45/100", active: true },
-            { emoji: "✉️", name: "Newsletter", status: "À configurer", active: false },
-            { emoji: "🔍", name: "SEO", status: "8 mots-clés trouvés", active: true },
+            { icon: Instagram, name: "Instagram", status: "Score : 72/100", active: true },
+            { icon: Linkedin, name: "LinkedIn", status: "À configurer", active: false },
+            { icon: Pin, name: "Pinterest", status: "12 épingles planifiées", active: true },
+            { icon: Globe, name: "Site web", status: "Score SEO : 45/100", active: true },
+            { icon: Mail, name: "Newsletter", status: "À configurer", active: false },
+            { icon: Search, name: "SEO", status: "8 mots-clés trouvés", active: true },
           ].map((canal) => (
             <div key={canal.name} className={`rounded-xl border p-3 ${canal.active ? "border-primary/30 bg-primary/[0.03]" : "border-border"}`}>
-              <span className="text-lg block mb-1">{canal.emoji}</span>
+              <canal.icon className={`h-5 w-5 mb-1 ${canal.active ? "text-primary" : "text-muted-foreground"}`} strokeWidth={1.75} />
               <p className="text-xs font-medium text-foreground">{canal.name}</p>
               <p className={`text-2xs ${canal.active ? "text-primary" : "text-muted-foreground"}`}>{canal.status}</p>
             </div>
@@ -284,7 +308,7 @@ export default function LandingPage() {
   const [mobileNav, setMobileNav] = useState(false);
 
   usePageSEO({
-    title: "L'Assistant Com' — Communication éthique pour créatrices",
+    title: "L'Assistant Com' : Communication éthique pour créatrices",
     description: "L'assistant de communication pour solopreneuses et créatrices éthiques. Branding, contenus IA, stratégie Instagram & LinkedIn. Gratuit, sans carte bancaire.",
     canonical: "/",
   });
@@ -373,7 +397,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-6xl grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-12 lg:gap-16 items-center">
           <div>
             <span className="inline-flex items-center gap-1.5 rounded-pill bg-primary/10 text-primary text-xs font-semibold px-4 py-1.5 mb-6">
-              🚀 Gratuit · Sans carte bancaire · En 30 secondes
+              <Rocket className="h-4 w-4" strokeWidth={1.75} /> Gratuit · Sans carte bancaire · En 30 secondes
             </span>
             <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-bold leading-[1.12] text-foreground">
               Tous tes contenus social media du mois.
@@ -397,18 +421,18 @@ export default function LandingPage() {
 
                 {/* Mini calendrier semaine */}
                 <div>
-                  <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">📅 Calendrier éditorial</p>
+                  <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono flex items-center gap-1.5"><Calendar className="h-4 w-4 text-primary" strokeWidth={1.75} /> Calendrier éditorial</p>
                   <div className="grid grid-cols-7 gap-1.5">
                     {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map((jour) => (
                       <span key={jour} className="text-2xs text-muted-foreground text-center font-medium">{jour}</span>
                     ))}
-                    <div className="h-8 rounded-lg bg-success-bg border border-success/30 flex items-center justify-center text-xs">📸</div>
+                    <div className="h-8 rounded-lg bg-success-bg border border-success/30 flex items-center justify-center text-xs"><Camera className="h-4 w-4 text-success" strokeWidth={1.75} /></div>
                     <div className="h-8 rounded-lg border border-border" />
-                    <div className="h-8 rounded-lg bg-pink-100 border border-pink-200 flex items-center justify-center text-xs">🎠</div>
+                    <div className="h-8 rounded-lg bg-pink-100 border border-pink-200 flex items-center justify-center text-xs"><Images className="h-4 w-4 text-pink-600" strokeWidth={1.75} /></div>
                     <div className="h-8 rounded-lg border border-border" />
-                    <div className="h-8 rounded-lg bg-warning-bg border border-warning/30 flex items-center justify-center text-xs">🎬</div>
+                    <div className="h-8 rounded-lg bg-warning-bg border border-warning/30 flex items-center justify-center text-xs"><Clapperboard className="h-4 w-4 text-warning" strokeWidth={1.75} /></div>
                     <div className="h-8 rounded-lg border border-border" />
-                    <div className="h-8 rounded-lg bg-success-bg border border-success/30 flex items-center justify-center text-xs">📱</div>
+                    <div className="h-8 rounded-lg bg-success-bg border border-success/30 flex items-center justify-center text-xs"><Smartphone className="h-4 w-4 text-success" strokeWidth={1.75} /></div>
                   </div>
                 </div>
 
@@ -416,14 +440,14 @@ export default function LandingPage() {
 
                 {/* Générateur de contenu */}
                 <div>
-                  <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono">✍️ Création de contenu</p>
+                  <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 font-mono flex items-center gap-1.5"><PenLine className="h-4 w-4 text-primary" strokeWidth={1.75} /> Création de contenu</p>
                   <div className="flex flex-wrap gap-1.5 mb-3">
                     {["Storytelling", "Conseil", "Coulisses"].map((pilier) => (
                       <span key={pilier} className="rounded-pill bg-secondary px-2.5 py-1 text-2xs font-medium text-secondary-foreground">{pilier}</span>
                     ))}
                   </div>
                   <div className="h-8 w-36 rounded-pill bg-primary/90 flex items-center justify-center gap-1.5 text-2xs font-medium text-primary-foreground">
-                    ✨ Générer un post
+                    <Sparkles className="h-4 w-4" strokeWidth={1.75} /> Générer un post
                   </div>
                 </div>
 
@@ -439,7 +463,7 @@ export default function LandingPage() {
                     <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-foreground">72</span>
                   </div>
                   <div>
-                    <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider font-mono">🔍 Score com'</p>
+                    <p className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider font-mono flex items-center gap-1.5"><Search className="h-4 w-4 text-primary" strokeWidth={1.75} /> Score com'</p>
                     <p className="text-2xs text-foreground mt-0.5">3 priorités identifiées</p>
                   </div>
                 </div>
@@ -472,7 +496,7 @@ export default function LandingPage() {
                 <div className="rounded-2xl bg-card border border-border shadow-card h-full overflow-hidden">
                   {/* Partie haute : la douleur */}
                   <div className="p-6 pb-4">
-                    <span className="text-3xl mb-3 block">{p.emoji}</span>
+                    <p.icon className="h-5 w-5 text-primary mb-3" strokeWidth={1.75} />
                     <p className="text-sm text-foreground leading-relaxed">{p.pain}</p>
                   </div>
                   {/* Séparateur */}
@@ -480,7 +504,7 @@ export default function LandingPage() {
                   {/* Partie basse : le retournement */}
                   <div className="p-6 pt-4 bg-primary/[0.03]">
                     <div className="flex items-start gap-2">
-                      <span className="text-lg shrink-0 mt-0.5">{p.flipEmoji}</span>
+                      <p.flipIcon className="h-4 w-4 text-primary shrink-0 mt-0.5" strokeWidth={1.75} />
                       <p className="text-sm text-primary font-medium leading-relaxed">{p.flip}</p>
                     </div>
                   </div>
@@ -525,7 +549,7 @@ export default function LandingPage() {
                 <div className={`grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center`}>
                   {/* Texte */}
                   <div className={i % 2 === 1 ? "md:order-2" : ""}>
-                    <span className="text-3xl mb-3 block">{f.emoji}</span>
+                    <f.icon className="h-5 w-5 text-primary mb-3" strokeWidth={1.75} />
                     <h3 className="font-display text-xl sm:text-2xl font-bold mb-3">{f.title}</h3>
                     <p className="text-muted-foreground leading-relaxed">{f.desc}</p>
                   </div>
@@ -554,25 +578,25 @@ export default function LandingPage() {
             {[
               {
                 other: "ChatGPT",
-                otherEmoji: "🤖",
+                otherIcon: Bot,
                 otherDesc: "Génère du texte générique. Ne connaît pas ta marque, ton ton, ta cible. Tu dois tout re-briefer à chaque fois.",
                 nowDesc: "L'IA connaît TON branding. Elle génère avec TA voix, tes piliers, ton style. Pas besoin de re-expliquer à chaque fois.",
               },
               {
                 other: "Canva / Later / Hootsuite",
-                otherEmoji: "🎨",
+                otherIcon: Palette,
                 otherDesc: "Créer des visuels ou programmer des posts, c'est bien. Mais ça ne te dit pas QUOI poster, ni pourquoi, ni dans quel ordre.",
                 nowDesc: "L'outil part de ta stratégie : positionnement, persona, objectifs. Le contenu découle de tes fondations, pas l'inverse.",
               },
               {
                 other: "Formations en ligne",
-                otherEmoji: "📺",
+                otherIcon: Tv,
                 otherDesc: "Tu apprends la théorie. Puis tu te retrouves seule devant ton écran à essayer d'appliquer. Et rien ne sort.",
                 nowDesc: "Ici, tu appliques directement. Tu réponds aux questions, l'outil structure, l'IA rédige. Chaque étape produit un résultat concret.",
               },
               {
                 other: "Notion / Excel / tableurs",
-                otherEmoji: "📊",
+                otherIcon: BarChart3,
                 otherDesc: "Tu crées un beau template, tu le remplis pendant 2 semaines, et puis… plus rien. Le tableur ne te dit pas quoi poster, ne s'adapte pas à ta stratégie, et ne génère rien.",
                 nowDesc: "Le calendrier est vivant : connecté à tes générateurs, à ta stratégie, à tes canaux. Tu crées un contenu, il tombe dans le calendrier. Tu vois ta semaine, ton mois, tes trous.",
               },
@@ -583,7 +607,7 @@ export default function LandingPage() {
                     {/* L'alternative */}
                     <div className="p-5 sm:p-6 border-b sm:border-b-0 sm:border-r border-border">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">{item.otherEmoji}</span>
+                        <item.otherIcon className="h-4 w-4 text-muted-foreground" strokeWidth={1.75} />
                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{item.other}</span>
                       </div>
                       <p className="text-sm text-muted-foreground leading-relaxed">{item.otherDesc}</p>
@@ -591,7 +615,7 @@ export default function LandingPage() {
                     {/* L'Assistant Com' */}
                     <div className="p-5 sm:p-6 bg-primary/[0.03]">
                       <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">✨</span>
+                        <Sparkles className="h-4 w-4 text-primary" strokeWidth={1.75} />
                         <span className="text-xs font-semibold text-primary uppercase tracking-wider">L'Assistant Com'</span>
                       </div>
                       <p className="text-sm text-foreground leading-relaxed font-medium">{item.nowDesc}</p>
@@ -686,7 +710,7 @@ export default function LandingPage() {
             {/* Gratuit */}
             <Reveal>
               <div className="rounded-2xl bg-card border border-border p-6 text-left flex flex-col h-full transition-shadow">
-                <span className="text-2xl mb-2">🆓</span>
+                <Gift className="h-5 w-5 text-primary mb-2" strokeWidth={1.75} />
                 <h3 className="font-display text-lg font-bold">Gratuit</h3>
                 <p className="text-primary font-bold text-xl mt-1">0€</p>
                 <p className="text-sm text-muted-foreground mt-1 mb-4">Pour tester et commencer à structurer ta com'</p>
@@ -713,7 +737,7 @@ export default function LandingPage() {
             {/* Premium */}
             <Reveal>
               <div className="rounded-2xl bg-card border-2 border-primary p-6 text-left flex flex-col relative shadow-card-hover h-full">
-                <span className="text-2xl mb-2">💎</span>
+                <Gem className="h-5 w-5 text-primary mb-2" strokeWidth={1.75} />
                 <h3 className="font-display text-lg font-bold">Premium</h3>
                 <p className="text-primary font-bold text-xl mt-1">39€<span className="text-sm font-normal text-muted-foreground">/mois</span></p>
                 <p className="text-sm text-muted-foreground mt-1 mb-4">Crée sans compter, autant que tu veux.</p>

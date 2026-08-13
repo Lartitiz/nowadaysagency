@@ -33,7 +33,7 @@ function HubCard({
       )}
       <span className="text-2xl mb-2 block">{emoji}</span>
       {/* Flèche toujours visible : sans elle, rien n'indique que la card est cliquable */}
-      <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors flex items-center justify-between gap-2">
+      <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary transition-colors flex items-center justify-between gap-2">
         <span>{title}</span>
         {!disabled && (
           <ArrowRight className="h-4 w-4 shrink-0 text-primary/60 group-hover:text-primary group-hover:translate-x-0.5 transition-all" aria-hidden="true" />

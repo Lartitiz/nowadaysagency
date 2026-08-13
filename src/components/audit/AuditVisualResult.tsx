@@ -152,7 +152,7 @@ function ElementCard({ el, refCallback }: { el: AuditElement; refCallback: (node
     >
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h3 className="font-display text-base font-bold text-foreground">
+        <h3 className="font-body text-base font-bold text-foreground">
           {STATUS_DOT[el.status]} {el.label}
         </h3>
         <span className={`text-2xs font-semibold px-2.5 py-1 rounded-pill ${cfg.badgeBg} ${cfg.badgeText}`}>

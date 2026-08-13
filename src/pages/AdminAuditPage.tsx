@@ -440,7 +440,7 @@ export default function AdminAuditPage() {
         {/* AI Diagnostic accordion */}
         <Accordion type="single" collapsible className="mb-6">
           <AccordionItem value="ai-debug" className="bg-card rounded-2xl border border-border px-6">
-            <AccordionTrigger className="font-heading text-sm font-bold">
+            <AccordionTrigger className="font-body text-sm font-bold">
               🧪 Diagnostic IA
             </AccordionTrigger>
             <AccordionContent>

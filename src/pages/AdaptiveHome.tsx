@@ -91,7 +91,7 @@ function OnboardingBanner({ onNavigate, heroOwnsNextStep }: { onNavigate: (route
     >
       <button onClick={toggle} className="w-full flex items-center gap-3">
         <Rocket className="h-4 w-4 text-bordeaux/80 shrink-0" />
-        <span className="font-heading text-sm font-bold text-foreground shrink-0">
+        <span className="font-body text-sm font-bold text-foreground shrink-0">
           Tes premiers pas
         </span>
         <Progress value={(completedCount / total) * 100} className="h-1.5 flex-1" />

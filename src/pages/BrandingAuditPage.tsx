@@ -87,7 +87,7 @@ function asText(value: unknown): string {
     const heading = o.titre ?? o.title ?? o.label;
     const body = o.detail ?? o.description ?? o.text;
     const parts = [heading, body].filter((p) => typeof p === "string" && p) as string[];
-    return parts.join(" — ");
+    return parts.join(" : ");
   }
   return "";
 }
@@ -487,7 +487,7 @@ function AuditForm({
 }: any) {
   return (
     <>
-      <h3 className="font-display font-bold text-sm mb-4">Qu'est-ce que tu veux analyser ?</h3>
+      <h3 className="font-body font-bold text-sm mb-4">Qu'est-ce que tu veux analyser ?</h3>
 
       <SourceToggle checked={useSite} onToggle={setUseSite} label="Mon site web">
         <Input aria-label="URL de ton site web" placeholder="https://monsite.com" value={siteUrl} onChange={(e: any) => setSiteUrl(e.target.value)} />
@@ -594,7 +594,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       {/* Points forts */}
       {result.points_forts?.length > 0 && (
         <div>
-          <h3 className="font-display font-bold text-sm mb-3">Ce qui marche ✅</h3>
+          <h3 className="font-body font-bold text-sm mb-3">Ce qui marche ✅</h3>
           <div className="space-y-2">
             {result.points_forts.map((p, i) => (
               <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
@@ -610,7 +610,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       {/* Points faibles */}
       {result.points_faibles?.length > 0 && (
         <div>
-          <h3 className="font-display font-bold text-sm mb-3">Ce qui manque ⚠️</h3>
+          <h3 className="font-body font-bold text-sm mb-3">Ce qui manque ⚠️</h3>
           <div className="space-y-2">
             {result.points_faibles.map((p, i) => (
               <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
@@ -637,7 +637,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
 
       {/* Detail par pilier */}
       <div>
-        <h3 className="font-display font-bold text-sm mb-3">Détail par pilier</h3>
+        <h3 className="font-body font-bold text-sm mb-3">Détail par pilier</h3>
         <div className="space-y-2">
           {Object.entries(result.audit_detail || {}).map(([key, pillar]) => {
             const meta = PILLAR_META[key] || { emoji: "📋", label: key };
@@ -677,7 +677,7 @@ function AuditResults({ result, previousAudit, expandedPillar, setExpandedPillar
       {/* Plan d'action */}
       {result.plan_action_recommande?.length > 0 && (
         <div>
-          <h3 className="font-display font-bold text-sm mb-2">📋 Ton plan d'action</h3>
+          <h3 className="font-body font-bold text-sm mb-2">📋 Ton plan d'action</h3>
           <p className="text-xs text-muted-foreground mb-3">Par quoi commencer ? Voici l'ordre recommandé :</p>
           <div className="space-y-2">
             {result.plan_action_recommande.map((a, i) => (

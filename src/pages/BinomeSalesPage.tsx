@@ -102,7 +102,7 @@ const OBJECTIONS = [
 
 export default function BinomeSalesPage() {
   usePageSEO({
-    title: "Ta Binôme de Com' — Accompagnement 6 mois",
+    title: "Ta Binôme de Com' : Accompagnement 6 mois",
     description: "6 mois d'accompagnement humain + IA pour poser ta communication. Coaching, outils, et stratégie sur-mesure pour solopreneuses engagées.",
     canonical: "/binome",
   });

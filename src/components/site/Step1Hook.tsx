@@ -10,7 +10,7 @@ export default function Step1Hook({ data, save, callAI, aiLoading, aiResults, co
     <div className="space-y-6">
       <h2 className="font-display text-xl font-bold">🎯 L'accroche qui arrête le scroll</h2>
       <div>
-        <h3 className="font-display text-base font-bold mb-2">A. Ton titre (hook)</h3>
+        <h3 className="font-body text-base font-bold mb-2">A. Ton titre (hook)</h3>
         <p className="text-sm text-muted-foreground mb-3">Ta visiteuse a 3 secondes. Ton titre doit être clair, court et intriguant.</p>
         <HelpBlock title="💡 Les 5 ingrédients d'un bon titre">
           <ul className="list-disc pl-4 space-y-1">
@@ -29,7 +29,7 @@ export default function Step1Hook({ data, save, callAI, aiLoading, aiResults, co
         <RedFlagsChecker content={data.hook_title} onFix={(v) => save({ hook_title: v })} />
       </div>
       <div>
-        <h3 className="font-display text-base font-bold mb-2">B. Ton sous-titre</h3>
+        <h3 className="font-body text-base font-bold mb-2">B. Ton sous-titre</h3>
         <p className="text-sm text-muted-foreground mb-3">Il précise comment et pour qui tu fais ce que tu promets dans ton titre.</p>
         {data.hook_title && (
           <Button variant="outline" size="sm" onClick={() => callAI("subtitles", { title: data.hook_title })} disabled={aiLoading === "subtitles"}>
@@ -40,7 +40,7 @@ export default function Step1Hook({ data, save, callAI, aiLoading, aiResults, co
         <Textarea className="mt-3" placeholder="Ex : Créations uniques en argent recyclé, façonnées à la main en France." value={data.hook_subtitle} onChange={(e) => save({ hook_subtitle: e.target.value })} />
       </div>
       <div>
-        <h3 className="font-display text-base font-bold mb-2">C. Ton image principale</h3>
+        <h3 className="font-body text-base font-bold mb-2">C. Ton image principale</h3>
         <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground mb-3">
           📸 <strong>Conseils :</strong> Garde ton produit/service au premier plan. Montre-le en train d'être utilisé. Pas de photo random.
         </div>

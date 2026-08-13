@@ -216,7 +216,7 @@ export default function AuditCoachingPanel({
         {/* Header */}
         <div className="sticky top-0 z-10 bg-[hsl(var(--rose-pale))] border-b border-primary/10 px-6 py-4">
           <SheetHeader className="space-y-1">
-            <SheetTitle className="flex items-center gap-2 text-base font-display">
+            <SheetTitle className="flex items-center gap-2 text-base font-body font-semibold">
               <Lightbulb className="h-5 w-5 text-primary" />
               Coaching · {pillarEmoji} {pillarLabel}
             </SheetTitle>
@@ -312,7 +312,7 @@ export default function AuditCoachingPanel({
           {phase === "diagnostic" && diagnostic && (
             <div className="space-y-5 animate-fade-in">
               <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-5 space-y-3">
-                <h3 className="font-display font-bold text-foreground flex items-center gap-2 text-sm">
+                <h3 className="font-body font-bold text-foreground flex items-center gap-2 text-sm">
                   <Lightbulb className="h-4 w-4 text-primary" />
                   Voilà ce que je te propose
                 </h3>
@@ -336,7 +336,7 @@ export default function AuditCoachingPanel({
 
               {/* Editable proposals */}
               <div className="space-y-4">
-                <h4 className="font-display font-bold text-sm text-foreground">Proposition de textes</h4>
+                <h4 className="font-body font-bold text-sm text-foreground">Proposition de textes</h4>
                 <p className="text-xs text-muted-foreground">Tu peux modifier avant de valider.</p>
                 {diagnostic.proposals.map((p) => (
                   <div key={p.field}>
@@ -382,7 +382,7 @@ export default function AuditCoachingPanel({
               <div className="w-16 h-16 rounded-full bg-success-bg flex items-center justify-center mx-auto mb-4">
                 <Check className="h-8 w-8 text-success" />
               </div>
-              <p className="text-base font-display font-bold text-foreground">
+              <p className="text-base font-body font-bold text-foreground">
                 {pillarEmoji} {pillarLabel} mis à jour !
               </p>
               <p className="text-sm text-muted-foreground mt-2">

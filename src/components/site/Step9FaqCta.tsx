@@ -21,7 +21,7 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
 
       {/* FAQ */}
       <div>
-        <h3 className="font-display text-base font-bold mb-2">A. Ta FAQ</h3>
+        <h3 className="font-body text-base font-bold mb-2">A. Ta FAQ</h3>
         <p className="text-sm text-muted-foreground mb-3">Une FAQ qui répond aux objections avant même qu'elles ne soient formulées. +10-20% de conversion.</p>
 
         <div className="flex flex-wrap gap-2 mb-3">
@@ -57,7 +57,7 @@ export default function Step9FaqCta({ data, save, callAI, aiLoading, aiResults, 
 
       {/* CTA */}
       <div>
-        <h3 className="font-display text-base font-bold mb-2">B. Tes CTA (appels à l'action)</h3>
+        <h3 className="font-body text-base font-bold mb-2">B. Tes CTA (appels à l'action)</h3>
         <p className="text-sm text-muted-foreground mb-3">Les CTA personnalisés convertissent 202% mieux que les génériques (HubSpot).</p>
 
         <p className="text-sm font-semibold mb-2">Objectif principal :</p>

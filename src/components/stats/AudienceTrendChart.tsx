@@ -89,7 +89,7 @@ export default function AudienceTrendChart({ rows }: AudienceTrendChartProps) {
         <XAxis dataKey="month" fontSize={11} stroke="hsl(var(--muted-foreground))" />
         <YAxis fontSize={11} stroke="hsl(var(--muted-foreground))" unit="%" />
         <Tooltip
-          formatter={(val: any) => (val == null ? "—" : `${val}%`)}
+          formatter={(val: any) => (val == null ? "-" : `${val}%`)}
           contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
         />
         <Legend />

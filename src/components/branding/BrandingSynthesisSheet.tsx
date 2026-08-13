@@ -58,7 +58,7 @@ function SectionSep({ emoji, title }: { emoji?: string; title?: string }) {
   return (
     <div className="mt-16 mb-8 flex flex-col items-center text-center">
       {emoji && <span className="text-3xl mb-3">{emoji}</span>}
-      <h2 className="font-display text-xs font-bold uppercase tracking-[0.25em] text-primary/70">{title}</h2>
+      <h2 className="font-body text-xs font-bold uppercase tracking-[0.25em] text-primary/70">{title}</h2>
       <div className="w-12 h-0.5 bg-primary/20 mt-3 rounded-full" />
     </div>
   );
@@ -165,7 +165,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {userName && <h1 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-foreground leading-tight tracking-tight">{userName}</h1>}
             {userActivity && <p className="text-base sm:text-lg text-foreground/60 mt-2 font-body">{userActivity}</p>}
             <div className="w-10 h-0.5 bg-primary mx-auto mt-6 mb-6 rounded-full" />
-            <p className="font-display text-sm uppercase tracking-[0.2em] text-primary/80 font-semibold">Ma stratégie de communication</p>
+            <p className="font-body text-sm uppercase tracking-[0.2em] text-primary/80 font-semibold">Ma stratégie de communication</p>
             <p className="text-xs text-muted-foreground mt-2">Généré le {today}</p>
             <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/50">
               <div className="flex items-center justify-between mb-2">
@@ -279,7 +279,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
           </SectionCard>
         ) : (
           <>
-            <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4"><span>👤</span> Ma cible</h3>
+            <h3 className="font-body text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4"><span>👤</span> Ma cible</h3>
             <EmptySection message="Tu n'as pas encore défini ta cible." linkLabel="Définir ma cible →" link="/branding/section?section=persona" />
           </>
         )}
@@ -388,7 +388,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
               return (
                 <div key={o.id} className="rounded-2xl border border-border/60 bg-card p-5 sm:p-6 space-y-3" style={{ pageBreakInside: "avoid" }}>
                   <div>
-                    <h4 className="font-display text-base font-bold text-foreground">{o.name || "Sans nom"}</h4>
+                    <h4 className="font-body text-base font-bold text-foreground">{o.name || "Sans nom"}</h4>
                     {o.price_text && <p className="text-sm text-primary font-medium mt-0.5">{o.price_text}</p>}
                   </div>
                   {offerSummary?.one_liner ? (

@@ -411,7 +411,7 @@ const SiteAuditPage = () => {
             {/* Existing audit banners */}
             {hasAutoAudit && (
               <div className="rounded-2xl border border-primary bg-rose-pale p-5 space-y-3">
-                <p className="font-display text-sm font-bold text-foreground">
+                <p className="font-body text-sm font-bold text-foreground">
                   ✅ Tu as un audit précédent (score : {existing?.score_global}/100)
                 </p>
                 <div className="flex flex-wrap gap-3">
@@ -427,7 +427,7 @@ const SiteAuditPage = () => {
 
             {hasOldAudit && !hasAutoAudit && (
               <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                <p className="font-display text-sm font-bold text-foreground">
+                <p className="font-body text-sm font-bold text-foreground">
                   📝 Tu as un audit précédent ({existing?.audit_mode === "global" ? "mode global" : "page par page"}).
                 </p>
                 <div className="flex flex-wrap gap-3">
@@ -640,7 +640,7 @@ const SiteAuditPage = () => {
 
                   {screenshotResult.points_forts?.length > 0 && (
                     <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                      <h3 className="font-display text-sm font-bold text-foreground">✅ Points forts</h3>
+                      <h3 className="font-body text-sm font-bold text-foreground">✅ Points forts</h3>
                       <ul className="space-y-2">
                         {screenshotResult.points_forts.map((p: string, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-foreground">
@@ -654,7 +654,7 @@ const SiteAuditPage = () => {
 
                   {screenshotResult.problemes?.length > 0 && (
                     <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                      <h3 className="font-display text-sm font-bold text-foreground">⚠️ Problèmes identifiés</h3>
+                      <h3 className="font-body text-sm font-bold text-foreground">⚠️ Problèmes identifiés</h3>
                       <div className="space-y-2">
                         {screenshotResult.problemes.map((prob: any, i: number) => {
                           const impactColors: Record<string, string> = { fort: "bg-error-bg text-error", moyen: "bg-warning-bg text-warning", faible: "bg-success-bg text-success" };
@@ -681,7 +681,7 @@ const SiteAuditPage = () => {
 
                   {screenshotResult.suggestions_layout?.length > 0 && (
                     <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                      <h3 className="font-display text-sm font-bold text-foreground">📐 Suggestions de mise en page</h3>
+                      <h3 className="font-body text-sm font-bold text-foreground">📐 Suggestions de mise en page</h3>
                       <ul className="space-y-2">
                         {screenshotResult.suggestions_layout.map((s: string, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-foreground">

@@ -102,7 +102,7 @@ export default function PinterestEpingles() {
 
         {/* Generator */}
         <section className="rounded-xl border border-border bg-card p-5 space-y-4 mb-8">
-          <h3 className="font-display text-base font-bold">✨ Créer une épingle optimisée</h3>
+          <h3 className="font-body text-base font-bold">✨ Créer une épingle optimisée</h3>
           <Input aria-label="Sujet de l'épingle" value={subject} onChange={e => setSubject(e.target.value)} placeholder="Ex : le sujet de ton épingle (produit, conseil, inspiration…)" />
           {boards.length > 0 && (
             <Select value={boardId} onValueChange={setBoardId}>
@@ -139,7 +139,7 @@ export default function PinterestEpingles() {
 
         {/* Saved pins */}
         <section>
-          <h3 className="font-display text-base font-bold mb-3">Mes épingles sauvegardées</h3>
+          <h3 className="font-body text-base font-bold mb-3">Mes épingles sauvegardées</h3>
           {pins.length === 0 ? (
             <EmptyState {...MESSAGES.empty.pinterest_pins} />
           ) : (

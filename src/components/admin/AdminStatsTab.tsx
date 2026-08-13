@@ -4,7 +4,7 @@ import { fr } from "date-fns/locale";
 
 /** Formatte une date ISO en libellé court, sans crasher si la valeur est nulle/invalide. */
 function safeDateLabel(value?: string): string {
-  if (!value) return "—";
+  if (!value) return "-";
   const d = parseISO(value);
   return isValid(d) ? format(d, "d MMM", { locale: fr }) : value;
 }
@@ -581,11 +581,11 @@ function EngagementProductSection({ stats }: { stats: StatsData }) {
               <div className="space-y-3">
                 <div className="flex items-baseline justify-between">
                   <span className="text-sm text-foreground">Inscription → 1ʳᵉ génération</span>
-                  <span className="text-lg font-bold font-display tabular-nums">{stats.activation_speed.median_days_to_first_gen ?? "—"}{stats.activation_speed.median_days_to_first_gen !== null && <span className="text-xs font-normal text-muted-foreground"> j</span>}</span>
+                  <span className="text-lg font-bold font-display tabular-nums">{stats.activation_speed.median_days_to_first_gen ?? "-"}{stats.activation_speed.median_days_to_first_gen !== null && <span className="text-xs font-normal text-muted-foreground"> j</span>}</span>
                 </div>
                 <div className="flex items-baseline justify-between">
                   <span className="text-sm text-foreground">Inscription → 1ʳᵉ publication</span>
-                  <span className="text-lg font-bold font-display tabular-nums">{stats.activation_speed.median_days_to_first_publish ?? "—"}{stats.activation_speed.median_days_to_first_publish !== null && <span className="text-xs font-normal text-muted-foreground"> j</span>}</span>
+                  <span className="text-lg font-bold font-display tabular-nums">{stats.activation_speed.median_days_to_first_publish ?? "-"}{stats.activation_speed.median_days_to_first_publish !== null && <span className="text-xs font-normal text-muted-foreground"> j</span>}</span>
                 </div>
                 <p className="text-2xs text-muted-foreground">Sur {stats.activation_speed.n_gen} génératrices · {stats.activation_speed.n_pub} publieuses</p>
               </div>
@@ -700,7 +700,7 @@ function AlertsPanel({ stats }: { stats: StatsData }) {
   if (alerts.length === 0) {
     return (
       <div className="rounded-lg border border-success/30 bg-success/5 p-3 text-center">
-        <p className="text-sm text-success">✓ Tout va bien — aucune alerte</p>
+        <p className="text-sm text-success">✓ Tout va bien : aucune alerte</p>
       </div>
     );
   }

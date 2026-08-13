@@ -245,7 +245,7 @@ export default function SiteAuditResult({
 
       {/* ── Scores par catégorie ── */}
       <div className="rounded-2xl border border-border bg-card p-6 space-y-1">
-        <h3 className="font-display text-base font-bold text-foreground mb-4">
+        <h3 className="font-body text-base font-bold text-foreground mb-4">
           {auditMode === "global" ? "📊 Scores par catégorie" : "📊 Scores par page"}
         </h3>
         {Object.entries(scoreResult.categories).map(([catId, cat]) => {
@@ -276,7 +276,7 @@ export default function SiteAuditResult({
                     const display = ans ? ANSWER_DISPLAY[ans] : null;
                     return (
                       <div key={q.id} className="flex items-start gap-2 text-sm">
-                        <span className="shrink-0 mt-0.5">{display?.icon ?? "—"}</span>
+                        <span className="shrink-0 mt-0.5">{display?.icon ?? "-"}</span>
                         <span className={display?.className ?? "text-muted-foreground"}>{q.text}</span>
                       </div>
                     );
@@ -291,7 +291,7 @@ export default function SiteAuditResult({
       {/* ── Plan d'action priorisé ── */}
       {allRecs.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-          <h3 className="font-display text-base font-bold text-foreground">🎯 Plan d'action priorisé</h3>
+          <h3 className="font-body text-base font-bold text-foreground">🎯 Plan d'action priorisé</h3>
           <div className="space-y-3">
             {allRecs.map((rec, i) => {
               const pBadge = PRIORITY_BADGE[rec.priority];
@@ -339,7 +339,7 @@ export default function SiteAuditResult({
           <>
             {/* ✅ Ce qui va bien */}
             <div className="space-y-3">
-              <h3 className="font-display text-base font-bold text-foreground">✅ Ce qui va bien</h3>
+              <h3 className="font-body text-base font-bold text-foreground">✅ Ce qui va bien</h3>
               <ul className="space-y-2">
                 {aiDiagnostic.positif.map((point, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-foreground">
@@ -352,7 +352,7 @@ export default function SiteAuditResult({
 
             {/* 🎯 Tes 3 priorités */}
             <div className="space-y-3">
-              <h3 className="font-display text-base font-bold text-foreground">🎯 Tes 3 priorités</h3>
+              <h3 className="font-body text-base font-bold text-foreground">🎯 Tes 3 priorités</h3>
               <div className="space-y-3">
                 {aiDiagnostic.priorites.map((prio, i) => (
                   <div key={i} className="rounded-xl border border-border p-4 space-y-2">
@@ -382,7 +382,7 @@ export default function SiteAuditResult({
 
             {/* ⚡ Ton premier pas */}
             <div className="space-y-2">
-              <h3 className="font-display text-base font-bold text-foreground">⚡ Ton premier pas</h3>
+              <h3 className="font-body text-base font-bold text-foreground">⚡ Ton premier pas</h3>
               <div className="rounded-xl bg-rose-pale border border-primary/20 p-5">
                 <p className="text-sm text-foreground">{aiDiagnostic.premier_pas}</p>
               </div>

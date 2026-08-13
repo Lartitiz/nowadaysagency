@@ -186,7 +186,7 @@ export default function StickerGuide({ onClose }: Props) {
 
         {selectedDef.recommendations.map((r) => (
           <div key={r.name} className="rounded-2xl border border-border bg-background p-4 space-y-2">
-            <p className="font-display text-sm font-bold text-foreground">
+            <p className="font-body text-sm font-bold text-foreground">
               ⭐ N°{r.rank} : {r.emoji} {r.name.toUpperCase()}
             </p>
             <p className="text-xs text-muted-foreground">Impact algo : {r.impact}</p>
@@ -235,7 +235,7 @@ export default function StickerGuide({ onClose }: Props) {
             className="rounded-2xl border border-border bg-card p-4 text-left hover:border-primary/50 transition-all"
           >
             <span className="text-lg">{o.emoji}</span>
-            <p className="font-display text-sm font-bold text-foreground mt-1">{o.label}</p>
+            <p className="font-body text-sm font-bold text-foreground mt-1">{o.label}</p>
             <p className="text-xs text-muted-foreground">{o.desc}</p>
           </button>
         ))}

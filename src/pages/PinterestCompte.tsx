@@ -144,7 +144,7 @@ export default function PinterestCompte() {
         <div className="space-y-6">
           {/* 1. Pro account */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">1. Passe en compte professionnel</h3>{sectionBadge(proAccountDone)}</div>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-body text-base font-bold">1. Passe en compte professionnel</h3>{sectionBadge(proAccountDone)}</div>
             <p className="text-sm text-muted-foreground">Le compte pro te donne accès aux statistiques et aux formats enrichis.</p>
             <Collapsible>
               <CollapsibleTrigger className="flex items-center gap-1 text-xs text-primary hover:underline"><ChevronDown className="h-3 w-3" /> Comment faire</CollapsibleTrigger>
@@ -155,21 +155,21 @@ export default function PinterestCompte() {
 
           {/* 2. Photo */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">2. Ta photo de profil</h3>{sectionBadge(photoDone)}</div>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-body text-base font-bold">2. Ta photo de profil</h3>{sectionBadge(photoDone)}</div>
             <p className="text-sm text-muted-foreground">Soit ton logo, soit une photo de toi. Claire et alignée avec ton univers.</p>
             <div className="flex items-center gap-2"><Checkbox checked={photoDone} onCheckedChange={v => setPhotoDone(!!v)} /><span className="text-sm">✅ Ma photo de profil est à jour</span></div>
           </section>
 
           {/* 3. Name */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">3. Ton nom + mot-clé</h3>{sectionBadge(nameDone)}</div>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-body text-base font-bold">3. Ton nom + mot-clé</h3>{sectionBadge(nameDone)}</div>
             <p className="text-sm text-muted-foreground">Sur Pinterest, ton nom apparaît partout. Ajoute un mot-clé principal pour être trouvée.</p>
             <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
               <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
-              <p className="text-muted-foreground">Format : [Prénom] — [Mot-clé principal]</p>
-              <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Lucie — Céramique artisanale & déco éthique"</p>
+              <p className="text-muted-foreground">Format : [Prénom] : [Mot-clé principal]</p>
+              <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Lucie : Céramique artisanale & déco éthique"</p>
             </div>
-            <Input aria-label="Ton nom Pinterest (prénom + mot-clé)" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Ton prénom — Mot-clé principal" />
+            <Input aria-label="Ton nom Pinterest (prénom + mot-clé)" value={displayName} onChange={e => setDisplayName(e.target.value)} placeholder="Ton prénom : Mot-clé principal" />
             <Button variant="outline" onClick={generateName} disabled={generatingName} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generatingName ? "Génération..." : "✨ Suggérer un nom optimisé"}</Button>
             {nameSuggestions.length > 0 && (
               <div className="space-y-2">{nameSuggestions.map((s, i) => (
@@ -184,13 +184,13 @@ export default function PinterestCompte() {
 
           {/* 4. Bio */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">4. Ta bio</h3>{sectionBadge(bioDone)}</div>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-body text-base font-bold">4. Ta bio</h3>{sectionBadge(bioDone)}</div>
             <p className="text-sm text-muted-foreground">Une phrase : qui tu es, ce que tu proposes, à qui tu t'adresses.</p>
             <div className="rounded-xl bg-rose-pale p-4 text-sm space-y-1.5">
               <span className="inline-block font-mono-ui text-2xs font-semibold uppercase tracking-wider bg-jaune text-[#2D2235] px-2.5 py-0.5 rounded-pill mb-1">📖 Exemple</span>
               <p className="italic text-[#6B5E7B] border-l-[3px] border-l-primary pl-3">Ex : "Créatrice de pièces artisanales en cuir végétal 🌿 Pour un quotidien slow & élégant."</p>
             </div>
-            {propValue && <div className="rounded-xl bg-accent/30 border border-accent p-4 text-sm">💡 Ta proposition de valeur : "<strong>{propValue}</strong>" — tu peux l'adapter pour Pinterest !</div>}
+            {propValue && <div className="rounded-xl bg-accent/30 border border-accent p-4 text-sm">💡 Ta proposition de valeur : "<strong>{propValue}</strong>" : tu peux l'adapter pour Pinterest !</div>}
             <Button variant="outline" onClick={generateBio} disabled={generatingBio} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generatingBio ? "Génération..." : "✨ Générer ma bio Pinterest"}</Button>
             {bioSuggestions.length > 0 && (
               <div className="space-y-2">{bioSuggestions.map((s, i) => (
@@ -206,7 +206,7 @@ export default function PinterestCompte() {
 
           {/* 5. URL */}
           <section className="rounded-xl border border-border bg-card p-5 space-y-3">
-            <div className="flex items-center justify-between gap-2"><h3 className="font-display text-base font-bold">5. Ton URL</h3>{sectionBadge(urlDone)}</div>
+            <div className="flex items-center justify-between gap-2"><h3 className="font-body text-base font-bold">5. Ton URL</h3>{sectionBadge(urlDone)}</div>
             <p className="text-sm text-muted-foreground">Ajoute le lien vers ton site ou ta boutique. C'est le but de Pinterest : ramener du trafic.</p>
             <Input aria-label="Ton URL Pinterest (site ou boutique)" value={websiteUrl} onChange={e => setWebsiteUrl(e.target.value)} placeholder="https://ton-site.com" />
             <div className="flex items-center gap-2"><Checkbox checked={urlDone} onCheckedChange={v => setUrlDone(!!v)} /><span className="text-sm">✅ Mon URL est ajoutée</span></div>

@@ -288,7 +288,7 @@ export default function SiteAPropos() {
                   <Sparkles className="h-6 w-6" />
                 </span>
                 <div className="flex-1">
-                  <p className="font-display text-base font-bold text-foreground">✨ Rédiger ma page de zéro</p>
+                  <p className="font-body text-base font-bold text-foreground">✨ Rédiger ma page de zéro</p>
                   <p className="text-sm text-muted-foreground mt-1">Tu n'as pas encore de page À propos ? On la crée ensemble.</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
@@ -305,7 +305,7 @@ export default function SiteAPropos() {
                   <Wrench className="h-6 w-6" />
                 </span>
                 <div className="flex-1">
-                  <p className="font-display text-base font-bold text-foreground">🔧 Améliorer ma page existante</p>
+                  <p className="font-body text-base font-bold text-foreground">🔧 Améliorer ma page existante</p>
                   <p className="text-sm text-muted-foreground mt-1">Tu as déjà une page ? Colle ton URL ou ton texte, l'IA l'améliore.</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
@@ -389,7 +389,7 @@ export default function SiteAPropos() {
                   <span className="text-2xl">{a.emoji}</span>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <p className="font-display text-base font-bold text-foreground">{a.label}</p>
+                      <p className="font-body text-base font-bold text-foreground">{a.label}</p>
                       {recommendedAngle === a.id && !generating && (
                         <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">recommandé</span>
                       )}

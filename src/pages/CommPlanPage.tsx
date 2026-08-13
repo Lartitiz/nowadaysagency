@@ -242,7 +242,7 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
         )}
         {isCoachMode && plan && (
           <div className="flex items-center justify-between gap-3 mb-4 px-4 py-3 rounded-xl border border-primary/20 bg-primary/5">
-            <p className="text-sm text-foreground">👩‍🏫 <span className="font-medium">Mode coach</span> — tu peux personnaliser ce plan</p>
+            <p className="text-sm text-foreground">👩‍🏫 <span className="font-medium">Mode coach</span> : tu peux personnaliser ce plan</p>
             <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => setShowCoachManager(true)}>
               <Settings2 className="h-3.5 w-3.5" /> Personnaliser
             </Button>

@@ -228,7 +228,7 @@ export default function InstagramLaunchRecommendation() {
                   <CardContent className="p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <span className="text-xl">{t.emoji}</span>
-                      <h4 className="font-display font-bold text-sm">{t.label}</h4>
+                      <h4 className="font-body font-bold text-sm">{t.label}</h4>
                     </div>
                     <p className="text-xs text-muted-foreground">{t.duration} · {t.contentRange}</p>
                     <p className="text-xs text-muted-foreground">{t.description}</p>

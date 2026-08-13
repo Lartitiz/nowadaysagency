@@ -252,7 +252,7 @@ export default function LinkedInEngagement() {
         {strategyAccounts.length > 0 && (
           <section className="mt-8 space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="font-display text-base font-bold text-foreground">🎯 Mes comptes à commenter cette semaine</h2>
+              <h2 className="font-body text-base font-bold text-foreground">🎯 Mes comptes à commenter cette semaine</h2>
               <Link to="/linkedin/comment-strategy" className="text-xs text-primary hover:underline flex items-center gap-1">
                 Modifier ma liste <ExternalLink className="h-3 w-3" />
               </Link>

@@ -37,7 +37,7 @@ export default function BioBeforeAfter({ currentBio, currentScore, bestBio }: Bi
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
-      <h3 className="font-display text-sm font-bold text-foreground">📊 Comparatif avant / après</h3>
+      <h3 className="font-body text-sm font-bold text-foreground">📊 Comparatif avant / après</h3>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* AVANT */}

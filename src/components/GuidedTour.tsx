@@ -222,7 +222,7 @@ export default function GuidedTour({ steps, onComplete, storageKey }: GuidedTour
         style={getTooltipPosition(targetRect, position)}
       >
         <div className="bg-card border border-border rounded-2xl p-5 shadow-xl max-w-[280px]">
-          <h3 className="font-display text-sm text-foreground mb-1.5">{step.title}</h3>
+          <h3 className="font-body font-semibold text-sm text-foreground mb-1.5">{step.title}</h3>
           <p className="text-xs text-muted-foreground leading-relaxed">{step.text}</p>
           <div className="flex items-center justify-between mt-4">
             <span className="text-2xs text-muted-foreground">

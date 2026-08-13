@@ -842,7 +842,7 @@ export default function SharedCalendarPage() {
                           }}
                           className={`text-xs text-gray-600 leading-relaxed cursor-pointer ${!isExpanded ? "line-clamp-2" : ""} ${share?.guest_can_edit_wording ? "hover:bg-gray-100 rounded px-1 -mx-1 py-0.5" : ""}`}
                         >
-                          {wording || <span className="text-gray-300 italic">—</span>}
+                          {wording || <span className="text-gray-300 italic"> : </span>}
                         </div>
                       )}
                     </div>
@@ -858,12 +858,12 @@ export default function SharedCalendarPage() {
                   )}
                   {showColumns.includes("format") && (
                     <div className="px-3 py-2.5 text-xs text-gray-500">
-                      {FORMAT_LABELS[post.format || ""] || post.format || "—"}
+                      {FORMAT_LABELS[post.format || ""] || post.format || "-"}
                     </div>
                   )}
                   {showColumns.includes("phase") && (
                     <div className="px-3 py-2.5 text-2xs text-gray-500">
-                      {post.phase || "—"}
+                      {post.phase || "-"}
                     </div>
                   )}
                   <div className="px-3 py-2.5 flex items-center gap-1.5">

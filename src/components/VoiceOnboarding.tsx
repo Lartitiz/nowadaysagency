@@ -119,7 +119,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
     return (
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+          <h3 className="font-body text-base font-bold text-foreground flex items-center gap-2">
             🎤 Ma voix
           </h3>
           <Button variant="ghost" size="sm" onClick={() => setStep("input")} className="text-xs text-primary">
@@ -151,7 +151,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
     return (
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4">
         <div>
-          <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+          <h3 className="font-body text-base font-bold text-foreground flex items-center gap-2">
             🎤 Apprends ma voix
           </h3>
           <p className="text-sm text-muted-foreground mt-1">
@@ -194,7 +194,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
   if (step === "review" && analysis) {
     return (
       <div className="rounded-2xl border border-border bg-card p-5 space-y-4 animate-fade-in">
-        <h3 className="font-display text-base font-bold text-foreground">
+        <h3 className="font-body text-base font-bold text-foreground">
           🎤 Voilà ce que je retiens de ta voix
         </h3>
 

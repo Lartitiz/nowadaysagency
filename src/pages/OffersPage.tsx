@@ -137,7 +137,7 @@ export default function OffersPage() {
                 const items = grouped[type];
                 return (
                   <div key={type} className="mb-8">
-                    <h2 className="font-display text-base font-bold text-foreground mb-3">{config.label}</h2>
+                    <h2 className="font-body text-base font-bold text-foreground mb-3">{config.label}</h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       {items.map((offer) => {
                         const pct = offer.completion_pct || 0;
@@ -151,7 +151,7 @@ export default function OffersPage() {
                           >
                             <div>
                               <div className="flex items-center justify-between mb-1.5">
-                                <h3 className="font-display text-sm font-bold text-foreground truncate flex-1">
+                                <h3 className="font-body text-sm font-bold text-foreground truncate flex-1">
                                   {config.emoji} {offer.name || "Sans nom"}
                                 </h3>
                                 {isComplete && <span className="text-xs ml-2 shrink-0">✅</span>}

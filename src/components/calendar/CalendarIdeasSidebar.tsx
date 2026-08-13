@@ -179,7 +179,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
         </div>
       )}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-display text-sm font-bold text-foreground">💡 Glisser une idée sur le calendrier</h3>
+        <h3 className="font-body text-sm font-bold text-foreground">💡 Glisser une idée sur le calendrier</h3>
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground">
             {filteredIdeas.length !== ideas.length

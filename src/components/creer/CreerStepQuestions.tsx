@@ -71,7 +71,7 @@ function QuestionsLoading() {
       {elapsed >= 15 && (
         <p className="text-xs text-muted-foreground animate-fade-in">
           {elapsed >= 30
-            ? "C'est un peu plus long que d'habitude — ça arrive. Encore un instant…"
+            ? "C'est un peu plus long que d'habitude : ça arrive. Encore un instant…"
             : "Je creuse pour des questions vraiment pertinentes, ça arrive…"}
         </p>
       )}
@@ -134,7 +134,7 @@ export default function CreerStepQuestions({
       <div className="animate-fade-in space-y-5 py-2">
         <div>
           <h2 className="font-display text-xl font-bold text-foreground">Ton premier contenu est prêt à écrire</h2>
-          <p className="text-sm text-muted-foreground mt-1">À partir de ton diagnostic — on l'a déjà préparé pour toi.</p>
+          <p className="text-sm text-muted-foreground mt-1">À partir de ton diagnostic : on l'a déjà préparé pour toi.</p>
         </div>
         <div className="rounded-xl bg-rose-pale border border-primary/20 p-4">
           <p className="text-2xs font-semibold uppercase tracking-wide text-primary-text mb-1">Ton idée</p>
@@ -170,8 +170,8 @@ export default function CreerStepQuestions({
         )}
         <p className="text-sm text-muted-foreground">
           {loadError
-            ? "Tu peux quand même générer directement — la qualité reste au rendez-vous."
-            : "Pas de questions cette fois — on peut générer directement, ton contenu sera très bien quand même."}
+            ? "Tu peux quand même générer directement : la qualité reste au rendez-vous."
+            : "Pas de questions cette fois : on peut générer directement, ton contenu sera très bien quand même."}
         </p>
         <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2">
           {isSubmitting ? (

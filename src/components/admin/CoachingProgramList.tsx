@@ -342,7 +342,7 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
         {showNewWsInput && (
           <div className="rounded-xl border border-border bg-card p-3 mb-4 space-y-2">
             <Input value={newWsName} onChange={e => setNewWsName(e.target.value)} placeholder="Nom de l'espace…" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
-            <Input value={newWsEmail} onChange={e => setNewWsEmail(e.target.value)} placeholder="Email de la cliente (optionnel — évite les doublons)" type="email" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
+            <Input value={newWsEmail} onChange={e => setNewWsEmail(e.target.value)} placeholder="Email de la cliente (optionnel : évite les doublons)" type="email" onKeyDown={e => e.key === "Enter" && handleCreateStandaloneWs()} />
             <p className="text-2xs text-muted-foreground">Si tu renseignes un email déjà inscrit, on te proposera de t'attacher à son espace existant au lieu d'en créer un en doublon.</p>
             <div className="flex gap-2">
               <Button size="sm" onClick={handleCreateStandaloneWs} disabled={creatingStandalone || !newWsName.trim()} className="rounded-full">

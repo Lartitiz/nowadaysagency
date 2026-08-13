@@ -340,7 +340,7 @@ export default function DiagnosticLoading({
   }, []);
 
   const getStatus = (key: "ig" | "web" | "docs", has: boolean) => {
-    if (!has) return "—";
+    if (!has) return "-";
     return checks[key] ? "✅" : "en cours...";
   };
 

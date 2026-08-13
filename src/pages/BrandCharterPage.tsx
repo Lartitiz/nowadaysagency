@@ -269,7 +269,7 @@ function MoodboardSection({ images, description, onImagesChange, onDescriptionCh
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="font-display text-base font-bold text-foreground mb-4">🎭 Mon moodboard</h2>
+      <h2 className="font-body text-base font-bold text-foreground mb-4">🎭 Mon moodboard</h2>
       <p className="text-xs text-muted-foreground mb-4">Ajoute 4 à 9 images qui représentent l'univers visuel que tu vises (pas forcément tes propres visuels : des photos d'ambiance, des palettes, des visuels d'autres marques qui t'inspirent…). L'IA s'en sert pour comprendre ton esthétique quand elle génère tes contenus.</p>
 
       {/* Grid */}
@@ -882,7 +882,7 @@ export default function BrandCharterPage() {
         <div className="space-y-6">
           {/* SECTION 1: Logo */}
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-foreground mb-4">🖼️ Mon logo</h2>
+            <h2 className="font-body text-base font-bold text-foreground mb-4">🖼️ Mon logo</h2>
             {data.logo_url ? (
               <div className="flex flex-col items-center gap-3">
                 <div
@@ -1001,7 +1001,7 @@ export default function BrandCharterPage() {
           />
 
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="font-display text-base font-bold text-foreground mb-1">✨ Mon ambiance visuelle</h2>
+            <h2 className="font-body text-base font-bold text-foreground mb-1">✨ Mon ambiance visuelle</h2>
             <p className="text-xs text-muted-foreground mb-3">Choisis 3 à 5 mots-clés qui décrivent l'ambiance de tes visuels. L'IA les utilise pour rester cohérente quand elle crée du contenu pour toi.</p>
             <div className="flex flex-wrap gap-2 mb-5">
               {MOOD_OPTIONS.map(keyword => {

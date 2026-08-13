@@ -93,7 +93,7 @@ export default function LinkedInCommentStrategy() {
           <h2 className="text-base font-bold text-foreground mb-4">Mes comptes à commenter régulièrement</h2>
           
           {accounts.length === 0 && (
-            <p className="text-sm text-muted-foreground italic mb-4">Aucun compte ajouté pour l'instant — ajoute ton premier compte juste en dessous 👇 (vise 10-15).</p>
+            <p className="text-sm text-muted-foreground italic mb-4">Aucun compte ajouté pour l'instant : ajoute ton premier compte juste en dessous 👇 (vise 10-15).</p>
           )}
 
           <div className="space-y-2 mb-4">

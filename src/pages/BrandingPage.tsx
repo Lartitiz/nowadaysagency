@@ -9,7 +9,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, CheckCircle2, AlertTriangle, Zap, Download } from "lucide-react";
+import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, Loader2, LayoutGrid, CheckCircle2, AlertTriangle, Zap, Download, Lightbulb } from "lucide-react";
 import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -402,7 +402,7 @@ export default function BrandingPage() {
       const profiles = { data: hookProfile || null };
 
       if (!profiles.data) {
-        toast.error("Complète ton profil d'abord — va dans Onboarding pour renseigner tes infos.");
+        toast.error("Complète ton profil d'abord : va dans Onboarding pour renseigner tes infos.");
         setGeneratingProp(false);
         return;
       }
@@ -520,7 +520,7 @@ export default function BrandingPage() {
       }
       if (normalizedWebsite) {
         try { new URL(normalizedWebsite); } catch {
-          toast.error("URL invalide — vérifie l'adresse de ton site web.");
+          toast.error("URL invalide : vérifie l'adresse de ton site web.");
           setImportAnalyzing(false);
           setImportPhaseNew("form");
           return;
@@ -889,7 +889,7 @@ export default function BrandingPage() {
       <Sheet open={mirrorOpen} onOpenChange={setMirrorOpen}>
         <SheetContent side="right" className="overflow-y-auto sm:max-w-lg">
           <SheetHeader>
-            <SheetTitle className="text-lg font-display">🪞 Mirror</SheetTitle>
+            <SheetTitle className="text-lg font-display flex items-center gap-2"><Eye className="h-5 w-5 text-primary" strokeWidth={1.75} /> Mirror</SheetTitle>
           </SheetHeader>
           {mirrorLoading ? (
             <div className="py-6"><AiLoadingIndicator context="branding" isLoading={mirrorLoading} /></div>
@@ -910,7 +910,7 @@ export default function BrandingPage() {
               {mirrorData.gaps?.length > 0 && (
                 <div>
                   <h4 className="text-sm font-semibold text-foreground mb-2 flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-chart-4" /> Les écarts à ajuster</h4>
-                  <div className="space-y-2">{mirrorData.gaps.map((g: any, i: number) => <div key={i} className="rounded-lg bg-chart-4/10 border border-chart-4/20 p-3 space-y-1"><p className="text-xs font-semibold text-foreground">{g.aspect}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Déclaré :</span> {g.declared}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Réalité :</span> {g.actual}</p><p className="text-xs text-primary font-medium mt-1">💡 {g.suggestion}</p></div>)}</div>
+                  <div className="space-y-2">{mirrorData.gaps.map((g: any, i: number) => <div key={i} className="rounded-lg bg-chart-4/10 border border-chart-4/20 p-3 space-y-1"><p className="text-xs font-semibold text-foreground">{g.aspect}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Déclaré :</span> {g.declared}</p><p className="text-xs text-muted-foreground"><span className="font-medium">Réalité :</span> {g.actual}</p><p className="text-xs text-primary font-medium mt-1"><Lightbulb className="inline h-3.5 w-3.5 mr-1 -mt-0.5" strokeWidth={1.75} />{g.suggestion}</p></div>)}</div>
                 </div>
               )}
               {mirrorData.quick_wins?.length > 0 && (

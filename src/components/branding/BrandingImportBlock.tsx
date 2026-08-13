@@ -198,7 +198,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
     return (
       <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-8 mb-8 text-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
-        <p className="font-display font-bold text-foreground text-base mb-1">✨ On analyse tes documents…</p>
+        <p className="font-body font-bold text-foreground text-base mb-1">✨ On analyse tes documents…</p>
         <p className="text-sm text-muted-foreground">Ça peut prendre jusqu'à 30 secondes selon la taille de tes documents.</p>
         <button
           onClick={() => setAnalyzing(false)}
@@ -212,7 +212,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
 
   return (
     <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-6 mb-8">
-      <h3 className="font-display font-bold text-foreground text-base mb-1">📄 Tu as déjà un document stratégique ?</h3>
+      <h3 className="font-body font-bold text-foreground text-base mb-1">📄 Tu as déjà un document stratégique ?</h3>
       <p className="text-sm text-muted-foreground mb-5">Importe-le et on remplit tout pour toi.</p>
 
       {/* File drop zone */}
@@ -249,7 +249,7 @@ export default function BrandingImportBlock({ onResult, prefillLinks }: Props) {
               <span className="max-md:hidden">📎 Glisse tes fichiers ici ou clique pour uploader (jusqu'à 10)</span>
               <span className="md:hidden">📎 Clique pour choisir des fichiers</span>
             </p>
-            <p className="text-xs text-muted-foreground/70 mt-1">PDF, Word (.docx), texte (.txt) — jusqu'à 10 fichiers</p>
+            <p className="text-xs text-muted-foreground/70 mt-1">PDF, Word (.docx), texte (.txt) : jusqu'à 10 fichiers</p>
           </>
         )}
         <input ref={fileInputRef} type="file" multiple accept={ACCEPTED_MIME_TYPES} onChange={handleFileSelect} className="hidden" />

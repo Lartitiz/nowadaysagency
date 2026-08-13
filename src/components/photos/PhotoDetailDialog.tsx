@@ -306,7 +306,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
                 <p className="text-xs text-amber-900">
                   {photo.kind === "portrait"
                     ? "Cette photo semble montrer une personne. Ces outils sont conçus pour des produits : sur un portrait, le résultat sera imprévisible (la personne serait re-générée par l'IA)."
-                    : "Cette photo ne semble pas montrer un produit — ces outils sont conçus pour des photos produit."}
+                    : "Cette photo ne semble pas montrer un produit : ces outils sont conçus pour des photos produit."}
                 </p>
                 <div className="flex flex-wrap justify-end gap-2">
                   {onPackshot && (

@@ -14,7 +14,7 @@ export default function ProspectionStats({ prospects }: Props) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-      <h3 className="font-display text-sm font-bold text-foreground">📊 Ce mois</h3>
+      <h3 className="font-body text-sm font-bold text-foreground">📊 Ce mois</h3>
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <span className="text-muted-foreground">Prospects ajoutés</span>

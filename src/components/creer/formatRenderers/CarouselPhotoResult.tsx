@@ -831,7 +831,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
               <p className="text-sm font-semibold text-foreground">Ton carrousel est écrit ✍️</p>
               <p className="text-xs text-muted-foreground mt-0.5">
                 {uncastCount === 0
-                  ? "Toutes les slides photo ont leur image — tu peux créer les visuels."
+                  ? "Toutes les slides photo ont leur image : tu peux créer les visuels."
                   : uncastCount === 1
                     ? "Il reste 1 image à choisir. Les slides texte sont prêtes."
                     : `Il reste ${uncastCount} images à choisir. Les slides texte sont prêtes.`}
@@ -1236,7 +1236,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-muted-foreground italic">(Pas de texte — laisser l'image parler)</p>
+                    <p className="text-xs text-muted-foreground italic">(Pas de texte : laisser l'image parler)</p>
                   )}
                 </>
               ) : (

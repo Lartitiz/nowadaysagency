@@ -499,7 +499,7 @@ export default function InstagramBio() {
         {view === "audit" && (
           <div className="space-y-6 animate-fade-in">
             <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-              <h2 className="font-display text-base font-bold text-foreground">📝 Ta bio actuelle</h2>
+              <h2 className="font-body text-base font-bold text-foreground">📝 Ta bio actuelle</h2>
               <p className="text-sm text-muted-foreground">Colle ta bio Instagram ici pour recevoir une analyse détaillée.</p>
               <Textarea
                 value={currentBioText}
@@ -722,7 +722,7 @@ export default function InstagramBio() {
               <div key={i} className="rounded-2xl border border-border bg-card p-6 space-y-3">
                 <div className="flex items-center justify-between flex-wrap gap-1">
                   <div className="flex items-center gap-2">
-                    <h3 className="font-display text-sm font-bold text-foreground">
+                    <h3 className="font-body text-sm font-bold text-foreground">
                       {String.fromCharCode(65 + i)} · {v.label}
                     </h3>
                     {v.structure && (

@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BarChart3, MessageCircle, Sparkles } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { ZoneSection, HubCard, FormatPill, HubConnectBanner } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -102,7 +102,7 @@ export default function InstagramHub() {
         </Link>
 
         <div className="mb-8">
-         <h1 className="font-display text-3xl sm:text-3xl font-bold text-bordeaux">📱 Mon Instagram</h1>
+         <h1 className="font-display text-3xl sm:text-3xl font-bold text-bordeaux">Mon Instagram</h1>
           <p className="mt-1 text-base text-muted-foreground">
             Audite ton profil, génère des contenus, optimise ta bio : tout pour qu'Instagram bosse pour toi (et pas l'inverse).
           </p>
@@ -111,15 +111,15 @@ export default function InstagramHub() {
         {!isDemoMode && <HubConnectBanner platform="instagram" />}
 
         {/* ─── ZONE 1 : ANALYSER ─── */}
-        <ZoneSection emoji="📊" title={<><span className="text-primary font-bold">1.</span> 📊 Analyser</>}>
+        <ZoneSection title={<><span className="text-primary font-bold">1.</span> <BarChart3 className="h-5 w-5 text-primary" strokeWidth={1.75} /> Analyser</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button onClick={() => setCoachingOpen(true)} className="text-left">
               <div className="relative rounded-2xl border-2 border-primary bg-primary/5 p-5 hover:bg-primary/10 hover:shadow-md transition-all group">
                 <span className="absolute top-3 right-3 font-mono-ui text-2xs font-semibold text-primary-text bg-rose-pale px-2.5 py-0.5 rounded-pill">
                   IA · 10 min
                 </span>
-                <span className="text-2xl mb-2 block">✨</span>
-                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary-text transition-colors">
+                <Sparkles className="h-5 w-5 mb-2 block text-primary" strokeWidth={1.75} />
+                <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary-text transition-colors">
                   Optimiser mon profil avec l'IA
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground leading-relaxed">L'IA t'aide à optimiser ton profil, question par question.</p>
@@ -135,13 +135,13 @@ export default function InstagramHub() {
         </ZoneSection>
 
         {/* ─── ZONE 2 : CRÉER ─── */}
-        <ZoneSection emoji="✨" title={<><span className="text-primary font-bold">2.</span> ✨ Créer</>}>
+        <ZoneSection title={<><span className="text-primary font-bold">2.</span> <Sparkles className="h-5 w-5 text-primary" strokeWidth={1.75} /> Créer</>}>
           <Link
             to="/creer?canal=instagram"
             className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
           >
             <div>
-              <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary-text transition-colors">
+              <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary-text transition-colors">
                 Créer un contenu Instagram
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">Post, carrousel, reel, story : tous les formats.</p>
@@ -151,7 +151,7 @@ export default function InstagramHub() {
         </ZoneSection>
 
         {/* ─── ZONE 3 : ENGAGER & PLANIFIER ─── */}
-        <ZoneSection emoji="💬" title={<><span className="text-primary font-bold">3.</span> 💬 Engager & Planifier</>}>
+        <ZoneSection title={<><span className="text-primary font-bold">3.</span> <MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.75} /> Engager & Planifier</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <HubCard to="/instagram/routine" emoji="💬" title="Faire ma routine d'engagement" desc="Tes actions hebdo pour créer du lien avec ta communauté." />
             <HubCard to="/calendrier?canal=instagram" emoji="📅" title="Planifier mon mois" desc="Ton calendrier Instagram : pose tes posts, visualise ta régularité." />

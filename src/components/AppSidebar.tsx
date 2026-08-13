@@ -295,7 +295,7 @@ export default function AppSidebar() {
             <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shrink-0 shadow-none">
               <span className="text-white font-bold text-sm leading-none">N</span>
             </div>
-            <span className="font-display text-base text-bordeaux">Nowadays</span>
+            <span className="font-heading text-base text-bordeaux">Nowadays</span>
           </div>
           {/* Close button — visible on mobile */}
           <button

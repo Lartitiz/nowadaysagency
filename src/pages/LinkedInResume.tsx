@@ -335,11 +335,11 @@ export default function LinkedInResume() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               <button onClick={() => setMode("existing")} className="rounded-xl border border-border bg-card p-6 text-left hover:border-primary transition-all">
-                <h3 className="font-display text-base font-bold mb-1">📝 J'ai déjà un résumé</h3>
+                <h3 className="font-body text-base font-bold mb-1">📝 J'ai déjà un résumé</h3>
                 <p className="text-sm text-muted-foreground">Colle ton résumé actuel et on l'améliore.</p>
               </button>
               <button onClick={() => setMode("scratch")} className="rounded-xl border border-border bg-card p-6 text-left hover:border-primary transition-all">
-                <h3 className="font-display text-base font-bold mb-1">✨ Je pars de zéro</h3>
+                <h3 className="font-body text-base font-bold mb-1">✨ Je pars de zéro</h3>
                 <p className="text-sm text-muted-foreground">Génère-moi un résumé à partir de mon branding.</p>
               </button>
             </div>

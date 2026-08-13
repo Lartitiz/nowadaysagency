@@ -353,7 +353,7 @@ export default function AdminUsersTab() {
                   <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
                     <UserRound className="w-3.5 h-3.5" /> Activité
                   </h4>
-                  <p className="text-sm">{selectedUser.activite || "—"}</p>
+                  <p className="text-sm">{selectedUser.activite || "-"}</p>
                   {selectedUser.activite_type && (
                     <p className="text-xs text-muted-foreground mt-0.5">{selectedUser.activite_type}</p>
                   )}

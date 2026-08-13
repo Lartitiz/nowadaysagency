@@ -38,7 +38,7 @@ export default function ABTestAccroches({ accroches }: ABTestAccrochesProps) {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-5 space-y-4 animate-fade-in">
-      <h3 className="font-display text-base font-bold text-foreground flex items-center gap-2">
+      <h3 className="font-body text-base font-bold text-foreground flex items-center gap-2">
         🧪 Test A/B en stories
       </h3>
       <p className="text-sm text-muted-foreground">

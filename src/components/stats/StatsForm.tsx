@@ -58,7 +58,7 @@ export default function StatsForm({
       <Accordion type="multiple" defaultValue={["instagram"]} className="space-y-2">
         {/* Instagram */}
         <AccordionItem value="instagram" className="border rounded-xl px-4">
-          <AccordionTrigger className="font-display text-sm font-bold">📸 Instagram</AccordionTrigger>
+          <AccordionTrigger className="font-body text-sm font-bold">📸 Instagram</AccordionTrigger>
           <AccordionContent className="space-y-4 pb-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <TextInput label="Objectif du mois" value={formData.objective} onChange={v => onFieldChange("objective", v, true)} />
@@ -101,7 +101,7 @@ export default function StatsForm({
 
         {/* Emailing */}
         <AccordionItem value="emailing" className="border rounded-xl px-4">
-          <AccordionTrigger className="font-display text-sm font-bold">📧 Emailing</AccordionTrigger>
+          <AccordionTrigger className="font-body text-sm font-bold">📧 Emailing</AccordionTrigger>
           <AccordionContent className="pb-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <NumInput label="Inscrits emailing en +" value={formData.email_signups} onChange={v => onFieldChange("email_signups", v)} />
@@ -112,7 +112,7 @@ export default function StatsForm({
 
         {/* Site web */}
         <AccordionItem value="website" className="border rounded-xl px-4">
-          <AccordionTrigger className="font-display text-sm font-bold">
+          <AccordionTrigger className="font-body text-sm font-bold">
             🌐 Site web {activeConfig.website_platform ? `(${getPlatformLabel(activeConfig)})` : ""}
           </AccordionTrigger>
           <AccordionContent className="pb-4 space-y-3">
@@ -142,7 +142,7 @@ export default function StatsForm({
 
         {/* Pages de vente */}
         <AccordionItem value="sales_pages" className="border rounded-xl px-4">
-          <AccordionTrigger className="font-display text-sm font-bold">📄 Mes pages de vente</AccordionTrigger>
+          <AccordionTrigger className="font-body text-sm font-bold">📄 Mes pages de vente</AccordionTrigger>
           <AccordionContent className="pb-4 space-y-4">
             {(activeConfig.sales_pages || []).length === 0 ? (
               <p className="text-sm text-muted-foreground">Aucune page configurée.
@@ -178,7 +178,7 @@ export default function StatsForm({
 
         {/* Business */}
         <AccordionItem value="business" className="border rounded-xl px-4">
-          <AccordionTrigger className="font-display text-sm font-bold">
+          <AccordionTrigger className="font-body text-sm font-bold">
             💰 Business {activeConfig.business_type ? `(${activeConfig.business_type})` : ""}
           </AccordionTrigger>
           <AccordionContent className="space-y-4 pb-4">
@@ -219,7 +219,7 @@ export default function StatsForm({
 
         {/* Lancement */}
         <AccordionItem value="launch" className="border rounded-xl px-4">
-          <AccordionTrigger className="font-display text-sm font-bold">🚀 Lancement (optionnel)</AccordionTrigger>
+          <AccordionTrigger className="font-body text-sm font-bold">🚀 Lancement (optionnel)</AccordionTrigger>
           <AccordionContent className="space-y-3 pb-4">
             <div className="flex items-center gap-2">
               <Switch id="stats-has-launch" checked={!!formData.has_launch}

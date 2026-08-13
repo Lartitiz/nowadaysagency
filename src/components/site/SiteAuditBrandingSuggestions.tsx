@@ -188,7 +188,7 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            <h3 className="font-display text-base font-bold text-foreground">
+            <h3 className="font-body text-base font-bold text-foreground">
               Ton site m'a appris des choses sur toi
             </h3>
           </div>

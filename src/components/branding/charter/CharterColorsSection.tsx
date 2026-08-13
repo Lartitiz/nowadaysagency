@@ -148,7 +148,7 @@ export default function CharterColorsSection({
   return (
     <>
       <section className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="font-display text-base font-bold text-foreground mb-4">🎨 Ma palette de couleurs</h2>
+        <h2 className="font-body text-base font-bold text-foreground mb-4">🎨 Ma palette de couleurs</h2>
         <div className="space-y-3">
           {(Object.keys(COLOR_LABELS) as Array<keyof typeof COLOR_LABELS>).map((key) => {
             const { label, tooltip } = COLOR_LABELS[key];

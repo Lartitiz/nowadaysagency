@@ -245,7 +245,7 @@ export default function InstagramLaunchPlan() {
         angle_suggestion: s.angle_suggestion,
         sort_order: i,
       }));
-      if (!rows.length) throw new Error("L'IA n'a renvoyé aucun contenu — réessaie.");
+      if (!rows.length) throw new Error("L'IA n'a renvoyé aucun contenu : réessaie.");
 
       const { data: inserted, error: insertError } = await supabase.from("launch_plan_contents").insert(rows).select();
       if (insertError) throw new Error(insertError.message);
@@ -271,7 +271,7 @@ export default function InstagramLaunchPlan() {
         .not("id", "in", `(${newIds.join(",")})`);
       if (cleanError) {
         console.error("Erreur nettoyage ancien plan:", cleanError);
-        toast.warning("L'ancien plan n'a pas pu être entièrement remplacé — des doublons peuvent subsister.");
+        toast.warning("L'ancien plan n'a pas pu être entièrement remplacé : des doublons peuvent subsister.");
       }
 
       // Update launch

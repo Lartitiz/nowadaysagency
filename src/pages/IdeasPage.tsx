@@ -6,7 +6,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink, Sparkles, SlidersHorizontal } from "lucide-react";
+import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, ChevronDown, X, ExternalLink, Sparkles, SlidersHorizontal, CircleDashed, CheckCircle2, CheckCheck, Search, Heart, ShoppingCart, GraduationCap, Instagram, Linkedin, Mail, Pin, Anchor, ClipboardList, type LucideIcon } from "lucide-react";
 import { Collapsible, CollapsibleContent } from "@/components/ui/collapsible";
 import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -45,33 +45,45 @@ interface SavedIdea {
 
 /* ─── Constants ─── */
 const STATUS_OPTIONS = [
-  { id: "to_explore", label: "💭 À creuser", bg: "bg-[#F0E4EC]", text: "text-[#6B5E7B]" },
-  { id: "drafting", label: "✏️ En rédaction", bg: "bg-accent", text: "text-accent-foreground" },
-  { id: "ready", label: "✅ Prête", bg: "bg-primary", text: "text-primary-foreground" },
-  { id: "planned", label: "📅 Planifiée", bg: "bg-cal-published", text: "text-[#2E7D32]" },
-  { id: "published", label: "✔️ Publiée", bg: "bg-foreground", text: "text-background" },
+  { id: "to_explore", label: "À creuser", icon: CircleDashed, bg: "bg-[#F0E4EC]", text: "text-[#6B5E7B]" },
+  { id: "drafting", label: "En rédaction", icon: PenLine, bg: "bg-accent", text: "text-accent-foreground" },
+  { id: "ready", label: "Prête", icon: CheckCircle2, bg: "bg-primary", text: "text-primary-foreground" },
+  { id: "planned", label: "Planifiée", icon: CalendarDays, bg: "bg-cal-published", text: "text-[#2E7D32]" },
+  { id: "published", label: "Publiée", icon: CheckCheck, bg: "bg-foreground", text: "text-background" },
 ];
 
 const OBJECTIF_OPTIONS = [
-  { id: "visibilite", label: "🔍 Visibilité", bg: "bg-[#EDE9FE]", text: "text-[#7C3AED]" },
-  { id: "confiance", label: "💛 Confiance", bg: "bg-[#FFF9DB]", text: "text-[#92400E]" },
-  { id: "vente", label: "🛒 Vente", bg: "bg-rose-pale", text: "text-primary" },
-  { id: "credibilite", label: "🎓 Crédibilité", bg: "bg-[#F0E4EC]", text: "text-[#6B5E7B]" },
+  { id: "visibilite", label: "Visibilité", icon: Search, bg: "bg-[#EDE9FE]", text: "text-[#7C3AED]" },
+  { id: "confiance", label: "Confiance", icon: Heart, bg: "bg-[#FFF9DB]", text: "text-[#92400E]" },
+  { id: "vente", label: "Vente", icon: ShoppingCart, bg: "bg-rose-pale", text: "text-primary" },
+  { id: "credibilite", label: "Crédibilité", icon: GraduationCap, bg: "bg-[#F0E4EC]", text: "text-[#6B5E7B]" },
 ];
 
 const CANAL_OPTIONS = [
-  { id: "instagram", label: "📱 Instagram", enabled: true },
-  { id: "linkedin", label: "💼 LinkedIn", enabled: true },
-  { id: "newsletter", label: "✉️ Newsletter", enabled: true },
-  { id: "pinterest", label: "📌 Pinterest", enabled: true },
+  { id: "instagram", label: "Instagram", icon: Instagram, enabled: true },
+  { id: "linkedin", label: "LinkedIn", icon: Linkedin, enabled: true },
+  { id: "newsletter", label: "Newsletter", icon: Mail, enabled: true },
+  { id: "pinterest", label: "Pinterest", icon: Pin, enabled: true },
 ];
 
 const TYPE_OPTIONS = [
-  { id: "idea", label: "💡 Idée" },
-  { id: "draft", label: "✏️ Brouillon" },
-  { id: "hook", label: "🎣 Accroche" },
-  { id: "brief", label: "📋 Brief créatif" },
+  { id: "idea", label: "Idée", icon: Lightbulb },
+  { id: "draft", label: "Brouillon", icon: PenLine },
+  { id: "hook", label: "Accroche", icon: Anchor },
+  { id: "brief", label: "Brief créatif", icon: ClipboardList },
 ];
+
+/* Libellé d'option avec son icône filaire (charte : pas d'emoji-icône).
+   L'icône hérite de la couleur du texte du badge/chip qui l'entoure. */
+function OptionLabel({ opt }: { opt: { label: string; icon: LucideIcon } }) {
+  const Icon = opt.icon;
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Icon className="h-3 w-3 shrink-0" strokeWidth={1.75} />
+      {opt.label}
+    </span>
+  );
+}
 
 const SORT_OPTIONS = [
   { id: "newest", label: "Plus récentes" },
@@ -117,7 +129,7 @@ function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
     // content_data inexploitable → on continue vers les fallbacks
   }
   // b. accroche_short
-  if (idea.accroche_short?.trim()) return { text: `🎣 ${idea.accroche_short.trim()}` };
+  if (idea.accroche_short?.trim()) return { text: idea.accroche_short.trim() };
   // c. content_draft nettoyé
   if (idea.content_draft?.trim()) return { text: cleanSlideMarkers(idea.content_draft) };
   return {};
@@ -338,8 +350,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
           <p className="text-base text-muted-foreground mt-1">Tout ce que tu as généré, sauvegardé, commencé. Rien ne se perd.</p>
         </div>
         <Link to="/creer?new=1" className="self-start shrink-0">
-          <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux">
-            💡 Nouvelle idée
+          <Button className="rounded-pill bg-primary text-primary-foreground hover:bg-bordeaux gap-1.5">
+            <Lightbulb className="h-4 w-4" strokeWidth={1.75} /> Nouvelle idée
           </Button>
         </Link>
       </div>
@@ -351,7 +363,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
           <div className="flex gap-1.5 flex-wrap items-center">
             <FilterChip active={statusFilter === "all"} onClick={() => setStatusFilter("all")}>Tout</FilterChip>
             {STATUS_OPTIONS.map((s) => (
-              <FilterChip key={s.id} active={statusFilter === s.id} onClick={() => setStatusFilter(s.id)}>{s.label}</FilterChip>
+              <FilterChip key={s.id} active={statusFilter === s.id} onClick={() => setStatusFilter(s.id)}><OptionLabel opt={s} /></FilterChip>
             ))}
             <div className="ml-auto flex items-center gap-2">
               <select value={sort} onChange={(e) => setSort(e.target.value)}
@@ -381,7 +393,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                 <span className="text-2xs text-muted-foreground font-mono-ui mr-1">Objectif:</span>
                 <FilterChip active={objectifFilter === "all"} onClick={() => setObjectifFilter("all")}>Tout</FilterChip>
                 {OBJECTIF_OPTIONS.map((o) => (
-                  <FilterChip key={o.id} active={objectifFilter === o.id} onClick={() => setObjectifFilter(o.id)}>{o.label}</FilterChip>
+                  <FilterChip key={o.id} active={objectifFilter === o.id} onClick={() => setObjectifFilter(o.id)}><OptionLabel opt={o} /></FilterChip>
                 ))}
               </div>
               <div className="flex gap-1.5 flex-wrap items-center">
@@ -389,7 +401,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                 <FilterChip active={canalFilter === "all"} onClick={() => setCanalFilter("all")}>Tout</FilterChip>
                 {CANAL_OPTIONS.map((c) => (
                   <FilterChip key={c.id} active={canalFilter === c.id} onClick={() => c.enabled && setCanalFilter(c.id)} disabled={!c.enabled}>
-                    {c.label}{!c.enabled && " (V2)"}
+                    <OptionLabel opt={c} />{!c.enabled && " (V2)"}
                   </FilterChip>
                 ))}
               </div>
@@ -397,7 +409,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                 <span className="text-2xs text-muted-foreground font-mono-ui mr-1">Type:</span>
                 <FilterChip active={typeFilter === "all"} onClick={() => setTypeFilter("all")}>Tout</FilterChip>
                 {TYPE_OPTIONS.map((t) => (
-                  <FilterChip key={t.id} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)}>{t.label}</FilterChip>
+                  <FilterChip key={t.id} active={typeFilter === t.id} onClick={() => setTypeFilter(t.id)}><OptionLabel opt={t} /></FilterChip>
                 ))}
                 {activeAdvancedCount > 0 && (
                   <button
@@ -429,7 +441,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
             <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
               <Lightbulb className="h-12 w-12 text-muted-foreground/30 mb-4" />
               <h2 className="font-display text-lg font-bold text-foreground mb-1">Impossible de charger tes idées</h2>
-              <p className="text-sm text-muted-foreground mb-4">Une erreur réseau est survenue. Tes idées n'ont pas été perdues — réessaie dans un instant.</p>
+              <p className="text-sm text-muted-foreground mb-4">Une erreur réseau est survenue. Tes idées n'ont pas été perdues : réessaie dans un instant.</p>
               <Button className="rounded-pill" onClick={() => fetchIdeas()}>Réessayer</Button>
             </div>
           ) : (
@@ -443,7 +455,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
               </p>
               {ideas.length === 0 && (
                 <Link to="/creer?new=1">
-                  <Button className="rounded-pill">💡 Aller à l'atelier →</Button>
+                  <Button className="rounded-pill gap-1.5"><Lightbulb className="h-4 w-4" strokeWidth={1.75} /> Aller à l'atelier →</Button>
                 </Link>
               )}
             </div>
@@ -485,33 +497,33 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     {statusBadge && (
                       idea.type === "brief" ? (
                         <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${statusBadge.bg} ${statusBadge.text}`}>
-                          {statusBadge.label}
+                          <OptionLabel opt={statusBadge} />
                         </span>
                       ) : (
                         <StatusDropdown ideaId={idea.id} current={idea.status || "to_explore"} onSelect={handleStatusChange}>
                           <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${statusBadge.bg} ${statusBadge.text}`}>
-                            {statusBadge.label}
+                            <OptionLabel opt={statusBadge} />
                           </span>
                         </StatusDropdown>
                       )
                     )}
                     {objBadge && (
                       <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${objBadge.bg} ${objBadge.text}`}>
-                        {objBadge.label}
+                        <OptionLabel opt={objBadge} />
                       </span>
                     )}
                     <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">
-                      {CANAL_OPTIONS.find((c) => c.id === (idea.canal || "instagram"))?.label || "📱 Instagram"}
+                      <OptionLabel opt={CANAL_OPTIONS.find((c) => c.id === (idea.canal || "instagram")) || CANAL_OPTIONS[0]} />
                     </span>
                     {idea.type === "brief" && (
                       <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-accent text-accent-foreground">
-                        📋 Brief créatif
+                        <OptionLabel opt={TYPE_OPTIONS.find((t) => t.id === "brief")!} />
                       </span>
                     )}
                   </div>
 
                   {/* Title */}
-                  <h3 className="font-display text-base font-bold text-foreground mb-1">{idea.titre}</h3>
+                  <h3 className="font-body text-base font-bold text-foreground mb-1">{idea.titre}</h3>
                   {idea.angle?.trim() && <p className="text-sm text-muted-foreground">Angle : {idea.angle}</p>}
                   {idea.format?.trim() && <p className="text-sm text-muted-foreground">Format : {idea.format}</p>}
 
@@ -534,8 +546,8 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                       Créée le {fnsFormat(new Date(idea.created_at), "d MMM yyyy", { locale: fr })}
                     </span>
                     {idea.planned_date && (
-                      <span className="font-mono-ui text-2xs text-[#2E7D32]">
-                        📅 {fnsFormat(new Date(idea.planned_date), "d MMM yyyy", { locale: fr })}
+                      <span className="font-mono-ui text-2xs text-[#2E7D32] inline-flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3 shrink-0" strokeWidth={1.75} /> {fnsFormat(new Date(idea.planned_date), "d MMM yyyy", { locale: fr })}
                       </span>
                     )}
                   </div>
@@ -578,19 +590,19 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     {getStatusBadge(selectedIdea.status) && (() => {
                       const sb = getStatusBadge(selectedIdea.status)!;
                       return selectedIdea.type === "brief" ? (
-                        <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                        <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${sb.bg} ${sb.text}`}><OptionLabel opt={sb} /></span>
                       ) : (
                         <StatusDropdown ideaId={selectedIdea.id} current={selectedIdea.status || "to_explore"} onSelect={(id, s) => { handleStatusChange(id, s); setSelectedIdea((prev) => prev ? { ...prev, status: s } : null); }}>
-                          <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}>{sb.label}</span>
+                          <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill cursor-pointer ${sb.bg} ${sb.text}`}><OptionLabel opt={sb} /></span>
                         </StatusDropdown>
                       );
                     })()}
                     {getObjectifBadge(selectedIdea.objectif) && (() => {
                       const ob = getObjectifBadge(selectedIdea.objectif)!;
-                      return <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}>{ob.label}</span>;
+                      return <span className={`font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill ${ob.bg} ${ob.text}`}><OptionLabel opt={ob} /></span>;
                     })()}
-                    <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">{CANAL_OPTIONS.find((c) => c.id === (selectedIdea.canal || "instagram"))?.label || "📱 Instagram"}</span>
-                    <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground">{TYPE_OPTIONS.find((t) => t.id === (selectedIdea.type || "idea"))?.label || "💡 Idée"}</span>
+                    <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground"><OptionLabel opt={CANAL_OPTIONS.find((c) => c.id === (selectedIdea.canal || "instagram")) || CANAL_OPTIONS[0]} /></span>
+                    <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-rose-pale text-foreground"><OptionLabel opt={TYPE_OPTIONS.find((t) => t.id === (selectedIdea.type || "idea")) || TYPE_OPTIONS[0]} /></span>
                   </div>
                 </DialogHeader>
 
@@ -674,7 +686,7 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                     {selectedIdea.planned_date && (
                       <div className="space-y-1 col-span-2">
                         <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Planifiée le</p>
-                        <p className="text-xs text-[#2E7D32]">📅 {fnsFormat(new Date(selectedIdea.planned_date), "d MMMM yyyy", { locale: fr })}</p>
+                        <p className="text-xs text-[#2E7D32] flex items-center gap-1"><CalendarDays className="h-3 w-3 shrink-0" strokeWidth={1.75} /> {fnsFormat(new Date(selectedIdea.planned_date), "d MMMM yyyy", { locale: fr })}</p>
                       </div>
                     )}
                   </section>
@@ -795,7 +807,7 @@ function StatusDropdown({ ideaId, current, onSelect, children }: { ideaId: strin
             onClick={() => { onSelect(ideaId, s.id); setOpen(false); }}
             className={`w-full text-left px-3 py-2 text-sm rounded-lg hover:bg-muted transition-colors ${current === s.id ? "font-semibold text-primary" : "text-foreground"}`}
           >
-            {s.label}
+            <OptionLabel opt={s} />
           </button>
         ))}
       </PopoverContent>

@@ -247,7 +247,7 @@ function JournalEntryEditor({ entry, sessions, deliverables, onUpdate, onDelete,
             <SelectContent>
               <SelectItem value="none">Aucune</SelectItem>
               {sessions.map(s => (
-                <SelectItem key={s.id} value={s.id}>Session {s.session_number} · {s.title || "—"}</SelectItem>
+                <SelectItem key={s.id} value={s.id}>Session {s.session_number} · {s.title || "-"}</SelectItem>
               ))}
             </SelectContent>
           </Select>

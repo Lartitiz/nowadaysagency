@@ -78,7 +78,7 @@ const FAQ = [
   },
   {
     q: "Et si je veux être accompagnée par un humain ?",
-    a: "Le Binôme de com' existe pour ça : Laetitia à tes côtés pendant 6 mois pour construire ta stratégie, te débloquer et valider chaque étape. C'est un accompagnement à part, en plus de l'outil — réserve un appel découverte pour voir si c'est fait pour toi.",
+    a: "Le Binôme de com' existe pour ça : Laetitia à tes côtés pendant 6 mois pour construire ta stratégie, te débloquer et valider chaque étape. C'est un accompagnement à part, en plus de l'outil : réserve un appel découverte pour voir si c'est fait pour toi.",
   },
   {
     q: "Mes données sont sécurisées ?",
@@ -104,7 +104,7 @@ export default function PricingPage() {
   const [retour] = useState(() => lireRetour());
 
   usePageSEO({
-    title: "Tarifs — Gratuit ou Premium",
+    title: "Tarifs : Gratuit ou Premium",
     description: "Découvre les formules de l'Assistant Com'. Gratuit pour poser tes bases et publier tes premiers contenus, Premium à 39€/mois pour publier régulièrement et automatiquement.",
     canonical: "/pricing",
   });

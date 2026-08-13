@@ -14,7 +14,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight, History as HistoryIcon, Recycle } from "lucide-react";
+import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight, History as HistoryIcon, Recycle, TrendingUp, Globe, FileText, Wallet, CheckCircle2, Users, Trophy, Microscope, Brain, BarChart3, PenLine, Camera, Clapperboard, Images, Handshake, ShoppingBag, BookOpen, Palette, Shuffle, type LucideIcon } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import ExcelImportDialog from "@/components/stats/ExcelImportDialog";
 import StatsPeriodSelector from "@/components/stats/StatsPeriodSelector";
@@ -37,6 +37,16 @@ import {
 /* ═══════════════════════════════════════════════
    MAIN PAGE — orchestrator
    ═══════════════════════════════════════════════ */
+
+// Icônes filaires des modèles business (le champ `emoji` de BUSINESS_PRESETS
+// reste dans stats-types, mais l'affichage passe par lucide — charte Nowadays).
+const BUSINESS_ICONS: Record<string, LucideIcon> = {
+  services: Handshake,
+  ecommerce: ShoppingBag,
+  formations: BookOpen,
+  freelance: Palette,
+  mix: Shuffle,
+};
 
 export default function InstagramStats() {
   const { user } = useAuth();
@@ -932,11 +942,11 @@ export default function InstagramStats() {
 
   const renderPostGroup = (title: string, posts: any[] | undefined, withRecycle = false) => {
     if (!posts || !posts.length) return null;
-    const fmtEmoji = (f: string) => {
+    const fmtIcon = (f: string) => {
       const u = String(f || "").toUpperCase();
-      if (u.includes("REEL") || u.includes("VIDEO")) return "🎬";
-      if (u.includes("CAROUSEL")) return "🖼️";
-      return "📷";
+      if (u.includes("REEL") || u.includes("VIDEO")) return <Clapperboard className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />;
+      if (u.includes("CAROUSEL")) return <Images className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />;
+      return <Camera className="h-3.5 w-3.5 text-muted-foreground" strokeWidth={1.75} />;
     };
     return (
       <div className="space-y-1.5">
@@ -947,7 +957,7 @@ export default function InstagramStats() {
             const subject = (p?.subject || "").trim() || "(sans légende)";
             const inner = (
               <>
-                <span className="shrink-0">{fmtEmoji(p?.format)}</span>
+                <span className="shrink-0">{fmtIcon(p?.format)}</span>
                 <span className="flex-1 truncate text-foreground" title={subject}>{subject}</span>
                 {er !== null && <span className="shrink-0 text-xs font-semibold text-primary tabular-nums">{er}%</span>}
               </>
@@ -986,7 +996,7 @@ export default function InstagramStats() {
           <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Mes stats" />
           <div className="rounded-xl border border-border bg-card p-6 space-y-6">
             <div className="text-center space-y-2">
-              <h1 className="font-display text-2xl font-bold">📈 Configurons tes stats</h1>
+              <h1 className="font-display text-2xl font-bold flex items-center justify-center gap-2"><TrendingUp className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.75} /> Configurons tes stats</h1>
               <p className="text-sm text-muted-foreground">
                 Quelques questions pour adapter le suivi à TON projet. Ça prend 2 minutes.
               </p>
@@ -1000,7 +1010,7 @@ export default function InstagramStats() {
 
             {onboardingStep === 1 && (
               <div className="space-y-4">
-                <h2 className="font-display text-base font-bold">🌐 Ton site web</h2>
+                <h2 className="font-body text-base font-bold flex items-center gap-2"><Globe className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Ton site web</h2>
                 <div>
                   <Label className="text-sm mb-2 block">Quelle plateforme utilises-tu ?</Label>
                   <div className="flex flex-wrap gap-2">
@@ -1050,7 +1060,7 @@ export default function InstagramStats() {
 
             {onboardingStep === 2 && (
               <div className="space-y-4">
-                <h2 className="font-display text-base font-bold">📄 Tes pages de vente</h2>
+                <h2 className="font-body text-base font-bold flex items-center gap-2"><FileText className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Tes pages de vente</h2>
                 <p className="text-sm text-muted-foreground">Ajoute les pages que tu veux suivre (optionnel).</p>
                 {(draftConfig.sales_pages || []).map((page, i) => (
                   <div key={i} className="flex gap-2 items-center">
@@ -1087,13 +1097,16 @@ export default function InstagramStats() {
 
             {onboardingStep === 3 && (
               <div className="space-y-4">
-                <h2 className="font-display text-base font-bold">💰 Ton modèle business</h2>
+                <h2 className="font-body text-base font-bold flex items-center gap-2"><Wallet className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Ton modèle business</h2>
                 <div className="grid gap-2">
                   {Object.entries(BUSINESS_PRESETS).map(([key, preset]) => (
                     <button key={key}
                       className={`text-left p-3 rounded-xl border-2 transition-colors ${draftConfig.business_type === key ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
                       onClick={() => setDraftConfig(c => ({ ...c, business_type: key, business_metrics: preset.metrics }))}>
-                      <span className="font-medium text-sm">{preset.emoji} {preset.label}</span>
+                      <span className="font-medium text-sm flex items-center gap-1.5">
+                        {(() => { const Icon = BUSINESS_ICONS[key]; return Icon ? <Icon className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> : null; })()}
+                        {preset.label}
+                      </span>
                       <p className="text-xs text-muted-foreground mt-0.5">{preset.desc}</p>
                     </button>
                   ))}
@@ -1105,11 +1118,11 @@ export default function InstagramStats() {
                     setShowOnboarding(false);
                     toast.success("✅ Configuration enregistrée !");
                   }}>
-                    ✅ C'est prêt, montrer mes stats
+                    <CheckCircle2 className="h-4 w-4 mr-1.5" strokeWidth={1.75} /> C'est prêt, montrer mes stats
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground text-center">
-                  💡 Tu pourras modifier tout ça dans ⚙️ à tout moment.
+                  Tu pourras modifier tout ça dans <Settings className="inline-block h-3.5 w-3.5 align-text-bottom" strokeWidth={1.75} aria-label="Configurer" /> à tout moment.
                 </p>
               </div>
             )}
@@ -1128,7 +1141,7 @@ export default function InstagramStats() {
 
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground">📈 Mes stats</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2"><TrendingUp className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.75} /> Mes stats</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               Remplis tes stats chaque mois pour suivre ta progression.
             </p>
@@ -1163,10 +1176,10 @@ export default function InstagramStats() {
         {!igStatusChecked ? null : igConnected ? (
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
-              <span>📸</span>
+              <Camera className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} />
               <span>
                 Récupère automatiquement tes <strong className="text-foreground">abonnés, reach, vues, interactions, comptes engagés, visites de profil et abonnés gagnés</strong> depuis ton compte Instagram connecté.
-                {" "}<span className="text-xs">Instagram fournit une fenêtre glissante de 28 jours, rangée dans le mois en cours — et un instantané automatique fige tes chiffres en fin de mois, même sans clic.</span>
+                {" "}<span className="text-xs">Instagram fournit une fenêtre glissante de 28 jours, rangée dans le mois en cours : et un instantané automatique fige tes chiffres en fin de mois, même sans clic.</span>
               </span>
             </div>
             <div className="flex gap-2 shrink-0 flex-wrap">
@@ -1184,7 +1197,7 @@ export default function InstagramStats() {
           </div>
         ) : (
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
-            <span className="flex items-start gap-2"><span>📸</span><span>Connecte ton compte Instagram pour remplir tes stats automatiquement.</span></span>
+            <span className="flex items-start gap-2"><Camera className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /><span>Connecte ton compte Instagram pour remplir tes stats automatiquement.</span></span>
             <Button asChild variant="outline" size="sm" className="shrink-0">
               <Link to="/parametres/connexions" onClick={() => memoriseRetour()}>Connecter Instagram</Link>
             </Button>
@@ -1197,7 +1210,7 @@ export default function InstagramStats() {
              plusieurs propriétés) : on demande de sélectionner laquelle utiliser. */
           <div className="rounded-xl border border-border bg-card px-4 py-3 space-y-3">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
-              <span>📈</span>
+              <TrendingUp className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} />
               <span>
                 Google Analytics est connecté. <strong className="text-foreground">Choisis la propriété</strong> dont tu veux suivre les statistiques.
               </span>
@@ -1236,10 +1249,10 @@ export default function InstagramStats() {
         ) : igStatusChecked && ga4Connected ? (
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
-              <span>📈</span>
+              <TrendingUp className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} />
               <span>
                 Récupère automatiquement les <strong className="text-foreground">visiteurs, utilisateurs et sources de trafic (recherche, réseaux, Pinterest, Instagram)</strong> de ton site depuis Google Analytics.
-                {" "}<span className="text-xs">Ne remplit que les colonnes « site web » encore vides — ta saisie manuelle n'est jamais écrasée.</span>
+                {" "}<span className="text-xs">Ne remplit que les colonnes « site web » encore vides : ta saisie manuelle n'est jamais écrasée.</span>
               </span>
             </div>
             <div className="flex gap-2 shrink-0 flex-wrap">
@@ -1259,7 +1272,7 @@ export default function InstagramStats() {
           /* Google non connecté : même invite que pour Instagram juste au-dessus —
              sans elle, personne ne sait que le remplissage auto du site existe. */
           <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
-            <span className="flex items-start gap-2"><span>📈</span><span>Connecte Google Analytics pour remplir les stats de ton site web automatiquement.</span></span>
+            <span className="flex items-start gap-2"><TrendingUp className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /><span>Connecte Google Analytics pour remplir les stats de ton site web automatiquement.</span></span>
             <Button asChild variant="outline" size="sm" className="shrink-0">
               <Link to="/parametres/connexions" onClick={() => memoriseRetour()}>Connecter Google Analytics</Link>
             </Button>
@@ -1269,9 +1282,9 @@ export default function InstagramStats() {
         {/* ─── Tabs ─── */}
         <Tabs defaultValue="overview" className="space-y-5">
           <TabsList className="w-full justify-start">
-            <TabsTrigger value="overview">📊 Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="input">📝 Saisir mes stats</TabsTrigger>
-            <TabsTrigger value="ai">🧠 Mon analyse</TabsTrigger>
+            <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4 shrink-0" strokeWidth={1.75} />Vue d'ensemble</TabsTrigger>
+            <TabsTrigger value="input" className="gap-1.5"><PenLine className="h-4 w-4 shrink-0" strokeWidth={1.75} />Saisir mes stats</TabsTrigger>
+            <TabsTrigger value="ai" className="gap-1.5"><Brain className="h-4 w-4 shrink-0" strokeWidth={1.75} />Mon analyse</TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
@@ -1280,8 +1293,8 @@ export default function InstagramStats() {
                 plusieurs écrans de scroll (surtout en mobile). */}
             {audience && (audience.age?.length || audience.gender?.length || audience.cities?.length || audience.countries?.length) ? (
               <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-                <h3 className="font-display text-sm font-bold text-foreground">
-                  👥 Ton audience <span className="font-normal text-muted-foreground text-xs">— qui te suit sur Instagram</span>
+                <h3 className="font-body text-sm font-bold text-foreground">
+                  <Users className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Ton audience <span className="font-normal text-muted-foreground text-xs"> : qui te suit sur Instagram</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                   {renderAudienceGroup("Âge", audience.age, 4)}
@@ -1297,8 +1310,8 @@ export default function InstagramStats() {
 
             {livePosts && (livePosts.top.length || livePosts.flop.length) ? (
               <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
-                <h3 className="font-display text-sm font-bold text-foreground">
-                  🏆 Tes posts récents <span className="font-normal text-muted-foreground text-xs">— par taux d'engagement, 30 derniers jours</span>
+                <h3 className="font-body text-sm font-bold text-foreground">
+                  <Trophy className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Tes posts récents <span className="font-normal text-muted-foreground text-xs"> : par taux d'engagement, 30 derniers jours</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
                   {renderPostGroup("Ce qui a le mieux marché", livePosts.top, true)}
@@ -1318,8 +1331,8 @@ export default function InstagramStats() {
             {(igConnected || contentInsights) ? (
               <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
                 <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h3 className="font-display text-sm font-bold text-foreground">
-                    🔬 Ce qui marche pour toi{" "}
+                  <h3 className="font-body text-sm font-bold text-foreground">
+                    <Microscope className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Ce qui marche pour toi{" "}
                     <span className="font-normal text-muted-foreground text-xs">
                       — formats, jours et créneaux{contentInsights ? `, sur tes ${contentInsights.sampleSize} derniers posts` : ""}
                     </span>
@@ -1341,7 +1354,7 @@ export default function InstagramStats() {
                     </div>
                     {contentInsights.reading && (
                       <div className="rounded-lg bg-muted/40 px-4 py-3 space-y-1.5">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">🧠 La lecture du coach</p>
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> La lecture du coach</p>
                         <AiGeneratedMention />
                         <p className="text-sm text-foreground leading-relaxed">{contentInsights.reading}</p>
                       </div>
@@ -1384,7 +1397,7 @@ export default function InstagramStats() {
             <div className="text-center py-4">
               <Button onClick={handleAnalyze} disabled={isGenerating || allStats.length === 0} size="lg" className="gap-2">
                 <Sparkles className="h-4 w-4" />
-                {isGenerating ? "Analyse en cours..." : "🧠 Analyser mes stats avec l'IA"}
+                {isGenerating ? "Analyse en cours..." : "Analyser mes stats avec l'IA"}
               </Button>
               {allStats.length === 0 ? (
                 <p className="text-sm text-muted-foreground mt-3">Saisis au moins 1 mois de stats pour lancer l'analyse.</p>
@@ -1397,8 +1410,8 @@ export default function InstagramStats() {
             {aiAnalysis && (
               <div className="rounded-xl border border-border bg-card p-5 sm:p-6 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="font-display text-base font-bold text-foreground">
-                    🧠 Mon analyse — {monthLabel(selectedMonth)}
+                  <h3 className="font-body text-base font-bold text-foreground">
+                    <Brain className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Mon analyse — {monthLabel(selectedMonth)}
                   </h3>
                   <Button variant="ghost" size="sm" onClick={handleAnalyze} disabled={isGenerating} className="gap-1">
                     <RefreshCw className={`h-3.5 w-3.5 ${isGenerating ? "animate-spin" : ""}`} />

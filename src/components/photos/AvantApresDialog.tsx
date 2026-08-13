@@ -157,7 +157,7 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
       const bitmap = await createImageBitmap(converted);
       setSideImage(side, bitmap);
     } catch {
-      toast.error("Cette image n'a pas pu être lue — essaie un PNG ou un JPEG.");
+      toast.error("Cette image n'a pas pu être lue : essaie un PNG ou un JPEG.");
     }
   };
 

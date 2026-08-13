@@ -66,7 +66,7 @@ export function PillarsSyncBanner() {
                 </div>
                 <ul className="space-y-0.5 text-foreground">
                   {brandingPillars.length === 0 ? (
-                    <li className="italic text-muted-foreground">— aucun —</li>
+                    <li className="italic text-muted-foreground"> : aucun : </li>
                   ) : (
                     brandingPillars.map((p, i) => <li key={i}>• {p}</li>)
                   )}
@@ -78,7 +78,7 @@ export function PillarsSyncBanner() {
                 </div>
                 <ul className="space-y-0.5 text-foreground">
                   {editoPillars.length === 0 ? (
-                    <li className="italic text-muted-foreground">— aucun —</li>
+                    <li className="italic text-muted-foreground"> : aucun : </li>
                   ) : (
                     editoPillars.map((p, i) => <li key={i}>• {p.name || <em className="text-muted-foreground">(sans nom)</em>}</li>)
                   )}

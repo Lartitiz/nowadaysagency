@@ -104,7 +104,7 @@ function CalendarContentCardImpl({
       </div>
       {hasSeries && (
         <p className="text-xs text-primary font-medium">
-          📺 Série : {seriesName || "—"}{episodeNumber ? ` · épisode #${episodeNumber}` : ""}
+          📺 Série : {seriesName || "-"}{episodeNumber ? ` · épisode #${episodeNumber}` : ""}
         </p>
       )}
       {publishStatus === "scheduled" && post.scheduled_publish_at && (

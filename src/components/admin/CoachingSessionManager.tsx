@@ -514,7 +514,7 @@ function AdminDeliverableRow({ deliverable, sessions, onUpdate, onDelete, onUplo
       <Select value={deliverable.assigned_session_id || "none"} onValueChange={v => onUpdate(deliverable.id, { assigned_session_id: v === "none" ? null : v })}>
         <SelectTrigger aria-label="Session assignée au livrable" className="h-6 text-2xs w-20 shrink-0"><SelectValue placeholder="Session" /></SelectTrigger>
         <SelectContent>
-          <SelectItem value="none">—</SelectItem>
+          <SelectItem value="none"> : </SelectItem>
           {sessions.map(s => (<SelectItem key={s.id} value={s.id}>S{s.session_number}</SelectItem>))}
         </SelectContent>
       </Select>

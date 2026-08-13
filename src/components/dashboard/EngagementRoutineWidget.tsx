@@ -91,7 +91,7 @@ export default function EngagementRoutineWidget({ animationDelay = 0 }: Props) {
       onClick={() => navigate("/instagram/routine")}
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-heading text-base font-bold text-foreground">
+        <h3 className="font-body text-base font-bold text-foreground">
           {todayDone ? "🔥" : "💬"} Routine d'engagement
         </h3>
         {todayDone ? (

@@ -214,7 +214,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                 </div>
                 <div>
                   {isToday && dayPosts.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Rien de prévu aujourd'hui — touche ＋ pour ajouter un contenu.</p>
+                    <p className="text-xs text-muted-foreground">Rien de prévu aujourd'hui : touche ＋ pour ajouter un contenu.</p>
                   )}
                   {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
                     <MobilePostCard key={p.id} post={p} onSelect={onEditPost} onMove={handleMobileMove} seriesNameById={seriesNameById} />

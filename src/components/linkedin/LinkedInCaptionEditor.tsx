@@ -109,8 +109,8 @@ export default function LinkedInCaptionEditor({
             >
               {bodyLen} car.
               {bodyLen >= 300 && bodyLen <= 1200 && " ✨ Sweet spot"}
-              {bodyAmber && " — Long"}
-              {bodyOver && " — Trop long (max 3000)"}
+              {bodyAmber && " : Long"}
+              {bodyOver && " : Trop long (max 3000)"}
             </span>
           </div>
           <Textarea

@@ -162,7 +162,7 @@ export default function SiteAccueil() {
 
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
-    catch { toast.error("Impossible de copier — sélectionne et copie le texte manuellement."); }
+    catch { toast.error("Impossible de copier : sélectionne et copie le texte manuellement."); }
   };
 
   // Apply the red-flag fixes to each generated field individually, then persist.
@@ -268,14 +268,14 @@ export default function SiteAccueil() {
 
         {/* Page type selector */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-4">
-          <p className="font-display text-base font-bold text-foreground mb-3">Quel type de page ?</p>
+          <p className="font-body text-base font-bold text-foreground mb-3">Quel type de page ?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {PAGE_TYPES.map((pt) => {
               if (pt.isLink) {
                 return (
                   <Link key={pt.value} to={pt.to!} className="text-left rounded-xl border-2 border-border hover:border-primary/50 bg-card p-3 transition-all">
                     <span className="text-lg">{pt.emoji}</span>
-                    <p className="font-display text-sm font-bold text-foreground mt-1">{pt.label}</p>
+                    <p className="font-body text-sm font-bold text-foreground mt-1">{pt.label}</p>
                     <p className="text-2xs text-muted-foreground">{pt.desc}</p>
                   </Link>
                 );
@@ -287,7 +287,7 @@ export default function SiteAccueil() {
                   className={`text-left rounded-xl border-2 p-3 transition-all ${data.page_type === pt.value ? "border-primary bg-rose-pale" : "border-border hover:border-primary/50 bg-card"}`}
                 >
                   <span className="text-lg">{pt.emoji}</span>
-                  <p className="font-display text-sm font-bold text-foreground mt-1">{pt.label}</p>
+                  <p className="font-body text-sm font-bold text-foreground mt-1">{pt.label}</p>
                   <p className="text-2xs text-muted-foreground">{pt.desc}</p>
                 </button>
               );
@@ -297,7 +297,7 @@ export default function SiteAccueil() {
 
         {/* Framework selector */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-6">
-          <p className="font-display text-base font-bold text-foreground mb-3">Quel angle pour ta page ?</p>
+          <p className="font-body text-base font-bold text-foreground mb-3">Quel angle pour ta page ?</p>
           <div className="space-y-2">
             {FRAMEWORKS.map((fw) => (
               <button
@@ -307,7 +307,7 @@ export default function SiteAccueil() {
               >
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{fw.emoji}</span>
-                  <span className="font-display text-sm font-bold text-foreground">{fw.label}</span>
+                  <span className="font-body text-sm font-bold text-foreground">{fw.label}</span>
                   {fw.recommended && <span className="font-mono-ui text-2xs font-semibold px-2 py-0.5 rounded-pill bg-primary text-primary-foreground">recommandé</span>}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1 ml-7">{fw.desc}</p>

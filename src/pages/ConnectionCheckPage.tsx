@@ -233,7 +233,7 @@ export default function ConnectionCheckPage() {
             {/* Errors */}
             {errors.length > 0 && (
               <section className="mb-5">
-                <h2 className="font-display text-sm font-bold text-destructive mb-2">❌ Erreurs (à corriger)</h2>
+                <h2 className="font-body text-sm font-bold text-destructive mb-2">❌ Erreurs (à corriger)</h2>
                 <div className="space-y-1.5">{errors.map((c, i) => <CheckRow key={i} check={c} />)}</div>
               </section>
             )}
@@ -241,7 +241,7 @@ export default function ConnectionCheckPage() {
             {/* Warnings */}
             {warnings.length > 0 && (
               <section className="mb-5">
-                <h2 className="font-display text-sm font-bold text-warning mb-2">⚠️ Warnings (à vérifier)</h2>
+                <h2 className="font-body text-sm font-bold text-warning mb-2">⚠️ Warnings (à vérifier)</h2>
                 <div className="space-y-1.5">{warnings.map((c, i) => <CheckRow key={i} check={c} />)}</div>
               </section>
             )}
@@ -249,7 +249,7 @@ export default function ConnectionCheckPage() {
             {/* Suggestions */}
             {suggestions.length > 0 && (
               <section className="mb-5">
-                <h2 className="font-display text-sm font-bold text-primary mb-2">💡 Suggestions</h2>
+                <h2 className="font-body text-sm font-bold text-primary mb-2">💡 Suggestions</h2>
                 <div className="space-y-1.5">
                   {suggestions.map((s, i) => (
                     <div key={i} className="flex items-center justify-between rounded-xl bg-primary/5 px-4 py-3">
@@ -269,7 +269,7 @@ export default function ConnectionCheckPage() {
             {/* OK */}
             {oks.length > 0 && (
               <details className="mb-5">
-                <summary className="font-display text-sm font-bold text-[hsl(160_60%_45%)] mb-2 cursor-pointer">✅ Tout va bien ({oks.length})</summary>
+                <summary className="font-body text-sm font-bold text-[hsl(160_60%_45%)] mb-2 cursor-pointer">✅ Tout va bien ({oks.length})</summary>
                 <div className="space-y-1.5 mt-2">{oks.map((c, i) => <CheckRow key={i} check={c} />)}</div>
               </details>
             )}
@@ -277,7 +277,7 @@ export default function ConnectionCheckPage() {
             {/* Info */}
             {infos.length > 0 && (
               <details className="mb-5">
-                <summary className="font-display text-sm font-bold text-primary mb-2 cursor-pointer">ℹ️ Infos ({infos.length})</summary>
+                <summary className="font-body text-sm font-bold text-primary mb-2 cursor-pointer">ℹ️ Infos ({infos.length})</summary>
                 <div className="space-y-1.5 mt-2">{infos.map((c, i) => <CheckRow key={i} check={c} />)}</div>
               </details>
             )}

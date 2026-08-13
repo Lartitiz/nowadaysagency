@@ -65,7 +65,7 @@ const PLATFORMS: PlatformMeta[] = [
     label: "Canva",
     icon: <Palette className="h-4 w-4" />,
     iconWrapClass: "bg-gradient-to-br from-cyan-400 to-violet-500",
-    notConnectedHint: "Non connecté — pour ouvrir tes carrousels dans Canva",
+    notConnectedHint: "Non connecté : pour ouvrir tes carrousels dans Canva",
   },
   {
     key: "pinterest",
@@ -79,7 +79,7 @@ const PLATFORMS: PlatformMeta[] = [
     label: "Google Analytics",
     icon: <BarChart3 className="h-4 w-4" />,
     iconWrapClass: "bg-gradient-to-br from-amber-400 to-orange-500",
-    notConnectedHint: "Non connecté — pour remplir tes stats de site automatiquement",
+    notConnectedHint: "Non connecté : pour remplir tes stats de site automatiquement",
     // Google se rafraîchit seul via refresh_token → pas d'alerte d'expiration.
   },
 ];
@@ -205,7 +205,7 @@ export default function SocialConnectionsCard() {
   return (
     <section className="mb-6">
       <div className="flex items-center justify-between mb-2">
-        <h2 className="font-display text-sm font-bold text-foreground">🌐 Réseaux sociaux</h2>
+        <h2 className="font-body text-sm font-bold text-foreground">🌐 Réseaux sociaux</h2>
         {errored && (
           <Button variant="ghost" size="sm" onClick={() => reload()} className="gap-1.5 text-xs h-7">
             <RefreshCw className="h-3 w-3" /> Réessayer
@@ -249,7 +249,7 @@ export default function SocialConnectionsCard() {
                       {conn?.expiresAt && (
                         <span className={tokenExpiresSoon ? "ml-1 text-warning font-medium" : "ml-1"}>
                           · expire le {new Date(conn.expiresAt).toLocaleDateString("fr-FR")}
-                          {tokenExpiresSoon ? " — reconnecte-toi d'ici là" : ""}
+                          {tokenExpiresSoon ? " : reconnecte-toi d'ici là" : ""}
                         </span>
                       )}
                     </p>
