@@ -89,7 +89,7 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
 
   return (
     <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="sm:max-w-md" hideClose>
+      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={(e) => e.preventDefault()}>
         <DialogHeader>
           <DialogTitle>Tu as déjà un contenu en cours</DialogTitle>
           <DialogDescription>
