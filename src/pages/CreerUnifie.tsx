@@ -177,7 +177,45 @@ export default function CreerUnifie() {
   }
   const existingFlowState = isFreshStart ? null : loadFlowState();
   const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
-  const shouldRestore = hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea");
+
+  // ── Garde-fou « il y a déjà un contenu en cours » ──
+  // Une nouvelle intention de création (recyclage, actu, brief, raccourci sujet…)
+  // qui arrive alors qu'un brouillon significatif existe : on demande au lieu de
+  // silencieusement restaurer l'ancien contenu (et donc ignorer la demande).
+  const [draftConflict] = useState(() => {
+    if (isFreshStart || aurianaDemoActive) return null;
+    const d = existingFlowState;
+    if (!d || d.step === "idea") return null;
+    const hasDraftContent = !!(d.ideaText || d.result || d.editContent || d.selectedFormat);
+    if (!hasDraftContent) return null;
+    const newSubject = (paramSujet || locState.sujet || locState.subject || "").trim();
+    const hasNewIntent = !!(
+      newSubject ||
+      locState.fromRecycle ||
+      locState.fromBrief ||
+      locState.fromCalendar ||
+      locState.context ||
+      paramFormat
+    );
+    if (!hasNewIntent) return null;
+    // Même sujet que le brouillon → pas de conflit, on reprend simplement.
+    if (newSubject && d.ideaText && newSubject.slice(0, 80) === d.ideaText.trim().slice(0, 80)) return null;
+    return {
+      draft: {
+        step: d.step,
+        ideaText: d.ideaText || "",
+        selectedFormat: d.selectedFormat ?? null,
+        result: d.result ?? null,
+        editContent: d.editContent || "",
+        editingIdeaId: d.editingIdeaId ?? null,
+      },
+      newSubject,
+    };
+  });
+  const [conflictResolved, setConflictResolved] = useState(false);
+  const conflictPending = !!draftConflict && !conflictResolved;
+
+  const shouldRestore = !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea"));
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
