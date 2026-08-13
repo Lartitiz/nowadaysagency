@@ -41,6 +41,15 @@ export default function PostResult({ result, content, photos }: Props) {
 
   const [checkedText, setCheckedText] = useState(postText);
 
+  // Image rattachée au résultat (raw.image_url — ex : ajoutée depuis la fenêtre
+  // « Publier ou programmer ») : c'est elle qui sera publiée, l'aperçu doit la montrer.
+  const resultImage =
+    typeof result?.image_url === "string" && result.image_url.startsWith("https://")
+      ? result.image_url
+      : null;
+  const previewPhotos =
+    photos && photos.length > 0 ? photos : resultImage ? [{ preview: resultImage }] : undefined;
+
   // Légende complète telle qu'elle sera publiée (accroche incluse une seule fois).
   const caption = accroche && !checkedText.startsWith(accroche)
     ? `${accroche}\n\n${checkedText}`
@@ -60,7 +69,7 @@ export default function PostResult({ result, content, photos }: Props) {
       )}
 
       {/* Aperçu réaliste « comme dans le feed » */}
-      <FeedPreview variant="instagram" text={caption} hashtags={hashtags} photos={photos} />
+      <FeedPreview variant="instagram" text={caption} hashtags={hashtags} photos={previewPhotos} />
 
       {personalTip && (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">

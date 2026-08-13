@@ -91,6 +91,14 @@ export function isInstagramPublishTarget(args: {
   return ["carousel", "post", "story", "reel"].includes(selectedFormat);
 }
 
+/**
+ * Raison « pas d'image » d'un post simple, en langage courant. Exportée pour que
+ * l'UI reconnaisse CE blocage et propose l'action « Ajouter une image » (la règle
+ * Instagram ne change pas : une image https publique reste obligatoire).
+ */
+export const REASON_IMAGE_MANQUANTE =
+  "Ajoute d'abord une image à ton post pour pouvoir le publier sur Instagram.";
+
 /** Raison pour laquelle la publication Instagram est désactivée, ou null si publiable. */
 export function instagramPublishDisabledReason(args: {
   selectedFormat: string | null | undefined;
@@ -111,7 +119,7 @@ export function instagramPublishDisabledReason(args: {
   if (isCarousel) {
     return visualSlidesCount >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.";
   }
-  if (!publishableImageUrl) return "Aucune image publique trouvée. Une image avec une URL https publique est requise.";
+  if (!publishableImageUrl) return REASON_IMAGE_MANQUANTE;
   return null;
 }
 

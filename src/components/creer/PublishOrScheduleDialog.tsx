@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CalendarDays, Clock, Loader2, Zap } from "lucide-react";
+import { CalendarDays, Clock, ImagePlus, Loader2, Zap } from "lucide-react";
 import AlreadyPlannedNotice from "@/components/calendar/AlreadyPlannedNotice";
 
 export type PublishChannel = "instagram" | "linkedin" | null;
@@ -14,6 +14,12 @@ interface Props {
   channel: PublishChannel;
   /** Raison de blocage de la publication (vaut pour « Maintenant » ET « Programmer »), null/undefined si publiable. */
   disabledReason?: string | null;
+  /**
+   * Action qui LÈVE le blocage (ex : ajouter l'image manquante au post) — sans elle,
+   * la raison de blocage est un cul-de-sac. Affichée en bouton sous les deux options
+   * bloquées ; `busy` pendant l'upload.
+   */
+  blockedAction?: { label: string; onClick: () => void; busy?: boolean } | null;
   /** Compte du canal connecté ? Sans connexion, publier/programmer échoueraient. */
   channelConnected: boolean;
   publishing?: boolean;
@@ -55,6 +61,7 @@ export default function PublishOrScheduleDialog({
   onOpenChange,
   channel,
   disabledReason,
+  blockedAction,
   channelConnected,
   publishing,
   onPublishNow,
@@ -138,6 +145,24 @@ export default function PublishOrScheduleDialog({
                   )}
                 </span>
               </button>
+              {/* Action de déblocage : sans elle, la raison affichée serait un cul-de-sac. */}
+              {blockedReason && blockedAction && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-2"
+                  data-testid="publish-blocked-action"
+                  disabled={blockedAction.busy || publishing || scheduling}
+                  onClick={blockedAction.onClick}
+                >
+                  {blockedAction.busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="h-4 w-4" />
+                  )}
+                  {blockedAction.busy ? "Ajout en cours…" : blockedAction.label}
+                </Button>
+              )}
               {mode === "schedule" && !blockedReason && (
                 <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
                   <Input

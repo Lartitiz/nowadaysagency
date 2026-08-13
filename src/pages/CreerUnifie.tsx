@@ -6,7 +6,8 @@ import { slideText } from "@/lib/slide-text";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
-import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason } from "@/features/creer/publish-guards";
+import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE } from "@/features/creer/publish-guards";
+import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { useSearchParams, useLocation, useNavigate, Link } from "react-router-dom";
 import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -3449,6 +3450,40 @@ export default function CreerUnifie() {
   // Vaut `null` tant qu'aucune vidéo n'est rattachable — voir `archiveReelMp4`.
   const [reelMp4Url, setReelMp4Url] = useState<string | null>(null);
 
+  // ── Ajout d'image depuis la fenêtre « Publier ou programmer » (post sans visuel) ──
+  // L'image part dans le bucket public `calendar-media` (même chemin que les visuels
+  // du calendrier) puis est rattachée au résultat (raw.image_url) : publication
+  // immédiate, programmation (media_urls) et aperçu du feed la retrouvent tous là.
+  const publishImageInputRef = useRef<HTMLInputElement>(null);
+  const [addingPublishImage, setAddingPublishImage] = useState(false);
+  const handlePublishImageSelected = async (file: File | null) => {
+    if (!file) return;
+    if (!session?.user) {
+      toast.error("Tu dois être connectée.");
+      return;
+    }
+    const sizeErr = uxSizeError(file, UX_UPLOAD_LIMITS.media);
+    if (sizeErr) {
+      toast.error(sizeErr);
+      return;
+    }
+    setAddingPublishImage(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `${session.user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("calendar-media").upload(path, file, { contentType: file.type });
+      if (error) throw error;
+      const { data } = supabase.storage.from("calendar-media").getPublicUrl(path);
+      if (!data?.publicUrl) throw new Error("L'image a été envoyée mais son adresse est introuvable.");
+      setResult((prev: any) => (prev ? { ...prev, raw: { ...(prev.raw || {}), image_url: data.publicUrl } } : prev));
+      toast.success("Image ajoutée à ton post !");
+    } catch (err: any) {
+      toast.error("L'image n'a pas pu être ajoutée", { description: err?.message || "Réessaie dans un instant." });
+    } finally {
+      setAddingPublishImage(false);
+    }
+  };
+
   const isCarouselPublish = selectedFormat === "carousel";
   // L'option « Maintenant/Programmer » (Instagram) n'apparaît que pour un contenu du canal
   // Instagram : un post LinkedIn, un carrousel LinkedIn, une épingle Pinterest ou
@@ -4303,6 +4338,15 @@ export default function CreerUnifie() {
         onOpenChange={setPublishDialogOpen}
         channel={publishChannel}
         disabledReason={publishDialogDisabledReason}
+        blockedAction={
+          publishChannel === "instagram" && publishDialogDisabledReason === REASON_IMAGE_MANQUANTE
+            ? {
+                label: "Ajouter une image",
+                onClick: () => publishImageInputRef.current?.click(),
+                busy: addingPublishImage,
+              }
+            : null
+        }
         channelConnected={publishChannel ? isSocialConnected(publishChannel) : false}
         publishing={publishingInstagram || publishingLinkedIn}
         onPublishNow={handlePublishNowFromDialog}
@@ -4312,6 +4356,18 @@ export default function CreerUnifie() {
         defaultDraftDate={paramCalendarDate || undefined}
         theme={ideaText}
         canal={publishChannel || "instagram"}
+      />
+
+      {/* Sélecteur de fichier du bouton « Ajouter une image » de la fenêtre ci-dessus. */}
+      <input
+        ref={publishImageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          handlePublishImageSelected(e.target.files?.[0] || null);
+          e.target.value = "";
+        }}
       />
 
       {/* Dialog "photos manquantes" : remplace le downgrade silencieux des
