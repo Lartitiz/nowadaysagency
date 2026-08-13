@@ -151,6 +151,79 @@ export default function OfferWorkshopPage() {
     setSaving(false);
   }, [id, user, offer]);
 
+  // « Remplir à ma place » : lit la page de vente et pré-remplit les champs VIDES
+  // de toutes les étapes (jamais par-dessus une saisie existante).
+  const [extracting, setExtracting] = useState(false);
+  const handleExtractFromPage = async () => {
+    const url = (formDataRef.current.url_sales_page || "").trim();
+    if (!url) { toast("Colle d'abord le lien de ta page de vente"); return; }
+    setExtracting(true);
+    try {
+      const res = await invokeWithTimeout("extract-offer-from-url", {
+        body: { url, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
+      }, 90000);
+      if (res.error) {
+        const msg = (res.error as any)?.context?.body?.error || res.error.message || "";
+        if (/limit_reached|quota/i.test(msg)) {
+          const { handleQuotaError } = await import("@/lib/quota-error-handler");
+          handleQuotaError({ data: (res.error as any)?.context?.body, message: msg });
+          return;
+        }
+        throw new Error(msg);
+      }
+      if (res.data?.error) throw new Error(res.data.error);
+      const ex = res.data?.offer;
+      if (!ex || Object.keys(ex).length === 0) {
+        toast("Rien à extraire", { description: "La page ne contient pas assez d'infos exploitables — remplis l'atelier à la main." });
+        return;
+      }
+      const filled: string[] = [];
+      updateFormData((prev) => {
+        const next = { ...prev };
+        const fill = (key: string, val: unknown, label: string) => {
+          if (typeof val === "string" && val.trim() && !(next[key] && String(next[key]).trim())) {
+            next[key] = val.trim();
+            filled.push(label);
+          }
+        };
+        fill("name", ex.name, "nom");
+        fill("description_short", ex.description_short, "description");
+        fill("price_text", ex.price_text, "prix");
+        fill("problem_surface", ex.problem_surface, "problème");
+        fill("problem_deep", ex.problem_deep, "problème profond");
+        fill("promise", ex.promise, "promesse");
+        fill("target_ideal", ex.target_ideal, "cible");
+        fill("target_not_for", ex.target_not_for, "pour qui ce n'est pas");
+        if (Array.isArray(ex.features) && ex.features.length && !(prev.features_text || "").trim()) {
+          next.features_text = ex.features.join("\n");
+          filled.push("bénéfices");
+        }
+        if (Array.isArray(ex.objections) && ex.objections.length && !(prev.objections_text || "").trim()) {
+          next.objections_text = ex.objections.join("\n");
+          filled.push("objections");
+        }
+        if (Array.isArray(ex.testimonials) && ex.testimonials.length && !(prev.testimonials || []).length) {
+          next.testimonials = ex.testimonials.map((t: any) => ({
+            name: t.name || "", sector: t.sector || "", result: t.result || "", quote: t.quote || "",
+          }));
+          filled.push("témoignages");
+        }
+        return next;
+      });
+      if (filled.length) {
+        toast.success(`Pré-rempli depuis ta page : ${filled.join(", ")}.`, {
+          description: "Relis chaque étape et ajuste — c'est TA matière, l'IA n'a rien inventé.",
+        });
+      } else {
+        toast("Tout était déjà rempli", { description: "Rien n'a été écrasé : tes réponses existantes sont conservées." });
+      }
+    } catch (e: any) {
+      toast.error("Lecture de la page impossible", { description: friendlyError(e) });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
   const askAI = async (stepNum: number, answer: string) => {
     
     setAiLoading(true);
@@ -305,7 +378,7 @@ export default function OfferWorkshopPage() {
       </div>
 
       {/* Step content */}
-      {step === 1 && <Step1 formData={formData} setFormData={updateFormData} saved={saved} autoSaving={autoSaving} />}
+      {step === 1 && <Step1 formData={formData} setFormData={updateFormData} saved={saved} autoSaving={autoSaving} onExtract={handleExtractFromPage} extracting={extracting} />}
       {step === 2 && <Step2 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(2, formData.problem_surface)} saved={saved} autoSaving={autoSaving} />}
       {step === 3 && <Step3 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(3, formData.promise)} saved={saved} autoSaving={autoSaving} />}
       {step === 4 && <Step4 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(4, formData.features_text)} saved={saved} autoSaving={autoSaving} />}
@@ -361,13 +434,39 @@ export default function OfferWorkshopPage() {
 
 // ── STEP COMPONENTS ──────────────────────────
 
-function Step1({ formData, setFormData, saved, autoSaving }: any) {
+function Step1({ formData, setFormData, saved, autoSaving, onExtract, extracting }: any) {
   const update = (k: string, v: any) => setFormData((p: any) => ({ ...p, [k]: v }));
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h2 className="font-display text-xl font-bold">① Les bases de ton offre</h2>
         <SaveIndicator saved={saved} saving={autoSaving} />
+      </div>
+
+      {/* L'offre existe déjà quelque part ? On lit la page au lieu de tout redemander. */}
+      <div className="rounded-2xl border border-primary/30 bg-rose-pale p-4">
+        <p className="text-sm font-medium text-foreground">✨ Ton offre a déjà une page de vente ?</p>
+        <p className="text-xs text-muted-foreground mt-0.5 mb-3">
+          Colle son lien, on lit la page et on pré-remplit l'atelier (nom, prix, promesse, bénéfices, témoignages…). Tu n'auras plus qu'à relire.
+        </p>
+        <div className="flex gap-2 max-sm:flex-col">
+          <Input
+            aria-label="Lien de ta page de vente"
+            value={formData.url_sales_page}
+            onChange={(e) => update("url_sales_page", e.target.value)}
+            placeholder="https://tonsite.fr/mon-offre"
+            className="flex-1"
+          />
+          <Button
+            type="button"
+            onClick={onExtract}
+            disabled={extracting || !(formData.url_sales_page || "").trim()}
+            className="rounded-pill gap-2 shrink-0"
+          >
+            {extracting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {extracting ? "Lecture de ta page..." : "Remplir à ma place"}
+          </Button>
+        </div>
       </div>
       <div>
         <label className="text-sm font-semibold text-foreground mb-2 block">Type d'offre</label>
@@ -401,15 +500,9 @@ function Step1({ formData, setFormData, saved, autoSaving }: any) {
         <label htmlFor="offer-price" className="text-sm font-semibold text-foreground mb-1 block">Prix</label>
         <Input id="offer-price" value={formData.price_text} onChange={(e) => update("price_text", e.target.value)} placeholder="Ex: 290€/mois × 6 mois" />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label htmlFor="offer-url-sales-page" className="text-sm font-semibold text-foreground mb-1 block">Lien page de vente</label>
-          <Input id="offer-url-sales-page" value={formData.url_sales_page} onChange={(e) => update("url_sales_page", e.target.value)} placeholder="https://..." />
-        </div>
-        <div>
-          <label htmlFor="offer-url-booking" className="text-sm font-semibold text-foreground mb-1 block">Lien prise de RDV</label>
-          <Input id="offer-url-booking" value={formData.url_booking} onChange={(e) => update("url_booking", e.target.value)} placeholder="https://calendly.com/..." />
-        </div>
+      <div>
+        <label htmlFor="offer-url-booking" className="text-sm font-semibold text-foreground mb-1 block">Lien prise de RDV</label>
+        <Input id="offer-url-booking" value={formData.url_booking} onChange={(e) => update("url_booking", e.target.value)} placeholder="https://calendly.com/..." />
       </div>
     </div>
   );
