@@ -475,7 +475,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-medium mb-1.5 block">Nom du lien</label>
-              <Input placeholder="Ex: Planning Mars — Marie" value={label} onChange={e => setLabel(e.target.value)} />
+              <Input placeholder="Ex: Planning Mars : Marie" value={label} onChange={e => setLabel(e.target.value)} />
             </div>
 
             <div>

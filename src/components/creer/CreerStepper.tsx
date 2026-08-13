@@ -78,7 +78,7 @@ export default function CreerStepper({ current, onStepClick, rightSlot, verbOver
       <div className="flex items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
           <span className="font-medium text-foreground">Étape {currentIndex + 1} sur {STEPS.length}</span>
-          {" — "}
+          {" : "}
           {verbOverride || currentStep.verb}
         </p>
         {rightSlot && <div className="shrink-0">{rightSlot}</div>}

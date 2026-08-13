@@ -317,7 +317,7 @@ export default function ReelVoiceRecorder({ texts, onVoicesChange }: Props) {
 
       <p className="text-2xs text-muted-foreground">
         {doneCount}/{texts.length} phrase{doneCount > 1 ? "s" : ""} enregistrée{doneCount > 1 ? "s" : ""}
-        {doneCount < texts.length && " — les phrases manquantes seront lues par la voix générée."}
+        {doneCount < texts.length && " : les phrases manquantes seront lues par la voix générée."}
       </p>
     </div>
   );

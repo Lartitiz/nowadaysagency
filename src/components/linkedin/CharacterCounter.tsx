@@ -19,7 +19,7 @@ export default function CharacterCounter({ count, max, sweetSpot }: CharacterCou
     <span className={`text-xs font-medium ${color}`}>
       {count} / {max} car.
       {inSweetSpot && " ✨ Sweet spot"}
-      {overMax && " — Trop long"}
+      {overMax && " : Trop long"}
     </span>
   );
 }

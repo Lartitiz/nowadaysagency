@@ -459,7 +459,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
         </p>
         <div className="flex items-start gap-1.5 rounded-[8px] bg-primary/5 border border-primary/15 px-2.5 py-1.5 text-2xs text-foreground">
           <span aria-hidden>↩️</span>
-          <span>Tu reviens de <strong>Canva</strong> ? Exporte ton design en <strong>PDF</strong> et dépose-le ici — carrousel sur Instagram <em>et</em> carrousel natif sur LinkedIn.</span>
+          <span>Tu reviens de <strong>Canva</strong> ? Exporte ton design en <strong>PDF</strong> et dépose-le ici : carrousel sur Instagram <em>et</em> carrousel natif sur LinkedIn.</span>
         </div>
       </div>
 
@@ -600,7 +600,7 @@ export function ImportContentDialog({ open, onOpenChange, selectedDate, defaultC
       <DialogContent className={cn("max-h-[90vh] overflow-hidden flex flex-col p-0", isMobile ? "sm:max-w-lg" : "sm:max-w-3xl")}>
         <DialogHeader className="px-6 pt-6 pb-2 shrink-0">
           <DialogTitle className="font-display">📥 Importer un contenu</DialogTitle>
-          <DialogDescription>Un post déjà prêt — choisis tes réseaux, et programme tout en une fois.</DialogDescription>
+          <DialogDescription>Un post déjà prêt : choisis tes réseaux, et programme tout en une fois.</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto px-6 pb-6">

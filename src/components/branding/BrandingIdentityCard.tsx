@@ -217,7 +217,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
       {hasProposition ? (
         <div className="rounded-2xl border border-primary/10 bg-[hsl(var(--rose-pale))] p-5 sm:p-6">
           <p className="font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground mb-2">Ma proposition de valeur</p>
-          <p className="font-display text-base sm:text-lg text-foreground leading-relaxed">
+          <p className="font-body text-base sm:text-lg text-foreground leading-relaxed">
             {proposition}
           </p>
           <button
@@ -272,7 +272,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
               >
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-lg">{section.icon}</span>
-                  <p className="font-display text-sm text-foreground flex-1">{section.title}</p>
+                  <p className="font-body font-semibold text-sm text-foreground flex-1">{section.title}</p>
                   <StatusDot score={score} />
                   <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
@@ -446,7 +446,7 @@ function ConstructionView({ completion, summaries, onReanalyze, onImport, onShow
               >
                 <span className="text-xl shrink-0">{section.icon}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="font-display text-base text-foreground">{section.title}</p>
+                  <p className="font-body font-semibold text-base text-foreground">{section.title}</p>
                   {score === 0 && section.why ? (
                     <p className="text-xs text-muted-foreground italic mt-1">{section.why}</p>
                   ) : hasTags && tags && tags.length > 0 && score > 0 ? (

@@ -82,7 +82,7 @@ export default function PinterestMotsCles() {
         <p className="text-sm text-muted-foreground italic mb-6">Comment tes clientes décrivent tes produits ? Ces mots doivent être partout : titres, descriptions, tableaux.</p>
 
         <section className="space-y-4 mb-8">
-          <h3 className="font-display text-base font-bold">Liste tes mots-clés</h3>
+          <h3 className="font-body text-base font-bold">Liste tes mots-clés</h3>
           <Textarea value={raw} onChange={e => setRaw(e.target.value)} placeholder="sweat brodé, broderies tendances, vêtements uniques, personnalisation t-shirt..." className="min-h-[150px]" />
           <Button variant="outline" onClick={generateKeywords} disabled={generating} className="gap-2 rounded-pill"><Sparkles className="h-4 w-4" />{generating ? "Recherche..." : "✨ Trouver mes mots-clés"}</Button>
           {generated && (
@@ -105,7 +105,7 @@ export default function PinterestMotsCles() {
         </div>
 
         <section className="space-y-3 mb-8">
-          <h3 className="font-display text-base font-bold">Où utiliser tes mots-clés</h3>
+          <h3 className="font-body text-base font-bold">Où utiliser tes mots-clés</h3>
           {[
             { key: "titles" as const, label: "Dans le titre de mes tableaux" },
             { key: "boardDesc" as const, label: "Dans la description de mes tableaux" },

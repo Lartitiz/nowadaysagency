@@ -108,8 +108,8 @@ beforeEach(() => {
 
 // ─── Tests ────────────────────────────────────────────────
 
-describe("SeriesFicheCards — 4 component states", () => {
-  it("State 1 — Skeleton: renders 2 pulsing placeholders while loading", () => {
+describe("SeriesFicheCards : 4 component states", () => {
+  it("State 1 : Skeleton: renders 2 pulsing placeholders while loading", () => {
     mockSeriesState = { series: [], activeSeries: [], archivedSeries: [], loading: true };
     const { container } = render(
       <SeriesFicheCards hasRecap={true} onLaunchCoaching={vi.fn()} />
@@ -118,7 +118,7 @@ describe("SeriesFicheCards — 4 component states", () => {
     expect(skeletons).toHaveLength(2);
   });
 
-  it("State 2 — Empty: shows CTA when recap OK but 0 series", () => {
+  it("State 2 : Empty: shows CTA when recap OK but 0 series", () => {
     const onLaunchCoaching = vi.fn();
     render(<SeriesFicheCards hasRecap={true} onLaunchCoaching={onLaunchCoaching} />);
     expect(screen.getByText(/Tu n'as pas encore défini de série/i)).toBeInTheDocument();
@@ -126,7 +126,7 @@ describe("SeriesFicheCards — 4 component states", () => {
     expect(onLaunchCoaching).toHaveBeenCalledTimes(1);
   });
 
-  it("State 3 — Pedagogical: hasRecap=false shows 'piliers pas encore définis' panel", () => {
+  it("State 3 : Pedagogical: hasRecap=false shows 'piliers pas encore définis' panel", () => {
     const onLaunchCoaching = vi.fn();
     render(<SeriesFicheCards hasRecap={false} onLaunchCoaching={onLaunchCoaching} />);
     expect(
@@ -136,7 +136,7 @@ describe("SeriesFicheCards — 4 component states", () => {
     expect(onLaunchCoaching).toHaveBeenCalledTimes(1);
   });
 
-  it("State 4 — List: renders series cards with name, promise, badges, and humanized chips", async () => {
+  it("State 4 : List: renders series cards with name, promise, badges, and humanized chips", async () => {
     const serie = baseSerie();
     mockSeriesState = {
       series: [serie],
@@ -169,7 +169,7 @@ describe("SeriesFicheCards — 4 component states", () => {
   });
 });
 
-describe("SeriesFicheCards — card actions", () => {
+describe("SeriesFicheCards : card actions", () => {
   it("opens dropdown menu and triggers status change to paused", async () => {
     const user = userEvent.setup();
     const serie = baseSerie();
@@ -250,7 +250,7 @@ describe("SeriesFicheCards — card actions", () => {
   });
 });
 
-describe("SeriesFicheCards — visual states", () => {
+describe("SeriesFicheCards : visual states", () => {
   it("applies reduced opacity for paused series", () => {
     const serie = baseSerie({ status: "paused" });
     mockSeriesState = {

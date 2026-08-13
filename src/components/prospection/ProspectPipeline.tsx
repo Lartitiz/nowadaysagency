@@ -20,7 +20,7 @@ function daysSince(dateStr?: string | null) {
 export default function ProspectPipeline({ prospects, stages, onSelect, onStageChange, onWriteDm }: ProspectPipelineProps) {
   return (
     <div className="space-y-4">
-      <h3 className="font-display text-sm font-bold text-foreground">📋 Pipeline</h3>
+      <h3 className="font-body text-sm font-bold text-foreground">📋 Pipeline</h3>
       {stages.map(stage => {
         const stageProspects = prospects.filter(p => p.stage === stage.key);
         if (stageProspects.length === 0) return null;

@@ -173,7 +173,7 @@ export default function CharterTypographySection({ data, onDataChange, toneKeywo
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="font-display text-base font-bold text-foreground mb-4">🔤 Mes typographies</h2>
+      <h2 className="font-body text-base font-bold text-foreground mb-4">🔤 Mes typographies</h2>
       <div className="space-y-5">
         {([
           ["font_title", "Police titres"] as const,

@@ -694,7 +694,7 @@ export default function InstagramAudit() {
 
           {bioElement && bioElement.lignes && (
             <div className="mt-6 rounded-2xl border border-border bg-card p-5 space-y-4">
-              <h3 className="font-display text-base font-bold text-foreground">📝 Détail de ta bio</h3>
+              <h3 className="font-body text-base font-bold text-foreground">📝 Détail de ta bio</h3>
               <AuditBioBeforeAfter
                 currentBio={bioElement.current || profileData?.instagram_bio || ""}
                 lignes={bioElement.lignes}

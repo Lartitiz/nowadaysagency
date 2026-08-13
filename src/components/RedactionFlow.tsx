@@ -280,7 +280,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
                   <div className="rounded-xl border border-primary/20 bg-secondary/50 p-4">
                     <div className="flex items-center gap-2 mb-3">
                       <BookOpen className="h-4 w-4 text-primary" />
-                      <h4 className="font-display text-sm font-bold">Guide de production – {idea.angle}</h4>
+                      <h4 className="font-body text-sm font-bold">Guide de production – {idea.angle}</h4>
                     </div>
                     <ol className="space-y-2">
                       {guide.map((s, i) => (
@@ -298,7 +298,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
               <div>
                 <div className="flex items-center gap-2 mb-3">
                   <Sparkles className="h-4 w-4 text-primary" />
-                  <h3 className="font-display text-base font-bold">Structure proposée par l'IA</h3>
+                  <h3 className="font-body text-base font-bold">Structure proposée par l'IA</h3>
                   <span className="font-mono-ui text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">{idea.format}</span>
                 </div>
                 <p className="text-sm text-muted-foreground mb-4">Voici un squelette personnalisé basé sur ton profil. Tu peux t'en inspirer librement.</p>
@@ -322,7 +322,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
             <div className="animate-fade-in">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="font-display text-base font-bold">3 accroches au choix</h3>
+                <h3 className="font-body text-base font-bold">3 accroches au choix</h3>
               </div>
               <p className="text-sm text-muted-foreground mb-4">Choisis celle qui te parle le plus. Elle sera utilisée pour le premier jet.</p>
               {loadingAccroches ? (
@@ -359,7 +359,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
             <div className="animate-fade-in">
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <h3 className="font-display text-base font-bold">Premier jet</h3>
+                <h3 className="font-body text-base font-bold">Premier jet</h3>
               </div>
               <p className="text-sm text-muted-foreground mb-4">Un premier jet complet basé sur ta structure et ton accroche. Tu pourras le modifier à l'étape suivante.</p>
               {loadingDraft ? (
@@ -387,7 +387,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           {/* Step 4: Édition */}
           {step === 4 && (
             <div className="animate-fade-in">
-              <h3 className="font-display text-base font-bold mb-3">À toi de jouer</h3>
+              <h3 className="font-body text-base font-bold mb-3">À toi de jouer</h3>
               <p className="text-sm text-muted-foreground mb-4">Ajuste le texte à ta sauce. Change les mots, réorganise, ajoute ta touche perso.</p>
               <Textarea
                 value={editedContent}
@@ -411,7 +411,7 @@ export default function RedactionFlow({ idea, profile, canal, objectif, onClose 
           {/* Step 5: Checklist */}
           {step === 5 && (
             <div className="animate-fade-in">
-              <h3 className="font-display text-base font-bold mb-1">Checklist qualité</h3>
+              <h3 className="font-body text-base font-bold mb-1">Checklist qualité</h3>
               <p className="text-sm text-muted-foreground mb-4">Avant de publier, vérifie ces points. C'est pas obligatoire, c'est pour t'aider.</p>
               <div className="space-y-3">
                 {CHECKLIST_ITEMS.map((item, i) => (

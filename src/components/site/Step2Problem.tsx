@@ -11,7 +11,7 @@ export default function Step2Problem({ data, save, callAI, aiLoading, aiResults,
       <p className="text-sm text-muted-foreground">Ta visiteuse doit se dire « Oui, c'est exactement moi ! »</p>
       {data.framework === "storybrand" && (
         <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground mb-3">
-          📖 <strong>StoryBrand — Le problème à 3 niveaux :</strong>
+          📖 <strong>StoryBrand : Le problème à 3 niveaux :</strong>
           <ul className="list-disc pl-4 mt-2 space-y-1">
             <li><strong>Externe :</strong> le truc concret</li>
             <li><strong>Interne :</strong> le ressenti</li>

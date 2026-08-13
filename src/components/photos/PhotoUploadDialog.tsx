@@ -94,7 +94,7 @@ export function PhotoUploadDialog({ open, onOpenChange }: PhotoUploadDialogProps
         backgroundPrompt: prompt.trim(),
         name: name.trim() || undefined,
       });
-      toast.success("Retouche lancée — la photo apparaîtra dans la galerie.");
+      toast.success("Retouche lancée : la photo apparaîtra dans la galerie.");
       reset();
       onOpenChange(false);
     } catch (e: any) {

@@ -45,9 +45,9 @@ export default function ConfidentialitePage() {
             <div className="text-muted-foreground mt-1 space-y-2">
               <p><span className="font-medium text-foreground/80">Données de compte :</span> ton email et ton mot de passe (hashé et sécurisé, on n'y a pas accès en clair).</p>
               <p><span className="font-medium text-foreground/80">Données de profil :</span> ton prénom, ton activité, tes canaux de communication, ta cible.</p>
-              <p><span className="font-medium text-foreground/80">Données de branding :</span> ton identité visuelle, ton storytelling, ta proposition de valeur, ta charte — tout ce que tu renseignes dans l'outil pour construire ta communication.</p>
+              <p><span className="font-medium text-foreground/80">Données de branding :</span> ton identité visuelle, ton storytelling, ta proposition de valeur, ta charte : tout ce que tu renseignes dans l'outil pour construire ta communication.</p>
               <p><span className="font-medium text-foreground/80">Contenus créés :</span> tes posts générés, brouillons, calendrier éditorial, idées sauvegardées, scripts, carrousels.</p>
-              <p><span className="font-medium text-foreground/80">Données de navigation :</span> pages visitées et actions dans l'outil, collectées via PostHog (hébergé en Union européenne, serveur eu.i.posthog.com) — uniquement après ton consentement.</p>
+              <p><span className="font-medium text-foreground/80">Données de navigation :</span> pages visitées et actions dans l'outil, collectées via PostHog (hébergé en Union européenne, serveur eu.i.posthog.com) : uniquement après ton consentement.</p>
               <p><span className="font-medium text-foreground/80">Données techniques :</span> logs d'erreur anonymisés via Sentry, avec masquage automatique du texte et des médias. Utilisés uniquement pour corriger les bugs.</p>
               <p><span className="font-medium text-foreground/80">Données de facturation :</span> gérées directement par Stripe. On ne stocke jamais tes coordonnées bancaires.</p>
             </div>
@@ -58,7 +58,7 @@ export default function ConfidentialitePage() {
             <div className="text-muted-foreground mt-1 space-y-2">
               <p><span className="font-medium text-foreground/80">Exécution du contrat (article 6.1.b RGPD) :</span> te fournir le service, générer des contenus, sauvegarder ton travail, gérer ton abonnement.</p>
               <p><span className="font-medium text-foreground/80">Intérêt légitime (article 6.1.f RGPD) :</span> améliorer l'outil, corriger les bugs, assurer la sécurité du service.</p>
-              <p><span className="font-medium text-foreground/80">Consentement (article 6.1.a RGPD) :</span> analytics de navigation via PostHog — uniquement si tu acceptes le bandeau cookies.</p>
+              <p><span className="font-medium text-foreground/80">Consentement (article 6.1.a RGPD) :</span> analytics de navigation via PostHog : uniquement si tu acceptes le bandeau cookies.</p>
             </div>
           </div>
 
@@ -77,10 +77,10 @@ export default function ConfidentialitePage() {
             <p className="font-semibold text-foreground">5. Qui a accès à tes données ?</p>
             <p className="text-muted-foreground mt-1">On travaille avec des sous-traitants techniques de confiance :</p>
             <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
-              <li><span className="font-medium text-foreground/80">Supabase</span> (hébergement base de données) — serveurs UE</li>
-              <li><span className="font-medium text-foreground/80">Anthropic</span> (traitement IA pour la génération de contenus) — tes données sont envoyées ponctuellement pour générer du contenu, elles ne sont pas stockées par Anthropic</li>
+              <li><span className="font-medium text-foreground/80">Supabase</span> (hébergement base de données) : serveurs UE</li>
+              <li><span className="font-medium text-foreground/80">Anthropic</span> (traitement IA pour la génération de contenus) : tes données sont envoyées ponctuellement pour générer du contenu, elles ne sont pas stockées par Anthropic</li>
               <li><span className="font-medium text-foreground/80">Stripe</span> (paiements sécurisés)</li>
-              <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) — serveurs UE</li>
+              <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : serveurs UE</li>
               <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs)</li>
             </ul>
             <p className="text-muted-foreground mt-2 font-medium">Aucune donnée n'est vendue. Aucune donnée n'est partagée à des fins publicitaires. Jamais.</p>
@@ -117,9 +117,9 @@ export default function ConfidentialitePage() {
             <div className="text-muted-foreground mt-1 space-y-1">
               <p>L'outil utilise :</p>
               <ul className="list-disc list-inside space-y-1">
-                <li><span className="font-medium text-foreground/80">Cookies strictement nécessaires</span> (session d'authentification) — pas besoin de consentement.</li>
-                <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) — activé uniquement après ton consentement via le bandeau cookies.</li>
-                <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs de base) — intérêt légitime, pas de consentement requis. Les replays de session ne sont activés qu'avec ton consentement.</li>
+                <li><span className="font-medium text-foreground/80">Cookies strictement nécessaires</span> (session d'authentification) : pas besoin de consentement.</li>
+                <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : activé uniquement après ton consentement via le bandeau cookies.</li>
+                <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs de base) : intérêt légitime, pas de consentement requis. Les replays de session ne sont activés qu'avec ton consentement.</li>
               </ul>
               <p className="mt-1">Tu peux modifier ton choix à tout moment dans Paramètres &gt; Cookies et traceurs.</p>
             </div>

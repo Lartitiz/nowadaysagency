@@ -343,7 +343,7 @@ export default function SiteAuditAutoResult({
       {/* ── Points forts ── */}
       {displayResult.points_forts?.length > 0 && (
         <div className="rounded-2xl border border-border bg-card p-6 space-y-3">
-          <h3 className="font-display text-base font-bold text-foreground">✅ Points forts</h3>
+          <h3 className="font-body text-base font-bold text-foreground">✅ Points forts</h3>
           <ul className="space-y-2">
             {displayResult.points_forts.map((p, i) => (
               <li key={i} className="flex items-start gap-2 text-sm text-foreground">
@@ -370,7 +370,7 @@ export default function SiteAuditAutoResult({
       {/* ── Priorités d'action ── */}
       {displayResult.priorites?.length > 0 && (
         <div className="space-y-3">
-          <h3 className="font-display text-base font-bold text-foreground">🎯 Tes 3 priorités</h3>
+          <h3 className="font-body text-base font-bold text-foreground">🎯 Tes 3 priorités</h3>
           <div className="space-y-3">
             {displayResult.priorites.slice(0, 3).map((prio, i) => (
               <div key={i} className="rounded-2xl border border-primary/20 bg-rose-pale p-5 flex gap-4 items-start">
@@ -403,7 +403,7 @@ export default function SiteAuditAutoResult({
 
       {/* ── Piliers (grille) ── */}
       <div className="space-y-3">
-        <h3 className="font-display text-base font-bold text-foreground">📊 Détail par pilier</h3>
+        <h3 className="font-body text-base font-bold text-foreground">📊 Détail par pilier</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {pilierEntries.map(([key, pilier]) => {
             const meta = PILIER_META[key] || { emoji: "📌", label: key };
@@ -513,7 +513,7 @@ export default function SiteAuditAutoResult({
       {/* ── Analyse par page ── */}
       {displayResult.analyse_par_page && Object.keys(displayResult.analyse_par_page).length > 1 && (
         <div className="space-y-3">
-          <h3 className="font-display text-base font-bold text-foreground">📄 Analyse par page</h3>
+          <h3 className="font-body text-base font-bold text-foreground">📄 Analyse par page</h3>
           <Tabs defaultValue={Object.keys(displayResult.analyse_par_page)[0]}>
             <TabsList className="w-full justify-start overflow-x-auto">
               {Object.keys(displayResult.analyse_par_page).map(path => (
@@ -550,7 +550,7 @@ export default function SiteAuditAutoResult({
       {displayResult.plan_action?.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <h3 className="font-display text-base font-bold text-foreground">📋 Plan d'action complet</h3>
+            <h3 className="font-body text-base font-bold text-foreground">📋 Plan d'action complet</h3>
             {!viewingOld && (
               <button
                 onClick={() => setChecklistMode(prev => !prev)}

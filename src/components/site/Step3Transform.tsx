@@ -10,11 +10,11 @@ export default function Step3Transform({ data, save, callAI, aiLoading, aiResult
       <h2 className="font-display text-xl font-bold">✨ Montre où tu l'emmènes</h2>
       {data.framework === "storybrand" && (
         <div className="rounded-xl bg-rose-pale p-4 text-sm text-foreground mb-3">
-          📖 <strong>StoryBrand — Le succès :</strong> la vie après. Bénéfices émotionnels + concrets.
+          📖 <strong>StoryBrand : Le succès :</strong> la vie après. Bénéfices émotionnels + concrets.
         </div>
       )}
       <div>
-        <h3 className="font-display text-base font-bold mb-2">A. Les bénéfices</h3>
+        <h3 className="font-body text-base font-bold mb-2">A. Les bénéfices</h3>
         <p className="text-sm text-muted-foreground mb-3">Ta cliente achète le résultat et la transformation.</p>
         <Button variant="outline" size="sm" onClick={() => callAI("benefits")} disabled={aiLoading === "benefits"}>
           <Sparkles className="h-4 w-4 mr-1" /> {aiLoading === "benefits" ? "Génération..." : "Générer le bloc bénéfices"}
@@ -28,7 +28,7 @@ export default function Step3Transform({ data, save, callAI, aiLoading, aiResult
       </div>
       {data.framework === "storybrand" && (
         <div>
-          <h3 className="font-display text-base font-bold mb-2">B. Ce qui se passe si elle ne fait rien (optionnel)</h3>
+          <h3 className="font-body text-base font-bold mb-2">B. Ce qui se passe si elle ne fait rien (optionnel)</h3>
           <div className="rounded-xl bg-warning-bg border border-warning/30 p-4 text-sm text-foreground mb-3">
             ⚠️ <strong>Attention :</strong> cette section est puissante MAIS dangereuse. Utilise-la comme du sel : une pincée suffit.
           </div>

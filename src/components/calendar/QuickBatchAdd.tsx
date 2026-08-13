@@ -37,7 +37,7 @@ const CANAL_OPTIONS = [
 ];
 
 const FORMAT_OPTIONS = [
-  { id: "", emoji: "—", label: "Aucun" },
+  { id: "", emoji: "-", label: "Aucun" },
   { id: "post", emoji: "📝", label: "Post" },
   { id: "carousel", emoji: "🎠", label: "Carrousel" },
   { id: "reel", emoji: "🎬", label: "Reel" },

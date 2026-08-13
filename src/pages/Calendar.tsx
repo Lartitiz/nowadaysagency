@@ -16,7 +16,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine, FileInput, MoreHorizontal } from "lucide-react";
+import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine, FileInput, MoreHorizontal, CalendarDays, Lightbulb } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -141,7 +141,7 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
       <div>
         <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
-          📅 Mon calendrier éditorial
+          Mon calendrier éditorial
         </h1>
         <p className="mt-1 text-base text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
       </div>
@@ -530,7 +530,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     } else {
       toast.success("Post ajouté au calendrier !", {
         action: createdPost ? {
-          label: "✨ Générer",
+          label: "Générer",
           onClick: () => handleQuickGenerate(createdPost!),
         } : undefined,
       });
@@ -988,12 +988,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       {!embedded && isMobile && (
         <div className="flex rounded-full border border-border overflow-hidden mb-4">
           <button onClick={() => setMobileTab("calendar")}
-            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-            📅 Calendrier
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            <CalendarDays className="h-4 w-4" strokeWidth={1.75} /> Calendrier
           </button>
           <button onClick={() => setMobileTab("ideas")}
-            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
-            💡 Mes idées
+            className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
+            <Lightbulb className="h-4 w-4" strokeWidth={1.75} /> Mes idées
           </button>
         </div>
       )}
@@ -1008,7 +1008,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
               <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
                 <span className="truncate block">
                   {activeDragItem.type === "idea"
-                    ? `💡 ${activeDragItem.idea.titre}`
+                    ? <><Lightbulb className="inline h-3.5 w-3.5 mr-1 -mt-0.5 text-primary" strokeWidth={1.75} />{activeDragItem.idea.titre}</>
                     : `${activeDragItem.post?.content_type_emoji || ""} ${activeDragItem.post?.theme}`
                   }
                 </span>
@@ -1027,7 +1027,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                       title="Glisser une idée sur le calendrier"
                       aria-label="Ouvrir le panneau pour glisser une idée sur le calendrier"
                     >
-                      <span className="text-base leading-none">💡</span>
+                      <Lightbulb className="h-4 w-4 text-primary" strokeWidth={1.75} />
                       <span className="text-2xs font-semibold text-muted-foreground [writing-mode:vertical-rl] rotate-180">
                         Glisser une idée
                       </span>

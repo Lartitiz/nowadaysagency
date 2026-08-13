@@ -70,7 +70,7 @@ export default function BrandingDangerZone() {
                   {spaceName}
                 </span>
                 {isOther && (
-                  <span className="text-muted-foreground font-normal"> — tu n'es pas sur ton espace.</span>
+                  <span className="text-muted-foreground font-normal"> : tu n'es pas sur ton espace.</span>
                 )}
               </p>
               <Button

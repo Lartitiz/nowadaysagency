@@ -51,15 +51,15 @@ function formatAcceptsSinglePhoto(format: string | null | undefined): boolean {
 function getPhotoToggleCopy(format: string): { title: string; subtitle: string } {
   switch (format) {
     case "post":
-      return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton idée — le texte parle de ton sujet, pas de l'image" };
+      return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton idée : le texte parle de ton sujet, pas de l'image" };
     case "reel":
-      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour le hook et le script — ton idée reste le sujet" };
+      return { title: "📸 Mon Reel s'appuie sur une image", subtitle: "Référence visuelle pour le hook et le script : ton idée reste le sujet" };
     case "story":
       return { title: "📸 J'ai des photos précises à utiliser", subtitle: "Optionnel : sans rien ajouter, chaque story sera illustrée automatiquement (ta bibliothèque d'abord, banques d'images sinon)" };
     case "linkedin":
-      return { title: "📸 J'attache une photo à mon post", subtitle: "Ta photo appuie ton propos — l'IA écrit sur ton sujet, pas une description du visuel" };
+      return { title: "📸 J'attache une photo à mon post", subtitle: "Ta photo appuie ton propos : l'IA écrit sur ton sujet, pas une description du visuel" };
     case "newsletter":
-      return { title: "📸 Image d'en-tête / illustration", subtitle: "Ton image ouvre l'email — le texte déroule ton sujet" };
+      return { title: "📸 Image d'en-tête / illustration", subtitle: "Ton image ouvre l'email : le texte déroule ton sujet" };
     default:
       return { title: "📸 J'accompagne une photo", subtitle: "Ta photo illustre ton contenu, elle ne le dicte pas" };
   }
@@ -875,7 +875,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
                   <span className="text-xl">✍️</span>
                   <span className="text-sm font-semibold text-foreground">Mes slides</span>
                 </div>
-                <p className="text-2xs leading-snug text-muted-foreground">Ton texte est prêt, slide par slide — l'IA fait seulement le design, sans le réécrire.</p>
+                <p className="text-2xs leading-snug text-muted-foreground">Ton texte est prêt, slide par slide : l'IA fait seulement le design, sans le réécrire.</p>
               </button>
             </div>
           </div>
@@ -891,7 +891,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs text-muted-foreground">Longueur :</span>
             {([
-              { id: "auto" as const, label: "Auto — l'IA adapte" },
+              { id: "auto" as const, label: "Auto : l'IA adapte" },
               { id: "short" as const, label: "Court · 4-5 slides" },
               { id: "classic" as const, label: "Classique · 6-8 slides" },
             ]).map((opt) => (

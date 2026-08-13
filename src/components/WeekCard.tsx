@@ -38,7 +38,7 @@ export default function WeekCard({
             <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
               Semaine {week.weekNumber}
             </span>
-            <h3 className="font-display text-base font-bold text-foreground mt-0.5">{week.title}</h3>
+            <h3 className="font-body text-base font-bold text-foreground mt-0.5">{week.title}</h3>
             <p className="text-xs italic text-muted-foreground mt-1">{week.objective}</p>
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
@@ -65,7 +65,7 @@ export default function WeekCard({
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                   Semaine {week.weekNumber}
                 </span>
-                <h3 className="font-display text-base font-bold text-foreground mt-0.5">{week.title}</h3>
+                <h3 className="font-body text-base font-bold text-foreground mt-0.5">{week.title}</h3>
               </div>
               <div className="flex items-center gap-3">
                 <span className="text-xs text-muted-foreground">

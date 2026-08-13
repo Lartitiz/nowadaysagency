@@ -50,7 +50,7 @@ export default function SiteCapturePage() {
 
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
-    catch { toast.error("Impossible de copier — sélectionne et copie le texte manuellement."); }
+    catch { toast.error("Impossible de copier : sélectionne et copie le texte manuellement."); }
   };
 
   const generate = async () => {
@@ -130,7 +130,7 @@ export default function SiteCapturePage() {
 
             {/* CTA */}
             <div className="rounded-xl bg-rose-pale p-4 text-center">
-              <p className="font-display text-base font-bold text-foreground mb-1">{result.cta_text}</p>
+              <p className="font-body text-base font-bold text-foreground mb-1">{result.cta_text}</p>
               {result.micro_copy && <p className="text-xs text-muted-foreground">{result.micro_copy}</p>}
             </div>
 

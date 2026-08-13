@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Hammer, MessageCircle, Sparkles } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { ZoneSection, HubCard, HubConnectBanner } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -116,7 +116,7 @@ export default function LinkedInHub() {
         </Link>
 
         <div className="mb-8">
-          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">💼 Mon LinkedIn</h1>
+          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">Mon LinkedIn</h1>
           <p className="mt-1 text-base text-muted-foreground">
             Optimise ton profil, crée des posts pro, développe ton réseau : LinkedIn c'est pas ennuyeux, promis.
           </p>
@@ -125,7 +125,7 @@ export default function LinkedInHub() {
         {!isDemoMode && <HubConnectBanner platform="linkedin" />}
 
         {/* ─── ZONE 1 : POSER LES BASES ─── */}
-        <ZoneSection emoji="🏗️" title={<><span className="text-primary font-bold">1.</span> 🏗️ Poser les bases</>}>
+        <ZoneSection title={<><span className="text-primary font-bold">1.</span> <Hammer className="h-5 w-5 text-primary" strokeWidth={1.75} /> Poser les bases</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <HubCard to="#" emoji="✨" title="Optimiser profil & stratégie avec l'IA" desc="On t'aide à optimiser ton profil et ta stratégie, question par question." tag="IA · 15 min" onClick={() => setCoachingOpen(true)} />
             <FirstTimeTooltip id="linkedin-audit" text="Commence ici : un scan complet de ton profil LinkedIn avec des priorités d'action.">
@@ -139,14 +139,14 @@ export default function LinkedInHub() {
         </ZoneSection>
 
         {/* ─── ZONE 2 : CRÉER ─── */}
-        <ZoneSection emoji="✨" title={<><span className="text-primary font-bold">2.</span> ✨ Créer</>}>
+        <ZoneSection title={<><span className="text-primary font-bold">2.</span> <Sparkles className="h-5 w-5 text-primary" strokeWidth={1.75} /> Créer</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Link
               to="/creer?canal=linkedin"
               className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
             >
               <div>
-                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary transition-colors">
                   Créer un post LinkedIn
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">L'IA génère un post calibré sur ton branding.</p>
@@ -158,7 +158,7 @@ export default function LinkedInHub() {
               className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
             >
               <div>
-                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary transition-colors">
                   Analyser un post
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">Colle un post existant : analyse + version améliorée.</p>
@@ -170,7 +170,7 @@ export default function LinkedInHub() {
               className="group flex items-center justify-between rounded-2xl border border-border bg-card p-5 hover:border-primary hover:shadow-md transition-all"
             >
               <div>
-                <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary transition-colors">
                   Recycler un contenu
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">Un contenu source adapté pour chaque réseau.</p>
@@ -181,7 +181,7 @@ export default function LinkedInHub() {
         </ZoneSection>
 
         {/* ─── ZONE 3 : ENGAGER & PLANIFIER ─── */}
-        <ZoneSection emoji="💬" title={<><span className="text-primary font-bold">3.</span> 💬 Engager & Planifier</>}>
+        <ZoneSection title={<><span className="text-primary font-bold">3.</span> <MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.75} /> Engager & Planifier</>}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FirstTimeTooltip id="linkedin-engagement" text="Tes actions hebdo pour développer ton réseau.">
               <HubCard to="/linkedin/engagement" emoji="💬" title="Suivre mon engagement" desc="Tes commentaires et messages stratégiques de la semaine." progressLabel={progressMap["/linkedin/engagement"]} />

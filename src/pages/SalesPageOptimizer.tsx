@@ -291,7 +291,7 @@ export default function SalesPageOptimizer() {
 
             {/* B) Sections */}
             <div className="space-y-3">
-              <h3 className="font-display text-base font-bold text-foreground">📝 Sections analysées</h3>
+              <h3 className="font-body text-base font-bold text-foreground">📝 Sections analysées</h3>
               {[...displayResult.sections].sort((a, b) => a.score - b.score).map((section) => {
                 const isOpen = expandedSection === section.nom;
                 const isEditing = editingSection === section.nom;
@@ -377,7 +377,7 @@ export default function SalesPageOptimizer() {
             {/* C) Sections manquantes */}
             {displayResult.sections_manquantes?.length > 0 && (
               <div className="space-y-3">
-                <h3 className="font-display text-base font-bold text-foreground">📌 Sections à ajouter</h3>
+                <h3 className="font-body text-base font-bold text-foreground">📌 Sections à ajouter</h3>
                 {displayResult.sections_manquantes.map((ms, i) => (
                   <div key={i} className="rounded-2xl border border-border bg-card p-5 space-y-3">
                     <div className="flex items-center gap-2">
@@ -401,7 +401,7 @@ export default function SalesPageOptimizer() {
             {/* D) Plan d'action */}
             {displayResult.plan_action?.length > 0 && (
               <div className="space-y-3">
-                <h3 className="font-display text-base font-bold text-foreground">🎯 Plan d'action</h3>
+                <h3 className="font-body text-base font-bold text-foreground">🎯 Plan d'action</h3>
                 {displayResult.plan_action.slice(0, 3).map((a, i) => (
                   <div
                     key={i}

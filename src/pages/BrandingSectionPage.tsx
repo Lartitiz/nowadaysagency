@@ -143,7 +143,7 @@ const DEMO_FICHE_DATA: Record<Section, Record<string, string>> = {
     step_6_full_story: "",
     step_7_polished: "J'ai commencé par les mariages. Payée au lance-pierre, épuisée chaque weekend. Un jour une cliente m'a dit « c'est la première fois que je me trouve belle en photo ». Ce jour-là j'ai compris : je ne fais pas des photos, je fais de la confiance. J'ai tout arrêté pour me spécialiser en portrait d'entrepreneures.",
     pitch_short: "Je photographie les femmes entrepreneures pour qu'elles osent enfin se montrer. Coaching posture inclus, zéro pose forcée.",
-    pitch_medium: "Je capture la confiance. Photographe portrait pour les femmes entrepreneures qui veulent enfin se montrer telles qu'elles sont, sans filtre, sans masque. Chaque séance commence par un coaching posture — parce que se sentir à l'aise, c'est la base d'une belle photo.",
+    pitch_medium: "Je capture la confiance. Photographe portrait pour les femmes entrepreneures qui veulent enfin se montrer telles qu'elles sont, sans filtre, sans masque. Chaque séance commence par un coaching posture : parce que se sentir à l'aise, c'est la base d'une belle photo.",
     pitch_long: "",
   },
   persona: {
@@ -184,7 +184,7 @@ const DEMO_FICHE_DATA: Record<Section, Record<string, string>> = {
     pillar_minor_1: "Les coulisses de mes séances photo",
     pillar_minor_2: "L'entrepreneuriat au féminin",
     pillar_minor_3: "Le personal branding authentique",
-    creative_concept: "Le \"miroir bienveillant\" — je montre à mes clientes ce qu'elles ne voient pas encore en elles.",
+    creative_concept: "Le \"miroir bienveillant\" : je montre à mes clientes ce qu'elles ne voient pas encore en elles.",
   },
 };
 
@@ -643,7 +643,7 @@ export default function BrandingSectionPage() {
               <>
                 {ficheContent}
                 <div className="rounded-2xl border-2 border-primary/20 bg-primary/5 p-5 mt-6 text-center space-y-3">
-                  <p className="font-display text-base font-bold text-foreground">
+                  <p className="font-body text-base font-bold text-foreground">
                     {filledCount > 0 ? "Envie d'aller plus loin ?" : "Tu ne sais pas quoi écrire ?"}
                   </p>
                   <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">

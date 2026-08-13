@@ -24,7 +24,7 @@ function SectionLabel({ emoji, title }: { emoji: string; title: string }) {
 function HeroQuote({ text, onCopy }: { text: string; onCopy?: () => void }) {
   return (
     <div className="rounded-xl p-5 sm:p-6 bg-rose-pale border border-[#ffa7c6]/30">
-      <p className="font-display text-base sm:text-lg font-bold text-foreground italic text-center leading-relaxed">"{text}"</p>
+      <p className="font-body text-base sm:text-lg font-bold text-foreground italic text-center leading-relaxed">"{text}"</p>
       {onCopy && (
         <div className="flex justify-end mt-3">
           <button onClick={onCopy} className="inline-flex items-center gap-1 text-2xs font-semibold text-primary hover:opacity-70 transition-opacity">

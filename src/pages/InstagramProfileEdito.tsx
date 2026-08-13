@@ -515,7 +515,7 @@ export default function InstagramProfileEdito() {
         <div className="space-y-8">
           {/* ── Section A: Objectif ── */}
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="text-base font-display font-bold text-foreground mb-3">🎯 Mon objectif principal</h2>
+            <h2 className="text-base font-body font-bold text-foreground mb-3">🎯 Mon objectif principal</h2>
             <div className="flex flex-wrap gap-2 mb-3">
               {OBJECTIVES.map((obj) => (
                 <Chip
@@ -541,7 +541,7 @@ export default function InstagramProfileEdito() {
 
           {/* ── Section B: Rythme ── */}
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="text-base font-display font-bold text-foreground mb-3">📅 Mon rythme</h2>
+            <h2 className="text-base font-body font-bold text-foreground mb-3">📅 Mon rythme</h2>
 
             <div className="space-y-4">
               <div>
@@ -625,7 +625,7 @@ export default function InstagramProfileEdito() {
             <PillarsSyncBanner />
           <section className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-display font-bold text-foreground">📊 Mes piliers et leur répartition</h2>
+              <h2 className="text-base font-body font-bold text-foreground">📊 Mes piliers et leur répartition</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -693,7 +693,7 @@ export default function InstagramProfileEdito() {
           {/* ── Section D: Formats ── */}
           <section className="rounded-2xl border border-border bg-card p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-display font-bold text-foreground">📌 Mes formats préférés</h2>
+              <h2 className="text-base font-body font-bold text-foreground">📌 Mes formats préférés</h2>
               <Button
                 variant="ghost"
                 size="sm"
@@ -719,7 +719,7 @@ export default function InstagramProfileEdito() {
 
           {/* ── Section E: Do more / Stop doing ── */}
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="text-base font-display font-bold text-foreground mb-3">🔥 Ce que je fais plus / Ce que j'arrête</h2>
+            <h2 className="text-base font-body font-bold text-foreground mb-3">🔥 Ce que je fais plus / Ce que j'arrête</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="edito-do-more" className="text-sm font-medium text-foreground mb-1.5 block">Ce que je fais plus</Label>
@@ -752,7 +752,7 @@ export default function InstagramProfileEdito() {
 
           {/* ── Section F: Notes libres ── */}
           <section className="rounded-2xl border border-border bg-card p-5">
-            <h2 className="text-base font-display font-bold text-foreground mb-3">✍️ Notes libres</h2>
+            <h2 className="text-base font-body font-bold text-foreground mb-3">✍️ Notes libres</h2>
             <div className="relative">
               <Textarea
                 aria-label="Notes libres"

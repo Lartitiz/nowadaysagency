@@ -458,7 +458,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
             >
               <div className="flex items-center justify-center gap-2">
                 <Sparkles className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-primary">Surprise — l'IA décide tout</span>
+                <span className="text-sm font-semibold text-primary">Surprise : l'IA décide tout</span>
               </div>
               <p className="text-xs text-muted-foreground mt-1">L'IA choisit l'objectif, le format et l'angle pour toi</p>
             </button>
@@ -532,8 +532,8 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
         {step === "seeds" && seeds && (
           <div className="space-y-3 animate-fade-in py-2">
             <div className="text-center space-y-1">
-              <p className="font-display text-base font-bold text-foreground">3 territoires à creuser</p>
-              <p className="text-sm text-muted-foreground">Choisis celui qui t'appelle — je te propose ensuite 4 angles différents dessus.</p>
+              <p className="font-body text-base font-bold text-foreground">3 territoires à creuser</p>
+              <p className="text-sm text-muted-foreground">Choisis celui qui t'appelle : je te propose ensuite 4 angles différents dessus.</p>
             </div>
             <div className="space-y-2">
               {seeds.map((s, i) => (
@@ -748,7 +748,7 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
                   onClick={() => generateIdeas({ objectif, canal, format, sujet, intensity: "bold" })}
                   disabled={regeneratingIdx !== null}
                   className="gap-1.5"
-                  title="Sors des sentiers battus — idées plus audacieuses"
+                  title="Sors des sentiers battus : idées plus audacieuses"
                 >
                   🔥 Pousse plus loin
                 </Button>

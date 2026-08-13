@@ -129,7 +129,7 @@ export default function ContentPlayground({ section }: Props) {
     <div className="rounded-2xl border border-primary/20 bg-rose-pale p-6 mt-8">
       <div className="flex items-center gap-2.5 mb-1">
         <span className="text-xl">🎮</span>
-        <h3 className="font-display text-base font-bold text-foreground">Teste ton branding en action</h3>
+        <h3 className="font-body text-base font-bold text-foreground">Teste ton branding en action</h3>
       </div>
       <p className="text-sm text-muted-foreground mb-4">
         L'IA génère du contenu avec ton branding. Essaie pour voir le résultat !

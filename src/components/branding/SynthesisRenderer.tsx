@@ -44,7 +44,7 @@ function SectionLabel({ emoji, title }: { emoji: string; title: string }) {
 function HeroQuote({ text, label, onCopy }: { text: string; label?: string; onCopy?: () => void }) {
   return (
     <div className="rounded-xl p-5 sm:p-6 bg-[#FFF4F8] border border-[#ffa7c6]/30">
-      <p className="font-display text-base sm:text-lg font-bold text-foreground italic text-center leading-relaxed">"{text}"</p>
+      <p className="font-body text-base sm:text-lg font-bold text-foreground italic text-center leading-relaxed">"{text}"</p>
       {(label || onCopy) && (
         <div className="flex items-center justify-between mt-3">
           {label && <span className="font-mono-ui text-2xs uppercase tracking-wide text-muted-foreground">{label}</span>}
@@ -201,13 +201,13 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen =
       <div className="px-6 sm:px-8 my-6 grid grid-cols-1 sm:grid-cols-2 gap-6">
         {summary.values?.length > 0 && (
           <div className="rounded-xl p-5 bg-[#FFF4F8]">
-            <p className="font-display text-base font-semibold text-foreground mb-4">❤️ Mes valeurs</p>
+            <p className="font-body text-base font-semibold text-foreground mb-4">❤️ Mes valeurs</p>
             <CappedList items={summary.values} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveRecap(["values", String(i)], v)} />
           </div>
         )}
         {summary.unique?.length > 0 && (
           <div className="rounded-xl p-5 bg-[#FFF4F8]">
-            <p className="font-display text-base font-semibold text-foreground mb-4">💪 Ce qui me rend unique</p>
+            <p className="font-body text-base font-semibold text-foreground mb-4">💪 Ce qui me rend unique</p>
             <CappedList items={summary.unique} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveRecap(["unique", String(i)], v)} />
           </div>
         )}
@@ -216,7 +216,7 @@ function StorySynthesis({ data, onSaveRecap, onSaveDirect, copyText, forceOpen =
       {summary.mistakes?.length > 0 && (
         <div className="px-6 sm:px-8 mb-6">
           <div className="rounded-xl p-5 bg-[#FFF8F0]">
-            <p className="font-display text-base font-semibold text-foreground mb-4">⚡ Mes erreurs qui m'ont construite</p>
+            <p className="font-body text-base font-semibold text-foreground mb-4">⚡ Mes erreurs qui m'ont construite</p>
             <CappedList items={summary.mistakes} cap={6} forceOpen={forceOpen} onSave={(i, v) => onSaveRecap(["mistakes", String(i)], v)} bulletColor="#e67e22" />
           </div>
         </div>
@@ -466,7 +466,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
             value={data.voice_description}
             lines={4}
             forceOpen={forceOpen}
-            className="font-display text-base sm:text-lg italic text-foreground leading-relaxed"
+            className="font-body text-base sm:text-lg italic text-foreground leading-relaxed"
           />
         </div>
       )}
@@ -489,19 +489,19 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             {data.combat_cause && (
               <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
-                <p className="font-display text-sm font-bold text-foreground mb-2">✊ Ma cause</p>
+                <p className="font-body text-sm font-bold text-foreground mb-2">✊ Ma cause</p>
                 <ClampField value={data.combat_cause} onSave={(v) => onSaveDirect("combat_cause", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
             {fightsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-success">
-                <p className="font-display text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
+                <p className="font-body text-sm font-bold text-foreground mb-2">🛡️ Ce que je défends</p>
                 <ClampField value={data.combat_fights} onSave={(v) => onSaveDirect("combat_fights", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
             {refusalsList.length > 0 && (
               <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-warning">
-                <p className="font-display text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
+                <p className="font-body text-sm font-bold text-foreground mb-2">🚫 Ce que je refuse</p>
                 <ClampField value={data.combat_refusals} onSave={(v) => onSaveDirect("combat_refusals", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
@@ -532,25 +532,25 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {data.conviction_pairs && (
               <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
-                <p className="font-display text-sm font-bold text-foreground mb-2">👀 Mon désaccord avec mon métier</p>
+                <p className="font-body text-sm font-bold text-foreground mb-2">👀 Mon désaccord avec mon métier</p>
                 <ClampField value={data.conviction_pairs} onSave={(v) => onSaveDirect("conviction_pairs", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
             {data.conviction_shift && (
               <div className="rounded-xl p-4 bg-[#E8F5E9] border-l-4 border-l-success">
-                <p className="font-display text-sm font-bold text-foreground mb-2">🔄 Ce que je croyais à mes débuts</p>
+                <p className="font-body text-sm font-bold text-foreground mb-2">🔄 Ce que je croyais à mes débuts</p>
                 <ClampField value={data.conviction_shift} onSave={(v) => onSaveDirect("conviction_shift", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
             {data.conviction_verbatims && (
               <div className="rounded-xl p-4 bg-[#FFF3E0] border-l-4 border-l-warning">
-                <p className="font-display text-sm font-bold text-foreground mb-2">💬 Les phrases de clientes qui me restent</p>
+                <p className="font-body text-sm font-bold text-foreground mb-2">💬 Les phrases de clientes qui me restent</p>
                 <ClampField value={data.conviction_verbatims} onSave={(v) => onSaveDirect("conviction_verbatims", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
             {data.conviction_unspoken && (
               <div className="rounded-xl p-4 bg-[#FFF4F8] border-l-4 border-l-primary">
-                <p className="font-display text-sm font-bold text-foreground mb-2">🤐 Ce que je n'ose pas dire tout haut</p>
+                <p className="font-body text-sm font-bold text-foreground mb-2">🤐 Ce que je n'ose pas dire tout haut</p>
                 <ClampField value={data.conviction_unspoken} onSave={(v) => onSaveDirect("conviction_unspoken", v)} lines={5} forceOpen={forceOpen} className="text-sm text-foreground/80 leading-relaxed" />
               </div>
             )}
@@ -563,7 +563,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {doList.length > 0 && (
             <SynthCard>
-              <p className="font-display text-base font-bold text-success mb-4 flex items-center gap-2">
+              <p className="font-body text-base font-bold text-success mb-4 flex items-center gap-2">
                 <span className="text-lg">✅</span> Mes expressions clés
               </p>
               {doList.length <= 2 ? (
@@ -575,7 +575,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
           )}
           {dontList.length > 0 && (
             <SynthCard>
-              <p className="font-display text-base font-bold text-error mb-4 flex items-center gap-2">
+              <p className="font-body text-base font-bold text-error mb-4 flex items-center gap-2">
                 <span className="text-lg">❌</span> Ce que j'évite toujours
               </p>
               {dontList.length <= 2 ? (
@@ -593,7 +593,7 @@ function ToneStyleSynthesis({ data, onSaveDirect, forceOpen = false }: {
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="recap" className="border rounded-xl overflow-hidden">
             <AccordionTrigger className="px-5 py-3 hover:no-underline">
-              <span className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+              <span className="font-body text-sm font-bold text-foreground flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" /> Voir la synthèse complète
               </span>
             </AccordionTrigger>
@@ -689,7 +689,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
               {summary.pillars.map((p: any, i: number) => (
                 <div key={i} className="rounded-xl border border-border p-4 bg-card">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="font-display text-sm font-bold text-foreground">{p.name}</p>
+                    <p className="font-body text-sm font-bold text-foreground">{p.name}</p>
                     {p.percentage != null && (
                       <Badge variant={p.type === "major" ? "default" : "secondary"} className="text-2xs">
                         {p.percentage}%
@@ -731,7 +731,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
                       {p.type === "major" ? "🔥 Majeur" : "🌱 Mineur"}
                     </Badge>
                   </div>
-                  <p className="font-display text-sm font-bold text-foreground">{p.name}</p>
+                  <p className="font-body text-sm font-bold text-foreground">{p.name}</p>
                 </div>
               ))}
             </div>
@@ -786,7 +786,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="gestures" className="border rounded-xl overflow-hidden">
             <AccordionTrigger className="px-5 py-3 hover:no-underline">
-              <span className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+              <span className="font-body text-sm font-bold text-foreground flex items-center gap-2">
                 📖 Voir l'analyse complète
               </span>
             </AccordionTrigger>
@@ -794,7 +794,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
               <div className="space-y-2">
                 {summary.creative_gestures.map((g: string, i: number) => (
                   <div key={i} className="flex items-start gap-2.5">
-                    <span className="font-display text-sm font-bold text-primary shrink-0">{i + 1}.</span>
+                    <span className="font-body text-sm font-bold text-primary shrink-0">{i + 1}.</span>
                     <p className="text-sm text-foreground">{g}</p>
                   </div>
                 ))}
@@ -809,7 +809,7 @@ function StrategySynthesis({ data, onSaveRecap, forceOpen = false }: {
         <Accordion type="single" collapsible className="w-full">
           <AccordionItem value="recap-raw" className="border rounded-xl overflow-hidden">
             <AccordionTrigger className="px-5 py-3 hover:no-underline">
-              <span className="font-display text-sm font-bold text-foreground flex items-center gap-2">
+              <span className="font-body text-sm font-bold text-foreground flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" /> 📖 Voir le texte complet
               </span>
             </AccordionTrigger>

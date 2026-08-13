@@ -78,14 +78,14 @@ export default function PinterestRoutine() {
 
         {/* Rhythm selection */}
         <section className="mb-8">
-          <h3 className="font-display text-base font-bold mb-3">Ton rythme</h3>
+          <h3 className="font-body text-base font-bold mb-3">Ton rythme</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {[
               { id: "2h_monthly", label: "2h par mois", desc: "Le minimum efficace. Tu publies tes épingles et tu lies à ton site." },
               { id: "2h_biweekly", label: "2h toutes les 2 semaines", desc: "Plus régulier. Tu postes, tu recycles, tu observes ce qui marche." },
             ].map(opt => (
               <button key={opt.id} onClick={() => changeRhythm(opt.id)} className={`rounded-xl border p-5 text-left transition-all ${rhythm === opt.id ? "border-primary border-2 bg-rose-pale" : "border-border bg-card hover:border-primary/40"}`}>
-                <h4 className="font-display text-sm font-bold text-foreground">{opt.label}</h4>
+                <h4 className="font-body text-sm font-bold text-foreground">{opt.label}</h4>
                 <p className="text-xs text-muted-foreground mt-1">{opt.desc}</p>
               </button>
             ))}
@@ -94,7 +94,7 @@ export default function PinterestRoutine() {
 
         {/* Monthly checklist */}
         <section className="rounded-xl border border-border bg-card p-5 space-y-4 mb-8">
-          <h3 className="font-display text-base font-bold">📌 Ma routine Pinterest — {monthLabel}</h3>
+          <h3 className="font-body text-base font-bold">📌 Ma routine Pinterest — {monthLabel}</h3>
 
           <div>
             <div className="flex items-center justify-between mb-2">

@@ -76,7 +76,7 @@ export default function CharterBackgroundSection({
 
   return (
     <section className="rounded-2xl border border-border bg-card p-5">
-      <h2 className="font-display text-base font-bold text-foreground mb-1">🧵 Fond de tes visuels</h2>
+      <h2 className="font-body text-base font-bold text-foreground mb-1">🧵 Fond de tes visuels</h2>
       <p className="text-xs text-muted-foreground mb-4">
         Le fond utilisé par l'IA pour tes carrousels : un aplat de ta couleur de fond, ou une matière
         (papier, lin…) générée une seule fois aux couleurs de ta marque.

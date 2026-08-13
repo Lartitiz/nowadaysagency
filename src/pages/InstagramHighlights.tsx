@@ -318,7 +318,7 @@ export default function InstagramHighlights() {
                     {index + 1}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-display text-base font-bold text-foreground">
+                    <h3 className="font-body text-base font-bold text-foreground">
                       {h.emoji} {h.label}
                       {h.optional && <span className="text-xs font-normal text-muted-foreground ml-2">(optionnel)</span>}
                     </h3>
@@ -402,7 +402,7 @@ export default function InstagramHighlights() {
 
         {/* ── Covers audit section ── */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-8">
-          <h2 className="font-display text-base font-bold text-foreground mb-3">
+          <h2 className="font-body text-base font-bold text-foreground mb-3">
             🎨 Tes covers de highlights
           </h2>
           <ul className="space-y-2 text-sm text-muted-foreground">

@@ -38,7 +38,7 @@ export default function SiteTestimonials() {
 
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
-    catch { toast.error("Impossible de copier — sélectionne et copie le texte manuellement."); }
+    catch { toast.error("Impossible de copier : sélectionne et copie le texte manuellement."); }
   };
 
   const structureTestimonial = async () => {

@@ -144,7 +144,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       reason = `Elle est méfiante des approches commerciales. ${isFreeOffer ? "Proposer ta ressource gratuite sera naturel." : "Mieux vaut reprendre contact doucement."}`;
     } else if (isFreeOffer) {
       suggestion = "resource";
-      reason = "Tu as sélectionné une offre gratuite — proposer une ressource sera le plus naturel.";
+      reason = "Tu as sélectionné une offre gratuite : proposer une ressource sera le plus naturel.";
     } else if (hasConvo && notedInterest) {
       suggestion = "personalized";
       reason = `Vu votre conversation, un message personnalisé rebondissant sur son intérêt (${notedInterest.slice(0, 50)}…) sera le plus efficace.`;
@@ -538,7 +538,7 @@ function StepHeader({ step, label, prospect, onBack }: { step: number; label: st
         <Button size="sm" variant="ghost" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <h3 className="font-display text-sm font-bold">
+        <h3 className="font-body text-sm font-bold">
           📩 DM pour @{getUsername(prospect)}
         </h3>
       </div>

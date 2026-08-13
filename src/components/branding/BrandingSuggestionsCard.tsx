@@ -142,7 +142,7 @@ export default function BrandingSuggestionsCard({
           <div className="flex items-start justify-between mb-4">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
-              <h3 className="font-display text-sm font-bold text-foreground">
+              <h3 className="font-body text-sm font-bold text-foreground">
                 Ton branding a changé
               </h3>
             </div>

@@ -36,7 +36,7 @@ export default function SiteAccueilRecap() {
 
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
-    catch { toast.error("Impossible de copier — sélectionne et copie le texte manuellement."); }
+    catch { toast.error("Impossible de copier : sélectionne et copie le texte manuellement."); }
   };
 
   const copyAll = () => {
@@ -112,7 +112,7 @@ export default function SiteAccueilRecap() {
           {sections.map((s, i) => (
             <div key={i} className="rounded-2xl border border-border bg-card p-5">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="font-display text-base font-bold">{s.icon} {s.label}</h3>
+                <h3 className="font-body text-base font-bold">{s.icon} {s.label}</h3>
                 <div className="flex gap-2">
                   <Button variant="ghost" size="sm" onClick={() => copyText(s.content)}>
                     <Copy className="h-3.5 w-3.5 mr-1" /> Copier

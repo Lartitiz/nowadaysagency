@@ -121,7 +121,7 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
       setImageName(converted.name.replace(/\.[^.]+$/, ""));
       setSupport(pickDefaultSupport(bitmap.width, bitmap.height));
     } catch {
-      toast.error("Cette image n'a pas pu être lue — essaie un PNG ou un JPEG.");
+      toast.error("Cette image n'a pas pu être lue : essaie un PNG ou un JPEG.");
     }
   };
 

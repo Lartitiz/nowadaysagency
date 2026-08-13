@@ -133,7 +133,7 @@ function StoryCards() {
             onClick={() => navigate(`/branding/storytelling/${s.id}/edit`)}
           >
             <div className="flex items-start justify-between gap-3 mb-2">
-              <h3 className="font-display text-sm font-bold text-foreground">{label}</h3>
+              <h3 className="font-body text-sm font-bold text-foreground">{label}</h3>
               {s.is_primary && <Badge variant="default" className="text-2xs shrink-0">Principal</Badge>}
             </div>
             <p className={`text-sm text-muted-foreground leading-relaxed ${single ? "" : "line-clamp-3"}`}>
@@ -259,7 +259,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       const hasContext = hasBrandContext || !!prop || !!pers || !!story || conversationMessages.length > 0 || Object.keys(filledStrategyFields).length > 0;
 
       if (!hasContext) {
-        toast.info("Pas assez de contexte pour compléter automatiquement — remplis manuellement quelques champs ou refais le coaching.");
+        toast.info("Pas assez de contexte pour compléter automatiquement : remplis manuellement quelques champs ou refais le coaching.");
         setIsAutoFilling(false);
         return;
       }
@@ -660,7 +660,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       if (totalFilled > 0) {
         toast.success(`${totalFilled} champ${totalFilled > 1 ? "s" : ""} complété${totalFilled > 1 ? "s" : ""} par l'IA ✨`);
       } else {
-        toast.info("Pas assez de contexte pour compléter automatiquement — remplis manuellement quelques champs ou refais le coaching persona.");
+        toast.info("Pas assez de contexte pour compléter automatiquement : remplis manuellement quelques champs ou refais le coaching persona.");
       }
     } catch (e) {
       console.error("[PersonaAutoFill] Error:", e);

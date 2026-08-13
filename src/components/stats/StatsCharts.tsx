@@ -103,7 +103,7 @@ export default function StatsCharts({
 
           <ChartCard
             title="Évolution de ton audience"
-            subtitle="Part de tes segments dominants (genre, âge, pays) au fil des mois — alimentée par « Remplir depuis Instagram »."
+            subtitle="Part de tes segments dominants (genre, âge, pays) au fil des mois : alimentée par « Remplir depuis Instagram »."
           >
             <AudienceTrendChart rows={periodStats} />
           </ChartCard>
@@ -158,7 +158,7 @@ function ChartCard({ title, subtitle, children }: { title: string; subtitle?: st
   return (
     <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
       <div className="space-y-0.5">
-        <h3 className="font-display text-sm font-bold text-foreground">{title}</h3>
+        <h3 className="font-body text-sm font-bold text-foreground">{title}</h3>
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
@@ -233,7 +233,7 @@ function ComparisonTable({ allStats, compareA, compareB, setCompareA, setCompare
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
-      <h3 className="font-display text-sm font-bold text-foreground">Comparaison mois par mois</h3>
+      <h3 className="font-body text-sm font-bold text-foreground">Comparaison mois par mois</h3>
       <div className="flex items-center gap-2 flex-wrap text-sm">
         <Select value={compareA} onValueChange={setCompareA}>
           <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>

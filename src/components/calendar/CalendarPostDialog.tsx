@@ -292,7 +292,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (postCanal !== "instagram") return "Publication directe réservée aux posts Instagram.";
     // L'edge social-instagram-publish ne gère que le feed (pas media_type=STORIES) :
     // publier une story d'ici partirait en post feed.
-    if (format === "story_serie") return "La publication directe des stories arrive bientôt — publie-la depuis l'app Instagram.";
+    if (format === "story_serie") return "La publication directe des stories arrive bientôt : publie-la depuis l'app Instagram.";
     if (igVideo) return null;
     if (igValidImages.length === 0) return "Ajoute un visuel (image) ou monte ta vidéo pour publier.";
     if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
@@ -324,7 +324,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     setPublishedPostId(permalink);
     if (error) {
       trackError(error, { where: "markPostPublished", postId: effectiveId });
-      toast.warning("Publié — mais pas enregistré ici", {
+      toast.warning("Publié : mais pas enregistré ici", {
         duration: 15000,
         description: "Ton post est bien parti sur le réseau, mais je n'ai pas réussi à le noter comme publié dans le calendrier. Ne le republie pas : recharge la page dans un instant pour vérifier.",
       });
@@ -341,7 +341,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     try {
       // Instagram TRANSCODE la vidéo avant publication : ça peut prendre
       // plusieurs minutes, on le dit au lieu de laisser un spinner muet.
-      if (igVideo) toast.info("Instagram prépare ta vidéo — ça peut prendre quelques minutes.");
+      if (igVideo) toast.info("Instagram prépare ta vidéo : ça peut prendre quelques minutes.");
       const { permalink } = igVideo
         ? await publishReelToInstagram({
             caption: contentDraft || theme || "",
@@ -431,7 +431,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     }
     if (postCanal === "instagram") {
       // Même garde que la publication immédiate : le cron publie en feed, pas en story.
-      if (format === "story_serie") { toast.error("La publication directe des stories arrive bientôt — publie-la depuis l'app Instagram."); return; }
+      if (format === "story_serie") { toast.error("La publication directe des stories arrive bientôt : publie-la depuis l'app Instagram."); return; }
       if (igValidImages.length === 0) { toast.error("Ajoute au moins un visuel (image) avant de programmer."); return; }
       if (igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
     } else if (postCanal === "linkedin") {
@@ -454,7 +454,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       if (scheduleAfterTokenExpiry) {
         // Programmé, mais le jeton sera expiré à l'heure dite → prévenir MAINTENANT plutôt
         // que laisser la publication échouer en silence à la date prévue.
-        toast.warning("Programmé — mais reconnecte ton compte d'ici là ⚠️", {
+        toast.warning("Programmé : mais reconnecte ton compte d'ici là ⚠️", {
           duration: 12000,
           description: `Ta connexion ${postCanal === "linkedin" ? "LinkedIn" : "Instagram"} expire le ${new Date(scheduleTokenExpiry!).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
           action: { label: "Reconnecter", onClick: () => versConnexions(navigate) },
@@ -784,7 +784,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const detailsPanel = (
     <Collapsible open={showDetails} onOpenChange={setShowDetails}>
       <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-primary transition-colors py-1">
-        <span>Détails du post — statut, canal, format, série</span>
+        <span>Détails du post : statut, canal, format, série</span>
         <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", showDetails && "rotate-180")} />
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-3">
@@ -826,7 +826,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       {schedulerOpen && canSchedule && (
         <div className="rounded-[10px] border border-border bg-card/40 p-3 space-y-2">
           <p className="text-xs font-semibold text-foreground">🗓️ Programmer la publication {postCanal === "linkedin" ? "LinkedIn" : "Instagram"}</p>
-          <p className="text-2xs text-muted-foreground">{postCanal === "linkedin" ? "Choisis quand publier ce post texte — il partira automatiquement." : `Choisis quand publier ce post (${igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.`}</p>
+          <p className="text-2xs text-muted-foreground">{postCanal === "linkedin" ? "Choisis quand publier ce post texte : il partira automatiquement." : `Choisis quand publier ce post (${igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.`}</p>
           {scheduleNeedsConnection && (
             <div className="rounded-[8px] border border-amber-300/60 bg-amber-50/60 px-2.5 py-2 text-2xs text-amber-900 flex items-center justify-between gap-2 flex-wrap dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
               <span>⚠️ Connecte ton compte {postCanal === "linkedin" ? "LinkedIn" : "Instagram"} pour que la publication parte automatiquement.</span>

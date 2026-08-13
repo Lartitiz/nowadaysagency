@@ -38,7 +38,7 @@ export default function AddProspectForm({ onAdd, onCancel }: AddProspectFormProp
 
   return (
     <div className="rounded-xl border border-border bg-card p-5 space-y-3">
-      <h3 className="font-display text-sm font-bold">+ Ajouter un prospect</h3>
+      <h3 className="font-body text-sm font-bold">+ Ajouter un prospect</h3>
       <Input
         aria-label="Username Instagram"
         placeholder="Username Instagram (ex: marie_artisan)"

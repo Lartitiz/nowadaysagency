@@ -86,7 +86,7 @@ export function DownloadMenuItems({
             <FileText className="h-4 w-4 mr-2" />
           )}
           <div className="flex flex-col">
-            <span>PowerPoint — éditable ✨</span>
+            <span>PowerPoint : éditable ✨</span>
             <span className="text-2xs text-muted-foreground">
               Modifie le texte dans PowerPoint, fond préservé
             </span>
@@ -98,7 +98,7 @@ export function DownloadMenuItems({
           <DropdownMenuItem disabled className="opacity-60 cursor-not-allowed">
             <FileText className="h-4 w-4 mr-2" />
             <div className="flex flex-col">
-              <span>PowerPoint — éditable ✨</span>
+              <span>PowerPoint : éditable ✨</span>
               <span className="text-2xs text-muted-foreground whitespace-normal max-w-[220px] leading-snug">
                 {pptxDisabledReason}
               </span>

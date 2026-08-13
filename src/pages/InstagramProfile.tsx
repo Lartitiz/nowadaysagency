@@ -196,7 +196,7 @@ export default function InstagramProfile() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <h3 className="font-display text-base font-bold text-foreground group-hover:text-primary transition-colors">
+                  <h3 className="font-body text-base font-bold text-foreground group-hover:text-primary transition-colors">
                     {s.label}
                   </h3>
                   {s.heavy && (

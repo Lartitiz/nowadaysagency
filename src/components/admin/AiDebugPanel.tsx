@@ -126,7 +126,7 @@ export default function AiDebugPanel() {
       <div className="bg-muted/50 rounded-lg p-3 text-xs font-mono text-muted-foreground space-y-1">
         <div>Supabase URL : {supabaseUrl}</div>
         <div>User ID : {user?.id || "non connecté"}</div>
-        <div>Email : {user?.email || "—"}</div>
+        <div>Email : {user?.email || "-"}</div>
         <div>Plan : {userPlan ?? "non chargé"}</div>
       </div>
 

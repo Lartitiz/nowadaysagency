@@ -49,7 +49,7 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
 
       {/* SEO */}
       <div className="rounded-2xl border border-border bg-card p-5">
-        <h3 className="font-display text-base font-bold mb-3">🔍 SEO de ta page</h3>
+        <h3 className="font-body text-base font-bold mb-3">🔍 SEO de ta page</h3>
         <Button variant="outline" size="sm" className="mb-4" onClick={async () => {
           const result = await callAI("seo", { page_type: data.page_type });
           if (result) {
@@ -84,7 +84,7 @@ export default function Step10SeoLayout({ data, save, callAI, aiLoading, aiResul
 
       {/* Checklist */}
       <div className="rounded-2xl border border-border bg-card p-5">
-        <h3 className="font-display text-base font-bold mb-3">✅ Checklist qualité de ta page</h3>
+        <h3 className="font-body text-base font-bold mb-3">✅ Checklist qualité de ta page</h3>
         <p className="font-mono-ui text-2xs text-muted-foreground mb-4">Score : {checkedItems}/{totalItems} éléments ✅</p>
 
         <div className="space-y-4">

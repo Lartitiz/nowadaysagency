@@ -81,7 +81,7 @@ export default function SiteHub() {
         {/* CMS selector */}
         {!cms && (
           <div className="rounded-2xl border border-primary bg-rose-pale p-6 mb-8">
-            <p className="font-display text-base font-bold text-foreground mb-4">Quel outil utilises-tu pour ton site ?</p>
+            <p className="font-body text-base font-bold text-foreground mb-4">Quel outil utilises-tu pour ton site ?</p>
             <div className="flex flex-wrap gap-2">
               {CMS_OPTIONS.map((opt) => (
                 <button key={opt.value} onClick={() => saveCms(opt.value)} className="font-mono-ui text-xs font-semibold px-4 py-2 rounded-pill border-2 border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">

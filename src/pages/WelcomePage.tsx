@@ -9,13 +9,34 @@ import { useProfile } from "@/hooks/use-profile";
 
 import EditableText from "@/components/EditableText";
 import { toast as sonnerToast } from "sonner";
+import {
+  Sparkles,
+  Palette,
+  Smartphone,
+  Calendar,
+  Target,
+  Pin,
+  Lightbulb,
+  Clock,
+  Rocket,
+  MessageCircle,
+  Swords,
+  Gem,
+  FileText,
+  Users,
+  BookOpen,
+  Compass,
+  ShoppingBag,
+  ClipboardList,
+  type LucideIcon,
+} from "lucide-react";
 
 const GOAL_LABELS: Record<string, string> = {
-  start: "🌱 Poser les bases",
-  visibility: "📱 Être plus visible",
-  launch: "🎁 Lancer une offre",
-  clients: "🎯 Trouver des client·es",
-  structure: "🗂️ Structurer",
+  start: "Poser les bases",
+  visibility: "Être plus visible",
+  launch: "Lancer une offre",
+  clients: "Trouver des client·es",
+  structure: "Structurer",
 };
 
 const TIME_LABELS: Record<string, string> = {
@@ -43,34 +64,34 @@ const IMPACT_COLORS: Record<string, string> = {
 
 const STEPS = [
   {
-    num: "1️⃣",
+    num: "1.",
     title: "Pose tes fondations",
-    emoji: "🎨",
+    icon: Palette,
     module: "Identité de marque",
     time: "30 min",
     desc: "Définis ton positionnement, ta cible, ton ton de communication. C'est la base de tout.",
-    cta: "👉 C'est ta première étape.",
+    cta: "C'est ta première étape.",
   },
   {
-    num: "2️⃣",
+    num: "2.",
     title: "Audite et optimise tes canaux",
-    emoji: "📱",
+    icon: Smartphone,
     module: "Audit Instagram",
     time: "15 min",
     desc: "Analyse ton profil et ta bio. L'outil te dit exactement quoi améliorer.",
   },
   {
-    num: "3️⃣",
+    num: "3.",
     title: "Crée tes premiers contenus",
-    emoji: "✨",
+    icon: Sparkles,
     module: "Atelier créatif",
     time: "20 min",
     desc: "Posts, Reels, Stories, Carrousels. L'outil t'accompagne de l'idée au texte final.",
   },
   {
-    num: "4️⃣",
+    num: "4.",
     title: "Planifie et engage",
-    emoji: "📅",
+    icon: Calendar,
     module: "Calendrier + Contacts",
     time: "15 min",
     desc: "Planifie tes publications et mets en place ta routine d'engagement.",
@@ -90,7 +111,7 @@ interface Recommendation {
 }
 
 interface BrandingCard {
-  emoji: string;
+  icon: LucideIcon;
   title: string;
   content: string;
   route: string;
@@ -131,16 +152,16 @@ function buildBrandingCards(
   // Pas de carte « Positionnement » distincte : le positionnement vit désormais dans
   // brand_proposition.version_final (source de vérité unique, PR #207) et s'affiche
   // via la carte « Proposition de valeur » plus bas. brand_profile.positioning est mort.
-  if (bp?.mission) cards.push({ emoji: "🚀", title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
+  if (bp?.mission) cards.push({ icon: Rocket, title: "Mission", content: bp.mission, route: "/branding", dbTable: "brand_profile", dbField: "mission" });
   if (bp?.tone_style || (bp?.tone_keywords && bp.tone_keywords.length > 0)) {
     const toneContent = bp!.tone_style || (bp!.tone_keywords || []).join(", ");
-    cards.push({ emoji: "💬", title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp!.tone_style ? "brand_profile" : undefined, dbField: bp!.tone_style ? "tone_style" : undefined });
+    cards.push({ icon: MessageCircle, title: "Ton de voix", content: toneContent, route: "/branding/section?section=tone_style", dbTable: bp!.tone_style ? "brand_profile" : undefined, dbField: bp!.tone_style ? "tone_style" : undefined });
   }
-  if (bp?.combats) cards.push({ emoji: "⚔️", title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
-  if (bp?.values && bp.values.length > 0) cards.push({ emoji: "💎", title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
+  if (bp?.combats) cards.push({ icon: Swords, title: "Combats", content: bp.combats, route: "/branding/section?section=tone_style", dbTable: "brand_profile", dbField: "combats" });
+  if (bp?.values && bp.values.length > 0) cards.push({ icon: Gem, title: "Valeurs", content: (bp.values as any[]).map(v => typeof v === "string" ? v : (v as any).name || v).join(", "), route: "/branding/section?section=tone_style" });
   if (bp?.content_pillars && bp.content_pillars.length > 0) {
     const pillarsText = (bp.content_pillars as any[]).map(p => typeof p === "string" ? p : (p as any).name || p).join(", ");
-    cards.push({ emoji: "📝", title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
+    cards.push({ icon: FileText, title: "Piliers de contenu", content: pillarsText, route: "/branding/section?section=content_strategy" });
   }
 
   const persona = personaData as any;
@@ -151,7 +172,7 @@ function buildBrandingCards(
     if (persona.step_1_frustrations) personaParts.push(`Frustrations : ${persona.step_1_frustrations}`);
     if (persona.step_2_transformation) personaParts.push(`Transformation : ${persona.step_2_transformation}`);
     const personaContent = personaParts.filter(Boolean).join(" · ");
-    if (personaContent) cards.push({ emoji: "🎭", title: "Mon·a client·e idéal·e", content: personaContent, route: "/branding/section?section=persona" });
+    if (personaContent) cards.push({ icon: Users, title: "Mon·a client·e idéal·e", content: personaContent, route: "/branding/section?section=persona" });
   }
 
   const offers = ((offersData as any[]) || []);
@@ -170,19 +191,19 @@ function buildBrandingCards(
   }
 
   const story = storyData as any;
-  if (story?.imported_text) cards.push({ emoji: "📖", title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
+  if (story?.imported_text) cards.push({ icon: BookOpen, title: "Ton histoire", content: story.imported_text, route: "/branding/section?section=story", dbTable: "storytelling", dbField: "imported_text" });
 
   const prop = propositionData as any;
   // version_final (modifié via audits) > version_complete (onboarding) > legacy brand_profile.positioning.
   const propContent = prop?.version_final || prop?.version_complete || bp?.positioning;
-  if (propContent) cards.push({ emoji: "💎", title: "Proposition de valeur", content: propContent, route: "/branding/proposition/recap" });
-  else if (prop?.version_one_liner) cards.push({ emoji: "💎", title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
+  if (propContent) cards.push({ icon: Gem, title: "Proposition de valeur", content: propContent, route: "/branding/proposition/recap" });
+  else if (prop?.version_one_liner) cards.push({ icon: Gem, title: "One-liner", content: prop.version_one_liner, route: "/branding/proposition/recap" });
 
   const strat = strategyData as any;
   if (strat?.pillar_major) {
     const pillars = [strat.pillar_major, strat.pillar_minor_1, strat.pillar_minor_2, strat.pillar_minor_3].filter(Boolean);
     const stratContent = pillars.join(", ") + (strat.creative_concept ? ` · Concept : ${strat.creative_concept}` : "");
-    cards.push({ emoji: "🧭", title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
+    cards.push({ icon: Compass, title: "Stratégie de contenu", content: stratContent, route: "/branding/section?section=content_strategy" });
   }
 
   const charter = charterData as any;
@@ -201,7 +222,7 @@ function buildBrandingCards(
     }
     const charterContent = charterParts.join(" · ");
     cards.push({
-      emoji: "🎨", title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
+      icon: Palette, title: "Charte graphique", content: charterContent, route: "/branding/section?section=charter", colors: charterColors,
       onColorChange: async (colorIndex: number, newColor: string) => {
         const colorKey = colorKeys[colorIndex];
         if (!colorKey) return;
@@ -231,7 +252,7 @@ function BrandingCardItem({ card, index, onSave }: { card: BrandingCard; index: 
   return (
     <div className="bg-card border border-border rounded-2xl p-5 space-y-3">
       <div className="flex items-center gap-2">
-        <span className="text-lg">{card.emoji}</span>
+        <card.icon className="h-5 w-5 text-primary shrink-0" strokeWidth={1.75} />
         <span className="text-sm font-semibold text-foreground">{card.title}</span>
       </div>
       {card.colors && card.colors.length > 0 && (
@@ -606,7 +627,7 @@ export default function WelcomePage() {
         {/* A) Header personnalisé */}
         <div className="text-center space-y-3">
           <h1 className="font-display text-2xl md:text-3xl text-foreground">
-            ✨ {prenom ? `${prenom}, voilà` : "Voilà"} ce que j'ai préparé pour toi
+            {prenom ? `${prenom}, voilà` : "Voilà"} ce que j'ai préparé pour toi
           </h1>
           <p className="text-sm text-muted-foreground">
             J'ai pré-rempli ton branding à partir de ce que j'ai trouvé. <strong className="text-foreground">Clique sur n'importe quel texte pour le modifier.</strong> Quand tout te va, valide en bas.
@@ -676,7 +697,7 @@ export default function WelcomePage() {
               {offers.map((offer) => (
                 <div key={offer.id} className="bg-card border border-border rounded-2xl p-5 space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">🛍️</span>
+                    <ShoppingBag className="h-5 w-5 text-primary shrink-0" strokeWidth={1.75} />
                     <EditableText
                       value={offer.name}
                       onSave={(v) => handleOfferFieldSave(offer.id, "name", v)}
@@ -706,8 +727,8 @@ export default function WelcomePage() {
                     />
                   )}
                   {offer.target_ideal && (
-                    <p className="text-xs text-muted-foreground">
-                      🎯 {offer.target_ideal}
+                    <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                      <Target className="h-4 w-4 text-primary shrink-0" strokeWidth={1.75} /> {offer.target_ideal}
                     </p>
                   )}
                 </div>
@@ -739,7 +760,7 @@ export default function WelcomePage() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <span className="text-lg mt-0.5">{i === 0 ? "🎯" : i === 1 ? "📌" : "💡"}</span>
+                    {i === 0 ? <Target className="h-5 w-5 text-primary shrink-0 mt-0.5" strokeWidth={1.75} /> : i === 1 ? <Pin className="h-5 w-5 text-primary shrink-0 mt-0.5" strokeWidth={1.75} /> : <Lightbulb className="h-5 w-5 text-primary shrink-0 mt-0.5" strokeWidth={1.75} />}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold text-foreground">
@@ -756,7 +777,7 @@ export default function WelcomePage() {
                       )}
                       {rec.temps_estime && (
                         <div className="mt-2">
-                          <span className="text-2xs text-muted-foreground">⏱️ {rec.temps_estime}</span>
+                          <span className="text-2xs text-muted-foreground inline-flex items-center gap-1"><Clock className="h-4 w-4" strokeWidth={1.75} /> {rec.temps_estime}</span>
                         </div>
                       )}
                     </div>
@@ -775,7 +796,7 @@ export default function WelcomePage() {
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <span className="text-lg">{s.emoji}</span>
+                    <s.icon className="h-5 w-5 text-primary shrink-0 mt-0.5" strokeWidth={1.75} />
                     <div className="flex-1">
                       <p className="text-sm font-semibold text-foreground">
                         {s.num} {s.title}
@@ -802,18 +823,18 @@ export default function WelcomePage() {
           </h2>
           <div className="flex flex-wrap gap-2">
             {goal && (
-              <span className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium">
-                🎯 {GOAL_LABELS[goal] || goal}
+              <span className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium inline-flex items-center gap-1.5">
+                <Target className="h-4 w-4 text-primary" strokeWidth={1.75} /> {GOAL_LABELS[goal] || goal}
               </span>
             )}
             {(onboardingTime || time) && (
-              <span className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium">
-                ⏰ {ONBOARDING_TIME_LABELS[onboardingTime] || TIME_LABELS[time] || time}
+              <span className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium inline-flex items-center gap-1.5">
+                <Clock className="h-4 w-4 text-primary" strokeWidth={1.75} /> {ONBOARDING_TIME_LABELS[onboardingTime] || TIME_LABELS[time] || time}
               </span>
             )}
             {channels.map((ch) => (
-              <span key={ch} className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium">
-                📱 {ch}
+              <span key={ch} className="text-xs bg-secondary text-foreground px-3 py-1.5 rounded-pill font-medium inline-flex items-center gap-1.5">
+                <Smartphone className="h-4 w-4 text-primary" strokeWidth={1.75} /> {ch}
               </span>
             ))}
           </div>
@@ -832,7 +853,11 @@ export default function WelcomePage() {
             className="w-full rounded-pill gap-2"
             size="lg"
           >
-            {brandReviewPending ? "📋 Valider ma fiche de marque" : "✨ Générer mon premier contenu"}
+            {brandReviewPending ? (
+              <><ClipboardList className="h-4 w-4" strokeWidth={1.75} /> Valider ma fiche de marque</>
+            ) : (
+              <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Générer mon premier contenu</>
+            )}
           </Button>
           {brandReviewPending && (
             <p className="text-xs text-muted-foreground text-center -mt-1">
@@ -841,7 +866,7 @@ export default function WelcomePage() {
           )}
           {starterIdea && !brandReviewPending && (
             <p className="text-xs text-muted-foreground text-center -mt-1">
-              💡 On démarre sur « {starterIdea.titre} » — une idée tirée de ton diagnostic.
+              On démarre sur « {starterIdea.titre} » — une idée tirée de ton diagnostic.
             </p>
           )}
           <Button

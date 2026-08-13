@@ -485,7 +485,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
 
           {/* Editable proposals */}
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-            <h4 className="font-display font-bold text-sm text-foreground">Proposition de textes</h4>
+            <h4 className="font-body font-bold text-sm text-foreground">Proposition de textes</h4>
             <p className="text-xs text-muted-foreground">Tu peux modifier directement avant de valider.</p>
             
             {diagnostic.proposals.map((p) => (
@@ -536,7 +536,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           {/* Show current diagnostic summary */}
           {diagnostic && (
             <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-              <h4 className="font-display font-bold text-sm text-foreground flex items-center gap-2">
+              <h4 className="font-body font-bold text-sm text-foreground flex items-center gap-2">
                 <Lightbulb className="h-4 w-4 text-primary" />
                 Proposition actuelle
               </h4>
@@ -556,7 +556,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           <div className="rounded-2xl border border-primary/20 bg-card p-6 space-y-4">
             <div className="flex items-center gap-2">
               <MessageSquare className="h-5 w-5 text-primary" />
-              <h4 className="font-display font-bold text-sm text-foreground">Tu veux ajuster ?</h4>
+              <h4 className="font-body font-bold text-sm text-foreground">Tu veux ajuster ?</h4>
             </div>
             <p className="text-xs text-muted-foreground">
               Dis-moi ce qui ne va pas ou ce que tu veux changer :

@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, Palette, Sparkles } from "lucide-react";
+import { Loader2, Palette, RefreshCw, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -98,7 +98,7 @@ function LowCreditsBanner({ remaining, plan }: { remaining: number; plan: string
   return (
     <div className="mb-4 rounded-xl border border-warning/30 bg-warning-bg px-4 py-3 flex items-center justify-between gap-3">
       <div className="flex items-center gap-2 min-w-0">
-        <span className="text-lg shrink-0">✨</span>
+        <Sparkles className="h-5 w-5 shrink-0 text-warning" strokeWidth={1.75} />
         <p className="text-sm text-warning">
           <span className="font-medium">Plus que {remaining} crédit{remaining > 1 ? "s" : ""}</span> ce mois-ci.
           {" "}Utilise-les pour ce qui compte le plus pour toi.
@@ -1602,7 +1602,7 @@ export default function CreerUnifie() {
         .map((p: any) => (typeof p.context === "string" ? p.context.trim() : ""))
         .filter((c: string) => c.length > 0);
       const parts = [dumpNarrative?.trim(), beats.join(" · ")].filter(Boolean);
-      pureDumpDescription = parts.length > 0 ? parts.join(" — ").slice(0, 1200) : (photoDescription || null);
+      pureDumpDescription = parts.length > 0 ? parts.join(" ; ").slice(0, 1200) : (photoDescription || null);
     }
 
     // Formats structurés : appel classique (pas de streaming)
@@ -1804,7 +1804,7 @@ export default function CreerUnifie() {
     const slidesSummary = slidesArr
       .map((s: any, i: number) => {
         const parts = [s.overlay_text, s.title, s.body].filter((x: any) => typeof x === "string" && x.trim());
-        return `Slide ${s.slide_number ?? i + 1}: ${parts.join(" — ")}`;
+        return `Slide ${s.slide_number ?? i + 1}: ${parts.join(" ; ")}`;
       })
       .join("\n")
       .slice(0, 1500);
@@ -3122,7 +3122,7 @@ export default function CreerUnifie() {
         // Pré-génération silencieuse : ne pas faire surgir le mur quota sans clic,
         // mais le dire près du bouton (le clic ouvrira le mur avec le détail).
         if (opts?.background) {
-          setVisualsAutoError("Tes crédits sont épuisés — les visuels n'ont pas pu être créés automatiquement.");
+          setVisualsAutoError("Tes crédits sont épuisés : les visuels n'ont pas pu être créés automatiquement.");
           return;
         }
         if (handleQuotaError({ data })) return;
@@ -3504,7 +3504,7 @@ export default function CreerUnifie() {
     if (scheduled && tokenExpiry && when.getTime() > new Date(tokenExpiry).getTime()) {
       // Programmé, mais le jeton OAuth sera expiré à l'heure dite → prévenir MAINTENANT
       // plutôt que laisser la publication échouer en silence (même garde que le calendrier).
-      toast.warning("Programmé — mais reconnecte ton compte d'ici là ⚠️", {
+      toast.warning("Programmé : mais reconnecte ton compte d'ici là ⚠️", {
         duration: 12000,
         description: `Ta connexion ${reseau} expire le ${new Date(tokenExpiry).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
         action: { label: "Reconnecter", onClick: () => versConnexions(navigate) },
@@ -3789,8 +3789,8 @@ export default function CreerUnifie() {
             };
             const credits =
               !planLoading && remainingWithBonus() < 9000 ? (
-                <span className="text-2xs text-muted-foreground whitespace-nowrap">
-                  ✨ {remainingWithBonus()} crédit{remainingWithBonus() > 1 ? "s" : ""} restant{remainingWithBonus() > 1 ? "s" : ""}
+                <span className="text-2xs text-muted-foreground whitespace-nowrap inline-flex items-center gap-1">
+                  <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} /> {remainingWithBonus()} crédit{remainingWithBonus() > 1 ? "s" : ""} restant{remainingWithBonus() > 1 ? "s" : ""}
                 </span>
               ) : null;
             return (
@@ -3977,9 +3977,9 @@ export default function CreerUnifie() {
                   ) : (
                     <button
                       onClick={handleRegenerate}
-                      className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition"
                     >
-                      🔄 Réessayer
+                      <RefreshCw className="h-4 w-4" strokeWidth={1.75} /> Réessayer
                     </button>
                   )}
                   <button

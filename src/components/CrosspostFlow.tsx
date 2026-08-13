@@ -153,7 +153,7 @@ export default function CrosspostFlow() {
       setCopied(key);
       setTimeout(() => setCopied(null), 2000);
     }).catch(() => {
-      toast.error("Copie impossible — sélectionne et copie le texte manuellement.");
+      toast.error("Copie impossible : sélectionne et copie le texte manuellement.");
     });
   };
 

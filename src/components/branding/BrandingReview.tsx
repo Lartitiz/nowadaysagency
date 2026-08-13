@@ -130,7 +130,7 @@ function PersonaSection({ data }: { data: AnalysisResult["persona"] }) {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-3 text-sm">
-        {data.name && <span className="font-display text-base">{data.name}</span>}
+        {data.name && <span className="font-body text-base">{data.name}</span>}
         {data.age_range && <Chip>{data.age_range} ans</Chip>}
         {data.job && <Chip>{data.job}</Chip>}
       </div>
@@ -224,7 +224,7 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
         <div key={i} className="p-4 rounded-[12px] border border-border bg-background relative group">
           {editingIndex === i ? (
             <div className="space-y-2">
-              <input value={editDraft.name || ""} onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} placeholder="Nom de l'offre" className="w-full text-sm font-display border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={editDraft.name || ""} onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} placeholder="Nom de l'offre" className="w-full text-sm font-body border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <input value={editDraft.price || ""} onChange={e => setEditDraft(d => ({ ...d, price: e.target.value }))} placeholder="Prix" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <input value={editDraft.description || ""} onChange={e => setEditDraft(d => ({ ...d, description: e.target.value }))} placeholder="Description" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
               <input value={editDraft.target || ""} onChange={e => setEditDraft(d => ({ ...d, target: e.target.value }))} placeholder="Pour qui ?" className="w-full text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
@@ -243,7 +243,7 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
                 </div>
               )}
               <div className="flex items-baseline justify-between mb-2 pr-14">
-                <p className="font-display text-base">{o.name || "Offre"}</p>
+                <p className="font-body text-base">{o.name || "Offre"}</p>
                 {o.price && <span className="text-sm font-semibold text-primary">{o.price}</span>}
               </div>
               {o.description && <p className="text-sm text-muted-foreground mb-1">{o.description}</p>}
@@ -391,7 +391,7 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
           <p className="text-xs text-muted-foreground">
             On n'a pas réussi à détecter automatiquement tes couleurs depuis ton site
             (elles sont parfois dans des fichiers que l'analyse ne peut pas lire).
-            {onUpdate ? " Tu peux les saisir directement ici :" : " Tu pourras les ajouter en un clic — ou uploader ton logo — dans ta charte graphique."}
+            {onUpdate ? " Tu peux les saisir directement ici :" : " Tu pourras les ajouter en un clic : ou uploader ton logo : dans ta charte graphique."}
           </p>
           {onUpdate && (
             <button onClick={startEdit} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-1.5">
@@ -1226,7 +1226,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
             </h2>
             <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto leading-relaxed">
               {done
-                ? "Tout est enregistré. C'est cette fiche que j'utilise pour écrire à ta place — tu pourras la retoucher quand tu veux depuis ton Branding."
+                ? "Tout est enregistré. C'est cette fiche que j'utilise pour écrire à ta place : tu pourras la retoucher quand tu veux depuis ton Branding."
                 : `${pending.length} carte${pending.length > 1 ? "s attendent" : " attend"} encore ta réponse. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si l'analyse te convient.`}
             </p>
 

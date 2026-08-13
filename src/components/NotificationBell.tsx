@@ -119,7 +119,7 @@ export default function NotificationBell() {
       </PopoverTrigger>
       <PopoverContent className="w-80 p-0" align="end">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <h3 className="font-display text-sm font-bold">Notifications</h3>
+          <h3 className="font-body text-sm font-bold">Notifications</h3>
           {unreadCount > 0 && (
             <button onClick={markAllRead} className="text-xs text-primary hover:underline flex items-center gap-1">
               <Check className="h-3 w-3" /> Tout lire

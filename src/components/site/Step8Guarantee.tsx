@@ -12,7 +12,7 @@ export default function Step8Guarantee({ data, save, callAI, aiLoading, aiResult
         {GUARANTEE_TYPES.map((g) => (
           <button key={g.value} onClick={() => save({ guarantee_type: g.value })} className={`text-left rounded-xl border-2 p-3 transition-all ${data.guarantee_type === g.value ? "border-primary bg-rose-pale" : "border-border hover:border-primary/50 bg-card"}`}>
             <span className="text-lg">{g.emoji}</span>
-            <p className="font-display text-sm font-bold text-foreground mt-1">{g.label}</p>
+            <p className="font-body text-sm font-bold text-foreground mt-1">{g.label}</p>
           </button>
         ))}
       </div>

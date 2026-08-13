@@ -64,7 +64,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
     }
     try {
       await mutate({ photo, backgroundPrompt: prompt.trim() });
-      toast.success("Retouche lancée — la photo se met à jour dans la galerie.");
+      toast.success("Retouche lancée : la photo se met à jour dans la galerie.");
       onOpenChange(false);
     } catch (e: any) {
       toast.error(e?.message || "Échec du lancement");

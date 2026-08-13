@@ -60,7 +60,7 @@ export default function UserSlidesStep({ initialPhotos, initialSlides, initialCa
     }
     setSlides(blocks.map((b) => ({ id: newId(), title: b.title, body: b.body, photoIndex: null })));
     if (blocks.length === 1) {
-      toast("Une seule slide détectée — sépare tes slides par une ligne vide, puis ajuste ci-dessous.");
+      toast("Une seule slide détectée : sépare tes slides par une ligne vide, puis ajuste ci-dessous.");
     }
   };
 

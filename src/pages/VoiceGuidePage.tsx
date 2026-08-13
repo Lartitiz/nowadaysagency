@@ -292,7 +292,7 @@ function Section({ emoji, title, children }: { emoji: string; title: string; chi
     <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
       <div className="flex items-center gap-2.5">
         <span className="text-xl">{emoji}</span>
-        <h3 className="font-display text-base font-bold text-foreground">{title}</h3>
+        <h3 className="font-body text-base font-bold text-foreground">{title}</h3>
       </div>
       {children}
     </div>

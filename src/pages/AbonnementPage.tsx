@@ -5,7 +5,7 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp, Gift } from "lucide-react";
+import { CreditCard, Loader2, ArrowRight, Zap, ChevronDown, ChevronUp, Gift, Search, Sparkles, Handshake, Gem, Target, Lightbulb, BarChart3, Check, Phone, Flame, type LucideIcon } from "lucide-react";
 import { useUserPlan, type AiCategory } from "@/hooks/use-user-plan";
 import { STRIPE_PLANS, CREDIT_PACKS } from "@/lib/stripe-config";
 import { Link } from "react-router-dom";
@@ -15,10 +15,18 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 // Compteur global unique (« total ») affiché en tête. Ici on ne détaille que les
 // deux sous-plafonds qui ont vraiment du sens : les audits et les carrousels
 // Qualité Max (Opus, réservés au payant). Le reste compte dans le compteur global.
-const QUOTA_CATEGORIES: { key: AiCategory; emoji: string; label: string }[] = [
-  { key: "audit", emoji: "🔍", label: "Audits" },
-  { key: "quality_max", emoji: "✨", label: "Carrousels Qualité Max" },
+const QUOTA_CATEGORIES: { key: AiCategory; icon: LucideIcon; label: string }[] = [
+  { key: "audit", icon: Search, label: "Audits" },
+  { key: "quality_max", icon: Sparkles, label: "Carrousels Qualité Max" },
 ];
+
+// Icônes filaires des packs de crédits (le champ `emoji` de CREDIT_PACKS reste
+// dans stripe-config, mais l'affichage passe par lucide — charte Nowadays).
+const PACK_ICONS: Record<string, LucideIcon> = {
+  pack_10: Zap,
+  pack_30: Zap,
+  pack_60: Flame,
+};
 
 
 function getProgressColor(pct: number): string {
@@ -110,7 +118,7 @@ export default function AbonnementPage() {
   };
 
 
-  const planLabel = subInfo?.plan === "binome" ? "🤝 Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
+  const planLabel = subInfo?.plan === "binome" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   const totalUsed = usage.total?.used ?? 0;
   const totalLimit = usage.total?.limit ?? 100;
@@ -150,23 +158,27 @@ export default function AbonnementPage() {
           ) : (
             <div className="space-y-2">
               <p className="text-sm">
-                <span className="font-semibold text-primary">{subInfo?.source === "promo" ? "💎 " : ""}{planLabel}</span>
+                <span className="font-semibold text-primary inline-flex items-center gap-1">
+                  {subInfo?.source === "promo" && <Gem className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  {subInfo?.plan === "binome" && <Handshake className="h-3.5 w-3.5" strokeWidth={1.75} />}
+                  {planLabel}
+                </span>
                 {subInfo?.plan === "outil" && " · 39€/mois"}
                 {subInfo?.plan === "binome" && " · 290€/mois"}
               </p>
               {subInfo?.plan === "binome" && (
                 <div className="mt-2 space-y-1">
-                  <p className="text-xs text-muted-foreground">🎯 Accompagnement 6 mois · 7 sessions avec Laetitia</p>
-                  <p className="text-xs text-muted-foreground">✨ Création de contenu illimitée incluse</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Target className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Accompagnement 6 mois · 7 sessions avec Laetitia</p>
+                  <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Création de contenu illimitée incluse</p>
                   <Link to="/accompagnement">
-                    <Button size="sm" variant="outline" className="rounded-full mt-1 text-xs">
-                      🤝 Voir mon accompagnement →
+                    <Button size="sm" variant="outline" className="rounded-full mt-1 text-xs gap-1.5">
+                      <Handshake className="h-3.5 w-3.5" strokeWidth={1.75} /> Voir mon accompagnement →
                     </Button>
                   </Link>
                 </div>
               )}
               {subInfo?.source === "promo" && subInfo?.current_period_end && (
-                <p className="text-xs text-muted-foreground">🎁 Expire le {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}</p>
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Gift className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Expire le {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}</p>
               )}
               {subInfo?.source !== "promo" && subInfo?.current_period_end && subInfo.plan !== "free" && (
                 <p className="text-xs text-muted-foreground">Prochain renouvellement : {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}</p>
@@ -229,12 +241,12 @@ export default function AbonnementPage() {
             <div className="mt-3 flex items-center gap-2 p-3 rounded-xl bg-primary/5 border border-primary/10">
               <Gift className="h-4 w-4 text-primary" />
               <span className="text-sm text-foreground">
-                🎁 Tu as aussi <strong>{bonusCredits} crédits bonus</strong> (jamais expirés)
+                Tu as aussi <strong>{bonusCredits} crédits bonus</strong> (jamais expirés)
               </span>
             </div>
           )}
-          <p className="mt-2 text-xs text-muted-foreground">
-            💡 Astuce : invite une amie à rejoindre ton workspace et gagne 5 crédits bonus.
+          <p className="mt-2 text-xs text-muted-foreground flex items-start gap-1.5">
+            <Lightbulb className="h-3.5 w-3.5 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> Astuce : invite une amie à rejoindre ton workspace et gagne 5 crédits bonus.
           </p>
 
           {/* Category detail toggle */}
@@ -248,7 +260,7 @@ export default function AbonnementPage() {
 
           {showDetail && (
             <div className="mt-3 space-y-3 pt-3 border-t border-border">
-              <p className="text-xs font-semibold text-muted-foreground mb-2">📊 Détail des crédits ce mois</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5"><BarChart3 className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Détail des crédits ce mois</p>
               {QUOTA_CATEGORIES.map(cat => {
                 const catUsage = usage[cat.key];
                 // Masque les sous-plafonds non pertinents : 0 (non dispo sur ce
@@ -258,7 +270,7 @@ export default function AbonnementPage() {
                 return (
                   <div key={cat.key}>
                     <div className="flex items-center justify-between mb-1">
-                      <span className="text-xs text-muted-foreground">{cat.emoji} {cat.label}</span>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1"><cat.icon className="h-3 w-3 shrink-0" strokeWidth={1.75} /> {cat.label}</span>
                       <span className="text-xs font-mono-ui text-muted-foreground">{catUsage.used}/{catUsage.limit}</span>
                     </div>
                     <div className="relative h-2 w-full overflow-hidden rounded-full bg-secondary">
@@ -276,13 +288,14 @@ export default function AbonnementPage() {
           {/* Credit packs */}
           {packsAvailable && (
             <div className="mt-5 pt-4 border-t border-border">
-              <p className="text-sm font-semibold text-foreground mb-1">⚡ Acheter des crédits bonus</p>
+              <p className="text-sm font-semibold text-foreground mb-1 flex items-center gap-1.5"><Zap className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Acheter des crédits bonus</p>
               <p className="text-xs text-muted-foreground mb-3">
                 Les crédits bonus ne s'épuisent jamais et sont utilisés après tes crédits mensuels.
               </p>
               <div className="grid grid-cols-3 gap-2">
                 {Object.entries(CREDIT_PACKS).map(([key, pack]) => {
                   if (!pack.priceId) return null;
+                  const PackIcon = PACK_ICONS[key] || Zap;
                   return (
                     <button
                       key={key}
@@ -293,7 +306,7 @@ export default function AbonnementPage() {
                       {packLoading === key ? (
                         <Loader2 className="h-4 w-4 animate-spin text-primary" />
                       ) : (
-                        <span className="text-lg">{pack.emoji}</span>
+                        <PackIcon className="h-5 w-5 text-primary" strokeWidth={1.75} />
                       )}
                       <span className="text-sm font-semibold text-foreground">{pack.label}</span>
                       <span className="text-xs text-primary-text font-semibold">{pack.price.toFixed(2).replace('.', ',')}€</span>
@@ -307,7 +320,7 @@ export default function AbonnementPage() {
           {/* Exhausted state — si des bonus restent, ils prennent le relais : pas d'alarme rouge */}
           {isExhausted && bonusCredits > 0 && (
             <div className="mt-4 p-4 rounded-xl bg-primary/5 border border-primary/10">
-              <p className="text-sm font-semibold text-foreground">Crédits mensuels utilisés — tes bonus prennent le relais 🎁</p>
+              <p className="text-sm font-semibold text-foreground">Crédits mensuels utilisés : tes bonus prennent le relais 🎁</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Il te reste <strong>{bonusCredits} crédits bonus</strong> : tu peux continuer à créer normalement.
                 Tes crédits mensuels reviennent le {renewalDate}.
@@ -316,7 +329,7 @@ export default function AbonnementPage() {
           )}
           {isExhausted && bonusCredits === 0 && (
             <div className="mt-4 p-4 rounded-xl bg-destructive/5 border border-destructive/20">
-              <p className="text-sm font-semibold text-foreground">😅 Plus de crédits ce mois-ci !</p>
+              <p className="text-sm font-semibold text-foreground">Plus de crédits ce mois-ci !</p>
               <p className="text-xs text-muted-foreground mt-1">
                 Tu as utilisé tous tes crédits. Ils se renouvellent le {renewalDate}.
               </p>
@@ -370,22 +383,22 @@ export default function AbonnementPage() {
             <div className={`rounded-xl border-2 p-4 text-center transition-all ${
               plan === "binome" ? "border-primary bg-rose-pale" : "border-border hover:border-primary/30"
             }`}>
-              <h3 className="font-display font-bold text-foreground">🤝 Ta binôme de com</h3>
+              <h3 className="font-display font-bold text-foreground flex items-center justify-center gap-1.5"><Handshake className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Ta binôme de com</h3>
               <p className="text-lg font-semibold text-primary-text mt-1">290€/mois</p>
               <p className="text-xs text-muted-foreground mt-0.5">Engagement 6 mois</p>
               <div className="text-2xs text-muted-foreground mt-1 space-y-0.5 text-left">
-                <p>✅ L'outil complet en illimité</p>
-                <p>✅ 3 sessions fondations</p>
-                <p>✅ 4 sessions focus personnalisées</p>
-                <p>✅ WhatsApp illimité 6 mois</p>
-                <p>✅ 7 sessions avec Laetitia (~12h)</p>
-                <p>✅ Comptes-rendus détaillés</p>
+                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> L'outil complet en illimité</p>
+                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> 3 sessions fondations</p>
+                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> 4 sessions focus personnalisées</p>
+                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> WhatsApp illimité 6 mois</p>
+                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> 7 sessions avec Laetitia (~12h)</p>
+                <p className="flex items-start gap-1"><Check className="h-3 w-3 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /> Comptes-rendus détaillés</p>
               </div>
               {plan === "binome" ? (
                 <span className="inline-block mt-3 text-xs font-semibold text-primary-text">Plan actuel ✓</span>
               ) : (
-                <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>
-                  📞 Réserver un appel découverte
+                <Button size="sm" variant="outline" className="mt-3 rounded-full text-xs gap-1.5" onClick={() => window.open("https://calendly.com/laetitia-mattioli/appel-decouverte", "_blank")}>
+                  <Phone className="h-3.5 w-3.5" strokeWidth={1.75} /> Réserver un appel découverte
                 </Button>
               )}
             </div>
