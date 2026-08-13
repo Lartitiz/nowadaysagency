@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Hammer, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowLeft, Briefcase, CalendarDays, Hammer, MessageCircle, PenLine, Search, Sparkles, Star, Target, User } from "lucide-react";
 import FirstTimeTooltip from "@/components/FirstTimeTooltip";
 import { ZoneSection, HubCard, HubConnectBanner } from "@/components/hub";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -127,14 +127,14 @@ export default function LinkedInHub() {
         {/* ─── ZONE 1 : POSER LES BASES ─── */}
         <ZoneSection title={<><span className="text-primary font-bold">1.</span> <Hammer className="h-5 w-5 text-primary" strokeWidth={1.75} /> Poser les bases</>}>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            <HubCard to="#" emoji="✨" title="Optimiser profil & stratégie avec l'IA" desc="On t'aide à optimiser ton profil et ta stratégie, question par question." tag="IA · 15 min" onClick={() => setCoachingOpen(true)} />
+            <HubCard to="#" icon={Sparkles} title="Optimiser profil & stratégie avec l'IA" desc="On t'aide à optimiser ton profil et ta stratégie, question par question." tag="IA · 15 min" onClick={() => setCoachingOpen(true)} />
             <FirstTimeTooltip id="linkedin-audit" text="Commence ici : un scan complet de ton profil LinkedIn avec des priorités d'action.">
-              <HubCard to="/linkedin/audit" emoji="🔍" title="Auditer mon compte" desc="Score complet et priorités d'action." tag="IA · 5 min" progressLabel={progressMap["/linkedin/audit"]} />
+              <HubCard to="/linkedin/audit" icon={Search} title="Auditer mon compte" desc="Score complet et priorités d'action." tag="IA · 5 min" progressLabel={progressMap["/linkedin/audit"]} />
             </FirstTimeTooltip>
-            <HubCard to="/linkedin/profil" emoji="👤" title="Compléter mon profil" desc="Titre, photo, bannière, URL : la checklist." progressLabel={progressMap["/linkedin/profil"]} />
-            <HubCard to="/linkedin/resume" emoji="✍️" title="Rédiger mon résumé (À propos)" desc="Un résumé qui donne envie, guidé pas à pas." progressLabel={progressMap["/linkedin/resume"]} />
-            <HubCard to="/linkedin/parcours" emoji="💼" title="Compléter mon parcours" desc="Expériences, formations, compétences." progressLabel={progressMap["/linkedin/parcours"]} />
-            <HubCard to="/linkedin/recommandations" emoji="⭐" title="Demander des recommandations" desc="Choisis qui solliciter et suis les réponses." progressLabel={progressMap["/linkedin/recommandations"]} />
+            <HubCard to="/linkedin/profil" icon={User} title="Compléter mon profil" desc="Titre, photo, bannière, URL : la checklist." progressLabel={progressMap["/linkedin/profil"]} />
+            <HubCard to="/linkedin/resume" icon={PenLine} title="Rédiger mon résumé (À propos)" desc="Un résumé qui donne envie, guidé pas à pas." progressLabel={progressMap["/linkedin/resume"]} />
+            <HubCard to="/linkedin/parcours" icon={Briefcase} title="Compléter mon parcours" desc="Expériences, formations, compétences." progressLabel={progressMap["/linkedin/parcours"]} />
+            <HubCard to="/linkedin/recommandations" icon={Star} title="Demander des recommandations" desc="Choisis qui solliciter et suis les réponses." progressLabel={progressMap["/linkedin/recommandations"]} />
           </div>
         </ZoneSection>
 
@@ -184,10 +184,10 @@ export default function LinkedInHub() {
         <ZoneSection title={<><span className="text-primary font-bold">3.</span> <MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.75} /> Engager & Planifier</>}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <FirstTimeTooltip id="linkedin-engagement" text="Tes actions hebdo pour développer ton réseau.">
-              <HubCard to="/linkedin/engagement" emoji="💬" title="Suivre mon engagement" desc="Tes commentaires et messages stratégiques de la semaine." progressLabel={progressMap["/linkedin/engagement"]} />
+              <HubCard to="/linkedin/engagement" icon={MessageCircle} title="Suivre mon engagement" desc="Tes commentaires et messages stratégiques de la semaine." progressLabel={progressMap["/linkedin/engagement"]} />
             </FirstTimeTooltip>
-            <HubCard to="/linkedin/comment-strategy" emoji="🎯" title="Choisir mes comptes à commenter" desc="Ta liste de 10-15 comptes stratégiques." progressLabel={progressMap["/linkedin/comment-strategy"]} />
-            <HubCard to="/calendrier?canal=linkedin" emoji="📅" title="Planifier mes posts" desc="Ton calendrier LinkedIn, semaine par semaine." progressLabel={progressMap["/calendrier?canal=linkedin"]} />
+            <HubCard to="/linkedin/comment-strategy" icon={Target} title="Choisir mes comptes à commenter" desc="Ta liste de 10-15 comptes stratégiques." progressLabel={progressMap["/linkedin/comment-strategy"]} />
+            <HubCard to="/calendrier?canal=linkedin" icon={CalendarDays} title="Planifier mes posts" desc="Ton calendrier LinkedIn, semaine par semaine." progressLabel={progressMap["/calendrier?canal=linkedin"]} />
           </div>
         </ZoneSection>
 

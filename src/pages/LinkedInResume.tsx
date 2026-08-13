@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { handleQuotaError } from "@/lib/quota-error-handler";
-import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb } from "lucide-react";
+import { Sparkles, Copy, Check, Loader2, RotateCcw, Search, Lightbulb, CheckCircle2, AlertTriangle, XCircle, FileText, Download, Star, Briefcase, Eye, History, ClipboardList, Save } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import MicButton from "@/components/MicButton";
@@ -57,7 +57,11 @@ function parseAnalysis(raw: string): ResumeAnalysis | null {
   }
 }
 
-const statusIcon = (s: string) => s === "good" ? "✅" : s === "partial" ? "⚠️" : "❌";
+const StatusIcon = ({ status }: { status: string }) => status === "good"
+  ? <CheckCircle2 className="inline h-4 w-4 align-[-2px] text-success" strokeWidth={1.75} aria-hidden="true" />
+  : status === "partial"
+    ? <AlertTriangle className="inline h-4 w-4 align-[-2px] text-warning" strokeWidth={1.75} aria-hidden="true" />
+    : <XCircle className="inline h-4 w-4 align-[-2px] text-error" strokeWidth={1.75} aria-hidden="true" />;
 
 /* ─── Score Badge ─── */
 function ScoreBadge({ score }: { score: number }) {
@@ -280,7 +284,7 @@ export default function LinkedInResume() {
           <div className="space-y-6">
             <div className="rounded-xl border-2 border-primary/30 bg-card p-6">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-base font-semibold text-foreground flex items-center gap-2">✅ Ton résumé actuel</h3>
+                <h3 className="text-base font-semibold text-foreground flex items-center gap-2"><CheckCircle2 className="h-4 w-4 text-success" strokeWidth={1.75} aria-hidden="true" /> Ton résumé actuel</h3>
                 {savedDate && (
                   <span className="text-xs text-muted-foreground">
                     Sauvegardé le {format(new Date(savedDate), "d MMM yyyy", { locale: fr })}
@@ -325,7 +329,7 @@ export default function LinkedInResume() {
           <>
             {/* Structure guide */}
             <div className="rounded-xl bg-rose-pale p-5 text-sm mb-6 space-y-1">
-              <p className="font-semibold">💡 Un bon résumé LinkedIn, c'est 5 éléments :</p>
+              <p className="font-semibold"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Un bon résumé LinkedIn, c'est 5 éléments :</p>
               <p>1. <strong>Hook</strong> : une phrase d'accroche qui intrigue</p>
               <p>2. <strong>Ta passion</strong> : pourquoi tu fais ce métier</p>
               <p>3. <strong>Ton parcours</strong> : d'où tu viens en 2-3 phrases</p>
@@ -335,11 +339,11 @@ export default function LinkedInResume() {
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
               <button onClick={() => setMode("existing")} className="rounded-xl border border-border bg-card p-6 text-left hover:border-primary transition-all">
-                <h3 className="font-body text-base font-bold mb-1">📝 J'ai déjà un résumé</h3>
+                <h3 className="font-body text-base font-bold mb-1 flex items-center gap-2"><FileText className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />J'ai déjà un résumé</h3>
                 <p className="text-sm text-muted-foreground">Colle ton résumé actuel et on l'améliore.</p>
               </button>
               <button onClick={() => setMode("scratch")} className="rounded-xl border border-border bg-card p-6 text-left hover:border-primary transition-all">
-                <h3 className="font-body text-base font-bold mb-1">✨ Je pars de zéro</h3>
+                <h3 className="font-body text-base font-bold mb-1 flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" />Je pars de zéro</h3>
                 <p className="text-sm text-muted-foreground">Génère-moi un résumé à partir de mon branding.</p>
               </button>
             </div>
@@ -352,7 +356,7 @@ export default function LinkedInResume() {
             {!analysis && (
               <>
                 <div>
-                  <label htmlFor="resume-existing-text" className="text-sm font-semibold text-foreground mb-2 block">📝 Colle ton résumé actuel</label>
+                  <label htmlFor="resume-existing-text" className="text-sm font-semibold text-foreground mb-2 block"><FileText className="inline h-4 w-4 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Colle ton résumé actuel</label>
                   <Textarea
                     id="resume-existing-text"
                     value={existingText}
@@ -365,7 +369,7 @@ export default function LinkedInResume() {
                 <div className="flex gap-3">
                   <Button onClick={analyzeResume} disabled={analyzing || !existingText.trim()} className="rounded-pill gap-2">
                     {analyzing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
-                    {analyzing ? "Analyse en cours..." : "🔍 Analyser et améliorer"}
+                    {analyzing ? "Analyse en cours..." : "Analyser et améliorer"}
                   </Button>
                   <Button variant="ghost" onClick={() => { setMode(null); setExistingText(""); }} className="rounded-pill">
                     ← Retour
@@ -397,8 +401,8 @@ export default function LinkedInResume() {
               <div>
                 <FieldWithMic label="Ce que tu proposes aujourd'hui et pour qui" value={offre} onChange={setOffre} mic={micOffre} placeholder="Mon offre et ma cible..." />
                 {propValue && (
-                  <Button variant="ghost" size="sm" className="mt-1 text-xs" onClick={() => setOffre(propValue)}>
-                    📥 Importer ma proposition de valeur
+                  <Button variant="ghost" size="sm" className="mt-1 text-xs gap-1.5" onClick={() => setOffre(propValue)}>
+                    <Download className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Importer ma proposition de valeur
                   </Button>
                 )}
               </div>
@@ -410,7 +414,7 @@ export default function LinkedInResume() {
 
             <Button onClick={generate} disabled={generating} className="rounded-pill gap-2">
               <Sparkles className="h-4 w-4" />
-              {generating ? "Génération..." : "✨ Générer mon résumé"}
+              {generating ? "Génération..." : "Générer mon résumé"}
             </Button>
 
             {/* ─── 6-version display ─── */}
@@ -419,11 +423,11 @@ export default function LinkedInResume() {
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-semibold text-foreground">Style :</span>
                   <ToggleGroup type="single" value={selectedStyle} onValueChange={(v) => { if (v) setSelectedStyle(v as any); }} className="bg-muted rounded-full p-1">
-                    <ToggleGroupItem value="storytelling" className="rounded-full px-4 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                      ✨ Storytelling
+                    <ToggleGroupItem value="storytelling" className="rounded-full px-4 text-sm gap-1.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                      <Sparkles className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Storytelling
                     </ToggleGroupItem>
-                    <ToggleGroupItem value="pro" className="rounded-full px-4 text-sm data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
-                      💼 Pro
+                    <ToggleGroupItem value="pro" className="rounded-full px-4 text-sm gap-1.5 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
+                      <Briefcase className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Pro
                     </ToggleGroupItem>
                   </ToggleGroup>
                 </div>
@@ -443,7 +447,7 @@ export default function LinkedInResume() {
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant="secondary" className="text-xs">{lengthLabel}</Badge>
                         <span className="text-xs text-muted-foreground">{wordLabel}</span>
-                        {isRecommended && <Badge className="bg-primary/10 text-primary text-xs border-0">⭐ Recommandé</Badge>}
+                        {isRecommended && <Badge className="bg-primary/10 text-primary text-xs border-0 gap-1"><Star className="h-3 w-3" strokeWidth={1.75} aria-hidden="true" /> Recommandé</Badge>}
                       </div>
 
                       {/* Hook highlight */}
@@ -463,7 +467,7 @@ export default function LinkedInResume() {
                           {copied === key ? "Copié" : "Copier"}
                         </Button>
                         <Button size="sm" onClick={() => save(text)} className="rounded-pill gap-1.5">
-                          ✅ Valider cette version
+                          <Check className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Valider cette version
                         </Button>
                       </div>
                     </div>
@@ -481,7 +485,7 @@ export default function LinkedInResume() {
                     <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{summaryStory}</p>
                     <CharacterCounter count={summaryStory.length} max={2600} />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => save(summaryStory)} className="rounded-pill gap-1.5">✅ Utiliser cette version</Button>
+                      <Button size="sm" onClick={() => save(summaryStory)} className="rounded-pill gap-1.5"><Check className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Utiliser cette version</Button>
                       <Button variant="outline" size="sm" onClick={() => copyText(summaryStory, "story")} className="rounded-pill gap-1.5">
                         {copied === "story" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copier
                       </Button>
@@ -494,7 +498,7 @@ export default function LinkedInResume() {
                     <p className="text-sm text-foreground whitespace-pre-line leading-relaxed">{summaryPro}</p>
                     <CharacterCounter count={summaryPro.length} max={2600} />
                     <div className="flex gap-2">
-                      <Button size="sm" onClick={() => save(summaryPro)} className="rounded-pill gap-1.5">✅ Utiliser cette version</Button>
+                      <Button size="sm" onClick={() => save(summaryPro)} className="rounded-pill gap-1.5"><Check className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Utiliser cette version</Button>
                       <Button variant="outline" size="sm" onClick={() => copyText(summaryPro, "pro")} className="rounded-pill gap-1.5">
                         {copied === "pro" ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copier
                       </Button>
@@ -506,13 +510,13 @@ export default function LinkedInResume() {
 
             {/* Example */}
             <div className="rounded-xl bg-rose-pale p-5 text-sm mt-6">
-              <p className="font-semibold mb-2">👀 Exemple pour une marque de maroquinerie :</p>
+              <p className="font-semibold mb-2"><Eye className="inline h-4 w-4 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />Exemple pour une marque de maroquinerie :</p>
               <p className="italic whitespace-pre-line">{"Peut-on créer des sacs beaux, durables... et porteurs de sens ? Moi, j'en suis convaincue.\n\nDepuis toujours, j'aime l'odeur du cuir, le travail des mains, et les objets qui racontent une histoire. Ce qui me motive ? Créer des pièces qui durent dans le temps et respectent le vivant.\n\nAujourd'hui, je conçois des sacs et accessoires en cuir, faits main dans mon atelier en Bourgogne. Chaque pièce est unique.\n\n👉 Contactez-moi pour une commande personnalisée."}</p>
             </div>
           </div>
         )}
-      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground mt-4" onClick={() => setHistoryOpen(true)}>
-        📜 Voir l'historique de mes résumés
+      <Button variant="ghost" size="sm" className="text-xs text-muted-foreground mt-4 gap-1.5" onClick={() => setHistoryOpen(true)}>
+        <History className="h-3.5 w-3.5" strokeWidth={1.75} aria-hidden="true" /> Voir l'historique de mes résumés
       </Button>
       <BioHistoryDrawer
         platform="linkedin"
@@ -563,7 +567,7 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
       {/* Score + Summary */}
       <div className="bg-rose-pale border-l-[3px] border-primary rounded-r-xl p-5">
         <div className="flex justify-between items-start mb-3">
-          <h3 className="text-base font-semibold text-foreground">🔍 Analyse de ton résumé actuel</h3>
+          <h3 className="text-base font-semibold text-foreground flex items-center gap-2"><Search className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Analyse de ton résumé actuel</h3>
           <ScoreBadge score={analysis.score} />
         </div>
         <div className="w-full h-2 bg-muted rounded-full mb-4">
@@ -571,17 +575,17 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
         </div>
         <div className="space-y-1.5">
           {analysis.summary.positives.map((p, i) => (
-            <p key={`p-${i}`} className="text-sm text-foreground">✅ {p}</p>
+            <p key={`p-${i}`} className="text-sm text-foreground"><CheckCircle2 className="inline h-3.5 w-3.5 align-[-2px] text-success mr-1" strokeWidth={1.75} aria-hidden="true" />{p}</p>
           ))}
           {analysis.summary.improvements.map((p, i) => (
-            <p key={`i-${i}`} className="text-sm text-muted-foreground">⚠️ {p}</p>
+            <p key={`i-${i}`} className="text-sm text-muted-foreground"><AlertTriangle className="inline h-3.5 w-3.5 align-[-2px] text-warning mr-1" strokeWidth={1.75} aria-hidden="true" />{p}</p>
           ))}
         </div>
       </div>
 
       {/* Recommendations */}
       <div className="space-y-3">
-        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">📋 Analyse par élément</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5"><ClipboardList className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Analyse par élément</h3>
         {analysis.recommendations.map((reco) => (
           <div key={reco.number} className="bg-card border border-border rounded-xl p-5 space-y-3">
             <div className="flex items-start gap-3">
@@ -589,13 +593,13 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
                 {reco.number}
               </span>
               <h4 className="text-base font-semibold text-foreground leading-tight">
-                {statusIcon(reco.status)} {reco.title}
+                <StatusIcon status={reco.status} /> {reco.title}
               </h4>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed pl-10">{reco.explanation}</p>
             {reco.example && (
               <div className="ml-10 bg-accent/30 border-l-[3px] border-accent rounded-r-lg px-4 py-3">
-                <p className="text-sm text-foreground italic">💡 {reco.example}</p>
+                <p className="text-sm text-foreground italic"><Lightbulb className="inline h-3.5 w-3.5 align-[-2px] text-primary mr-1" strokeWidth={1.75} aria-hidden="true" />{reco.example}</p>
               </div>
             )}
           </div>
@@ -605,7 +609,7 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
       {/* Proposed version */}
       {analysis.proposed_version && (
         <div className="space-y-4">
-          <h3 className="text-base font-semibold text-foreground">✨ Version améliorée proposée</h3>
+          <h3 className="text-base font-semibold text-foreground flex items-center gap-2"><Sparkles className="h-4 w-4 text-primary" strokeWidth={1.75} aria-hidden="true" /> Version améliorée proposée</h3>
           <div className="border-2 border-primary rounded-2xl p-6 bg-card shadow-sm">
             <p className="text-sm text-foreground leading-relaxed whitespace-pre-line">{analysis.proposed_version}</p>
           </div>
@@ -613,7 +617,7 @@ function AnalysisCards({ analysis, onSaveVersion, copyText, copied, onBack }: {
           <LinkedInPreview text={analysis.proposed_version} cutoff={265} label="Résumé" />
           <div className="flex gap-3">
             <Button onClick={() => onSaveVersion(analysis.proposed_version!)} className="rounded-pill gap-2">
-              💾 Enregistrer cette version
+              <Save className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Enregistrer cette version
             </Button>
             <Button variant="outline" onClick={() => copyText(analysis.proposed_version!, "proposed")} className="rounded-pill gap-2">
               {copied === "proposed" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} Copier

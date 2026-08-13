@@ -10,7 +10,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Sparkles, Check, Pencil, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Sparkles, Check, Pencil, Loader2, Trash2, Gem, Gift, Mic, Lightbulb, Heart, Megaphone, Target } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { toast } from "sonner";
@@ -392,7 +392,7 @@ export default function OfferWorkshopPage() {
         <Button variant="outline" onClick={goPrev} disabled={step === 1}>← Retour</Button>
         <Button onClick={goNext} disabled={saving}>
           {saving ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
-          {step === 7 ? "✅ Terminer" : "Suivant →"}
+          {step === 7 ? <><Check className="h-4 w-4 mr-1" strokeWidth={1.75} />Terminer</> : "Suivant →"}
         </Button>
       </div>
     </>
@@ -412,8 +412,8 @@ export default function OfferWorkshopPage() {
         {offer?.completed ? (
           <Tabs value={workshopTab} onValueChange={setWorkshopTab} className="mb-6">
             <TabsList className="w-full mb-4">
-              <TabsTrigger value="synthese" className="flex-1 gap-2">✨ Fiche synthèse</TabsTrigger>
-              <TabsTrigger value="workshop" className="flex-1 gap-2">✏️ Modifier</TabsTrigger>
+              <TabsTrigger value="synthese" className="flex-1 gap-2"><Sparkles className="h-4 w-4" strokeWidth={1.75} />Fiche synthèse</TabsTrigger>
+              <TabsTrigger value="workshop" className="flex-1 gap-2"><Pencil className="h-4 w-4" strokeWidth={1.75} />Modifier</TabsTrigger>
             </TabsList>
 
             <TabsContent value="synthese">
@@ -472,17 +472,18 @@ function Step1({ formData, setFormData, saved, autoSaving, onExtract, extracting
         <label className="text-sm font-semibold text-foreground mb-2 block">Type d'offre</label>
         <div className="flex gap-2 flex-wrap">
           {[
-            { v: "paid", l: "💎 Payante" },
-            { v: "free", l: "🎁 Gratuite (lead magnet)" },
-            { v: "service", l: "🎤 Ponctuelle" },
+            { v: "paid", l: "Payante", icon: Gem },
+            { v: "free", l: "Gratuite (lead magnet)", icon: Gift },
+            { v: "service", l: "Ponctuelle", icon: Mic },
           ].map((t) => (
             <button
               key={t.v}
               onClick={() => update("offer_type", t.v)}
-              className={`px-4 py-2 rounded-full text-sm font-medium border-2 transition-colors ${
+              className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border-2 transition-colors ${
                 formData.offer_type === t.v ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:border-primary/30"
               }`}
             >
+              <t.icon className="h-4 w-4" strokeWidth={1.75} />
               {t.l}
             </button>
           ))}
@@ -526,7 +527,7 @@ function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">✨ Voici ce que j'en pense</p>
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5"><Sparkles className="h-4 w-4" strokeWidth={1.75} />Voici ce que j'en pense</p>
           <p className="text-sm text-foreground whitespace-pre-line">{aiResponse.reaction}</p>
           {aiResponse.follow_up_questions && (
             <ul className="text-sm text-muted-foreground space-y-1">
@@ -537,7 +538,7 @@ function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
           )}
           {aiResponse.deep_problem && (
             <div className="rounded-lg bg-card border border-border p-3 mt-2">
-              <p className="text-xs font-semibold text-primary mb-1">💡 Le problème profond que je retiens :</p>
+              <p className="text-xs font-semibold text-primary mb-1 flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5" strokeWidth={1.75} />Le problème profond que je retiens :</p>
               <p className="text-sm text-foreground italic">"{aiResponse.deep_problem}"</p>
               <div className="flex gap-2 mt-2">
                 <Button size="sm" className="text-xs rounded-pill" onClick={() => update("problem_deep_confirmed", true)}>
@@ -576,7 +577,7 @@ function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">✨ Je challenge un peu</p>
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5"><Sparkles className="h-4 w-4" strokeWidth={1.75} />Je challenge un peu</p>
           <p className="text-sm text-foreground whitespace-pre-line">{aiResponse.reaction}</p>
           {aiResponse.suggestions && (
             <div className="space-y-2 mt-2">
@@ -598,9 +599,9 @@ function Step3({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
                   const textarea = document.querySelector('textarea[placeholder*="système de communication"]') as HTMLTextAreaElement;
                   if (textarea) { textarea.focus(); textarea.scrollIntoView({ behavior: "smooth" }); }
                 }}
-                className="text-xs text-primary underline mt-1"
+                className="text-xs text-primary underline mt-1 inline-flex items-center gap-1"
               >
-                ✏️ Écrire la mienne
+                <Pencil className="h-3 w-3" strokeWidth={1.75} />Écrire la mienne
               </button>
             </div>
           )}
@@ -628,7 +629,7 @@ function Step4({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">✨ Tes bénéfices, reformulés</p>
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5"><Sparkles className="h-4 w-4" strokeWidth={1.75} />Tes bénéfices, reformulés</p>
           {aiResponse.reaction && <p className="text-sm text-foreground">{aiResponse.reaction}</p>}
           {aiResponse.features_to_benefits && (
             <div className="overflow-x-auto">
@@ -681,7 +682,7 @@ function Step5({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">✨ Quelques questions pour toi</p>
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5"><Sparkles className="h-4 w-4" strokeWidth={1.75} />Quelques questions pour toi</p>
           <p className="text-sm text-foreground whitespace-pre-line">{aiResponse.reaction}</p>
           {aiResponse.follow_up_questions && (
             <ul className="text-sm text-muted-foreground space-y-1">
@@ -730,7 +731,7 @@ function Step6({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
 
       {aiResponse?.objections && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
-          <p className="text-sm font-semibold text-primary">✨ Réponses aux objections</p>
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5"><Sparkles className="h-4 w-4" strokeWidth={1.75} />Réponses aux objections</p>
           {aiResponse.objections.map((o: any, i: number) => (
             <div key={i} className="rounded-lg bg-card border border-border p-3">
               <p className="text-sm font-semibold text-foreground mb-1">{o.emoji} "{o.objection}"</p>
@@ -785,30 +786,30 @@ function Step7({ formData, setFormData, aiResponse, aiLoading, offer, onAskAI }:
 
       {displayData && (
         <div className="rounded-xl border-2 border-primary/20 bg-primary/5 p-4 space-y-4">
-          <p className="text-sm font-semibold text-primary">✨ Voici ce que j'ai compris de ton offre</p>
+          <p className="text-sm font-semibold text-primary flex items-center gap-1.5"><Sparkles className="h-4 w-4" strokeWidth={1.75} />Voici ce que j'ai compris de ton offre</p>
 
           {displayData.problem_summary && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-1">🎯 LE PROBLÈME PROFOND :</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Target className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />LE PROBLÈME PROFOND :</p>
               <p className="text-sm text-foreground italic">"{displayData.problem_summary}"</p>
             </div>
           )}
           {displayData.promise_summary && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-1">✨ LA PROMESSE :</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />LA PROMESSE :</p>
               <p className="text-sm text-foreground font-semibold">"{displayData.promise_summary}"</p>
             </div>
           )}
           {(displayData.before || displayData.after) && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-1">💡 LA TRANSFORMATION :</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Lightbulb className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />LA TRANSFORMATION :</p>
               {displayData.before && <p className="text-sm text-muted-foreground"><span className="font-semibold">AVANT :</span> {displayData.before}</p>}
               {displayData.after && <p className="text-sm text-foreground"><span className="font-semibold">APRÈS :</span> {displayData.after}</p>}
             </div>
           )}
           {displayData.feelings && displayData.feelings.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-muted-foreground mb-1">🫀 CE QU'ELLE RESSENT APRÈS :</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Heart className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />CE QU'ELLE RESSENT APRÈS :</p>
               <div className="flex flex-wrap gap-2">
                 {displayData.feelings.map((f: string, i: number) => (
                   <span key={i} className="text-xs bg-primary/10 text-primary rounded-full px-3 py-1 font-medium">{f}</span>
@@ -818,7 +819,7 @@ function Step7({ formData, setFormData, aiResponse, aiLoading, offer, onAskAI }:
           )}
           {displayData.sales_line && (
             <div className="rounded-lg bg-card border border-border p-3">
-              <p className="text-xs font-semibold text-muted-foreground mb-1">📣 LA PHRASE DE VENTE :</p>
+              <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5"><Megaphone className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />LA PHRASE DE VENTE :</p>
               <p className="text-sm text-foreground font-semibold">"{displayData.sales_line}"</p>
             </div>
           )}

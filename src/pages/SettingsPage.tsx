@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2, CalendarHeart } from "lucide-react";
+import { Settings, KeyRound, Trash2, Bell, Mail, Sparkles, Shield, Bot, CreditCard, Loader2, ShoppingBag, Gift, ArrowRight, Cookie, RotateCcw, Map, Share2, CalendarHeart, Gem, Handshake, ClipboardList, Lightbulb, User, FileText, Search, FileUp, RefreshCw, type LucideIcon } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
@@ -268,13 +268,13 @@ export default function SettingsPage() {
                 <p className="text-sm font-medium">
                   Plan actuel :{" "}
                   <span className="text-primary font-semibold">
-                    {subInfo?.source === "promo" ? "💎 " : ""}{planLabel}
+                    {subInfo?.source === "promo" && <Gem className="inline h-3.5 w-3.5 mr-1 align-text-bottom" strokeWidth={1.75} />}{planLabel}
                     {subInfo?.source === "promo" && " · Accès beta"}
                   </span>
                 </p>
                 {subInfo?.source === "promo" && subInfo?.current_period_end && (
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    🎁 Expire le {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}
+                    Expire le {new Date(subInfo.current_period_end).toLocaleDateString("fr-FR")}
                   </p>
                 )}
                 {subInfo?.source !== "promo" && subInfo?.current_period_end && subInfo.plan !== "free" && (
@@ -295,10 +295,11 @@ export default function SettingsPage() {
                   <>
                     <Button size="sm" className="rounded-full" onClick={handleCheckoutOutil} disabled={portalLoading}>
                       {portalLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                      💎 Passer au plan Premium (39€/mois)
+                      <Gem className="h-4 w-4" strokeWidth={1.75} />
+                      Passer au plan Premium (39€/mois)
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/binome">🤝 Découvrir l'accompagnement</Link>
+                      <Link to="/binome"><Handshake className="h-4 w-4" strokeWidth={1.75} />Découvrir l'accompagnement</Link>
                     </Button>
                   </>
                 )}
@@ -309,13 +310,14 @@ export default function SettingsPage() {
                       Gérer mon abonnement
                     </Button>
                     <Button size="sm" variant="outline" className="rounded-full" asChild>
-                      <Link to="/binome">🤝 Découvrir l'accompagnement</Link>
+                      <Link to="/binome"><Handshake className="h-4 w-4" strokeWidth={1.75} />Découvrir l'accompagnement</Link>
                     </Button>
                   </>
                 )}
                 {subInfo?.source === "promo" && (
                   <Button size="sm" className="rounded-full" onClick={handleCheckoutOutil} disabled={portalLoading}>
-                    💎 S'abonner pour garder l'accès
+                    <Gem className="h-4 w-4" strokeWidth={1.75} />
+                    S'abonner pour garder l'accès
                   </Button>
                 )}
                 {subInfo?.plan === "binome" && (
@@ -327,7 +329,7 @@ export default function SettingsPage() {
               </div>
 
               <Link to="/pricing" className="flex items-center gap-1 text-xs text-primary font-medium hover:underline">
-                📋 Voir tous les plans <ArrowRight className="h-3 w-3" />
+                <ClipboardList className="h-3.5 w-3.5" strokeWidth={1.75} /> Voir tous les plans <ArrowRight className="h-3 w-3" />
               </Link>
 
               {/* Promo code */}
@@ -717,14 +719,14 @@ const WEEKDAYS = [
   { value: 7, label: "Dimanche" },
 ];
 
-const QUOTA_CATEGORIES = [
-  { key: "content", emoji: "📝", label: "Contenus" },
-  { key: "audit", emoji: "🔍", label: "Audits" },
-  { key: "dm_comment", emoji: "📩", label: "DM / Commentaires" },
-  { key: "bio_profile", emoji: "👤", label: "Bio / Profil" },
-  { key: "suggestion", emoji: "💡", label: "Suggestions" },
-  { key: "import", emoji: "📄", label: "Imports" },
-  { key: "adaptation", emoji: "🔄", label: "Adaptations" },
+const QUOTA_CATEGORIES: { key: string; icon: LucideIcon; label: string }[] = [
+  { key: "content", icon: FileText, label: "Contenus" },
+  { key: "audit", icon: Search, label: "Audits" },
+  { key: "dm_comment", icon: Mail, label: "DM / Commentaires" },
+  { key: "bio_profile", icon: User, label: "Bio / Profil" },
+  { key: "suggestion", icon: Lightbulb, label: "Suggestions" },
+  { key: "import", icon: FileUp, label: "Imports" },
+  { key: "adaptation", icon: RefreshCw, label: "Adaptations" },
 ];
 
 function AiQuotaDisplay() {
@@ -738,14 +740,14 @@ function AiQuotaDisplay() {
     <div className="space-y-4">
       <p className="text-sm font-medium">Plan : <span className="text-primary font-semibold">{planLabel}</span></p>
       <div className="space-y-3">
-        {QUOTA_CATEGORIES.map(({ key, emoji, label }) => {
+        {QUOTA_CATEGORIES.map(({ key, icon: Icon, label }) => {
           const cat = usage[key];
           if (!cat || cat.limit === 0) return null;
           const pct = Math.round((cat.used / cat.limit) * 100);
           return (
             <div key={key} className="space-y-1">
               <div className="flex justify-between text-sm">
-                <span>{emoji} {label}</span>
+                <span className="flex items-center gap-1.5"><Icon className="h-4 w-4 text-primary" strokeWidth={1.75} />{label}</span>
                 <span className="text-muted-foreground">{cat.used}/{cat.limit} <span className="text-xs">({pct}%)</span></span>
               </div>
               <Progress value={pct} className="h-2" />
@@ -762,7 +764,7 @@ function AiQuotaDisplay() {
       <p className="text-xs text-muted-foreground">Renouvellement : {nextMonth.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</p>
       {!isPaid && (
         <Link to="/pricing" className="inline-flex items-center gap-1 text-sm text-primary font-medium hover:underline">
-          ⬆️ Voir les plans pour plus de crédits <ArrowRight className="h-3 w-3" />
+          Voir les plans pour plus de crédits <ArrowRight className="h-3 w-3" />
         </Link>
       )}
     </div>

@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
-import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle, Upload, Camera, Loader2, Link as LinkIcon, Palette, ChevronDown, Sparkles } from "lucide-react";
+import { RotateCcw, ArrowRight, ArrowLeft, Eye, HelpCircle, Upload, Camera, Loader2, Link as LinkIcon, Palette, ChevronDown, Sparkles, Search, FileText, CheckCircle2, AlertTriangle, Lightbulb, Ruler, Home, User, Gift, PenLine, MousePointerClick, Shield, Map as MapIcon, Pin, type LucideIcon } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import SiteAuditResult from "@/components/site/SiteAuditResult";
 import SiteAuditAutoResult, { type AutoAuditResult } from "@/components/site/SiteAuditAutoResult";
@@ -397,7 +397,7 @@ const SiteAuditPage = () => {
         {step === "input" && (
           <>
             <div className="space-y-2 text-center">
-              <h1 className="text-2xl font-bold font-display">🔍 Audit de ton site</h1>
+              <h1 className="text-2xl font-bold font-display flex items-center justify-center gap-2"><Search className="h-5 w-5 text-primary" strokeWidth={1.75} /> Audit de ton site</h1>
               <p className="text-muted-foreground max-w-lg mx-auto">
                 Colle ton URL, l'IA fait le reste. En 30 secondes, tu sais exactement ce qui freine tes visiteuses.
               </p>
@@ -410,8 +410,8 @@ const SiteAuditPage = () => {
             {/* Existing audit banners */}
             {hasAutoAudit && (
               <div className="rounded-2xl border border-primary bg-rose-pale p-5 space-y-3">
-                <p className="font-body text-sm font-bold text-foreground">
-                  ✅ Tu as un audit précédent (score : {existing?.score_global}/100)
+                <p className="flex items-center gap-1.5 font-body text-sm font-bold text-foreground">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-success" strokeWidth={1.75} /> Tu as un audit précédent (score : {existing?.score_global}/100)
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button size="sm" onClick={() => setStep("auto-results")} className="gap-2 rounded-pill">
@@ -426,8 +426,8 @@ const SiteAuditPage = () => {
 
             {hasOldAudit && !hasAutoAudit && (
               <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                <p className="font-body text-sm font-bold text-foreground">
-                  📝 Tu as un audit précédent ({existing?.audit_mode === "global" ? "mode global" : "page par page"}).
+                <p className="flex items-center gap-1.5 font-body text-sm font-bold text-foreground">
+                  <FileText className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} /> Tu as un audit précédent ({existing?.audit_mode === "global" ? "mode global" : "page par page"}).
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button variant="outline" size="sm" onClick={() => setStep("old-results")} className="gap-2 rounded-pill">
@@ -455,15 +455,18 @@ const SiteAuditPage = () => {
               </div>
 
               {/* Découverte automatique des pages secondaires (côté serveur) */}
-              <p className="rounded-xl bg-muted/50 border border-border p-3 text-xs text-muted-foreground">
-                🗺️ On lit le plan de ton site pour trouver tes pages importantes toutes seules
-                (à propos, offres, contact…). Pas besoin de les indiquer.
+              <p className="rounded-xl bg-muted/50 border border-border p-3 text-xs text-muted-foreground flex items-start gap-2">
+                <MapIcon className="h-4 w-4 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <span>
+                  On lit le plan de ton site pour trouver tes pages importantes toutes seules
+                  (à propos, offres, contact…). Pas besoin de les indiquer.
+                </span>
               </p>
 
               <Collapsible open={showExtraPages} onOpenChange={setShowExtraPages}>
                 <CollapsibleTrigger className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer">
                   <ChevronDown className={`h-4 w-4 transition-transform ${showExtraPages ? "rotate-180" : ""}`} />
-                  📄 Ajouter une page précise (optionnel)
+                  <FileText className="h-4 w-4" strokeWidth={1.75} /> Ajouter une page précise (optionnel)
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-3">
                   <div className="space-y-1">
@@ -557,7 +560,7 @@ const SiteAuditPage = () => {
               <Button variant="outline" size="sm" onClick={() => { setStep("input"); setScreenshotResult(null); setScreenshotFile(null); setScreenshotPreview(null); }} className="gap-2 rounded-pill">
                 <ArrowLeft className="h-4 w-4" /> Retour
               </Button>
-              <h2 className="font-display text-lg font-bold text-foreground">📸 Audit visuel par screenshot</h2>
+              <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2"><Camera className="h-5 w-5 text-primary" strokeWidth={1.75} /> Audit visuel par screenshot</h2>
             </div>
 
             {!screenshotResult && (
@@ -590,9 +593,9 @@ const SiteAuditPage = () => {
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">Type de page</Label>
                   <div className="flex flex-wrap gap-2">
-                    {[{ id: "accueil", label: "🏠 Accueil" }, { id: "a-propos", label: "👋 À propos" }, { id: "offres", label: "🎁 Offres" }, { id: "autre", label: "📄 Autre" }].map((pt) => (
-                      <button key={pt.id} onClick={() => setScreenshotPageType(pt.id)} className={`text-xs font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${screenshotPageType === pt.id ? "border-primary bg-rose-pale text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/50"}`}>
-                        {pt.label}
+                    {([{ id: "accueil", label: "Accueil", icon: Home }, { id: "a-propos", label: "À propos", icon: User }, { id: "offres", label: "Offres", icon: Gift }, { id: "autre", label: "Autre", icon: FileText }] as { id: string; label: string; icon: LucideIcon }[]).map((pt) => (
+                      <button key={pt.id} onClick={() => setScreenshotPageType(pt.id)} className={`inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-pill border-2 transition-colors ${screenshotPageType === pt.id ? "border-primary bg-rose-pale text-primary" : "border-border bg-card text-muted-foreground hover:border-primary/50"}`}>
+                        <pt.icon className="h-3.5 w-3.5" strokeWidth={1.75} /> {pt.label}
                       </button>
                     ))}
                   </div>
@@ -638,7 +641,7 @@ const SiteAuditPage = () => {
 
                   {screenshotResult.points_forts?.length > 0 && (
                     <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                      <h3 className="font-body text-sm font-bold text-foreground">✅ Points forts</h3>
+                      <h3 className="font-body text-sm font-bold text-foreground flex items-center gap-1.5"><CheckCircle2 className="h-4 w-4 text-success" strokeWidth={1.75} /> Points forts</h3>
                       <ul className="space-y-2">
                         {screenshotResult.points_forts.map((p: string, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-foreground">
@@ -652,21 +655,22 @@ const SiteAuditPage = () => {
 
                   {screenshotResult.problemes?.length > 0 && (
                     <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                      <h3 className="font-body text-sm font-bold text-foreground">⚠️ Problèmes identifiés</h3>
+                      <h3 className="font-body text-sm font-bold text-foreground flex items-center gap-1.5"><AlertTriangle className="h-4 w-4 text-warning" strokeWidth={1.75} /> Problèmes identifiés</h3>
                       <div className="space-y-2">
                         {screenshotResult.problemes.map((prob: any, i: number) => {
                           const impactColors: Record<string, string> = { fort: "bg-error-bg text-error", moyen: "bg-warning-bg text-warning", faible: "bg-success-bg text-success" };
-                          const catEmojis: Record<string, string> = { visuel: "🎨", copy: "✍️", cta: "👆", confiance: "🛡️", navigation: "🗺️" };
+                          const catIcons: Record<string, LucideIcon> = { visuel: Palette, copy: PenLine, cta: MousePointerClick, confiance: Shield, navigation: MapIcon };
+                          const CatIcon = catIcons[prob.categorie] || Pin;
                           return (
                             <button key={i} onClick={() => setExpandedProblem(expandedProblem === i ? null : i)} className="w-full text-left rounded-xl border border-border p-4 hover:border-primary/40 transition-all space-y-2">
                               <div className="flex items-start gap-2">
-                                <span className="shrink-0">{catEmojis[prob.categorie] || "📌"}</span>
+                                <CatIcon className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} />
                                 <p className="text-sm text-foreground flex-1">{prob.description}</p>
                                 <span className={`shrink-0 text-2xs font-semibold px-2 py-0.5 rounded-pill ${impactColors[prob.impact] || impactColors.moyen}`}>{prob.impact}</span>
                               </div>
                               {expandedProblem === i && (
                                 <div className="ml-6 mt-2 p-3 rounded-lg bg-muted/50 border border-border">
-                                  <p className="text-xs font-bold text-foreground mb-1">💡 Suggestion</p>
+                                  <p className="flex items-center gap-1 text-xs font-bold text-foreground mb-1"><Lightbulb className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} /> Suggestion</p>
                                   <p className="text-xs text-muted-foreground">{prob.suggestion}</p>
                                 </div>
                               )}
@@ -679,7 +683,7 @@ const SiteAuditPage = () => {
 
                   {screenshotResult.suggestions_layout?.length > 0 && (
                     <div className="rounded-2xl border border-border bg-card p-5 space-y-3">
-                      <h3 className="font-body text-sm font-bold text-foreground">📐 Suggestions de mise en page</h3>
+                      <h3 className="font-body text-sm font-bold text-foreground flex items-center gap-1.5"><Ruler className="h-4 w-4 text-primary" strokeWidth={1.75} /> Suggestions de mise en page</h3>
                       <ul className="space-y-2">
                         {screenshotResult.suggestions_layout.map((s: string, i: number) => (
                           <li key={i} className="flex items-start gap-2 text-sm text-foreground">
@@ -696,7 +700,7 @@ const SiteAuditPage = () => {
                       <RotateCcw className="h-4 w-4" /> Refaire avec un autre screenshot
                     </Button>
                     <Button variant="ghost" size="sm" className="gap-2 rounded-pill" asChild>
-                      <Link to="/site/inspirations"><Palette className="h-4 w-4" /> 🎨 Voir des inspirations</Link>
+                      <Link to="/site/inspirations"><Palette className="h-4 w-4" /> Voir des inspirations</Link>
                     </Button>
                   </div>
                 </div>

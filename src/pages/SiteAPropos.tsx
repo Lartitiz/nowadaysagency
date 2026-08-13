@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench, Lightbulb } from "lucide-react";
+import { Loader2, Copy, RefreshCw, FileText, Pencil, Check, ArrowRight, Sparkles, Wrench, Lightbulb, BookOpen, MessageCircle, Mail, Flag, Route, Target, Crown, Heart, MousePointerClick, type LucideIcon } from "lucide-react";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -35,10 +35,10 @@ interface AboutData {
   custom_facts?: { label: string; value: string }[];
 }
 
-const ANGLES = [
-  { id: "lettre", emoji: "💌", label: "La lettre ouverte", desc: "Ton intimiste, comme si tu écrivais à ta future cliente." },
-  { id: "manifeste", emoji: "✊", label: "Le manifeste", desc: "Ton engagé, tes convictions d'abord." },
-  { id: "parcours", emoji: "🛤️", label: "Le parcours", desc: "Ton narratif, chronologique, ton histoire." },
+const ANGLES: { id: string; icon: LucideIcon; label: string; desc: string }[] = [
+  { id: "lettre", icon: Mail, label: "La lettre ouverte", desc: "Ton intimiste, comme si tu écrivais à ta future cliente." },
+  { id: "manifeste", icon: Flag, label: "Le manifeste", desc: "Ton engagé, tes convictions d'abord." },
+  { id: "parcours", icon: Route, label: "Le parcours", desc: "Ton narratif, chronologique, ton histoire." },
 ];
 
 const FOCUS_CHIPS = ["Mon histoire", "L'accroche", "Le ton", "La structure", "Tout"];
@@ -272,7 +272,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <div className="mb-6"><BrandingStatusBanner /></div>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">📖 Ma page À propos</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" strokeWidth={1.75} /> Ma page À propos</h1>
           <p className="text-base text-muted-foreground mb-8">
             Raconte ton histoire pour créer du lien. L'IA t'aide à trouver les mots.
           </p>
@@ -288,7 +288,7 @@ export default function SiteAPropos() {
                   <Sparkles className="h-6 w-6" />
                 </span>
                 <div className="flex-1">
-                  <p className="font-body text-base font-bold text-foreground">✨ Rédiger ma page de zéro</p>
+                  <p className="font-body text-base font-bold text-foreground">Rédiger ma page de zéro</p>
                   <p className="text-sm text-muted-foreground mt-1">Tu n'as pas encore de page À propos ? On la crée ensemble.</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
@@ -305,7 +305,7 @@ export default function SiteAPropos() {
                   <Wrench className="h-6 w-6" />
                 </span>
                 <div className="flex-1">
-                  <p className="font-body text-base font-bold text-foreground">🔧 Améliorer ma page existante</p>
+                  <p className="font-body text-base font-bold text-foreground">Améliorer ma page existante</p>
                   <p className="text-sm text-muted-foreground mt-1">Tu as déjà une page ? Colle ton URL ou ton texte, l'IA l'améliore.</p>
                 </div>
                 <ArrowRight className="h-5 w-5 text-muted-foreground mt-1 group-hover:text-primary transition-colors" />
@@ -314,8 +314,8 @@ export default function SiteAPropos() {
           </div>
 
           {data?.title && (
-            <button onClick={() => setMode("display")} className="mt-6 text-sm text-primary hover:underline">
-              📄 Voir ma page À propos actuelle →
+            <button onClick={() => setMode("display")} className="mt-6 inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
+              <FileText className="h-4 w-4" strokeWidth={1.75} /> Voir ma page À propos actuelle →
             </button>
           )}
         </main>
@@ -331,7 +331,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-2xl font-bold text-foreground mb-2">💬 On cadre ta page ensemble</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground mb-2 flex items-center gap-2"><MessageCircle className="h-5 w-5 text-primary" strokeWidth={1.75} /> On cadre ta page ensemble</h1>
           <p className="text-base text-muted-foreground mb-6">
             Quelques questions rapides pour que l'IA rédige une page qui te ressemble vraiment.
           </p>
@@ -357,7 +357,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">✨ Rédiger ma page de zéro</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" strokeWidth={1.75} /> Rédiger ma page de zéro</h1>
           <p className="text-base text-muted-foreground mb-4">
             L'IA rédige ta page à propos à partir de ton branding. Choisis un angle.
           </p>
@@ -386,7 +386,7 @@ export default function SiteAPropos() {
                 }`}
               >
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">{a.emoji}</span>
+                  <a.icon className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.75} />
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <p className="font-body text-base font-bold text-foreground">{a.label}</p>
@@ -420,7 +420,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2">🔧 Améliorer ma page existante</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground mb-2 flex items-center gap-2"><Wrench className="h-5 w-5 text-primary" strokeWidth={1.75} /> Améliorer ma page existante</h1>
           <p className="text-base text-muted-foreground mb-6">
             Colle ton URL ou ton texte, l'IA l'analyse et te propose une version améliorée.
           </p>
@@ -467,7 +467,7 @@ export default function SiteAPropos() {
             )}
 
             <Button onClick={handleOptimize} disabled={inputMode === "url" ? !optimizeUrl.trim() : !optimizeText.trim()} className="w-full sm:w-auto rounded-pill gap-2">
-              ✨ Analyser et améliorer
+              <Sparkles className="h-4 w-4" strokeWidth={1.75} /> Analyser et améliorer
             </Button>
             <p className="text-xs text-muted-foreground">~30 secondes · L'IA analyse ta page et propose des améliorations</p>
           </div>
@@ -496,7 +496,7 @@ export default function SiteAPropos() {
         <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4">
           <SubPageHeader parentLabel="Mon Site Web" parentTo="/site" currentLabel="Page à propos" />
           <button onClick={() => setMode("entry")} className="text-sm text-primary hover:underline mb-4 inline-block">← Retour</button>
-          <h1 className="font-display text-2xl font-bold text-foreground mb-6">🔧 Résultats de l'optimisation</h1>
+          <h1 className="font-display text-2xl font-bold text-foreground mb-6 flex items-center gap-2"><Wrench className="h-5 w-5 text-primary" strokeWidth={1.75} /> Résultats de l'optimisation</h1>
           <AboutOptimizeResult result={optimizeResult} originalText={originalText} onRetry={() => setMode("optimize-input")} userId={profileUserId} />
           <div className="mt-6">
             <RedFlagsChecker
@@ -551,14 +551,14 @@ export default function SiteAPropos() {
           />
 
           <div ref={recapRef} className="bg-white rounded-2xl border border-[hsl(var(--border))] p-8 max-md:p-5">
-            <SectionBlock label="🎯 Titre d'accroche" text={data.title || ""} field="title" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
-            <SectionBlock label="👑 Mon histoire" text={data.story || ""} field="story" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+            <SectionBlock icon={Target} label="Titre d'accroche" text={data.title || ""} field="title" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+            <SectionBlock icon={Crown} label="Mon histoire" text={data.story || ""} field="story" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
 
             {data.values_blocks && data.values_blocks.length > 0 && (
               <div className="mb-8">
                 <div className="flex items-center justify-between mb-3">
-                  <p style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
-                    ❤️ Mes valeurs
+                  <p style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", display: "flex", alignItems: "center", gap: 6 }}>
+                    <Heart className="h-3.5 w-3.5" strokeWidth={1.75} /> Mes valeurs
                   </p>
                   <button onClick={() => copyText(data.values_blocks!.map(v => `${v.title}\n${v.description}`).join("\n\n"))}
                     className="text-xs font-semibold hover:opacity-70" style={{ color: "#fb3d80" }}>
@@ -576,9 +576,9 @@ export default function SiteAPropos() {
               </div>
             )}
 
-            <SectionBlock label="🛠️ Mon approche" text={data.approach || ""} field="approach" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
-            <SectionBlock label="🎯 Pour qui" text={data.for_whom || ""} field="for_whom" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
-            <SectionBlock label="🔘 CTA" text={data.cta || ""} field="cta" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} isLast />
+            <SectionBlock icon={Wrench} label="Mon approche" text={data.approach || ""} field="approach" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+            <SectionBlock icon={Target} label="Pour qui" text={data.for_whom || ""} field="for_whom" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} />
+            <SectionBlock icon={MousePointerClick} label="CTA" text={data.cta || ""} field="cta" editing={editingField} editValue={editValue} onEdit={startEdit} onSave={saveEdit} onEditChange={setEditValue} onCopy={copyText} isLast />
 
             <p style={{ textAlign: "center", fontSize: 11, color: "#D1D5DB", marginTop: 32 }}>
               L'Assistant Com' × Nowadays Agency
@@ -601,9 +601,9 @@ export default function SiteAPropos() {
 }
 
 function SectionBlock({
-  label, text, field, editing, editValue, onEdit, onSave, onEditChange, onCopy, isLast = false,
+  label, icon: Icon, text, field, editing, editValue, onEdit, onSave, onEditChange, onCopy, isLast = false,
 }: {
-  label: string; text: string; field: string;
+  label: string; icon?: LucideIcon; text: string; field: string;
   editing: string | null; editValue: string;
   onEdit: (field: string, val: string) => void;
   onSave: (field: string) => void;
@@ -615,8 +615,8 @@ function SectionBlock({
   return (
     <div className={isLast ? "" : "mb-8"}>
       <div className="flex items-center justify-between mb-2">
-        <p style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B" }}>
-          {label}
+        <p style={{ fontFamily: "'Hanken Grotesk', sans-serif", fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: 1, color: "#6B5E7B", display: "flex", alignItems: "center", gap: 6 }}>
+          {Icon && <Icon className="h-3.5 w-3.5" strokeWidth={1.75} />}{label}
         </p>
         <div className="flex items-center gap-2">
           <button onClick={() => onCopy(text)} className="text-xs font-semibold hover:opacity-70" style={{ color: "#fb3d80" }}>

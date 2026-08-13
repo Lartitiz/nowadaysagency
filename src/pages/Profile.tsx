@@ -10,7 +10,7 @@ import { PageLoader } from "@/components/ui/spinner";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight, Info, Target, Palette, Clock, BarChart3, TrendingUp, Link2, Smartphone, Sprout, Gift, FolderOpen, Egg, Bird, Rocket, Hourglass, Check, type LucideIcon } from "lucide-react";
 import SaveButton from "@/components/SaveButton";
 import { Button } from "@/components/ui/button";
 import { useUnsavedChanges } from "@/hooks/use-unsaved-changes";
@@ -37,17 +37,17 @@ const ONBOARDING_TYPE_TO_FAMILY: Record<string, string> = {
 const activityFamily = (t: string) => ONBOARDING_TYPE_TO_FAMILY[t] || t;
 
 const GOAL_OPTIONS = [
-  { key: "start", emoji: "🌱", label: "Poser les bases" },
-  { key: "visibility", emoji: "📱", label: "Être visible" },
-  { key: "launch", emoji: "🎁", label: "Lancer une offre" },
-  { key: "clients", emoji: "🎯", label: "Trouver des client·es" },
-  { key: "structure", emoji: "🗂️", label: "Structurer" },
+  { key: "start", icon: Sprout, label: "Poser les bases" },
+  { key: "visibility", icon: Smartphone, label: "Être visible" },
+  { key: "launch", icon: Gift, label: "Lancer une offre" },
+  { key: "clients", icon: Target, label: "Trouver des client·es" },
+  { key: "structure", icon: FolderOpen, label: "Structurer" },
 ];
 
 const LEVEL_OPTIONS = [
-  { key: "beginner", emoji: "🐣", label: "Je démarre" },
-  { key: "intermediate", emoji: "🐥", label: "Je poste au feeling" },
-  { key: "advanced", emoji: "🦅", label: "J'ai déjà une stratégie" },
+  { key: "beginner", icon: Egg, label: "Je démarre" },
+  { key: "intermediate", icon: Bird, label: "Je poste au feeling" },
+  { key: "advanced", icon: Rocket, label: "J'ai déjà une stratégie" },
 ];
 
 const TIME_OPTIONS = [
@@ -77,7 +77,7 @@ interface ProfileData {
 }
 
 function ChipSelector({ options, value, onChange, multi = false }: {
-  options: { key: string; emoji?: string; label: string }[];
+  options: { key: string; icon?: LucideIcon; label: string }[];
   value: string | string[];
   onChange: (v: any) => void;
   multi?: boolean;
@@ -99,13 +99,13 @@ function ChipSelector({ options, value, onChange, multi = false }: {
                 onChange(opt.key);
               }
             }}
-            className={`px-3.5 py-2 rounded-xl text-sm font-medium border transition-all ${
+            className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-sm font-medium border transition-all ${
               isActive
                 ? "bg-primary text-primary-foreground border-primary"
                 : "bg-card text-foreground border-border hover:border-primary/40"
             }`}
           >
-            {opt.emoji ? `${opt.emoji} ` : ""}{opt.label}
+            {opt.icon && <opt.icon className="h-4 w-4" strokeWidth={1.75} />}{opt.label}
           </button>
         );
       })}
@@ -317,7 +317,7 @@ export default function Profile() {
           className="flex items-center justify-between rounded-2xl bg-rose-pale border border-border p-4 mb-6 group hover:border-primary/40 transition-colors"
         >
           <div>
-            <p className="text-sm font-semibold text-foreground">🎨 Module Branding</p>
+            <p className="text-sm font-semibold text-foreground flex items-center gap-1.5"><Palette className="h-4 w-4 text-primary" strokeWidth={1.75} />Module Branding</p>
             <p className="text-xs text-muted-foreground mt-0.5">Mission, cible détaillée, ton, positionnement, verbatims...</p>
           </div>
           <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
@@ -378,24 +378,24 @@ export default function Profile() {
         {/* New section: Objective, Level, Time */}
         <div className="rounded-2xl bg-card p-6 border border-border space-y-5 mt-6">
           <div>
-            <label className="text-sm font-medium mb-2 block">🎯 Mon objectif principal</label>
+            <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Target className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon objectif principal</label>
             <ChipSelector options={GOAL_OPTIONS} value={current.mainGoal} onChange={(v: string) => update("mainGoal", v)} />
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">🐣 Mon niveau en com'</label>
+            <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><TrendingUp className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon niveau en com'</label>
             <ChipSelector options={LEVEL_OPTIONS} value={current.level} onChange={(v: string) => update("level", v)} />
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">⏰ Mon temps dispo par semaine</label>
+            <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Clock className="h-4 w-4 text-primary" strokeWidth={1.75} />Mon temps dispo par semaine</label>
             <ChipSelector options={TIME_OPTIONS} value={current.weeklyTime} onChange={(v: string) => update("weeklyTime", v)} />
           </div>
         </div>
 
         {/* Frequency */}
         <div className="rounded-2xl bg-card p-6 border border-border space-y-5 mt-6">
-          <label className="text-sm font-medium mb-1 block">📊 Ma fréquence souhaitée</label>
+          <label className="text-sm font-medium mb-1 flex items-center gap-1.5"><BarChart3 className="h-4 w-4 text-primary" strokeWidth={1.75} />Ma fréquence souhaitée</label>
           <FrequencySelector
             label="Posts Instagram par semaine"
             value={current.postsPerWeek}
@@ -418,7 +418,7 @@ export default function Profile() {
 
         {/* Links */}
         <div className="rounded-2xl bg-card p-6 border border-border space-y-4 mt-6">
-          <label className="text-sm font-medium mb-1 block">🔗 Mes liens</label>
+          <label className="text-sm font-medium mb-1 flex items-center gap-1.5"><Link2 className="h-4 w-4 text-primary" strokeWidth={1.75} />Mes liens</label>
           <div>
             <label htmlFor="profile-website" className="text-xs text-muted-foreground mb-1 block">Site web</label>
             <Input id="profile-website" value={current.websiteUrl} onChange={(e) => update("websiteUrl", e.target.value)} className="rounded-[10px] h-11" placeholder="https://monsite.com" />
@@ -475,7 +475,7 @@ function ChannelSelector() {
 
   return (
     <div className="pt-2">
-      <label className="text-sm font-medium mb-2 block">📱 Mes canaux de communication</label>
+      <label className="text-sm font-medium mb-2 flex items-center gap-1.5"><Smartphone className="h-4 w-4 text-primary" strokeWidth={1.75} />Mes canaux de communication</label>
       <p className="text-xs text-muted-foreground mb-3">
         Sélectionne les canaux que tu utilises ou que tu veux développer. L'outil s'adapte.
       </p>
@@ -495,10 +495,10 @@ function ChannelSelector() {
               <span className="text-lg">{ch.emoji}</span>
               <span className="flex-1">{ch.label}</span>
               {ch.comingSoon && (
-                <span className="text-2xs font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">🔜</span>
+                <span className="text-2xs font-bold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full"><Hourglass className="h-3 w-3" strokeWidth={1.75} /></span>
               )}
               <span className={`text-xs font-semibold ${active ? "text-primary" : "text-muted-foreground"}`}>
-                {active ? "✅" : ""}
+                {active ? <Check className="h-4 w-4" strokeWidth={1.75} /> : ""}
               </span>
             </button>
           );

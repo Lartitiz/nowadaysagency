@@ -7,7 +7,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { Loader2, ChevronDown, ChevronUp, ArrowRight, RefreshCw, ExternalLink, Check, MessageCircle, Square, CheckSquare } from "lucide-react";
+import { Loader2, ChevronDown, ChevronUp, ArrowRight, RefreshCw, ExternalLink, Check, MessageCircle, Square, CheckSquare, Target, User, Gift, BookOpen, Palette, Link2, FileText, ClipboardList, CheckCircle2, AlertTriangle, PenLine, Camera, Star, Pin, type LucideIcon } from "lucide-react";
 import AuditCoachingPanel from "@/components/audit/AuditCoachingPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -42,15 +42,15 @@ interface AuditRec {
 }
 
 /* ─── Pillar metadata ─── */
-const PILLAR_META: Record<string, { emoji: string; label: string; coachingModule: string; actionLabel: string; hasCoaching: boolean }> = {
-  positionnement: { emoji: "🎯", label: "Positionnement", coachingModule: "branding", actionLabel: "Clarifier mon positionnement", hasCoaching: true },
-  cible: { emoji: "👤", label: "Cible", coachingModule: "persona", actionLabel: "Retravailler ma cible", hasCoaching: true },
-  ton_voix: { emoji: "🗣️", label: "Ton / Voix", coachingModule: "tone", actionLabel: "Définir mon ton", hasCoaching: true },
-  offres: { emoji: "🎁", label: "Offres", coachingModule: "offers", actionLabel: "Reformuler mes offres", hasCoaching: true },
-  storytelling: { emoji: "📖", label: "Storytelling", coachingModule: "story", actionLabel: "Écrire mon histoire", hasCoaching: true },
-  identite_visuelle: { emoji: "🎨", label: "Identité visuelle", coachingModule: "branding", actionLabel: "Travailler mon identité", hasCoaching: false },
-  coherence_cross_canal: { emoji: "🔗", label: "Cohérence canaux", coachingModule: "branding", actionLabel: "Unifier ma communication", hasCoaching: false },
-  contenu: { emoji: "📝", label: "Contenu", coachingModule: "editorial", actionLabel: "Créer une ligne éditoriale", hasCoaching: true },
+const PILLAR_META: Record<string, { emoji: string; icon: LucideIcon; label: string; coachingModule: string; actionLabel: string; hasCoaching: boolean }> = {
+  positionnement: { emoji: "🎯", icon: Target, label: "Positionnement", coachingModule: "branding", actionLabel: "Clarifier mon positionnement", hasCoaching: true },
+  cible: { emoji: "👤", icon: User, label: "Cible", coachingModule: "persona", actionLabel: "Retravailler ma cible", hasCoaching: true },
+  ton_voix: { emoji: "🗣️", icon: MessageCircle, label: "Ton / Voix", coachingModule: "tone", actionLabel: "Définir mon ton", hasCoaching: true },
+  offres: { emoji: "🎁", icon: Gift, label: "Offres", coachingModule: "offers", actionLabel: "Reformuler mes offres", hasCoaching: true },
+  storytelling: { emoji: "📖", icon: BookOpen, label: "Storytelling", coachingModule: "story", actionLabel: "Écrire mon histoire", hasCoaching: true },
+  identite_visuelle: { emoji: "🎨", icon: Palette, label: "Identité visuelle", coachingModule: "branding", actionLabel: "Travailler mon identité", hasCoaching: false },
+  coherence_cross_canal: { emoji: "🔗", icon: Link2, label: "Cohérence canaux", coachingModule: "branding", actionLabel: "Unifier ma communication", hasCoaching: false },
+  contenu: { emoji: "📝", icon: FileText, label: "Contenu", coachingModule: "editorial", actionLabel: "Créer une ligne éditoriale", hasCoaching: true },
 };
 
 /* ─── Module → fallback route ─── */
@@ -302,7 +302,7 @@ export default function BrandingAuditResultPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="container max-w-2xl mx-auto px-4 py-6 pb-24">
-        <SubPageHeader currentLabel="🔍 Résultats de l'audit" parentLabel="Mon identité" parentTo="/branding" />
+        <SubPageHeader currentLabel="Résultats de l'audit" parentLabel="Mon identité" parentTo="/branding" />
 
         {auditDate && (
           <p className="text-xs text-muted-foreground mb-6">Audit réalisé le {auditDate}</p>
@@ -341,7 +341,7 @@ export default function BrandingAuditResultPage() {
               <div className="space-y-2">
                 {result.points_forts.map((p, i) => (
                   <div key={i} className="rounded-xl border border-success/30 bg-success-bg p-4">
-                    <p className="text-sm font-medium text-foreground">✅ {asText(p.titre)}</p>
+                    <p className="text-sm font-medium text-foreground flex items-start gap-1.5"><CheckCircle2 className="h-4 w-4 text-success shrink-0 mt-0.5" strokeWidth={1.75} /><span>{asText(p.titre)}</span></p>
                     <p className="text-xs text-muted-foreground mt-1">{asText(p.detail)}</p>
                     <p className="text-2xs text-muted-foreground/70 mt-1">Source : {asText(p.source)}</p>
                   </div>
@@ -357,7 +357,7 @@ export default function BrandingAuditResultPage() {
               <div className="space-y-2">
                 {result.points_faibles.map((p, i) => (
                   <div key={i} className={`rounded-xl border p-4 ${p.priorite === "haute" ? "border-error/30 bg-error-bg" : "border-warning/30 bg-warning-bg"}`}>
-                    <p className="text-sm font-medium text-foreground">{p.priorite === "haute" ? "🔴" : "🟡"} {asText(p.titre)}</p>
+                    <p className="text-sm font-medium text-foreground flex items-start gap-1.5"><AlertTriangle className={`h-4 w-4 shrink-0 mt-0.5 ${p.priorite === "haute" ? "text-error" : "text-warning"}`} strokeWidth={1.75} /><span>{asText(p.titre)}</span></p>
                     <p className="text-xs text-muted-foreground mt-1">{asText(p.detail)}</p>
                     <p className="text-2xs text-muted-foreground/70 mt-1">Priorité : {asText(p.priorite)}</p>
                   </div>
@@ -372,7 +372,7 @@ export default function BrandingAuditResultPage() {
               <h3 className="font-body font-bold text-sm mb-3">Détail par pilier</h3>
               <div className="space-y-2">
                 {Object.entries(result.audit_detail).map(([key, pillar]) => {
-                  const meta = PILLAR_META[key] || { emoji: "📋", label: key, coachingModule: "branding", actionLabel: "Travailler ce pilier", hasCoaching: false };
+                  const meta = PILLAR_META[key] || { emoji: "📋", icon: ClipboardList, label: key, coachingModule: "branding", actionLabel: "Travailler ce pilier", hasCoaching: false };
                   const isExpanded = expandedPillar === key;
                   const completed = meta.hasCoaching && isModuleCompleted(meta.coachingModule);
                   const completedDate = completed ? getCompletedDate(meta.coachingModule) : null;
@@ -380,10 +380,10 @@ export default function BrandingAuditResultPage() {
                   return (
                     <div key={key} className={`rounded-xl border overflow-hidden ${completed ? "border-success/30 bg-success-bg/30" : "border-border bg-card"}`}>
                       <button className="w-full flex items-center gap-3 p-4 text-left" onClick={() => setExpandedPillar(isExpanded ? null : key)}>
-                        <span className="text-base">{meta.emoji}</span>
+                        <meta.icon className="h-5 w-5 text-primary shrink-0" strokeWidth={1.75} />
                         <span className="text-sm font-medium flex-1">
                           {meta.label}
-                          {completed && <span className="ml-1.5 text-success">✅</span>}
+                          {completed && <CheckCircle2 className="inline h-3.5 w-3.5 ml-1.5 text-success align-text-bottom" strokeWidth={1.75} />}
                         </span>
                         <span className={`text-xs font-mono ${STATUT_COLORS[pillar.statut] || "text-muted-foreground"}`}>
                           {pillar.score}/100 · {asText(pillar.statut)}
@@ -426,7 +426,7 @@ export default function BrandingAuditResultPage() {
                                 onClick={() => openCoaching(key, meta, pillar.recommandation || undefined)}
                               >
                                 <MessageCircle className="h-3.5 w-3.5 text-primary" />
-                                {meta.emoji} {meta.actionLabel}
+                                {meta.actionLabel}
                                 <ArrowRight className="h-3.5 w-3.5" />
                               </Button>
                             )
@@ -437,7 +437,8 @@ export default function BrandingAuditResultPage() {
                               className="w-full mt-2 gap-2 justify-center"
                               onClick={() => handleNavigate(MODULE_ROUTES[meta.coachingModule] || "/branding")}
                             >
-                              {meta.emoji} {meta.actionLabel}
+                              <meta.icon className="h-3.5 w-3.5 text-primary" strokeWidth={1.75} />
+                              {meta.actionLabel}
                               <ArrowRight className="h-3.5 w-3.5" />
                             </Button>
                           )}
@@ -599,12 +600,12 @@ export default function BrandingAuditResultPage() {
 
           {/* ─── Instagram Pillar Action Plan ─── */}
           {igScores && (() => {
-            const PILLAR_ACTIONS: Record<string, { label: string; coaching_module: string; route: string; emoji: string }> = {
-              score_bio: { label: "Optimiser ma bio", coaching_module: "bio", route: "/instagram/profil/bio", emoji: "✍️" },
-              score_feed: { label: "Harmoniser mon feed", coaching_module: "feed", route: "/creer", emoji: "📸" },
-              score_edito: { label: "Structurer ma ligne éditoriale", coaching_module: "editorial", route: "/branding/section?section=content_strategy", emoji: "🍒" },
-              score_stories: { label: "Structurer mes stories à la une", coaching_module: "alaune", route: "/instagram/profil/stories", emoji: "⭐" },
-              score_epingles: { label: "Choisir mes posts épinglés", coaching_module: "epingles", route: "/instagram/profil/epingles", emoji: "📌" },
+            const PILLAR_ACTIONS: Record<string, { label: string; coaching_module: string; route: string; emoji: string; icon: LucideIcon }> = {
+              score_bio: { label: "Optimiser ma bio", coaching_module: "bio", route: "/instagram/profil/bio", emoji: "✍️", icon: PenLine },
+              score_feed: { label: "Harmoniser mon feed", coaching_module: "feed", route: "/creer", emoji: "📸", icon: Camera },
+              score_edito: { label: "Structurer ma ligne éditoriale", coaching_module: "editorial", route: "/branding/section?section=content_strategy", emoji: "🍒", icon: FileText },
+              score_stories: { label: "Structurer mes stories à la une", coaching_module: "alaune", route: "/instagram/profil/stories", emoji: "⭐", icon: Star },
+              score_epingles: { label: "Choisir mes posts épinglés", coaching_module: "epingles", route: "/instagram/profil/epingles", emoji: "📌", icon: Pin },
             };
             const sorted = Object.entries(PILLAR_ACTIONS)
               .map(([key, action]) => ({ key, ...action, score: (igScores as any)[key] ?? 20 }))
@@ -613,14 +614,14 @@ export default function BrandingAuditResultPage() {
 
             return (
               <div>
-                <h3 className="font-body font-bold text-sm mb-3">📋 Ton plan d'action Instagram (par priorité)</h3>
+                <h3 className="font-body font-bold text-sm mb-3 flex items-center gap-1.5"><ClipboardList className="h-4 w-4 text-primary" strokeWidth={1.75} />Ton plan d'action Instagram (par priorité)</h3>
                 <div className="space-y-2">
                   {sorted.map((item, i) => (
                     <div key={item.key} className={`rounded-xl border p-4 flex items-center gap-3 ${i === 0 ? "border-primary/30 bg-[hsl(var(--rose-pale))]" : "border-border bg-card"}`}>
                       <span className="w-7 h-7 rounded-full bg-primary text-primary-foreground text-sm font-bold flex items-center justify-center shrink-0">{i + 1}</span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-foreground">{item.emoji} {item.label}</p>
+                          <p className="text-sm font-medium text-foreground flex items-center gap-1.5"><item.icon className="h-4 w-4 text-primary shrink-0" strokeWidth={1.75} />{item.label}</p>
                           {i === 0 && <span className="text-2xs bg-primary/10 text-primary px-2 py-0.5 rounded-pill font-semibold">Priorité #1</span>}
                         </div>
                         <p className="text-xs text-muted-foreground">{item.score}/20</p>
