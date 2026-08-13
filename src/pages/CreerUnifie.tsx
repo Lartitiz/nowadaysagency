@@ -717,6 +717,9 @@ export default function CreerUnifie() {
   // idée alors que l'init venait de lancer le parcours.
   const justStrippedRef = useRef(false);
   useEffect(() => {
+    // Conflit brouillon vs nouvelle demande : on ne touche à rien tant que
+    // l'utilisatrice n'a pas tranché (voir DraftConflictDialog).
+    if (conflictPending) return;
     if (justStrippedRef.current) {
       justStrippedRef.current = false;
       return;
