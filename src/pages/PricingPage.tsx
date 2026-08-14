@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
