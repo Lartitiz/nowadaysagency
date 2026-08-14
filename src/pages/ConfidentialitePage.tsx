@@ -58,7 +58,7 @@ export default function ConfidentialitePage() {
             <div className="text-muted-foreground mt-1 space-y-2">
               <p><span className="font-medium text-foreground/80">Exécution du contrat (article 6.1.b RGPD) :</span> te fournir le service, générer des contenus, sauvegarder ton travail, gérer ton abonnement.</p>
               <p><span className="font-medium text-foreground/80">Intérêt légitime (article 6.1.f RGPD) :</span> améliorer l'outil, corriger les bugs, assurer la sécurité du service.</p>
-              <p><span className="font-medium text-foreground/80">Consentement (article 6.1.a RGPD) :</span> analytics de navigation via PostHog : uniquement si tu acceptes le bandeau cookies.</p>
+              <p><span className="font-medium text-foreground/80">Consentement (article 6.1.a RGPD) :</span> analytics de navigation via PostHog, et mesure de l'effet de nos publicités via le pixel Meta (Facebook/Instagram) : uniquement si tu acceptes le bandeau cookies.</p>
             </div>
           </div>
 
@@ -68,6 +68,7 @@ export default function ConfidentialitePage() {
               <p><span className="font-medium text-foreground/80">Données de compte et contenus :</span> tant que ton compte est actif.</p>
               <p><span className="font-medium text-foreground/80">Après suppression de ton compte :</span> suppression définitive de toutes tes données sous 30 jours.</p>
               <p><span className="font-medium text-foreground/80">Logs de navigation (PostHog) :</span> 12 mois maximum.</p>
+              <p><span className="font-medium text-foreground/80">Pixel Meta :</span> selon la politique de conservation de Meta, hors de notre contrôle direct.</p>
               <p><span className="font-medium text-foreground/80">Logs d'erreur (Sentry) :</span> 90 jours.</p>
               <p><span className="font-medium text-foreground/80">Données de facturation (Stripe) :</span> conservées par Stripe selon leurs obligations légales.</p>
             </div>
@@ -82,8 +83,9 @@ export default function ConfidentialitePage() {
               <li><span className="font-medium text-foreground/80">Stripe</span> (paiements sécurisés)</li>
               <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : serveurs UE</li>
               <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs)</li>
+              <li><span className="font-medium text-foreground/80">Meta</span> (pixel publicitaire Facebook/Instagram) : uniquement avec ton consentement, pour mesurer l'effet de nos campagnes</li>
             </ul>
-            <p className="text-muted-foreground mt-2 font-medium">Aucune donnée n'est vendue. Aucune donnée n'est partagée à des fins publicitaires. Jamais.</p>
+            <p className="text-muted-foreground mt-2 font-medium">Aucune donnée n'est vendue. Avec ton consentement, certaines données de navigation sont partagées avec Meta pour mesurer l'effet de nos publicités — jamais sans ton accord, et jamais vendues à un tiers.</p>
           </div>
 
           <div>
@@ -119,6 +121,7 @@ export default function ConfidentialitePage() {
               <ul className="list-disc list-inside space-y-1">
                 <li><span className="font-medium text-foreground/80">Cookies strictement nécessaires</span> (session d'authentification) : pas besoin de consentement.</li>
                 <li><span className="font-medium text-foreground/80">PostHog</span> (analytics) : activé uniquement après ton consentement via le bandeau cookies.</li>
+                <li><span className="font-medium text-foreground/80">Pixel Meta</span> (Facebook/Instagram Ads) : activé uniquement après ton consentement, pour mesurer l'effet de nos publicités.</li>
                 <li><span className="font-medium text-foreground/80">Sentry</span> (monitoring d'erreurs de base) : intérêt légitime, pas de consentement requis. Les replays de session ne sont activés qu'avec ton consentement.</li>
               </ul>
               <p className="mt-1">Tu peux modifier ton choix à tout moment dans Paramètres &gt; Cookies et traceurs.</p>
