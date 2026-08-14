@@ -1,7 +1,7 @@
 /**
  * Packshot e-commerce (PR #401) — re-test live après déploiement
  *
- * Parcours : /photos → détail d'une photo prête → « Packshot e-commerce »
+ * Parcours : /photos → détail d'une photo prête → « Retoucher » → « Fond blanc pour ma boutique »
  * → « Générer le packshot » (1 crédit, appel Photoroom réel) → aperçu
  * → « Ajouter à ma bibliothèque » → nouvelle photo taguée packshot.
  *
@@ -39,20 +39,19 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
     .first()
     .click();
 
-  // Détail → bouton packshot. Depuis #424 (kind), il est direct pour une photo
-  // produit, ou replié sous « Actions produit… » pour les autres types.
-  const packshotBtn = page.getByRole("button", { name: /^Packshot e-commerce$/ });
-  const foldToggle = page.getByText("Actions produit…");
-  await expect(packshotBtn.or(foldToggle).first()).toBeVisible({ timeout: 10_000 });
-  if (await packshotBtn.isVisible().catch(() => false)) {
-    await packshotBtn.click();
-  } else {
-    await foldToggle.click();
-    await page.getByRole("button", { name: /Packshot quand même/i }).click();
+  // Détail → porte « Retoucher » → l'outil. Audit UX 14/08 : les 4 outils de
+  // retouche ne sont plus 4 boutons frères, ils vivent dans un seul menu. Pour
+  // une photo qui n'est pas classée « produit », l'outil est sous le repli.
+  await page.getByRole("button", { name: /^Retoucher$/ }).click();
+  const packshotBtn = page.getByRole("button", { name: /Fond blanc pour ma boutique/i });
+  if (!(await packshotBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
+    await page.getByText(/outils (prévus pour des photos de produit|produit)…/i).first().click();
   }
+  await expect(packshotBtn).toBeVisible({ timeout: 10_000 });
+  await packshotBtn.click();
 
   // Dialog packshot : source chargée puis génération
-  await expect(page.getByRole("heading", { name: /Packshot e-commerce/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Fond blanc pour ma boutique/i })).toBeVisible();
   const generate = page.getByRole("button", { name: /Générer le packshot/i });
   await expect(generate).toBeEnabled({ timeout: 20_000 });
   await page.screenshot({ path: path.join(SHOTS, "packshot-1-dialog.png") });

@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import { Camera, Check, Loader2, Plus, Trash2 } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
@@ -19,12 +19,18 @@ import {
 
 const MAX_DONE_SHOWN = 3;
 
-export function PhotoWishlistPanel() {
+interface PhotoWishlistPanelProps {
+  /** Replie le panneau derrière une ligne cliquable (bibliothèque : sous la grille). */
+  collapsible?: boolean;
+}
+
+export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelProps) {
   const { data: items = [], isLoading } = usePhotoWishlist();
   const { addMany, setDone, remove } = usePhotoWishlistMutations();
   const [newLabel, setNewLabel] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   const open = items.filter((i) => i.status === "open");
   const done = items
@@ -68,11 +74,46 @@ export function PhotoWishlistPanel() {
     }
   }
 
+  // Replié : une seule ligne cliquable qui dit combien il en reste. La liste
+  // ne s'ouvre que quand on prépare une séance photo.
+  if (collapsible && !expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        aria-expanded={false}
+        className="flex w-full items-center gap-2 rounded-2xl border border-warning/25 bg-warning-bg px-4 py-3 text-left transition-colors hover:border-warning/50"
+      >
+        <Camera className="h-4 w-4 shrink-0 text-warning" />
+        <span className="text-sm font-medium text-foreground">Photos à prendre</span>
+        <span className="text-xs text-muted-foreground">
+          {isLoading
+            ? "…"
+            : open.length === 0
+              ? "rien pour l'instant"
+              : `${open.length} en attente`}
+        </span>
+        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
+    );
+  }
+
   return (
     <div className="rounded-2xl border border-warning/25 bg-warning-bg p-4">
       <div className="flex items-center gap-2 mb-1">
         <Camera className="h-4 w-4 text-warning" />
         <h2 className="text-sm font-semibold text-foreground">Photos à prendre</h2>
+        {collapsible && (
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            aria-expanded
+            aria-label="Replier « Photos à prendre »"
+            className="ml-auto text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronUp className="h-4 w-4" />
+          </button>
+        )}
       </div>
       <p className="text-xs text-muted-foreground mb-3">
         Les photos que tes contenus réclament et qui n'existent pas encore.

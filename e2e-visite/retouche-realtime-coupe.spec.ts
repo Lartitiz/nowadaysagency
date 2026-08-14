@@ -1,5 +1,5 @@
 /**
- * « Modifier le fond » AVEC LE TEMPS RÉEL COUPÉ (garde directe du bug #618).
+ * « Changer le décor » AVEC LE TEMPS RÉEL COUPÉ (garde directe du bug #618).
  *
  * Le bug : après « Générer le nouveau fond », la grille restait figée sur
  * l'ancien fond jusqu'à sortir/revenir de /photos. La cause n'apparaît QUE
@@ -109,14 +109,15 @@ test("modifier le fond, temps réel coupé : la grille se met à jour sans reloa
   const thumb = page.locator('img[alt*="cover-test" i]').first();
   await expect(thumb).toBeVisible({ timeout: 45_000 });
 
-  // Détail → « Modifier le fond »
+  // Détail → « Retoucher » → « Changer le décor »
   await page
     .locator(".grid .group.relative")
     .filter({ has: page.locator('img[alt*="cover-test" i]') })
     .first()
     .click();
-  await page.getByRole("button", { name: /Modifier le fond/i }).click();
-  await expect(page.getByRole("heading", { name: /Modifier le fond de la photo/i })).toBeVisible({
+  await page.getByRole("button", { name: /^Retoucher$/ }).click();
+  await page.getByRole("button", { name: /Changer le décor/i }).click();
+  await expect(page.getByRole("heading", { name: /Changer le décor/i })).toBeVisible({
     timeout: 10_000,
   });
 

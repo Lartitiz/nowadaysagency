@@ -66,9 +66,9 @@ test.describe("sonde de réaction (< 2 s)", () => {
 
   // ── Geste 2 : ouverture d'une fenêtre depuis une carte (Photos) ───────────
   // Couvre la classe « je clique, une vue doit s'ouvrir ». Lecture seule, aucun
-  // crédit : on ouvre le détail d'une photo puis la fenêtre « Modifier le fond »
+  // crédit : on ouvre le détail d'une photo puis la fenêtre « Changer le décor »
   // (sans lancer de génération), et on referme. Deux réactions mesurées.
-  test("photos : clic → détail, puis « Modifier le fond » ouvre sa fenêtre", async ({ page }) => {
+  test("photos : clic → détail, puis « Changer le décor » ouvre sa fenêtre", async ({ page }) => {
     await page.goto("/photos", { waitUntil: "networkidle" });
     await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible({ timeout: 15_000 });
 
@@ -84,18 +84,19 @@ test.describe("sonde de réaction (< 2 s)", () => {
       .filter({ has: page.locator("img") })
       .first()
       .click();
-    const editBtn = page.getByRole("button", { name: /Modifier le fond/i });
+    const retoucherBtn = page.getByRole("button", { name: /^Retoucher$/ });
     await expect(
-      editBtn,
+      retoucherBtn,
       "Cliquer une photo doit ouvrir son détail sous 2 s",
     ).toBeVisible({ timeout: ACK_MS });
 
-    // Réaction B : « Modifier le fond » → sa fenêtre s'ouvre sous 2 s (aucune
-    // génération lancée : on se contente d'ouvrir puis fermer).
-    await editBtn.click();
+    // Réaction B : « Retoucher » → « Changer le décor » ouvre sa fenêtre sous
+    // 2 s (aucune génération lancée : on se contente d'ouvrir puis fermer).
+    await retoucherBtn.click();
+    await page.getByRole("button", { name: /Changer le décor/i }).click();
     await expect(
-      page.getByRole("heading", { name: /Modifier le fond de la photo/i }),
-      "« Modifier le fond » doit ouvrir sa fenêtre sous 2 s",
+      page.getByRole("heading", { name: /Changer le décor/i }),
+      "« Changer le décor » doit ouvrir sa fenêtre sous 2 s",
     ).toBeVisible({ timeout: ACK_MS });
     await page.screenshot({ path: path.join(SHOTS, "reaction-photo-dialog.png") });
 
