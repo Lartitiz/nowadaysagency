@@ -228,11 +228,16 @@ describe("ReelResult — montage vidéo : monté seulement à son étape", () =>
     expect(listReelVideos).not.toHaveBeenCalled();
   });
 
-  it("monte le panneau à l'arrivée sur l'étape, et là seulement les appels partent", async () => {
+  it("monte le panneau à l'arrivée sur l'étape, sans appel avant le choix du mode", async () => {
     render(<ReelResult result={baseResult} />);
     fireEvent.click(screen.getByText("Monter ma vidéo"));
-    // Le panneau est là (la mention honnête sur le son en fait partie)…
-    expect(await screen.findByText(/son de tes vidéos n'est pas encore conservé/)).toBeTruthy();
+    // La fourche à deux modes est là, mais rien n'est lancé tant qu'aucun
+    // mode n'est choisi (aucun des deux n'est un défaut).
+    expect(await screen.findByText("Je ne me montre pas")).toBeTruthy();
+    expect(suggestStockKeywords).not.toHaveBeenCalled();
+    // Mode "Je ne me montre pas" choisi : la mention honnête apparaît…
+    fireEvent.click(screen.getByText("Je ne me montre pas"));
+    expect(await screen.findByText(/son de tes vidéos n'est pas conservé dans ce mode/)).toBeTruthy();
     // …et la suggestion de clips démarre.
     await waitFor(() => expect(suggestStockKeywords).toHaveBeenCalledTimes(1));
   });
@@ -240,11 +245,14 @@ describe("ReelResult — montage vidéo : monté seulement à son étape", () =>
   it("garde le panneau vivant quand on repart voir la légende", async () => {
     render(<ReelResult result={captionResult} />);
     goToStep(2);
+    fireEvent.click(screen.getByText("Je ne me montre pas"));
     await waitFor(() => expect(suggestStockKeywords).toHaveBeenCalledTimes(1));
     goToStep(3);
     goToStep(2);
-    // Un seul appel au total : le panneau n'a pas été démonté/remonté.
+    // Un seul appel au total : le panneau n'a pas été démonté/remonté, et le
+    // mode déjà choisi n'est pas redemandé.
     expect(suggestStockKeywords).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText("Je ne me montre pas")).toBeNull();
   });
 });
 
