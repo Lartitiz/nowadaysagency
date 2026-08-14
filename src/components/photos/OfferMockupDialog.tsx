@@ -1,12 +1,12 @@
 /**
- * OfferMockupDialog — « Mockup de mon offre » (segment offres immatérielles :
+ * OfferMockupDialog — « Mettre mon ebook en image » (segment offres immatérielles :
  * ebook, formation, guide… rien à photographier).
  *
  * Compositing DÉTERMINISTE (src/lib/offer-mockup) : la capture est incrustée
  * au pixel près sur un support procédural, fond uni couleur de marque —
  * offert, instantané, texte net. L'aperçu est live : changer de support ou de
- * fond re-compose gratuitement. « Mettre en ambiance » (1 crédit) enregistre
- * le mockup en bibliothèque puis rouvre « Modifier le fond » (#437) dessus.
+ * fond re-compose gratuitement. « Poser mon visuel dans un décor » (1 crédit) enregistre
+ * le mockup en bibliothèque puis rouvre « Changer le décor » (#437) dessus.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -40,7 +40,7 @@ import {
 interface OfferMockupDialogProps {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  /** Enchaîne sur « Modifier le fond » (ambiance IA, 1 crédit) après l'ajout. */
+  /** Enchaîne sur « Changer le décor » (ambiance IA, 1 crédit) après l'ajout. */
   onOpenRetouch?: (photo: UserPhotoRow) => void;
 }
 
@@ -199,7 +199,7 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Mockup de mon offre
+            Mettre mon ebook en image
           </DialogTitle>
           <DialogDescription>
             Transforme ton ebook, ta formation ou ton guide en visuel pro — sans rien
@@ -312,7 +312,7 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
                     onClick={() => handleSave("ambiance")}
                   >
                     <Sparkles className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-                    <span className="truncate">Mettre en ambiance · 1 crédit</span>
+                    <span className="truncate">Poser mon visuel dans un décor · 1 crédit</span>
                   </Button>
                 </div>
               </div>

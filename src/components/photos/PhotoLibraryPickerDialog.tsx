@@ -170,7 +170,7 @@ export function PhotoLibraryPickerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl">
         <DialogHeader>
-          <DialogTitle>Choisir dans ta photothèque</DialogTitle>
+          <DialogTitle>Choisir dans mes photos</DialogTitle>
           <DialogDescription>
             Sélectionne jusqu'à {maxSelectable} photo{maxSelectable > 1 ? "s" : ""} déjà prête{maxSelectable > 1 ? "s" : ""}.
           </DialogDescription>
@@ -189,7 +189,7 @@ export function PhotoLibraryPickerDialog({
             <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
               <ImageIcon className="h-8 w-8 text-muted-foreground" />
               <div className="space-y-1">
-                <p className="text-sm text-foreground font-medium">Ta photothèque est vide.</p>
+                <p className="text-sm text-foreground font-medium">Tu n'as encore aucune photo.</p>
                 <p className="text-xs text-muted-foreground max-w-sm">
                   Tu as sûrement déjà des photos en ligne : récupère-les en un clic, sans
                   quitter ton contenu.

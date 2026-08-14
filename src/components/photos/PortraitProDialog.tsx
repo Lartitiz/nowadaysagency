@@ -209,7 +209,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            {hasResult ? "Et voilà" : "Portrait pro"}
+            {hasResult ? "Et voilà" : "Mon portrait sur un fond de marque"}
           </DialogTitle>
           <DialogDescription className="flex items-center gap-1.5">
             <ShieldCheck className="h-4 w-4 shrink-0 text-emerald-600" />

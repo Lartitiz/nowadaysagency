@@ -77,7 +77,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Modifier le fond de la photo
+            Changer le décor
           </DialogTitle>
           <DialogDescription>
             Décris le décor que tu veux derrière ton sujet — l'IA remplace le fond. Ta photo
@@ -105,7 +105,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
           {/* Prompt décor */}
           <div className="space-y-1.5">
             <Label htmlFor="retouche-prompt" className="text-xs">
-              Décor souhaité (prompt)
+              Décris le décor que tu veux
             </Label>
             <Textarea
               id="retouche-prompt"

@@ -1,5 +1,5 @@
 /**
- * offer-mockup — compositing DÉTERMINISTE d'un « Mockup de mon offre ».
+ * offer-mockup — compositing DÉTERMINISTE d'un « Mettre mon ebook en image ».
  *
  * La capture (couverture d'ebook, écran de formation…) est incrustée AU PIXEL
  * PRÈS sur un support dessiné en dur au canvas (tablette, téléphone, livre,
@@ -7,7 +7,7 @@
  * Zéro IA = texte de couverture parfaitement net, rendu instantané, offert
  * (même philosophie que les fonds procéduraux Recraft : l'IA image ne sait
  * pas faire ça proprement, le code si). L'ambiance IA optionnelle passe
- * ensuite par « Modifier le fond » (Photoroom, 1 crédit).
+ * ensuite par « Changer le décor » (Photoroom, 1 crédit).
  */
 
 export type MockupSupport = "tablette" | "telephone" | "livre" | "pages" | "ordinateur";

@@ -9,7 +9,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeftRight, BookOpen, Globe, Loader2, Plus, Sparkles } from "lucide-react";
+import { Loader2, Plus, Wand2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -33,8 +33,11 @@ import {
 import { deletePhotoCompletely } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadingCard } from "@/components/photos/PhotoUploadingCard";
-import { PhotoUploadDialog } from "@/components/photos/PhotoUploadDialog";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
+import {
+  CreateVisualDialog,
+  type CreateVisualChoice,
+} from "@/components/photos/CreateVisualDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
@@ -70,7 +73,7 @@ export default function PhotosPage() {
   const { activeWorkspace, loading: wsLoading } = useWorkspace();
   const wsReady = !!activeWorkspace && !wsLoading;
 
-  const [retoucheOpen, setRetoucheOpen] = useState(false);
+  const [createVisualOpen, setCreateVisualOpen] = useState(false);
   const [siteImportOpen, setSiteImportOpen] = useState(false);
   const [detailPhoto, setDetailPhoto] = useState<UserPhotoRow | null>(null);
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
@@ -223,27 +226,15 @@ export default function PhotosPage() {
           <div>
             <h1 className="font-display text-3xl text-foreground mb-1">Mes photos</h1>
             <p className="text-sm text-muted-foreground max-w-xl">
-              Ta matière visuelle. L'IA décrit chaque photo une fois, puis les propose au bon
-              moment dans tes stories et tes posts.
+              {photos.length > 0 ? `${photos.length} photo${photos.length > 1 ? "s" : ""}. ` : ""}
+              L'IA les décrit une fois, puis te les propose au bon moment dans tes stories et tes
+              posts.
             </p>
           </div>
+          {/* Deux boutons seulement (audit UX 14/08) : « remplir » et
+              « fabriquer ». Les outils de retouche vivent dans la fiche photo,
+              là où ils s'appliquent à une photo précise. */}
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => setAvantApresOpen(true)} disabled={!wsReady}>
-              <ArrowLeftRight className="h-4 w-4 mr-2" /> Avant / Après
-            </Button>
-            <Button variant="outline" onClick={() => setMockupOpen(true)} disabled={!wsReady}>
-              <BookOpen className="h-4 w-4 mr-2" /> Mockup de mon offre
-            </Button>
-            <Button variant="outline" onClick={() => setRetoucheOpen(true)} disabled={!wsReady}>
-              <Sparkles className="h-4 w-4 mr-2" /> Changer un fond
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setSiteImportOpen(true)}
-              disabled={!wsReady || uploading}
-            >
-              <Globe className="h-4 w-4 mr-2" /> Depuis mon site ou Instagram
-            </Button>
             <Button onClick={openFilePicker} disabled={!wsReady || uploading}>
               {uploading ? (
                 <>
@@ -256,7 +247,23 @@ export default function PhotosPage() {
                 </>
               )}
             </Button>
+            <Button variant="outline" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
+              <Wand2 className="h-4 w-4 mr-2" /> Créer un visuel
+            </Button>
           </div>
+          {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
+              plutôt qu'un bouton frère qui doublerait le poids de « Ajouter ». */}
+          <p className="text-sm text-muted-foreground">
+            Tu n'as rien sous la main ?{" "}
+            <button
+              type="button"
+              onClick={() => setSiteImportOpen(true)}
+              disabled={!wsReady || uploading}
+              className="text-primary underline underline-offset-2 hover:no-underline disabled:opacity-60"
+            >
+              Récupère celles de ton site ou d'Instagram
+            </button>
+          </p>
         </header>
 
         <input
@@ -368,7 +375,15 @@ export default function PhotosPage() {
         )}
       </main>
 
-      <PhotoUploadDialog open={retoucheOpen} onOpenChange={setRetoucheOpen} />
+      <CreateVisualDialog
+        open={createVisualOpen}
+        onOpenChange={setCreateVisualOpen}
+        onChoose={(choice: CreateVisualChoice) => {
+          setCreateVisualOpen(false);
+          if (choice === "avant-apres") setAvantApresOpen(true);
+          else setMockupOpen(true);
+        }}
+      />
       <SitePhotoImportDialog
         open={siteImportOpen}
         onOpenChange={setSiteImportOpen}

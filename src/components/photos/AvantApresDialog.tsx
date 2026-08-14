@@ -285,7 +285,7 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
                 setPickerOpen(true);
               }}
             >
-              Photothèque
+              Mes photos
             </button>
           </div>
         ) : (
@@ -305,7 +305,7 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
               ) : (
                 <>
                   <ImagePlus className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-                  <span className="truncate">Uploader</span>
+                  <span className="truncate">Ajouter</span>
                 </>
               )}
             </Button>
@@ -320,7 +320,7 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
               }}
             >
               <Images className="h-3.5 w-3.5 mr-1.5 shrink-0" />
-              <span className="truncate">Photothèque</span>
+              <span className="truncate">Mes photos</span>
             </Button>
           </div>
         )}

@@ -249,7 +249,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           )}
           {photo.status === "ready" && onRetouche && (
             <Button variant="outline" onClick={() => onRetouche(photo)}>
-              <Wand2 className="h-4 w-4 mr-2" /> Modifier le fond
+              <Wand2 className="h-4 w-4 mr-2" /> Changer le décor
             </Button>
           )}
           {photo.status === "ready" && isProductPhoto && onPackshot && (
