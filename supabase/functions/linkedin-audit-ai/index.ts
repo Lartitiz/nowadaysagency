@@ -10,6 +10,9 @@ import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { scrapeLinkedin } from "../_shared/scraping.ts";
+import { getServiceClient } from "../_shared/auth.ts";
+import { decryptConnTokens } from "../_shared/token-crypto.ts";
+import { fetchLinkedInInsights } from "../_shared/linkedin-insights.ts";
 
 // Branding data now fetched via getUserContext
 
@@ -109,6 +112,45 @@ serve(async (req) => {
       if (lines.length) autoDataBlock = `\nDONNÉES RÉCUPÉRÉES AUTOMATIQUEMENT PAR L'APP :\n${lines.join("\n\n")}\n`;
     }
 
+    // Statistiques LinkedIn RÉELLES (API Community Management, si connectée) :
+    // best-effort, ne bloque jamais l'audit — une connexion absente ou une
+    // permission retirée retombe silencieusement sur le déclaratif ci-dessus.
+    let realStatsBlock = "";
+    try {
+      const svc = getServiceClient();
+      const filterCol = workspace_id ? "workspace_id" : "user_id";
+      const filterVal = workspace_id || user.id;
+      let connQ = svc.from("social_connections").select("*")
+        .eq("platform", "linkedin_analytics").eq(filterCol, filterVal);
+      connQ = workspace_id ? connQ.eq("user_id", user.id) : connQ.is("workspace_id", null);
+      const { data: conn } = await connQ.maybeSingle();
+      if (conn) {
+        await decryptConnTokens(conn);
+        const scopesOk = !conn.scopes ||
+          (String(conn.scopes).includes("r_member_postAnalytics") &&
+            String(conn.scopes).includes("r_member_profileAnalytics"));
+        if (scopesOk) {
+          const m = await fetchLinkedInInsights(conn);
+          const lines: string[] = [];
+          if (typeof m.followers === "number") lines.push(`Abonnés : ${m.followers}`);
+          if (typeof m.followersGained30d === "number") lines.push(`Abonnés gagnés (30 j) : ${m.followersGained30d}`);
+          const pa = m.postAnalytics30d;
+          if (typeof pa.impressions === "number") lines.push(`Impressions des posts (30 j) : ${pa.impressions}`);
+          if (typeof pa.membersReached === "number") lines.push(`Membres touchés (30 j) : ${pa.membersReached}`);
+          if (typeof pa.reactions === "number") lines.push(`Réactions (30 j) : ${pa.reactions}`);
+          if (typeof pa.comments === "number") lines.push(`Commentaires (30 j) : ${pa.comments}`);
+          if (typeof pa.reshares === "number") lines.push(`Reposts (30 j) : ${pa.reshares}`);
+          if (typeof pa.profileViewsFromContent === "number") lines.push(`Vues de profil générées par le contenu (30 j) : ${pa.profileViewsFromContent}`);
+          if (typeof pa.followerGainedFromContent === "number") lines.push(`Abonnés gagnés grâce au contenu (30 j) : ${pa.followerGainedFromContent}`);
+          if (lines.length) {
+            realStatsBlock = `\nSTATISTIQUES LINKEDIN RÉELLES (API, 30 derniers jours) :\n${lines.join("\n")}\n`;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("linkedin-audit-ai: lecture des statistiques réelles échouée (non bloquant):", e);
+    }
+
     const systemPrompt = `${BASE_SYSTEM_RULES}
 
 ${LINKEDIN_PRINCIPLES}
@@ -177,8 +219,8 @@ ${[
   body.publicationOrg ? `- Organisation publication : ${body.publicationOrg}` : "",
   body.inboundRequests ? `- Demandes entrantes : ${body.inboundRequests}` : "",
 ].filter(Boolean).join("\n")}
-${publicProfileBlock}${autoDataBlock}
-IMPORTANT : quand une information n'est ni fournie ni visible sur les captures, dis « non évaluable » plutôt que d'inventer un verdict.
+${publicProfileBlock}${autoDataBlock}${realStatsBlock}
+IMPORTANT : quand une information n'est ni fournie, ni visible sur les captures, ni dans les statistiques réelles ci-dessus, dis « non évaluable » plutôt que d'inventer un verdict. Si des statistiques LinkedIn réelles sont fournies, elles priment TOUJOURS sur le déclaratif (rythme actuel, vues moyennes) : ne contredis jamais un chiffre mesuré par une estimation du formulaire.
 
 ${contextStr}
 

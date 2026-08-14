@@ -14,7 +14,7 @@ import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight, History as HistoryIcon, Recycle, TrendingUp, Globe, FileText, Wallet, CheckCircle2, Users, Trophy, Microscope, Brain, BarChart3, PenLine, Camera, Clapperboard, Images, Handshake, ShoppingBag, BookOpen, Palette, Shuffle, type LucideIcon } from "lucide-react";
+import { Sparkles, RefreshCw, Settings, Plus, Trash2, ChevronRight, History as HistoryIcon, Recycle, TrendingUp, Globe, FileText, Wallet, CheckCircle2, Users, Trophy, Microscope, Brain, BarChart3, PenLine, Camera, Clapperboard, Images, Handshake, ShoppingBag, BookOpen, Palette, Shuffle, Linkedin, type LucideIcon } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import ExcelImportDialog from "@/components/stats/ExcelImportDialog";
 import StatsPeriodSelector from "@/components/stats/StatsPeriodSelector";
@@ -89,6 +89,14 @@ export default function InstagramStats() {
   const [ga4SelectedProp, setGa4SelectedProp] = useState("");
   const [ga4SavingProp, setGa4SavingProp] = useState(false);
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
+  // Connexion LinkedIn Analytics (distincte de la publication) + récupération auto
+  // des stats via linkedin-insights-fetch (Community Management API).
+  const [liConnected, setLiConnected] = useState(false);
+  const [fetchingLiStats, setFetchingLiStats] = useState(false);
+  const [liStats, setLiStats] = useState<{
+    followers?: number; followersGained30d?: number;
+    postAnalytics30d?: Record<string, number>; fetchedAt?: string;
+  } | null>(null);
   const [livePosts, setLivePosts] = useState<{ top: any[]; flop: any[] } | null>(null);
   const [contentInsights, setContentInsights] = useState<any | null>(null);
   const [analyzingContent, setAnalyzingContent] = useState(false);
@@ -197,6 +205,7 @@ export default function InstagramStats() {
       const googleConn = conns.find((c: any) => c.platform === "google" && c.connected);
       setGa4Connected(!!googleConn);
       setGa4NeedsProperty(!!googleConn?.needsProperty);
+      setLiConnected(conns.some((c: any) => c.platform === "linkedin_analytics" && c.connected));
       setIgStatusChecked(true);
     }).catch(() => { setIgStatusChecked(true); /* non bloquant */ });
   }, [user?.id, workspaceId, workspaceReady]);
@@ -222,6 +231,10 @@ export default function InstagramStats() {
       if (tp && (tp.top?.length || tp.flop?.length)) {
         setLivePosts({ top: tp.top || [], flop: tp.flop || [] });
       }
+    }
+    if (!liStats) {
+      const withLi = allStats.find(s => (s.custom_data as any)?.li_stats);
+      if (withLi) setLiStats((withLi.custom_data as any).li_stats);
     }
     if (!contentInsights) {
       const withCi = allStats.find(s => (s.custom_data as any)?.ig_content_insights);
@@ -523,6 +536,65 @@ export default function InstagramStats() {
       toast.error("Erreur lors de la récupération des stats Instagram");
     } finally {
       setFetchingLive(false);
+    }
+  }, [user, workspaceId, allStats, currentMonthDate, loadStats]);
+
+  // Remplit automatiquement le mois en cours avec les vraies stats LinkedIn
+  // (connexion analytics dédiée, distincte de la publication) : abonnés + posts
+  // (impressions, réactions, commentaires, reposts) sur 30 j. Stocké en JSON
+  // (custom_data.li_stats), comme l'audience/top-posts Instagram : LinkedIn n'a
+  // pas de colonnes dédiées dans monthly_stats.
+  const fetchFromLinkedIn = useCallback(async () => {
+    if (!user) return;
+    setFetchingLiStats(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("linkedin-insights-fetch", {
+        body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
+      });
+      if (error || !(data as any)?.metrics) {
+        const ctxBody = (error as any)?.context?.body;
+        const msg = ctxBody?.error || (data as any)?.error || "";
+        if (msg.includes("Reconnecte")) {
+          toast.error("Reconnexion requise", { description: "Reconnecte ta connexion Stats LinkedIn pour autoriser la lecture de tes statistiques." });
+        } else {
+          toast.error("Stats indisponibles", { description: msg || "Impossible de récupérer tes statistiques LinkedIn pour le moment." });
+        }
+        return;
+      }
+      const m = (data as any).metrics;
+      const snapshot = {
+        followers: m.followers, followersGained30d: m.followersGained30d,
+        postAnalytics30d: m.postAnalytics30d || {}, fetchedAt: m.fetchedAt || new Date().toISOString(),
+      };
+      setLiStats(snapshot);
+
+      const target = currentMonthDate;
+      const existing = allStats.find(s => s.month_date === target) || {};
+      const customData: any = { ...((existing as any).custom_data || {}), li_stats: snapshot };
+      const payload: any = {
+        ...existing, custom_data: customData, user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        month_date: target, updated_at: new Date().toISOString(),
+      };
+      delete payload.id; delete payload.created_at;
+      if ((existing as any).id) {
+        const { error: upErr } = await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
+        if (upErr) { toast.error("Erreur d'enregistrement des stats LinkedIn"); return; }
+      } else {
+        const { error: insErr } = await supabase.from("monthly_stats" as any).insert(payload);
+        if (insErr) { toast.error("Erreur d'enregistrement des stats LinkedIn"); return; }
+      }
+      await loadStats();
+      toast.success("✅ Stats LinkedIn récupérées");
+      if (m.partial) {
+        toast.warning("Certaines statistiques n'ont pas pu être lues", {
+          description: "LinkedIn n'a pas renvoyé toutes les métriques cette fois : les chiffres manquants sont restés vides. Réessaie plus tard.",
+        });
+      }
+    } catch {
+      toast.error("Erreur lors de la récupération des stats LinkedIn");
+    } finally {
+      setFetchingLiStats(false);
     }
   }, [user, workspaceId, allStats, currentMonthDate, loadStats]);
 
@@ -1279,6 +1351,30 @@ export default function InstagramStats() {
           </div>
         )}
 
+        {/* ─── Remplissage auto depuis LinkedIn Analytics (connexion distincte de la publication) ─── */}
+        {igStatusChecked && liConnected ? (
+          <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <BarChart3 className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} />
+              <span>
+                Récupère automatiquement tes <strong className="text-foreground">abonnés, abonnés gagnés, impressions, réactions, commentaires et reposts</strong> depuis ton compte LinkedIn connecté (30 derniers jours).
+              </span>
+            </div>
+            <Button onClick={fetchFromLinkedIn} disabled={fetchingLiStats} size="sm" className="gap-1.5 shrink-0">
+              {fetchingLiStats
+                ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Récupération…</>
+                : <><Sparkles className="h-3.5 w-3.5" />Remplir depuis LinkedIn</>}
+            </Button>
+          </div>
+        ) : igStatusChecked && (
+          <div className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm text-muted-foreground flex items-center justify-between gap-3 flex-wrap">
+            <span className="flex items-start gap-2"><BarChart3 className="h-4 w-4 shrink-0 mt-0.5 text-primary" strokeWidth={1.75} /><span>Connecte Stats LinkedIn pour remplir tes statistiques LinkedIn automatiquement.</span></span>
+            <Button asChild variant="outline" size="sm" className="shrink-0">
+              <Link to="/parametres/connexions" onClick={() => memoriseRetour()}>Connecter Stats LinkedIn</Link>
+            </Button>
+          </div>
+        )}
+
         {/* ─── Tabs ─── */}
         <Tabs defaultValue="overview" className="space-y-5">
           <TabsList className="w-full justify-start">
@@ -1288,6 +1384,32 @@ export default function InstagramStats() {
           </TabsList>
 
           <TabsContent value="overview" className="space-y-8">
+            {/* Mes stats LinkedIn : dernier instantané récupéré (custom_data.li_stats). */}
+            {liStats && (typeof liStats.followers === "number" || Object.keys(liStats.postAnalytics30d || {}).length > 0) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
+                <h3 className="font-body text-sm font-bold text-foreground">
+                  <Linkedin className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Mes stats LinkedIn
+                  <span className="font-normal text-muted-foreground text-xs"> : 30 derniers jours, au {liStats.fetchedAt ? new Date(liStats.fetchedAt).toLocaleDateString("fr-FR") : "—"}</span>
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Abonnés", value: liStats.followers },
+                    { label: "Abonnés gagnés", value: liStats.followersGained30d },
+                    { label: "Impressions", value: liStats.postAnalytics30d?.impressions },
+                    { label: "Membres touchés", value: liStats.postAnalytics30d?.membersReached },
+                    { label: "Réactions", value: liStats.postAnalytics30d?.reactions },
+                    { label: "Commentaires", value: liStats.postAnalytics30d?.comments },
+                    { label: "Reposts", value: liStats.postAnalytics30d?.reshares },
+                    { label: "Clics sur lien", value: liStats.postAnalytics30d?.linkClicks },
+                  ].filter(k => typeof k.value === "number").map((k) => (
+                    <div key={k.label} className="rounded-lg bg-muted/40 px-3 py-2">
+                      <p className="text-lg font-bold text-foreground">{fmt(k.value as number)}</p>
+                      <p className="text-xs text-muted-foreground">{k.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {/* Audience et top/flop vivent DANS la vue d'ensemble : empilés avant
                 les onglets, ils repoussaient la saisie et les graphiques sous
                 plusieurs écrans de scroll (surtout en mobile). */}

@@ -9,7 +9,7 @@ import { accountSummaries } from "../_shared/ga4.ts";
 interface StatePayload {
   user_id: string;
   workspace_id: string | null;
-  platform: "instagram" | "linkedin" | "canva" | "pinterest" | "google";
+  platform: "instagram" | "linkedin" | "linkedin_analytics" | "canva" | "pinterest" | "google";
   origin: string;
   nonce: string;
   ts: number;
@@ -151,6 +151,59 @@ Deno.serve(async (req) => {
       }
       accountId = String(meJson.sub);
       accountName = String(meJson.name || meJson.given_name || "LinkedIn");
+    } else if (payload.platform === "linkedin_analytics") {
+      // App développeur DISTINCTE de la publication ("Nowadays Assistant Analytics",
+      // Community Management API, Development Tier) → secrets séparés.
+      const clientId = Deno.env.get("LINKEDIN_ANALYTICS_CLIENT_ID")!;
+      const clientSecret = Deno.env.get("LINKEDIN_ANALYTICS_CLIENT_SECRET")!;
+
+      // 1. Échange code -> access token (~2 mois, cf. OAuth 2.0 settings de l'app).
+      const form = new URLSearchParams();
+      form.set("grant_type", "authorization_code");
+      form.set("code", code);
+      form.set("redirect_uri", redirectUri);
+      form.set("client_id", clientId);
+      form.set("client_secret", clientSecret);
+      const tokRes = await fetch("https://www.linkedin.com/oauth/v2/accessToken", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: form.toString(),
+      });
+      const tokJson = await tokRes.json();
+      if (!tokRes.ok || !tokJson.access_token) {
+        console.error("LinkedIn analytics token error:", tokJson);
+        return errorRedirect(origin, tokJson?.error_description || "Échange du code LinkedIn Analytics échoué.");
+      }
+      accessToken = tokJson.access_token;
+      const expiresIn = Number(tokJson.expires_in || 60 * 24 * 3600);
+      expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+      scopes = String(tokJson.scope || "r_basicprofile r_member_postAnalytics r_member_profileAnalytics");
+
+      // 2. Identifie le membre. Cette app n'a PAS openid/profile (seulement
+      // r_basicprofile) → /v2/userinfo (OIDC) échouerait ; on lit /v2/me à la place.
+      const meRes = await fetch("https://api.linkedin.com/v2/me", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "X-Restli-Protocol-Version": "2.0.0",
+        },
+      });
+      const meJson = await meRes.json();
+      if (!meRes.ok || !meJson?.id) {
+        console.error("LinkedIn analytics /v2/me error:", meJson);
+        return errorRedirect(origin, meJson?.message || "Lecture du compte LinkedIn échouée.");
+      }
+      accountId = String(meJson.id);
+      // firstName/lastName sont des objets localisés (préférence de langue du membre).
+      const pickLocalized = (field: any): string => {
+        const localeKey = field?.preferredLocale
+          ? `${field.preferredLocale.language}_${field.preferredLocale.country}`
+          : undefined;
+        const val = localeKey ? field?.localized?.[localeKey] : undefined;
+        return val || (field?.localized ? String(Object.values(field.localized)[0] || "") : "");
+      };
+      const fullName = [pickLocalized(meJson.firstName), pickLocalized(meJson.lastName)]
+        .filter(Boolean).join(" ").trim();
+      accountName = fullName || "LinkedIn";
     } else if (payload.platform === "pinterest") {
       const clientId = Deno.env.get("PINTEREST_CLIENT_ID")!;
       const clientSecret = Deno.env.get("PINTEREST_CLIENT_SECRET")!;

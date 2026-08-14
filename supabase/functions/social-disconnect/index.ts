@@ -39,7 +39,7 @@ Deno.serve(async (req) => {
     const platform: string = body?.platform;
     const workspaceId: string | null = body?.workspace_id ?? null;
 
-    if (!["instagram", "linkedin", "canva", "pinterest", "google"].includes(platform)) {
+    if (!["instagram", "linkedin", "linkedin_analytics", "canva", "pinterest", "google"].includes(platform)) {
       return new Response(JSON.stringify({ error: "Plateforme invalide." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -12,7 +12,7 @@ import { memoriseRetour } from "@/lib/retour-apres-detour";
  * de connexion, un seul endroit qui l'implémente.
  */
 export async function startSocialConnect(
-  platform: "instagram" | "linkedin" | "canva" | "pinterest" | "google",
+  platform: "instagram" | "linkedin" | "linkedin_analytics" | "canva" | "pinterest" | "google",
   workspaceId: string | undefined,
   opts?: { quoi?: string; depuis?: string },
 ): Promise<{ error?: string }> {

@@ -11,6 +11,12 @@ const IG_SCOPES =
 // OpenID Connect + partage sur le profil membre (les anciens r_liteprofile/r_emailaddress
 // sont supprimés depuis 2026). w_member_social = publier au nom du membre.
 const LI_SCOPES = "openid profile w_member_social";
+// Connexion LinkedIn ANALYTICS — app développeur distincte de la publication
+// ("Nowadays Assistant Analytics", Community Management API, Development Tier).
+// r_basicprofile (pas openid/profile : non approuvés sur cette app) identifie le
+// membre connecté ; r_member_postAnalytics + r_member_profileAnalytics lisent les
+// stats réelles (posts + abonnés). Aucun droit de publication.
+const LI_ANALYTICS_SCOPES = "r_basicprofile r_member_postAnalytics r_member_profileAnalytics";
 // Canva Connect — scopes au strict minimum (exigence review Canva) :
 // - design:content:write : importer le carrousel PPTX (POST /url-imports)
 // - design:meta:read     : lire l'URL d'édition du design créé (GET /designs/{id})
@@ -41,6 +47,7 @@ Deno.serve(async (req) => {
     if (
       platform !== "instagram" &&
       platform !== "linkedin" &&
+      platform !== "linkedin_analytics" &&
       platform !== "canva" &&
       platform !== "pinterest" &&
       platform !== "google"
@@ -56,6 +63,8 @@ Deno.serve(async (req) => {
         ? Deno.env.get("CANVA_CLIENT_ID")
         : platform === "linkedin"
         ? Deno.env.get("LINKEDIN_CLIENT_ID")
+        : platform === "linkedin_analytics"
+        ? Deno.env.get("LINKEDIN_ANALYTICS_CLIENT_ID")
         : platform === "pinterest"
         ? Deno.env.get("PINTEREST_CLIENT_ID")
         : platform === "google"
@@ -100,7 +109,7 @@ Deno.serve(async (req) => {
     const url =
       platform === "canva"
         ? new URL("https://www.canva.com/api/oauth/authorize")
-        : platform === "linkedin"
+        : platform === "linkedin" || platform === "linkedin_analytics"
         ? new URL("https://www.linkedin.com/oauth/v2/authorization")
         : platform === "pinterest"
         ? new URL("https://www.pinterest.com/oauth/")
@@ -116,6 +125,8 @@ Deno.serve(async (req) => {
         ? CANVA_SCOPES
         : platform === "linkedin"
         ? LI_SCOPES
+        : platform === "linkedin_analytics"
+        ? LI_ANALYTICS_SCOPES
         : platform === "pinterest"
         ? PI_SCOPES
         : platform === "google"
