@@ -55,6 +55,9 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 const MAX_BATCH = 20;
 const MAX_FILE_BYTES = UX_UPLOAD_LIMITS.photo;
 const MAX_TAG_CHIPS = 8;
+// Sous ce seuil, filtrer ne sert à rien : on affichait jusqu'à 15 pastilles
+// pour 4 photos (audit UX 14/08). La grille entière tient sous les yeux.
+const MIN_PHOTOS_FOR_FILTERS = 12;
 
 // Types de photo (classés par l'IA, cf. edge photo-describe) → libellés de filtre
 const KIND_LABELS: Record<string, string> = {
@@ -215,6 +218,7 @@ export default function PhotosPage() {
   }
 
   const uploading = !!progress;
+  const showFilters = photos.length >= MIN_PHOTOS_FOR_FILTERS;
 
   return (
     <div className="min-h-screen bg-background">
@@ -289,9 +293,9 @@ export default function PhotosPage() {
             onImport={() => setSiteImportOpen(true)}
           />
         ) : (
-          <div className="flex flex-col lg:flex-row gap-6 items-start">
-            <div className="flex-1 min-w-0 w-full">
-              {presentKinds.length > 1 && (
+          <div className="space-y-6">
+            <div className="min-w-0 w-full">
+              {showFilters && presentKinds.length > 1 && (
                 <div className="flex flex-wrap items-center gap-1.5 mb-2">
                   {presentKinds.map((k) => (
                     <button
@@ -310,7 +314,7 @@ export default function PhotosPage() {
                   ))}
                 </div>
               )}
-              {topTags.length > 0 && (
+              {showFilters && topTags.length > 0 && (
                 <div className="flex flex-wrap items-center gap-1.5 mb-4">
                   <button
                     type="button"
@@ -368,9 +372,10 @@ export default function PhotosPage() {
               )}
             </div>
 
-            <aside className="w-full lg:w-72 shrink-0">
-              <PhotoWishlistPanel />
-            </aside>
+            {/* « Photos à prendre » passe SOUS la grille et replié : en colonne
+                de droite, il était plus long que la galerie elle-même (15 lignes
+                pour 4 photos) et volait la place aux photos. */}
+            <PhotoWishlistPanel collapsible />
           </div>
         )}
       </main>
