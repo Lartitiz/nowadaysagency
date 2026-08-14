@@ -11,6 +11,7 @@ import BrandingPrompt from "@/components/BrandingPrompt";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
+import { HubConnectBanner } from "@/components/hub";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -979,6 +980,14 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const body = (
     <>
+      {/* Découverte du statut de connexion AVANT le blocage à la programmation :
+          masqué en mode démo et quand le compte est déjà connecté (HubConnectBanner). */}
+      {!isDemoMode && (
+        <>
+          <HubConnectBanner platform="instagram" />
+          <HubConnectBanner platform="linkedin" />
+        </>
+      )}
       <AuditRecommendationBanner />
       <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
 
