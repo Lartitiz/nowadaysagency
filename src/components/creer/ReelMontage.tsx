@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Film, Download, Mic, Wand2, Upload } from "lucide-react";
+import { Loader2, Search, Film, Download, Mic, Wand2, Upload, Video, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
 import {
@@ -104,8 +104,18 @@ function fromMine(v: UserReelVideo, duration: number | null): SelectedClip {
   };
 }
 
+/**
+ * "filme" = prise face cam, on garde le son ; "cache" = comportement existant
+ * (clip muet + voix posée). Fourche à deux modes ÉGAUX (décidée le 01/08) :
+ * `null` tant que la cliente n'a pas choisi — aucun des deux n'est un défaut,
+ * beaucoup de clientes ne se montreront jamais.
+ */
+type MontageMode = "filme" | "cache";
+
 export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Ready }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
+
+  const [montageMode, setMontageMode] = useState<MontageMode | null>(null);
 
   const [keywords, setKeywords] = useState<string[]>(() => spoken.map(() => ""));
   const [results, setResults] = useState<StockVideo[][]>(() => spoken.map(() => []));
@@ -138,8 +148,12 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
   const voiceUrls = voiceClips.map((c) => c?.url ?? null);
   const voiceDurations = voiceClips.map((c) => c?.duration ?? null);
 
-  // Suggestion initiale : un clip par section.
+  // Suggestion initiale : un clip par section. Uniquement en mode "cache" — le
+  // mode "filme" n'utilise pas la banque libre, seulement les prises perso.
+  const stockSearchStarted = useRef(false);
   useEffect(() => {
+    if (montageMode !== "cache" || stockSearchStarted.current) return;
+    stockSearchStarted.current = true;
     let cancelled = false;
     (async () => {
       let kws: string[] = [];
@@ -160,7 +174,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [montageMode]);
 
   async function runSearch(i: number, kw: string, o?: { cancelledRef?: () => boolean }) {
     const term = kw.trim();
@@ -224,10 +238,12 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       toast.error("Choisis au moins un clip avant d'assembler.");
       return;
     }
-    // Garde « prise perdue » : une phrase enregistrée mais sans clip est
-    // écartée du montage, la voix avec. C'est le travail de la cliente qui
-    // disparaît — on le dit AVANT, pas après.
-    if (voiceMode === "recorded") {
+    // Les gardes « prise perdue » et « voix mixte » ne concernent que le mode
+    // "cache" (voix séparée) : en mode "filme", la voix est dans le clip.
+    if (montageMode === "cache" && voiceMode === "recorded") {
+      // Garde « prise perdue » : une phrase enregistrée mais sans clip est
+      // écartée du montage, la voix avec. C'est le travail de la cliente qui
+      // disparaît — on le dit AVANT, pas après.
       const orphans = sectionsWithVoiceButNoClip(chosen, voiceUrls);
       if (orphans.length > 0) {
         const list = orphans.join(", ");
@@ -238,11 +254,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
         );
         if (!ok) return;
       }
-    }
-    // Garde « voix mixte » : en mode "Ma voix", les phrases non enregistrées
-    // partent en voix générée (repli moteur). Sans confirmation, le reel sort
-    // avec sa voix UNE phrase sur deux et ça ressemble à un bug.
-    if (voiceMode === "recorded") {
+      // Garde « voix mixte » : en mode "Ma voix", les phrases non enregistrées
+      // partent en voix générée (repli moteur). Sans confirmation, le reel sort
+      // avec sa voix UNE phrase sur deux et ça ressemble à un bug.
       const missing = countSectionsWithoutVoice(chosen, voiceUrls);
       if (missing > 0) {
         const ok = window.confirm(
@@ -259,11 +273,19 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
     onMp4Ready?.(null);
     setErrorMsg("");
     try {
-      const plan = buildRenderPlan(spoken, chosen, {
-        voice_mode: voiceMode,
-        voiceAudioUrls: voiceUrls,
-        voiceDurations,
-      });
+      const plan =
+        montageMode === "filme"
+          ? buildRenderPlan(spoken, chosen, {
+              mode: "filme",
+              voice_mode: "tts", // ignoré côté moteur en mode "filme"
+              clipDurations: clips.map((c) => c?.duration ?? null),
+            })
+          : buildRenderPlan(spoken, chosen, {
+              mode: "cache",
+              voice_mode: voiceMode,
+              voiceAudioUrls: voiceUrls,
+              voiceDurations,
+            });
       const project = await submitReelRender(plan);
       const url = await pollReelRender(project, { onTick: setTick });
       // Le rendu vit chez JSON2Video et y expire : on le recopie chez nous
@@ -299,231 +321,305 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
         </span>
         <Badge variant="secondary" className="text-2xs">beta</Badge>
       </div>
-      <p className="text-2xs text-muted-foreground">
-        Un clip libre de droit par phrase, ta voix par-dessus, les sous-titres suivent.
-      </p>
 
-      <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => setVoiceMode("recorded")}
-          className={`flex-1 rounded-md border px-3 py-2 text-left ${
-            voiceMode === "recorded" ? "border-primary bg-primary/5" : "border-border"
-          }`}
-        >
-          <span className="flex items-center gap-1.5 text-xs font-medium">
-            <Mic className="h-3.5 w-3.5" /> Ma voix
-          </span>
-          <span className="block text-2xs text-muted-foreground">J'enregistre en lisant le script</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setVoiceMode("tts")}
-          className={`flex-1 rounded-md border px-3 py-2 text-left ${
-            voiceMode === "tts" ? "border-primary bg-primary/5" : "border-border"
-          }`}
-        >
-          <span className="flex items-center gap-1.5 text-xs font-medium">
-            <Wand2 className="h-3.5 w-3.5" /> Voix générée
-          </span>
-          <span className="block text-2xs text-muted-foreground">Lecture automatique du script</span>
-        </button>
-      </div>
-
-      {/* Mention honnête : le moteur coupe le son des clips (`muted: true` dans
-          recipe.ts) et pose la voix par-dessus. Une prise face cam où elle parle
-          sort donc muette — tant que le son par plan n'est pas fait, on le dit
-          plutôt que de la laisser croire à un micro cassé. */}
-      <p className="text-2xs text-muted-foreground">
-        Le son de tes vidéos n'est pas encore conservé : c'est la voix choisie ici qui est posée
-        par-dessus. Pour une prise face cam où tu parles, enregistre ta voix au téléprompteur.
-      </p>
-
-      {voiceMode === "recorded" && (
-        <ReelVoiceRecorder
-          texts={spoken.map((s) => s.texte_parle as string)}
-          onVoicesChange={setVoiceClips}
-        />
-      )}
-
-      <div className="space-y-2">
-        {spoken.map((s, i) => (
-          <Card key={i} className="border-border">
-            <CardContent className="p-3 space-y-2">
-              <div className="flex items-center gap-2 flex-wrap">
-                {s.timing && <Badge variant="secondary" className="font-mono text-2xs">{s.timing}</Badge>}
-                <span className="text-2xs text-muted-foreground">≈ {sectionDuration(s)} s</span>
-              </div>
-              {s.texte_parle && (
-                <p className="text-xs text-foreground leading-snug line-clamp-2">{s.texte_parle}</p>
-              )}
-
-              <div className="flex gap-1.5">
-                <Input
-                  value={keywords[i] ?? ""}
-                  onChange={(e) => setKeywords((K) => set(K, i, e.target.value))}
-                  onKeyDown={(e) => e.key === "Enter" && runSearch(i, keywords[i] ?? "")}
-                  placeholder="mots-clés du plan (ex: mains savon atelier)"
-                  className="h-8 text-xs"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 shrink-0"
-                  onClick={() => runSearch(i, keywords[i] ?? "")}
-                  disabled={loading[i]}
-                >
-                  {loading[i] ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-                </Button>
-              </div>
-
-              {results[i]?.length > 0 && (
-                <div className="flex gap-1.5 overflow-x-auto pb-1">
-                  {results[i].map((v) => {
-                    const selected = clips[i]?.id === `stock-${v.id}`;
-                    return (
-                      <button
-                        key={v.id}
-                        type="button"
-                        onClick={() => setClips((C) => set(C, i, fromStock(v)))}
-                        className={`relative shrink-0 rounded-md overflow-hidden border-2 ${
-                          selected ? "border-primary" : "border-transparent"
-                        }`}
-                        aria-label={selected ? "Clip sélectionné" : "Choisir ce clip"}
-                      >
-                        <img src={v.thumbnail} alt="" className="h-24 w-[54px] object-cover" loading="lazy" />
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="flex items-center gap-1.5 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-7 text-2xs"
-                  onClick={() => openFilePicker(i)}
-                  disabled={uploadingSection !== null}
-                >
-                  {uploadingSection === i ? (
-                    <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                  ) : (
-                    <Upload className="h-3.5 w-3.5 mr-1" />
-                  )}
-                  Ma vidéo
-                </Button>
-                {myVideos.length > 0 && (
-                  <select
-                    className="h-7 rounded-md border border-input bg-background px-2 text-2xs text-muted-foreground max-w-[190px]"
-                    value={clips[i]?.source === "mine" ? clips[i]?.url : ""}
-                    onChange={(e) => e.target.value && pickFromLibrary(i, e.target.value)}
-                    aria-label="Reprendre une de mes vidéos"
-                  >
-                    <option value="">Mes vidéos déjà déposées…</option>
-                    {myVideos.map((v) => (
-                      <option key={v.url} value={v.url}>
-                        {v.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                {clips[i]?.source === "mine" && (
-                  <Badge variant="secondary" className="text-2xs max-w-[160px] truncate">
-                    Ma vidéo · {clips[i]?.label}
-                  </Badge>
-                )}
-              </div>
-
-              {clips[i]?.source === "mine" &&
-                clips[i]?.duration != null &&
-                (clips[i]!.duration as number) > sectionDuration(s) + 0.5 && (
-                  <div className="space-y-1">
-                    <label className="text-2xs text-muted-foreground">
-                      Fenêtre : {Math.round(clips[i]!.seek)} s →{" "}
-                      {Math.round(clips[i]!.seek + sectionDuration(s))} s (sur{" "}
-                      {Math.round(clips[i]!.duration as number)} s)
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={Math.max(0, (clips[i]!.duration as number) - sectionDuration(s))}
-                      step={0.5}
-                      value={clips[i]!.seek}
-                      onChange={(e) =>
-                        setClips((C) => {
-                          const c = C[i];
-                          return c ? set(C, i, { ...c, seek: Number(e.target.value) }) : C;
-                        })
-                      }
-                      className="w-full"
-                      aria-label="Choisir la fenêtre de lecture dans ma vidéo"
-                    />
-                  </div>
-                )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="video/*"
-        className="hidden"
-        onChange={(e) => handleFileChosen(e.target.files)}
-      />
-
-      <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-        <span className="text-2xs text-muted-foreground">
-          {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
-        </span>
-        <Button size="sm" onClick={handleAssemble} disabled={phase === "rendering" || ready === 0}>
-          {phase === "rendering" ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-              Montage en cours…
-            </>
-          ) : (
-            <>
-              <Film className="h-4 w-4 mr-1.5" />
-              Assembler mon reel
-            </>
-          )}
-        </Button>
-      </div>
-
-      {phase === "rendering" && (
-        <p className="text-2xs text-muted-foreground text-center">
-          Assemblage des clips, incrustation des sous-titres et de la voix… (≈ {Math.max(1, tick * 6)} s)
-        </p>
-      )}
-
-      {phase === "error" && (
-        <p className="text-xs text-destructive">{errorMsg}</p>
-      )}
-
-      {phase === "done" && mp4Url && (
+      {!montageMode ? (
+        // Fourche à deux modes ÉGAUX : aucun n'est présélectionné, beaucoup de
+        // clientes ne se montreront jamais.
         <div className="space-y-2">
-          <video src={mp4Url} controls playsInline className="w-full max-h-[420px] rounded-lg bg-black" />
-          <div className="flex items-center gap-2 flex-wrap">
-            <a href={mp4Url} download className="inline-flex">
-              <Button variant="outline" size="sm">
-                <Download className="h-4 w-4 mr-1.5" />
-                Télécharger le MP4
-              </Button>
-            </a>
-            {archived ? (
-              <span className="text-2xs text-muted-foreground">
-                Rangée dans ta bibliothèque — elle part avec ton contenu à la publication.
+          <p className="text-2xs text-muted-foreground">Comment veux-tu ce reel ?</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setMontageMode("filme")}
+              className="rounded-md border border-border p-3 text-left hover:border-primary/50"
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium">
+                <Video className="h-3.5 w-3.5" /> Je me filme
               </span>
-            ) : (
-              <span className="text-2xs text-warning">
-                Pas rangée dans ta bibliothèque : télécharge-la, elle ne pourra pas être publiée d'ici.
+              <span className="block text-2xs text-muted-foreground mt-1">
+                Tu apparais à la caméra : on garde ta voix et le son tels quels, sous-titres compris.
               </span>
-            )}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMontageMode("cache")}
+              className="rounded-md border border-border p-3 text-left hover:border-primary/50"
+            >
+              <span className="flex items-center gap-1.5 text-xs font-medium">
+                <EyeOff className="h-3.5 w-3.5" /> Je ne me montre pas
+              </span>
+              <span className="block text-2xs text-muted-foreground mt-1">
+                Clips libres de droit + ta voix (enregistrée ou générée) posée par-dessus.
+              </span>
+            </button>
           </div>
         </div>
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <p className="text-2xs text-muted-foreground">
+              {montageMode === "filme"
+                ? "Une prise face cam par phrase : ta voix est déjà dedans, les sous-titres suivent."
+                : "Un clip libre de droit par phrase, ta voix par-dessus, les sous-titres suivent."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setMontageMode(null)}
+              className="text-2xs text-muted-foreground underline shrink-0"
+            >
+              Changer
+            </button>
+          </div>
+
+          {montageMode === "cache" && (
+            <>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setVoiceMode("recorded")}
+                  className={`flex-1 rounded-md border px-3 py-2 text-left ${
+                    voiceMode === "recorded" ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-medium">
+                    <Mic className="h-3.5 w-3.5" /> Ma voix
+                  </span>
+                  <span className="block text-2xs text-muted-foreground">J'enregistre en lisant le script</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setVoiceMode("tts")}
+                  className={`flex-1 rounded-md border px-3 py-2 text-left ${
+                    voiceMode === "tts" ? "border-primary bg-primary/5" : "border-border"
+                  }`}
+                >
+                  <span className="flex items-center gap-1.5 text-xs font-medium">
+                    <Wand2 className="h-3.5 w-3.5" /> Voix générée
+                  </span>
+                  <span className="block text-2xs text-muted-foreground">Lecture automatique du script</span>
+                </button>
+              </div>
+
+              {/* Mention honnête : le moteur coupe le son des clips (`muted: true`
+                  dans recipe.ts) et pose la voix par-dessus. Une prise face cam où
+                  elle parle sort donc muette dans CE mode — on le dit plutôt que
+                  de laisser croire à un micro cassé ; le mode "Je me filme" existe
+                  pour ce cas. */}
+              <p className="text-2xs text-muted-foreground">
+                Le son de tes vidéos n'est pas conservé dans ce mode : c'est la voix choisie ici qui
+                est posée par-dessus. Pour une prise face cam où tu parles, choisis « Je me filme ».
+              </p>
+
+              {voiceMode === "recorded" && (
+                <ReelVoiceRecorder
+                  texts={spoken.map((s) => s.texte_parle as string)}
+                  onVoicesChange={setVoiceClips}
+                />
+              )}
+            </>
+          )}
+
+          {montageMode === "filme" && (
+            <p className="text-2xs text-muted-foreground">
+              Filme en 1080p (pas 4K) : une prise de 40 s en 4K peut dépasser les 150 Mo autorisés par
+              vidéo. La durée de chaque scène sera celle de ta prise, pas celle du script.
+            </p>
+          )}
+
+          <div className="space-y-2">
+            {spoken.map((s, i) => (
+              <Card key={i} className="border-border">
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {s.timing && <Badge variant="secondary" className="font-mono text-2xs">{s.timing}</Badge>}
+                    <span className="text-2xs text-muted-foreground">
+                      {montageMode === "filme"
+                        ? clips[i]?.duration != null
+                          ? `${Math.round(clips[i]!.duration as number)} s (ta prise)`
+                          : "durée : celle de ta prise, une fois choisie"
+                        : `≈ ${sectionDuration(s)} s`}
+                    </span>
+                  </div>
+                  {s.texte_parle && (
+                    <p className="text-xs text-foreground leading-snug line-clamp-2">{s.texte_parle}</p>
+                  )}
+
+                  {montageMode === "cache" && (
+                    <>
+                      <div className="flex gap-1.5">
+                        <Input
+                          value={keywords[i] ?? ""}
+                          onChange={(e) => setKeywords((K) => set(K, i, e.target.value))}
+                          onKeyDown={(e) => e.key === "Enter" && runSearch(i, keywords[i] ?? "")}
+                          placeholder="mots-clés du plan (ex: mains savon atelier)"
+                          className="h-8 text-xs"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 shrink-0"
+                          onClick={() => runSearch(i, keywords[i] ?? "")}
+                          disabled={loading[i]}
+                        >
+                          {loading[i] ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Search className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      </div>
+
+                      {results[i]?.length > 0 && (
+                        <div className="flex gap-1.5 overflow-x-auto pb-1">
+                          {results[i].map((v) => {
+                            const selected = clips[i]?.id === `stock-${v.id}`;
+                            return (
+                              <button
+                                key={v.id}
+                                type="button"
+                                onClick={() => setClips((C) => set(C, i, fromStock(v)))}
+                                className={`relative shrink-0 rounded-md overflow-hidden border-2 ${
+                                  selected ? "border-primary" : "border-transparent"
+                                }`}
+                                aria-label={selected ? "Clip sélectionné" : "Choisir ce clip"}
+                              >
+                                <img src={v.thumbnail} alt="" className="h-24 w-[54px] object-cover" loading="lazy" />
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </>
+                  )}
+
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-2xs"
+                      onClick={() => openFilePicker(i)}
+                      disabled={uploadingSection !== null}
+                    >
+                      {uploadingSection === i ? (
+                        <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                      ) : (
+                        <Upload className="h-3.5 w-3.5 mr-1" />
+                      )}
+                      Ma vidéo
+                    </Button>
+                    {myVideos.length > 0 && (
+                      <select
+                        className="h-7 rounded-md border border-input bg-background px-2 text-2xs text-muted-foreground max-w-[190px]"
+                        value={clips[i]?.source === "mine" ? clips[i]?.url : ""}
+                        onChange={(e) => e.target.value && pickFromLibrary(i, e.target.value)}
+                        aria-label="Reprendre une de mes vidéos"
+                      >
+                        <option value="">Mes vidéos déjà déposées…</option>
+                        {myVideos.map((v) => (
+                          <option key={v.url} value={v.url}>
+                            {v.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {clips[i]?.source === "mine" && (
+                      <Badge variant="secondary" className="text-2xs max-w-[160px] truncate">
+                        Ma vidéo · {clips[i]?.label}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {montageMode === "cache" &&
+                    clips[i]?.source === "mine" &&
+                    clips[i]?.duration != null &&
+                    (clips[i]!.duration as number) > sectionDuration(s) + 0.5 && (
+                      <div className="space-y-1">
+                        <label className="text-2xs text-muted-foreground">
+                          Fenêtre : {Math.round(clips[i]!.seek)} s →{" "}
+                          {Math.round(clips[i]!.seek + sectionDuration(s))} s (sur{" "}
+                          {Math.round(clips[i]!.duration as number)} s)
+                        </label>
+                        <input
+                          type="range"
+                          min={0}
+                          max={Math.max(0, (clips[i]!.duration as number) - sectionDuration(s))}
+                          step={0.5}
+                          value={clips[i]!.seek}
+                          onChange={(e) =>
+                            setClips((C) => {
+                              const c = C[i];
+                              return c ? set(C, i, { ...c, seek: Number(e.target.value) }) : C;
+                            })
+                          }
+                          className="w-full"
+                          aria-label="Choisir la fenêtre de lecture dans ma vidéo"
+                        />
+                      </div>
+                    )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            className="hidden"
+            onChange={(e) => handleFileChosen(e.target.files)}
+          />
+
+          <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
+            <span className="text-2xs text-muted-foreground">
+              {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
+            </span>
+            <Button size="sm" onClick={handleAssemble} disabled={phase === "rendering" || ready === 0}>
+              {phase === "rendering" ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
+                  Montage en cours…
+                </>
+              ) : (
+                <>
+                  <Film className="h-4 w-4 mr-1.5" />
+                  Assembler mon reel
+                </>
+              )}
+            </Button>
+          </div>
+
+          {phase === "rendering" && (
+            <p className="text-2xs text-muted-foreground text-center">
+              Assemblage des clips, incrustation des sous-titres{montageMode === "cache" ? " et de la voix" : ""}…
+              (≈ {Math.max(1, tick * 6)} s)
+            </p>
+          )}
+
+          {phase === "error" && <p className="text-xs text-destructive">{errorMsg}</p>}
+
+          {phase === "done" && mp4Url && (
+            <div className="space-y-2">
+              <video src={mp4Url} controls playsInline className="w-full max-h-[420px] rounded-lg bg-black" />
+              <div className="flex items-center gap-2 flex-wrap">
+                <a href={mp4Url} download className="inline-flex">
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-1.5" />
+                    Télécharger le MP4
+                  </Button>
+                </a>
+                {archived ? (
+                  <span className="text-2xs text-muted-foreground">
+                    Rangée dans ta bibliothèque — elle part avec ton contenu à la publication.
+                  </span>
+                ) : (
+                  <span className="text-2xs text-warning">
+                    Pas rangée dans ta bibliothèque : télécharge-la, elle ne pourra pas être publiée d'ici.
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );

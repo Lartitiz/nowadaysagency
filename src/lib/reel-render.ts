@@ -11,6 +11,7 @@ export {
   parseTimingSeconds,
   sectionDuration,
   voiceSectionDuration,
+  videoSectionDuration,
   buildRenderPlan,
   countSectionsWithoutVoice,
   sectionsWithVoiceButNoClip,

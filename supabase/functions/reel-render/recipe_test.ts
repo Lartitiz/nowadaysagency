@@ -79,3 +79,32 @@ Deno.test("mode recorded sans audio mais avec texte : bascule sur la voix TTS", 
   assertEquals(r.scenes[0].elements[1].type, "voice");
   assertEquals(r.scenes[0].elements[1].text, "Secours");
 });
+
+Deno.test("mode filme : le clip garde son son (muted false)", () => {
+  const r = buildReelRecipe({ ...base, mode: "filme" }) as any;
+  assertEquals(r.scenes[0].elements[0].muted, false);
+  assertEquals(r.scenes[1].elements[0].muted, false);
+});
+
+Deno.test("mode filme : aucun élément voix, même si voice_audio_url/voice_text fournis", () => {
+  const r = buildReelRecipe({
+    voice_mode: "recorded",
+    mode: "filme",
+    sections: [
+      { clip_url: "a.mp4", duration: 4, voice_audio_url: "voix1.mp3", voice_text: "Bonjour" },
+    ],
+  }) as any;
+  assertEquals(r.scenes[0].elements.length, 1);
+  assertEquals(r.scenes[0].elements[0].type, "video");
+});
+
+Deno.test("mode filme : les sous-titres restent générés (depuis l'audio du clip)", () => {
+  const r = buildReelRecipe({ ...base, mode: "filme" }) as any;
+  assertEquals(r.elements[0].type, "subtitles");
+});
+
+Deno.test("mode cache (défaut, omis) : comportement inchangé", () => {
+  const r = buildReelRecipe(base) as any;
+  assertEquals(r.scenes[0].elements[0].muted, true);
+  assertEquals(r.scenes[0].elements[1].type, "audio");
+});

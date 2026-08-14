@@ -51,6 +51,8 @@ export interface RenderPlan {
   tts_voice?: string;
   subtitles?: boolean;
   subtitle_settings?: Record<string, unknown>;
+  /** "filme" (prise face cam, son gardé) / "cache" (défaut, comportement existant). */
+  mode?: "filme" | "cache";
 }
 
 /**
@@ -70,6 +72,16 @@ export const VOICE_TAIL_SECONDS = 0.4;
 export function voiceSectionDuration(voiceDuration: number): number {
   const withTail = voiceDuration + VOICE_TAIL_SECONDS;
   return clamp(Math.round(withTail * 10) / 10, 2, 90);
+}
+
+/**
+ * Mode "je me filme" : la durée de la scène vient de la longueur RÉELLE de la
+ * prise vidéo, pas du script — même logique que `voiceSectionDuration`, sans
+ * le silence de fin ajouté : le dernier plan de la prise EST déjà la fin
+ * (contrairement à une voix, dont la détection peut couper juste avant).
+ */
+export function videoSectionDuration(clipDuration: number): number {
+  return clamp(Math.round(clipDuration * 10) / 10, 2, 90);
 }
 
 /**
@@ -99,10 +111,14 @@ export function countSectionsWithoutVoice(
 }
 
 export interface RenderPlanOptions {
+  /** "filme" (prise face cam, son gardé) / "cache" (défaut, comportement existant). */
+  mode?: "filme" | "cache";
   voice_mode: "recorded" | "tts";
   voiceAudioUrls?: Array<string | null | undefined>;
   /** Durée RÉELLE de chaque prise, en secondes (même index que les sections). */
   voiceDurations?: Array<number | null | undefined>;
+  /** Mode "filme" seulement : durée RÉELLE du clip choisi pour chaque section. */
+  clipDurations?: Array<number | null | undefined>;
 }
 
 export function buildRenderPlan(
@@ -110,12 +126,25 @@ export function buildRenderPlan(
   clipBySection: ClipChoice[],
   opts: RenderPlanOptions = { voice_mode: "tts" },
 ): RenderPlan {
+  const mode = opts.mode ?? "cache";
   const built: RenderSectionInput[] = [];
   sections.forEach((s, i) => {
     const choice = clipBySection[i];
     const url = typeof choice === "string" ? choice : choice?.url;
     if (!url) return;
     const seek = typeof choice === "object" && choice ? Math.max(0, choice.seek ?? 0) : 0;
+
+    if (mode === "filme") {
+      // La prise porte déjà sa voix : la durée vient d'elle, pas du script.
+      const clipDuration = opts.clipDurations?.[i];
+      const duration =
+        typeof clipDuration === "number" && clipDuration > 0
+          ? videoSectionDuration(clipDuration)
+          : sectionDuration(s);
+      built.push({ clip_url: url, seek, duration });
+      return;
+    }
+
     const voiceUrl = opts.voice_mode === "recorded" ? opts.voiceAudioUrls?.[i] : undefined;
     // Une prise enregistrée fixe elle-même la durée de sa scène.
     const voiceDuration = voiceUrl ? opts.voiceDurations?.[i] : undefined;
@@ -131,7 +160,7 @@ export function buildRenderPlan(
       ...(typeof s.texte_parle === "string" ? { voice_text: s.texte_parle } : {}),
     });
   });
-  return { sections: built, voice_mode: opts.voice_mode };
+  return { sections: built, voice_mode: opts.voice_mode, mode };
 }
 
 /**
