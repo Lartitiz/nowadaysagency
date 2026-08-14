@@ -64,5 +64,20 @@ jobs:
       - name: Unit tests
         run: npm test
 
+      # Les 327 tests des edge functions (Deno) n'étaient JAMAIS exécutés en CI.
+      # Pire, en local ils PARAISSAIENT cassés : `deno test` sans drapeaux échoue
+      # au chargement sur 7 fichiers (accès env) et sur usage-labels (accès
+      # lecture — il relit un source pour comparer deux étiquettes). On a donc
+      # cru pendant des semaines à un test rouge sur main : il n'y en avait pas.
+      # Les drapeaux vivent maintenant dans `npm run test:edges`, plus dans une
+      # ligne de commande à retenir.
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      - name: Tests edge functions (Deno)
+        run: npm run test:edges
+
       - name: Build
         run: npm run build
