@@ -5,10 +5,14 @@
  *
  * Un seul marronnier à la fois (le plus proche dans sa fenêtre). « Plus tard »
  * masque CE marronnier pour CETTE année (localStorage), pas les suivants.
+ *
+ * Masqué pour les profils « services » uniquement : ce bandeau concerne les
+ * photos produit, donc il n'est pas pertinent sans offre matérielle.
  */
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useProfile } from "@/hooks/use-profile";
 import { activeMarronnier, type MarronnierOccurrence } from "@/lib/marronniers";
 
 interface MarronnierBannerProps {
@@ -20,6 +24,7 @@ function dismissKey(occ: MarronnierOccurrence): string {
 }
 
 export function MarronnierBanner({ onDecliner }: MarronnierBannerProps) {
+  const { data: profileData } = useProfile();
   const occ = useMemo(() => activeMarronnier(new Date()), []);
   const [dismissed, setDismissed] = useState(() => {
     if (!occ) return true;
@@ -30,7 +35,8 @@ export function MarronnierBanner({ onDecliner }: MarronnierBannerProps) {
     }
   });
 
-  if (!occ || dismissed) return null;
+  const isServiceOnly = profileData?.type_activite === "services";
+  if (!occ || dismissed || isServiceOnly) return null;
   const { marronnier: m, daysUntil } = occ;
   const when =
     daysUntil === 0 ? "c'est aujourd'hui" : daysUntil === 1 ? "c'est demain" : `c'est dans ${daysUntil} jours`;
