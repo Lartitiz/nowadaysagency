@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
+import { startSocialConnect } from "@/lib/social-connect";
 
 type Platform = "instagram" | "linkedin" | "canva" | "pinterest" | "google";
 
@@ -162,20 +163,9 @@ export default function SocialConnectionsCard() {
 
   const handleConnect = async (platform: Platform) => {
     setConnecting(platform);
-    try {
-      const { data, error } = await supabase.functions.invoke("social-oauth-start", {
-        body: {
-          platform,
-          workspace_id: wsParam,
-          return_to: window.location.origin,
-        },
-      });
-      if (error) throw error;
-      const url = (data as any)?.url;
-      if (!url) throw new Error("URL d'autorisation manquante.");
-      window.location.assign(url);
-    } catch (e: any) {
-      toast.error(e?.message || "Impossible de démarrer la connexion.");
+    const { error } = await startSocialConnect(platform, wsParam);
+    if (error) {
+      toast.error(error);
       setConnecting(null);
     }
   };

@@ -7,6 +7,7 @@ import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
 import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE } from "@/features/creer/publish-guards";
+import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { useSearchParams, useLocation, useNavigate, Link } from "react-router-dom";
 import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
@@ -3612,6 +3613,43 @@ export default function CreerUnifie() {
     setPublishDialogOpen(false);
   };
 
+  // Connexion OAuth déclenchée DEPUIS la fenêtre de publication : avant, un
+  // compte non connecté renvoyait un message texte vers Paramètres → Connexions
+  // sans aucun bouton — la cliente devait quitter /creer de son propre chef, sans
+  // garantie de retour, et le contenu généré restait en plan. `startSocialConnect`
+  // mémorise ce chemin AVANT de partir (+ `reopenPublish=1`, un paramètre à usage
+  // unique comme les autres ci-dessus) ; le retour est automatique une fois
+  // connectée (`SocialConnectionsCard`, `lireRetour`), contenu préservé par
+  // `use-flow-persistence` (2h), et la fenêtre se rouvre TOUTE SEULE ci-dessous.
+  const [connectingPublishChannel, setConnectingPublishChannel] = useState(false);
+  const handleConnectFromDialog = async () => {
+    if (!publishChannel) return;
+    setConnectingPublishChannel(true);
+    const depuis = `${location.pathname}${location.search}${location.search ? "&" : "?"}reopenPublish=1`;
+    const { error } = await startSocialConnect(publishChannel, workspaceId, {
+      quoi: "ton contenu prêt à publier",
+      depuis,
+    });
+    if (error) {
+      toast.error(error);
+      setConnectingPublishChannel(false);
+    }
+    // Pas de else : en cas de succès, window.location.assign() quitte la page.
+  };
+
+  useEffect(() => {
+    if (searchParams.get("reopenPublish") !== "1") return;
+    // Le flow restauré (result) peut arriver après ce premier passage — ne
+    // consommer le paramètre qu'UNE FOIS le contenu là, sinon un run précoce le
+    // strippe pour rien et l'ouverture automatique n'a plus jamais lieu.
+    if (!result) return;
+    const cleaned = new URLSearchParams(searchParams);
+    cleaned.delete("reopenPublish");
+    setSearchParams(cleaned, { replace: true });
+    setPublishDialogOpen(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
+
   // Programme la publication : mêmes gardes que la publication immédiate + compte
   // connecté + date future, puis délègue à handleConfirmCalendar (insert + uploads
   // + auto_publish). Le cron social-publish-scheduled publie à l'heure dite.
@@ -4348,6 +4386,8 @@ export default function CreerUnifie() {
             : null
         }
         channelConnected={publishChannel ? isSocialConnected(publishChannel) : false}
+        onConnectChannel={handleConnectFromDialog}
+        connectingChannel={connectingPublishChannel}
         publishing={publishingInstagram || publishingLinkedIn}
         onPublishNow={handlePublishNowFromDialog}
         scheduling={savingToCalendar}

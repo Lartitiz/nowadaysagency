@@ -15,6 +15,7 @@ import {
   Recycle as RecycleIcon,
   Send,
   Image as ImageIcon,
+  Bell,
   type LucideIcon,
 } from "lucide-react";
 
@@ -374,6 +375,34 @@ export default function AdaptiveHome() {
     retry: 1,
   });
 
+  // Brouillons oubliés : contenus réels (content_draft rempli), posés au
+  // calendrier via « Juste dans le calendrier » (audit de simplicité, la plus
+  // grosse chute du tunnel : 26 % au calendrier → 2 % publiés), dont la date est
+  // passée sans jamais être partis — ni auto-publiés (publish_status), ni cochés
+  // publiés à la main. Sans ce rappel, rien ne ramène jamais dessus.
+  const { data: forgottenDrafts = [] } = useQuery<{ id: string; date: string; canal: string | null }[]>({
+    queryKey: ["adaptive-home-forgotten-drafts", wsFilter.column, wsFilter.value],
+    queryFn: async () => {
+      const todayStr = toLocalDateStr(new Date());
+      const { data, error } = await (supabase as any)
+        .from("calendar_posts")
+        .select("id, date, canal")
+        .eq(wsFilter.column, wsFilter.value)
+        .lt("date", todayStr)
+        .neq("status", "published")
+        .not("content_draft", "is", null)
+        .neq("content_draft", "")
+        .or("publish_status.is.null,publish_status.eq.failed")
+        .order("date", { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return (data ?? []) as { id: string; date: string; canal: string | null }[];
+    },
+    enabled: !!wsFilter.value,
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
   const queryClient = useQueryClient();
   const location = useLocation();
   useEffect(() => {
@@ -511,6 +540,32 @@ export default function AdaptiveHome() {
             pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
         {activeRole === "owner" && (
           <OnboardingBanner onNavigate={handleNavigate} heroOwnsNextStep={!launched} />
+        )}
+
+        {/* Rappel des brouillons oubliés — la case « premier contenu » et le
+            calendrier savent déjà qu'un contenu existe ; ce qu'ils ne disaient
+            jamais, c'est qu'il est resté sans suite. Discret (pas de couleur
+            d'alerte, c'est un oubli, pas une erreur), toujours au-dessus du
+            hero pour rester visible sans dominer la page. */}
+        {forgottenDrafts.length > 0 && (
+          <button
+            type="button"
+            onClick={() => { porte("programmer"); navigate("/calendrier"); }}
+            className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:border-primary/40 transition-colors"
+          >
+            <Bell className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-medium text-foreground">
+                {forgottenDrafts.length === 1
+                  ? "1 contenu prêt, jamais publié"
+                  : `${forgottenDrafts.length} contenus prêts, jamais publiés`}
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Posés au calendrier, leur date est passée sans qu'ils partent.
+              </span>
+            </span>
+            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
+          </button>
         )}
 
         {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit

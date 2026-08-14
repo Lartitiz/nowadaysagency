@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CalendarDays, Clock, ImagePlus, Loader2, Zap } from "lucide-react";
+import { CalendarDays, Clock, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
 import AlreadyPlannedNotice from "@/components/calendar/AlreadyPlannedNotice";
 
 export type PublishChannel = "instagram" | "linkedin" | null;
@@ -22,6 +22,14 @@ interface Props {
   blockedAction?: { label: string; onClick: () => void; busy?: boolean } | null;
   /** Compte du canal connecté ? Sans connexion, publier/programmer échoueraient. */
   channelConnected: boolean;
+  /**
+   * Démarre la connexion OAuth du canal SANS quitter cet écran (popup au
+   * retour). Affiché à la place de `blockedAction` quand le blocage vient
+   * d'un compte non connecté — avant, le message renvoyait vers Paramètres
+   * sans bouton, un cul-de-sac qui laissait le contenu généré à l'abandon.
+   */
+  onConnectChannel?: () => void;
+  connectingChannel?: boolean;
   publishing?: boolean;
   onPublishNow: () => void;
   scheduling?: boolean;
@@ -63,6 +71,8 @@ export default function PublishOrScheduleDialog({
   disabledReason,
   blockedAction,
   channelConnected,
+  onConnectChannel,
+  connectingChannel,
   publishing,
   onPublishNow,
   scheduling,
@@ -78,9 +88,10 @@ export default function PublishOrScheduleDialog({
 
   const channelLabel = channel === "linkedin" ? "LinkedIn" : "Instagram";
   const notConnected = !!channel && !channelConnected;
+  // Message court : le bouton "Connecter X" juste en dessous porte l'action —
+  // pas besoin de répéter "connecte-le dans Paramètres" (le cul-de-sac d'avant).
   const blockedReason =
-    disabledReason ||
-    (notConnected ? `Compte ${channelLabel} non connecté — connecte-le dans Paramètres → Connexions.` : null);
+    disabledReason || (notConnected ? `Compte ${channelLabel} non connecté.` : null);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) setMode(null);
@@ -145,23 +156,44 @@ export default function PublishOrScheduleDialog({
                   )}
                 </span>
               </button>
-              {/* Action de déblocage : sans elle, la raison affichée serait un cul-de-sac. */}
-              {blockedReason && blockedAction && (
+              {/* Action de déblocage : sans elle, la raison affichée serait un cul-de-sac.
+                  Priorité au blocage le plus immédiat (image) ; la connexion ne s'affiche
+                  que quand ce n'est PAS ce qui bloque — se corrige d'elle-même une fois
+                  l'image ajoutée (disabledReason recalculé par le parent). */}
+              {blockedReason && !disabledReason && notConnected && onConnectChannel ? (
                 <Button
                   type="button"
                   variant="outline"
                   className="w-full gap-2"
-                  data-testid="publish-blocked-action"
-                  disabled={blockedAction.busy || publishing || scheduling}
-                  onClick={blockedAction.onClick}
+                  data-testid="publish-connect-action"
+                  disabled={connectingChannel || publishing || scheduling}
+                  onClick={onConnectChannel}
                 >
-                  {blockedAction.busy ? (
+                  {connectingChannel ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
-                    <ImagePlus className="h-4 w-4" />
+                    <Link2 className="h-4 w-4" />
                   )}
-                  {blockedAction.busy ? "Ajout en cours…" : blockedAction.label}
+                  {connectingChannel ? "Connexion…" : `Connecter ${channelLabel}`}
                 </Button>
+              ) : (
+                blockedReason && blockedAction && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2"
+                    data-testid="publish-blocked-action"
+                    disabled={blockedAction.busy || publishing || scheduling}
+                    onClick={blockedAction.onClick}
+                  >
+                    {blockedAction.busy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <ImagePlus className="h-4 w-4" />
+                    )}
+                    {blockedAction.busy ? "Ajout en cours…" : blockedAction.label}
+                  </Button>
+                )
               )}
               {mode === "schedule" && !blockedReason && (
                 <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
