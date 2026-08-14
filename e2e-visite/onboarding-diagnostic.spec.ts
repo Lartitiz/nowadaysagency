@@ -2,7 +2,7 @@
  * T5 — DiagnosticLoading (step 11)
  *
  * Vérifie que le loader "J'analyse ta communication..." apparaît dans < 500 ms
- * après le clic sur "voir mon diagnostic" (fin étape 10).
+ * après le clic sur "voir mon diagnostic" (fin de la dernière étape).
  *
  * Régression PR #267 : DiagnosticLoading était rendu DANS l'AnimatePresence
  * mode="wait" → l'animation de sortie de l'étape 10 suspendait son montage
@@ -11,7 +11,7 @@
  * Stratégie :
  * - Supabase profiles / user_plan_config → intercept GET pour renvoyer
  *   onboarding_completed: false (empêche la redirection vers /dashboard).
- * - localStorage pré-rempli au step 10 avec des réponses minimales valides.
+ * - localStorage pré-rempli à la dernière étape (rang cherché, pas codé en dur) avec des réponses minimales valides.
  * - deep-diagnostic edge fn → mock rapide (évite d'attendre 60 s en live).
  * - On mesure le délai entre le clic et l'apparition du texte du loader.
  */
@@ -51,7 +51,7 @@ const MOCK_DIAGNOSTIC = {
   sources_failed: [],
 };
 
-test("T5 — DiagnosticLoading s'affiche en < 500 ms après l'étape 10", async ({ page }) => {
+test("T5 — DiagnosticLoading s'affiche en < 500 ms après la dernière étape", async ({ page }) => {
   // ── Intercepts ──────────────────────────────────────────────────────────
   // Profiles GET : renvoie onboarding_completed: false pour bloquer la
   // redirection vers /dashboard.
@@ -89,21 +89,38 @@ test("T5 — DiagnosticLoading s'affiche en < 500 ms après l'étape 10", async 
     });
   });
 
-  // ── Pré-remplissage localStorage → step 10 ───────────────────────────
+  // ── Pré-remplissage localStorage → dernière étape avant le loader ────
+  //
+  // 🔑 Le NUMÉRO de cette étape bouge (l'écran « uniqueness » était le step 10,
+  // il est passé au 9 le 07/08 quand une question a sauté). Un numéro en dur
+  // faisait atterrir la spec DIRECTEMENT sur le loader puis sur le diagnostic
+  // fini de Camille — un rouge qui accusait le produit à tort. On cherche donc
+  // l'étape par son ÉCRAN, pas par son rang : le premier candidat qui affiche
+  // « le truc qui te rend différente » gagne, et on l'écrit dans le log.
   await page.goto("/onboarding", { waitUntil: "commit" });
 
-  await page.evaluate(({ answers, ts }) => {
-    localStorage.setItem("lac_onboarding_step", "10");
-    localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
-    localStorage.setItem("lac_onboarding_ts", ts);
-  }, { answers: MINIMAL_ANSWERS, ts: new Date().toISOString() });
+  const derniereEtape = page.getByText(/truc qui te rend diff/i);
+  let etapeTrouvee = -1;
+  for (const candidat of [9, 10, 8, 11]) {
+    await page.evaluate(({ answers, ts, step }) => {
+      localStorage.setItem("lac_onboarding_step", String(step));
+      localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
+      localStorage.setItem("lac_onboarding_ts", ts);
+    }, { answers: MINIMAL_ANSWERS, ts: new Date().toISOString(), step: candidat });
 
-  // Reload pour que le hook restaure depuis localStorage.
-  await page.reload({ waitUntil: "networkidle" });
-
-  // ── Vérification que l'on est bien à l'étape 10 ──────────────────────
-  const step10Title = page.getByText(/truc qui te rend diff/i);
-  await expect(step10Title).toBeVisible({ timeout: 8000 });
+    // Reload pour que le hook restaure depuis localStorage.
+    await page.reload({ waitUntil: "networkidle" });
+    if (await derniereEtape.isVisible({ timeout: 6000 }).catch(() => false)) {
+      etapeTrouvee = candidat;
+      break;
+    }
+  }
+  expect(
+    etapeTrouvee,
+    "l'écran « uniqueness » (dernière étape avant le diagnostic) est introuvable aux steps 8-11",
+  ).toBeGreaterThan(0);
+  console.log(`ℹ️  écran « uniqueness » trouvé au step ${etapeTrouvee}`);
+  await expect(derniereEtape).toBeVisible({ timeout: 8000 });
 
   // ── Clic + mesure ────────────────────────────────────────────────────
   const btn = page.getByRole("button", { name: /voir mon diagnostic|passer et voir/i });
