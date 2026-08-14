@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { derivedPhotoDescription, derivedPhotoName, rootPhotoName } from "@/lib/photo-naming";
+import { redescribePhoto } from "@/lib/photo-redescribe";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -158,9 +159,11 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
         purpose: "library",
       });
 
-      // Métadonnées héritées de la source : pas besoin d'un appel vision,
-      // on sait déjà ce que la photo contient.
-      const tags = Array.from(new Set(["packshot", ...(photo.tags ?? [])])).slice(0, 6);
+      // Pas d'héritage des tags de la source (audit 14/08) : le détourage a
+      // REMPLACÉ le fond, donc tout tag de décor de la source est devenu faux.
+      // On pose la provenance, la description sert de texte d'attente, et
+      // photo-describe dit ensuite ce que la nouvelle image montre vraiment.
+      const tags = ["packshot"];
       const description = derivedPhotoDescription(
         "Packshot fond blanc",
         photo.description,
@@ -181,6 +184,7 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
 
       // Fait apparaître la nouvelle photo dans la grille sans dépendre du
       // Realtime ni d'un aller-retour sur la page.
+      redescribePhoto(photoId, photo.workspace_id);
       refreshPhotos();
       toast.success("Packshot ajouté à ta bibliothèque");
       onOpenChange(false);

@@ -9,6 +9,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { redescribePhoto } from "@/lib/photo-redescribe";
 import type { UserPhotoRow } from "@/lib/photo-storage";
 import { uploadPhotoOriginal, USER_PHOTOS_BUCKET } from "@/lib/photo-storage";
 import { derivedPhotoDescription, derivedPhotoName } from "@/lib/photo-naming";
@@ -438,6 +439,9 @@ export function useRetouchExistingPhoto() {
 
       // L'edge a terminé (ready) : montrer le nouveau fond sans attendre le
       // prochain tick de polling.
+      // Le fond a changé SUR PLACE : la description et les tags décrivaient
+      // l'ancien décor et rien ne les remettait à jour (audit tags 14/08).
+      redescribePhoto(photo.id, workspaceId);
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
     } finally {
       setIsPending(false);
@@ -577,6 +581,8 @@ export function useGeneratePhotoVariant() {
         throw invokeErr;
       }
 
+      // Les pixels viennent de changer : on re-décrit (audit tags 14/08).
+      redescribePhoto(newId, workspaceId);
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
       return { photoId: newId };
     } finally {
@@ -602,7 +608,9 @@ export function useGeneratePortraitPro() {
       backgroundPrompt: input.backgroundPrompt,
       name: derivedPhotoName(source.name, "portrait pro", "Portrait"),
       kind: "portrait",
-      tags: Array.from(new Set(["portrait-pro", ...(source.tags ?? [])])),
+      // Pas d'héritage : seul le FOND change, mais ce sont justement les tags
+      // de fond qui deviennent faux (audit 14/08).
+      tags: ["portrait-pro"],
       description: derivedPhotoDescription(
         "Portrait pro",
         source.description,
