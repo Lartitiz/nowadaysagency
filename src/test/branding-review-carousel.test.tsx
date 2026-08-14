@@ -81,7 +81,9 @@ describe("BrandingReview — fiche en cartes", () => {
   it("« Je valide tout » enregistre les 7 sections et annonce la marque prête", async () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
 
-    fireEvent.click(screen.getByText("Je valide tout"));
+    // Le raccourci est dupliqué à l'écran (header + barre sticky en bas) pour
+    // rester visible sans scroller : les deux déclenchent le même handler.
+    fireEvent.click(screen.getAllByText("Je valide tout")[0]);
 
     await waitFor(() => expect(screen.getByText("Ta marque est prête")).toBeTruthy());
     expect(mocks.toast.success).toHaveBeenCalled();
@@ -98,7 +100,7 @@ describe("BrandingReview — fiche en cartes", () => {
     mocks.failTables.add("brand_charter");
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
 
-    fireEvent.click(screen.getByText("Je valide tout"));
+    fireEvent.click(screen.getAllByText("Je valide tout")[0]);
 
     await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
     expect(screen.queryByText("Ta marque est prête")).toBeNull();
