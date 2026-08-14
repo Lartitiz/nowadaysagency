@@ -322,10 +322,7 @@ export default function AppSidebar() {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shrink-0 shadow-none">
-              <span className="text-white font-bold text-sm leading-none">N</span>
-            </div>
-            <span className="font-heading text-base text-bordeaux">Nowadays</span>
+            <BrandLogo className="h-7" />
           </div>
           {/* Close button — visible on mobile */}
           <button
