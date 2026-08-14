@@ -548,26 +548,57 @@ export default function AdaptiveHome() {
             calendrier savent déjà qu'un contenu existe ; ce qu'ils ne disaient
             jamais, c'est qu'il est resté sans suite. Discret (pas de couleur
             d'alerte, c'est un oubli, pas une erreur), toujours au-dessus du
-            hero pour rester visible sans dominer la page. */}
+            hero pour rester visible sans dominer la page.
+            Chaque ligne mène directement au post concerné (?date=&post=), au
+            lieu de renvoyer vers un calendrier générique qu'il fallait fouiller
+            mois par mois (audit du 14/08 : jusqu'à 3 semaines pour retomber dessus). */}
         {forgottenDrafts.length > 0 && (
-          <button
-            type="button"
-            onClick={() => { porte("programmer"); navigate("/calendrier"); }}
-            className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:border-primary/40 transition-colors"
-          >
-            <Bell className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-foreground">
-                {forgottenDrafts.length === 1
-                  ? "1 contenu prêt, jamais publié"
-                  : `${forgottenDrafts.length} contenus prêts, jamais publiés`}
+          <div className="w-full rounded-xl border border-border bg-card px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Bell className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-foreground">
+                  {forgottenDrafts.length === 1
+                    ? "1 contenu prêt, jamais publié"
+                    : `${forgottenDrafts.length} contenus prêts, jamais publiés`}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Posés au calendrier, leur date est passée sans qu'ils partent.
+                </span>
               </span>
-              <span className="block text-xs text-muted-foreground">
-                Posés au calendrier, leur date est passée sans qu'ils partent.
-              </span>
-            </span>
-            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
-          </button>
+            </div>
+            <div className="mt-2 flex flex-col gap-0.5">
+              {forgottenDrafts.slice(0, 5).map((post) => (
+                <button
+                  key={post.id}
+                  type="button"
+                  onClick={() => {
+                    porte("programmer");
+                    navigate(`/calendrier?date=${post.date}&post=${post.id}`);
+                  }}
+                  className="w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-muted transition-colors"
+                >
+                  <span className="text-xs text-foreground">
+                    {new Date(post.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                      day: "numeric",
+                      month: "short",
+                    })}
+                    {post.canal ? ` · ${post.canal}` : ""}
+                  </span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden="true" />
+                </button>
+              ))}
+              {forgottenDrafts.length > 5 && (
+                <button
+                  type="button"
+                  onClick={() => { porte("programmer"); navigate("/calendrier"); }}
+                  className="w-full text-left px-2 py-1.5 text-xs text-primary hover:underline"
+                >
+                  Voir les {forgottenDrafts.length - 5} autres au calendrier
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit
