@@ -29,6 +29,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { convertHeicIfNeeded } from "@/lib/heic";
+import { redescribePhoto } from "@/lib/photo-redescribe";
 import {
   getSignedPhotoUrl,
   uploadPhotoOriginal,
@@ -207,7 +208,9 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
       name: `${labels.before.trim() || "Avant"} / ${labels.after.trim() || "Après"}`,
       purpose: "library",
     });
-    // Métadonnées connues d'avance : pas d'appel vision (0 coût), comme le mockup.
+    // Description de départ : elle dit la MISE EN PAGE, pas ce qu'on voit. Or
+    // c'est le sujet qui compte pour retrouver la photo (une cuisine rénovée,
+    // une coupe de cheveux…). photo-describe prend le relais (audit 14/08).
     const description = `Montage ${labels.before.trim() || "avant"} / ${labels.after.trim() || "après"} (${
       layout === "cote_a_cote" ? "côte à côte" : "haut/bas"
     })`;
@@ -221,6 +224,7 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
       })
       .eq("id", photoId);
     if (metaErr) console.warn("[AvantApresDialog] metadata update failed:", metaErr.message);
+    redescribePhoto(photoId, workspaceId);
     setSavedPhotoId(photoId);
     const { data } = await supabase.from("user_photos").select("*").eq("id", photoId).maybeSingle();
     if (!data) throw new Error("Photo introuvable après l'ajout");

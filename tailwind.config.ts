@@ -1,4 +1,6 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
+import tailwindcssAnimate from "tailwindcss-animate";
 
 export default {
   darkMode: ["class"],
@@ -158,5 +160,14 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate")],
+  plugins: [
+    tailwindcssAnimate,
+    // Variante « écran tactile » : `coarse:` cible les appareils sans survol
+    // (doigt), par opposition à une simple largeur d'écran — un iPad est large
+    // ET tactile. Sert à rendre visibles les commandes en `opacity-0
+    // group-hover:opacity-100`, qui n'apparaissent JAMAIS au doigt.
+    plugin(({ addVariant }: { addVariant: (n: string, v: string) => void }) => {
+      addVariant("coarse", "@media (pointer: coarse)");
+    }),
+  ],
 } satisfies Config;

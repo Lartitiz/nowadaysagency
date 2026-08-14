@@ -28,6 +28,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId, useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { convertHeicIfNeeded } from "@/lib/heic";
+import { redescribePhoto } from "@/lib/photo-redescribe";
 import { uploadPhotoOriginal, type UserPhotoRow } from "@/lib/photo-storage";
 import {
   MOCKUP_SUPPORTS,
@@ -143,7 +144,10 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
       name: `Mockup — ${baseName}`,
       purpose: "library",
     });
-    // Métadonnées connues d'avance : pas d'appel vision (0 coût), comme la mise en scène.
+    // Description de départ : elle dit le FORMAT, pas le contenu. Le
+    // rapprochement photo <-> contenu étant textuel, une photo décrite « mockup
+    // sur un livre, fond uni » ne se retrouve jamais quand on parle de son
+    // sujet. photo-describe prend le relais juste après (audit 14/08).
     const description = `Mockup de l'offre « ${baseName} » sur ${supportLabel.toLowerCase()}, fond uni`;
     const { error: metaErr } = await supabase
       .from("user_photos")
@@ -155,6 +159,7 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
       })
       .eq("id", photoId);
     if (metaErr) console.warn("[OfferMockupDialog] metadata update failed:", metaErr.message);
+    redescribePhoto(photoId, workspaceId);
     setSavedPhotoId(photoId);
     const { data } = await supabase.from("user_photos").select("*").eq("id", photoId).maybeSingle();
     if (!data) throw new Error("Photo introuvable après l'ajout");
