@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { derivedPhotoDescription, derivedPhotoName, rootPhotoName } from "@/lib/photo-naming";
+import { redescribePhoto } from "@/lib/photo-redescribe";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -262,8 +263,9 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
       purpose: "library",
     });
 
-    // Métadonnées héritées de la photo produit source (pas d'appel vision).
-    const tags = Array.from(new Set(["mise-en-scene", ...(photo.tags ?? [])])).slice(0, 6);
+    // Pas d'héritage des tags de la source (audit 14/08) : la scène générée
+    // n'a plus rien du décor d'origine. photo-describe décrira la vraie image.
+    const tags = ["mise-en-scene"];
     const description = derivedPhotoDescription(
       "Mise en scène IA",
       photo.description,
@@ -281,6 +283,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (updError) {
       console.warn("[MiseEnSceneDialog] metadata update failed:", updError.message);
     }
+    redescribePhoto(photoId, photo.workspace_id);
     // Grille à jour sans dépendre du Realtime ni d'un rechargement de page.
     refreshPhotos();
     return photoId;

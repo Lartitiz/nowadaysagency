@@ -38,6 +38,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { callAnthropic, AnthropicError } from "../_shared/anthropic.ts";
 import { getUserContext } from "../_shared/user-context.ts";
+import { mergePhotoTags } from "../_shared/photo-tags.ts";
 
 const BodySchema = z.discriminatedUnion("mode", [
   z.object({
@@ -77,6 +78,7 @@ const BodySchema = z.discriminatedUnion("mode", [
 // Types de photo : pilotent les actions contextuelles de la bibliothèque
 // (Packshot/Mettre en scène = produit only) et le matching des futurs lots.
 const PHOTO_KINDS = ["produit", "produit_porte", "portrait", "ambiance", "coulisses", "autre"] as const;
+
 const KIND_GUIDE =
   "produit = l'objet à vendre est le sujet principal (posé, packshot, à plat) ; " +
   "produit_porte = le produit est porté/tenu par quelqu'un mais reste le sujet ; " +
@@ -100,7 +102,7 @@ const DESCRIBE_TOOL = {
         type: "array",
         items: { type: "string" },
         description:
-          "3 à 6 tags courts en français, minuscules, singulier. Inclure si pertinent une catégorie parmi : portrait, produit, atelier, coulisses, lifestyle, détail, lieu, équipe.",
+          "2 à 5 tags courts en français, minuscules, singulier, qui décrivent UNIQUEMENT ce qui est visible sur l'image. N'invente aucun contexte : pas de saison, de fête, de lieu ni d'activité que l'image ne montre pas. Un objet de saison ne se tague que s'il est VISIBLE (un sapin, une guirlande…). Mieux vaut 2 tags justes que 5 approximatifs.",
       },
       kind: {
         type: "string",
@@ -266,7 +268,7 @@ serve(async (req) => {
       // 1. Ligne photo (client user-scoped : la RLS garantit l'accès workspace)
       const { data: photo, error: fetchErr } = await supabase
         .from("user_photos")
-        .select("id, user_id, workspace_id, storage_path, status")
+        .select("id, user_id, workspace_id, storage_path, status, tags")
         .eq("id", body.photo_id)
         .maybeSingle();
 
@@ -307,7 +309,7 @@ serve(async (req) => {
               { type: "image", source: { type: "base64", media_type, data } },
               {
                 type: "text",
-                text: "Décris cette photo (8 à 15 mots, français), donne 3 à 6 tags, et classe son type (kind).",
+                text: "Décris cette photo (8 à 15 mots, français), donne 2 à 5 tags de ce qui est VISIBLE, et classe son type (kind).",
               },
             ],
           },
@@ -320,13 +322,9 @@ serve(async (req) => {
 
       const parsed = JSON.parse(raw) as { description?: unknown; tags?: unknown; kind?: unknown };
       const description = typeof parsed.description === "string" ? parsed.description.trim().slice(0, 200) : "";
-      const tags = Array.from(
-        new Set(
-          (Array.isArray(parsed.tags) ? parsed.tags : [])
-            .map((t) => (typeof t === "string" ? t.trim().toLowerCase() : ""))
-            .filter((t) => t.length > 0 && t.length <= 30),
-        ),
-      ).slice(0, 6);
+      // Garde déterministe : seule la PROVENANCE survit à une re-description,
+      // tout ce qui décrit la scène est re-déduit de l'image (cf. photo-tags.ts).
+      const tags = mergePhotoTags(photo.tags as unknown[] | null, parsed.tags as unknown[]);
       const kind = PHOTO_KINDS.includes(parsed.kind as (typeof PHOTO_KINDS)[number])
         ? (parsed.kind as string)
         : "autre";
