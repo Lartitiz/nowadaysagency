@@ -6,7 +6,7 @@
  *    3 portes (#696, 07/08), « Mes photos » n'est plus une pastille mais la PORTE 3 —
  *    une `<section>` cliquable (vignettes + compteur + « Mettre mes photos aux couleurs
  *    de ma marque ») qui mène à /photos.
- * 2. Menu gauche : entrée « Ma bibliothèque photos » remontée dans le 1er groupe
+ * 2. Menu gauche : entrée « Mes photos » remontée dans le 1er groupe
  *    « CRÉER ET PLANIFIER » (et retirée de RESSOURCES → une seule entrée, pas de doublon).
  */
 
@@ -75,12 +75,12 @@ test("dashboard : porte « Mes photos » présente et mène à /photos", async (
   await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible();
 });
 
-test("menu : « Ma bibliothèque photos » présente une seule fois et pointe /photos", async ({ page }) => {
+test("menu : « Mes photos » présente une seule fois et pointe /photos", async ({ page }) => {
   await page.goto("/dashboard", { waitUntil: "networkidle" });
 
   // Le panneau de gauche est monté dans le DOM (desktop) ou ouvrable (mobile) ;
   // on vérifie le câblage sans dépendre du survol : une seule entrée vers /photos.
   const menuLink = page.locator('nav a[href="/photos"]');
   await expect(menuLink).toHaveCount(1);
-  await expect(menuLink).toHaveText(/Ma bibliothèque photos/i);
+  await expect(menuLink).toHaveText(/Mes photos/i);
 });
