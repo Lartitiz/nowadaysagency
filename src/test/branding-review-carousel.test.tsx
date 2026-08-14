@@ -81,7 +81,10 @@ describe("BrandingReview — fiche en cartes", () => {
   it("« Je valide tout » enregistre les 7 sections et annonce la marque prête", async () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
 
-    fireEvent.click(screen.getByText("Je valide tout"));
+    // "Je valide tout" existe deux fois à l'écran : le raccourci du header et
+    // celui de la barre sticky (même handler handleValidateAll) — voir le
+    // commentaire ligne 975 de BrandingReview.tsx. On cible un bouton précis.
+    fireEvent.click(screen.getAllByRole("button", { name: "Je valide tout" })[0]);
 
     await waitFor(() => expect(screen.getByText("Ta marque est prête")).toBeTruthy());
     expect(mocks.toast.success).toHaveBeenCalled();
@@ -98,7 +101,7 @@ describe("BrandingReview — fiche en cartes", () => {
     mocks.failTables.add("brand_charter");
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
 
-    fireEvent.click(screen.getByText("Je valide tout"));
+    fireEvent.click(screen.getAllByRole("button", { name: "Je valide tout" })[0]);
 
     await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
     expect(screen.queryByText("Ta marque est prête")).toBeNull();
