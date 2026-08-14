@@ -154,7 +154,9 @@ export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelPr
                 type="button"
                 onClick={() => handleRemove(item)}
                 disabled={busyId === item.id}
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
+                /* coarse: au doigt il n'y a pas de survol — sans ça, on ne peut
+                   pas supprimer une ligne depuis un téléphone (audit 14/08). */
+                className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity text-muted-foreground hover:text-destructive"
                 aria-label={`Supprimer « ${item.label} »`}
               >
                 <Trash2 className="h-3.5 w-3.5" />

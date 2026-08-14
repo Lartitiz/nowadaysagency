@@ -616,7 +616,7 @@ export function PhotoUploadZone({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); removePhoto(idx); }}
-                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity"
                     aria-label={`Supprimer ${p.name}`}
                   >
                     <X className="h-3 w-3" />
@@ -624,7 +624,7 @@ export function PhotoUploadZone({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setEditIdx(idx); }}
-                    className="absolute top-1 left-1 h-5 w-5 rounded-full bg-primary/85 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                    className="absolute top-1 left-1 h-5 w-5 rounded-full bg-primary/85 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity"
                     aria-label={`Changer le décor de ${p.name}`}
                     title="Changer le décor avec l'IA"
                   >
@@ -641,7 +641,7 @@ export function PhotoUploadZone({
                       Original
                     </button>
                   )}
-                  <GripVertical className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white/70 opacity-0 group-hover:opacity-100 transition-opacity drop-shadow" />
+                  <GripVertical className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white/70 opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity drop-shadow" />
                 </div>
                 {showContexts && (
                   <Input
