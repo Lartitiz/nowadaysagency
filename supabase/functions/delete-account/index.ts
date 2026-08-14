@@ -180,12 +180,15 @@ serve(async (req) => {
       "weekly_missions",
     ];
 
-    // Phase 2 — Parent tables
+    // Phase 2 — Parent tables. brand_profile.workspace_id references workspaces,
+    // so it must be deleted before workspaces or the workspace row survives the
+    // FK violation — which then also blocks the auth user deletion in Phase 3
+    // (workspaces.created_by references auth.users).
     const phase2: string[] = [
       "workspace_invitations",
       "workspace_members",
-      "workspaces",
       "brand_profile",
+      "workspaces",
       "ai_usage",
       "calendar_posts",
       "profiles",
