@@ -24,6 +24,7 @@ function dismissKey(occ: MarronnierOccurrence): string {
 }
 
 export function MarronnierBanner({ onDecliner }: MarronnierBannerProps) {
+  const { data: profileData } = useProfile();
   const occ = useMemo(() => activeMarronnier(new Date()), []);
   const [dismissed, setDismissed] = useState(() => {
     if (!occ) return true;
@@ -34,7 +35,8 @@ export function MarronnierBanner({ onDecliner }: MarronnierBannerProps) {
     }
   });
 
-  if (!occ || dismissed) return null;
+  const isServiceOnly = profileData?.type_activite === "services";
+  if (!occ || dismissed || isServiceOnly) return null;
   const { marronnier: m, daysUntil } = occ;
   const when =
     daysUntil === 0 ? "c'est aujourd'hui" : daysUntil === 1 ? "c'est demain" : `c'est dans ${daysUntil} jours`;
