@@ -968,9 +968,23 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
 
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }} className="mb-8">
-        <h1 className="font-display text-3xl sm:text-4xl text-foreground mb-2" style={{ fontWeight: 400 }}>
-          Voici ce que j'ai compris de ton projet
-        </h1>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-2">
+          <h1 className="font-display text-3xl sm:text-4xl text-foreground" style={{ fontWeight: 400 }}>
+            Voici ce que j'ai compris de ton projet
+          </h1>
+          {/* Même raccourci qu'en bas de page, remonté ici : une utilisatrice
+              qui ne scrolle pas jusqu'à la barre sticky doit quand même le voir. */}
+          {!allDone && (
+            <button
+              onClick={handleValidateAll}
+              disabled={validatingAll}
+              className="inline-flex items-center justify-center gap-1.5 bg-primary text-white rounded-pill px-4 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 shrink-0 self-start"
+            >
+              {validatingAll ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
+              Je valide tout
+            </button>
+          )}
+        </div>
         <p className="font-mono-ui text-sm text-muted-foreground mb-4 leading-relaxed">
           J'ai analysé {subtitleSources}. Une carte par morceau de ta marque : tu valides, ou tu mets de côté pour y revenir.
         </p>
