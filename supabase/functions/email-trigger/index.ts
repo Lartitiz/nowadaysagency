@@ -119,6 +119,9 @@ serve(async (req) => {
       case "check_credits":
         result = await handleCheckCredits(supabase);
         break;
+      case "check_forgotten_drafts":
+        result = await handleCheckForgottenDrafts(supabase);
+        break;
       case "subscription_activated":
         result = { event, user_id, ...(await enqueueSequence(supabase, user_id, "subscription_activated")) };
         break;
@@ -328,6 +331,36 @@ async function handleCheckCredits(supabase: any): Promise<any> {
   }
 
   return { event: "check_credits", checked: exhaustedUserIds.length, triggered };
+}
+
+async function handleCheckForgottenDrafts(supabase: any): Promise<any> {
+  // Contenus posés au calendrier (dashboard AdaptiveHome.forgottenDrafts, même
+  // critère) dont la date vient tout juste de passer sans jamais être publiés.
+  // On ne regarde QUE hier (pas de fenêtre plus large) pour prévenir dès J+1 —
+  // avant cette relance, rien ne le disait tant que l'autrice ne rouvrait pas
+  // le dashboard par hasard (audit du 14/08 : jusqu'à 3 semaines constatées).
+  const yesterday = new Date(Date.now() - 24 * 3600000).toISOString().slice(0, 10);
+
+  const { data: posts } = await supabase
+    .from("calendar_posts")
+    .select("id, user_id")
+    .eq("date", yesterday)
+    .neq("status", "published")
+    .not("content_draft", "is", null)
+    .neq("content_draft", "")
+    .or("publish_status.is.null,publish_status.eq.failed");
+
+  if (!posts?.length) return { event: "check_forgotten_drafts", checked: 0, triggered: 0 };
+
+  const userIds = [...new Set(posts.map((p: any) => p.user_id).filter(Boolean))] as string[];
+
+  let triggered = 0;
+  for (const uid of userIds) {
+    const result = await enqueueSequence(supabase, uid, "forgotten_draft_reminder");
+    if (result.queued > 0) triggered++;
+  }
+
+  return { event: "check_forgotten_drafts", checked: userIds.length, triggered };
 }
 
 // Rendez-vous hebdo : email récurrent « tes idées de la semaine ».
