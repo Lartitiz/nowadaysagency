@@ -41,6 +41,7 @@ export default function BetaFeedbackWidget() {
 
   const [sending, setSending] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const fabRef = useRef<HTMLButtonElement>(null);
 
   // Mobile : le FAB se masque au scroll vers le bas (lecture du contenu) et
   // réapparaît au scroll vers le haut — évite qu'il recouvre le contenu tappable.
@@ -64,6 +65,54 @@ export default function BetaFeedbackWidget() {
     };
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Mobile : le FAB se masque aussi s'il se retrouve physiquement au-dessus
+  // d'un bouton/lien/champ de la page — bug récurrent où une carte (bannière
+  // saisonnière, chip, CTA, lien texte) tombe dans l'empreinte fixe du FAB,
+  // quelle que soit la page ou la position de scroll. Comparaison de
+  // rectangles (pas un sondage par point) : un chevauchement même fin sur un
+  // bord ne doit jamais être raté.
+  const [overlapsClickable, setOverlapsClickable] = useState(false);
+  useEffect(() => {
+    let ticking = false;
+    const checkOverlap = () => {
+      const btn = fabRef.current;
+      if (!btn) return;
+      const rect = btn.getBoundingClientRect();
+      if (rect.width === 0) return;
+      const candidates = document.querySelectorAll(
+        'button, a[href], input, select, textarea, [role="button"]'
+      );
+      let found = false;
+      for (const el of candidates) {
+        if (el === btn || btn.contains(el)) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        if (r.right <= rect.left || r.left >= rect.right || r.bottom <= rect.top || r.top >= rect.bottom) continue;
+        found = true;
+        break;
+      }
+      setOverlapsClickable(found);
+    };
+    const scheduleCheck = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        checkOverlap();
+        ticking = false;
+      });
+    };
+
+    scheduleCheck();
+    const interval = window.setInterval(checkOverlap, 600);
+    window.addEventListener("scroll", scheduleCheck, { passive: true });
+    window.addEventListener("resize", scheduleCheck);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("scroll", scheduleCheck);
+      window.removeEventListener("resize", scheduleCheck);
+    };
   }, []);
 
   const resetForm = () => {
@@ -160,10 +209,11 @@ export default function BetaFeedbackWidget() {
       {/* Floating button */}
       {!open && (
         <button
+          ref={fabRef}
           onClick={handleOpen}
           className={cn(
             "fixed bottom-6 right-6 max-md:bottom-[5.5rem] max-md:right-4 z-40 h-14 w-14 rounded-full bg-background border-2 border-primary shadow-lg flex items-center justify-center hover:scale-105 transition-all duration-300",
-            hiddenByScroll && "max-md:translate-y-4 max-md:opacity-0 max-md:pointer-events-none",
+            (hiddenByScroll || overlapsClickable) && "max-md:translate-y-4 max-md:opacity-0 max-md:pointer-events-none",
           )}
           aria-label="Donner un feedback"
         >
