@@ -43,7 +43,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       // La page /instagram/stats agrège déjà Instagram + site (GA4) + CA ("Suivre
       // mes stats") ; on l'expose ici en porte directe, sans passer par le hub Insta.
       { label: "Mes statistiques", path: "/instagram/stats", icon: <BarChart3 size={16} /> },
-      { label: "Ma bibliothèque photos", path: "/photos", icon: <Image size={16} /> },
+      { label: "Mes photos", path: "/photos", icon: <Image size={16} /> },
     ],
   },
   {

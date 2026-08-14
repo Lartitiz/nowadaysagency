@@ -338,7 +338,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shirt className="h-4 w-4 text-primary" />
-            Mettre en scène
+            Mon produit porté ou en situation
           </DialogTitle>
           <DialogDescription>
             Ton produit porté ou en situation, comme une vraie photo — l'ambiance vient de

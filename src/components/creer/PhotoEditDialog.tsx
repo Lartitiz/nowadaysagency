@@ -216,7 +216,7 @@ export function PhotoEditDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wand2 className="h-4 w-4 text-primary" />
-            Modifier le fond
+            Changer le décor
           </DialogTitle>
           <DialogDescription>
             L'IA détoure ta photo et remplace l'arrière-plan. Choisis une idée de décor, ajoute
