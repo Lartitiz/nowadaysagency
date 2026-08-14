@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -139,7 +140,7 @@ export default function PricingPage() {
       {user ? <AppHeader /> : (
         <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
           <nav className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-            <Link to="/" className="font-display text-xl font-bold text-primary tracking-tight">Nowadays</Link>
+            <Link to="/" className="inline-flex items-center"><BrandLogo className="h-8" /></Link>
             <div className="flex items-center gap-3">
               <Link to="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Se connecter</Link>
               <Link to="/login" className="rounded-full bg-primary text-primary-foreground px-6 py-2 text-sm font-medium shadow-cta hover:opacity-90 transition-all">

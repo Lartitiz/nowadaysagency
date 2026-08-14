@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
@@ -55,8 +56,8 @@ export default function CheckoutBinomePage() {
       {/* Header minimal */}
       <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
         <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-3">
-          <Link to="/" className="font-display text-lg font-bold text-foreground">
-            Nowadays
+          <Link to="/" className="inline-flex items-center">
+            <BrandLogo className="h-7" />
           </Link>
           {user ? (
             <Link to="/dashboard" className="text-sm font-medium text-primary hover:underline flex items-center gap-1">

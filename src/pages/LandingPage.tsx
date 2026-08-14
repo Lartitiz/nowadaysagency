@@ -1,3 +1,4 @@
+import BrandLogo from "@/components/BrandLogo";
 import { useEffect, useState } from "react";
 import { usePageSEO } from "@/hooks/use-page-seo";
 import { useAuth } from "@/contexts/AuthContext";
@@ -358,7 +359,7 @@ export default function LandingPage() {
       {/* ═══ NAVBAR ═══ */}
       <header className="sticky top-0 z-50 border-b border-border bg-card/80 backdrop-blur-md">
         <nav role="navigation" aria-label="Navigation principale" className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4">
-          <span className="font-display text-xl font-bold text-bordeaux tracking-tight">Nowadays</span>
+          <BrandLogo className="h-8" />
           <div className="hidden md:flex items-center gap-6">
             <a href="#features" onClick={scrollTo("features")} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Fonctionnalités</a>
             <Link to="/pricing" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Pricing</Link>
@@ -826,7 +827,7 @@ export default function LandingPage() {
         <div className="mx-auto max-w-5xl">
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-8">
             <div className="sm:col-span-2">
-              <span className="font-display text-xl font-bold">Nowadays</span>
+              <BrandLogo className="h-8" />
               <p className="text-sm text-background/60 mt-2 max-w-xs">L'assistant de communication éthique pour solopreneuses, créatrices et freelances. Branding, réseaux sociaux, SEO : tout pour se rendre visible sans trahir ses valeurs.</p>
             </div>
             <div>
