@@ -343,11 +343,13 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
             min-w-0 OBLIGATOIRE sur la rangée : DialogContent est une grille, et
             un enfant de grille a min-width:auto — sans ça, la rangée ne peut pas
             rétrécir sous la largeur de ses boutons et c'est TOUT le dialogue qui
-            déborde de l'écran en mobile (constaté en 390 px le 14/08). */}
+            déborde de l'écran en mobile (constaté en 390 px le 14/08). Et sous
+            640 px on EMPILE : côte à côte, « Créer un contenu » se rognait en
+            « Créer un co… » et « Retoucher » en « R… ». */}
         {photo.status === "ready" && (
-          <div className="flex gap-2 min-w-0">
+          <div className="flex flex-col sm:flex-row gap-2 min-w-0">
             <Button
-              className="flex-[2] min-w-0"
+              className="w-full sm:flex-[2] min-w-0"
               onClick={() => {
                 navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });
                 onOpenChange(false);
@@ -359,7 +361,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
             {retouchOptions.length > 0 && (
               <Button
                 variant="outline"
-                className="flex-1 min-w-0"
+                className="w-full sm:flex-1 min-w-0"
                 aria-expanded={retouchOpen}
                 onClick={() => setRetouchOpen((s) => !s)}
               >
