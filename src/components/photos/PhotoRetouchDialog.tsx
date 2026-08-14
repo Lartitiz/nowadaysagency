@@ -116,19 +116,31 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
               className="min-h-[80px] resize-none"
               disabled={isPending}
             />
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {suggestions.map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setPrompt(s)}
-                  disabled={isPending}
-                  className="text-2xs px-2 py-1 rounded-full bg-muted hover:bg-muted/70 text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
+            {/* Ces pastilles étaient indiscernables des TAGS inertes de la fiche
+                photo : même forme, même taille (text-2xs), aucune bordure. Le
+                contraste n'était pas en cause (6,9:1, au-dessus de l'AA) — c'est
+                l'affordance qui manquait. Bordure + fond distinct + cible plus
+                haute (audit 14/08). */}
+            {suggestions.length > 0 && (
+              <div className="pt-1.5">
+                <p className="text-xs text-muted-foreground mb-1.5">
+                  Ou pars d'une idée tirée de ta charte :
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {suggestions.map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      onClick={() => setPrompt(s)}
+                      disabled={isPending}
+                      className="rounded-full border border-border bg-background px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary/50 hover:bg-muted/50 disabled:opacity-50"
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -143,7 +155,7 @@ export function PhotoRetouchDialog({ photo, open, onOpenChange }: PhotoRetouchDi
               </>
             ) : (
               <>
-                <Sparkles className="h-4 w-4 mr-2" /> Générer le nouveau fond
+                <Sparkles className="h-4 w-4 mr-2" /> Générer le nouveau fond · 1 crédit
               </>
             )}
           </Button>

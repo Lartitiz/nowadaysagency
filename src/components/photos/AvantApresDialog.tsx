@@ -364,6 +364,44 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
           <div className="space-y-4">
             <div className="flex gap-3">{(["before", "after"] as Side[]).map(slot)}</div>
 
+            {/* Avant de charger les deux photos, l'écran ne montrait QUE deux
+                zones de dépôt : impossible de savoir ce qu'on allait obtenir
+                (côte à côte ? étiquettes ? quel format ?). Ce schéma dit la
+                promesse tout de suite ; l'aperçu réel le remplace dès que les
+                deux photos sont là (audit 14/08). */}
+            {!ready && (
+              <div className="rounded-xl border border-border bg-muted/30 p-4">
+                <p className="text-xs text-muted-foreground mb-3">
+                  Ce que tu vas obtenir — un seul visuel, prêt à poster :
+                </p>
+                <div className="mx-auto flex w-[200px] gap-1 overflow-hidden rounded-lg border border-border">
+                  {(["before", "after"] as Side[]).map((side) => (
+                    <div
+                      key={side}
+                      className="relative flex-1 aspect-[4/5] flex items-end justify-center bg-background"
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center text-border">
+                        <Images className="h-6 w-6" aria-hidden="true" />
+                      </div>
+                      <span
+                        className={cn(
+                          "relative mb-2 rounded-full px-2 py-0.5 text-2xs font-medium",
+                          side === "after"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-foreground/80 text-background",
+                        )}
+                      >
+                        {SIDE_COPY[side].title}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-2xs text-muted-foreground mt-3 text-center">
+                  Mise en page, format et étiquettes restent réglables ensuite.
+                </p>
+              </div>
+            )}
+
             {ready && (
               <div className="flex flex-col sm:flex-row gap-4 items-start">
                 <div className="w-full sm:w-[240px] shrink-0">
