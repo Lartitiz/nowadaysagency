@@ -8,7 +8,18 @@
 
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Camera, Download, Loader2, Package, RefreshCw, Shirt, Sparkles, Wand2 } from "lucide-react";
+import {
+  Camera,
+  ChevronDown,
+  Download,
+  Loader2,
+  Package,
+  RefreshCw,
+  Shirt,
+  Sparkles,
+  Trash2,
+  Wand2,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +49,18 @@ interface PhotoDetailDialogProps {
   onMiseEnScene?: (photo: UserPhotoRow) => void;
   /** Ouvre le Portrait pro (fond de marque, visage intact) — photos kind=portrait. */
   onPortraitPro?: (photo: UserPhotoRow) => void;
+  /** Demande la suppression (le détail se ferme, la confirmation est côté page). */
+  onDelete?: (photo: UserPhotoRow) => void;
+}
+
+/** Une entrée du menu « Retoucher ». `fits` = l'outil convient à ce type de photo. */
+interface RetouchOption {
+  key: string;
+  icon: typeof Camera;
+  title: string;
+  hint: string;
+  fits: boolean;
+  run: () => void;
 }
 
 function slugify(s: string): string {
@@ -50,7 +73,7 @@ function slugify(s: string): string {
     .slice(0, 60) || "photo";
 }
 
-export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro }: PhotoDetailDialogProps) {
+export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro, onDelete }: PhotoDetailDialogProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -60,7 +83,10 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   // appel photo-describe, on garde la dernière valeur renvoyée par l'edge.
   const [meta, setMeta] = useState<{ description: string | null; tags: string[] } | null>(null);
   const [describing, setDescribing] = useState(false);
-  const [productActionsOpen, setProductActionsOpen] = useState(false);
+  // Une seule porte « Retoucher » (audit UX 14/08) : les 4 outils de retouche
+  // étaient 4 boutons frères en escalier, avec le bouton vedette « Créer un
+  // contenu » coincé au milieu de la 2e ligne.
+  const [retouchOpen, setRetouchOpen] = useState(false);
 
   // Photo bibliothèque = un seul fichier (pas de version originale distincte)
   const hasRetouch =
@@ -74,7 +100,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   useEffect(() => {
     if (!photo || !open) return;
     setView("after");
-    setProductActionsOpen(false);
+    setRetouchOpen(false);
     setMeta({ description: photo.description, tags: photo.tags ?? [] });
     let cancelled = false;
     Promise.all([
@@ -135,6 +161,80 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
     } finally {
       setDescribing(false);
     }
+  }
+
+  // Les outils de retouche, dans l'ordre où ils ont du sens pour CETTE photo.
+  // Ceux qui ne conviennent pas ne disparaissent pas (le classement IA peut se
+  // tromper) : ils passent sous un repli avec la raison.
+  const isPortrait = photo.kind === "portrait";
+  const retouchOptions: RetouchOption[] = [];
+  if (isPortrait && onPortraitPro) {
+    retouchOptions.push({
+      key: "portrait",
+      icon: Camera,
+      title: "Mon portrait sur un fond de marque",
+      hint: "Ton visage n'est jamais modifié — seul le fond change.",
+      fits: true,
+      run: () => onPortraitPro(photo),
+    });
+  }
+  if (onPackshot) {
+    retouchOptions.push({
+      key: "packshot",
+      icon: Package,
+      title: "Fond blanc pour ma boutique",
+      hint: "Pour Etsy, ta boutique, les marketplaces.",
+      fits: isProductPhoto,
+      run: () => onPackshot(photo),
+    });
+  }
+  if (onMiseEnScene) {
+    retouchOptions.push({
+      key: "mise-en-scene",
+      icon: Shirt,
+      title: "Mon produit porté ou en situation",
+      hint: "L'ambiance vient de ta charte de marque.",
+      fits: isProductPhoto,
+      run: () => onMiseEnScene(photo),
+    });
+  }
+  if (onRetouche) {
+    retouchOptions.push({
+      key: "decor",
+      icon: Wand2,
+      title: "Changer le décor",
+      hint: "Ton originale reste toujours récupérable.",
+      fits: true,
+      run: () => onRetouche(photo),
+    });
+  }
+  const fittingOptions = retouchOptions.filter((o) => o.fits);
+  const otherOptions = retouchOptions.filter((o) => !o.fits);
+
+  function renderOption(o: RetouchOption) {
+    const Icon = o.icon;
+    return (
+      <button
+        key={o.key}
+        type="button"
+        onClick={() => {
+          setRetouchOpen(false);
+          o.run();
+        }}
+        className="w-full text-left rounded-xl border border-border p-3 transition-colors hover:border-primary/50 hover:bg-background"
+      >
+        <div className="flex items-center justify-between gap-2">
+          <span className="flex items-center gap-2 text-sm font-medium text-foreground min-w-0">
+            <Icon className="h-4 w-4 shrink-0 text-primary" />
+            <span className="truncate">{o.title}</span>
+          </span>
+          <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-2xs text-primary">
+            1 crédit
+          </span>
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">{o.hint}</p>
+      </button>
+    );
   }
 
   return (
@@ -239,91 +339,94 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           </div>
         )}
 
-        <div className="flex flex-wrap justify-end gap-2">
-          {/* Portrait pro : l'action vedette des photos de personne — fond de
-              marque via détourage Photoroom, visage jamais re-généré. */}
-          {photo.status === "ready" && photo.kind === "portrait" && onPortraitPro && (
-            <Button onClick={() => onPortraitPro(photo)}>
-              <Camera className="h-4 w-4 mr-2" /> Portrait pro
-            </Button>
-          )}
-          {photo.status === "ready" && onRetouche && (
-            <Button variant="outline" onClick={() => onRetouche(photo)}>
-              <Wand2 className="h-4 w-4 mr-2" /> Changer le décor
-            </Button>
-          )}
-          {photo.status === "ready" && isProductPhoto && onPackshot && (
-            <Button variant="outline" onClick={() => onPackshot(photo)}>
-              <Package className="h-4 w-4 mr-2" /> Packshot e-commerce
-            </Button>
-          )}
-          {photo.status === "ready" && isProductPhoto && onMiseEnScene && (
-            <Button variant="outline" onClick={() => onMiseEnScene(photo)}>
-              <Shirt className="h-4 w-4 mr-2" /> Mettre en scène
-            </Button>
-          )}
-          {photo.status === "ready" && (
+        {/* Une action principale, une porte pour tout le reste. */}
+        {photo.status === "ready" && (
+          <div className="flex gap-2">
             <Button
-              /* Un seul bouton vedette à la fois : quand Portrait pro est là,
-                 Créer un contenu passe en secondaire. */
-              variant={photo.kind === "portrait" && onPortraitPro ? "outline" : "default"}
+              className="flex-[2] min-w-0"
               onClick={() => {
                 navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });
                 onOpenChange(false);
               }}
             >
-              <Sparkles className="h-4 w-4 mr-2" /> Créer un contenu
+              <Sparkles className="h-4 w-4 mr-2 shrink-0" />
+              <span className="truncate">Créer un contenu</span>
             </Button>
-          )}
-          <Button variant="outline" onClick={handleDownload} disabled={downloading || !url}>
-            {downloading ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" /> Téléchargement…
-              </>
-            ) : (
-              <>
-                <Download className="h-4 w-4 mr-2" /> Télécharger{" "}
-                {!hasRetouch ? "la photo" : view === "after" ? "la retouche" : "l'originale"}
-              </>
-            )}
-          </Button>
-        </div>
-
-        {/* Actions produit repliées pour les photos non-produit : jamais cachées
-            (le classement IA peut se tromper), mais avec le contexte pour
-            décider — un portrait « mis en scène » donne un clone IA imprévisible. */}
-        {photo.status === "ready" && !isProductPhoto && (onPackshot || onMiseEnScene) && (
-          <div className="flex flex-col items-end gap-2">
-            <button
-              type="button"
-              onClick={() => setProductActionsOpen((s) => !s)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {productActionsOpen ? "Masquer les actions produit" : "Actions produit…"}
-            </button>
-            {productActionsOpen && (
-              <div className="w-full rounded-xl border border-amber-200 bg-amber-50 p-3 space-y-2">
-                <p className="text-xs text-amber-900">
-                  {photo.kind === "portrait"
-                    ? "Cette photo semble montrer une personne. Ces outils sont conçus pour des produits : sur un portrait, le résultat sera imprévisible (la personne serait re-générée par l'IA)."
-                    : "Cette photo ne semble pas montrer un produit : ces outils sont conçus pour des photos produit."}
-                </p>
-                <div className="flex flex-wrap justify-end gap-2">
-                  {onPackshot && (
-                    <Button size="sm" variant="outline" onClick={() => onPackshot(photo)}>
-                      <Package className="h-3.5 w-3.5 mr-1.5" /> Packshot quand même
-                    </Button>
+            {retouchOptions.length > 0 && (
+              <Button
+                variant="outline"
+                className="flex-1 min-w-0"
+                aria-expanded={retouchOpen}
+                onClick={() => setRetouchOpen((s) => !s)}
+              >
+                <Wand2 className="h-4 w-4 mr-2 shrink-0" />
+                <span className="truncate">Retoucher</span>
+                <ChevronDown
+                  className={cn(
+                    "h-4 w-4 ml-1.5 shrink-0 transition-transform",
+                    retouchOpen && "rotate-180",
                   )}
-                  {onMiseEnScene && (
-                    <Button size="sm" variant="outline" onClick={() => onMiseEnScene(photo)}>
-                      <Shirt className="h-3.5 w-3.5 mr-1.5" /> Mettre en scène quand même
-                    </Button>
-                  )}
-                </div>
-              </div>
+                />
+              </Button>
             )}
           </div>
         )}
+
+        {photo.status === "ready" && retouchOpen && (
+          <div className="rounded-xl bg-muted/50 p-2 space-y-2">
+            {fittingOptions.map(renderOption)}
+            {/* Les outils qui ne collent pas au type détecté restent atteignables
+                (le classement IA peut se tromper) mais sous un repli, avec la
+                raison — un portrait « mis en scène » donne un clone IA. */}
+            {otherOptions.length > 0 && (
+              <details className="px-1">
+                <summary className="cursor-pointer list-none py-1.5 text-xs text-muted-foreground hover:text-foreground">
+                  {isPortrait
+                    ? "Outils prévus pour des photos de produit…"
+                    : "Voir aussi les outils produit…"}
+                </summary>
+                <p className="pb-2 text-xs text-muted-foreground">
+                  {isPortrait
+                    ? "Cette photo montre une personne. Sur un portrait, ces outils re-génèrent le sujet : le résultat sera imprévisible."
+                    : "Cette photo ne semble pas montrer un produit — le résultat peut surprendre."}
+                </p>
+                <div className="space-y-2 pb-1">{otherOptions.map(renderOption)}</div>
+              </details>
+            )}
+          </div>
+        )}
+
+        {/* Actions de service : détachées par un filet, jamais en concurrence
+            avec l'action principale. « Supprimer » manquait ici — la corbeille
+            de la vignette est en opacity-0/hover, donc hors d'atteinte au doigt. */}
+        <div className="flex items-center gap-4 border-t border-border pt-3">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={downloading || !url}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+          >
+            {downloading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            Télécharger{hasRetouch ? (view === "after" ? " la retouche" : " l'originale") : ""}
+          </button>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={() => {
+                onOpenChange(false);
+                onDelete(photo);
+              }}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-destructive"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Supprimer
+            </button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

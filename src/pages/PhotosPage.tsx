@@ -410,6 +410,7 @@ export default function PhotosPage() {
           setDetailPhoto(null);
           setPortraitProPhoto(p);
         }}
+        onDelete={setPhotoToDelete}
       />
       <PackshotDialog
         photo={packshotPhoto}
