@@ -9,6 +9,7 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import { classerParPertinence } from "@/lib/rank-library-photos";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
@@ -19,6 +20,11 @@ import StoryPhotoSuggestions, {
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { useUserPhotos } from "@/hooks/use-user-photos";
 import { getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
+
+/** Photos signées d'avance, dans lesquelles chaque story pioche. */
+const LIBRARY_POOL = 12;
+/** Vignettes réellement montrées sous une story. */
+const LIBRARY_STRIP = 4;
 
 interface PhotoLike {
   preview?: string;
@@ -378,20 +384,24 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     [onStoriesUpdate],
   );
 
-  // Vignettes bibliothèque de la rangée par story (les 4 plus récentes) —
-  // signées UNE fois ici, partagées par toutes les rangées.
+  // Vignettes bibliothèque : on signe un VIVIER (12 photos récentes) une seule
+  // fois, puis chaque story y pioche les 4 plus pertinentes POUR ELLE.
+  // Avant (audit 14/08) : les 4 plus récentes, identiques pour toutes les
+  // stories — sur une story qui parlait d'un livre, la bande proposait trois
+  // ordinateurs portables, alors que le rapprochement automatique, lui, avait
+  // su choisir le livre. Le tri intelligent existait, la bande l'ignorait.
   const { data: libRows = [] } = useUserPhotos();
-  const [libraryStrip, setLibraryStrip] = useState<{ row: UserPhotoRow; url: string }[]>([]);
+  const [libraryPool, setLibraryPool] = useState<{ row: UserPhotoRow; url: string }[]>([]);
   useEffect(() => {
-    const ready = libRows.filter((p) => p.status === "ready" && p.storage_path).slice(0, 4);
+    const ready = libRows.filter((p) => p.status === "ready" && p.storage_path).slice(0, LIBRARY_POOL);
     if (ready.length === 0) {
-      setLibraryStrip([]);
+      setLibraryPool([]);
       return;
     }
     let cancelled = false;
     getSignedPhotoUrls(ready.map((r) => r.storage_path)).then((map) => {
       if (cancelled) return;
-      setLibraryStrip(
+      setLibraryPool(
         ready
           .map((row) => ({ row, url: map.get(row.storage_path) || "" }))
           .filter((x) => x.url),
@@ -401,6 +411,27 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       cancelled = true;
     };
   }, [libRows]);
+
+  // Les 4 photos du vivier qui collent le mieux à CETTE story. La demande =
+  // la directive photo (ce que l'IA voulait voir) + le texte de la story.
+  // Classement déterministe et gratuit (cf. rank-library-photos) : on ne
+  // FILTRE jamais, on ne fait que remonter les plus parlantes.
+  const stripPourStory = useCallback(
+    (story: any) => {
+      const demande = [
+        story?.visual?.photo_directive || "",
+        story?.text || story?.texte || story?.content || "",
+      ]
+        .join(" ")
+        .trim();
+      return classerParPertinence(
+        libraryPool,
+        demande,
+        ({ row }) => `${row.description || ""} ${(row.tags || []).join(" ")}`,
+      ).slice(0, LIBRARY_STRIP);
+    },
+    [libraryPool],
+  );
 
   // Picker « toute la bibliothèque » : un seul dialog, ciblé sur une story.
   const [pickerFor, setPickerFor] = useState<number | null>(null);
@@ -548,7 +579,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                         !story.visual?.photo_url &&
                         !attachedByStory.has(i)
                       }
-                      libraryStrip={libraryStrip}
+                      libraryStrip={stripPourStory(story)}
                       onApply={(photo, opts) => applyStoryPhoto(i, photo, opts)}
                       onApplyLibrary={(row) => applyLibraryPhoto(i, row)}
                       onOpenLibrary={() => setPickerFor(i)}
