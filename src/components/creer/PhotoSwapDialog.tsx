@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Search, Upload, Check } from "lucide-react";
+import { Loader2, Search, Upload, Check, Library } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -18,6 +18,8 @@ import {
   stockPhotoToPhotoItem,
   type StockPhoto,
 } from "@/lib/stock-photos";
+import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 
 export interface PhotoSwapDialogProps {
   open: boolean;
@@ -60,6 +62,11 @@ export default function PhotoSwapDialog({
   const [results, setResults] = useState<StockPhoto[]>([]);
   const [importingId, setImportingId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  // Photothèque complète (toutes ses photos, pas seulement celles déjà dans
+  // ce carrousel) : dialogue empilé par-dessus, réutilisé tel quel — il
+  // embarque déjà l'import « depuis mon site ou Instagram ».
+  const [libraryPickerOpen, setLibraryPickerOpen] = useState(false);
+  const [libraryImporting, setLibraryImporting] = useState(false);
 
   // Reset à chaque ouverture.
   useEffect(() => {
@@ -69,9 +76,35 @@ export default function PhotoSwapDialog({
       setResults([]);
       setSearching(false);
       setImportingId(null);
+      setLibraryPickerOpen(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
+
+  const pickFromLibrary = async (rows: UserPhotoRow[]) => {
+    const row = rows[0];
+    if (!row) return;
+    setLibraryImporting(true);
+    try {
+      const { base64, mimeType, name } = await userPhotoToBase64(row);
+      onSelect({
+        id: crypto.randomUUID(),
+        base64,
+        preview: base64,
+        name,
+        mimeType,
+        context: "",
+        userPhotoId: row.id,
+      });
+      onOpenChange(false);
+    } catch (e) {
+      toast.error("Import impossible", {
+        description: e instanceof Error ? e.message : "Cette photo n'a pas pu être chargée.",
+      });
+    } finally {
+      setLibraryImporting(false);
+    }
+  };
 
   const runSearch = async () => {
     const q = query.trim();
@@ -169,8 +202,9 @@ export default function PhotoSwapDialog({
         <DialogHeader>
           <DialogTitle>Changer la photo</DialogTitle>
           <DialogDescription>
-            Réutilise une photo du carrousel, cherche une photo libre de droit, ou
-            importe la tienne. Pense à mettre à jour les visuels ensuite.
+            Réutilise une photo du carrousel, choisis-en une dans ta photothèque (ou
+            importe-la depuis ton site ou Instagram), cherche une photo libre de
+            droit, ou importe la tienne. Pense à mettre à jour les visuels ensuite.
           </DialogDescription>
         </DialogHeader>
 
@@ -178,6 +212,22 @@ export default function PhotoSwapDialog({
           {hasLibrary && (
             <TabButton id="library" label="Photos du carrousel" icon={<Check className="h-3.5 w-3.5" />} />
           )}
+          {/* Bouton, pas un onglet : il ouvre un dialogue empilé plutôt que de
+              remplir cette zone (la grille de la photothèque a sa propre
+              logique de chargement + import, déjà écrite dans le picker partagé). */}
+          <button
+            type="button"
+            onClick={() => setLibraryPickerOpen(true)}
+            disabled={libraryImporting}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium border bg-background text-foreground border-border hover:border-primary/40 transition-colors disabled:opacity-50"
+          >
+            {libraryImporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Library className="h-3.5 w-3.5" />
+            )}
+            Ma photothèque
+          </button>
           <TabButton id="search" label="Rechercher (Pexels)" icon={<Search className="h-3.5 w-3.5" />} />
           <TabButton id="upload" label="Importer" icon={<Upload className="h-3.5 w-3.5" />} />
         </div>
@@ -289,6 +339,16 @@ export default function PhotoSwapDialog({
           </div>
         )}
       </DialogContent>
+
+      {/* Photothèque complète, empilée par-dessus (même patron que le bouton
+          « Ma photothèque » de CarouselPhotoResult) : ferme aussi ce dialogue
+          à la sélection, via onSelect + onOpenChange(false) dans pickFromLibrary. */}
+      <PhotoLibraryPickerDialog
+        open={libraryPickerOpen}
+        onOpenChange={setLibraryPickerOpen}
+        maxSelectable={1}
+        onConfirm={pickFromLibrary}
+      />
     </Dialog>
   );
 }
