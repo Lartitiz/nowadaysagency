@@ -35,7 +35,7 @@ export interface PptxExportCheckOpts {
 }
 
 /**
- * Télécharge le « PowerPoint — éditable » du carrousel affiché, le valide, extrait
+ * Télécharge le « PowerPoint : éditable » du carrousel affiché, le valide, extrait
  * le fond le plus lourd pour le regard, ajoute 1 ligne à l'historique PPTX, et —
  * sauf assert:false — échoue sur tout défaut. Renvoie le rapport de validation.
  */
@@ -49,13 +49,16 @@ export async function exportAndCheckPptx(
 
   // Depuis l'écran résultat #608, le téléchargement n'est plus un bouton de
   // premier niveau (ceux-ci = Canva / Publier ou programmer / Autres actions) :
-  // « PowerPoint — éditable » vit dans « Autres actions » → sous-menu « Télécharger ».
+  // « PowerPoint : éditable » vit dans « Autres actions » → sous-menu « Télécharger ».
   // html2canvas × N slides peut être long → 240 s pour l'événement download.
   await page.getByTestId("more-actions").click();
   const dlSub = page.getByRole("menuitem", { name: "Télécharger", exact: true }).first();
   await expect(dlSub).toBeVisible({ timeout: 8000 });
   await dlSub.hover(); // Radix : le survol du sous-déclencheur ouvre le sous-menu
-  const pptxItem = page.getByText(/PowerPoint — éditable/i).first();
+  // Le séparateur du libellé a déjà bougé une fois (« — » → « : », #701 charte
+  // lot 3) : on n'accroche QUE les deux mots stables, jamais la ponctuation —
+  // sinon un simple lifting de charte rend l'export PPTX invisible à la sonde.
+  const pptxItem = page.getByText(/PowerPoint\s*[^\p{L}]{0,3}\s*éditable/iu).first();
   await expect(pptxItem).toBeVisible({ timeout: 8000 });
   const dlPromise = page.waitForEvent("download", { timeout: 240_000 });
   await pptxItem.click();

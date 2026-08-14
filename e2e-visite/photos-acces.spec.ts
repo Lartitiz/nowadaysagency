@@ -2,8 +2,10 @@
  * Accès direct à la bibliothèque photos (PR #396 + #39x) — re-test live après déploiement
  *
  * Deux emplacements :
- * 1. Dashboard (AdaptiveHome, la vue par défaut de /dashboard) : pill « Mes photos »
- *    dans la section « Piloter », avec compteur, qui mène à /photos.
+ * 1. Dashboard (AdaptiveHome, la vue par défaut de /dashboard) : depuis le dashboard
+ *    3 portes (#696, 07/08), « Mes photos » n'est plus une pastille mais la PORTE 3 —
+ *    une `<section>` cliquable (vignettes + compteur + « Mettre mes photos aux couleurs
+ *    de ma marque ») qui mène à /photos.
  * 2. Menu gauche : entrée « Ma bibliothèque photos » remontée dans le 1er groupe
  *    « CRÉER ET PLANIFIER » (et retirée de RESSOURCES → une seule entrée, pas de doublon).
  */
@@ -17,7 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/photos-acces");
 fs.mkdirSync(SHOTS, { recursive: true });
 
-test("dashboard : pill « Mes photos » présente et mène à /photos", async ({ page }) => {
+test("dashboard : porte « Mes photos » présente et mène à /photos", async ({ page }) => {
   // Neutralise l'overlay de visite guidée (1re visite) qui, en contexte de test
   // (storageState neuf à chaque run), recouvre la page et intercepte les clics.
   await page.addInitScript(() => {
@@ -28,14 +30,24 @@ test("dashboard : pill « Mes photos » présente et mène à /photos", async ({
   // Voisinage attendu dans « Piloter » : la pill « Mes idées » cohabite.
   await expect(page.getByRole("button", { name: /Mes idées/i })).toBeVisible({ timeout: 20_000 });
 
-  const pill = page.getByRole("button", { name: /Mes photos/i });
-  await expect(pill).toBeVisible({ timeout: 10_000 });
+  // La porte 3 est une <section> cliquable, pas un bouton : on l'accroche par son
+  // libellé d'action, le seul texte qui lui soit propre et toujours rendu (que la
+  // bibliothèque soit pleine ou vide).
+  const porte = page
+    .locator("section")
+    .filter({ hasText: /Mettre mes photos aux couleurs de ma marque/i })
+    .last();
+  await expect(porte).toBeVisible({ timeout: 10_000 });
+  await expect(porte.getByText("Mes photos", { exact: true })).toBeVisible();
 
-  await page.screenshot({ path: path.join(SHOTS, "dashboard-pill.png"), fullPage: true });
+  await page.screenshot({ path: path.join(SHOTS, "dashboard-porte.png"), fullPage: true });
 
-  await pill.scrollIntoViewIfNeeded();
+  await porte.scrollIntoViewIfNeeded();
 
-  // Ce qu'on veut VRAIMENT prouver : la pastille est atteignable au doigt,
+  // On vise l'endroit où une utilisatrice tape VRAIMENT : le libellé d'action.
+  const pill = porte.getByText(/Mettre mes photos aux couleurs de ma marque/i).first();
+
+  // Ce qu'on veut VRAIMENT prouver : la porte est atteignable au doigt,
   // c'est-à-dire que rien ne la recouvre à l'endroit où on taperait.
   // On le mesure avec le hit-test de la PAGE (elementFromPoint), pas avec les
   // coordonnées de Playwright.
@@ -54,7 +66,7 @@ test("dashboard : pill « Mes photos » présente et mène à /photos", async ({
     const top = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
     return { couverte: !el.contains(top) && top !== el, par: top ? top.tagName : "null" };
   });
-  expect(occlusion.couverte, `la pastille est recouverte par ${occlusion.par}`).toBe(false);
+  expect(occlusion.couverte, `la porte « Mes photos » est recouverte par ${occlusion.par}`).toBe(false);
 
   // Le clic passe par le DOM : il déclenche le vrai onClick du bouton sans
   // dépendre des coordonnées faussées par l'émulation.
