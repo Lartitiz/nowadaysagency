@@ -15,6 +15,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SelectionMenuProvider from "@/components/SelectionMenuProvider";
 import { SessionProvider } from "@/contexts/SessionContext";
 import { MobileNavProvider } from "@/contexts/MobileNavContext";
+import { isAppShellVisible, isMobileNavAvailable } from "@/lib/app-shell-visibility";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 const SessionOverlay = lazy(() => import("@/components/session/SessionOverlay"));
 const AiDebugShortcut = lazy(() => import("@/components/admin/AiDebugShortcut"));
@@ -170,8 +171,6 @@ function SmartRedirect({ to, mergeParams }: { to: string; mergeParams?: Record<s
   return <Navigate to={qs ? `${basePath}?${qs}` : basePath} replace state={location.state} />;
 }
 
-const PUBLIC_PATHS = ["/", "/login", "/connexion", "/reset-password", "/binome", "/pricing", "/services", "/share/branding", "/checkout/binome", "/unsubscribe"];
-
 function AnimatedRoutes() {
   const location = useLocation();
   useOnlineStatus();
@@ -203,10 +202,8 @@ function AnimatedRoutes() {
     return () => window.removeEventListener("unhandledrejection", handleUnhandledRejection);
   }, []);
 
-  const showAppWidgets = !PUBLIC_PATHS.includes(location.pathname) && !location.pathname.startsWith("/invite/") && !location.pathname.startsWith("/share/") && !location.pathname.startsWith("/calendrier/partage/");
-  // Onboarding = tunnel : pas de menu latéral (13 portes de sortie avant le
-  // premier contenu, cf audit de simplicité 13/08). Le menu revient dès /welcome.
-  const showSidebar = showAppWidgets && location.pathname !== "/onboarding";
+  const showAppWidgets = isAppShellVisible(location.pathname);
+  const showSidebar = isMobileNavAvailable(location.pathname);
   const showCoach = showAppWidgets && location.pathname !== "/onboarding" && location.pathname !== "/welcome";
 
   return (

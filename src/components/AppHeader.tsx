@@ -5,6 +5,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench, IdCard, Menu } from "lucide-react";
 import { useMobileNav } from "@/contexts/MobileNavContext";
+import { isMobileNavAvailable } from "@/lib/app-shell-visibility";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 
@@ -397,8 +398,14 @@ function AppHeaderInner() {
 /* ─── Déclencheur du menu mobile/tablette ───
    Ouvre le tiroir de navigation (AppSidebar, cf MobileNavContext). Vit dans
    le flux normal de la barre du haut — un vrai enfant flex, pas un élément
-   `fixed` que la barre devrait deviner et éviter avec un padding en dur. */
+   `fixed` que la barre devrait deviner et éviter avec un padding en dur.
+   AppHeader s'affiche aussi sur des pages publiques (/pricing, /services)
+   pour une utilisatrice connectée, là où AppSidebar (et donc son tiroir)
+   n'est PAS montée — sans cette garde, le bouton apparaîtrait sans rien
+   ouvrir. Même règle que `showSidebar` dans App.tsx, via une source unique. */
 function MobileNavTrigger({ onOpen }: { onOpen: () => void }) {
+  const location = useLocation();
+  if (!isMobileNavAvailable(location.pathname)) return null;
   return (
     <button
       type="button"
