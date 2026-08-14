@@ -207,9 +207,23 @@ export default function AppSidebar() {
 
   return (
     <>
+      {/* ÉCHELLE DE SUPERPOSITION — ne pas remonter ce bloc.
+          Il était en z-[299..400], soit AU-DESSUS de toutes les fenêtres
+          modales (les surfaces Radix — dialogue, popover, select, menu,
+          infobulle — sont toutes en z-50). Résultat : sur mobile, le bouton
+          menu recouvrait le titre de chaque dialogue (« ☰hanger le décor »).
+          Le menu est du mobilier de page, pas une couche modale :
+            40      en-têtes collants et barre du bas
+            41      déclencheurs du menu (bande desktop, hamburger mobile)
+            42      voile du menu — au-dessus des en-têtes, qu'il doit assombrir
+            43      panneau du menu
+            50      surfaces modales (Radix) — passent donc AU-DESSUS du menu
+            60+     bandeau de mise à jour, session en pause, visite guidée
+          Si un chevauchement réapparaît, corriger la couche fautive dans cette
+          échelle plutôt que de surenchérir. */}
       {/* Desktop: Hover trigger zone — invisible 48px strip on left */}
       <div
-        className="fixed top-0 left-0 h-full w-12 z-[300] hidden lg:flex lg:flex-col lg:items-center"
+        className="fixed top-0 left-0 h-full w-12 z-[41] hidden lg:flex lg:flex-col lg:items-center"
         onMouseEnter={handleMouseEnterTrigger}
         onMouseLeave={handleMouseLeaveTrigger}
         style={{ pointerEvents: open ? "none" : "auto" }}
@@ -255,7 +269,7 @@ export default function AppSidebar() {
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="fixed top-[14px] left-[14px] z-[300] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
+          className="fixed top-[14px] left-[14px] z-[41] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
           aria-label="Ouvrir le menu"
         >
           <Menu size={18} className="text-white" />
@@ -270,7 +284,7 @@ export default function AppSidebar() {
           d'édition. Sur mobile (ouverture au tap), il garde le tap-pour-fermer. */}
       {open && (
         <div
-          className="fixed inset-0 z-[299] bg-black/[0.08] backdrop-blur-[2px] lg:pointer-events-none"
+          className="fixed inset-0 z-[42] bg-black/[0.08] backdrop-blur-[2px] lg:pointer-events-none"
           onMouseEnter={startCloseTimer}
           onClick={() => setOpen(false)}
         />
@@ -279,7 +293,7 @@ export default function AppSidebar() {
       {/* Sidebar panel */}
       <div
         ref={panelRef}
-        className={`fixed top-0 left-0 h-full w-[260px] z-[301] bg-card border-r border-border flex-col overflow-y-auto ${
+        className={`fixed top-0 left-0 h-full w-[260px] z-[43] bg-card border-r border-border flex-col overflow-y-auto ${
           open ? "flex" : "hidden lg:flex"
         }`}
         style={{
@@ -447,7 +461,7 @@ export default function AppSidebar() {
               <ChevronDown size={14} className="text-muted-foreground shrink-0" />
             </button>
           </PopoverTrigger>
-          <PopoverContent side="top" align="start" className="w-72 p-1.5 z-[400]">
+          <PopoverContent side="top" align="start" className="w-72 p-1.5 z-50">
             {/* Current account */}
             <div className="text-2xs font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Compte actif</div>
             <div className="flex items-center gap-2.5 px-2 py-2 rounded-md bg-muted">
