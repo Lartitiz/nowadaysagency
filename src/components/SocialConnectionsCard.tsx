@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette, RefreshCw, AlertCircle, BarChart3 } from "lucide-react";
+import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette, RefreshCw, AlertCircle, BarChart3, LineChart } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,7 +9,7 @@ import { useNavigate } from "react-router-dom";
 import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
 import { startSocialConnect } from "@/lib/social-connect";
 
-type Platform = "instagram" | "linkedin" | "canva" | "pinterest" | "google";
+type Platform = "instagram" | "linkedin" | "linkedin_analytics" | "canva" | "pinterest" | "google";
 
 type Connection = {
   platform: Platform;
@@ -59,6 +59,14 @@ const PLATFORMS: PlatformMeta[] = [
     label: "LinkedIn",
     icon: <Linkedin className="h-4 w-4" />,
     iconWrapClass: "bg-[#0a66c2]",
+    warnOnExpiry: true,
+  },
+  {
+    key: "linkedin_analytics",
+    label: "Stats LinkedIn",
+    icon: <LineChart className="h-4 w-4" />,
+    iconWrapClass: "bg-[#0a66c2]",
+    notConnectedHint: "Non connecté : pour remplir tes stats LinkedIn automatiquement",
     warnOnExpiry: true,
   },
   {
@@ -130,6 +138,7 @@ export default function SocialConnectionsCard() {
     if (
       connected === "instagram" ||
       connected === "linkedin" ||
+      connected === "linkedin_analytics" ||
       connected === "canva" ||
       connected === "pinterest" ||
       connected === "google"
@@ -139,6 +148,7 @@ export default function SocialConnectionsCard() {
       const retour = lireRetour();
       toast.success(
         connected === "linkedin" ? "LinkedIn connecté !"
+          : connected === "linkedin_analytics" ? "Stats LinkedIn connectées !"
           : connected === "canva" ? "Canva connecté !"
           : connected === "pinterest" ? "Pinterest connecté !"
           : connected === "google" ? "Google Analytics connecté !"
