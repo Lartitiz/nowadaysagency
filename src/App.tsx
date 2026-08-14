@@ -14,6 +14,7 @@ const DemoBanner = lazy(() => import("@/components/demo/DemoBanner"));
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import SelectionMenuProvider from "@/components/SelectionMenuProvider";
 import { SessionProvider } from "@/contexts/SessionContext";
+import { MobileNavProvider } from "@/contexts/MobileNavContext";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 const SessionOverlay = lazy(() => import("@/components/session/SessionOverlay"));
 const AiDebugShortcut = lazy(() => import("@/components/admin/AiDebugShortcut"));
@@ -209,7 +210,7 @@ function AnimatedRoutes() {
   const showCoach = showAppWidgets && location.pathname !== "/onboarding" && location.pathname !== "/welcome";
 
   return (
-    <>
+    <MobileNavProvider>
       <a href="#main-content" className="skip-to-content">Aller au contenu principal</a>
       {showAppWidgets && <Suspense fallback={null}><DemoBanner /></Suspense>}
       <Suspense fallback={null}><SessionOverlay /></Suspense>
@@ -358,7 +359,7 @@ function AnimatedRoutes() {
             </Routes>
           </Suspense>
       </div>
-    </>
+    </MobileNavProvider>
   );
 }
 

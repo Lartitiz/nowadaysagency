@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, Menu, X, Plus, Trash2, Image, BarChart3, IdCard } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, X, Plus, Trash2, Image, BarChart3, IdCard, MessageCircle, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -8,6 +8,8 @@ import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAccountSwitcher } from "@/hooks/use-account-switcher";
+import { useMobileNav } from "@/contexts/MobileNavContext";
+import { useSession } from "@/contexts/SessionContext";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -72,6 +74,15 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
+// Barre du bas mobile : accès rapide aux 3 destinations les plus utilisées,
+// en complément (pas en concurrence) du tiroir ci-dessus qui couvre tout le
+// reste. Mêmes entrées que l'ancienne barre de AppHeader.
+const MOBILE_NAV: { to: string; label: string; icon: typeof Home; matchExact: boolean }[] = [
+  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true },
+  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
+];
+
 const MENU_SEEN_KEY = "lac_menu_discovered";
 
 export default function AppSidebar() {
@@ -84,7 +95,8 @@ export default function AppSidebar() {
   const isBinome = plan === "binome";
 
   const { pending: brandReviewPending } = usePendingBrandReview();
-  const [open, setOpen] = useState(false);
+  const { isActive: sessionActive } = useSession();
+  const { open, setOpen } = useMobileNav();
   // Le libellé "Menu" à côté de la pastille disparaît une fois le menu ouvert
   // au moins une fois : guidant à l'arrivée, discret ensuite.
   const [menuDiscovered, setMenuDiscovered] = useState(
@@ -125,7 +137,7 @@ export default function AppSidebar() {
       }
       setOpen(false);
     },
-    [],
+    [setOpen],
   );
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wsPopoverRef = useRef(false);
@@ -143,12 +155,12 @@ export default function AppSidebar() {
     closeTimer.current = setTimeout(() => {
       if (!wsPopoverRef.current) setOpen(false);
     }, 350);
-  }, [clearCloseTimer]);
+  }, [clearCloseTimer, setOpen]);
 
   const handleMouseEnterTrigger = useCallback(() => {
     clearCloseTimer();
     setOpen(true);
-  }, [clearCloseTimer]);
+  }, [clearCloseTimer, setOpen]);
 
   const handleMouseLeaveTrigger = useCallback(() => {
     startCloseTimer();
@@ -195,6 +207,21 @@ export default function AppSidebar() {
 
   const toggleSub = (key: string) => {
     setOpenSubs((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  // Barre du bas : même règle « Ma fiche d'abord » que le tiroir ci-dessus,
+  // et même entrée Accompagnement en plus pour les binômes.
+  const quickNavBase = isBinome
+    ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }]
+    : MOBILE_NAV;
+  const quickNav = brandReviewPending
+    ? quickNavBase.map((i) => (i.to === "/creer"
+        ? { to: "/branding?from=onboarding&next=creer", label: "Ma fiche", icon: IdCard, matchExact: false }
+        : i))
+    : quickNavBase;
+  const isQuickNavActive = (item: { to: string; matchExact: boolean }) => {
+    const base = item.to.split("?")[0];
+    return item.matchExact ? location.pathname === base : location.pathname.startsWith(base);
   };
 
   const firstName = user?.user_metadata?.first_name || user?.user_metadata?.prenom || user?.email?.split("@")[0] || "Utilisateur";
@@ -264,17 +291,6 @@ export default function AppSidebar() {
           </TooltipContent>
         </Tooltip>
       </div>
-
-      {/* Mobile: Hamburger button — visible only below lg when menu is closed */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed top-[14px] left-[14px] z-[41] flex lg:hidden items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer"
-          aria-label="Ouvrir le menu"
-        >
-          <Menu size={18} className="text-white" />
-        </button>
-      )}
 
       {/* Backdrop. Sur desktop (lg+) le menu s'ouvre au SURVOL : le backdrop
           reste purement décoratif (pointer-events-none) pour ne jamais bloquer
@@ -564,6 +580,33 @@ export default function AppSidebar() {
           </PopoverContent>
         </Popover>
       </div>
+
+      {/* Mobile bottom tab bar (<md only) — accès rapide, en plus du tiroir
+          ci-dessus qui reste la seule porte vers tout le reste. Masquée
+          pendant une session guidée (SessionOverlay prend déjà toute la
+          largeur du haut), comme c'était le cas quand cette barre vivait
+          dans AppHeader. */}
+      {!sessionActive && (
+        <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
+          <div className="flex items-center justify-around h-14">
+            {quickNav.map((item) => {
+              const active = isQuickNavActive(item);
+              return (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  className={`flex flex-col items-center gap-0.5 py-1 px-2 text-2xs font-semibold transition-colors ${
+                    active ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <item.icon className={`h-5 w-5 ${active ? "text-primary" : ""}`} />
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       <AlertDialog
         open={freshStartTarget !== null}
