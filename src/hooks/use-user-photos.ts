@@ -191,7 +191,9 @@ export function useUploadLibraryPhotos() {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [pendingUploads, setPendingUploads] = useState<PendingLibraryUpload[]>([]);
 
-  async function mutate(files: File[]): Promise<{ uploaded: number; failed: number }> {
+  async function mutate(
+    files: File[],
+  ): Promise<{ uploaded: number; failed: number; photoIds: string[] }> {
     if (!user?.id || !workspaceId) {
       throw new Error("Espace de travail introuvable");
     }
@@ -202,6 +204,9 @@ export function useUploadLibraryPhotos() {
 
     let uploaded = 0;
     let failed = 0;
+    // Lignes créées, dans l'ordre : permet à l'appelant de rebondir dessus
+    // (le picker de /creer pré-sélectionne les photos qu'il vient d'importer).
+    const photoIds: string[] = [];
     setProgress({ done: 0, total: files.length });
     const batch: PendingLibraryUpload[] = files.map((f) => ({
       localId: crypto.randomUUID(),
@@ -230,6 +235,7 @@ export function useUploadLibraryPhotos() {
             purpose: "library",
           });
           uploaded++;
+          photoIds.push(photoId);
           setPendingUploads((prev) =>
             prev.map((p) => (p.localId === batch[i].localId ? { ...p, photoId } : p)),
           );
@@ -268,7 +274,7 @@ export function useUploadLibraryPhotos() {
         return prev.filter((p) => !batchIds.has(p.localId));
       });
     }
-    return { uploaded, failed };
+    return { uploaded, failed, photoIds };
   }
 
   return { mutate, progress, pendingUploads };
