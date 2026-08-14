@@ -7,7 +7,12 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
    - « Je valide tout » ne dit JAMAIS « ta marque est prête » quand une des 7
      écritures a échoué. supabase-js ne lève pas d'exception : il renvoie
      { error }. Sans le garde, l'écran de succès s'affichait sur une fiche
-     partiellement enregistrée — le « vert menteur » qu'on traque. */
+     partiellement enregistrée — le « vert menteur » qu'on traque.
+
+   Depuis PR #735, « Je valide tout » est dupliqué à l'écran : une fois à
+   côté du titre (repéré en QA comme trop peu visible en bas de page), une
+   fois dans la barre sticky du bas. Même handler, même libellé — donc
+   getAllByText(...)[0] volontairement ici, pas un getByText qui casserait. */
 
 const mocks = vi.hoisted(() => {
   const writes: { table: string; op: string }[] = [];
@@ -81,7 +86,8 @@ describe("BrandingReview — fiche en cartes", () => {
   it("« Je valide tout » enregistre les 7 sections et annonce la marque prête", async () => {
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
 
-    fireEvent.click(screen.getByText("Je valide tout"));
+    // Deux raccourcis identiques à l'écran (header + barre sticky) : on clique le premier.
+    fireEvent.click(screen.getAllByText("Je valide tout")[0]);
 
     await waitFor(() => expect(screen.getByText("Ta marque est prête")).toBeTruthy());
     expect(mocks.toast.success).toHaveBeenCalled();
@@ -98,7 +104,7 @@ describe("BrandingReview — fiche en cartes", () => {
     mocks.failTables.add("brand_charter");
     render(<BrandingReview analysis={ANALYSIS} onDone={() => {}} />);
 
-    fireEvent.click(screen.getByText("Je valide tout"));
+    fireEvent.click(screen.getAllByText("Je valide tout")[0]);
 
     await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
     expect(screen.queryByText("Ta marque est prête")).toBeNull();
