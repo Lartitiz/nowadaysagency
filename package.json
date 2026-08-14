@@ -12,6 +12,7 @@
     "knip": "npx --yes knip@5.88.1 --no-progress",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:edges": "deno test --allow-env --allow-read supabase/functions/",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
