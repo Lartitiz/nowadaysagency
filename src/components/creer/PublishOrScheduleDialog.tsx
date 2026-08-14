@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CalendarDays, Clock, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
+import { Clock, FileEdit, ImagePlus, Link2, Loader2, Zap } from "lucide-react";
 import AlreadyPlannedNotice from "@/components/calendar/AlreadyPlannedNotice";
 
 export type PublishChannel = "instagram" | "linkedin" | null;
@@ -59,10 +59,12 @@ function todayISO(): string {
 /**
  * Fenêtre unique « Publier ou programmer » : remplace les anciens boutons
  * « Publier sur Instagram/LinkedIn » (publication immédiate) et « Ajouter au
- * calendrier » (brouillon). Trois issues :
+ * calendrier » (brouillon). Trois issues, groupées visuellement en 2 blocs
+ * pour qu'on ne confonde plus « Programmer » (auto) et « Brouillon » (manuel) :
  *  1. Maintenant — publication directe immédiate.
  *  2. Programmer — date + heure, le cron social-publish-scheduled publie tout seul.
- *  3. Juste dans le calendrier — brouillon posé sur une date, sans auto-publication.
+ *  3. Brouillon — posé sur une date, sans auto-publication, séparé par un divider
+ *     "sans publication auto" + icône/couleur différentes des deux options du dessus.
  */
 export default function PublishOrScheduleDialog({
   open,
@@ -110,6 +112,9 @@ export default function PublishOrScheduleDialog({
         <div className="space-y-2 py-1">
           {channel && (
             <>
+              <p className="text-xs font-medium text-muted-foreground px-1">
+                Ça part tout seul sur {channelLabel}
+              </p>
               {/* 1. Maintenant */}
               <button
                 type="button"
@@ -217,22 +222,32 @@ export default function PublishOrScheduleDialog({
             </>
           )}
 
-          {/* 3. Juste dans le calendrier (toujours disponible) */}
+          {/* 3. Brouillon (toujours disponible) — volontairement à part visuellement :
+              c'est l'option qui NE publie rien seule, contrairement aux deux au-dessus. */}
+          {channel && (
+            <div className="flex items-center gap-2 pt-1 px-1">
+              <div className="h-px flex-1 bg-border" />
+              <span className="text-[11px] text-muted-foreground">sans publication auto</span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          )}
           <button
             type="button"
             data-testid="publish-draft-option"
-            className={optionClass}
+            className={`${optionClass} border-dashed bg-muted/20`}
             disabled={scheduling || publishing}
             onClick={() => {
               setMode((m) => (m === "draft" ? null : "draft"));
               if (!draftDate) setDraftDate(defaultDraftDate || todayISO());
             }}
           >
-            <CalendarDays className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <FileEdit className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">Juste dans le calendrier</span>
+              <span className="block text-sm font-semibold text-foreground">
+                Brouillon (à publier toi-même)
+              </span>
               <span className="block text-xs text-muted-foreground">
-                Brouillon posé sur une date, tu publieras toi-même
+                Posé sur une date, mais rien ne part tout seul
               </span>
             </span>
           </button>
@@ -250,8 +265,8 @@ export default function PublishOrScheduleDialog({
                 disabled={!draftDate || scheduling}
                 onClick={() => onDraft(draftDate)}
               >
-                {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <CalendarDays className="h-4 w-4" />}
-                {scheduling ? "Ajout en cours…" : "Ajouter au calendrier"}
+                {scheduling ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileEdit className="h-4 w-4" />}
+                {scheduling ? "Ajout en cours…" : "Enregistrer le brouillon"}
               </Button>
             </div>
           )}
