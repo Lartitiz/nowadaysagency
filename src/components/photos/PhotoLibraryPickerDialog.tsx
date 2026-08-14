@@ -23,6 +23,12 @@ interface PhotoLibraryPickerDialogProps {
   onOpenChange: (v: boolean) => void;
   maxSelectable: number;
   onConfirm: (photos: UserPhotoRow[]) => void;
+  /**
+   * Ouvre directement l'import site / Instagram à l'ouverture du picker.
+   * Utilisé quand l'utilisatrice a explicitement cliqué « depuis mon site » :
+   * lui réafficher d'abord une photothèque vide serait un clic pour rien.
+   */
+  autoOpenImport?: boolean;
 }
 
 function PickerThumb({
@@ -85,6 +91,7 @@ export function PhotoLibraryPickerDialog({
   onOpenChange,
   maxSelectable,
   onConfirm,
+  autoOpenImport = false,
 }: PhotoLibraryPickerDialogProps) {
   const { data: photos, isLoading } = useUserPhotos();
   const { mutate: uploadLibrary } = useUploadLibraryPhotos();
@@ -103,6 +110,13 @@ export function PhotoLibraryPickerDialog({
   useEffect(() => {
     if (open) setSelectedIds([]);
   }, [open]);
+
+  // Entrée « depuis mon site » : on saute l'écran intermédiaire et on ouvre
+  // l'import tout de suite. À la fermeture, le picker reprend la main avec les
+  // photos importées déjà cochées.
+  useEffect(() => {
+    if (open && autoOpenImport) setImportOpen(true);
+  }, [open, autoOpenImport]);
 
   /**
    * Verse les photos importées (site / Instagram) dans la bibliothèque, puis
