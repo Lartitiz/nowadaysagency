@@ -47,6 +47,8 @@ const SubmitSchema = z.object({
   tts_voice: z.string().max(60).optional(),
   subtitles: z.boolean().optional(),
   subtitle_settings: z.record(z.unknown()).optional(),
+  // "filme" (prise face cam, clip gardé avec son) / "cache" (défaut, comportement existant).
+  mode: z.enum(["filme", "cache"]).optional(),
 });
 
 const StatusSchema = z.object({

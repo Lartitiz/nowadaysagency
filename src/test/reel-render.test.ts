@@ -3,6 +3,7 @@ import {
   parseTimingSeconds,
   sectionDuration,
   voiceSectionDuration,
+  videoSectionDuration,
   buildRenderPlan,
   countSectionsWithoutVoice,
   sectionsWithVoiceButNoClip,
@@ -81,6 +82,20 @@ describe("voiceSectionDuration", () => {
   it("plancher à 2 s et plafond à 90 s", () => {
     expect(voiceSectionDuration(0.5)).toBe(2);
     expect(voiceSectionDuration(200)).toBe(90);
+  });
+});
+
+// Mode "je me filme" : la durée vient de la prise réelle, sans le silence de
+// fin ajouté pour la voix (le dernier plan filmé EST déjà la fin).
+describe("videoSectionDuration", () => {
+  it("reprend la durée réelle du clip, arrondie au dixième", () => {
+    expect(videoSectionDuration(8)).toBe(8);
+    expect(videoSectionDuration(6.23)).toBe(6.2);
+  });
+
+  it("plancher à 2 s et plafond à 90 s", () => {
+    expect(videoSectionDuration(0.5)).toBe(2);
+    expect(videoSectionDuration(200)).toBe(90);
   });
 });
 
@@ -167,5 +182,40 @@ describe("buildRenderPlan", () => {
     });
     expect(plan.sections).toHaveLength(2);
     expect(plan.sections[1].voice_audio_url).toBe("voix3.wav");
+  });
+
+  // Mode "je me filme" : pas de voix séparée, la durée vient de la prise.
+  describe("mode filme", () => {
+    it("la durée vient du clip réel, pas du script, et aucune voix n'est embarquée", () => {
+      const plan = buildRenderPlan(sections, ["a.mp4"], {
+        mode: "filme",
+        voice_mode: "tts",
+        clipDurations: [9.4],
+      });
+      expect(plan.mode).toBe("filme");
+      expect(plan.sections[0].duration).toBe(9.4);
+      expect(plan.sections[0].voice_audio_url).toBeUndefined();
+      expect(plan.sections[0].voice_text).toBeUndefined();
+    });
+
+    it("sans durée de clip connue, on retombe sur l'estimation du script", () => {
+      const plan = buildRenderPlan(sections, ["a.mp4"], { mode: "filme", voice_mode: "tts" });
+      expect(plan.sections[0].duration).toBe(4);
+    });
+
+    it("des voiceAudioUrls fournis par erreur n'ont aucun effet en mode filme", () => {
+      const plan = buildRenderPlan(sections, ["a.mp4"], {
+        mode: "filme",
+        voice_mode: "recorded",
+        voiceAudioUrls: ["voix1.wav"],
+        clipDurations: [5],
+      });
+      expect(plan.sections[0].voice_audio_url).toBeUndefined();
+    });
+  });
+
+  it("mode par défaut (omis) : \"cache\", comportement inchangé", () => {
+    const plan = buildRenderPlan(sections, ["a.mp4"], { voice_mode: "tts" });
+    expect(plan.mode).toBe("cache");
   });
 });
