@@ -13,7 +13,7 @@
  * la même ligne (1 crédit) toujours depuis la photo d'origine.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Download, Loader2, RefreshCw, ShieldCheck, Sparkles, Trash2 } from "lucide-react";
 import {
@@ -80,6 +80,8 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
   const [adjustingKey, setAdjustingKey] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  // true dès que l'essai est explicitement gardé (bouton "Garder" ou "Créer un post avec")
+  const keptRef = useRef(false);
 
   const { ambiances, isLoading, isError, regenerate, isRegenerating } = usePortraitAmbiances(open);
   const { mutate: generate, isPending: isGenerating } = useGeneratePortraitPro();
@@ -95,6 +97,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
     setResult(null);
     setResultUrl(null);
     setSourceUrl(null);
+    keptRef.current = false;
     let cancelled = false;
     const srcPath = photo.original_storage_path || photo.storage_path;
     getSignedPhotoUrl(srcPath).then((u) => {
@@ -202,6 +205,13 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
       open={open}
       onOpenChange={(v) => {
         if (busy) return; // pas de fermeture pendant une génération
+        if (!v && result && !keptRef.current) {
+          // Fermeture sans avoir cliqué "Garder" ni "Supprimer cet essai" : on ne laisse pas
+          // un essai non validé dans la bibliothèque.
+          deletePhotoCompletely(result).catch(() => {
+            toast.error("Un essai n'a pas pu être nettoyé, vérifie ta bibliothèque.");
+          });
+        }
         onOpenChange(v);
       }}
     >
@@ -366,6 +376,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
                   size="sm"
                   disabled={busy}
                   onClick={() => {
+                    keptRef.current = true;
                     onOpenChange(false);
                     navigate("/creer", { state: { libraryPhotoIds: [result!.id] } });
                   }}
@@ -376,6 +387,7 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
                   size="sm"
                   disabled={busy}
                   onClick={() => {
+                    keptRef.current = true;
                     toast.success("Portrait ajouté à ta bibliothèque.");
                     onOpenChange(false);
                   }}
