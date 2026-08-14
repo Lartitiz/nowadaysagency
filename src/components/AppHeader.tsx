@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench, IdCard } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench, IdCard, Menu } from "lucide-react";
+import { useMobileNav } from "@/contexts/MobileNavContext";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 
@@ -32,12 +33,6 @@ const NAV_ITEMS = [
 ];
 
 const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", icon: HeartHandshake, matchExact: false };
-
-const MOBILE_NAV = [
-  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
-];
 
 const BREADCRUMB_LABELS: Record<string, string> = {
   "/branding": "Mon identité de marque",
@@ -181,7 +176,7 @@ function AppHeaderInner() {
     brandReviewPending ? items.map((i) => (i.to === "/creer" ? brandFicheItem : i)) : items;
 
   const desktopNav = swapCreer(isBinome ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS);
-  const mobileNav = swapCreer(isBinome ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }] : MOBILE_NAV);
+  const { setOpen: setMobileNavOpen } = useMobileNav();
 
   // `to` peut porter une query (« Ma fiche » → /branding?from=onboarding…) :
   // on compare toujours sur le chemin seul, sinon l'onglet ne s'allume jamais.
@@ -261,12 +256,12 @@ function AppHeaderInner() {
         </div>
       </header>
 
-      {/* ─── Tablet header (md–lg) : logo + icon-only nav + bell+avatar ─── */}
+      {/* ─── Tablet header (md–lg) : hamburger + logo + icon-only nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden md:block lg:hidden">
-        {/* pl-14 : dégage le hamburger fixe (AppSidebar, left-[14px] w-9, visible lg:hidden) qui sinon recouvre le début du nom */}
-        {/* même garde-fou que la barre mobile : le bloc gauche doit pouvoir rétrécir */}
-        <div className="flex h-14 items-center justify-between gap-2 pl-14 pr-4">
+        {/* le bloc gauche doit pouvoir rétrécir (garde-fou partagé avec la barre mobile) */}
+        <div className="flex h-14 items-center justify-between gap-2 pl-2 pr-4">
           <div className="flex items-center gap-2 min-w-0">
+            <MobileNavTrigger onOpen={() => setMobileNavOpen(true)} />
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               <BrandLogo className="h-6" />
               <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
@@ -317,14 +312,14 @@ function AppHeaderInner() {
         </div>
       </header>
 
-      {/* ─── Mobile top bar (<md) : logo + bell+avatar only ─── */}
+      {/* ─── Mobile top bar (<md) : hamburger + logo + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card md:hidden">
-        {/* pl-14 : dégage le hamburger fixe (AppSidebar, left-[14px] w-9, visible lg:hidden) qui sinon recouvre le début du nom */}
         {/* min-w-0 à gauche (et JAMAIS shrink-0) : sur un compte multi-espaces, un bloc
             gauche incompressible pousse la barre à ~457px et le navigateur mobile élargit
             le layout viewport de TOUTES les pages → cloche/avatar coupés, dialogues rognés. */}
-        <div className="flex h-12 items-center justify-between gap-2 pl-14 pr-4">
+        <div className="flex h-12 items-center justify-between gap-2 pl-2 pr-4">
           <div className="flex items-center gap-2 min-w-0">
+            <MobileNavTrigger onOpen={() => setMobileNavOpen(true)} />
             <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
               {/* multi-espaces : chaque pixel compte pour afficher le nom de l'espace
                   → logo raccourci (« L'Assistant ») et badge beta sacrifiés */}
@@ -362,27 +357,6 @@ function AppHeaderInner() {
 
       <Breadcrumb />
 
-      {/* ─── Mobile bottom tab bar (<md only) ─── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
-        <div className="flex items-center justify-around h-14">
-          {mobileNav.map((item) => {
-            const active = isActive(item);
-            return (
-              <Link
-                key={item.to}
-                to={item.to}
-                className={`flex flex-col items-center gap-0.5 py-1 px-2 text-2xs font-semibold transition-colors ${
-                  active ? "text-primary" : "text-muted-foreground"
-                }`}
-              >
-                <item.icon className={`h-5 w-5 ${active ? "text-primary" : ""}`} />
-                {item.label}
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
-
       {/* ─── Client workspace banner ─── */}
       {activeRole === "manager" && activeWorkspace && (
         <div className="relative z-30 border-b border-primary/30 bg-rose-pale">
@@ -417,6 +391,23 @@ function AppHeaderInner() {
         serverMessage={quotaWallData.message}
       />
     </>
+  );
+}
+
+/* ─── Déclencheur du menu mobile/tablette ───
+   Ouvre le tiroir de navigation (AppSidebar, cf MobileNavContext). Vit dans
+   le flux normal de la barre du haut — un vrai enfant flex, pas un élément
+   `fixed` que la barre devrait deviner et éviter avec un padding en dur. */
+function MobileNavTrigger({ onOpen }: { onOpen: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label="Ouvrir le menu"
+      className="flex shrink-0 items-center justify-center w-9 h-9 rounded-[9px] bg-bordeaux cursor-pointer lg:hidden"
+    >
+      <Menu size={18} className="text-white" />
+    </button>
   );
 }
 
