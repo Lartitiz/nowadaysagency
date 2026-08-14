@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
-import { Upload, X, GripVertical, Wand2, Undo2, Library, Loader2, Images, Sparkles } from "lucide-react";
+import { Upload, X, GripVertical, Wand2, Undo2, Globe, Library, Loader2, Images, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -131,6 +131,9 @@ export function PhotoUploadZone({
   const [showContexts, setShowContexts] = useState(false);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
+  // true = le picker s'ouvre directement sur l'import site / Instagram
+  // (entrée « depuis mon site »), false = photothèque d'abord.
+  const [libraryAutoImport, setLibraryAutoImport] = useState(false);
   const [importingFromLibrary, setImportingFromLibrary] = useState(false);
   const [stockOpen, setStockOpen] = useState(false);
   const [autoPicking, setAutoPicking] = useState(false);
@@ -461,6 +464,21 @@ export function PhotoUploadZone({
               </>
             )}
           </button>
+          {/* Récupérer ses VRAIES photos (site / Instagram) doit se voir ICI :
+              c'est en pleine création que le manque se ressent, et une photo
+              de sa marque bat toujours une photo de banque d'images. */}
+          <button
+            type="button"
+            onClick={() => {
+              setLibraryAutoImport(true);
+              setLibraryOpen(true);
+            }}
+            disabled={isFull || importingFromLibrary}
+            className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed"
+          >
+            <Globe className="h-3.5 w-3.5" />
+            Depuis mon site ou Instagram
+          </button>
           <button
             type="button"
             onClick={() => setStockOpen(true)}
@@ -675,9 +693,13 @@ export function PhotoUploadZone({
       {/* ── Photo library picker ─────────────────── */}
       <PhotoLibraryPickerDialog
         open={libraryOpen}
-        onOpenChange={setLibraryOpen}
+        onOpenChange={(v) => {
+          setLibraryOpen(v);
+          if (!v) setLibraryAutoImport(false);
+        }}
         maxSelectable={remainingSlots}
         onConfirm={importFromLibrary}
+        autoOpenImport={libraryAutoImport}
       />
 
       {/* ── Stock photo picker (Pexels) ─────────────────── */}

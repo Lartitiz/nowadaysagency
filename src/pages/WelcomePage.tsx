@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
 
 import EditableText from "@/components/EditableText";
+import { buildFirstContentUrl } from "@/lib/first-content-url";
 import { toast as sonnerToast } from "sonner";
 import {
   Sparkles,
@@ -28,6 +29,7 @@ import {
   Compass,
   ShoppingBag,
   ClipboardList,
+  Image as ImageIcon,
   type LucideIcon,
 } from "lucide-react";
 
@@ -329,6 +331,7 @@ export default function WelcomePage() {
   // L4 : première idée personnalisée générée par le diagnostic (saved_ideas,
   // source_module="diagnostic") — alimente le CTA « Générer mon premier contenu ».
   const [starterIdea, setStarterIdea] = useState<{ titre: string; format: string } | null>(null);
+  const [sellsProducts, setSellsProducts] = useState(false);
   const starterIdeaRef = useRef(false);
   const [brandingExpanded, setBrandingExpanded] = useState(false);
 
@@ -404,7 +407,7 @@ export default function WelcomePage() {
           .eq("is_primary", true)
           .maybeSingle(),
         supabase.from("profiles")
-          .select("diagnostic_data")
+          .select("diagnostic_data, type_activite")
           .eq("user_id", profileUserId)
           .maybeSingle(),
         (supabase.from("audit_recommendations") as any)
@@ -431,6 +434,12 @@ export default function WelcomePage() {
       if (diagData?.summary) {
         setDiagnosticSummary(diagData.summary);
       }
+
+      // Vend-elle des produits ? (réponse donnée à l'étape 2 de l'onboarding)
+      // « les_deux » compte comme produits : le carrousel photo est le format
+      // le plus différenciant, et le lien vers le texte reste à un clic.
+      const typeActivite = (profileRes.data as any)?.type_activite;
+      setSellsProducts(typeActivite === "produits" || typeActivite === "les_deux");
 
       // Recommendations
       if (recsRes.data && recsRes.data.length > 0) {
@@ -564,7 +573,13 @@ export default function WelcomePage() {
   // au mount) : l'enrichment est async, la fiche peut arriver pendant que la
   // personne lit cette page. En cas d'erreur réseau → chemin historique.
   const handleCreateFirst = async () => {
-    const creerUrl = `/creer?sujet=${encodeURIComponent(starterIdea?.titre || "3 erreurs fréquentes dans mon domaine (et comment les éviter)")}&format=${starterIdea?.format === "carousel" ? "carousel" : "post"}&auto=1`;
+    // Règle du 1er contenu (carrousel toujours, photo si elle vend des
+    // produits) : source unique dans first-content-destination, partagée avec
+    // la fin d'onboarding et la sortie de validation de marque.
+    const creerUrl = buildFirstContentUrl({
+      sellsProducts,
+      subject: starterIdea?.titre,
+    });
     let pendingReview = false;
     try {
       const { data } = await (supabase.from("branding_autofill") as any)
@@ -848,6 +863,37 @@ export default function WelcomePage() {
             et handleCreateFirst re-vérifie au clic — l'enrichissement est async, la
             fiche peut arriver pendant la lecture de cette page. */}
         <div className="flex flex-col gap-3">
+          {/* Vend des produits : on annonce le carrousel photo AVANT le clic —
+              elle sait qu'on va lui demander ses photos, et qu'elle peut les
+              récupérer depuis son site plutôt que de les chercher. */}
+          {sellsProducts && !brandReviewPending && (
+            <div className="rounded-xl border border-border bg-card p-4 space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  Tes produits méritent d'être vus.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  On part de tes photos, et on écrit par-dessus. Voilà à quoi ça ressemblera :
+                </p>
+              </div>
+              <div className="grid grid-cols-3 gap-2" aria-hidden="true">
+                {["Fait main", "4 ingrédients", "Peaux sensibles"].map((exemple) => (
+                  <div
+                    key={exemple}
+                    className="aspect-[4/5] rounded-lg bg-muted border border-border flex flex-col items-center justify-end p-2 gap-1"
+                  >
+                    <ImageIcon className="h-4 w-4 text-muted-foreground/60 mb-auto mt-auto" strokeWidth={1.75} />
+                    <span className="text-2xs text-muted-foreground text-center leading-tight">
+                      {exemple}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <p className="text-2xs text-muted-foreground text-center">
+                Exemple — ce seront tes photos et tes mots.
+              </p>
+            </div>
+          )}
           <Button
             onClick={handleCreateFirst}
             className="w-full rounded-pill gap-2"
@@ -856,7 +902,7 @@ export default function WelcomePage() {
             {brandReviewPending ? (
               <><ClipboardList className="h-4 w-4" strokeWidth={1.75} /> Valider ma fiche de marque</>
             ) : (
-              <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Générer mon premier contenu</>
+              <><Sparkles className="h-4 w-4" strokeWidth={1.75} /> Créer mon premier carrousel</>
             )}
           </Button>
           {brandReviewPending && (
@@ -864,7 +910,9 @@ export default function WelcomePage() {
               Une minute de relecture, et tes contenus parleront vraiment de toi.
             </p>
           )}
-          {starterIdea && !brandReviewPending && (
+          {/* En mode produits on ne démarre PAS sur ce sujet (on part des
+              photos) : l'annoncer serait mentir sur l'écran suivant. */}
+          {starterIdea && !brandReviewPending && !sellsProducts && (
             <p className="text-xs text-muted-foreground text-center -mt-1">
               On démarre sur « {starterIdea.titre} » — une idée tirée de ton diagnostic.
             </p>

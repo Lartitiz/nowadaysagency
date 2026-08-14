@@ -1,11 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
+import { buildFirstContentUrl } from "@/lib/first-content-url";
 
-/* ── Destination « Générer mon premier contenu » ──────────────────────────
-   Partagé entre la fin d'onboarding (use-onboarding) et la sortie de l'écran
-   de validation de marque (BrandingPage, après onDone de BrandingReview).
-   On réutilise la 1re idée perso du diagnostic si elle est déjà prête
-   (enrichment async → sinon sujet générique), et on pose welcome_seen pour
-   que le login suivant ne renvoie pas de force sur /welcome (AuthContext). ── */
+/* ── Destination « mon premier contenu » ──────────────────────────────────
+   Partagé entre la fin d'onboarding (use-onboarding), la sortie de l'écran de
+   validation de marque (BrandingPage) et l'écran de bienvenue (WelcomePage).
+   Source UNIQUE de la règle : sans ça, chaque écran réinventait sa destination
+   et deux d'entre eux envoyaient encore sur un « post ».
+
+   La règle elle-même (carrousel toujours, photo si produits) vit dans
+   first-content-url.ts — module pur, verrouillé par des tests.        ── */
 
 export async function resolveFirstContentDestination(params: {
   column: string;
@@ -13,8 +16,8 @@ export async function resolveFirstContentDestination(params: {
   userId?: string;
 }): Promise<string> {
   const { column, value, userId } = params;
-  let sujet = "3 erreurs fréquentes dans mon domaine (et comment les éviter)";
-  let format = "post";
+  let sujet: string | null = null;
+  let sellsProducts = false;
   try {
     const { data } = await (supabase.from("saved_ideas") as any)
       .select("titre, format")
@@ -23,11 +26,24 @@ export async function resolveFirstContentDestination(params: {
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();
-    if (data?.titre) {
-      sujet = data.titre;
-      format = data.format === "carousel" ? "carousel" : "post";
-    }
+    if (data?.titre) sujet = data.titre;
   } catch { /* idée perso pas encore prête (enrichment async) → générique */ }
+
+  // Produits / services : réponse donnée à l'étape 2 de l'onboarding.
+  // Une lecture qui échoue ne doit jamais bloquer la création → on retombe
+  // sur le carrousel texte, qui marche pour tout le monde.
+  if (userId) {
+    try {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("type_activite")
+        .eq("user_id", userId)
+        .maybeSingle();
+      const type = (profile as any)?.type_activite;
+      sellsProducts = type === "produits" || type === "les_deux";
+    } catch { /* type d'activité illisible → carrousel texte */ }
+  }
+
   localStorage.setItem("lac_welcome_seen", "true");
   if (userId) {
     (supabase.from("user_plan_config") as any)
@@ -35,5 +51,5 @@ export async function resolveFirstContentDestination(params: {
       .eq("user_id", userId)
       .then(({ error }: any) => { if (error) console.error("welcome_seen update failed:", error); });
   }
-  return `/creer?sujet=${encodeURIComponent(sujet)}&format=${format}&auto=1`;
+  return buildFirstContentUrl({ sellsProducts, subject: sujet });
 }
