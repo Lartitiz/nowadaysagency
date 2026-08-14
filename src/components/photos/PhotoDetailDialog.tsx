@@ -298,7 +298,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
 
         {/* Description + tags IA (matière du matching photo ↔ contenu) */}
         {photo.status === "ready" && (
-          <div className="rounded-xl bg-muted/50 px-3 py-2.5">
+          <div className="rounded-xl bg-muted/50 px-3 py-2.5 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 {meta?.description ? (
@@ -339,9 +339,13 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           </div>
         )}
 
-        {/* Une action principale, une porte pour tout le reste. */}
+        {/* Une action principale, une porte pour tout le reste.
+            min-w-0 OBLIGATOIRE sur la rangée : DialogContent est une grille, et
+            un enfant de grille a min-width:auto — sans ça, la rangée ne peut pas
+            rétrécir sous la largeur de ses boutons et c'est TOUT le dialogue qui
+            déborde de l'écran en mobile (constaté en 390 px le 14/08). */}
         {photo.status === "ready" && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 min-w-0">
             <Button
               className="flex-[2] min-w-0"
               onClick={() => {
@@ -373,7 +377,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
         )}
 
         {photo.status === "ready" && retouchOpen && (
-          <div className="rounded-xl bg-muted/50 p-2 space-y-2">
+          <div className="rounded-xl bg-muted/50 p-2 space-y-2 min-w-0">
             {fittingOptions.map(renderOption)}
             {/* Les outils qui ne collent pas au type détecté restent atteignables
                 (le classement IA peut se tromper) mais sous un repli, avec la
@@ -399,7 +403,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
         {/* Actions de service : détachées par un filet, jamais en concurrence
             avec l'action principale. « Supprimer » manquait ici — la corbeille
             de la vignette est en opacity-0/hover, donc hors d'atteinte au doigt. */}
-        <div className="flex items-center gap-4 border-t border-border pt-3">
+        <div className="flex items-center gap-4 border-t border-border pt-3 min-w-0">
           <button
             type="button"
             onClick={handleDownload}
