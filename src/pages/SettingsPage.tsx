@@ -20,6 +20,7 @@ import { Progress } from "@/components/ui/progress";
 import { Link, useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { enablePostHog, disablePostHog } from "@/lib/posthog";
+import { enableMetaPixel, disableMetaPixel } from "@/lib/meta-pixel";
 import { enableSentryReplays, disableSentryReplays } from "@/lib/sentry";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -440,7 +441,7 @@ export default function SettingsPage() {
         <Section icon={<Cookie className="h-4 w-4" />} title="Cookies et traceurs">
           <div className="space-y-4">
             <p className="text-sm text-muted-foreground leading-relaxed">
-              On utilise PostHog (hébergé en UE) pour comprendre comment l'outil est utilisé. Aucune donnée publicitaire. Tu peux modifier ton choix ici.
+              On utilise PostHog (hébergé en UE) pour comprendre comment l'outil est utilisé, et le pixel Meta (Facebook/Instagram) pour mesurer l'effet de nos publicités. Tu peux modifier ton choix ici.
             </p>
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Statut :</span>
@@ -459,6 +460,7 @@ export default function SettingsPage() {
                   localStorage.setItem("cookie_consent", "refused");
                   disablePostHog();
                   disableSentryReplays();
+                  disableMetaPixel();
                   setCookieConsent("refused");
                   toast("Consentement révoqué. Les cookies analytics sont désactivés.");
                 }}
@@ -473,6 +475,7 @@ export default function SettingsPage() {
                   localStorage.setItem("cookie_consent", "accepted");
                   enablePostHog();
                   enableSentryReplays();
+                  enableMetaPixel();
                   setCookieConsent("accepted");
                   toast.success("Cookies analytics activés. Merci !");
                 }}

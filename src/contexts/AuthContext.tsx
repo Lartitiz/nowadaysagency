@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { posthog } from "@/lib/posthog";
+import { trackMetaEvent } from "@/lib/meta-pixel";
 import { clearAppStorage } from "@/lib/storage-cleanup";
 import { setFlowUserId } from "@/hooks/use-flow-persistence";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
@@ -53,6 +54,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (sessionStorage.getItem("lac_fresh_signup")) {
         sessionStorage.removeItem("lac_fresh_signup");
+        trackMetaEvent("CompleteRegistration");
         return "/onboarding";
       }
     } catch { /* storage indisponible — résolution normale */ }

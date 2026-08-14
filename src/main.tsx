@@ -18,6 +18,12 @@ const loadAnalytics = async () => {
   } catch (e) {
     console.warn("PostHog init failed:", e);
   }
+  try {
+    const { initMetaPixel } = await import("@/lib/meta-pixel");
+    initMetaPixel();
+  } catch (e) {
+    console.warn("Meta Pixel init failed:", e);
+  }
 };
 
 if ("requestIdleCallback" in window) {
