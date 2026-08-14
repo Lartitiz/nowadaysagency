@@ -52,6 +52,24 @@ function getStatusStyle(status: string): { bg: string; borderColor: string; text
   }
 }
 
+/**
+ * Un post non "published" et sans auto_publish ne partira JAMAIS tout seul.
+ * Si sa date est déjà passée ou approche, c'est le signal le plus utile de la
+ * grille : sans lui, la cliente découvre après coup qu'un post "prêt" n'est
+ * en fait jamais parti.
+ */
+export function getDraftRisk(post: CalendarPost): "overdue" | "soon" | null {
+  if (post.status === "published" || post.auto_publish || !post.date) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const postDate = new Date(`${post.date}T00:00:00`);
+  if (Number.isNaN(postDate.getTime())) return null;
+  const diffDays = Math.round((postDate.getTime() - today.getTime()) / 86400000);
+  if (diffDays < 0) return "overdue";
+  if (diffDays <= 2) return "soon";
+  return null;
+}
+
 /** Compact card for calendar cells — simplified & readable */
 function CalendarContentCardImpl({
   post,
@@ -80,10 +98,26 @@ function CalendarContentCardImpl({
   // État de publication AUTOMATIQUE (programmée) — un échec doit se voir dans la
   // grille sans ouvrir le post, sinon la cliente croit que son post est parti.
   const publishStatus = post.publish_status;
+  const isAutoScheduled = !!post.auto_publish && (publishStatus === "scheduled" || publishStatus === "publishing");
   const publishBadge =
     publishStatus === "failed" ? { icon: "❌", className: "text-destructive", label: "Échec de la publication automatique" }
-    : publishStatus === "scheduled" ? { icon: "🗓️", className: "text-muted-foreground", label: "Publication programmée" }
-    : publishStatus === "publishing" ? { icon: "⏳", className: "text-muted-foreground", label: "Publication en cours" }
+    : publishStatus === "scheduled" ? { icon: "🗓️", className: "text-info", label: "Publication automatique programmée" }
+    : publishStatus === "publishing" ? { icon: "⏳", className: "text-info", label: "Publication automatique en cours" }
+    : null;
+
+  // Brouillon jamais programmé dont la date approche ou est passée : le seul
+  // signal qui distingue "posé sur une date" de "programmé" dans la grille.
+  const draftRisk = getDraftRisk(post);
+  const riskBadge =
+    draftRisk === "overdue" ? { icon: "⏰", className: "text-error", label: "Brouillon non programmé — la date est déjà passée, ce post ne partira pas tout seul" }
+    : draftRisk === "soon" ? { icon: "⏰", className: "text-warning", label: "Brouillon non programmé — la date approche, ce post ne partira pas tout seul" }
+    : null;
+
+  const badge = publishBadge || riskBadge;
+
+  const ringColor = draftRisk === "overdue" ? "hsl(var(--error))"
+    : draftRisk === "soon" ? "hsl(var(--warning))"
+    : isAutoScheduled ? "hsl(var(--info))"
     : null;
 
   const cardStyle: React.CSSProperties = {
@@ -92,6 +126,7 @@ function CalendarContentCardImpl({
     borderLeftStyle: "solid",
     borderLeftColor: statusStyle.borderColor,
     borderColor: "hsl(var(--border))",
+    ...(ringColor ? { boxShadow: `0 0 0 1.5px ${ringColor}` } : {}),
   };
 
   // Tooltip content (detail on hover)
@@ -115,6 +150,11 @@ function CalendarContentCardImpl({
       {publishStatus === "failed" && (
         <p className="text-xs text-destructive">
           ❌ Échec de la publication automatique{post.publish_error ? ` : ${String(post.publish_error).slice(0, 120)}` : ""} — ouvre le post pour réessayer.
+        </p>
+      )}
+      {riskBadge && !publishBadge && (
+        <p className={cn("text-xs font-medium", draftRisk === "overdue" ? "text-error" : "text-warning")}>
+          ⏰ {riskBadge.label}
         </p>
       )}
       {post.content_draft && (
@@ -170,9 +210,9 @@ function CalendarContentCardImpl({
                 {/* Canal icon + title (2 lines max) */}
                 <div className="flex items-start gap-1.5">
                   <span className="text-sm shrink-0 mt-0.5" style={{ fontSize: 14 }}>{canalIcon}</span>
-                  {publishBadge && (
-                    <span className={cn("text-xs shrink-0 mt-0.5", publishBadge.className)} title={publishBadge.label}>
-                      {publishBadge.icon}
+                  {badge && (
+                    <span className={cn("text-xs shrink-0 mt-0.5", badge.className)} title={badge.label}>
+                      {badge.icon}
                     </span>
                   )}
                   <p className={cn(
@@ -294,9 +334,9 @@ function CalendarContentCardImpl({
           >
             <div className="flex items-start gap-1">
               <span className="text-xs shrink-0">{canalIcon}</span>
-              {publishBadge && (
-                <span className={cn("text-xs shrink-0", publishBadge.className)} title={publishBadge.label}>
-                  {publishBadge.icon}
+              {badge && (
+                <span className={cn("text-xs shrink-0", badge.className)} title={badge.label}>
+                  {badge.icon}
                 </span>
               )}
               <p className={cn(
