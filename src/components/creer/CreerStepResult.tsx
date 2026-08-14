@@ -958,6 +958,18 @@ export default function CreerStepResult({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Sortie visible pour repartir de zéro : avant, la seule porte était
+          cachée tout en bas du menu « Autres actions » — sur un contenu déjà
+          terminé arrivé sans ?new=1 (brouillon restauré silencieusement),
+          rien à l'écran ne disait comment démarrer un nouveau contenu. */}
+      <Button
+        onClick={onReset}
+        variant="outline"
+        className="w-full gap-2 h-10 text-sm font-medium"
+      >
+        <RotateCcw className="h-4 w-4" /> Créer un nouveau contenu
+      </Button>
     </div>
   );
 }

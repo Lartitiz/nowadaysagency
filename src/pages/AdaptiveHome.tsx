@@ -429,7 +429,7 @@ export default function AdaptiveHome() {
   }, []);
 
   const handleNavigate = (route: string) => {
-    if (route === "/creer" && profileSummary.brandingTotal < 50) {
+    if (route.startsWith("/creer") && profileSummary.brandingTotal < 50) {
       toast("Tes contenus seront plus personnalisés une fois que tu auras posé tes bases 💡");
     }
     navigate(route);
@@ -466,7 +466,9 @@ export default function AdaptiveHome() {
         eyebrow: "✨ On crée quoi aujourd'hui ?",
         title: "Créer mon prochain contenu",
         ctaLabel: "Créer un contenu",
-        route: "/creer",
+        // ?new=1 sinon un brouillon terminé restauré silencieusement atterrit
+        // direct sur l'étape résultat, sans aucun champ pour repartir de zéro.
+        route: "/creer?new=1",
         showChannels: true,
       }
     : {
@@ -591,7 +593,7 @@ export default function AdaptiveHome() {
         <div
           data-tour="card-next-step"
           className="group rounded-[18px_28px_14px_24px] bg-[hsl(var(--bento-dark))] p-6 sm:p-7 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
-          onClick={() => { if (hero.route === "/creer") porte("creer"); handleNavigate(hero.route); }}
+          onClick={() => { if (hero.route.startsWith("/creer")) porte("creer"); handleNavigate(hero.route); }}
         >
           <p className="font-mono-ui text-2xs text-rose-soft/90 uppercase tracking-[0.14em] font-semibold mb-3">
             {hero.eyebrow}
@@ -618,7 +620,7 @@ export default function AdaptiveHome() {
                   key={label}
                   type="button"
                   aria-label={`Créer un contenu ${label}`}
-                  onClick={(e) => { e.stopPropagation(); porte("creer"); navigate(`/creer?canal=${canal}`); }}
+                  onClick={(e) => { e.stopPropagation(); porte("creer"); navigate(`/creer?canal=${canal}&new=1`); }}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-transparent border border-white/25 text-xs text-white/80 hover:bg-white hover:text-bordeaux hover:border-white transition-colors"
                 >
                   <Icon className="h-3 w-3" />
@@ -628,7 +630,7 @@ export default function AdaptiveHome() {
 
             <Button
               className="w-full sm:w-auto sm:ml-auto h-11 px-6 rounded-full bg-white hover:bg-rose-pale text-bordeaux text-base font-semibold shadow-sm hover:shadow-md transition-all"
-              onClick={(e) => { e.stopPropagation(); if (hero.route === "/creer") porte("creer"); handleNavigate(hero.route); }}
+              onClick={(e) => { e.stopPropagation(); if (hero.route.startsWith("/creer")) porte("creer"); handleNavigate(hero.route); }}
             >
               {hero.ctaLabel}
               <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
