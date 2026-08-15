@@ -2,12 +2,12 @@
  * T1 — Création post texte (Instagram + LinkedIn)
  *
  * Parcours : /creer → idée → format → "Générer directement" → résultat
- *            → "Publier ou programmer" → "Juste dans le calendrier"
+ *            → "Publier ou programmer" → option brouillon (posé sur une date, rien ne part seul)
  *
  * Critères couverts :
  * - Le streaming SSE s'affiche (texte visible dans les 60 s)
  * - Aucun JSON brut ne fuit dans le rendu
- * - Le brouillon calendrier (option "Juste dans le calendrier") déclenche le toast de succès
+ * - Le brouillon calendrier (option `publish-draft-option`) déclenche le toast de succès
  * - Variante LinkedIn : même flow, canal différent
  *
  * Note : le compte Camille est à 109 % de quota mais génère encore
@@ -160,7 +160,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
     throw new Error("Étape résultat jamais atteinte après 90 s (sans quota wall ni 429)");
   }
 
-  // ── Publier ou programmer → Juste dans le calendrier ─────────────────────
+  // ── Publier ou programmer → option brouillon (rien ne part tout seul) ────
   // Ce bouton s'affiche UNIQUEMENT quand le streaming est terminé.
   // Si le quota bloque la génération, le spinner tourne indéfiniment :
   // on attrape le timeout et on vérifie la quota wall avant de skip/échouer.
@@ -191,7 +191,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
 
   await calBtn.click();
 
-  // La fenêtre « Publier ou programmer » s'ouvre → option « Juste dans le calendrier »
+  // La fenêtre « Publier ou programmer » s'ouvre → option brouillon
   const draftOption = page.getByTestId("publish-draft-option");
   await expect(draftOption).toBeVisible({ timeout: 5000 });
   await draftOption.click();
@@ -200,8 +200,16 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
   const dateInput = page.locator('input[type="date"]');
   await expect(dateInput).toBeVisible({ timeout: 5000 });
   await dateInput.fill("2026-08-15");
-  // Bouton de confirmation "Ajouter au calendrier" dans la fenêtre
-  const modalConfirm = page.getByRole("button", { name: /ajouter au calendrier/i }).last();
+  // Bouton de confirmation du brouillon, dans la fenêtre.
+  // 🔑 On n'accroche PAS un libellé exact : #740 (14/08) a renommé
+  // « Ajouter au calendrier » → « Enregistrer le brouillon » et ce spec est
+  // tombé en silence des deux côtés (desktop+mobile) — or c'est LUI qui prouve
+  // que le brouillon atterrit vraiment dans le calendrier. On tolère donc les
+  // deux formulations, sur les seuls mots stables.
+  const modalConfirm = page
+    .getByRole("button", { name: /enregistrer le brouillon|ajouter au calendrier/i })
+    .last();
+  await expect(modalConfirm).toBeVisible({ timeout: 5000 });
   await modalConfirm.click();
 
   // Toast de succès (texte variable selon la version)
