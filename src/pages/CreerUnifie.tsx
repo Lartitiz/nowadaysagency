@@ -37,6 +37,8 @@ import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
 import BrandReviewGate from "@/components/branding/BrandReviewGate";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { useLinkedInCarouselCaption } from "@/hooks/use-linkedin-carousel-caption";
+import { useUserSlidesGenerate } from "@/hooks/use-user-slides-generate";
+import { useSelectInspirationProposal } from "@/hooks/use-select-inspiration-proposal";
 import CreerStepIdea from "@/components/creer/CreerStepIdea";
 // Code-splitting : les étapes après l'écran « idée » sont chargées à la demande
 // (chunk /creer initial allégé → premier écran plus rapide).
@@ -54,7 +56,6 @@ import { useUserPhotos } from "@/hooks/use-user-photos";
 const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
 // Mode « Mes slides » : l'utilisatrice fournit le texte, l'IA ne fait que le design.
 const UserSlidesStep = lazy(() => import("@/components/creer/UserSlidesStep"));
-import type { UserSlideDraft } from "@/components/creer/UserSlidesStep";
 const HookSelectionStep = lazy(() => import("@/components/creer/HookSelectionStep"));
 // Type-only : n'entre pas dans le bundle, le composant reste lazy.
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
@@ -69,7 +70,6 @@ import type { SlideProposal, StructureProposal } from "@/components/creer/Struct
 
 import { useContentGenerator } from "@/hooks/use-content-generator";
 import { normalizeFormat } from "@/lib/format-normalizer";
-import { composeOverlayText } from "@/lib/user-slides-parse";
 import { stripFontImportLeakFromSlides } from "@/lib/strip-font-import-leak";
 import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTEREST_EDITORIAL_ANGLES, PINTEREST_VISUAL_ANGLES, getStructureForCombo, normalizeObjective } from "@/lib/content-structures";
 import { useAuth } from "@/contexts/AuthContext";
@@ -360,12 +360,6 @@ export default function CreerUnifie() {
   }>({ open: false, rawType: null });
   const [photoDescription, setPhotoDescription] = useState(ps?.photoDescription ?? "");
   const [photoMode, setPhotoMode] = useState(false);
-  // ═══ Mode « Mes slides » ═══
-  // Brouillon gardé au niveau page pour survivre à un aller-retour
-  // résultat → saisie (le stepper « Brief » ramène à l'écran de saisie).
-  const [userSlidesDraft, setUserSlidesDraft] = useState<{ slides: UserSlideDraft[]; caption: string } | null>(null);
-  // Passe gabarits en cours (petit appel assign_templates, fail-open).
-  const [userSlidesBuilding, setUserSlidesBuilding] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
   const [isLinkedInCarousel, setIsLinkedInCarousel] = useState(canalConflict ? false : (ps?.isLinkedInCarousel ?? false));
@@ -1909,6 +1903,41 @@ export default function CreerUnifie() {
     session,
   });
 
+  // ── Mode « Mes slides » : construction des slides SANS écriture IA ──
+  const { userSlidesDraft, userSlidesBuilding, handleUserSlidesGenerate } = useUserSlidesGenerate({
+    generating,
+    visualLoading,
+    workspaceId,
+    session,
+    setUploadedPhotos,
+    setGeneratedWithPhotos,
+    setSavedId,
+    setVisualSlides,
+    setCarouselColors,
+    setStep,
+    setResult,
+  });
+
+  // ── Sélection d'une proposition d'inspiration Pinterest ──
+  const { handleSelectInspirationProposal } = useSelectInspirationProposal({
+    pinterestVisualGenerating,
+    inspirationImageBase64,
+    pinterestData,
+    workspaceId,
+    session,
+    clearQuotaExhausted,
+    markQuotaExhausted,
+    setChosenProposal,
+    setStep,
+    setResult,
+    setSelectedFormat,
+    setIdeaText,
+    setPinterestPinHtml,
+    setPinterestVisualGenerating,
+    setPhotoBriefOverlayHtml,
+    setPhotoBriefResult,
+  });
+
   // ── Carrousel "juste photo" : on supprime tout overlay/title/body sur les slides
   // ET on tronque le nombre de slides au nombre de photos uploadées (1 photo = 1 slide).
   // La légende reste générée par l'IA.
@@ -2010,122 +2039,6 @@ export default function CreerUnifie() {
     await handleConfirmStructure(slides);
   };
 
-  // ═══ Mode « Mes slides » : construction des slides SANS écriture IA ═══
-  // Le texte de l'utilisatrice part VERBATIM vers le rendu : pas d'express_full,
-  // pas de redac-gate, pas d'enrichissement. Seule la passe gabarits
-  // (assign_templates, fail-open) choisit la mise en forme des slides photo.
-  const handleUserSlidesGenerate = async (payload: { slides: UserSlideDraft[]; photos: PhotoItem[]; caption: string }) => {
-    if (userSlidesBuilding || generating || visualLoading) return;
-    const { slides: drafts, photos, caption } = payload;
-    if (drafts.length < 2) {
-      toast.error("Il faut au moins 2 slides avec du texte.");
-      return;
-    }
-    setUserSlidesDraft({ slides: drafts, caption });
-
-    // Photos : mêmes states que les flux photo/mix existants (rendu, exports,
-    // sauvegardes et réhydratation au reload passent tous par là).
-    setUploadedPhotos(photos);
-    setGeneratedWithPhotos(photos);
-    if (photos.length > 0) savePhotos(photos);
-
-    const total = drafts.length;
-    const roleFor = (i: number) => (i === 0 ? "hook" : i === total - 1 ? "cta" : "point");
-    const baseSlides = drafts.map((d, i) => {
-      const hasPhoto = !!d.photoIndex && d.photoIndex >= 1 && d.photoIndex <= photos.length;
-      if (hasPhoto) {
-        return {
-          slide_number: i + 1,
-          role: roleFor(i),
-          slide_type: "photo_full" as const,
-          // Titre optionnel PRÉFIXÉ dans l'overlay (seul champ rendu par TOUS
-          // les gabarits — un kicker serait perdu sur « profonde », le défaut).
-          overlay_text: composeOverlayText(d.title, d.body),
-          overlay_position: "bottom_center",
-          photo_index: d.photoIndex as number,
-        };
-      }
-      return {
-        slide_number: i + 1,
-        role: roleFor(i),
-        slide_type: "text_only" as const,
-        // Pas de titre dérivé du texte : dupliquer la 1re phrase l'afficherait
-        // deux fois. Titre = uniquement celui fourni ; body = texte verbatim.
-        title: d.title.trim(),
-        body: d.body,
-      };
-    });
-
-    const photoSlideCount = baseSlides.filter((s) => s.slide_type === "photo_full").length;
-    const carouselType = photoSlideCount === 0 ? "text" : photoSlideCount === total ? "photo" : "mix";
-
-    // Reset de l'état post-génération (mêmes resets que doGenerate).
-    // NB : on reste sur l'étape de saisie pendant la passe gabarits (spinner
-    // sur le bouton) — passer sur "result" sans result afficherait l'écran
-    // « Session expirée ».
-    setSavedId(null);
-    setVisualSlides([]);
-    setCarouselColors(null);
-
-    // ── Passe gabarits (fail-open) : enrichit les slides photo (template,
-    // big_number, points…) SANS toucher au texte. Erreur / timeout / edge pas
-    // encore redéployée → on continue avec les slides telles quelles (le rendu
-    // dérive un gabarit sûr via resolvePhotoTemplate).
-    let finalSlides: any[] = baseSlides;
-    const photoFull = baseSlides.filter((s) => s.slide_type === "photo_full");
-    if (photoFull.length >= 2) {
-      setUserSlidesBuilding(true);
-      try {
-        const { data, error: fnError } = await invokeWithTimeout("carousel-ai", {
-          body: {
-            type: "assign_templates",
-            slides: photoFull,
-            workspace_id: workspaceId !== session?.user?.id ? workspaceId : undefined,
-          },
-        }, 30000);
-        const enriched = (data as any)?.result?.slides;
-        if (!fnError && !(data as any)?.error && Array.isArray(enriched) && enriched.length > 0) {
-          const byNumber = new Map<number, any>(
-            enriched.filter((s: any) => Number.isInteger(s?.slide_number)).map((s: any) => [s.slide_number, s]),
-          );
-          finalSlides = baseSlides.map((s) => {
-            const e = byNumber.get(s.slide_number);
-            if (!e || s.slide_type !== "photo_full") return s;
-            // Garde verbatim CÔTÉ FRONT en plus de celle de l'edge : le texte
-            // et la photo source reprennent toujours le dessus sur la passe.
-            return { ...e, ...s, ...(e.template ? { template: e.template } : {}),
-              ...(e.big_number ? { big_number: e.big_number } : {}),
-              ...(Array.isArray(e.points) && e.points.length > 0 ? { points: e.points } : {}),
-              ...(e.attribution ? { attribution: e.attribution } : {}),
-              ...(e.cta_label ? { cta_label: e.cta_label } : {}),
-              ...(typeof e.step_number === "number" ? { step_number: e.step_number } : {}),
-              ...(e.kicker ? { kicker: e.kicker } : {}),
-              ...(e.detail ? { detail: e.detail } : {}),
-            };
-          });
-        }
-      } catch (e: any) {
-        console.warn("[mes-slides] passe gabarits ignorée (fail-open):", e?.message || e);
-      } finally {
-        setUserSlidesBuilding(false);
-      }
-    }
-
-    // Résultat injecté dans le flux existant : handleGenerateVisuals lit
-    // result.raw.slides et l'effet d'auto-génération des visuels s'en charge.
-    setStep("result");
-    setResult({
-      type: "carousel",
-      raw: {
-        slides: finalSlides,
-        carousel_type: carouselType,
-        // Légende fournie gardée telle quelle (structure standard des carrousels).
-        caption: { hook: "", body: (caption || "").trim(), cta: "", hashtags: [] },
-        user_slides: true,
-      },
-    } as any);
-  };
-
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     toast.success("Copié !");
@@ -2222,91 +2135,6 @@ export default function CreerUnifie() {
 
     setEditContent(text);
     setStep("edit");
-  };
-
-  const handleSelectInspirationProposal = async (proposal: any) => {
-    if (pinterestVisualGenerating) return; // garde anti double-clic (évite une 2e génération facturée)
-    clearQuotaExhausted(); // appels directs (hors generate()) : ne pas hériter d'un ancien état quota
-    setChosenProposal(proposal);
-
-    if (proposal.recommended_output === "visual") {
-      // CHEMIN A : génération visuelle (pinterest-visual avec référence)
-      setStep("result");
-      setPinterestPinHtml(null);
-      setPinterestVisualGenerating(true);
-      try {
-        const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
-          body: {
-            subject: proposal.subject,
-            pin_type: proposal.pin_type,
-            reference_image_base64: inspirationImageBase64,
-            pinterest_link: pinterestData?.link,
-            pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-          },
-        }, 180000);
-        if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
-        const r = data?.result;
-        setPinterestPinHtml(r?.pin_html || null);
-        setSelectedFormat("pinterest_visual");
-        setResult({
-          type: "pinterest_visual" as any,
-          raw: {
-            pin_html: r?.pin_html,
-            title: r?.title,
-            description: r?.description,
-            pin_data: r?.pin_data,
-          },
-        });
-        setIdeaText(proposal.subject);
-      } catch (e: any) {
-        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
-        else toast.error(e?.message || "Erreur lors de la génération du visuel");
-      } finally {
-        setPinterestVisualGenerating(false);
-      }
-
-    } else {
-      // CHEMIN B : brief photo + overlay
-      setStep("result");
-      setPhotoBriefOverlayHtml(null);
-      setPinterestVisualGenerating(true);
-      try {
-        const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
-          body: {
-            subject: proposal.subject,
-            reference_image_base64: inspirationImageBase64,
-            pin_type: proposal.pin_type,
-            brief_hint: proposal.brief,
-            pinterest_link: pinterestData?.link,
-            pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-          },
-        }, 180000);
-        if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
-        const r = data?.result;
-        setPhotoBriefOverlayHtml(r?.overlay_html || null);
-        setPhotoBriefResult(r);
-        setSelectedFormat("pinterest_photo");
-        setResult({
-          type: "pinterest_photo" as any,
-          raw: {
-            overlay_html: r?.overlay_html,
-            photo_brief: r?.photo_brief,
-            title: r?.title,
-            description: r?.description,
-          },
-        });
-        setIdeaText(proposal.subject);
-      } catch (e: any) {
-        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
-        else toast.error(e?.message || "Erreur lors de la génération du brief");
-      } finally {
-        setPinterestVisualGenerating(false);
-      }
-    }
   };
 
   // Garde anti-perte : "Nouveau contenu" efface tout (texte généré + photos).
