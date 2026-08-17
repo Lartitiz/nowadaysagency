@@ -372,7 +372,6 @@ export async function fetchMonthPosts(
       timestamp: post.timestamp,
       permalink: post.permalink,
     };
-    const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
     const insUrl = new URL(`${GRAPH}/${post.id}/insights`);
     insUrl.searchParams.set("metric", "reach,likes,comments,saved,shares");
     insUrl.searchParams.set("access_token", token);
@@ -381,7 +380,7 @@ export async function fetchMonthPosts(
     viewsUrl.searchParams.set("access_token", token);
     const [ins, vj] = await Promise.all([
       getJson(insUrl, ctx),
-      isVideo ? getJson(viewsUrl, ctx) : Promise.resolve(null),
+      getJson(viewsUrl, ctx),
     ]);
     if (ins?.data) {
       for (const mi of ins.data) {
@@ -508,7 +507,6 @@ export async function analyzeContentPerformance(
       timestamp: post.timestamp,
       permalink: post.permalink,
     };
-    const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
     const insUrl = new URL(`${GRAPH}/${post.id}/insights`);
     insUrl.searchParams.set("metric", "reach,likes,comments,saved,shares");
     insUrl.searchParams.set("access_token", token);
@@ -517,7 +515,7 @@ export async function analyzeContentPerformance(
     viewsUrl.searchParams.set("access_token", token);
     const [ins, vj] = await Promise.all([
       getJson(insUrl, ctx),
-      isVideo ? getJson(viewsUrl, ctx) : Promise.resolve(null),
+      getJson(viewsUrl, ctx),
     ]);
     if (ins?.data) {
       for (const m of ins.data) {
@@ -609,22 +607,26 @@ async function fetchPostMetricsInternal(
         permalink: post.permalink,
       };
 
-      const isVideo = ["VIDEO", "REEL"].includes(pm.format.toUpperCase());
       const insUrl = new URL(`${GRAPH}/${post.id}/insights`);
       // saved/shares ne sont pas dispo sur tous les types de média → on demande
       // un set large, les métriques absentes sont simplement ignorées.
       insUrl.searchParams.set("metric", "reach,likes,comments,saved,shares");
       insUrl.searchParams.set("access_token", token);
 
-      // Reels / vidéos : Meta sert souvent "views" plutôt que "reach". Appel
-      // isolé (pour ne pas casser l'appel éprouvé) mais en parallèle du premier.
+      // "views" est la métrique unique de Meta pour TOUS les formats (photo,
+      // carrousel, reel, story) depuis la dépréciation d'"impressions" — on la
+      // demande donc sans condition (bilan hebdo 17/08/2026 : elle n'était
+      // réclamée que pour les vidéos, or l'app publie surtout des CARROUSELS,
+      // qui n'avaient donc jamais de vues). Appel isolé (pour ne pas casser
+      // l'appel éprouvé) mais en parallèle du premier ; une métrique absente
+      // renvoie simplement undefined.
       const viewsUrl = new URL(`${GRAPH}/${post.id}/insights`);
       viewsUrl.searchParams.set("metric", "views");
       viewsUrl.searchParams.set("access_token", token);
 
       const [ins, vj] = await Promise.all([
         getJson(insUrl, ctx),
-        isVideo ? getJson(viewsUrl, ctx) : Promise.resolve(null),
+        getJson(viewsUrl, ctx),
       ]);
 
       if (ins?.data) {

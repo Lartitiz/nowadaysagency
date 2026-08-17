@@ -22,6 +22,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
+import { recraftModel } from "../_shared/recraft-illustration.ts";
 
 const BodySchema = z.object({
   concepts: z.array(z.string().min(2).max(80)).min(1).max(4),
@@ -133,7 +134,7 @@ serve(async (req) => {
         prompt,
         negative_prompt:
           "text, letters, numbers, words, watermark, frame, border, photorealistic, 3d, shadows, gradient",
-        model: "recraftv3",
+        model: recraftModel((overrides.style || "vector_illustration") === "vector_illustration"),
         style: overrides.style || "vector_illustration",
         substyle: overrides.substyle || "roundish_flat",
         size: "1024x1024",
