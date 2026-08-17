@@ -30,6 +30,16 @@ describe("parseAiJson", () => {
   it("lève AiParseError sur une réponse illisible", () => {
     expect(() => parseAiJson("pas du json du tout", "test")).toThrow(AiParseError);
   });
+
+  it("ne retombe PAS sur un tableau imbriqué quand l'objet racine est tronqué (max_tokens)", () => {
+    // Réponse coupée en plein milieu du champ "weaknesses" : le tableau
+    // "strengths" est valide isolément, mais l'objet englobant ne l'est pas.
+    // Avant le fix, le regex de fallback array matchait ce sous-tableau et le
+    // renvoyait comme si c'était la réponse entière — un faux succès silencieux.
+    const truncated = '{"summary":"Bonne analyse","strengths":[{"title":"Clair","detail":"tres clair"}],"weaknesses":[{"title":"Vague"';
+    expect(() => parseAiJson(truncated, "test")).toThrow(AiParseError);
+    expect(tryParseAiJson(truncated)).toBeNull();
+  });
 });
 
 describe("tryParseAiJson", () => {

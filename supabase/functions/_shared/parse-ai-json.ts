@@ -35,22 +35,34 @@ function attemptParse(raw: string | object): unknown {
 
   try { return JSON.parse(cleaned); } catch { /* on tente plus bas */ }
 
+  // Un objet clairement voulu (le texte commence par `{`) ne doit JAMAIS retomber
+  // sur le fallback tableau : si l'objet racine est tronqué (réponse coupée à
+  // max_tokens), il peut rester un tableau IMBRIQUÉ mais valide plus loin dans le
+  // texte (ex: "strengths":[...] fermé, alors que l'objet englobant ne l'est pas).
+  // Sans cette garde, on renvoie silencieusement ce sous-tableau au lieu de
+  // signaler l'échec — un faux succès pire qu'un échec propre.
+  const looksLikeObject = cleaned.startsWith("{");
+
   const objMatch = cleaned.match(/\{[\s\S]*\}/);
   if (objMatch) {
     try { return JSON.parse(objMatch[0]); } catch { /* on tente plus bas */ }
   }
 
-  const arrMatch = cleaned.match(/\[[\s\S]*\]/);
-  if (arrMatch) {
-    try { return JSON.parse(arrMatch[0]); } catch { /* on tente plus bas */ }
+  if (!looksLikeObject) {
+    const arrMatch = cleaned.match(/\[[\s\S]*\]/);
+    if (arrMatch) {
+      try { return JSON.parse(arrMatch[0]); } catch { /* on tente plus bas */ }
+    }
   }
 
   try {
     const fixed = cleaned.replace(/,\s*([}\]])/g, "$1").replace(/'/g, '"');
     const obj2 = fixed.match(/\{[\s\S]*\}/);
     if (obj2) return JSON.parse(obj2[0]);
-    const arr2 = fixed.match(/\[[\s\S]*\]/);
-    if (arr2) return JSON.parse(arr2[0]);
+    if (!looksLikeObject) {
+      const arr2 = fixed.match(/\[[\s\S]*\]/);
+      if (arr2) return JSON.parse(arr2[0]);
+    }
   } catch { /* échec définitif */ }
 
   return undefined;
