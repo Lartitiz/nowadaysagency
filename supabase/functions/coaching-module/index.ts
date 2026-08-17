@@ -206,8 +206,10 @@ Retourne UNIQUEMENT un JSON :
       const qUsage: UsageSink = {};
 
       let result;
+      let aiSucceeded = false;
       try {
         result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 2000, qUsage);
+        aiSucceeded = true;
       } catch {
         // Fallback to base questions
         result = {
@@ -216,7 +218,9 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "coaching_questions", qUsage.total_tokens, qUsage.model, workspace_id);
+      if (aiSucceeded) {
+        await logUsage(user.id, "suggestion", "coaching_questions", qUsage.total_tokens, qUsage.model, workspace_id);
+      }
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

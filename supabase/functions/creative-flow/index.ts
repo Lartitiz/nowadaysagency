@@ -1168,12 +1168,11 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         if (researchResult.trim()) {
           systemPrompt += `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
         }
+        // Log deep research usage only when the web search actually succeeded
+        await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspace_id);
       } else {
         console.error("Deep research web search failed:", searchResponse.status);
       }
-
-      // Log deep research usage
-      await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspace_id);
     }
 
     // ── Streaming SSE (generate step) ──

@@ -184,8 +184,10 @@ Retourne UNIQUEMENT un JSON :
 
       const questionsUsage: UsageSink = {};
       let result;
+      let aiSucceeded = false;
       try {
         result = await callAnthropicToolSimple(getModelForAction("coaching_light"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 1024, questionsUsage);
+        aiSucceeded = true;
       } catch {
         result = {
           questions: baseQuestions.map((q, i) => ({ numero: i + 1, question: q, placeholder: "" })),
@@ -193,7 +195,9 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "ig_profile_coaching_questions", questionsUsage.total_tokens, questionsUsage.model, workspace_id);
+      if (aiSucceeded) {
+        await logUsage(user.id, "suggestion", "ig_profile_coaching_questions", questionsUsage.total_tokens, questionsUsage.model, workspace_id);
+      }
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
