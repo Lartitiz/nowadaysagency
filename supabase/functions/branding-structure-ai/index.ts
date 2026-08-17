@@ -6,6 +6,7 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 const SECTION_PROMPTS: Record<string, string> = {
   story: `Tu es une experte en storytelling de marque personnelle.
@@ -162,19 +163,13 @@ serve(async (req) => {
       abortTimeoutMs: 60_000,
     }, usage);
 
-    // Parse JSON from response
-    let parsed;
-    try {
-      const cleaned = result.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      parsed = JSON.parse(cleaned);
-    } catch {
-      // Try to extract JSON from response
-      const jsonMatch = result.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("Format de réponse invalide");
-      }
+    // Plus de fallback muet : une réponse illisible = erreur claire (502), sans débiter le quota.
+    const parsed = tryParseAiJson<any>(result, "branding-structure-ai");
+    if (parsed === null) {
+      return new Response(
+        JSON.stringify({ error: "Format de réponse invalide. Réessaie." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     await logUsage(userId, "coach", "branding_structure", usage.total_tokens, usage.model);
