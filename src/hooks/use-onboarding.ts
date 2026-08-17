@@ -398,7 +398,7 @@ export function useOnboarding() {
           continue;
         }
 
-        const { data: docRecord } = await supabase
+        const { data: docRecord, error: docError } = await supabase
           .from("user_documents")
           .insert({
             user_id: user.id,
@@ -409,6 +409,7 @@ export function useOnboarding() {
           })
           .select("id")
           .single();
+        if (docError) throw docError;
 
         if (docRecord) {
           setUploadedFiles(prev => [...prev, {
@@ -430,7 +431,12 @@ export function useOnboarding() {
     const file = uploadedFiles.find(f => f.id === fileId);
     if (file) {
       await supabase.storage.from("onboarding-uploads").remove([file.url]);
-      await supabase.from("user_documents").delete().eq("id", fileId);
+      const { error } = await supabase.from("user_documents").delete().eq("id", fileId);
+      if (error) {
+        console.error("Failed to delete document:", error);
+        toast.error("Erreur", { description: "Le document n'a pas pu être supprimé." });
+        return;
+      }
     }
     setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
@@ -545,13 +551,15 @@ export function useOnboarding() {
           .select("id").eq(column, value).maybeSingle();
         const propData = { version_complete: brandingAnswers.positioning };
         if (existingProp) {
-          await supabase.from("brand_proposition").update(propData).eq("id", existingProp.id);
+          const { error } = await supabase.from("brand_proposition").update(propData).eq("id", existingProp.id);
+          if (error) console.error("Failed to update brand_proposition:", error);
         } else {
-          await supabase.from("brand_proposition").insert({
+          const { error } = await supabase.from("brand_proposition").insert({
             user_id: profileUserId,
             workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...propData,
           } as any);
+          if (error) console.error("Failed to insert brand_proposition:", error);
         }
       }
 
@@ -583,13 +591,15 @@ export function useOnboarding() {
         const { data: existingStrategy } = await (supabase.from("brand_strategy") as any)
           .select("id").eq(column, value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
         if (existingStrategy) {
-          await supabase.from("brand_strategy").update(strategyData).eq("id", existingStrategy.id);
+          const { error } = await supabase.from("brand_strategy").update(strategyData).eq("id", existingStrategy.id);
+          if (error) console.error("Failed to update brand_strategy:", error);
         } else {
-          await supabase.from("brand_strategy").insert({
+          const { error } = await supabase.from("brand_strategy").insert({
             user_id: profileUserId,
             workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
             ...strategyData,
           } as any);
+          if (error) console.error("Failed to insert brand_strategy:", error);
         }
       }
 
@@ -650,7 +660,7 @@ export function useOnboarding() {
 
       if (diagnosticData) {
         // Save diagnostic as branding audit
-        await supabase.from("branding_audits").insert({
+        const { error: auditError } = await supabase.from("branding_audits").insert({
           user_id: profileUserId,
           workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
           score_global: diagnosticData.totalScore,
@@ -658,10 +668,12 @@ export function useOnboarding() {
           points_forts: diagnosticData.strengths.map((s: string) => ({ titre: s, detail: s, source: "diagnostic" })),
           points_faibles: diagnosticData.weaknesses.map((w: { title: string; why: string }) => ({ titre: w.title, detail: w.why, source: "diagnostic", priorite: "high" })),
         } as any);
+        if (auditError) throw auditError;
 
-        await supabase.from("profiles").update({
+        const { error: diagError } = await supabase.from("profiles").update({
           diagnostic_data: diagnosticData as any,
         }).eq("user_id", profileUserId);
+        if (diagError) throw diagError;
       }
     } catch (e) {
       console.error("Failed to save diagnostic:", e);

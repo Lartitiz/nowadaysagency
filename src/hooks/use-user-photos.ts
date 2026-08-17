@@ -331,10 +331,11 @@ export function useRetryPhotoRetouch() {
     setIsRetrying(photo.id);
     try {
       // Reset status so the UI reflects the new attempt
-      await supabase
+      const { error: resetError } = await supabase
         .from("user_photos")
         .update({ status: "pending", error_message: null })
         .eq("id", photo.id);
+      if (resetError) throw new Error(resetError.message);
 
       const { error } = await invokeWithTimeout(
         "photo-background-replace",
@@ -456,10 +457,11 @@ export function useRetouchExistingPhoto() {
           .eq("id", photo.id)
           .maybeSingle();
         if (cur?.status === "pending") {
-          await supabase
+          const { error: rollbackError } = await supabase
             .from("user_photos")
             .update({ status: "ready", original_storage_path: prevOriginalPath })
             .eq("id", photo.id);
+          if (rollbackError) console.error("Failed to rollback photo status:", rollbackError);
           if (snapshotPath) {
             await supabase.storage.from(USER_PHOTOS_BUCKET).remove([snapshotPath]);
           }
@@ -562,6 +564,7 @@ export function useGeneratePhotoVariant() {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
 
       const cleanup = async () => {
+        // eslint-disable-next-line nowadays/require-supabase-error-check -- nettoyage best-effort après échec déjà géré (throw juste après) ; un échec du nettoyage ne doit pas masquer l'erreur d'origine
         await supabase.from("user_photos").delete().eq("id", newId);
         await supabase.storage.from(USER_PHOTOS_BUCKET).remove([originalPath]).catch(() => {});
       };
@@ -571,6 +574,7 @@ export function useGeneratePhotoVariant() {
         .from(USER_PHOTOS_BUCKET)
         .copy(srcPath, originalPath);
       if (copyErr && !/exist|dupl/i.test(copyErr.message)) {
+        // eslint-disable-next-line nowadays/require-supabase-error-check -- nettoyage best-effort avant le throw suivant, même raison que cleanup() ci-dessus
         await supabase.from("user_photos").delete().eq("id", newId);
         throw new Error(copyErr.message);
       }
