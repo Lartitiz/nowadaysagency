@@ -344,6 +344,11 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
   const selectedStructureId = selectedFormat && selectedAngle ? getStructureForCombo(selectedFormat, selectedAngle) : null;
   const selectedStructure = selectedStructureId ? CONTENT_STRUCTURES[selectedStructureId] : null;
 
+  // Mixte hors newsjacking : tant que la fourche (photos-d'abord / texte-d'abord)
+  // n'est pas tranchée, Suivant reste désactivé — aucune carte ne doit avoir l'air
+  // sélectionnée par défaut.
+  const mixForkPending = selectedFormat === "carousel" && carouselSubMode === "mix" && !newsjackingActive && textFirstChoice === null;
+
   // LinkedIn post en mode photo : on saute la sélection d'angle, l'IA choisit toute seule.
   const isLinkedInPhotoPost = selectedFormat === "linkedin" && photoMode;
   // « Mes slides » : le texte est déjà écrit par l'utilisatrice — l'angle
@@ -359,7 +364,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
     }
     // Mixte hors newsjacking : la fourche doit avoir été tranchée (photos-d'abord
     // ou texte-d'abord) avant de continuer.
-    if (selectedFormat === "carousel" && carouselSubMode === "mix" && !newsjackingActive && textFirstChoice === null) {
+    if (mixForkPending) {
       toast.error("Choisis comment construire ton mixte : « J'ai mes photos » ou « J'écris d'abord ».");
       return;
     }
@@ -983,7 +988,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
           <button
             type="button"
             onClick={() => { setTextFirstChoice(true); setPhotoWarning(false); }}
-            className="w-full text-left rounded-xl border-2 border-primary/40 hover:border-primary bg-card p-3.5 flex items-start gap-3 transition-colors"
+            className="w-full text-left rounded-xl border border-border hover:border-primary/40 bg-card p-3.5 flex items-start gap-3 transition-colors"
           >
             <Wand2 className="h-5 w-5 text-primary mt-0.5 shrink-0" />
             <span className="min-w-0">
@@ -1192,7 +1197,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       {/* Navigation */}
       <div className="space-y-2 pt-2">
         <Button
-          disabled={!selectedFormat || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
+          disabled={!selectedFormat || mixForkPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
           className="w-full gap-2"
           size="lg"
@@ -1200,9 +1205,11 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
           Suivant <ArrowRight className="h-4 w-4" />
         </Button>
         <p className="text-2xs text-muted-foreground text-center">
-          {carouselSubMode === "user_slides"
-            ? "Prochaine étape : tu colles ton texte, slide par slide."
-            : "On affinera ensuite ton brief avec quelques questions rapides."}
+          {mixForkPending
+            ? "Choisis d'abord comment construire ton carrousel mixte, juste au-dessus."
+            : carouselSubMode === "user_slides"
+              ? "Prochaine étape : tu colles ton texte, slide par slide."
+              : "On affinera ensuite ton brief avec quelques questions rapides."}
         </p>
         <div className="flex justify-center">
           <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground">
