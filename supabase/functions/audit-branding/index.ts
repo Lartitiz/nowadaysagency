@@ -374,7 +374,8 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
         BRANDING_AUDIT_TOOL,
         0.3,
         6000,
-        usage
+        usage,
+        120_000
       );
     } catch (e) {
       console.error("audit-branding: appel IA échoué:", e);

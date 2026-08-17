@@ -164,7 +164,7 @@ Réponds UNIQUEMENT en JSON :
 }`;
 
     const usage: UsageSink = {};
-    const parsed: any = await callAnthropicToolSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", LAUNCH_PLAN_TOOL, 0.7, 8192, usage);
+    const parsed: any = await callAnthropicToolSimple(getModelForAction("launch"), systemPrompt + "\n\n" + ANTI_SLOP, "Génère mon plan de slots de lancement.", LAUNCH_PLAN_TOOL, 0.7, 8192, usage, 60_000);
 
     await logUsage(user.id, "content", "launch_plan", usage.total_tokens, usage.model);
 

@@ -208,7 +208,7 @@ Retourne UNIQUEMENT un JSON :
       let result;
       let aiSucceeded = false;
       try {
-        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 2000, qUsage);
+        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 2000, qUsage, 60_000);
         aiSucceeded = true;
       } catch {
         // Fallback to base questions
@@ -299,6 +299,7 @@ Pour le module editorial, propose piliers de contenu.`;
           [{ role: "user", content: "Génère ton diagnostic et tes propositions." }],
           0.5,
           4000,
+          60_000,
         );
         return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
           await logUsage(user.id, "content", "coaching_diagnostic", usage?.total_tokens, usage?.model, workspace_id);
@@ -309,7 +310,7 @@ Pour le module editorial, propose piliers de contenu.`;
 
       let result;
       try {
-        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", COACH_DIAG_TOOL, 0.5, 4000, diagUsage);
+        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Génère ton diagnostic et tes propositions.", COACH_DIAG_TOOL, 0.5, 4000, diagUsage, 60_000);
       } catch (e) {
         console.error("coaching-module diagnostic: appel IA échoué:", e);
         return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {
@@ -405,6 +406,7 @@ Pour le module editorial, propose piliers de contenu.`;
           [{ role: "user", content: "Ajuste ta proposition en tenant compte du feedback." }],
           0.5,
           4000,
+          60_000,
         );
         return createClientSSEStream(anthropicStream, corsHeaders, async (_full, usage) => {
           await logUsage(user.id, "suggestion", "coaching_adjust", usage?.total_tokens, usage?.model, workspace_id);
@@ -415,7 +417,7 @@ Pour le module editorial, propose piliers de contenu.`;
 
       let result;
       try {
-        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", COACH_DIAG_TOOL, 0.5, 4000, adjUsage);
+        result = await callAnthropicToolSimple(getDefaultModel(), systemPrompt, "Ajuste ta proposition en tenant compte du feedback.", COACH_DIAG_TOOL, 0.5, 4000, adjUsage, 60_000);
       } catch (e) {
         console.error("coaching-module adjust: appel IA échoué:", e);
         return new Response(JSON.stringify({ error: "Erreur lors de l'ajustement. Réessaie." }), {

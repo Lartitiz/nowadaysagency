@@ -322,6 +322,11 @@ function toolInputText(data: any, toolName: string, keepDashes = false): string 
 export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<AnthropicResult> {
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
+  const controllerFactory = () => {
+    const ac = options.abortTimeoutMs ? new AbortController() : null;
+    const timer = ac ? setTimeout(() => ac.abort(), options.abortTimeoutMs) : null;
+    return { signal: ac?.signal, clear: () => { if (timer) clearTimeout(timer); } };
+  };
 
   const body: any = {
     model: options.model,
@@ -373,16 +378,43 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
       await new Promise((r) => setTimeout(r, delay));
     }
 
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-beta": "prompt-caching-2024-07-31",
-      },
-      body: JSON.stringify(body),
-    });
+    const { signal, clear } = controllerFactory();
+    let response: Response;
+    try {
+      response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+          "anthropic-beta": "prompt-caching-2024-07-31",
+        },
+        body: JSON.stringify(body),
+        signal,
+      });
+    } catch (err) {
+      clear();
+      const isAbort = (err as any)?.name === "AbortError";
+      console.error(JSON.stringify({
+        type: "ai_error_meta",
+        model: options.model,
+        error: isAbort ? `Anthropic fetch timeout après ${options.abortTimeoutMs}ms` : `Anthropic fetch error: ${(err as any)?.message}`,
+        attempt: attempt + 1,
+        timestamp: new Date().toISOString(),
+      }));
+      if (attempt < MAX_RETRIES) {
+        lastError = new AnthropicError(
+          isAbort ? "L'IA met trop de temps, réessai en cours..." : "Connexion à l'IA interrompue, réessai en cours...",
+          isAbort ? 504 : 503
+        );
+        continue;
+      }
+      throw new AnthropicError(
+        isAbort ? "L'IA met trop de temps à répondre. Réessaie dans un instant." : "Connexion à l'IA perdue. Réessaie dans un instant.",
+        isAbort ? 504 : 503
+      );
+    }
+    clear();
 
     if (response.ok) {
       const data = await response.json();
@@ -705,7 +737,8 @@ export async function callAnthropicToolSimple<T = Record<string, unknown>>(
   tool: AnthropicTool,
   temperature = 0.7,
   max_tokens = 4096,
-  usageOut?: UsageSink
+  usageOut?: UsageSink,
+  abortTimeoutMs?: number
 ): Promise<T> {
   const raw = await callAnthropic({
     model,
@@ -714,6 +747,7 @@ export async function callAnthropicToolSimple<T = Record<string, unknown>>(
     temperature,
     max_tokens,
     tool,
+    abortTimeoutMs,
   }, usageOut);
   return JSON.parse(raw) as T;
 }

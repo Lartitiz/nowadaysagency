@@ -432,6 +432,7 @@ Deno.serve(async (req) => {
       messages,
       temperature: 0.7,
       max_tokens: 2048,
+      abortTimeoutMs: 60_000,
     }, usage);
 
     // Parse AI response

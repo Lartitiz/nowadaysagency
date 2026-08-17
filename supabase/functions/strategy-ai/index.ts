@@ -226,7 +226,7 @@ RÈGLES :
     }
 
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("strategy"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.8, undefined, usage);
+    const content = await callAnthropicSimple(getModelForAction("strategy"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, 0.8, undefined, usage, 120_000);
 
     await logUsage(user.id, "content", "strategy", usage.total_tokens, usage.model);
 

@@ -202,7 +202,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
     const userPrompt = stepPrompts[step] || `L'utilisatrice a répondu "${answer}" à l'étape ${step}. Analyse sa réponse et donne un feedback personnalisé. Retourne un JSON avec "reaction" (string).`;
 
     const usage: UsageSink = {};
-    const parsed = await callAnthropicToolSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, userPrompt, OFFER_COACH_TOOL, 0.7, 2000, usage);
+    const parsed = await callAnthropicToolSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, userPrompt, OFFER_COACH_TOOL, 0.7, 2000, usage, 60_000);
 
     await logUsage(user.id, "content", "offer_coaching", usage.total_tokens, usage.model, workspace_id);
 

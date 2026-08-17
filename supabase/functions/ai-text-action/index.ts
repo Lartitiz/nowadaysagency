@@ -94,6 +94,7 @@ RÈGLES :
         },
       ],
       max_tokens: 1024,
+      abortTimeoutMs: 60_000,
       temperature: 0.7,
     }, usage);
 

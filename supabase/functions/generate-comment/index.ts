@@ -123,6 +123,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       model: getModelForAction("dm_comment"),
       messages: [{ role: "user", content: messageContent }],
       temperature: 0.8,
+      abortTimeoutMs: 60_000,
     }, usage);
 
     const jsonMatch = content.match(/\{[\s\S]*\}/);

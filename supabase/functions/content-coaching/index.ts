@@ -330,6 +330,7 @@ Réponds UNIQUEMENT avec ce JSON (aucune prose, commence par {) :
         messages: [{ role: "user", content: "Propose les 3 sujets-graines. JSON uniquement, commence par {." }],
         temperature: 0.8,
         max_tokens: 700,
+        abortTimeoutMs: 120_000,
       }, seedsUsage);
       try {
         const s = rawSeeds.indexOf("{"); const e = rawSeeds.lastIndexOf("}");
@@ -621,6 +622,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
         messages: [{ role: "user", content: userMessage }],
         temperature: 0.8,
         max_tokens: 4000,
+        abortTimeoutMs: 120_000,
       }, usage);
       try {
         return await parseIdeas(raw);

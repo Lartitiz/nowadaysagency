@@ -226,6 +226,7 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
       messages,
       temperature: 0.5,
       max_tokens: 6144,
+      abortTimeoutMs: 120_000,
     }, usage);
 
     let result: any;
