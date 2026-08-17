@@ -399,6 +399,17 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
                 <div className="space-y-2 pb-1">{otherOptions.map(renderOption)}</div>
               </details>
             )}
+            {/* Le classement (kind) peut ne jamais aboutir en arrière-plan (audit
+                14/08) : sans lui, « Mon portrait sur un fond de marque » reste
+                invisible sans aucune explication. On pointe le seul déblocage
+                qui existe (le 🔄 à côté de la description, plus haut). */}
+            {!photo.kind && onPortraitPro && (
+              <p className="px-1 pb-1 text-2xs text-muted-foreground">
+                Cette photo n'est pas encore classée — régénère sa description
+                ci-dessus (🔄) pour voir tous les outils disponibles, dont « Mon
+                portrait sur un fond de marque » si c'est un portrait.
+              </p>
+            )}
           </div>
         )}
 

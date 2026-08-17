@@ -78,7 +78,12 @@ export default function PhotosPage() {
 
   const [createVisualOpen, setCreateVisualOpen] = useState(false);
   const [siteImportOpen, setSiteImportOpen] = useState(false);
-  const [detailPhoto, setDetailPhoto] = useState<UserPhotoRow | null>(null);
+  // Id seul (pas l'objet) : le détail doit refléter le classement IA qui finit
+  // en arrière-plan après l'upload, sinon `photo.kind` reste figé sur l'instantané
+  // pris au clic d'ouverture — même si Realtime a bien rafraîchi `photos` derrière,
+  // Portrait pro n'apparaît jamais sans fermer/rouvrir OU recharger la page.
+  const [detailPhotoId, setDetailPhotoId] = useState<string | null>(null);
+  const detailPhoto = detailPhotoId ? (photos.find((p) => p.id === detailPhotoId) ?? null) : null;
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
   const [portraitProPhoto, setPortraitProPhoto] = useState<UserPhotoRow | null>(null);
@@ -362,7 +367,7 @@ export default function PhotosPage() {
                     <PhotoCard
                       key={p.id}
                       photo={p}
-                      onOpen={setDetailPhoto}
+                      onOpen={(photo) => setDetailPhotoId(photo.id)}
                       onDelete={setPhotoToDelete}
                       onRetry={handleRetry}
                       retrying={isRetrying === p.id}
@@ -398,21 +403,21 @@ export default function PhotosPage() {
       <PhotoDetailDialog
         photo={detailPhoto}
         open={!!detailPhoto}
-        onOpenChange={(v) => !v && setDetailPhoto(null)}
+        onOpenChange={(v) => !v && setDetailPhotoId(null)}
         onPackshot={(p) => {
-          setDetailPhoto(null);
+          setDetailPhotoId(null);
           setPackshotPhoto(p);
         }}
         onRetouche={(p) => {
-          setDetailPhoto(null);
+          setDetailPhotoId(null);
           setRetouchePhoto(p);
         }}
         onMiseEnScene={(p) => {
-          setDetailPhoto(null);
+          setDetailPhotoId(null);
           setMiseEnScenePhoto(p);
         }}
         onPortraitPro={(p) => {
-          setDetailPhoto(null);
+          setDetailPhotoId(null);
           setPortraitProPhoto(p);
         }}
         onDelete={setPhotoToDelete}
