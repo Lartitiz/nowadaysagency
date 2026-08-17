@@ -121,6 +121,28 @@ describe("useUserPlan — cache avec TTL 60s", () => {
     expect(mocks.invoke).toHaveBeenCalledTimes(2);
   });
 
+  it("refresh() sur une instance recharge aussi les AUTRES instances montées (ex. header + page de création)", async () => {
+    const headerInstance = renderHook(() => useUserPlan());
+    const creerInstance = renderHook(() => useUserPlan());
+    await waitFor(() => expect(headerInstance.result.current.loading).toBe(false));
+    await waitFor(() => expect(creerInstance.result.current.loading).toBe(false));
+    expect(headerInstance.result.current.usage.total).toEqual({ used: 5, limit: 23 });
+
+    mocks.invoke.mockResolvedValue(
+      subscriptionResponse({ ai_usage: { total: { used: 6, limit: 23 } } }),
+    );
+
+    await act(async () => {
+      await creerInstance.result.current.refresh();
+    });
+
+    // L'instance qui n'a pas appelé refresh() doit quand même voir le nouveau solde.
+    await waitFor(() => expect(headerInstance.result.current.usage.total).toEqual({ used: 6, limit: 23 }));
+
+    headerInstance.unmount();
+    creerInstance.unmount();
+  });
+
   it("expire le cache après le TTL de 60s", async () => {
     // On avance l'horloge via Date.now() plutôt que des fake timers : le cache
     // n'utilise aucun setTimeout, et de vrais timers laissent `waitFor` (RTL)

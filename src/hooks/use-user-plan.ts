@@ -74,6 +74,21 @@ let _cache = new Map<string, { data: any; ts: number }>();
 const _inflight = new Map<string, Promise<any>>();
 const CACHE_TTL = 60_000; // 1 minute
 
+/* ── Cross-instance refresh ──
+   Chaque composant qui appelle useUserPlan() a son propre state React : le
+   cache module ci-dessus est partagé, mais invalider le cache depuis une
+   instance (ex. après une génération dans CreerUnifie) ne met pas à jour le
+   state d'une AUTRE instance déjà montée (ex. AiCreditsCounter dans le
+   header) — vécu 17/08 : le compteur du header restait figé jusqu'au reload.
+   Les instances montées s'enregistrent ici pour être notifiées. */
+const _listeners = new Set<() => void>();
+
+function notifyOtherInstances(except: () => void) {
+  _listeners.forEach((fn) => {
+    if (fn !== except) fn();
+  });
+}
+
 async function fetchSubscription(workspaceId?: string): Promise<any> {
   const key = workspaceId || "perso";
   const hit = _cache.get(key);
@@ -155,11 +170,21 @@ export function useUserPlan(): UserPlanState {
 
   const refresh = useCallback(async () => {
     invalidateUserPlanCache();
+    notifyOtherInstances(load);
     await load();
   }, [load]);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // S'enregistre pour être rechargé quand une AUTRE instance appelle refresh()
+  // (ex. après une génération IA ailleurs dans l'app).
+  useEffect(() => {
+    _listeners.add(load);
+    return () => {
+      _listeners.delete(load);
+    };
   }, [load]);
 
   const { isAdmin: isAdminUser } = useAuth();
