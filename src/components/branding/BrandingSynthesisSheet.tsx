@@ -22,7 +22,7 @@ function CollapsibleText({ text, label, maxChars = 150, isQuote }: { text: strin
       <blockquote className="border-l-[3px] border-primary/30 pl-5 py-1">
         <p className="text-base text-foreground/80 leading-relaxed italic break-words whitespace-pre-line">{display}</p>
         {isLong && (
-          <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-2 hover:underline">
+          <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary-text font-medium mt-2 hover:underline">
             {expanded ? "Réduire" : "Lire la suite"}
           </button>
         )}
@@ -35,7 +35,7 @@ function CollapsibleText({ text, label, maxChars = 150, isQuote }: { text: strin
       {label && <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{label}</p>}
       <p className="text-base text-foreground/80 leading-relaxed break-words whitespace-pre-line">{display}</p>
       {isLong && (
-        <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary font-medium mt-1.5 hover:underline">
+        <button onClick={() => setExpanded(!expanded)} className="text-xs text-primary-text font-medium mt-1.5 hover:underline">
           {expanded ? "Réduire" : "Lire la suite"}
         </button>
       )}
@@ -48,7 +48,7 @@ function EmptySection({ message, linkLabel, link }: { message: string; linkLabel
   return (
     <div className="rounded-2xl border border-dashed border-border/60 bg-muted/10 p-8 text-center">
       <p className="text-sm text-muted-foreground mb-3">{message}</p>
-      <button onClick={() => navigate(link)} className="text-sm font-semibold text-primary hover:underline">{linkLabel}</button>
+      <button onClick={() => navigate(link)} className="text-sm font-semibold text-primary-text hover:underline">{linkLabel}</button>
     </div>
   );
 }
@@ -521,7 +521,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
                 </div>
               );
             })()}
-            <button onClick={() => navigate(`/branding/audit/${brandingAudit.id}`)} className="text-sm text-primary font-medium hover:underline inline-flex items-center gap-1">
+            <button onClick={() => navigate(`/branding/audit/${brandingAudit.id}`)} className="text-sm text-primary-text font-medium hover:underline inline-flex items-center gap-1">
               Voir l'audit complet <ExternalLink className="h-3.5 w-3.5" />
             </button>
           </SectionLight>

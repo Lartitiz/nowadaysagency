@@ -364,7 +364,7 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
           <div className="flex items-center gap-2 mb-2">
             <p className="text-xs font-semibold text-bordeaux">{colorsTitle}</p>
             {onUpdate && (
-              <button onClick={startEdit} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline" title="Modifier les couleurs et typos">
+              <button onClick={startEdit} className="inline-flex items-center gap-1 text-xs font-medium text-primary-text hover:underline" title="Modifier les couleurs et typos">
                 <Pencil className="h-3 w-3" /> Modifier
               </button>
             )}
@@ -394,7 +394,7 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
             {onUpdate ? " Tu peux les saisir directement ici :" : " Tu pourras les ajouter en un clic : ou uploader ton logo : dans ta charte graphique."}
           </p>
           {onUpdate && (
-            <button onClick={startEdit} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-1.5">
+            <button onClick={startEdit} className="inline-flex items-center gap-1 text-xs font-medium text-primary-text hover:underline mt-1.5">
               <Pencil className="h-3 w-3" /> Ajouter mes couleurs
             </button>
           )}
@@ -1018,7 +1018,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               </p>
             </div>
             {!showIgBioInput ? (
-              <button onClick={() => setShowIgBioInput(true)} className="text-sm font-semibold text-primary hover:underline">
+              <button onClick={() => setShowIgBioInput(true)} className="text-sm font-semibold text-primary-text hover:underline">
                 Coller ma bio Instagram →
               </button>
             ) : (
@@ -1178,7 +1178,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                     {isValidated ? (
                       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
                         <p className="text-sm text-success font-medium flex-1">✅ Cette carte est enregistrée.</p>
-                        <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary hover:underline">
+                        <button onClick={() => setCoachingSection(sec.key)} className="inline-flex items-center justify-center gap-2 text-sm font-semibold text-primary-text hover:underline">
                           <Sparkles className="h-4 w-4" /> L'affiner quand même
                         </button>
                       </div>
@@ -1290,7 +1290,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               </span>
               <div className="flex items-center gap-3 shrink-0">
                 {allDone ? (
-                  <button onClick={onDone} className="text-sm font-semibold text-primary hover:underline whitespace-nowrap">
+                  <button onClick={onDone} className="text-sm font-semibold text-primary-text hover:underline whitespace-nowrap">
                     {mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
                   </button>
                 ) : (

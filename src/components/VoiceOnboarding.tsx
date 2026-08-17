@@ -133,7 +133,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
 
         <div className="flex flex-wrap gap-1.5">
           {analysis.signature_expressions.map((expr, i) => (
-            <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-rose-pale text-primary font-medium">
+            <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-rose-pale text-primary-text font-medium">
               "{expr}"
             </span>
           ))}
@@ -235,7 +235,7 @@ export default function VoiceOnboarding({ onComplete, existingProfile }: VoiceOn
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Expressions signature</p>
           <div className="flex flex-wrap gap-1.5">
             {analysis.signature_expressions.map((e, i) => (
-              <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-rose-pale text-primary font-medium">
+              <span key={i} className="text-xs px-2 py-0.5 rounded-full bg-rose-pale text-primary-text font-medium">
                 "{e}"
               </span>
             ))}

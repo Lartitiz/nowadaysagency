@@ -214,7 +214,7 @@ export function SaveToIdeasDialog({
                 {selectedTags
                   .filter((t) => !TAG_OPTIONS.find((o) => o.id === t))
                   .map((t) => (
-                    <span key={t} className="rounded-full border border-primary bg-rose-pale px-2 py-0.5 text-xs text-primary">
+                    <span key={t} className="rounded-full border border-primary bg-rose-pale px-2 py-0.5 text-xs text-primary-text">
                       {t}
                       <button onClick={() => toggleTag(t)} className="ml-1 text-primary/60 hover:text-primary">×</button>
                     </span>
