@@ -8,6 +8,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock
 import { IDEA_LENSES, pickLenses, WOW_IDEA_EXAMPLES } from "../_shared/copywriting-prompts.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchDepthMaterial } from "../_shared/depth-research.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 const MAX_CONTEXT_CHARS = 12000;
 const MAX_LIVING_MATTER_CHARS = 4500;
@@ -332,25 +333,22 @@ Réponds UNIQUEMENT avec ce JSON (aucune prose, commence par {) :
         max_tokens: 700,
         abortTimeoutMs: 120_000,
       }, seedsUsage);
-      try {
-        const s = rawSeeds.indexOf("{"); const e = rawSeeds.lastIndexOf("}");
-        const parsed = JSON.parse(rawSeeds.slice(s, e + 1));
-        const seeds = (Array.isArray(parsed?.seeds) ? parsed.seeds : [])
-          .filter((x: any) => x && typeof x.subject === "string" && x.subject.trim())
-          .slice(0, 3)
-          .map((x: any) => ({ subject: String(x.subject).slice(0, 200), why: typeof x.why === "string" ? x.why.slice(0, 240) : "" }));
-        if (!seeds.length) throw new Error("no seeds");
-        console.log("[content-coaching][seeds]", { count: seeds.length, tokens: seedsUsage.total_tokens });
-        return new Response(JSON.stringify({ seeds }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch (seedsErr) {
+      const parsedSeeds = tryParseAiJson<any>(rawSeeds, "content-coaching:seeds");
+      const seeds = (Array.isArray(parsedSeeds?.seeds) ? parsedSeeds.seeds : [])
+        .filter((x: any) => x && typeof x.subject === "string" && x.subject.trim())
+        .slice(0, 3)
+        .map((x: any) => ({ subject: String(x.subject).slice(0, 200), why: typeof x.why === "string" ? x.why.slice(0, 240) : "" }));
+      if (!seeds.length) {
         // Échec silencieux : le front retombe sur la génération directe des 4 idées.
-        console.warn("[content-coaching][seeds] parse failed, fallback front", seedsErr);
+        console.warn("[content-coaching][seeds] parse failed or empty, fallback front");
         return new Response(JSON.stringify({ seeds: [] }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      console.log("[content-coaching][seeds]", { count: seeds.length, tokens: seedsUsage.total_tokens });
+      return new Response(JSON.stringify({ seeds }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     // ─── DEEPENING : recherche web sur le sujet (condiment, échec silencieux) ───
@@ -586,8 +584,14 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     const baseUserMessage = `Génère ${regenerate_lens ? "1" : "4"} idée(s) de contenu (sujet + angle uniquement, PAS de hook ni de brief)${regenerate_lens ? ` pour la lentille "${regenerate_lens}" uniquement, en plus radical que la version précédente.${previousBlock}` : `, UNE PAR LENTILLE dans l'ordre des 4 lentilles fournies (chaque idée renseigne le champ "lens" avec l'identifiant correspondant)`}. Applique successivement : (1) AUDIENCE vs UTILISATRICE, (2) RÈGLE DE VÉRITÉ, (3) RÈGLE D'OR métier, (4) PROFONDEUR 3-AXES (tension + enjeu + ancrage), (5) DIVERSITÉ THÉMATIQUE, (6) TEST DE SINGULARITÉ, (7) TEST DE VALIDITÉ. Si la MATIÈRE VIVANTE est fournie, au moins 2 idées sur 4 doivent l'utiliser explicitement. Réponds UNIQUEMENT avec le JSON demandé, SANS aucune prose, SANS markdown, SANS raisonnement, et commence directement par le caractère {.${isBold ? " MODE BOLD ACTIF — vise l'audace utile sans manipulation." : ""}`;
 
     const parseIdeas = async (raw: string): Promise<any> => {
-      // Strip markdown fences éventuelles puis isole le 1er { ... } équilibré.
-      let cleaned = (raw || "")
+      // Parsing robuste centralisé (fences, extraction, réparations courantes).
+      const parsed = tryParseAiJson<any>(raw, "content-coaching");
+      if (parsed !== null) return parsed;
+
+      // Dernier recours, spécifique à cette fonction : jsonrepair gère des cas
+      // que le module partagé ne couvre pas (guillemets non échappés, virgules
+      // manquantes, retours-ligne dans les strings).
+      const cleaned = (raw || "")
         .replace(/```json\s*/gi, "")
         .replace(/```\s*/g, "")
         .trim();
@@ -596,23 +600,8 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
       if (start === -1 || end === -1 || end <= start) {
         throw new Error("No JSON object found");
       }
-      cleaned = cleaned.slice(start, end + 1);
-      try {
-        return JSON.parse(cleaned);
-      } catch {
-        // Réparations courantes : virgules trailing + caractères de contrôle.
-        const repaired = cleaned
-          .replace(/,(\s*[}\]])/g, "$1")
-          .replace(/[\x00-\x1F\x7F]/g, " ");
-        try {
-          return JSON.parse(repaired);
-        } catch {
-          // Dernier recours : jsonrepair gère les guillemets non échappés,
-          // virgules manquantes, retours-ligne dans les strings, etc.
-          const { jsonrepair } = await import("npm:jsonrepair@3.8.1");
-          return JSON.parse(jsonrepair(cleaned));
-        }
-      }
+      const { jsonrepair } = await import("npm:jsonrepair@3.8.1");
+      return JSON.parse(jsonrepair(cleaned.slice(start, end + 1)));
     };
 
     const callAndParse = async (userMessage: string): Promise<any> => {
