@@ -442,9 +442,11 @@ export default function BrandingPage() {
 
       const { data: existing } = await (supabase.from("brand_proposition") as any).select("id").eq(column, value).maybeSingle();
       if (existing) {
-        await supabase.from("brand_proposition").update(payload as any).eq("id", existing.id);
+        const { error: writeError } = await supabase.from("brand_proposition").update(payload as any).eq("id", existing.id);
+        if (writeError) throw writeError;
       } else {
-        await supabase.from("brand_proposition").insert(payload as any);
+        const { error: writeError } = await supabase.from("brand_proposition").insert(payload as any);
+        if (writeError) throw writeError;
       }
       queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       toast.success("✨ Tes 6 propositions de valeur sont prêtes !");
