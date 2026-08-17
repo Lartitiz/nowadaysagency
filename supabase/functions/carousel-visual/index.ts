@@ -1853,7 +1853,13 @@ function logSchemaFidelityTelemetry(result: any, params: { slides: any[]; userId
 // composée EN DUR (layout A validé) — déterministe, pas via l'IA. En cas
 // d'échec (Recraft KO, pas de clé…), on GARDE la couverture générée par
 // l'IA : jamais de carrousel cassé, et aucun crédit débité en plus.
-async function applyCoverIllustration(result: any, params: {
+/**
+ * Illustration de couverture (Recraft), extraite de serve() pour être
+ * testable directement (deno test, sans vrai serveur HTTP — voir
+ * index_test.ts), même principe que runDeepResearchWebSearch dans
+ * creative-flow/index.ts.
+ */
+export async function applyCoverIllustration(result: any, params: {
   reqBody: any;
   slides: any[];
   ch: any;
@@ -1865,6 +1871,12 @@ async function applyCoverIllustration(result: any, params: {
   let coverIllustrationDone = false;
   if (reqBody?.cover_illustration === true && Array.isArray(result?.slides_html) && result.slides_html.length > 0) {
     try {
+      // Coût Recraft distinct du quota "content"/"quality_max" déjà vérifié
+      // en amont pour le carrousel lui-même : sans ce gate, un compte gratuit
+      // (plafond photo_retouch) pouvait générer des couvertures sans limite.
+      const coverQuota = await checkQuota(userId, "photo_retouch", workspaceId);
+      if (!coverQuota.allowed) throw new Error("quota photo_retouch épuisé");
+
       const recraftKey = Deno.env.get("RECRAFT_API_TOKEN");
       if (!recraftKey) throw new Error("RECRAFT_API_TOKEN manquant");
 
