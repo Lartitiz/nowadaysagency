@@ -11,7 +11,7 @@ import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
-import { enforceTextContrast } from "../_shared/contrast-guard.ts";
+import { enforceTextContrast, hexRelativeLuminance } from "../_shared/contrast-guard.ts";
 import { enforceMinFontSize } from "../_shared/font-size-guard.ts";
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
@@ -37,11 +37,7 @@ function isDarkBackground(color: string | undefined | null): boolean {
   let h = String(color || "").trim().replace("#", "");
   if (h.length === 3) h = h.split("").map((c) => c + c).join("");
   if (!/^[0-9a-fA-F]{6}$/.test(h)) return false;
-  const c = (i: number) => {
-    const x = parseInt(h.slice(i, i + 2), 16) / 255;
-    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4) <= 0.5;
+  return hexRelativeLuminance(h) <= 0.5;
 }
 
 function buildVisualSchemaBlock(ch: any): string {
@@ -211,6 +207,30 @@ IMPORTANT pour les schémas :
 - Les attributs data-pptx-shape et data-pptx-editable présents dans les templates ci-dessus sont OBLIGATOIRES : recopie-les à l'identique. Annote de la même façon tout élément équivalent que tu ajoutes (carte → card, badge/pastille → pill).`;
 }
 
+/**
+ * Noyau commun du bloc « ═══ CHARTE GRAPHIQUE ═══ » des 3 prompts (texte /
+ * photo / mix) — auparavant dupliqué en triple, avec risque de dérive à
+ * l'édition (surtout le ternaire texture_url, byte-identique dans les 3).
+ * Seule variante : les libellés de rôle entre parenthèses (« (titres
+ * foncés) » / « (highlights) »), absents du prompt photo. Les queues
+ * spécifiques (style photo, interdits visuels, brief, moodboard, layout de
+ * référence…) restent dans chaque builder : elles diffèrent VOLONTAIREMENT
+ * d'un prompt à l'autre. Sortie verrouillée byte-à-byte par
+ * prompts_snapshot_test.ts.
+ */
+function buildCharteBlockCore(ch: any, opts: { withRoleLabels: boolean }): string {
+  return `═══ CHARTE GRAPHIQUE ═══
+Couleur principale : ${ch.color_primary}
+Couleur secondaire${opts.withRoleLabels ? " (titres foncés)" : ""} : ${ch.color_secondary}
+Couleur accent${opts.withRoleLabels ? " (highlights)" : ""} : ${ch.color_accent}
+Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
+Texte : ${ch.color_text}
+Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
+Police corps : ${ch.font_body}
+Ambiance : ${ch.mood_keywords}
+Border-radius : ${ch.border_radius}`;
+}
+
 export function buildTextCarouselPrompt(params: {
   ch: any;
   safeFontTitle: string;
@@ -237,16 +257,7 @@ Tu dois produire des slides qui ressemblent à du design professionnel fait sur 
 - Pas de JavaScript
 - JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
 
-═══ CHARTE GRAPHIQUE ═══
-Couleur principale : ${ch.color_primary}
-Couleur secondaire (titres foncés) : ${ch.color_secondary}
-Couleur accent (highlights) : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
-Texte : ${ch.color_text}
-Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
-Police corps : ${ch.font_body}
-Ambiance : ${ch.mood_keywords}
-Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo / ambiance visuelle : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS (l'utilisatrice a EXPLICITEMENT interdit ces éléments) :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF DE LA MARQUE :\n${ch.ai_generated_brief}` : ""}${ch.moodboard_description ? `\n\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nIMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le style des blocs, l'alternance des mises en page. Adapte-le au contenu de chaque slide.` : ""}
+${buildCharteBlockCore(ch, { withRoleLabels: true })}${ch.photo_style ? `\nStyle photo / ambiance visuelle : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS (l'utilisatrice a EXPLICITEMENT interdit ces éléments) :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF DE LA MARQUE :\n${ch.ai_generated_brief}` : ""}${ch.moodboard_description ? `\n\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nIMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le style des blocs, l'alternance des mises en page. Adapte-le au contenu de chaque slide.` : ""}
 
 ═══ DESIGN SYSTEM — VALEURS CSS CONCRÈTES ═══
 
@@ -488,16 +499,7 @@ Le carrousel photo se lit comme une histoire qui coule : le fil vit DANS les phr
 - CHAQUE slide commence par la balise @import Google Fonts :
   <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap');</style>
 
-═══ CHARTE GRAPHIQUE ═══
-Couleur principale : ${ch.color_primary}
-Couleur secondaire : ${ch.color_secondary}
-Couleur accent : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
-Texte : ${ch.color_text}
-Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
-Police corps : ${ch.font_body}
-Ambiance : ${ch.mood_keywords}
-Border-radius : ${ch.border_radius}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nIMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le ratio photo/texte, le style des blocs. Mais adapte-le au format carrousel photo (1080×1350).` : ""}
+${buildCharteBlockCore(ch, { withRoleLabels: false })}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nIMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le ratio photo/texte, le style des blocs. Mais adapte-le au format carrousel photo (1080×1350).` : ""}
 
 ═══ LISIBILITÉ AVANT TOUT (analyse VISUELLE de chaque photo fournie) ═══
 
@@ -633,16 +635,7 @@ Ce carrousel est un MIX : certaines slides ont des photos, d'autres sont du text
 - Pas de JavaScript
 - JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
 
-═══ CHARTE GRAPHIQUE ═══
-Couleur principale : ${ch.color_primary}
-Couleur secondaire (titres foncés) : ${ch.color_secondary}
-Couleur accent (highlights) : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
-Texte : ${ch.color_text}
-Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
-Police corps : ${ch.font_body}
-Ambiance : ${ch.mood_keywords}
-Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nInspire-toi de ce layout pour le placement des éléments et l'ambiance générale.` : ""}
+${buildCharteBlockCore(ch, { withRoleLabels: true })}${ch.photo_style ? `\nStyle photo : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nInspire-toi de ce layout pour le placement des éléments et l'ambiance générale.` : ""}
 
 ═══ DESIGN PAR TYPE DE SLIDE ═══
 
@@ -1429,15 +1422,8 @@ function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
     return [comp(r, B(0)), comp(g, B(2)), comp(b, B(4))]
       .map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
   };
-  const lum = (h6: string): number => {
-    const c = (i: number) => {
-      const x = parseInt(h6.slice(i, i + 2), 16) / 255;
-      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4);
-  };
   const ratio = (a6: string, b6: string): number => {
-    const la = lum(a6), lb = lum(b6);
+    const la = hexRelativeLuminance(a6), lb = hexRelativeLuminance(b6);
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   };
   // Règle (validée avec Laetitia, option « stricte ») : la couleur du TITRE est imposée
@@ -1524,7 +1510,7 @@ function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
           const eff = hexOnBg(cm[1], bgLocal);
           if (!eff) return sm;
           let repl: string | null = null;
-          if (lum(bgLocal) > 0.5) {
+          if (hexRelativeLuminance(bgLocal) > 0.5) {
             if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bestDark(bgLocal);
           } else {
             if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
@@ -1555,7 +1541,7 @@ function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
           const eff = hexOnBg(cm[1], bgLocal);
           if (!eff) return sm;
           let repl: string | null = null;
-          if (lum(bgLocal) > 0.5) {
+          if (hexRelativeLuminance(bgLocal) > 0.5) {
             if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bodyDark(bgLocal);
           } else {
             if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";

@@ -45,12 +45,19 @@ function parseColor(raw: string): Rgb | null {
   return null;
 }
 
+function srgbChannel(v255: number): number {
+  const s = v255 / 255;
+  return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+}
+
+/** Luminance relative WCAG d'un hex 6 digits ("RRGGBB", sans #). */
+export function hexRelativeLuminance(h6: string): number {
+  const c = (i: number) => srgbChannel(parseInt(h6.slice(i, i + 2), 16));
+  return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4);
+}
+
 function luminance(c: Rgb): number {
-  const ch = [c.r, c.g, c.b].map((v) => {
-    const s = v / 255;
-    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  });
-  return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
+  return 0.2126 * srgbChannel(c.r) + 0.7152 * srgbChannel(c.g) + 0.0722 * srgbChannel(c.b);
 }
 
 function contrastRatio(l1: number, l2: number): number {
