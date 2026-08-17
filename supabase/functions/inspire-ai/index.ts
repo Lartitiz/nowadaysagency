@@ -6,6 +6,7 @@ import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/ant
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, InspireAiSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -181,20 +182,17 @@ Réponds UNIQUEMENT en JSON valide :
     }
 
     const usage: UsageSink = {};
-    let raw = await callAnthropic({
+    const raw = await callAnthropic({
       model: getModelForAction("content"),
       messages,
       temperature: 0.8,
       abortTimeoutMs: 60_000,
     }, usage);
-    raw = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 
-    let result;
-    try {
-      result = JSON.parse(raw);
-    } catch {
-      console.error("JSON parse error:", raw);
-      return new Response(JSON.stringify({ error: "Erreur de format IA" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    // Plus de fallback muet : une réponse illisible = erreur claire (502), sans débiter le quota.
+    const result = tryParseAiJson<any>(raw, "inspire-ai");
+    if (result === null) {
+      return new Response(JSON.stringify({ error: "Erreur de format IA. Réessaie." }), { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
     await logUsage(user.id, "content", "inspire", usage.total_tokens, usage.model, workspace_id);
