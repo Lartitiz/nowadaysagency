@@ -11,6 +11,7 @@ import BrandingPrompt from "@/components/BrandingPrompt";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import AuditRecommendationBanner from "@/components/AuditRecommendationBanner";
+import { HubConnectBanner } from "@/components/hub";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -979,6 +980,17 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const body = (
     <>
+      {/* Découverte du statut de connexion AVANT le blocage à la programmation :
+          masqué en mode démo et quand le compte est déjà connecté (HubConnectBanner).
+          UN SEUL encart pour les deux réseaux : empilés, ils remplissaient à eux
+          seuls le premier écran au doigt et aucune case de calendrier n'était
+          visible à l'arrivée (regard du 17/08). */}
+      {!isDemoMode && (
+        <HubConnectBanner
+          platform={["instagram", "linkedin"]}
+          benefit="publier tes posts en 1 clic depuis ton calendrier"
+        />
+      )}
       <AuditRecommendationBanner />
       <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
 

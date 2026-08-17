@@ -809,7 +809,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
               ) : (
                 <p className="text-sm text-muted-foreground/50 italic">
                   Pas encore renseigné ·{" "}
-                  <button onClick={() => handleStartEdit(f)} className="text-primary hover:underline">
+                  <button onClick={() => handleStartEdit(f)} className="text-primary-text hover:underline">
                     Remplir manuellement
                   </button>
                 </p>

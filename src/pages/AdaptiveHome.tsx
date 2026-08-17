@@ -43,6 +43,7 @@ import { useUserPlan } from "@/hooks/use-user-plan";
 import { toLocalDateStr } from "@/lib/utils";
 import { getSignedPhotoUrls } from "@/lib/photo-storage";
 import { trackPorte } from "@/lib/dashboard-portes";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 /* ── Collapsible missions ── */
 const COLLAPSED_KEY = "lac_missions_collapsed";
@@ -276,6 +277,10 @@ export default function AdaptiveHome() {
   const { activeWorkspace, activeRole } = useWorkspace();
   const { isBinome } = useUserPlan();
   const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
+  const isMobile = useIsMobile();
+  // Au doigt, chaque ligne de rappel coûte ~30 px devant le hero : on en montre
+  // 2 (le lien « voir les N autres » emmène au calendrier), 5 au large.
+  const FORGOTTEN_PREVIEW = isMobile ? 2 : 5;
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
   const [recycleOpen, setRecycleOpen] = useState(false);
@@ -380,13 +385,17 @@ export default function AdaptiveHome() {
   // grosse chute du tunnel : 26 % au calendrier → 2 % publiés), dont la date est
   // passée sans jamais être partis — ni auto-publiés (publish_status), ni cochés
   // publiés à la main. Sans ce rappel, rien ne ramène jamais dessus.
-  const { data: forgottenDrafts = [] } = useQuery<{ id: string; date: string; canal: string | null }[]>({
+  const { data: forgottenDrafts = [] } = useQuery<
+    { id: string; date: string; canal: string | null; theme: string | null }[]
+  >({
     queryKey: ["adaptive-home-forgotten-drafts", wsFilter.column, wsFilter.value],
     queryFn: async () => {
       const todayStr = toLocalDateStr(new Date());
       const { data, error } = await (supabase as any)
         .from("calendar_posts")
-        .select("id, date, canal")
+        // `theme` = le sujet du contenu. Sans lui, les lignes se lisaient toutes
+        // « 15 août · instagram » et rien ne les distinguait (regard du 17/08).
+        .select("id, date, canal, theme")
         .eq(wsFilter.column, wsFilter.value)
         .lt("date", todayStr)
         .neq("status", "published")
@@ -396,7 +405,7 @@ export default function AdaptiveHome() {
         .order("date", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data ?? []) as { id: string; date: string; canal: string | null }[];
+      return (data ?? []) as { id: string; date: string; canal: string | null; theme: string | null }[];
     },
     enabled: !!wsFilter.value,
     staleTime: 5 * 60 * 1000,
@@ -517,7 +526,10 @@ export default function AdaptiveHome() {
   return (
     <div className="min-h-screen bg-rose-pale">
       <AppHeader />
-      <main className="max-w-[720px] mx-auto px-4 py-8 space-y-7">
+      {/* Rythme resserré au doigt (py-5/space-y-5) : au large on garde l'air
+          d'origine. Cumulé aux 2 lignes de rappel, ça ramène le CTA du hero
+          AU-DESSUS de la barre d'onglets sur un 390×844 (regard du 17/08). */}
+      <main className="max-w-[720px] mx-auto px-4 py-5 sm:py-8 space-y-5 sm:space-y-7">
 
         {/* Erreur de chargement visible (pattern /profil) : sans ce bandeau, un
             réseau qui tombe affiche un dashboard « normal » à zéro, sans indice. */}
@@ -548,26 +560,74 @@ export default function AdaptiveHome() {
             calendrier savent déjà qu'un contenu existe ; ce qu'ils ne disaient
             jamais, c'est qu'il est resté sans suite. Discret (pas de couleur
             d'alerte, c'est un oubli, pas une erreur), toujours au-dessus du
-            hero pour rester visible sans dominer la page. */}
+            hero pour rester visible sans dominer la page.
+            Chaque ligne mène directement au post concerné (?date=&post=), au
+            lieu de renvoyer vers un calendrier générique qu'il fallait fouiller
+            mois par mois (audit du 14/08 : jusqu'à 3 semaines pour retomber dessus).
+            Aperçu court (2 lignes) : au doigt, 5 lignes + le bandeau premiers pas
+            repoussaient le CTA du hero SOUS la barre d'onglets (regard du 17/08). */}
         {forgottenDrafts.length > 0 && (
-          <button
-            type="button"
-            onClick={() => { porte("programmer"); navigate("/calendrier"); }}
-            className="w-full flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-left hover:border-primary/40 transition-colors"
-          >
-            <Bell className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-medium text-foreground">
-                {forgottenDrafts.length === 1
-                  ? "1 contenu prêt, jamais publié"
-                  : `${forgottenDrafts.length} contenus prêts, jamais publiés`}
+          <div className="w-full rounded-xl border border-border bg-card px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Bell className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-medium text-foreground">
+                  {forgottenDrafts.length === 1
+                    ? "1 contenu prêt, jamais publié"
+                    : `${forgottenDrafts.length} contenus prêts, jamais publiés`}
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Posés au calendrier, leur date est passée sans qu'ils partent.
+                </span>
               </span>
-              <span className="block text-xs text-muted-foreground">
-                Posés au calendrier, leur date est passée sans qu'ils partent.
-              </span>
-            </span>
-            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" aria-hidden="true" />
-          </button>
+            </div>
+            <div className="mt-2 flex flex-col gap-0.5">
+              {forgottenDrafts.slice(0, FORGOTTEN_PREVIEW).map((post) => (
+                <button
+                  key={post.id}
+                  type="button"
+                  onClick={() => {
+                    porte("programmer");
+                    navigate(`/calendrier?date=${post.date}&post=${post.id}`);
+                  }}
+                  className="w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-muted transition-colors"
+                >
+                  <span className="min-w-0 flex-1 truncate text-xs text-foreground">
+                    {post.theme?.trim() ? (
+                      <>
+                        {post.theme.trim()}
+                        <span className="text-muted-foreground">
+                          {" — "}
+                          {new Date(post.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        {new Date(post.date + "T00:00:00").toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "short",
+                        })}
+                        {post.canal ? ` · ${post.canal}` : ""}
+                      </>
+                    )}
+                  </span>
+                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden="true" />
+                </button>
+              ))}
+              {forgottenDrafts.length > FORGOTTEN_PREVIEW && (
+                <button
+                  type="button"
+                  onClick={() => { porte("programmer"); navigate("/calendrier"); }}
+                  className="w-full text-left px-2 py-1.5 text-xs text-primary hover:underline"
+                >
+                  Voir les {forgottenDrafts.length - FORGOTTEN_PREVIEW} autres au calendrier
+                </button>
+              )}
+            </div>
+          </div>
         )}
 
         {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit
@@ -795,7 +855,7 @@ export default function AdaptiveHome() {
               href="https://calendly.com/laetitia-mattioli/appel-decouverte"
               target="_blank"
               rel="noreferrer"
-              className="font-semibold text-primary hover:text-bordeaux underline underline-offset-2 transition-colors"
+              className="font-semibold text-primary-text hover:text-bordeaux underline underline-offset-2 transition-colors"
             >
               Réserver un appel découverte
             </a>

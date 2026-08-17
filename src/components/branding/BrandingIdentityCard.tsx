@@ -222,7 +222,7 @@ function SynthesisView({ completion, summaries, onReanalyze, profileName, profil
           </p>
           <button
             onClick={() => navigate("/branding/proposition/recap")}
-            className="font-mono-ui text-xs text-primary hover:underline mt-3 inline-flex items-center gap-1"
+            className="font-mono-ui text-xs text-primary-text hover:underline mt-3 inline-flex items-center gap-1"
           >
             Modifier <ArrowRight className="h-3 w-3" />
           </button>

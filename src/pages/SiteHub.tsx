@@ -116,12 +116,17 @@ export default function SiteHub() {
           {CARDS.map((card) => {
             const label: string | null = null;
             const inner = (
-              <div className={`group relative rounded-2xl border bg-card p-6 transition-all ${card.disabled ? "opacity-45 cursor-default" : "hover:border-primary hover:shadow-md cursor-pointer"}`}>
+              <div className={`group relative rounded-2xl border bg-card p-6 transition-all ${card.disabled ? "opacity-70 cursor-default" : "hover:border-primary hover:shadow-md cursor-pointer"}`}>
                 {label && <span className="absolute top-4 right-4 font-mono-ui text-2xs font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">{label}</span>}
                 <span className="text-2xl mb-3 block">{card.emoji}</span>
                 <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                <span className={`mt-3 inline-block font-mono-ui text-2xs font-semibold px-2.5 py-0.5 rounded-pill ${card.disabled ? "bg-secondary text-muted-foreground" : "text-primary bg-rose-pale"}`}>{card.tag}</span>
+                {/* Seules les 2 cartes « Bientôt » portent un tag : sans cette
+                    garde, les 7 autres affichaient une pastille rose VIDE
+                    (regard du 17/08). */}
+                {card.tag && (
+                  <span className={`mt-3 inline-block font-mono-ui text-2xs font-semibold px-2.5 py-0.5 rounded-pill ${card.disabled ? "bg-secondary text-muted-foreground" : "text-primary-text bg-rose-pale"}`}>{card.tag}</span>
+                )}
               </div>
             );
             if (card.disabled) return <div key={card.to}>{inner}</div>;

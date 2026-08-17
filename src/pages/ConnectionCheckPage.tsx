@@ -204,8 +204,8 @@ export default function ConnectionCheckPage() {
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <div className="mb-6">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">🔧 Vérification des connexions</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Scanne ton compte pour vérifier que tout est bien connecté.</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Mes réseaux connectés</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Connecte Instagram et LinkedIn pour publier directement depuis l'app, et vérifie que tout fonctionne bien.</p>
         </div>
 
         <SocialConnectionsCard />

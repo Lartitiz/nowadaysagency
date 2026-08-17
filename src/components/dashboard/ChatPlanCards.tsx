@@ -171,7 +171,7 @@ export default function ChatPlanCards({ items }: { items: ChatPlanItem[] }) {
           <button
             type="button"
             onClick={() => navigate("/calendrier")}
-            className="text-xs text-primary underline underline-offset-2 inline-flex items-center gap-1"
+            className="text-xs text-primary-text underline underline-offset-2 inline-flex items-center gap-1"
           >
             Voir mon calendrier <ArrowRight className="h-3 w-3" />
           </button>

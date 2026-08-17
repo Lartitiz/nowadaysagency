@@ -72,6 +72,83 @@ function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
   return found;
 }
 
+// ── Cohérence des durées slides ↔ caption (bilan hebdo 17/08/2026) ──
+// Trou trouvé au juge /5 : un carrousel « avant/après » notait « Trois semaines
+// sans visite » en slide 2 et « Un mois entre les deux photos » en légende — deux
+// chiffres qui décrivent le MÊME fait, et le gate lui a mis 100/100.
+// Pourquoi ça passait : NUMBER_TOKEN ne voit que les CHIFFRES (\d), donc les
+// nombres écrits EN LETTRES échappaient déjà à `findFabricatedNumbers` ; et rien
+// ne relisait les slides CONTRE la caption (les deux textes n'étaient comparés
+// que pour le CTA). Une contradiction interne est pourtant le défaut le plus
+// coûteux : il décrédibilise la publication devant l'audience de la cliente.
+
+const FRENCH_NUMERALS: Record<string, number> = {
+  un: 1, une: 1, deux: 2, trois: 3, quatre: 4, cinq: 5, six: 6, sept: 7,
+  huit: 8, neuf: 9, dix: 10, onze: 11, douze: 12, quinze: 15, vingt: 20,
+  trente: 30, quarante: 40, cinquante: 50, soixante: 60, cent: 100,
+};
+
+/** Durée exprimée en JOURS, pour comparer « trois semaines » et « un mois ». */
+const DURATION_UNITS: Array<{ re: RegExp; days: number }> = [
+  { re: /^secondes?$/, days: 1 / 86400 },
+  { re: /^minutes?$/, days: 1 / 1440 },
+  { re: /^heures?$/, days: 1 / 24 },
+  { re: /^(?:jours?|journées?)$/, days: 1 },
+  { re: /^semaines?$/, days: 7 },
+  { re: /^mois$/, days: 30 },
+  { re: /^trimestres?$/, days: 90 },
+  { re: /^(?:ans?|années?)$/, days: 365 },
+];
+
+interface Duration { raw: string; days: number }
+
+/** Durées d'un texte, chiffrées (« 3 semaines ») ou en lettres (« trois semaines »). */
+function extractDurations(text: string): Duration[] {
+  const out: Duration[] = [];
+  const words = "(?:" + Object.keys(FRENCH_NUMERALS).join("|") + ")";
+  const re = new RegExp(`(\\d+(?:[.,]\\d+)?|${words})\\s+(\\p{L}+)`, "giu");
+  for (const m of (text || "").matchAll(re)) {
+    const qty = /^\d/.test(m[1]) ? parseFloat(m[1].replace(",", ".")) : FRENCH_NUMERALS[m[1].toLowerCase()];
+    if (!qty || !Number.isFinite(qty)) continue;
+    const unit = DURATION_UNITS.find((u) => u.re.test(m[2].toLowerCase()));
+    if (!unit) continue;
+    out.push({ raw: `${m[1]} ${m[2]}`, days: qty * unit.days });
+  }
+  return out;
+}
+
+/**
+ * Durées PROCHES mais DIFFÉRENTES entre les slides et la caption = très
+ * probablement le même fait raconté deux fois avec deux chiffres.
+ *
+ * Volontairement étroit pour ne pas crier à tort :
+ *  - il faut une durée de CHAQUE côté ;
+ *  - une durée commune aux deux côtés désamorce tout (le fait est cohérent) ;
+ *  - on ne retient que les écarts du même ORDRE DE GRANDEUR (rapport ≤ 3) —
+ *    « 2 minutes » côté slide et « 10 ans » côté caption parlent d'autre chose.
+ */
+function findDurationConflicts(slidesText: string, captionText: string): string[] {
+  const a = extractDurations(slidesText);
+  const b = extractDurations(captionText);
+  if (!a.length || !b.length) return [];
+  const same = (x: number, y: number) => Math.abs(x - y) < 1e-9;
+  if (a.some((x) => b.some((y) => same(x.days, y.days)))) return [];
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const x of a) {
+    for (const y of b) {
+      const ratio = Math.max(x.days, y.days) / Math.min(x.days, y.days);
+      if (ratio > 3) continue;
+      const key = `${x.raw}|${y.raw}`.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(`slides « ${x.raw} » vs légende « ${y.raw} »`);
+    }
+  }
+  return out;
+}
+
 /** Similarité lexicale grossière (Jaccard sur tokens > 3 lettres). */
 function tokenSimilarity(a: string, b: string): number {
   const tok = (s: string) =>
@@ -132,15 +209,16 @@ export interface RedacAnalysis {
   moulded: string[];
   hashtagsCount: number;
   fabricatedNumbers: string[];
+  /** Durées qui se contredisent entre les slides et la caption (même fait, 2 chiffres). */
+  durationConflicts: string[];
 }
 
 export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>): RedacAnalysis {
   const slides: any[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
   const caption = parsed?.caption || {};
-  const allText = [
-    ...slides.map(slideTexts),
-    [caption.hook, caption.body, caption.cta].filter(Boolean).join(" "),
-  ].join("\n");
+  const slidesText = slides.map(slideTexts).join("\n");
+  const captionText = [caption.hook, caption.body, caption.cta].filter(Boolean).join(" ");
+  const allText = [slidesText, captionText].join("\n");
 
   const reversals = findReversals(allText);
 
@@ -173,7 +251,12 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>):
     ? findFabricatedNumbers(allText + "\n" + schemaText, allowedNumbers)
     : [];
 
-  return { reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded, hashtagsCount, fabricatedNumbers };
+  const durationConflicts = findDurationConflicts(slidesText, captionText);
+
+  return {
+    reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
+    hashtagsCount, fabricatedNumbers, durationConflicts,
+  };
 }
 
 /**
@@ -208,7 +291,10 @@ export function redacViolations(a: RedacAnalysis): number {
     a.overlongOverlays.length +
     (a.ctaDuplicated ? 1 : 0) +
     a.moulded.length +
-    Math.min(3, a.fabricatedNumbers.length)
+    Math.min(3, a.fabricatedNumbers.length) +
+    // Plafonné à 1 : une contradiction, c'est UN fait à corriger, même si le
+    // croisement slides × caption en remonte plusieurs formulations.
+    Math.min(1, a.durationConflicts.length)
   );
 }
 
@@ -229,6 +315,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     caption_cta_duplicates_slide: a.ctaDuplicated,
     moulded_verbatims: a.moulded,
     fabricated_numbers: a.fabricatedNumbers.length,
+    duration_conflicts: a.durationConflicts,
     hashtags_count: a.hashtagsCount,
     corrected_by_repass: repassed,
   };
@@ -287,6 +374,11 @@ function buildFixInstructions(a: RedacAnalysis): string {
   if (a.fabricatedNumbers.length) {
     lines.push(
       `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs semaines », « la plupart », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion. Si un schéma visuel de type stats n'a plus de chiffre à afficher, transforme-le en slide texte.`,
+    );
+  }
+  if (a.durationConflicts.length) {
+    lines.push(
+      `DURÉES QUI SE CONTREDISENT entre les slides et la légende :\n${a.durationConflicts.map((c) => `- ${c}`).join("\n")}\nC'est le MÊME fait raconté deux fois avec deux chiffres différents — devant l'audience, ça décrédibilise tout le contenu. Choisis UNE durée et emploie EXACTEMENT la même des deux côtés (ou retire-la d'un des deux). Ne « fais pas la moyenne » : garde celle du brief si le brief en donne une.`,
     );
   }
   return lines.join("\n\n");
@@ -420,14 +512,14 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
   return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after) };
 }
 
 function emptyAnalysis(): RedacAnalysis {
-  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [] };
+  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [], durationConflicts: [] };
 }
 
 // ── Variante TEXTE (lot 4) : LinkedIn et newsletter ──

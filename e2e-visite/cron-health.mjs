@@ -143,6 +143,12 @@ try {
     for (const m of cur.modeles_non_tarifes || []) {
       console.log(`      🔴 modèle NON TARIFÉ « ${m.modele} » : ${m.appels} appels / ${m.tokens} tokens comptés 0 € → ajouter son tarif dans cron-health/index.ts`);
     }
+    // … et ceux de la S-1, sinon un « S-1 : X € ⚠️ incomplet » est illisible :
+    // on sait que la base de comparaison ment, sans pouvoir dire à cause de quoi
+    // (angle mort trouvé au bilan du 17/08/2026, la S-1 sortait « 1,29 € incomplet »).
+    for (const m of prev.modeles_non_tarifes || []) {
+      console.log(`      ⚠️ S-1, modèle NON TARIFÉ « ${m.modele} » : ${m.appels} appels / ${m.tokens} tokens comptés 0 € → le delta de coût ci-dessus compare à une base SOUS-ÉVALUÉE`);
+    }
     console.log("   top actions 7 j (vs S-1) :");
     const prevActions = Object.fromEntries((prev.topActions || []).map((a) => [a.action, a.count]));
     for (const a of cur.topActions || []) console.log(`      ${String(a.action).padEnd(28)} ${String(a.count).padStart(4)}  (S-1 : ${prevActions[a.action] ?? 0})`);
