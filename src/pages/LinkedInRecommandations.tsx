@@ -78,17 +78,26 @@ export default function LinkedInRecommandations() {
 
   const saveRecos = async () => {
     if (!user) return;
-    await (supabase.from("linkedin_recommendations") as any).delete().eq(column, value);
-    const toInsert = recos.filter(r => r.person_name.trim()).map(r => ({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      person_name: r.person_name,
-      person_type: r.person_type,
-      request_sent: r.request_sent,
-      reco_received: r.reco_received,
-    }));
-    if (toInsert.length > 0) await supabase.from("linkedin_recommendations").insert(toInsert);
-    toast.success("✅ Recommandations sauvegardées !");
+    try {
+      const { error: delError } = await (supabase.from("linkedin_recommendations") as any).delete().eq(column, value);
+      if (delError) throw delError;
+      const toInsert = recos.filter(r => r.person_name.trim()).map(r => ({
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        person_name: r.person_name,
+        person_type: r.person_type,
+        request_sent: r.request_sent,
+        reco_received: r.reco_received,
+      }));
+      if (toInsert.length > 0) {
+        const { error: insError } = await supabase.from("linkedin_recommendations").insert(toInsert);
+        if (insError) throw insError;
+      }
+      toast.success("✅ Recommandations sauvegardées !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    }
   };
 
   const messageTemplate = `Hello [Prénom],

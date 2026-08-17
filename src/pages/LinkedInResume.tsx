@@ -168,9 +168,11 @@ export default function LinkedInResume() {
       };
 
       if (profileId) {
-        await supabase.from("linkedin_profile").update(dbPayload).eq("id", profileId);
+        const { error: writeError } = await supabase.from("linkedin_profile").update(dbPayload).eq("id", profileId);
+        if (writeError) throw writeError;
       } else {
-        const { data } = await supabase.from("linkedin_profile").insert(dbPayload).select("id").single();
+        const { data, error: writeError } = await supabase.from("linkedin_profile").insert(dbPayload).select("id").single();
+        if (writeError) throw writeError;
         if (data) setProfileId(data.id);
       }
     } catch (e: any) {
@@ -223,33 +225,41 @@ export default function LinkedInResume() {
   // Save a resume
   const save = async (text: string) => {
     if (!user) return;
-    const payload = {
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      summary_storytelling: summaryStory,
-      summary_pro: summaryPro,
-      summary_final: text,
-      updated_at: new Date().toISOString(),
-    };
-    if (profileId) {
-      await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
-    } else {
-      const { data } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
-      if (data) setProfileId(data.id);
-    }
-    // Save to bio history
-    await (supabase.from("bio_versions") as any).insert({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : null,
-      platform: "linkedin",
-      bio_text: text,
-      source: "generated",
-    });
+    try {
+      const payload = {
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+        summary_storytelling: summaryStory,
+        summary_pro: summaryPro,
+        summary_final: text,
+        updated_at: new Date().toISOString(),
+      };
+      if (profileId) {
+        const { error } = await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
+        if (error) throw error;
+        if (data) setProfileId(data.id);
+      }
+      // Save to bio history
+      const { error: bioError } = await (supabase.from("bio_versions") as any).insert({
+        user_id: user.id,
+        workspace_id: workspaceId !== user.id ? workspaceId : null,
+        platform: "linkedin",
+        bio_text: text,
+        source: "generated",
+      });
+      if (bioError) throw bioError;
 
-    setSavedResume(text);
-    setSavedDate(new Date().toISOString());
-    setMode("saved");
-    toast.success("✅ Résumé enregistré !");
+      setSavedResume(text);
+      setSavedDate(new Date().toISOString());
+      setMode("saved");
+      toast.success("✅ Résumé enregistré !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    }
   };
 
   const copyText = (text: string, key: string) => {

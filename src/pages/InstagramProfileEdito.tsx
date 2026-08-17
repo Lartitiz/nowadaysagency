@@ -356,9 +356,11 @@ export default function InstagramProfileEdito() {
       };
 
       if (editorial.id) {
-        await supabase.from("instagram_editorial_line").update(payload).eq("id", editorial.id);
+        const { error } = await supabase.from("instagram_editorial_line").update(payload).eq("id", editorial.id);
+        if (error) throw error;
       } else {
-        const { data } = await supabase.from("instagram_editorial_line").insert(payload).select("id").single();
+        const { data, error } = await supabase.from("instagram_editorial_line").insert(payload).select("id").single();
+        if (error) throw error;
         if (data) setEditorial((prev) => ({ ...prev, id: data.id }));
       }
       queryClient.invalidateQueries({ queryKey: ["editorial-line"] });

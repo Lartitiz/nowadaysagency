@@ -7,6 +7,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { Plus, Trash2, MessageCircle } from "lucide-react";
 
 interface CommentAccount {
@@ -42,34 +43,46 @@ export default function LinkedInCommentStrategy() {
 
   const save = async (newAccounts: CommentAccount[]) => {
     if (!user) return;
-    const payload = { 
-      user_id: user.id, 
+    const payload = {
+      user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      accounts: newAccounts as any, 
-      updated_at: new Date().toISOString() 
+      accounts: newAccounts as any,
+      updated_at: new Date().toISOString()
     };
     if (strategyId) {
-      await supabase.from("linkedin_comment_strategy").update(payload).eq("id", strategyId);
+      const { error } = await supabase.from("linkedin_comment_strategy").update(payload).eq("id", strategyId);
+      if (error) throw error;
     } else {
-      const { data } = await supabase.from("linkedin_comment_strategy").insert(payload).select("id").single();
+      const { data, error } = await supabase.from("linkedin_comment_strategy").insert(payload).select("id").single();
+      if (error) throw error;
       if (data) setStrategyId(data.id);
     }
   };
 
-  const addAccount = () => {
+  const addAccount = async () => {
     if (!newName.trim()) return;
     const updated = [...accounts, { name: newName.trim(), niche: newNiche.trim() }];
     setAccounts(updated);
     setNewName("");
     setNewNiche("");
-    save(updated);
-    toast.success("Compte ajouté !");
+    try {
+      await save(updated);
+      toast.success("Compte ajouté !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    }
   };
 
-  const removeAccount = (idx: number) => {
+  const removeAccount = async (idx: number) => {
     const updated = accounts.filter((_, i) => i !== idx);
     setAccounts(updated);
-    save(updated);
+    try {
+      await save(updated);
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    }
   };
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;

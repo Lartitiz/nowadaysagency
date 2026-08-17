@@ -69,7 +69,14 @@ export default function LinkedInParcours() {
 
   const removeExp = async (idx: number) => {
     const exp = experiences[idx];
-    if (exp.id) await supabase.from("linkedin_experiences").delete().eq("id", exp.id);
+    if (exp.id) {
+      const { error } = await supabase.from("linkedin_experiences").delete().eq("id", exp.id);
+      if (error) {
+        console.error("Erreur technique:", error);
+        toast.error("Erreur", { description: friendlyError(error) });
+        return;
+      }
+    }
     setExperiences(prev => prev.filter((_, i) => i !== idx));
     toast.success("Expérience supprimée");
   };
@@ -98,22 +105,29 @@ export default function LinkedInParcours() {
 
   const saveExperiences = async () => {
     if (!user) return;
-    // Delete all then re-insert
-    await (supabase.from("linkedin_experiences") as any).delete().eq(column, value);
-    if (experiences.length > 0) {
-      await supabase.from("linkedin_experiences").insert(
-        experiences.map((e, i) => ({ 
-          user_id: user.id, 
-          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-          job_title: e.job_title, 
-          company: e.company, 
-          description_raw: e.description_raw, 
-          description_optimized: e.description_optimized, 
-          sort_order: i 
-        }))
-      );
+    try {
+      // Delete all then re-insert
+      const { error: delError } = await (supabase.from("linkedin_experiences") as any).delete().eq(column, value);
+      if (delError) throw delError;
+      if (experiences.length > 0) {
+        const { error: insError } = await supabase.from("linkedin_experiences").insert(
+          experiences.map((e, i) => ({
+            user_id: user.id,
+            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+            job_title: e.job_title,
+            company: e.company,
+            description_raw: e.description_raw,
+            description_optimized: e.description_optimized,
+            sort_order: i
+          }))
+        );
+        if (insError) throw insError;
+      }
+      toast.success("✅ Parcours sauvegardé !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
     }
-    toast.success("✅ Parcours sauvegardé !");
   };
 
   const suggestSkills = async () => {
