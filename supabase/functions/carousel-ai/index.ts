@@ -196,7 +196,7 @@ function enforceTextFirstDirectives(content: string): string {
 const PHOTO_MISMATCH_FIELD = {
   type: "object",
   description:
-    "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Une photo qui ne montre qu'UNE étape, UN moment ou UN aspect du sujet n'est PAS un motif non plus : couverture partielle ≠ contradiction — la photo peut se répéter d'une slide à l'autre et les textes racontent ce que l'image ne montre pas. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
+    "DERNIER RECOURS, presque jamais utilisé. À remplir UNIQUEMENT si des photos sont fournies ET que le SUJET TAPÉ par l'utilisatrice promet de MONTRER une chose concrète et nommable (un lieu précis, un objet précis, un processus précis) que les photos contredisent frontalement — au point qu'aucun carrousel honnête n'est possible même en assumant le décalage. PAR DÉFAUT tu génères : l'utilisatrice a choisi ses photos délibérément. Seul le sujet tapé peut faire une promesse visuelle — jamais le contexte branding. Un sujet identitaire ou abstrait (« qui je suis », « mon univers », « mes valeurs »…) ne promet rien de visuel : jamais de refus dans ce cas. Un décalage d'ambiance, de style, d'esthétique ou d'univers de marque n'est PAS un motif ; tu ne peux pas non plus juger si la personne sur une photo est l'utilisatrice elle-même. Une photo qui ne montre qu'UNE étape, UN moment ou UN aspect du sujet n'est PAS un motif non plus : couverture partielle ≠ contradiction — la photo peut se répéter d'une slide à l'autre et les textes racontent ce que l'image ne montre pas. Une photo inutilisable parmi plusieurs s'écarte individuellement, elle ne justifie jamais un refus global. Si tu hésites, génère le carrousel (et ne remplis pas ce champ).",
   properties: {
     reason: {
       type: "string",
@@ -214,22 +214,29 @@ const PHOTO_MISMATCH_FIELD = {
 // montrent ni toi » — trois motifs que PHOTO_MISMATCH_FIELD interdit déjà. Il
 // décide de refuser en lisant brief + CONTEXTE BRANDING dans le system, et ne
 // rencontre l'interdit du tool qu'au moment de remplir le champ : trop tard.
-// Le seuil de refus lui-même ne bouge pas (#488) : un vrai hors-sujet (le brief
-// promet de MONTRER une chose que les photos contredisent) doit toujours être
-// refusé — avec description utilisateur la garde laissait déjà passer, le bug
-// n'existait QUE sans description.
+// V2 (retest live post-déploiement, même jour) : le refus persistait en se
+// COULANT dans l'exception autorisée — sujet « …mon univers… » lu comme une
+// promesse de montrer l'univers savonnerie du branding, puis photos jugées « à
+// mille lieues de l'univers artisanal ». D'où les trois verrous ajoutés : seul
+// le SUJET TAPÉ fait une promesse visuelle (jamais le branding), un sujet
+// identitaire/abstrait ne promet rien de visuel (refus interdit), et une photo
+// inutilisable parmi plusieurs s'écarte au lieu de tout refuser.
+// Le seuil de refus lui-même ne bouge pas (#488) : un vrai hors-sujet (le sujet
+// promet de MONTRER une chose concrète que les photos contredisent) doit
+// toujours être refusé — avec description utilisateur la garde laissait déjà
+// passer, le bug n'existait QUE sans description.
 const PHOTO_MISMATCH_SYSTEM_REMINDER = `
 
 ══════════════════════════════════════
 PHOTOS FOURNIES — TU GÉNÈRES, TU NE JUGES PAS
 ══════════════════════════════════════
 L'utilisatrice a choisi ses photos délibérément : PAR DÉFAUT tu génères avec.
-Le refus (photo_mismatch) est un DERNIER RECOURS, réservé au SEUL cas où le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement.
-NE SONT JAMAIS des motifs de refus :
-- un décalage d'ambiance, de style ou d'esthétique (« trop glamour », « trop sombre »…) ;
-- un décalage avec l'univers, l'activité ou le positionnement de la marque — le CONTEXTE BRANDING sert à écrire les textes, PAS à juger les photos ;
-- l'identité des personnes photographiées : tu ne peux pas savoir si c'est l'utilisatrice ou non ;
-- une couverture partielle du sujet (la photo ne montre qu'une étape, un moment, un aspect) : la photo se répète et les textes portent le reste.
+Le refus (photo_mismatch) est un DERNIER RECOURS, réservé au SEUL cas suivant : le SUJET TAPÉ par l'utilisatrice promet de montrer une chose CONCRÈTE et NOMMABLE (un lieu précis, un objet précis, un processus précis) que les photos contredisent frontalement — ex. sujet « visite de mon nouvel atelier » avec pour seule photo une plage déserte.
+RÈGLES ABSOLUES :
+- Seul le sujet tapé peut faire une promesse visuelle. Le CONTEXTE BRANDING n'en fait JAMAIS : il sert à écrire les textes, PAS à juger les photos. Le raisonnement « son activité/son univers est X, donc les photos devraient montrer X » est INTERDIT.
+- Un sujet identitaire ou abstrait (« qui je suis », « mon univers », « mes valeurs », « ce que je veux transmettre », « les coulisses », « mon parcours »…) ne promet AUCUN contenu visuel précis : avec un tel sujet, le refus est INTERDIT quelles que soient les photos — n'importe quelle photo choisie par l'utilisatrice peut incarner qui elle est.
+- NE SONT JAMAIS des motifs de refus : un décalage d'ambiance, de style ou d'esthétique (« trop glamour », « trop générique »…) ; un décalage avec l'univers, l'activité ou le positionnement de la marque ; l'identité des personnes photographiées (tu ne peux pas savoir si c'est l'utilisatrice ou non) ; une couverture partielle du sujet (la photo se répète et les textes portent le reste).
+- Si UNE photo parmi plusieurs te semble vraiment inutilisable, écarte-la ou répète les autres (l'écart individuel est prévu) : une photo problématique ne justifie JAMAIS un refus global.
 Si l'utilisatrice a décrit ses photos, sa description fait foi sur ce qu'elles montrent et pourquoi elle les a choisies. Si tu hésites, génère.`;
 
 const MIX_CAROUSEL_TOOL = {
@@ -955,10 +962,11 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       pushPhotoWithContext(messageContent, photo, idx);
     });
 
-    // 3. Instruction finale après les photos
+    // 3. Instruction finale après les photos (le rappel anti-refus vit aussi ici,
+    // en dernière position avant la génération — cf. PHOTO_MISMATCH_SYSTEM_REMINDER)
     messageContent.push({
       type: "text",
-      text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.`,
+      text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.\n\nRappel : tu GÉNÈRES avec ces photos (en écarter une individuellement est permis). Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
     doGenerate = (sink: UsageSink) => _deps.callAnthropic({
@@ -1086,10 +1094,11 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       pushPhotoWithContext(messageContent, photo, idx);
     });
 
-    // 3. Instruction finale après les photos
+    // 3. Instruction finale après les photos (le rappel anti-refus vit aussi ici,
+    // en dernière position avant la génération — cf. PHOTO_MISMATCH_SYSTEM_REMINDER)
     messageContent.push({
       type: "text",
-      text: `Analyse chaque photo et génère le carrousel photo.`,
+      text: `Analyse chaque photo et génère le carrousel photo.\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
     doGenerate = (sink: UsageSink) => _deps.callAnthropic({
