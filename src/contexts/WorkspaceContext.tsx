@@ -101,7 +101,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return out;
     };
 
-    async function load() {
+    async function load(isRetry = false) {
       setLoading(true);
 
       const { data, error } = await fetchMemberships();
@@ -109,8 +109,27 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       if (cancelled) return;
 
       if (error || !data) {
-        console.error("Failed to load workspaces:", error);
+        console.error("Failed to load workspaces:", {
+          message: error?.message,
+          code: (error as any)?.code,
+          details: (error as any)?.details,
+          hint: (error as any)?.hint,
+        });
+
+        // Un seul retry après un court délai : couvre le cas d'une requête tirée
+        // juste avant qu'un refresh de token en cours ne se termine (course au
+        // montage). Si ça échoue encore, on arrête de boucler et on prévient.
+        if (!isRetry) {
+          await new Promise((r) => setTimeout(r, 1000));
+          if (cancelled) return;
+          return load(true);
+        }
+
         setLoading(false);
+        toast.error("Impossible de charger tes espaces de travail.", {
+          description: "Vérifie ta connexion et réessaie.",
+          action: { label: "Réessayer", onClick: () => load() },
+        });
         return;
       }
 
