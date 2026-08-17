@@ -261,9 +261,14 @@ serve(async (req) => {
 
     console.log(`[delete-account] Done. Cleaned: ${tablesCleaned}, Errors: ${errors.length}`);
 
+    // Un compte "supprimé" qui échoue à supprimer l'auth user (ou toute autre
+    // table) survit à sa propre suppression si on renvoie success:true ici —
+    // c'est exactement l'incident prod qu'on corrige. success reflète l'échec
+    // réel et le status HTTP porte l'erreur pour ne pas être ignoré côté front.
+    const hasErrors = errors.length > 0;
     return new Response(
-      JSON.stringify({ success: true, tables_cleaned: tablesCleaned, errors: errors.length > 0 ? errors : undefined }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+      JSON.stringify({ success: !hasErrors, tables_cleaned: tablesCleaned, errors: hasErrors ? errors : undefined }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: hasErrors ? 500 : 200 }
     );
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);

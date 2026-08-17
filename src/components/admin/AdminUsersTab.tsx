@@ -135,6 +135,9 @@ export default function AdminUsersTab() {
       }, 30000);
       if (res.error) throw res.error;
       if (res.data?.error) throw new Error(res.data.error);
+      if (res.data?.success === false || (res.data?.errors && res.data.errors.length > 0)) {
+        throw new Error(res.data?.errors?.join(" | ") || "Reset partiel : certaines données n'ont pas été réinitialisées.");
+      }
 
       toast.success("Onboarding reset ! L'utilisatrice repartira de zéro à sa prochaine connexion.");
       setResetTarget(null);
@@ -465,6 +468,9 @@ export default function AdminUsersTab() {
             }, 30000);
             if (res.error) throw new Error(res.error.message || "Erreur suppression");
             if (res.data?.error) throw new Error(res.data.error);
+            if (res.data?.success === false || (res.data?.errors && res.data.errors.length > 0)) {
+              throw new Error(res.data?.errors?.join(" | ") || "Suppression partielle : certaines données n'ont pas été supprimées.");
+            }
             toast.success(`Compte de ${deleteTarget.prenom || deleteTarget.email} supprimé`);
             setUsers(prev => prev.filter(u => u.user_id !== deleteTarget.user_id));
             setDeleteTarget(null);
