@@ -8,6 +8,7 @@
 // Lancer : deno test --allow-env --allow-read supabase/functions/carousel-ai/index_test.ts
 
 import {
+  assert,
   assertEquals,
   assertExists,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
@@ -203,4 +204,112 @@ Deno.test("échec de l'appel IA → logUsage n'est jamais appelé, l'erreur est 
   const bodyJson = await res.json();
   assertEquals(bodyJson.error, "erreur simulée");
   assertEquals(logUsageCalled2, false);
+});
+
+// ---------- Tests 4-5 : rappel anti-refus (photo_mismatch) dans le SYSTEM des chemins vision ----------
+// Bug live 17/08 : sans description utilisateur, le modèle refusait des photos
+// pour des motifs interdits (univers de marque, esthétique, identité) lus dans
+// le CONTEXTE BRANDING du system — l'interdit ne vivait que dans la description
+// du tool, rencontrée trop tard. Le rappel doit être dans le system quand des
+// photos partent en vision, et SEULEMENT là (les chemins sans photos n'ont pas
+// à traîner un bloc sur des photos inexistantes).
+
+// Marqueur du bloc PHOTO_MISMATCH_SYSTEM_REMINDER (cf. index.ts).
+const REMINDER_MARKER = "TU GÉNÈRES, TU NE JUGES PAS";
+
+function makeMixPhotosRequest(): Request {
+  const body = {
+    type: "express_full",
+    carousel_type: "mix",
+    subject: "Qui je suis : le visage derrière la marque",
+    objective: "engagement",
+    workspace_id: TEST_WORKSPACE_ID,
+    // Coupe la recherche « creuser le sujet » (fetchDepthMaterial ferait un
+    // appel réseau réel hors de _deps).
+    deepening_answers: { anecdote: "réponse de test" },
+    photos: [{ base64: "aGVsbG8=", mimeType: "image/jpeg" }],
+  };
+  return new Request("http://localhost/carousel-ai", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+Deno.test("mix avec photos : rappel anti-refus dans le system, photo_mismatch remonté sans logUsage", async () => {
+  resetDeps();
+
+  let capturedSystem = "";
+  // deno-lint-ignore no-explicit-any
+  _deps.callAnthropic = (async (params: any) => {
+    if (!capturedSystem) capturedSystem = String(params?.system ?? "");
+    // Refus structuré : le handler doit court-circuiter AVANT correction/gates
+    // (aucun autre appel IA) et ne JAMAIS débiter.
+    return JSON.stringify({ photo_mismatch: { reason: "Refus simulé pour le test." } });
+    // deno-lint-ignore no-explicit-any
+  }) as any;
+
+  let logUsageCalled = false;
+  // deno-lint-ignore no-explicit-any
+  _deps.logUsage = (async () => {
+    logUsageCalled = true;
+  }) as any;
+
+  const res = await handleRequest(makeMixPhotosRequest());
+
+  assertEquals(res.status, 200); // 200 volontaire : l'erreur structurée passe par le corps
+  const bodyJson = await res.json();
+  assertEquals(bodyJson.error, "photo_mismatch");
+  assert(
+    capturedSystem.includes(REMINDER_MARKER),
+    "le rappel anti-refus doit être injecté dans le message system du chemin vision mix",
+  );
+  assert(
+    capturedSystem.includes("PAS à juger les photos"),
+    "le rappel doit neutraliser explicitement le CONTEXTE BRANDING comme motif de refus",
+  );
+  assertEquals(logUsageCalled, false);
+});
+
+Deno.test("structure_proposal : rappel anti-refus présent avec photos, absent sans photos", async () => {
+  resetDeps();
+
+  const capturedSystems: string[] = [];
+  // deno-lint-ignore no-explicit-any
+  _deps.callAnthropic = (async (params: any) => {
+    capturedSystems.push(String(params?.system ?? ""));
+    return JSON.stringify({
+      strategic_rationale: "ok",
+      narrative_thread: "récit de test",
+      slides: [{ slide_number: 1, role: "hook", title_suggestion: "Titre", strategic_note: "note" }],
+      total_slides: 1,
+      carousel_type: "mix",
+    });
+    // deno-lint-ignore no-explicit-any
+  }) as any;
+
+  const makeStructureRequest = (withPhotos: boolean) =>
+    new Request("http://localhost/carousel-ai", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        type: "structure_proposal",
+        carousel_type: "mix",
+        subject: "Sujet de test",
+        workspace_id: TEST_WORKSPACE_ID,
+        ...(withPhotos ? { photos: [{ base64: "aGVsbG8=", mimeType: "image/jpeg" }] } : {}),
+      }),
+    });
+
+  const resWith = await handleRequest(makeStructureRequest(true));
+  assertEquals(resWith.status, 200);
+  assertExists((await resWith.json()).result);
+
+  const resWithout = await handleRequest(makeStructureRequest(false));
+  assertEquals(resWithout.status, 200);
+  assertExists((await resWithout.json()).result);
+
+  assertEquals(capturedSystems.length, 2);
+  assert(capturedSystems[0].includes(REMINDER_MARKER), "avec photos : rappel attendu dans le system");
+  assert(!capturedSystems[1].includes(REMINDER_MARKER), "sans photos : pas de rappel (aucune photo à juger)");
 });

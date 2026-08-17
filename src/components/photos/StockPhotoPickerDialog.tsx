@@ -70,6 +70,12 @@ export function StockPhotoPickerDialog({
   const [suggesting, setSuggesting] = useState(false);
   // Évite une double recherche auto en mode React StrictMode (double effet).
   const autoSearchedFor = useRef<string | null>(null);
+  // Snapshot de chaque StockPhoto déjà vue, par id. handleConfirm lit CE
+  // cache plutôt que de re-filtrer `results` au clic : si `results` est
+  // réinitialisé entre-temps (effet de reset qui refire), l'id sélectionné
+  // resterait résolvable et « Utiliser ces photos » n'échoue plus en
+  // silence. Même filet que PhotoLibraryPickerDialog.
+  const resultsCacheRef = useRef<Map<string, StockPhoto>>(new Map());
 
   // locale: pour les mots-clés IA (anglais) on cible Pexels en en-US ; pour une
   // requête tapée à la main on reste en fr-FR (défaut côté edge function).
@@ -143,6 +149,10 @@ export function StockPhotoPickerDialog({
     }
   }, [open, initialQuery, aiContext?.subject]);
 
+  useEffect(() => {
+    results.forEach((p) => resultsCacheRef.current.set(p.id, p));
+  }, [results]);
+
   const atMax = selectedIds.length >= maxSelectable;
 
   const toggle = (id: string) => {
@@ -154,7 +164,9 @@ export function StockPhotoPickerDialog({
   };
 
   const handleConfirm = async () => {
-    const chosen = results.filter((p) => selectedIds.includes(p.id));
+    const chosen = selectedIds
+      .map((id) => resultsCacheRef.current.get(id))
+      .filter((p): p is StockPhoto => !!p);
     if (chosen.length === 0) return;
     setImporting(true);
     try {

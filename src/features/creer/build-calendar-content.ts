@@ -50,7 +50,9 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
 
   if (selectedFormat === "carousel" && r?.carousel_type === "photo") {
     accroche = r.caption?.hook || "";
-    contentDraft = (r.slides || []).map((s: any) => s.overlay_text ? `SLIDE ${s.slide_number}: ${s.overlay_text}` : `SLIDE ${s.slide_number}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
+    // Libellés positionnels (i + 1) : l'ordre du tableau fait foi, un
+    // slide_number IA fantaisiste ne doit jamais fuir dans le calendrier.
+    contentDraft = (r.slides || []).map((s: any, i: number) => s.overlay_text ? `SLIDE ${i + 1}: ${s.overlay_text}` : `SLIDE ${i + 1}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
     const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
     if (r.edited_text?.trim()) contentDraft = r.edited_text;
     return { contentDraft, accroche, storyDetail };
@@ -58,11 +60,11 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
 
   if (selectedFormat === "carousel" && r?.carousel_type === "mix") {
     accroche = r.caption?.hook || "";
-    contentDraft = (r.slides || []).map((s: any) => {
+    contentDraft = (r.slides || []).map((s: any, i: number) => {
       const type = s.slide_type || "text_only";
-      if (type === "photo_full") return `SLIDE ${s.slide_number} [📸]: ${s.overlay_text || "(photo seule)"}`;
-      if (type === "photo_integrated") return `SLIDE ${s.slide_number} [📷+📝]: ${s.title || ""} — ${s.body || ""}`;
-      return `SLIDE ${s.slide_number} [📝]: ${s.title || ""} — ${s.body || ""}`;
+      if (type === "photo_full") return `SLIDE ${i + 1} [📸]: ${s.overlay_text || "(photo seule)"}`;
+      if (type === "photo_integrated") return `SLIDE ${i + 1} [📷+📝]: ${s.title || ""} — ${s.body || ""}`;
+      return `SLIDE ${i + 1} [📝]: ${s.title || ""} — ${s.body || ""}`;
     }).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
     const storyDetail: any = { type: "carousel_mix", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
     if (r.edited_text?.trim()) contentDraft = r.edited_text;

@@ -8,6 +8,7 @@ import { usePhotoWishlistMutations } from "@/hooks/use-photo-wishlist";
 import { savePhotos } from "@/hooks/use-flow-persistence";
 import { AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { pickNonEmpty } from "@/features/creer/photo-source";
+import { renumberSlides } from "@/features/creer/format-mappers";
 import { generatePinterestVisual, generatePinterestPhotoBrief } from "@/features/creer/pinterest-generation";
 import { resetPostGenerationState } from "@/features/creer/post-generation-reset";
 import type { UserPhotoRow } from "@/lib/photo-storage";
@@ -494,6 +495,11 @@ export function useDoGenerate({
         }
         if (data?.error) throw new Error(data.message || data.error);
         if (data?.result) {
+          // Même garde-fou qu'à la réception du résultat final : l'IA renvoie
+          // parfois des slide_number fantaisistes (fractionnaires, doublons).
+          if (Array.isArray(data.result.slides)) {
+            data.result.slides = renumberSlides(data.result.slides);
+          }
           // Plus d'écran de review en mode photo (comme le mode mix) : on
           // auto-valide la proposition de l'IA et on enchaîne direct sur la
           // génération. L'utilisatrice ajuste ensuite sur le VRAI carrousel

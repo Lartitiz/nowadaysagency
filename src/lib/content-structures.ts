@@ -529,7 +529,7 @@ export const CONTENT_TYPE_SPECS: Record<string, ContentTypeSpec> = {
     emoji: "📧",
     channel: "newsletter",
     edgeFunction: "creative-flow",
-    specs: "1500-2500 mots, storytelling + valeur",
+    specs: "1500-3000 caractères, storytelling + valeur",
   },
   pinterest: {
     label: "Épingle texte",

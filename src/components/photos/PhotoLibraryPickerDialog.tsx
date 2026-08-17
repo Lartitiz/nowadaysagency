@@ -8,7 +8,7 @@
  * l'utilisatrice reparte avec son contenu sans jamais quitter /creer.
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Globe, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -106,6 +106,19 @@ export function PhotoLibraryPickerDialog({
     [photos],
   );
 
+  // Snapshot de chaque UserPhotoRow déjà vue, par id. handleConfirm lit CE
+  // cache plutôt que de re-filtrer `readyPhotos` au moment du clic : si la
+  // query se réinvalide entre la sélection et « Utiliser ces photos »
+  // (workspaceId qui se stabilise juste après le montage, notification
+  // Realtime sur une tout autre photo…), `readyPhotos` peut momentanément ne
+  // plus contenir l'id sélectionné → le filtre renvoyait [] en silence
+  // (aucun toast, dropzone qui reste vide) — bug intermittent constaté en
+  // QA live le 17/08. Le cache survit à ce genre de blip.
+  const photoCacheRef = useRef<Map<string, UserPhotoRow>>(new Map());
+  useEffect(() => {
+    readyPhotos.forEach((p) => photoCacheRef.current.set(p.id, p));
+  }, [readyPhotos]);
+
   // Reset selection on every open
   useEffect(() => {
     if (open) setSelectedIds([]);
@@ -175,7 +188,9 @@ export function PhotoLibraryPickerDialog({
   };
 
   const handleConfirm = () => {
-    const selected = readyPhotos.filter((p) => selectedIds.includes(p.id));
+    const selected = selectedIds
+      .map((id) => photoCacheRef.current.get(id))
+      .filter((p): p is UserPhotoRow => !!p);
     onConfirm(selected);
     onOpenChange(false);
   };

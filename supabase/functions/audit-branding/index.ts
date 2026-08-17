@@ -234,8 +234,9 @@ Deno.serve(async (req) => {
     }
 
     // Fetch existing branding data from the tool
+    let ctx: Awaited<ReturnType<typeof getUserContext>> | null = null;
     try {
-      const ctx = await getUserContext(sbService, user.id, workspace_id || undefined);
+      ctx = await getUserContext(sbService, user.id, workspace_id || undefined);
       const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.audit);
       if (brandingContext && brandingContext.length > 50) {
         sources.branding_outil = brandingContext.slice(0, 8000);
@@ -258,7 +259,7 @@ Deno.serve(async (req) => {
       sourceText += `\n\n══ SOURCE : ${key.toUpperCase()} ══\n${val}`;
     }
 
-    const systemPrompt = `${buildIdentityBlock(ctx.profile, "experte en communication et branding")}
+    const systemPrompt = `${buildIdentityBlock(ctx?.profile, "experte en communication et branding")}
 L'utilisatrice te donne toutes les sources de sa communication actuelle. Fais un audit complet, bienveillant mais honnête.
 
 RÈGLES :

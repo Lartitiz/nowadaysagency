@@ -25,7 +25,7 @@ const CHANNELS = [
   { id: "instagram" as const, icon: Instagram, label: "Instagram", desc: "Carrousel, Reel, Story, Post" },
   { id: "linkedin" as const, icon: Linkedin, label: "LinkedIn", desc: "Post ou carrousel" },
   { id: "pinterest" as const, icon: Pin, label: "Pinterest", desc: "Épingle texte, visuelle ou inspirée" },
-  { id: "newsletter" as const, icon: Mail, label: "Newsletter", desc: "Email 1500-2500 mots" },
+  { id: "newsletter" as const, icon: Mail, label: "Newsletter", desc: "Email 1500-3000 caractères" },
 ];
 
 type ChannelId = "instagram" | "linkedin" | "pinterest" | "newsletter";
