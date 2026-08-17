@@ -61,7 +61,9 @@ function isDegenerateEnrichment(result: Record<string, unknown>): boolean {
   return meaningful.length === 0;
 }
 
-serve(async (req) => {
+// Handler exporté pour les tests (serve() de std/http ouvre un vrai socket,
+// non capturable par test-edge-harness — même pattern que creative-flow).
+export async function handleEnrichment(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === "OPTIONS") {
@@ -88,6 +90,22 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL")!,
       serviceRoleKey
     );
+
+    // ── Collecte des écritures en échec ──────────────────────────────────
+    // Chaque écriture DOIT lire son `{ error }` et le signaler ici : la
+    // réponse finale liste ce qui n'a PAS été enregistré. Avant, ~15 writes
+    // ignoraient l'erreur et la fonction répondait « success: true » quoi
+    // qu'il arrive — l'utilisatrice finissait son onboarding en croyant son
+    // branding rempli alors que des sections étaient vides (audit succès
+    // menteurs 17/08). On n'interrompt PAS au premier échec : les sections
+    // suivantes restent tentées (échec partiel > tout perdre), puis la
+    // réponse dit précisément ce qui manque.
+    const failedWrites: string[] = [];
+    const trackWrite = (section: string, error: { message?: string } | null) => {
+      if (!error) return;
+      failedWrites.push(section);
+      console.error(`[diagnostic-enrichment] écriture ${section} en échec:`, error.message ?? error);
+    };
 
     const enrichmentSystemPrompt = `Tu es un·e expert·e en communication et branding. On te donne le contenu en ligne d'une entreprise ou d'un·e solopreneur·e ainsi que ses réponses d'onboarding. Ta mission : analyser tout ça et pré-remplir 7 sections de branding.
 
@@ -254,9 +272,10 @@ Précisions importantes :
       diagRowId = latestDiag?.id || null;
     }
     if (diagRowId) {
-      await supabaseAdmin.from("diagnostic_results")
+      const { error: diagErr } = await supabaseAdmin.from("diagnostic_results")
         .update({ branding_prefill: prefill })
         .eq("id", diagRowId);
+      trackWrite("diagnostic_results", diagErr);
     }
 
     // ── Garde-fou anti-écrasement (étape 2) ───────────────────────────────
@@ -397,14 +416,15 @@ Précisions importantes :
           .from("branding_autofill")
           .update(fichePayload)
           .eq("id", existingPending.id);
-        if (updErr) console.error("[diagnostic-enrichment] refresh fiche pending_review KO:", updErr);
-        else console.log(`[diagnostic-enrichment] fiche pending_review RAFRAÎCHIE (id=${existingPending.id})`);
+        trackWrite("branding_autofill", updErr);
+        if (!updErr) console.log(`[diagnostic-enrichment] fiche pending_review RAFRAÎCHIE (id=${existingPending.id})`);
       } else {
-        await supabaseAdmin.from("branding_autofill").insert({
+        const { error: insErr } = await supabaseAdmin.from("branding_autofill").insert({
           user_id: userId,
           workspace_id: workspaceId || null,
           ...fichePayload,
         });
+        trackWrite("branding_autofill", insErr);
       }
 
       // starter_ideas → saved_ideas (nécessaire au « 1er contenu »)
@@ -445,13 +465,21 @@ Précisions importantes :
             }));
           if (ideaRows.length > 0) {
             const { error: ideasError } = await supabaseAdmin.from("saved_ideas").insert(ideaRows);
-            if (ideasError) console.error("[diagnostic-enrichment] insert starter_ideas failed:", ideasError.message);
+            trackWrite("saved_ideas", ideasError);
           }
         }
       }
 
-      console.log("Enrichment phase 2 (onboarding) → pending_review created");
-      return new Response(JSON.stringify({ success: true, mode: "onboarding_pending_review" }), {
+      if (failedWrites.length === 0) {
+        console.log("Enrichment phase 2 (onboarding) → pending_review created");
+      } else {
+        console.error(`Enrichment phase 2 (onboarding) INCOMPLET — sections NON enregistrées: ${failedWrites.join(", ")}`);
+      }
+      return new Response(JSON.stringify({
+        success: failedWrites.length === 0,
+        mode: "onboarding_pending_review",
+        ...(failedWrites.length > 0 ? { failed_sections: failedWrites } : {}),
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -527,11 +555,15 @@ Précisions importantes :
     if (existingProfile) {
       const updates: Record<string, unknown> = {};
       buildProfileFields(updates, existingProfile);
-      if (Object.keys(updates).length > 0) await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
+      if (Object.keys(updates).length > 0) {
+        const { error: profErr } = await supabaseAdmin.from("brand_profile").update(updates).eq("id", existingProfile.id);
+        trackWrite("brand_profile", profErr);
+      }
     } else {
       const newProfile: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
       buildProfileFields(newProfile, null);
-      await supabaseAdmin.from("brand_profile").insert(newProfile);
+      const { error: profErr } = await supabaseAdmin.from("brand_profile").insert(newProfile);
+      trackWrite("brand_profile", profErr);
     }
 
     // persona — les 5 étapes du parcours persona (frustrations, transformation,
@@ -559,13 +591,17 @@ Précisions importantes :
         for (const [field, value] of Object.entries(personaFields)) {
           if (value && !(existingPersona as Record<string, unknown>)[field]) pUpdates[field] = value;
         }
-        if (Object.keys(pUpdates).length > 0) await supabaseAdmin.from("persona").update(pUpdates).eq("id", existingPersona.id);
+        if (Object.keys(pUpdates).length > 0) {
+          const { error: persErr } = await supabaseAdmin.from("persona").update(pUpdates).eq("id", existingPersona.id);
+          trackWrite("persona", persErr);
+        }
       } else {
         const newPersona: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId, is_primary: true };
         for (const [field, value] of Object.entries(personaFields)) {
           if (value) newPersona[field] = value;
         }
-        await supabaseAdmin.from("persona").insert(newPersona);
+        const { error: persErr } = await supabaseAdmin.from("persona").insert(newPersona);
+        trackWrite("persona", persErr);
       }
     }
 
@@ -575,7 +611,10 @@ Précisions importantes :
       if ((count || 0) === 0) {
         const offersToInsert = prefill.offers.filter((o: any) => o.name || o.title).slice(0, 5)
           .map((o: any, i: number) => ({ user_id: userId, workspace_id: workspaceId, name: o.name || o.title, promise: o.description || null, price_text: o.price || null, offer_type: "paid", sort_order: i }));
-        if (offersToInsert.length > 0) await supabaseAdmin.from("offers").insert(offersToInsert);
+        if (offersToInsert.length > 0) {
+          const { error: offersErr } = await supabaseAdmin.from("offers").insert(offersToInsert);
+          trackWrite("offers", offersErr);
+        }
       }
     }
 
@@ -583,7 +622,8 @@ Précisions importantes :
     if (prefill.story_draft) {
       const { data: existingStory } = await supabaseAdmin.from("storytelling").select("id").eq(filterCol, filterVal).limit(1).maybeSingle();
       if (!existingStory) {
-        await supabaseAdmin.from("storytelling").insert({ user_id: userId, workspace_id: workspaceId, imported_text: prefill.story_draft, source: "diagnostic_prefill", is_primary: true });
+        const { error: storyErr } = await supabaseAdmin.from("storytelling").insert({ user_id: userId, workspace_id: workspaceId, imported_text: prefill.story_draft, source: "diagnostic_prefill", is_primary: true });
+        trackWrite("storytelling", storyErr);
       }
     }
 
@@ -613,14 +653,18 @@ Précisions importantes :
         if ((!existingVoice.tone_patterns || (Array.isArray(existingVoice.tone_patterns) && existingVoice.tone_patterns.length === 0)) && voicePrefill.tone_patterns?.length) vUpdates.tone_patterns = voicePrefill.tone_patterns;
         if ((!existingVoice.signature_expressions || (Array.isArray(existingVoice.signature_expressions) && existingVoice.signature_expressions.length === 0)) && voicePrefill.signature_expressions?.length) vUpdates.signature_expressions = voicePrefill.signature_expressions;
         if ((!existingVoice.banned_expressions || (Array.isArray(existingVoice.banned_expressions) && existingVoice.banned_expressions.length === 0)) && voicePrefill.banned_expressions?.length) vUpdates.banned_expressions = voicePrefill.banned_expressions;
-        if (Object.keys(vUpdates).length > 0) await supabaseAdmin.from("voice_profile").update(vUpdates).eq("id", existingVoice.id);
+        if (Object.keys(vUpdates).length > 0) {
+          const { error: voiceErr } = await supabaseAdmin.from("voice_profile").update(vUpdates).eq("id", existingVoice.id);
+          trackWrite("voice_profile", voiceErr);
+        }
       } else {
         const newVoice: Record<string, unknown> = { user_id: profileUserId, workspace_id: workspaceId };
         if (voicePrefill.voice_summary) newVoice.voice_summary = voicePrefill.voice_summary;
         if (voicePrefill.tone_patterns?.length) newVoice.tone_patterns = voicePrefill.tone_patterns;
         if (voicePrefill.signature_expressions?.length) newVoice.signature_expressions = voicePrefill.signature_expressions;
         if (voicePrefill.banned_expressions?.length) newVoice.banned_expressions = voicePrefill.banned_expressions;
-        await supabaseAdmin.from("voice_profile").insert(newVoice);
+        const { error: voiceErr } = await supabaseAdmin.from("voice_profile").insert(newVoice);
+        trackWrite("voice_profile", voiceErr);
       }
     }
 
@@ -644,7 +688,10 @@ Précisions importantes :
         if (!existingCharter.font_body && charterPrefill.font_body) cUpdates.font_body = charterPrefill.font_body;
         if ((!existingCharter.mood_keywords || (Array.isArray(existingCharter.mood_keywords) && existingCharter.mood_keywords.length === 0)) && charterPrefill.mood_keywords?.length) cUpdates.mood_keywords = charterPrefill.mood_keywords;
         if (!existingCharter.photo_style && charterPrefill.photo_style) cUpdates.photo_style = charterPrefill.photo_style;
-        if (Object.keys(cUpdates).length > 0) await supabaseAdmin.from("brand_charter").update(cUpdates).eq("id", existingCharter.id);
+        if (Object.keys(cUpdates).length > 0) {
+          const { error: charterErr } = await supabaseAdmin.from("brand_charter").update(cUpdates).eq("id", existingCharter.id);
+          trackWrite("brand_charter", charterErr);
+        }
       } else {
         const newCharter: Record<string, unknown> = { user_id: profileUserId, workspace_id: workspaceId };
         if (charterPrefill.color_primary) newCharter.color_primary = charterPrefill.color_primary;
@@ -656,7 +703,8 @@ Précisions importantes :
         if (charterPrefill.font_body) newCharter.font_body = charterPrefill.font_body;
         if (charterPrefill.mood_keywords?.length) newCharter.mood_keywords = charterPrefill.mood_keywords;
         if (charterPrefill.photo_style) newCharter.photo_style = charterPrefill.photo_style;
-        await supabaseAdmin.from("brand_charter").insert(newCharter);
+        const { error: charterErr } = await supabaseAdmin.from("brand_charter").insert(newCharter);
+        trackWrite("brand_charter", charterErr);
       }
     }
 
@@ -682,13 +730,17 @@ Précisions importantes :
         for (const [field, value] of Object.entries(propFields)) {
           if (value && !(existingProp as Record<string, unknown>)[field]) propUpdates[field] = value;
         }
-        if (Object.keys(propUpdates).length > 0) await supabaseAdmin.from("brand_proposition").update(propUpdates).eq("id", existingProp.id);
+        if (Object.keys(propUpdates).length > 0) {
+          const { error: propErr } = await supabaseAdmin.from("brand_proposition").update(propUpdates).eq("id", existingProp.id);
+          trackWrite("brand_proposition", propErr);
+        }
       } else {
         const newProp: Record<string, unknown> = { user_id: userId, workspace_id: workspaceId };
         for (const [field, value] of Object.entries(propFields)) {
           if (value) newProp[field] = value;
         }
-        await supabaseAdmin.from("brand_proposition").insert(newProp);
+        const { error: propErr } = await supabaseAdmin.from("brand_proposition").insert(newProp);
+        trackWrite("brand_proposition", propErr);
       }
     }
 
@@ -712,9 +764,12 @@ Précisions importantes :
         if (!existingStrategy.pillar_minor_2 && pillars[2]?.label) sUpdates.pillar_minor_2 = pillars[2].label;
         if (!existingStrategy.creative_concept && contentPrefill.creative_twist) sUpdates.creative_concept = contentPrefill.creative_twist;
         if (!existingStrategy.step_1_hidden_facets && hiddenFacets) sUpdates.step_1_hidden_facets = hiddenFacets;
-        if (Object.keys(sUpdates).length > 0) await supabaseAdmin.from("brand_strategy").update(sUpdates).eq("id", existingStrategy.id);
+        if (Object.keys(sUpdates).length > 0) {
+          const { error: stratErr } = await supabaseAdmin.from("brand_strategy").update(sUpdates).eq("id", existingStrategy.id);
+          trackWrite("brand_strategy", stratErr);
+        }
       } else {
-        await supabaseAdmin.from("brand_strategy").insert({
+        const { error: stratErr } = await supabaseAdmin.from("brand_strategy").insert({
           user_id: userId,
           workspace_id: workspaceId,
           pillar_major: pillars[0]?.label || null,
@@ -723,6 +778,7 @@ Précisions importantes :
           creative_concept: contentPrefill.creative_twist || null,
           step_1_hidden_facets: hiddenFacets,
         });
+        trackWrite("brand_strategy", stratErr);
       }
     }
 
@@ -758,13 +814,20 @@ Précisions importantes :
           }));
         if (ideaRows.length > 0) {
           const { error: ideasError } = await supabaseAdmin.from("saved_ideas").insert(ideaRows);
-          if (ideasError) console.error("[diagnostic-enrichment] insert starter_ideas failed:", ideasError.message);
+          trackWrite("saved_ideas", ideasError);
         }
       }
     }
 
-    console.log("Enrichment phase 2 completed successfully");
-    return new Response(JSON.stringify({ success: true }), {
+    if (failedWrites.length === 0) {
+      console.log("Enrichment phase 2 completed successfully");
+    } else {
+      console.error(`Enrichment phase 2 INCOMPLET — sections NON enregistrées: ${failedWrites.join(", ")}`);
+    }
+    return new Response(JSON.stringify({
+      success: failedWrites.length === 0,
+      ...(failedWrites.length > 0 ? { failed_sections: failedWrites } : {}),
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
@@ -773,4 +836,6 @@ Précisions importantes :
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}
+
+serve(handleEnrichment);
