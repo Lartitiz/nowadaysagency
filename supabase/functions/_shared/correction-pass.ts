@@ -721,7 +721,7 @@ export async function applyCorrectionPassCarousel(
   jsonContent: string,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions } = options;
+  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:carousel-json] SKIPPED (disabled)`);
@@ -761,7 +761,9 @@ export async function applyCorrectionPassCarousel(
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
         : `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
       0.3,
-      4096
+      4096,
+      undefined,
+      abortTimeoutMs
     );
 
     if (!correctedBlock || correctedBlock.length < 100) {

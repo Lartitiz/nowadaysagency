@@ -111,7 +111,8 @@ export function useUserSlidesGenerate({
             slides: photoFull,
             workspace_id: workspaceId !== session?.user?.id ? workspaceId : undefined,
           },
-        }, 30000);
+        // 40s : l'edge borne ce tool call à 30s (assignPhotoTemplates), marge après.
+        }, 40000);
         const enriched = (data as any)?.result?.slides;
         if (!fnError && !(data as any)?.error && Array.isArray(enriched) && enriched.length > 0) {
           const byNumber = new Map<number, any>(
