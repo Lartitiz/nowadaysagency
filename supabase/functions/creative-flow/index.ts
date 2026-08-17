@@ -261,6 +261,1195 @@ Réponds UNIQUEMENT en JSON valide :
 ${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
 }
 
+function buildFollowUpPrompt(params: {
+  QUESTIONS_PREFIX: string;
+  brandingContext: string;
+  brandVocabBlock: string;
+  context: string;
+  answers: any[];
+}): { systemPrompt: string; userPrompt: string } {
+  const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, answers } = params;
+  const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
+  const systemPrompt = `${QUESTIONS_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+SUJET du contenu : "${context}"
+
+L'utilisatrice a répondu à ces 3 questions initiales :
+${answersBlock}
+
+══ TON RÔLE : creuser UN détail singulier ══
+
+Lis ses réponses comme une amie experte qui veut sortir le contenu unique.
+Identifie LE détail le plus intéressant, le plus singulier, ou le plus émotionnel — celui qui mérite d'être creusé pour passer du "post correct" au "post mémorable".
+
+Pose 1 à 2 questions de suivi MAXIMUM pour creuser CE détail spécifique.
+
+RÈGLES :
+- Cite EXPLICITEMENT le détail que tu creuses (ex : "Tu dis que ta cliente a pleuré quand tu as livré : qu'est-ce qu'elle a dit exactement ?")
+- Sois PRÉCISE, pas générique. Pas "Peux-tu détailler ?" mais "Cette phrase '[citation]' — c'est arrivé dans quel contexte ?"
+- Si une réponse contient un chiffre, une scène, une citation, ou une émotion forte → c'est CETTE matière qu'il faut creuser
+- Si toutes les réponses sont déjà très complètes, pose 1 SEULE question (pas 2) — ne creuse pas pour creuser
+- Le ${"\""}why${"\""} explique en 1 phrase pourquoi cette question rendra le contenu plus singulier
+
+Réponds UNIQUEMENT en JSON :
+{
+  "follow_up_questions": [
+    {
+      "question": "...",
+      "placeholder": "...",
+      "why": "..."
+    }
+  ]
+}`;
+  const userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
+  return { systemPrompt, userPrompt };
+}
+
+function buildAdjustPrompt(params: {
+  COMMON_PREFIX: string;
+  editorialFormatLabel?: string | null;
+  effectiveObjective?: string | null;
+  angle: any;
+  currentContent: string;
+  adjustment: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment } = params;
+  // Smart guidance based on adjustment type
+  const adjustLower = (adjustment || "").toLowerCase();
+  let adjustGuidance = "";
+  if (adjustLower.includes("long")) {
+    const isCarouselContent = currentContent?.includes("SLIDE") || currentContent?.includes("📌");
+    adjustGuidance = isCarouselContent
+      ? "AJOUTE une slide supplémentaire qui développe un point existant en profondeur. Ne rallonge pas les slides existantes."
+      : "Développe l'idée principale avec un exemple concret ou une anecdote. Ne rallonge pas artificiellement avec des transitions vides.";
+  } else if (adjustLower.includes("court")) {
+    adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde les punchlines et les exemples concrets. Ne sacrifie pas la profondeur.";
+  } else if (adjustLower.includes("punchy")) {
+    adjustGuidance = "Raccourcis les phrases longues. Ajoute des bucket brigades. L'accroche doit claquer plus fort.";
+  } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
+    adjustGuidance = "Remplace les conseils abstraits par des situations concrètes. Chaque point doit avoir un exemple terrain, un cas réel, ou un chiffre.";
+  } else if (adjustLower.includes("storytelling") || adjustLower.includes("histoire")) {
+    adjustGuidance = "Restructure autour d'une narration. Commence par un moment précis (lieu, émotion), développe la tension, puis la résolution.";
+  } else if (adjustLower.includes("chiffres") || adjustLower.includes("données") || adjustLower.includes("stats")) {
+    adjustGuidance = "Ajoute 2-3 données chiffrées. Si pas de chiffres exacts disponibles, indique [STAT À VÉRIFIER] pour que l'utilisatrice insère les vrais chiffres.";
+  }
+
+  const systemPrompt = `${COMMON_PREFIX}
+
+${ANTI_BIAS}
+
+${FORMAT_STRUCTURES}
+
+${WRITING_RESOURCES}
+
+${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
+${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
+${angle ? `ANGLE : ${angle.title} (${angle.tone})` : ""}
+
+CONTENU ACTUEL :
+"""
+${currentContent}
+"""
+
+AJUSTEMENT DEMANDÉ : ${adjustment}
+${adjustGuidance ? `\nGUIDE :\n${adjustGuidance}` : ""}
+
+Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
+Ne raccourcis JAMAIS la profondeur sauf si l'ajustement demande explicitement de raccourcir.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "..."
+}`;
+  const userPrompt = `Ajuste le contenu : ${adjustment}`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildDictationPrompt(params: {
+  COMMON_PREFIX: string;
+  sourceText: string;
+  targetFormat: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, sourceText, targetFormat } = params;
+  const systemPrompt = `${COMMON_PREFIX}
+
+${ANTI_BIAS}
+
+${WRITING_RESOURCES}
+
+L'utilisatrice a dicté ceci en mode vocal :
+"""
+${sourceText}
+"""
+
+Transforme en : ${targetFormat}
+
+RÈGLES ABSOLUES :
+- Garde SES mots. Si elle dit "le truc c'est que", utilise "le truc c'est que".
+- Garde SON rythme. Si elle fait des phrases longues qui déroulent, garde ça.
+- Garde SES expressions. Si elle dit "franchement" ou "genre", c'est sa voix.
+- NE réécris PAS dans un style "professionnel". Structure, c'est tout.
+- Tu peux couper les répétitions et les hésitations.
+- Tu peux réorganiser l'ordre pour plus de clarté.
+- Tu DOIS garder l'énergie et la personnalité de l'oral.
+
+Le résultat doit sonner comme si ELLE l'avait écrit, pas comme si une IA avait reformulé.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "..."
+}`;
+  const userPrompt = `Structure ma dictée vocale en ${targetFormat}.`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildAnglesPrompt(params: {
+  COMMON_PREFIX: string;
+  editorialFormatLabel?: string | null;
+  contentType?: string | null;
+  context: string;
+  effectiveObjective?: string | null;
+  calendarBlock: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, editorialFormatLabel, contentType, context, effectiveObjective, calendarBlock } = params;
+  const editorialCtx = editorialFormatLabel
+    ? `\nFORMAT ÉDITORIAL CHOISI : "${editorialFormatLabel}"\nL'utilisatrice a choisi ce format parmi les 13 angles éditoriaux. Les 3 angles proposés doivent être des VARIATIONS de "${editorialFormatLabel}", pas des formats complètement différents.\nChaque angle prend un POINT D'ENTRÉE différent dans le sujet, mais tous suivent la logique de "${editorialFormatLabel}".\nExemple : si elle a choisi "Mythe à déconstruire", les 3 angles déconstruisent le même sujet mais avec 3 approches différentes (données vs vécu vs comparaison).\n`
+    : "";
+
+  const systemPrompt = `${COMMON_PREFIX}
+
+${FRAMEWORK_SELECTION}
+
+${EDITORIAL_ANGLES_REFERENCE}
+${editorialCtx}
+CANAL : ${contentType}
+SUJET : ${context}
+${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
+${calendarBlock}
+
+Propose exactement 3 angles éditoriaux DIFFÉRENTS.
+
+Pour chaque angle :
+1. TITRE : 2-5 mots, évocateur (pas "Option 1")
+2. PITCH : 2-3 phrases qui expliquent l'approche et pourquoi ça fonctionne
+3. STRUCTURE : le squelette du contenu en 4-5 étapes${editorialFormatLabel ? ` (basé sur la structure de "${editorialFormatLabel}" dans les angles éditoriaux de référence)` : " (utilise les structures par format si le format est connu)"}
+4. TON : l'énergie et le registre émotionnel de cet angle
+5. FORMAT_LIVRAISON : le format de sortie recommandé pour cet angle (carrousel, reel, stories, caption longue, LinkedIn, newsletter)
+
+RÈGLES :
+${editorialFormatLabel ? `- Les 3 angles sont des VARIATIONS de "${editorialFormatLabel}", PAS des formats différents` : "- Les 3 angles doivent être VRAIMENT différents (pas 3 variations du même)"}
+- Chaque angle est basé sur un framework narratif DIFFÉRENT, traduit en angle créatif lisible
+- Un angle peut être surprenant ou inattendu
+- Pense à des angles que l'utilisatrice n'aurait pas trouvés seule
+${effectiveObjective ? `- Les 3 angles doivent servir l'objectif "${effectiveObjective}". Un angle "visibilité" privilégie les accroches polarisantes, un angle "vente" les preuves et témoignages.` : ""}
+- Reste cohérent avec son ton & style
+- Ne rédige RIEN. Pas d'exemple de phrases. Juste la direction.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "angles": [
+    {
+      "title": "...",
+      "pitch": "...",
+      "structure": ["étape 1", "étape 2", "étape 3", "étape 4"],
+      "tone": "...",
+      "format_livraison": "carrousel | reel | stories | caption | linkedin | newsletter"
+    }
+  ]
+}`;
+  const userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildHooksPrompt(params: {
+  COMMON_PREFIX: string;
+  answers?: any[];
+  excludeHooksRaw: unknown;
+  faceCam?: string | null;
+  context: string;
+  effectiveObjective?: string | null;
+  objective?: string | null;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, answers, excludeHooksRaw, faceCam, context, effectiveObjective, objective } = params;
+  // Lot 7 reels : proposer 3 angles d'attaque AVANT la génération complète.
+  // Étape gratuite (hors BILLED_STEPS) ; le hook choisi repart en selected_hook.
+  const answersBlock = answers?.length
+    ? "\n\nMATIÈRE DU BRIEF (réponses de l'utilisatrice, sa vraie voix) :\n" +
+      answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
+    : "";
+  const excludeHooks: string[] = Array.isArray(excludeHooksRaw)
+    ? excludeHooksRaw.filter((x: unknown): x is string => typeof x === "string").slice(0, 12)
+    : [];
+  const excludeBlock = excludeHooks.length
+    ? `\n\nHOOKS DÉJÀ PROPOSÉS, REFUSÉS PAR L'UTILISATRICE :\n${excludeHooks.map((h) => `- "${h}"`).join("\n")}\nINTERDIT de les reproposer, même reformulés. Change d'angle, pas juste de mots.`
+    : "";
+  const noFaceCam = faceCam === "non";
+
+  const systemPrompt = `${COMMON_PREFIX}
+
+TA MISSION : proposer 3 HOOKS d'ouverture pour un REEL Instagram sur le sujet donné.
+Le hook = les 3 premières secondes. 50 % des viewers scrollent avant la 3e seconde :
+c'est LE levier de rétention. L'utilisatrice choisit UN hook, le script complet sera
+écrit dessus.
+
+RÈGLES ABSOLUES :
+1. Les 3 hooks sont de TYPES DIFFÉRENTS, choisis parmi :
+   - vecu_perso (« Vécu perso ») : un moment vécu, raconté en Je. UNIQUEMENT si la
+     matière du brief contient un vrai vécu — n'invente JAMAIS une anecdote.
+   - contre_intuition (« Contre-intuition ») : affirmation qui renverse une croyance.
+   - objection_retournee (« Objection retournée ») : la phrase qu'on lui oppose, puis le retournement.
+   - question_choc (« Question choc ») : question qui pique, jamais rhétorique molle.
+   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), sec, sans emballage.
+   - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
+2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
+   ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
+3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
+   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
+4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
+5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
+   SA matière (contexte de marque ci-dessus).
+5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
+   jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
+   « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.
+6. format_recommande = la structure que ce hook appelle naturellement
+   (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
+   cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
+7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
+   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${excludeBlock}`;
+  const userPrompt = `SUJET DU REEL : "${context || "?"}"
+Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
+
+Propose-moi 3 hooks de types différents pour ce reel.`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildQuestionsPrompt(params: {
+  QUESTIONS_PREFIX: string;
+  brandingContext: string;
+  brandVocabBlock: string;
+  context: string;
+  contentType?: string | null;
+  editorialFormatLabel?: string | null;
+  angle: any;
+  calendarBlock: string;
+  objectiveBlock: string;
+  newsContextBlock: string;
+  recentBriefsContext: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
+  const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
+  const channelGuidance = contentType === "linkedin"
+    ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
+    : contentType === "newsletter"
+    ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
+    : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
+
+  const systemPrompt = `${QUESTIONS_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+
+══════════════════════════════════════
+SUJET COURANT — PRIORITÉ ABSOLUE
+══════════════════════════════════════
+"${context}"
+
+Tout ce qui suit (angle, branding, historique) est SECONDAIRE par rapport à ce sujet.
+Les 3 questions doivent toutes porter sur CE sujet précis.
+Si une question pourrait concerner un autre sujet, elle est invalide.
+
+══════════════════════════════════════
+ANGLE & CANAL
+══════════════════════════════════════
+- Canal : ${channelLabel}
+${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
+- Angle : ${angle.title}
+- Structure : ${(angle.structure || []).join(" → ")}
+- Ton : ${angle.tone}
+${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
+${recentBriefsContext}
+${newsContextBlock ? "\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).\n" : ""}
+
+══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+
+Réfléchis silencieusement à :
+1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé du bloc ci-dessus)
+2. Quel vocabulaire métier de l'utilisatrice puis-je intégrer naturellement ?
+3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
+
+Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
+
+Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
+
+RÈGLES :
+1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
+2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
+3. ${channelGuidance}
+4. Questions OUVERTES (pas oui/non).
+5. VARIÉTÉ DE TYPES DE QUESTIONS OBLIGATOIRE — les 3 questions doivent utiliser des TYPES DIFFÉRENTS parmi :
+   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
+   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
+   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
+   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
+   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
+   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
+6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
+7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
+8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
+9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
+
+INTERDIT — NE FAIS JAMAIS ÇA :
+- Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
+- Questions de coaching de vie déconnectées du sujet
+- Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
+- 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
+- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
+- ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
+- Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
+
+EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
+❌ MAUVAIS MIX :
+1. "Raconte-moi un moment où tu as dû défendre ta valeur."
+2. "Raconte-moi une fois où une cliente t'a demandé une remise."
+3. "Raconte-moi comment tu as changé ta relation à l'argent."
+(= 3x le même type "raconte-moi" → monotone)
+
+✅ BON MIX :
+1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
+2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
+3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
+
+Réponds UNIQUEMENT en JSON :
+{
+  "questions": [
+    {
+      "question": "...",
+      "placeholder": "..."
+    }
+  ]
+}`;
+  const userPrompt = `Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "${context}"${angle ? ` (angle "${angle.title}")` : ""}.`;
+  return { systemPrompt, userPrompt };
+}
+
+async function buildGeneratePrompt(params: {
+  supabase: any;
+  userId: string;
+  workspace_id?: string | null;
+  body: any;
+  COMMON_PREFIX: string;
+  context: string;
+  contentType?: string | null;
+  editorialFormat?: string | null | undefined;
+  editorialFormatLabel?: string | null;
+  angle: any;
+  answers?: any[];
+  followUpAnswers?: any[];
+  calendarBlock: string;
+  objectiveBlock: string;
+  newsContextBlock: string;
+  preGenBlock: string;
+  effectiveObjective?: string | null | undefined;
+  pinterest_link?: string | null | undefined;
+  pinterest_board?: string | null | undefined;
+  variation?: boolean | null;
+  previousContent?: string | null;
+  isCarousel: boolean;
+  isReel: boolean;
+  isStories: boolean;
+  isLinkedIn: boolean;
+  isPinterest: boolean;
+  isNewsletter: boolean;
+  isPhotoMode: boolean;
+}): Promise<{ systemPrompt: string; userPrompt: string; storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] }> {
+  const {
+    supabase, userId, workspace_id, body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
+    angle, answers, followUpAnswers, calendarBlock, objectiveBlock, newsContextBlock, preGenBlock, effectiveObjective,
+    pinterest_link, pinterest_board, variation, previousContent,
+    isCarousel, isReel, isStories, isLinkedIn, isPinterest, isNewsletter, isPhotoMode,
+  } = params;
+
+  let storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] = [];
+
+  const answersBlock = answers?.length
+    ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
+    : "";
+  const followUpBlock = followUpAnswers?.length
+    ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
+    : "";
+
+  // Format variables (isLinkedIn, isCarousel, etc.) are defined in outer scope
+
+  // Build format-specific depth instructions
+  let depthMandate = "";
+  let storiesGardeFouAlerte: string | null = null;
+  if (isCarousel) {
+    depthMandate = carouselBrief();
+  } else if (isReel) {
+    depthMandate = reelBrief({
+      effectiveObjective,
+      face_cam: body.face_cam,
+      time_available: body.time_available,
+      is_launch: body.is_launch,
+      selected_hook: body.selected_hook,
+      pre_gen_answers: body.pre_gen_answers,
+      subject: context,
+      editorial_angle: body.editorial_angle,
+      content_structure: body.content_structure,
+      inspiration_context: body.inspiration_context,
+    });
+  } else if (isStories) {
+    // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
+    if (effectiveObjective === "vente") {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const gardeFouCol = workspace_id ? "workspace_id" : "user_id";
+      const gardeFouVal = workspace_id || userId;
+      const { count } = await supabase
+        .from("stories_sequences")
+        .select("id", { count: "exact", head: true })
+        .eq(gardeFouCol, gardeFouVal)
+        .eq("objective", "vente")
+        .gte("created_at", sevenDaysAgo);
+      if ((count ?? 0) >= 3) {
+        storiesGardeFouAlerte = "⚠️ Tes stories récentes sont très orientées vente. Reviens à de la connexion ou de l'éducation pour maintenir la confiance. Ratio sain : 80% connexion/éducation, 20% vente.";
+      }
+    }
+    // Catalogue bibliothèque (lot B) : l'IA écrit la séquence en SACHANT
+    // quelles photos existent (descriptions écrites par photo-describe à
+    // l'upload). Index courts dans le prompt (jamais d'UUID : trop long,
+    // risque de recopie erronée) ; la résolution index → id se fait après
+    // le parse, côté edge, de façon déterministe.
+    // Lot D : les photos CHOISIES à l'étape format (preferred_photo_ids)
+    // passent en tête du catalogue, marquées « chosen » — le brief les
+    // traite en priorité absolue et le post-parse garantit leur placement.
+    {
+      const catCol = workspace_id ? "workspace_id" : "user_id";
+      const catVal = workspace_id || userId;
+      const rawPreferred = (body as Record<string, unknown>).preferred_photo_ids;
+      const preferredIds: string[] = Array.isArray(rawPreferred)
+        ? rawPreferred.filter((x: unknown): x is string => typeof x === "string").slice(0, 10)
+        : [];
+      const { data: catRows, error: catErr } = await supabase
+        .from("user_photos")
+        .select("id, description")
+        .eq(catCol, catVal)
+        .eq("status", "ready")
+        .order("created_at", { ascending: false })
+        .limit(60);
+      if (catErr) {
+        // Jamais bloquant : sans catalogue, la génération garde le
+        // comportement historique (directives seules).
+        console.warn("[creative-flow] catalogue photos illisible:", catErr.message);
+      }
+      type CatRow = { id: string; description: string | null };
+      const rows = (catRows || []) as CatRow[];
+      // Les préférées passent MÊME sans description (photo fraîchement
+      // uploadée, describe encore en cours) ; le reste doit être décrit.
+      const preferredRows = preferredIds
+        .map((id) => rows.find((r) => r.id === id))
+        .filter((r): r is CatRow => !!r);
+      const otherRows = rows
+        .filter(
+          (r) =>
+            !preferredIds.includes(r.id) &&
+            typeof r.description === "string" &&
+            r.description.trim().length > 0,
+        )
+        .slice(0, Math.max(0, 40 - preferredRows.length));
+      storiesPhotoCatalog = [...preferredRows, ...otherRows].map((r, i) => ({
+        index: i + 1,
+        id: r.id,
+        description:
+          typeof r.description === "string" && r.description.trim().length > 0
+            ? r.description.trim()
+            : "photo choisie par l'utilisatrice (pas encore décrite)",
+        preferred: preferredIds.includes(r.id),
+      }));
+    }
+    depthMandate = storiesBrief({
+      objective: effectiveObjective,
+      price_range: body.price_range,
+      time_available: body.time_available,
+      face_cam: body.face_cam,
+      is_launch: body.is_launch,
+      gardeFouAlerte: storiesGardeFouAlerte,
+      pre_gen_answers: body.pre_gen_answers,
+      subject: context,
+      photo_catalog: storiesPhotoCatalog.map(({ index, description, preferred }) => ({
+        index,
+        description,
+        chosen: preferred || undefined,
+      })),
+    });
+  } else if (isLinkedIn) {
+    depthMandate = linkedinBrief(editorialFormat ?? null);
+  } else if (isPinterest) {
+    depthMandate = pinterestBrief(pinterest_link ?? null, pinterest_board ?? null);
+  } else if (isNewsletter) {
+    depthMandate = newsletterBrief();
+  } else if (isPhotoMode) {
+    depthMandate = photoCaptionBrief(body.photo_description);
+  } else {
+    depthMandate = captionBrief(effectiveObjective ?? null);
+  }
+
+  let systemPrompt = `${COMMON_PREFIX}
+
+${ANTI_BIAS}
+
+${isLinkedIn || isPinterest || isNewsletter ? "" : FORMAT_STRUCTURES}
+
+${isLinkedIn || isPinterest ? "" : WRITING_RESOURCES}
+
+${isLinkedIn || isPinterest || isNewsletter ? "" : VISUAL_ANALOGIES}
+
+${angle ? `ANGLE CHOISI :
+- Titre : ${angle.title}
+- Structure : ${(angle.structure || []).join(" → ")}
+- Ton : ${angle.tone}` : "Pas d'angle spécifique choisi. Choisis le meilleur angle pour le sujet."}
+
+SUJET DE L'UTILISATRICE :
+"""
+${context}
+"""
+Le contenu DOIT parler de ce sujet. Les réponses aux questions ci-dessous enrichissent le sujet mais ne le remplacent pas.
+
+CANAL : ${contentType || "Post Instagram"}
+${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
+${angle?.format_livraison ? `FORMAT DE LIVRAISON : ${angle.format_livraison}` : ""}
+
+${depthMandate}
+
+RÉPONSES DE L'UTILISATRICE :
+${answersBlock}
+${followUpBlock}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
+${preGenBlock}
+
+RÈGLE ANTI-FABRICATION :
+N'invente JAMAIS une anecdote, un cas client ou un chiffre que l'utilisatrice n'a pas écrit.
+Pas de vécu fourni → angle expert : décryptage, constat décalé, prise de position.
+
+${PREGEN_INJECTION_RULES}
+
+═══════════════════════════════════════════════════
+PROFONDEUR (RÈGLE ABSOLUE)
+═══════════════════════════════════════════════════
+
+Tu ne fais JAMAIS de contenu de surface. Chaque contenu doit donner au lecteur quelque chose qu'il ne savait pas, qu'il n'avait pas vu comme ça, ou qu'il n'aurait pas formulé aussi bien.
+
+Profondeur = au moins UN de ces éléments dans chaque contenu :
+1. Un EXEMPLE CONCRET (pas "par exemple, imagine que..." mais une vraie situation, un vrai cas, un vrai chiffre)
+2. Un MÉCANISME EXPLIQUÉ (le "pourquoi" derrière le "quoi" : pourquoi ça marche, pourquoi on se trompe, pourquoi c'est contre-intuitif)
+3. Une NUANCE qui surprend (le "oui, mais" ou le "sauf que" qui empêche le contenu d'être un conseil générique)
+4. Un LIEN INATTENDU (connecter le sujet à un domaine auquel personne n'avait pensé)
+
+Si ton contenu pourrait être écrit par n'importe quel compte de la même niche, c'est pas assez profond. Ce qui le rend unique, c'est le point de vue, les exemples, et les nuances de l'utilisatrice.
+
+Les gens scrollent les contenus qui DISENT des choses qu'ils savaient déjà.
+Ils s'arrêtent sur les contenus qui leur font VOIR les choses autrement.
+
+═══════════════════════════════════════════════════
+SELF-CHECK (fais-le en interne avant de répondre)
+═══════════════════════════════════════════════════
+
+Avant de retourner le JSON, vérifie :
+1. Est-ce que le contenu a au moins 1 exemple concret ? (pas une généralité)
+2. Est-ce que l'accroche est assez forte pour stopper le scroll ?
+3. Est-ce que j'ai utilisé les MOTS de l'utilisatrice (ses réponses, ses expressions) ?
+4. Est-ce que le contenu dit quelque chose de SPÉCIFIQUE (qu'on ne pourrait pas copier-coller pour un autre sujet) ?
+5. Est-ce que la longueur respecte le format demandé ?
+6. Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
+Si une réponse est NON, RÉÉCRIS avant de retourner.
+
+═══════════════════════════════════════════════════
+DERNIÈRES VÉRIFICATIONS (À APPLIQUER APRÈS RÉDACTION)
+═══════════════════════════════════════════════════
+
+${CHAIN_OF_THOUGHT}
+
+ANTI-SLOP FINAL — Relis ton output et vérifie :
+1. Contient-il un marqueur IA banni (rafale de phrases courtes, "Et là tout a basculé", storytelling fabriqué) ? → Réécris la phrase.
+2. Chaque phrase ajoute-t-elle une information NOUVELLE ? → Supprime toute redondance.
+3. Pourrais-tu dire ce texte à voix haute à une amie sans que ça sonne bizarre ? → Simplifie ce qui coince.
+4. Le texte fait-il la bonne longueur ? Si tu peux dire la même chose en moins de mots → Coupe.
+Retourne UNIQUEMENT la version finale corrigée.
+
+${variation && previousContent ? `
+═══════════════════════════════════════════════════
+MODE RÉÉCRITURE : VERSION ALTERNATIVE
+═══════════════════════════════════════════════════
+
+L'utilisatrice a déjà reçu cette version et veut AUTRE CHOSE :
+"""
+${previousContent.slice(0, 2000)}
+"""
+
+Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
+- Accroche DIFFÉRENTE : pas la même reformulée, une AUTRE approche (si la v1 commençait par une question, commence par une affirmation choc ; si la v1 était un constat, commence par une anecdote)
+- Point d'entrée DIFFÉRENT dans le sujet (si la v1 partait du problème, pars de la solution ; si la v1 était éducative, sois émotionnelle)
+- Le message central reste cohérent mais l'angle d'attaque change
+- Ne fais PAS une variation cosmétique (mêmes idées avec d'autres mots). Fais une VRAIE alternative.
+` : ""}
+Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
+Le contenu doit être PRÊT À POSTER (pas un brouillon).
+
+${isReel || isStories ? `` : isNewsletter ? `Un email part en TEXTE BRUT : aucune valeur ne doit contenir de markdown (**gras**, *italique*, ## titres) — les astérisques s'afficheraient tels quels chez le lecteur. Pour un aparté, utilise des parenthèses.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
+  "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
+  "content": "corps complet de la newsletter (avec \\n\\n entre paragraphes)",
+  "accroche": "première phrase du corps",
+  "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
+  "format": "newsletter",
+  "pillar": "...",
+  "objectif": "...",
+  "personal_tip": "conseil d'incarnation SEULEMENT si demandé plus haut, sinon null"
+}` : `Réponds UNIQUEMENT en JSON :
+{
+  "content": "...",
+  "accroche": "...",
+  "format": "...",
+  "pillar": "...",
+  "objectif": "...",
+  "personal_tip": "conseil d'incarnation SEULEMENT si demandé plus haut, sinon null"
+}`}`;
+  // Inject launch context for stories AND reels (preserved from stories-ai / reels-ai)
+  if ((isStories || isReel) && body.launch_context) {
+    const lc = body.launch_context;
+    systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
+  }
+  const userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
+
+  return { systemPrompt, userPrompt, storiesPhotoCatalog };
+}
+
+// ═══ RECYCLAGE — PIPELINE PARALLÈLE PAR FORMAT ═══
+// Avant : UN appel Sonnet écrivait TOUS les formats demandés (max_tokens
+// 12288) → attente = somme des formats, et un échec/troncature emportait
+// tout (« coche moins de formats à la fois »). Même remède que les visuels
+// carrousel (#364) : un petit appel de PLAN (Haiku, sortie structurée)
+// analyse la source UNE fois et attribue à chaque format sa sous-idée —
+// la garantie anti-chevauchement est décidée là, pas ré-improvisée par
+// chaque appel — puis UN appel Sonnet PAR FORMAT en parallèle. L'attente
+// tombe au format le plus lent, et un format qui échoue est retenté seul
+// sans emporter les autres.
+async function handleRecycleStep(params: {
+  corsHeaders: Record<string, string>;
+  userId: string;
+  workspace_id?: string | null;
+  formats: string[] | undefined;
+  sourceText?: string | null;
+  body: any;
+  formatLabels: Record<string, string>;
+  COMMON_PREFIX: string;
+  objectiveBlock: string;
+  ctx: any;
+  profile: any;
+}): Promise<Response> {
+  const { corsHeaders, userId, formats, sourceText, body, formatLabels, COMMON_PREFIX, objectiveBlock, ctx, profile } = params;
+  const workspace_id = params.workspace_id ?? undefined;
+  const filesArray: any[] = body.files || (body.fileBase64 ? [{ base64: body.fileBase64, mimeType: body.fileMimeType, name: "fichier" }] : []);
+
+  const tRecycle = Date.now();
+  const fmtIds: string[] = formats || [];
+  if (fmtIds.length === 0) {
+    return new Response(JSON.stringify({ error: "Aucun format demandé." }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const recActivity = ctx?.profile?.activite || profile?.activite || "";
+  const recTarget = ctx?.profile?.cible || profile?.cible || "";
+  const recPiliers = ctx?.profile?.piliers || "";
+  const requestedLabels = fmtIds.map((f) => formatLabels[f] || f);
+
+  // ── Fichiers : mêmes validations que l'ancien chemin ──
+  const filesContent: any[] = [];
+  let pdfWarning = "";
+  if (filesArray.length > 0) {
+    let totalSize = 0;
+    for (const f of filesArray) totalSize += (f.base64?.length || 0);
+    if (totalSize > 27_000_000) { // ~20 Mo in base64
+      return new Response(
+        JSON.stringify({ error: "La taille totale des fichiers dépasse 20 Mo. Réduis le nombre ou la taille des fichiers." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // Anthropic limit: max 5 PDFs
+    let pdfCount = 0;
+    for (const f of filesArray.slice(0, 10)) {
+      if (f.mimeType === "application/pdf") {
+        pdfCount++;
+        if (pdfCount > 5) {
+          pdfWarning = "\n⚠️ Note : seuls les 5 premiers PDFs ont été analysés (limite technique).";
+          continue;
+        }
+        filesContent.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } });
+      } else if (f.mimeType?.startsWith("image/")) {
+        filesContent.push({ type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } });
+      }
+    }
+  }
+
+  // ── 1. PLAN (Haiku, tool forcé) : analyse, angle par format, synthèse ──
+  // Les fichiers ne sont envoyés qu'ICI (une fois) : la synthèse fidèle
+  // sert ensuite de source texte aux appels par format (pas de re-envoi
+  // vision × N formats).
+  const PLAN_TOOL = {
+    name: "plan_recyclage",
+    description: "Analyse du contenu source et attribution d'un angle DISTINCT à chaque format.",
+    input_schema: {
+      type: "object",
+      properties: {
+        message_central: { type: "string", description: "La thèse du contenu source en 1 phrase." },
+        synthese_source: { type: "string", description: "Synthèse FIDÈLE du contenu source (10-20 phrases) : thèse, sous-idées, exemples et anecdotes, chiffres, et les expressions typiques de l'auteure recopiées VERBATIM. N'invente rien." },
+        angles: {
+          type: "array",
+          description: "Un élément par format demandé.",
+          items: {
+            type: "object",
+            properties: {
+              format: { type: "string", description: "Le nom du format tel que fourni." },
+              sous_idee: { type: "string", description: "La sous-idée de la source attribuée à ce format." },
+              angle: { type: "string", description: "L'angle d'attaque, clairement différent des autres formats." },
+            },
+            required: ["format", "sous_idee", "angle"],
+          },
+        },
+      },
+      required: ["message_central", "synthese_source", "angles"],
+    },
+  };
+
+  const planUsage: UsageSink = {};
+  let plan: any = null;
+  try {
+    const planText = `Analyse ce contenu source pour le recycler en ${fmtIds.length} format(s) : ${requestedLabels.join(", ")}.
+
+Matrice d'affinités pour l'attribution :
+- Carrousel : l'idée la plus PÉDAGOGIQUE.
+- Reel : l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE.
+- Stories : l'angle le plus INTIME ou PERSONNEL.
+- LinkedIn : l'angle le plus ENGAGÉ (prise de position).
+- Newsletter : l'angle le plus PROFOND (réflexion complète).
+
+Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
+    const planRaw = await callAnthropic({
+      model: getModelForAction("questions"),
+      system: "Tu prépares le recyclage d'un contenu en plusieurs formats. Tu es FIDÈLE à la source : tu n'inventes aucun fait, aucun chiffre, aucune anecdote.",
+      messages: [{ role: "user", content: [...filesContent, { type: "text", text: planText }] }],
+      max_tokens: 2048,
+      abortTimeoutMs: 60000,
+      tool: PLAN_TOOL,
+    }, planUsage);
+    plan = tryParseAiJson<any>(planRaw, "creative-flow:recycle-plan");
+  } catch (e: any) {
+    console.warn("[creative-flow] recycle: plan échoué → angles libres par format", e?.message || e);
+  }
+
+  // Source des appels par format : le texte fourni, complété (ou remplacé,
+  // cas fichiers-seuls) par la synthèse du plan.
+  const sourceForFormats = [
+    sourceText ? `"""\n${sourceText}\n"""` : "",
+    filesArray.length > 0 && plan?.synthese_source ? `SYNTHÈSE FIDÈLE DES FICHIERS SOURCES :\n"""\n${plan.synthese_source}\n"""` : "",
+  ].filter(Boolean).join("\n\n");
+  if (!sourceForFormats) {
+    return new Response(
+      JSON.stringify({ error: "Impossible d'analyser les fichiers sources. Réessaie." }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const angleFor = (f: string): { sous_idee?: string; angle?: string } => {
+    const arr = Array.isArray(plan?.angles) ? plan.angles : [];
+    const label = (formatLabels[f] || f).toLowerCase();
+    const found = arr.find((a: any) => {
+      const af = String(a?.format || "").toLowerCase();
+      return af && (af.includes(label) || label.includes(af) || af.includes(f.toLowerCase()));
+    });
+    return found || arr[fmtIds.indexOf(f)] || {};
+  };
+
+  // ── 2. UN appel Sonnet PAR FORMAT, en parallèle ──
+  const runFormat = async (f: string) => {
+    const label = formatLabels[f] || f;
+    const a = angleFor(f);
+    const others = fmtIds
+      .filter((x) => x !== f)
+      .map((x) => {
+        const ox = angleFor(x);
+        return `- ${formatLabels[x] || x}${ox.angle ? ` : ${ox.angle}` : ""}`;
+      })
+      .join("\n");
+    const angleBlock = a.angle
+      ? `\n\nTON ANGLE (imposé par le plan éditorial, respecte-le) :\n- Sous-idée : ${a.sous_idee || ""}\n- Angle : ${a.angle}${others ? `\n\nLes AUTRES formats couvrent déjà ces angles — ne les reprends PAS :\n${others}` : ""}`
+      : (others ? `\n\nD'autres formats recyclent aussi ce contenu (${fmtIds.filter((x) => x !== f).map((x) => formatLabels[x] || x).join(", ")}) : prends un angle qui leur laisse de la place.` : "");
+    const fUsage: UsageSink = {};
+    const raw = await callAnthropicSimple(
+      getModelForAction("content"),
+      buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
+      `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
+      f === "linkedin" ? 0.7 : 0.85,
+      4096,
+      fUsage,
+    );
+    const parsed = tryParseAiJson<any>(raw, `creative-flow:recycle:${f}`);
+    let resultVal = parsed?.results?.[f]
+      ?? (parsed?.results && typeof parsed.results === "object" ? Object.values(parsed.results)[0] : null);
+    const topicVal = parsed?.topics?.[f]
+      ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
+    if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
+
+    // Le carrousel recyclé (objet structuré {slides, caption}) passe par la
+    // MÊME garde rédactionnelle que /creer (carousel-ai) : anti-tics, chiffres
+    // sans source, hashtags normalisés (cap 3), quality_check calculé. Sans
+    // ça, un carrousel « Recycler » échappait à tout l'audit qualité (12/07).
+    // La re-passe LLM ne se déclenche QUE si des violations sont mesurées.
+    if ((f === "carrousel" || f === "carousel") && resultVal && typeof resultVal === "object" && Array.isArray(resultVal.slides)) {
+      try {
+        const gated = await runRedacGate(JSON.stringify(resultVal), {
+          isLinkedIn: false,
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5" },
+          // Liste blanche des chiffres : ceux de la source recyclée (le contenu
+          // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
+          inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
+        });
+        const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
+        if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
+        await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id, typeof topicVal === "string" ? topicVal : undefined);
+      } catch (e) {
+        console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
+      }
+    }
+    return { f, resultVal, topicVal, usage: fUsage };
+  };
+
+  const settled: (Awaited<ReturnType<typeof runFormat>> | null)[] = await Promise.all(
+    fmtIds.map((f) => runFormat(f).catch((e) => {
+      console.error(`[creative-flow] recycle: format ${f} en échec (1er essai)`, e?.message || e);
+      return null;
+    })),
+  );
+  // 2e chance séquentielle pour les formats tombés (surcharge transitoire) —
+  // un format qui échoue n'emporte plus les autres.
+  for (let i = 0; i < fmtIds.length; i++) {
+    if (!settled[i]) {
+      settled[i] = await runFormat(fmtIds[i]).catch((e) => {
+        console.error(`[creative-flow] recycle: format ${fmtIds[i]} abandonné après 2 essais`, e?.message || e);
+        return null;
+      });
+    }
+  }
+
+  const ok = settled.filter(Boolean) as Awaited<ReturnType<typeof runFormat>>[];
+  if (ok.length === 0) {
+    // Aucun crédit consommé sur une génération entièrement ratée (pas de logUsage).
+    return new Response(
+      JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const results: Record<string, unknown> = {};
+  const topics: Record<string, unknown> = {};
+  for (const r of ok) {
+    results[r.f] = r.resultVal;
+    if (r.topicVal) topics[r.f] = r.topicVal;
+  }
+  const failedFormats = fmtIds.filter((f) => !(f in results));
+
+  const totalTokens = (planUsage.total_tokens || 0) + ok.reduce((s, r) => s + (r.usage.total_tokens || 0), 0);
+  await logUsage(userId, "content", "creative_flow", totalTokens || undefined, ok[0]?.usage.model, workspace_id);
+  console.log(JSON.stringify({
+    type: "recycle_timing",
+    formats: fmtIds.length,
+    failed: failedFormats.length,
+    with_files: filesArray.length,
+    duration_ms: Date.now() - tRecycle,
+  }));
+  return new Response(
+    JSON.stringify({ results, topics, ...(failedFormats.length > 0 ? { failed_formats: failedFormats } : {}) }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
+
+// ═══ NORMALISATION HOOKS (lot 7) ═══
+// Le tool forcé garantit le JSON de TRANSPORT, pas les types internes : vu en
+// live au premier test (12/07), le modèle peut remplir `hooks` avec une STRING
+// JSON au lieu du tableau d'objets. On déballe en déterministe — sinon le front
+// tombe en fallback « Continuer sans choisir » alors que les hooks existent.
+// Mute `parsed` en place ; retourne une Response à court-circuiter si aucun
+// hook n'est récupérable (« 200 menteur »), sinon null pour continuer.
+function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: string; corsHeaders: Record<string, string> }): Response | null {
+  const { body, rawContent, corsHeaders } = params;
+  // Forme reçue AVANT normalisation : c'est la seule trace exploitable le
+  // jour où l'écran des angles retombe à zéro (03/08 : aucun log ne disait
+  // par quelle branche le tableau s'était vidé).
+  const shapeIn = Array.isArray(parsed.hooks)
+    ? `array[${parsed.hooks.length}]`
+    : typeof parsed.hooks;
+  if (typeof parsed.hooks === "string") {
+    const inner = tryParseAiJson<any>(parsed.hooks, "creative-flow:hooks-unwrap");
+    parsed.hooks = Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : [];
+  }
+  if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
+  // Entrées en simple CHAÎNE : même dérive que le `hooks` stringifié du
+  // 12/07, un cran plus bas (le modèle liste les phrases sans les
+  // envelopper). Récupérable → on reconstruit l'objet minimal. Le front
+  // n'affiche que les champs présents, il ne manquera qu'un badge.
+  parsed.hooks = parsed.hooks.map((h: any) =>
+    typeof h === "string" && h.trim() ? { text: h.trim() } : h
+  );
+  // Objets valides uniquement : un hook sans texte parlé est inutilisable.
+  parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
+  // Élisions déterministes AVANT affichage : le hook choisi est ensuite
+  // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
+  // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
+  for (const h of parsed.hooks) fixElisionsInFields(h, ["text", "text_overlay"]);
+
+  // ZÉRO angle récupérable = échec, pas un succès. Un 200 avec `hooks: []`
+  // est un « 200 menteur » : le front le lisait comme une réponse valide et
+  // n'avait plus qu'un `throw new Error("empty")` illisible à afficher.
+  if (parsed.hooks.length === 0) {
+    console.warn(JSON.stringify({
+      type: "hooks_vides",
+      shape_in: shapeIn,
+      exclude_count: Array.isArray((body as Record<string, unknown>).exclude_hooks)
+        ? ((body as Record<string, unknown>).exclude_hooks as unknown[]).length
+        : 0,
+      raw: String(rawContent || "").slice(0, 500),
+    }));
+    return new Response(
+      JSON.stringify({ error: "Je n'ai pas réussi à préparer les angles d'attaque. Réessaie, ou laisse l'IA choisir." }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  return null;
+}
+
+// ═══ PASSE DE CORRECTION LinkedIn ═══
+// Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
+// spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
+// En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
+// (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
+// injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
+async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string }): Promise<void> {
+  const { body, fullContext } = params;
+  try {
+    // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
+    // passe de correction existante — retournements (1 max), formules
+    // moulées, chiffres sans source (liste blanche = brief + réponses + actu).
+    const liAllowed = numbersIn([
+      typeof body.context === "string" ? body.context : "",
+      body.answers ? JSON.stringify(body.answers) : "",
+      typeof body.news_context === "string" ? body.news_context : "",
+      fullContext || "",
+    ].join("\n"));
+    const liRedac = analyzeTextRedac(parsed.content, liAllowed);
+    const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
+      logger: (msg) => console.log(msg),
+      // Édition mécanique à règles fermées → Haiku (cf. #364)
+      model: "claude-haiku-4-5",
+      extraInstructions: buildTextFixInstructions(liRedac) || undefined,
+    });
+    if (corrected && corrected.length >= 100) {
+      parsed.content = corrected;
+    }
+  } catch (corrErr) {
+    console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
+  }
+  // Filet déterministe (hors try : s'applique même si la passe a échoué) :
+  // élisions manquantes type « le avant/après » (vécu 21/07).
+  fixElisionsInFields(parsed, ["content", "accroche"]);
+}
+
+// ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
+// Le reel était le seul format riche sans filet post-génération. Trois étages :
+// 1. face_cam=non : enforcement déterministe de la structure (format_type,
+//    format_visuel, plan_tournage) — la passe texte ne touche pas ces champs.
+// 2. Correction JSON-aware (textes seuls, via bloc balisé) avec instructions
+//    ciblées mesurées en code : chiffres sans source (redac-gate) + fuites de
+//    gabarit ("SAUVEGARDE", "Nouveau Reel" : 8/8 au corpus d'audit).
+// 3. Recalibrage déterministe des durées : la durée affichée découle du texte
+//    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
+//    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
+async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string }): Promise<void> {
+  const { body, effectiveObjective, fullContext } = params;
+  if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
+    console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
+  }
+  // Hook CHOISI à l'étape hook_selection : verrouillé sur la section 1 AVANT
+  // la correction (la génération peut paraphraser, la correction peut « améliorer » —
+  // ni l'une ni l'autre ne décide à la place de l'utilisatrice).
+  const hasChosenHook = enforceSelectedReelHook(parsed, body.selected_hook);
+  try {
+    const reelAllowed = numbersIn([
+      typeof body.context === "string" ? body.context : "",
+      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      body.selected_hook ? JSON.stringify(body.selected_hook) : "",
+      typeof body.news_context === "string" ? body.news_context : "",
+      fullContext || "",
+    ].join("\n"));
+    const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed);
+    const extras: string[] = [];
+    const redacFix = buildTextFixInstructions(reelRedac);
+    if (redacFix) extras.push(redacFix);
+    const leaks = reelTemplateLeaks(parsed);
+    if (leaks.length) {
+      extras.push(`FUITES DE GABARIT DÉTECTÉES (réécris chacune) :\n${leaks.map((l) => `- ${l}`).join("\n")}`);
+    }
+    if (body.face_cam === "non") {
+      extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
+    }
+    if (hasChosenHook || (typeof body.selected_hook?.text === "string" && body.selected_hook.text.trim() && !body.selected_hook.text.trim().startsWith("("))) {
+      extras.push(`LE HOOK ([SECTION 1 - PARLE] et [SECTION 1 - OVERLAY]) A ÉTÉ CHOISI PAR L'UTILISATRICE : recopie-le STRICTEMENT à l'identique, ne le réécris sous aucun prétexte (la règle "hook faible" ne s'applique pas à lui).`);
+    }
+    // Plafond de mots par objectif (calibrage du brief), mesuré en code :
+    // au re-test post-#527, la visibilité sortait encore à ~95 mots (cible
+    // 40-80). La durée affichée est honnête (recalibrage), mais un reel
+    // reach doit rester court → coupe pilotée par la passe de correction.
+    const reelWordCap = effectiveObjective === "visibilite" ? 80
+      : (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") ? 190
+      : 150;
+    const reelWords = countReelSpokenWords(parsed);
+    if (reelWords > reelWordCap) {
+      extras.push(`TROP LONG POUR L'OBJECTIF "${effectiveObjective || "standard"}" : ${reelWords} mots parlés, plafond ${reelWordCap}. COUPE le texte parlé à ${reelWordCap} mots maximum : supprime les redites, la mise en contexte longue et les exemples secondaires. Ne touche PAS à la couche mécanisme (le POURQUOI) ni au hook. C'est une exception explicite à la règle "±10 %".`);
+    }
+    // Édition mécanique à règles fermées → Haiku (même choix que LinkedIn/carrousel).
+    const corrected = await applyCorrectionPassReel(parsed, {
+      logger: (msg) => console.log(msg),
+      model: "claude-haiku-4-5",
+      extraInstructions: extras.length ? extras.join("\n\n") : undefined,
+    });
+    if (corrected && typeof corrected === "object") {
+      Object.assign(parsed, corrected);
+    }
+  } catch (corrErr) {
+    console.error("[creative-flow] correction-pass reel failed:", corrErr);
+  }
+  // Filets déterministes TOUJOURS appliqués, même si la correction a échoué :
+  // - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
+  // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
+  //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
+  // - timings recomptés sur la version FINALE du texte.
+  enforceSelectedReelHook(parsed, body.selected_hook);
+  applyReelElisions(parsed);
+  rebuildReelLectureTest(parsed);
+  recalibrateReelTimings(parsed);
+  // La prise face cam du plan de tournage doit couvrir le monologue recompté
+  // (le modèle recopie la durée de l'exemple du prompt sans la relier au script).
+  alignFaceCamTakeDuration(parsed);
+}
+
+// ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
+// La consigne « majorité de fonds photo » du brief est probabiliste et fuit
+// (séquences quasi entières en fond_couleur). Garde déterministe, appliquée
+// AVANT la résolution bibliothèque pour que les stories basculées soient
+// éligibles au placement de photos. photo_index (petit entier émis par l'IA)
+// → photo_id (UUID user_photos) : correspondance stricte, jamais deux stories
+// sur la même photo, et uniquement quand la story attend un fond photo.
+function applyStoriesPhotoGuardAndResolution(parsed: any, params: { storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] }): void {
+  const { storiesPhotoCatalog } = params;
+  enforceStoriesPhotoFirst(parsed);
+
+  if (storiesPhotoCatalog.length > 0 && Array.isArray(parsed?.stories)) {
+    const byIndex = new Map(storiesPhotoCatalog.map((c) => [c.index, c]));
+    const usedPhotoIds = new Set<string>();
+    for (const s of parsed.stories) {
+      const v = s?.visual;
+      if (!v || typeof v !== "object") continue;
+      const idx = typeof v.photo_index === "number" ? v.photo_index : null;
+      delete v.photo_index;
+      if (idx === null) continue;
+      const cat = byIndex.get(idx);
+      if (!cat || v.background !== "photo" || usedPhotoIds.has(cat.id)) continue;
+      v.photo_id = cat.id;
+      v.photo_library_description = cat.description;
+      usedPhotoIds.add(cat.id);
+    }
+    // Garantie lot D : toute photo CHOISIE par l'utilisatrice que l'IA n'a
+    // pas placée est distribuée aux stories à fond photo restées sans photo,
+    // dans l'ordre de la séquence. Ses photos finissent TOUJOURS dans le
+    // résultat (c'était la demande de base du parcours).
+    const leftoverPreferred = storiesPhotoCatalog.filter(
+      (c) => c.preferred && !usedPhotoIds.has(c.id),
+    );
+    if (leftoverPreferred.length > 0) {
+      for (const s of parsed.stories) {
+        if (leftoverPreferred.length === 0) break;
+        const v = s?.visual;
+        if (!v || typeof v !== "object") continue;
+        if (v.background !== "photo" || v.photo_id) continue;
+        const next = leftoverPreferred.shift()!;
+        v.photo_id = next.id;
+        v.photo_library_description = next.description;
+        usedPhotoIds.add(next.id);
+      }
+    }
+  }
+}
+
+// ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
+// Les carrousels loggent leur score de gate à chaque génération (Brique 1,
+// content_quality_events) → le juge du bilan hebdo les note. Les autres
+// formats en étaient absents (angle mort connu). Mesure LÉGÈRE
+// (analyzeTextRedac, zéro appel LLM) sur le texte FINAL, MÊME formule de
+// score que redacScore sur les dimensions du texte libre (retournements /
+// formules moulées / chiffres inventés), + aperçu pour l'échantillon du juge.
+// Fire-and-forget : logContentQuality n'interrompt jamais la génération et
+// exclut déjà les comptes QA. La newsletter (retour SSE anticipé) se logge
+// dans son propre bloc ; le LinkedIn STREAMÉ reste hors couverture ici (il
+// ne passe pas par cette queue) — angle mort résiduel connu.
+async function logGenerationQualityTelemetry(parsed: any, params: {
+  userId: string;
+  context: string;
+  body: any;
+  newsContext?: string | null;
+  fullContext: string;
+  finalUsage: UsageSink;
+  workspace_id?: string | null;
+  isStories: boolean;
+  isReel: boolean;
+  isLinkedIn: boolean;
+}): Promise<void> {
+  const { userId, context, body, newsContext, fullContext, finalUsage, workspace_id, isStories, isReel, isLinkedIn } = params;
+  const qualityAllowed = () =>
+    numbersIn([
+      typeof context === "string" ? context : "",
+      body.answers ? JSON.stringify(body.answers) : "",
+      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      typeof newsContext === "string" ? newsContext : "",
+      fullContext || "",
+    ].join("\n"));
+  const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
+    try {
+      const a = analyzeTextRedac(text, qualityAllowed());
+      const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+      const score = Math.max(40, 100 - 10 * violations);
+      await logContentQuality(
+        userId,
+        format,
+        { score, violations, repassed: false, content: JSON.stringify(previewDoc) },
+        finalUsage.model,
+        workspace_id ?? undefined,
+        typeof context === "string" ? context : undefined,
+      );
+    } catch (e) {
+      console.error(`[creative-flow] log qualité ${format} ignoré (génération intacte):`, (e as any)?.message || e);
+    }
+  };
+
+  if (isStories && Array.isArray(parsed?.stories)) {
+    const storiesText = parsed.stories.map((s: any) => (typeof s?.text === "string" ? s.text : "")).filter(Boolean).join("\n\n");
+    await logTextQuality("stories", storiesText, { stories: parsed.stories });
+  } else if (isReel && Array.isArray(parsed?.script)) {
+    await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
+  } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
+    await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content });
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -499,570 +1688,57 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     };
 
     if (step === "angles") {
-      const editorialCtx = editorialFormatLabel
-        ? `\nFORMAT ÉDITORIAL CHOISI : "${editorialFormatLabel}"\nL'utilisatrice a choisi ce format parmi les 13 angles éditoriaux. Les 3 angles proposés doivent être des VARIATIONS de "${editorialFormatLabel}", pas des formats complètement différents.\nChaque angle prend un POINT D'ENTRÉE différent dans le sujet, mais tous suivent la logique de "${editorialFormatLabel}".\nExemple : si elle a choisi "Mythe à déconstruire", les 3 angles déconstruisent le même sujet mais avec 3 approches différentes (données vs vécu vs comparaison).\n`
-        : "";
-
-      systemPrompt = `${COMMON_PREFIX}
-
-${FRAMEWORK_SELECTION}
-
-${EDITORIAL_ANGLES_REFERENCE}
-${editorialCtx}
-CANAL : ${contentType}
-SUJET : ${context}
-${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
-${calendarBlock}
-
-Propose exactement 3 angles éditoriaux DIFFÉRENTS.
-
-Pour chaque angle :
-1. TITRE : 2-5 mots, évocateur (pas "Option 1")
-2. PITCH : 2-3 phrases qui expliquent l'approche et pourquoi ça fonctionne
-3. STRUCTURE : le squelette du contenu en 4-5 étapes${editorialFormatLabel ? ` (basé sur la structure de "${editorialFormatLabel}" dans les angles éditoriaux de référence)` : " (utilise les structures par format si le format est connu)"}
-4. TON : l'énergie et le registre émotionnel de cet angle
-5. FORMAT_LIVRAISON : le format de sortie recommandé pour cet angle (carrousel, reel, stories, caption longue, LinkedIn, newsletter)
-
-RÈGLES :
-${editorialFormatLabel ? `- Les 3 angles sont des VARIATIONS de "${editorialFormatLabel}", PAS des formats différents` : "- Les 3 angles doivent être VRAIMENT différents (pas 3 variations du même)"}
-- Chaque angle est basé sur un framework narratif DIFFÉRENT, traduit en angle créatif lisible
-- Un angle peut être surprenant ou inattendu
-- Pense à des angles que l'utilisatrice n'aurait pas trouvés seule
-${effectiveObjective ? `- Les 3 angles doivent servir l'objectif "${effectiveObjective}". Un angle "visibilité" privilégie les accroches polarisantes, un angle "vente" les preuves et témoignages.` : ""}
-- Reste cohérent avec son ton & style
-- Ne rédige RIEN. Pas d'exemple de phrases. Juste la direction.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "angles": [
-    {
-      "title": "...",
-      "pitch": "...",
-      "structure": ["étape 1", "étape 2", "étape 3", "étape 4"],
-      "tone": "...",
-      "format_livraison": "carrousel | reel | stories | caption | linkedin | newsletter"
-    }
-  ]
-}`;
-      userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
+      ({ systemPrompt, userPrompt } = buildAnglesPrompt({ COMMON_PREFIX, editorialFormatLabel, contentType, context, effectiveObjective, calendarBlock }));
 
     } else if (step === "questions") {
-      const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
-      const channelGuidance = contentType === "linkedin"
-        ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
-        : contentType === "newsletter"
-        ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
-        : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
-
-      systemPrompt = `${QUESTIONS_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
-
-══════════════════════════════════════
-SUJET COURANT — PRIORITÉ ABSOLUE
-══════════════════════════════════════
-"${context}"
-
-Tout ce qui suit (angle, branding, historique) est SECONDAIRE par rapport à ce sujet.
-Les 3 questions doivent toutes porter sur CE sujet précis.
-Si une question pourrait concerner un autre sujet, elle est invalide.
-
-══════════════════════════════════════
-ANGLE & CANAL
-══════════════════════════════════════
-- Canal : ${channelLabel}
-${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
-- Angle : ${angle.title}
-- Structure : ${(angle.structure || []).join(" → ")}
-- Ton : ${angle.tone}
-${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
-${calendarBlock}${objectiveBlock}${newsContextBlock}
-${recentBriefsContext}
-${newsContextBlock ? "\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).\n" : ""}
-
-══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
-
-Réfléchis silencieusement à :
-1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé du bloc ci-dessus)
-2. Quel vocabulaire métier de l'utilisatrice puis-je intégrer naturellement ?
-3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
-
-Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
-
-Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
-
-RÈGLES :
-1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
-2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
-3. ${channelGuidance}
-4. Questions OUVERTES (pas oui/non).
-5. VARIÉTÉ DE TYPES DE QUESTIONS OBLIGATOIRE — les 3 questions doivent utiliser des TYPES DIFFÉRENTS parmi :
-   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
-   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
-   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
-   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
-   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
-   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
-6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
-7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
-8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
-9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
-
-INTERDIT — NE FAIS JAMAIS ÇA :
-- Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
-- Questions de coaching de vie déconnectées du sujet
-- Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
-- 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
-- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
-- ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
-- Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
-
-EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
-❌ MAUVAIS MIX :
-1. "Raconte-moi un moment où tu as dû défendre ta valeur."
-2. "Raconte-moi une fois où une cliente t'a demandé une remise."
-3. "Raconte-moi comment tu as changé ta relation à l'argent."
-(= 3x le même type "raconte-moi" → monotone)
-
-✅ BON MIX :
-1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
-2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
-3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
-
-Réponds UNIQUEMENT en JSON :
-{
-  "questions": [
-    {
-      "question": "...",
-      "placeholder": "..."
-    }
-  ]
-}`;
-      userPrompt = `Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "${context}"${angle ? ` (angle "${angle.title}")` : ""}.`;
+      ({ systemPrompt, userPrompt } = buildQuestionsPrompt({
+        QUESTIONS_PREFIX,
+        brandingContext,
+        brandVocabBlock,
+        context,
+        contentType,
+        editorialFormatLabel,
+        angle,
+        calendarBlock,
+        objectiveBlock,
+        newsContextBlock,
+        recentBriefsContext,
+      }));
 
     } else if (step === "follow-up") {
-      const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
-      systemPrompt = `${QUESTIONS_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
-SUJET du contenu : "${context}"
-
-L'utilisatrice a répondu à ces 3 questions initiales :
-${answersBlock}
-
-══ TON RÔLE : creuser UN détail singulier ══
-
-Lis ses réponses comme une amie experte qui veut sortir le contenu unique.
-Identifie LE détail le plus intéressant, le plus singulier, ou le plus émotionnel — celui qui mérite d'être creusé pour passer du "post correct" au "post mémorable".
-
-Pose 1 à 2 questions de suivi MAXIMUM pour creuser CE détail spécifique.
-
-RÈGLES :
-- Cite EXPLICITEMENT le détail que tu creuses (ex : "Tu dis que ta cliente a pleuré quand tu as livré : qu'est-ce qu'elle a dit exactement ?")
-- Sois PRÉCISE, pas générique. Pas "Peux-tu détailler ?" mais "Cette phrase '[citation]' — c'est arrivé dans quel contexte ?"
-- Si une réponse contient un chiffre, une scène, une citation, ou une émotion forte → c'est CETTE matière qu'il faut creuser
-- Si toutes les réponses sont déjà très complètes, pose 1 SEULE question (pas 2) — ne creuse pas pour creuser
-- Le ${"\""}why${"\""} explique en 1 phrase pourquoi cette question rendra le contenu plus singulier
-
-Réponds UNIQUEMENT en JSON :
-{
-  "follow_up_questions": [
-    {
-      "question": "...",
-      "placeholder": "...",
-      "why": "..."
-    }
-  ]
-}`;
-      userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
+      ({ systemPrompt, userPrompt } = buildFollowUpPrompt({ QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, answers }));
 
     } else if (step === "hooks") {
-      // Lot 7 reels : proposer 3 angles d'attaque AVANT la génération complète.
-      // Étape gratuite (hors BILLED_STEPS) ; le hook choisi repart en selected_hook.
-      const answersBlock = answers?.length
-        ? "\n\nMATIÈRE DU BRIEF (réponses de l'utilisatrice, sa vraie voix) :\n" +
-          answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
-        : "";
-      const excludeRaw = (body as Record<string, unknown>).exclude_hooks;
-      const excludeHooks: string[] = Array.isArray(excludeRaw)
-        ? excludeRaw.filter((x: unknown): x is string => typeof x === "string").slice(0, 12)
-        : [];
-      const excludeBlock = excludeHooks.length
-        ? `\n\nHOOKS DÉJÀ PROPOSÉS, REFUSÉS PAR L'UTILISATRICE :\n${excludeHooks.map((h) => `- "${h}"`).join("\n")}\nINTERDIT de les reproposer, même reformulés. Change d'angle, pas juste de mots.`
-        : "";
-      const noFaceCam = body.face_cam === "non";
-
-      systemPrompt = `${COMMON_PREFIX}
-
-TA MISSION : proposer 3 HOOKS d'ouverture pour un REEL Instagram sur le sujet donné.
-Le hook = les 3 premières secondes. 50 % des viewers scrollent avant la 3e seconde :
-c'est LE levier de rétention. L'utilisatrice choisit UN hook, le script complet sera
-écrit dessus.
-
-RÈGLES ABSOLUES :
-1. Les 3 hooks sont de TYPES DIFFÉRENTS, choisis parmi :
-   - vecu_perso (« Vécu perso ») : un moment vécu, raconté en Je. UNIQUEMENT si la
-     matière du brief contient un vrai vécu — n'invente JAMAIS une anecdote.
-   - contre_intuition (« Contre-intuition ») : affirmation qui renverse une croyance.
-   - objection_retournee (« Objection retournée ») : la phrase qu'on lui oppose, puis le retournement.
-   - question_choc (« Question choc ») : question qui pique, jamais rhétorique molle.
-   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), sec, sans emballage.
-   - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
-2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
-   ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
-3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
-   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
-4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
-5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
-   SA matière (contexte de marque ci-dessus).
-5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
-   jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
-   « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.
-6. format_recommande = la structure que ce hook appelle naturellement
-   (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
-   cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
-7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
-   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${excludeBlock}`;
-      userPrompt = `SUJET DU REEL : "${context || "?"}"
-Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
-
-Propose-moi 3 hooks de types différents pour ce reel.`;
+      ({ systemPrompt, userPrompt } = buildHooksPrompt({
+        COMMON_PREFIX,
+        answers,
+        excludeHooksRaw: (body as Record<string, unknown>).exclude_hooks,
+        faceCam: body.face_cam,
+        context,
+        effectiveObjective,
+        objective,
+      }));
 
     } else if (step === "generate") {
-      const answersBlock = answers?.length
-        ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
-        : "";
-      const followUpBlock = followUpAnswers?.length
-        ? "\n\nQUESTIONS D'APPROFONDISSEMENT :\n" + followUpAnswers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
-        : "";
-
-      // Format variables (isLinkedIn, isCarousel, etc.) are defined in outer scope
-
-      // Build format-specific depth instructions
-      let depthMandate = "";
-      let storiesGardeFouAlerte: string | null = null;
-      if (isCarousel) {
-        depthMandate = carouselBrief();
-      } else if (isReel) {
-        depthMandate = reelBrief({
-          effectiveObjective,
-          face_cam: body.face_cam,
-          time_available: body.time_available,
-          is_launch: body.is_launch,
-          selected_hook: body.selected_hook,
-          pre_gen_answers: body.pre_gen_answers,
-          subject: context,
-          editorial_angle: body.editorial_angle,
-          content_structure: body.content_structure,
-          inspiration_context: body.inspiration_context,
-        });
-      } else if (isStories) {
-        // Garde-fou : 3 séquences vente sur 7 jours (migré depuis stories-ai)
-        if (effectiveObjective === "vente") {
-          const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-          const gardeFouCol = workspace_id ? "workspace_id" : "user_id";
-          const gardeFouVal = workspace_id || userId;
-          const { count } = await supabase
-            .from("stories_sequences")
-            .select("id", { count: "exact", head: true })
-            .eq(gardeFouCol, gardeFouVal)
-            .eq("objective", "vente")
-            .gte("created_at", sevenDaysAgo);
-          if ((count ?? 0) >= 3) {
-            storiesGardeFouAlerte = "⚠️ Tes stories récentes sont très orientées vente. Reviens à de la connexion ou de l'éducation pour maintenir la confiance. Ratio sain : 80% connexion/éducation, 20% vente.";
-          }
-        }
-        // Catalogue bibliothèque (lot B) : l'IA écrit la séquence en SACHANT
-        // quelles photos existent (descriptions écrites par photo-describe à
-        // l'upload). Index courts dans le prompt (jamais d'UUID : trop long,
-        // risque de recopie erronée) ; la résolution index → id se fait après
-        // le parse, côté edge, de façon déterministe.
-        // Lot D : les photos CHOISIES à l'étape format (preferred_photo_ids)
-        // passent en tête du catalogue, marquées « chosen » — le brief les
-        // traite en priorité absolue et le post-parse garantit leur placement.
-        {
-          const catCol = workspace_id ? "workspace_id" : "user_id";
-          const catVal = workspace_id || userId;
-          const rawPreferred = (body as Record<string, unknown>).preferred_photo_ids;
-          const preferredIds: string[] = Array.isArray(rawPreferred)
-            ? rawPreferred.filter((x: unknown): x is string => typeof x === "string").slice(0, 10)
-            : [];
-          const { data: catRows, error: catErr } = await supabase
-            .from("user_photos")
-            .select("id, description")
-            .eq(catCol, catVal)
-            .eq("status", "ready")
-            .order("created_at", { ascending: false })
-            .limit(60);
-          if (catErr) {
-            // Jamais bloquant : sans catalogue, la génération garde le
-            // comportement historique (directives seules).
-            console.warn("[creative-flow] catalogue photos illisible:", catErr.message);
-          }
-          type CatRow = { id: string; description: string | null };
-          const rows = (catRows || []) as CatRow[];
-          // Les préférées passent MÊME sans description (photo fraîchement
-          // uploadée, describe encore en cours) ; le reste doit être décrit.
-          const preferredRows = preferredIds
-            .map((id) => rows.find((r) => r.id === id))
-            .filter((r): r is CatRow => !!r);
-          const otherRows = rows
-            .filter(
-              (r) =>
-                !preferredIds.includes(r.id) &&
-                typeof r.description === "string" &&
-                r.description.trim().length > 0,
-            )
-            .slice(0, Math.max(0, 40 - preferredRows.length));
-          storiesPhotoCatalog = [...preferredRows, ...otherRows].map((r, i) => ({
-            index: i + 1,
-            id: r.id,
-            description:
-              typeof r.description === "string" && r.description.trim().length > 0
-                ? r.description.trim()
-                : "photo choisie par l'utilisatrice (pas encore décrite)",
-            preferred: preferredIds.includes(r.id),
-          }));
-        }
-        depthMandate = storiesBrief({
-          objective: effectiveObjective,
-          price_range: body.price_range,
-          time_available: body.time_available,
-          face_cam: body.face_cam,
-          is_launch: body.is_launch,
-          gardeFouAlerte: storiesGardeFouAlerte,
-          pre_gen_answers: body.pre_gen_answers,
-          subject: context,
-          photo_catalog: storiesPhotoCatalog.map(({ index, description, preferred }) => ({
-            index,
-            description,
-            chosen: preferred || undefined,
-          })),
-        });
-      } else if (isLinkedIn) {
-        depthMandate = linkedinBrief(editorialFormat);
-      } else if (isPinterest) {
-        depthMandate = pinterestBrief(pinterest_link, pinterest_board);
-      } else if (isNewsletter) {
-        depthMandate = newsletterBrief();
-      } else if (isPhotoMode) {
-        depthMandate = photoCaptionBrief(body.photo_description);
-      } else {
-        depthMandate = captionBrief(effectiveObjective);
-      }
-
-      systemPrompt = `${COMMON_PREFIX}
-
-${ANTI_BIAS}
-
-${isLinkedIn || isPinterest || isNewsletter ? "" : FORMAT_STRUCTURES}
-
-${isLinkedIn || isPinterest ? "" : WRITING_RESOURCES}
-
-${isLinkedIn || isPinterest || isNewsletter ? "" : VISUAL_ANALOGIES}
-
-${angle ? `ANGLE CHOISI :
-- Titre : ${angle.title}
-- Structure : ${(angle.structure || []).join(" → ")}
-- Ton : ${angle.tone}` : "Pas d'angle spécifique choisi. Choisis le meilleur angle pour le sujet."}
-
-SUJET DE L'UTILISATRICE :
-"""
-${context}
-"""
-Le contenu DOIT parler de ce sujet. Les réponses aux questions ci-dessous enrichissent le sujet mais ne le remplacent pas.
-
-CANAL : ${contentType || "Post Instagram"}
-${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
-${angle?.format_livraison ? `FORMAT DE LIVRAISON : ${angle.format_livraison}` : ""}
-
-${depthMandate}
-
-RÉPONSES DE L'UTILISATRICE :
-${answersBlock}
-${followUpBlock}
-${calendarBlock}${objectiveBlock}${newsContextBlock}
-${preGenBlock}
-
-RÈGLE ANTI-FABRICATION :
-N'invente JAMAIS une anecdote, un cas client ou un chiffre que l'utilisatrice n'a pas écrit.
-Pas de vécu fourni → angle expert : décryptage, constat décalé, prise de position.
-
-${PREGEN_INJECTION_RULES}
-
-═══════════════════════════════════════════════════
-PROFONDEUR (RÈGLE ABSOLUE)
-═══════════════════════════════════════════════════
-
-Tu ne fais JAMAIS de contenu de surface. Chaque contenu doit donner au lecteur quelque chose qu'il ne savait pas, qu'il n'avait pas vu comme ça, ou qu'il n'aurait pas formulé aussi bien.
-
-Profondeur = au moins UN de ces éléments dans chaque contenu :
-1. Un EXEMPLE CONCRET (pas "par exemple, imagine que..." mais une vraie situation, un vrai cas, un vrai chiffre)
-2. Un MÉCANISME EXPLIQUÉ (le "pourquoi" derrière le "quoi" : pourquoi ça marche, pourquoi on se trompe, pourquoi c'est contre-intuitif)
-3. Une NUANCE qui surprend (le "oui, mais" ou le "sauf que" qui empêche le contenu d'être un conseil générique)
-4. Un LIEN INATTENDU (connecter le sujet à un domaine auquel personne n'avait pensé)
-
-Si ton contenu pourrait être écrit par n'importe quel compte de la même niche, c'est pas assez profond. Ce qui le rend unique, c'est le point de vue, les exemples, et les nuances de l'utilisatrice.
-
-Les gens scrollent les contenus qui DISENT des choses qu'ils savaient déjà.
-Ils s'arrêtent sur les contenus qui leur font VOIR les choses autrement.
-
-═══════════════════════════════════════════════════
-SELF-CHECK (fais-le en interne avant de répondre)
-═══════════════════════════════════════════════════
-
-Avant de retourner le JSON, vérifie :
-1. Est-ce que le contenu a au moins 1 exemple concret ? (pas une généralité)
-2. Est-ce que l'accroche est assez forte pour stopper le scroll ?
-3. Est-ce que j'ai utilisé les MOTS de l'utilisatrice (ses réponses, ses expressions) ?
-4. Est-ce que le contenu dit quelque chose de SPÉCIFIQUE (qu'on ne pourrait pas copier-coller pour un autre sujet) ?
-5. Est-ce que la longueur respecte le format demandé ?
-6. Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
-Si une réponse est NON, RÉÉCRIS avant de retourner.
-
-═══════════════════════════════════════════════════
-DERNIÈRES VÉRIFICATIONS (À APPLIQUER APRÈS RÉDACTION)
-═══════════════════════════════════════════════════
-
-${CHAIN_OF_THOUGHT}
-
-ANTI-SLOP FINAL — Relis ton output et vérifie :
-1. Contient-il un marqueur IA banni (rafale de phrases courtes, "Et là tout a basculé", storytelling fabriqué) ? → Réécris la phrase.
-2. Chaque phrase ajoute-t-elle une information NOUVELLE ? → Supprime toute redondance.
-3. Pourrais-tu dire ce texte à voix haute à une amie sans que ça sonne bizarre ? → Simplifie ce qui coince.
-4. Le texte fait-il la bonne longueur ? Si tu peux dire la même chose en moins de mots → Coupe.
-Retourne UNIQUEMENT la version finale corrigée.
-
-${variation && previousContent ? `
-═══════════════════════════════════════════════════
-MODE RÉÉCRITURE : VERSION ALTERNATIVE
-═══════════════════════════════════════════════════
-
-L'utilisatrice a déjà reçu cette version et veut AUTRE CHOSE :
-"""
-${previousContent.slice(0, 2000)}
-"""
-
-Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
-- Accroche DIFFÉRENTE : pas la même reformulée, une AUTRE approche (si la v1 commençait par une question, commence par une affirmation choc ; si la v1 était un constat, commence par une anecdote)
-- Point d'entrée DIFFÉRENT dans le sujet (si la v1 partait du problème, pars de la solution ; si la v1 était éducative, sois émotionnelle)
-- Le message central reste cohérent mais l'angle d'attaque change
-- Ne fais PAS une variation cosmétique (mêmes idées avec d'autres mots). Fais une VRAIE alternative.
-` : ""}
-Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
-Le contenu doit être PRÊT À POSTER (pas un brouillon).
-
-${isReel || isStories ? `` : isNewsletter ? `Un email part en TEXTE BRUT : aucune valeur ne doit contenir de markdown (**gras**, *italique*, ## titres) — les astérisques s'afficheraient tels quels chez le lecteur. Pour un aparté, utilise des parenthèses.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
-  "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
-  "content": "corps complet de la newsletter (avec \\n\\n entre paragraphes)",
-  "accroche": "première phrase du corps",
-  "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
-  "format": "newsletter",
-  "pillar": "...",
-  "objectif": "...",
-  "personal_tip": "conseil d'incarnation SEULEMENT si demandé plus haut, sinon null"
-}` : `Réponds UNIQUEMENT en JSON :
-{
-  "content": "...",
-  "accroche": "...",
-  "format": "...",
-  "pillar": "...",
-  "objectif": "...",
-  "personal_tip": "conseil d'incarnation SEULEMENT si demandé plus haut, sinon null"
-}`}`;
-      // Inject launch context for stories AND reels (preserved from stories-ai / reels-ai)
-      if ((isStories || isReel) && body.launch_context) {
-        const lc = body.launch_context;
-        systemPrompt += `\n\nCONTEXTE LANCEMENT :\n- Phase : ${lc.phase || "?"}\n- Chapitre : ${lc.chapter_label || "?"}\n- Phase mentale audience : ${lc.audience_phase || "?"}\n- Objectif du slot : ${lc.objective || "?"}\n- Angle suggéré : ${lc.angle_suggestion || "?"}\nCONSIGNE : adapte le contenu à cette phase du lancement. Un contenu de phase "vente" n'a pas le même ton qu'un contenu de phase "teasing".`;
-      }
-      userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
+      const genResult = await buildGeneratePrompt({
+        supabase, userId, workspace_id, body, COMMON_PREFIX, context, contentType, editorialFormat, editorialFormatLabel,
+        angle, answers, followUpAnswers, calendarBlock, objectiveBlock, newsContextBlock, preGenBlock, effectiveObjective,
+        pinterest_link, pinterest_board, variation, previousContent,
+        isCarousel, isReel, isStories, isLinkedIn, isPinterest, isNewsletter, isPhotoMode,
+      });
+      systemPrompt = genResult.systemPrompt;
+      userPrompt = genResult.userPrompt;
+      storiesPhotoCatalog = genResult.storiesPhotoCatalog;
 
     } else if (step === "adjust") {
-      // Smart guidance based on adjustment type
-      const adjustLower = (adjustment || "").toLowerCase();
-      let adjustGuidance = "";
-      if (adjustLower.includes("long")) {
-        const isCarouselContent = currentContent?.includes("SLIDE") || currentContent?.includes("📌");
-        adjustGuidance = isCarouselContent
-          ? "AJOUTE une slide supplémentaire qui développe un point existant en profondeur. Ne rallonge pas les slides existantes."
-          : "Développe l'idée principale avec un exemple concret ou une anecdote. Ne rallonge pas artificiellement avec des transitions vides.";
-      } else if (adjustLower.includes("court")) {
-        adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde les punchlines et les exemples concrets. Ne sacrifie pas la profondeur.";
-      } else if (adjustLower.includes("punchy")) {
-        adjustGuidance = "Raccourcis les phrases longues. Ajoute des bucket brigades. L'accroche doit claquer plus fort.";
-      } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
-        adjustGuidance = "Remplace les conseils abstraits par des situations concrètes. Chaque point doit avoir un exemple terrain, un cas réel, ou un chiffre.";
-      } else if (adjustLower.includes("storytelling") || adjustLower.includes("histoire")) {
-        adjustGuidance = "Restructure autour d'une narration. Commence par un moment précis (lieu, émotion), développe la tension, puis la résolution.";
-      } else if (adjustLower.includes("chiffres") || adjustLower.includes("données") || adjustLower.includes("stats")) {
-        adjustGuidance = "Ajoute 2-3 données chiffrées. Si pas de chiffres exacts disponibles, indique [STAT À VÉRIFIER] pour que l'utilisatrice insère les vrais chiffres.";
-      }
-
-      systemPrompt = `${COMMON_PREFIX}
-
-${ANTI_BIAS}
-
-${FORMAT_STRUCTURES}
-
-${WRITING_RESOURCES}
-
-${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
-${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
-${angle ? `ANGLE : ${angle.title} (${angle.tone})` : ""}
-
-CONTENU ACTUEL :
-"""
-${currentContent}
-"""
-
-AJUSTEMENT DEMANDÉ : ${adjustment}
-${adjustGuidance ? `\nGUIDE :\n${adjustGuidance}` : ""}
-
-Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
-Ne raccourcis JAMAIS la profondeur sauf si l'ajustement demande explicitement de raccourcir.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "..."
-}`;
-      userPrompt = `Ajuste le contenu : ${adjustment}`;
+      ({ systemPrompt, userPrompt } = buildAdjustPrompt({ COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment }));
 
     } else if (step === "recycle") {
       // Les prompts du recyclage sont construits PAR FORMAT dans le pipeline
       // parallèle dédié (plus bas, avant la section « Call Anthropic ») via
       // buildRecycleSystemPrompt. Rien à préparer ici.
     } else if (step === "dictation") {
-      systemPrompt = `${COMMON_PREFIX}
-
-${ANTI_BIAS}
-
-${WRITING_RESOURCES}
-
-L'utilisatrice a dicté ceci en mode vocal :
-"""
-${sourceText}
-"""
-
-Transforme en : ${targetFormat}
-
-RÈGLES ABSOLUES :
-- Garde SES mots. Si elle dit "le truc c'est que", utilise "le truc c'est que".
-- Garde SON rythme. Si elle fait des phrases longues qui déroulent, garde ça.
-- Garde SES expressions. Si elle dit "franchement" ou "genre", c'est sa voix.
-- NE réécris PAS dans un style "professionnel". Structure, c'est tout.
-- Tu peux couper les répétitions et les hésitations.
-- Tu peux réorganiser l'ordre pour plus de clarté.
-- Tu DOIS garder l'énergie et la personnalité de l'oral.
-
-Le résultat doit sonner comme si ELLE l'avait écrit, pas comme si une IA avait reformulé.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "..."
-}`;
-      userPrompt = `Structure ma dictée vocale en ${targetFormat}.`;
+      ({ systemPrompt, userPrompt } = buildDictationPrompt({ COMMON_PREFIX, sourceText, targetFormat }));
 
     } else {
       return new Response(JSON.stringify({ error: "Step non reconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -1677,240 +2353,8 @@ Réponds UNIQUEMENT en JSON :
     // Une seule des branches ci-dessous s'exécute → un sink partagé suffit.
     const finalUsage: UsageSink = {};
 
-    // Build files array (backward compatible)
-    const filesArray: any[] = body.files || (body.fileBase64 ? [{ base64: body.fileBase64, mimeType: body.fileMimeType, name: "fichier" }] : []);
-
-    // ═══ RECYCLAGE — PIPELINE PARALLÈLE PAR FORMAT ═══
-    // Avant : UN appel Sonnet écrivait TOUS les formats demandés (max_tokens
-    // 12288) → attente = somme des formats, et un échec/troncature emportait
-    // tout (« coche moins de formats à la fois »). Même remède que les visuels
-    // carrousel (#364) : un petit appel de PLAN (Haiku, sortie structurée)
-    // analyse la source UNE fois et attribue à chaque format sa sous-idée —
-    // la garantie anti-chevauchement est décidée là, pas ré-improvisée par
-    // chaque appel — puis UN appel Sonnet PAR FORMAT en parallèle. L'attente
-    // tombe au format le plus lent, et un format qui échoue est retenté seul
-    // sans emporter les autres.
     if (step === "recycle") {
-      const tRecycle = Date.now();
-      const fmtIds: string[] = formats || [];
-      if (fmtIds.length === 0) {
-        return new Response(JSON.stringify({ error: "Aucun format demandé." }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const recActivity = ctx?.profile?.activite || profile?.activite || "";
-      const recTarget = ctx?.profile?.cible || profile?.cible || "";
-      const recPiliers = ctx?.profile?.piliers || "";
-      const requestedLabels = fmtIds.map((f) => formatLabels[f] || f);
-
-      // ── Fichiers : mêmes validations que l'ancien chemin ──
-      const filesContent: any[] = [];
-      let pdfWarning = "";
-      if (filesArray.length > 0) {
-        let totalSize = 0;
-        for (const f of filesArray) totalSize += (f.base64?.length || 0);
-        if (totalSize > 27_000_000) { // ~20 Mo in base64
-          return new Response(
-            JSON.stringify({ error: "La taille totale des fichiers dépasse 20 Mo. Réduis le nombre ou la taille des fichiers." }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        // Anthropic limit: max 5 PDFs
-        let pdfCount = 0;
-        for (const f of filesArray.slice(0, 10)) {
-          if (f.mimeType === "application/pdf") {
-            pdfCount++;
-            if (pdfCount > 5) {
-              pdfWarning = "\n⚠️ Note : seuls les 5 premiers PDFs ont été analysés (limite technique).";
-              continue;
-            }
-            filesContent.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } });
-          } else if (f.mimeType?.startsWith("image/")) {
-            filesContent.push({ type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } });
-          }
-        }
-      }
-
-      // ── 1. PLAN (Haiku, tool forcé) : analyse, angle par format, synthèse ──
-      // Les fichiers ne sont envoyés qu'ICI (une fois) : la synthèse fidèle
-      // sert ensuite de source texte aux appels par format (pas de re-envoi
-      // vision × N formats).
-      const PLAN_TOOL = {
-        name: "plan_recyclage",
-        description: "Analyse du contenu source et attribution d'un angle DISTINCT à chaque format.",
-        input_schema: {
-          type: "object",
-          properties: {
-            message_central: { type: "string", description: "La thèse du contenu source en 1 phrase." },
-            synthese_source: { type: "string", description: "Synthèse FIDÈLE du contenu source (10-20 phrases) : thèse, sous-idées, exemples et anecdotes, chiffres, et les expressions typiques de l'auteure recopiées VERBATIM. N'invente rien." },
-            angles: {
-              type: "array",
-              description: "Un élément par format demandé.",
-              items: {
-                type: "object",
-                properties: {
-                  format: { type: "string", description: "Le nom du format tel que fourni." },
-                  sous_idee: { type: "string", description: "La sous-idée de la source attribuée à ce format." },
-                  angle: { type: "string", description: "L'angle d'attaque, clairement différent des autres formats." },
-                },
-                required: ["format", "sous_idee", "angle"],
-              },
-            },
-          },
-          required: ["message_central", "synthese_source", "angles"],
-        },
-      };
-
-      const planUsage: UsageSink = {};
-      let plan: any = null;
-      try {
-        const planText = `Analyse ce contenu source pour le recycler en ${fmtIds.length} format(s) : ${requestedLabels.join(", ")}.
-
-Matrice d'affinités pour l'attribution :
-- Carrousel : l'idée la plus PÉDAGOGIQUE.
-- Reel : l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE.
-- Stories : l'angle le plus INTIME ou PERSONNEL.
-- LinkedIn : l'angle le plus ENGAGÉ (prise de position).
-- Newsletter : l'angle le plus PROFOND (réflexion complète).
-
-Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
-        const planRaw = await callAnthropic({
-          model: getModelForAction("questions"),
-          system: "Tu prépares le recyclage d'un contenu en plusieurs formats. Tu es FIDÈLE à la source : tu n'inventes aucun fait, aucun chiffre, aucune anecdote.",
-          messages: [{ role: "user", content: [...filesContent, { type: "text", text: planText }] }],
-          max_tokens: 2048,
-          abortTimeoutMs: 60000,
-          tool: PLAN_TOOL,
-        }, planUsage);
-        plan = tryParseAiJson<any>(planRaw, "creative-flow:recycle-plan");
-      } catch (e: any) {
-        console.warn("[creative-flow] recycle: plan échoué → angles libres par format", e?.message || e);
-      }
-
-      // Source des appels par format : le texte fourni, complété (ou remplacé,
-      // cas fichiers-seuls) par la synthèse du plan.
-      const sourceForFormats = [
-        sourceText ? `"""\n${sourceText}\n"""` : "",
-        filesArray.length > 0 && plan?.synthese_source ? `SYNTHÈSE FIDÈLE DES FICHIERS SOURCES :\n"""\n${plan.synthese_source}\n"""` : "",
-      ].filter(Boolean).join("\n\n");
-      if (!sourceForFormats) {
-        return new Response(
-          JSON.stringify({ error: "Impossible d'analyser les fichiers sources. Réessaie." }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const angleFor = (f: string): { sous_idee?: string; angle?: string } => {
-        const arr = Array.isArray(plan?.angles) ? plan.angles : [];
-        const label = (formatLabels[f] || f).toLowerCase();
-        const found = arr.find((a: any) => {
-          const af = String(a?.format || "").toLowerCase();
-          return af && (af.includes(label) || label.includes(af) || af.includes(f.toLowerCase()));
-        });
-        return found || arr[fmtIds.indexOf(f)] || {};
-      };
-
-      // ── 2. UN appel Sonnet PAR FORMAT, en parallèle ──
-      const runFormat = async (f: string) => {
-        const label = formatLabels[f] || f;
-        const a = angleFor(f);
-        const others = fmtIds
-          .filter((x) => x !== f)
-          .map((x) => {
-            const ox = angleFor(x);
-            return `- ${formatLabels[x] || x}${ox.angle ? ` : ${ox.angle}` : ""}`;
-          })
-          .join("\n");
-        const angleBlock = a.angle
-          ? `\n\nTON ANGLE (imposé par le plan éditorial, respecte-le) :\n- Sous-idée : ${a.sous_idee || ""}\n- Angle : ${a.angle}${others ? `\n\nLes AUTRES formats couvrent déjà ces angles — ne les reprends PAS :\n${others}` : ""}`
-          : (others ? `\n\nD'autres formats recyclent aussi ce contenu (${fmtIds.filter((x) => x !== f).map((x) => formatLabels[x] || x).join(", ")}) : prends un angle qui leur laisse de la place.` : "");
-        const fUsage: UsageSink = {};
-        const raw = await callAnthropicSimple(
-          getModelForAction("content"),
-          buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
-          `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
-          f === "linkedin" ? 0.7 : 0.85,
-          4096,
-          fUsage,
-        );
-        const parsed = tryParseAiJson<any>(raw, `creative-flow:recycle:${f}`);
-        let resultVal = parsed?.results?.[f]
-          ?? (parsed?.results && typeof parsed.results === "object" ? Object.values(parsed.results)[0] : null);
-        const topicVal = parsed?.topics?.[f]
-          ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
-        if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
-
-        // Le carrousel recyclé (objet structuré {slides, caption}) passe par la
-        // MÊME garde rédactionnelle que /creer (carousel-ai) : anti-tics, chiffres
-        // sans source, hashtags normalisés (cap 3), quality_check calculé. Sans
-        // ça, un carrousel « Recycler » échappait à tout l'audit qualité (12/07).
-        // La re-passe LLM ne se déclenche QUE si des violations sont mesurées.
-        if ((f === "carrousel" || f === "carousel") && resultVal && typeof resultVal === "object" && Array.isArray(resultVal.slides)) {
-          try {
-            const gated = await runRedacGate(JSON.stringify(resultVal), {
-              isLinkedIn: false,
-              correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5" },
-              // Liste blanche des chiffres : ceux de la source recyclée (le contenu
-              // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
-              inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
-            });
-            const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
-            if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
-            await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id, typeof topicVal === "string" ? topicVal : undefined);
-          } catch (e) {
-            console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
-          }
-        }
-        return { f, resultVal, topicVal, usage: fUsage };
-      };
-
-      const settled: (Awaited<ReturnType<typeof runFormat>> | null)[] = await Promise.all(
-        fmtIds.map((f) => runFormat(f).catch((e) => {
-          console.error(`[creative-flow] recycle: format ${f} en échec (1er essai)`, e?.message || e);
-          return null;
-        })),
-      );
-      // 2e chance séquentielle pour les formats tombés (surcharge transitoire) —
-      // un format qui échoue n'emporte plus les autres.
-      for (let i = 0; i < fmtIds.length; i++) {
-        if (!settled[i]) {
-          settled[i] = await runFormat(fmtIds[i]).catch((e) => {
-            console.error(`[creative-flow] recycle: format ${fmtIds[i]} abandonné après 2 essais`, e?.message || e);
-            return null;
-          });
-        }
-      }
-
-      const ok = settled.filter(Boolean) as Awaited<ReturnType<typeof runFormat>>[];
-      if (ok.length === 0) {
-        // Aucun crédit consommé sur une génération entièrement ratée (pas de logUsage).
-        return new Response(
-          JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const results: Record<string, unknown> = {};
-      const topics: Record<string, unknown> = {};
-      for (const r of ok) {
-        results[r.f] = r.resultVal;
-        if (r.topicVal) topics[r.f] = r.topicVal;
-      }
-      const failedFormats = fmtIds.filter((f) => !(f in results));
-
-      const totalTokens = (planUsage.total_tokens || 0) + ok.reduce((s, r) => s + (r.usage.total_tokens || 0), 0);
-      await logUsage(userId, "content", "creative_flow", totalTokens || undefined, ok[0]?.usage.model, workspace_id);
-      console.log(JSON.stringify({
-        type: "recycle_timing",
-        formats: fmtIds.length,
-        failed: failedFormats.length,
-        with_files: filesArray.length,
-        duration_ms: Date.now() - tRecycle,
-      }));
-      return new Response(
-        JSON.stringify({ results, topics, ...(failedFormats.length > 0 ? { failed_formats: failedFormats } : {}) }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return await handleRecycleStep({ corsHeaders, userId, workspace_id, formats, sourceText, body, formatLabels, COMMON_PREFIX, objectiveBlock, ctx, profile });
     }
 
     if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
@@ -2104,61 +2548,12 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
     // (step === "recycle" ne passe plus par ici : pipeline parallèle dédié plus haut.)
 
     // ═══ NORMALISATION HOOKS (lot 7) ═══
-    // Le tool forcé garantit le JSON de TRANSPORT, pas les types internes : vu en
-    // live au premier test (12/07), le modèle peut remplir `hooks` avec une STRING
-    // JSON au lieu du tableau d'objets. On déballe en déterministe — sinon le front
-    // tombe en fallback « Continuer sans choisir » alors que les hooks existent.
     if (step === "hooks" && parsed && typeof parsed === "object") {
-      // Forme reçue AVANT normalisation : c'est la seule trace exploitable le
-      // jour où l'écran des angles retombe à zéro (03/08 : aucun log ne disait
-      // par quelle branche le tableau s'était vidé).
-      const shapeIn = Array.isArray(parsed.hooks)
-        ? `array[${parsed.hooks.length}]`
-        : typeof parsed.hooks;
-      if (typeof parsed.hooks === "string") {
-        const inner = tryParseAiJson<any>(parsed.hooks, "creative-flow:hooks-unwrap");
-        parsed.hooks = Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : [];
-      }
-      if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
-      // Entrées en simple CHAÎNE : même dérive que le `hooks` stringifié du
-      // 12/07, un cran plus bas (le modèle liste les phrases sans les
-      // envelopper). Récupérable → on reconstruit l'objet minimal. Le front
-      // n'affiche que les champs présents, il ne manquera qu'un badge.
-      parsed.hooks = parsed.hooks.map((h: any) =>
-        typeof h === "string" && h.trim() ? { text: h.trim() } : h
-      );
-      // Objets valides uniquement : un hook sans texte parlé est inutilisable.
-      parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
-      // Élisions déterministes AVANT affichage : le hook choisi est ensuite
-      // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
-      // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
-      for (const h of parsed.hooks) fixElisionsInFields(h, ["text", "text_overlay"]);
-
-      // ZÉRO angle récupérable = échec, pas un succès. Un 200 avec `hooks: []`
-      // est un « 200 menteur » : le front le lisait comme une réponse valide et
-      // n'avait plus qu'un `throw new Error("empty")` illisible à afficher.
-      if (parsed.hooks.length === 0) {
-        console.warn(JSON.stringify({
-          type: "hooks_vides",
-          shape_in: shapeIn,
-          exclude_count: Array.isArray((body as Record<string, unknown>).exclude_hooks)
-            ? ((body as Record<string, unknown>).exclude_hooks as unknown[]).length
-            : 0,
-          raw: String(rawContent || "").slice(0, 500),
-        }));
-        return new Response(
-          JSON.stringify({ error: "Je n'ai pas réussi à préparer les angles d'attaque. Réessaie, ou laisse l'IA choisir." }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      const hooksEarlyExit = normalizeHooksResponse(parsed, { body, rawContent, corsHeaders });
+      if (hooksEarlyExit) return hooksEarlyExit;
     }
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
-    // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
-    // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
-    // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
-    // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
-    // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
     if (
       step === "generate" &&
       contentType?.includes("linkedin") &&
@@ -2167,206 +2562,22 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      try {
-        // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
-        // passe de correction existante — retournements (1 max), formules
-        // moulées, chiffres sans source (liste blanche = brief + réponses + actu).
-        const liAllowed = numbersIn([
-          typeof body.context === "string" ? body.context : "",
-          body.answers ? JSON.stringify(body.answers) : "",
-          typeof body.news_context === "string" ? body.news_context : "",
-          fullContext || "",
-        ].join("\n"));
-        const liRedac = analyzeTextRedac(parsed.content, liAllowed);
-        const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
-          logger: (msg) => console.log(msg),
-          // Édition mécanique à règles fermées → Haiku (cf. #364)
-          model: "claude-haiku-4-5",
-          extraInstructions: buildTextFixInstructions(liRedac) || undefined,
-        });
-        if (corrected && corrected.length >= 100) {
-          parsed.content = corrected;
-        }
-      } catch (corrErr) {
-        console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
-      }
-      // Filet déterministe (hors try : s'applique même si la passe a échoué) :
-      // élisions manquantes type « le avant/après » (vécu 21/07).
-      fixElisionsInFields(parsed, ["content", "accroche"]);
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext });
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
-    // Le reel était le seul format riche sans filet post-génération. Trois étages :
-    // 1. face_cam=non : enforcement déterministe de la structure (format_type,
-    //    format_visuel, plan_tournage) — la passe texte ne touche pas ces champs.
-    // 2. Correction JSON-aware (textes seuls, via bloc balisé) avec instructions
-    //    ciblées mesurées en code : chiffres sans source (redac-gate) + fuites de
-    //    gabarit ("SAUVEGARDE", "Nouveau Reel" : 8/8 au corpus d'audit).
-    // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
-    //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
-    //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
-        console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
-      }
-      // Hook CHOISI à l'étape hook_selection : verrouillé sur la section 1 AVANT
-      // la correction (la génération peut paraphraser, la correction peut « améliorer » —
-      // ni l'une ni l'autre ne décide à la place de l'utilisatrice).
-      const hasChosenHook = enforceSelectedReelHook(parsed, body.selected_hook);
-      try {
-        const reelAllowed = numbersIn([
-          typeof body.context === "string" ? body.context : "",
-          body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
-          body.selected_hook ? JSON.stringify(body.selected_hook) : "",
-          typeof body.news_context === "string" ? body.news_context : "",
-          fullContext || "",
-        ].join("\n"));
-        const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed);
-        const extras: string[] = [];
-        const redacFix = buildTextFixInstructions(reelRedac);
-        if (redacFix) extras.push(redacFix);
-        const leaks = reelTemplateLeaks(parsed);
-        if (leaks.length) {
-          extras.push(`FUITES DE GABARIT DÉTECTÉES (réécris chacune) :\n${leaks.map((l) => `- ${l}`).join("\n")}`);
-        }
-        if (body.face_cam === "non") {
-          extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
-        }
-        if (hasChosenHook || (typeof body.selected_hook?.text === "string" && body.selected_hook.text.trim() && !body.selected_hook.text.trim().startsWith("("))) {
-          extras.push(`LE HOOK ([SECTION 1 - PARLE] et [SECTION 1 - OVERLAY]) A ÉTÉ CHOISI PAR L'UTILISATRICE : recopie-le STRICTEMENT à l'identique, ne le réécris sous aucun prétexte (la règle "hook faible" ne s'applique pas à lui).`);
-        }
-        // Plafond de mots par objectif (calibrage du brief), mesuré en code :
-        // au re-test post-#527, la visibilité sortait encore à ~95 mots (cible
-        // 40-80). La durée affichée est honnête (recalibrage), mais un reel
-        // reach doit rester court → coupe pilotée par la passe de correction.
-        const reelWordCap = effectiveObjective === "visibilite" ? 80
-          : (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") ? 190
-          : 150;
-        const reelWords = countReelSpokenWords(parsed);
-        if (reelWords > reelWordCap) {
-          extras.push(`TROP LONG POUR L'OBJECTIF "${effectiveObjective || "standard"}" : ${reelWords} mots parlés, plafond ${reelWordCap}. COUPE le texte parlé à ${reelWordCap} mots maximum : supprime les redites, la mise en contexte longue et les exemples secondaires. Ne touche PAS à la couche mécanisme (le POURQUOI) ni au hook. C'est une exception explicite à la règle "±10 %".`);
-        }
-        // Édition mécanique à règles fermées → Haiku (même choix que LinkedIn/carrousel).
-        const corrected = await applyCorrectionPassReel(parsed, {
-          logger: (msg) => console.log(msg),
-          model: "claude-haiku-4-5",
-          extraInstructions: extras.length ? extras.join("\n\n") : undefined,
-        });
-        if (corrected && typeof corrected === "object") {
-          Object.assign(parsed, corrected);
-        }
-      } catch (corrErr) {
-        console.error("[creative-flow] correction-pass reel failed:", corrErr);
-      }
-      // Filets déterministes TOUJOURS appliqués, même si la correction a échoué :
-      // - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
-      // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
-      //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
-      // - timings recomptés sur la version FINALE du texte.
-      enforceSelectedReelHook(parsed, body.selected_hook);
-      applyReelElisions(parsed);
-      rebuildReelLectureTest(parsed);
-      recalibrateReelTimings(parsed);
-      // La prise face cam du plan de tournage doit couvrir le monologue recompté
-      // (le modèle recopie la durée de l'exemple du prompt sans la relier au script).
-      alignFaceCamTakeDuration(parsed);
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext });
     }
 
-    // ═══ GARDE PHOTO-D'ABORD (stories) ═══
-    // La consigne « majorité de fonds photo » du brief est probabiliste et
-    // fuit (séquences quasi entières en fond_couleur). Garde déterministe,
-    // appliquée AVANT la résolution bibliothèque pour que les stories
-    // basculées soient éligibles au placement de photos.
+    // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
     if (isStories && step === "generate") {
-      enforceStoriesPhotoFirst(parsed);
-    }
-
-    // ═══ RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories, lot B) ═══
-    // photo_index (petit entier émis par l'IA) → photo_id (UUID user_photos),
-    // de façon déterministe : correspondance stricte, jamais deux stories sur
-    // la même photo, et uniquement quand la story attend un fond photo.
-    if (isStories && step === "generate" && storiesPhotoCatalog.length > 0 && Array.isArray(parsed?.stories)) {
-      const byIndex = new Map(storiesPhotoCatalog.map((c) => [c.index, c]));
-      const usedPhotoIds = new Set<string>();
-      for (const s of parsed.stories) {
-        const v = s?.visual;
-        if (!v || typeof v !== "object") continue;
-        const idx = typeof v.photo_index === "number" ? v.photo_index : null;
-        delete v.photo_index;
-        if (idx === null) continue;
-        const cat = byIndex.get(idx);
-        if (!cat || v.background !== "photo" || usedPhotoIds.has(cat.id)) continue;
-        v.photo_id = cat.id;
-        v.photo_library_description = cat.description;
-        usedPhotoIds.add(cat.id);
-      }
-      // Garantie lot D : toute photo CHOISIE par l'utilisatrice que l'IA n'a
-      // pas placée est distribuée aux stories à fond photo restées sans photo,
-      // dans l'ordre de la séquence. Ses photos finissent TOUJOURS dans le
-      // résultat (c'était la demande de base du parcours).
-      const leftoverPreferred = storiesPhotoCatalog.filter(
-        (c) => c.preferred && !usedPhotoIds.has(c.id),
-      );
-      if (leftoverPreferred.length > 0) {
-        for (const s of parsed.stories) {
-          if (leftoverPreferred.length === 0) break;
-          const v = s?.visual;
-          if (!v || typeof v !== "object") continue;
-          if (v.background !== "photo" || v.photo_id) continue;
-          const next = leftoverPreferred.shift()!;
-          v.photo_id = next.id;
-          v.photo_library_description = next.description;
-          usedPhotoIds.add(next.id);
-        }
-      }
+      applyStoriesPhotoGuardAndResolution(parsed, { storiesPhotoCatalog });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
-    // Les carrousels loggent leur score de gate à chaque génération (Brique 1,
-    // content_quality_events) → le juge du bilan hebdo les note. Les autres
-    // formats en étaient absents (angle mort connu). Mesure LÉGÈRE
-    // (analyzeTextRedac, zéro appel LLM) sur le texte FINAL, MÊME formule de
-    // score que redacScore sur les dimensions du texte libre (retournements /
-    // formules moulées / chiffres inventés), + aperçu pour l'échantillon du juge.
-    // Fire-and-forget : logContentQuality n'interrompt jamais la génération et
-    // exclut déjà les comptes QA. La newsletter (retour SSE anticipé) se logge
-    // dans son propre bloc ; le LinkedIn STREAMÉ reste hors couverture ici (il
-    // ne passe pas par cette queue) — angle mort résiduel connu.
     if (step === "generate") {
-      const qualityAllowed = () =>
-        numbersIn([
-          typeof context === "string" ? context : "",
-          body.answers ? JSON.stringify(body.answers) : "",
-          body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
-          typeof newsContext === "string" ? newsContext : "",
-          fullContext || "",
-        ].join("\n"));
-      const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
-        try {
-          const a = analyzeTextRedac(text, qualityAllowed());
-          const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
-          const score = Math.max(40, 100 - 10 * violations);
-          await logContentQuality(
-            userId,
-            format,
-            { score, violations, repassed: false, content: JSON.stringify(previewDoc) },
-            finalUsage.model,
-            workspace_id,
-            typeof context === "string" ? context : undefined,
-          );
-        } catch (e) {
-          console.error(`[creative-flow] log qualité ${format} ignoré (génération intacte):`, (e as any)?.message || e);
-        }
-      };
-
-      if (isStories && Array.isArray(parsed?.stories)) {
-        const storiesText = parsed.stories.map((s: any) => (typeof s?.text === "string" ? s.text : "")).filter(Boolean).join("\n\n");
-        await logTextQuality("stories", storiesText, { stories: parsed.stories });
-      } else if (isReel && Array.isArray(parsed?.script)) {
-        await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
-      } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
-        await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content });
-      }
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, finalUsage, workspace_id, isStories, isReel, isLinkedIn });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
