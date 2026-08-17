@@ -8,6 +8,8 @@ import { usePhotoWishlistMutations } from "@/hooks/use-photo-wishlist";
 import { savePhotos } from "@/hooks/use-flow-persistence";
 import { AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { pickNonEmpty } from "@/features/creer/photo-source";
+import { generatePinterestVisual, generatePinterestPhotoBrief } from "@/features/creer/pinterest-generation";
+import { resetPostGenerationState } from "@/features/creer/post-generation-reset";
 import type { UserPhotoRow } from "@/lib/photo-storage";
 import type { ReelHook } from "@/components/creer/HookSelectionStep";
 import type { SlideProposal, StructureProposal } from "@/components/creer/StructureReviewStep";
@@ -221,9 +223,7 @@ export function useDoGenerate({
       // (nécessite une session Supabase active — fonctionne si l'admin est connecté en arrière-plan)
     }
     // Reset post-generation state on new generation
-    setSavedId(null);
-    setVisualSlides([]);
-    setCarouselColors(null);
+    resetPostGenerationState({ setSavedId, setVisualSlides, setCarouselColors });
     setPinterestPinHtml(null);
     setPhotoBriefOverlayHtml(null);
     setPhotoBriefResult(null);
@@ -298,80 +298,44 @@ export function useDoGenerate({
 
     // Épingle visuelle Pinterest : appel direct (comme carousel mais une seule slide)
     if (selectedFormat === "pinterest_visual") {
-      setStep("result");
-      setPinterestPinHtml(null);
-      setPinterestVisualGenerating(true);
-      try {
-        const pinType = chosenProposal?.pin_type || editorialAngle || "infographie";
-        const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
-          body: {
-            subject: enrichedSubject,
-            pin_type: pinType,
-            pinterest_link: pinterestData?.link,
-            pinterest_board: pinterestData?.boardName,
-            ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
-            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-          },
-        }, 120000);
-        if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
-        const r = data?.result;
-        setPinterestPinHtml(r?.pin_html || null);
-        setResult({
-          type: "pinterest_visual" as any,
-          raw: {
-            pin_html: r?.pin_html,
-            title: r?.title,
-            description: r?.description,
-            pin_data: r?.pin_data,
-          },
-        });
-      } catch (e: any) {
-        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
-        else toast.error(e?.message || "Erreur lors de la génération du visuel Pinterest");
-      } finally {
-        setPinterestVisualGenerating(false);
-      }
+      await generatePinterestVisual({
+        subject: enrichedSubject,
+        pinType: chosenProposal?.pin_type || editorialAngle || "infographie",
+        referenceImageBase64: inspirationImageBase64,
+        alwaysSendReferenceImage: false,
+        timeoutMs: 120000,
+        errorFallbackMessage: "Erreur lors de la génération du visuel Pinterest",
+        pinterestData,
+        workspaceId,
+        session,
+        markQuotaExhausted,
+        setStep,
+        setResult,
+        setPinterestVisualGenerating,
+        setPinterestPinHtml,
+      });
       return;
     }
 
     // Brief photo Pinterest : appel direct
     if (selectedFormat === "pinterest_photo") {
-      setStep("result");
-      setPhotoBriefOverlayHtml(null);
-      setPinterestVisualGenerating(true);
-      try {
-        const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
-          body: {
-            subject: enrichedSubject,
-            ...(inspirationImageBase64 ? { reference_image_base64: inspirationImageBase64 } : {}),
-            pin_type: chosenProposal?.pin_type || "photo_lifestyle",
-            brief_hint: chosenProposal?.brief || "",
-            pinterest_link: pinterestData?.link,
-            pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-          },
-        }, 120000);
-        if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
-        const r = data?.result;
-        setPhotoBriefOverlayHtml(r?.overlay_html || null);
-        setPhotoBriefResult(r);
-        setResult({
-          type: "pinterest_photo" as any,
-          raw: {
-            overlay_html: r?.overlay_html,
-            photo_brief: r?.photo_brief,
-            title: r?.title,
-            description: r?.description,
-          },
-        });
-      } catch (e: any) {
-        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
-        else toast.error(e?.message || "Erreur lors de la génération du brief");
-      } finally {
-        setPinterestVisualGenerating(false);
-      }
+      await generatePinterestPhotoBrief({
+        subject: enrichedSubject,
+        pinType: chosenProposal?.pin_type || "photo_lifestyle",
+        briefHint: chosenProposal?.brief || "",
+        referenceImageBase64: inspirationImageBase64,
+        alwaysSendReferenceImage: false,
+        timeoutMs: 120000,
+        pinterestData,
+        workspaceId,
+        session,
+        markQuotaExhausted,
+        setStep,
+        setResult,
+        setPinterestVisualGenerating,
+        setPhotoBriefOverlayHtml,
+        setPhotoBriefResult,
+      });
       return;
     }
 

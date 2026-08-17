@@ -2,6 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { composeOverlayText } from "@/lib/user-slides-parse";
+import { resetPostGenerationState } from "@/features/creer/post-generation-reset";
 import { savePhotos } from "@/hooks/use-flow-persistence";
 import type { UserSlideDraft } from "@/components/creer/UserSlidesStep";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
@@ -93,9 +94,7 @@ export function useUserSlidesGenerate({
     // NB : on reste sur l'étape de saisie pendant la passe gabarits (spinner
     // sur le bouton) — passer sur "result" sans result afficherait l'écran
     // « Session expirée ».
-    setSavedId(null);
-    setVisualSlides([]);
-    setCarouselColors(null);
+    resetPostGenerationState({ setSavedId, setVisualSlides, setCarouselColors });
 
     // ── Passe gabarits (fail-open) : enrichit les slides photo (template,
     // big_number, points…) SANS toucher au texte. Erreur / timeout / edge pas
