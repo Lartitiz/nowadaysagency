@@ -124,7 +124,8 @@ export default function CrosspostFlow() {
     fileUrls,
     workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      }, 120000);
+      // 145s : couvre le pire cas serveur (multimodal 90s + correction 30s = 120s) + marge.
+      }, 145000);
       if (cpError || cpData?.error) {
         if (handleQuotaError({ message: cpError?.message || cpData?.message, data: cpData })) {
           return;
