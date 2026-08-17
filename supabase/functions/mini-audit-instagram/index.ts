@@ -12,8 +12,11 @@ async function checkRateLimit(
   handle: string,
 ): Promise<string | null> {
   const sinceIso = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
-  // Purge les tentatives expirées de cette IP (garde la table bornée)
-  await admin.from("mini_audit_attempts").delete().eq("ip", ip).lt("created_at", sinceIso);
+  // Purge les tentatives expirées de cette IP (garde la table bornée) — best-effort,
+  // le SELECT ci-dessous filtre déjà sur sinceIso donc un échec ici n'affecte pas
+  // la justesse du rate-limit, juste la taille de la table.
+  const { error: purgeError } = await admin.from("mini_audit_attempts").delete().eq("ip", ip).lt("created_at", sinceIso);
+  if (purgeError) console.error("mini-audit purge error:", purgeError);
 
   const { count, error } = await admin
     .from("mini_audit_attempts")
@@ -29,7 +32,9 @@ async function checkRateLimit(
     return "Tu as déjà testé 3 profils. Crée ton compte pour des analyses illimitées 😉";
   }
 
-  await admin.from("mini_audit_attempts").insert({ ip, handle });
+  const { error: insertError } = await admin.from("mini_audit_attempts").insert({ ip, handle });
+  // fail-open, comme le count ci-dessus : ne pas bloquer un vrai prospect si la DB hoquette.
+  if (insertError) console.error("mini-audit attempt logging error:", insertError);
   return null;
 }
 

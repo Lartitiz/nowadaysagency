@@ -152,7 +152,8 @@ export async function logContentQuality(
     // déployée APRÈS l'edge) : on réinsère sans elle pour ne pas perdre la
     // télémétrie de score pendant la fenêtre de déploiement.
     if (error && /content_preview/.test(error.message || "")) {
-      await getServiceClient().from("content_quality_events").insert(base);
+      const { error: retryError } = await getServiceClient().from("content_quality_events").insert(base);
+      if (retryError) throw retryError;
     } else if (error) {
       throw error;
     }

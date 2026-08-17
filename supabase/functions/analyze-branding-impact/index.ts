@@ -175,7 +175,7 @@ RÈGLES :
     // Save to database if we have suggestions
     let inserted: any = null;
     if (suggestions.length > 0) {
-      const { data } = await supabase.from("branding_suggestions").insert({
+      const { data, error: insertError } = await supabase.from("branding_suggestions").insert({
         user_id: user.id,
         workspace_id: workspace_id || null,
         trigger_field: changed_field,
@@ -184,6 +184,7 @@ RÈGLES :
         suggestions,
         status: "pending",
       }).select("id").single();
+      if (insertError) console.error("analyze-branding-impact: échec sauvegarde suggestions:", insertError);
       inserted = data;
       await logUsage(user.id, "suggestion", "branding_impact", tokensUsed, "google/gemini-2.5-flash", workspace_id);
     }

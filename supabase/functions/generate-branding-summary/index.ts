@@ -207,15 +207,17 @@ Si une section n'a pas de données, mets null pour cette clé. Pour les arrays v
       60_000
     );
 
-    // Save to cache (upsert)
+    // Save to cache (upsert) — best-effort : un échec ne doit pas faire échouer
+    // la réponse au client, la synthèse vient d'être générée avec succès.
     const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    await sb.from("branding_summary").upsert({
+    const { error: cacheError } = await sb.from("branding_summary").upsert({
       user_id: user.id,
       workspace_id: workspace_id || null,
       summaries,
       branding_hash: currentHash,
       generated_at: new Date().toISOString(),
     }, { onConflict: "user_id" });
+    if (cacheError) console.error("generate-branding-summary: échec sauvegarde cache:", cacheError);
 
     // Log usage
     await logUsage(user.id, "content", "branding_summary", usage.total_tokens, usage.model);

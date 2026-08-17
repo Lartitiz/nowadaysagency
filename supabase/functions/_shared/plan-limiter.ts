@@ -434,6 +434,7 @@ export async function logUsage(
   // passent pas retombent sur le workspace propre de l'utilisatrice).
   const billingWorkspaceId = await resolveBillingWorkspaceId(sb, userId, workspaceId);
 
+  // eslint-disable-next-line nowadays/require-supabase-error-check -- log d'usage IA volontairement fire-and-forget : un échec ne doit jamais bloquer la réponse déjà générée à l'utilisatrice
   await sb.from("ai_usage").insert({
     user_id: userId,
     category,
