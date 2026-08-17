@@ -1,81 +1,111 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Couvre handlePublishNowFromDialog côté LinkedIn (CreerUnifie.tsx) : ce fichier
-// est le point d'appel réseau réel derrière ce handler. Le composant est trop gros
-// (4500+ lignes, tout contexte confondu) pour être monté ; on teste donc la
-// frontière testable — l'appel edge et son interprétation succès/échec.
+// Vérifie que linkedin-publish.ts appelle bien social-linkedin-publish avec le bon
+// payload, et remonte proprement les erreurs (transport ET applicatives).
+
 const mocks = vi.hoisted(() => ({
-  invoke: vi.fn(),
+  invokeWithTimeout: vi.fn(),
 }));
 
+vi.mock("@/lib/invoke-with-timeout", () => ({
+  invokeWithTimeout: mocks.invokeWithTimeout,
+}));
+
+// linkedin-publish.ts importe resolveWorkspaceParam depuis instagram-publish.ts, qui importe
+// le client Supabase réel (localStorage indisponible en environnement "node" de test).
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { functions: { invoke: mocks.invoke } },
+  supabase: { storage: { from: () => ({}) } },
 }));
 
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 
 beforeEach(() => {
-  mocks.invoke.mockReset();
+  mocks.invokeWithTimeout.mockReset();
 });
 
-describe("publishTextToLinkedIn — publication réussie", () => {
-  it("appelle social-linkedin-publish avec le texte et renvoie le permalien", async () => {
-    mocks.invoke.mockResolvedValue({
-      data: { permalink: "https://linkedin.com/feed/update/urn:li:activity:123", postId: "urn:li:activity:123" },
+describe("publishTextToLinkedIn — appel edge + réponse", () => {
+  it("envoie le texte et workspace_id, sans media_urls si aucune image", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({
+      data: { permalink: "https://www.linkedin.com/feed/update/urn:li:share:1/", postId: "urn:li:share:1" },
       error: null,
     });
 
-    const res = await publishTextToLinkedIn({ text: "Mon post", workspaceId: "ws1", userId: "user1" });
+    const result = await publishTextToLinkedIn({ text: "Mon post", workspaceId: "ws1", userId: "u1" });
 
-    expect(mocks.invoke).toHaveBeenCalledWith("social-linkedin-publish", {
-      body: { text: "Mon post", workspace_id: "ws1" },
-    });
-    expect(res).toEqual({
+    expect(mocks.invokeWithTimeout).toHaveBeenCalledWith(
+      "social-linkedin-publish",
+      { body: { text: "Mon post", workspace_id: "ws1" } },
+      60000,
+    );
+    expect(result).toEqual({
       success: true,
-      permalink: "https://linkedin.com/feed/update/urn:li:activity:123",
-      postId: "urn:li:activity:123",
+      permalink: "https://www.linkedin.com/feed/update/urn:li:share:1/",
+      postId: "urn:li:share:1",
     });
   });
 
   it("workspace mono-utilisateur (workspaceId === userId) : n'envoie pas workspace_id", async () => {
-    mocks.invoke.mockResolvedValue({ data: {}, error: null });
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { postId: "p1" }, error: null });
     await publishTextToLinkedIn({ text: "Mon post", workspaceId: "user1", userId: "user1" });
-    expect(mocks.invoke).toHaveBeenCalledWith("social-linkedin-publish", {
-      body: { text: "Mon post", workspace_id: undefined },
+    const body = mocks.invokeWithTimeout.mock.calls[0][1].body;
+    expect(body.workspace_id).toBeUndefined();
+  });
+
+  it("ajoute media_urls uniquement si des images sont fournies", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { postId: "p1" }, error: null });
+
+    await publishTextToLinkedIn({ text: "Avec images", imageUrls: ["https://x/a.jpg", "https://x/b.jpg"] });
+
+    const body = mocks.invokeWithTimeout.mock.calls[0][1].body;
+    expect(body.media_urls).toEqual(["https://x/a.jpg", "https://x/b.jpg"]);
+  });
+
+  it("n'ajoute pas media_urls si le tableau d'images est vide", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { postId: "p1" }, error: null });
+    await publishTextToLinkedIn({ text: "Texte seul", imageUrls: [] });
+    const body = mocks.invokeWithTimeout.mock.calls[0][1].body;
+    expect(body.media_urls).toBeUndefined();
+  });
+
+  it("erreur de transport (edge injoignable) → l'erreur remonte, pas de faux succès", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({
+      data: null,
+      error: { message: "Le service est momentanément indisponible. Réessaie dans quelques instants.", code: "NETWORK" },
+    });
+
+    await expect(publishTextToLinkedIn({ text: "x" })).rejects.toMatchObject({
+      message: "Le service est momentanément indisponible. Réessaie dans quelques instants.",
     });
   });
 
-  it("images fournies : envoie media_urls en plus du texte", async () => {
-    mocks.invoke.mockResolvedValue({ data: {}, error: null });
-    await publishTextToLinkedIn({ text: "Mon post", imageUrls: ["https://x.com/a.jpg"], workspaceId: "ws1", userId: "user1" });
-    expect(mocks.invoke).toHaveBeenCalledWith("social-linkedin-publish", {
-      body: { text: "Mon post", media_urls: ["https://x.com/a.jpg"], workspace_id: "ws1" },
+  it("erreur applicative dans le corps (ex: compte non connecté) → Error avec le message serveur", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({
+      data: { error: "Aucun compte LinkedIn connecté. Connecte-le dans Paramètres > Connexions." },
+      error: null,
     });
-  });
-});
 
-describe("publishTextToLinkedIn — échec : jamais de faux succès", () => {
-  it("erreur transport (error non nul) : lève, ne renvoie pas success", async () => {
-    mocks.invoke.mockResolvedValue({ data: null, error: { message: "Le service est momentanément indisponible." } });
-    await expect(publishTextToLinkedIn({ text: "Mon post" })).rejects.toMatchObject({
-      message: "Le service est momentanément indisponible.",
-    });
+    await expect(publishTextToLinkedIn({ text: "x" })).rejects.toThrow(
+      "Aucun compte LinkedIn connecté. Connecte-le dans Paramètres > Connexions.",
+    );
   });
 
-  it("réponse 200 avec data.error (compte non connecté) : lève avec le message métier", async () => {
-    mocks.invoke.mockResolvedValue({ data: { error: "Aucun compte LinkedIn connecté." }, error: null });
-    await expect(publishTextToLinkedIn({ text: "Mon post" })).rejects.toThrow("Aucun compte LinkedIn connecté.");
+  it("jeton LinkedIn expiré remonté par l'edge → erreur propagée telle quelle", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({
+      data: { error: "Jeton LinkedIn expiré ou invalide. Reconnecte LinkedIn dans Paramètres > Connexions." },
+      error: null,
+    });
+
+    await expect(publishTextToLinkedIn({ text: "x" })).rejects.toThrow("Jeton LinkedIn expiré ou invalide");
   });
 });
 
 describe("isLinkedInNotConnectedError", () => {
-  it("reconnaît le message « aucun compte linkedin » (insensible à la casse)", () => {
+  it("détecte le message « aucun compte linkedin » quelle que soit la casse", () => {
     expect(isLinkedInNotConnectedError("Aucun compte LinkedIn connecté.")).toBe(true);
-    expect(isLinkedInNotConnectedError("aucun compte linkedin trouvé")).toBe(true);
+    expect(isLinkedInNotConnectedError("AUCUN COMPTE LINKEDIN CONNECTÉ")).toBe(true);
   });
-
   it("faux pour un autre message d'erreur", () => {
-    expect(isLinkedInNotConnectedError("Le service est momentanément indisponible.")).toBe(false);
+    expect(isLinkedInNotConnectedError("Publication LinkedIn échouée.")).toBe(false);
     expect(isLinkedInNotConnectedError(undefined)).toBe(false);
   });
 });
