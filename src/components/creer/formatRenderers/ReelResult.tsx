@@ -33,7 +33,7 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import ReelMontage from "@/components/creer/ReelMontage";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
-import { toast } from "sonner";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 export type ReelStepKey = "script" | "tournage" | "montage" | "caption";
 type StepKey = ReelStepKey;
@@ -81,10 +81,11 @@ export default function ReelResult({ result, onStepChange, onMp4Change }: Props)
     ? result.amplification_stories.filter((a: any) => a && typeof a.text === "string")
     : [];
 
+  const copy = useCopyToClipboard();
+
   const handleCopyCaption = () => {
     const parts = [caption?.text, caption?.cta, hashtags.length ? hashtags.join(" ") : null].filter(Boolean);
-    navigator.clipboard.writeText(parts.join("\n\n"));
-    toast.success("Caption copiée !");
+    copy(parts.join("\n\n"), "Caption copiée !");
   };
 
   const fullText = sections
