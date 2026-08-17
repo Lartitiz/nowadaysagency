@@ -148,41 +148,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // 2. Get initial session
-    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
-      if (!mounted) return;
+    // 2. Get initial session. A rejected getSession() is a real error (network
+    // timeout, transient failure during a deploy, etc.) — not the same thing as
+    // "no session" (that resolves normally with session: null). One silent retry
+    // avoids treating a passing network hiccup as a sign-out and bouncing the user
+    // to /login while they're mid-flow.
+    async function loadInitialSession(attempt: 1 | 2 = 1): Promise<void> {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        if (!mounted) return;
 
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      setLoading(false);
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+        setLoading(false);
 
-      if (initialSession?.user) {
-        const path = window.location.pathname;
-        const urlParams = new URLSearchParams(window.location.search);
-        const redirectTo = urlParams.get("redirect");
+        if (initialSession?.user) {
+          const path = window.location.pathname;
+          const urlParams = new URLSearchParams(window.location.search);
+          const redirectTo = urlParams.get("redirect");
 
-        if (redirectTo && redirectTo.startsWith("/invite/") && (path === "/login" || path === "/connexion")) {
-          navigate(redirectTo);
-          initialSessionHandled = true;
-          return;
+          if (redirectTo && redirectTo.startsWith("/invite/") && (path === "/login" || path === "/connexion")) {
+            navigate(redirectTo);
+            initialSessionHandled = true;
+            return;
+          }
+
+          if (path === "/" || path === "/login" || path === "/connexion") {
+            const route = await resolvePostAuthRoute(initialSession.user.id);
+            if (!mounted) return;
+            navigate(route);
+          }
         }
 
-        if (path === "/" || path === "/login" || path === "/connexion") {
-          const route = await resolvePostAuthRoute(initialSession.user.id);
+        initialSessionHandled = true;
+      } catch (error) {
+        if (!mounted) return;
+        if (attempt === 1) {
+          await new Promise((resolve) => setTimeout(resolve, 800));
           if (!mounted) return;
-          navigate(route);
+          return loadInitialSession(2);
         }
+        console.error("Failed to get initial session after retry:", error);
+        setSession(null);
+        setUser(null);
+        setLoading(false);
+        initialSessionHandled = true;
       }
+    }
 
-      initialSessionHandled = true;
-    }).catch((error) => {
-      console.error("Failed to get initial session:", error);
-      if (!mounted) return;
-      setSession(null);
-      setUser(null);
-      setLoading(false);
-      initialSessionHandled = true;
-    });
+    loadInitialSession();
 
     // 3. Silently refresh session when tab becomes visible again (only after 5 min away)
     const handleVisibilityChange = () => {
