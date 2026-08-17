@@ -12,12 +12,6 @@
 // Liste partagée entre eslint.a11y.config.js (verrou CI) et eslint.config.js
 // (retour dans l'éditeur) pour qu'elle ne puisse pas diverger.
 export const DETTE_SUPABASE_ERROR_CHECK = [
-  "src/hooks/use-calendar-save.ts",
-  "src/hooks/use-generate-visuals.ts",
-  "src/hooks/use-onboarding.ts",
-  "src/hooks/use-personas.ts",
-  "src/hooks/use-user-photos.ts",
-  "src/lib/photo-storage.ts",
   "src/pages/CreerUnifie.tsx",
   "supabase/functions/_shared/content-quality.ts",
   "supabase/functions/_shared/ga4.ts",

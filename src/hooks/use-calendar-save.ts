@@ -208,15 +208,17 @@ export function useCalendarSave({
 
         if (Object.keys(storageUpdates).length > 0) {
           const currentDetail = storyDetail || {};
-          await supabase.from("calendar_posts").update({
+          const { error: mediaError } = await supabase.from("calendar_posts").update({
             story_sequence_detail: { ...currentDetail, ...storageUpdates },
           }).eq("id", calendarPostId);
+          if (mediaError) throw mediaError;
         }
       }
 
       // Lier le brief au post calendrier
       if (currentBriefId && calendarPostId) {
-        await supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId);
+        const { error: briefError } = await supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId);
+        if (briefError) throw briefError;
       }
 
       if (uploadFailed) {
@@ -312,13 +314,14 @@ export function useCalendarSave({
               ? updates.visual_urls
               : (updates.photo_urls && updates.photo_urls.length > 0 ? updates.photo_urls : null);
           attachedMedia = mediaForColumn;
-          await supabase.from("calendar_posts").update({
+          const { error: mediaError } = await supabase.from("calendar_posts").update({
             story_sequence_detail: {
               ...currentDetail,
               ...updates,
             },
             ...(mediaForColumn ? { media_urls: mediaForColumn } : {}),
           }).eq("id", postId);
+          if (mediaError) throw mediaError;
         }
 
         // Reel monté : la VIDÉO est le média du post, elle passe avant tout
@@ -326,7 +329,8 @@ export function useCalendarSave({
         // donc publiable par le cron comme par la publication immédiate.
         if (selectedFormat === "reel" && reelMp4Url) {
           attachedMedia = [reelMp4Url];
-          await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
+          const { error: reelError } = await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
+          if (reelError) throw reelError;
         }
 
         // Programmation d'un post image simple sans upload (ex: photo Pexels) :
@@ -334,13 +338,15 @@ export function useCalendarSave({
         // media_urls pour que le cron ait quelque chose à publier.
         if (scheduleAt && canal === "instagram" && !attachedMedia && publishableImageUrl) {
           attachedMedia = [publishableImageUrl];
-          await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
+          const { error: imageError } = await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
+          if (imageError) throw imageError;
         }
       }
 
       // Lier le brief au post calendrier
       if (currentBriefId && postId) {
-        await supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId);
+        const { error: briefError } = await supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId);
+        if (briefError) throw briefError;
       }
 
       // Pose l'auto-publication (le cron social-publish-scheduled fera le reste).
