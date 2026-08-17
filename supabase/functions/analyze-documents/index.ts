@@ -101,10 +101,11 @@ Deno.serve(async (req) => {
     if (textParts.length === 0) {
       // Mark as processed but no data extracted
       for (const doc of docs) {
-        await supabase
+        const { error } = await supabase
           .from("user_documents")
           .update({ processed: true, extracted_data: null })
           .eq("id", doc.id);
+        if (error) console.error(`analyze-documents: échec marquage ${doc.id}:`, error);
       }
       return new Response(JSON.stringify({ extracted_data: null }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -149,10 +150,11 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
 
     // Save extracted data to each document
     for (const doc of docs) {
-      await supabase
+      const { error } = await supabase
         .from("user_documents")
         .update({ processed: true, extracted_data })
         .eq("id", doc.id);
+      if (error) console.error(`analyze-documents: échec marquage ${doc.id}:`, error);
     }
 
     await logUsage(userId, "import", "analyze_documents", usage.total_tokens, usage.model, workspace_id || undefined);

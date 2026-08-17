@@ -56,7 +56,10 @@ export async function refreshPinterestTokenIfNeeded(supabase: any, conn: any): P
   };
   // Pinterest peut renvoyer un nouveau refresh_token (rotation) ; sinon on garde l'ancien.
   if (json.refresh_token) update.refresh_token = await encryptToken(json.refresh_token);
-  await supabase.from("social_connections").update(update).eq("id", conn.id);
+  const { error: persistError } = await supabase.from("social_connections").update(update).eq("id", conn.id);
+  // Non-bloquant : le jeton rafraîchi reste utilisable pour CET appel même si
+  // la persistance échoue (au pire, un nouveau refresh au prochain appel).
+  if (persistError) console.error("[pinterest-graph] Échec persistance jeton rafraîchi:", persistError);
   return json.access_token as string;
 }
 
