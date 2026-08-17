@@ -1868,7 +1868,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
       // Check deep_research quota
-      const drQuota = await checkQuota(userId, "deep_research");
+      const drQuota = await checkQuota(userId, "deep_research", workspace_id);
       if (!drQuota.allowed) {
         return quotaDeniedResponse(drQuota, corsHeaders);
       }
