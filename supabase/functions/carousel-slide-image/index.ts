@@ -26,6 +26,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
+import { fetchWithRetry } from "../_shared/http-retry.ts";
 
 const BodySchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -38,7 +39,6 @@ const BodySchema = z.object({
 
 const OPENAI_URL = "https://api.openai.com/v1/images/generations";
 const OPENAI_TIMEOUT_MS = 160_000;
-const RETRY_DELAY_MS = 2_000;
 
 interface BrandBlockInput {
   activite?: string | null;
@@ -192,36 +192,16 @@ serve(async (req) => {
         signal: AbortSignal.timeout(OPENAI_TIMEOUT_MS),
       });
 
-    let aiRes: Response | null = null;
-    let retried = false;
-    let lastError: string | null = null;
-    const aiT0 = Date.now();
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        aiRes = await callOpenAI();
-        if (aiRes.ok) break;
-        if (aiRes.status >= 500 && attempt === 0 && Date.now() - aiT0 < 30_000) {
-          await aiRes.text().catch(() => "");
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        break;
-      } catch (e) {
-        const isTimeout = e instanceof DOMException && e.name === "TimeoutError";
-        lastError = isTimeout ? "OpenAI timeout" : e instanceof Error ? e.message : "fetch error";
-        if (attempt === 0 && !isTimeout && e instanceof Error && e.name === "TypeError") {
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        aiRes = null;
-        break;
-      }
-    }
-
-    const aiMs = Date.now() - aiT0;
+    const {
+      response: aiRes,
+      retried,
+      lastError,
+      elapsedMs: aiMs,
+    } = await fetchWithRetry(callOpenAI, {
+      maxElapsedMsFor5xxRetry: 30_000,
+      networkErrorRetryMode: "type-error-only",
+      timeoutLabel: "OpenAI timeout",
+    });
 
     if (!aiRes) {
       console.error(JSON.stringify({
