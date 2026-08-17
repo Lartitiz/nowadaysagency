@@ -216,7 +216,8 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (messageContext.trim()) updates.last_dm_context = messageContext;
       if (Object.keys(updates).length > 0) {
         try {
-          await supabase.from("prospects").update(updates).eq("id", prospect.id);
+          const { error } = await supabase.from("prospects").update(updates).eq("id", prospect.id);
+          if (error) throw error;
         } catch (e) {
           console.error("[DmGenerator] Failed to save prospect context:", e);
         }
@@ -242,7 +243,8 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
       if (messageContext.trim()) updates.last_dm_context = messageContext;
       if (Object.keys(updates).length > 0) {
         try {
-          await supabase.from("prospects").update(updates).eq("id", prospect.id);
+          const { error } = await supabase.from("prospects").update(updates).eq("id", prospect.id);
+          if (error) throw error;
         } catch (e) {
           console.error("[DmGenerator] Failed to save prospect context on postpone:", e);
         }
