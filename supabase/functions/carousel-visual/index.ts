@@ -755,6 +755,324 @@ Retourne UNIQUEMENT le JSON.`;
   return { systemPrompt, userPrompt };
 }
 
+// ═══ Parsing d'une réponse slides (même format pour chaque appel/lot) ═══
+function parseSlidesJson(raw: string): any {
+  // Parsing robuste centralisé (fences, extraction, réparations courantes).
+  const parsed = tryParseAiJson<any>(raw, "carousel-visual");
+  if (parsed !== null) {
+    // Cas où l'IA renvoie le tableau nu sans l'enveloppe {"slides_html": [...]}
+    return Array.isArray(parsed) ? { slides_html: parsed } : parsed;
+  }
+  // Dernier recours, spécifique à cette fonction : extraire un tableau
+  // d'objets même sans accolade englobante (objet racine tronqué/cassé
+  // mais tableau slides_html isolément valide).
+  const arrayMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
+  if (arrayMatch) {
+    try { return { slides_html: JSON.parse(arrayMatch[0]) }; } catch { /* tombe plus bas */ }
+  }
+  console.error("Failed to parse carousel-visual response:", raw.slice(0, 500));
+  throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
+}
+
+// Lots consécutifs équilibrés (8 → 3+3+2, 10 → 3+3+2+2) d'INDEX de slides.
+function buildChunks(count: number, target: number): number[][] {
+  const n = Math.max(1, Math.ceil(count / target));
+  const base = Math.floor(count / n);
+  let extra = count % n;
+  const out: number[][] = [];
+  let idx = 0;
+  for (let c = 0; c < n; c++) {
+    const size = base + (extra-- > 0 ? 1 : 0);
+    out.push(Array.from({ length: size }, (_, k) => idx + k));
+    idx += size;
+  }
+  return out;
+}
+
+// Plan de cohérence (mode texte uniquement — en photo/mix le rythme vient
+// des photos et des styles d'overlay, déjà cadrés par le system prompt).
+function buildCoherencePlan(slides: any[], ch: any, darkBrand: boolean): string {
+  const n = slides.length;
+  const techniques = ["italique accentué (color primary + font-style italic)", "effet surligneur (linear-gradient accent)", "soulignement épais (border-bottom accent)"];
+  const designMoments = new Set<number>(
+    slides.filter((s: any) => s?.visual_schema).map((s: any) => Number(s.slide_number)).filter(Boolean),
+  );
+  if (designMoments.size < 2 && n >= 4) {
+    const a = Number(slides[Math.floor(n / 3)]?.slide_number);
+    const b = Number(slides[Math.floor((2 * n) / 3)]?.slide_number);
+    if (a) designMoments.add(a);
+    if (b) designMoments.add(b);
+  }
+  const sepSlide = slides.find((s: any) => /separator|punchline|dark/i.test(String(s?.role || "")));
+  const ruptureNum = Number(sepSlide?.slide_number) || Number(slides[Math.floor(n / 2)]?.slide_number) || 0;
+  const lines = slides.map((s: any, i: number) => {
+    const num = Number(s?.slide_number) || i + 1;
+    let bg: string;
+    if (i === 0) bg = `fond ${ch.color_background} (hook plein format, typographie géante)`;
+    else if (num === ruptureNum) bg = `SLIDE DE RUPTURE à fond plein (${ch.color_primary} ou dark box #1A1A1A, texte clair)`;
+    else if (i === n - 1) bg = `fond ${ch.color_background} (CTA, carte blanche centrée)`;
+    else bg = i % 2 === 1
+      ? (darkBrand ? `fond dans la gamme sombre de la charte, à peine distinct de ${ch.color_background} (JAMAIS blanc)` : "fond blanc #FFFFFF")
+      : `fond ${ch.color_background}`;
+    const design = designMoments.has(num) ? " · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé)" : "";
+    return `- Slide ${num} : ${bg}${design} · mise en valeur des mots-clés : ${techniques[i % 3]}`;
+  });
+  return `═══ PLAN DE COHÉRENCE DU CARROUSEL (IMPOSÉ — chaque slide le respecte à la lettre) ═══
+Ce plan garantit le rythme global (alternance des fonds, UNE seule rupture, techniques de mise en valeur variées) même quand les slides sont rendues par lots :
+${lines.join("\n")}
+Utilise AU PLUS 3 familles de layout sur tout le carrousel : hook plein format, bloc texte centré (avec ou sans carte), schéma visuel. Les slides d'une même famille gardent exactement la même structure (padding, tailles, position du titre).`;
+}
+
+function chunkDirective(nums: number[]): string {
+  return `
+
+═══ RENDU PARTIEL — IMPÉRATIF ═══
+Le carrousel COMPLET est fourni ci-dessus pour le contexte (cohérence, transitions, rythme), mais TU NE RENDS QUE les slides ${nums.join(", ")}.
+Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_number" d'origine. Le bloc "slides_invariants" reste obligatoire.`;
+}
+
+// ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
+// Le modèle a déjà fourni le CONTENU (structure carousel-ai : overlay_text,
+// gabarit, position, photo_index) ; le rendu HTML est déterministe. Lisibilité,
+// safe zones, centrage et ancres sont garantis par construction — l'audit 13/07
+// a montré que les gardes regex ne rattrapaient pas les variantes du modèle
+// (5 motifs sur 6 passaient au travers). Zéro appel modèle = plus rapide et
+// moins cher. Le mode MIXTE (slides design + photos) garde le chemin modèle.
+function runComposedByCodeGeneration(params: {
+  slides: any[];
+  ch: any;
+  reqBody: any;
+  usage: UsageSink;
+  emitStatus: StatusEmitter;
+  tStart: number;
+}): any {
+  const { slides, ch, reqBody, usage, emitStatus, tStart } = params;
+  emitStatus("visuals", { done: 0, total: 1 });
+  const specs = slides as any[];
+  const nums = specs.map((s, i) => Number(s?.slide_number) || i + 1);
+  const minNum = Math.min(...nums);
+  const maxNum = Math.max(...nums);
+  const templateCharter = {
+    color_accent: ch.color_accent,
+    font_title: ch.font_title,
+    font_body: ch.font_body,
+  };
+  const photoIdxs = specs.map((s: any, i: number) =>
+    Number(s?.photo_index) >= 1
+      ? Number(s.photo_index)
+      : (i % Math.max(1, reqBody.photos?.length || 1)) + 1
+  );
+  // Zoom narratif en ALTERNANCE : sur une suite de slides portées par la
+  // même photo, on alterne plan large / plan serré. Zoomer TOUTES les
+  // répétitions (version #614) redonnait des slides identiques entre elles
+  // dès la 2e répétition (vu au re-test live : 5 slides même cadrage).
+  const zoomFlags: boolean[] = [];
+  specs.forEach((_s: any, i: number) => {
+    const repeat = i > 0 && photoIdxs[i - 1] === photoIdxs[i];
+    zoomFlags.push(repeat && !zoomFlags[i - 1]);
+  });
+  const composed = specs.map((s: any, i: number) => {
+    const photoIndex = photoIdxs[i];
+    const luminance = (reqBody.photos?.[photoIndex - 1] as any)?.luminance;
+    return composePhotoSlide(
+      { ...s, slide_number: nums[i], photo_index: photoIndex },
+      templateCharter,
+      {
+        isFirst: nums[i] === minNum,
+        isLast: nums[i] === maxNum,
+        luminance,
+        zoomOnRepeat: zoomFlags[i],
+      },
+    );
+  });
+  const result = {
+    slides_html: composed.map(({ template: _t, ...slide }) => slide),
+  };
+  // Traçabilité du coût : ce chemin ne fait AUCUN appel modèle, donc `usage`
+  // reste vide et la ligne ai_usage partait avec model_used ET tokens_used à
+  // NULL. Vu de la compta, « pas de modèle » était indiscernable d'« un modèle
+  // qu'on a oublié de tarifer » : le bilan hebdo du 13/08 a signalé ces lignes
+  // comme NON TARIFÉES (garde `modeles_non_tarifes`, PR #697). On étiquette
+  // donc explicitement le rendu par code — le crédit reste débité (c'est bien
+  // une génération), mais son coût API est zéro et c'est désormais DIT.
+  usage.model = COMPOSED_BY_CODE_MODEL;
+  emitStatus("visuals", { done: 1, total: 1 });
+  console.log(JSON.stringify({
+    type: "carousel_visual_timing",
+    mode: "composed",
+    slides: specs.length,
+    templates: composed.map((c) => c.template),
+    duration_ms: Date.now() - tStart,
+  }));
+  return result;
+}
+
+async function runParallelChunkGeneration(params: {
+  slides: any[];
+  ch: any;
+  darkBrand: boolean;
+  isPhotoCarousel: boolean;
+  isMixCarousel: boolean;
+  model: AnthropicModel;
+  systemPromptWithAnnotations: string;
+  finalUserPrompt: string;
+  buildMessagesFor: (userText: string, photoIndexes?: number[]) => any[];
+  usage: UsageSink;
+  emitStatus: StatusEmitter;
+  tStart: number;
+}): Promise<any> {
+  const { slides, ch, darkBrand, isPhotoCarousel, isMixCarousel, model, systemPromptWithAnnotations, finalUserPrompt, buildMessagesFor, usage, emitStatus, tStart } = params;
+  const CHUNK_TARGET = 3;
+  const chunks = buildChunks(slides.length, CHUNK_TARGET);
+  const planBlock = (!isPhotoCarousel && !isMixCarousel) ? `\n\n${buildCoherencePlan(slides, ch, darkBrand)}` : "";
+  let doneCount = 0;
+  emitStatus("visuals", { done: 0, total: chunks.length });
+
+  const runChunk = async (idxs: number[]) => {
+    const nums = idxs.map((i) => Number(slides[i]?.slide_number) || i + 1);
+    // Photos réellement référencées par ce lot (photo/mix) — évite de
+    // renvoyer toutes les photos en vision à chaque appel. Si une slide
+    // photo du lot n'a pas de photo_index exploitable, repli sûr : toutes.
+    let photoIdx: number[] | undefined;
+    if (isPhotoCarousel || isMixCarousel) {
+      const referenced = [...new Set(idxs.map((i) => Number(slides[i]?.photo_index)).filter((p) => Number.isInteger(p) && p >= 1))];
+      const hasUnresolvedPhotoSlide = idxs.some((i) => {
+        const st = String(slides[i]?.slide_type || "");
+        const isPhotoSlide = st === "photo_full" || st === "photo_integrated" || (isPhotoCarousel && st !== "text_only");
+        return isPhotoSlide && !(Number.isInteger(Number(slides[i]?.photo_index)) && Number(slides[i]?.photo_index) >= 1);
+      });
+      photoIdx = hasUnresolvedPhotoSlide ? undefined : referenced; // undefined = toutes ; [] = aucune (lot 100% texte)
+    }
+    const chunkUsage: UsageSink = {};
+    const raw = await callAnthropic({
+      model,
+      system: systemPromptWithAnnotations,
+      messages: buildMessagesFor(finalUserPrompt + planBlock + chunkDirective(nums), photoIdx),
+      temperature: 0.5,
+      max_tokens: 8192,
+      abortTimeoutMs: 120_000,
+      // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
+      keepDashes: true,
+    }, chunkUsage);
+    doneCount++;
+    // Clamp : les appels de rattrapage ne doivent pas afficher « 4/3 »
+    emitStatus("visuals", { done: Math.min(doneCount, chunks.length), total: chunks.length });
+    return { parsed: parseSlidesJson(raw), usage: chunkUsage };
+  };
+
+  // Résilience : un lot qui échoue (surcharge Anthropic 529, parse raté…)
+  // ne doit PAS tuer les autres — vécu le 06/07 : un 529 transitoire sur un
+  // seul lot faisait échouer TOUTE la génération (Promise.all rejette), en
+  // silence côté front (pré-génération background). On isole donc chaque
+  // lot ; ses slides manquantes partent dans la passe de rattrapage.
+  let firstChunkError: unknown = null;
+  const settled = await Promise.all(chunks.map((idxs) =>
+    runChunk(idxs).catch((e) => {
+      console.error("carousel-visual: lot en échec → slides envoyées au rattrapage", e?.message || e);
+      if (!firstChunkError) firstChunkError = e;
+      return null;
+    }),
+  ));
+  const chunkResults = settled.filter(Boolean) as { parsed: any; usage: UsageSink }[];
+  if (chunkResults.length === 0) throw firstChunkError || new Error("Génération des visuels échouée sur tous les lots.");
+
+  let allSlides = chunkResults
+    .flatMap((r) => (Array.isArray(r.parsed?.slides_html) ? r.parsed.slides_html : []))
+    .filter((s: any) => s && s.html);
+
+  // Réparation : slides manquantes (lot en échec OU lot qui a « oublié »
+  // des slides malgré la directive) → appels de rattrapage par lots de ~3,
+  // eux aussi isolés. Jamais de carrousel troué tant qu'un lot passe.
+  const got = new Set(allSlides.map((s: any) => Number(s?.slide_number)));
+  const missing = slides
+    .map((s: any, i: number) => Number(s?.slide_number) || i + 1)
+    .filter((num: number) => !got.has(num));
+  if (missing.length > 0) {
+    console.warn(`carousel-visual: ${missing.length} slide(s) manquante(s) après rendu parallèle → rattrapage`, missing);
+    const missingIdxs = slides
+      .map((s: any, i: number) => ({ num: Number(s?.slide_number) || i + 1, i }))
+      .filter((x: any) => missing.includes(x.num))
+      .map((x: any) => x.i);
+    const repairChunks = buildChunks(missingIdxs.length, CHUNK_TARGET)
+      .map((positions) => positions.map((p) => missingIdxs[p]));
+    const repairs = (await Promise.all(repairChunks.map((idxs) =>
+      runChunk(idxs).catch((e) => {
+        console.error("carousel-visual: rattrapage en échec", e?.message || e);
+        return null;
+      }),
+    ))).filter(Boolean) as { parsed: any; usage: UsageSink }[];
+    for (const repair of repairs) {
+      if (Array.isArray(repair.parsed?.slides_html)) {
+        allSlides = allSlides.concat(repair.parsed.slides_html.filter((s: any) => s && s.html && !got.has(Number(s.slide_number))));
+        repair.parsed.slides_html.forEach((s: any) => got.add(Number(s?.slide_number)));
+      }
+      chunkResults.push(repair);
+    }
+  }
+
+  allSlides.sort((a: any, b: any) => (Number(a?.slide_number) || 0) - (Number(b?.slide_number) || 0));
+
+  // Invariants : palette/typo/motif identiques d'un lot à l'autre (mêmes
+  // invariants serveur dans le prompt) → on prend le premier bloc retourné
+  // et on agrège les layouts_used de tous les lots (1 entrée par slide).
+  const firstInv = chunkResults.map((r) => r.parsed?.slides_invariants).find(Boolean);
+  const layoutsUsed = chunkResults.flatMap((r) =>
+    Array.isArray(r.parsed?.slides_invariants?.layouts_used) ? r.parsed.slides_invariants.layouts_used : [],
+  );
+  const result = {
+    slides_html: allSlides,
+    ...(firstInv ? { slides_invariants: { ...firstInv, layouts_used: layoutsUsed.length ? layoutsUsed : (firstInv.layouts_used || []) } } : {}),
+  };
+
+  usage.input_tokens = chunkResults.reduce((s, r) => s + (r.usage.input_tokens || 0), 0);
+  usage.output_tokens = chunkResults.reduce((s, r) => s + (r.usage.output_tokens || 0), 0);
+  usage.total_tokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
+  usage.model = chunkResults[0]?.usage.model;
+
+  console.log(JSON.stringify({
+    type: "carousel_visual_timing",
+    mode: "parallel",
+    chunks: chunks.length,
+    slides: slides.length,
+    duration_ms: Date.now() - tStart,
+  }));
+  return result;
+}
+
+async function runSingleCallGeneration(params: {
+  slides: any[];
+  model: AnthropicModel;
+  systemPromptWithAnnotations: string;
+  finalUserPrompt: string;
+  buildMessagesFor: (userText: string, photoIndexes?: number[]) => any[];
+  usage: UsageSink;
+  emitStatus: StatusEmitter;
+  tStart: number;
+}): Promise<any> {
+  const { slides, model, systemPromptWithAnnotations, finalUserPrompt, buildMessagesFor, usage, emitStatus, tStart } = params;
+  emitStatus("visuals", { done: 0, total: 1 });
+  const rawResponse = await callAnthropic({
+    model,
+    system: systemPromptWithAnnotations,
+    messages: buildMessagesFor(finalUserPrompt),
+    temperature: 0.5,
+    max_tokens: 16384,
+    abortTimeoutMs: 120_000,
+    // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
+    keepDashes: true,
+  }, usage);
+  const result = parseSlidesJson(rawResponse);
+  emitStatus("visuals", { done: 1, total: 1 });
+
+  console.log(JSON.stringify({
+    type: "carousel_visual_timing",
+    mode: "single",
+    slides: slides.length,
+    duration_ms: Date.now() - tStart,
+  }));
+  return result;
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -1214,296 +1532,27 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       timestamp: new Date().toISOString(),
     }));
 
-    // ═══ Parsing d'une réponse slides (même format pour chaque appel/lot) ═══
-    const parseSlidesJson = (raw: string): any => {
-      // Parsing robuste centralisé (fences, extraction, réparations courantes).
-      const parsed = tryParseAiJson<any>(raw, "carousel-visual");
-      if (parsed !== null) {
-        // Cas où l'IA renvoie le tableau nu sans l'enveloppe {"slides_html": [...]}
-        return Array.isArray(parsed) ? { slides_html: parsed } : parsed;
-      }
-      // Dernier recours, spécifique à cette fonction : extraire un tableau
-      // d'objets même sans accolade englobante (objet racine tronqué/cassé
-      // mais tableau slides_html isolément valide).
-      const arrayMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
-      if (arrayMatch) {
-        try { return { slides_html: JSON.parse(arrayMatch[0]) }; } catch { /* tombe plus bas */ }
-      }
-      console.error("Failed to parse carousel-visual response:", raw.slice(0, 500));
-      throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
-    };
-
-    // ═══ Génération PARALLÈLE par lots de slides ═══
     // Mesure du 05/07/2026 : UN appel monolithique qui écrit le HTML des 8-10
-    // slides = ~78 s (le temps LLM est dominé par les tokens de SORTIE). En
-    // rendant les slides par lots de ~3 en parallèle, le mur d'attente tombe à
-    // la durée du lot le plus lent (~25-35 s). La cohérence inter-lots est
-    // garantie par (a) le même system prompt + invariants, (b) le carrousel
-    // COMPLET fourni en contexte à chaque lot, (c) un PLAN DE COHÉRENCE
-    // déterministe (fonds, rupture, moments de design) calculé par code.
-    const CHUNK_TARGET = 3;
+    // slides = ~78 s. Au-delà de 5 slides, on rend par lots en parallèle.
     const useParallelChunks = slides.length >= 5;
-
-    // Lots consécutifs équilibrés (8 → 3+3+2, 10 → 3+3+2+2) d'INDEX de slides.
-    const buildChunks = (count: number, target: number): number[][] => {
-      const n = Math.max(1, Math.ceil(count / target));
-      const base = Math.floor(count / n);
-      let extra = count % n;
-      const out: number[][] = [];
-      let idx = 0;
-      for (let c = 0; c < n; c++) {
-        const size = base + (extra-- > 0 ? 1 : 0);
-        out.push(Array.from({ length: size }, (_, k) => idx + k));
-        idx += size;
-      }
-      return out;
-    };
-
-    // Plan de cohérence (mode texte uniquement — en photo/mix le rythme vient
-    // des photos et des styles d'overlay, déjà cadrés par le system prompt).
-    const buildCoherencePlan = (): string => {
-      const n = slides.length;
-      const techniques = ["italique accentué (color primary + font-style italic)", "effet surligneur (linear-gradient accent)", "soulignement épais (border-bottom accent)"];
-      const designMoments = new Set<number>(
-        slides.filter((s: any) => s?.visual_schema).map((s: any) => Number(s.slide_number)).filter(Boolean),
-      );
-      if (designMoments.size < 2 && n >= 4) {
-        const a = Number(slides[Math.floor(n / 3)]?.slide_number);
-        const b = Number(slides[Math.floor((2 * n) / 3)]?.slide_number);
-        if (a) designMoments.add(a);
-        if (b) designMoments.add(b);
-      }
-      const sepSlide = slides.find((s: any) => /separator|punchline|dark/i.test(String(s?.role || "")));
-      const ruptureNum = Number(sepSlide?.slide_number) || Number(slides[Math.floor(n / 2)]?.slide_number) || 0;
-      const lines = slides.map((s: any, i: number) => {
-        const num = Number(s?.slide_number) || i + 1;
-        let bg: string;
-        if (i === 0) bg = `fond ${ch.color_background} (hook plein format, typographie géante)`;
-        else if (num === ruptureNum) bg = `SLIDE DE RUPTURE à fond plein (${ch.color_primary} ou dark box #1A1A1A, texte clair)`;
-        else if (i === n - 1) bg = `fond ${ch.color_background} (CTA, carte blanche centrée)`;
-        else bg = i % 2 === 1
-          ? (darkBrand ? `fond dans la gamme sombre de la charte, à peine distinct de ${ch.color_background} (JAMAIS blanc)` : "fond blanc #FFFFFF")
-          : `fond ${ch.color_background}`;
-        const design = designMoments.has(num) ? " · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé)" : "";
-        return `- Slide ${num} : ${bg}${design} · mise en valeur des mots-clés : ${techniques[i % 3]}`;
-      });
-      return `═══ PLAN DE COHÉRENCE DU CARROUSEL (IMPOSÉ — chaque slide le respecte à la lettre) ═══
-Ce plan garantit le rythme global (alternance des fonds, UNE seule rupture, techniques de mise en valeur variées) même quand les slides sont rendues par lots :
-${lines.join("\n")}
-Utilise AU PLUS 3 familles de layout sur tout le carrousel : hook plein format, bloc texte centré (avec ou sans carte), schéma visuel. Les slides d'une même famille gardent exactement la même structure (padding, tailles, position du titre).`;
-    };
-
-    const chunkDirective = (nums: number[]) => `
-
-═══ RENDU PARTIEL — IMPÉRATIF ═══
-Le carrousel COMPLET est fourni ci-dessus pour le contexte (cohérence, transitions, rythme), mais TU NE RENDS QUE les slides ${nums.join(", ")}.
-Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_number" d'origine. Le bloc "slides_invariants" reste obligatoire.`;
 
     const usage: UsageSink = {};
     const tStart = Date.now();
     let result: any;
 
     // ═══ Carrousel PHOTO pur : composition PAR CODE (chantier gabarits 13/07) ═══
-    // Le modèle a déjà fourni le CONTENU (structure carousel-ai : overlay_text,
-    // gabarit, position, photo_index) ; le rendu HTML est déterministe. Lisibilité,
-    // safe zones, centrage et ancres sont garantis par construction — l'audit 13/07
-    // a montré que les gardes regex ne rattrapaient pas les variantes du modèle
-    // (5 motifs sur 6 passaient au travers). Zéro appel modèle = plus rapide et
-    // moins cher. Le mode MIXTE (slides design + photos) garde le chemin modèle.
     const composedByCode = isPhotoCarousel;
     if (composedByCode) {
-      emitStatus("visuals", { done: 0, total: 1 });
-      const specs = slides as any[];
-      const nums = specs.map((s, i) => Number(s?.slide_number) || i + 1);
-      const minNum = Math.min(...nums);
-      const maxNum = Math.max(...nums);
-      const templateCharter = {
-        color_accent: ch.color_accent,
-        font_title: ch.font_title,
-        font_body: ch.font_body,
-      };
-      const photoIdxs = specs.map((s: any, i: number) =>
-        Number(s?.photo_index) >= 1
-          ? Number(s.photo_index)
-          : (i % Math.max(1, reqBody.photos?.length || 1)) + 1
-      );
-      // Zoom narratif en ALTERNANCE : sur une suite de slides portées par la
-      // même photo, on alterne plan large / plan serré. Zoomer TOUTES les
-      // répétitions (version #614) redonnait des slides identiques entre elles
-      // dès la 2e répétition (vu au re-test live : 5 slides même cadrage).
-      const zoomFlags: boolean[] = [];
-      specs.forEach((_s: any, i: number) => {
-        const repeat = i > 0 && photoIdxs[i - 1] === photoIdxs[i];
-        zoomFlags.push(repeat && !zoomFlags[i - 1]);
-      });
-      const composed = specs.map((s: any, i: number) => {
-        const photoIndex = photoIdxs[i];
-        const luminance = (reqBody.photos?.[photoIndex - 1] as any)?.luminance;
-        return composePhotoSlide(
-          { ...s, slide_number: nums[i], photo_index: photoIndex },
-          templateCharter,
-          {
-            isFirst: nums[i] === minNum,
-            isLast: nums[i] === maxNum,
-            luminance,
-            zoomOnRepeat: zoomFlags[i],
-          },
-        );
-      });
-      result = {
-        slides_html: composed.map(({ template: _t, ...slide }) => slide),
-      };
-      // Traçabilité du coût : ce chemin ne fait AUCUN appel modèle, donc `usage`
-      // reste vide et la ligne ai_usage partait avec model_used ET tokens_used à
-      // NULL. Vu de la compta, « pas de modèle » était indiscernable d'« un modèle
-      // qu'on a oublié de tarifer » : le bilan hebdo du 13/08 a signalé ces lignes
-      // comme NON TARIFÉES (garde `modeles_non_tarifes`, PR #697). On étiquette
-      // donc explicitement le rendu par code — le crédit reste débité (c'est bien
-      // une génération), mais son coût API est zéro et c'est désormais DIT.
-      usage.model = COMPOSED_BY_CODE_MODEL;
-      emitStatus("visuals", { done: 1, total: 1 });
-      console.log(JSON.stringify({
-        type: "carousel_visual_timing",
-        mode: "composed",
-        slides: specs.length,
-        templates: composed.map((c) => c.template),
-        duration_ms: Date.now() - tStart,
-      }));
+      result = runComposedByCodeGeneration({ slides, ch, reqBody, usage, emitStatus, tStart });
     } else if (useParallelChunks) {
-      const chunks = buildChunks(slides.length, CHUNK_TARGET);
-      const planBlock = (!isPhotoCarousel && !isMixCarousel) ? `\n\n${buildCoherencePlan()}` : "";
-      let doneCount = 0;
-      emitStatus("visuals", { done: 0, total: chunks.length });
-
-      const runChunk = async (idxs: number[]) => {
-        const nums = idxs.map((i) => Number(slides[i]?.slide_number) || i + 1);
-        // Photos réellement référencées par ce lot (photo/mix) — évite de
-        // renvoyer toutes les photos en vision à chaque appel. Si une slide
-        // photo du lot n'a pas de photo_index exploitable, repli sûr : toutes.
-        let photoIdx: number[] | undefined;
-        if (isPhotoCarousel || isMixCarousel) {
-          const referenced = [...new Set(idxs.map((i) => Number(slides[i]?.photo_index)).filter((p) => Number.isInteger(p) && p >= 1))];
-          const hasUnresolvedPhotoSlide = idxs.some((i) => {
-            const st = String(slides[i]?.slide_type || "");
-            const isPhotoSlide = st === "photo_full" || st === "photo_integrated" || (isPhotoCarousel && st !== "text_only");
-            return isPhotoSlide && !(Number.isInteger(Number(slides[i]?.photo_index)) && Number(slides[i]?.photo_index) >= 1);
-          });
-          photoIdx = hasUnresolvedPhotoSlide ? undefined : referenced; // undefined = toutes ; [] = aucune (lot 100% texte)
-        }
-        const chunkUsage: UsageSink = {};
-        const raw = await callAnthropic({
-          model,
-          system: systemPromptWithAnnotations,
-          messages: buildMessagesFor(finalUserPrompt + planBlock + chunkDirective(nums), photoIdx),
-          temperature: 0.5,
-          max_tokens: 8192,
-          abortTimeoutMs: 120_000,
-          // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
-          keepDashes: true,
-        }, chunkUsage);
-        doneCount++;
-        // Clamp : les appels de rattrapage ne doivent pas afficher « 4/3 »
-        emitStatus("visuals", { done: Math.min(doneCount, chunks.length), total: chunks.length });
-        return { parsed: parseSlidesJson(raw), usage: chunkUsage };
-      };
-
-      // Résilience : un lot qui échoue (surcharge Anthropic 529, parse raté…)
-      // ne doit PAS tuer les autres — vécu le 06/07 : un 529 transitoire sur un
-      // seul lot faisait échouer TOUTE la génération (Promise.all rejette), en
-      // silence côté front (pré-génération background). On isole donc chaque
-      // lot ; ses slides manquantes partent dans la passe de rattrapage.
-      let firstChunkError: unknown = null;
-      const settled = await Promise.all(chunks.map((idxs) =>
-        runChunk(idxs).catch((e) => {
-          console.error("carousel-visual: lot en échec → slides envoyées au rattrapage", e?.message || e);
-          if (!firstChunkError) firstChunkError = e;
-          return null;
-        }),
-      ));
-      const chunkResults = settled.filter(Boolean) as { parsed: any; usage: UsageSink }[];
-      if (chunkResults.length === 0) throw firstChunkError || new Error("Génération des visuels échouée sur tous les lots.");
-
-      let allSlides = chunkResults
-        .flatMap((r) => (Array.isArray(r.parsed?.slides_html) ? r.parsed.slides_html : []))
-        .filter((s: any) => s && s.html);
-
-      // Réparation : slides manquantes (lot en échec OU lot qui a « oublié »
-      // des slides malgré la directive) → appels de rattrapage par lots de ~3,
-      // eux aussi isolés. Jamais de carrousel troué tant qu'un lot passe.
-      const got = new Set(allSlides.map((s: any) => Number(s?.slide_number)));
-      const missing = slides
-        .map((s: any, i: number) => Number(s?.slide_number) || i + 1)
-        .filter((num: number) => !got.has(num));
-      if (missing.length > 0) {
-        console.warn(`carousel-visual: ${missing.length} slide(s) manquante(s) après rendu parallèle → rattrapage`, missing);
-        const missingIdxs = slides
-          .map((s: any, i: number) => ({ num: Number(s?.slide_number) || i + 1, i }))
-          .filter((x: any) => missing.includes(x.num))
-          .map((x: any) => x.i);
-        const repairChunks = buildChunks(missingIdxs.length, CHUNK_TARGET)
-          .map((positions) => positions.map((p) => missingIdxs[p]));
-        const repairs = (await Promise.all(repairChunks.map((idxs) =>
-          runChunk(idxs).catch((e) => {
-            console.error("carousel-visual: rattrapage en échec", e?.message || e);
-            return null;
-          }),
-        ))).filter(Boolean) as { parsed: any; usage: UsageSink }[];
-        for (const repair of repairs) {
-          if (Array.isArray(repair.parsed?.slides_html)) {
-            allSlides = allSlides.concat(repair.parsed.slides_html.filter((s: any) => s && s.html && !got.has(Number(s.slide_number))));
-            repair.parsed.slides_html.forEach((s: any) => got.add(Number(s?.slide_number)));
-          }
-          chunkResults.push(repair);
-        }
-      }
-
-      allSlides.sort((a: any, b: any) => (Number(a?.slide_number) || 0) - (Number(b?.slide_number) || 0));
-
-      // Invariants : palette/typo/motif identiques d'un lot à l'autre (mêmes
-      // invariants serveur dans le prompt) → on prend le premier bloc retourné
-      // et on agrège les layouts_used de tous les lots (1 entrée par slide).
-      const firstInv = chunkResults.map((r) => r.parsed?.slides_invariants).find(Boolean);
-      const layoutsUsed = chunkResults.flatMap((r) =>
-        Array.isArray(r.parsed?.slides_invariants?.layouts_used) ? r.parsed.slides_invariants.layouts_used : [],
-      );
-      result = {
-        slides_html: allSlides,
-        ...(firstInv ? { slides_invariants: { ...firstInv, layouts_used: layoutsUsed.length ? layoutsUsed : (firstInv.layouts_used || []) } } : {}),
-      };
-
-      usage.input_tokens = chunkResults.reduce((s, r) => s + (r.usage.input_tokens || 0), 0);
-      usage.output_tokens = chunkResults.reduce((s, r) => s + (r.usage.output_tokens || 0), 0);
-      usage.total_tokens = (usage.input_tokens || 0) + (usage.output_tokens || 0);
-      usage.model = chunkResults[0]?.usage.model;
-
-      console.log(JSON.stringify({
-        type: "carousel_visual_timing",
-        mode: "parallel",
-        chunks: chunks.length,
-        slides: slides.length,
-        duration_ms: Date.now() - tStart,
-      }));
+      result = await runParallelChunkGeneration({
+        slides, ch, darkBrand, isPhotoCarousel, isMixCarousel, model, systemPromptWithAnnotations,
+        finalUserPrompt, buildMessagesFor, usage, emitStatus, tStart,
+      });
     } else {
-      emitStatus("visuals", { done: 0, total: 1 });
-      const rawResponse = await callAnthropic({
-        model,
-        system: systemPromptWithAnnotations,
-        messages: buildMessagesFor(finalUserPrompt),
-        temperature: 0.5,
-        max_tokens: 16384,
-        abortTimeoutMs: 120_000,
-        // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
-        keepDashes: true,
-      }, usage);
-      result = parseSlidesJson(rawResponse);
-      emitStatus("visuals", { done: 1, total: 1 });
-
-      console.log(JSON.stringify({
-        type: "carousel_visual_timing",
-        mode: "single",
-        slides: slides.length,
-        duration_ms: Date.now() - tStart,
-      }));
+      result = await runSingleCallGeneration({
+        slides, model, systemPromptWithAnnotations, finalUserPrompt, buildMessagesFor, usage, emitStatus, tStart,
+      });
     }
 
     // ═══ D1 — Passe de correction du contraste (carrousel photo uniquement) ═══
