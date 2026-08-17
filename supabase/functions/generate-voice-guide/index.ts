@@ -123,15 +123,26 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
       .eq("user_id", userId)
       .maybeSingle();
 
+    // Écriture vérifiée : un échec ici = guide perdu au rechargement, donc
+    // erreur franche et PAS de logUsage (on ne facture pas un échec).
+    let writeError;
     if (existing) {
-      await serviceClient
+      ({ error: writeError } = await serviceClient
         .from("voice_guides")
         .update({ guide_data: guide, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
+        .eq("id", existing.id));
     } else {
-      await serviceClient
+      ({ error: writeError } = await serviceClient
         .from("voice_guides")
-        .insert({ user_id: userId, guide_data: guide });
+        .insert({ user_id: userId, guide_data: guide }));
+    }
+
+    if (writeError) {
+      console.error("generate-voice-guide: échec écriture voice_guides:", writeError);
+      return new Response(
+        JSON.stringify({ error: "Le guide n'a pas pu être enregistré. Ton crédit n'a pas été décompté, réessaie dans un instant." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     await logUsage(userId, "content", "voice_guide", usage.total_tokens, usage.model);
