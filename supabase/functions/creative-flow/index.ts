@@ -261,7 +261,7 @@ Réponds UNIQUEMENT en JSON valide :
 ${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
 }
 
-function buildFollowUpPrompt(params: {
+export function buildFollowUpPrompt(params: {
   QUESTIONS_PREFIX: string;
   brandingContext: string;
   brandVocabBlock: string;
@@ -305,7 +305,7 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
-function buildAdjustPrompt(params: {
+export function buildAdjustPrompt(params: {
   COMMON_PREFIX: string;
   editorialFormatLabel?: string | null;
   effectiveObjective?: string | null;
@@ -365,7 +365,7 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
-function buildDictationPrompt(params: {
+export function buildDictationPrompt(params: {
   COMMON_PREFIX: string;
   sourceText: string;
   targetFormat: string;
@@ -403,7 +403,7 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
-function buildAnglesPrompt(params: {
+export function buildAnglesPrompt(params: {
   COMMON_PREFIX: string;
   editorialFormatLabel?: string | null;
   contentType?: string | null;
@@ -461,7 +461,7 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
-function buildHooksPrompt(params: {
+export function buildHooksPrompt(params: {
   COMMON_PREFIX: string;
   answers?: any[];
   excludeHooksRaw: unknown;
@@ -523,7 +523,7 @@ Propose-moi 3 hooks de types différents pour ce reel.`;
   return { systemPrompt, userPrompt };
 }
 
-function buildQuestionsPrompt(params: {
+export function buildQuestionsPrompt(params: {
   QUESTIONS_PREFIX: string;
   brandingContext: string;
   brandVocabBlock: string;
@@ -631,7 +631,7 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt };
 }
 
-async function buildGeneratePrompt(params: {
+export async function buildGeneratePrompt(params: {
   supabase: any;
   userId: string;
   workspace_id?: string | null;
