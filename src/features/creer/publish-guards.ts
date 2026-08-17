@@ -132,3 +132,79 @@ export function linkedInPublishDisabledReason(args: {
   if (!extractLinkedInText(args.raw).trim()) return "Génère ton post LinkedIn pour pouvoir le publier.";
   return null;
 }
+
+/**
+ * La programmation (auto_publish) peut-elle être posée sur ce post ? Instagram a
+ * besoin d'un média joignable (media_urls) pour que le cron ait quelque chose à
+ * publier ; LinkedIn texte n'a pas cette contrainte.
+ */
+export function canAutoPublishSchedule(args: {
+  canal: string;
+  attachedMedia: string[] | null | undefined;
+}): boolean {
+  if (args.canal !== "instagram") return true;
+  return !!args.attachedMedia && args.attachedMedia.length > 0;
+}
+
+/** Payload posé sur calendar_posts pour déclencher l'auto-publication programmée. */
+export function buildScheduledPublishUpdate(scheduleAt: Date, now: Date = new Date()) {
+  return {
+    scheduled_publish_at: scheduleAt.toISOString(),
+    auto_publish: true,
+    publish_status: "scheduled" as const,
+    publish_error: null,
+    updated_at: now.toISOString(),
+  };
+}
+
+/** Résultat du contrôle de programmation depuis la fenêtre « Publier ou programmer ». */
+export type ScheduleGuardResult =
+  | { blocked: false }
+  | { blocked: true; reason: "no_channel" }
+  | { blocked: true; reason: "disabled"; message: string }
+  | { blocked: true; reason: "not_connected"; message: string; description: string }
+  | { blocked: true; reason: "invalid_date"; message: string }
+  | { blocked: true; reason: "past_date"; message: string };
+
+/**
+ * Gardes de `handleScheduleFromDialog`, dans l'ordre exact où elles sont vérifiées :
+ * canal affiché → non désactivé → compte connecté → date valide → date future.
+ * `blocked: false` signifie que la programmation peut être déléguée à handleConfirmCalendar.
+ */
+export function checkScheduleGuards(args: {
+  publishChannel: "instagram" | "linkedin" | null;
+  disabledReason?: string | null;
+  isChannelConnected: boolean;
+  input: string;
+  now?: number;
+}): ScheduleGuardResult {
+  const { publishChannel, disabledReason, isChannelConnected, input, now = Date.now() } = args;
+  if (!publishChannel) return { blocked: true, reason: "no_channel" };
+  if (disabledReason) return { blocked: true, reason: "disabled", message: disabledReason };
+  if (!isChannelConnected) {
+    const reseau = publishChannel === "linkedin" ? "LinkedIn" : "Instagram";
+    return {
+      blocked: true,
+      reason: "not_connected",
+      message: `Compte ${reseau} non connecté`,
+      description: "Connecte-le pour que ce contenu parte tout seul à l'heure prévue.",
+    };
+  }
+  const when = new Date(input);
+  if (!input || isNaN(when.getTime())) {
+    return { blocked: true, reason: "invalid_date", message: "Choisis une date et une heure." };
+  }
+  if (when.getTime() < now + 60000) {
+    return { blocked: true, reason: "past_date", message: "Choisis une date/heure dans le futur." };
+  }
+  return { blocked: false };
+}
+
+/**
+ * Le jeton OAuth du canal expirera-t-il avant la date programmée ? Sert à prévenir
+ * MAINTENANT plutôt que laisser la publication automatique échouer en silence.
+ */
+export function tokenExpiresBeforeSchedule(tokenExpiry: string | null | undefined, when: Date): boolean {
+  if (!tokenExpiry) return false;
+  return when.getTime() > new Date(tokenExpiry).getTime();
+}
