@@ -6,6 +6,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, AssistantChatSchema } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 function getServiceClient() {
   return createClient(
@@ -435,19 +436,13 @@ Deno.serve(async (req) => {
       abortTimeoutMs: 60_000,
     }, usage);
 
-    // Parse AI response
-    let parsed: any;
-    try {
-      // Try to extract JSON from response
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        parsed = JSON.parse(jsonMatch[0]);
-      } else {
-        parsed = { message: aiResponse, actions: null, needs_confirmation: false };
-      }
-    } catch {
-      parsed = { message: aiResponse, actions: null, needs_confirmation: false };
-    }
+    // Parse AI response. Chat conversationnel : contrairement aux autres edge
+    // functions, un JSON mal formé n'est PAS une réponse inexploitable — c'est un
+    // message texte valide que l'IA n'a juste pas encadré en JSON. On garde donc
+    // le fallback vers le texte brut (pas de 502) : la cliente voit quand même
+    // une réponse utile plutôt qu'une erreur sur un vrai message.
+    const parsed: any = tryParseAiJson(aiResponse, "assistant-chat")
+      ?? { message: aiResponse, actions: null, needs_confirmation: false };
 
     // Log usage
     await logUsage(userId, "suggestion", "assistant_chat", usage.total_tokens, usage.model);

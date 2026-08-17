@@ -6,6 +6,7 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallbac
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 // JSON-aware correction: extract a long-text field, run correction-pass, reinject.
 async function correctJsonField(rawJson: string, field: string): Promise<string> {
@@ -56,18 +57,11 @@ async function correctCrosspostJson(rawJson: string): Promise<string> {
 
 // Validation anti-débit : un crédit ne doit être facturé que si la réponse IA
 // est exploitable. Pour les actions qui renvoient du JSON, on vérifie que le
-// contenu est parseable AVANT logUsage (tolérant : fences ```json, extraction
-// du 1er bloc {…} ou […]). Si non → erreur renvoyée SANS débit.
+// contenu est parseable AVANT logUsage (parsing robuste centralisé). Si non →
+// erreur renvoyée SANS débit.
 function isParseableJson(raw: unknown): boolean {
   if (typeof raw !== "string" || !raw.trim()) return false;
-  const s = raw.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
-  const tryParse = (t: string) => { try { JSON.parse(t); return true; } catch { return false; } };
-  if (tryParse(s)) return true;
-  const obj = s.match(/\{[\s\S]*\}/);
-  if (obj && tryParse(obj[0])) return true;
-  const arr = s.match(/\[[\s\S]*\]/);
-  if (arr && tryParse(arr[0])) return true;
-  return false;
+  return tryParseAiJson(raw, "linkedin-ai") !== null;
 }
 
 // Actions dont la réponse est du JSON (les seules soumises au parse-gate).
