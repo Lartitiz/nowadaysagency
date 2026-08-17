@@ -70,16 +70,9 @@
     "src/components/engagement/MetricsSection.tsx",
     "src/components/engagement/StickerGuide.tsx",
     // Hooks et libs sans appelant.
-    "src/hooks/use-branding-data.ts",
-    "src/hooks/use-can-edit.ts",
-    "src/hooks/use-coaching-flow.ts",
-    "src/lib/breadcrumb-config.ts",
-    "src/lib/com-score.ts",
-    "src/lib/email-templates.ts",
-    "src/lib/linkedin-data.ts",
-    "src/lib/pinterest-publish.ts",
-    "src/lib/plan-content.ts",
-    "src/lib/supabase-helpers.ts"
+    // plan-content.ts : encore importé par WeekCard.tsx / PlanMiniRecap.tsx
+    // (groupe 2, composants applicatifs) — à retirer quand ce groupe sera traité.
+    "src/lib/plan-content.ts"
   ],
 
   "ignoreDependencies": [
