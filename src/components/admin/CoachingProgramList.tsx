@@ -111,9 +111,19 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     }
 
     // Add admin as manager FIRST (creator can bootstrap)
-    await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
+    const { error: managerErr } = await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: user.id, role: "manager" } as any);
+    if (managerErr) {
+      console.error("Erreur ajout admin comme manager:", managerErr);
+      toast.error(`Espace créé pour ${clientName}, mais ton accès manager a échoué : ${managerErr.message}. Réessaie avant de la prévenir.`);
+      return;
+    }
     // Then add client as owner
-    await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
+    const { error: ownerErr } = await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
+    if (ownerErr) {
+      console.error("Erreur ajout cliente comme owner:", ownerErr);
+      toast.error(`Espace créé mais ${clientName} n'y a PAS accès (échec de l'ajout en owner) : ${ownerErr.message}. Réessaie avant de la prévenir.`);
+      return;
+    }
 
     toast.success(`Espace créé pour ${clientName}`);
     switchWorkspace(ws.id);
