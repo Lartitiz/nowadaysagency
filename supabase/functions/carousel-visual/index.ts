@@ -211,7 +211,7 @@ IMPORTANT pour les schémas :
 - Les attributs data-pptx-shape et data-pptx-editable présents dans les templates ci-dessus sont OBLIGATOIRES : recopie-les à l'identique. Annote de la même façon tout élément équivalent que tu ajoutes (carte → card, badge/pastille → pill).`;
 }
 
-function buildTextCarouselPrompt(params: {
+export function buildTextCarouselPrompt(params: {
   ch: any;
   safeFontTitle: string;
   safeFontBody: string;
@@ -462,7 +462,7 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
   return { systemPrompt, userPrompt };
 }
 
-function buildPhotoCarouselPrompt(params: {
+export function buildPhotoCarouselPrompt(params: {
   ch: any;
   safeFontTitle: string;
   safeFontBody: string;
@@ -615,7 +615,7 @@ Retourne UNIQUEMENT le JSON.`;
   return { systemPrompt, userPrompt };
 }
 
-function buildMixCarouselPrompt(params: {
+export function buildMixCarouselPrompt(params: {
   ch: any;
   slides: any[];
   visualBlock: string;
@@ -791,7 +791,7 @@ function buildChunks(count: number, target: number): number[][] {
 
 // Plan de cohérence (mode texte uniquement — en photo/mix le rythme vient
 // des photos et des styles d'overlay, déjà cadrés par le system prompt).
-function buildCoherencePlan(slides: any[], ch: any, darkBrand: boolean): string {
+export function buildCoherencePlan(slides: any[], ch: any, darkBrand: boolean): string {
   const n = slides.length;
   const techniques = ["italique accentué (color primary + font-style italic)", "effet surligneur (linear-gradient accent)", "soulignement épais (border-bottom accent)"];
   const designMoments = new Set<number>(
