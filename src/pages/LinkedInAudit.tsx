@@ -297,7 +297,7 @@ export default function LinkedInAudit() {
       setResult(parsed);
 
       // Save to DB
-      await supabase.from("linkedin_audit").insert({
+      const { error: insertError } = await supabase.from("linkedin_audit").insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         profile_url: profileUrl || null,
@@ -315,6 +315,7 @@ export default function LinkedInAudit() {
         audit_result: parsed,
         top_priorities: parsed.top_5_priorities,
       } as any);
+      if (insertError) throw insertError;
 
       setView("results");
       toast.success("Audit terminé ! 🎉");
