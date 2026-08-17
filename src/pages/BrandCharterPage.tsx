@@ -466,17 +466,19 @@ export default function BrandCharterPage() {
     };
 
     if (d.id) {
-      await supabase.from("brand_charter").update(payload).eq("id", d.id);
+      const { error } = await supabase.from("brand_charter").update(payload).eq("id", d.id);
+      if (error) throw error;
       queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
     } else {
       payload.user_id = user.id;
       if (workspaceId && workspaceId !== user.id) {
         payload.workspace_id = workspaceId;
       }
-      const { data: inserted } = await (supabase.from("brand_charter") as any)
+      const { data: inserted, error } = await (supabase.from("brand_charter") as any)
         .insert(payload)
         .select("id")
         .single();
+      if (error) throw error;
       if (inserted) {
         setData(prev => ({ ...prev, id: inserted.id }));
         queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
