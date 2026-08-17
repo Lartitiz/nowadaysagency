@@ -55,6 +55,9 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 const MAX_BATCH = 20;
 const MAX_FILE_BYTES = UX_UPLOAD_LIMITS.photo;
 const MAX_TAG_CHIPS = 8;
+// Rattrapage describe (photos ready sans description ET sans kind) : borné
+// pour ne pas flamber les crédits IA (vision, 1 crédit/photo).
+const DESCRIBE_CATCHUP_MAX = 5;
 // Sous ce seuil, filtrer ne sert à rien : on affichait jusqu'à 15 pastilles
 // pour 4 photos (audit UX 14/08). La grille entière tient sous les yeux.
 const MIN_PHOTOS_FOR_FILTERS = 12;
@@ -114,6 +117,34 @@ export default function PhotosPage() {
         queryClient.invalidateQueries({ queryKey: ["user-photos"] });
       }
     });
+  }, [photos, wsReady, activeWorkspace, queryClient]);
+
+  // Rattrapage complémentaire : photos ready sans description ET sans kind —
+  // le describe auto à l'upload (avec son réessai) a échoué malgré tout. On
+  // relance l'edge en vision une par une, plafonné à DESCRIBE_CATCHUP_MAX pour
+  // ne pas flamber les crédits IA, une fois par montage (même garde-fou que
+  // classify_missing ci-dessus).
+  const describeCatchupTriggered = useRef(false);
+  useEffect(() => {
+    if (describeCatchupTriggered.current || !wsReady || !activeWorkspace) return;
+    const toDescribe = photos.filter((p) => p.status === "ready" && !p.kind && !p.description);
+    if (toDescribe.length === 0) return;
+    describeCatchupTriggered.current = true;
+    const workspaceId = activeWorkspace.id;
+    (async () => {
+      let anySuccess = false;
+      for (const p of toDescribe.slice(0, DESCRIBE_CATCHUP_MAX)) {
+        const { error } = await invokeWithTimeout(
+          "photo-describe",
+          { body: { mode: "describe", photo_id: p.id, workspace_id: workspaceId } },
+          60_000,
+        );
+        if (!error) anySuccess = true;
+      }
+      if (anySuccess) {
+        queryClient.invalidateQueries({ queryKey: ["user-photos"] });
+      }
+    })();
   }, [photos, wsReady, activeWorkspace, queryClient]);
 
   // Tags les plus fréquents de la bibliothèque → chips de filtre
