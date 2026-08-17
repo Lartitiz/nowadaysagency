@@ -44,7 +44,10 @@ export default function ChatPlanCards({ items }: { items: ChatPlanItem[] }) {
     (async () => {
       const dates = Array.from(new Set(items.map((i) => nextDateForDay(i.day))));
       const q = supabase.from("calendar_posts").select("date, theme").in("date", dates);
-      const { data } = await q.eq(scopeColumn, scopeValue);
+      // .eq() littéral (pas une variable) : passer scopeColumn tel quel fait
+      // exploser l'inférence de type de supabase-js (TS2589, vu sous
+      // tsconfig.app.json — la config stricte que la CI utilise réellement).
+      const { data } = scope ? await q.eq("workspace_id", scope) : await q.eq("user_id", scopeValue);
       if (cancelled || !data) return;
       const existing = new Set(data.map((r: any) => `${r.date}|${String(r.theme || "").trim().toLowerCase()}`));
       const seeded: Record<number, string> = {};
