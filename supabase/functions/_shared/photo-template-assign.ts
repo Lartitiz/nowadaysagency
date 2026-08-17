@@ -183,6 +183,9 @@ RÈGLE D'OR : le gabarit sert le texte tel qu'il est écrit. N'invente ni chiffr
       max_tokens: 1500,
       temperature: 0.2,
       tool: ASSIGN_TOOL,
+      // Petit tool call (1500 tokens) en bout de chaîne carousel-ai : jamais tourné
+      // sans limite avant ce correctif (audit timeouts 17/08).
+      abortTimeoutMs: 30_000,
     });
     const out = JSON.parse(raw);
     const { applied, rejected } = applyTemplateAssignments(parsed, out?.slides || []);

@@ -982,7 +982,9 @@ export default function ChatGuidePage() {
                                       objective: objectif,
                                       workspace_id: workspaceId,
                                     },
-                                  }, 120000);
+                                  // 400s : carousel_type peut valoir "photo"/"mix" ici aussi — même pire
+                                  // cas serveur que le flux Créer (voir use-content-generator.ts).
+                                  }, 400000);
                                   if (error) throw new Error(error.message);
                                   const parsed = parseAIResponse(data?.content || "");
                                   navigate("/creer?format=carousel", {
