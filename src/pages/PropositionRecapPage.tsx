@@ -55,7 +55,12 @@ export default function PropositionRecapPage() {
     let obj = updated;
     for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
     obj[path[path.length - 1]] = value;
-    await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
+    const { error } = await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setData({ ...data, recap_summary: updated });
     queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
   };
@@ -64,14 +69,24 @@ export default function PropositionRecapPage() {
     if (!data || !summary) return;
     const updated = JSON.parse(JSON.stringify(summary));
     updated[arrayKey][index] = value;
-    await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
+    const { error } = await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setData({ ...data, recap_summary: updated });
     queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
   };
 
   const saveVersionField = async (field: string, value: string) => {
     if (!data) return;
-    await supabase.from("brand_proposition").update({ [field]: value } as any).eq("id", data.id);
+    const { error } = await supabase.from("brand_proposition").update({ [field]: value } as any).eq("id", data.id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setData({ ...data, [field]: value });
     queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
   };
@@ -93,7 +108,8 @@ export default function PropositionRecapPage() {
       if (error) throw new Error(error.message);
       const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(raw);
-      await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);
+      const { error: writeError } = await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);
+      if (writeError) throw writeError;
       setData({ ...data, recap_summary: parsed });
       queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
       toast.success("Synthèse générée !");
