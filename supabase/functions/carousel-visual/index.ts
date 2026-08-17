@@ -11,7 +11,7 @@ import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
-import { enforceTextContrast } from "../_shared/contrast-guard.ts";
+import { enforceTextContrast, hexLuminance } from "../_shared/contrast-guard.ts";
 import { enforceMinFontSize } from "../_shared/font-size-guard.ts";
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
@@ -37,11 +37,7 @@ function isDarkBackground(color: string | undefined | null): boolean {
   let h = String(color || "").trim().replace("#", "");
   if (h.length === 3) h = h.split("").map((c) => c + c).join("");
   if (!/^[0-9a-fA-F]{6}$/.test(h)) return false;
-  const c = (i: number) => {
-    const x = parseInt(h.slice(i, i + 2), 16) / 255;
-    return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-  };
-  return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4) <= 0.5;
+  return hexLuminance(h) <= 0.5;
 }
 
 function buildVisualSchemaBlock(ch: any): string {
@@ -211,6 +207,41 @@ IMPORTANT pour les schémas :
 - Les attributs data-pptx-shape et data-pptx-editable présents dans les templates ci-dessus sont OBLIGATOIRES : recopie-les à l'identique. Annote de la même façon tout élément équivalent que tu ajoutes (carte → card, badge/pastille → pill).`;
 }
 
+/**
+ * Bloc « ═══ CHARTE GRAPHIQUE ═══ » partagé par les prompts texte et mixte.
+ * Les copies historiques différaient sur des détails VOULUS : labels plus ou
+ * moins annotés, sections optionnelles, consigne de layout propre à chaque
+ * mode. Chaque variation est pilotée par `opts` et la sortie reste identique
+ * au caractère près aux anciennes copies — verrouillé par les snapshots de
+ * prompts_snapshot_test.ts (inchangés par ce refactor).
+ */
+function buildCharterBlock(ch: any, opts: {
+  /** Annotation après « Couleur secondaire » (" (titres foncés)" ou ""). */
+  secondaryLabel: string;
+  /** Annotation après « Couleur accent » (" (highlights)" ou ""). */
+  accentLabel: string;
+  /** Libellé de la ligne photo_style — absent : la ligne n'est jamais émise. */
+  photoStyleLabel?: string;
+  dontsLabel: string;
+  briefLabel: string;
+  /** Sections réservées au mode texte. */
+  withMoodboard?: boolean;
+  withIconStyle?: boolean;
+  layoutHeader: string;
+  layoutInstruction: string;
+}): string {
+  return `═══ CHARTE GRAPHIQUE ═══
+Couleur principale : ${ch.color_primary}
+Couleur secondaire${opts.secondaryLabel} : ${ch.color_secondary}
+Couleur accent${opts.accentLabel} : ${ch.color_accent}
+Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
+Texte : ${ch.color_text}
+Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
+Police corps : ${ch.font_body}
+Ambiance : ${ch.mood_keywords}
+Border-radius : ${ch.border_radius}${opts.photoStyleLabel && ch.photo_style ? `\n${opts.photoStyleLabel} : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ ${opts.dontsLabel} :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\n${opts.briefLabel} :\n${ch.ai_generated_brief}` : ""}${opts.withMoodboard && ch.moodboard_description ? `\n\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${opts.withIconStyle && ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}${ch.template_layout_description ? `\n\n═══ ${opts.layoutHeader} ═══\n${ch.template_layout_description}\n\n${opts.layoutInstruction}` : ""}`;
+}
+
 export function buildTextCarouselPrompt(params: {
   ch: any;
   safeFontTitle: string;
@@ -237,16 +268,17 @@ Tu dois produire des slides qui ressemblent à du design professionnel fait sur 
 - Pas de JavaScript
 - JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
 
-═══ CHARTE GRAPHIQUE ═══
-Couleur principale : ${ch.color_primary}
-Couleur secondaire (titres foncés) : ${ch.color_secondary}
-Couleur accent (highlights) : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
-Texte : ${ch.color_text}
-Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
-Police corps : ${ch.font_body}
-Ambiance : ${ch.mood_keywords}
-Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo / ambiance visuelle : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS (l'utilisatrice a EXPLICITEMENT interdit ces éléments) :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF DE LA MARQUE :\n${ch.ai_generated_brief}` : ""}${ch.moodboard_description ? `\n\nAMBIANCE MOODBOARD :\n${ch.moodboard_description}` : ""}${ch.icon_style ? `\nStyle d'icônes : ${ch.icon_style}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nIMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le style des blocs, l'alternance des mises en page. Adapte-le au contenu de chaque slide.` : ""}
+${buildCharterBlock(ch, {
+    secondaryLabel: " (titres foncés)",
+    accentLabel: " (highlights)",
+    photoStyleLabel: "Style photo / ambiance visuelle",
+    dontsLabel: "INTERDITS VISUELS (l'utilisatrice a EXPLICITEMENT interdit ces éléments)",
+    briefLabel: "BRIEF CRÉATIF DE LA MARQUE",
+    withMoodboard: true,
+    withIconStyle: true,
+    layoutHeader: "LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice)",
+    layoutInstruction: "IMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le style des blocs, l'alternance des mises en page. Adapte-le au contenu de chaque slide.",
+  })}
 
 ═══ DESIGN SYSTEM — VALEURS CSS CONCRÈTES ═══
 
@@ -462,159 +494,6 @@ Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
   return { systemPrompt, userPrompt };
 }
 
-export function buildPhotoCarouselPrompt(params: {
-  ch: any;
-  safeFontTitle: string;
-  safeFontBody: string;
-  slides: any[];
-}): { systemPrompt: string; userPrompt: string } {
-  const { ch, safeFontTitle, safeFontBody, slides } = params;
-
-  const systemPrompt = `Tu es une directrice artistique experte en design de carrousels Instagram photo. Tu génères du HTML/CSS inline pour des slides au format 1080×1350px.
-
-Chaque slide utilise la PHOTO de l'utilisatrice comme image de fond, et tu poses le texte OVERLAY par-dessus avec sa charte graphique.
-
-═══ RÈGLE D'OR — ZÉRO TEXTE INVENTÉ ═══
-Le SEUL texte que tu écris sur une slide est l'overlay_text fourni dans le JSON (mot pour mot). Tu n'AJOUTES jamais le moindre autre mot. Concrètement, INTERDIT de poser au-dessus, en dessous ou à côté de l'overlay :
-- un SURTITRE / kicker / eyebrow / intertitre ;
-- une étiquette de CATÉGORIE ou de THÈME, même si elle résume bien la slide (PAS de « LE VRAI PROBLÈME », « LA MÉTHODE », « LE DÉCLIC », « HISTOIRE VRAIE », « ÉTAPE 1 », « CONVERSATION #2 », « 3 SEMAINES PLUS TARD »…) ;
-- un numéro de slide, un numéro de chapitre, un label de section.
-Le carrousel photo se lit comme une histoire qui coule : le fil vit DANS les phrases, jamais dans des stamps posés par-dessus. Une pilule/un badge ne sert QU'À porter l'overlay_text lui-même (style « minimal »), jamais un mot que tu rajoutes. SEULE exception autorisée : sur la TOUTE DERNIÈRE slide uniquement, un CTA court. Ce CTA nomme la situation CONCRÈTE du sujet où revenir à ce post servira (garde-le court, 4-8 mots) — JAMAIS un « Enregistre ce post » / « Sauvegarde » générique et interchangeable. En cas de doute : tu n'écris que l'overlay_text, rien d'autre.
-
-═══ RÈGLES HTML/CSS POUR LES PHOTOS ═══
-- Chaque slide = un <div> EXACTEMENT 1080px × 1350px
-- La photo est en background-image: url() en base64, avec background-size: cover; background-position: center par défaut — voir PHOTOS RÉPÉTÉES pour les slides consécutives qui partagent la même photo
-- CSS 100% inline (pas de classes CSS)
-- CHAQUE slide commence par la balise @import Google Fonts :
-  <style>@import url('https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap');</style>
-
-═══ CHARTE GRAPHIQUE ═══
-Couleur principale : ${ch.color_primary}
-Couleur secondaire : ${ch.color_secondary}
-Couleur accent : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
-Texte : ${ch.color_text}
-Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
-Police corps : ${ch.font_body}
-Ambiance : ${ch.mood_keywords}
-Border-radius : ${ch.border_radius}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (des templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nIMPORTANT : Inspire-toi de ce layout pour le placement des éléments, le ratio photo/texte, le style des blocs. Mais adapte-le au format carrousel photo (1080×1350).` : ""}
-
-═══ LISIBILITÉ AVANT TOUT (analyse VISUELLE de chaque photo fournie) ═══
-
-Tu VOIS chaque photo. Avant de poser le texte, analyse-la :
-- Repère la zone CLAIRE et la zone SOMBRE. Pose l'overlay là où le contraste avec ta couleur de texte est maximal :
-  · Texte clair (blanc) → sur zone sombre, ou pose un voile/bandeau sombre derrière.
-  · Texte foncé → sur zone claire, ou pose un bandeau clair derrière.
-- Repère le SUJET PRINCIPAL (visage, mains, produit, point focal). N'écris JAMAIS dessus : décale le texte vers le 1/3 opposé de la photo.
-- Si une slide porte un "visual_anchor" (un détail concret de la photo, ex : « les deux tasses encore pleines »), COMPOSE pour le laisser respirer : ne pose pas le texte par-dessus ce détail, cadre/positionne le texte de façon à le mettre en valeur.
-- Si la photo est globalement CLAIRE, texturée, floue ou multicolore sous la zone de texte : un simple gradient ne suffit pas → IMPOSE un bandeau OPAQUE (rgba 0.92) ou un voile dense.
-- La position du JSON (overlay_position) est une PRÉFÉRENCE : adapte-la si le sujet principal y est, ou si le contraste y est insuffisant.
-
-SAFE ZONES Instagram (impératif) :
-- 80px de marge en haut (zone tronquée par certains crops du feed).
-- 200px de marge en bas (icône carrousel Instagram + crop mobile).
-- Aucun texte critique (overlay) dans ces zones. Les éléments décoratifs (voile, photo qui dépasse) sont OK.
-
-═══ DESIGN DES OVERLAYS TEXTE SUR PHOTO ═══
-
-L'overlay_text doit être LISIBLE sur la photo. Utilise UN des styles suivants selon overlay_style :
-
-STYLE "sensoriel" (phrases évocatrices) :
-- Position : selon overlay_position (par défaut en bas)
-- Voile sombre ADAPTATIF : un linear-gradient(transparent, rgba(0,0,0,0.7)) dont la hauteur ÉPOUSE le bloc texte (≈ hauteur du texte + 120px de marge) et démarre du bord où est posé le texte (bas, haut OU centre). Le voile ne couvre que ce qu'il faut pour lire — pas plus, pas moins.
-- Si le texte est en haut ou au centre : le gradient part de ce bord-là (en haut : rgba(0,0,0,0.7) → transparent ; au centre : voile radial/horizontal centré). NE laisse JAMAIS un texte blanc sans voile parce que le gradient n'était "prévu qu'en bas".
-- Texte : font-family: ${ch.font_title}; font-size: 48-58px; color: white; font-weight: normal; font-style: italic
-- Padding : 80px côtés, 60px du bord
-- Ombre texte : text-shadow: 0 2px 20px rgba(0,0,0,0.6)
-
-STYLE "narratif" (phrases d'histoire) :
-- Position : selon overlay_position
-- Bandeau CLAIR, annoté data-pptx-shape="card" : background: #FFFFFF (BLANC OPAQUE — JAMAIS rgba semi-transparent ni backdrop-filter : ils ne s'exportent pas et laissent voir la photo au travers) ; border-radius: ${ch.border_radius}; box-shadow: 0 8px 28px rgba(0,0,0,0.18)
-- Texte FONCÉ : font-family: ${ch.font_body}; font-size: 40-46px; color: ${ch.color_text}
-- Padding : 28px 40px
-- Le bandeau ne fait PAS toute la largeur : max-width: 85%, centré ou aligné
-
-STYLE "minimal" (phrases courtes percutantes) :
-- Position : selon overlay_position
-- Badge pilule : background ${ch.color_primary}; color white; font-family: ${ch.font_body}; font-size: 28-32px; text-transform: uppercase; letter-spacing: 2px; padding: 12px 32px; border-radius: 100px
-- Ou texte nu en blanc très grand (60-72px) avec ombre forte : text-shadow: 0 4px 30px rgba(0,0,0,0.8) ET un voile sombre adaptatif derrière si la zone est claire
-
-STYLE "technique" (détails produit) :
-- Position : coin ou bord selon overlay_position
-- Étiquette : background rgba(0,0,0,0.8); color white; font-family: ${ch.font_body}; font-size: 28-32px; padding: 12px 24px; border-radius: 8px
-- Look "tag produit" discret mais lisible
-
-QUAND overlay_text est null :
-- La photo occupe toute la slide SANS texte
-- Background-size: cover, c'est tout
-
-═══ POSITIONS ═══
-"bottom_left" : contenu en bas à gauche (align-items: flex-start; justify-content: flex-end)
-"bottom_center" : contenu en bas centré (align-items: center; justify-content: flex-end)
-"top_left" : contenu en haut à gauche (align-items: flex-start; justify-content: flex-start)
-"top_center" : contenu en haut centré (align-items: center; justify-content: flex-start)
-"center" : contenu centré (align-items: center; justify-content: center)
-
-═══ ANTI-PATTERNS ═══
-- ❌ Texte blanc posé sur une zone claire SANS voile (illisibilité n°1) — toujours vérifier le contraste réel sous le texte
-- ❌ Voile "prévu en bas" alors que le texte est en haut/centre → le texte flotte sans fond
-- ❌ Texte par-dessus le visage / le sujet principal de la photo
-- ❌ Bandeau qui cache plus de 45% de la photo (le voile doit épouser le texte, pas noyer l'image)
-- ❌ Texte trop petit (< 28px)
-- ❌ Toutes les slides avec le même traitement (varier les styles)
-- ❌ Cercles ou ronds décoratifs
-- ❌ Font-weight bold sur ${ch.font_title}
-- ❌ INVENTER un SURTITRE / une étiquette de catégorie / un intertitre de section au-dessus ou en dessous de la phrase (ex : "HISTOIRE VRAIE", "CONVERSATION #2", "3 SEMAINES PLUS TARD", "ÉTAPE 1"). En carrousel photo, tu ne poses RIEN d'autre que l'overlay_text fourni : pas de label de section, pas de tag de catégorie, pas de numéro de chapitre. Le fil narratif vit DANS les phrases, pas dans des stamps qui transforment l'histoire en galerie d'images légendées. SEULE exception : la toute dernière slide peut porter un CTA court et discret, contextualisé au sujet (jamais un "Enregistre ce post" générique).
-
-═══ PHOTOS RÉPÉTÉES = CADRAGES DIFFÉRENTS ═══
-Quand la MÊME photo (même photo_index) porte deux slides consécutives, la deuxième NE reprend PAS le cadrage cover/center de la première : c'est le pendant visuel du zoom narratif. Sur la deuxième occurrence : background-size entre 140% et 175% et background-position ciblée sur le détail dont parle le texte (le visual_anchor de la slide) — plan entier puis plan serré. Jamais deux slides visuellement identiques d'affilée.
-
-═══ SLIDE 1 = HERO D'OUVERTURE ═══
-La slide 1 est la vignette qui doit STOPPER le scroll. Traite-la comme une affiche, pas comme une slide ordinaire :
-- Choisis la photo la plus forte et pose-la plein écran.
-- Si son overlay_text est court (≤ 12 mots) OU si overlay_text est null : joue l'impact maximal — texte TRÈS grand (style accroche : 64-88px, sur 2-3 lignes max) avec un voile/bandeau franc, ou photo nue si elle se suffit. Pas de petit texte timide en slide 1.
-- Si l'overlay est plus long, applique le style demandé mais soigne la hiérarchie (un mot-clé peut être agrandi/coloré en ${ch.color_accent}).
-- La slide 1 doit se distinguer visuellement des suivantes (échelle de texte plus grande, composition plus aérée).
-
-═══ VÉRIFICATION FINALE DE LISIBILITÉ (OBLIGATOIRE, slide par slide) ═══
-Tu VOIS chaque photo. Avant de finaliser CHAQUE slide, regarde la zone réelle de pixels SOUS ton texte :
-- Le contraste texte/fond est-il suffisant pour lire sans effort sur un petit écran mobile ?
-- Si NON (ou au moindre doute) : tu DOIS d'abord corriger — ajoute ou renforce le voile/bandeau (jusqu'à rgba opaque 0.92), déplace le texte vers une zone plus contrastée, ou agrandis l'ombre. Ne livre JAMAIS une slide au contraste douteux.
-- Renseigne ensuite honnêtement le champ "contrast_ok" : true seulement si, APRÈS ta correction, le texte est franchement lisible. false si un doute subsiste malgré tout.
-
-═══ ANCRAGE DU TEXTE (OBLIGATOIRE — permet l'édition en direct) ═══
-L'élément qui contient DIRECTEMENT l'overlay_text porte l'attribut data-slide-text="overlay" (un seul par slide, texte recopié VERBATIM ; les <span> de style restent À L'INTÉRIEUR de cet élément). Le CTA autorisé de la dernière slide ne porte PAS data-slide-text="overlay" : s'il prend la forme d'un bouton/pilule graphique, enveloppe-le dans un élément data-slide-cta avec son texte en data-slide-text="cta" (permet de le modifier ou de le retirer).
-
-Retourne un JSON :
-{
-  "slides_html": [
-    { "slide_number": 1, "html": "<style>@import url(...);</style><div style=\\"width:1080px;height:1350px;...\\">...</div>", "contrast_ok": true, "legibility": "voile sombre adaptatif sous le texte (zone claire en haut)" }
-  ]
-}
-
-Chaque entrée de slides_html DOIT inclure "contrast_ok" (booléen) et "legibility" (courte note sur le traitement de lisibilité appliqué).
-
-IMPORTANT : Pour chaque slide, utilise le placeholder {{PHOTO_N}} dans le background-image, où N est le photo_index fourni dans le JSON de la slide (PAS son numéro de slide — une même photo peut être réutilisée sur plusieurs slides).
-Exemple : slide 1 avec photo_index 1 → background-image: url({{PHOTO_1}})
-Exemple : slide 5 avec photo_index 2 → background-image: url({{PHOTO_2}})
-N'essaie PAS d'écrire le base64 toi-même. Utilise UNIQUEMENT le placeholder {{PHOTO_N}}.
-Retourne UNIQUEMENT le JSON, pas de texte avant ou après.`;
-
-  const userPrompt = `Génère les slides HTML pour ce carrousel PHOTO.
-
-SLIDES (textes overlay à poser sur les photos) :
-${JSON.stringify(slides, null, 2)}
-
-Chaque slide du JSON ci-dessus contient son photo_index. Utilise {{PHOTO_N}} où N = ce photo_index (ex: photo_index 2 → {{PHOTO_2}}), jamais le numéro de slide.
-Le placeholder sera automatiquement remplacé par la vraie image.
-
-RAPPEL : Le texte doit être LISIBLE sur chaque photo. Adapte le style d'overlay (gradient sombre, bandeau blanc, badge pilule) selon le style demandé et la luminosité de la photo. Varie les traitements d'une slide à l'autre.
-
-Retourne UNIQUEMENT le JSON.`;
-
-  return { systemPrompt, userPrompt };
-}
-
 export function buildMixCarouselPrompt(params: {
   ch: any;
   slides: any[];
@@ -633,16 +512,15 @@ Ce carrousel est un MIX : certaines slides ont des photos, d'autres sont du text
 - Pas de JavaScript
 - JAMAIS de cercle, rond, ou border-radius: 50% en élément décoratif de fond
 
-═══ CHARTE GRAPHIQUE ═══
-Couleur principale : ${ch.color_primary}
-Couleur secondaire (titres foncés) : ${ch.color_secondary}
-Couleur accent (highlights) : ${ch.color_accent}
-Fond par défaut : ${ch.texture_url ? `background:url('${ch.texture_url}') center/cover — c'est la TEXTURE DE MARQUE (matière papier). Utilise EXACTEMENT ce CSS pour tout fond de slide où tu aurais mis un aplat ${ch.color_background}. Les cartes/bandeaux posés PAR-DESSUS restent en aplats opaques (blanc ou teintes de la charte), jamais la texture dans une carte.` : ch.color_background}
-Texte : ${ch.color_text}
-Police titres : ${ch.font_title} (JAMAIS en font-weight bold, toujours normal/400)
-Police corps : ${ch.font_body}
-Ambiance : ${ch.mood_keywords}
-Border-radius : ${ch.border_radius}${ch.photo_style ? `\nStyle photo : ${ch.photo_style}` : ""}${ch.visual_donts ? `\n\n⛔ INTERDITS VISUELS :\n${ch.visual_donts}` : ""}${ch.ai_generated_brief ? `\n\nBRIEF CRÉATIF :\n${ch.ai_generated_brief}` : ""}${ch.template_layout_description ? `\n\n═══ LAYOUT DE RÉFÉRENCE (templates uploadés par l'utilisatrice) ═══\n${ch.template_layout_description}\n\nInspire-toi de ce layout pour le placement des éléments et l'ambiance générale.` : ""}
+${buildCharterBlock(ch, {
+    secondaryLabel: " (titres foncés)",
+    accentLabel: " (highlights)",
+    photoStyleLabel: "Style photo",
+    dontsLabel: "INTERDITS VISUELS",
+    briefLabel: "BRIEF CRÉATIF",
+    layoutHeader: "LAYOUT DE RÉFÉRENCE (templates uploadés par l'utilisatrice)",
+    layoutInstruction: "Inspire-toi de ce layout pour le placement des éléments et l'ambiance générale.",
+  })}
 
 ═══ DESIGN PAR TYPE DE SLIDE ═══
 
@@ -1429,15 +1307,8 @@ function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
     return [comp(r, B(0)), comp(g, B(2)), comp(b, B(4))]
       .map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
   };
-  const lum = (h6: string): number => {
-    const c = (i: number) => {
-      const x = parseInt(h6.slice(i, i + 2), 16) / 255;
-      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-    };
-    return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4);
-  };
   const ratio = (a6: string, b6: string): number => {
-    const la = lum(a6), lb = lum(b6);
+    const la = hexLuminance(a6), lb = hexLuminance(b6);
     return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
   };
   // Règle (validée avec Laetitia, option « stricte ») : la couleur du TITRE est imposée
@@ -1524,7 +1395,7 @@ function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
           const eff = hexOnBg(cm[1], bgLocal);
           if (!eff) return sm;
           let repl: string | null = null;
-          if (lum(bgLocal) > 0.5) {
+          if (hexLuminance(bgLocal) > 0.5) {
             if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bestDark(bgLocal);
           } else {
             if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
@@ -1555,7 +1426,7 @@ function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
           const eff = hexOnBg(cm[1], bgLocal);
           if (!eff) return sm;
           let repl: string | null = null;
-          if (lum(bgLocal) > 0.5) {
+          if (hexLuminance(bgLocal) > 0.5) {
             if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bodyDark(bgLocal);
           } else {
             if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
@@ -2203,12 +2074,15 @@ Adapte le design system ci-dessus au style "${style}". Le style influence l'ambi
     const isPhotoCarousel = reqBody.carousel_type === "photo" && reqBody.photos?.length > 0;
     const isMixCarousel = reqBody.carousel_type === "mix" && reqBody.photos?.length > 0;
 
+    // Carrousel 100% photo : PAS de prompt dédié — la composition est déterministe
+    // (composedByCode → composePhotoSlide, chantier gabarits 13/07) et aucun appel
+    // LLM ne part ; finalSystemPrompt reste alors le prompt texte, jamais envoyé
+    // (les gardes qui le reçoivent s'auto-désactivent quand composedByCode est vrai).
+    // L'ancien buildPhotoCarouselPrompt, court-circuité depuis ce chantier, a été
+    // supprimé le 17/08/2026 (récupérable dans l'historique git si un rendu photo
+    // par LLM redevenait souhaitable).
     let finalSystemPrompt = systemPrompt;
     let finalUserPrompt = userPrompt;
-
-    if (isPhotoCarousel) {
-      ({ systemPrompt: finalSystemPrompt, userPrompt: finalUserPrompt } = buildPhotoCarouselPrompt({ ch, safeFontTitle, safeFontBody, slides }));
-    }
 
     if (isMixCarousel) {
       ({ systemPrompt: finalSystemPrompt, userPrompt: finalUserPrompt } = buildMixCarouselPrompt({ ch, slides, visualBlock }));

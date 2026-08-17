@@ -39,7 +39,6 @@ const realListen = Deno.listen;
 }) as any;
 const {
   buildTextCarouselPrompt,
-  buildPhotoCarouselPrompt,
   buildMixCarouselPrompt,
   buildCoherencePlan,
 } = await import("./index.ts");
@@ -99,13 +98,6 @@ const SLIDES_TEXTE = [
   { slide_number: 4, role: "cta", title: "Viens tourner avec moi", body: "Atelier débutantes, lien en bio." },
 ];
 
-const SLIDES_PHOTO = [
-  { slide_number: 1, photo_index: 1, overlay_text: "J'ai raté 200 bols avant celui-là.", overlay_style: "sensoriel", overlay_position: "bottom_center", visual_anchor: "le bol unique au centre de l'étagère" },
-  { slide_number: 2, photo_index: 1, overlay_text: "Celui-là, c'est le 201e.", overlay_style: "minimal", overlay_position: "center", visual_anchor: "le bol unique au centre de l'étagère" },
-  { slide_number: 3, photo_index: 2, overlay_text: null, overlay_style: "sensoriel", overlay_position: "center" },
-  { slide_number: 4, photo_index: 3, overlay_text: "Viens rater tes 200 premiers bols avec moi.", overlay_style: "narratif", overlay_position: "bottom_left" },
-];
-
 const SLIDES_MIX = [
   { slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Le talent n'existe pas.", overlay_style: "minimal", overlay_position: "center" },
   { slide_number: 2, slide_type: "text_only", role: "tip", title: "Ce qui existe : 200 bols ratés", body: "La régularité au tour fait plus que le don." },
@@ -148,25 +140,9 @@ Deno.test("buildTextCarouselPrompt — charte sombre complète, darkBrand, overr
   })));
 });
 
-// ── Carrousel PHOTO ──
-
-Deno.test("buildPhotoCarouselPrompt — charte minimale (photo répétée + overlay null dans les slides)", async (t) => {
-  await assertSnapshot(t, promptDoc(buildPhotoCarouselPrompt({
-    ch: CHARTE_MINIMALE,
-    safeFontTitle: "Libre Baskerville",
-    safeFontBody: "IBM Plex Sans",
-    slides: SLIDES_PHOTO,
-  })));
-});
-
-Deno.test("buildPhotoCarouselPrompt — charte sombre complète (texture, interdits, layout de référence)", async (t) => {
-  await assertSnapshot(t, promptDoc(buildPhotoCarouselPrompt({
-    ch: CHARTE_SOMBRE_COMPLETE,
-    safeFontTitle: "Cormorant Garamond",
-    safeFontBody: "Work Sans",
-    slides: SLIDES_PHOTO,
-  })));
-});
+// (Pas de tests buildPhotoCarouselPrompt : la fonction — code mort depuis le
+// chantier gabarits du 13/07, composedByCode court-circuitant vers
+// composePhotoSlide — a été supprimée le 17/08/2026.)
 
 // ── Carrousel MIXTE ──
 

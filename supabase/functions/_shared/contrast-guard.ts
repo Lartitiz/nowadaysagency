@@ -53,6 +53,21 @@ function luminance(c: Rgb): number {
   return 0.2126 * ch[0] + 0.7152 * ch[1] + 0.0722 * ch[2];
 }
 
+/**
+ * Luminance relative WCAG d'une couleur hex 6 SANS « # » (ex. "FB3D80").
+ * Seule implémentation partagée de la correction gamma sRGB + coefficients
+ * 0.2126/0.7152/0.0722 — carousel-visual (isDarkBackground, garde
+ * titre/corps) s'appuie dessus au lieu de dupliquer le calcul.
+ */
+export function hexLuminance(h6: string): number {
+  return luminance({
+    r: parseInt(h6.slice(0, 2), 16),
+    g: parseInt(h6.slice(2, 4), 16),
+    b: parseInt(h6.slice(4, 6), 16),
+    a: 1,
+  });
+}
+
 function contrastRatio(l1: number, l2: number): number {
   const [hi, lo] = l1 >= l2 ? [l1, l2] : [l2, l1];
   return (hi + 0.05) / (lo + 0.05);
