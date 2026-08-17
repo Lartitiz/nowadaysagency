@@ -16,6 +16,7 @@ import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ChevronLeft, ChevronRight, Sparkles, Download, Link2, PenLine, FileInput, MoreHorizontal, CalendarDays, Lightbulb } from "lucide-react";
 import {
@@ -837,7 +838,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
     if (data?.type === "idea") {
       const idea = data.idea;
-      const { data: newPost } = await supabase.from("calendar_posts").insert({
+      const { data: newPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         date: newDate,
@@ -851,8 +852,18 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         series_id: (idea as any).series_id ?? null,
         episode_number: (idea as any).episode_number ?? null,
       } as any).select("id").single();
+      if (insertError) {
+        console.error("Erreur technique:", insertError);
+        toast.error("Erreur", { description: friendlyError(insertError) });
+        return;
+      }
       if (newPost) {
-        await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
+        const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
+        if (updateError) {
+          console.error("Erreur technique:", updateError);
+          toast.error("Erreur", { description: friendlyError(updateError) });
+          return;
+        }
       }
       fetchPosts();
       setIdeasRefreshKey(k => k + 1);

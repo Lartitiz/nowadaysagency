@@ -7,6 +7,7 @@ import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query"
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -130,7 +131,12 @@ export default function ContactsPage() {
 
   const updateContact = async (id: string, updates: Partial<Contact>) => {
     const prev = contacts.find(c => c.id === id);
-    await supabase.from("contacts").update(updates as any).eq("id", id);
+    const { error } = await supabase.from("contacts").update(updates as any).eq("id", id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setContacts(prev2 => prev2.map(c => c.id === id ? { ...c, ...updates } : c));
 
     if (updates.prospect_stage === "converted" && prev?.prospect_stage !== "converted") {
@@ -141,7 +147,12 @@ export default function ContactsPage() {
   };
 
   const deleteContact = async (id: string) => {
-    await supabase.from("contacts").delete().eq("id", id);
+    const { error } = await supabase.from("contacts").delete().eq("id", id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setContacts(prev => prev.filter(c => c.id !== id));
     setSelectedProspect(null);
   };
@@ -193,7 +204,7 @@ export default function ContactsPage() {
               contacts={networkContacts}
               onAdd={async (c) => {
                 if (!user) return;
-                const { data } = await supabase.from("contacts").insert({
+                const { data, error } = await supabase.from("contacts").insert({
                   user_id: user.id,
                   workspace_id: workspaceId !== user.id ? workspaceId : undefined,
                   username: cleanPseudo(c.username),
@@ -202,6 +213,11 @@ export default function ContactsPage() {
                   network_category: c.network_category || "pair",
                   platform: "instagram",
                 } as any).select("*").single();
+                if (error) {
+                  console.error("Erreur technique:", error);
+                  toast.error("Erreur", { description: friendlyError(error) });
+                  return;
+                }
                 if (data) {
                   setContacts(prev => [data as unknown as Contact, ...prev]);
                   toast.success("👥 Contact ajouté !");
@@ -224,7 +240,7 @@ export default function ContactsPage() {
                 contacts={prospectContacts}
                 onAdd={async (c) => {
                   if (!user) return;
-                  const { data } = await supabase.from("contacts").insert({
+                  const { data, error } = await supabase.from("contacts").insert({
                     user_id: user.id,
                     workspace_id: workspaceId !== user.id ? workspaceId : undefined,
                     username: cleanPseudo(c.username),
@@ -236,6 +252,11 @@ export default function ContactsPage() {
                     notes: c.notes || null,
                     platform: "instagram",
                   } as any).select("*").single();
+                  if (error) {
+                    console.error("Erreur technique:", error);
+                    toast.error("Erreur", { description: friendlyError(error) });
+                    return;
+                  }
                   if (data) {
                     setContacts(prev => [data as unknown as Contact, ...prev]);
                     toast.success("🎯 Prospect ajouté !");
@@ -274,7 +295,7 @@ export default function ContactsPage() {
               onMessageSent={async (content, approach) => {
                 if (!user || !dmContact) return;
                 try {
-                  await supabase.from("contact_interactions").insert({
+                  const { error } = await supabase.from("contact_interactions").insert({
                     contact_id: dmContact.id,
                     user_id: user.id,
                     workspace_id: workspaceId !== user.id ? workspaceId : undefined,
@@ -282,6 +303,7 @@ export default function ContactsPage() {
                     content,
                     ai_generated: true,
                   } as any);
+                  if (error) throw error;
                 } catch (e) {
                   console.error("[Contacts] Failed to log interaction:", e);
                 }
