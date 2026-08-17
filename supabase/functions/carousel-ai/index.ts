@@ -21,6 +21,18 @@ import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, ma
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides } from "../_shared/photo-template-assign.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
+// ── Seam d'injection de dépendances (tests) ──
+// Indirection pure : en prod, ces champs pointent vers les imports ci-dessus
+// et le comportement est identique en tout point. Les tests (index_test.ts)
+// remplacent un ou plusieurs de ces champs pour observer/court-circuiter les
+// appels réseau (Supabase, Anthropic) sans toucher à la logique métier.
+export const _deps = {
+  runPipeline,
+  checkQuota,
+  logUsage,
+  callAnthropic,
+};
+
 // ── Sortie structurée pour les deepening_questions ──
 // Même pattern que creative-flow (#359) : le tool forcé (tool_choice) fait
 // garantir le JSON par l'API elle-même — fini les 502 « réponse IA illisible »
@@ -426,7 +438,7 @@ function carouselMismatchResponse(
   });
 }
 
-serve(async (req) => {
+export async function handleRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   const wantsSSE = (req.headers.get("accept") || "").includes("text/event-stream");
 
@@ -445,7 +457,7 @@ serve(async (req) => {
   try {
 
     // Quota is handled below per-category, so we skip it here
-    const r = await runPipeline(req, {
+    const r = await _deps.runPipeline(req, {
       skipQuota: true,
       workspaceId: body?.workspace_id ?? undefined,
     });
@@ -527,7 +539,7 @@ serve(async (req) => {
     // Les carrousels « Qualité Max » tournent sur Opus (~50× le coût d'un post) →
     // on les compte sur un quota dédié `quality_max` (gratuit = 0, Premium = 20/mois).
     if (category === "content" && body?.quality_max) category = "quality_max";
-    const quotaCheck = await checkQuota(userId, category, workspace_id);
+    const quotaCheck = await _deps.checkQuota(userId, category, workspace_id);
     if (!quotaCheck.allowed) {
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
@@ -733,7 +745,15 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
 
   if (wantsSSE) return runWithHeartbeatSSE(corsHeaders, handle);
   return handle();
-});
+}
+
+// `import.meta.main` n'est vrai que lorsque ce fichier est le point d'entrée
+// Deno (invocation directe par le runtime edge) — faux quand un test `import`e
+// ce module. `serve()` ne tente donc jamais de binder un port pendant les
+// tests (qui tournent avec --allow-env --allow-read, sans --allow-net).
+if (import.meta.main) {
+  serve(handleRequest);
+}
 
 // ── Handlers par type de requête ──
 // Le handler serve() ci-dessus ne fait que le setup partagé (quota, contexte
@@ -795,7 +815,7 @@ async function runGenerationAndRespond(
       : getModelForAction("carousel");
   const usage: UsageSink = {};
   if (type !== "deepening_questions") emitStatus("writing");
-  let content = await callAnthropic({
+  let content = await _deps.callAnthropic({
     model: modelForCall,
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
@@ -854,7 +874,7 @@ async function runGenerationAndRespond(
   // un carrousel débite 2 crédits (rédaction express_full + carousel_visual),
   // les questions pré-chargées ne comptent pas (aligné sur creative-flow).
   if (type !== "deepening_questions") {
-    await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
+    await _deps.logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
   }
 
   return new Response(JSON.stringify({ content }), {
@@ -916,7 +936,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.`,
     });
 
-    doGenerate = (sink: UsageSink) => callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + mixPrompt,
       messages: [{ role: "user", content: messageContent }],
@@ -930,7 +950,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
     const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}${body.slide_count ? " — choix explicite de l'utilisatrice, il PRIME sur toute autre fourchette" : ""}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
-    doGenerate = (sink: UsageSink) => callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt }],
@@ -1005,7 +1025,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
   });
   content = gateMix.content;
-  await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
+  await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1047,7 +1067,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       text: `Analyse chaque photo et génère le carrousel photo.`,
     });
 
-    doGenerate = (sink: UsageSink) => callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + photoPrompt,
       messages: [{ role: "user", content: messageContent }],
@@ -1059,7 +1079,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     // Text-only mode: description without actual photos
     const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides cible : ${body.slide_count || 6} — ne descends JAMAIS sous ${Math.min(4, body.slide_count || 6)} slides, quel que soit le nombre de photos (les textes portent la progression).\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
 
-    doGenerate = (sink: UsageSink) => callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt }],
@@ -1133,7 +1153,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     model: pickCorrectionModel(body),
     logger: (m) => console.log(m),
   });
-  await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
+  await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -1310,7 +1330,7 @@ Propose la structure optimale.`;
       type: "text",
       text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",
     });
-    content = await callAnthropic({
+    content = await _deps.callAnthropic({
       model: getModelForAction("content"),
       system: structureSystemPrompt,
       messages: [{ role: "user", content: messageContent }],
@@ -1318,7 +1338,7 @@ Propose la structure optimale.`;
       tool: STRUCTURE_PROPOSAL_TOOL,
     });
   } else {
-    content = await callAnthropic({
+    content = await _deps.callAnthropic({
       model: getModelForAction("content"),
       system: structureSystemPrompt,
       messages: [{ role: "user", content: structureUserPrompt }],
@@ -1471,7 +1491,7 @@ Réponds UNIQUEMENT en JSON valide :
   });
 
   const deepeningUsage: UsageSink = {};
-  const content = await callAnthropic({
+  const content = await _deps.callAnthropic({
     model: getModelForAction("questions"),
     system: systemPrompt,
     messages: [{ role: "user", content: messageContent }],

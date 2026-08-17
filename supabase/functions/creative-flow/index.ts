@@ -31,6 +31,19 @@ import {
 import { stripMarkdownFromNewsletter } from "../_shared/strip-markdown.ts";
 import { enforceStoriesPhotoFirst } from "../_shared/story-photo-gate.ts";
 
+// ── Seam d'injection de dépendances (tests) ──
+// Permet à index_test.ts de remplacer runPipeline/checkQuota/logUsage/
+// callAnthropic/callAnthropicSimple par des doublures sans toucher au corps
+// de la fonction. Tant que ces champs ne sont pas réassignés, le comportement
+// est identique à un appel direct des imports ci-dessus (indirection pure).
+export const _deps = {
+  runPipeline,
+  checkQuota,
+  logUsage,
+  callAnthropic,
+  callAnthropicSimple,
+};
+
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
 // ── Sortie structurée pour les steps `questions` / `follow-up` ──
@@ -1035,7 +1048,7 @@ Matrice d'affinités pour l'attribution :
 - Newsletter : l'angle le plus PROFOND (réflexion complète).
 
 Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
-    const planRaw = await callAnthropic({
+    const planRaw = await _deps.callAnthropic({
       model: getModelForAction("questions"),
       system: "Tu prépares le recyclage d'un contenu en plusieurs formats. Tu es FIDÈLE à la source : tu n'inventes aucun fait, aucun chiffre, aucune anecdote.",
       messages: [{ role: "user", content: [...filesContent, { type: "text", text: planText }] }],
@@ -1086,7 +1099,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
       ? `\n\nTON ANGLE (imposé par le plan éditorial, respecte-le) :\n- Sous-idée : ${a.sous_idee || ""}\n- Angle : ${a.angle}${others ? `\n\nLes AUTRES formats couvrent déjà ces angles — ne les reprends PAS :\n${others}` : ""}`
       : (others ? `\n\nD'autres formats recyclent aussi ce contenu (${fmtIds.filter((x) => x !== f).map((x) => formatLabels[x] || x).join(", ")}) : prends un angle qui leur laisse de la place.` : "");
     const fUsage: UsageSink = {};
-    const raw = await callAnthropicSimple(
+    const raw = await _deps.callAnthropicSimple(
       getModelForAction("content"),
       buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
       `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
@@ -1160,7 +1173,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
   const failedFormats = fmtIds.filter((f) => !(f in results));
 
   const totalTokens = (planUsage.total_tokens || 0) + ok.reduce((s, r) => s + (r.usage.total_tokens || 0), 0);
-  await logUsage(userId, "content", "creative_flow", totalTokens || undefined, ok[0]?.usage.model, workspace_id);
+  await _deps.logUsage(userId, "content", "creative_flow", totalTokens || undefined, ok[0]?.usage.model, workspace_id);
   console.log(JSON.stringify({
     type: "recycle_timing",
     formats: fmtIds.length,
@@ -1450,7 +1463,7 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   }
 }
 
-serve(async (req) => {
+export async function handleRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
 
   try {
@@ -1467,7 +1480,7 @@ serve(async (req) => {
     const BILLED_STEPS = new Set(["generate", "adjust", "recycle"]);
     const isBilledStep = typeof body?.step === "string" && BILLED_STEPS.has(body.step);
 
-    const r = await runPipeline(req, {
+    const r = await _deps.runPipeline(req, {
       category: "content",
       skipQuota: !isBilledStep,
       workspaceId: body?.workspace_id ?? undefined,
@@ -1764,7 +1777,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // ── Deep Research (web search via Anthropic) ──
     if (deepResearch && step === "generate") {
       // Check deep_research quota
-      const drQuota = await checkQuota(userId, "deep_research");
+      const drQuota = await _deps.checkQuota(userId, "deep_research", workspace_id);
       if (!drQuota.allowed) {
         return quotaDeniedResponse(drQuota, corsHeaders);
       }
@@ -1845,7 +1858,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
           systemPrompt += `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
         }
         // Log deep research usage only when the web search actually succeeded
-        await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspace_id);
+        await _deps.logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspace_id);
       } else {
         console.error("Deep research web search failed:", searchResponse.status);
       }
@@ -1925,7 +1938,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
           ),
           corsHeaders,
           async (_full, usage) => {
-            await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+            await _deps.logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
           },
         );
       }
@@ -1941,7 +1954,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
         const genLkUsage: UsageSink = {};
         const corrLkUsage: UsageSink = {};
         emitStatus("writing");
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage);
+        const rawContent = await _deps.callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage);
         console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
 
         // Parse the raw content to extract the post text
@@ -2066,7 +2079,7 @@ Réponds UNIQUEMENT en JSON :
         // Correction = édition mécanique à règles fermées → Haiku (~2x plus
         // rapide que Sonnet), même arbitrage que le carrousel (#364).
         emitStatus("correcting");
-        const correctedRaw = await callAnthropicSimple(
+        const correctedRaw = await _deps.callAnthropicSimple(
           "claude-haiku-4-5",
           correctionPrompt,
           `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
@@ -2105,7 +2118,7 @@ Réponds UNIQUEMENT en JSON :
             objectif: originalParsed.objectif || "",
           };
 
-          await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
+          await _deps.logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
           return new Response(JSON.stringify(merged), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
@@ -2120,7 +2133,7 @@ Réponds UNIQUEMENT en JSON :
           else fallbackParsed = { content: rawContent };
         }
 
-        await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
+        await _deps.logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
         return new Response(JSON.stringify(fallbackParsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -2134,7 +2147,7 @@ Réponds UNIQUEMENT en JSON :
         const runNewsletterTwoStep = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
         const nlUsage: UsageSink = {};
         emitStatus("writing");
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage);
+        const rawContent = await _deps.callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage);
 
         let parsed: any;
         try {
@@ -2213,7 +2226,7 @@ Réponds UNIQUEMENT en JSON :
           }
         }
 
-        await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
+        await _deps.logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
         return new Response(JSON.stringify(parsed), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -2225,7 +2238,7 @@ Réponds UNIQUEMENT en JSON :
       if (isCarousel) {
         const caUsage: UsageSink = {};
         const caCorrUsage: UsageSink = {};
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage);
+        const rawContent = await _deps.callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage);
 
         // Parse the raw content
         let parsedContent: any = null;
@@ -2279,7 +2292,7 @@ Réponds UNIQUEMENT en JSON :
   "corrections_applied": ["liste courte des corrections faites"]
 }`;
 
-        const correctedRaw = await callAnthropicSimple(
+        const correctedRaw = await _deps.callAnthropicSimple(
           getModelForAction("content"),
           carouselCorrectionPrompt,
           `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
@@ -2309,14 +2322,14 @@ Réponds UNIQUEMENT en JSON :
             objectif: parsedContent?.objectif || "",
           };
 
-          await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
+          await _deps.logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
           return new Response(JSON.stringify(merged), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
 
         // Fallback: return original
-        await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
+        await _deps.logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
         return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
@@ -2342,7 +2355,7 @@ Réponds UNIQUEMENT en JSON :
         ),
         corsHeaders,
         async (_full, usage) => {
-          await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+          await _deps.logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
         },
         { failOnTruncation: true },
       );
@@ -2396,7 +2409,7 @@ Réponds UNIQUEMENT en JSON :
       const visionSystemPrompt = `${QUESTIONS_PREFIX}
 ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}${recentBriefsContext ? `\n══ MÉMOIRE ANTI-RÉPÉTITION ══\nSujets DIFFÉRENTS déjà traités récemment :\n${recentBriefsContext}\nN'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant — sert uniquement à ne pas reposer une question identique.\n` : ""}`;
 
-      rawContent = await callAnthropic({
+      rawContent = await _deps.callAnthropic({
         model: getModelForAction("content"),
         system: visionSystemPrompt,
         messages: [{ role: "user", content: questionsContent }],
@@ -2493,7 +2506,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       // serveur. Le tool (miroir de jsonShape) fait garantir un JSON valide par
       // l'API. Non-streaming ici (le post photo ne streame pas), donc pas d'enjeu
       // de live à préserver — juste la validité, comme le POST streaming #534.
-      rawContent = await callAnthropic({
+      rawContent = await _deps.callAnthropic({
         model: getModelForAction("content"),
         system: systemPrompt,
         messages: [{ role: "user", content: photoContent }],
@@ -2522,7 +2535,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       // rétention du reel, la qualité prime sur les ~5 s gagnées avec Haiku.
       const structuredTool = step === "questions" ? QUESTIONS_TOOL : step === "follow-up" ? FOLLOW_UP_TOOL : step === "hooks" ? HOOKS_TOOL : undefined;
       rawContent = structuredTool
-        ? await callAnthropic({
+        ? await _deps.callAnthropic({
             model: modelForCall,
             system: systemPrompt,
             messages: [{ role: "user", content: userPrompt! }],
@@ -2531,7 +2544,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
             abortTimeoutMs: abortMs,
             tool: structuredTool,
           }, finalUsage)
-        : await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
+        : await _deps.callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
     }
 
     // Plus de fallback { raw } muet : une réponse illisible = erreur claire (502),
@@ -2582,7 +2595,7 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
     if (isBilledStep) {
-      await logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
+      await _deps.logUsage(userId, "content", "creative_flow", finalUsage.total_tokens, finalUsage.model, workspace_id);
     }
     return new Response(JSON.stringify(parsed), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (e: any) {
@@ -2613,4 +2626,12 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       : "L'IA a eu un blanc. Réessaie dans quelques instants.";
     return new Response(JSON.stringify({ error: userMessage }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
   }
-});
+}
+
+// `import.meta.main` n'est vrai que si ce fichier est le point d'entrée Deno
+// (démarrage de l'edge function) — faux quand index_test.ts l'importe. Ça
+// évite à `serve()` de tenter de lier un port pendant les tests, ce qui
+// exigerait --allow-net alors qu'aucun test n'ouvre de vrai serveur ici.
+if (import.meta.main) {
+  serve(handleRequest);
+}

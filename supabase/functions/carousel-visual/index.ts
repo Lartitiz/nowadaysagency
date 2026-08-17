@@ -20,6 +20,16 @@ import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
+// Seam d'injection de dépendances : permet aux tests de remplacer les I/O
+// (client Supabase, quota, appel IA) sans toucher à la logique métier
+// ci-dessous. Non modifié en prod = comportement strictement identique.
+export const _deps = {
+  createClient,
+  checkQuota,
+  logUsage,
+  callAnthropic,
+};
+
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
  * Utilisé à la fois pour les carrousels texte ET les carrousels mixtes,
@@ -211,7 +221,7 @@ IMPORTANT pour les schémas :
 - Les attributs data-pptx-shape et data-pptx-editable présents dans les templates ci-dessus sont OBLIGATOIRES : recopie-les à l'identique. Annote de la même façon tout élément équivalent que tu ajoutes (carte → card, badge/pastille → pill).`;
 }
 
-serve(async (req) => {
+export async function handleRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -234,7 +244,7 @@ serve(async (req) => {
     const authHeader = req.headers.get("authorization");
     if (!authHeader) throw new Error("Non autorisé");
 
-    const supabase = createClient(
+    const supabase = _deps.createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_ANON_KEY")!,
       { global: { headers: { Authorization: authHeader } } }
@@ -246,7 +256,7 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const sbAdmin = createClient(
+    const sbAdmin = _deps.createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
@@ -263,7 +273,7 @@ serve(async (req) => {
     const reqBody = parsedBody;
     // Carrousel « Qualité Max » = Opus (~50× le coût d'un post) → quota dédié
     // `quality_max` (gratuit = 0, Premium = 20/mois).
-    const quota = await checkQuota(user.id, reqBody?.quality_max ? "quality_max" : "content", ownerWorkspaceId);
+    const quota = await _deps.checkQuota(user.id, reqBody?.quality_max ? "quality_max" : "content", ownerWorkspaceId);
     if (!quota.allowed) {
       return quotaDeniedResponse(quota, corsHeaders);
     }
@@ -293,7 +303,7 @@ serve(async (req) => {
     }).passthrough());
     const { slides, template_style, charter: bodyCharter, custom_overrides, template_reference_urls } = reqBody;
 
-    const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const sbGuard = _deps.createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
     const membership = await assertWorkspaceMembership(sbGuard, user.id, reqBody.workspace_id);
     if (!membership.ok) {
       console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: reqBody.workspace_id });
@@ -1349,7 +1359,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
           photoIdx = hasUnresolvedPhotoSlide ? undefined : referenced; // undefined = toutes ; [] = aucune (lot 100% texte)
         }
         const chunkUsage: UsageSink = {};
-        const raw = await callAnthropic({
+        const raw = await _deps.callAnthropic({
           model,
           system: systemPromptWithAnnotations,
           messages: buildMessagesFor(finalUserPrompt + planBlock + chunkDirective(nums), photoIdx),
@@ -1443,7 +1453,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
       }));
     } else {
       emitStatus("visuals", { done: 0, total: 1 });
-      const rawResponse = await callAnthropic({
+      const rawResponse = await _deps.callAnthropic({
         model,
         system: systemPromptWithAnnotations,
         messages: buildMessagesFor(finalUserPrompt),
@@ -1523,7 +1533,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
           });
 
           const fixUsage: UsageSink = {};
-          const fixRaw = await callAnthropic({
+          const fixRaw = await _deps.callAnthropic({
             model,
             system: systemPromptWithAnnotations,
             messages: [{ role: "user", content: fixContent }],
@@ -2211,6 +2221,19 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         const recraftKey = Deno.env.get("RECRAFT_API_TOKEN");
         if (!recraftKey) throw new Error("RECRAFT_API_TOKEN manquant");
 
+        // Quota dédié "photo_retouch" — BUG corrigé ici (17/08/2026) : ce chemin
+        // appelle Recraft (coût réel) et logUsage("photo_retouch") en bas de bloc,
+        // mais AUCUN checkQuota n'existait pour cette catégorie avant l'appel : le
+        // checkQuota du haut de la fonction ne couvre que "content"/"quality_max".
+        // Résultat, une cliente au plafond photo_retouch (free = 5/mois) pouvait
+        // générer des couvertures Recraft à l'infini — logUsage journalisait bien
+        // la conso sans jamais la bloquer. On applique ici le même pattern que le
+        // reste du fichier : checkQuota AVANT l'appel IA/coûteux.
+        const coverQuota = await _deps.checkQuota(user.id, "photo_retouch", workspaceId);
+        if (!coverQuota.allowed) {
+          throw new Error(`quota photo_retouch épuisé : ${coverQuota.message || coverQuota.reason}`);
+        }
+
         // Slide de couverture = plus petit slide_number (généralement 1)
         const coverIdx = result.slides_html.reduce(
           (best: number, s: any, i: number, arr: any[]) =>
@@ -2224,7 +2247,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         if (!coverTitle) throw new Error("titre de couverture introuvable");
 
         // Concept visuel dérivé du titre (Haiku, court) — pas de texte dans l'image.
-        const conceptRaw = await callAnthropic({
+        const conceptRaw = await _deps.callAnthropic({
           model: "claude-haiku-4-5",
           system:
             "Tu proposes une scène d'illustration éditoriale simple et chaleureuse pour une couverture de carrousel. Concret (une personne ou des objets du quotidien du métier), jamais de texte ni de logo dans l'image.",
@@ -2269,7 +2292,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
         coverIllustrationDone = true;
 
         // Coût Recraft distinct (pas de tokens) — 1 illustration par carrousel.
-        await logUsage(user.id, "photo_retouch", "cover_illustration", undefined, "recraftv3-vector", workspaceId);
+        await _deps.logUsage(user.id, "photo_retouch", "cover_illustration", undefined, "recraftv3-vector", workspaceId);
         console.log(JSON.stringify({ event: "cover_illustration_success", slide_number: coverSlideNumber, concept }));
       } catch (coverErr) {
         console.error(JSON.stringify({
@@ -2280,7 +2303,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
       }
     }
 
-    await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
+    await _deps.logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
 
     return new Response(JSON.stringify({ result, cover_illustration_applied: coverIllustrationDone, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -2320,4 +2343,8 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
 
   if (wantsSSE) return runWithHeartbeatSSE(corsHeaders, handle);
   return handle();
-});
+}
+
+if (import.meta.main) {
+  serve(handleRequest);
+}
