@@ -261,6 +261,376 @@ Réponds UNIQUEMENT en JSON valide :
 ${fmtIds.includes("carrousel") ? `\nIMPORTANT pour le carrousel : tu DOIS renvoyer un OBJET structuré avec exactement 8 slides (slide_number 1 à 8, chaque slide a title + body de 2-4 phrases) et une caption {hook, body, cta}. Pas une string. Pas moins de 8 slides. Les règles de longueur et d'arc narratif (slide 1 = hook, 2-7 = développement, 8 = punchline + CTA) s'appliquent au champ body de chaque slide.` : ""}`;
 }
 
+function buildFollowUpPrompt(params: {
+  QUESTIONS_PREFIX: string;
+  brandingContext: string;
+  brandVocabBlock: string;
+  context: string;
+  answers: any[];
+}): { systemPrompt: string; userPrompt: string } {
+  const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, answers } = params;
+  const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
+  const systemPrompt = `${QUESTIONS_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+SUJET du contenu : "${context}"
+
+L'utilisatrice a répondu à ces 3 questions initiales :
+${answersBlock}
+
+══ TON RÔLE : creuser UN détail singulier ══
+
+Lis ses réponses comme une amie experte qui veut sortir le contenu unique.
+Identifie LE détail le plus intéressant, le plus singulier, ou le plus émotionnel — celui qui mérite d'être creusé pour passer du "post correct" au "post mémorable".
+
+Pose 1 à 2 questions de suivi MAXIMUM pour creuser CE détail spécifique.
+
+RÈGLES :
+- Cite EXPLICITEMENT le détail que tu creuses (ex : "Tu dis que ta cliente a pleuré quand tu as livré : qu'est-ce qu'elle a dit exactement ?")
+- Sois PRÉCISE, pas générique. Pas "Peux-tu détailler ?" mais "Cette phrase '[citation]' — c'est arrivé dans quel contexte ?"
+- Si une réponse contient un chiffre, une scène, une citation, ou une émotion forte → c'est CETTE matière qu'il faut creuser
+- Si toutes les réponses sont déjà très complètes, pose 1 SEULE question (pas 2) — ne creuse pas pour creuser
+- Le ${"\""}why${"\""} explique en 1 phrase pourquoi cette question rendra le contenu plus singulier
+
+Réponds UNIQUEMENT en JSON :
+{
+  "follow_up_questions": [
+    {
+      "question": "...",
+      "placeholder": "...",
+      "why": "..."
+    }
+  ]
+}`;
+  const userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
+  return { systemPrompt, userPrompt };
+}
+
+function buildAdjustPrompt(params: {
+  COMMON_PREFIX: string;
+  editorialFormatLabel?: string | null;
+  effectiveObjective?: string | null;
+  angle: any;
+  currentContent: string;
+  adjustment: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment } = params;
+  // Smart guidance based on adjustment type
+  const adjustLower = (adjustment || "").toLowerCase();
+  let adjustGuidance = "";
+  if (adjustLower.includes("long")) {
+    const isCarouselContent = currentContent?.includes("SLIDE") || currentContent?.includes("📌");
+    adjustGuidance = isCarouselContent
+      ? "AJOUTE une slide supplémentaire qui développe un point existant en profondeur. Ne rallonge pas les slides existantes."
+      : "Développe l'idée principale avec un exemple concret ou une anecdote. Ne rallonge pas artificiellement avec des transitions vides.";
+  } else if (adjustLower.includes("court")) {
+    adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde les punchlines et les exemples concrets. Ne sacrifie pas la profondeur.";
+  } else if (adjustLower.includes("punchy")) {
+    adjustGuidance = "Raccourcis les phrases longues. Ajoute des bucket brigades. L'accroche doit claquer plus fort.";
+  } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
+    adjustGuidance = "Remplace les conseils abstraits par des situations concrètes. Chaque point doit avoir un exemple terrain, un cas réel, ou un chiffre.";
+  } else if (adjustLower.includes("storytelling") || adjustLower.includes("histoire")) {
+    adjustGuidance = "Restructure autour d'une narration. Commence par un moment précis (lieu, émotion), développe la tension, puis la résolution.";
+  } else if (adjustLower.includes("chiffres") || adjustLower.includes("données") || adjustLower.includes("stats")) {
+    adjustGuidance = "Ajoute 2-3 données chiffrées. Si pas de chiffres exacts disponibles, indique [STAT À VÉRIFIER] pour que l'utilisatrice insère les vrais chiffres.";
+  }
+
+  const systemPrompt = `${COMMON_PREFIX}
+
+${ANTI_BIAS}
+
+${FORMAT_STRUCTURES}
+
+${WRITING_RESOURCES}
+
+${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
+${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
+${angle ? `ANGLE : ${angle.title} (${angle.tone})` : ""}
+
+CONTENU ACTUEL :
+"""
+${currentContent}
+"""
+
+AJUSTEMENT DEMANDÉ : ${adjustment}
+${adjustGuidance ? `\nGUIDE :\n${adjustGuidance}` : ""}
+
+Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
+Ne raccourcis JAMAIS la profondeur sauf si l'ajustement demande explicitement de raccourcir.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "..."
+}`;
+  const userPrompt = `Ajuste le contenu : ${adjustment}`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildDictationPrompt(params: {
+  COMMON_PREFIX: string;
+  sourceText: string;
+  targetFormat: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, sourceText, targetFormat } = params;
+  const systemPrompt = `${COMMON_PREFIX}
+
+${ANTI_BIAS}
+
+${WRITING_RESOURCES}
+
+L'utilisatrice a dicté ceci en mode vocal :
+"""
+${sourceText}
+"""
+
+Transforme en : ${targetFormat}
+
+RÈGLES ABSOLUES :
+- Garde SES mots. Si elle dit "le truc c'est que", utilise "le truc c'est que".
+- Garde SON rythme. Si elle fait des phrases longues qui déroulent, garde ça.
+- Garde SES expressions. Si elle dit "franchement" ou "genre", c'est sa voix.
+- NE réécris PAS dans un style "professionnel". Structure, c'est tout.
+- Tu peux couper les répétitions et les hésitations.
+- Tu peux réorganiser l'ordre pour plus de clarté.
+- Tu DOIS garder l'énergie et la personnalité de l'oral.
+
+Le résultat doit sonner comme si ELLE l'avait écrit, pas comme si une IA avait reformulé.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "..."
+}`;
+  const userPrompt = `Structure ma dictée vocale en ${targetFormat}.`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildAnglesPrompt(params: {
+  COMMON_PREFIX: string;
+  editorialFormatLabel?: string | null;
+  contentType?: string | null;
+  context: string;
+  effectiveObjective?: string | null;
+  calendarBlock: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, editorialFormatLabel, contentType, context, effectiveObjective, calendarBlock } = params;
+  const editorialCtx = editorialFormatLabel
+    ? `\nFORMAT ÉDITORIAL CHOISI : "${editorialFormatLabel}"\nL'utilisatrice a choisi ce format parmi les 13 angles éditoriaux. Les 3 angles proposés doivent être des VARIATIONS de "${editorialFormatLabel}", pas des formats complètement différents.\nChaque angle prend un POINT D'ENTRÉE différent dans le sujet, mais tous suivent la logique de "${editorialFormatLabel}".\nExemple : si elle a choisi "Mythe à déconstruire", les 3 angles déconstruisent le même sujet mais avec 3 approches différentes (données vs vécu vs comparaison).\n`
+    : "";
+
+  const systemPrompt = `${COMMON_PREFIX}
+
+${FRAMEWORK_SELECTION}
+
+${EDITORIAL_ANGLES_REFERENCE}
+${editorialCtx}
+CANAL : ${contentType}
+SUJET : ${context}
+${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
+${calendarBlock}
+
+Propose exactement 3 angles éditoriaux DIFFÉRENTS.
+
+Pour chaque angle :
+1. TITRE : 2-5 mots, évocateur (pas "Option 1")
+2. PITCH : 2-3 phrases qui expliquent l'approche et pourquoi ça fonctionne
+3. STRUCTURE : le squelette du contenu en 4-5 étapes${editorialFormatLabel ? ` (basé sur la structure de "${editorialFormatLabel}" dans les angles éditoriaux de référence)` : " (utilise les structures par format si le format est connu)"}
+4. TON : l'énergie et le registre émotionnel de cet angle
+5. FORMAT_LIVRAISON : le format de sortie recommandé pour cet angle (carrousel, reel, stories, caption longue, LinkedIn, newsletter)
+
+RÈGLES :
+${editorialFormatLabel ? `- Les 3 angles sont des VARIATIONS de "${editorialFormatLabel}", PAS des formats différents` : "- Les 3 angles doivent être VRAIMENT différents (pas 3 variations du même)"}
+- Chaque angle est basé sur un framework narratif DIFFÉRENT, traduit en angle créatif lisible
+- Un angle peut être surprenant ou inattendu
+- Pense à des angles que l'utilisatrice n'aurait pas trouvés seule
+${effectiveObjective ? `- Les 3 angles doivent servir l'objectif "${effectiveObjective}". Un angle "visibilité" privilégie les accroches polarisantes, un angle "vente" les preuves et témoignages.` : ""}
+- Reste cohérent avec son ton & style
+- Ne rédige RIEN. Pas d'exemple de phrases. Juste la direction.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "angles": [
+    {
+      "title": "...",
+      "pitch": "...",
+      "structure": ["étape 1", "étape 2", "étape 3", "étape 4"],
+      "tone": "...",
+      "format_livraison": "carrousel | reel | stories | caption | linkedin | newsletter"
+    }
+  ]
+}`;
+  const userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildHooksPrompt(params: {
+  COMMON_PREFIX: string;
+  answers?: any[];
+  excludeHooksRaw: unknown;
+  faceCam?: string | null;
+  context: string;
+  effectiveObjective?: string | null;
+  objective?: string | null;
+}): { systemPrompt: string; userPrompt: string } {
+  const { COMMON_PREFIX, answers, excludeHooksRaw, faceCam, context, effectiveObjective, objective } = params;
+  // Lot 7 reels : proposer 3 angles d'attaque AVANT la génération complète.
+  // Étape gratuite (hors BILLED_STEPS) ; le hook choisi repart en selected_hook.
+  const answersBlock = answers?.length
+    ? "\n\nMATIÈRE DU BRIEF (réponses de l'utilisatrice, sa vraie voix) :\n" +
+      answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
+    : "";
+  const excludeHooks: string[] = Array.isArray(excludeHooksRaw)
+    ? excludeHooksRaw.filter((x: unknown): x is string => typeof x === "string").slice(0, 12)
+    : [];
+  const excludeBlock = excludeHooks.length
+    ? `\n\nHOOKS DÉJÀ PROPOSÉS, REFUSÉS PAR L'UTILISATRICE :\n${excludeHooks.map((h) => `- "${h}"`).join("\n")}\nINTERDIT de les reproposer, même reformulés. Change d'angle, pas juste de mots.`
+    : "";
+  const noFaceCam = faceCam === "non";
+
+  const systemPrompt = `${COMMON_PREFIX}
+
+TA MISSION : proposer 3 HOOKS d'ouverture pour un REEL Instagram sur le sujet donné.
+Le hook = les 3 premières secondes. 50 % des viewers scrollent avant la 3e seconde :
+c'est LE levier de rétention. L'utilisatrice choisit UN hook, le script complet sera
+écrit dessus.
+
+RÈGLES ABSOLUES :
+1. Les 3 hooks sont de TYPES DIFFÉRENTS, choisis parmi :
+   - vecu_perso (« Vécu perso ») : un moment vécu, raconté en Je. UNIQUEMENT si la
+     matière du brief contient un vrai vécu — n'invente JAMAIS une anecdote.
+   - contre_intuition (« Contre-intuition ») : affirmation qui renverse une croyance.
+   - objection_retournee (« Objection retournée ») : la phrase qu'on lui oppose, puis le retournement.
+   - question_choc (« Question choc ») : question qui pique, jamais rhétorique molle.
+   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), sec, sans emballage.
+   - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
+2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
+   ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
+3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
+   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
+4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
+5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
+   SA matière (contexte de marque ci-dessus).
+5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
+   jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
+   « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.
+6. format_recommande = la structure que ce hook appelle naturellement
+   (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
+   cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
+7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
+   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${excludeBlock}`;
+  const userPrompt = `SUJET DU REEL : "${context || "?"}"
+Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
+
+Propose-moi 3 hooks de types différents pour ce reel.`;
+  return { systemPrompt, userPrompt };
+}
+
+function buildQuestionsPrompt(params: {
+  QUESTIONS_PREFIX: string;
+  brandingContext: string;
+  brandVocabBlock: string;
+  context: string;
+  contentType?: string | null;
+  editorialFormatLabel?: string | null;
+  angle: any;
+  calendarBlock: string;
+  objectiveBlock: string;
+  newsContextBlock: string;
+  recentBriefsContext: string;
+}): { systemPrompt: string; userPrompt: string } {
+  const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
+  const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
+  const channelGuidance = contentType === "linkedin"
+    ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
+    : contentType === "newsletter"
+    ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
+    : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
+
+  const systemPrompt = `${QUESTIONS_PREFIX}
+${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
+
+══════════════════════════════════════
+SUJET COURANT — PRIORITÉ ABSOLUE
+══════════════════════════════════════
+"${context}"
+
+Tout ce qui suit (angle, branding, historique) est SECONDAIRE par rapport à ce sujet.
+Les 3 questions doivent toutes porter sur CE sujet précis.
+Si une question pourrait concerner un autre sujet, elle est invalide.
+
+══════════════════════════════════════
+ANGLE & CANAL
+══════════════════════════════════════
+- Canal : ${channelLabel}
+${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
+- Angle : ${angle.title}
+- Structure : ${(angle.structure || []).join(" → ")}
+- Ton : ${angle.tone}
+${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
+${calendarBlock}${objectiveBlock}${newsContextBlock}
+${recentBriefsContext}
+${newsContextBlock ? "\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).\n" : ""}
+
+══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+
+Réfléchis silencieusement à :
+1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé du bloc ci-dessus)
+2. Quel vocabulaire métier de l'utilisatrice puis-je intégrer naturellement ?
+3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
+
+Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
+
+Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
+
+RÈGLES :
+1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
+2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
+3. ${channelGuidance}
+4. Questions OUVERTES (pas oui/non).
+5. VARIÉTÉ DE TYPES DE QUESTIONS OBLIGATOIRE — les 3 questions doivent utiliser des TYPES DIFFÉRENTS parmi :
+   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
+   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
+   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
+   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
+   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
+   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
+6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
+7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
+8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
+9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
+
+INTERDIT — NE FAIS JAMAIS ÇA :
+- Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
+- Questions de coaching de vie déconnectées du sujet
+- Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
+- 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
+- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
+- ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
+- Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
+
+EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
+❌ MAUVAIS MIX :
+1. "Raconte-moi un moment où tu as dû défendre ta valeur."
+2. "Raconte-moi une fois où une cliente t'a demandé une remise."
+3. "Raconte-moi comment tu as changé ta relation à l'argent."
+(= 3x le même type "raconte-moi" → monotone)
+
+✅ BON MIX :
+1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
+2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
+3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
+
+Réponds UNIQUEMENT en JSON :
+{
+  "questions": [
+    {
+      "question": "...",
+      "placeholder": "..."
+    }
+  ]
+}`;
+  const userPrompt = `Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "${context}"${angle ? ` (angle "${angle.title}")` : ""}.`;
+  return { systemPrompt, userPrompt };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -499,232 +869,36 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     };
 
     if (step === "angles") {
-      const editorialCtx = editorialFormatLabel
-        ? `\nFORMAT ÉDITORIAL CHOISI : "${editorialFormatLabel}"\nL'utilisatrice a choisi ce format parmi les 13 angles éditoriaux. Les 3 angles proposés doivent être des VARIATIONS de "${editorialFormatLabel}", pas des formats complètement différents.\nChaque angle prend un POINT D'ENTRÉE différent dans le sujet, mais tous suivent la logique de "${editorialFormatLabel}".\nExemple : si elle a choisi "Mythe à déconstruire", les 3 angles déconstruisent le même sujet mais avec 3 approches différentes (données vs vécu vs comparaison).\n`
-        : "";
-
-      systemPrompt = `${COMMON_PREFIX}
-
-${FRAMEWORK_SELECTION}
-
-${EDITORIAL_ANGLES_REFERENCE}
-${editorialCtx}
-CANAL : ${contentType}
-SUJET : ${context}
-${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
-${calendarBlock}
-
-Propose exactement 3 angles éditoriaux DIFFÉRENTS.
-
-Pour chaque angle :
-1. TITRE : 2-5 mots, évocateur (pas "Option 1")
-2. PITCH : 2-3 phrases qui expliquent l'approche et pourquoi ça fonctionne
-3. STRUCTURE : le squelette du contenu en 4-5 étapes${editorialFormatLabel ? ` (basé sur la structure de "${editorialFormatLabel}" dans les angles éditoriaux de référence)` : " (utilise les structures par format si le format est connu)"}
-4. TON : l'énergie et le registre émotionnel de cet angle
-5. FORMAT_LIVRAISON : le format de sortie recommandé pour cet angle (carrousel, reel, stories, caption longue, LinkedIn, newsletter)
-
-RÈGLES :
-${editorialFormatLabel ? `- Les 3 angles sont des VARIATIONS de "${editorialFormatLabel}", PAS des formats différents` : "- Les 3 angles doivent être VRAIMENT différents (pas 3 variations du même)"}
-- Chaque angle est basé sur un framework narratif DIFFÉRENT, traduit en angle créatif lisible
-- Un angle peut être surprenant ou inattendu
-- Pense à des angles que l'utilisatrice n'aurait pas trouvés seule
-${effectiveObjective ? `- Les 3 angles doivent servir l'objectif "${effectiveObjective}". Un angle "visibilité" privilégie les accroches polarisantes, un angle "vente" les preuves et témoignages.` : ""}
-- Reste cohérent avec son ton & style
-- Ne rédige RIEN. Pas d'exemple de phrases. Juste la direction.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "angles": [
-    {
-      "title": "...",
-      "pitch": "...",
-      "structure": ["étape 1", "étape 2", "étape 3", "étape 4"],
-      "tone": "...",
-      "format_livraison": "carrousel | reel | stories | caption | linkedin | newsletter"
-    }
-  ]
-}`;
-      userPrompt = `Propose-moi 3 angles éditoriaux pour : ${context}`;
+      ({ systemPrompt, userPrompt } = buildAnglesPrompt({ COMMON_PREFIX, editorialFormatLabel, contentType, context, effectiveObjective, calendarBlock }));
 
     } else if (step === "questions") {
-      const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
-      const channelGuidance = contentType === "linkedin"
-        ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
-        : contentType === "newsletter"
-        ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
-        : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
-
-      systemPrompt = `${QUESTIONS_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
-
-══════════════════════════════════════
-SUJET COURANT — PRIORITÉ ABSOLUE
-══════════════════════════════════════
-"${context}"
-
-Tout ce qui suit (angle, branding, historique) est SECONDAIRE par rapport à ce sujet.
-Les 3 questions doivent toutes porter sur CE sujet précis.
-Si une question pourrait concerner un autre sujet, elle est invalide.
-
-══════════════════════════════════════
-ANGLE & CANAL
-══════════════════════════════════════
-- Canal : ${channelLabel}
-${editorialFormatLabel ? `- Format éditorial : ${editorialFormatLabel}` : ""}
-- Angle : ${angle.title}
-- Structure : ${(angle.structure || []).join(" → ")}
-- Ton : ${angle.tone}
-${angle.format_livraison ? `- Format de livraison recommandé : ${angle.format_livraison}` : ""}
-${calendarBlock}${objectiveBlock}${newsContextBlock}
-${recentBriefsContext}
-${newsContextBlock ? "\n⚠️ NEWSJACKING ACTIF : au moins 1 question sur 3 doit aider à faire le pont entre cette actualité et le vécu / l'opinion / l'expertise de l'utilisatrice (pas une question générique sur le sujet).\n" : ""}
-
-══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
-
-Réfléchis silencieusement à :
-1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé du bloc ci-dessus)
-2. Quel vocabulaire métier de l'utilisatrice puis-je intégrer naturellement ?
-3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
-
-Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
-
-Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
-
-RÈGLES :
-1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
-2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
-3. ${channelGuidance}
-4. Questions OUVERTES (pas oui/non).
-5. VARIÉTÉ DE TYPES DE QUESTIONS OBLIGATOIRE — les 3 questions doivent utiliser des TYPES DIFFÉRENTS parmi :
-   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
-   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
-   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
-   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
-   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
-   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
-6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
-7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
-8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
-9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
-
-INTERDIT — NE FAIS JAMAIS ÇA :
-- Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
-- Questions de coaching de vie déconnectées du sujet
-- Questions trop larges qui pourraient s'appliquer à N'IMPORTE QUEL sujet
-- 3 questions qui commencent toutes par "Raconte-moi" ou "Il y a eu un moment où"
-- Questions interchangeables d'un user à l'autre (= sans vocabulaire métier)
-- ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
-- Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
-
-EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
-❌ MAUVAIS MIX :
-1. "Raconte-moi un moment où tu as dû défendre ta valeur."
-2. "Raconte-moi une fois où une cliente t'a demandé une remise."
-3. "Raconte-moi comment tu as changé ta relation à l'argent."
-(= 3x le même type "raconte-moi" → monotone)
-
-✅ BON MIX :
-1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
-2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
-3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
-
-Réponds UNIQUEMENT en JSON :
-{
-  "questions": [
-    {
-      "question": "...",
-      "placeholder": "..."
-    }
-  ]
-}`;
-      userPrompt = `Pose-moi 3 questions pour créer mon contenu sur ce sujet précis : "${context}"${angle ? ` (angle "${angle.title}")` : ""}.`;
+      ({ systemPrompt, userPrompt } = buildQuestionsPrompt({
+        QUESTIONS_PREFIX,
+        brandingContext,
+        brandVocabBlock,
+        context,
+        contentType,
+        editorialFormatLabel,
+        angle,
+        calendarBlock,
+        objectiveBlock,
+        newsContextBlock,
+        recentBriefsContext,
+      }));
 
     } else if (step === "follow-up") {
-      const answersBlock = answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n");
-      systemPrompt = `${QUESTIONS_PREFIX}
-${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
-SUJET du contenu : "${context}"
-
-L'utilisatrice a répondu à ces 3 questions initiales :
-${answersBlock}
-
-══ TON RÔLE : creuser UN détail singulier ══
-
-Lis ses réponses comme une amie experte qui veut sortir le contenu unique.
-Identifie LE détail le plus intéressant, le plus singulier, ou le plus émotionnel — celui qui mérite d'être creusé pour passer du "post correct" au "post mémorable".
-
-Pose 1 à 2 questions de suivi MAXIMUM pour creuser CE détail spécifique.
-
-RÈGLES :
-- Cite EXPLICITEMENT le détail que tu creuses (ex : "Tu dis que ta cliente a pleuré quand tu as livré : qu'est-ce qu'elle a dit exactement ?")
-- Sois PRÉCISE, pas générique. Pas "Peux-tu détailler ?" mais "Cette phrase '[citation]' — c'est arrivé dans quel contexte ?"
-- Si une réponse contient un chiffre, une scène, une citation, ou une émotion forte → c'est CETTE matière qu'il faut creuser
-- Si toutes les réponses sont déjà très complètes, pose 1 SEULE question (pas 2) — ne creuse pas pour creuser
-- Le ${"\""}why${"\""} explique en 1 phrase pourquoi cette question rendra le contenu plus singulier
-
-Réponds UNIQUEMENT en JSON :
-{
-  "follow_up_questions": [
-    {
-      "question": "...",
-      "placeholder": "...",
-      "why": "..."
-    }
-  ]
-}`;
-      userPrompt = "Pose-moi 1 ou 2 questions d'approfondissement basées sur mes réponses.";
+      ({ systemPrompt, userPrompt } = buildFollowUpPrompt({ QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, answers }));
 
     } else if (step === "hooks") {
-      // Lot 7 reels : proposer 3 angles d'attaque AVANT la génération complète.
-      // Étape gratuite (hors BILLED_STEPS) ; le hook choisi repart en selected_hook.
-      const answersBlock = answers?.length
-        ? "\n\nMATIÈRE DU BRIEF (réponses de l'utilisatrice, sa vraie voix) :\n" +
-          answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}" → "${a.answer}"`).join("\n")
-        : "";
-      const excludeRaw = (body as Record<string, unknown>).exclude_hooks;
-      const excludeHooks: string[] = Array.isArray(excludeRaw)
-        ? excludeRaw.filter((x: unknown): x is string => typeof x === "string").slice(0, 12)
-        : [];
-      const excludeBlock = excludeHooks.length
-        ? `\n\nHOOKS DÉJÀ PROPOSÉS, REFUSÉS PAR L'UTILISATRICE :\n${excludeHooks.map((h) => `- "${h}"`).join("\n")}\nINTERDIT de les reproposer, même reformulés. Change d'angle, pas juste de mots.`
-        : "";
-      const noFaceCam = body.face_cam === "non";
-
-      systemPrompt = `${COMMON_PREFIX}
-
-TA MISSION : proposer 3 HOOKS d'ouverture pour un REEL Instagram sur le sujet donné.
-Le hook = les 3 premières secondes. 50 % des viewers scrollent avant la 3e seconde :
-c'est LE levier de rétention. L'utilisatrice choisit UN hook, le script complet sera
-écrit dessus.
-
-RÈGLES ABSOLUES :
-1. Les 3 hooks sont de TYPES DIFFÉRENTS, choisis parmi :
-   - vecu_perso (« Vécu perso ») : un moment vécu, raconté en Je. UNIQUEMENT si la
-     matière du brief contient un vrai vécu — n'invente JAMAIS une anecdote.
-   - contre_intuition (« Contre-intuition ») : affirmation qui renverse une croyance.
-   - objection_retournee (« Objection retournée ») : la phrase qu'on lui oppose, puis le retournement.
-   - question_choc (« Question choc ») : question qui pique, jamais rhétorique molle.
-   - fait_brut (« Fait brut ») : fait concret/chiffre FOURNI (brief ou branding), sec, sans emballage.
-   - scene_coupee (« Scène coupée ») : on entre au milieu d'une scène, in medias res.
-2. text = ce qu'elle DIT (8-20 mots, 1-2 phrases, oral naturel, tension immédiate).
-   ❌ "Aujourd'hui je vais te parler de..." ❌ hook descriptif ❌ slogan LinkedIn.
-3. text_overlay = ce qu'on LIT à l'écran en MUET (3-8 mots, MAJUSCULES). Il doit
-   fonctionner SEUL, sans le son, et COMPLÉTER le parlé, pas le répéter mot pour mot.
-4. AUCUN chiffre qui ne vient pas du brief, des réponses ou du branding.
-5. SINGULARITÉ : pas le hook consensuel de la niche. Ancre dans SON métier, SES mots,
-   SA matière (contexte de marque ci-dessus).
-5bis. FRANÇAIS IRRÉPROCHABLE — relis chaque hook à voix haute : élisions (« l'avant/après »,
-   jamais « le avant/après ») et homophones (« qu'UN marchand de biens, ça… », jamais
-   « qu'on marchand de biens ») ; le hook choisi part TEL QUEL dans le script final.
-6. format_recommande = la structure que ce hook appelle naturellement
-   (face_cam_confession / voix_off_broll / hook_loop) et duree_cible = durée estimée
-   cohérente avec l'objectif (visibilité → court ~20-30 s ; confiance/vente → ~40-60 s).${noFaceCam ? `
-7. L'UTILISATRICE NE VEUT PAS SE MONTRER : format_recommande ≠ face_cam_confession
-   pour les 3 hooks (voix off + b-roll ou hook loop uniquement).` : ""}${excludeBlock}`;
-      userPrompt = `SUJET DU REEL : "${context || "?"}"
-Objectif : ${effectiveObjective || objective || "non précisé"}${answersBlock}
-
-Propose-moi 3 hooks de types différents pour ce reel.`;
+      ({ systemPrompt, userPrompt } = buildHooksPrompt({
+        COMMON_PREFIX,
+        answers,
+        excludeHooksRaw: (body as Record<string, unknown>).exclude_hooks,
+        faceCam: body.face_cam,
+        context,
+        effectiveObjective,
+        objective,
+      }));
 
     } else if (step === "generate") {
       const answersBlock = answers?.length
@@ -980,89 +1154,14 @@ Réponds UNIQUEMENT en JSON :
       userPrompt = "Rédige mon contenu à partir de mes réponses et de l'angle choisi.";
 
     } else if (step === "adjust") {
-      // Smart guidance based on adjustment type
-      const adjustLower = (adjustment || "").toLowerCase();
-      let adjustGuidance = "";
-      if (adjustLower.includes("long")) {
-        const isCarouselContent = currentContent?.includes("SLIDE") || currentContent?.includes("📌");
-        adjustGuidance = isCarouselContent
-          ? "AJOUTE une slide supplémentaire qui développe un point existant en profondeur. Ne rallonge pas les slides existantes."
-          : "Développe l'idée principale avec un exemple concret ou une anecdote. Ne rallonge pas artificiellement avec des transitions vides.";
-      } else if (adjustLower.includes("court")) {
-        adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde les punchlines et les exemples concrets. Ne sacrifie pas la profondeur.";
-      } else if (adjustLower.includes("punchy")) {
-        adjustGuidance = "Raccourcis les phrases longues. Ajoute des bucket brigades. L'accroche doit claquer plus fort.";
-      } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
-        adjustGuidance = "Remplace les conseils abstraits par des situations concrètes. Chaque point doit avoir un exemple terrain, un cas réel, ou un chiffre.";
-      } else if (adjustLower.includes("storytelling") || adjustLower.includes("histoire")) {
-        adjustGuidance = "Restructure autour d'une narration. Commence par un moment précis (lieu, émotion), développe la tension, puis la résolution.";
-      } else if (adjustLower.includes("chiffres") || adjustLower.includes("données") || adjustLower.includes("stats")) {
-        adjustGuidance = "Ajoute 2-3 données chiffrées. Si pas de chiffres exacts disponibles, indique [STAT À VÉRIFIER] pour que l'utilisatrice insère les vrais chiffres.";
-      }
-
-      systemPrompt = `${COMMON_PREFIX}
-
-${ANTI_BIAS}
-
-${FORMAT_STRUCTURES}
-
-${WRITING_RESOURCES}
-
-${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
-${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
-${angle ? `ANGLE : ${angle.title} (${angle.tone})` : ""}
-
-CONTENU ACTUEL :
-"""
-${currentContent}
-"""
-
-AJUSTEMENT DEMANDÉ : ${adjustment}
-${adjustGuidance ? `\nGUIDE :\n${adjustGuidance}` : ""}
-
-Réécris le contenu avec l'ajustement demandé. Garde la structure, les anecdotes et les mots de l'utilisatrice. Change UNIQUEMENT ce qui est lié à l'ajustement.
-Ne raccourcis JAMAIS la profondeur sauf si l'ajustement demande explicitement de raccourcir.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "..."
-}`;
-      userPrompt = `Ajuste le contenu : ${adjustment}`;
+      ({ systemPrompt, userPrompt } = buildAdjustPrompt({ COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment }));
 
     } else if (step === "recycle") {
       // Les prompts du recyclage sont construits PAR FORMAT dans le pipeline
       // parallèle dédié (plus bas, avant la section « Call Anthropic ») via
       // buildRecycleSystemPrompt. Rien à préparer ici.
     } else if (step === "dictation") {
-      systemPrompt = `${COMMON_PREFIX}
-
-${ANTI_BIAS}
-
-${WRITING_RESOURCES}
-
-L'utilisatrice a dicté ceci en mode vocal :
-"""
-${sourceText}
-"""
-
-Transforme en : ${targetFormat}
-
-RÈGLES ABSOLUES :
-- Garde SES mots. Si elle dit "le truc c'est que", utilise "le truc c'est que".
-- Garde SON rythme. Si elle fait des phrases longues qui déroulent, garde ça.
-- Garde SES expressions. Si elle dit "franchement" ou "genre", c'est sa voix.
-- NE réécris PAS dans un style "professionnel". Structure, c'est tout.
-- Tu peux couper les répétitions et les hésitations.
-- Tu peux réorganiser l'ordre pour plus de clarté.
-- Tu DOIS garder l'énergie et la personnalité de l'oral.
-
-Le résultat doit sonner comme si ELLE l'avait écrit, pas comme si une IA avait reformulé.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "..."
-}`;
-      userPrompt = `Structure ma dictée vocale en ${targetFormat}.`;
+      ({ systemPrompt, userPrompt } = buildDictationPrompt({ COMMON_PREFIX, sourceText, targetFormat }));
 
     } else {
       return new Response(JSON.stringify({ error: "Step non reconnu" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
