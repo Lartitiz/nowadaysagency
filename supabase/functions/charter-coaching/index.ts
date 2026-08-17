@@ -7,6 +7,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 const STEPS: Record<number, { question: string; topic: string; label: string }> = {
   1: {
@@ -300,27 +301,16 @@ serve(async (req) => {
       abortTimeoutMs: 60_000,
     }, usage);
 
-    // Log usage
-    await logUsage(userId, "coach", "charter_coaching", usage.total_tokens, usage.model, workspace_id);
-
-    // Parse response
-    let parsed;
-    const cleaned = rawResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      const start = cleaned.indexOf("{");
-      const end = cleaned.lastIndexOf("}");
-      if (start !== -1 && end !== -1 && end > start) {
-        try {
-          parsed = JSON.parse(cleaned.slice(start, end + 1));
-        } catch {
-          parsed = { feedback: cleaned, suggestion: "", extracted: {} };
-        }
-      } else {
-        parsed = { feedback: cleaned, suggestion: "", extracted: {} };
-      }
+    // Plus de fallback muet : une réponse illisible = erreur claire (502), sans débiter le quota.
+    const parsed = tryParseAiJson<any>(rawResponse, "charter-coaching");
+    if (parsed === null) {
+      return new Response(
+        JSON.stringify({ error: "L'IA a renvoyé une réponse illisible. Réessaie." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
+
+    await logUsage(userId, "coach", "charter_coaching", usage.total_tokens, usage.model, workspace_id);
 
     // Validation step 4 : normaliser font_title / font_body contre la liste autorisée,
     // sinon retomber sur le fallback sectoriel pour éviter de sauvegarder une font qui ne charge pas

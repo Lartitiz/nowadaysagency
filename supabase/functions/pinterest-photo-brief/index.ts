@@ -8,6 +8,7 @@ import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -229,30 +230,13 @@ CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${
       abortTimeoutMs: 120_000,
     }, usage);
 
-    let result: any;
-    try {
-      let cleaned = rawResponse.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
-      const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        result = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found");
-      }
-    } catch (parseErr) {
-      console.error("Failed to parse pinterest-photo-brief response:", rawResponse.slice(0, 500));
-      try {
-        let start = rawResponse.indexOf("{");
-        if (start === -1) throw parseErr;
-        let depth = 0;
-        let end = start;
-        for (let i = start; i < rawResponse.length; i++) {
-          if (rawResponse[i] === "{") depth++;
-          else if (rawResponse[i] === "}") { depth--; if (depth === 0) { end = i; break; } }
-        }
-        result = JSON.parse(rawResponse.slice(start, end + 1));
-      } catch {
-        throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
-      }
+    // Plus de fallback muet : une réponse illisible = erreur claire (502), sans débiter le quota.
+    const result = tryParseAiJson<any>(rawResponse, "pinterest-photo-brief");
+    if (result === null) {
+      return new Response(
+        JSON.stringify({ error: "L'IA n'a pas retourné un format valide. Réessaie." }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Post-processing: replace @import Google Fonts with <link> for iframe compatibility
