@@ -6,6 +6,7 @@ import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/ant
 import { validateRequiredFields } from "../_shared/ai-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
@@ -90,19 +91,16 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
       abortTimeoutMs: 60_000,
     }, usage);
 
-    let result;
-    let aiSucceeded = false;
-    try {
-      const cleaned = raw.replace(/```json\s*/g, "").replace(/```/g, "").trim();
-      result = JSON.parse(cleaned);
-      aiSucceeded = true;
-    } catch {
-      result = { comments: [], tip: raw };
+    // Plus de fallback muet : une réponse illisible = erreur claire, sans débiter le quota.
+    const result = tryParseAiJson<any>(raw, "engagement-coaching");
+    if (result === null) {
+      return new Response(
+        JSON.stringify({ error: "L'IA a renvoyé une réponse illisible. Réessaie." }),
+        { status: 502, headers: { ...cors, "Content-Type": "application/json" } }
+      );
     }
 
-    if (aiSucceeded) {
-      await logUsage(userId, "coach", "engagement_coaching", usage.total_tokens, usage.model, workspace_id);
-    }
+    await logUsage(userId, "coach", "engagement_coaching", usage.total_tokens, usage.model, workspace_id);
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
