@@ -1450,6 +1450,110 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   }
 }
 
+/**
+ * Bloc Deep Research (recherche web via l'outil Anthropic web_search), extrait
+ * de serve() pour être testable directement (deno test, sans vrai serveur
+ * HTTP — voir index_test.ts). Comportement inchangé : ne débite un crédit
+ * `deep_research` QUE si la recherche web a réellement réussi (searchResponse.ok).
+ * Renvoie le texte à ajouter au systemPrompt, "" si rien à ajouter (échec ou
+ * réponse vide).
+ */
+export async function runDeepResearchWebSearch(params: {
+  userId: string;
+  workspaceId?: string;
+  calendarContext?: { theme?: string } | null;
+  context?: string | null;
+  contentType?: string | null;
+  profile?: { activite?: string } | null;
+  effectiveObjective?: string | null;
+  objective?: string | null;
+  editorialFormatLabel?: string | null;
+  angle?: { title?: string } | null;
+}): Promise<string> {
+  const { userId, workspaceId, calendarContext, context, contentType, profile, effectiveObjective, objective, editorialFormatLabel, angle } = params;
+
+  const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+  const theme = calendarContext?.theme || context || contentType || "contenu";
+  const activite = profile?.activite || "";
+
+  // Build targeted research prompt based on objective and editorial format
+  const researchObjective = effectiveObjective || objective || "";
+  const researchAngle = editorialFormatLabel || angle?.title || "";
+  let researchFocus = "";
+  if (researchObjective.includes("vente") || researchObjective.includes("conversion")) {
+    researchFocus = "Cherche en priorité : des témoignages, des études de cas, des chiffres de transformation (avant/après), des statistiques de conversion ou de résultats clients.";
+  } else if (researchObjective.includes("credibilite") || researchObjective.includes("crédibilité")) {
+    researchFocus = "Cherche en priorité : des études scientifiques, des rapports sectoriels, des données chiffrées officielles, des avis d'experts reconnus.";
+  } else if (researchObjective.includes("visibilite") || researchObjective.includes("visibilité")) {
+    researchFocus = "Cherche en priorité : des tendances émergentes, des chiffres surprenants ou contre-intuitifs, des faits viralisables, des comparaisons frappantes.";
+  } else if (researchObjective.includes("confiance") || researchObjective.includes("engagement")) {
+    researchFocus = "Cherche en priorité : des histoires humaines, des situations vécues universelles, des sondages d'opinion, des verbatims ou témoignages.";
+  }
+
+  let researchAngleHint = "";
+  if (researchAngle.toLowerCase().includes("mythe") || researchAngle.toLowerCase().includes("déconstruire")) {
+    researchAngleHint = "Le contenu va déconstruire un mythe. Cherche des données qui CONTREDISENT une croyance courante sur le sujet.";
+  } else if (researchAngle.toLowerCase().includes("enquête") || researchAngle.toLowerCase().includes("décryptage")) {
+    researchAngleHint = "Le contenu est une enquête/décryptage. Cherche des données récentes et des tendances que peu de gens connaissent.";
+  } else if (researchAngle.toLowerCase().includes("test") || researchAngle.toLowerCase().includes("grandeur nature")) {
+    researchAngleHint = "Le contenu est un retour d'expérience. Cherche des benchmarks, des moyennes sectorielles, des résultats comparatifs.";
+  }
+
+  const searchModel = getModelForAction("content");
+  const searchResponse = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey!,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: searchModel,
+      // Fetch brut (hors helpers) : la garde thinking Sonnet 5 doit être posée
+      // ici aussi, sinon le thinking adaptatif mange le budget de recherche.
+      ...(forcesDisabledThinking(searchModel) ? { thinking: { type: "disabled" } } : {}),
+      max_tokens: 2048,
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
+      messages: [{
+        role: "user",
+        content: `Recherche des données récentes sur le sujet suivant : ${theme}.
+Contexte professionnel : ${activite}.
+${researchFocus ? `\n${researchFocus}` : ""}
+${researchAngleHint ? `\n${researchAngleHint}` : ""}
+
+Résume les 3-5 points les plus pertinents. Pour chaque point, donne :
+- Le fait ou la donnée
+- La source (nom du média, de l'étude, ou de l'organisme)
+- Pourquoi c'est intéressant pour du contenu social media
+
+Privilégie les sources françaises et européennes quand elles existent.`,
+      }],
+    }),
+  });
+
+  if (!searchResponse.ok) {
+    console.error("Deep research web search failed:", searchResponse.status);
+    return "";
+  }
+
+  const searchData = await searchResponse.json();
+  const webSearchTokens = (searchData.usage?.input_tokens ?? 0) + (searchData.usage?.output_tokens ?? 0);
+  // Extract all text blocks from the response
+  const textParts: string[] = [];
+  for (const block of (searchData.content || [])) {
+    if (block.type === "text") {
+      textParts.push(block.text);
+    }
+  }
+  const researchResult = textParts.join("\n\n");
+
+  // Log deep research usage only when the web search actually succeeded
+  await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspaceId);
+
+  if (!researchResult.trim()) return "";
+  return `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -1769,86 +1873,18 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         return quotaDeniedResponse(drQuota, corsHeaders);
       }
 
-      const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
-      const theme = calendarContext?.theme || context || contentType || "contenu";
-      const activite = profile?.activite || "";
-
-      // Build targeted research prompt based on objective and editorial format
-      const researchObjective = effectiveObjective || objective || "";
-      const researchAngle = editorialFormatLabel || angle?.title || "";
-      let researchFocus = "";
-      if (researchObjective.includes("vente") || researchObjective.includes("conversion")) {
-        researchFocus = "Cherche en priorité : des témoignages, des études de cas, des chiffres de transformation (avant/après), des statistiques de conversion ou de résultats clients.";
-      } else if (researchObjective.includes("credibilite") || researchObjective.includes("crédibilité")) {
-        researchFocus = "Cherche en priorité : des études scientifiques, des rapports sectoriels, des données chiffrées officielles, des avis d'experts reconnus.";
-      } else if (researchObjective.includes("visibilite") || researchObjective.includes("visibilité")) {
-        researchFocus = "Cherche en priorité : des tendances émergentes, des chiffres surprenants ou contre-intuitifs, des faits viralisables, des comparaisons frappantes.";
-      } else if (researchObjective.includes("confiance") || researchObjective.includes("engagement")) {
-        researchFocus = "Cherche en priorité : des histoires humaines, des situations vécues universelles, des sondages d'opinion, des verbatims ou témoignages.";
-      }
-      
-      let researchAngleHint = "";
-      if (researchAngle.toLowerCase().includes("mythe") || researchAngle.toLowerCase().includes("déconstruire")) {
-        researchAngleHint = "Le contenu va déconstruire un mythe. Cherche des données qui CONTREDISENT une croyance courante sur le sujet.";
-      } else if (researchAngle.toLowerCase().includes("enquête") || researchAngle.toLowerCase().includes("décryptage")) {
-        researchAngleHint = "Le contenu est une enquête/décryptage. Cherche des données récentes et des tendances que peu de gens connaissent.";
-      } else if (researchAngle.toLowerCase().includes("test") || researchAngle.toLowerCase().includes("grandeur nature")) {
-        researchAngleHint = "Le contenu est un retour d'expérience. Cherche des benchmarks, des moyennes sectorielles, des résultats comparatifs.";
-      }
-
-      const searchModel = getModelForAction("content");
-      const searchResponse = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey!,
-          "anthropic-version": "2023-06-01",
-        },
-        body: JSON.stringify({
-          model: searchModel,
-          // Fetch brut (hors helpers) : la garde thinking Sonnet 5 doit être posée
-          // ici aussi, sinon le thinking adaptatif mange le budget de recherche.
-          ...(forcesDisabledThinking(searchModel) ? { thinking: { type: "disabled" } } : {}),
-          max_tokens: 2048,
-          tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }],
-          messages: [{
-            role: "user",
-            content: `Recherche des données récentes sur le sujet suivant : ${theme}.
-Contexte professionnel : ${activite}.
-${researchFocus ? `\n${researchFocus}` : ""}
-${researchAngleHint ? `\n${researchAngleHint}` : ""}
-
-Résume les 3-5 points les plus pertinents. Pour chaque point, donne :
-- Le fait ou la donnée
-- La source (nom du média, de l'étude, ou de l'organisme)
-- Pourquoi c'est intéressant pour du contenu social media
-
-Privilégie les sources françaises et européennes quand elles existent.`,
-          }],
-        }),
+      systemPrompt += await runDeepResearchWebSearch({
+        userId,
+        workspaceId: workspace_id,
+        calendarContext,
+        context,
+        contentType,
+        profile,
+        effectiveObjective,
+        objective,
+        editorialFormatLabel,
+        angle,
       });
-
-      let webSearchTokens = 0;
-      if (searchResponse.ok) {
-        const searchData = await searchResponse.json();
-        webSearchTokens = (searchData.usage?.input_tokens ?? 0) + (searchData.usage?.output_tokens ?? 0);
-        // Extract all text blocks from the response
-        const textParts: string[] = [];
-        for (const block of (searchData.content || [])) {
-          if (block.type === "text") {
-            textParts.push(block.text);
-          }
-        }
-        const researchResult = textParts.join("\n\n");
-
-        if (researchResult.trim()) {
-          systemPrompt += `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
-        }
-        // Log deep research usage only when the web search actually succeeded
-        await logUsage(userId, "deep_research", "web_search", webSearchTokens || undefined, searchModel, workspace_id);
-      } else {
-        console.error("Deep research web search failed:", searchResponse.status);
-      }
     }
 
     // ── Streaming SSE (generate step) ──
