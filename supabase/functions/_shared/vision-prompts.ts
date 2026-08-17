@@ -165,7 +165,7 @@ AUTRES INTERDITS :
   }
   if (ctype.includes("newsletter")) {
     return {
-      formatBrief: `Rédige une NEWSLETTER (email long format) qui s'ouvre sur cette image en bandeau / illustration. Le texte doit prolonger l'ambiance visuelle, pas la décrire. Ton intime, éditorial, comme une lettre. Objet court (<60 car), pré-header (<90 car), corps 1500-2500 mots avec sous-titres oraux.`,
+      formatBrief: `Rédige une NEWSLETTER (email long format) qui s'ouvre sur cette image en bandeau / illustration. Le texte doit prolonger l'ambiance visuelle, pas la décrire. Ton intime, éditorial, comme une lettre. Objet court (<60 car), pré-header (<90 car), corps 1500-3000 caractères avec sous-titres oraux.`,
       jsonShape: `{\n  "content": "<corps complet>",\n  "subject": "<objet email>",\n  "preheader": "<pré-header>",\n  "accroche": "<première ligne du corps>",\n  "format": "newsletter",\n  "pillar": "...",\n  "objectif": "..."\n}`,
     };
   }
