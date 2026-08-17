@@ -50,16 +50,6 @@
     // -- 35 fichiers sans aucun importeur (dette 01/08/2026) --
     // Composants applicatifs : vérifier avant de supprimer, certains peuvent
     // être des chantiers en pause plutôt que des abandons.
-    "src/components/ABTestAccroches.tsx",
-    "src/components/ContentActions.tsx",
-    "src/components/ContentProgressBar.tsx",
-    "src/components/CreditWarning.tsx",
-    "src/components/DraftRestoredBanner.tsx",
-    "src/components/FloatingChatButton.tsx",
-    "src/components/PlanMiniRecap.tsx",
-    "src/components/RedactionFlow.tsx",
-    "src/components/RoomTour.tsx",
-    "src/components/RoutinesPanel.tsx",
     "src/components/VoiceOnboarding.tsx",
     "src/components/WeekCard.tsx",
     "src/components/assistant/AssistantButton.tsx",
