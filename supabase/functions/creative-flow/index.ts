@@ -925,6 +925,255 @@ Réponds UNIQUEMENT en JSON :
   return { systemPrompt, userPrompt, storiesPhotoCatalog };
 }
 
+// ═══ RECYCLAGE — PIPELINE PARALLÈLE PAR FORMAT ═══
+// Avant : UN appel Sonnet écrivait TOUS les formats demandés (max_tokens
+// 12288) → attente = somme des formats, et un échec/troncature emportait
+// tout (« coche moins de formats à la fois »). Même remède que les visuels
+// carrousel (#364) : un petit appel de PLAN (Haiku, sortie structurée)
+// analyse la source UNE fois et attribue à chaque format sa sous-idée —
+// la garantie anti-chevauchement est décidée là, pas ré-improvisée par
+// chaque appel — puis UN appel Sonnet PAR FORMAT en parallèle. L'attente
+// tombe au format le plus lent, et un format qui échoue est retenté seul
+// sans emporter les autres.
+async function handleRecycleStep(params: {
+  corsHeaders: Record<string, string>;
+  userId: string;
+  workspace_id?: string | null;
+  formats: string[] | undefined;
+  sourceText?: string | null;
+  body: any;
+  formatLabels: Record<string, string>;
+  COMMON_PREFIX: string;
+  objectiveBlock: string;
+  ctx: any;
+  profile: any;
+}): Promise<Response> {
+  const { corsHeaders, userId, formats, sourceText, body, formatLabels, COMMON_PREFIX, objectiveBlock, ctx, profile } = params;
+  const workspace_id = params.workspace_id ?? undefined;
+  const filesArray: any[] = body.files || (body.fileBase64 ? [{ base64: body.fileBase64, mimeType: body.fileMimeType, name: "fichier" }] : []);
+
+  const tRecycle = Date.now();
+  const fmtIds: string[] = formats || [];
+  if (fmtIds.length === 0) {
+    return new Response(JSON.stringify({ error: "Aucun format demandé." }), {
+      status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  const recActivity = ctx?.profile?.activite || profile?.activite || "";
+  const recTarget = ctx?.profile?.cible || profile?.cible || "";
+  const recPiliers = ctx?.profile?.piliers || "";
+  const requestedLabels = fmtIds.map((f) => formatLabels[f] || f);
+
+  // ── Fichiers : mêmes validations que l'ancien chemin ──
+  const filesContent: any[] = [];
+  let pdfWarning = "";
+  if (filesArray.length > 0) {
+    let totalSize = 0;
+    for (const f of filesArray) totalSize += (f.base64?.length || 0);
+    if (totalSize > 27_000_000) { // ~20 Mo in base64
+      return new Response(
+        JSON.stringify({ error: "La taille totale des fichiers dépasse 20 Mo. Réduis le nombre ou la taille des fichiers." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    // Anthropic limit: max 5 PDFs
+    let pdfCount = 0;
+    for (const f of filesArray.slice(0, 10)) {
+      if (f.mimeType === "application/pdf") {
+        pdfCount++;
+        if (pdfCount > 5) {
+          pdfWarning = "\n⚠️ Note : seuls les 5 premiers PDFs ont été analysés (limite technique).";
+          continue;
+        }
+        filesContent.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } });
+      } else if (f.mimeType?.startsWith("image/")) {
+        filesContent.push({ type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } });
+      }
+    }
+  }
+
+  // ── 1. PLAN (Haiku, tool forcé) : analyse, angle par format, synthèse ──
+  // Les fichiers ne sont envoyés qu'ICI (une fois) : la synthèse fidèle
+  // sert ensuite de source texte aux appels par format (pas de re-envoi
+  // vision × N formats).
+  const PLAN_TOOL = {
+    name: "plan_recyclage",
+    description: "Analyse du contenu source et attribution d'un angle DISTINCT à chaque format.",
+    input_schema: {
+      type: "object",
+      properties: {
+        message_central: { type: "string", description: "La thèse du contenu source en 1 phrase." },
+        synthese_source: { type: "string", description: "Synthèse FIDÈLE du contenu source (10-20 phrases) : thèse, sous-idées, exemples et anecdotes, chiffres, et les expressions typiques de l'auteure recopiées VERBATIM. N'invente rien." },
+        angles: {
+          type: "array",
+          description: "Un élément par format demandé.",
+          items: {
+            type: "object",
+            properties: {
+              format: { type: "string", description: "Le nom du format tel que fourni." },
+              sous_idee: { type: "string", description: "La sous-idée de la source attribuée à ce format." },
+              angle: { type: "string", description: "L'angle d'attaque, clairement différent des autres formats." },
+            },
+            required: ["format", "sous_idee", "angle"],
+          },
+        },
+      },
+      required: ["message_central", "synthese_source", "angles"],
+    },
+  };
+
+  const planUsage: UsageSink = {};
+  let plan: any = null;
+  try {
+    const planText = `Analyse ce contenu source pour le recycler en ${fmtIds.length} format(s) : ${requestedLabels.join(", ")}.
+
+Matrice d'affinités pour l'attribution :
+- Carrousel : l'idée la plus PÉDAGOGIQUE.
+- Reel : l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE.
+- Stories : l'angle le plus INTIME ou PERSONNEL.
+- LinkedIn : l'angle le plus ENGAGÉ (prise de position).
+- Newsletter : l'angle le plus PROFOND (réflexion complète).
+
+Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
+    const planRaw = await callAnthropic({
+      model: getModelForAction("questions"),
+      system: "Tu prépares le recyclage d'un contenu en plusieurs formats. Tu es FIDÈLE à la source : tu n'inventes aucun fait, aucun chiffre, aucune anecdote.",
+      messages: [{ role: "user", content: [...filesContent, { type: "text", text: planText }] }],
+      max_tokens: 2048,
+      abortTimeoutMs: 60000,
+      tool: PLAN_TOOL,
+    }, planUsage);
+    plan = tryParseAiJson<any>(planRaw, "creative-flow:recycle-plan");
+  } catch (e: any) {
+    console.warn("[creative-flow] recycle: plan échoué → angles libres par format", e?.message || e);
+  }
+
+  // Source des appels par format : le texte fourni, complété (ou remplacé,
+  // cas fichiers-seuls) par la synthèse du plan.
+  const sourceForFormats = [
+    sourceText ? `"""\n${sourceText}\n"""` : "",
+    filesArray.length > 0 && plan?.synthese_source ? `SYNTHÈSE FIDÈLE DES FICHIERS SOURCES :\n"""\n${plan.synthese_source}\n"""` : "",
+  ].filter(Boolean).join("\n\n");
+  if (!sourceForFormats) {
+    return new Response(
+      JSON.stringify({ error: "Impossible d'analyser les fichiers sources. Réessaie." }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const angleFor = (f: string): { sous_idee?: string; angle?: string } => {
+    const arr = Array.isArray(plan?.angles) ? plan.angles : [];
+    const label = (formatLabels[f] || f).toLowerCase();
+    const found = arr.find((a: any) => {
+      const af = String(a?.format || "").toLowerCase();
+      return af && (af.includes(label) || label.includes(af) || af.includes(f.toLowerCase()));
+    });
+    return found || arr[fmtIds.indexOf(f)] || {};
+  };
+
+  // ── 2. UN appel Sonnet PAR FORMAT, en parallèle ──
+  const runFormat = async (f: string) => {
+    const label = formatLabels[f] || f;
+    const a = angleFor(f);
+    const others = fmtIds
+      .filter((x) => x !== f)
+      .map((x) => {
+        const ox = angleFor(x);
+        return `- ${formatLabels[x] || x}${ox.angle ? ` : ${ox.angle}` : ""}`;
+      })
+      .join("\n");
+    const angleBlock = a.angle
+      ? `\n\nTON ANGLE (imposé par le plan éditorial, respecte-le) :\n- Sous-idée : ${a.sous_idee || ""}\n- Angle : ${a.angle}${others ? `\n\nLes AUTRES formats couvrent déjà ces angles — ne les reprends PAS :\n${others}` : ""}`
+      : (others ? `\n\nD'autres formats recyclent aussi ce contenu (${fmtIds.filter((x) => x !== f).map((x) => formatLabels[x] || x).join(", ")}) : prends un angle qui leur laisse de la place.` : "");
+    const fUsage: UsageSink = {};
+    const raw = await callAnthropicSimple(
+      getModelForAction("content"),
+      buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
+      `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
+      f === "linkedin" ? 0.7 : 0.85,
+      4096,
+      fUsage,
+    );
+    const parsed = tryParseAiJson<any>(raw, `creative-flow:recycle:${f}`);
+    let resultVal = parsed?.results?.[f]
+      ?? (parsed?.results && typeof parsed.results === "object" ? Object.values(parsed.results)[0] : null);
+    const topicVal = parsed?.topics?.[f]
+      ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
+    if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
+
+    // Le carrousel recyclé (objet structuré {slides, caption}) passe par la
+    // MÊME garde rédactionnelle que /creer (carousel-ai) : anti-tics, chiffres
+    // sans source, hashtags normalisés (cap 3), quality_check calculé. Sans
+    // ça, un carrousel « Recycler » échappait à tout l'audit qualité (12/07).
+    // La re-passe LLM ne se déclenche QUE si des violations sont mesurées.
+    if ((f === "carrousel" || f === "carousel") && resultVal && typeof resultVal === "object" && Array.isArray(resultVal.slides)) {
+      try {
+        const gated = await runRedacGate(JSON.stringify(resultVal), {
+          isLinkedIn: false,
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5" },
+          // Liste blanche des chiffres : ceux de la source recyclée (le contenu
+          // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
+          inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
+        });
+        const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
+        if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
+        await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id, typeof topicVal === "string" ? topicVal : undefined);
+      } catch (e) {
+        console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
+      }
+    }
+    return { f, resultVal, topicVal, usage: fUsage };
+  };
+
+  const settled: (Awaited<ReturnType<typeof runFormat>> | null)[] = await Promise.all(
+    fmtIds.map((f) => runFormat(f).catch((e) => {
+      console.error(`[creative-flow] recycle: format ${f} en échec (1er essai)`, e?.message || e);
+      return null;
+    })),
+  );
+  // 2e chance séquentielle pour les formats tombés (surcharge transitoire) —
+  // un format qui échoue n'emporte plus les autres.
+  for (let i = 0; i < fmtIds.length; i++) {
+    if (!settled[i]) {
+      settled[i] = await runFormat(fmtIds[i]).catch((e) => {
+        console.error(`[creative-flow] recycle: format ${fmtIds[i]} abandonné après 2 essais`, e?.message || e);
+        return null;
+      });
+    }
+  }
+
+  const ok = settled.filter(Boolean) as Awaited<ReturnType<typeof runFormat>>[];
+  if (ok.length === 0) {
+    // Aucun crédit consommé sur une génération entièrement ratée (pas de logUsage).
+    return new Response(
+      JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie." }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  const results: Record<string, unknown> = {};
+  const topics: Record<string, unknown> = {};
+  for (const r of ok) {
+    results[r.f] = r.resultVal;
+    if (r.topicVal) topics[r.f] = r.topicVal;
+  }
+  const failedFormats = fmtIds.filter((f) => !(f in results));
+
+  const totalTokens = (planUsage.total_tokens || 0) + ok.reduce((s, r) => s + (r.usage.total_tokens || 0), 0);
+  await logUsage(userId, "content", "creative_flow", totalTokens || undefined, ok[0]?.usage.model, workspace_id);
+  console.log(JSON.stringify({
+    type: "recycle_timing",
+    formats: fmtIds.length,
+    failed: failedFormats.length,
+    with_files: filesArray.length,
+    duration_ms: Date.now() - tRecycle,
+  }));
+  return new Response(
+    JSON.stringify({ results, topics, ...(failedFormats.length > 0 ? { failed_formats: failedFormats } : {}) }),
+    { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+  );
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -1826,240 +2075,8 @@ Réponds UNIQUEMENT en JSON :
     // Une seule des branches ci-dessous s'exécute → un sink partagé suffit.
     const finalUsage: UsageSink = {};
 
-    // Build files array (backward compatible)
-    const filesArray: any[] = body.files || (body.fileBase64 ? [{ base64: body.fileBase64, mimeType: body.fileMimeType, name: "fichier" }] : []);
-
-    // ═══ RECYCLAGE — PIPELINE PARALLÈLE PAR FORMAT ═══
-    // Avant : UN appel Sonnet écrivait TOUS les formats demandés (max_tokens
-    // 12288) → attente = somme des formats, et un échec/troncature emportait
-    // tout (« coche moins de formats à la fois »). Même remède que les visuels
-    // carrousel (#364) : un petit appel de PLAN (Haiku, sortie structurée)
-    // analyse la source UNE fois et attribue à chaque format sa sous-idée —
-    // la garantie anti-chevauchement est décidée là, pas ré-improvisée par
-    // chaque appel — puis UN appel Sonnet PAR FORMAT en parallèle. L'attente
-    // tombe au format le plus lent, et un format qui échoue est retenté seul
-    // sans emporter les autres.
     if (step === "recycle") {
-      const tRecycle = Date.now();
-      const fmtIds: string[] = formats || [];
-      if (fmtIds.length === 0) {
-        return new Response(JSON.stringify({ error: "Aucun format demandé." }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      const recActivity = ctx?.profile?.activite || profile?.activite || "";
-      const recTarget = ctx?.profile?.cible || profile?.cible || "";
-      const recPiliers = ctx?.profile?.piliers || "";
-      const requestedLabels = fmtIds.map((f) => formatLabels[f] || f);
-
-      // ── Fichiers : mêmes validations que l'ancien chemin ──
-      const filesContent: any[] = [];
-      let pdfWarning = "";
-      if (filesArray.length > 0) {
-        let totalSize = 0;
-        for (const f of filesArray) totalSize += (f.base64?.length || 0);
-        if (totalSize > 27_000_000) { // ~20 Mo in base64
-          return new Response(
-            JSON.stringify({ error: "La taille totale des fichiers dépasse 20 Mo. Réduis le nombre ou la taille des fichiers." }),
-            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-          );
-        }
-        // Anthropic limit: max 5 PDFs
-        let pdfCount = 0;
-        for (const f of filesArray.slice(0, 10)) {
-          if (f.mimeType === "application/pdf") {
-            pdfCount++;
-            if (pdfCount > 5) {
-              pdfWarning = "\n⚠️ Note : seuls les 5 premiers PDFs ont été analysés (limite technique).";
-              continue;
-            }
-            filesContent.push({ type: "document", source: { type: "base64", media_type: "application/pdf", data: f.base64 } });
-          } else if (f.mimeType?.startsWith("image/")) {
-            filesContent.push({ type: "image", source: { type: "base64", media_type: f.mimeType, data: f.base64 } });
-          }
-        }
-      }
-
-      // ── 1. PLAN (Haiku, tool forcé) : analyse, angle par format, synthèse ──
-      // Les fichiers ne sont envoyés qu'ICI (une fois) : la synthèse fidèle
-      // sert ensuite de source texte aux appels par format (pas de re-envoi
-      // vision × N formats).
-      const PLAN_TOOL = {
-        name: "plan_recyclage",
-        description: "Analyse du contenu source et attribution d'un angle DISTINCT à chaque format.",
-        input_schema: {
-          type: "object",
-          properties: {
-            message_central: { type: "string", description: "La thèse du contenu source en 1 phrase." },
-            synthese_source: { type: "string", description: "Synthèse FIDÈLE du contenu source (10-20 phrases) : thèse, sous-idées, exemples et anecdotes, chiffres, et les expressions typiques de l'auteure recopiées VERBATIM. N'invente rien." },
-            angles: {
-              type: "array",
-              description: "Un élément par format demandé.",
-              items: {
-                type: "object",
-                properties: {
-                  format: { type: "string", description: "Le nom du format tel que fourni." },
-                  sous_idee: { type: "string", description: "La sous-idée de la source attribuée à ce format." },
-                  angle: { type: "string", description: "L'angle d'attaque, clairement différent des autres formats." },
-                },
-                required: ["format", "sous_idee", "angle"],
-              },
-            },
-          },
-          required: ["message_central", "synthese_source", "angles"],
-        },
-      };
-
-      const planUsage: UsageSink = {};
-      let plan: any = null;
-      try {
-        const planText = `Analyse ce contenu source pour le recycler en ${fmtIds.length} format(s) : ${requestedLabels.join(", ")}.
-
-Matrice d'affinités pour l'attribution :
-- Carrousel : l'idée la plus PÉDAGOGIQUE.
-- Reel : l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE.
-- Stories : l'angle le plus INTIME ou PERSONNEL.
-- LinkedIn : l'angle le plus ENGAGÉ (prise de position).
-- Newsletter : l'angle le plus PROFOND (réflexion complète).
-
-Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
-        const planRaw = await callAnthropic({
-          model: getModelForAction("questions"),
-          system: "Tu prépares le recyclage d'un contenu en plusieurs formats. Tu es FIDÈLE à la source : tu n'inventes aucun fait, aucun chiffre, aucune anecdote.",
-          messages: [{ role: "user", content: [...filesContent, { type: "text", text: planText }] }],
-          max_tokens: 2048,
-          abortTimeoutMs: 60000,
-          tool: PLAN_TOOL,
-        }, planUsage);
-        plan = tryParseAiJson<any>(planRaw, "creative-flow:recycle-plan");
-      } catch (e: any) {
-        console.warn("[creative-flow] recycle: plan échoué → angles libres par format", e?.message || e);
-      }
-
-      // Source des appels par format : le texte fourni, complété (ou remplacé,
-      // cas fichiers-seuls) par la synthèse du plan.
-      const sourceForFormats = [
-        sourceText ? `"""\n${sourceText}\n"""` : "",
-        filesArray.length > 0 && plan?.synthese_source ? `SYNTHÈSE FIDÈLE DES FICHIERS SOURCES :\n"""\n${plan.synthese_source}\n"""` : "",
-      ].filter(Boolean).join("\n\n");
-      if (!sourceForFormats) {
-        return new Response(
-          JSON.stringify({ error: "Impossible d'analyser les fichiers sources. Réessaie." }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const angleFor = (f: string): { sous_idee?: string; angle?: string } => {
-        const arr = Array.isArray(plan?.angles) ? plan.angles : [];
-        const label = (formatLabels[f] || f).toLowerCase();
-        const found = arr.find((a: any) => {
-          const af = String(a?.format || "").toLowerCase();
-          return af && (af.includes(label) || label.includes(af) || af.includes(f.toLowerCase()));
-        });
-        return found || arr[fmtIds.indexOf(f)] || {};
-      };
-
-      // ── 2. UN appel Sonnet PAR FORMAT, en parallèle ──
-      const runFormat = async (f: string) => {
-        const label = formatLabels[f] || f;
-        const a = angleFor(f);
-        const others = fmtIds
-          .filter((x) => x !== f)
-          .map((x) => {
-            const ox = angleFor(x);
-            return `- ${formatLabels[x] || x}${ox.angle ? ` : ${ox.angle}` : ""}`;
-          })
-          .join("\n");
-        const angleBlock = a.angle
-          ? `\n\nTON ANGLE (imposé par le plan éditorial, respecte-le) :\n- Sous-idée : ${a.sous_idee || ""}\n- Angle : ${a.angle}${others ? `\n\nLes AUTRES formats couvrent déjà ces angles — ne les reprends PAS :\n${others}` : ""}`
-          : (others ? `\n\nD'autres formats recyclent aussi ce contenu (${fmtIds.filter((x) => x !== f).map((x) => formatLabels[x] || x).join(", ")}) : prends un angle qui leur laisse de la place.` : "");
-        const fUsage: UsageSink = {};
-        const raw = await callAnthropicSimple(
-          getModelForAction("content"),
-          buildRecycleSystemPrompt([f], formatLabels, COMMON_PREFIX, objectiveBlock, recActivity, recTarget, recPiliers),
-          `Voici le contenu à recycler :\n\n${sourceForFormats}${angleBlock}\n\nRecycle-le en ${label}. Contenu complet et prêt à poster.`,
-          f === "linkedin" ? 0.7 : 0.85,
-          4096,
-          fUsage,
-        );
-        const parsed = tryParseAiJson<any>(raw, `creative-flow:recycle:${f}`);
-        let resultVal = parsed?.results?.[f]
-          ?? (parsed?.results && typeof parsed.results === "object" ? Object.values(parsed.results)[0] : null);
-        const topicVal = parsed?.topics?.[f]
-          ?? (parsed?.topics && typeof parsed.topics === "object" ? Object.values(parsed.topics)[0] : null);
-        if (!resultVal) throw new Error(`recycle ${f} : résultat vide`);
-
-        // Le carrousel recyclé (objet structuré {slides, caption}) passe par la
-        // MÊME garde rédactionnelle que /creer (carousel-ai) : anti-tics, chiffres
-        // sans source, hashtags normalisés (cap 3), quality_check calculé. Sans
-        // ça, un carrousel « Recycler » échappait à tout l'audit qualité (12/07).
-        // La re-passe LLM ne se déclenche QUE si des violations sont mesurées.
-        if ((f === "carrousel" || f === "carousel") && resultVal && typeof resultVal === "object" && Array.isArray(resultVal.slides)) {
-          try {
-            const gated = await runRedacGate(JSON.stringify(resultVal), {
-              isLinkedIn: false,
-              correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5" },
-              // Liste blanche des chiffres : ceux de la source recyclée (le contenu
-              // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
-              inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
-            });
-            const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
-            if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
-            await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id, typeof topicVal === "string" ? topicVal : undefined);
-          } catch (e) {
-            console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
-          }
-        }
-        return { f, resultVal, topicVal, usage: fUsage };
-      };
-
-      const settled: (Awaited<ReturnType<typeof runFormat>> | null)[] = await Promise.all(
-        fmtIds.map((f) => runFormat(f).catch((e) => {
-          console.error(`[creative-flow] recycle: format ${f} en échec (1er essai)`, e?.message || e);
-          return null;
-        })),
-      );
-      // 2e chance séquentielle pour les formats tombés (surcharge transitoire) —
-      // un format qui échoue n'emporte plus les autres.
-      for (let i = 0; i < fmtIds.length; i++) {
-        if (!settled[i]) {
-          settled[i] = await runFormat(fmtIds[i]).catch((e) => {
-            console.error(`[creative-flow] recycle: format ${fmtIds[i]} abandonné après 2 essais`, e?.message || e);
-            return null;
-          });
-        }
-      }
-
-      const ok = settled.filter(Boolean) as Awaited<ReturnType<typeof runFormat>>[];
-      if (ok.length === 0) {
-        // Aucun crédit consommé sur une génération entièrement ratée (pas de logUsage).
-        return new Response(
-          JSON.stringify({ error: "La génération a échoué en cours de route. Réessaie." }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      const results: Record<string, unknown> = {};
-      const topics: Record<string, unknown> = {};
-      for (const r of ok) {
-        results[r.f] = r.resultVal;
-        if (r.topicVal) topics[r.f] = r.topicVal;
-      }
-      const failedFormats = fmtIds.filter((f) => !(f in results));
-
-      const totalTokens = (planUsage.total_tokens || 0) + ok.reduce((s, r) => s + (r.usage.total_tokens || 0), 0);
-      await logUsage(userId, "content", "creative_flow", totalTokens || undefined, ok[0]?.usage.model, workspace_id);
-      console.log(JSON.stringify({
-        type: "recycle_timing",
-        formats: fmtIds.length,
-        failed: failedFormats.length,
-        with_files: filesArray.length,
-        duration_ms: Date.now() - tRecycle,
-      }));
-      return new Response(
-        JSON.stringify({ results, topics, ...(failedFormats.length > 0 ? { failed_formats: failedFormats } : {}) }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+      return await handleRecycleStep({ corsHeaders, userId, workspace_id, formats, sourceText, body, formatLabels, COMMON_PREFIX, objectiveBlock, ctx, profile });
     }
 
     if (step === "questions" && body.photo_mode && body.photos?.[0]?.base64) {
