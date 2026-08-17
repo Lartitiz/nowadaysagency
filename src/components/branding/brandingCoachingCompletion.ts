@@ -36,7 +36,8 @@ export async function generateAndSaveFullStory(
         context: aiCtx,
         covered_topics: checklist,
       },
-    }, 120000);
+    // 130s : "story_generate" est un appel unique borné à 120s côté edge, marge après.
+    }, 130000);
     const generatedStory = storyGenData?.response?.question || (typeof storyGenData?.response === "string" ? storyGenData.response : "");
     if (typeof generatedStory === "string" && generatedStory.length > 50) {
       const { data: existing } = await (supabase.from("storytelling") as any)
@@ -133,7 +134,8 @@ async function fillMissingPersonaFields(
       context: aiCtx,
       covered_topics: checklist,
     },
-  }, 120000);
+  // 130s : "persona_fill" est un appel unique borné à 120s côté edge, marge après.
+  }, 130000);
 
   const fillResponse = fillData?.response;
   let fillInsights: Record<string, any> = {};

@@ -607,9 +607,11 @@ RÈGLES DE CONTENU :
         }
       }
 
+      // Extraction/déduction mécanique depuis un contexte déjà connu (pas de génération
+      // créative) : tier Sonnet, comme les autres actions "coaching_light" du projet.
       const personaFillUsage: UsageSink = {};
       const rawFill = await callAnthropic({
-        model: getModelForAction("coaching"),
+        model: getModelForAction("coaching_light"),
         system: fillSystemPrompt,
         messages: merged,
         temperature: 0.5,
@@ -689,9 +691,10 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
         }
       }
 
+      // Idem persona_fill : extraction/déduction, pas de génération créative → Sonnet.
       const strategyFillUsage: UsageSink = {};
       const rawFill = await callAnthropic({
-        model: getModelForAction("coaching"),
+        model: getModelForAction("coaching_light"),
         system: fillSystemPrompt,
         messages: merged,
         temperature: 0.6,
@@ -775,12 +778,15 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
     let wasTruncated = false;
     let coachingUsage: UsageSink = {};
 
+    // max_tokens généreux (le tableau "series" de content_series republie TOUJOURS
+    // tous les éléments déjà extraits, jusqu'à 8) : ça élimine la troncature dans
+    // l'immense majorité des cas, la relance ci-dessous ne reste qu'un garde-fou rare.
     const aiResult = await callAnthropicWithMeta({
       model: getModelForAction("coaching"),
       system: systemPrompt,
       messages: mergedMessages,
       temperature: 0.7,
-      max_tokens: 4096,
+      max_tokens: 8000,
       tool: COACHING_TOOL,
       abortTimeoutMs: 120_000,
     });
@@ -789,13 +795,16 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
     coachingUsage = aiResult.usage ?? {};
 
     if (wasTruncated) {
+      // Garde-fou borné : une seule relance, son propre abortTimeoutMs (pas de cascade).
+      // Pire cas serveur = 120s (appel principal) + 120s (relance) = 240s ; les clients
+      // (invokeWithTimeout côté front) doivent dépasser ce plafond avec marge.
       console.warn("[BrandingCoaching] Response truncated (max_tokens reached). Retrying with higher limit...");
       const retryResult = await callAnthropicWithMeta({
         model: getModelForAction("coaching"),
         system: systemPrompt + "\n\nATTENTION : ta réponse précédente a été tronquée car trop longue. Sois CONCIS. La question doit faire 1-2 phrases max. Les extracted_insights doivent être courts. Pas de remaining_topics si la liste est longue.",
         messages: mergedMessages,
         temperature: 0.7,
-        max_tokens: 6000,
+        max_tokens: 12000,
         tool: COACHING_TOOL,
         abortTimeoutMs: 120_000,
       });
