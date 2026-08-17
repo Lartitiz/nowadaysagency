@@ -47,21 +47,10 @@
   // pause.
   // ─────────────────────────────────────────────────────────────────────────
   "ignore": [
-    // -- 35 fichiers sans aucun importeur (dette 01/08/2026) --
-    // Composants applicatifs : vérifier avant de supprimer, certains peuvent
-    // être des chantiers en pause plutôt que des abandons.
-    "src/components/VoiceOnboarding.tsx",
-    "src/components/WeekCard.tsx",
-    "src/components/assistant/AssistantButton.tsx",
-    "src/components/branding/BrandingCoachingHistory.tsx",
-    "src/components/branding/PersonaBadge.tsx",
-    "src/components/calendar/ObjectifBadge.tsx",
-    "src/components/dashboard/EngagementRoutineWidget.tsx",
-    "src/components/engagement/MetricsSection.tsx",
-    "src/components/engagement/StickerGuide.tsx",
     // Hooks et libs sans appelant.
-    // plan-content.ts : encore importé par WeekCard.tsx / PlanMiniRecap.tsx
-    // (groupe 2, composants applicatifs) — à retirer quand ce groupe sera traité.
+    // plan-content.ts : plus aucun importeur depuis la suppression de
+    // WeekCard.tsx / PlanMiniRecap.tsx (groupe 2, composants applicatifs,
+    // désormais traité) — à vérifier et résorber dans le lot hooks/libs.
     "src/lib/plan-content.ts"
   ],
 
