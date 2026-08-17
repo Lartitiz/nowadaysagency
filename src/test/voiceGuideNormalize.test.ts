@@ -34,7 +34,7 @@ describe("normalizeVoiceGuide", () => {
   });
 
   it("remplace un champ liste manquant par un tableau vide (pas de crash .map)", () => {
-    const guide = normalizeVoiceGuide({ brand_name: "Test" });
+    const guide = normalizeVoiceGuide<Record<string, unknown>>({ brand_name: "Test" });
     expect(guide.emotions_to_create).toEqual([]);
     expect(guide.words_to_avoid).toEqual([]);
   });
