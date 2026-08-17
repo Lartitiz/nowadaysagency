@@ -37,13 +37,17 @@ async function saveUndoLog(
   recordId: string | null,
   previousData: any
 ) {
-  await sb.from("assistant_undo_log").insert({
+  // Best-effort : un échec du log d'annulation ne doit pas bloquer l'action
+  // principale demandée par l'utilisatrice, seulement dégrader la capacité
+  // d'undo pour ce coup-ci.
+  const { error: insertError } = await sb.from("assistant_undo_log").insert({
     user_id: userId,
     action_type: actionType,
     table_name: tableName,
     record_id: recordId,
     previous_data: previousData,
   });
+  if (insertError) console.error("[assistant-chat] saveUndoLog insert failed:", insertError);
   // Keep only last 10
   const { data: logs } = await sb
     .from("assistant_undo_log")
@@ -52,7 +56,8 @@ async function saveUndoLog(
     .order("created_at", { ascending: false });
   if (logs && logs.length > 10) {
     const idsToDelete = logs.slice(10).map((l: any) => l.id);
-    await sb.from("assistant_undo_log").delete().in("id", idsToDelete);
+    const { error: trimError } = await sb.from("assistant_undo_log").delete().in("id", idsToDelete);
+    if (trimError) console.error("[assistant-chat] saveUndoLog trim failed:", trimError);
   }
 }
 
@@ -211,22 +216,27 @@ async function undoLastAction(sb: any, userId: string): Promise<{ success: boole
       // Restore previous data
       if (lastLog.action_type.startsWith("insert_")) {
         // For inserts, delete the inserted record
-        await sb.from(lastLog.table_name).delete().eq("id", lastLog.record_id);
+        const { error } = await sb.from(lastLog.table_name).delete().eq("id", lastLog.record_id);
+        if (error) throw error;
       } else {
         // For updates/deletes, restore previous data
         const { id, ...restoreData } = lastLog.previous_data;
         if (lastLog.action_type.startsWith("delete_")) {
-          await sb.from(lastLog.table_name).insert(lastLog.previous_data);
+          const { error } = await sb.from(lastLog.table_name).insert(lastLog.previous_data);
+          if (error) throw error;
         } else {
-          await sb.from(lastLog.table_name).update(restoreData).eq("id", lastLog.record_id);
+          const { error } = await sb.from(lastLog.table_name).update(restoreData).eq("id", lastLog.record_id);
+          if (error) throw error;
         }
       }
     } else if (lastLog.action_type.startsWith("insert_") && lastLog.record_id) {
-      await sb.from(lastLog.table_name).delete().eq("id", lastLog.record_id);
+      const { error } = await sb.from(lastLog.table_name).delete().eq("id", lastLog.record_id);
+      if (error) throw error;
     }
 
     // Remove the log entry
-    await sb.from("assistant_undo_log").delete().eq("id", lastLog.id);
+    const { error: logDeleteError } = await sb.from("assistant_undo_log").delete().eq("id", lastLog.id);
+    if (logDeleteError) throw logDeleteError;
     return { success: true, message: "Action annulée avec succès !" };
   } catch (err: any) {
     return { success: false, message: `Erreur lors de l'annulation : ${err.message}` };

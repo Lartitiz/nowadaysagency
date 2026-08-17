@@ -651,7 +651,7 @@ Réponds en JSON :
       const worstPosts = (atd?.worstPostUrls || []).map((url: string, i: number) => ({
         image_url: url, comment: i === 0 ? (atd?.worstPostsComment || null) : null,
       }));
-      const { data: ins } = await supabase.from("instagram_audit").insert({
+      const { data: ins, error: insertError } = await supabase.from("instagram_audit").insert({
         user_id: user.id,
         workspace_id: wsId,
         score_global: m.score_global,
@@ -670,6 +670,7 @@ Réponds en JSON :
         posts_analysis: m.posts_analysis || null,
         profile_url: pu || null,
       } as any).select("id, created_at").single();
+      if (insertError) throw insertError;
       if (ins) { savedAuditId = (ins as any).id; savedAuditDate = (ins as any).created_at; }
     } catch (insErr: any) {
       console.error("[audit-instagram-ai] insert audit échoué (non bloquant):", insErr?.message || insErr);

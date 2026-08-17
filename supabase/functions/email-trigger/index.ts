@@ -215,7 +215,8 @@ async function enqueueSequence(supabase: any, userId: string, triggerEvent: stri
     scheduled_at: new Date(now.getTime() + step.delay_hours * 3600000).toISOString(),
   }));
 
-  await supabase.from("email_queue").insert(entries);
+  const { error } = await supabase.from("email_queue").insert(entries);
+  if (error) throw error;
   return { queued: entries.length };
 }
 
@@ -585,7 +586,8 @@ async function handleProcessQueue(supabase: any, supabaseUrl: string, serviceRol
         .single();
 
       if (!step?.template_id) {
-        await supabase.from("email_queue").update({ cancelled: true }).eq("id", entry.id);
+        const { error } = await supabase.from("email_queue").update({ cancelled: true }).eq("id", entry.id);
+        if (error) console.error(`Failed to cancel queue ${entry.id} (no template_id):`, error);
         continue;
       }
 
@@ -597,13 +599,15 @@ async function handleProcessQueue(supabase: any, supabaseUrl: string, serviceRol
         .single();
 
       if (!template?.is_active) {
-        await supabase.from("email_queue").update({ cancelled: true }).eq("id", entry.id);
+        const { error } = await supabase.from("email_queue").update({ cancelled: true }).eq("id", entry.id);
+        if (error) console.error(`Failed to cancel queue ${entry.id} (inactive template):`, error);
         continue;
       }
 
       // Deduplicate: check if already sent
       if (await alreadySent(supabase, entry.user_id, step.template_id)) {
-        await supabase.from("email_queue").update({ sent: true }).eq("id", entry.id);
+        const { error } = await supabase.from("email_queue").update({ sent: true }).eq("id", entry.id);
+        if (error) console.error(`Failed to mark queue ${entry.id} as sent (dedup):`, error);
         continue;
       }
 
@@ -615,7 +619,8 @@ async function handleProcessQueue(supabase: any, supabaseUrl: string, serviceRol
         .single();
 
       if (!profile?.email) {
-        await supabase.from("email_queue").update({ cancelled: true }).eq("id", entry.id);
+        const { error } = await supabase.from("email_queue").update({ cancelled: true }).eq("id", entry.id);
+        if (error) console.error(`Failed to cancel queue ${entry.id} (no email):`, error);
         continue;
       }
 
@@ -648,7 +653,8 @@ async function handleProcessQueue(supabase: any, supabaseUrl: string, serviceRol
       const sendData = await sendRes.json();
 
       if (sendData.success) {
-        await supabase.from("email_queue").update({ sent: true }).eq("id", entry.id);
+        const { error } = await supabase.from("email_queue").update({ sent: true }).eq("id", entry.id);
+        if (error) console.error(`Failed to mark queue ${entry.id} as sent:`, error);
         processed++;
       } else {
         console.error(`Failed to send email for queue ${entry.id}:`, sendData.error);

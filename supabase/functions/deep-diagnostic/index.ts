@@ -699,7 +699,10 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     });
 
     // ====== SAVE TO DB (fast: only diagnostic essentials) ======
-    const { data: savedDiag } = await supabaseAdmin
+    // Non bloquant : le diagnostic vient d'être généré avec succès — un échec
+    // de sauvegarde ne doit pas priver l'utilisatrice du résultat déjà obtenu
+    // (savedDiag?.id reste undefined, la réponse est renvoyée quand même).
+    const { data: savedDiag, error: diagInsertError } = await supabaseAdmin
       .from("diagnostic_results")
       .insert({
         user_id: userId,
@@ -716,6 +719,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       })
       .select("id")
       .single();
+    if (diagInsertError) console.error("deep-diagnostic: échec sauvegarde (non bloquant):", diagInsertError);
 
     // audit_recommendations + logUsage en parallèle
     const priorities = (analysisResult as any).priorities;
@@ -731,7 +735,8 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
             temps_estime: p.time || null, priorite: p.impact || "medium",
             position: i + 1, completed: false,
           }))
-        ).then(() => {}).catch(e => console.error("Save recommendations failed:", e))
+        ).then(({ error }) => { if (error) console.error("Save recommendations failed:", error); })
+          .catch(e => console.error("Save recommendations failed:", e))
       );
     }
 

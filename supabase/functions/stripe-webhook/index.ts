@@ -382,6 +382,10 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
     }
   } catch (err) {
     log("Error processing event", { error: String(err) });
+    // Nettoyage best-effort du dédoublonnage : le 500 ci-dessous fait déjà
+    // retenter Stripe ; si CE delete échoue aussi, le retry sera juste bloqué
+    // par le dédoublonnage jusqu'à expiration — dégradé mais pas dangereux.
+    // eslint-disable-next-line nowadays/require-supabase-error-check -- nettoyage best-effort après échec déjà géré (le 500 est renvoyé quoi qu'il arrive)
     await supabase.from("webhook_events").delete().eq("stripe_event_id", event.id);
     return new Response("Processing error", { status: 500 });
   }

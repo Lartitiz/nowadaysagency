@@ -13,23 +13,6 @@
 // (retour dans l'éditeur) pour qu'elle ne puisse pas diverger.
 export const DETTE_SUPABASE_ERROR_CHECK = [
   "src/pages/CreerUnifie.tsx",
-  "supabase/functions/assistant-chat/index.ts",
-  "supabase/functions/audit-branding/index.ts",
-  "supabase/functions/audit-instagram-ai/index.ts",
-  "supabase/functions/deep-diagnostic/index.ts",
-  "supabase/functions/email-trigger/index.ts",
-  "supabase/functions/photo-background-replace/index.ts",
-  "supabase/functions/photo-describe/index.ts",
-  "supabase/functions/public-calendar-edit/index.ts",
-  "supabase/functions/public-calendar/index.ts",
-  "supabase/functions/resend-webhook/index.ts",
-  "supabase/functions/send-email/index.ts",
-  "supabase/functions/shared-branding-access/index.ts",
-  "supabase/functions/social-canva-import/index.ts",
-  "supabase/functions/social-instagram-publish/index.ts",
-  "supabase/functions/social-publish-scheduled/index.ts",
-  "supabase/functions/stripe-webhook/index.ts",
-  "supabase/functions/website-ai/index.ts",
 ];
 
 // Fichiers de test : les fakes écrivent via la même API et ne risquent rien.

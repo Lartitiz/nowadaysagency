@@ -58,11 +58,12 @@ Deno.serve(async (req) => {
     const brandCol = link.workspace_id ? "workspace_id" : "user_id";
     const brandVal = link.workspace_id ? link.workspace_id : userId;
 
-    // Increment views_count
-    await supabase
+    // Increment views_count — cosmétique, ne doit pas empêcher l'affichage du branding partagé.
+    const { error: viewsError } = await supabase
       .from("shared_branding_links")
       .update({ views_count: (link.views_count || 0) + 1 })
       .eq("id", link.id);
+    if (viewsError) console.error("shared-branding-access: échec incrément views_count:", viewsError);
 
     // Fetch all branding data in parallel
     const [

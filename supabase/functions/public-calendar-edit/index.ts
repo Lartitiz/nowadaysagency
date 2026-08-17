@@ -170,9 +170,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Log edit as auto-comment
+    // Log edit as auto-comment — best-effort : la modification du post a déjà
+    // réussi ci-dessus, un échec de ce log ne doit pas la remettre en cause.
     await supabase
       .from("calendar_comments")
+      // eslint-disable-next-line nowadays/require-supabase-error-check -- log fire-and-forget volontaire, cf. justification ci-dessus
       .insert({
         calendar_post_id: post_id,
         share_id: share.id,

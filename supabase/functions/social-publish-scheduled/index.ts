@@ -122,13 +122,16 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
 
   for (const post of due || []) {
     // Verrou optimiste : passe à 'publishing' seulement si encore 'scheduled' (anti double-publi).
-    const { data: claimed } = await supabase
+    const { data: claimed, error: claimError } = await supabase
       .from("calendar_posts")
       .update({ publish_status: "publishing", updated_at: new Date().toISOString() })
       .eq("id", post.id)
       .eq("publish_status", "scheduled")
       .select("id")
       .maybeSingle();
+    // Sans danger si cet échec est transitoire : le post reste 'scheduled' et sera
+    // retenté au prochain passage du cron.
+    if (claimError) console.error(`social-publish-scheduled: échec verrou post ${post.id}:`, claimError);
     if (!claimed) continue;
 
     try {
@@ -181,7 +184,7 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
         }
       }
 
-      await supabase
+      const { error: publishedError } = await supabase
         .from("calendar_posts")
         .update({
           publish_status: "published",
@@ -191,10 +194,13 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
           updated_at: new Date().toISOString(),
         })
         .eq("id", post.id);
+      // Ne PAS jeter ici : la publication externe a déjà réussi (postId obtenu) —
+      // marquer 'failed' ferait retenter et publierait EN DOUBLE sur le réseau.
+      if (publishedError) console.error(`social-publish-scheduled: post ${post.id} publié mais échec marquage 'published':`, publishedError);
       results.push({ id: post.id, ok: true, postId });
     } catch (e: any) {
       const errMsg = String(e?.message || e).slice(0, 500);
-      await supabase
+      const { error: failedError } = await supabase
         .from("calendar_posts")
         .update({
           publish_status: "failed",
@@ -202,6 +208,7 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
           updated_at: new Date().toISOString(),
         })
         .eq("id", post.id);
+      if (failedError) console.error(`social-publish-scheduled: échec marquage 'failed' pour ${post.id}:`, failedError);
       await notifyPublishFailure(supabase, post, errMsg);
       results.push({ id: post.id, ok: false, error: errMsg });
     }
