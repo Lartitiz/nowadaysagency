@@ -270,7 +270,8 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après. Pas de mark
         EXTRACTION_TOOL,
         0.3,
         4096,
-        usage
+        usage,
+        120_000
       );
     } catch (e) {
       console.error("analyze-branding-import: appel IA échoué:", e);

@@ -163,7 +163,7 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
 }`;
 
     const usage: UsageSink = {};
-    const variants: { variant_a: string; variant_b: string } = await callAnthropicToolSimple(getModelForAction("dm_comment"), "", prompt, DM_TOOL, 0.8, undefined, usage);
+    const variants: { variant_a: string; variant_b: string } = await callAnthropicToolSimple(getModelForAction("dm_comment"), "", prompt, DM_TOOL, 0.8, undefined, usage, 60_000);
 
     await logUsage(user.id, "dm_comment", "dm", usage.total_tokens, usage.model);
 

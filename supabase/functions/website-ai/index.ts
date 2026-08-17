@@ -191,7 +191,7 @@ serve(async (req) => {
       // Generate, save, and return
       systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
       const diagnosticUsage: UsageSink = {};
-      const diagnosticRaw = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8, undefined, diagnosticUsage);
+      const diagnosticRaw = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8, undefined, diagnosticUsage, 60_000);
 
       // Save diagnostic + recommendations to website_audit
       const serviceClient = createClient(
@@ -277,6 +277,7 @@ serve(async (req) => {
         messages: visionMessages,
         temperature: 0.7,
         max_tokens: 4096,
+        abortTimeoutMs: 120_000,
       }, visionUsage);
 
       await logUsage(user.id, "content", "website_vision", visionUsage.total_tokens, visionUsage.model);
@@ -387,7 +388,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
 
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + systemPrompt;
     const websiteUsage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8, undefined, websiteUsage);
+    const content = await callAnthropicSimple(getModelForAction("website"), systemPrompt, userPrompt, 0.8, undefined, websiteUsage, 60_000);
     await logUsage(user.id, "content", "website", websiteUsage.total_tokens, websiteUsage.model);
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {

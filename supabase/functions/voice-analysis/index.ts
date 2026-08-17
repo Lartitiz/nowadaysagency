@@ -102,7 +102,8 @@ RÈGLES :
       VOICE_TOOL,
       undefined,
       undefined,
-      usage
+      usage,
+      60_000
     );
 
     await logUsage(user.id, "bio_profile", "voice_analysis", usage.total_tokens, usage.model);

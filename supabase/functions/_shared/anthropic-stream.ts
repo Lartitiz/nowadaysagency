@@ -13,33 +13,48 @@ export async function streamAnthropicSSE(
   messages: Array<{ role: string; content: string | any[] }>,
   temperature: number,
   maxTokens: number,
+  /**
+   * Plafond (ms) pour l'appel HTTP d'ouverture du stream — même rôle que
+   * `abortTimeoutMs` du helper non-streaming : un fetch qui traîne (API
+   * surchargée, socket bloquée) devient une erreur explicite au lieu de
+   * pendre indéfiniment. undefined = pas d'abort (comportement historique).
+   */
+  abortTimeoutMs?: number,
 ): Promise<ReadableStream> {
   // Opus 4.8/4.7 rejettent temperature (paramètre d'échantillonnage) ET un prefill
   // (dernier tour assistant) → erreur 400. On retire les deux pour ces modèles, comme
   // le fait le helper non-streaming. Sonnet/Haiku gardent leur comportement habituel.
   const sampled = supportsTemperature(model);
   const finalMessages = sampled ? messages : stripTrailingAssistant(messages as any);
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-    },
-    body: JSON.stringify({
-      model,
-      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-      messages: finalMessages,
-      ...(sampled ? { temperature } : {}),
-      // Sonnet 5 : thinking adaptatif ON si le champ est omis → blocs thinking
-      // qui mangent max_tokens sans produire de text_delta. Même garde que le
-      // helper non-streaming (anthropic.ts).
-      ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
-      max_tokens: maxTokens,
-      stream: true,
-    }),
-  });
+  const ac = abortTimeoutMs ? new AbortController() : null;
+  const abortTimer = ac ? setTimeout(() => ac.abort(), abortTimeoutMs) : null;
+  let response: Response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+      },
+      body: JSON.stringify({
+        model,
+        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        messages: finalMessages,
+        ...(sampled ? { temperature } : {}),
+        // Sonnet 5 : thinking adaptatif ON si le champ est omis → blocs thinking
+        // qui mangent max_tokens sans produire de text_delta. Même garde que le
+        // helper non-streaming (anthropic.ts).
+        ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
+        max_tokens: maxTokens,
+        stream: true,
+      }),
+      signal: ac?.signal,
+    });
+  } finally {
+    if (abortTimer) clearTimeout(abortTimer);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -69,29 +84,39 @@ export async function streamAnthropicToolSSE(
   temperature: number,
   maxTokens: number,
   tool: { name: string; description?: string; input_schema: unknown },
+  /** Plafond (ms) pour l'appel HTTP d'ouverture du stream — cf. streamAnthropicSSE. */
+  abortTimeoutMs?: number,
 ): Promise<ReadableStream> {
   const sampled = supportsTemperature(model);
   const finalMessages = sampled ? messages : stripTrailingAssistant(messages as any);
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-    },
-    body: JSON.stringify({
-      model,
-      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-      messages: finalMessages,
-      tools: [tool],
-      tool_choice: { type: "tool", name: tool.name },
-      ...(sampled ? { temperature } : {}),
-      ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
-      max_tokens: maxTokens,
-      stream: true,
-    }),
-  });
+  const ac = abortTimeoutMs ? new AbortController() : null;
+  const abortTimer = ac ? setTimeout(() => ac.abort(), abortTimeoutMs) : null;
+  let response: Response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+      },
+      body: JSON.stringify({
+        model,
+        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        messages: finalMessages,
+        tools: [tool],
+        tool_choice: { type: "tool", name: tool.name },
+        ...(sampled ? { temperature } : {}),
+        ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
+        max_tokens: maxTokens,
+        stream: true,
+      }),
+      signal: ac?.signal,
+    });
+  } finally {
+    if (abortTimer) clearTimeout(abortTimer);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

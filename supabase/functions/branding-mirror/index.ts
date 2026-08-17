@@ -180,7 +180,7 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
 
     const model = getModelForAction("content"); // Sonnet
     const usage: UsageSink = {};
-    const result = await callAnthropicToolSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, MIRROR_TOOL, 0.7, 4096, usage);
+    const result = await callAnthropicToolSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, MIRROR_TOOL, 0.7, 4096, usage, 60_000);
 
     // Log usage
     await logUsage(user.id, "audit", "branding_mirror", usage.total_tokens, usage.model, workspace_id);

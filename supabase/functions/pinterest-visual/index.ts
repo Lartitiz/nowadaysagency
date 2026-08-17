@@ -372,6 +372,7 @@ Réponds en appelant l'outil save_pinterest_pin.`;
       messages,
       temperature: 0.5,
       max_tokens: 16384,
+      abortTimeoutMs: 120_000,
       tool: PIN_TOOL,
     }, usage);
 

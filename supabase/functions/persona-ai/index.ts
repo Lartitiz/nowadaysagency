@@ -331,7 +331,7 @@ Réponds en JSON :
     }
 
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("persona"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, undefined, undefined, usage);
+    const content = await callAnthropicSimple(getModelForAction("persona"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, undefined, undefined, usage, 60_000);
 
     await logUsage(userId, "content", "persona", usage.total_tokens, usage.model);
 

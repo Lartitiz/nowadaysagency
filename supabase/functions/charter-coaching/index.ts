@@ -297,6 +297,7 @@ serve(async (req) => {
       messages: [{ role: "user", content: answer }],
       temperature: 0.7,
       max_tokens: 4096,
+      abortTimeoutMs: 60_000,
     }, usage);
 
     // Log usage

@@ -209,6 +209,7 @@ Précisions importantes :
         temperature: 0.7,
         max_tokens: 8192,
         tool: ENRICHMENT_TOOL,
+        abortTimeoutMs: 120_000,
       });
       return JSON.parse(raw); // JSON valide par construction (tool forcé)
     };

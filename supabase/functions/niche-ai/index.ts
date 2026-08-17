@@ -293,7 +293,7 @@ RÈGLES :
     }
 
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("niche"), systemPrompt, userPrompt, undefined, undefined, usage);
+    const content = await callAnthropicSimple(getModelForAction("niche"), systemPrompt, userPrompt, undefined, undefined, usage, 60_000);
 
     await logUsage(user.id, "content", "niche", usage.total_tokens, usage.model);
 

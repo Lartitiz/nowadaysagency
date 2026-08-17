@@ -1245,6 +1245,7 @@ Privilégie les sources françaises et européennes quand elles existent.`,
             [{ role: "user", content: photoContent }],
             0.7,
             4096,
+            60_000,
           ),
           corsHeaders,
           async (_full, usage) => {
@@ -1661,6 +1662,7 @@ Réponds UNIQUEMENT en JSON :
           0.85,
           4096,
           POST_TOOL,
+          60_000,
         ),
         corsHeaders,
         async (_full, usage) => {

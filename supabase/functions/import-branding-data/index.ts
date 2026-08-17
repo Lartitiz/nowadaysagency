@@ -93,6 +93,7 @@ Retourne uniquement le JSON, sans aucune explication autour.`;
       messages: [{ role: "user", content: text }],
       temperature: 0.3,
       max_tokens: 4096,
+      abortTimeoutMs: 60_000,
     }, usage);
 
     // Parse JSON from response

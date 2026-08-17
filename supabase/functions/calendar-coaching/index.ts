@@ -246,7 +246,8 @@ Retourne UNIQUEMENT un JSON valide :
       PLANNING_TOOL,
       0.9,
       4096,
-      usage
+      usage,
+      120_000
     );
 
     // Sonde de singularité (télémétrie, jamais bloquante) — même grille que

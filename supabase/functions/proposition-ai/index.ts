@@ -289,7 +289,7 @@ RÈGLES :
     }
 
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("proposition"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, undefined, undefined, usage);
+    const content = await callAnthropicSimple(getModelForAction("proposition"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, undefined, undefined, usage, 60_000);
 
     await logUsage(user.id, "content", "proposition", usage.total_tokens, usage.model);
 

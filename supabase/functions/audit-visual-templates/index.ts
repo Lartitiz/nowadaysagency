@@ -209,6 +209,7 @@ La description template_layout_description doit être TRÈS détaillée (200-500
       messages: [{ role: "user", content: userContent }],
       temperature: 0.3,
       max_tokens: 4096,
+      abortTimeoutMs: 120_000,
     }, usage);
 
     // Parse JSON from response

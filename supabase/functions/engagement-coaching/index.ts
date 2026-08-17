@@ -87,6 +87,7 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.8,
       max_tokens: 2048,
+      abortTimeoutMs: 60_000,
     }, usage);
 
     let result;
