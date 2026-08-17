@@ -79,10 +79,18 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
           .maybeSingle();
 
         if (!existingMember) {
-          await supabase.from("workspace_members").insert({ workspace_id: wsId, user_id: user!.id, role: "manager" } as any);
+          const { error: memberErr } = await supabase.from("workspace_members").insert({ workspace_id: wsId, user_id: user!.id, role: "manager" } as any);
+          if (memberErr) {
+            console.error("Erreur ajout admin comme manager:", memberErr);
+            toast.error("Impossible d'accéder à cet espace : ton ajout comme manager a échoué.");
+            return;
+          }
         }
 
-        await switchWorkspace(wsId);
+        // Ne naviguer que si le switch a réussi : sinon on enverrait l'admin
+        // sur le dashboard de son PROPRE espace après un toast d'erreur.
+        const ok = await switchWorkspace(wsId);
+        if (!ok) return;
         navigate("/dashboard");
       } else {
         // No workspace → create one
@@ -126,13 +134,15 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
     }
 
     toast.success(`Espace créé pour ${clientName}`);
-    switchWorkspace(ws.id);
+    const ok = await switchWorkspace(ws.id);
+    if (!ok) return;
     navigate("/dashboard");
   };
 
-  const handleOpenStandaloneWs = (wsId: string, e: React.MouseEvent) => {
+  const handleOpenStandaloneWs = async (wsId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    switchWorkspace(wsId);
+    const ok = await switchWorkspace(wsId);
+    if (!ok) return;
     navigate("/dashboard");
   };
 
