@@ -8,6 +8,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 /**
  * Sortie structurée FORCÉE de la question de coaching. Sans ça, Opus « bavarde »
@@ -806,44 +807,15 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       }
     }
 
-    let parsed;
-    const cleaned = rawResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-
-    try {
-      parsed = JSON.parse(cleaned);
-    } catch {
-      const start = cleaned.indexOf("{");
-      const end = cleaned.lastIndexOf("}");
-      if (start !== -1 && end !== -1 && end > start) {
-        try {
-          parsed = JSON.parse(cleaned.slice(start, end + 1));
-        } catch {
-          console.error("JSON parse failed after truncation handling. Raw:", rawResponse);
-          parsed = {
-            // Ne JAMAIS recracher la prose brute tronquée (slice + "...") comme
-            // question : ça affichait une phrase coupée en plein milieu. On préfère
-            // une relance propre et complète — le tool forcé rend ce cas quasi mort.
-            question: "Je me suis un peu emmêlée 😅 On reprend : peux-tu me redire ta dernière réponse, ou la préciser en une phrase ?",
-            question_type: "textarea",
-            placeholder: "Ta réponse...",
-            is_complete: false,
-            completion_percentage: 0,
-            covered_topic: null,
-            remaining_topics: SECTION_CHECKLISTS[section] || [],
-          };
-        }
-      } else {
-        console.error("No JSON found in response:", rawResponse);
-        parsed = {
-          question: cleaned.length > 20 ? cleaned.slice(0, 200) + "..." : "Peux-tu reformuler ta réponse ?",
-          question_type: "textarea",
-          placeholder: "Ta réponse...",
-          is_complete: false,
-          completion_percentage: 0,
-          covered_topic: null,
-          remaining_topics: SECTION_CHECKLISTS[section] || [],
-        };
-      }
+    // Plus de fallback muet : une réponse illisible = erreur claire (502), sans débiter le quota.
+    // Le front (BrandingCoachingFlow) a déjà un message de repli chaleureux pour ce cas.
+    const parsed = tryParseAiJson<any>(rawResponse, "branding-coaching");
+    if (parsed === null) {
+      console.error("[BrandingCoaching] parse failed, raw:", rawResponse?.slice(0, 500));
+      return new Response(
+        JSON.stringify({ error: "L'IA a renvoyé une réponse illisible. Réessaie." }),
+        { status: 502, headers: { ...cors, "Content-Type": "application/json" } }
+      );
     }
 
     // ── content_series : truncation à 8 + validation Zod du shape series[] ──
