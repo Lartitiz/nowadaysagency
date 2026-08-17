@@ -331,7 +331,8 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           context: {},
           covered_topics: [],
         },
-      }, 120000);
+      // 130s : "content_strategy_fill" est un appel unique borné à 120s côté edge, marge après.
+      }, 130000);
 
       const fillResponse = fillData?.response;
       let fillInsights: Record<string, any> = {};
@@ -566,7 +567,8 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
               context: {},
               covered_topics: [],
             },
-          }, 120000);
+          // 130s : "persona_fill" est un appel unique borné à 120s côté edge, marge après.
+          }, 130000);
 
           const fillResponse = fillData?.response;
           let fillInsights: Record<string, any> = {};
