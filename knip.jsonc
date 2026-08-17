@@ -51,7 +51,6 @@
     // Primitives shadcn jamais branchées, comme sidebar.tsx et command.tsx (#673).
     "src/components/ui/alert.tsx",
     "src/components/ui/breadcrumb.tsx",
-    "src/components/ui/carousel.tsx",
     "src/components/ui/chart.tsx",
     "src/components/ui/form.tsx",
     "src/components/ui/table.tsx",
@@ -94,18 +93,6 @@
     // Peer de @axe-core/playwright, lui bien utilisé (e2e-visite/sonde.spec.ts).
     "axe-core",
 
-    // -- Dette 01/08/2026 : déclarées, jamais importées --
-    // Radix installés « au cas où » par shadcn, aucun composant ne s'en sert.
-    "@radix-ui/react-aspect-ratio",
-    "@radix-ui/react-context-menu",
-    "@radix-ui/react-hover-card",
-    "@radix-ui/react-menubar",
-    "@radix-ui/react-navigation-menu",
-    "@radix-ui/react-toast",
-    "@tailwindcss/typography",
-    "embla-carousel-react",
-    "input-otp",
-    "react-resizable-panels",
     // Orpheline depuis la suppression de ui/command.tsx (#673) — retrait en cours.
     "cmdk"
   ]
