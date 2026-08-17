@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { callAnthropicToolSimple, getDefaultModel, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropicToolSimple, SONNET_MODEL, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 
 // Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
 const BRANDING_AUDIT_TOOL: AnthropicTool = {
@@ -28,6 +28,10 @@ import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildIdentityBlock
 import { isSafePublicUrl } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
+// Borne chaque fetch de scraping : un site qui pend ne doit pas manger le budget
+// temps de l'audit (l'appel IA a besoin de la quasi-totalité des 190s du client).
+const SCRAPE_TIMEOUT_MS = 15_000;
+
 function htmlToText(html: string): string {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, "")
@@ -49,6 +53,7 @@ async function fetchPageText(url: string): Promise<string> {
     const resp = await fetch(url, {
       headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" },
       redirect: "follow",
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
     if (!resp.ok) return "";
     const html = await resp.text();
@@ -81,12 +86,18 @@ function findKeyPageLinks(html: string, baseUrl: string): string[] {
 
 async function fetchSiteContent(url: string): Promise<string> {
   if (!isSafePublicUrl(url)) return ""; // anti-SSRF : bloque IP privées / métadata
-  const homepageResp = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" },
-    redirect: "follow",
-  });
-  if (!homepageResp.ok) return "";
-  const html = await homepageResp.text();
+  let html: string;
+  try {
+    const homepageResp = await fetch(url, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandingAuditor/1.0)" },
+      redirect: "follow",
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
+    });
+    if (!homepageResp.ok) return "";
+    html = await homepageResp.text();
+  } catch {
+    return ""; // site injoignable ou trop lent : l'audit continue sur les autres sources
+  }
   let text = htmlToText(html);
 
   const links = findKeyPageLinks(html, url);
@@ -368,15 +379,19 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
     const usage: UsageSink = {};
     let auditResult: Record<string, any>;
     try {
+      // SONNET_MODEL (pas getDefaultModel) : si AI_MODEL_DEFAULT pointe sur Opus en prod,
+      // 6000 tokens de sortie dépassent le budget temps d'un audit — tier Sonnet garanti.
+      // 180s d'abort IA + 190s côté client (BrandingAuditPage) : l'edge rend toujours
+      // sa réponse avant que le client ne coupe.
       auditResult = await callAnthropicToolSimple(
-        getDefaultModel(),
+        SONNET_MODEL,
         systemPrompt,
         userPrompt,
         BRANDING_AUDIT_TOOL,
         0.3,
         6000,
         usage,
-        120_000
+        180_000
       );
     } catch (e) {
       console.error("audit-branding: appel IA échoué:", e);
