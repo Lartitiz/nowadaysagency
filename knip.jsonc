@@ -94,6 +94,12 @@
     "axe-core",
 
     // Orpheline depuis la suppression de ui/command.tsx (#673) — retrait en cours.
-    "cmdk"
+    "cmdk",
+
+    // -- Légitime, à garder --
+    // Invoqué en CLI (node_modules/.bin/jscpd) depuis e2e-visite/code-health.mjs
+    // (audit hebdo de duplication), jamais importé en JS — knip ne trace pas
+    // les appels via child_process.
+    "jscpd"
   ]
 }
