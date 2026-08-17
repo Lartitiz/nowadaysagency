@@ -169,7 +169,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         toast(duplicateMessage(1, 1));
         return true;
       }
-      await supabase.from("calendar_posts").insert({
+      const { error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         date,
@@ -181,6 +181,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         accroche: item.hook_idea,
         notes: `Pilier : ${item.pillar}`,
       } as any);
+      if (insertError) throw insertError;
       setAddedItems(prev => new Set(prev).add(index));
       toast.success(`📅 "${item.subject}" ajouté au ${day.toLowerCase()}`);
       onPostAdded?.();

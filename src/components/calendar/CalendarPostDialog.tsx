@@ -1002,13 +1002,22 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             editable
             onContentChange={async (updatedData) => {
               if (!editingPost) return;
-              await supabase.from("calendar_posts").update({ story_sequence_detail: updatedData, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
+              const { error } = await supabase.from("calendar_posts").update({ story_sequence_detail: updatedData, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
+              if (error) {
+                console.error("Erreur technique:", error);
+                toast.error("Erreur", { description: friendlyError(error) });
+              }
             }}
           />
           {editingPost && (editingPost as any).original_content_data && (
             <RevertToOriginalButton onRevert={async () => {
               const original = (editingPost as any).original_content_data;
-              await supabase.from("calendar_posts").update({ story_sequence_detail: original, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
+              const { error } = await supabase.from("calendar_posts").update({ story_sequence_detail: original, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
+              if (error) {
+                console.error("Erreur technique:", error);
+                toast.error("Erreur", { description: friendlyError(error) });
+                return;
+              }
               toast.success("Version originale restaurée");
               setShowContentViewer(false);
             }} />
