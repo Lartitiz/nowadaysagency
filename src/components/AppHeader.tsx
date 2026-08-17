@@ -125,7 +125,7 @@ function AppHeaderInner() {
   const navigate = useNavigate();
   const { plan, usage, bonusCredits, isBinome, isPaid } = useUserPlan();
   const { pending: brandReviewPending } = usePendingBrandReview();
-  const { activateDemo } = useDemoContext();
+  const { isDemoMode, demoData, demoPlan, activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [searchParams] = useSearchParams();
 
@@ -151,6 +151,20 @@ function AppHeaderInner() {
 
   // Check if user has an active coaching program
   useEffect(() => {
+    // Mode démo : jamais d'appel réseau (le faux user "demo-user" fait
+    // échouer la requête côté PostgREST — client_user_id est un uuid).
+    if (isDemoMode) {
+      if (demoData && demoPlan === "binome") {
+        setHasCoaching(true);
+        setCoachingMonth(demoData.coaching.current_month);
+        setCoachingPhase("strategy");
+      } else {
+        setHasCoaching(false);
+        setCoachingMonth(null);
+        setCoachingPhase(null);
+      }
+      return;
+    }
     if (!user) return;
     import("@/integrations/supabase/client").then(({ supabase }) => {
       (supabase.from("coaching_programs" as any) as any)
@@ -166,7 +180,7 @@ function AppHeaderInner() {
           }
         });
     });
-  }, [user?.id]);
+  }, [user?.id, isDemoMode, demoData, demoPlan]);
 
   /* Fiche de marque d'abord : tant qu'elle attend d'être relue, proposer
      « Créer » est une fausse piste — la page renvoie de toute façon sur la

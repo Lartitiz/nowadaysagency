@@ -1,8 +1,9 @@
 import { useEffect } from "react";
 import { toast } from "sonner";
-import { useWorkspace } from "@/contexts/WorkspaceContext";
+import { useWorkspace, DEMO_FAKE_UUID } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { useQuery } from "@tanstack/react-query";
 import { workspaceScopeFilter } from "@/lib/workspace-scope";
 
@@ -85,6 +86,7 @@ export function useWorkspaceReady(): boolean {
  */
 export function useProfileUserId(): string {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   let activeWorkspace: { id: string } | null = null;
   let activeRole: string = "owner";
 
@@ -128,6 +130,9 @@ export function useProfileUserId(): string {
 
   if (ownerLookupFailed) return "";
   if (isManager && ownerUserId) return ownerUserId;
+  // Le faux user "demo-user" posé par AuthContext n'est pas un uuid valide —
+  // sans ce garde-fou, tout hook qui filtre "profiles" par user_id ferait 400.
+  if (isDemoMode) return DEMO_FAKE_UUID;
   return user?.id ?? "";
 }
 
