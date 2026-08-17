@@ -165,10 +165,23 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const callerIsMember = (members || []).some((m) => m.user_id === callerUserId);
-      if (!callerIsMember && !isAdmin) {
+      const callerMember = (members || []).find((m) => m.user_id === callerUserId);
+      if (!callerMember && !isAdmin) {
         console.error(`[reset-onboarding] Forbidden: ${callerEmail} not a member of ${workspaceId}`);
         return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Un reset (même brandingOnly) est destructeur : réservé aux rôles
+      // owner / manager, comme la gestion des membres (invite-to-workspace).
+      // Une membre simple d'un espace partagé ne doit pas pouvoir effacer
+      // le branding de tout l'espace.
+      if (!isAdmin && !["owner", "manager"].includes(callerMember?.role ?? "")) {
+        console.error(
+          `[reset-onboarding] Forbidden: ${callerEmail} role=${callerMember?.role} on ${workspaceId} (owner/manager requis)`
+        );
+        return new Response(JSON.stringify({ error: "Forbidden: rôle owner ou manager requis" }), {
           status: 403,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
