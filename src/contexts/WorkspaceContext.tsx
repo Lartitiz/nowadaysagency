@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDemoContext } from "@/contexts/DemoContext";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { pickActiveWorkspace } from "@/lib/workspace-select";
@@ -12,6 +13,23 @@ export interface Workspace {
   avatar_url: string | null;
   plan: string;
 }
+
+// UUID nul : format valide (les colonnes workspace_id/user_id sont typées uuid,
+// un id du genre "demo-workspace" ferait 400 "invalid input syntax for type uuid"
+// sur tout hook qui n'a pas encore son propre garde-fou isDemoMode) mais qui ne
+// correspond à aucune ligne réelle.
+export const DEMO_FAKE_UUID = "00000000-0000-0000-0000-000000000000";
+
+// Espace fictif utilisé en mode démo — aucun appel réseau déclenché par ce
+// contexte ; sert aussi de filtre "sans danger" pour les hooks qui lisent
+// activeWorkspace.id sans être eux-mêmes conscients du mode démo.
+const DEMO_WORKSPACE: Workspace = {
+  id: DEMO_FAKE_UUID,
+  name: "Espace démo",
+  slug: "demo",
+  avatar_url: null,
+  plan: "binome",
+};
 
 export interface WorkspaceContextType {
   activeWorkspace: Workspace | null;
@@ -33,6 +51,7 @@ const LS_KEY = "active_workspace_id";
 
 export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
   const [ownWorkspace, setOwnWorkspace] = useState<Workspace | null>(null);
@@ -42,6 +61,21 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
   // Fetch workspaces
   useEffect(() => {
+    // Mode démo : espace fictif, aucun appel réseau. Sans ce court-circuit,
+    // `user` (basculé sur le faux "demo-user" par AuthContext) fait échouer
+    // silencieusement le fetch ci-dessous — l'espace réel précédemment chargé
+    // reste alors actif en mémoire, et tous les modules qui filtrent par
+    // `activeWorkspace.id` continuent de lire les vraies données du workspace
+    // de l'utilisateur·ice connecté·e pendant la démo.
+    if (isDemoMode) {
+      setWorkspaces([DEMO_WORKSPACE]);
+      setActiveWorkspace(DEMO_WORKSPACE);
+      setOwnWorkspace(DEMO_WORKSPACE);
+      setActiveRole("owner");
+      setLoading(false);
+      return;
+    }
+
     if (!user?.id) {
       setWorkspaces([]);
       setActiveWorkspace(null);
@@ -128,10 +162,13 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
     load();
     return () => { cancelled = true; };
-  }, [user?.id]);
+  }, [user?.id, isDemoMode]);
 
   const switchWorkspace = useCallback(
     async (workspaceId: string) => {
+      // Mode démo : un seul espace fictif, jamais d'appel réseau.
+      if (isDemoMode) return workspaceId === DEMO_WORKSPACE.id;
+
       let found = workspaces.find((w) => w.id === workspaceId);
 
       if (!found && user?.id) {
@@ -178,7 +215,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       }
       return true;
     },
-    [workspaces, user?.id, queryClient],
+    [workspaces, user?.id, queryClient, isDemoMode],
   );
 
   return (
