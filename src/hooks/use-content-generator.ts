@@ -7,6 +7,7 @@ import { handleQuotaError } from "@/lib/quota-error-handler";
 import { downscalePhotosForVision } from "@/lib/image-vision";
 import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { workspaceScopeFilter } from "@/lib/workspace-scope";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   EDITORIAL_ANGLES,
@@ -703,8 +704,8 @@ export function useContentGenerator() {
               .select("subject, format, editorial_angle, created_at")
               .order("created_at", { ascending: false })
               .limit(8); // marge pour filtrer les sujets vides
-            if (effectiveWorkspaceId) q = q.eq("workspace_id", effectiveWorkspaceId);
-            else q = q.eq("user_id", user.id);
+            const { column, value } = workspaceScopeFilter(effectiveWorkspaceId, user.id);
+            q = q.eq(column, value);
             const { data: briefs } = await q;
             const cleanBriefs = (briefs || [])
               .filter((b: any) => typeof b.subject === "string" && b.subject.trim().length > 0)

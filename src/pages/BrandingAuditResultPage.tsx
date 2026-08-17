@@ -12,6 +12,7 @@ import AuditCoachingPanel from "@/components/audit/AuditCoachingPanel";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
+import { toast } from "sonner";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -130,6 +131,7 @@ export default function BrandingAuditResultPage() {
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [result, setResult] = useState<AuditResult | null>(null);
   const [auditDate, setAuditDate] = useState<string | null>(null);
   const [expandedPillar, setExpandedPillar] = useState<string | null>(null);
@@ -151,6 +153,7 @@ export default function BrandingAuditResultPage() {
   const loadAuditData = useCallback(async () => {
     if (!user || !id) return;
     setLoading(true);
+    setLoadError(false);
     try {
       const { data, error } = await (supabase
         .from("branding_audits") as any)
@@ -176,6 +179,8 @@ export default function BrandingAuditResultPage() {
       });
     } catch (e) {
       console.error(e);
+      setLoadError(true);
+      toast.error("Le chargement de l'audit a échoué. Réessaie.");
     } finally {
       setLoading(false);
     }
@@ -286,7 +291,25 @@ export default function BrandingAuditResultPage() {
     );
   }
 
-  if (!result) return null;
+  if (!result) {
+    return (
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <main className="container max-w-2xl mx-auto px-4 py-8">
+          <SubPageHeader currentLabel="Résultats de l'audit" parentLabel="Mon identité" parentTo="/branding" />
+          <div className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+            <AlertTriangle className="h-8 w-8 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground max-w-sm">
+              Le chargement de cet audit a échoué. Réessaie, ou reviens plus tard.
+            </p>
+            <Button variant="outline" size="sm" onClick={() => loadAuditData()} className="gap-1.5">
+              <RefreshCw className="h-3.5 w-3.5" /> Réessayer
+            </Button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   const scoreColor = result.score_global >= 75 ? "text-success" : result.score_global >= 50 ? "text-warning" : "text-error";
 

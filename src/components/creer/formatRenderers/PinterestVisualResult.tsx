@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Copy, ImageOff, RefreshCw } from "lucide-react";
-import { toast } from "sonner";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { stripFontImportLeak } from "@/lib/strip-font-import-leak";
 
 interface Props {
@@ -35,15 +35,14 @@ export default function PinterestVisualResult({ result, pinHtml, onRetry }: Prop
   }, []);
 
   const wordCount = description.trim().split(/\s+/).filter(Boolean).length;
+  const copy = useCopyToClipboard();
 
   const copyText = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(`${label} copié !`);
+    copy(text, `${label} copié !`);
   };
 
   const copyAll = () => {
-    navigator.clipboard.writeText(`${title}\n\n${description}`);
-    toast.success("Titre + description copiés !");
+    copy(`${title}\n\n${description}`, "Titre + description copiés !");
   };
 
   return (

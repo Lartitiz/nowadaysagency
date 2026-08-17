@@ -4,7 +4,7 @@ import { CalendarPlus, Sparkles, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { dropAlreadyPlanned } from "@/lib/calendar-duplicates";
@@ -28,12 +28,14 @@ import {
  */
 export default function ChatPlanCards({ items }: { items: ChatPlanItem[] }) {
   const { user } = useAuth();
-  const workspaceId = useWorkspaceId();
+  const { column: scopeColumn, value: scopeValue } = useWorkspaceFilter();
   const navigate = useNavigate();
   const [added, setAdded] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState<number | "all" | null>(null);
 
-  const scope = user && workspaceId !== user.id ? workspaceId : null;
+  // dropAlreadyPlanned et l'insert n'ont besoin du workspace que quand il
+  // diffère de l'espace perso (sinon la colonne user_id suffit).
+  const scope = scopeColumn === "workspace_id" ? scopeValue : null;
 
   // Déjà au calendrier ? (retour sur la conversation, ou ajout fait ailleurs)
   useEffect(() => {
@@ -42,7 +44,10 @@ export default function ChatPlanCards({ items }: { items: ChatPlanItem[] }) {
     (async () => {
       const dates = Array.from(new Set(items.map((i) => nextDateForDay(i.day))));
       const q = supabase.from("calendar_posts").select("date, theme").in("date", dates);
-      const { data } = scope ? await q.eq("workspace_id", scope) : await q.eq("user_id", user.id);
+      // .eq() littéral (pas une variable) : passer scopeColumn tel quel fait
+      // exploser l'inférence de type de supabase-js (TS2589, vu sous
+      // tsconfig.app.json — la config stricte que la CI utilise réellement).
+      const { data } = scope ? await q.eq("workspace_id", scope) : await q.eq("user_id", scopeValue);
       if (cancelled || !data) return;
       const existing = new Set(data.map((r: any) => `${r.date}|${String(r.theme || "").trim().toLowerCase()}`));
       const seeded: Record<number, string> = {};
@@ -53,7 +58,7 @@ export default function ChatPlanCards({ items }: { items: ChatPlanItem[] }) {
       if (Object.keys(seeded).length > 0) setAdded((prev) => ({ ...seeded, ...prev }));
     })();
     return () => { cancelled = true; };
-  }, [user, scope, items]);
+  }, [user, scopeColumn, scopeValue, items]);
 
   const addOne = useCallback(
     async (item: ChatPlanItem, index: number): Promise<boolean> => {

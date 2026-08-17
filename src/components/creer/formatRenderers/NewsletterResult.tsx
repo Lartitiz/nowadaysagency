@@ -4,7 +4,7 @@ import { Copy, Mail } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
-import { toast } from "sonner";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { stripCoachingHint } from "@/features/creer/build-calendar-content";
 import { stripInlineMarkdown } from "@/lib/strip-markdown";
 
@@ -27,10 +27,10 @@ export default function NewsletterResult({ result }: Props) {
 
   const fullText = [subject, body].filter(Boolean).join("\n\n");
   const [checkedText, setCheckedText] = useState(fullText);
+  const copy = useCopyToClipboard();
 
   const copySubject = () => {
-    navigator.clipboard.writeText(subject);
-    toast.success("Objet copié !");
+    copy(subject, "Objet copié !");
   };
 
   const copyAll = () => {
@@ -40,8 +40,7 @@ export default function NewsletterResult({ result }: Props) {
       body,
       ctaSuggestion ? `---\n${ctaSuggestion}` : null,
     ].filter(Boolean).join("\n\n");
-    navigator.clipboard.writeText(text);
-    toast.success("Newsletter copiée !");
+    copy(text, "Newsletter copiée !");
   };
 
   return (
