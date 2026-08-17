@@ -71,7 +71,7 @@
     "jspdf": "^4.2.0",
     "jszip": "^3.10.1",
     "lucide-react": "^0.462.0",
-    "mammoth": "^1.8.0",
+    "mammoth": "^1.12.1",
     "next-themes": "^0.3.0",
     "pdfjs-dist": "^4.8.69",
     "posthog-js": "^1.353.0",
@@ -118,6 +118,10 @@
   "overrides": {
     "framer-motion": "12.6.3",
     "motion-dom": "12.6.3",
-    "motion-utils": "12.6.3"
+    "motion-utils": "12.6.3",
+    "@xmldom/xmldom": "0.9.11"
+  },
+  "patchedDependencies": {
+    "mammoth@1.12.1": "patches/mammoth@1.12.1.patch"
   }
 }
