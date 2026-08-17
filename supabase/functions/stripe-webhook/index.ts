@@ -76,7 +76,19 @@ async function fireEmailEvent(event: string, userId: string | null | undefined) 
   }
 }
 
-serve(async (req) => {
+// Injection de dépendances (stripe/supabase/sendEmailEvent) pour permettre les tests
+// Deno de bout en bout sans réseau réel. serve() ci-dessous reste le seul appelant en
+// prod, avec les clients réels — comportement inchangé.
+export type StripeWebhookDeps = {
+  stripe: Pick<Stripe, "webhooks" | "subscriptions" | "checkout" | "products">;
+  supabase: ReturnType<typeof createClient>;
+  sendEmailEvent?: typeof fireEmailEvent;
+};
+
+export async function handleStripeWebhookRequest(req: Request, deps: StripeWebhookDeps): Promise<Response> {
+  const { stripe, supabase } = deps;
+  const sendEmailEvent = deps.sendEmailEvent ?? fireEmailEvent;
+
   if (req.method === "OPTIONS") {
     return new Response(null, { status: 200 });
   }
@@ -168,7 +180,7 @@ serve(async (req) => {
           const { error: profileUpdateError } = await supabase.from("profiles").update({ current_plan: displayPlan }).eq("user_id", userId);
           checkError("profiles update (current_plan after subscription activation)", profileUpdateError, { userId, displayPlan });
           log("Subscription activated", { userId, plan });
-          await fireEmailEvent("subscription_activated", userId);
+          await sendEmailEvent("subscription_activated", userId);
 
         } else if (session.mode === "payment") {
           // One-time purchase
@@ -295,7 +307,7 @@ serve(async (req) => {
         if (canceledSub?.user_id) {
           const { error: freeProfileError } = await supabase.from("profiles").update({ current_plan: "free" }).eq("user_id", canceledSub.user_id);
           checkError("profiles update (current_plan free after cancellation)", freeProfileError, { userId: canceledSub.user_id });
-          await fireEmailEvent("subscription_cancelled", canceledSub.user_id);
+          await sendEmailEvent("subscription_cancelled", canceledSub.user_id);
         }
         log("Subscription canceled", { subId: sub.id, userId: canceledSub?.user_id });
         break;
@@ -335,7 +347,7 @@ serve(async (req) => {
           if (notifError) {
             log("WARNING: notifications insert failed (payment failed alert not shown in-app)", { error: notifError.message, userId: failedSub.user_id });
           }
-          await fireEmailEvent("payment_failed", failedSub.user_id);
+          await sendEmailEvent("payment_failed", failedSub.user_id);
         }
 
         log("Payment failed", { subId, userId: failedSub?.user_id });
@@ -378,4 +390,11 @@ serve(async (req) => {
     headers: { "Content-Type": "application/json" },
     status: 200,
   });
-});
+}
+
+// Guard nécessaire pour les tests : sans lui, `deno test` important ce module (pour ses
+// exports) ouvrirait aussi un vrai listener HTTP. En prod, l'edge function exécute
+// index.ts directement comme entrypoint → import.meta.main est true, comportement inchangé.
+if (import.meta.main) {
+  serve((req) => handleStripeWebhookRequest(req, { stripe, supabase }));
+}
