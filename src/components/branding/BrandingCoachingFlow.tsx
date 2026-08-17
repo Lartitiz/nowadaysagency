@@ -20,6 +20,26 @@ import Confetti from "@/components/Confetti";
 import { toast } from "sonner";
 import { trackError } from "@/lib/error-tracker";
 import { MarkdownText } from "@/components/ui/markdown-text";
+import {
+  type AIResponse,
+  getInvokeErrorMessage,
+  parseAIResponseRaw,
+  isAIResponseShapeInvalid,
+  normalizeAIResponse,
+  buildCharterAIResponse,
+} from "@/lib/branding-coaching-response";
+import {
+  saveCharterInsights,
+  savePersonaInsights,
+  saveStoryInsights,
+  saveContentStrategyInsights,
+  saveContentSeriesInsights,
+  saveDefaultBrandProfileInsights,
+} from "@/components/branding/brandingCoachingInsights";
+import {
+  generateAndSaveFullStory,
+  completePersonaSection,
+} from "@/components/branding/brandingCoachingCompletion";
 
 type Section = "story" | "persona" | "tone_style" | "content_strategy" | "offers" | "charter" | "content_series";
 
@@ -27,19 +47,6 @@ interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
-}
-
-interface AIResponse {
-  question: string;
-  question_type: "text" | "textarea" | "select" | "multi_select";
-  options?: string[];
-  placeholder?: string;
-  covered_topic?: string | null;
-  extracted_insights?: Record<string, any>;
-  is_complete: boolean;
-  completion_percentage: number;
-  remaining_topics?: string[];
-  final_summary?: string;
 }
 
 const SECTION_META: Record<Section, { emoji: string; title: string; description: string; duration: string }> = {
@@ -317,21 +324,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
         if (fnError) {
           const err = fnError as InvokeError;
           console.error("[CharterCoaching] Edge function error:", err);
-
-          if (err.isRateLimit) {
-            setError("L'IA a besoin d'un petit instant. Attends quelques secondes avant de réessayer 😊");
-          } else if (err.isTimeout) {
-            setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
-          } else if (err.isAuth) {
-            setError("Ta session a expiré. Reconnecte-toi pour continuer.");
-          } else if (err.isNetwork) {
-            setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
-          } else if (err.message?.includes("invalide") || err.message?.includes("Données")) {
-            setError("Un souci technique est survenu. Réessaie en reformulant ta réponse 😊");
-          } else {
-            setError("L'IA a eu un blanc. Ça arrive 😅");
-          }
-
+          setError(getInvokeErrorMessage(err));
           return null;
         }
 
@@ -341,37 +334,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
           return null;
         }
 
-        // Map charter response to AIResponse format
-        const CHARTER_TOPICS = ["mood_place", "colors", "visual_style", "typography", "logo", "visual_donts"];
-        const CHARTER_QUESTIONS = [
-          "Si ta marque était un lieu, ce serait quoi ?",
-          "Quelles couleurs te font vibrer quand tu penses à ta marque ? Pas celles que tu 'devrais' utiliser : celles qui te PARLENT. Décris-les ou donne des codes HEX.",
-          "Comment décrirais-tu le style de tes visuels ? Donne-moi 3 mots qui décrivent l'ambiance visuelle que tu veux créer.",
-          "Pour les polices de caractères : tu préfères un style plutôt classique et élégant, moderne et clean, ou manuscrit et organique ?",
-          "As-tu déjà un logo ? Si oui, décris-le. Si non, pas de panique !",
-          "Qu'est-ce que tu DÉTESTES visuellement ? Les trucs qui te font fuir quand tu les vois sur un compte Instagram ?",
-        ];
-        const coveredTopic = CHARTER_TOPICS[stepNum - 1] || null;
-        const isComplete = stepNum >= 6;
-        const nextQuestion = !isComplete ? CHARTER_QUESTIONS[stepNum] : "";
-
-        const questionText = isComplete
-          ? `${parsed.feedback || ""}\n\n${parsed.suggestion || ""}`
-          : `${parsed.feedback || ""}\n\n${parsed.suggestion || ""}\n\n---\n\n${nextQuestion}`;
-
-        return {
-          question: questionText.trim(),
-          question_type: "textarea" as const,
-          placeholder: "Ta réponse...",
-          covered_topic: coveredTopic,
-          extracted_insights: { ...parsed.extracted, ai_generated_brief: parsed.ai_generated_brief },
-          is_complete: isComplete,
-          completion_percentage: Math.round((stepNum / 6) * 100),
-          remaining_topics: CHARTER_TOPICS.slice(stepNum),
-          final_summary: isComplete
-            ? `✅ Ta charte graphique est posée !\n\n${parsed.ai_generated_brief || parsed.feedback || ""}`
-            : undefined,
-        };
+        return buildCharterAIResponse(parsed, stepNum);
       }
 
       const context = await fetchContext();
@@ -395,34 +358,13 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       if (fnError) {
         const err = fnError as InvokeError;
         console.error("[BrandingCoaching] Edge function error:", err);
-
-        if (err.isRateLimit) {
-          setError("L'IA a besoin d'un petit instant. Attends quelques secondes avant de réessayer 😊");
-        } else if (err.isTimeout) {
-          setError("La génération prend plus de temps que prévu. Réessaie dans quelques instants.");
-        } else if (err.isAuth) {
-          setError("Ta session a expiré. Reconnecte-toi pour continuer.");
-        } else if (err.isNetwork) {
-          setError("Connexion perdue. Vérifie ta connexion internet et réessaie.");
-        } else if (err.message?.includes("invalide") || err.message?.includes("Données")) {
-          setError("Un souci technique est survenu. Réessaie en reformulant ta réponse 😊");
-        } else {
-          setError("L'IA a eu un blanc. Ça arrive 😅");
-        }
-
-        
+        setError(getInvokeErrorMessage(err));
         return null;
       }
 
       let parsed: AIResponse;
       try {
-        const raw = data?.response || data;
-        if (typeof raw === "string") {
-          const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-          parsed = JSON.parse(cleaned);
-        } else {
-          parsed = raw as AIResponse;
-        }
+        parsed = parseAIResponseRaw(data?.response || data);
       } catch (parseErr) {
         console.error("[BrandingCoaching] JSON parse error:", parseErr, "raw:", data);
         setError("Réponse inattendue de l'IA. Réessaie.");
@@ -430,39 +372,14 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
         return null;
       }
 
-      if (!parsed || (!parsed.question && !parsed.is_complete)) {
+      if (isAIResponseShapeInvalid(parsed)) {
         console.error("[BrandingCoaching] Invalid response shape:", parsed);
         setError("Réponse incomplète de l'IA. Réessaie.");
         toast.error("Réponse incomplète. Réessaie.");
         return null;
       }
 
-      // Validation supplémentaire : détecter les réponses tronquées
-      if (parsed.question && !parsed.is_complete) {
-        const q = parsed.question.trim();
-        const seemsTruncated = q.endsWith("...") && q.length > 150;
-        if (seemsTruncated) {
-          console.warn("[BrandingCoaching] Question may be truncated, cleaning up:", q.slice(-50));
-          const lastCleanEnd = Math.max(q.lastIndexOf("?"), q.lastIndexOf("."), q.lastIndexOf("!"));
-          if (lastCleanEnd > q.length * 0.5) {
-            parsed.question = q.slice(0, lastCleanEnd + 1);
-          }
-        }
-      }
-
-      // S'assurer que question_type a une valeur valide
-      if (!["text", "textarea", "select", "multi_select"].includes(parsed.question_type)) {
-        parsed.question_type = "textarea";
-      }
-
-      // S'assurer que completion_percentage est un nombre valide entre 0 et 100
-      if (typeof parsed.completion_percentage !== "number" || parsed.completion_percentage < 0) {
-        parsed.completion_percentage = 0;
-      } else if (parsed.completion_percentage > 100) {
-        parsed.completion_percentage = 100;
-      }
-
-      return parsed;
+      return normalizeAIResponse(parsed);
     } catch (err) {
       console.error("[BrandingCoaching] Unexpected error:", err);
       setError("Quelque chose a coincé. Réessaie.");
@@ -814,209 +731,16 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     }
 
     if (response.is_complete) {
+      const completionCtx = { column, value, profileUserId, workspaceId };
+
       // If storytelling, generate full story
       if (section === "story") {
-        try {
-          const ctx = await fetchContext();
-          const { data: storyGenData } = await invokeWithTimeout("branding-coaching", {
-            body: {
-              user_id: profileUserId,
-              workspace_id: workspaceId,
-              section: "story_generate",
-              messages: [
-                ...updatedMessages,
-                { role: "user", content: "Maintenant, écris mon histoire complète en un texte fluide et engageant, à la première personne. Utilise tout ce que je t'ai raconté." }
-              ],
-              context: ctx,
-              covered_topics: checklist,
-            },
-          }, 120000);
-          const generatedStory = storyGenData?.response?.question || (typeof storyGenData?.response === "string" ? storyGenData.response : "");
-          if (typeof generatedStory === "string" && generatedStory.length > 50) {
-            const { data: existing } = await (supabase.from("storytelling") as any)
-              .select("id")
-              .eq(column, value)
-              .eq("story_type", "fondatrice")
-              .limit(1)
-              .maybeSingle();
-            if (existing?.id) {
-              await (supabase.from("storytelling") as any)
-                .update({ step_6_full_story: generatedStory, completed: true, updated_at: new Date().toISOString() })
-                .eq("id", existing.id);
-            }
-          }
-        } catch (e) {
-          console.error("[BrandingCoaching] Error generating full story:", e);
-        }
+        await generateAndSaveFullStory(updatedMessages, checklist, completionCtx, fetchContext);
       }
 
       // If persona, fill missing fields + generate pitches
       if (section === "persona") {
-        try {
-          let personaQuery = (supabase.from("persona") as any)
-            .select("*");
-          if (resolvedPersonaIdRef.current) {
-            personaQuery = personaQuery.eq("id", resolvedPersonaIdRef.current);
-          } else {
-            personaQuery = personaQuery.eq(column, value).eq("is_primary", true);
-          }
-          const { data: currentPersona } = await personaQuery.maybeSingle();
-
-          if (currentPersona?.id) {
-            const targetFields = [
-              "step_1_frustrations", "step_2_transformation", "step_3a_objections",
-              "step_3b_cliches", "step_4_beautiful", "step_4_inspiring",
-              "step_4_repulsive", "step_4_feeling", "step_5_actions"
-            ];
-            const missingFields = targetFields.filter(f => {
-              const v = currentPersona[f];
-              return !v || (typeof v === "string" && v.trim().length === 0);
-            });
-
-            if (missingFields.length > 0) {
-              const fieldLabels: Record<string, string> = {
-                step_1_frustrations: "Ses frustrations profondes",
-                step_2_transformation: "Sa transformation rêvée",
-                step_3a_objections: "Ses objections principales",
-                step_3b_cliches: "Les clichés / croyances à déconstruire",
-                step_4_beautiful: "Ce qu'elle trouve beau (direction esthétique)",
-                step_4_inspiring: "Ce qui l'inspire (personnes, marques, contenus)",
-                step_4_repulsive: "Ce qui la rebute visuellement",
-                step_4_feeling: "Ce qu'elle a besoin de ressentir (émotion recherchée)",
-                step_5_actions: "Ses premières actions / déclencheurs d'achat",
-              };
-              const missingList = missingFields.map(f => `- "${f}": ${fieldLabels[f]}`).join("\n");
-              const ctx = await fetchContext();
-              const simpleMsgs = updatedMessages.map(m => ({ role: m.role, content: m.content }));
-
-              const { data: fillData } = await invokeWithTimeout("branding-coaching", {
-                body: {
-                  user_id: profileUserId,
-                  workspace_id: workspaceId,
-                  section: "persona_fill",
-                  messages: [
-                    ...simpleMsgs,
-                    { role: "user", content: `À partir de TOUTE notre conversation, extrais les informations pour remplir ces champs manquants. Si tu n'as pas d'info directe, déduis-la intelligemment à partir du contexte. Réponds UNIQUEMENT en JSON avec ces clés :\n${missingList}` }
-                  ],
-                  context: ctx,
-                  covered_topics: checklist,
-                },
-              }, 120000);
-
-              const fillResponse = fillData?.response;
-              let fillInsights: Record<string, any> = {};
-              if (fillResponse) {
-                if (typeof fillResponse === "string") {
-                  try {
-                    fillInsights = JSON.parse(fillResponse.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim());
-                  } catch (e) { trackError(e, { where: "branding.coaching.fillInsights" }); toast.error("L'IA a renvoyé une réponse inattendue. Réessaie dans un instant."); }
-                } else if (typeof fillResponse === "object") {
-                  fillInsights = fillResponse.extracted_insights || fillResponse;
-                }
-              }
-
-              // Normalize potential AI alias keys → real DB columns
-              const aliasMap: Record<string, string> = {
-                objections_courantes: "step_3a_objections",
-                objections: "step_3a_objections",
-                freins_achat: "step_3a_objections",
-                freins: "step_3a_objections",
-                croyances_limitantes: "step_3b_cliches",
-                croyances: "step_3b_cliches",
-                cliches: "step_3b_cliches",
-                declencheurs_achat: "step_5_actions",
-                declencheurs: "step_5_actions",
-                premieres_actions: "step_5_actions",
-                actions: "step_5_actions",
-                frustrations_profondes: "step_1_frustrations",
-                frustrations: "step_1_frustrations",
-                transformation_revee: "step_2_transformation",
-                transformation: "step_2_transformation",
-                objectif_principal: "step_2_transformation",
-                beau: "step_4_beautiful",
-                esthetique: "step_4_beautiful",
-                inspirant: "step_4_inspiring",
-                inspiration: "step_4_inspiring",
-                repoussant: "step_4_repulsive",
-                rebute: "step_4_repulsive",
-                ressenti: "step_4_feeling",
-                emotion: "step_4_feeling",
-              };
-              const normalized: Record<string, any> = { ...fillInsights };
-              for (const [alias, realKey] of Object.entries(aliasMap)) {
-                if (fillInsights[alias] && !normalized[realKey]) {
-                  normalized[realKey] = fillInsights[alias];
-                }
-              }
-
-              const validFills: Record<string, string> = {};
-              for (const f of missingFields) {
-                const val = normalized[f];
-                if (val && typeof val === "string" && val.trim().length > 0) {
-                  validFills[f] = val.trim();
-                }
-              }
-
-              if (Object.keys(validFills).length > 0) {
-                await (supabase.from("persona") as any)
-                  .update({ ...validFills, updated_at: new Date().toISOString() })
-                  .eq("id", currentPersona.id);
-                console.log(`[BrandingCoaching] Persona fill: ${Object.keys(validFills).length} missing fields filled`);
-              } else if (fillResponse) {
-                console.warn("[BrandingCoaching] Persona fill: AI responded but no exploitable keys. Received:",
-                  Object.keys(fillInsights), "Expected:", missingFields);
-              }
-            }
-
-            // Generate pitches automatically
-            try {
-              const { data: freshPersona } = await (supabase.from("persona") as any)
-                .select("*")
-                .eq("id", currentPersona.id)
-                .maybeSingle();
-
-              const { data: brandData } = await (supabase.from("brand_profile") as any)
-                .select("activite, mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
-                .eq(column, value)
-                .maybeSingle();
-
-              const { data: pitchData } = await invokeWithTimeout("persona-ai", {
-                body: {
-                  type: "pitch",
-                  persona: freshPersona || currentPersona,
-                  profile: brandData || {},
-                },
-              }, 60000);
-
-              if (pitchData?.content) {
-                let pitchParsed: any;
-                try {
-                  pitchParsed = typeof pitchData.content === "string"
-                    ? JSON.parse(pitchData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim())
-                    : pitchData.content;
-                } catch (e) { trackError(e, { where: "branding.coaching.pitch" }); }
-
-                if (pitchParsed) {
-                  const pitchUpdate: Record<string, string> = {};
-                  if (pitchParsed.short) pitchUpdate.pitch_short = pitchParsed.short;
-                  if (pitchParsed.medium) pitchUpdate.pitch_medium = pitchParsed.medium;
-                  if (pitchParsed.long) pitchUpdate.pitch_long = pitchParsed.long;
-
-                  if (Object.keys(pitchUpdate).length > 0) {
-                    await (supabase.from("persona") as any)
-                      .update({ ...pitchUpdate, updated_at: new Date().toISOString() })
-                      .eq("id", currentPersona.id);
-                    console.log(`[BrandingCoaching] Persona pitches generated: ${Object.keys(pitchUpdate).join(", ")}`);
-                  }
-                }
-              }
-            } catch (e) {
-              console.error("[BrandingCoaching] Error generating persona pitches:", e);
-            }
-          }
-        } catch (e) {
-          console.error("[BrandingCoaching] Error in persona completion:", e);
-        }
+        await completePersonaSection(updatedMessages, checklist, completionCtx, resolvedPersonaIdRef.current, fetchContext);
       }
 
       setFinalSummary(response.final_summary || "");
@@ -1032,289 +756,24 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
 
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
     if (!user) return;
+    const ctx = { column, value, profileUserId, workspaceId };
     try {
       if (sec === "charter") {
-        // Save charter insights to brand_charter
-        const charterPayload: Record<string, any> = {};
-        if (insights.mood_keywords) charterPayload.mood_keywords = insights.mood_keywords;
-        if (insights.color_primary) charterPayload.color_primary = insights.color_primary;
-        if (insights.color_secondary) charterPayload.color_secondary = insights.color_secondary;
-        if (insights.color_accent) charterPayload.color_accent = insights.color_accent;
-        if (insights.photo_style) charterPayload.photo_style = insights.photo_style;
-        if (insights.font_title) charterPayload.font_title = insights.font_title;
-        if (insights.font_body) charterPayload.font_body = insights.font_body;
-        if (insights.font_rationale) charterPayload.font_rationale = insights.font_rationale;
-        if (insights.visual_donts) charterPayload.visual_donts = insights.visual_donts;
-        if (insights.ai_generated_brief) charterPayload.ai_generated_brief = insights.ai_generated_brief;
-
-        if (Object.keys(charterPayload).length > 0) {
-          charterPayload.updated_at = new Date().toISOString();
-          // Try update first, then upsert
-          const { data: existing } = await (supabase.from("brand_charter") as any)
-            .select("id")
-            .eq(column, value)
-            .maybeSingle();
-          if (existing?.id) {
-            await (supabase.from("brand_charter") as any)
-              .update(charterPayload)
-              .eq("id", existing.id);
-          } else {
-            await (supabase.from("brand_charter") as any)
-              .insert({ user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined, ...charterPayload });
-          }
-          // Update local ref for next step
-          charterDataRef.current = { ...charterDataRef.current, ...charterPayload };
+        const savedPayload = await saveCharterInsights(insights, ctx);
+        if (savedPayload) {
+          charterDataRef.current = { ...charterDataRef.current, ...savedPayload };
         }
       } else if (sec === "persona") {
-        let targetPersonaId = resolvedPersonaIdRef.current;
-        
-        if (!targetPersonaId) {
-          const { data: primaryPersona } = await (supabase.from("persona") as any)
-            .select("id").eq(column, value).eq("is_primary", true).maybeSingle();
-          targetPersonaId = primaryPersona?.id || null;
-        }
-        
-        if (targetPersonaId) {
-          await (supabase.from("persona") as any)
-            .update({ ...insights, updated_at: new Date().toISOString() })
-            .eq("id", targetPersonaId);
-        } else {
-          const { data: newPersona } = await (supabase.from("persona") as any).insert({
-            user_id: profileUserId,
-            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-            is_primary: true,
-            ...insights,
-            updated_at: new Date().toISOString(),
-          }).select("id").single();
-          if (newPersona?.id) resolvedPersonaIdRef.current = newPersona.id;
-        }
+        const targetPersonaId = await savePersonaInsights(insights, ctx, resolvedPersonaIdRef.current);
+        if (targetPersonaId) resolvedPersonaIdRef.current = targetPersonaId;
       } else if (sec === "story") {
-        // Map coaching insights to storytelling columns
-        const { data: existing } = await (supabase.from("storytelling") as any)
-          .select("id")
-           .eq(column, value)
-          .eq("story_type", "fondatrice")
-          .limit(1)
-          .maybeSingle();
-
-        const storyData: Record<string, any> = {};
-        if (insights.story_origin) storyData.step_1_raw = insights.story_origin;
-        if (insights.story_turning_point) storyData.step_2_location = insights.story_turning_point;
-        if (insights.story_struggles) storyData.step_3_action = insights.story_struggles;
-        if (insights.story_unique) storyData.step_4_thoughts = insights.story_unique;
-        if (insights.story_vision) storyData.step_5_emotions = insights.story_vision;
-
-        if (existing?.id) {
-          await (supabase.from("storytelling") as any)
-            .update({ ...storyData, updated_at: new Date().toISOString() })
-            .eq("id", existing.id);
-        } else {
-          await (supabase.from("storytelling") as any).insert({
-            user_id: profileUserId,
-            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-            ...storyData,
-            title: "Mon histoire fondatrice",
-            story_type: "fondatrice",
-            source: "coaching",
-            is_primary: true,
-            updated_at: new Date().toISOString(),
-          });
-        }
+        await saveStoryInsights(insights, ctx);
       } else if (sec === "content_strategy") {
-        // Map coaching insights to brand_strategy columns
-        const strategyData: Record<string, any> = {};
-        if (insights.content_pillars) {
-          const pillars = typeof insights.content_pillars === "string" 
-            ? insights.content_pillars.split(/[,;\n]/).map((s: string) => s.trim()).filter(Boolean)
-            : Array.isArray(insights.content_pillars) ? insights.content_pillars : [];
-          if (pillars.length > 0) strategyData.pillar_major = pillars[0];
-          if (pillars.length > 1) strategyData.pillar_minor_1 = pillars[1];
-          if (pillars.length > 2) strategyData.pillar_minor_2 = pillars[2];
-          if (pillars.length > 3) strategyData.pillar_minor_3 = pillars[3];
-        }
-        if (insights.pillar_major) strategyData.pillar_major = insights.pillar_major;
-        if (insights.pillar_minor_1) strategyData.pillar_minor_1 = insights.pillar_minor_1;
-        if (insights.pillar_minor_2) strategyData.pillar_minor_2 = insights.pillar_minor_2;
-        if (insights.pillar_minor_3) strategyData.pillar_minor_3 = insights.pillar_minor_3;
-        if (insights.content_twist || insights.creative_concept) {
-          strategyData.creative_concept = insights.content_twist || insights.creative_concept;
-        }
-        // Combine formats + editorial line in step_1_hidden_facets (no data loss)
-        const hiddenParts: string[] = [];
-        if (insights.content_formats) {
-          hiddenParts.push("Formats : " + (typeof insights.content_formats === "string" ? insights.content_formats : JSON.stringify(insights.content_formats)));
-        }
-        if (insights.content_editorial_line) {
-          hiddenParts.push("Ligne éditoriale : " + insights.content_editorial_line);
-        }
-        if (hiddenParts.length > 0) {
-          strategyData.step_1_hidden_facets = hiddenParts.join("\n\n");
-        }
-
-        if (Object.keys(strategyData).length > 0) {
-          strategyData.updated_at = new Date().toISOString();
-          const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
-            .select("id").eq(column, value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
-          if (existingStrat?.id) {
-            await (supabase.from("brand_strategy") as any).update(strategyData).eq("id", existingStrat.id);
-          } else {
-            await (supabase.from("brand_strategy") as any).insert({
-              user_id: profileUserId,
-              workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-              ...strategyData,
-            });
-          }
-          queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
-        }
-
-        // Save frequency and formats to editorial line if available
-        if (insights.content_frequency || insights.content_formats || insights.content_editorial_line) {
-          const editoData: Record<string, any> = { updated_at: new Date().toISOString(), source: "coaching" };
-          if (insights.content_frequency) editoData.recommended_rhythm = insights.content_frequency;
-          if (insights.content_formats) {
-            const fmts = typeof insights.content_formats === "string"
-              ? insights.content_formats.split(/[,;]/).map((s: string) => s.trim()).filter(Boolean)
-              : Array.isArray(insights.content_formats) ? insights.content_formats : [];
-            if (fmts.length > 0) editoData.preferred_formats = fmts;
-          }
-          if (insights.content_editorial_line) {
-            editoData.free_notes = insights.content_editorial_line;
-          }
-          const { data: existingEdito } = await (supabase.from("instagram_editorial_line") as any)
-            .select("id").eq(column, value).maybeSingle();
-          if (existingEdito?.id) {
-            await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
-          } else {
-            await (supabase.from("instagram_editorial_line") as any).insert({
-              user_id: profileUserId,
-              workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-              ...editoData,
-            });
-          }
-          queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
-        }
+        await saveContentStrategyInsights(insights, ctx, queryClient);
       } else if (sec === "content_series") {
-        // ── Mapping cadence libre → enum DB ──
-        const mapCadence = (raw?: string): "weekly" | "biweekly" | "monthly" | "irregular" | null => {
-          if (!raw || typeof raw !== "string") return null;
-          const s = raw.toLowerCase().trim();
-          if (/(hebdo|chaque semaine|toutes les semaines|une fois par semaine|weekly|every week)/.test(s)) return "weekly";
-          if (/(bimensuel|tous les 15 jours|toutes les deux semaines|deux fois par mois|biweekly|every two weeks)/.test(s)) return "biweekly";
-          if (/(mensuel|chaque mois|tous les mois|une fois par mois|monthly|every month)/.test(s)) return "monthly";
-          if (/(irr[ée]gulier|quand [çc]a vient|sporadique|al[ée]atoire|irregular|ad hoc)/.test(s)) return "irregular";
-          if (["weekly", "biweekly", "monthly", "irregular"].includes(s)) return s as any;
-          return null;
-        };
-
-        // A. Sauvegarde des séries
-        const seriesArr: any[] = Array.isArray(insights.series) ? insights.series.slice(0, 8) : [];
-        for (const serie of seriesArr) {
-          try {
-            if (!serie?.name || !serie?.promise) continue;
-            const name = String(serie.name).trim();
-            if (!name) continue;
-
-            const { data: existingSerie } = await (supabase.from("series") as any)
-              .select("id")
-              .eq(column, value)
-              .eq("name", name)
-              .maybeSingle();
-
-            const payload: Record<string, any> = {
-              name,
-              promise: String(serie.promise).trim(),
-            };
-            if (serie.pillar_key && ["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"].includes(serie.pillar_key)) {
-              payload.pillar_key = serie.pillar_key;
-            }
-            const cadence = mapCadence(serie.cadence ?? serie.cadence_raw);
-            if (cadence) payload.cadence = cadence;
-            if (serie.format_template) payload.format_template = String(serie.format_template).trim();
-            if (serie.signature_description) payload.signature_description = String(serie.signature_description).trim();
-            if (Array.isArray(serie.channels) && serie.channels.length > 0) {
-              payload.channels = serie.channels.filter((c: any) => typeof c === "string");
-            }
-
-            if (existingSerie?.id) {
-              const { error } = await (supabase.from("series") as any)
-                .update({ ...payload, updated_at: new Date().toISOString() })
-                .eq("id", existingSerie.id);
-              if (error) console.error("[ContentSeries] Update error:", error);
-            } else {
-              const { error } = await (supabase.from("series") as any).insert({
-                ...payload,
-                user_id: profileUserId,
-                workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-              });
-              if (error) console.error("[ContentSeries] Insert error:", error);
-            }
-          } catch (serieErr) {
-            console.error("[ContentSeries] Failed to save serie:", serie?.name, serieErr);
-          }
-        }
-
-        // B. Mode combo : pillars_new (n'écrit que si vide en DB)
-        const pillarsNew: string[] = Array.isArray(insights.pillars_new)
-          ? insights.pillars_new.filter((p: any) => typeof p === "string" && p.trim()).slice(0, 4)
-          : [];
-        if (pillarsNew.length > 0) {
-          try {
-            const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
-              .select("id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3")
-              .eq(column, value)
-              .order("updated_at", { ascending: false })
-              .limit(1)
-              .maybeSingle();
-
-            const isEmpty = (v: any) => !v || (typeof v === "string" && v.trim().length === 0);
-            const cols = ["pillar_major", "pillar_minor_1", "pillar_minor_2", "pillar_minor_3"];
-            const updates: Record<string, any> = {};
-            cols.forEach((col, i) => {
-              if (i < pillarsNew.length && (!existingStrat || isEmpty(existingStrat[col]))) {
-                updates[col] = pillarsNew[i].trim();
-              }
-            });
-
-            if (Object.keys(updates).length > 0) {
-              if (existingStrat?.id) {
-                await (supabase.from("brand_strategy") as any)
-                  .update({ ...updates, updated_at: new Date().toISOString() })
-                  .eq("id", existingStrat.id);
-              } else {
-                await (supabase.from("brand_strategy") as any).insert({
-                  user_id: profileUserId,
-                  workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-                  ...updates,
-                });
-              }
-            }
-          } catch (pillarsErr) {
-            console.error("[ContentSeries] Failed to save pillars_new:", pillarsErr);
-          }
-        }
-
-        queryClient.invalidateQueries({ queryKey: ["series"] });
-        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
+        await saveContentSeriesInsights(insights, ctx, queryClient);
       } else {
-        const { data: existingBP } = await (supabase.from("brand_profile") as any)
-          .select("id").eq(column, value).maybeSingle();
-        if (existingBP?.id) {
-          await (supabase.from("brand_profile") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingBP.id);
-        } else {
-          await (supabase.from("brand_profile") as any).insert({
-            user_id: profileUserId,
-            workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
-            ...insights,
-            updated_at: new Date().toISOString(),
-          });
-        }
-        queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
-        queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
-        queryClient.invalidateQueries({ queryKey: ["profile"] });
-        queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
-        queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
-        queryClient.invalidateQueries({ queryKey: ["brand-charter"] });
-        queryClient.invalidateQueries({ queryKey: ["persona"] });
+        await saveDefaultBrandProfileInsights(insights, ctx, queryClient);
       }
       // Always invalidate the global branding data cache so BrandingPage/BrandingSectionPage see fresh data
       queryClient.invalidateQueries({ queryKey: ["branding-data"] });
