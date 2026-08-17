@@ -458,23 +458,42 @@ Réponds en JSON :
     let auditTokens = 0;
     let auditModel = "";
 
+    // Plafond PAR TENTATIVE de chaque sous-appel (convention CLAUDE.md "génération
+    // standard : 60s" — ces parts sont des sorties allégées, pas l'audit complet).
+    // Choisi pour qu'UNE relance (retry interne callAnthropic OU relance runPartParsed)
+    // tienne encore sous le mur des 150s de la plateforme edge : 60s + backoff(≤6s) +
+    // 60s ≈ 126s. Un abortTimeoutMs plus généreux ferait perdre ce filet dès le premier
+    // aléa réseau (transformerait une relance utile en mort certaine par kill plateforme).
+    const AI_PART_TIMEOUT_MS = 60_000;
+    // Le fallback Gemini n'avait AUCUNE limite avant ce correctif (fetch qui pouvait
+    // pendre indéfiniment). Le modèle flash est rapide : 30s suffit largement.
+    const GEMINI_FALLBACK_TIMEOUT_MS = 30_000;
+
     // Helper: fallback to Gemini via Lovable AI Gateway (text-only)
     async function fallbackToGemini(systemPrompt: string, userText: string): Promise<string> {
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
       if (!LOVABLE_API_KEY) throw new Error("No fallback API key available");
       console.log("[audit-instagram-ai] Falling back to Gemini (text-only)...");
-      const geminiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userText },
-          ],
-          temperature: 0.7,
-        }),
-      });
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), GEMINI_FALLBACK_TIMEOUT_MS);
+      let geminiResp: Response;
+      try {
+        geminiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userText },
+            ],
+            temperature: 0.7,
+          }),
+          signal: controller.signal,
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
       if (!geminiResp.ok) {
         const errText = await geminiResp.text();
         console.error("[audit-instagram-ai] Gemini fallback failed:", geminiResp.status, errText);
@@ -527,9 +546,10 @@ Réponds en JSON :
             messages: [{ role: "user", content: buildUserContent() }],
             temperature: 0.7,
             max_tokens: 8192,
+            abortTimeoutMs: AI_PART_TIMEOUT_MS,
           }, u);
         } else {
-          out = await callAnthropicSimple(getModelForAction("audit"), sys, userText, 0.7, 8192, u);
+          out = await callAnthropicSimple(getModelForAction("audit"), sys, userText, 0.7, 8192, u, AI_PART_TIMEOUT_MS);
         }
         auditTokens += u.total_tokens ?? 0;
         if (u.model) auditModel = u.model;
