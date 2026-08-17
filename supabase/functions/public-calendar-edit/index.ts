@@ -95,13 +95,19 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify post belongs to share owner
-    const { data: post } = await supabase
+    // Verify post belongs to share owner AND to the shared workspace
+    // (un share ne doit jamais donner accès aux posts des autres espaces du même propriétaire)
+    let postQuery = supabase
       .from("calendar_posts")
       .select("id, status, content_draft")
       .eq("id", post_id)
-      .eq("user_id", share.user_id)
-      .maybeSingle();
+      .eq("user_id", share.user_id);
+
+    if (share.workspace_id) {
+      postQuery = postQuery.eq("workspace_id", share.workspace_id);
+    }
+
+    const { data: post } = await postQuery.maybeSingle();
 
     if (!post) {
       return new Response(
@@ -111,7 +117,8 @@ Deno.serve(async (req) => {
     }
 
     // Perform the edit
-    let commentContent = "";
+    let updatePayload: Record<string, string>;
+    let commentContent: string;
 
     if (field === "status") {
       const newStatus = String(value).trim();
@@ -125,23 +132,42 @@ Deno.serve(async (req) => {
       const oldLabel = STATUS_LABELS[post.status] || post.status;
       const newLabel = STATUS_LABELS[newStatus] || newStatus;
 
-      await supabase
-        .from("calendar_posts")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", post_id);
-
+      updatePayload = { status: newStatus, updated_at: new Date().toISOString() };
       commentContent = `[EDIT] Statut changé de "${oldLabel}" à "${newLabel}"`;
-    }
-
-    if (field === "wording") {
+    } else {
       const newWording = String(value).slice(0, 10000);
 
-      await supabase
-        .from("calendar_posts")
-        .update({ content_draft: newWording, updated_at: new Date().toISOString() })
-        .eq("id", post_id);
-
+      updatePayload = { content_draft: newWording, updated_at: new Date().toISOString() };
       commentContent = `[EDIT] Wording modifié`;
+    }
+
+    // L'update reprend les mêmes contraintes que la vérification (anti-course),
+    // et l'écriture est vérifiée avant de répondre success.
+    let updateQuery = supabase
+      .from("calendar_posts")
+      .update(updatePayload)
+      .eq("id", post_id)
+      .eq("user_id", share.user_id);
+
+    if (share.workspace_id) {
+      updateQuery = updateQuery.eq("workspace_id", share.workspace_id);
+    }
+
+    const { data: updatedRows, error: updateError } = await updateQuery.select("id");
+
+    if (updateError) {
+      console.error("public-calendar-edit update error:", updateError);
+      return new Response(
+        JSON.stringify({ error: "update_failed" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!updatedRows || updatedRows.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "post_not_found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     // Log edit as auto-comment
