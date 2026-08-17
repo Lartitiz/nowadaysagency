@@ -51,12 +51,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Update guest name if provided
+    // Update guest name if provided — best-effort, la vue du calendrier partagé
+    // ne doit pas échouer si cette personnalisation échoue.
     if (updateGuestName && updateGuestName.trim()) {
-      await supabase
+      const { error } = await supabase
         .from("calendar_shares")
         .update({ guest_name: updateGuestName.trim() })
         .eq("id", share.id);
+      if (error) console.error("public-calendar: échec update guest_name:", error);
     }
 
     // Fetch profile

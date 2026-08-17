@@ -131,10 +131,11 @@ serve(async (req) => {
 
     // ── Helper to mark failed (no logUsage = no quota consumed) ──
     const markFailed = async (errorMessage: string) => {
-      await supabase
+      const { error } = await supabase
         .from("user_photos")
         .update({ status: "failed", error_message: errorMessage })
         .eq("id", photo_id);
+      if (error) console.error("[photo-background-replace] markFailed write error:", error);
     };
 
     // 5. Mark as processing

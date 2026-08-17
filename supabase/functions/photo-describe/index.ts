@@ -537,10 +537,11 @@ Exclus du classement toute candidate hors sujet — mieux vaut 2 bonnes photos q
       // une colonne pas encore migrée ne doivent pas faire échouer la réponse.
       if (charterRow?.id) {
         try {
-          await supabase
+          const { error: cacheError } = await supabase
             .from("brand_charter")
             .update({ portrait_ambiances: { signature, items: ambiances } })
             .eq("id", charterRow.id);
+          if (cacheError) throw cacheError;
         } catch (e) {
           console.error("[photo-describe] portrait_ambiances cache write failed:", e);
         }

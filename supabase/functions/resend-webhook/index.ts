@@ -100,10 +100,11 @@ serve(async (req) => {
 
       // Only update if new status is higher priority
       if (newPriority > currentPriority) {
-        await supabase
+        const { error } = await supabase
           .from("email_sends")
           .update({ status: newStatus })
           .eq("id", existing.id);
+        if (error) throw error;
       }
     }
 
