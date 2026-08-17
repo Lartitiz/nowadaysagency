@@ -268,6 +268,16 @@ Deno.test("mix avec photos : rappel anti-refus dans le system, photo_mismatch re
     capturedSystem.includes("PAS à juger les photos"),
     "le rappel doit neutraliser explicitement le CONTEXTE BRANDING comme motif de refus",
   );
+  // Verrous v2 (retest live 17/08 : le refus se coulait dans l'exception en lisant
+  // « mon univers » comme une promesse de montrer l'univers de marque).
+  assert(
+    capturedSystem.includes("Un sujet identitaire ou abstrait"),
+    "le rappel doit interdire le refus sur les sujets identitaires/abstraits",
+  );
+  assert(
+    capturedSystem.includes("ne justifie JAMAIS un refus global"),
+    "le rappel doit imposer d'écarter une photo plutôt que de tout refuser",
+  );
   assertEquals(logUsageCalled, false);
 });
 
