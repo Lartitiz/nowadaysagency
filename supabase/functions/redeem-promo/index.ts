@@ -81,131 +81,78 @@ serve(async (req) => {
       expiresAt = d.toISOString();
     }
 
-    // Create redemption
-    const { error: redemptionError } = await supabase.from("promo_redemptions").insert({
-      user_id: userId,
-      promo_code_id: promo.id,
-      expires_at: expiresAt,
-    });
-
-    if (redemptionError) {
-      return new Response(JSON.stringify({ error: "Tu as déjà utilisé ce code." }), {
-        headers: { ...cors, "Content-Type": "application/json" },
-        status: 400,
-      });
-    }
-
-    // Atomic increment uses
-    await supabase.rpc("increment_promo_uses", { promo_id: promo.id });
-
     // Normalize plan for display (legacy DB values may still say "now_pilot")
     const displayPlan = (promo.plan_granted === "now_pilot" || promo.plan_granted === "studio") ? "binome" : promo.plan_granted;
 
-    // Update profile plan
-    await supabase
-      .from("profiles")
-      .update({ current_plan: displayPlan })
-      .eq("user_id", userId);
+    // Redeem + grant the plan atomically: this single Postgres function records
+    // the redemption, bumps the usage counter (re-checked under lock, so a
+    // limited code can never be over-redeemed), and updates both profiles and
+    // subscriptions. If any step fails, Postgres rolls back everything — we
+    // never end up with { success: true } while the plan wasn't actually granted.
+    const { error: grantError } = await supabase.rpc("redeem_promo_and_grant_plan", {
+      p_promo_id: promo.id,
+      p_user_id: userId,
+      p_display_plan: displayPlan,
+      p_raw_plan: promo.plan_granted,
+      p_expires_at: expiresAt,
+    });
 
-    // Upsert subscription
-    await supabase.from("subscriptions").upsert(
-      {
-        user_id: userId,
-        plan: promo.plan_granted,
-        status: "active",
-        source: "promo",
-        current_period_end: expiresAt,
-      },
-      { onConflict: "user_id" }
-    );
+    if (grantError) {
+      if (grantError.message?.includes("promo_max_uses_reached")) {
+        return new Response(JSON.stringify({ error: "Ce code a atteint son nombre maximum d'utilisations." }), {
+          headers: { ...cors, "Content-Type": "application/json" },
+          status: 400,
+        });
+      }
+      console.error("redeem-promo: échec de redeem_promo_and_grant_plan", {
+        userId,
+        promoId: promo.id,
+        code: upperCode,
+        error: grantError,
+      });
+      return new Response(JSON.stringify({
+        error: "Une erreur technique est survenue pendant l'activation du code. Réessaie dans quelques instants, ou contacte-nous si le problème persiste.",
+      }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+        status: 500,
+      });
+    }
 
-    // If binome (or legacy now_pilot), auto-create coaching program + sessions + deliverables
+    // If binome (or legacy now_pilot), auto-create coaching program + sessions + deliverables.
+    // The plan itself is already legitimately granted at this point — this is a best-effort
+    // cascade, so a failure here must NOT be silently swallowed as a plain success.
+    let coachingSetupFailed = false;
     if (promo.plan_granted === "now_pilot" || promo.plan_granted === "binome") {
-      // Check if program already exists
-      const { data: existingProg } = await supabase
-        .from("coaching_programs")
-        .select("id")
-        .eq("client_user_id", userId)
-        .eq("status", "active")
+      const { data: coachProfile } = await supabase
+        .from("profiles")
+        .select("user_id")
+        .eq("email", "laetitia@nowadaysagency.com")
         .maybeSingle();
 
-      if (!existingProg) {
-        // Find coach (Laetitia)
-        const { data: coachProfile } = await supabase
-          .from("profiles")
-          .select("user_id")
-          .eq("email", "laetitia@nowadaysagency.com")
-          .maybeSingle();
+      const startDate = new Date().toISOString().split("T")[0];
+      const endD = new Date();
+      endD.setMonth(endD.getMonth() + 6);
+      const endDate = endD.toISOString().split("T")[0];
 
-        const startDate = new Date().toISOString().split("T")[0];
-        const endD = new Date();
-        endD.setMonth(endD.getMonth() + 6);
-        const endDate = endD.toISOString().split("T")[0];
+      // This RPC creates the program together with its 9 sessions and 10 deliverables
+      // in one atomic transaction: either the whole space exists, or none of it does —
+      // never a program with zero sessions/deliverables in it.
+      const { error: coachingError } = await supabase.rpc("create_coaching_program_full", {
+        p_client_user_id: userId,
+        p_coach_user_id: coachProfile?.user_id || userId,
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_whatsapp_link: "https://wa.me/33614133921",
+      });
 
-        const { data: prog } = await supabase
-          .from("coaching_programs")
-          .insert({
-            client_user_id: userId,
-            coach_user_id: coachProfile?.user_id || userId,
-            start_date: startDate,
-            end_date: endDate,
-            current_phase: "strategy",
-            current_month: 1,
-            whatsapp_link: "https://wa.me/33614133921",
-            status: "active",
-          })
-          .select()
-          .single();
-
-        if (prog) {
-          // Create 9 sessions
-          const sessions = [
-            { n: 1, phase: "strategy", title: "Audit + positionnement", dur: 90 },
-            { n: 2, phase: "strategy", title: "Cible, offres, ton", dur: 90 },
-            { n: 3, phase: "strategy", title: "Ligne éditoriale", dur: 90 },
-            { n: 4, phase: "strategy", title: "Calendrier + templates", dur: 90 },
-            { n: 5, phase: "strategy", title: "Contenus + mise en place (1)", dur: 90 },
-            { n: 6, phase: "strategy", title: "Contenus + mise en place (2)", dur: 90 },
-            { n: 7, phase: "binome", title: "Revue mensuelle · Mois 4", dur: 120 },
-            { n: 8, phase: "binome", title: "Revue mensuelle · Mois 5", dur: 120 },
-            { n: 9, phase: "binome", title: "Bilan + autonomie · Mois 6", dur: 120 },
-          ];
-
-          await supabase.from("coaching_sessions").insert(
-            sessions.map((s) => ({
-              program_id: prog.id,
-              session_number: s.n,
-              phase: s.phase,
-              title: s.title,
-              duration_minutes: s.dur,
-              status: "scheduled",
-            }))
-          );
-
-          // Create 10 deliverables
-          const deliverables = [
-            { title: "Audit de communication", type: "audit", route: "/audit-branding" },
-            { title: "Branding complet", type: "branding", route: "/branding" },
-            { title: "Portrait cible", type: "persona", route: "/branding/cible" },
-            { title: "Offres reformulées", type: "offers", route: "/branding/offres" },
-            { title: "Ligne éditoriale", type: "editorial", route: "/branding/editorial" },
-            { title: "Calendrier 3 mois", type: "calendar", route: "/calendrier" },
-            { title: "Bio optimisée", type: "bio", route: "/instagram/bio" },
-            { title: "10-15 contenus prêts", type: "content", route: "/calendrier" },
-            { title: "Templates Canva", type: "templates", route: null },
-            { title: "Plan de com' 6 mois", type: "plan", route: "/plan" },
-          ];
-
-          await supabase.from("coaching_deliverables").insert(
-            deliverables.map((d) => ({
-              program_id: prog.id,
-              title: d.title,
-              type: d.type,
-              route: d.route,
-              status: "pending",
-            }))
-          );
-        }
+      if (coachingError) {
+        coachingSetupFailed = true;
+        console.error("[CRITICAL] redeem-promo: le plan a été accordé mais la création de l'espace d'accompagnement a échoué — intervention manuelle requise", {
+          userId,
+          promoId: promo.id,
+          code: upperCode,
+          error: coachingError,
+        });
       }
     }
 
@@ -214,6 +161,10 @@ serve(async (req) => {
       plan: displayPlan,
       expires_at: expiresAt,
       code: upperCode,
+      ...(coachingSetupFailed ? {
+        coachingSetupFailed: true,
+        warning: "Ton code a bien été activé, mais on a eu un souci technique pour préparer ton espace d'accompagnement. On s'en occupe et on revient vers toi rapidement.",
+      } : {}),
     }), {
       headers: { ...cors, "Content-Type": "application/json" },
       status: 200,
