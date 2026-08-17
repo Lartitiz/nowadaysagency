@@ -8,8 +8,13 @@ import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink }
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
+// Plafond de la passe de correction (Haiku, édition mécanique à règles fermées,
+// sortie capée 4096 tokens) : bornée séparément de l'appel principal pour que
+// la cascade principal+correction reste sous le timeout client (cf. #839).
+const CORRECTION_TIMEOUT_MS = 30_000;
+
 // JSON-aware correction: extract a long-text field, run correction-pass, reinject.
-async function correctJsonField(rawJson: string, field: string): Promise<string> {
+async function correctJsonField(rawJson: string, field: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS): Promise<string> {
   try {
     const match = rawJson.match(/\{[\s\S]*\}/);
     if (!match) return rawJson;
@@ -20,6 +25,7 @@ async function correctJsonField(rawJson: string, field: string): Promise<string>
       logger: (m) => console.log(`[linkedin-ai] ${m}`),
       // Édition mécanique à règles fermées → Haiku (cf. #364)
       model: "claude-haiku-4-5",
+      abortTimeoutMs,
     });
     if (!corrected || corrected === original) return rawJson;
     parsed[field] = corrected;
@@ -31,7 +37,7 @@ async function correctJsonField(rawJson: string, field: string): Promise<string>
 }
 
 // Crosspost-aware: correct versions.linkedin.full_text if present
-async function correctCrosspostJson(rawJson: string): Promise<string> {
+async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS): Promise<string> {
   try {
     const match = rawJson.match(/\{[\s\S]*\}/);
     if (!match) return rawJson;
@@ -42,6 +48,7 @@ async function correctCrosspostJson(rawJson: string): Promise<string> {
       logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
       // Édition mécanique à règles fermées → Haiku (cf. #364)
       model: "claude-haiku-4-5",
+      abortTimeoutMs,
     });
     if (!corrected || corrected === liText) return rawJson;
     parsed.versions.linkedin.full_text = corrected;
@@ -210,12 +217,15 @@ serve(async (req) => {
 
         systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt;
         const cpUsage: UsageSink = {};
+        // 90s : plus lourd qu'une génération texte standard (vision sur images/PDF
+        // + 4 versions par canal), mais borné — cf. convention CLAUDE.md.
         let content = await callAnthropic({
           model: getModelForAction("linkedin_post"),
           system: systemPrompt,
           messages: [{ role: "user", content: userContent }],
           temperature: 0.8,
           max_tokens: 4096,
+          abortTimeoutMs: 90_000,
         }, cpUsage);
 
         content = await correctCrosspostJson(content);
@@ -339,7 +349,9 @@ serve(async (req) => {
     }
 
     const usage: UsageSink = {};
-    let content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8, undefined, usage);
+    // 60s : génération standard (convention CLAUDE.md). La passe de correction
+    // qui suit (actions concernées ci-dessous) est bornée séparément à 30s.
+    let content = await callAnthropicSimple(getModelForAction("linkedin_post"), systemPrompt, userPrompt, 0.8, undefined, usage, 60_000);
 
     // LinkedIn correction pass — applied per action with awareness of output shape
     if (action === "caption-for-carousel") {

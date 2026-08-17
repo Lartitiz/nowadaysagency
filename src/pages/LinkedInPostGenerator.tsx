@@ -56,7 +56,8 @@ export default function LinkedInPostGenerator() {
     try {
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "improve-post", postContent: existingPost, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      }, 60000);
+      // 110s : génération 60s + passe de correction 30s côté edge, + marge.
+      }, 110000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }

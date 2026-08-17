@@ -133,7 +133,8 @@ export default function LinkedInCrosspost() {
           fileUrls,
           workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
         },
-      }, 120000);
+      // 145s : couvre le pire cas serveur (multimodal 90s + correction 30s = 120s) + marge.
+      }, 145000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
