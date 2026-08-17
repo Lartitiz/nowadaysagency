@@ -199,6 +199,25 @@ Deno.serve(async (req) => {
         );
       }
 
+      // ─── Reset complet (hors brandingOnly) : réservé à l'owner de CET espace ───
+      // Contrairement au brandingOnly ci-dessus (délétions de branding, qu'un·e
+      // manager peut de toute façon déjà faire via les policies RLS scopées
+      // workspace_id), ce chemin remet à zéro `profiles`/`user_plan_config`/
+      // `audit_validations` de l'OWNER via le service role — une action qu'un·e
+      // manager ne peut PAS faire par RLS (auth.uid() ≠ ownerUserId). Sans ce
+      // garde-fou, n'importe quel·le manager d'un espace pouvait forcer une
+      // cliente à repasser par l'onboarding sans son accord.
+      const callerMember = (members || []).find((m) => m.user_id === callerUserId);
+      if (callerMember?.role !== "owner" && !isAdmin) {
+        console.error(
+          `[reset-onboarding] Forbidden: full reset requires owner role, ${callerEmail} is '${callerMember?.role ?? "non-membre"}' on ${workspaceId}`
+        );
+        return new Response(
+          JSON.stringify({ error: "Seul·e la ou le propriétaire de cet espace peut faire une réinitialisation complète." }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
       const ownerUserId = (members || []).find((m) => m.role === "owner")?.user_id ?? null;
       console.log(`[reset-onboarding] WORKSPACE-scoped reset of ${workspaceId} by ${callerEmail} (owner=${ownerUserId})`);
 
