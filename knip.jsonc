@@ -47,30 +47,11 @@
   // pause.
   // ─────────────────────────────────────────────────────────────────────────
   "ignore": [
-    // -- 35 fichiers sans aucun importeur (dette 01/08/2026) --
-    // Composants applicatifs : vérifier avant de supprimer, certains peuvent
-    // être des chantiers en pause plutôt que des abandons.
-    "src/components/ABTestAccroches.tsx",
-    "src/components/ContentActions.tsx",
-    "src/components/ContentProgressBar.tsx",
-    "src/components/CreditWarning.tsx",
-    "src/components/DraftRestoredBanner.tsx",
-    "src/components/FloatingChatButton.tsx",
-    "src/components/PlanMiniRecap.tsx",
-    "src/components/RedactionFlow.tsx",
-    "src/components/RoomTour.tsx",
-    "src/components/RoutinesPanel.tsx",
     // Hooks et libs sans appelant.
-    "src/hooks/use-branding-data.ts",
-    "src/hooks/use-can-edit.ts",
-    "src/hooks/use-coaching-flow.ts",
-    "src/lib/breadcrumb-config.ts",
-    "src/lib/com-score.ts",
-    "src/lib/email-templates.ts",
-    "src/lib/linkedin-data.ts",
-    "src/lib/pinterest-publish.ts",
-    "src/lib/plan-content.ts",
-    "src/lib/supabase-helpers.ts"
+    // plan-content.ts : plus aucun importeur depuis la suppression de
+    // WeekCard.tsx / PlanMiniRecap.tsx (groupe 2, composants applicatifs,
+    // désormais traité) — à vérifier et résorber dans le lot hooks/libs.
+    "src/lib/plan-content.ts"
   ],
 
   "ignoreDependencies": [
