@@ -696,14 +696,18 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
     setIsSaving(true);
     try {
       const oldValue = (data[field.key] as string) || "";
-      await (supabase.from(table as any) as any)
+      const { error } = await (supabase.from(table as any) as any)
         .update({ [field.key]: editValue, updated_at: new Date().toISOString() })
         .eq("id", recordId);
-      onFieldUpdate?.(field.key, editValue, oldValue);
-      setEditingField(null);
-      toast.success("C'est noté !");
+      if (error) {
+        toast.error("Erreur de sauvegarde, réessaie");
+      } else {
+        onFieldUpdate?.(field.key, editValue, oldValue);
+        setEditingField(null);
+        toast.success("C'est noté !");
+      }
     } catch {
-      toast.error("Erreur de sauvegarde");
+      toast.error("Erreur de sauvegarde, réessaie");
     }
     setIsSaving(false);
   };
