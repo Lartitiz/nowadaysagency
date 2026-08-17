@@ -1195,16 +1195,17 @@ export default function CreerUnifie() {
         if (incomingBriefId) {
           // Vient de « Créer à partir de ce brief » : on met à jour le brief
           // existant au lieu d'en créer un doublon.
-          await supabase.from("content_briefs").update({
+          const { error } = await supabase.from("content_briefs").update({
             objective: objective || null,
             format: selectedFormat || null,
             editorial_angle: editorialAngle || null,
             questions: questions.map(q => ({ id: q.id, question: q.question })),
             answers: ans,
           } as any).eq("id", incomingBriefId);
+          if (error) throw error;
           setCurrentBriefId(incomingBriefId);
         } else {
-          const { data: briefData } = await supabase.from("content_briefs").insert({
+          const { data: briefData, error } = await supabase.from("content_briefs").insert({
             user_id: session.user.id,
             workspace_id: workspaceId && workspaceId !== session.user.id ? workspaceId : null,
             subject: ideaText,
@@ -1214,6 +1215,7 @@ export default function CreerUnifie() {
             questions: questions.map(q => ({ id: q.id, question: q.question })),
             answers: ans,
           } as any).select("id").maybeSingle();
+          if (error) throw error;
           if (briefData?.id) setCurrentBriefId(briefData.id);
         }
       } catch (e) {
@@ -1690,7 +1692,7 @@ export default function CreerUnifie() {
         // Slide 1 quel que soit le format (texte=title, mixte/photo=overlay_text).
         const hookText = slideText(r.slides?.[0]);
         const captionText = [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n\n");
-        const { data } = await supabase.from("generated_carousels" as any).insert({
+        const { data, error } = await supabase.from("generated_carousels" as any).insert({
           user_id: session.user.id,
           ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
           carousel_type: r.carousel_type || "tips",
@@ -1703,6 +1705,7 @@ export default function CreerUnifie() {
           hashtags: r.caption?.hashtags || [],
           quality_score: r.quality_check?.score || null,
         }).select("id").single();
+        if (error) throw error;
         if (data) setSavedId((data as any).id);
       } catch (e: any) {
         console.warn("generated_carousels insert failed:", e?.message);
