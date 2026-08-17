@@ -44,6 +44,13 @@ describe("publishTextToLinkedIn — appel edge + réponse", () => {
     });
   });
 
+  it("workspace mono-utilisateur (workspaceId === userId) : n'envoie pas workspace_id", async () => {
+    mocks.invokeWithTimeout.mockResolvedValue({ data: { postId: "p1" }, error: null });
+    await publishTextToLinkedIn({ text: "Mon post", workspaceId: "user1", userId: "user1" });
+    const body = mocks.invokeWithTimeout.mock.calls[0][1].body;
+    expect(body.workspace_id).toBeUndefined();
+  });
+
   it("ajoute media_urls uniquement si des images sont fournies", async () => {
     mocks.invokeWithTimeout.mockResolvedValue({ data: { postId: "p1" }, error: null });
 
