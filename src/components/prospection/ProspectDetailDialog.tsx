@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
@@ -63,7 +64,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
 
   const addInteraction = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("contact_interactions")
       .insert({
         contact_id: prospect.id,
@@ -73,6 +74,11 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
       } as any)
       .select("*")
       .single();
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     if (data) {
       setInteractions(prev => [...prev, data as unknown as ProspectInteraction]);
       setAddingInteraction(false);

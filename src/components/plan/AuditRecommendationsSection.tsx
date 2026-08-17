@@ -4,6 +4,8 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { isModuleVisible, isRouteVisible } from "@/config/feature-flags";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Check, RefreshCw, Search, Square, CheckSquare } from "lucide-react";
 import { format } from "date-fns";
@@ -99,11 +101,17 @@ export default function AuditRecommendationsSection() {
 
   const toggleCompletion = async (recId: string, currentlyCompleted: boolean) => {
     const newCompleted = !currentlyCompleted;
+    const previous = recommendations.find(r => r.id === recId);
     setRecommendations(prev => prev.map(r => r.id === recId ? { ...r, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } as Recommendation : r));
-    await supabase
+    const { error } = await supabase
       .from("audit_recommendations")
       .update({ completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null })
       .eq("id", recId);
+    if (error) {
+      console.error("Erreur technique:", error);
+      if (previous) setRecommendations(prev => prev.map(r => r.id === recId ? previous : r));
+      toast.error("Erreur", { description: friendlyError(error) });
+    }
   };
 
   if (loading || recommendations.length === 0) return null;

@@ -218,7 +218,7 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
     setCompletionPct(response.completion_percentage || completionPct);
 
     // Save
-    await supabase.from("intake_questionnaires").upsert({
+    const { error: saveError } = await supabase.from("intake_questionnaires").upsert({
       program_id: programId,
       user_id: user!.id,
       messages: updatedMessages as any,
@@ -231,6 +231,10 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
       completed_at: response.is_complete ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     } as any, { onConflict: "program_id,user_id" });
+    if (saveError) {
+      console.error("Erreur technique:", saveError);
+      toast.error("Ta réponse n'a pas pu être sauvegardée. Réessaie si ça persiste.");
+    }
 
     // Save branding insights
     if (response.field_to_update && response.extracted_insights) {
@@ -238,11 +242,12 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
       if (table && field) {
         const tableName = table === "branding" ? "brand_profile" : table === "personas" ? "persona" : null;
         if (tableName) {
-          await supabase.from(tableName).upsert({
+          const { error: insightError } = await supabase.from(tableName).upsert({
             user_id: user!.id,
             [field]: Object.values(response.extracted_insights)[0],
             updated_at: new Date().toISOString(),
           } as any, { onConflict: "user_id" });
+          if (insightError) console.error("Erreur technique (insight branding):", insightError);
         }
       }
     }
