@@ -87,19 +87,13 @@
     // Peer de @axe-core/playwright, lui bien utilisé (e2e-visite/sonde.spec.ts).
     "axe-core",
 
-    // -- Dette 01/08/2026 : déclarées, jamais importées --
-    // Radix installés « au cas où » par shadcn, aucun composant ne s'en sert.
-    "@radix-ui/react-aspect-ratio",
-    "@radix-ui/react-context-menu",
-    "@radix-ui/react-hover-card",
-    "@radix-ui/react-menubar",
-    "@radix-ui/react-navigation-menu",
-    "@radix-ui/react-toast",
-    "@tailwindcss/typography",
-    "embla-carousel-react",
-    "input-otp",
-    "react-resizable-panels",
     // Orpheline depuis la suppression de ui/command.tsx (#673) — retrait en cours.
-    "cmdk"
+    "cmdk",
+
+    // -- Légitime, à garder --
+    // Invoqué en CLI (node_modules/.bin/jscpd) depuis e2e-visite/code-health.mjs
+    // (audit hebdo de duplication), jamais importé en JS — knip ne trace pas
+    // les appels via child_process.
+    "jscpd"
   ]
 }

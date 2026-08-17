@@ -121,7 +121,7 @@ Retourne ce JSON exactement :
 
     const model = getModelForAction("content");
     const usage: UsageSink = {};
-    const parsed: any = await callAnthropicToolSimple(model, systemPrompt, userPrompt, PALETTE_TOOL, 0.9, 2048, usage);
+    const parsed: any = await callAnthropicToolSimple(model, systemPrompt, userPrompt, PALETTE_TOOL, 0.9, 2048, usage, 60_000);
 
     // Garde de contenu : le schéma garantit la FORME, pas la présence — zéro
     // palette = inutilisable, erreur franche sans facturer.

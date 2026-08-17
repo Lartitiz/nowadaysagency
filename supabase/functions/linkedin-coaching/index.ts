@@ -179,8 +179,10 @@ Retourne UNIQUEMENT un JSON :
 
       const questionsUsage: UsageSink = {};
       let result;
+      let aiSucceeded = false;
       try {
-        result = await callAnthropicToolSimple(getModelForAction("coaching_light"), systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 2000, questionsUsage);
+        result = await callAnthropicToolSimple(getModelForAction("coaching_light"), systemPrompt, "Génère les questions personnalisées.", QUESTIONS_TOOL, 0.4, 2000, questionsUsage, 60_000);
+        aiSucceeded = true;
       } catch {
         result = {
           questions: baseQuestions.map((q, i) => ({ numero: i + 1, question: q, placeholder: "" })),
@@ -188,7 +190,9 @@ Retourne UNIQUEMENT un JSON :
         };
       }
 
-      await logUsage(user.id, "suggestion", "linkedin_coaching_questions", questionsUsage.total_tokens, questionsUsage.model, workspace_id);
+      if (aiSucceeded) {
+        await logUsage(user.id, "suggestion", "linkedin_coaching_questions", questionsUsage.total_tokens, questionsUsage.model, workspace_id);
+      }
       return new Response(JSON.stringify(result), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -257,7 +261,7 @@ Sois directe, bienveillante, et concrète. Pas de jargon. Tutoiement.`;
       const diagnosticUsage: UsageSink = {};
       let result;
       try {
-        result = await callAnthropicToolSimple(getModelForAction("coaching_light"), systemPrompt, "Génère ton diagnostic et tes propositions.", COACH_DIAG_TOOL, 0.5, 4000, diagnosticUsage);
+        result = await callAnthropicToolSimple(getModelForAction("coaching_light"), systemPrompt, "Génère ton diagnostic et tes propositions.", COACH_DIAG_TOOL, 0.5, 4000, diagnosticUsage, 60_000);
       } catch (e) {
         console.error("Failed to parse linkedin coaching diagnostic:", e);
         return new Response(JSON.stringify({ error: "Erreur lors de l'analyse. Réessaie." }), {

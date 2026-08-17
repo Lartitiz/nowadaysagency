@@ -124,6 +124,7 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
     if (profErr) console.error("Erreur mise à jour profil:", profErr);
 
     let attachedToExisting = false;
+    let workspaceIssue: string | null = null;
     if (createWorkspace) {
       // Look for an existing owner workspace for this client (oldest first)
       const { data: existingWs } = await supabase
@@ -169,14 +170,25 @@ export default function KickoffPreparation({ open, onOpenChange, coachUserId, on
           toast.warning("Programme créé, mais l'espace n'a pas pu être créé");
         } else if (ws) {
           // Add coach as manager FIRST (creator can bootstrap)
-          await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: coachUserId, role: "manager" } as any);
-          // Then add client as owner
-          await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
+          const { error: managerErr } = await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: coachUserId, role: "manager" } as any);
+          if (managerErr) {
+            console.error("Erreur ajout coach comme manager:", managerErr);
+            workspaceIssue = `l'espace a été créé mais ton accès manager a échoué (${managerErr.message})`;
+          } else {
+            // Then add client as owner
+            const { error: ownerErr } = await supabase.from("workspace_members").insert({ workspace_id: ws.id, user_id: clientUserId, role: "owner" } as any);
+            if (ownerErr) {
+              console.error("Erreur ajout cliente comme owner:", ownerErr);
+              workspaceIssue = `l'espace a été créé mais ${clientName} n'y a PAS accès (${ownerErr.message})`;
+            }
+          }
         }
       }
     }
 
-    if (attachedToExisting) {
+    if (workspaceIssue) {
+      toast.error(`Programme créé pour ${clientName}, mais ${workspaceIssue}. Réessaie avant de la prévenir.`);
+    } else if (attachedToExisting) {
       toast.success(`Programme créé · Tu as été ajoutée à l'espace existant de ${clientName} 🎉`);
     } else {
       toast.success("Programme créé pour " + clientName + " ! 🎉");

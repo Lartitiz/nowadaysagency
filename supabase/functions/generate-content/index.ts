@@ -667,7 +667,8 @@ FORMAT :
         userPrompt,
         0.85,
         2000,
-        weeklyUsage
+        weeklyUsage,
+        60_000
       );
 
       // Plus de fallback muet : une réponse illisible = erreur claire, sans débiter le quota.
@@ -691,7 +692,7 @@ FORMAT :
     const auditTypes = ["bio-audit"];
     const modelAction = auditTypes.includes(type) ? "audit" : "content";
     const genUsage: UsageSink = {};
-    let content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens, genUsage);
+    let content = await callAnthropicSimple(getModelForAction(modelAction), systemPrompt, userPrompt, 0.8, maxTokens, genUsage, modelAction === "audit" ? 120_000 : 60_000);
 
     // LinkedIn correction pass — shared CORRECTION_PROMPTS.linkedin (richer than the previous inline prompt)
     if (isLinkedinGeneration) {

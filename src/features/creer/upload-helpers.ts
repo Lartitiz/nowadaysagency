@@ -3,6 +3,8 @@
 // identique à l'origine, les dépendances (client supabase, userId, état) sont
 // désormais passées en paramètres au lieu d'être capturées par closure.
 
+import { toast } from "sonner";
+
 type UploadedPhoto = { base64?: string };
 type VisualSlide = { html: string; slide_number: number | string };
 
@@ -16,6 +18,7 @@ export async function uploadPhotosToStorage(
   if (!userId || uploadedPhotos.length === 0) return [];
 
   const urls: string[] = [];
+  let failedCount = 0;
   for (let i = 0; i < uploadedPhotos.length; i++) {
     const photo = uploadedPhotos[i];
     if (!photo.base64) continue;
@@ -36,6 +39,7 @@ export async function uploadPhotosToStorage(
 
     if (error) {
       console.error(`Failed to upload photo ${i + 1}:`, error);
+      failedCount++;
       continue;
     }
 
@@ -44,6 +48,14 @@ export async function uploadPhotosToStorage(
       .getPublicUrl(path);
 
     urls.push(urlData.publicUrl);
+  }
+  // Sans ce toast, une photo qui échoue à l'upload disparaissait sans que
+  // rien ne le signale — le post se sauvegardait quand même avec le message
+  // « Contenu sauvegardé ! » alors qu'il manquait une photo.
+  if (failedCount > 0) {
+    toast.warning(
+      `${failedCount} photo${failedCount > 1 ? "s n'ont" : " n'a"} pas pu être envoyée${failedCount > 1 ? "s" : ""} au calendrier.`,
+    );
   }
   return urls;
 }
@@ -64,6 +76,7 @@ export async function uploadVisualsToStorage(
 
   const urls: string[] = [];
   let done = 0;
+  let failedCount = 0;
   try {
     for (const vs of visualSlides) {
       container.innerHTML = vs.html;
@@ -91,6 +104,7 @@ export async function uploadVisualsToStorage(
 
       if (error) {
         console.error(`Failed to upload slide ${vs.slide_number}:`, error);
+        failedCount++;
       } else {
         const { data: urlData } = supabase.storage
           .from("calendar-visuals")
@@ -104,6 +118,11 @@ export async function uploadVisualsToStorage(
     }
   } finally {
     document.body.removeChild(container);
+  }
+  if (failedCount > 0) {
+    toast.warning(
+      `${failedCount} visuel${failedCount > 1 ? "s n'ont" : " n'a"} pas pu être généré${failedCount > 1 ? "s" : ""}.`,
+    );
   }
   return urls;
 }
@@ -148,6 +167,7 @@ export async function uploadPinterestVisualToStorage(
 
     if (error) {
       console.error("Failed to upload pinterest visual:", error);
+      toast.warning("Le visuel n'a pas pu être généré. Tu pourras le régénérer depuis le calendrier.");
       return [];
     }
 

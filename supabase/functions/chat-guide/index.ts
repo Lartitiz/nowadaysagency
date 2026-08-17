@@ -231,31 +231,41 @@ async function streamAnthropicSSE(
   messages: Array<{ role: string; content: string }>,
   temperature: number,
   maxTokens: number,
+  /** Plafond (ms) pour l'appel HTTP d'ouverture du stream — cf. _shared/anthropic-stream.ts. */
+  abortTimeoutMs?: number,
 ): Promise<ReadableStream> {
   // Opus 4.8/4.7 rejettent temperature ET un prefill (dernier tour assistant) → 400.
   // On retire les deux pour ces modèles (assistant_chat = Opus 4.8 depuis le Lot 2).
   const sampled = supportsTemperature(model);
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-      "anthropic-beta": "prompt-caching-2024-07-31",
-    },
-    body: JSON.stringify({
-      model,
-      system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
-      messages: sampled ? messages : stripTrailingAssistant(messages as any),
-      ...(sampled ? { temperature } : {}),
-      // Sonnet 5 : thinking ADAPTATIF quand le champ est omis → les blocs de
-      // réflexion consomment max_tokens sans text_delta (réponses vides/tronquées).
-      // No-op tant que assistant_chat = Opus 4.8 ; protège si le tier bascule.
-      ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
-      max_tokens: maxTokens,
-      stream: true,
-    }),
-  });
+  const ac = abortTimeoutMs ? new AbortController() : null;
+  const abortTimer = ac ? setTimeout(() => ac.abort(), abortTimeoutMs) : null;
+  let response: Response;
+  try {
+    response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+        "anthropic-beta": "prompt-caching-2024-07-31",
+      },
+      body: JSON.stringify({
+        model,
+        system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
+        messages: sampled ? messages : stripTrailingAssistant(messages as any),
+        ...(sampled ? { temperature } : {}),
+        // Sonnet 5 : thinking ADAPTATIF quand le champ est omis → les blocs de
+        // réflexion consomment max_tokens sans text_delta (réponses vides/tronquées).
+        // No-op tant que assistant_chat = Opus 4.8 ; protège si le tier bascule.
+        ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
+        max_tokens: maxTokens,
+        stream: true,
+      }),
+      signal: ac?.signal,
+    });
+  } finally {
+    if (abortTimer) clearTimeout(abortTimer);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
@@ -499,7 +509,7 @@ Règles pour les suggestions :
     const maxTokens = isContentRequest ? 2000 : 1000;
 
     const anthropicStream = await streamAnthropicSSE(
-      apiKey, model, systemPrompt, aiMessages, 0.7, maxTokens,
+      apiKey, model, systemPrompt, aiMessages, 0.7, maxTokens, 120_000,
     );
 
     // Transform Anthropic SSE into our own SSE format

@@ -158,6 +158,7 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
       messages,
       temperature: 0.6,
       max_tokens: 4096,
+      abortTimeoutMs: 120_000,
     }, usage);
 
     let result: any;

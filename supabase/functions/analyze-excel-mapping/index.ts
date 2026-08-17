@@ -132,7 +132,8 @@ Règles :
       MAPPING_TOOL,
       0.1,
       undefined,
-      usage
+      usage,
+      120_000
     );
 
     await logUsage(user.id, "import", "excel_mapping", usage.total_tokens, usage.model);

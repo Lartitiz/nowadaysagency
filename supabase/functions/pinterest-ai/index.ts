@@ -126,7 +126,7 @@ serve(async (req) => {
 
     systemPrompt = VOICE_PRIORITY + systemPrompt;
     const usage: UsageSink = {};
-    const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8, undefined, usage);
+    const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8, undefined, usage, 60_000);
     await logUsage(user.id, "content", "pinterest", usage.total_tokens, usage.model, workspace_id || undefined);
     return new Response(JSON.stringify({ content }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
   } catch (error: any) {

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Check, Loader2, MessageCircle } from "lucide-react";
@@ -26,6 +27,7 @@ interface Props {
 
 export function PostCommentsSection({ postId, ownerName }: Props) {
   const { user } = useAuth();
+  const { column: workspaceColumn, value: workspaceValue } = useWorkspaceFilter();
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(false);
   const [reply, setReply] = useState("");
@@ -53,12 +55,12 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
     if (!user) return;
     (supabase.from("calendar_shares") as any)
       .select("id")
-      .eq("user_id", user.id)
+      .eq(workspaceColumn, workspaceValue)
       .eq("is_active", true)
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data }: any) => setFallbackShareId(data?.[0]?.id ?? null));
-  }, [user]);
+  }, [user, workspaceColumn, workspaceValue]);
 
   if (!postId) return null;
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Gift, Loader2, CheckCircle } from "lucide-react";
+import { Gift, Loader2, CheckCircle, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
@@ -10,7 +10,7 @@ import { friendlyError } from "@/lib/error-messages";
 export default function PromoCodeInput() {
   const [code, setCode] = useState("");
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<{ plan: string; expires_at: string | null; code: string } | null>(null);
+  const [result, setResult] = useState<{ plan: string; expires_at: string | null; code: string; coachingSetupFailed?: boolean; warning?: string } | null>(null);
   const { refresh } = useUserPlan();
 
   const handleRedeem = async () => {
@@ -25,7 +25,11 @@ export default function PromoCodeInput() {
         toast.error("Erreur", { description: data.error });
       } else if (data?.success) {
         setResult(data);
-        toast.success("🎉 Code activé !");
+        if (data.coachingSetupFailed) {
+          toast.warning("Code activé, avec un souci technique", { description: data.warning });
+        } else {
+          toast.success("🎉 Code activé !");
+        }
         await refresh();
       }
     } catch (e: any) {
@@ -40,6 +44,20 @@ export default function PromoCodeInput() {
     const expiryLabel = result.expires_at
       ? new Date(result.expires_at).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })
       : "illimité";
+
+    if (result.coachingSetupFailed) {
+      return (
+        <div className="flex items-start gap-3 rounded-xl bg-[#FFF4E5] p-4">
+          <AlertTriangle className="h-5 w-5 text-[#B26A00] mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-[#B26A00]">Code activé, mais...</p>
+            <p className="text-sm text-[#B26A00]/80">
+              Tu as accès au plan {planLabel} jusqu'au {expiryLabel}. {result.warning}
+            </p>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="flex items-start gap-3 rounded-xl bg-[#E8F5E9] p-4">

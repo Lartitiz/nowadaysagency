@@ -159,6 +159,7 @@ serve(async (req) => {
       messages: [{ role: "user", content: userMessage }],
       temperature: 0.7,
       max_tokens: 2000,
+      abortTimeoutMs: 60_000,
     }, usage);
 
     // Parse JSON from response

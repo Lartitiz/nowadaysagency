@@ -202,6 +202,7 @@ LIMITES :
       messages: recentMessages,
       temperature: 0.8,
       max_tokens: 1024,
+      abortTimeoutMs: 120_000,
     }, usage);
 
     // Réponse vide (stop_reason anormal, content absent) : on NE facture PAS

@@ -1356,6 +1356,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
           messages: buildMessagesFor(finalUserPrompt + planBlock + chunkDirective(nums), photoIdx),
           temperature: 0.5,
           max_tokens: 8192,
+          abortTimeoutMs: 120_000,
           // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
           keepDashes: true,
         }, chunkUsage);
@@ -1449,6 +1450,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
         messages: buildMessagesFor(finalUserPrompt),
         temperature: 0.5,
         max_tokens: 16384,
+        abortTimeoutMs: 120_000,
         // Rendu verbatim : ne pas réécrire les tirets du texte source des slides.
         keepDashes: true,
       }, usage);
@@ -1528,6 +1530,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
             messages: [{ role: "user", content: fixContent }],
             temperature: 0.4,
             max_tokens: 16384,
+            abortTimeoutMs: 120_000,
             keepDashes: true,
           }, fixUsage);
           const fixCleaned = fixRaw.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
@@ -2237,6 +2240,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
           }],
           temperature: 0.7,
           max_tokens: 60,
+          abortTimeoutMs: 30_000,
         }, usage);
         const concept = (conceptRaw || "").replace(/["\n]/g, " ").trim().slice(0, 180) ||
           "a creative solopreneur working calmly in a cozy studio";

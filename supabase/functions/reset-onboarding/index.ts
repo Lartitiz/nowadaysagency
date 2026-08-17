@@ -283,9 +283,12 @@ Deno.serve(async (req) => {
 
     console.log(`[reset-onboarding] Done. Cleaned: ${tablesCleaned}, Errors: ${errors.length}`);
 
+    // Aligné sur le chemin brandingOnly (ligne ~194) : success reflète l'échec
+    // réel plutôt que de renvoyer true même quand `profiles.update` (marqué
+    // CRITICAL ci-dessus) a échoué.
     return new Response(
       JSON.stringify({
-        success: true,
+        success: errors.length === 0,
         tables_cleaned: tablesCleaned,
         errors: errors.length > 0 ? errors : undefined,
       }),

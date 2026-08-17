@@ -203,7 +203,8 @@ Si une section n'a pas de données, mets null pour cette clé. Pour les arrays v
       SUMMARY_TOOL,
       0.7,
       4096,
-      usage
+      usage,
+      60_000
     );
 
     // Save to cache (upsert)

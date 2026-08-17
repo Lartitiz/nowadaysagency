@@ -543,6 +543,7 @@ serve(async (req) => {
         messages: merged,
         temperature: 0.8,
         max_tokens: 2000,
+        abortTimeoutMs: 120_000,
       }, storyUsage);
 
       await logUsage(userId, "coach", "branding_coaching", storyUsage.total_tokens, storyUsage.model, workspace_id || undefined);
@@ -612,6 +613,7 @@ RÈGLES DE CONTENU :
         messages: merged,
         temperature: 0.5,
         max_tokens: 2000,
+        abortTimeoutMs: 120_000,
       }, personaFillUsage);
 
       await logUsage(userId, "coach", "branding_coaching", personaFillUsage.total_tokens, personaFillUsage.model, workspace_id || undefined);
@@ -693,6 +695,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
         messages: merged,
         temperature: 0.6,
         max_tokens: 2000,
+        abortTimeoutMs: 120_000,
       }, strategyFillUsage);
 
       await logUsage(userId, "coach", "branding_coaching", strategyFillUsage.total_tokens, strategyFillUsage.model, workspace_id || undefined);
@@ -778,6 +781,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       temperature: 0.7,
       max_tokens: 4096,
       tool: COACHING_TOOL,
+      abortTimeoutMs: 120_000,
     });
     rawResponse = aiResult.text;
     wasTruncated = aiResult.stop_reason === "max_tokens";
@@ -792,6 +796,7 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
         temperature: 0.7,
         max_tokens: 6000,
         tool: COACHING_TOOL,
+        abortTimeoutMs: 120_000,
       });
       rawResponse = retryResult.text;
       wasTruncated = retryResult.stop_reason === "max_tokens";

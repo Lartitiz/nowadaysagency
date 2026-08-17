@@ -87,17 +87,22 @@ Génère 3 commentaires DIFFÉRENTS en JSON :
       messages: [{ role: "user", content: userPrompt }],
       temperature: 0.8,
       max_tokens: 2048,
+      abortTimeoutMs: 60_000,
     }, usage);
 
     let result;
+    let aiSucceeded = false;
     try {
       const cleaned = raw.replace(/```json\s*/g, "").replace(/```/g, "").trim();
       result = JSON.parse(cleaned);
+      aiSucceeded = true;
     } catch {
       result = { comments: [], tip: raw };
     }
 
-    await logUsage(userId, "coach", "engagement_coaching", usage.total_tokens, usage.model, workspace_id);
+    if (aiSucceeded) {
+      await logUsage(userId, "coach", "engagement_coaching", usage.total_tokens, usage.model, workspace_id);
+    }
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
     });

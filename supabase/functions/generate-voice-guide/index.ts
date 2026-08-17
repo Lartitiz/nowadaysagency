@@ -114,7 +114,7 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
 
     const model = getModelForAction("voice");
     const usage: UsageSink = {};
-    const guide = await callAnthropicToolSimple(model, systemPrompt, contextText, GUIDE_TOOL, 0.7, 4096, usage);
+    const guide = await callAnthropicToolSimple(model, systemPrompt, contextText, GUIDE_TOOL, 0.7, 4096, usage, 60_000);
 
     // Upsert into voice_guides
     const { data: existing } = await serviceClient

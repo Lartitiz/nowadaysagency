@@ -185,6 +185,7 @@ Réponds UNIQUEMENT en JSON valide :
       model: getModelForAction("content"),
       messages,
       temperature: 0.8,
+      abortTimeoutMs: 60_000,
     }, usage);
     raw = raw.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim();
 

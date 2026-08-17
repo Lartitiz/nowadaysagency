@@ -140,7 +140,8 @@ Retourne UNIQUEMENT un JSON valide, sans texte avant ni après :
         DOC_EXTRACT_TOOL,
         0.3,
         2048,
-        usage
+        usage,
+        120_000
       );
     } catch (e) {
       console.error("analyze-documents: appel IA échoué:", e);
