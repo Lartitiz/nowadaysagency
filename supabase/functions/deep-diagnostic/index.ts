@@ -164,6 +164,108 @@ function stripMarkupFromSummary(result: Record<string, unknown>): Record<string,
   return { ...result, summary: summary.slice(0, m.index).trim() };
 }
 
+/**
+ * Phase 1 : diagnostic rapide (Sonnet) + décision de facturation.
+ *
+ * Extraite de serve() pour être testable : le serve() de std/http ouvre un
+ * vrai socket TCP au chargement du module, incompatible avec la CI
+ * (`deno test` sans --allow-net) — même contrainte que creative-flow, voir
+ * son index_test.ts.
+ *
+ * Règle projet : logUsage UNIQUEMENT après un succès IA réel. Quand le
+ * fallback générique est servi, `usageLog` vaut null et aucun crédit n'est
+ * débité (fix #843, régression couverte par index_test.ts).
+ */
+export async function runFastDiagnostic(opts: {
+  systemPrompt: string;
+  userPrompt: string;
+  instagramScreenshots: Array<{ mediaType: string; base64: string }>;
+  profile: any;
+  freeformAnswers: any;
+  sourcesUsed: string[];
+  userId: string;
+  workspaceId: string | null;
+  isOnboarding: boolean;
+}): Promise<{ analysisResult: Record<string, unknown>; usageLog: Promise<unknown> | null }> {
+  const { systemPrompt, userPrompt, instagramScreenshots, profile, freeformAnswers, sourcesUsed, userId, workspaceId, isOnboarding } = opts;
+
+  let analysisResult: Record<string, unknown>;
+  const diagUsage: UsageSink = {};
+  let aiSucceeded = false;
+
+  try {
+    const fastModel = getModelForAction("content"); // Sonnet — rapide
+
+    // Build user message content blocks for vision support
+    const userContentBlocks: any[] = [];
+    userContentBlocks.push({ type: "text", text: userPrompt });
+
+    // Add Instagram screenshots as vision
+    for (const screenshot of instagramScreenshots) {
+      userContentBlocks.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: screenshot.mediaType,
+          data: screenshot.base64,
+        },
+      });
+      userContentBlocks.push({
+        type: "text",
+        text: "Ci-dessus : capture d'écran du profil Instagram de cette personne. Analyse la bio, le nombre d'abonnés, la cohérence visuelle du feed, le nom affiché, et tout élément visible.",
+      });
+    }
+
+    // Sortie structurée par tool forcé : le JSON est valide par construction.
+    // (Cause du bug « domaine Mattioli » : en texte libre, une réponse riche
+    // dépassait max_tokens 2000 → JSON tronqué imparsable → fallback silencieux.
+    // Reproduit avec type "consultante" + site web analysé.)
+    const runDiagnosticCall = async (extraInstruction?: string) => {
+      const blocks = extraInstruction
+        ? [...userContentBlocks, { type: "text", text: extraInstruction }]
+        : userContentBlocks;
+      const rawText = await callAnthropic({
+        model: fastModel,
+        system: systemPrompt,
+        messages: [{ role: "user", content: blocks }],
+        temperature: instagramScreenshots.length > 0 ? 0.6 : 0.7,
+        max_tokens: 4000,
+        tool: DIAGNOSTIC_TOOL,
+      }, diagUsage);
+      return robustJsonParse(rawText);
+    };
+
+    analysisResult = await runDiagnosticCall();
+
+    // Le tool forcé garantit le TRANSPORT (JSON valide), pas le contenu :
+    // vu en prod le 26/07, le modèle peut fourrer toute sa réponse en
+    // pseudo-XML dans le seul champ `summary` et laisser les tableaux vides
+    // (affichage de balises brutes + score 0). Un réessai avec consigne
+    // corrective suffit (raté stochastique) ; sinon → fallback honnête.
+    if (isDegenerateDiagnostic(analysisResult)) {
+      console.warn("Degenerate tool output (XML-in-summary / empty arrays) — retrying once");
+      analysisResult = await runDiagnosticCall(
+        "⚠️ ATTENTION : ta précédente réponse était invalide. Remplis CHAQUE champ du tool séparément : `summary` = 3-4 phrases de texte pur SANS AUCUNE balise <...>, `strengths`/`weaknesses`/`priorities` = tableaux remplis conformément au schéma. N'écris JAMAIS de XML dans un champ texte."
+      );
+    }
+    if (isDegenerateDiagnostic(analysisResult)) {
+      throw new Error("Sortie IA dégénérée après réessai (XML dans summary ou sections vides)");
+    }
+    analysisResult = stripMarkupFromSummary(analysisResult);
+    aiSucceeded = true;
+  } catch (claudeError) {
+    console.error("Claude fast diagnostic failed, using fallback:", claudeError);
+    analysisResult = buildFallbackDiagnostic(profile, freeformAnswers, sourcesUsed);
+  }
+
+  const usageLog = !isOnboarding && aiSucceeded
+    ? logUsage(userId, "audit", "deep_diagnostic", diagUsage.total_tokens, diagUsage.model, workspaceId)
+        .catch(e => console.error("logUsage failed:", e))
+    : null;
+
+  return { analysisResult, usageLog };
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -571,74 +673,19 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     }
 
     // ====== CALL CLAUDE — PHASE 1 : Diagnostic rapide (Sonnet) ======
-    let analysisResult: Record<string, unknown>;
-    const diagUsage: UsageSink = {};
-    let aiSucceeded = false;
-
-    try {
-      const fastModel = getModelForAction("content"); // Sonnet — rapide
-
-      // Build user message content blocks for vision support
-      const userContentBlocks: any[] = [];
-      userContentBlocks.push({ type: "text", text: userPrompt });
-
-      // Add Instagram screenshots as vision
-      for (const screenshot of instagramScreenshots) {
-        userContentBlocks.push({
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: screenshot.mediaType,
-            data: screenshot.base64,
-          },
-        });
-        userContentBlocks.push({
-          type: "text",
-          text: "Ci-dessus : capture d'écran du profil Instagram de cette personne. Analyse la bio, le nombre d'abonnés, la cohérence visuelle du feed, le nom affiché, et tout élément visible.",
-        });
-      }
-
-      // Sortie structurée par tool forcé : le JSON est valide par construction.
-      // (Cause du bug « domaine Mattioli » : en texte libre, une réponse riche
-      // dépassait max_tokens 2000 → JSON tronqué imparsable → fallback silencieux.
-      // Reproduit avec type "consultante" + site web analysé.)
-      const runDiagnosticCall = async (extraInstruction?: string) => {
-        const blocks = extraInstruction
-          ? [...userContentBlocks, { type: "text", text: extraInstruction }]
-          : userContentBlocks;
-        const rawText = await callAnthropic({
-          model: fastModel,
-          system: systemPrompt,
-          messages: [{ role: "user", content: blocks }],
-          temperature: instagramScreenshots.length > 0 ? 0.6 : 0.7,
-          max_tokens: 4000,
-          tool: DIAGNOSTIC_TOOL,
-        }, diagUsage);
-        return robustJsonParse(rawText);
-      };
-
-      analysisResult = await runDiagnosticCall();
-
-      // Le tool forcé garantit le TRANSPORT (JSON valide), pas le contenu :
-      // vu en prod le 26/07, le modèle peut fourrer toute sa réponse en
-      // pseudo-XML dans le seul champ `summary` et laisser les tableaux vides
-      // (affichage de balises brutes + score 0). Un réessai avec consigne
-      // corrective suffit (raté stochastique) ; sinon → fallback honnête.
-      if (isDegenerateDiagnostic(analysisResult)) {
-        console.warn("Degenerate tool output (XML-in-summary / empty arrays) — retrying once");
-        analysisResult = await runDiagnosticCall(
-          "⚠️ ATTENTION : ta précédente réponse était invalide. Remplis CHAQUE champ du tool séparément : `summary` = 3-4 phrases de texte pur SANS AUCUNE balise <...>, `strengths`/`weaknesses`/`priorities` = tableaux remplis conformément au schéma. N'écris JAMAIS de XML dans un champ texte."
-        );
-      }
-      if (isDegenerateDiagnostic(analysisResult)) {
-        throw new Error("Sortie IA dégénérée après réessai (XML dans summary ou sections vides)");
-      }
-      analysisResult = stripMarkupFromSummary(analysisResult);
-      aiSucceeded = true;
-    } catch (claudeError) {
-      console.error("Claude fast diagnostic failed, using fallback:", claudeError);
-      analysisResult = buildFallbackDiagnostic(profile, freeformAnswers, sourcesUsed);
-    }
+    // Logique + décision de facturation extraites dans runFastDiagnostic
+    // (exportée pour les tests de régression crédit, voir index_test.ts).
+    const { analysisResult, usageLog } = await runFastDiagnostic({
+      systemPrompt,
+      userPrompt,
+      instagramScreenshots,
+      profile,
+      freeformAnswers,
+      sourcesUsed,
+      userId,
+      workspaceId,
+      isOnboarding: !!isOnboarding,
+    });
 
     // ====== SAVE TO DB (fast: only diagnostic essentials) ======
     const { data: savedDiag } = await supabaseAdmin
@@ -677,11 +724,10 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       );
     }
 
-    if (!isOnboarding && aiSucceeded) {
-      fastSaves.push(
-        logUsage(userId, "audit", "deep_diagnostic", diagUsage.total_tokens, diagUsage.model, workspaceId)
-          .catch(e => console.error("logUsage failed:", e))
-      );
+    // Crédit débité UNIQUEMENT si l'IA a réellement répondu (usageLog est null
+    // sur le chemin fallback et pendant l'onboarding — voir runFastDiagnostic).
+    if (usageLog) {
+      fastSaves.push(usageLog);
     }
 
     await Promise.allSettled(fastSaves);
