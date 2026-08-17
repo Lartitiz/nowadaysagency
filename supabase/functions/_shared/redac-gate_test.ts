@@ -212,3 +212,70 @@ Deno.test("fixElisionsInFields : mutation en place des champs texte", async () =
   assertEquals(obj.content, "l'avant/après");
   assertEquals(obj.accroche, null);
 });
+
+// ── Cohérence des durées slides ↔ caption (bilan hebdo 17/08/2026) ──
+
+Deno.test("durées : attrape le cas réel « trois semaines » vs « un mois »", async () => {
+  const { analyzeCarouselRedac, redacViolations, redacScore } = await import("./redac-gate.ts");
+  // Contenu RÉEL de la semaine du 17/08 (carrousel before_after), noté 100/100
+  // par le gate alors que la slide 2 et la légende se contredisent.
+  const doc = {
+    slides: [
+      { slide_number: 1, title: "La même pièce. Deux vérités." },
+      { slide_number: 2, title: "Trois semaines sans visite, puis tout a changé" },
+      { slide_number: 3, title: "Je n'ai rien décoré" },
+    ],
+    caption: { body: "Un mois entre les deux photos. Aucun mur déplacé, aucune rénovation." },
+  };
+  const a = analyzeCarouselRedac(doc);
+  assertEquals(a.durationConflicts.length, 1);
+  assertEquals(a.durationConflicts[0], 'slides « Trois semaines » vs légende « Un mois »');
+  assertEquals(redacViolations(a), 1);
+  assertEquals(redacScore(a), 90); // et non plus 100
+});
+
+Deno.test("durées : la même durée des deux côtés ne déclenche rien", async () => {
+  const { analyzeCarouselRedac } = await import("./redac-gate.ts");
+  const a = analyzeCarouselRedac({
+    slides: [{ slide_number: 1, title: "Trois semaines de chantier" }],
+    caption: { body: "3 semaines entre les deux photos, et un an de recul depuis." },
+  });
+  assertEquals(a.durationConflicts, []);
+});
+
+Deno.test("durées : ordres de grandeur éloignés = sujets différents, on se tait", async () => {
+  const { analyzeCarouselRedac } = await import("./redac-gate.ts");
+  const a = analyzeCarouselRedac({
+    slides: [{ slide_number: 1, title: "Deux minutes pour comprendre" }],
+    caption: { body: "Dix ans que je fais ce métier." },
+  });
+  assertEquals(a.durationConflicts, []);
+});
+
+Deno.test("durées : rien d'un seul côté = rien à comparer", async () => {
+  const { analyzeCarouselRedac } = await import("./redac-gate.ts");
+  assertEquals(
+    analyzeCarouselRedac({
+      slides: [{ slide_number: 1, title: "Deux semaines de chantier" }],
+      caption: { body: "Aucun mur déplacé." },
+    }).durationConflicts,
+    [],
+  );
+  assertEquals(
+    analyzeCarouselRedac({
+      slides: [{ slide_number: 1, title: "Rien à signaler" }],
+      caption: { body: "Un mois plus tard." },
+    }).durationConflicts,
+    [],
+  );
+});
+
+Deno.test("durées : un écart chiffré/lettres est vu aussi dans l'autre sens", async () => {
+  const { analyzeCarouselRedac } = await import("./redac-gate.ts");
+  // Le nombre en LETTRES est le trou d'origine : NUMBER_TOKEN ne voit que \d.
+  const a = analyzeCarouselRedac({
+    slides: [{ slide_number: 1, title: "6 semaines de recul" }],
+    caption: { body: "Deux mois après, le constat est le même." },
+  });
+  assertEquals(a.durationConflicts.length, 1);
+});

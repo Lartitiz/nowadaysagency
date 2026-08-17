@@ -48,3 +48,26 @@ Deno.test("un modèle vraiment inconnu crie ; le rendu par code non", () => {
   // continuer à crier : une ligne sans modèle n'est plus attribuable.
   assertEquals(nonTarifes(["inconnu"]), ["inconnu"]);
 });
+
+/**
+ * Modèle Recraft pilotable par secret (bilan hebdo 17/08/2026) — le piège est
+ * le vectoriel : en V3 il s'obtient par `style`, en V4 c'est un modèle À PART.
+ * Un simple « recraftv4 » sortirait du raster là où le code attend du SVG.
+ */
+Deno.test("recraftModel : défaut V3 inchangé, et V4 bascule sur le modèle vectoriel", async () => {
+  const { recraftModel } = await import("./recraft-illustration.ts");
+
+  Deno.env.delete("RECRAFT_MODEL");
+  assertEquals(recraftModel(true), "recraftv3");
+  assertEquals(recraftModel(false), "recraftv3");
+
+  Deno.env.set("RECRAFT_MODEL", "recraftv4");
+  assertEquals(recraftModel(true), "recraftv4_vector");
+  assertEquals(recraftModel(false), "recraftv4");
+
+  // Une valeur déjà explicite est respectée telle quelle (pas de double mappage).
+  Deno.env.set("RECRAFT_MODEL", "recraftv4_vector");
+  assertEquals(recraftModel(true), "recraftv4_vector");
+
+  Deno.env.delete("RECRAFT_MODEL");
+});

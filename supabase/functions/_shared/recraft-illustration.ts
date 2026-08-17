@@ -12,6 +12,27 @@ const RECRAFT_URL = "https://external.api.recraft.ai/v1/images/generations";
 const RECRAFT_TIMEOUT_MS = 60_000;
 const RETRY_DELAY_MS = 2_000;
 
+/**
+ * Modèle Recraft, pilotable par secret — même patron que `AI_MODEL_SONNET` pour
+ * la bascule Sonnet 5 : on change de modèle SANS redéployer, et on revient en
+ * arrière en SUPPRIMANT le secret.
+ *
+ * Par défaut `recraftv3` = comportement inchangé. Recraft V4 (fév. 2026) puis
+ * V4.1 (mai 2026) sont sortis et l'app est restée en V3 (item ouvert aux bilans
+ * hebdo des 03/08 et 17/08) — mais un changement de modèle d'image se JUGE sur
+ * le rendu, pas sur le papier : le fond matière et la couverture ont été calés
+ * finement en V3. D'où ce réglage, qui permet un A/B réel avant de trancher.
+ *
+ * ⚠️ En V4, le vectoriel est un modèle À PART (`recraftv4_vector`), là où V3
+ * l'obtenait via `style: "vector_illustration"` — d'où le mappage ci-dessous,
+ * sinon un simple « recraftv4 » sortirait du raster et casserait le SVG attendu.
+ */
+export function recraftModel(wantsVector: boolean): string {
+  const configured = (Deno.env.get("RECRAFT_MODEL") || "recraftv3").trim();
+  if (wantsVector && configured === "recraftv4") return "recraftv4_vector";
+  return configured;
+}
+
 export type Rgb = [number, number, number];
 
 export function hexToRgb(hex: string): Rgb | null {
@@ -48,7 +69,7 @@ export async function fetchRecraftIllustrationSvg(
     prompt,
     negative_prompt:
       "text, letters, numbers, words, watermark, frame, border, photorealistic, 3d, harsh shadows",
-    model: "recraftv3",
+    model: recraftModel(true),
     style: "vector_illustration",
     substyle,
     size: "1024x1024",
