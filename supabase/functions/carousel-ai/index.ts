@@ -19,6 +19,7 @@ import { buildSeriesContext } from "../_shared/series-context.ts";
 import { extractImagePayload } from "../_shared/image-utils.ts";
 import { mergeConfirmedStructure, normalizePhotoIndexes, countCarouselSlides, maxStructurePhotoIndex, normalizeOverlayStyles, analyzeMixComposition } from "../_shared/photo-slide-structure.ts";
 import { assignPhotoTemplates, assignTemplatesToProvidedSlides } from "../_shared/photo-template-assign.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 // ── Sortie structurée pour les deepening_questions ──
 // Même pattern que creative-flow (#359) : le tool forcé (tool_choice) fait
@@ -404,8 +405,7 @@ function carouselMismatchResponse(
   label: string,
   corsHeaders: Record<string, string>,
 ): Response | null {
-  let parsed: any = null;
-  try { parsed = JSON.parse(content); } catch { /* théoriquement impossible : tool forcé */ }
+  const parsed: any = tryParseAiJson(content, "carousel-ai:mismatch-check"); // théoriquement impossible d'échouer : tool forcé
   const hasSlides = Array.isArray(parsed?.slides) && parsed.slides.length > 0;
   if (hasSlides) return null;
   const mismatchReason = typeof parsed?.photo_mismatch?.reason === "string"
@@ -1328,13 +1328,7 @@ Propose la structure optimale.`;
   }
 
   // PAS de logUsage — cet appel est gratuit
-  let structureResult;
-  try {
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    structureResult = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-  } catch {
-    structureResult = null;
-  }
+  const structureResult: any = tryParseAiJson(content, "carousel-ai:structure_proposal");
 
   // Refus structuré : mêmes symptômes possibles que sur la génération (l'IA
   // voit les photos en vision) — sans ce chemin, un photo_mismatch partait
