@@ -47,6 +47,35 @@ describe("HubConnectBanner — compte déconnecté", () => {
   });
 });
 
+// Mode groupé (regard du 17/08) : le calendrier empilait DEUX bandeaux pleine
+// largeur qui, à eux seuls, remplissaient le premier écran au doigt. Un seul
+// encart couvre désormais les réseaux manquants — sans jamais nommer un réseau
+// déjà connecté (ce serait un faux « déconnecté »).
+describe("HubConnectBanner — plusieurs réseaux", () => {
+  it("réunit les deux réseaux manquants dans UN seul encart", () => {
+    const { container } = render(<HubConnectBanner platform={["instagram", "linkedin"]} />);
+    expect(screen.getByText(/Instagram et LinkedIn/)).toBeInTheDocument();
+    const links = screen.getAllByRole("link", { name: /Connecter mes comptes/ });
+    expect(links).toHaveLength(1);
+    expect(links[0]).toHaveAttribute("href", "/parametres/connexions");
+    // Un seul encart rendu, pas deux empilés.
+    expect(container.querySelectorAll("a")).toHaveLength(1);
+  });
+
+  it("retombe sur le message détaillé quand un seul réseau manque", () => {
+    mocks.social.connectedMap = { instagram: true };
+    render(<HubConnectBanner platform={["instagram", "linkedin"]} />);
+    expect(screen.getByRole("link", { name: /Connecter LinkedIn/ })).toBeInTheDocument();
+    expect(screen.queryByText(/Instagram/)).not.toBeInTheDocument();
+  });
+
+  it("disparaît quand les deux réseaux sont connectés", () => {
+    mocks.social.connectedMap = { instagram: true, linkedin: true };
+    const { container } = render(<HubConnectBanner platform={["instagram", "linkedin"]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+});
+
 describe("HubConnectBanner — pas de faux négatif", () => {
   it("ne s'affiche pas quand le compte est déjà connecté", () => {
     mocks.social.connectedMap = { instagram: true };

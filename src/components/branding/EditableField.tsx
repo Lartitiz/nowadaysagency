@@ -124,11 +124,11 @@ export default function EditableField({
         <p className="text-muted-foreground/50 text-sm italic">
           Pas encore renseigné ·{" "}
           {onStartCoaching ? (
-            <button onClick={onStartCoaching} className="text-primary hover:underline">
+            <button onClick={onStartCoaching} className="text-primary-text hover:underline">
               Compléter avec le coaching
             </button>
           ) : (
-            <button onClick={() => setIsEditing(true)} className="text-primary hover:underline">
+            <button onClick={() => setIsEditing(true)} className="text-primary-text hover:underline">
               Remplir manuellement
             </button>
           )}

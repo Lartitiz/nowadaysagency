@@ -55,7 +55,7 @@ const STATUS_OPTIONS = [
 const OBJECTIF_OPTIONS = [
   { id: "visibilite", label: "Visibilité", icon: Search, bg: "bg-[#EDE9FE]", text: "text-[#7C3AED]" },
   { id: "confiance", label: "Confiance", icon: Heart, bg: "bg-[#FFF9DB]", text: "text-[#92400E]" },
-  { id: "vente", label: "Vente", icon: ShoppingCart, bg: "bg-rose-pale", text: "text-primary" },
+  { id: "vente", label: "Vente", icon: ShoppingCart, bg: "bg-rose-pale", text: "text-primary-text" },
   { id: "credibilite", label: "Crédibilité", icon: GraduationCap, bg: "bg-[#F0E4EC]", text: "text-[#6B5E7B]" },
 ];
 

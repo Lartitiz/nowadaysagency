@@ -80,7 +80,11 @@ export default function PinterestHub() {
                 <span className="text-2xl mb-3 block">{card.emoji}</span>
                 <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                <span className="mt-3 inline-block font-mono-ui text-2xs font-semibold text-primary bg-rose-pale px-2.5 py-0.5 rounded-pill">{card.tag}</span>
+                {/* Même garde que /site : 4 des 7 cartes n'ont pas de tag et
+                    affichaient une pastille rose VIDE (regard du 17/08). */}
+                {card.tag && (
+                  <span className="mt-3 inline-block font-mono-ui text-2xs font-semibold text-primary-text bg-rose-pale px-2.5 py-0.5 rounded-pill">{card.tag}</span>
+                )}
               </Link>
             );
           })}
