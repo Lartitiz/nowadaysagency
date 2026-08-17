@@ -1,6 +1,4 @@
-import { toast } from "sonner";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { handleQuotaError } from "@/lib/quota-error-handler";
+import { generatePinterestVisual, generatePinterestPhotoBrief } from "@/features/creer/pinterest-generation";
 
 interface UseSelectInspirationProposalParams {
   pinterestVisualGenerating: boolean;
@@ -55,81 +53,46 @@ export function useSelectInspirationProposal({
 
     if (proposal.recommended_output === "visual") {
       // CHEMIN A : génération visuelle (pinterest-visual avec référence)
-      setStep("result");
-      setPinterestPinHtml(null);
-      setPinterestVisualGenerating(true);
-      try {
-        const { data, error: fnError } = await invokeWithTimeout("pinterest-visual", {
-          body: {
-            subject: proposal.subject,
-            pin_type: proposal.pin_type,
-            reference_image_base64: inspirationImageBase64,
-            pinterest_link: pinterestData?.link,
-            pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-          },
-        }, 180000);
-        if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
-        const r = data?.result;
-        setPinterestPinHtml(r?.pin_html || null);
-        setSelectedFormat("pinterest_visual");
-        setResult({
-          type: "pinterest_visual" as any,
-          raw: {
-            pin_html: r?.pin_html,
-            title: r?.title,
-            description: r?.description,
-            pin_data: r?.pin_data,
-          },
-        });
-        setIdeaText(proposal.subject);
-      } catch (e: any) {
-        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
-        else toast.error(e?.message || "Erreur lors de la génération du visuel");
-      } finally {
-        setPinterestVisualGenerating(false);
-      }
+      await generatePinterestVisual({
+        subject: proposal.subject,
+        pinType: proposal.pin_type,
+        referenceImageBase64: inspirationImageBase64,
+        alwaysSendReferenceImage: true,
+        timeoutMs: 180000,
+        errorFallbackMessage: "Erreur lors de la génération du visuel",
+        pinterestData,
+        workspaceId,
+        session,
+        markQuotaExhausted,
+        setStep,
+        setResult,
+        setPinterestVisualGenerating,
+        setPinterestPinHtml,
+        beforeSetResult: () => setSelectedFormat("pinterest_visual"),
+        afterSetResult: () => setIdeaText(proposal.subject),
+      });
 
     } else {
       // CHEMIN B : brief photo + overlay
-      setStep("result");
-      setPhotoBriefOverlayHtml(null);
-      setPinterestVisualGenerating(true);
-      try {
-        const { data, error: fnError } = await invokeWithTimeout("pinterest-photo-brief", {
-          body: {
-            subject: proposal.subject,
-            reference_image_base64: inspirationImageBase64,
-            pin_type: proposal.pin_type,
-            brief_hint: proposal.brief,
-            pinterest_link: pinterestData?.link,
-            pinterest_board: pinterestData?.boardName,
-            workspace_id: workspaceId !== session.user.id ? workspaceId : undefined,
-          },
-        }, 180000);
-        if (fnError) throw fnError;
-        if (data?.error) throw new Error(data.error);
-        const r = data?.result;
-        setPhotoBriefOverlayHtml(r?.overlay_html || null);
-        setPhotoBriefResult(r);
-        setSelectedFormat("pinterest_photo");
-        setResult({
-          type: "pinterest_photo" as any,
-          raw: {
-            overlay_html: r?.overlay_html,
-            photo_brief: r?.photo_brief,
-            title: r?.title,
-            description: r?.description,
-          },
-        });
-        setIdeaText(proposal.subject);
-      } catch (e: any) {
-        if (handleQuotaError(e)) markQuotaExhausted(e); // step="result" sans résultat : dire quota, pas « Session expirée »
-        else toast.error(e?.message || "Erreur lors de la génération du brief");
-      } finally {
-        setPinterestVisualGenerating(false);
-      }
+      await generatePinterestPhotoBrief({
+        subject: proposal.subject,
+        pinType: proposal.pin_type,
+        briefHint: proposal.brief,
+        referenceImageBase64: inspirationImageBase64,
+        alwaysSendReferenceImage: true,
+        timeoutMs: 180000,
+        pinterestData,
+        workspaceId,
+        session,
+        markQuotaExhausted,
+        setStep,
+        setResult,
+        setPinterestVisualGenerating,
+        setPhotoBriefOverlayHtml,
+        setPhotoBriefResult,
+        beforeSetResult: () => setSelectedFormat("pinterest_photo"),
+        afterSetResult: () => setIdeaText(proposal.subject),
+      });
     }
   };
 
