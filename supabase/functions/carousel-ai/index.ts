@@ -207,6 +207,31 @@ const PHOTO_MISMATCH_FIELD = {
   required: ["reason"],
 };
 
+// Rappel des motifs de refus interdits, injecté dans le message SYSTEM des trois
+// chemins vision (mix, photo, structure_proposal). La description du tool ne
+// suffit pas : observé 3× en live le 17/08 (fixtures e2e + branding savonnerie),
+// le modèle refusait pour « univers de marque », « esthétique glamour » et « ne
+// montrent ni toi » — trois motifs que PHOTO_MISMATCH_FIELD interdit déjà. Il
+// décide de refuser en lisant brief + CONTEXTE BRANDING dans le system, et ne
+// rencontre l'interdit du tool qu'au moment de remplir le champ : trop tard.
+// Le seuil de refus lui-même ne bouge pas (#488) : un vrai hors-sujet (le brief
+// promet de MONTRER une chose que les photos contredisent) doit toujours être
+// refusé — avec description utilisateur la garde laissait déjà passer, le bug
+// n'existait QUE sans description.
+const PHOTO_MISMATCH_SYSTEM_REMINDER = `
+
+══════════════════════════════════════
+PHOTOS FOURNIES — TU GÉNÈRES, TU NE JUGES PAS
+══════════════════════════════════════
+L'utilisatrice a choisi ses photos délibérément : PAR DÉFAUT tu génères avec.
+Le refus (photo_mismatch) est un DERNIER RECOURS, réservé au SEUL cas où le brief promet de MONTRER une chose précise (un lieu, un objet, un processus) que les photos contredisent frontalement.
+NE SONT JAMAIS des motifs de refus :
+- un décalage d'ambiance, de style ou d'esthétique (« trop glamour », « trop sombre »…) ;
+- un décalage avec l'univers, l'activité ou le positionnement de la marque — le CONTEXTE BRANDING sert à écrire les textes, PAS à juger les photos ;
+- l'identité des personnes photographiées : tu ne peux pas savoir si c'est l'utilisatrice ou non ;
+- une couverture partielle du sujet (la photo ne montre qu'une étape, un moment, un aspect) : la photo se répète et les textes portent le reste.
+Si l'utilisatrice a décrit ses photos, sa description fait foi sur ce qu'elles montrent et pourquoi elle les a choisies. Si tu hésites, génère.`;
+
 const MIX_CAROUSEL_TOOL = {
   name: "livrer_carrousel_mixte",
   description:
@@ -938,7 +963,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 
     doGenerate = (sink: UsageSink) => _deps.callAnthropic({
       model: pickCarouselModel(body),
-      system: systemPrompt + "\n\n" + mixPrompt,
+      system: systemPrompt + "\n\n" + mixPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
       max_tokens: 8192,
       temperature: 0.85,
@@ -1069,7 +1094,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
 
     doGenerate = (sink: UsageSink) => _deps.callAnthropic({
       model: pickCarouselModel(body),
-      system: systemPrompt + "\n\n" + photoPrompt,
+      system: systemPrompt + "\n\n" + photoPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
       max_tokens: 8192,
       temperature: 0.85,
@@ -1332,7 +1357,7 @@ Propose la structure optimale.`;
     });
     content = await _deps.callAnthropic({
       model: getModelForAction("content"),
-      system: structureSystemPrompt,
+      system: structureSystemPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
       max_tokens: 3000,
       tool: STRUCTURE_PROPOSAL_TOOL,
