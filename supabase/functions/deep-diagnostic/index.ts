@@ -573,6 +573,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
     // ====== CALL CLAUDE — PHASE 1 : Diagnostic rapide (Sonnet) ======
     let analysisResult: Record<string, unknown>;
     const diagUsage: UsageSink = {};
+    let aiSucceeded = false;
 
     try {
       const fastModel = getModelForAction("content"); // Sonnet — rapide
@@ -633,6 +634,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
         throw new Error("Sortie IA dégénérée après réessai (XML dans summary ou sections vides)");
       }
       analysisResult = stripMarkupFromSummary(analysisResult);
+      aiSucceeded = true;
     } catch (claudeError) {
       console.error("Claude fast diagnostic failed, using fallback:", claudeError);
       analysisResult = buildFallbackDiagnostic(profile, freeformAnswers, sourcesUsed);
@@ -675,7 +677,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       );
     }
 
-    if (!isOnboarding) {
+    if (!isOnboarding && aiSucceeded) {
       fastSaves.push(
         logUsage(userId, "audit", "deep_diagnostic", diagUsage.total_tokens, diagUsage.model, workspaceId)
           .catch(e => console.error("logUsage failed:", e))
