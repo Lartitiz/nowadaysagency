@@ -45,7 +45,9 @@ export default function CreerStepEdit({ content, format, onSave, onBack, onCopy,
           content: editedContent,
           adjustment: adjustmentId,
         },
-      }, 60000);
+        // Budget serveur : appel unique borné à 60s (audit latences 17/08) — le
+        // timeout client doit rester au-dessus pour ne pas courir avec le filet serveur.
+      }, 90000);
       if (error) throw new Error(error.message);
 
       const adjusted = typeof data === "string" ? data : data?.content || data?.text || data?.adjusted || editedContent;

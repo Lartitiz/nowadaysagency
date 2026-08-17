@@ -21,6 +21,13 @@ export interface CorrectionOptions {
    * latence (carrousel qualité normale) passent Haiku, ~2x plus rapide.
    */
   model?: AnthropicModel;
+  /**
+   * Plafond (ms) PAR TENTATIVE de l'appel de correction. undefined = pas de
+   * limite (comportement historique). À renseigner par les appelants dont la
+   * passe de génération principale est déjà bornée, pour éviter qu'une passe
+   * de correction enchaînée derrière reste le seul appel sans filet.
+   */
+  abortTimeoutMs?: number;
 }
 
 // ── Scan déterministe « faut-il corriger ? » (audit photo 22/07) ──────────────
@@ -660,7 +667,7 @@ export async function applyCorrectionPass(
   format: CorrectionFormat,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 200, enabled = true, logger, model, extraInstructions } = options;
+  const { skipIfShorterThan = 200, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:${format}] SKIPPED (disabled)`);
@@ -688,7 +695,9 @@ export async function applyCorrectionPass(
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
         : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`,
       0.3,
-      4096
+      4096,
+      undefined,
+      abortTimeoutMs
     );
 
     if (!corrected || corrected.length < skipIfShorterThan) {
@@ -714,7 +723,7 @@ export async function applyCorrectionPassCarousel(
   jsonContent: string,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions } = options;
+  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:carousel-json] SKIPPED (disabled)`);
@@ -754,7 +763,9 @@ export async function applyCorrectionPassCarousel(
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
         : `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
       0.3,
-      4096
+      4096,
+      undefined,
+      abortTimeoutMs
     );
 
     if (!correctedBlock || correctedBlock.length < 100) {
@@ -793,7 +804,7 @@ export async function applyCorrectionPassReel(
   parsedReel: unknown,
   options: CorrectionOptions = {},
 ): Promise<unknown> {
-  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions } = options;
+  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:reel-json] SKIPPED (disabled)`);
@@ -818,6 +829,8 @@ export async function applyCorrectionPassReel(
         : `Voici les textes du reel à corriger :\n\n${textBlock}`,
       0.3,
       4096,
+      undefined,
+      abortTimeoutMs,
     );
 
     if (!correctedBlock || correctedBlock.length < 100 || !correctedBlock.includes("[SECTION 1")) {
