@@ -8257,6 +8257,16 @@ export type Database = {
     }
     Functions: {
       consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
+      create_coaching_program_full: {
+        Args: {
+          p_client_user_id: string
+          p_coach_user_id: string
+          p_end_date: string
+          p_start_date: string
+          p_whatsapp_link: string
+        }
+        Returns: string
+      }
       delete_workspace_with_cleanup: {
         Args: { _workspace_id: string }
         Returns: undefined
@@ -8286,6 +8296,16 @@ export type Database = {
         Returns: undefined
       }
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
+      redeem_promo_and_grant_plan: {
+        Args: {
+          p_display_plan: string
+          p_expires_at: string
+          p_promo_id: string
+          p_raw_plan: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       trigger_email_event: { Args: { _event: string }; Returns: undefined }
       trigger_publish_due_posts: { Args: never; Returns: undefined }
       trigger_stats_monthly_snapshot: { Args: never; Returns: undefined }
