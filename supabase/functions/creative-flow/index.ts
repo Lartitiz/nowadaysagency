@@ -7,7 +7,7 @@ import { validateInput, ValidationError, clampAiField } from "../_shared/input-v
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink } from "../_shared/anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, AnthropicError, forcesDisabledThinking, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { streamAnthropicSSE, streamAnthropicToolSSE, createClientSSEStream, runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
 import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, newsletterBrief, photoCaptionBrief, captionBrief } from "../_shared/format-briefs.ts";
@@ -1554,6 +1554,543 @@ Privilégie les sources françaises et européennes quand elles existent.`,
   return `\n\n--- RECHERCHE WEB ---\n${researchResult}\n--- FIN RECHERCHE ---\n\nUtilise ces données pour enrichir le contenu avec des faits concrets, des chiffres, des exemples récents. Ne cite pas les sources directement mais intègre les infos naturellement.`;
 }
 
+// ── LinkedIn + photos : streaming vision (évite la coupure de socket
+//    pendant la latence vision). On émet immédiatement les tokens dès
+//    qu'Anthropic les renvoie : la socket reste vivante.
+function streamLinkedInPhotoVision(params: {
+  apiKey: string;
+  model: AnthropicModel;
+  systemPrompt: string;
+  body: any;
+  contentType?: string | null;
+  answers?: any[];
+  context?: string | null;
+  corsHeaders: Record<string, string>;
+  userId: string;
+  workspace_id?: string | null | undefined;
+}): Response {
+  const { apiKey, model, systemPrompt, body, contentType, answers, context, corsHeaders, userId } = params;
+  const workspace_id = params.workspace_id ?? undefined;
+  const validPhotos = body.photos!.filter((p: any) => p?.base64).slice(0, 10);
+  const isBeforeAfter = validPhotos.length === 2;
+  const isSeries = validPhotos.length >= 3;
+  const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
+
+  const photoContent: any[] = [];
+  photoContent.push({
+    type: "text",
+    text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
+
+1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
+2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
+3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
+4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
+5. VOIX = JE (ton vécu) + NOUS/ON inclusif pour embarquer. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Ton d'une amie au café, pas d'une audience. (Sauf si la voix de marque indique un autre registre.)
+
+══ MAINTENANT, REGARDE LES IMAGES ══
+`,
+  });
+  validPhotos.forEach((p: any, idx: number) => {
+    const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
+    photoContent.push({
+      type: "image",
+      source: { type: "base64", media_type, data },
+    });
+    const ctx = p.context?.trim();
+    if (isBeforeAfter) {
+      const label = idx === 0 ? "↑ AVANT" : "↑ APRÈS";
+      photoContent.push({ type: "text", text: ctx ? `${label} — contexte : "${ctx}"` : label });
+    } else if (ctx) {
+      photoContent.push({ type: "text", text: `↑ Contexte sur l'image ci-dessus : "${ctx}"` });
+    }
+  });
+  const modeInstr = isBeforeAfter
+    ? `\n\n🔄 MODE AVANT / APRÈS : raconte LA transformation comme un récit unique.`
+    : isSeries
+    ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : trouve le fil thématique commun. NE liste/NE numérote PAS.`
+    : "";
+  const answersBlockPhoto = (answers && Array.isArray(answers) && answers.length > 0)
+    ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`).join("\n\n")
+    : "";
+  const userSubjectBlock = (context && String(context).trim())
+    ? `══ SUJET DÉCLARÉ PAR L'UTILISATRICE (PRIORITÉ ABSOLUE) ══\n"${String(context).trim()}"\n\nC'est CE sujet que le post doit traiter. Les photos ILLUSTRENT, elles ne dictent PAS l'angle.\n\n`
+    : "";
+  photoContent.push({
+    type: "text",
+    text: `${userSubjectBlock}${formatBrief}${body.photo_description ? `\nDescription complémentaire : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\nRègle anti-fabrication : n'invente AUCUN détail non vérifiable. Si la matière manque, bascule sur registre RÉFLEXIF/MÉTA ancré sur LE SUJET DÉCLARÉ.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
+  });
+
+  return createClientSSEStream(
+    () => streamAnthropicSSE(
+      apiKey,
+      model,
+      systemPrompt,
+      [{ role: "user", content: photoContent }],
+      0.7,
+      4096,
+      60_000,
+    ),
+    corsHeaders,
+    async (_full, usage) => {
+      await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+    },
+  );
+}
+
+// LinkedIn (texte) : pas de streaming de texte (la correction doit relire
+// le post complet), mais un SSE heartbeat + étapes réelles (writing →
+// correcting) pour que le front affiche la vraie avancée au lieu d'une
+// barre simulée — même pattern que carousel-ai. Le client streaming
+// consomme déjà l'event final `done.full`.
+async function runLinkedInTwoStep(params: {
+  model: AnthropicModel;
+  systemPrompt: string;
+  userPrompt: string;
+  corsHeaders: Record<string, string>;
+  userId: string;
+  workspace_id?: string | null | undefined;
+}, emitStatus: StatusEmitter = () => {}): Promise<Response> {
+  const { model, systemPrompt, userPrompt, corsHeaders, userId } = params;
+  const workspace_id = params.workspace_id ?? undefined;
+  console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
+  const genLkUsage: UsageSink = {};
+  const corrLkUsage: UsageSink = {};
+  emitStatus("writing");
+  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage);
+  console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
+
+  // Parse the raw content to extract the post text
+  let postText = "";
+  try {
+    const parsed = JSON.parse(rawContent);
+    postText = parsed.content || parsed.full_text || rawContent;
+  } catch {
+    const match = rawContent.match(/\{[\s\S]*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        postText = parsed.content || parsed.full_text || rawContent;
+      } catch { postText = rawContent; }
+    } else {
+      postText = rawContent;
+    }
+  }
+
+  // Step 2: Correction pass — short, focused prompt
+  const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER systématiquement. Ton job n'est PAS de juger si c'est "déjà bien" — c'est de traquer et corriger TOUS les patterns IA, même subtils.
+
+══ TEST FONDAMENTAL (à appliquer AVANT toute correction) ══
+
+Lis le post à voix haute mentalement. Pose-toi cette question :
+
+"Est-ce que ce post pourrait avoir été écrit par une assistante IA bien entraînée ?"
+
+Si la réponse est "oui, possiblement" → tu DOIS réécrire les passages qui te font hésiter.
+
+Si la réponse est "non, c'est clairement humain" → tu peux retourner la version corrigée.
+
+Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUABLE d'un humain".
+
+══ CORRECTIONS OBLIGATOIRES — APPLIQUE TOUTES CELLES QUI S'APPLIQUENT ══
+
+1. PHRASES COURTES CONSÉCUTIVES (compte-les) :
+   → COMPTE les phrases consécutives de moins de 10 mots.
+   → Si tu trouves 2 phrases courtes (< 10 mots) qui se suivent : FUSIONNE-LES.
+   → Si tu trouves 1 phrase isolée < 10 mots seule entre 2 sauts de ligne : INTÈGRE-LA dans le paragraphe précédent ou suivant.
+   → Le rythme vient de l'ALTERNANCE longue/courte, pas de la répétition courte/courte.
+   ❌ "C'était brillant. Trop brillant." → ✅ "C'était brillant. Tellement brillant que ça en devenait illisible."
+   ❌ "C'était beau. Vraiment." → ✅ "C'était objectivement beau, et c'est exactement là le problème."
+   ❌ "Et là, j'ai compris." → ✅ "Et là, j'ai compris ce qui clochait."
+
+2. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
+   → Une énumération de 3 éléments avec une structure parallèle ("Des X, des Y, des Z" ou "X qui A, Y qui B, Z qui C") est un marqueur IA.
+   → Casse la symétrie : varie les longueurs, ajoute une parenthèse, supprime un élément.
+   ❌ "Des couleurs pop, une typo qui claque, un univers visuel cohérent."
+   → ✅ "Les couleurs étaient pop, la typo claquait, et tout collait visuellement."
+   ❌ "Des métaphores partout, des jeux de mots subtils, une structure narrative en trois actes."
+   → ✅ "Plein de métaphores, des jeux de mots, une structure en trois actes : bref, du travail."
+
+3. FORMULES MANUFACTURÉES (mots-valises copywriting) :
+   → Détecte les expressions qui sonnent comme un livre de marketing.
+   → Liste non-exhaustive (cherche des variantes) : "noyé dans l'esthétique", "bruit joli", "vitrine sans produit", "fondations bancales", "habiller un message", "habillage du fond", "emballage sans contenu", "décorer la maison", "le squelette du contenu", "l'ADN de la marque", "le pilier de", "le socle de", "transformer notre manière de [verbe]".
+   → Si tu vois UNE de ces expressions OU UNE expression du même registre → réécris en plus brut, plus parlé.
+   ❌ "Le message était noyé dans l'esthétique." → ✅ "Le message était invisible derrière le visuel."
+   ❌ "transformer notre manière de consommer, de créer et de vivre" → ✅ "changer comment on consomme, comment on crée : et même comment on vit"
+
+4. RAFALES "PAS X. PAS Y. C'EST Z." :
+   → Cette structure parallèle est un marqueur IA.
+   → Réécris en prose continue.
+   ❌ "C'est pas sexy. C'est pas instagrammable. Ça ressemble à du travail de fond."
+   → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
+
+5. ANAPHORES (3+ phrases qui démarrent pareil) :
+   → Compte les débuts de phrase. Si 3+ commencent par le même mot/groupe : RÉÉCRIS.
+   ❌ "Par dire les choses. Par ne pas forcer. Par être direct·e."
+   → ✅ "En disant les choses sans forcer personne à deviner. En étant direct·e."
+   ❌ "Je parle de visibilité. Je parle du droit. Je parle de réhabiliter."
+   → ✅ "Je parle de visibilité, du droit de prendre sa place, de réhabiliter la communication."
+
+6. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs sans exemple concret) :
+   → Si 2 phrases consécutives expriment des valeurs abstraites sans aucun fait : remplace par UN exemple concret.
+   ❌ "Les projets éthiques méritent d'être vus. Les créatrices ont le droit de prendre leur place."
+   → ✅ "Une céramiste qui fait un travail incroyable mais que personne ne connaît, c'est pas un choix de discrétion. C'est un problème de visibilité."
+
+7. ACCROCHE PROMESSE/SLOGAN :
+   → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un FAIT concret ou une scène vécue.
+
+8. CTA GÉNÉRIQUE :
+   → "Et toi/vous, qu'en penses-tu/pensez-vous ?" ou variante existentielle large : remplace par une question SPÉCIFIQUE au sujet du post, ou supprime.
+
+9. CONCLUSION QUI RÉSUME :
+   → Si la dernière phrase reformule ce qui a été dit : remplace par une ouverture (question, tension, invitation) ou supprime.
+   ❌ "Mais pour ça, elle doit d'abord être comprise." (résume)
+   → ✅ "Et c'est cette base, peut-être, qu'on a oubliée." (ouvre)
+
+10. GENRÉ NON INCLUSIF :
+    → Pas de point médian sur les noms communs : ajoute-le.
+
+11. REDONDANCE :
+    → Si 2+ paragraphes expriment la même idée sous angles différents : garde le plus CONCRET, fusionne ou supprime les autres.
+
+12. LONGUEUR :
+    → Cible : 1300-2000 caractères. Si > 2000 : supprime le paragraphe le plus abstrait. Ne raccourcis PAS un post déjà dans cette fourchette.
+
+══ RÈGLES ABSOLUES ══
+
+- Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
+- N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
+- Le post corrigé fait entre 1300 et 1700 caractères.
+- JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
+- Écriture inclusive avec point médian.
+
+══ AUTO-VÉRIFICATION FINALE ══
+
+Avant de retourner le JSON, RELIS ton output et vérifie :
+
+□ Y a-t-il encore 2 phrases courtes consécutives ? → fusionne
+□ Y a-t-il encore une formule manufacturée ? → réécris
+□ La conclusion ouvre-t-elle vraiment ? → vérifie qu'elle ne résume pas
+□ Le post sonne-t-il INDISTINGUABLE d'un humain ? → si non, recommence
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "le post complet corrigé",
+  "accroche": "les 210 premiers caractères",
+  "corrections_applied": ["liste courte des corrections faites"]
+}`;
+  // Correction = édition mécanique à règles fermées → Haiku (~2x plus
+  // rapide que Sonnet), même arbitrage que le carrousel (#364).
+  emitStatus("correcting");
+  const correctedRaw = await callAnthropicSimple(
+    "claude-haiku-4-5",
+    correctionPrompt,
+    `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
+    0.3,
+    4096,
+    corrLkUsage
+  );
+  console.log("[CORRECTION DEBUG] Correction call done, correctedRaw length:", correctedRaw?.length);
+
+  // Parse corrected content, fallback to original if correction fails
+  let finalResult: any = null;
+  try {
+    finalResult = JSON.parse(correctedRaw);
+  } catch {
+    const match = correctedRaw.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
+    }
+  }
+
+  // If correction succeeded, use it; otherwise fall back to original
+  console.log("[CORRECTION DEBUG] finalResult.content present:", !!finalResult?.content);
+  if (finalResult?.content) {
+    let originalParsed: any = {};
+    try { originalParsed = JSON.parse(rawContent); } catch {
+      const m = rawContent.match(/\{[\s\S]*\}/);
+      if (m) try { originalParsed = JSON.parse(m[0]); } catch {}
+    }
+
+    const merged = {
+      ...originalParsed,
+      content: finalResult.content,
+      accroche: finalResult.accroche || originalParsed.accroche,
+      format: originalParsed.format || "linkedin",
+      pillar: originalParsed.pillar || "",
+      objectif: originalParsed.objectif || "",
+    };
+
+    await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
+    return new Response(JSON.stringify(merged), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  console.log("[CORRECTION DEBUG] FALLBACK triggered — returning uncorrected post");
+  // Fallback: return original if correction failed
+  let fallbackParsed: any;
+  try { fallbackParsed = JSON.parse(rawContent); } catch {
+    const m = rawContent.match(/\{[\s\S]*\}/);
+    if (m) try { fallbackParsed = JSON.parse(m[0]); } catch { fallbackParsed = { content: rawContent }; }
+    else fallbackParsed = { content: rawContent };
+  }
+
+  await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
+  return new Response(JSON.stringify(fallbackParsed), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// Newsletter : même pattern que LinkedIn — pas de streaming de texte,
+// mais heartbeat SSE + étapes réelles (writing → correcting).
+async function runNewsletterTwoStep(params: {
+  model: AnthropicModel;
+  systemPrompt: string;
+  userPrompt: string;
+  corsHeaders: Record<string, string>;
+  userId: string;
+  workspace_id?: string | null | undefined;
+  body: any;
+  context?: string | null;
+  newsContext?: string | null;
+  fullContext: string;
+}, emitStatus: StatusEmitter = () => {}): Promise<Response> {
+  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext } = params;
+  const workspace_id = params.workspace_id ?? undefined;
+  const nlUsage: UsageSink = {};
+  emitStatus("writing");
+  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage);
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(rawContent);
+  } catch {
+    const match = rawContent.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { parsed = JSON.parse(match[0]); } catch { parsed = { content: rawContent }; }
+    } else {
+      parsed = { content: rawContent };
+    }
+  }
+
+  console.log(
+    `[creative-flow newsletter] subject:`,
+    parsed.subject?.length,
+    "preview:",
+    parsed.preview_text?.length,
+  );
+
+  if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
+    try {
+      emitStatus("correcting");
+      const nlAllowed = numbersIn([
+        typeof body.context === "string" ? body.context : "",
+        body.answers ? JSON.stringify(body.answers) : "",
+        typeof body.news_context === "string" ? body.news_context : "",
+        fullContext || "",
+      ].join("\n"));
+      const nlRedac = analyzeTextRedac(parsed.content, nlAllowed);
+      const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
+        logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+        // Édition mécanique à règles fermées → Haiku (cf. #364)
+        model: "claude-haiku-4-5",
+        extraInstructions: buildTextFixInstructions(nlRedac) || undefined,
+      });
+      if (corrected && corrected.length >= 200) {
+        parsed.content = corrected;
+      }
+    } catch (e) {
+      console.error("[creative-flow newsletter] correction pass failed:", e);
+    }
+  }
+
+  // Nettoyage déterministe : un email part en texte brut, le markdown
+  // résiduel (**gras**, *italique*) s'afficherait tel quel (audit 09/07).
+  parsed = stripMarkdownFromNewsletter(parsed);
+
+  if (parsed.content && typeof parsed.content === "string") {
+    parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
+  }
+
+  // Télémétrie qualité newsletter (retour SSE anticipé → loggée ici, pas
+  // dans la queue commune). Même mesure légère que les autres formats.
+  if (typeof parsed.content === "string" && parsed.content.trim()) {
+    try {
+      const nlAllowed = numbersIn([
+        typeof context === "string" ? context : "",
+        body.answers ? JSON.stringify(body.answers) : "",
+        typeof newsContext === "string" ? newsContext : "",
+        fullContext || "",
+      ].join("\n"));
+      const a = analyzeTextRedac(parsed.content, nlAllowed);
+      const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+      const score = Math.max(40, 100 - 10 * violations);
+      await logContentQuality(
+        userId,
+        "newsletter",
+        { score, violations, repassed: false, content: JSON.stringify({ subject: parsed.subject, content: parsed.content }) },
+        nlUsage.model,
+        workspace_id,
+        typeof context === "string" ? context : undefined,
+      );
+    } catch (e) {
+      console.error("[creative-flow] log qualité newsletter ignoré (génération intacte):", (e as any)?.message || e);
+    }
+  }
+
+  await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
+  return new Response(JSON.stringify(parsed), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// Carousel: disable streaming, use 2-step generation + correction
+async function runCarouselTwoStep(params: {
+  model: AnthropicModel;
+  systemPrompt: string;
+  userPrompt: string;
+  corsHeaders: Record<string, string>;
+  userId: string;
+  workspace_id?: string | null | undefined;
+}): Promise<Response> {
+  const { model, systemPrompt, userPrompt, corsHeaders, userId } = params;
+  const workspace_id = params.workspace_id ?? undefined;
+  const caUsage: UsageSink = {};
+  const caCorrUsage: UsageSink = {};
+  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage);
+
+  // Parse the raw content
+  let parsedContent: any = null;
+  try {
+    parsedContent = JSON.parse(rawContent);
+  } catch {
+    const match = rawContent.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { parsedContent = JSON.parse(match[0]); } catch {}
+    }
+  }
+
+  // Extract slides text for correction
+  const slidesText = parsedContent?.content || rawContent;
+
+  // Step 2: Correction pass for carousel
+  const carouselCorrectionPrompt = `Tu es un éditeur de carrousels Instagram exigeant. Tu reçois un carrousel et tu dois le CORRIGER slide par slide.
+
+CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
+
+1. SLIDE-TITRE (slide qui ne contient qu'1 phrase ou moins de 15 mots) :
+   → Développer à 2-4 phrases. Ajouter un exemple, une nuance, un détail concret.
+   → Exception : Slide 1 (hook) DOIT être courte (1-2 phrases max).
+
+2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3", "Astuce") :
+   → Supprimer la numérotation. Reformuler comme un moment dans un arc narratif.
+   → "Conseil 1 : Soyez authentique" → "Ce que j'ai compris après 2 ans à copier les autres : l'authenticité n'est pas un style, c'est ce qui reste quand on arrête de performer."
+
+3. SLIDES REDONDANTES (2 slides qui disent la même chose différemment) :
+   → Fusionner en une seule slide plus dense, ou remplacer la plus faible par un nouvel angle.
+
+4. MANQUE DE CONCRET (slide entièrement abstraite, sans exemple ni chiffre ni situation) :
+   → Ajouter un détail concret : un cas, un chiffre, une phrase entendue, un avant/après.
+
+5. SLIDE FINALE QUI RÉSUME :
+   → Remplacer par une punchline qui OUVRE (question, tension non résolue, invitation) au lieu de fermer.
+
+6. CAPTION FAIBLE (caption qui répète le contenu des slides) :
+   → Le hook de la caption doit être DIFFÉRENT de la slide 1. La caption apporte un COMPLÉMENT, pas un résumé.
+
+RÈGLES :
+- Garde l'ARC NARRATIF du carrousel. Tu corriges les slides faibles, pas la structure globale.
+- Chaque slide corrigée fait 2-4 phrases (sauf slide 1 : 1-2 phrases max).
+- Le carrousel corrigé fait 1500-3000 caractères au total.
+- Retourne le même format JSON que l'original avec les slides corrigées.
+
+Réponds UNIQUEMENT en JSON :
+{
+  "content": "le carrousel complet corrigé avec les marqueurs 📌 SLIDE et 📝 CAPTION",
+  "accroche": "le hook de la slide 1",
+  "corrections_applied": ["liste courte des corrections faites"]
+}`;
+
+  const correctedRaw = await callAnthropicSimple(
+    getModelForAction("content"),
+    carouselCorrectionPrompt,
+    `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
+    0.3,
+    4096,
+    caCorrUsage
+  );
+
+  // Parse corrected content, fallback to original if correction fails
+  let finalResult: any = null;
+  try {
+    finalResult = JSON.parse(correctedRaw);
+  } catch {
+    const match = correctedRaw.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
+    }
+  }
+
+  if (finalResult?.content) {
+    const merged = {
+      ...(parsedContent || {}),
+      content: finalResult.content,
+      accroche: finalResult.accroche || parsedContent?.accroche,
+      format: parsedContent?.format || "carrousel",
+      pillar: parsedContent?.pillar || "",
+      objectif: parsedContent?.objectif || "",
+    };
+
+    await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
+    return new Response(JSON.stringify(merged), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  // Fallback: return original
+  await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
+  return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// Non-LinkedIn, non-Carousel (= POST Instagram + Pinterest) : streaming
+// par TOOL FORCÉ. Le prompt demande déjà un JSON `{content, accroche, …}` ;
+// en texte libre Sonnet le cassait par intermittence (fuite du blob ```json
+// au rendu). Le tool fait garantir le JSON par l'API — le stream recolle
+// les `input_json_delta`, donc le live « rédige en temps réel » est
+// préservé à l'identique (cf. streamAnthropicToolSSE). Relance serveur sur
+// overloaded / complétion vide conservée (bug post IG intermittent 10/07).
+function streamDefaultPostSSE(params: {
+  apiKey: string;
+  model: AnthropicModel;
+  systemPrompt: string;
+  userPrompt: string;
+  corsHeaders: Record<string, string>;
+  userId: string;
+  workspace_id?: string | null | undefined;
+}): Response {
+  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId } = params;
+  const workspace_id = params.workspace_id ?? undefined;
+  return createClientSSEStream(
+    () => streamAnthropicToolSSE(
+      apiKey,
+      model,
+      systemPrompt,
+      [{ role: "user", content: userPrompt! }],
+      0.85,
+      4096,
+      POST_TOOL,
+      60_000,
+    ),
+    corsHeaders,
+    async (_full, usage) => {
+      await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+    },
+    { failOnTruncation: true },
+  );
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -1896,492 +2433,23 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       const apiKey = Deno.env.get("ANTHROPIC_API_KEY")!;
       const model = getModelForAction("content");
 
-      // ── LinkedIn + photos : streaming vision (évite la coupure de socket
-      //    pendant la latence vision). On émet immédiatement les tokens dès
-      //    qu'Anthropic les renvoie : la socket reste vivante.
       if (canStreamPhoto) {
-        const validPhotos = body.photos!.filter((p: any) => p?.base64).slice(0, 10);
-        const isBeforeAfter = validPhotos.length === 2;
-        const isSeries = validPhotos.length >= 3;
-        const { formatBrief, jsonShape } = buildVisionGenerateBrief(contentType);
-
-        const photoContent: any[] = [];
-        photoContent.push({
-          type: "text",
-          text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
-
-1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
-2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
-3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
-4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
-5. VOIX = JE (ton vécu) + NOUS/ON inclusif pour embarquer. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Ton d'une amie au café, pas d'une audience. (Sauf si la voix de marque indique un autre registre.)
-
-══ MAINTENANT, REGARDE LES IMAGES ══
-`,
-        });
-        validPhotos.forEach((p: any, idx: number) => {
-          const { media_type, data } = extractImagePayload(String(p.base64), p.mimeType);
-          photoContent.push({
-            type: "image",
-            source: { type: "base64", media_type, data },
-          });
-          const ctx = p.context?.trim();
-          if (isBeforeAfter) {
-            const label = idx === 0 ? "↑ AVANT" : "↑ APRÈS";
-            photoContent.push({ type: "text", text: ctx ? `${label} — contexte : "${ctx}"` : label });
-          } else if (ctx) {
-            photoContent.push({ type: "text", text: `↑ Contexte sur l'image ci-dessus : "${ctx}"` });
-          }
-        });
-        const modeInstr = isBeforeAfter
-          ? `\n\n🔄 MODE AVANT / APRÈS : raconte LA transformation comme un récit unique.`
-          : isSeries
-          ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : trouve le fil thématique commun. NE liste/NE numérote PAS.`
-          : "";
-        const answersBlockPhoto = (answers && Array.isArray(answers) && answers.length > 0)
-          ? answers.map((a: any, i: number) => `Q${i + 1} : "${a.question}"\n→ "${a.answer}"`).join("\n\n")
-          : "";
-        const userSubjectBlock = (context && String(context).trim())
-          ? `══ SUJET DÉCLARÉ PAR L'UTILISATRICE (PRIORITÉ ABSOLUE) ══\n"${String(context).trim()}"\n\nC'est CE sujet que le post doit traiter. Les photos ILLUSTRENT, elles ne dictent PAS l'angle.\n\n`
-          : "";
-        photoContent.push({
-          type: "text",
-          text: `${userSubjectBlock}${formatBrief}${body.photo_description ? `\nDescription complémentaire : "${body.photo_description}"` : ""}${answersBlockPhoto ? `\n\n══ RÉPONSES DE L'UTILISATRICE ══\n${answersBlockPhoto}` : ""}${modeInstr}\n\nRègle anti-fabrication : n'invente AUCUN détail non vérifiable. Si la matière manque, bascule sur registre RÉFLEXIF/MÉTA ancré sur LE SUJET DÉCLARÉ.\n\nRéponds UNIQUEMENT en JSON :\n${jsonShape}`,
-        });
-
-        return createClientSSEStream(
-          () => streamAnthropicSSE(
-            apiKey,
-            model,
-            systemPrompt,
-            [{ role: "user", content: photoContent }],
-            0.7,
-            4096,
-            60_000,
-          ),
-          corsHeaders,
-          async (_full, usage) => {
-            await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-          },
-        );
+        return streamLinkedInPhotoVision({ apiKey, model, systemPrompt, body, contentType, answers, context, corsHeaders, userId, workspace_id });
       }
 
-      // LinkedIn (texte) : pas de streaming de texte (la correction doit relire
-      // le post complet), mais un SSE heartbeat + étapes réelles (writing →
-      // correcting) pour que le front affiche la vraie avancée au lieu d'une
-      // barre simulée — même pattern que carousel-ai. Le client streaming
-      // consomme déjà l'event final `done.full`.
       if (isLinkedIn) {
-        const runLinkedInTwoStep = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
-        console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
-        const genLkUsage: UsageSink = {};
-        const corrLkUsage: UsageSink = {};
-        emitStatus("writing");
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage);
-        console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
-
-        // Parse the raw content to extract the post text
-        let postText = "";
-        try {
-          const parsed = JSON.parse(rawContent);
-          postText = parsed.content || parsed.full_text || rawContent;
-        } catch {
-          const match = rawContent.match(/\{[\s\S]*\}/);
-          if (match) {
-            try {
-              const parsed = JSON.parse(match[0]);
-              postText = parsed.content || parsed.full_text || rawContent;
-            } catch { postText = rawContent; }
-          } else {
-            postText = rawContent;
-          }
-        }
-
-        // Step 2: Correction pass — short, focused prompt
-        const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER systématiquement. Ton job n'est PAS de juger si c'est "déjà bien" — c'est de traquer et corriger TOUS les patterns IA, même subtils.
-
-══ TEST FONDAMENTAL (à appliquer AVANT toute correction) ══
-
-Lis le post à voix haute mentalement. Pose-toi cette question :
-
-"Est-ce que ce post pourrait avoir été écrit par une assistante IA bien entraînée ?"
-
-Si la réponse est "oui, possiblement" → tu DOIS réécrire les passages qui te font hésiter.
-
-Si la réponse est "non, c'est clairement humain" → tu peux retourner la version corrigée.
-
-Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUABLE d'un humain".
-
-══ CORRECTIONS OBLIGATOIRES — APPLIQUE TOUTES CELLES QUI S'APPLIQUENT ══
-
-1. PHRASES COURTES CONSÉCUTIVES (compte-les) :
-   → COMPTE les phrases consécutives de moins de 10 mots.
-   → Si tu trouves 2 phrases courtes (< 10 mots) qui se suivent : FUSIONNE-LES.
-   → Si tu trouves 1 phrase isolée < 10 mots seule entre 2 sauts de ligne : INTÈGRE-LA dans le paragraphe précédent ou suivant.
-   → Le rythme vient de l'ALTERNANCE longue/courte, pas de la répétition courte/courte.
-   ❌ "C'était brillant. Trop brillant." → ✅ "C'était brillant. Tellement brillant que ça en devenait illisible."
-   ❌ "C'était beau. Vraiment." → ✅ "C'était objectivement beau, et c'est exactement là le problème."
-   ❌ "Et là, j'ai compris." → ✅ "Et là, j'ai compris ce qui clochait."
-
-2. ÉNUMÉRATIONS RYTHMIQUES PARFAITES :
-   → Une énumération de 3 éléments avec une structure parallèle ("Des X, des Y, des Z" ou "X qui A, Y qui B, Z qui C") est un marqueur IA.
-   → Casse la symétrie : varie les longueurs, ajoute une parenthèse, supprime un élément.
-   ❌ "Des couleurs pop, une typo qui claque, un univers visuel cohérent."
-   → ✅ "Les couleurs étaient pop, la typo claquait, et tout collait visuellement."
-   ❌ "Des métaphores partout, des jeux de mots subtils, une structure narrative en trois actes."
-   → ✅ "Plein de métaphores, des jeux de mots, une structure en trois actes : bref, du travail."
-
-3. FORMULES MANUFACTURÉES (mots-valises copywriting) :
-   → Détecte les expressions qui sonnent comme un livre de marketing.
-   → Liste non-exhaustive (cherche des variantes) : "noyé dans l'esthétique", "bruit joli", "vitrine sans produit", "fondations bancales", "habiller un message", "habillage du fond", "emballage sans contenu", "décorer la maison", "le squelette du contenu", "l'ADN de la marque", "le pilier de", "le socle de", "transformer notre manière de [verbe]".
-   → Si tu vois UNE de ces expressions OU UNE expression du même registre → réécris en plus brut, plus parlé.
-   ❌ "Le message était noyé dans l'esthétique." → ✅ "Le message était invisible derrière le visuel."
-   ❌ "transformer notre manière de consommer, de créer et de vivre" → ✅ "changer comment on consomme, comment on crée : et même comment on vit"
-
-4. RAFALES "PAS X. PAS Y. C'EST Z." :
-   → Cette structure parallèle est un marqueur IA.
-   → Réécris en prose continue.
-   ❌ "C'est pas sexy. C'est pas instagrammable. Ça ressemble à du travail de fond."
-   → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
-
-5. ANAPHORES (3+ phrases qui démarrent pareil) :
-   → Compte les débuts de phrase. Si 3+ commencent par le même mot/groupe : RÉÉCRIS.
-   ❌ "Par dire les choses. Par ne pas forcer. Par être direct·e."
-   → ✅ "En disant les choses sans forcer personne à deviner. En étant direct·e."
-   ❌ "Je parle de visibilité. Je parle du droit. Je parle de réhabiliter."
-   → ✅ "Je parle de visibilité, du droit de prendre sa place, de réhabiliter la communication."
-
-6. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs sans exemple concret) :
-   → Si 2 phrases consécutives expriment des valeurs abstraites sans aucun fait : remplace par UN exemple concret.
-   ❌ "Les projets éthiques méritent d'être vus. Les créatrices ont le droit de prendre leur place."
-   → ✅ "Une céramiste qui fait un travail incroyable mais que personne ne connaît, c'est pas un choix de discrétion. C'est un problème de visibilité."
-
-7. ACCROCHE PROMESSE/SLOGAN :
-   → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un FAIT concret ou une scène vécue.
-
-8. CTA GÉNÉRIQUE :
-   → "Et toi/vous, qu'en penses-tu/pensez-vous ?" ou variante existentielle large : remplace par une question SPÉCIFIQUE au sujet du post, ou supprime.
-
-9. CONCLUSION QUI RÉSUME :
-   → Si la dernière phrase reformule ce qui a été dit : remplace par une ouverture (question, tension, invitation) ou supprime.
-   ❌ "Mais pour ça, elle doit d'abord être comprise." (résume)
-   → ✅ "Et c'est cette base, peut-être, qu'on a oubliée." (ouvre)
-
-10. GENRÉ NON INCLUSIF :
-    → Pas de point médian sur les noms communs : ajoute-le.
-
-11. REDONDANCE :
-    → Si 2+ paragraphes expriment la même idée sous angles différents : garde le plus CONCRET, fusionne ou supprime les autres.
-
-12. LONGUEUR :
-    → Cible : 1300-2000 caractères. Si > 2000 : supprime le paragraphe le plus abstrait. Ne raccourcis PAS un post déjà dans cette fourchette.
-
-══ RÈGLES ABSOLUES ══
-
-- Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
-- N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
-- Le post corrigé fait entre 1300 et 1700 caractères.
-- JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
-- Écriture inclusive avec point médian.
-
-══ AUTO-VÉRIFICATION FINALE ══
-
-Avant de retourner le JSON, RELIS ton output et vérifie :
-
-□ Y a-t-il encore 2 phrases courtes consécutives ? → fusionne
-□ Y a-t-il encore une formule manufacturée ? → réécris
-□ La conclusion ouvre-t-elle vraiment ? → vérifie qu'elle ne résume pas
-□ Le post sonne-t-il INDISTINGUABLE d'un humain ? → si non, recommence
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "le post complet corrigé",
-  "accroche": "les 210 premiers caractères",
-  "corrections_applied": ["liste courte des corrections faites"]
-}`;
-        // Correction = édition mécanique à règles fermées → Haiku (~2x plus
-        // rapide que Sonnet), même arbitrage que le carrousel (#364).
-        emitStatus("correcting");
-        const correctedRaw = await callAnthropicSimple(
-          "claude-haiku-4-5",
-          correctionPrompt,
-          `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
-          0.3,
-          4096,
-          corrLkUsage
-        );
-        console.log("[CORRECTION DEBUG] Correction call done, correctedRaw length:", correctedRaw?.length);
-
-        // Parse corrected content, fallback to original if correction fails
-        let finalResult: any = null;
-        try {
-          finalResult = JSON.parse(correctedRaw);
-        } catch {
-          const match = correctedRaw.match(/\{[\s\S]*\}/);
-          if (match) {
-            try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
-          }
-        }
-
-        // If correction succeeded, use it; otherwise fall back to original
-        console.log("[CORRECTION DEBUG] finalResult.content present:", !!finalResult?.content);
-        if (finalResult?.content) {
-          let originalParsed: any = {};
-          try { originalParsed = JSON.parse(rawContent); } catch {
-            const m = rawContent.match(/\{[\s\S]*\}/);
-            if (m) try { originalParsed = JSON.parse(m[0]); } catch {}
-          }
-
-          const merged = {
-            ...originalParsed,
-            content: finalResult.content,
-            accroche: finalResult.accroche || originalParsed.accroche,
-            format: originalParsed.format || "linkedin",
-            pillar: originalParsed.pillar || "",
-            objectif: originalParsed.objectif || "",
-          };
-
-          await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
-          return new Response(JSON.stringify(merged), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        console.log("[CORRECTION DEBUG] FALLBACK triggered — returning uncorrected post");
-        // Fallback: return original if correction failed
-        let fallbackParsed: any;
-        try { fallbackParsed = JSON.parse(rawContent); } catch {
-          const m = rawContent.match(/\{[\s\S]*\}/);
-          if (m) try { fallbackParsed = JSON.parse(m[0]); } catch { fallbackParsed = { content: rawContent }; }
-          else fallbackParsed = { content: rawContent };
-        }
-
-        await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
-        return new Response(JSON.stringify(fallbackParsed), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-        };
-        return runWithHeartbeatSSE(corsHeaders, runLinkedInTwoStep);
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id }, emitStatus));
       }
 
-      // Newsletter : même pattern que LinkedIn — pas de streaming de texte,
-      // mais heartbeat SSE + étapes réelles (writing → correcting).
       if (isNewsletter) {
-        const runNewsletterTwoStep = async (emitStatus: StatusEmitter = () => {}): Promise<Response> => {
-        const nlUsage: UsageSink = {};
-        emitStatus("writing");
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage);
-
-        let parsed: any;
-        try {
-          parsed = JSON.parse(rawContent);
-        } catch {
-          const match = rawContent.match(/\{[\s\S]*\}/);
-          if (match) {
-            try { parsed = JSON.parse(match[0]); } catch { parsed = { content: rawContent }; }
-          } else {
-            parsed = { content: rawContent };
-          }
-        }
-
-        console.log(
-          `[creative-flow newsletter] subject:`,
-          parsed.subject?.length,
-          "preview:",
-          parsed.preview_text?.length,
-        );
-
-        if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
-          try {
-            emitStatus("correcting");
-            const nlAllowed = numbersIn([
-              typeof body.context === "string" ? body.context : "",
-              body.answers ? JSON.stringify(body.answers) : "",
-              typeof body.news_context === "string" ? body.news_context : "",
-              fullContext || "",
-            ].join("\n"));
-            const nlRedac = analyzeTextRedac(parsed.content, nlAllowed);
-            const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
-              logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
-              // Édition mécanique à règles fermées → Haiku (cf. #364)
-              model: "claude-haiku-4-5",
-              extraInstructions: buildTextFixInstructions(nlRedac) || undefined,
-            });
-            if (corrected && corrected.length >= 200) {
-              parsed.content = corrected;
-            }
-          } catch (e) {
-            console.error("[creative-flow newsletter] correction pass failed:", e);
-          }
-        }
-
-        // Nettoyage déterministe : un email part en texte brut, le markdown
-        // résiduel (**gras**, *italique*) s'afficherait tel quel (audit 09/07).
-        parsed = stripMarkdownFromNewsletter(parsed);
-
-        if (parsed.content && typeof parsed.content === "string") {
-          parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
-        }
-
-        // Télémétrie qualité newsletter (retour SSE anticipé → loggée ici, pas
-        // dans la queue commune). Même mesure légère que les autres formats.
-        if (typeof parsed.content === "string" && parsed.content.trim()) {
-          try {
-            const nlAllowed = numbersIn([
-              typeof context === "string" ? context : "",
-              body.answers ? JSON.stringify(body.answers) : "",
-              typeof newsContext === "string" ? newsContext : "",
-              fullContext || "",
-            ].join("\n"));
-            const a = analyzeTextRedac(parsed.content, nlAllowed);
-            const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
-            const score = Math.max(40, 100 - 10 * violations);
-            await logContentQuality(
-              userId,
-              "newsletter",
-              { score, violations, repassed: false, content: JSON.stringify({ subject: parsed.subject, content: parsed.content }) },
-              nlUsage.model,
-              workspace_id,
-              typeof context === "string" ? context : undefined,
-            );
-          } catch (e) {
-            console.error("[creative-flow] log qualité newsletter ignoré (génération intacte):", (e as any)?.message || e);
-          }
-        }
-
-        await logUsage(userId, "content", "creative_flow", nlUsage.total_tokens, nlUsage.model, workspace_id);
-        return new Response(JSON.stringify(parsed), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-        };
-        return runWithHeartbeatSSE(corsHeaders, runNewsletterTwoStep);
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext }, emitStatus));
       }
 
-      // Carousel: disable streaming, use 2-step generation + correction
       if (isCarousel) {
-        const caUsage: UsageSink = {};
-        const caCorrUsage: UsageSink = {};
-        const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage);
-
-        // Parse the raw content
-        let parsedContent: any = null;
-        try {
-          parsedContent = JSON.parse(rawContent);
-        } catch {
-          const match = rawContent.match(/\{[\s\S]*\}/);
-          if (match) {
-            try { parsedContent = JSON.parse(match[0]); } catch {}
-          }
-        }
-
-        // Extract slides text for correction
-        const slidesText = parsedContent?.content || rawContent;
-
-        // Step 2: Correction pass for carousel
-        const carouselCorrectionPrompt = `Tu es un éditeur de carrousels Instagram exigeant. Tu reçois un carrousel et tu dois le CORRIGER slide par slide.
-
-CORRECTIONS OBLIGATOIRES — applique TOUTES celles qui s'appliquent :
-
-1. SLIDE-TITRE (slide qui ne contient qu'1 phrase ou moins de 15 mots) :
-   → Développer à 2-4 phrases. Ajouter un exemple, une nuance, un détail concret.
-   → Exception : Slide 1 (hook) DOIT être courte (1-2 phrases max).
-
-2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3", "Astuce") :
-   → Supprimer la numérotation. Reformuler comme un moment dans un arc narratif.
-   → "Conseil 1 : Soyez authentique" → "Ce que j'ai compris après 2 ans à copier les autres : l'authenticité n'est pas un style, c'est ce qui reste quand on arrête de performer."
-
-3. SLIDES REDONDANTES (2 slides qui disent la même chose différemment) :
-   → Fusionner en une seule slide plus dense, ou remplacer la plus faible par un nouvel angle.
-
-4. MANQUE DE CONCRET (slide entièrement abstraite, sans exemple ni chiffre ni situation) :
-   → Ajouter un détail concret : un cas, un chiffre, une phrase entendue, un avant/après.
-
-5. SLIDE FINALE QUI RÉSUME :
-   → Remplacer par une punchline qui OUVRE (question, tension non résolue, invitation) au lieu de fermer.
-
-6. CAPTION FAIBLE (caption qui répète le contenu des slides) :
-   → Le hook de la caption doit être DIFFÉRENT de la slide 1. La caption apporte un COMPLÉMENT, pas un résumé.
-
-RÈGLES :
-- Garde l'ARC NARRATIF du carrousel. Tu corriges les slides faibles, pas la structure globale.
-- Chaque slide corrigée fait 2-4 phrases (sauf slide 1 : 1-2 phrases max).
-- Le carrousel corrigé fait 1500-3000 caractères au total.
-- Retourne le même format JSON que l'original avec les slides corrigées.
-
-Réponds UNIQUEMENT en JSON :
-{
-  "content": "le carrousel complet corrigé avec les marqueurs 📌 SLIDE et 📝 CAPTION",
-  "accroche": "le hook de la slide 1",
-  "corrections_applied": ["liste courte des corrections faites"]
-}`;
-
-        const correctedRaw = await callAnthropicSimple(
-          getModelForAction("content"),
-          carouselCorrectionPrompt,
-          `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
-          0.3,
-          4096,
-          caCorrUsage
-        );
-
-        // Parse corrected content, fallback to original if correction fails
-        let finalResult: any = null;
-        try {
-          finalResult = JSON.parse(correctedRaw);
-        } catch {
-          const match = correctedRaw.match(/\{[\s\S]*\}/);
-          if (match) {
-            try { finalResult = JSON.parse(match[0]); } catch { finalResult = null; }
-          }
-        }
-
-        if (finalResult?.content) {
-          const merged = {
-            ...(parsedContent || {}),
-            content: finalResult.content,
-            accroche: finalResult.accroche || parsedContent?.accroche,
-            format: parsedContent?.format || "carrousel",
-            pillar: parsedContent?.pillar || "",
-            objectif: parsedContent?.objectif || "",
-          };
-
-          await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
-          return new Response(JSON.stringify(merged), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        // Fallback: return original
-        await logUsage(userId, "content", "creative_flow", ((caUsage.total_tokens ?? 0) + (caCorrUsage.total_tokens ?? 0)) || undefined, caUsage.model, workspace_id);
-        return new Response(JSON.stringify(parsedContent || { content: rawContent }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return await runCarouselTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id });
       }
 
-      // Non-LinkedIn, non-Carousel (= POST Instagram + Pinterest) : streaming
-      // par TOOL FORCÉ. Le prompt demande déjà un JSON `{content, accroche, …}` ;
-      // en texte libre Sonnet le cassait par intermittence (fuite du blob ```json
-      // au rendu). Le tool fait garantir le JSON par l'API — le stream recolle
-      // les `input_json_delta`, donc le live « rédige en temps réel » est
-      // préservé à l'identique (cf. streamAnthropicToolSSE). Relance serveur sur
-      // overloaded / complétion vide conservée (bug post IG intermittent 10/07).
-      return createClientSSEStream(
-        () => streamAnthropicToolSSE(
-          apiKey,
-          model,
-          systemPrompt,
-          [{ role: "user", content: userPrompt! }],
-          0.85,
-          4096,
-          POST_TOOL,
-          60_000,
-        ),
-        corsHeaders,
-        async (_full, usage) => {
-          await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-        },
-        { failOnTruncation: true },
-      );
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id });
     }
 
     // ── Call Anthropic ──
