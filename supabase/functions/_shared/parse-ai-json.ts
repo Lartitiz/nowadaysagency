@@ -21,6 +21,34 @@ export class AiParseError extends Error {
   }
 }
 
+/**
+ * Convertit les clés/valeurs entre guillemets simples (`'foo': 'bar'`) en JSON
+ * valide (`"foo": "bar"`), SANS toucher aux apostrophes à l'intérieur d'un mot
+ * (l'IA, j'ai, c'est…). Contrairement à un `replace(/'/g, '"')` global, on
+ * n'ouvre une chaîne que si le `'` suit immédiatement `{`, `[`, `,` ou `:`, et
+ * on ne la ferme que sur un `'` immédiatement suivi de `:`, `,`, `}`, `]` ou
+ * fin de texte. Un contenu qui contient une apostrophe brute (ex: "c'est") ne
+ * peut alors plus matcher jusqu'à ce délimiteur : la conversion échoue pour ce
+ * fragment et le laisse tel quel plutôt que de le corrompre.
+ */
+function repairSingleQuotedJson(input: string): string {
+  const QUOTED = /((?:[^'\\]|\\.)*)/.source; // contenu sans apostrophe brute (échappées OK)
+  let fixed = input;
+  // clés : 'foo': -> "foo"
+  // (délimiteur de fin en lookahead, pas consommé : sinon une virgule partagée
+  // entre deux paires 'a': 1, 'b': 2 ne serait plus dispo comme préfixe de la suivante)
+  fixed = fixed.replace(
+    new RegExp(`([{,]\\s*)'${QUOTED}'(?=\\s*:)`, "g"),
+    (_m, pre, content) => `${pre}"${content.replace(/"/g, '\\"')}"`
+  );
+  // valeurs (objet ou tableau) : 'bar' -> "bar"
+  fixed = fixed.replace(
+    new RegExp(`([:\\[,]\\s*)'${QUOTED}'(?=\\s*(?:[,}\\]]|$))`, "g"),
+    (_m, pre, content) => `${pre}"${content.replace(/"/g, '\\"')}"`
+  );
+  return fixed;
+}
+
 /** Parsing robuste (fences markdown, objet/array, réparations courantes). */
 function attemptParse(raw: string | object): unknown {
   if (typeof raw === "object" && raw !== null) return raw;
@@ -55,8 +83,10 @@ function attemptParse(raw: string | object): unknown {
     }
   }
 
+  // Dernier recours : virgules traînantes, quotes simples de délimitation
+  // (jamais les apostrophes internes, cf. repairSingleQuotedJson)
   try {
-    const fixed = cleaned.replace(/,\s*([}\]])/g, "$1").replace(/'/g, '"');
+    const fixed = repairSingleQuotedJson(cleaned.replace(/,\s*([}\]])/g, "$1"));
     const obj2 = fixed.match(/\{[\s\S]*\}/);
     if (obj2) return JSON.parse(obj2[0]);
     if (!looksLikeObject) {

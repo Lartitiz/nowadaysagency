@@ -40,6 +40,29 @@ describe("parseAiJson", () => {
     expect(() => parseAiJson(truncated, "test")).toThrow(AiParseError);
     expect(tryParseAiJson(truncated)).toBeNull();
   });
+
+  it("répare des clés/valeurs entre guillemets simples", () => {
+    expect(parseAiJson("{'a': 'b', 'c': 2}")).toEqual({ a: "b", c: 2 });
+  });
+
+  it("répare un tableau de chaînes entre guillemets simples", () => {
+    expect(parseAiJson("['idee1', 'idee2']")).toEqual(["idee1", "idee2"]);
+  });
+
+  it("préserve les apostrophes françaises dans une valeur déjà entre guillemets doubles (virgule traînante à réparer)", () => {
+    // Avant le fix, le dernier recours faisait un replace(/'/g, '"') aveugle
+    // qui cassait ce JSON pourtant valide à une virgule traînante près.
+    const withTrailingComma = '{"phrase": "l\'IA c\'est top, j\'ai adoré",}';
+    expect(parseAiJson(withTrailingComma)).toEqual({ phrase: "l'IA c'est top, j'ai adoré" });
+  });
+
+  it("échoue proprement (sans corrompre) sur une apostrophe brute dans une valeur entre guillemets simples", () => {
+    // Cas réellement ambigu : impossible de savoir où la chaîne single-quote
+    // est censée se terminer. On préfère échouer plutôt que de produire un
+    // contenu tronqué/corrompu en silence.
+    const ambiguous = "{'phrase': 'c'est top'}";
+    expect(() => parseAiJson(ambiguous, "test")).toThrow(AiParseError);
+  });
 });
 
 describe("tryParseAiJson", () => {
