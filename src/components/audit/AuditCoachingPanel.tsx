@@ -172,18 +172,21 @@ export default function AuditCoachingPanel({
           .maybeSingle();
 
         if (existing) {
-          await (supabase.from(table as any) as any).update(updates).eq(column, value);
+          const { error } = await (supabase.from(table as any) as any).update(updates).eq(column, value);
+          if (error) throw error;
         } else {
-          await supabase.from(table as any).insert({ ...updates, user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined });
+          const { error } = await supabase.from(table as any).insert({ ...updates, user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined });
+          if (error) throw error;
         }
       }
 
       // Mark recommendation as completed
       if (recId) {
-        await supabase
+        const { error: recError } = await supabase
           .from("audit_recommendations")
           .update({ completed: true, completed_at: new Date().toISOString() })
           .eq("id", recId);
+        if (recError) throw recError;
       }
 
       setPhase("done");

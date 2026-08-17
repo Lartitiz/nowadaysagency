@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -136,7 +137,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const handleMobilePlan = async () => {
     if (!planDialogIdea || !planDate || !user) return;
     const dateStr = format(planDate, "yyyy-MM-dd");
-    const { data: newPost } = await supabase.from("calendar_posts").insert({
+    const { data: newPost, error: insertError } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
@@ -150,9 +151,19 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
       series_id: (planDialogIdea as any).series_id ?? null,
       episode_number: (planDialogIdea as any).episode_number ?? null,
     } as any).select("id").single();
+    if (insertError) {
+      console.error("Erreur technique:", insertError);
+      toast.error("Erreur", { description: friendlyError(insertError) });
+      return;
+    }
 
     if (newPost) {
-      await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", planDialogIdea.id);
+      const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", planDialogIdea.id);
+      if (updateError) {
+        console.error("Erreur technique:", updateError);
+        toast.error("Erreur", { description: friendlyError(updateError) });
+        return;
+      }
     }
     setPlanDialogIdea(null);
     fetchIdeas();
@@ -362,7 +373,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
 
   const handleAdd = async () => {
     if (!user || !title.trim()) return;
-    await supabase.from("saved_ideas").insert({
+    const { error } = await supabase.from("saved_ideas").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       titre: title.trim(),
@@ -373,6 +384,11 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
       status: "to_explore",
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     });
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     toast.success("Idée ajoutée !");
     setTitle(""); setNotes("");
     onOpenChange(false);

@@ -12,16 +12,7 @@
 // Liste partagée entre eslint.a11y.config.js (verrou CI) et eslint.config.js
 // (retour dans l'éditeur) pour qu'elle ne puisse pas diverger.
 export const DETTE_SUPABASE_ERROR_CHECK = [
-  "src/components/CoachingFlow.tsx",
-  "src/components/ContentRecycling.tsx",
-  "src/components/admin/AdminEmailTab.tsx",
-  "src/components/admin/CoachingProgramList.tsx",
-  "src/components/audit/AuditCoachingPanel.tsx",
   "src/components/branding/SynthesisRenderer.tsx",
-  "src/components/calendar/CalendarCoachingDialog.tsx",
-  "src/components/calendar/CalendarIdeasSidebar.tsx",
-  "src/components/calendar/CalendarPostDialog.tsx",
-  "src/components/calendar/IdeaDetailSheet.tsx",
   "src/components/coaching/IntakeQuestionnaire.tsx",
   "src/components/engagement/CommentGenerator.tsx",
   "src/components/plan/AuditRecommendationsSection.tsx",
