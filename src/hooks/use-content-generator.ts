@@ -18,6 +18,7 @@ import {
   getStructureForCombo,
   getStructurePromptForCombo,
 } from "@/lib/content-structures";
+import { renumberSlides } from "@/features/creer/format-mappers";
 
 // ── Types ──
 
@@ -636,6 +637,13 @@ export function useContentGenerator() {
               ? Array.isArray(p.stories) || Array.isArray(p.sequences) || Array.isArray(p.slides)
               : true;
       if (!hasUsableContent) throw new Error("La génération n'a pas fonctionné comme prévu. Réessaie, ça marche en général au deuxième essai 🌸");
+
+      // L'IA renvoie parfois des slide_number fantaisistes (« SLIDE 4.5 » vu en
+      // live sur un carrousel mixte) : on renumérote 1..N dès la réception —
+      // l'ordre du tableau fait foi (rendu, appariement visuels, exports).
+      if (format === "carousel" && Array.isArray(p.slides)) {
+        p.slides = renumberSlides(p.slides);
+      }
 
       const normalized: ContentResult = {
         type: format,
