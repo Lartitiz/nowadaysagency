@@ -21,7 +21,15 @@ export interface CorrectionOptions {
    * latence (carrousel qualité normale) passent Haiku, ~2x plus rapide.
    */
   model?: AnthropicModel;
+  /**
+   * Timeout du 2e appel Anthropic (défaut 60s, aligné sur la génération
+   * principale — cf. audit timeouts 17/08 : cette passe tournait sans borne,
+   * le budget serveur total n'était donc jamais garanti).
+   */
+  abortTimeoutMs?: number;
 }
+
+const DEFAULT_CORRECTION_TIMEOUT_MS = 60_000;
 
 // ── Scan déterministe « faut-il corriger ? » (audit photo 22/07) ──────────────
 // La passe de correction Haiku tournait sur CHAQUE carrousel, même déjà propre :
@@ -660,7 +668,7 @@ export async function applyCorrectionPass(
   format: CorrectionFormat,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 200, enabled = true, logger, model, extraInstructions } = options;
+  const { skipIfShorterThan = 200, enabled = true, logger, model, extraInstructions, abortTimeoutMs = DEFAULT_CORRECTION_TIMEOUT_MS } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:${format}] SKIPPED (disabled)`);
@@ -688,7 +696,9 @@ export async function applyCorrectionPass(
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
         : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`,
       0.3,
-      4096
+      4096,
+      undefined,
+      abortTimeoutMs
     );
 
     if (!corrected || corrected.length < skipIfShorterThan) {
@@ -714,7 +724,7 @@ export async function applyCorrectionPassCarousel(
   jsonContent: string,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions } = options;
+  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions, abortTimeoutMs = DEFAULT_CORRECTION_TIMEOUT_MS } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:carousel-json] SKIPPED (disabled)`);
@@ -754,7 +764,9 @@ export async function applyCorrectionPassCarousel(
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
         : `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
       0.3,
-      4096
+      4096,
+      undefined,
+      abortTimeoutMs
     );
 
     if (!correctedBlock || correctedBlock.length < 100) {
@@ -793,7 +805,7 @@ export async function applyCorrectionPassReel(
   parsedReel: unknown,
   options: CorrectionOptions = {},
 ): Promise<unknown> {
-  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions } = options;
+  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions, abortTimeoutMs = DEFAULT_CORRECTION_TIMEOUT_MS } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:reel-json] SKIPPED (disabled)`);
@@ -818,6 +830,8 @@ export async function applyCorrectionPassReel(
         : `Voici les textes du reel à corriger :\n\n${textBlock}`,
       0.3,
       4096,
+      undefined,
+      abortTimeoutMs,
     );
 
     if (!correctedBlock || correctedBlock.length < 100 || !correctedBlock.includes("[SECTION 1")) {

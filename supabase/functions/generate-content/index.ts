@@ -701,6 +701,9 @@ FORMAT :
           logger: (m) => console.log(`[generate-content] ${m}`),
           // Édition mécanique à règles fermées → Haiku (cf. #364)
           model: "claude-haiku-4-5",
+          // Aligné sur la génération principale (ligne au-dessus) : budget
+          // serveur total borné à 120s (audit timeouts 17/08).
+          abortTimeoutMs: 60_000,
         });
         if (corrected && corrected.length > 200) {
           content = corrected;
