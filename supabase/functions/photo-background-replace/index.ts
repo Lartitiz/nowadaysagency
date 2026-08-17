@@ -20,6 +20,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
+import { fetchWithRetry } from "../_shared/http-retry.ts";
 
 // ── Body schema ──
 const BodySchema = z
@@ -39,7 +40,6 @@ const PRESET_PROMPTS: Record<string, string> = {};
 
 const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
 const PHOTOROOM_TIMEOUT_MS = 60_000;
-const RETRY_DELAY_MS = 2_000;
 
 serve(async (req) => {
   const t0 = Date.now();
@@ -212,38 +212,12 @@ serve(async (req) => {
     };
 
     // 10. Call Photoroom with 1 retry on 5xx/timeout
-    let photoroomRes: Response | null = null;
-    let retried = false;
-    let lastError: string | null = null;
-    const photoroomT0 = Date.now();
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        photoroomRes = await callPhotoroom();
-        if (photoroomRes.ok) break;
-        if (photoroomRes.status >= 500 && attempt === 0) {
-          // Consume body before retry to avoid resource leak
-          await photoroomRes.text().catch(() => "");
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        // 4xx (other than transient) → no retry
-        break;
-      } catch (e) {
-        const isTimeout = e instanceof DOMException && e.name === "TimeoutError";
-        lastError = isTimeout ? "Photoroom timeout" : (e instanceof Error ? e.message : "fetch error");
-        if (attempt === 0 && (isTimeout || (e instanceof Error && e.name === "TypeError"))) {
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        photoroomRes = null;
-        break;
-      }
-    }
-
-    const photoroomMs = Date.now() - photoroomT0;
+    const {
+      response: photoroomRes,
+      retried,
+      lastError,
+      elapsedMs: photoroomMs,
+    } = await fetchWithRetry(callPhotoroom, { timeoutLabel: "Photoroom timeout" });
 
     // Network/timeout failure (no response at all)
     if (!photoroomRes) {

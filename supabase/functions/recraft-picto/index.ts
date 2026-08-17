@@ -23,6 +23,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 import { recraftModel } from "../_shared/recraft-illustration.ts";
+import { fetchWithRetry } from "../_shared/http-retry.ts";
 
 const BodySchema = z.object({
   concepts: z.array(z.string().min(2).max(80)).min(1).max(4),
@@ -39,7 +40,6 @@ const BodySchema = z.object({
 
 const RECRAFT_URL = "https://external.api.recraft.ai/v1/images/generations";
 const RECRAFT_TIMEOUT_MS = 60_000;
-const RETRY_DELAY_MS = 2_000;
 
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = /^#?([0-9a-fA-F]{6})$/.exec(hex.trim());
@@ -149,11 +149,9 @@ serve(async (req) => {
         (payload.controls as Record<string, unknown>).artistic_level = overrides.artistic_level;
       }
 
-      let res: Response | null = null;
-      let lastError: string | null = null;
-      for (let attempt = 0; attempt < 2; attempt++) {
-        try {
-          res = await fetch(RECRAFT_URL, {
+      const { response: res, lastError } = await fetchWithRetry(
+        () =>
+          fetch(RECRAFT_URL, {
             method: "POST",
             headers: {
               Authorization: `Bearer ${recraftKey}`,
@@ -161,24 +159,9 @@ serve(async (req) => {
             },
             body: JSON.stringify(payload),
             signal: AbortSignal.timeout(RECRAFT_TIMEOUT_MS),
-          });
-          if (res.ok) break;
-          if (res.status >= 500 && attempt === 0) {
-            await res.text().catch(() => "");
-            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-            continue;
-          }
-          break;
-        } catch (e) {
-          const isTimeout = e instanceof DOMException && e.name === "TimeoutError";
-          lastError = isTimeout ? "Recraft timeout" : (e instanceof Error ? e.message : "fetch error");
-          if (attempt === 0) {
-            await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-            continue;
-          }
-          res = null;
-        }
-      }
+          }),
+        { networkErrorRetryMode: "always", timeoutLabel: "Recraft timeout" }
+      );
 
       if (!res) throw new Error(`Recraft indisponible (${concept}): ${lastError || "réseau"}`);
       if (!res.ok) {

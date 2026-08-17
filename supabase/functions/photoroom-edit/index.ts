@@ -22,6 +22,7 @@ import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
+import { fetchWithRetry } from "../_shared/http-retry.ts";
 
 const BodySchema = z
   .object({
@@ -43,7 +44,6 @@ const BodySchema = z
 
 const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
 const PHOTOROOM_TIMEOUT_MS = 60_000;
-const RETRY_DELAY_MS = 2_000;
 
 function decodeBase64Image(input: string): { bytes: Uint8Array; mime: string } {
   let mime = "image/jpeg";
@@ -185,40 +185,15 @@ serve(async (req) => {
     };
 
     // 1 retry on 5xx / timeout / network
-    let res: Response | null = null;
-    let retried = false;
-    let lastError: string | null = null;
-    const photoroomT0 = Date.now();
-
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        res = await callPhotoroom();
-        if (res.ok) break;
-        if (res.status >= 500 && attempt === 0) {
-          await res.text().catch(() => "");
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        break;
-      } catch (e) {
-        const isTimeout = e instanceof DOMException && e.name === "TimeoutError";
-        lastError = isTimeout
-          ? "Photoroom timeout"
-          : e instanceof Error
-          ? e.message
-          : "fetch error";
-        if (attempt === 0) {
-          retried = true;
-          await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
-          continue;
-        }
-        res = null;
-        break;
-      }
-    }
-
-    const photoroomMs = Date.now() - photoroomT0;
+    const {
+      response: res,
+      retried,
+      lastError,
+      elapsedMs: photoroomMs,
+    } = await fetchWithRetry(callPhotoroom, {
+      networkErrorRetryMode: "always",
+      timeoutLabel: "Photoroom timeout",
+    });
 
     if (!res) {
       console.error(JSON.stringify({
