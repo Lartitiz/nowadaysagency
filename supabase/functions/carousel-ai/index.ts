@@ -520,13 +520,7 @@ serve(async (req) => {
     // n'est pas déployée le front continue sans elle (le rendu dérive un
     // gabarit sûr via resolvePhotoTemplate).
     if (type === "assign_templates") {
-      const enriched = await assignTemplatesToProvidedSlides(body.slides, {
-        model: pickCorrectionModel(body),
-        logger: (m) => console.log(m),
-      });
-      return new Response(JSON.stringify({ result: { slides: enriched } }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      return handleAssignTemplatesRequest(body, corsHeaders);
     }
 
     let category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
@@ -678,297 +672,512 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       systemPrompt += `\n\n══ CHUTE DE CAPTION IMPOSÉE POUR CETTE GÉNÉRATION ══\nLa caption se termine par : ${captionEndingRule.instruction}.\nCette forme est NON NÉGOCIABLE pour cette génération (elle assure qu'un feed ne montre pas dix captions construites pareil). Si la forme imposée n'est pas une question, le champ "cta" de la caption ne contient AUCUN point d'interrogation.`;
     }
 
-    let userPrompt = "";
+    const reqCtx: CarouselRequestContext = {
+      body,
+      userId,
+      workspaceId: workspace_id,
+      category,
+      isLinkedIn,
+      systemPrompt,
+      brandingContext,
+      gateInputText,
+      captionEndingRule,
+      recentBriefsContext,
+      brandVocabBlock,
+      newsContext,
+      corsHeaders,
+      emitStatus,
+    };
 
-    if (type === "hooks") {
-      userPrompt = buildHooksPrompt(body);
-    } else if (type === "slides") {
-      userPrompt = buildSlidesPrompt(body);
-    } else if (type === "express_full") {
-      // ── Mix carousel mode ──
-      if (body.carousel_type === "mix") {
-        const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
-        const mixPrompt = hasNews
-          ? buildMixCarouselNewsReactionPrompt(body, isLinkedIn)
-          : buildMixCarouselPrompt(body, isLinkedIn);
-        let content: string;
-        let doGenerate: (sink: UsageSink) => Promise<string>;
-        const mixUsage: UsageSink = {};
-        emitStatus("writing");
-
-        if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
-          const messageContent: any[] = [];
-
-          // 1. Brief créatif EN PREMIER (avant les photos)
-          const photoCtxRecap = buildPhotoContextRecap(body.photos);
-          messageContent.push({
-            type: "text",
-            text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.slide_count ? `Nombre de slides cible : ${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur toute autre fourchette, même avec ${body.photos.length} photo(s).\n` : ""}${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
-          });
-
-          // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
-          body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
-            pushPhotoWithContext(messageContent, photo, idx);
-          });
-
-          // 3. Instruction finale après les photos
-          messageContent.push({
-            type: "text",
-            text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.`,
-          });
-
-          doGenerate = (sink: UsageSink) => callAnthropic({
-            model: pickCarouselModel(body),
-            system: systemPrompt + "\n\n" + mixPrompt,
-            messages: [{ role: "user", content: messageContent }],
-            max_tokens: 8192,
-            temperature: 0.85,
-            tool: MIX_CAROUSEL_TOOL,
-          }, sink);
-        } else {
-          const photoDescLine = body.text_first
-            ? ""
-            : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
-          const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}${body.slide_count ? " — choix explicite de l'utilisatrice, il PRIME sur toute autre fourchette" : ""}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
-
-          doGenerate = (sink: UsageSink) => callAnthropic({
-            model: pickCarouselModel(body),
-            system: systemPrompt,
-            messages: [{ role: "user", content: textPrompt }],
-            max_tokens: 8192,
-            temperature: 0.85,
-            tool: MIX_CAROUSEL_TOOL,
-          }, sink);
-        }
-
-        content = await doGenerate(mixUsage);
-        // Plancher déterministe de slides (audit carrousel photo 12/07) : le modèle
-        // peut renvoyer un carrousel écrasé (1 slide vue en live ~1 run/2 en photo).
-        // 0 slide = refus légitime (photo_mismatch), laissé au check ci-dessous ;
-        // entre 1 et le plancher → UN retry, puis on livre ce qu'on a (gates ensuite).
-        content = await retryIfTooShort(content, doGenerate, mixUsage, carouselSlideFloor(body, 8), "mix");
-
-        {
-          const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
-          if (mismatch) return mismatch;
-        }
-
-        // JSON-aware correction pass for carousels (conditionnelle : seulement si
-        // un scan déterministe repère un tic corrigible — sinon on épargne l'appel
-        // Haiku, sa latence, et un round-trip de réécriture ; le redac-gate en aval
-        // reste, lui, une re-passe mesurée qui rattrape les violations).
-        try {
-          if (carouselNeedsPolish(content)) {
-            emitStatus("correcting");
-            const corrected = await applyCorrectionPassCarousel(content, {
-              enabled: true,
-              skipIfShorterThan: 300,
-              logger: (msg) => console.log(msg),
-              model: pickCorrectionModel(body),
-            });
-            if (corrected && corrected !== content) {
-              content = corrected;
-            }
-          } else {
-            console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, mix)");
-          }
-        } catch (correctionError) {
-          console.error("Correction pass failed in carousel-ai (mix):", correctionError);
-        }
-
-        if (body.text_first) {
-          content = enforceTextFirstDirectives(content);
-        } else {
-          // Restaure l'intention de la structure confirmée (photo_index/slide_type)
-          // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07).
-          content = mergeConfirmedStructure(content, body.confirmed_structure);
-          const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
-          content = normalizePhotoIndexes(content, photoCountForIndexes);
-          content = normalizeOverlayStyles(content);
-          // Télémétrie composition (lot D, audit 12/07) : ratio photo < 40 % ou 3 slides
-          // de même type d'affilée — mesure seule, fix éventuel après lecture des logs.
-          const comp = analyzeMixComposition(content);
-          if (comp && (comp.violatesRatio || comp.violatesRun)) {
-            console.warn(JSON.stringify({ event: "carousel_mix_composition", ...comp }));
-          }
-        }
-        {
-          const capped = limitVisualSchemas(content);
-          if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
-          content = capped.content;
-        }
-        // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-        const gateMix = await runRedacGate(content, {
-          isLinkedIn,
-          onStatus: emitStatus,
-          inputText: gateInputText,
-          captionEnding: captionEndingRule,
-          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+    switch (type) {
+      case "hooks":
+        return await handleHooksRequest(reqCtx);
+      case "slides":
+        return await handleSlidesRequest(reqCtx);
+      case "express_full":
+        return await handleExpressFullRequest(reqCtx);
+      case "structure_proposal":
+        return await handleStructureProposalRequest(reqCtx);
+      case "suggest_topics":
+        return await handleSuggestTopicsRequest(reqCtx);
+      case "suggest_angles":
+        return await handleSuggestAnglesRequest(reqCtx);
+      case "deepening_questions":
+        return await handleDeepeningQuestionsRequest(reqCtx);
+      default:
+        return new Response(JSON.stringify({ error: "Type invalide" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
-        content = gateMix.content;
-        await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspace_id);
-        await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspace_id, body.subject);
-        return new Response(JSON.stringify({ content }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+    }
+  } catch (e) {
+    if (e instanceof ValidationError) {
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    // Erreur Anthropic typée (ex. génération coupée car trop longue, 422) :
+    // remonter son message actionnable au lieu d'un 500 « Erreur interne ».
+    if (e instanceof AnthropicError) {
+      console.error("carousel-ai AnthropicError:", e.status, e.message);
+      return new Response(JSON.stringify({ error: e.message }), {
+        status: e.status >= 400 && e.status < 600 ? e.status : 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    console.error("carousel-ai error:", e);
+    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+  };
 
-      // ── Photo carousel mode ──
-      if (body.carousel_type === "photo") {
-        const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
-        const photoPrompt = hasNews
-          ? buildPhotoCarouselNewsReactionPrompt(body, isLinkedIn)
-          : buildPhotoCarouselPrompt(body, isLinkedIn);
-        let content: string;
-        let doGenerate: (sink: UsageSink) => Promise<string>;
-        const photoUsage: UsageSink = {};
-        emitStatus("writing");
+  if (wantsSSE) return runWithHeartbeatSSE(corsHeaders, handle);
+  return handle();
+});
 
-        if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
-          // Vision mode: send photos to Claude
-          const messageContent: any[] = [];
-          const photoCtxRecap = buildPhotoContextRecap(body.photos);
+// ── Handlers par type de requête ──
+// Le handler serve() ci-dessus ne fait que le setup partagé (quota, contexte
+// utilisatrice, systemPrompt, gates) puis aiguille vers une de ces fonctions
+// selon `body.type`. Chaque fonction correspond exactement à une ancienne
+// branche du if/else — extraction mécanique, aucun changement de comportement.
 
-          // 1. Brief + recap contexte AVANT les photos
-          messageContent.push({
-            type: "text",
-            text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides cible : ${body.slide_count ? `${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur les fourchettes des CAS PARTICULIERS, même avec ${body.photos.length} photo(s) (une même photo peut porter plusieurs slides, ou certaines photos ne pas servir)` : `${Math.max(6, Math.min(body.photos.length, 10))} — le nombre de slides suit la RICHESSE DU RÉCIT, pas le nombre de photos (une même photo peut porter plusieurs slides, cf CAS PARTICULIERS)`}. Ne descends JAMAIS sous 4 slides.\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
-          });
+interface CarouselRequestContext {
+  body: any;
+  userId: string;
+  workspaceId: any;
+  category: string;
+  isLinkedIn: boolean;
+  systemPrompt: string;
+  brandingContext: string;
+  gateInputText: string;
+  captionEndingRule: CaptionEndingRule | undefined;
+  recentBriefsContext: string;
+  brandVocabBlock: string;
+  newsContext: any;
+  corsHeaders: Record<string, string>;
+  emitStatus: StatusEmitter;
+}
 
-          // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
-          body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
-            pushPhotoWithContext(messageContent, photo, idx);
-          });
+// ── Mode « Mes slides » (assign_templates) : passe gabarits SEULE (15/07) ──
+// Le texte vient de l'utilisatrice : AUCUNE génération, AUCUN runRedacGate,
+// aucun crédit débité (pas de checkQuota/logUsage — mini-passe Haiku de
+// relecture, comme la RELECTURE-gabarits du flux photo). Fail-open : toute
+// erreur renvoie les slides telles quelles, et si cette version de l'edge
+// n'est pas déployée le front continue sans elle (le rendu dérive un
+// gabarit sûr via resolvePhotoTemplate).
+async function handleAssignTemplatesRequest(body: any, corsHeaders: Record<string, string>): Promise<Response> {
+  const enriched = await assignTemplatesToProvidedSlides(body.slides, {
+    model: pickCorrectionModel(body),
+    logger: (m) => console.log(m),
+  });
+  return new Response(JSON.stringify({ result: { slides: enriched } }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
-          // 3. Instruction finale après les photos
-          messageContent.push({
-            type: "text",
-            text: `Analyse chaque photo et génère le carrousel photo.`,
-          });
+// ── Queue commune de génération ──
+// Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
+// suggest_angles / deepening_questions (variante texte) : un seul appel IA,
+// passe de correction JSON conditionnelle, quality-gate rédactionnel + cap des
+// visual_schema (uniquement express_full/slides), puis logUsage.
+async function runGenerationAndRespond(
+  type: string,
+  userPrompt: string,
+  reqCtx: CarouselRequestContext,
+): Promise<Response> {
+  const { body, userId, workspaceId, category, systemPrompt, gateInputText, captionEndingRule, isLinkedIn, corsHeaders, emitStatus } = reqCtx;
 
-          doGenerate = (sink: UsageSink) => callAnthropic({
-            model: pickCarouselModel(body),
-            system: systemPrompt + "\n\n" + photoPrompt,
-            messages: [{ role: "user", content: messageContent }],
-            max_tokens: 8192,
-            temperature: 0.85,
-            tool: PHOTO_CAROUSEL_TOOL,
-          }, sink);
-        } else {
-          // Text-only mode: description without actual photos
-          const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides cible : ${body.slide_count || 6} — ne descends JAMAIS sous ${Math.min(4, body.slide_count || 6)} slides, quel que soit le nombre de photos (les textes portent la progression).\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+  // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
+  const modelForCall = type === "deepening_questions"
+    ? getModelForAction("questions")
+    : type === "express_full"
+      ? pickCarouselModel(body)
+      : getModelForAction("carousel");
+  const usage: UsageSink = {};
+  if (type !== "deepening_questions") emitStatus("writing");
+  let content = await callAnthropic({
+    model: modelForCall,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+    max_tokens: type === "deepening_questions" ? 1024 : 8192,
+    // Le carrousel tournait au défaut API (1.0), plus chaud que les autres
+    // canaux (0.8) → on cadre la créativité du format vitrine. Les questions
+    // (Haiku, tâche bornée) gardent le comportement par défaut.
+    ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
+    // Questions = appel Haiku court et borné : 30s/tentative pour qu'un fetch
+    // qui traîne bascule en retry plutôt que de bloquer le chemin d'activation.
+    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : {}),
+  }, usage);
 
-          doGenerate = (sink: UsageSink) => callAnthropic({
-            model: pickCarouselModel(body),
-            system: systemPrompt,
-            messages: [{ role: "user", content: textPrompt }],
-            max_tokens: 8192,
-            temperature: 0.85,
-            tool: PHOTO_CAROUSEL_TOOL,
-          }, sink);
-        }
-
-        content = await doGenerate(photoUsage);
-        // Plancher déterministe de slides (audit carrousel photo 12/07) : 1 slide
-        // livrée sur 6 demandées vue en live ~1 run/2. 0 slide = refus légitime
-        // (photo_mismatch), laissé au check ci-dessous.
-        content = await retryIfTooShort(content, doGenerate, photoUsage, carouselSlideFloor(body, 6), "photo");
-
-        {
-          const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
-          if (mismatch) return mismatch;
-        }
-
-        // JSON-aware correction pass for carousels (conditionnelle : cf. mix).
-        // Les overlays photo sont courts par nature → le scan les épargne sauf
-        // slogan manufacturé, d'où beaucoup de sauts légitimes en mode photo.
-        try {
-          if (carouselNeedsPolish(content)) {
-            emitStatus("correcting");
-            const corrected = await applyCorrectionPassCarousel(content, {
-              enabled: true,
-              skipIfShorterThan: 300,
-              logger: (msg) => console.log(msg),
-              model: pickCorrectionModel(body),
-            });
-            if (corrected && corrected !== content) {
-              content = corrected;
-            }
-          } else {
-            console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, photo)");
-          }
-        } catch (correctionError) {
-          console.error("Correction pass failed in carousel-ai (photo):", correctionError);
-        }
-
-        // Restaure l'intention de la structure confirmée (photo_index/slide_type)
-        // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07 :
-        // null 13/13 malgré la consigne). En photo pur, une slide sans slide_type
-        // EST une slide photo (le renderer front fait déjà cette hypothèse).
-        content = mergeConfirmedStructure(content, body.confirmed_structure);
-        {
-          const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
-          content = normalizePhotoIndexes(content, photoCountForIndexes, { assumePhotoWhenTypeMissing: true });
-        }
-        // Un overlay long en style « minimal »/« technique » rend un pavé (lot E).
-        content = normalizeOverlayStyles(content);
-        {
-          const capped = limitVisualSchemas(content);
-          if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
-          content = capped.content;
-        }
-        const gatePhoto = await runRedacGate(content, {
-          isLinkedIn,
-          onStatus: emitStatus,
-          inputText: gateInputText,
-          captionEnding: captionEndingRule,
-          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
-        });
-        content = gatePhoto.content;
-        // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),
-        // pose le gabarit visuel de chaque slide. Décision prise sur le texte
-        // réel, aucun quota de variété, anti-invention par code, fail-open.
-        content = await assignPhotoTemplates(content, {
+  // JSON-aware correction pass for carousels (conditionnelle : cf. mix/photo).
+  if (type === "express_full" || type === "slides" || type === "hooks") {
+    try {
+      if (carouselNeedsPolish(content)) {
+        emitStatus("correcting");
+        const corrected = await applyCorrectionPassCarousel(content, {
+          enabled: true,
+          skipIfShorterThan: 300,
+          logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
-          logger: (m) => console.log(m),
         });
-        await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspace_id);
-        await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspace_id, body.subject);
-        return new Response(JSON.stringify({ content }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        if (corrected && corrected !== content) {
+          content = corrected;
+        }
+      } else {
+        console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, texte)");
       }
+    } catch (correctionError) {
+      console.error("Correction pass failed in carousel-ai:", correctionError);
+    }
+  }
 
-      // ── Standard text carousel ──
-      userPrompt = buildExpressFullPrompt(body, isLinkedIn);
-    } else if (type === "structure_proposal") {
-      const { subject, carousel_type, objective, slide_count, editorial_angle, deepening_answers, photos, photo_description } = body;
-      const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
-      const isPhotoMode = carousel_type === "photo";
-      const isMixMode = carousel_type === "mix";
+  // Garde DÉTERMINISTE : le prompt limite les schémas (max 2, jamais consécutifs)
+  // mais le modèle déborde (3 consécutifs observés en prod le 04/07). On applique
+  // la règle par code — le narratif prime, cf PR #112/#113.
+  if (type === "express_full" || type === "slides") {
+    const capped = limitVisualSchemas(content);
+    if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
+    content = capped.content;
+    // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+    const gateExpress = await runRedacGate(content, {
+      isLinkedIn,
+      onStatus: emitStatus,
+      inputText: gateInputText,
+      captionEnding: captionEndingRule,
+      correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+    });
+    content = gateExpress.content;
+    await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
+  }
 
-      let photoInstruction = "";
-      if (hasPhotos && (isPhotoMode || isMixMode)) {
-        if (isPhotoMode) {
-          const n = photos.length;
-          // slide_count explicite = choix de longueur de l'utilisatrice (puces
-          // « Longueur » du front) — il prime sur la fourchette adaptative.
-          const slideTarget = slide_count ? `${slide_count} à ${slide_count + 1}`
-            : n === 1 ? "4 à 6"
-            : n === 2 ? "5 à 7"
-            : n <= 4 ? "6 à 8"
-            : `${n} à ${n + 2}`;
-          const photoAssignmentRule = n === 1
-            ? `Une seule photo fournie → elle apparaît sur CHAQUE slide. Le récit se construit uniquement par les textes (overlay) qui s'enchaînent.`
-            : n === 2
-            ? `Deux photos fournies → traite-les comme un duo narratif (typiquement AVANT / APRÈS, ou DEUX FACES d'une même réalité).
+  // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
+  // un carrousel débite 2 crédits (rédaction express_full + carousel_visual),
+  // les questions pré-chargées ne comptent pas (aligné sur creative-flow).
+  if (type !== "deepening_questions") {
+    await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
+  }
+
+  return new Response(JSON.stringify({ content }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handleHooksRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const userPrompt = buildHooksPrompt(reqCtx.body);
+  return runGenerationAndRespond("hooks", userPrompt, reqCtx);
+}
+
+async function handleSlidesRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const userPrompt = buildSlidesPrompt(reqCtx.body);
+  return runGenerationAndRespond("slides", userPrompt, reqCtx);
+}
+
+async function handleSuggestTopicsRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const userPrompt = buildSuggestTopicsPrompt(reqCtx.body);
+  return runGenerationAndRespond("suggest_topics", userPrompt, reqCtx);
+}
+
+async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const userPrompt = buildSuggestAnglesPrompt(reqCtx.body);
+  return runGenerationAndRespond("suggest_angles", userPrompt, reqCtx);
+}
+
+// ── Mix carousel mode ──
+async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+
+  const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
+  const mixPrompt = hasNews
+    ? buildMixCarouselNewsReactionPrompt(body, isLinkedIn)
+    : buildMixCarouselPrompt(body, isLinkedIn);
+  let content: string;
+  let doGenerate: (sink: UsageSink) => Promise<string>;
+  const mixUsage: UsageSink = {};
+  emitStatus("writing");
+
+  if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
+    const messageContent: any[] = [];
+
+    // 1. Brief créatif EN PREMIER (avant les photos)
+    const photoCtxRecap = buildPhotoContextRecap(body.photos);
+    messageContent.push({
+      type: "text",
+      text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.slide_count ? `Nombre de slides cible : ${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur toute autre fourchette, même avec ${body.photos.length} photo(s).\n` : ""}${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
+    });
+
+    // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
+    body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
+      pushPhotoWithContext(messageContent, photo, idx);
+    });
+
+    // 3. Instruction finale après les photos
+    messageContent.push({
+      type: "text",
+      text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.`,
+    });
+
+    doGenerate = (sink: UsageSink) => callAnthropic({
+      model: pickCarouselModel(body),
+      system: systemPrompt + "\n\n" + mixPrompt,
+      messages: [{ role: "user", content: messageContent }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: MIX_CAROUSEL_TOOL,
+    }, sink);
+  } else {
+    const photoDescLine = body.text_first
+      ? ""
+      : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
+    const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}${body.slide_count ? " — choix explicite de l'utilisatrice, il PRIME sur toute autre fourchette" : ""}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
+
+    doGenerate = (sink: UsageSink) => callAnthropic({
+      model: pickCarouselModel(body),
+      system: systemPrompt,
+      messages: [{ role: "user", content: textPrompt }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: MIX_CAROUSEL_TOOL,
+    }, sink);
+  }
+
+  content = await doGenerate(mixUsage);
+  // Plancher déterministe de slides (audit carrousel photo 12/07) : le modèle
+  // peut renvoyer un carrousel écrasé (1 slide vue en live ~1 run/2 en photo).
+  // 0 slide = refus légitime (photo_mismatch), laissé au check ci-dessous ;
+  // entre 1 et le plancher → UN retry, puis on livre ce qu'on a (gates ensuite).
+  content = await retryIfTooShort(content, doGenerate, mixUsage, carouselSlideFloor(body, 8), "mix");
+
+  {
+    const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
+    if (mismatch) return mismatch;
+  }
+
+  // JSON-aware correction pass for carousels (conditionnelle : seulement si
+  // un scan déterministe repère un tic corrigible — sinon on épargne l'appel
+  // Haiku, sa latence, et un round-trip de réécriture ; le redac-gate en aval
+  // reste, lui, une re-passe mesurée qui rattrape les violations).
+  try {
+    if (carouselNeedsPolish(content)) {
+      emitStatus("correcting");
+      const corrected = await applyCorrectionPassCarousel(content, {
+        enabled: true,
+        skipIfShorterThan: 300,
+        logger: (msg) => console.log(msg),
+        model: pickCorrectionModel(body),
+      });
+      if (corrected && corrected !== content) {
+        content = corrected;
+      }
+    } else {
+      console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, mix)");
+    }
+  } catch (correctionError) {
+    console.error("Correction pass failed in carousel-ai (mix):", correctionError);
+  }
+
+  if (body.text_first) {
+    content = enforceTextFirstDirectives(content);
+  } else {
+    // Restaure l'intention de la structure confirmée (photo_index/slide_type)
+    // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07).
+    content = mergeConfirmedStructure(content, body.confirmed_structure);
+    const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
+    content = normalizePhotoIndexes(content, photoCountForIndexes);
+    content = normalizeOverlayStyles(content);
+    // Télémétrie composition (lot D, audit 12/07) : ratio photo < 40 % ou 3 slides
+    // de même type d'affilée — mesure seule, fix éventuel après lecture des logs.
+    const comp = analyzeMixComposition(content);
+    if (comp && (comp.violatesRatio || comp.violatesRun)) {
+      console.warn(JSON.stringify({ event: "carousel_mix_composition", ...comp }));
+    }
+  }
+  {
+    const capped = limitVisualSchemas(content);
+    if (capped.stripped > 0) console.warn(`carousel-ai(mix): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
+    content = capped.content;
+  }
+  // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
+  const gateMix = await runRedacGate(content, {
+    isLinkedIn,
+    onStatus: emitStatus,
+    inputText: gateInputText,
+    captionEnding: captionEndingRule,
+    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+  });
+  content = gateMix.content;
+  await logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
+  await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
+  return new Response(JSON.stringify({ content }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+// ── Photo carousel mode ──
+async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+
+  const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
+  const photoPrompt = hasNews
+    ? buildPhotoCarouselNewsReactionPrompt(body, isLinkedIn)
+    : buildPhotoCarouselPrompt(body, isLinkedIn);
+  let content: string;
+  let doGenerate: (sink: UsageSink) => Promise<string>;
+  const photoUsage: UsageSink = {};
+  emitStatus("writing");
+
+  if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
+    // Vision mode: send photos to Claude
+    const messageContent: any[] = [];
+    const photoCtxRecap = buildPhotoContextRecap(body.photos);
+
+    // 1. Brief + recap contexte AVANT les photos
+    messageContent.push({
+      type: "text",
+      text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides cible : ${body.slide_count ? `${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur les fourchettes des CAS PARTICULIERS, même avec ${body.photos.length} photo(s) (une même photo peut porter plusieurs slides, ou certaines photos ne pas servir)` : `${Math.max(6, Math.min(body.photos.length, 10))} — le nombre de slides suit la RICHESSE DU RÉCIT, pas le nombre de photos (une même photo peut porter plusieurs slides, cf CAS PARTICULIERS)`}. Ne descends JAMAIS sous 4 slides.\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
+    });
+
+    // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
+    body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
+      pushPhotoWithContext(messageContent, photo, idx);
+    });
+
+    // 3. Instruction finale après les photos
+    messageContent.push({
+      type: "text",
+      text: `Analyse chaque photo et génère le carrousel photo.`,
+    });
+
+    doGenerate = (sink: UsageSink) => callAnthropic({
+      model: pickCarouselModel(body),
+      system: systemPrompt + "\n\n" + photoPrompt,
+      messages: [{ role: "user", content: messageContent }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: PHOTO_CAROUSEL_TOOL,
+    }, sink);
+  } else {
+    // Text-only mode: description without actual photos
+    const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides cible : ${body.slide_count || 6} — ne descends JAMAIS sous ${Math.min(4, body.slide_count || 6)} slides, quel que soit le nombre de photos (les textes portent la progression).\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+
+    doGenerate = (sink: UsageSink) => callAnthropic({
+      model: pickCarouselModel(body),
+      system: systemPrompt,
+      messages: [{ role: "user", content: textPrompt }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: PHOTO_CAROUSEL_TOOL,
+    }, sink);
+  }
+
+  content = await doGenerate(photoUsage);
+  // Plancher déterministe de slides (audit carrousel photo 12/07) : 1 slide
+  // livrée sur 6 demandées vue en live ~1 run/2. 0 slide = refus légitime
+  // (photo_mismatch), laissé au check ci-dessous.
+  content = await retryIfTooShort(content, doGenerate, photoUsage, carouselSlideFloor(body, 6), "photo");
+
+  {
+    const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
+    if (mismatch) return mismatch;
+  }
+
+  // JSON-aware correction pass for carousels (conditionnelle : cf. mix).
+  // Les overlays photo sont courts par nature → le scan les épargne sauf
+  // slogan manufacturé, d'où beaucoup de sauts légitimes en mode photo.
+  try {
+    if (carouselNeedsPolish(content)) {
+      emitStatus("correcting");
+      const corrected = await applyCorrectionPassCarousel(content, {
+        enabled: true,
+        skipIfShorterThan: 300,
+        logger: (msg) => console.log(msg),
+        model: pickCorrectionModel(body),
+      });
+      if (corrected && corrected !== content) {
+        content = corrected;
+      }
+    } else {
+      console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, photo)");
+    }
+  } catch (correctionError) {
+    console.error("Correction pass failed in carousel-ai (photo):", correctionError);
+  }
+
+  // Restaure l'intention de la structure confirmée (photo_index/slide_type)
+  // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07 :
+  // null 13/13 malgré la consigne). En photo pur, une slide sans slide_type
+  // EST une slide photo (le renderer front fait déjà cette hypothèse).
+  content = mergeConfirmedStructure(content, body.confirmed_structure);
+  {
+    const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
+    content = normalizePhotoIndexes(content, photoCountForIndexes, { assumePhotoWhenTypeMissing: true });
+  }
+  // Un overlay long en style « minimal »/« technique » rend un pavé (lot E).
+  content = normalizeOverlayStyles(content);
+  {
+    const capped = limitVisualSchemas(content);
+    if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
+    content = capped.content;
+  }
+  const gatePhoto = await runRedacGate(content, {
+    isLinkedIn,
+    onStatus: emitStatus,
+    inputText: gateInputText,
+    captionEnding: captionEndingRule,
+    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+  });
+  content = gatePhoto.content;
+  // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),
+  // pose le gabarit visuel de chaque slide. Décision prise sur le texte
+  // réel, aucun quota de variété, anti-invention par code, fail-open.
+  content = await assignPhotoTemplates(content, {
+    model: pickCorrectionModel(body),
+    logger: (m) => console.log(m),
+  });
+  await logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
+  await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject);
+  return new Response(JSON.stringify({ content }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+async function handleExpressFullRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const { body, isLinkedIn } = reqCtx;
+  if (body.carousel_type === "mix") return handleMixCarouselRequest(reqCtx);
+  if (body.carousel_type === "photo") return handlePhotoCarouselRequest(reqCtx);
+  // ── Standard text carousel ──
+  const userPrompt = buildExpressFullPrompt(body, isLinkedIn);
+  return runGenerationAndRespond("express_full", userPrompt, reqCtx);
+}
+
+async function handleStructureProposalRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const { body, brandingContext, newsContext, corsHeaders } = reqCtx;
+  const { subject, carousel_type, objective, slide_count, editorial_angle, deepening_answers, photos, photo_description } = body;
+  const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
+  const isPhotoMode = carousel_type === "photo";
+  const isMixMode = carousel_type === "mix";
+
+  let photoInstruction = "";
+  if (hasPhotos && (isPhotoMode || isMixMode)) {
+    if (isPhotoMode) {
+      const n = photos.length;
+      // slide_count explicite = choix de longueur de l'utilisatrice (puces
+      // « Longueur » du front) — il prime sur la fourchette adaptative.
+      const slideTarget = slide_count ? `${slide_count} à ${slide_count + 1}`
+        : n === 1 ? "4 à 6"
+        : n === 2 ? "5 à 7"
+        : n <= 4 ? "6 à 8"
+        : `${n} à ${n + 2}`;
+      const photoAssignmentRule = n === 1
+        ? `Une seule photo fournie → elle apparaît sur CHAQUE slide. Le récit se construit uniquement par les textes (overlay) qui s'enchaînent.`
+        : n === 2
+        ? `Deux photos fournies → traite-les comme un duo narratif (typiquement AVANT / APRÈS, ou DEUX FACES d'une même réalité).
 - N'alterne PAS mécaniquement photo 1 / photo 2 / photo 1 / photo 2. Cette alternance est INTERDITE sans justification narrative.
 - Structure conseillée : 2-3 slides successives avec photo 1 (poser le "avant" / contexte / problème) → 1 slide pivot (bascule, déclic) → 2-3 slides avec photo 2 ("après" / résolution / nouveau regard).
 - Variante acceptée : commencer par photo 2 en hook teaser, puis revenir à photo 1 pour raconter d'où on vient, puis ramener photo 2 pour boucler.
 - Dans tous les cas, le rythme des photos doit servir un ARC narratif clair, pas un effet de montage.`
-            : `${n} photos fournies → chaque photo peut se répéter si son rôle narratif change (ex: la même photo en hook puis en clôture avec un sens nouveau). Évite l'enchaînement plat "1 photo = 1 slide" si le récit gagne à insister sur une image-clé.`;
+        : `${n} photos fournies → chaque photo peut se répéter si son rôle narratif change (ex: la même photo en hook puis en clôture avec un sens nouveau). Évite l'enchaînement plat "1 photo = 1 slide" si le récit gagne à insister sur une image-clé.`;
 
-          photoInstruction = `\nMODE PHOTO — ${n} photo(s) fournie(s).
+      photoInstruction = `\nMODE PHOTO — ${n} photo(s) fournie(s).
 
 NOMBRE DE SLIDES : cible ${slideTarget} slides. ${slide_count ? `C'est un CHOIX EXPLICITE de l'utilisatrice : respecte-le, même si le nombre de photos suggérerait autre chose (une même photo peut porter plusieurs slides, ou certaines photos ne pas servir).` : `Le nombre de slides s'ajuste à la richesse narrative du sujet ET au nombre de photos — il n'y a PAS de plancher rigide à 7-8 slides.`}
 
@@ -982,8 +1191,8 @@ Les overlay_text de chaque slide doivent se lire à la suite comme UN SEUL mini-
 
 Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une progression (zoom narratif, avancée temporelle, retournement) — pas trois variantes d'une même idée.
 ${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
-        } else {
-          photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
+    } else {
+      photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
 
 OBJECTIF DU FORMAT MIXTE : un dialogue ÉQUILIBRÉ entre image et mot. Ce N'EST PAS un carrousel texte avec quelques photos décoratives. Si tu produis 70% de slides texte, tu rates le format. Ce n'est PAS non plus un diaporama photo : si le sujet a de la profondeur, il faut des slides texte d'approfondissement.
 
@@ -1015,21 +1224,21 @@ Les title_suggestion lus dans l'ordre doivent raconter UNE histoire qui progress
 Chaque strategic_note doit dire ce que la slide FAIT AVANCER dans le récit (ce qu'elle ajoute, retourne ou révèle par rapport à la précédente), pas seulement pourquoi elle est à cette position dans la structure.
 Test de permutation : si on échange deux slides au hasard et que la structure "marche encore", c'est raté — recommence.
 ${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
-        }
-      }
+    }
+  }
 
-      const hasNewsContextForStructure = typeof newsContext === "string" && newsContext.trim().length > 0;
-      // Bloc condensé spécifique à structure_proposal : on ne réutilise PAS newsContextBlock
-      // (trop lourd, orienté rédaction finale avec ANTI_FABRICATED_STORYTELLING etc.).
-      // Ici on veut juste informer l'architecture narrative.
-      const structureNewsContextBlock = hasNewsContextForStructure
-        ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${(newsContext as string).trim()}\n`
-        : "";
-      const structureNewsConsigne = hasNewsContextForStructure
-        ? `\nCONSIGNE STRUCTURE — NEWSJACKING ACTIF :\n- La slide 1 (hook) DOIT partir de l'actualité ci-dessus, pas d'une description des photos.\n- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme évoqué).\n- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.\n- Pense "article + photos", pas "photos seules".\n`
-        : "";
+  const hasNewsContextForStructure = typeof newsContext === "string" && newsContext.trim().length > 0;
+  // Bloc condensé spécifique à structure_proposal : on ne réutilise PAS newsContextBlock
+  // (trop lourd, orienté rédaction finale avec ANTI_FABRICATED_STORYTELLING etc.).
+  // Ici on veut juste informer l'architecture narrative.
+  const structureNewsContextBlock = hasNewsContextForStructure
+    ? `\n\n══════════════════════════════════════\nCONTEXTE ACTUALITÉ (NEWSJACKING)\n══════════════════════════════════════\n${(newsContext as string).trim()}\n`
+    : "";
+  const structureNewsConsigne = hasNewsContextForStructure
+    ? `\nCONSIGNE STRUCTURE — NEWSJACKING ACTIF :\n- La slide 1 (hook) DOIT partir de l'actualité ci-dessus, pas d'une description des photos.\n- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme évoqué).\n- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.\n- Pense "article + photos", pas "photos seules".\n`
+    : "";
 
-      const structureSystemPrompt = `${BASE_SYSTEM_RULES}
+  const structureSystemPrompt = `${BASE_SYSTEM_RULES}
 
 Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedIn.
 
@@ -1076,7 +1285,7 @@ RAPPEL CRITIQUE sur les nouveaux champs :
 - "visual_anchor" (slides photo uniquement) = UN détail concret mobilisable, ATTENDU sur chaque slide photo. Pas une description. Ne l'omets qu'en dernier recours, si la photo n'offre vraiment aucun détail saisissable.
 - story_beat et visual_anchor SERVENT le narrative_thread : chaque story_beat est UNE étape du récit global ; les visual_anchors fournissent la matière sensorielle qui ancre cette étape.`;
 
-      const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
+  const structureUserPrompt = `Sujet du carrousel : "${subject || "non précisé"}"
 ${hasNewsContextForStructure ? `Actualité de référence : "${(newsContext as string).split("\n")[0]?.slice(0, 120) || ""}…" — cette actu doit ancrer la structure proposée.` : ""}
 ${carousel_type ? `Type de carrousel : ${carousel_type}` : "Choisis le type le plus pertinent."}
 ${objective ? `Objectif : ${objective}` : ""}
@@ -1085,154 +1294,151 @@ ${deepening_answers ? `Réponses de personnalisation : ${JSON.stringify(deepenin
 ${hasPhotos ? `Nombre de photos : ${photos.length}` : ""}
 Propose la structure optimale.`;
 
-      let content: string;
-      if (hasPhotos) {
-        const messageContent: any[] = [];
-        const photoCtxRecap = buildPhotoContextRecap(photos);
-        messageContent.push({
-          type: "text",
-          text: structureUserPrompt + photoCtxRecap + "\n\nVoici les photos à analyser :",
-        });
-        // Photos avec contexte par photo s'il existe (l'ordre = ordre d'envoi front)
-        photos.slice(0, 10).forEach((photo: any, idx: number) => {
-          pushPhotoWithContext(messageContent, photo, idx);
-        });
-        messageContent.push({
-          type: "text",
-          text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",
-        });
-        content = await callAnthropic({
-          model: getModelForAction("content"),
-          system: structureSystemPrompt,
-          messages: [{ role: "user", content: messageContent }],
-          max_tokens: 3000,
-          tool: STRUCTURE_PROPOSAL_TOOL,
-        });
-      } else {
-        content = await callAnthropic({
-          model: getModelForAction("content"),
-          system: structureSystemPrompt,
-          messages: [{ role: "user", content: structureUserPrompt }],
-          max_tokens: 3000,
-          tool: STRUCTURE_PROPOSAL_TOOL,
-        });
-      }
+  let content: string;
+  if (hasPhotos) {
+    const messageContent: any[] = [];
+    const photoCtxRecap = buildPhotoContextRecap(photos);
+    messageContent.push({
+      type: "text",
+      text: structureUserPrompt + photoCtxRecap + "\n\nVoici les photos à analyser :",
+    });
+    // Photos avec contexte par photo s'il existe (l'ordre = ordre d'envoi front)
+    photos.slice(0, 10).forEach((photo: any, idx: number) => {
+      pushPhotoWithContext(messageContent, photo, idx);
+    });
+    messageContent.push({
+      type: "text",
+      text: "Analyse ces photos et propose la structure optimale avec l'assignation photo.",
+    });
+    content = await callAnthropic({
+      model: getModelForAction("content"),
+      system: structureSystemPrompt,
+      messages: [{ role: "user", content: messageContent }],
+      max_tokens: 3000,
+      tool: STRUCTURE_PROPOSAL_TOOL,
+    });
+  } else {
+    content = await callAnthropic({
+      model: getModelForAction("content"),
+      system: structureSystemPrompt,
+      messages: [{ role: "user", content: structureUserPrompt }],
+      max_tokens: 3000,
+      tool: STRUCTURE_PROPOSAL_TOOL,
+    });
+  }
 
-      // PAS de logUsage — cet appel est gratuit
-      let structureResult;
-      try {
-        const jsonMatch = content.match(/\{[\s\S]*\}/);
-        structureResult = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
-      } catch {
-        structureResult = null;
-      }
+  // PAS de logUsage — cet appel est gratuit
+  let structureResult;
+  try {
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    structureResult = jsonMatch ? JSON.parse(jsonMatch[0]) : null;
+  } catch {
+    structureResult = null;
+  }
 
-      // Refus structuré : mêmes symptômes possibles que sur la génération (l'IA
-      // voit les photos en vision) — sans ce chemin, un photo_mismatch partait
-      // en « Impossible de parser » + repli sur une génération directe qui
-      // re-refusait. Appel gratuit : rien à dé-débiter, mais le message doit
-      // être actionnable. Le front (CreerUnifie) affiche message et renvoie au
-      // choix des photos.
-      if (hasPhotos && !(Array.isArray(structureResult?.slides) && structureResult.slides.length > 0)) {
-        const mismatchReason = typeof structureResult?.photo_mismatch?.reason === "string"
-          ? structureResult.photo_mismatch.reason.trim()
-          : "";
-        if (mismatchReason) {
-          const plural = photos.length > 1;
-          console.warn(`[carousel-ai] structure_proposal: photo_mismatch — ${mismatchReason}`);
-          return new Response(JSON.stringify({
-            error: "photo_mismatch",
-            message: `${plural ? "Tes photos ne semblent pas correspondre" : "Ta photo ne semble pas correspondre"} à ton idée : ${mismatchReason}${/[.!?…]$/.test(mismatchReason) ? "" : "."} Change de photo${plural ? "s" : ""} ou passe en carrousel « Texte design » pour garder ton idée telle quelle. Aucun crédit n'a été décompté.`,
-          }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
-
-      if (!structureResult) {
-        return new Response(JSON.stringify({ error: "Impossible de parser la structure proposée" }), {
-          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      // 0 slide SANS raison de mismatch : erreur explicite plutôt qu'une
-      // structure vide renvoyée en « succès » (le front auto-valide en mode
-      // photo et enchaînerait une génération sur du vide).
-      if (!(Array.isArray(structureResult.slides) && structureResult.slides.length > 0)) {
-        console.warn("[carousel-ai] structure_proposal: 0 slide sans photo_mismatch");
-        return new Response(JSON.stringify({
-          error: "structure_vide",
-          message: "La proposition de structure est revenue vide. Réessaie — aucun crédit n'a été décompté.",
-        }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ result: structureResult }), {
+  // Refus structuré : mêmes symptômes possibles que sur la génération (l'IA
+  // voit les photos en vision) — sans ce chemin, un photo_mismatch partait
+  // en « Impossible de parser » + repli sur une génération directe qui
+  // re-refusait. Appel gratuit : rien à dé-débiter, mais le message doit
+  // être actionnable. Le front (CreerUnifie) affiche message et renvoie au
+  // choix des photos.
+  if (hasPhotos && !(Array.isArray(structureResult?.slides) && structureResult.slides.length > 0)) {
+    const mismatchReason = typeof structureResult?.photo_mismatch?.reason === "string"
+      ? structureResult.photo_mismatch.reason.trim()
+      : "";
+    if (mismatchReason) {
+      const plural = photos.length > 1;
+      console.warn(`[carousel-ai] structure_proposal: photo_mismatch — ${mismatchReason}`);
+      return new Response(JSON.stringify({
+        error: "photo_mismatch",
+        message: `${plural ? "Tes photos ne semblent pas correspondre" : "Ta photo ne semble pas correspondre"} à ton idée : ${mismatchReason}${/[.!?…]$/.test(mismatchReason) ? "" : "."} Change de photo${plural ? "s" : ""} ou passe en carrousel « Texte design » pour garder ton idée telle quelle. Aucun crédit n'a été décompté.`,
+      }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
+    }
+  }
 
-    } else if (type === "suggest_topics") {
-      userPrompt = buildSuggestTopicsPrompt(body);
-    } else if (type === "suggest_angles") {
-      userPrompt = buildSuggestAnglesPrompt(body);
-    } else if (type === "deepening_questions") {
-      // ── Photo / mix carousel: vision-informed questions ──
-      if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photos && body.photos.length > 0) {
-        const isMix = body.carousel_type === "mix";
-        const channelLabel = isLinkedIn ? "LinkedIn" : "Instagram";
-        const formatLabel = isMix
-          ? `carrousel ${channelLabel} MIXTE (slides photo + slides texte alternées)`
-          : `carrousel photo ${channelLabel}`;
+  if (!structureResult) {
+    return new Response(JSON.stringify({ error: "Impossible de parser la structure proposée" }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-        // Détecte si l'utilisatrice a vraiment écrit un sujet, ou si c'est juste un fallback automatique
-        const rawSubject = (body.subject || "").trim();
-        const isFallbackSubject = !rawSubject || rawSubject === "Carrousel basé sur les photos uploadées";
-        const hasWrittenIntent = !isFallbackSubject || !!(body.photo_description && body.photo_description.trim().length > 0);
+  // 0 slide SANS raison de mismatch : erreur explicite plutôt qu'une
+  // structure vide renvoyée en « succès » (le front auto-valide en mode
+  // photo et enchaînerait une génération sur du vide).
+  if (!(Array.isArray(structureResult.slides) && structureResult.slides.length > 0)) {
+    console.warn("[carousel-ai] structure_proposal: 0 slide sans photo_mismatch");
+    return new Response(JSON.stringify({
+      error: "structure_vide",
+      message: "La proposition de structure est revenue vide. Réessaie — aucun crédit n'a été décompté.",
+    }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
 
-        const messageContent: any[] = [];
-        body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
-          pushPhotoWithContext(messageContent, photo, idx);
-        });
-        const photoCtxRecap = buildPhotoContextRecap(body.photos);
+  return new Response(JSON.stringify({ result: structureResult }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
-        // Bloc "intention écrite" : présenté comme un fil narratif de même importance que les photos, pas comme une métadonnée
-        const writtenIntentBlock = hasWrittenIntent
-          ? `\n\nCE QU'ELLE A DÉJÀ EN TÊTE À RACONTER (à mettre AU MÊME NIVEAU que les photos) :
+// ── Photo / mix carousel: vision-informed questions ──
+async function handleDeepeningQuestionsVisionRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const { body, isLinkedIn, brandingContext, brandVocabBlock, recentBriefsContext, systemPrompt, corsHeaders } = reqCtx;
+  const isMix = body.carousel_type === "mix";
+  const channelLabel = isLinkedIn ? "LinkedIn" : "Instagram";
+  const formatLabel = isMix
+    ? `carrousel ${channelLabel} MIXTE (slides photo + slides texte alternées)`
+    : `carrousel photo ${channelLabel}`;
+
+  // Détecte si l'utilisatrice a vraiment écrit un sujet, ou si c'est juste un fallback automatique
+  const rawSubject = (body.subject || "").trim();
+  const isFallbackSubject = !rawSubject || rawSubject === "Carrousel basé sur les photos uploadées";
+  const hasWrittenIntent = !isFallbackSubject || !!(body.photo_description && body.photo_description.trim().length > 0);
+
+  const messageContent: any[] = [];
+  body.photos.slice(0, 10).forEach((photo: any, idx: number) => {
+    pushPhotoWithContext(messageContent, photo, idx);
+  });
+  const photoCtxRecap = buildPhotoContextRecap(body.photos);
+
+  // Bloc "intention écrite" : présenté comme un fil narratif de même importance que les photos, pas comme une métadonnée
+  const writtenIntentBlock = hasWrittenIntent
+    ? `\n\nCE QU'ELLE A DÉJÀ EN TÊTE À RACONTER (à mettre AU MÊME NIVEAU que les photos) :
 ${!isFallbackSubject ? `Sujet/angle qu'elle a écrit : "${rawSubject}"` : ""}
 ${body.photo_description && body.photo_description.trim() ? `Ce qu'elle dit de ses photos : "${body.photo_description}"` : ""}`
-          : `\n\nElle n'a pas (encore) écrit de sujet précis : appuie-toi à 100 % sur les photos pour faire émerger son intention.`;
+    : `\n\nElle n'a pas (encore) écrit de sujet précis : appuie-toi à 100 % sur les photos pour faire émerger son intention.`;
 
-        const crossingRules = hasWrittenIntent
-          ? `\n- CROISER ce qu'elle a écrit (sujet/description) avec ce que tu vois dans les photos : où est-ce que les deux se rencontrent ? Où est-ce qu'il y a un écart, une tension, un non-dit, un détail visuel qui prolonge ou contredit son texte ?
+  const crossingRules = hasWrittenIntent
+    ? `\n- CROISER ce qu'elle a écrit (sujet/description) avec ce que tu vois dans les photos : où est-ce que les deux se rencontrent ? Où est-ce qu'il y a un écart, une tension, un non-dit, un détail visuel qui prolonge ou contredit son texte ?
 - ${isMix ? "Au moins 2 questions sur 3" : "Au moins 1 question sur 3"} doivent faire ce pont EXPLICITE entre son intention écrite et ce que les photos montrent réellement (cite un bout de son texte ET un élément visuel précis dans la même question).`
-          : "";
+    : "";
 
-        const crossingExamples = hasWrittenIntent
-          ? `
+  const crossingExamples = hasWrittenIntent
+    ? `
 - "Tu écris '${rawSubject ? rawSubject.slice(0, 60) : "[bout de son sujet]"}…' et sur la photo [N] on voit [élément précis] — c'est exactement la scène que tu veux montrer, ou il y a autre chose derrière ce moment-là ?"
 - "Ton sujet parle de [thème écrit], mais les photos montrent surtout [observation visuelle qui détonne ou prolonge]. Lequel des deux veux-tu mettre en avant — ou comment tu veux les faire dialoguer dans le carrousel ?"`
-          : "";
+    : "";
 
-        // ── Blocs de profondeur (alignés sur le prompt texte) ──
-        const brandingDepthBlock = brandingContext
-          ? `\n\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n\nUtilise ce contexte pour personnaliser tes questions : mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent. Les questions doivent montrer que tu connais son univers.`
-          : "";
+  // ── Blocs de profondeur (alignés sur le prompt texte) ──
+  const brandingDepthBlock = brandingContext
+    ? `\n\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n\nUtilise ce contexte pour personnaliser tes questions : mentionne son domaine d'activité, sa cible, ses offres ou son positionnement quand c'est pertinent. Les questions doivent montrer que tu connais son univers.`
+    : "";
 
-        const angleDepthBlock = (body.editorial_angle && body.content_structure)
-          ? `\n\nANGLE ÉDITORIAL : ${body.editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${body.content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel ET ses photos.`
-          : "";
+  const angleDepthBlock = (body.editorial_angle && body.content_structure)
+    ? `\n\nANGLE ÉDITORIAL : ${body.editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${body.content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel ET ses photos.`
+    : "";
 
-        const reasoningBlock = `\n\n══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
+  const reasoningBlock = `\n\n══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
 Réfléchis silencieusement à :
 1. Quel est le SUJET COURANT ? (ré-extraire 1 mot-clé)
 2. Quel vocabulaire métier puis-je intégrer (activité, cible, expressions clés) ?
 3. Quels DÉTAILS VISUELS PRÉCIS sur les photos puis-je nommer (pas "l'ambiance", mais le geste, l'objet, la couleur exacte, la posture) ?
 4. Y a-t-il un sujet identique dans l'historique récent ? Quelle question NE PAS reposer ?`;
 
-        messageContent.push({
-          type: "text",
-          text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un ${formatLabel}.
+  messageContent.push({
+    type: "text",
+    text: `Voici ${body.photos.length} photo(s) que l'utilisatrice veut utiliser pour un ${formatLabel}.
 
 Objectif : ${body.objective || "engagement"}${writtenIntentBlock}${photoCtxRecap}${brandingDepthBlock}${brandVocabBlock}${recentBriefsContext || ""}${angleDepthBlock}${reasoningBlock}
 
@@ -1268,140 +1474,46 @@ Réponds UNIQUEMENT en JSON valide :
     { "question": "...", "placeholder": "..." }
   ]
 }`,
-        });
+  });
 
-        const deepeningUsage: UsageSink = {};
-        const content = await callAnthropic({
-          model: getModelForAction("questions"),
-          system: systemPrompt,
-          messages: [{ role: "user", content: messageContent }],
-          max_tokens: 4096,
-          // Questions ancrées sur photos : borne chaque tentative à 60s pour
-          // éviter le blocage indéfini d'un fetch qui traîne.
-          abortTimeoutMs: 60000,
-          tool: QUESTIONS_TOOL,
-        }, deepeningUsage);
+  const deepeningUsage: UsageSink = {};
+  const content = await callAnthropic({
+    model: getModelForAction("questions"),
+    system: systemPrompt,
+    messages: [{ role: "user", content: messageContent }],
+    max_tokens: 4096,
+    // Questions ancrées sur photos : borne chaque tentative à 60s pour
+    // éviter le blocage indéfini d'un fetch qui traîne.
+    abortTimeoutMs: 60000,
+    tool: QUESTIONS_TOOL,
+  }, deepeningUsage);
 
-        // PAS de logUsage — les questions d'approfondissement sont gratuites
-        // (arbitrage 10/07/2026 : un carrousel débite 2 crédits, rédaction +
-        // visuel ; aligné sur creative-flow où le step "questions" est gratuit).
-        return new Response(JSON.stringify({ content }), {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+  // PAS de logUsage — les questions d'approfondissement sont gratuites
+  // (arbitrage 10/07/2026 : un carrousel débite 2 crédits, rédaction +
+  // visuel ; aligné sur creative-flow où le step "questions" est gratuit).
+  return new Response(JSON.stringify({ content }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
 
-      // ── Photo/mix carousel with description only (no actual photos) ──
-      if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photo_description) {
-        const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock) + photoDescBlock;
-      } else {
-        userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
-      }
-    } else {
-      return new Response(JSON.stringify({ error: "Type invalide" }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+async function handleDeepeningQuestionsRequest(reqCtx: CarouselRequestContext): Promise<Response> {
+  const { body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock } = reqCtx;
 
-    // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
-    const modelForCall = type === "deepening_questions"
-      ? getModelForAction("questions")
-      : type === "express_full"
-        ? pickCarouselModel(body)
-        : getModelForAction("carousel");
-    const usage: UsageSink = {};
-    if (type !== "deepening_questions") emitStatus("writing");
-    let content = await callAnthropic({
-      model: modelForCall,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-      max_tokens: type === "deepening_questions" ? 1024 : 8192,
-      // Le carrousel tournait au défaut API (1.0), plus chaud que les autres
-      // canaux (0.8) → on cadre la créativité du format vitrine. Les questions
-      // (Haiku, tâche bornée) gardent le comportement par défaut.
-      ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
-      // Questions = appel Haiku court et borné : 30s/tentative pour qu'un fetch
-      // qui traîne bascule en retry plutôt que de bloquer le chemin d'activation.
-      ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : {}),
-    }, usage);
-
-    // JSON-aware correction pass for carousels (conditionnelle : cf. mix/photo).
-    if (type === "express_full" || type === "slides" || type === "hooks") {
-      try {
-        if (carouselNeedsPolish(content)) {
-          emitStatus("correcting");
-          const corrected = await applyCorrectionPassCarousel(content, {
-            enabled: true,
-            skipIfShorterThan: 300,
-            logger: (msg) => console.log(msg),
-            model: pickCorrectionModel(body),
-          });
-          if (corrected && corrected !== content) {
-            content = corrected;
-          }
-        } else {
-          console.log("[correction-pass:carousel-json] SKIPPED (scan déterministe propre, texte)");
-        }
-      } catch (correctionError) {
-        console.error("Correction pass failed in carousel-ai:", correctionError);
-      }
-    }
-
-    // Garde DÉTERMINISTE : le prompt limite les schémas (max 2, jamais consécutifs)
-    // mais le modèle déborde (3 consécutifs observés en prod le 04/07). On applique
-    // la règle par code — le narratif prime, cf PR #112/#113.
-    if (type === "express_full" || type === "slides") {
-      const capped = limitVisualSchemas(content);
-      if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
-      content = capped.content;
-      // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-      const gateExpress = await runRedacGate(content, {
-        isLinkedIn,
-        onStatus: emitStatus,
-        inputText: gateInputText,
-        captionEnding: captionEndingRule,
-        correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
-      });
-      content = gateExpress.content;
-      await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspace_id, body.subject);
-    }
-
-    // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
-    // un carrousel débite 2 crédits (rédaction express_full + carousel_visual),
-    // les questions pré-chargées ne comptent pas (aligné sur creative-flow).
-    if (type !== "deepening_questions") {
-      await logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspace_id);
-    }
-
-    return new Response(JSON.stringify({ content }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  } catch (e) {
-    if (e instanceof ValidationError) {
-      return new Response(JSON.stringify({ error: e.message }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    // Erreur Anthropic typée (ex. génération coupée car trop longue, 422) :
-    // remonter son message actionnable au lieu d'un 500 « Erreur interne ».
-    if (e instanceof AnthropicError) {
-      console.error("carousel-ai AnthropicError:", e.status, e.message);
-      return new Response(JSON.stringify({ error: e.message }), {
-        status: e.status >= 400 && e.status < 600 ? e.status : 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.error("carousel-ai error:", e);
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+  // ── Photo / mix carousel: vision-informed questions ──
+  if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photos && body.photos.length > 0) {
+    return handleDeepeningQuestionsVisionRequest(reqCtx);
   }
-  };
 
-  if (wantsSSE) return runWithHeartbeatSSE(corsHeaders, handle);
-  return handle();
-});
-
+  // ── Photo/mix carousel with description only (no actual photos) ──
+  let userPrompt: string;
+  if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photo_description) {
+    const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
+    userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock) + photoDescBlock;
+  } else {
+    userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
+  }
+  return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
+}
 
 function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
   return `${BASE_SYSTEM_RULES}
