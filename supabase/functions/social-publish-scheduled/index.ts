@@ -11,7 +11,7 @@ import { decryptConnTokens } from "../_shared/token-crypto.ts";
 // E-mail best-effort quand une publication programmée échoue : sans lui, la
 // cliente ne l'apprend qu'en rouvrant son calendrier — elle croit avoir publié.
 // Ne lève jamais (la notification ne doit pas casser le traitement du cron).
-async function notifyPublishFailure(
+export async function notifyPublishFailure(
   supabase: any,
   post: { id: string; user_id: string; canal: string; theme?: string | null },
   errMsg: string,
@@ -56,7 +56,167 @@ async function notifyPublishFailure(
   }
 }
 
-Deno.serve(async (req) => {
+// Cœur du traitement (hors auth/CORS/HTTP), extrait pour être testable en
+// injectant un client Supabase factice — le comportement est inchangé.
+export async function processScheduledPosts(supabase: any): Promise<{ processed: number; results: any[] }> {
+  const nowIso = new Date().toISOString();
+
+  // Filet de sécurité : un post resté en 'publishing' (edge interrompue en plein vol :
+  // timeout, crash, redéploiement) ne serait JAMAIS retenté ni marqué en échec — il
+  // resterait coincé là, invisible. Au bout de 15 min on le bascule en 'failed' avec un
+  // message clair. On ne le republie PAS automatiquement : la publication a pu aboutir
+  // côté réseau juste avant le crash, et un retry aveugle créerait un doublon public.
+  const staleCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
+  const { data: staleRecovered, error: staleErr } = await supabase
+    .from("calendar_posts")
+    .update({
+      publish_status: "failed",
+      publish_error:
+        "Publication interrompue par un incident technique. Vérifie sur ton réseau si le post est parti, puis reprogramme-le si besoin.",
+      updated_at: nowIso,
+    })
+    .eq("auto_publish", true)
+    .eq("publish_status", "publishing")
+    .lt("updated_at", staleCutoff)
+    .select("id, user_id, canal, theme");
+  if (staleErr) console.error("stale publishing recovery failed:", staleErr);
+  for (const p of staleRecovered || []) {
+    await notifyPublishFailure(supabase, p, "", true);
+  }
+
+  // Posts dus : auto-publication échue, en attente, sur un canal publiable (Instagram ou LinkedIn).
+  const { data: due, error: dueErr } = await supabase
+    .from("calendar_posts")
+    .select("id, workspace_id, user_id, canal, theme, content_draft, media_urls, scheduled_publish_at, story_sequence_detail")
+    .eq("auto_publish", true)
+    .eq("publish_status", "scheduled")
+    .in("canal", ["instagram", "linkedin"])
+    .lte("scheduled_publish_at", nowIso)
+    .limit(20);
+  if (dueErr) throw dueErr;
+
+  const results: any[] = [];
+
+  // Légende réelle du post : un carrousel sauvegardé en brouillon garde le
+  // dump « SLIDE 1 : … » dans content_draft (édité tel quel dans le dialog
+  // calendrier) alors que la vraie légende vit dans story_sequence_detail.
+  // Sans ce choix, le dump des slides partait TEL QUEL en légende.
+  const resolveCaption = (post: any): string => {
+    const draft = (post?.content_draft || "").trim();
+    const detail = post?.story_sequence_detail;
+    const cap = detail && typeof detail === "object" ? (detail as any).caption : null;
+    let capText = typeof cap === "string"
+      ? cap.trim()
+      : cap && typeof cap === "object"
+        ? [cap.hook, cap.body, cap.cta].filter(Boolean).join("\n\n").trim()
+        : "";
+    if (capText && cap && typeof cap === "object" && Array.isArray(cap.hashtags) && cap.hashtags.length) {
+      capText += "\n\n" + cap.hashtags.map((h: unknown) => `#${String(h).replace(/^#/, "")}`).join(" ");
+    }
+    const looksLikeSlideDump = /^\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft) || /\n\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft);
+    // Une légende éditée à la main dans le calendrier reste prioritaire — on ne
+    // bascule sur la légende structurée que si le draft est vide ou est un dump.
+    if (capText && (looksLikeSlideDump || !draft)) return capText;
+    return draft;
+  };
+
+  for (const post of due || []) {
+    // Verrou optimiste : passe à 'publishing' seulement si encore 'scheduled' (anti double-publi).
+    const { data: claimed } = await supabase
+      .from("calendar_posts")
+      .update({ publish_status: "publishing", updated_at: new Date().toISOString() })
+      .eq("id", post.id)
+      .eq("publish_status", "scheduled")
+      .select("id")
+      .maybeSingle();
+    if (!claimed) continue;
+
+    try {
+      const platform = post.canal === "linkedin" ? "linkedin" : "instagram";
+
+      // Connexion du workspace/owner du post pour la bonne plateforme.
+      let q = supabase.from("social_connections").select("*").eq("platform", platform);
+      if (post.workspace_id) q = q.eq("workspace_id", post.workspace_id).eq("user_id", post.user_id);
+      else q = q.eq("user_id", post.user_id).is("workspace_id", null);
+      const { data: conn } = await q.maybeSingle();
+      if (!conn) {
+        throw new Error(
+          platform === "linkedin"
+            ? "Aucun compte LinkedIn connecté pour ce workspace."
+            : "Aucun compte Instagram connecté pour ce workspace.",
+        );
+      }
+      await decryptConnTokens(conn);
+
+      let postId: string;
+      if (platform === "linkedin") {
+        const text = (post.content_draft || "").trim();
+        const media = (post.media_urls || []) as string[];
+        const pdf = media.find(isLinkedInPdfUrl);
+        const liImages = media.filter(isLinkedInImageUrl);
+        if (pdf) {
+          // PDF → carrousel natif LinkedIn (document).
+          postId = await publishDocumentToLinkedIn(conn, text, pdf, post.theme || "Carrousel");
+        } else if (liImages.length > 0) {
+          postId = await publishImagesToLinkedIn(conn, text, liImages);
+        } else if (text) {
+          postId = await publishTextToLinkedIn(conn, text);
+        } else {
+          throw new Error("Aucun contenu à publier sur LinkedIn.");
+        }
+      } else {
+        const publicUrls = (post.media_urls || []).filter(
+          (u: unknown): u is string => typeof u === "string" && /^https?:\/\//.test(u),
+        );
+        // Un reel monté vit dans media_urls comme les images : sans ce tri il
+        // partirait en `image_url` et Instagram refuserait le média.
+        const isMp4 = (u: string) => /\.mp4(\?|$)/i.test(u);
+        const videoUrl = publicUrls.find(isMp4);
+        const imageUrls = publicUrls.filter((u: string) => !isMp4(u));
+        if (videoUrl) {
+          postId = await publishReelToInstagram(supabase, conn, post.content_draft || "", videoUrl);
+        } else {
+          if (imageUrls.length === 0) throw new Error("Aucun média public à publier.");
+          postId = await publishImagesToInstagram(supabase, conn, post.content_draft || "", imageUrls);
+        }
+      }
+
+      await supabase
+        .from("calendar_posts")
+        .update({
+          publish_status: "published",
+          published_post_id: postId,
+          published_at: new Date().toISOString(),
+          publish_error: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", post.id);
+      results.push({ id: post.id, ok: true, postId });
+    } catch (e: any) {
+      const errMsg = String(e?.message || e).slice(0, 500);
+      await supabase
+        .from("calendar_posts")
+        .update({
+          publish_status: "failed",
+          publish_error: errMsg,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", post.id);
+      await notifyPublishFailure(supabase, post, errMsg);
+      results.push({ id: post.id, ok: false, error: errMsg });
+    }
+  }
+
+  return { processed: results.length, results };
+}
+
+// Gardé par import.meta.main : évite de démarrer un serveur HTTP (accès réseau)
+// quand ce module est simplement importé, notamment par index_test.ts.
+if (import.meta.main) {
+  Deno.serve(handleRequest);
+}
+
+async function handleRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -92,162 +252,14 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const nowIso = new Date().toISOString();
-
-    // Filet de sécurité : un post resté en 'publishing' (edge interrompue en plein vol :
-    // timeout, crash, redéploiement) ne serait JAMAIS retenté ni marqué en échec — il
-    // resterait coincé là, invisible. Au bout de 15 min on le bascule en 'failed' avec un
-    // message clair. On ne le republie PAS automatiquement : la publication a pu aboutir
-    // côté réseau juste avant le crash, et un retry aveugle créerait un doublon public.
-    const staleCutoff = new Date(Date.now() - 15 * 60 * 1000).toISOString();
-    const { data: staleRecovered, error: staleErr } = await supabase
-      .from("calendar_posts")
-      .update({
-        publish_status: "failed",
-        publish_error:
-          "Publication interrompue par un incident technique. Vérifie sur ton réseau si le post est parti, puis reprogramme-le si besoin.",
-        updated_at: nowIso,
-      })
-      .eq("auto_publish", true)
-      .eq("publish_status", "publishing")
-      .lt("updated_at", staleCutoff)
-      .select("id, user_id, canal, theme");
-    if (staleErr) console.error("stale publishing recovery failed:", staleErr);
-    for (const p of staleRecovered || []) {
-      await notifyPublishFailure(supabase, p, "", true);
-    }
-
-    // Posts dus : auto-publication échue, en attente, sur un canal publiable (Instagram ou LinkedIn).
-    const { data: due, error: dueErr } = await supabase
-      .from("calendar_posts")
-      .select("id, workspace_id, user_id, canal, theme, content_draft, media_urls, scheduled_publish_at, story_sequence_detail")
-      .eq("auto_publish", true)
-      .eq("publish_status", "scheduled")
-      .in("canal", ["instagram", "linkedin"])
-      .lte("scheduled_publish_at", nowIso)
-      .limit(20);
-    if (dueErr) throw dueErr;
-
-    const results: any[] = [];
-
-    // Légende réelle du post : un carrousel sauvegardé en brouillon garde le
-    // dump « SLIDE 1 : … » dans content_draft (édité tel quel dans le dialog
-    // calendrier) alors que la vraie légende vit dans story_sequence_detail.
-    // Sans ce choix, le dump des slides partait TEL QUEL en légende.
-    const resolveCaption = (post: any): string => {
-      const draft = (post?.content_draft || "").trim();
-      const detail = post?.story_sequence_detail;
-      const cap = detail && typeof detail === "object" ? (detail as any).caption : null;
-      let capText = typeof cap === "string"
-        ? cap.trim()
-        : cap && typeof cap === "object"
-          ? [cap.hook, cap.body, cap.cta].filter(Boolean).join("\n\n").trim()
-          : "";
-      if (capText && cap && typeof cap === "object" && Array.isArray(cap.hashtags) && cap.hashtags.length) {
-        capText += "\n\n" + cap.hashtags.map((h: unknown) => `#${String(h).replace(/^#/, "")}`).join(" ");
-      }
-      const looksLikeSlideDump = /^\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft) || /\n\s*(?:📌\s*)?SLIDE\s*\d+\s*[:.–-]/i.test(draft);
-      // Une légende éditée à la main dans le calendrier reste prioritaire — on ne
-      // bascule sur la légende structurée que si le draft est vide ou est un dump.
-      if (capText && (looksLikeSlideDump || !draft)) return capText;
-      return draft;
-    };
-
-    for (const post of due || []) {
-      // Verrou optimiste : passe à 'publishing' seulement si encore 'scheduled' (anti double-publi).
-      const { data: claimed } = await supabase
-        .from("calendar_posts")
-        .update({ publish_status: "publishing", updated_at: new Date().toISOString() })
-        .eq("id", post.id)
-        .eq("publish_status", "scheduled")
-        .select("id")
-        .maybeSingle();
-      if (!claimed) continue;
-
-      try {
-        const platform = post.canal === "linkedin" ? "linkedin" : "instagram";
-
-        // Connexion du workspace/owner du post pour la bonne plateforme.
-        let q = supabase.from("social_connections").select("*").eq("platform", platform);
-        if (post.workspace_id) q = q.eq("workspace_id", post.workspace_id).eq("user_id", post.user_id);
-        else q = q.eq("user_id", post.user_id).is("workspace_id", null);
-        const { data: conn } = await q.maybeSingle();
-        if (!conn) {
-          throw new Error(
-            platform === "linkedin"
-              ? "Aucun compte LinkedIn connecté pour ce workspace."
-              : "Aucun compte Instagram connecté pour ce workspace.",
-          );
-        }
-        await decryptConnTokens(conn);
-
-        let postId: string;
-        if (platform === "linkedin") {
-          const text = (post.content_draft || "").trim();
-          const media = (post.media_urls || []) as string[];
-          const pdf = media.find(isLinkedInPdfUrl);
-          const liImages = media.filter(isLinkedInImageUrl);
-          if (pdf) {
-            // PDF → carrousel natif LinkedIn (document).
-            postId = await publishDocumentToLinkedIn(conn, text, pdf, post.theme || "Carrousel");
-          } else if (liImages.length > 0) {
-            postId = await publishImagesToLinkedIn(conn, text, liImages);
-          } else if (text) {
-            postId = await publishTextToLinkedIn(conn, text);
-          } else {
-            throw new Error("Aucun contenu à publier sur LinkedIn.");
-          }
-        } else {
-          const publicUrls = (post.media_urls || []).filter(
-            (u: unknown): u is string => typeof u === "string" && /^https?:\/\//.test(u),
-          );
-          // Un reel monté vit dans media_urls comme les images : sans ce tri il
-          // partirait en `image_url` et Instagram refuserait le média.
-          const isMp4 = (u: string) => /\.mp4(\?|$)/i.test(u);
-          const videoUrl = publicUrls.find(isMp4);
-          const imageUrls = publicUrls.filter((u: string) => !isMp4(u));
-          if (videoUrl) {
-            postId = await publishReelToInstagram(supabase, conn, post.content_draft || "", videoUrl);
-          } else {
-            if (imageUrls.length === 0) throw new Error("Aucun média public à publier.");
-            postId = await publishImagesToInstagram(supabase, conn, post.content_draft || "", imageUrls);
-          }
-        }
-
-        await supabase
-          .from("calendar_posts")
-          .update({
-            publish_status: "published",
-            published_post_id: postId,
-            published_at: new Date().toISOString(),
-            publish_error: null,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", post.id);
-        results.push({ id: post.id, ok: true, postId });
-      } catch (e: any) {
-        const errMsg = String(e?.message || e).slice(0, 500);
-        await supabase
-          .from("calendar_posts")
-          .update({
-            publish_status: "failed",
-            publish_error: errMsg,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("id", post.id);
-        await notifyPublishFailure(supabase, post, errMsg);
-        results.push({ id: post.id, ok: false, error: errMsg });
-      }
-    }
-
-    return new Response(
-      JSON.stringify({ processed: results.length, results }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
-    );
+    const result = await processScheduledPosts(supabase);
+    return new Response(JSON.stringify(result), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   } catch (e: any) {
     console.error("social-publish-scheduled error:", e);
     return new Response(JSON.stringify({ error: e?.message || "Erreur interne" }), {
       status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
-});
+}
