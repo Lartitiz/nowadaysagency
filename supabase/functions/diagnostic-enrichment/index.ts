@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { callAnthropic, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
+import { parseAiJson } from "../_shared/parse-ai-json.ts";
 // (import logUsage retiré — l'enrichissement ne décompte plus de crédit, voir note dans le handler)
 
 /**
@@ -211,7 +212,7 @@ Précisions importantes :
         tool: ENRICHMENT_TOOL,
         abortTimeoutMs: 120_000,
       });
-      return JSON.parse(raw); // JSON valide par construction (tool forcé)
+      return parseAiJson(raw, "diagnostic-enrichment"); // JSON valide par construction (tool forcé)
     };
 
     let enrichmentResult: any = await runEnrichmentCall();
