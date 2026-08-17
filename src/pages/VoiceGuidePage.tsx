@@ -11,6 +11,7 @@ import { Sparkles, RefreshCw, Copy, Download, Loader2, Check, X } from "lucide-r
 import { toast } from "sonner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { friendlyError } from "@/lib/error-messages";
+import { normalizeVoiceGuide } from "@/lib/voice-guide-normalize";
 
 interface VoiceGuide {
   brand_name: string;
@@ -43,7 +44,7 @@ export default function VoiceGuidePage() {
         .select("guide_data")
         .eq(column, value)
         .maybeSingle();
-      if (data?.guide_data) setGuide(data.guide_data);
+      if (data?.guide_data) setGuide(normalizeVoiceGuide(data.guide_data));
       setLoading(false);
     };
     load();
@@ -57,7 +58,7 @@ export default function VoiceGuidePage() {
         body: { workspace_id: workspaceId },
       }, 90000);
       if (error) throw new Error(error.message || "Erreur");
-      setGuide(data.guide);
+      setGuide(normalizeVoiceGuide(data.guide));
       toast.success("✨ Guide de voix généré !");
     } catch (e: any) {
       console.error(e);

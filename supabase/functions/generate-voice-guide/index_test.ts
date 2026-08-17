@@ -94,6 +94,43 @@ Deno.test("échec écriture voice_guides -> 500 SANS logUsage (aucune ligne ai_u
   }
 });
 
+Deno.test("tone_keywords renvoyé en chaîne -> normalisé en tableau avant enregistrement ET dans la réponse", async () => {
+  const mock = installFetchMock({
+    anthropic: () =>
+      anthropicToolSuccess("rendre_guide_voix", {
+        ...GUIDE_INPUT,
+        // Le cas vu en prod le 17/08 : l'API ne garantit pas le type array du schema.
+        tone_keywords: "chaleureux, direct, engagé",
+        do_say: "On y va ensemble\n• Chaque pas compte",
+      }),
+  });
+  // Capte le POST d'insertion voice_guides pour vérifier ce qui part en BDD.
+  const innerFetch = globalThis.fetch;
+  const voiceGuideWrites: Record<string, unknown>[] = [];
+  // deno-lint-ignore no-explicit-any
+  globalThis.fetch = (async (input: any, init?: any) => {
+    const url = typeof input === "string" ? input : input?.url ?? String(input);
+    const method = (init?.method || "GET").toUpperCase();
+    if (url.startsWith(`${TEST_SUPABASE_URL}/rest/v1/voice_guides`) && method !== "GET" && init?.body) {
+      voiceGuideWrites.push(JSON.parse(init.body as string));
+    }
+    return innerFetch(input, init);
+  }) as typeof fetch;
+  try {
+    const res = await handler(voiceGuideRequest());
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.guide.tone_keywords, ["chaleureux", "direct", "engagé"]);
+    assertEquals(body.guide.do_say, ["On y va ensemble", "Chaque pas compte"]);
+    assertEquals(voiceGuideWrites.length, 1);
+    const saved = voiceGuideWrites[0].guide_data as Record<string, unknown>;
+    assertEquals(saved.tone_keywords, ["chaleureux", "direct", "engagé"]);
+  } finally {
+    globalThis.fetch = innerFetch;
+    mock.restore();
+  }
+});
+
 Deno.test("échec IA -> 500 SANS logUsage (aucune ligne ai_usage)", async () => {
   const mock = installFetchMock({
     anthropic: () => anthropicFailure(),

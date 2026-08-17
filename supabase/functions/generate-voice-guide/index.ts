@@ -24,6 +24,34 @@ const GUIDE_TOOL: AnthropicTool = {
     required: ["voice_summary", "tone_keywords", "do_say", "dont_say", "words_to_use", "words_to_avoid"],
   },
 };
+// Champs liste du guide. Le input_schema du tool les déclare `array` mais l'API
+// ne le garantit pas strictement : vu en prod le 17/08 (tone_keywords renvoyé
+// en chaîne "a, b, c" → enregistré tel quel → crash .map() au rendu côté front).
+const GUIDE_ARRAY_FIELDS = [
+  "tone_keywords",
+  "do_say",
+  "dont_say",
+  "words_to_use",
+  "words_to_avoid",
+  "emotions_to_create",
+] as const;
+
+export function normalizeGuideArrays<T extends Record<string, unknown>>(guide: T): T {
+  for (const field of GUIDE_ARRAY_FIELDS) {
+    const value = guide[field];
+    if (value == null) continue;
+    if (Array.isArray(value)) {
+      (guide as Record<string, unknown>)[field] = value.map((v) => typeof v === "string" ? v : String(v));
+    } else {
+      (guide as Record<string, unknown>)[field] = String(value)
+        .split(/\r?\n|[,;•·]/)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+  }
+  return guide;
+}
+
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -114,7 +142,9 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
 
     const model = getModelForAction("voice");
     const usage: UsageSink = {};
-    const guide = await callAnthropicToolSimple(model, systemPrompt, contextText, GUIDE_TOOL, 0.7, 4096, usage, 60_000);
+    const guide = normalizeGuideArrays(
+      await callAnthropicToolSimple(model, systemPrompt, contextText, GUIDE_TOOL, 0.7, 4096, usage, 60_000),
+    );
 
     // Upsert into voice_guides
     const { data: existing } = await serviceClient
