@@ -18,6 +18,7 @@ import { composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
 import { checkSchemaFidelity } from "../_shared/schema-telemetry.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
+import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 /**
  * Bloc partagé : templates HTML/CSS des schémas visuels (visual_schema).
@@ -1173,23 +1174,21 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
 
     // ═══ Parsing d'une réponse slides (même format pour chaque appel/lot) ═══
     const parseSlidesJson = (raw: string): any => {
-      try {
-        // Strip markdown code fences if present
-        const cleaned = raw.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
-        if (jsonMatch) return JSON.parse(jsonMatch[0]);
-        throw new Error("No JSON found");
-      } catch (parseErr) {
-        console.error("Failed to parse carousel-visual response:", raw.slice(0, 500));
-        // Retry: try to find the slides_html array directly
-        try {
-          const arrayMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
-          if (arrayMatch) return { slides_html: JSON.parse(arrayMatch[0]) };
-          throw parseErr;
-        } catch {
-          throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
-        }
+      // Parsing robuste centralisé (fences, extraction, réparations courantes).
+      const parsed = tryParseAiJson<any>(raw, "carousel-visual");
+      if (parsed !== null) {
+        // Cas où l'IA renvoie le tableau nu sans l'enveloppe {"slides_html": [...]}
+        return Array.isArray(parsed) ? { slides_html: parsed } : parsed;
       }
+      // Dernier recours, spécifique à cette fonction : extraire un tableau
+      // d'objets même sans accolade englobante (objet racine tronqué/cassé
+      // mais tableau slides_html isolément valide).
+      const arrayMatch = raw.match(/\[\s*\{[\s\S]*\}\s*\]/);
+      if (arrayMatch) {
+        try { return { slides_html: JSON.parse(arrayMatch[0]) }; } catch { /* tombe plus bas */ }
+      }
+      console.error("Failed to parse carousel-visual response:", raw.slice(0, 500));
+      throw new Error("L'IA n'a pas retourné un format valide. Réessaie.");
     };
 
     // ═══ Génération PARALLÈLE par lots de slides ═══
@@ -1533,9 +1532,7 @@ Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": ".
             abortTimeoutMs: 120_000,
             keepDashes: true,
           }, fixUsage);
-          const fixCleaned = fixRaw.replace(/```(?:json)?\s*/gi, "").replace(/```\s*$/gi, "");
-          const fixMatch = fixCleaned.match(/\{[\s\S]*\}/);
-          const fixed = fixMatch ? JSON.parse(fixMatch[0]) : null;
+          const fixed = tryParseAiJson<any>(fixRaw, "carousel-visual:contrast-fix");
           if (fixed?.slides_html && Array.isArray(fixed.slides_html)) {
             const fixedById = new Map<number, any>();
             for (const s of fixed.slides_html) {
