@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 
@@ -61,8 +62,19 @@ export default function PinterestRoutine() {
       keywords_adjusted: overrides?.keywords_adjusted ?? keywordsAdjusted,
       updated_at: new Date().toISOString(),
     };
-    if (routineId) { await supabase.from("pinterest_routine").update(payload).eq("id", routineId); }
-    else { const { data } = await supabase.from("pinterest_routine").insert(payload).select("id").single(); if (data) setRoutineId(data.id); }
+    try {
+      if (routineId) {
+        const { error } = await supabase.from("pinterest_routine").update(payload).eq("id", routineId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("pinterest_routine").insert(payload).select("id").single();
+        if (error) throw error;
+        if (data) setRoutineId(data.id);
+      }
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    }
   };
 
   const changeRhythm = (r: string) => { setRhythm(r); setPinsDone(0); save({ rhythm: r, pins_done: 0 }); };

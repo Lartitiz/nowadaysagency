@@ -77,13 +77,20 @@ export default function PinterestCompte() {
       url_done: urlDone, 
       updated_at: new Date().toISOString() 
     };
-    if (profileId) {
-      await supabase.from("pinterest_profile").update(payload).eq("id", profileId);
-    } else {
-      const { data } = await supabase.from("pinterest_profile").insert(payload).select("id").single();
-      if (data) setProfileId(data.id);
+    try {
+      if (profileId) {
+        const { error } = await supabase.from("pinterest_profile").update(payload).eq("id", profileId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("pinterest_profile").insert(payload).select("id").single();
+        if (error) throw error;
+        if (data) setProfileId(data.id);
+      }
+      toast.success("✅ Compte sauvegardé !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
     }
-    toast.success("✅ Compte sauvegardé !");
   };
 
   const generateName = async () => {

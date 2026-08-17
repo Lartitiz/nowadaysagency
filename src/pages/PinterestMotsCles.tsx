@@ -61,9 +61,20 @@ export default function PinterestMotsCles() {
       checklist_profile_name: checklist.profileName, checklist_bio: checklist.bio,
       updated_at: new Date().toISOString(),
     };
-    if (kwId) { await supabase.from("pinterest_keywords").update(payload).eq("id", kwId); }
-    else { const { data } = await supabase.from("pinterest_keywords").insert(payload).select("id").single(); if (data) setKwId(data.id); }
-    toast.success("✅ Mots-clés sauvegardés !");
+    try {
+      if (kwId) {
+        const { error } = await supabase.from("pinterest_keywords").update(payload).eq("id", kwId);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("pinterest_keywords").insert(payload).select("id").single();
+        if (error) throw error;
+        if (data) setKwId(data.id);
+      }
+      toast.success("✅ Mots-clés sauvegardés !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    }
   };
 
   const renderCategory = (label: string, emoji: string, words: string[]) => (
