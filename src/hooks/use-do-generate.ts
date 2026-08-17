@@ -17,6 +17,58 @@ import type { Question } from "@/hooks/use-content-generator";
 
 type CarouselSubMode = "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
 
+// Regroupements du 17/08 (voir audit refactoring CreerUnifie) : le parameter
+// bag plat (~60 clés) rendait le couplage explicite mais pas réduit. Ces 4
+// objets rassemblent ce qui voyage ensemble ; le reste (gardes de réentrance,
+// contexte de génération générique, callbacks moteur) reste à plat.
+interface PhotoContext {
+  uploadedPhotos: any[];
+  photoMode: boolean;
+  photoDescription: string;
+  generatedWithPhotos: any[];
+  photoDumpEnabled: boolean;
+  photoDumpDoneRef: React.MutableRefObject<boolean>;
+  libraryPhotosForCasting: UserPhotoRow[] | undefined;
+  setUploadedPhotos: (photos: any[]) => void;
+  setGeneratedWithPhotos: (photos: any[]) => void;
+  setPhotoDumpResolving: (value: boolean) => void;
+  setPhotoDumpProgress: (progress: any) => void;
+}
+
+interface PinterestContext {
+  pinterestData: { link?: string; boardId?: string; boardName?: string } | null;
+  chosenProposal: any;
+  inspirationImageBase64: string | null;
+  setPinterestPinHtml: (html: string | null) => void;
+  setPhotoBriefOverlayHtml: (html: string | null) => void;
+  setPhotoBriefResult: (result: any) => void;
+  setPinterestVisualGenerating: (value: boolean) => void;
+}
+
+interface CarouselContext {
+  carouselSubMode: CarouselSubMode;
+  isTextFirstMix: boolean;
+  textFirstCatalogRows: UserPhotoRow[];
+  textFirstCatalog: any[];
+  textFirstRowsSnapshotRef: React.MutableRefObject<UserPhotoRow[]>;
+  structureProposal: StructureProposal | null;
+  lastConfirmedStructure: SlideProposal[] | null;
+  lastNarrativeThread: string | null;
+  slideCountChoice: number | undefined;
+  isLinkedInCarousel: boolean;
+  setStructureLoading: (value: boolean) => void;
+  setStructureProposal: (proposal: any) => void;
+  handleConfirmStructure: (confirmedSlides: SlideProposal[], proposalOverride?: StructureProposal) => Promise<void>;
+}
+
+interface ResultSetters {
+  setStep: (step: any) => void;
+  setResult: (result: any) => void;
+  setSavedId: (id: string | null) => void;
+  setVisualSlides: (slides: any) => void;
+  setCarouselColors: (colors: any) => void;
+}
+
 interface UseDoGenerateParams {
   selectedFormat: string | null;
   generating: boolean;
@@ -24,14 +76,9 @@ interface UseDoGenerateParams {
   streaming: boolean;
   photoDumpResolving: boolean;
   selectedReelHook: ReelHook | null;
-  isTextFirstMix: boolean;
-  textFirstCatalogRows: UserPhotoRow[];
-  textFirstCatalog: any[];
   questions: Question[];
   aurianaDemoActive: boolean;
   ideaText: string;
-  carouselSubMode: CarouselSubMode;
-  uploadedPhotos: any[];
   isDemoMode: boolean;
   demoData: any;
   existingCalendarContent: string | null;
@@ -39,45 +86,18 @@ interface UseDoGenerateParams {
   editorialAngle: string | null;
   workspaceId: string;
   session: { user: { id?: string } };
-  photoMode: boolean;
-  photoDescription: string;
   newsjackingContext: string | null;
-  pinterestData: { link?: string; boardId?: string; boardName?: string } | null;
-  chosenProposal: any;
-  inspirationImageBase64: string | null;
-  photoDumpEnabled: boolean;
-  photoDumpDoneRef: React.MutableRefObject<boolean>;
-  textFirstRowsSnapshotRef: React.MutableRefObject<UserPhotoRow[]>;
-  generatedWithPhotos: any[];
-  structureProposal: StructureProposal | null;
-  lastConfirmedStructure: SlideProposal[] | null;
-  lastNarrativeThread: string | null;
-  slideCountChoice: number | undefined;
-  isLinkedInCarousel: boolean;
   qualityMax: boolean;
-  libraryPhotosForCasting: UserPhotoRow[] | undefined;
   clearQuotaExhausted: () => void;
   markQuotaExhausted: (e: any) => void;
   setDemoGenerating: (value: boolean) => void;
-  setStep: (step: any) => void;
-  setResult: (result: any) => void;
-  setSavedId: (id: string | null) => void;
-  setVisualSlides: (slides: any) => void;
-  setCarouselColors: (colors: any) => void;
-  setPinterestPinHtml: (html: string | null) => void;
-  setPhotoBriefOverlayHtml: (html: string | null) => void;
-  setPhotoBriefResult: (result: any) => void;
   generateStream: (args: any) => Promise<any>;
   streamReset: () => void;
-  setPinterestVisualGenerating: (value: boolean) => void;
-  setPhotoDumpResolving: (value: boolean) => void;
-  setPhotoDumpProgress: (progress: any) => void;
-  setUploadedPhotos: (photos: any[]) => void;
-  setGeneratedWithPhotos: (photos: any[]) => void;
-  setStructureLoading: (value: boolean) => void;
-  setStructureProposal: (proposal: any) => void;
   generate: (args: any) => Promise<any>;
-  handleConfirmStructure: (confirmedSlides: SlideProposal[], proposalOverride?: StructureProposal) => Promise<void>;
+  photo: PhotoContext;
+  pinterest: PinterestContext;
+  carousel: CarouselContext;
+  resultSetters: ResultSetters;
 }
 
 /**
@@ -99,14 +119,9 @@ export function useDoGenerate({
   streaming,
   photoDumpResolving,
   selectedReelHook,
-  isTextFirstMix,
-  textFirstCatalogRows,
-  textFirstCatalog,
   questions,
   aurianaDemoActive,
   ideaText,
-  carouselSubMode,
-  uploadedPhotos,
   isDemoMode,
   demoData,
   existingCalendarContent,
@@ -114,46 +129,64 @@ export function useDoGenerate({
   editorialAngle,
   workspaceId,
   session,
-  photoMode,
-  photoDescription,
   newsjackingContext,
-  pinterestData,
-  chosenProposal,
-  inspirationImageBase64,
-  photoDumpEnabled,
-  photoDumpDoneRef,
-  textFirstRowsSnapshotRef,
-  generatedWithPhotos,
-  structureProposal,
-  lastConfirmedStructure,
-  lastNarrativeThread,
-  slideCountChoice,
-  isLinkedInCarousel,
   qualityMax,
-  libraryPhotosForCasting,
   clearQuotaExhausted,
   markQuotaExhausted,
   setDemoGenerating,
-  setStep,
-  setResult,
-  setSavedId,
-  setVisualSlides,
-  setCarouselColors,
-  setPinterestPinHtml,
-  setPhotoBriefOverlayHtml,
-  setPhotoBriefResult,
   generateStream,
   streamReset,
-  setPinterestVisualGenerating,
-  setPhotoDumpResolving,
-  setPhotoDumpProgress,
-  setUploadedPhotos,
-  setGeneratedWithPhotos,
-  setStructureLoading,
-  setStructureProposal,
   generate,
-  handleConfirmStructure,
+  photo,
+  pinterest,
+  carousel,
+  resultSetters,
 }: UseDoGenerateParams) {
+  const {
+    uploadedPhotos,
+    photoMode,
+    photoDescription,
+    generatedWithPhotos,
+    photoDumpEnabled,
+    photoDumpDoneRef,
+    libraryPhotosForCasting,
+    setUploadedPhotos,
+    setGeneratedWithPhotos,
+    setPhotoDumpResolving,
+    setPhotoDumpProgress,
+  } = photo;
+  const {
+    pinterestData,
+    chosenProposal,
+    inspirationImageBase64,
+    setPinterestPinHtml,
+    setPhotoBriefOverlayHtml,
+    setPhotoBriefResult,
+    setPinterestVisualGenerating,
+  } = pinterest;
+  const {
+    carouselSubMode,
+    isTextFirstMix,
+    textFirstCatalogRows,
+    textFirstCatalog,
+    textFirstRowsSnapshotRef,
+    structureProposal,
+    lastConfirmedStructure,
+    lastNarrativeThread,
+    slideCountChoice,
+    isLinkedInCarousel,
+    setStructureLoading,
+    setStructureProposal,
+    handleConfirmStructure,
+  } = carousel;
+  const {
+    setStep,
+    setResult,
+    setSavedId,
+    setVisualSlides,
+    setCarouselColors,
+  } = resultSetters;
+
   const navigate = useNavigate();
   const { addDirective: addWishlistDirective } = usePhotoWishlistMutations();
 

@@ -56,8 +56,12 @@ vi.mock("@/features/creer/post-generation-reset", () => ({
 
 import { useDoGenerate } from "@/hooks/use-do-generate";
 
+// Bag plat en entrée (overrides restent flats — aucun test n'a besoin de
+// connaître le regroupement interne) ; makeParams le réassemble dans la forme
+// imbriquée { photo, pinterest, carousel, resultSetters } attendue par le hook
+// depuis le regroupement du 17/08 (voir CLAUDE.md / audit refactoring).
 function makeParams(overrides: Record<string, any> = {}) {
-  return {
+  const f = {
     selectedFormat: "carousel" as string | null,
     generating: false,
     structureLoading: false,
@@ -119,6 +123,76 @@ function makeParams(overrides: Record<string, any> = {}) {
     generate: vi.fn().mockResolvedValue(undefined),
     handleConfirmStructure: vi.fn().mockResolvedValue(undefined),
     ...overrides,
+  };
+  return {
+    selectedFormat: f.selectedFormat,
+    generating: f.generating,
+    structureLoading: f.structureLoading,
+    streaming: f.streaming,
+    photoDumpResolving: f.photoDumpResolving,
+    selectedReelHook: f.selectedReelHook,
+    questions: f.questions,
+    aurianaDemoActive: f.aurianaDemoActive,
+    ideaText: f.ideaText,
+    isDemoMode: f.isDemoMode,
+    demoData: f.demoData,
+    existingCalendarContent: f.existingCalendarContent,
+    objective: f.objective,
+    editorialAngle: f.editorialAngle,
+    workspaceId: f.workspaceId,
+    session: f.session,
+    newsjackingContext: f.newsjackingContext,
+    qualityMax: f.qualityMax,
+    clearQuotaExhausted: f.clearQuotaExhausted,
+    markQuotaExhausted: f.markQuotaExhausted,
+    setDemoGenerating: f.setDemoGenerating,
+    generateStream: f.generateStream,
+    streamReset: f.streamReset,
+    generate: f.generate,
+    photo: {
+      uploadedPhotos: f.uploadedPhotos,
+      photoMode: f.photoMode,
+      photoDescription: f.photoDescription,
+      generatedWithPhotos: f.generatedWithPhotos,
+      photoDumpEnabled: f.photoDumpEnabled,
+      photoDumpDoneRef: f.photoDumpDoneRef,
+      libraryPhotosForCasting: f.libraryPhotosForCasting,
+      setUploadedPhotos: f.setUploadedPhotos,
+      setGeneratedWithPhotos: f.setGeneratedWithPhotos,
+      setPhotoDumpResolving: f.setPhotoDumpResolving,
+      setPhotoDumpProgress: f.setPhotoDumpProgress,
+    },
+    pinterest: {
+      pinterestData: f.pinterestData,
+      chosenProposal: f.chosenProposal,
+      inspirationImageBase64: f.inspirationImageBase64,
+      setPinterestPinHtml: f.setPinterestPinHtml,
+      setPhotoBriefOverlayHtml: f.setPhotoBriefOverlayHtml,
+      setPhotoBriefResult: f.setPhotoBriefResult,
+      setPinterestVisualGenerating: f.setPinterestVisualGenerating,
+    },
+    carousel: {
+      carouselSubMode: f.carouselSubMode,
+      isTextFirstMix: f.isTextFirstMix,
+      textFirstCatalogRows: f.textFirstCatalogRows,
+      textFirstCatalog: f.textFirstCatalog,
+      textFirstRowsSnapshotRef: f.textFirstRowsSnapshotRef,
+      structureProposal: f.structureProposal,
+      lastConfirmedStructure: f.lastConfirmedStructure,
+      lastNarrativeThread: f.lastNarrativeThread,
+      slideCountChoice: f.slideCountChoice,
+      isLinkedInCarousel: f.isLinkedInCarousel,
+      setStructureLoading: f.setStructureLoading,
+      setStructureProposal: f.setStructureProposal,
+      handleConfirmStructure: f.handleConfirmStructure,
+    },
+    resultSetters: {
+      setStep: f.setStep,
+      setResult: f.setResult,
+      setSavedId: f.setSavedId,
+      setVisualSlides: f.setVisualSlides,
+      setCarouselColors: f.setCarouselColors,
+    },
   };
 }
 
@@ -214,7 +288,7 @@ describe("useDoGenerate — routage par format", () => {
     });
     await run(params);
 
-    expect(params.setStep).not.toHaveBeenCalledWith("format");
+    expect(params.resultSetters.setStep).not.toHaveBeenCalledWith("format");
     expect(mocks.toast.error).not.toHaveBeenCalled();
   });
 
@@ -264,7 +338,7 @@ describe("useDoGenerate — routage par format", () => {
 
     await act(() => result.current.doGenerate({}));
     expect(params.generate.mock.calls[1][0].selectedHook).toEqual(hookState);
-    expect(params.setStep).toHaveBeenCalledWith("result");
+    expect(params.resultSetters.setStep).toHaveBeenCalledWith("result");
   });
 });
 
@@ -282,16 +356,16 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     const params = makeParams({ carouselSubMode: "photo", uploadedPhotos: photos });
     await run(params, {});
 
-    expect(params.setStructureLoading).toHaveBeenNthCalledWith(1, true);
+    expect(params.carousel.setStructureLoading).toHaveBeenNthCalledWith(1, true);
     const [fn, payload, timeout] = mocks.invokeWithTimeout.mock.calls[0];
     expect(fn).toBe("carousel-ai");
     expect(timeout).toBe(60000); // photos → analyse vision, timeout élargi
     expect(payload.body.type).toBe("structure_proposal");
     expect(payload.body.photos).toEqual([expect.objectContaining({ base64: "p1", vision: true })]);
-    expect(params.setGeneratedWithPhotos).toHaveBeenCalledWith(photos); // snapshot anti-reset
+    expect(params.photo.setGeneratedWithPhotos).toHaveBeenCalledWith(photos); // snapshot anti-reset
 
-    expect(params.setStructureProposal).toHaveBeenCalledWith(structureResult);
-    expect(params.handleConfirmStructure).toHaveBeenCalledWith(structureResult.slides, structureResult);
+    expect(params.carousel.setStructureProposal).toHaveBeenCalledWith(structureResult);
+    expect(params.carousel.handleConfirmStructure).toHaveBeenCalledWith(structureResult.slides, structureResult);
     // Pas de double génération : le chemin direct n'est jamais pris.
     expect(params.generate).not.toHaveBeenCalled();
   });
@@ -305,9 +379,9 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     await run(params);
 
     expect(mocks.toast.error).toHaveBeenCalledWith("Tes photos ne collent pas au sujet", { duration: 12000 });
-    expect(params.setStep).toHaveBeenCalledWith("format");
+    expect(params.resultSetters.setStep).toHaveBeenCalledWith("format");
     expect(params.generate).not.toHaveBeenCalled();
-    expect(params.handleConfirmStructure).not.toHaveBeenCalled();
+    expect(params.carousel.handleConfirmStructure).not.toHaveBeenCalled();
   });
 
   it("quota sur la proposition de structure → markQuotaExhausted, pas de repli", async () => {
@@ -318,7 +392,7 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
 
     expect(params.markQuotaExhausted).toHaveBeenCalledTimes(1);
     expect(params.generate).not.toHaveBeenCalled();
-    expect(params.setStructureLoading).toHaveBeenLastCalledWith(false);
+    expect(params.carousel.setStructureLoading).toHaveBeenLastCalledWith(false);
   });
 
   it("structure en échec (hors quota) → repli en génération directe photo", async () => {
@@ -347,7 +421,7 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     await run(params);
 
     expect(mocks.invokeWithTimeout).not.toHaveBeenCalled(); // pas de 2e proposition de structure
-    expect(params.setStep).toHaveBeenCalledWith("result");
+    expect(params.resultSetters.setStep).toHaveBeenCalledWith("result");
     expect(params.generate).toHaveBeenCalledTimes(1);
     expect(params.generate.mock.calls[0][0]).toMatchObject({
       confirmedStructure: confirmed,
@@ -369,7 +443,7 @@ describe("useDoGenerate — carrousels (structure, régénération, mix)", () =>
     });
     await run(params);
 
-    expect(params.textFirstRowsSnapshotRef.current).toBe(rows);
+    expect(params.carousel.textFirstRowsSnapshotRef.current).toBe(rows);
     expect(params.generate.mock.calls[0][0]).toMatchObject({
       carouselType: "mix",
       textFirst: true,
@@ -404,10 +478,10 @@ describe("useDoGenerate — photo dump (pure_photo)", () => {
     expect(mocks.runPhotoDump).toHaveBeenCalledWith(
       expect.objectContaining({ sujet: "Mon idée", attachedPhotoIds: ["lib-1"] }),
     );
-    expect(params.setUploadedPhotos).toHaveBeenCalledWith(resolved);
-    expect(params.setGeneratedWithPhotos).toHaveBeenCalledWith(resolved);
+    expect(params.photo.setUploadedPhotos).toHaveBeenCalledWith(resolved);
+    expect(params.photo.setGeneratedWithPhotos).toHaveBeenCalledWith(resolved);
     expect(mocks.savePhotos).toHaveBeenCalledWith(resolved);
-    expect(params.photoDumpDoneRef.current).toBe(true);
+    expect(params.photo.photoDumpDoneRef.current).toBe(true);
 
     // carousel-ai ne VOIT pas les images : fil narratif + beats en texte.
     expect(params.generate).toHaveBeenCalledTimes(1);
@@ -416,7 +490,7 @@ describe("useDoGenerate — photo dump (pure_photo)", () => {
       carouselSubMode: "pure_photo",
       photoDescription: "une journée douce ; beat matin · beat soir",
     });
-    expect(params.setPhotoDumpResolving).toHaveBeenLastCalledWith(false);
+    expect(params.photo.setPhotoDumpResolving).toHaveBeenLastCalledWith(false);
   });
 
   it("mise en scène réservée Premium → toast avec CTA abonnement, retour à format, rien de facturé", async () => {
@@ -429,7 +503,7 @@ describe("useDoGenerate — photo dump (pure_photo)", () => {
     expect(msg).toBe("La mise en scène est réservée au plan Premium");
     opts.action.onClick();
     expect(mocks.navigate).toHaveBeenCalledWith("/abonnement");
-    expect(params.setStep).toHaveBeenLastCalledWith("format");
+    expect(params.resultSetters.setStep).toHaveBeenLastCalledWith("format");
     expect(params.generate).not.toHaveBeenCalled();
   });
 
@@ -442,6 +516,6 @@ describe("useDoGenerate — photo dump (pure_photo)", () => {
     expect(params.generate).toHaveBeenCalledTimes(1);
     // Pas de fil narratif : la description retombe sur les contextes des photos attachées.
     expect(params.generate.mock.calls[0][0].photoDescription).toBe("au marché");
-    expect(params.photoDumpDoneRef.current).toBe(false);
+    expect(params.photo.photoDumpDoneRef.current).toBe(false);
   });
 });
