@@ -1073,6 +1073,872 @@ async function runSingleCallGeneration(params: {
   return result;
 }
 
+// ═══ D1 — Passe de correction du contraste (carrousel photo uniquement) ═══
+// Chaque slide s'auto-évalue (contrast_ok). Pour celles que l'IA signale encore
+// douteuses, UNE passe ciblée de régénération impose un bandeau opaque. Tout est
+// gardé : au moindre échec on conserve les slides d'origine (jamais de régression).
+async function applyContrastCorrectionPass(result: any, params: {
+  isPhotoCarousel: boolean;
+  isMixCarousel: boolean;
+  composedByCode: boolean;
+  reqBody: any;
+  systemPromptWithAnnotations: string;
+  model: AnthropicModel;
+}): Promise<void> {
+  const { isPhotoCarousel, isMixCarousel, composedByCode, reqBody, systemPromptWithAnnotations, model } = params;
+  if (!((isPhotoCarousel || isMixCarousel) && !composedByCode && Array.isArray(result?.slides_html))) return;
+  // En mix, seules les slides porteuses d'une PHOTO sont concernées : une slide
+  // design sombre de la charte avec texte blanc est légitime sans voile.
+  const slideHasPhoto = (s: any) => /data:image\//.test(s?.html || "") || /\{\{PHOTO_\d+\}\}/.test(s?.html || "");
+  // Filet DÉTERMINISTE : `contrast_ok` est auto-déclaré par l'IA, qui sur-estime
+  // souvent la lisibilité. On ne s'y fie donc pas seul. Heuristique sur le HTML
+  // rendu : une slide à texte CLAIR (blanc/quasi-blanc) posé sur la photo SANS
+  // aucun voile/bandeau/ombre sombre derrière est presque toujours illisible
+  // (illisibilité n°1). On la route vers la passe de correction même si l'IA a
+  // déclaré contrast_ok=true. Conservateur : on ne flague que l'absence TOTALE de
+  // voile sombre — au moindre signal de scrim on laisse passer (zéro régression).
+  const overlayLikelyUnreadable = (s: any): boolean => {
+    const html: string = s?.html || "";
+    if (!html) return false;
+    // Texte clair utilisé quelque part (couleur de l'overlay) — quasi-blanc
+    // MAIS AUSSI gris clairs (#EEE, rgb(220,…)) et blancs nommés, qui
+    // passaient au travers de l'ancien motif.
+    const hasLightText = /color\s*:\s*(#[c-f]{3}\b|#[c-f][0-9a-f][c-f][0-9a-f][c-f][0-9a-f]\b|white\b|whitesmoke\b|ivory\b|snow\b|ghostwhite\b|floralwhite\b|rgba?\(\s*2[0-5]\d\s*,\s*2[0-5]\d\s*,\s*2[0-5]\d)/i.test(html);
+    if (!hasLightText) return false;
+    // Signaux de scrim sombre qui rendent le texte clair lisible (un voile
+    // sombre NON strictement noir — charcoal rgba(30,20,10,…) — compte aussi) :
+    const darkVeil = /rgba\(\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(html); // voile/bandeau sombre alpha ≥0.35
+    const darkShadow = /text-shadow\s*:[^;"']*rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.[5-9]\d?|1)/i.test(html);   // ombre forte
+    const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-3]?\d|4[0-8])\s*,)/i.test(html);       // bandeau sombre opaque
+    return !(darkVeil || darkShadow || darkSolid);
+  };
+  const flagged = result.slides_html.filter(
+    (s: any) => (!isMixCarousel || slideHasPhoto(s)) && (s?.contrast_ok === false || overlayLikelyUnreadable(s)),
+  );
+  if (flagged.length > 0) {
+    console.warn(
+      `carousel-visual: ${flagged.length} slide(s) au contraste douteux → passe de correction`,
+      flagged.map((s: any) => s.slide_number)
+    );
+    try {
+      const fixContent: any[] = [];
+      for (let i = 0; i < reqBody.photos.length; i++) {
+        const photo = reqBody.photos[i];
+        if (photo?.base64) {
+          const { media_type, data } = extractImagePayload(photo.base64, photo.mimeType);
+          fixContent.push({ type: "image", source: { type: "base64", media_type, data } });
+          fixContent.push({ type: "text", text: `↑ Photo ${i + 1}` });
+        }
+      }
+      fixContent.push({
+        type: "text",
+        text: `Ces slides ont un contraste texte/photo INSUFFISANT. Régénère leur HTML (même format, mêmes placeholders {{PHOTO_N}}, même charte) en IMPOSANT un bandeau/voile OPAQUE derrière le texte (rgba opaque jusqu'à 0,92), dimensionné sur le bloc texte, pour une lisibilité franche sur mobile. Ne change rien d'autre que la lisibilité.
+
+SLIDES À CORRIGER :
+${JSON.stringify(flagged.map((s: any) => ({ slide_number: s.slide_number, html: s.html })), null, 2)}
+
+Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": "...", "contrast_ok": true, "legibility": "..." } ] }`,
+      });
+
+      const fixUsage: UsageSink = {};
+      const fixRaw = await callAnthropic({
+        model,
+        system: systemPromptWithAnnotations,
+        messages: [{ role: "user", content: fixContent }],
+        temperature: 0.4,
+        max_tokens: 16384,
+        abortTimeoutMs: 120_000,
+        keepDashes: true,
+      }, fixUsage);
+      const fixed = tryParseAiJson<any>(fixRaw, "carousel-visual:contrast-fix");
+      if (fixed?.slides_html && Array.isArray(fixed.slides_html)) {
+        const fixedById = new Map<number, any>();
+        for (const s of fixed.slides_html) {
+          if (s?.html) fixedById.set(s.slide_number, s);
+        }
+        result.slides_html = result.slides_html.map((s: any) => {
+          const repl = fixedById.get(s.slide_number);
+          return repl ? { ...s, html: repl.html, contrast_ok: true, legibility: repl.legibility || s.legibility } : s;
+        });
+        console.log(`carousel-visual: ${fixedById.size} slide(s) corrigée(s) pour le contraste`);
+      }
+    } catch (fixErr) {
+      console.error("carousel-visual: passe de correction du contraste échouée (slides d'origine conservées)", fixErr);
+    }
+  }
+}
+
+// ═══ D1-bis — Gardes déterministes lisibilité / safe-zone / héros (audit 12/07, lot C) ═══
+// Le modèle s'auto-déclare conforme (voile, 200px de marge basse, slide 1 « affiche »)
+// mais le rendu réel viole ces règles. Corrections par CODE, jamais par re-génération :
+// padding remonté au plancher, scrim injecté si texte clair sans voile, hook court agrandi.
+function applySafeZoneGuard(result: any, params: {
+  isPhotoCarousel: boolean;
+  isMixCarousel: boolean;
+  composedByCode: boolean;
+  slides: any[];
+}): void {
+  const { isPhotoCarousel, isMixCarousel, composedByCode, slides } = params;
+  if (!((isPhotoCarousel || isMixCarousel) && !composedByCode && Array.isArray(result?.slides_html))) return;
+  const srcByNumber = new Map<number, any>();
+  for (const s of (slides as any[])) {
+    if (Number.isInteger((s as any)?.slide_number)) srcByNumber.set((s as any).slide_number, s);
+  }
+  let safeFixes = 0, scrims = 0, heroBumps = 0;
+  const slideNums = result.slides_html.map((s: any) => Number(s?.slide_number)).filter((n: number) => Number.isFinite(n));
+  const minNum = slideNums.length ? Math.min(...slideNums) : 1;
+  result.slides_html = result.slides_html.map((s: any) => {
+    const source = srcByNumber.get(Number(s?.slide_number));
+    // Slides texte du mix : pas d'overlay photo, les gardes ne matchent pas (no-op).
+    const pos = source?.overlay_position;
+    let html: string = s?.html || "";
+    if (!html) return s;
+    const sz = enforceSafeZones(html, pos);
+    html = sz.html; safeFixes += sz.fixes;
+    const sc = injectFallbackScrim(html, pos);
+    html = sc.html; if (sc.injected) scrims++;
+    if (Number(s?.slide_number) === minNum && typeof source?.overlay_text === "string") {
+      const hero = enforceHeroHook(html, source.overlay_text);
+      html = hero.html; if (hero.bumped) heroBumps++;
+    }
+    return html === s.html ? s : { ...s, html };
+  });
+  if (safeFixes || scrims || heroBumps) {
+    console.log(`carousel-visual: gardes photo (lot C) — safe-zone ${safeFixes} fix(es), scrim injecté ${scrims}, héros slide 1 ${heroBumps}`);
+  }
+}
+
+// ═══ Kill DÉTERMINISTE des badges "numéro de slide" / pagination (TOUS types) ═══
+// L'utilisatrice ne veut aucune pastille "SLIDE 03", "01/08", "03/08"… en coin de slide :
+// ces stamps n'apportent rien au lecteur et alourdissent le visuel. Le prompt ne les
+// demande plus, mais on garantit leur absence par code (texte, photo ET mix), sur TOUTES
+// les slides. On ne touche PAS aux numéros d'étape d'un schéma (timeline "01", "02") :
+// ceux-là sont des entiers NUS, sans "SLIDE" ni "/total" — le motif ci-dessous les ignore.
+function stripSlideNumberBadges(result: any): void {
+  if (!Array.isArray(result?.slides_html)) return;
+  // "SLIDE 03", "SLIDE 03/08", "03/08", "3 - 8" → stamp. PAS "03" nu (ambigu avec une étape).
+  const SLIDE_STAMP_RE = /^(?:slide\s*)?\d{1,2}\s*[\/.\-]\s*\d{1,2}$|^slide\s*\d{1,2}$/i;
+  const isStamp = (t: string) => SLIDE_STAMP_RE.test((t || "").trim());
+  let stampsKilled = 0;
+  const killStamps = (rawHtml: string): string => {
+    let html = rawHtml || "";
+    // a) Pilule enveloppant une caption : <span pill><span caption>TXT</span></span>
+    html = html.replace(
+      /<(span|div)\b[^>]*data-pptx-shape="pill"[^>]*>\s*<(span|div)\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/\2>\s*<\/\1>/gi,
+      (m: string, _a: string, _b: string, txt: string) => (isStamp(txt) ? (stampsKilled++, "") : m),
+    );
+    // b) Élément annoté pill OU caption dont le contenu est un stamp : <tag pill|caption>TXT</tag>
+    html = html.replace(
+      /<(span|div|p)\b[^>]*(?:data-pptx-shape="pill"|data-pptx-editable="caption")[^>]*>([^<]*)<\/\1>/gi,
+      (m: string, _t: string, txt: string) => (isStamp(txt) ? (stampsKilled++, "") : m),
+    );
+    // c) Filet de sécurité : tout petit élément littéralement "SLIDE NN", même non annoté.
+    html = html.replace(
+      /<(span|div|p)\b[^>]*>\s*slide\s*\d{1,2}(?:\s*[\/.\-]\s*\d{1,2})?\s*<\/\1>/gi,
+      () => { stampsKilled++; return ""; },
+    );
+    // d) Préfixe "Slide N," / "Slide N ·" / "Slide N —" DANS un label plus long
+    //    (vu en prod : eyebrow "Slide 4, Analyse" rendu tel quel malgré les 4
+    //    interdits du prompt). On retire le préfixe méta et on GARDE le label
+    //    éditorial restant ("Analyse"). Ancré juste après un tag ouvrant → les
+    //    mentions en milieu de phrase ne sont pas touchées.
+    html = html.replace(
+      /(<(?:span|div|p|h[1-6])\b[^>]*>\s*)slides?\s*(?:n[°o]\s*)?\d{1,2}\s*[,·—:–-]\s*(?=\S)/gi,
+      (_m: string, open: string) => { stampsKilled++; return open; },
+    );
+    return html;
+  };
+  result.slides_html = result.slides_html.map((slide: any) => ({
+    ...slide,
+    html: killStamps(slide?.html || ""),
+  }));
+  if (stampsKilled > 0) {
+    console.log(`carousel-visual: ${stampsKilled} badge(s) numéro de slide retiré(s) (kill déterministe, tous types)`);
+  }
+}
+
+// ═══ Kill DÉTERMINISTE des surtitres inventés (carrousel PHOTO uniquement) ═══
+// En mode photo, la prose DOIT porter le fil narratif. Tout label/badge de section
+// inventé par le modèle ("CONVERSATION N°1", "LA MÉTHODE", "LE VRAI BLOCAGE"…) vide la
+// prose et hache la lecture. Le prompt l'interdit mais le modèle le contourne (1 fois
+// sur 5). On le retire donc par code, sans dépendre du modèle.
+// Handle fiable : le modèle annote ces badges `data-pptx-editable="caption"` (cf. règles
+// d'annotation PPTX) et l'overlay réel `data-pptx-editable="overlay"` ; un élément ne
+// porte jamais les deux. On supprime les "caption" qui ne sont NI un numéro de slide NI
+// l'overlay réel, sauf sur la DERNIÈRE slide (CTA toléré).
+function stripInventedSurtitres(result: any, params: { isPhotoCarousel: boolean; slides: any[] }): void {
+  const { isPhotoCarousel, slides } = params;
+  if (!(isPhotoCarousel && Array.isArray(result?.slides_html))) return;
+  const overlayBySlide = new Map<number, string>();
+  if (Array.isArray(slides)) {
+    slides.forEach((s: any) => {
+      const ov = s?.overlay_text ?? s?.overlay ?? s?.text ?? s?.body;
+      if (s && s.slide_number != null && typeof ov === "string") {
+        overlayBySlide.set(Number(s.slide_number), ov);
+      }
+    });
+  }
+  const lastNum = Math.max(
+    ...result.slides_html.map((s: any) => Number(s?.slide_number) || 0),
+  );
+  const norm = (t: string) =>
+    (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
+  const isSlideNumber = (t: string) =>
+    /^\s*\d{1,2}\s*([\/.\-]\s*\d{1,2}\s*)?$/.test((t || "").trim());
+  let stripped = 0;
+  const stripFromHtml = (rawHtml: string, overlayText: string): string => {
+    const overlayNorm = norm(overlayText);
+    const shouldDrop = (txt: string): boolean => {
+      const t = (txt || "").trim();
+      if (!t) return false;
+      if (isSlideNumber(t)) return false; // garder les numéros de slide
+      const tn = norm(t);
+      if (!tn) return false;
+      // ne JAMAIS retirer l'overlay réel (sécurité si le modèle l'a mal annoté)
+      if (overlayNorm && (overlayNorm.includes(tn) || tn.includes(overlayNorm))) return false;
+      return true;
+    };
+    let html = rawHtml;
+    // 1) Pilule canonique enveloppant une caption : <span pill><span caption>TXT</span></span>
+    html = html.replace(
+      /<span\b[^>]*data-pptx-shape="pill"[^>]*>\s*<span\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/span>\s*<\/span>/gi,
+      (m: string, txt: string) => {
+        if (shouldDrop(txt)) { stripped++; return ""; }
+        return m;
+      },
+    );
+    // 2) Caption autonome (non enveloppée) : <tag caption>TXT</tag>
+    html = html.replace(
+      /<(\w+)\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/\1>/gi,
+      (m: string, _tag: string, txt: string) => {
+        if (shouldDrop(txt)) { stripped++; return ""; }
+        return m;
+      },
+    );
+    return html;
+  };
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const num = Number(slide?.slide_number) || 0;
+    if (num === lastNum) return slide; // dernière slide : CTA toléré
+    const html = stripFromHtml(slide.html || "", overlayBySlide.get(num) || "");
+    return { ...slide, html };
+  });
+  if (stripped > 0) {
+    console.log(`carousel-visual: ${stripped} surtitre(s) inventé(s) retiré(s) (kill déterministe mode photo)`);
+  }
+}
+
+// ═══ Post-processing : injecter les photos base64 dans le HTML ═══
+function injectPhotoBase64(result: any, params: { isPhotoCarousel: boolean; isMixCarousel: boolean; reqBody: any }): void {
+  const { isPhotoCarousel, isMixCarousel, reqBody } = params;
+  if (!((isPhotoCarousel || isMixCarousel) && result?.slides_html && reqBody.photos)) return;
+  result.slides_html = result.slides_html.map((slide: any) => {
+    let html = slide.html || "";
+
+    // Remplacer chaque placeholder {{PHOTO_N}} par le vrai base64
+    for (let i = 0; i < reqBody.photos.length; i++) {
+      const placeholder = `{{PHOTO_${i + 1}}}`;
+      // Le base64 peut déjà contenir le préfixe data URL
+      const p = reqBody.photos[i];
+      const raw = p.base64;
+      const base64Url = raw.startsWith("data:") ? raw : `data:${p.mimeType || "image/jpeg"};base64,${raw}`;
+      while (html.includes(placeholder)) {
+        html = html.replace(placeholder, base64Url);
+      }
+    }
+
+    return { ...slide, html };
+  });
+}
+
+// ═══ Post-processing 2 : forcer les Google Fonts via <link> ═══
+// Les @import dans les iframes srcDoc ne chargent pas les fonts de façon fiable.
+// On remplace tous les @import Google Fonts par un <link> en tête du HTML.
+function forceGoogleFontsLink(result: any, params: { safeFontTitle: string; safeFontBody: string }): void {
+  const { safeFontTitle, safeFontBody } = params;
+  if (!result?.slides_html) return;
+  const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+  // Reset défensif : empêche le débordement horizontal du texte hors du cadre
+  // 1080px. Cause classique = carte en width:100% + padding sans box-sizing
+  // border-box → la carte dépasse et se fait couper à droite (slides chargées
+  // en texte). Corrige l'aperçu ET l'export (même HTML source).
+  const safetyReset = `<style>*{box-sizing:border-box;}html,body{margin:0;padding:0;}h1,h2,h3,h4,h5,p,span,li,div{overflow-wrap:break-word;}</style>`;
+
+  result.slides_html = result.slides_html.map((slide: any) => {
+    let html = slide.html || "";
+    // Supprimer les @import Google Fonts existants (ils ne marchent pas dans les
+    // iframes srcDoc — et fuitent en TEXTE VISIBLE sur la slide quand le modèle
+    // émet le @import sans wrapper <style> ou mélangé à d'autres CSS).
+    // On retire le @import OÙ QU'IL SOIT (nu ou dans un <style> plus large), puis
+    // on nettoie les <style> devenus vides. La police reste fournie par le <link>.
+    html = html
+      .replace(/@import\s+url\(\s*['"]?[^)]*fonts\.googleapis\.com[^)]*['"]?\s*\)\s*;?/gi, "")
+      .replace(/<style>\s*<\/style>/gi, "");
+    // Ajouter le <link> police + le reset défensif au tout début
+    html = fontsLink + safetyReset + html;
+    return { ...slide, html };
+  });
+}
+
+// ═══ Post-processing 2bis : garde de contraste DÉTERMINISTE sur les titres ═══
+// Diagnostic prod (27/06, mesuré sur un import Canva réel) : sur fond clair, le LLM
+// colore parfois le TITRE ENTIER en rose clair (couleur rendue ≈ rgb(252,156,192),
+// soit la primary semi-transparente) → contraste ~1.3:1, illisible. Ça se voit dans
+// l'aperçu, l'export PPTX ET Canva (l'export reproduit fidèlement la couleur du HTML ;
+// ce n'est donc PAS un bug Canva/export mais la génération). Correctif déterministe
+// (pas une N-ième règle de prompt qui se concurrence) : si la couleur d'un titre
+// éditable échoue le contraste contre le FOND RÉEL de sa slide, on la remplace par la
+// meilleure couleur de charte (foncée sur fond clair, blanche sur fond sombre). On ne
+// touche QUE la couleur du cadre titre → les mots-accent (spans internes en primary/
+// accent) sont préservés. Slides déjà lisibles (titre foncé, ou blanc sur fond plein)
+// = contraste OK → non modifiées.
+function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
+  const { ch } = params;
+  if (!result?.slides_html) return;
+  // Compose une couleur (#hex 3/6/8 ou rgb/rgba) sur un fond hex6 → hex6 RENDU.
+  // Gère l'alpha (rgba + #rrggbbaa) ET les couleurs claires solides de la même façon.
+  // Couleurs CSS NOMMÉES → hex. Indispensable : le modèle écrit souvent `color:white`
+  // (vu en prod : titre blanc sur fond rose CLAIR #ffa7c6 = ~1.8:1, illisible, qui
+  // passait à travers la garde car non parsé). On couvre les noms réalistes sur des
+  // titres ; un nom inconnu reste non parsé (la garde l'ignore, comportement sûr).
+  const NAMED: Record<string, string> = {
+    white: "#FFFFFF", black: "#000000", red: "#FF0000", green: "#008000",
+    blue: "#0000FF", yellow: "#FFFF00", gray: "#808080", grey: "#808080",
+    pink: "#FFC0CB", purple: "#800080", orange: "#FFA500", brown: "#A52A2A",
+    navy: "#000080", teal: "#008080", silver: "#C0C0C0", gold: "#FFD700",
+    beige: "#F5F5DC", ivory: "#FFFFF0", transparent: "",
+  };
+  const hexOnBg = (raw: string, bg6: string): string | null => {
+    let v = (raw || "").trim();
+    const named = NAMED[v.toLowerCase()];
+    if (named !== undefined) { if (named === "") return null; v = named; }
+    let r: number, g: number, b: number, a = 1;
+    const m = v.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/i);
+    if (m) {
+      r = +m[1]; g = +m[2]; b = +m[3];
+      if (m[4] !== undefined) a = parseFloat(m[4]);
+    } else {
+      let h = v.replace("#", "");
+      if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+      if (h.length === 8) { a = parseInt(h.slice(6, 8), 16) / 255; h = h.slice(0, 6); }
+      if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
+      r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
+    }
+    const B = (i: number) => parseInt(bg6.slice(i, i + 2), 16);
+    const comp = (c: number, bc: number) => Math.round(a * c + (1 - a) * bc);
+    return [comp(r, B(0)), comp(g, B(2)), comp(b, B(4))]
+      .map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
+  };
+  const lum = (h6: string): number => {
+    const c = (i: number) => {
+      const x = parseInt(h6.slice(i, i + 2), 16) / 255;
+      return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4);
+  };
+  const ratio = (a6: string, b6: string): number => {
+    const la = lum(a6), lb = lum(b6);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+  // Règle (validée avec Laetitia, option « stricte ») : la couleur du TITRE est imposée
+  // par la luminance du FOND, pas laissée au hasard du modèle (qui dévie souvent vers la
+  // primary vive #FB3D80 ~3.2:1, voire semi-transparente ~1.8:1 illisible). Fond CLAIR →
+  // titre franchement foncé (secondary rose foncé = couleur de titre voulue par la charte) ;
+  // fond SOMBRE/PLEIN → titre clair (blanc). On n'agit QUE si le contraste est insuffisant
+  // pour le type de fond → les titres déjà foncés sur fond clair, et déjà blancs sur fond
+  // plein, restent intacts.
+  const LIGHT_BG_FLOOR = 4.5; // fond clair : on exige un titre NET (au-dessus de AA-large)
+  const DARK_BG_FLOOR = 3.0;  // fond plein : blanc sur rose vif (~3.4) est voulu → toléré
+  const norm = (x: string | null | undefined, fb: string) => hexOnBg(x || "", "FFFFFF") || fb;
+  const secondary6 = norm(ch.color_secondary, "91014B");
+  const text6 = norm(ch.color_text, "1A1A2E");
+  const bgDefault6 = norm(ch.color_background, "FFF4F8");
+  // Remplacement sur fond clair : secondary (rose foncé de charte) en priorité, sinon text,
+  // sinon le plus contrasté des deux. Sur fond sombre : blanc.
+  const bestDark = (bg6: string): string => {
+    if (ratio(secondary6, bg6) >= LIGHT_BG_FLOOR) return secondary6;
+    if (ratio(text6, bg6) >= LIGHT_BG_FLOOR) return text6;
+    return ratio(text6, bg6) >= ratio(secondary6, bg6) ? text6 : secondary6;
+  };
+  let titlesFixed = 0;
+  let bodyFixed = 0;
+  // Fond ENGLOBANT réel d'un élément : mini-scan des tags avec une pile,
+  // jusqu'à l'offset de l'élément. Indispensable sur les slides MULTI-FONDS
+  // (photo en haut + bandeau coloré en bas, carte sombre sur fond clair…) :
+  // l'ancien fond « 1ère couleur unie du HTML » comparait le titre au MAUVAIS
+  // fond (vu en prod : titre olive sur bandeau magenta jugé lisible car testé
+  // contre le fond clair global → passé tel quel dans l'aperçu ET l'export).
+  // Les rgba sont composés sur le fond du parent dans la pile.
+  const VOID_TAGS = new Set(["br", "img", "hr", "input", "meta", "link", "source", "area", "base", "col", "embed", "param", "track", "wbr"]);
+  const BG_DECL_RE = /background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|[a-z]+)/i;
+  // TEXTURE DE MARQUE = FOND CLAIR. La texture-papier est déclarée en
+  // `background:url('…')` — illisible pour BG_DECL_RE, donc la garde
+  // retombait sur un mauvais fond de repli et laissait passer du texte
+  // blanc/jaune posé directement sur la texture (vu en prod, 3 slides d'un
+  // même carrousel). La texture est par construction une matière CLAIRE
+  // dérivée du fond de charte → un fond url(...) compte comme bgDefault6.
+  const BG_URL_RE = /background\s*:\s*url\(/i;
+  const bgEnclosingAt = (whole: string, offset: number, fallback6: string): string | null => {
+    const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+    const stack: Array<{ tag: string; bg6: string | null }> = [];
+    const nearest = (): string | null => {
+      for (let i = stack.length - 1; i >= 0; i--) if (stack[i].bg6) return stack[i].bg6;
+      return null;
+    };
+    let m: RegExpExecArray | null;
+    while ((m = tagRe.exec(whole)) && m.index < offset) {
+      const closing = m[1] === "/";
+      const tag = m[2].toLowerCase();
+      const attrs = m[3] || "";
+      if (closing) {
+        // Pop tolérant : referme jusqu'au tag correspondant (les tags internes
+        // mal refermés sautent avec — HTML machine, cas marginal).
+        for (let i = stack.length - 1; i >= 0; i--) {
+          if (stack[i].tag === tag) { stack.length = i; break; }
+        }
+      } else if (!VOID_TAGS.has(tag) && !/\/\s*$/.test(attrs)) {
+        const bm = attrs.match(BG_DECL_RE);
+        // Gradient/nom inconnu → hexOnBg rend null → l'élément ne compte
+        // pas comme fond (on retombe sur le parent) — comportement sûr.
+        let composed = bm ? hexOnBg(bm[1], nearest() || fallback6) : null;
+        if (!composed && BG_URL_RE.test(attrs)) composed = fallback6;
+        stack.push({ tag, bg6: composed });
+      }
+    }
+    return nearest();
+  };
+  result.slides_html = result.slides_html.map((slide: any) => {
+    let html: string = slide.html || "";
+    // Repli si l'élément n'a AUCUN fond englobant déclaré : 1ère couleur de
+    // fond unie du HTML (≈ conteneur racine), sinon le fond de charte (clair).
+    let bg6 = bgDefault6;
+    const bgm = html.match(/background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/i);
+    if (bgm) { const c = hexOnBg(bgm[1], "FFFFFF"); if (c) bg6 = c; }
+    html = html.replace(
+      /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["']title["'][^>]*)>/gi,
+      (full: string, _t: string, _a: string, offset: number, whole: string) =>
+        full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
+          const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+          if (!cm) return sm;
+          const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
+          const eff = hexOnBg(cm[1], bgLocal);
+          if (!eff) return sm;
+          let repl: string | null = null;
+          if (lum(bgLocal) > 0.5) {
+            if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bestDark(bgLocal);
+          } else {
+            if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
+          }
+          if (!repl || repl === eff) return sm;
+          titlesFixed++;
+          const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
+          return `style="${newStyle}"`;
+        }),
+    );
+
+    // Étendre la MÊME garde déterministe au CORPS et au SOUS-TITRE (texte descriptif
+    // qui DOIT rester lisible). Sinon un body/subtitle colorisé en accent clair sur
+    // fond clair (ex. #C9BFB2 / #FFE561) passe illisible, dans l'aperçu ET l'export.
+    // On NE touche PAS `caption` (labels colorés ❌/✅ et numéros décoratifs voulus)
+    // ni `overlay` (texte sur photo, géré par la passe de contraste photo dédiée).
+    // Repli : le texte de charte (color_text) en priorité, sinon la meilleure option
+    // foncée disponible ; blanc sur fond sombre.
+    const bodyDark = (b: string): string =>
+      ratio(text6, b) >= LIGHT_BG_FLOOR ? text6 : bestDark(b);
+    html = html.replace(
+      /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["'](?:body|subtitle)["'][^>]*)>/gi,
+      (full: string, _t: string, _a: string, offset: number, whole: string) =>
+        full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
+          const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
+          if (!cm) return sm;
+          const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
+          const eff = hexOnBg(cm[1], bgLocal);
+          if (!eff) return sm;
+          let repl: string | null = null;
+          if (lum(bgLocal) > 0.5) {
+            if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bodyDark(bgLocal);
+          } else {
+            if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
+          }
+          if (!repl || repl === eff) return sm;
+          bodyFixed++;
+          const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
+          return `style="${newStyle}"`;
+        }),
+    );
+    return { ...slide, html };
+  });
+  if (titlesFixed > 0) {
+    console.log(`carousel-visual: ${titlesFixed} titre(s) à faible contraste corrigé(s) (garde déterministe)`);
+  }
+  if (bodyFixed > 0) {
+    console.log(`carousel-visual: ${bodyFixed} corps/sous-titre(s) à faible contraste corrigé(s) (garde déterministe)`);
+  }
+}
+
+// P0-3 : remplacer les placeholders {{PHOTO_N}} non substitués par un fallback
+// (sinon l'iframe affiche `url({{PHOTO_2}})` cassé → slide vide).
+function fillOrphanPhotoPlaceholders(result: any, params: { isPhotoCarousel: boolean; isMixCarousel: boolean; reqBody: any }): void {
+  const { isPhotoCarousel, isMixCarousel, reqBody } = params;
+  if (!((isPhotoCarousel || isMixCarousel) && result?.slides_html)) return;
+  // Construire un map des base64 dispos pour fallback (même normalisation que post-proc 1)
+  const photoBase64Map = new Map<number, string>();
+  const reqPhotos = reqBody.photos;
+  if (Array.isArray(reqPhotos)) {
+    reqPhotos.forEach((p: any, i: number) => {
+      const raw = typeof p === "string" ? p : (p?.base64 || p?.data || "");
+      const mime = typeof p === "object" && p?.mimeType ? p.mimeType : "image/jpeg";
+      if (raw) {
+        const dataUrl = raw.startsWith("data:") ? raw : `data:${mime};base64,${raw}`;
+        photoBase64Map.set(i + 1, dataUrl);
+      }
+    });
+  }
+  const fallbackPhoto = photoBase64Map.get(1) || Array.from(photoBase64Map.values())[0] || "";
+  const placeholderColor =
+    "data:image/svg+xml;base64," +
+    btoa(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><rect width="100%" height="100%" fill="#FFE4ED"/><text x="50%" y="50%" font-family="sans-serif" font-size="48" fill="#91014b" text-anchor="middle" dominant-baseline="middle">Photo manquante</text></svg>`
+    );
+
+  result.slides_html = result.slides_html.map((slide: any) => {
+    let html = slide.html || "";
+    if (html.includes("{{PHOTO_")) {
+      html = html.replace(/\{\{PHOTO_(\d+)\}\}/g, (_match: string, num: string) => {
+        const n = parseInt(num, 10);
+        const b64 = photoBase64Map.get(n) || fallbackPhoto || placeholderColor;
+        console.warn(
+          `carousel-visual: placeholder {{PHOTO_${n}}} orphelin slide ${slide.slide_number} → fallback ${photoBase64Map.has(n) ? "(?)" : fallbackPhoto ? "photo 1" : "placeholder"}`
+        );
+        return b64;
+      });
+    }
+    return { ...slide, html };
+  });
+}
+
+// Fallback : si Claude a oublié `slides_invariants` dans la réponse, on injecte
+// les invariants serveur (déduits de la charte) pour que l'exporter ne soit jamais
+// privé de la source de vérité.
+function injectSlidesInvariantsFallback(result: any, params: { invariants: any }): void {
+  const { invariants } = params;
+  if (!(result && !result.slides_invariants)) return;
+  result.slides_invariants = {
+    palette_used: {
+      primary: invariants.palette.primary_hex,
+      secondary: invariants.palette.secondary_hex,
+      accent: invariants.palette.accent_hex,
+      bg: invariants.palette.bg_hex,
+      text: invariants.palette.text_hex,
+    },
+    typography_used: {
+      title_pptx_safe: invariants.typography.title_pptx_safe,
+      body_pptx_safe: invariants.typography.body_pptx_safe,
+      title_pt: invariants.typography.title_pt,
+      body_pt: invariants.typography.body_pt,
+    },
+    layouts_used: [],
+    motif: invariants.motif,
+  };
+  console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
+}
+
+// ═══ Télémétrie ancres d'édition (tous types de carrousel) ═══
+// Le prompt exige data-slide-text="title|body|overlay" autour des textes
+// verbatim (édition en direct côté front). On ne répare pas ici (le front
+// a un repli par correspondance de texte) mais on compte les manquants —
+// uniquement pour les slides dont la SOURCE a du texte (une slide photo
+// sans overlay n'a légitimement pas d'ancre).
+function logMissingAnchorsTelemetry(result: any, params: { slides: any[] }): void {
+  const { slides } = params;
+  if (!Array.isArray(result?.slides_html)) return;
+  const srcByNumber = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+  const missing = result.slides_html.filter((sl: any) => {
+    if (typeof sl?.html !== "string") return false;
+    const src = srcByNumber.get(sl.slide_number) as any;
+    const hasText = !!(src && (src.title || src.body || src.overlay_text));
+    return hasText && !sl.html.includes("data-slide-text=");
+  }).length;
+  if (missing > 0) {
+    console.warn(`carousel-visual: ${missing} slide(s) avec texte sans ancre data-slide-text (édition live en repli texte)`);
+  }
+}
+
+// ═══ Garde DÉTERMINISTE de contraste (tous types de carrousel) ═══
+// Bug prod 04/07 : texte écrit dans la couleur de sa carte (noir sur noir)
+// → items de comparison et punchline de timeline invisibles. Le prompt
+// l'interdit désormais, mais on ne dépend pas du modèle : toute couleur de
+// texte quasi identique à son fond direct est réécrite en lisible.
+function applyTextContrastGuard(result: any): void {
+  if (!Array.isArray(result?.slides_html)) return;
+  let contrastFixes = 0;
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const { html, fixes } = enforceTextContrast(slide?.html || "");
+    contrastFixes += fixes;
+    return fixes > 0 ? { ...slide, html } : slide;
+  });
+  if (contrastFixes > 0) {
+    console.warn(`carousel-visual: ${contrastFixes} couleur(s) de texte illisible(s) corrigée(s) (garde contraste)`);
+  }
+}
+
+// ═══ Garde DÉTERMINISTE de taille de police (tous types de carrousel) ═══
+// Audit lisibilité 12/07 : le modèle gravite vers les 26px des exemples →
+// illisible sur un feed mobile. Le prompt prescrit 34-40px de corps, mais
+// on ne dépend pas du modèle : tout élément texte éditable sous le plancher
+// de son rôle est remonté au plancher (jamais réduit).
+function applyMinFontSizeGuard(result: any): void {
+  if (!Array.isArray(result?.slides_html)) return;
+  let fontFixes = 0;
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const { html, fixes } = enforceMinFontSize(slide?.html || "");
+    fontFixes += fixes;
+    return fixes > 0 ? { ...slide, html } : slide;
+  });
+  if (fontFixes > 0) {
+    console.warn(`carousel-visual: ${fontFixes} font-size sous plancher remontée(s) (garde lisibilité)`);
+  }
+}
+
+// ═══ Garde DÉTERMINISTE de verbatim du texte ancré (slides texte) ═══
+// Audit live 10/07 : malgré la règle d'ancrage, le modèle dévie (casse perdue,
+// émojis retirés, body éclaté quand il contient des chiffres) — et l'ancien
+// sanitizeDashes réécrivait les tirets (désormais keepDashes: true sur les
+// appels de rendu). On ne dépend pas du prompt : si le texte de l'ancre
+// diffère du texte source, la source est réinjectée telle quelle. Les <span>
+// d'accent internes sautent alors — même compromis que l'édition live.
+function enforceVerbatimAnchorsGuard(result: any, params: { slides: any[] }): void {
+  const { slides } = params;
+  if (!Array.isArray(result?.slides_html)) return;
+  const srcText = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+  let verbatimFixes = 0;
+  let anchorsAdded = 0;
+  let anchorsUnmatched = 0;
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const src = srcText.get(slide.slide_number) as any;
+    // Slides texte uniquement — l'overlay photo a sa propre passe de lisibilité.
+    if (!src || (src.slide_type && src.slide_type !== "text_only")) return slide;
+    let slideHtml: string = slide?.html || "";
+    let changed = false;
+    // Ancre title MANQUANTE (audit 10/07 : slides à visual_schema, ~3 runs
+    // sur 4) : on la pose sur l'élément au texte identique AVANT la passe
+    // verbatim, sinon l'édition live retombe sur le repli par correspondance
+    // de texte de carousel-html-edit.ts.
+    if (typeof src.title === "string" && src.title.trim()) {
+      const ensured = ensureAnchor(slideHtml, "title", src.title);
+      if (ensured.status === "added") {
+        slideHtml = ensured.html;
+        changed = true;
+        anchorsAdded++;
+      } else if (ensured.status === "unmatched") {
+        anchorsUnmatched++;
+      }
+    }
+    const anchors: VerbatimAnchor[] = [];
+    if (typeof src.title === "string" && src.title.trim()) anchors.push({ field: "title", text: src.title });
+    if (typeof src.body === "string" && src.body.trim()) anchors.push({ field: "body", text: src.body });
+    if (anchors.length > 0) {
+      const { html, fixes } = enforceAnchoredText(slideHtml, anchors);
+      if (fixes.length > 0) {
+        slideHtml = html;
+        changed = true;
+        verbatimFixes += fixes.length;
+      }
+    }
+    return changed ? { ...slide, html: slideHtml } : slide;
+  });
+  if (anchorsAdded > 0) {
+    console.warn(`carousel-visual: ${anchorsAdded} ancre(s) data-slide-text="title" ajoutée(s) (garde déterministe)`);
+  }
+  if (anchorsUnmatched > 0) {
+    console.warn(`carousel-visual: ${anchorsUnmatched} slide(s) avec title sans ancre ni élément au texte identique (repli texte côté édition)`);
+  }
+  if (verbatimFixes > 0) {
+    console.warn(`carousel-visual: ${verbatimFixes} texte(s) ancré(s) réécrit(s) verbatim (garde déterministe)`);
+  }
+}
+
+// ═══ Ancres d'édition des slides PHOTO (parité avec les slides texte) ═══
+// La passe ci-dessus ne couvre QUE text_only. Les slides photo n'avaient
+// AUCUNE réparation d'ancre : overlay (photo_full) et titre/corps
+// (photo_integrated) non ancrés ⇒ l'édition live est un no-op silencieux
+// (carousel-html-edit.ts ne retrouve pas l'élément à patcher) ET l'export
+// hybride/Canva perd le texte édité (le repli d'export re-matche l'overlay_text
+// COURANT contre un HTML resté sur l'ancien texte → aucune correspondance).
+// On pose ici l'ancre data-slide-text MANQUANTE + l'annotation d'export
+// data-pptx-editable, sans réinjection verbatim : on préserve le traitement de
+// lisibilité de l'overlay (voile/bandeau/spans d'accent). Le champ édité côté
+// front dépend du type : photo_full → overlay ; photo_integrated → title/body
+// (cf. CarouselPhotoResult.tsx).
+function enforcePhotoSlideAnchorsGuard(result: any, params: { slides: any[] }): void {
+  const { slides } = params;
+  if (!Array.isArray(result?.slides_html)) return;
+  const srcByNum = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+  const photoFields = (st: string): Array<{ field: string; key: string }> =>
+    st === "photo_full"
+      ? [{ field: "overlay", key: "overlay_text" }]
+      : st === "photo_integrated"
+        ? [{ field: "title", key: "title" }, { field: "body", key: "body" }]
+        : [];
+  let photoAnchorsAdded = 0;
+  let photoAnchorsUnmatched = 0;
+  result.slides_html = result.slides_html.map((slide: any) => {
+    const src = srcByNum.get(slide?.slide_number) as any;
+    const fields = src?.slide_type ? photoFields(src.slide_type) : [];
+    if (fields.length === 0) return slide;
+    let html: string = slide?.html || "";
+    let changed = false;
+    for (const { field, key } of fields) {
+      const text = typeof src[key] === "string" ? src[key].trim() : "";
+      if (!text) continue;
+      const ensured = ensureAnchor(html, field, text);
+      if (ensured.status === "added") {
+        html = ensured.html;
+        changed = true;
+        photoAnchorsAdded++;
+      } else if (ensured.status === "unmatched") {
+        photoAnchorsUnmatched++;
+      }
+      // Annotation d'export : l'ancre étant en place (ajoutée ou déjà présente),
+      // on garantit data-pptx-editable pour que Canva/PPTX traite le bloc comme
+      // texte éditable (Strategy A), au lieu du repli fragile par correspondance.
+      if (ensured.status !== "unmatched") {
+        const withEdit = ensurePptxEditable(html, field);
+        if (withEdit !== html) {
+          html = withEdit;
+          changed = true;
+        }
+      }
+    }
+    return changed ? { ...slide, html } : slide;
+  });
+  if (photoAnchorsAdded > 0) {
+    console.warn(`carousel-visual: ${photoAnchorsAdded} ancre(s) overlay/photo ajoutée(s) (garde déterministe)`);
+  }
+  if (photoAnchorsUnmatched > 0) {
+    console.warn(`carousel-visual: ${photoAnchorsUnmatched} texte(s) de slide photo sans élément au texte identique (repli côté édition)`);
+  }
+}
+
+// ═══ Télémétrie fidélité des SCHÉMAS visuels (mesure seule, pas de correction) ═══
+// Les champs d'un visual_schema ne sont ni ancrés ni couverts par la garde
+// verbatim (audit 10/07 : attribution de quote_big omise du rendu). On
+// MESURE d'abord l'ampleur via les logs avant de décider d'une réinjection.
+function logSchemaFidelityTelemetry(result: any, params: { slides: any[]; userId: string }): void {
+  const { slides, userId } = params;
+  if (!Array.isArray(result?.slides_html)) return;
+  const srcBySlide = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
+  const reports: Array<{ slide: number; missing: string[]; checked: number }> = [];
+  for (const slide of result.slides_html) {
+    const src = srcBySlide.get(slide?.slide_number) as any;
+    if (!src?.visual_schema) continue;
+    const { missing, checked } = checkSchemaFidelity(slide?.html || "", src.visual_schema);
+    if (missing.length > 0) {
+      reports.push({ slide: Number(slide.slide_number), missing: missing.map((m) => m.slice(0, 80)), checked });
+    }
+  }
+  if (reports.length > 0) {
+    console.warn(JSON.stringify({
+      type: "carousel_schema_fidelity",
+      user_id: userId,
+      slides_with_missing: reports.length,
+      detail: reports,
+      timestamp: new Date().toISOString(),
+    }));
+  }
+}
+
+// ═══ Illustration de COUVERTURE (opt-in, décoché par défaut) ═══
+// Recraft génère 1 illustration de marque ; la slide de couverture est
+// composée EN DUR (layout A validé) — déterministe, pas via l'IA. En cas
+// d'échec (Recraft KO, pas de clé…), on GARDE la couverture générée par
+// l'IA : jamais de carrousel cassé, et aucun crédit débité en plus.
+async function applyCoverIllustration(result: any, params: {
+  reqBody: any;
+  slides: any[];
+  ch: any;
+  userId: string;
+  workspaceId: string | undefined;
+  usage: UsageSink;
+}): Promise<boolean> {
+  const { reqBody, slides, ch, userId, workspaceId, usage } = params;
+  let coverIllustrationDone = false;
+  if (reqBody?.cover_illustration === true && Array.isArray(result?.slides_html) && result.slides_html.length > 0) {
+    try {
+      const recraftKey = Deno.env.get("RECRAFT_API_TOKEN");
+      if (!recraftKey) throw new Error("RECRAFT_API_TOKEN manquant");
+
+      // Slide de couverture = plus petit slide_number (généralement 1)
+      const coverIdx = result.slides_html.reduce(
+        (best: number, s: any, i: number, arr: any[]) =>
+          (s?.slide_number ?? 999) < (arr[best]?.slide_number ?? 999) ? i : best,
+        0,
+      );
+      const coverSlideNumber = result.slides_html[coverIdx]?.slide_number ?? 1;
+      const srcCover = (slides || []).find((sl: any) => sl.slide_number === coverSlideNumber) as any;
+      const coverTitle: string = (srcCover?.title || srcCover?.overlay_text || "").toString().trim();
+
+      if (!coverTitle) throw new Error("titre de couverture introuvable");
+
+      // Concept visuel dérivé du titre (Haiku, court) — pas de texte dans l'image.
+      const conceptRaw = await callAnthropic({
+        model: "claude-haiku-4-5",
+        system:
+          "Tu proposes une scène d'illustration éditoriale simple et chaleureuse pour une couverture de carrousel. Concret (une personne ou des objets du quotidien du métier), jamais de texte ni de logo dans l'image.",
+        messages: [{
+          role: "user",
+          content:
+            `Titre de couverture : « ${coverTitle} ». Ambiance de marque : ${ch.mood_keywords}. ` +
+            `Décris EN ANGLAIS, en 12 mots maximum, une scène d'illustration simple et positive pour ce carrousel. ` +
+            `Réponds UNIQUEMENT la description, sans guillemets.`,
+        }],
+        temperature: 0.7,
+        max_tokens: 60,
+        abortTimeoutMs: 30_000,
+      }, usage);
+      const concept = (conceptRaw || "").replace(/["\n]/g, " ").trim().slice(0, 180) ||
+        "a creative solopreneur working calmly in a cozy studio";
+
+      const colors = {
+        primary: hexToRgb(ch.color_primary) ?? [28, 28, 32] as [number, number, number],
+        secondary: hexToRgb(ch.color_secondary) ?? [110, 106, 102] as [number, number, number],
+        background: hexToRgb(ch.color_background) ?? [246, 244, 240] as [number, number, number],
+      };
+
+      const svg = await fetchRecraftIllustrationSvg(concept, colors, recraftKey);
+      const coverHtml = buildCoverSlideHtml({
+        title: coverTitle,
+        illustrationSvg: svg,
+        ch: {
+          color_primary: ch.color_primary,
+          color_text: ch.color_text,
+          color_background: ch.color_background,
+          font_title: ch.font_title,
+          font_body: ch.font_body,
+          texture_url: ch.texture_url || undefined,
+        },
+      });
+
+      result.slides_html[coverIdx] = {
+        ...result.slides_html[coverIdx],
+        html: coverHtml,
+      };
+      coverIllustrationDone = true;
+
+      // Coût Recraft distinct (pas de tokens) — 1 illustration par carrousel.
+      await logUsage(userId, "photo_retouch", "cover_illustration", undefined, "recraftv3-vector", workspaceId);
+      console.log(JSON.stringify({ event: "cover_illustration_success", slide_number: coverSlideNumber, concept }));
+    } catch (coverErr) {
+      console.error(JSON.stringify({
+        event: "cover_illustration_failed",
+        error: coverErr instanceof Error ? coverErr.message.slice(0, 300) : "inconnu",
+      }));
+      // silencieux côté client : la couverture IA d'origine est conservée
+    }
+  }
+  return coverIllustrationDone;
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -1555,822 +2421,22 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
       });
     }
 
-    // ═══ D1 — Passe de correction du contraste (carrousel photo uniquement) ═══
-    // Chaque slide s'auto-évalue (contrast_ok). Pour celles que l'IA signale encore
-    // douteuses, UNE passe ciblée de régénération impose un bandeau opaque. Tout est
-    // gardé : au moindre échec on conserve les slides d'origine (jamais de régression).
-    if ((isPhotoCarousel || isMixCarousel) && !composedByCode && Array.isArray(result?.slides_html)) {
-      // En mix, seules les slides porteuses d'une PHOTO sont concernées : une slide
-      // design sombre de la charte avec texte blanc est légitime sans voile.
-      const slideHasPhoto = (s: any) => /data:image\//.test(s?.html || "") || /\{\{PHOTO_\d+\}\}/.test(s?.html || "");
-      // Filet DÉTERMINISTE : `contrast_ok` est auto-déclaré par l'IA, qui sur-estime
-      // souvent la lisibilité. On ne s'y fie donc pas seul. Heuristique sur le HTML
-      // rendu : une slide à texte CLAIR (blanc/quasi-blanc) posé sur la photo SANS
-      // aucun voile/bandeau/ombre sombre derrière est presque toujours illisible
-      // (illisibilité n°1). On la route vers la passe de correction même si l'IA a
-      // déclaré contrast_ok=true. Conservateur : on ne flague que l'absence TOTALE de
-      // voile sombre — au moindre signal de scrim on laisse passer (zéro régression).
-      const overlayLikelyUnreadable = (s: any): boolean => {
-        const html: string = s?.html || "";
-        if (!html) return false;
-        // Texte clair utilisé quelque part (couleur de l'overlay) — quasi-blanc
-        // MAIS AUSSI gris clairs (#EEE, rgb(220,…)) et blancs nommés, qui
-        // passaient au travers de l'ancien motif.
-        const hasLightText = /color\s*:\s*(#[c-f]{3}\b|#[c-f][0-9a-f][c-f][0-9a-f][c-f][0-9a-f]\b|white\b|whitesmoke\b|ivory\b|snow\b|ghostwhite\b|floralwhite\b|rgba?\(\s*2[0-5]\d\s*,\s*2[0-5]\d\s*,\s*2[0-5]\d)/i.test(html);
-        if (!hasLightText) return false;
-        // Signaux de scrim sombre qui rendent le texte clair lisible (un voile
-        // sombre NON strictement noir — charcoal rgba(30,20,10,…) — compte aussi) :
-        const darkVeil = /rgba\(\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*[0-4]?\d\s*,\s*(?:0?\.(?:3[5-9]|[4-9]\d?)|1(?:\.0+)?)\s*\)/i.test(html); // voile/bandeau sombre alpha ≥0.35
-        const darkShadow = /text-shadow\s*:[^;"']*rgba\(\s*0\s*,\s*0\s*,\s*0\s*,\s*(?:0?\.[5-9]\d?|1)/i.test(html);   // ombre forte
-        const darkSolid = /background[^;"']*:\s*(?:#0{3}\b|#0{6}\b|rgb\(\s*(?:[0-3]?\d|4[0-8])\s*,)/i.test(html);       // bandeau sombre opaque
-        return !(darkVeil || darkShadow || darkSolid);
-      };
-      const flagged = result.slides_html.filter(
-        (s: any) => (!isMixCarousel || slideHasPhoto(s)) && (s?.contrast_ok === false || overlayLikelyUnreadable(s)),
-      );
-      if (flagged.length > 0) {
-        console.warn(
-          `carousel-visual: ${flagged.length} slide(s) au contraste douteux → passe de correction`,
-          flagged.map((s: any) => s.slide_number)
-        );
-        try {
-          const fixContent: any[] = [];
-          for (let i = 0; i < reqBody.photos.length; i++) {
-            const photo = reqBody.photos[i];
-            if (photo?.base64) {
-              const { media_type, data } = extractImagePayload(photo.base64, photo.mimeType);
-              fixContent.push({ type: "image", source: { type: "base64", media_type, data } });
-              fixContent.push({ type: "text", text: `↑ Photo ${i + 1}` });
-            }
-          }
-          fixContent.push({
-            type: "text",
-            text: `Ces slides ont un contraste texte/photo INSUFFISANT. Régénère leur HTML (même format, mêmes placeholders {{PHOTO_N}}, même charte) en IMPOSANT un bandeau/voile OPAQUE derrière le texte (rgba opaque jusqu'à 0,92), dimensionné sur le bloc texte, pour une lisibilité franche sur mobile. Ne change rien d'autre que la lisibilité.
-
-SLIDES À CORRIGER :
-${JSON.stringify(flagged.map((s: any) => ({ slide_number: s.slide_number, html: s.html })), null, 2)}
-
-Retourne UNIQUEMENT le JSON : { "slides_html": [ { "slide_number": N, "html": "...", "contrast_ok": true, "legibility": "..." } ] }`,
-          });
-
-          const fixUsage: UsageSink = {};
-          const fixRaw = await callAnthropic({
-            model,
-            system: systemPromptWithAnnotations,
-            messages: [{ role: "user", content: fixContent }],
-            temperature: 0.4,
-            max_tokens: 16384,
-            abortTimeoutMs: 120_000,
-            keepDashes: true,
-          }, fixUsage);
-          const fixed = tryParseAiJson<any>(fixRaw, "carousel-visual:contrast-fix");
-          if (fixed?.slides_html && Array.isArray(fixed.slides_html)) {
-            const fixedById = new Map<number, any>();
-            for (const s of fixed.slides_html) {
-              if (s?.html) fixedById.set(s.slide_number, s);
-            }
-            result.slides_html = result.slides_html.map((s: any) => {
-              const repl = fixedById.get(s.slide_number);
-              return repl ? { ...s, html: repl.html, contrast_ok: true, legibility: repl.legibility || s.legibility } : s;
-            });
-            console.log(`carousel-visual: ${fixedById.size} slide(s) corrigée(s) pour le contraste`);
-          }
-        } catch (fixErr) {
-          console.error("carousel-visual: passe de correction du contraste échouée (slides d'origine conservées)", fixErr);
-        }
-      }
-    }
-
-    // ═══ D1-bis — Gardes déterministes lisibilité / safe-zone / héros (audit 12/07, lot C) ═══
-    // Le modèle s'auto-déclare conforme (voile, 200px de marge basse, slide 1 « affiche »)
-    // mais le rendu réel viole ces règles. Corrections par CODE, jamais par re-génération :
-    // padding remonté au plancher, scrim injecté si texte clair sans voile, hook court agrandi.
-    if ((isPhotoCarousel || isMixCarousel) && !composedByCode && Array.isArray(result?.slides_html)) {
-      const srcByNumber = new Map<number, any>();
-      for (const s of (slides as any[])) {
-        if (Number.isInteger((s as any)?.slide_number)) srcByNumber.set((s as any).slide_number, s);
-      }
-      let safeFixes = 0, scrims = 0, heroBumps = 0;
-      const slideNums = result.slides_html.map((s: any) => Number(s?.slide_number)).filter((n: number) => Number.isFinite(n));
-      const minNum = slideNums.length ? Math.min(...slideNums) : 1;
-      result.slides_html = result.slides_html.map((s: any) => {
-        const source = srcByNumber.get(Number(s?.slide_number));
-        // Slides texte du mix : pas d'overlay photo, les gardes ne matchent pas (no-op).
-        const pos = source?.overlay_position;
-        let html: string = s?.html || "";
-        if (!html) return s;
-        const sz = enforceSafeZones(html, pos);
-        html = sz.html; safeFixes += sz.fixes;
-        const sc = injectFallbackScrim(html, pos);
-        html = sc.html; if (sc.injected) scrims++;
-        if (Number(s?.slide_number) === minNum && typeof source?.overlay_text === "string") {
-          const hero = enforceHeroHook(html, source.overlay_text);
-          html = hero.html; if (hero.bumped) heroBumps++;
-        }
-        return html === s.html ? s : { ...s, html };
-      });
-      if (safeFixes || scrims || heroBumps) {
-        console.log(`carousel-visual: gardes photo (lot C) — safe-zone ${safeFixes} fix(es), scrim injecté ${scrims}, héros slide 1 ${heroBumps}`);
-      }
-    }
-
-    // ═══ Kill DÉTERMINISTE des badges "numéro de slide" / pagination (TOUS types) ═══
-    // L'utilisatrice ne veut aucune pastille "SLIDE 03", "01/08", "03/08"… en coin de slide :
-    // ces stamps n'apportent rien au lecteur et alourdissent le visuel. Le prompt ne les
-    // demande plus, mais on garantit leur absence par code (texte, photo ET mix), sur TOUTES
-    // les slides. On ne touche PAS aux numéros d'étape d'un schéma (timeline "01", "02") :
-    // ceux-là sont des entiers NUS, sans "SLIDE" ni "/total" — le motif ci-dessous les ignore.
-    if (Array.isArray(result?.slides_html)) {
-      // "SLIDE 03", "SLIDE 03/08", "03/08", "3 - 8" → stamp. PAS "03" nu (ambigu avec une étape).
-      const SLIDE_STAMP_RE = /^(?:slide\s*)?\d{1,2}\s*[\/.\-]\s*\d{1,2}$|^slide\s*\d{1,2}$/i;
-      const isStamp = (t: string) => SLIDE_STAMP_RE.test((t || "").trim());
-      let stampsKilled = 0;
-      const killStamps = (rawHtml: string): string => {
-        let html = rawHtml || "";
-        // a) Pilule enveloppant une caption : <span pill><span caption>TXT</span></span>
-        html = html.replace(
-          /<(span|div)\b[^>]*data-pptx-shape="pill"[^>]*>\s*<(span|div)\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/\2>\s*<\/\1>/gi,
-          (m: string, _a: string, _b: string, txt: string) => (isStamp(txt) ? (stampsKilled++, "") : m),
-        );
-        // b) Élément annoté pill OU caption dont le contenu est un stamp : <tag pill|caption>TXT</tag>
-        html = html.replace(
-          /<(span|div|p)\b[^>]*(?:data-pptx-shape="pill"|data-pptx-editable="caption")[^>]*>([^<]*)<\/\1>/gi,
-          (m: string, _t: string, txt: string) => (isStamp(txt) ? (stampsKilled++, "") : m),
-        );
-        // c) Filet de sécurité : tout petit élément littéralement "SLIDE NN", même non annoté.
-        html = html.replace(
-          /<(span|div|p)\b[^>]*>\s*slide\s*\d{1,2}(?:\s*[\/.\-]\s*\d{1,2})?\s*<\/\1>/gi,
-          () => { stampsKilled++; return ""; },
-        );
-        // d) Préfixe "Slide N," / "Slide N ·" / "Slide N —" DANS un label plus long
-        //    (vu en prod : eyebrow "Slide 4, Analyse" rendu tel quel malgré les 4
-        //    interdits du prompt). On retire le préfixe méta et on GARDE le label
-        //    éditorial restant ("Analyse"). Ancré juste après un tag ouvrant → les
-        //    mentions en milieu de phrase ne sont pas touchées.
-        html = html.replace(
-          /(<(?:span|div|p|h[1-6])\b[^>]*>\s*)slides?\s*(?:n[°o]\s*)?\d{1,2}\s*[,·—:–-]\s*(?=\S)/gi,
-          (_m: string, open: string) => { stampsKilled++; return open; },
-        );
-        return html;
-      };
-      result.slides_html = result.slides_html.map((slide: any) => ({
-        ...slide,
-        html: killStamps(slide?.html || ""),
-      }));
-      if (stampsKilled > 0) {
-        console.log(`carousel-visual: ${stampsKilled} badge(s) numéro de slide retiré(s) (kill déterministe, tous types)`);
-      }
-    }
-
-    // ═══ Kill DÉTERMINISTE des surtitres inventés (carrousel PHOTO uniquement) ═══
-    // En mode photo, la prose DOIT porter le fil narratif. Tout label/badge de section
-    // inventé par le modèle ("CONVERSATION N°1", "LA MÉTHODE", "LE VRAI BLOCAGE"…) vide la
-    // prose et hache la lecture. Le prompt l'interdit mais le modèle le contourne (1 fois
-    // sur 5). On le retire donc par code, sans dépendre du modèle.
-    // Handle fiable : le modèle annote ces badges `data-pptx-editable="caption"` (cf. règles
-    // d'annotation PPTX) et l'overlay réel `data-pptx-editable="overlay"` ; un élément ne
-    // porte jamais les deux. On supprime les "caption" qui ne sont NI un numéro de slide NI
-    // l'overlay réel, sauf sur la DERNIÈRE slide (CTA toléré).
-    if (isPhotoCarousel && Array.isArray(result?.slides_html)) {
-      const overlayBySlide = new Map<number, string>();
-      if (Array.isArray(slides)) {
-        slides.forEach((s: any) => {
-          const ov = s?.overlay_text ?? s?.overlay ?? s?.text ?? s?.body;
-          if (s && s.slide_number != null && typeof ov === "string") {
-            overlayBySlide.set(Number(s.slide_number), ov);
-          }
-        });
-      }
-      const lastNum = Math.max(
-        ...result.slides_html.map((s: any) => Number(s?.slide_number) || 0),
-      );
-      const norm = (t: string) =>
-        (t || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "");
-      const isSlideNumber = (t: string) =>
-        /^\s*\d{1,2}\s*([\/.\-]\s*\d{1,2}\s*)?$/.test((t || "").trim());
-      let stripped = 0;
-      const stripFromHtml = (rawHtml: string, overlayText: string): string => {
-        const overlayNorm = norm(overlayText);
-        const shouldDrop = (txt: string): boolean => {
-          const t = (txt || "").trim();
-          if (!t) return false;
-          if (isSlideNumber(t)) return false; // garder les numéros de slide
-          const tn = norm(t);
-          if (!tn) return false;
-          // ne JAMAIS retirer l'overlay réel (sécurité si le modèle l'a mal annoté)
-          if (overlayNorm && (overlayNorm.includes(tn) || tn.includes(overlayNorm))) return false;
-          return true;
-        };
-        let html = rawHtml;
-        // 1) Pilule canonique enveloppant une caption : <span pill><span caption>TXT</span></span>
-        html = html.replace(
-          /<span\b[^>]*data-pptx-shape="pill"[^>]*>\s*<span\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/span>\s*<\/span>/gi,
-          (m: string, txt: string) => {
-            if (shouldDrop(txt)) { stripped++; return ""; }
-            return m;
-          },
-        );
-        // 2) Caption autonome (non enveloppée) : <tag caption>TXT</tag>
-        html = html.replace(
-          /<(\w+)\b[^>]*data-pptx-editable="caption"[^>]*>([^<]*)<\/\1>/gi,
-          (m: string, _tag: string, txt: string) => {
-            if (shouldDrop(txt)) { stripped++; return ""; }
-            return m;
-          },
-        );
-        return html;
-      };
-      result.slides_html = result.slides_html.map((slide: any) => {
-        const num = Number(slide?.slide_number) || 0;
-        if (num === lastNum) return slide; // dernière slide : CTA toléré
-        const html = stripFromHtml(slide.html || "", overlayBySlide.get(num) || "");
-        return { ...slide, html };
-      });
-      if (stripped > 0) {
-        console.log(`carousel-visual: ${stripped} surtitre(s) inventé(s) retiré(s) (kill déterministe mode photo)`);
-      }
-    }
-
-    // ═══ Post-processing : injecter les photos base64 dans le HTML ═══
-    if ((isPhotoCarousel || isMixCarousel) && result?.slides_html && reqBody.photos) {
-      result.slides_html = result.slides_html.map((slide: any) => {
-        let html = slide.html || "";
-        
-        // Remplacer chaque placeholder {{PHOTO_N}} par le vrai base64
-        for (let i = 0; i < reqBody.photos.length; i++) {
-          const placeholder = `{{PHOTO_${i + 1}}}`;
-          // Le base64 peut déjà contenir le préfixe data URL
-          const p = reqBody.photos[i];
-          const raw = p.base64;
-          const base64Url = raw.startsWith("data:") ? raw : `data:${p.mimeType || "image/jpeg"};base64,${raw}`;
-          while (html.includes(placeholder)) {
-            html = html.replace(placeholder, base64Url);
-          }
-        }
-        
-        return { ...slide, html };
-      });
-    }
-
-    // ═══ Post-processing 2 : forcer les Google Fonts via <link> ═══
-    // Les @import dans les iframes srcDoc ne chargent pas les fonts de façon fiable.
-    // On remplace tous les @import Google Fonts par un <link> en tête du HTML.
-    if (result?.slides_html) {
-      const fontsLink = `<link href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(safeFontTitle)}:ital,wght@0,400;0,700;1,400&family=${encodeURIComponent(safeFontBody)}:wght@400;500;600;700&display=swap" rel="stylesheet">`;
-      // Reset défensif : empêche le débordement horizontal du texte hors du cadre
-      // 1080px. Cause classique = carte en width:100% + padding sans box-sizing
-      // border-box → la carte dépasse et se fait couper à droite (slides chargées
-      // en texte). Corrige l'aperçu ET l'export (même HTML source).
-      const safetyReset = `<style>*{box-sizing:border-box;}html,body{margin:0;padding:0;}h1,h2,h3,h4,h5,p,span,li,div{overflow-wrap:break-word;}</style>`;
-
-      result.slides_html = result.slides_html.map((slide: any) => {
-        let html = slide.html || "";
-        // Supprimer les @import Google Fonts existants (ils ne marchent pas dans les
-        // iframes srcDoc — et fuitent en TEXTE VISIBLE sur la slide quand le modèle
-        // émet le @import sans wrapper <style> ou mélangé à d'autres CSS).
-        // On retire le @import OÙ QU'IL SOIT (nu ou dans un <style> plus large), puis
-        // on nettoie les <style> devenus vides. La police reste fournie par le <link>.
-        html = html
-          .replace(/@import\s+url\(\s*['"]?[^)]*fonts\.googleapis\.com[^)]*['"]?\s*\)\s*;?/gi, "")
-          .replace(/<style>\s*<\/style>/gi, "");
-        // Ajouter le <link> police + le reset défensif au tout début
-        html = fontsLink + safetyReset + html;
-        return { ...slide, html };
-      });
-    }
-
-    // ═══ Post-processing 2bis : garde de contraste DÉTERMINISTE sur les titres ═══
-    // Diagnostic prod (27/06, mesuré sur un import Canva réel) : sur fond clair, le LLM
-    // colore parfois le TITRE ENTIER en rose clair (couleur rendue ≈ rgb(252,156,192),
-    // soit la primary semi-transparente) → contraste ~1.3:1, illisible. Ça se voit dans
-    // l'aperçu, l'export PPTX ET Canva (l'export reproduit fidèlement la couleur du HTML ;
-    // ce n'est donc PAS un bug Canva/export mais la génération). Correctif déterministe
-    // (pas une N-ième règle de prompt qui se concurrence) : si la couleur d'un titre
-    // éditable échoue le contraste contre le FOND RÉEL de sa slide, on la remplace par la
-    // meilleure couleur de charte (foncée sur fond clair, blanche sur fond sombre). On ne
-    // touche QUE la couleur du cadre titre → les mots-accent (spans internes en primary/
-    // accent) sont préservés. Slides déjà lisibles (titre foncé, ou blanc sur fond plein)
-    // = contraste OK → non modifiées.
-    if (result?.slides_html) {
-      // Compose une couleur (#hex 3/6/8 ou rgb/rgba) sur un fond hex6 → hex6 RENDU.
-      // Gère l'alpha (rgba + #rrggbbaa) ET les couleurs claires solides de la même façon.
-      // Couleurs CSS NOMMÉES → hex. Indispensable : le modèle écrit souvent `color:white`
-      // (vu en prod : titre blanc sur fond rose CLAIR #ffa7c6 = ~1.8:1, illisible, qui
-      // passait à travers la garde car non parsé). On couvre les noms réalistes sur des
-      // titres ; un nom inconnu reste non parsé (la garde l'ignore, comportement sûr).
-      const NAMED: Record<string, string> = {
-        white: "#FFFFFF", black: "#000000", red: "#FF0000", green: "#008000",
-        blue: "#0000FF", yellow: "#FFFF00", gray: "#808080", grey: "#808080",
-        pink: "#FFC0CB", purple: "#800080", orange: "#FFA500", brown: "#A52A2A",
-        navy: "#000080", teal: "#008080", silver: "#C0C0C0", gold: "#FFD700",
-        beige: "#F5F5DC", ivory: "#FFFFF0", transparent: "",
-      };
-      const hexOnBg = (raw: string, bg6: string): string | null => {
-        let v = (raw || "").trim();
-        const named = NAMED[v.toLowerCase()];
-        if (named !== undefined) { if (named === "") return null; v = named; }
-        let r: number, g: number, b: number, a = 1;
-        const m = v.match(/rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/i);
-        if (m) {
-          r = +m[1]; g = +m[2]; b = +m[3];
-          if (m[4] !== undefined) a = parseFloat(m[4]);
-        } else {
-          let h = v.replace("#", "");
-          if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-          if (h.length === 8) { a = parseInt(h.slice(6, 8), 16) / 255; h = h.slice(0, 6); }
-          if (!/^[0-9a-fA-F]{6}$/.test(h)) return null;
-          r = parseInt(h.slice(0, 2), 16); g = parseInt(h.slice(2, 4), 16); b = parseInt(h.slice(4, 6), 16);
-        }
-        const B = (i: number) => parseInt(bg6.slice(i, i + 2), 16);
-        const comp = (c: number, bc: number) => Math.round(a * c + (1 - a) * bc);
-        return [comp(r, B(0)), comp(g, B(2)), comp(b, B(4))]
-          .map((x) => x.toString(16).padStart(2, "0")).join("").toUpperCase();
-      };
-      const lum = (h6: string): number => {
-        const c = (i: number) => {
-          const x = parseInt(h6.slice(i, i + 2), 16) / 255;
-          return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4);
-        };
-        return 0.2126 * c(0) + 0.7152 * c(2) + 0.0722 * c(4);
-      };
-      const ratio = (a6: string, b6: string): number => {
-        const la = lum(a6), lb = lum(b6);
-        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
-      };
-      // Règle (validée avec Laetitia, option « stricte ») : la couleur du TITRE est imposée
-      // par la luminance du FOND, pas laissée au hasard du modèle (qui dévie souvent vers la
-      // primary vive #FB3D80 ~3.2:1, voire semi-transparente ~1.8:1 illisible). Fond CLAIR →
-      // titre franchement foncé (secondary rose foncé = couleur de titre voulue par la charte) ;
-      // fond SOMBRE/PLEIN → titre clair (blanc). On n'agit QUE si le contraste est insuffisant
-      // pour le type de fond → les titres déjà foncés sur fond clair, et déjà blancs sur fond
-      // plein, restent intacts.
-      const LIGHT_BG_FLOOR = 4.5; // fond clair : on exige un titre NET (au-dessus de AA-large)
-      const DARK_BG_FLOOR = 3.0;  // fond plein : blanc sur rose vif (~3.4) est voulu → toléré
-      const norm = (x: string | null | undefined, fb: string) => hexOnBg(x || "", "FFFFFF") || fb;
-      const secondary6 = norm(ch.color_secondary, "91014B");
-      const text6 = norm(ch.color_text, "1A1A2E");
-      const bgDefault6 = norm(ch.color_background, "FFF4F8");
-      // Remplacement sur fond clair : secondary (rose foncé de charte) en priorité, sinon text,
-      // sinon le plus contrasté des deux. Sur fond sombre : blanc.
-      const bestDark = (bg6: string): string => {
-        if (ratio(secondary6, bg6) >= LIGHT_BG_FLOOR) return secondary6;
-        if (ratio(text6, bg6) >= LIGHT_BG_FLOOR) return text6;
-        return ratio(text6, bg6) >= ratio(secondary6, bg6) ? text6 : secondary6;
-      };
-      let titlesFixed = 0;
-      let bodyFixed = 0;
-      // Fond ENGLOBANT réel d'un élément : mini-scan des tags avec une pile,
-      // jusqu'à l'offset de l'élément. Indispensable sur les slides MULTI-FONDS
-      // (photo en haut + bandeau coloré en bas, carte sombre sur fond clair…) :
-      // l'ancien fond « 1ère couleur unie du HTML » comparait le titre au MAUVAIS
-      // fond (vu en prod : titre olive sur bandeau magenta jugé lisible car testé
-      // contre le fond clair global → passé tel quel dans l'aperçu ET l'export).
-      // Les rgba sont composés sur le fond du parent dans la pile.
-      const VOID_TAGS = new Set(["br", "img", "hr", "input", "meta", "link", "source", "area", "base", "col", "embed", "param", "track", "wbr"]);
-      const BG_DECL_RE = /background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\)|[a-z]+)/i;
-      // TEXTURE DE MARQUE = FOND CLAIR. La texture-papier est déclarée en
-      // `background:url('…')` — illisible pour BG_DECL_RE, donc la garde
-      // retombait sur un mauvais fond de repli et laissait passer du texte
-      // blanc/jaune posé directement sur la texture (vu en prod, 3 slides d'un
-      // même carrousel). La texture est par construction une matière CLAIRE
-      // dérivée du fond de charte → un fond url(...) compte comme bgDefault6.
-      const BG_URL_RE = /background\s*:\s*url\(/i;
-      const bgEnclosingAt = (whole: string, offset: number, fallback6: string): string | null => {
-        const tagRe = /<(\/?)([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
-        const stack: Array<{ tag: string; bg6: string | null }> = [];
-        const nearest = (): string | null => {
-          for (let i = stack.length - 1; i >= 0; i--) if (stack[i].bg6) return stack[i].bg6;
-          return null;
-        };
-        let m: RegExpExecArray | null;
-        while ((m = tagRe.exec(whole)) && m.index < offset) {
-          const closing = m[1] === "/";
-          const tag = m[2].toLowerCase();
-          const attrs = m[3] || "";
-          if (closing) {
-            // Pop tolérant : referme jusqu'au tag correspondant (les tags internes
-            // mal refermés sautent avec — HTML machine, cas marginal).
-            for (let i = stack.length - 1; i >= 0; i--) {
-              if (stack[i].tag === tag) { stack.length = i; break; }
-            }
-          } else if (!VOID_TAGS.has(tag) && !/\/\s*$/.test(attrs)) {
-            const bm = attrs.match(BG_DECL_RE);
-            // Gradient/nom inconnu → hexOnBg rend null → l'élément ne compte
-            // pas comme fond (on retombe sur le parent) — comportement sûr.
-            let composed = bm ? hexOnBg(bm[1], nearest() || fallback6) : null;
-            if (!composed && BG_URL_RE.test(attrs)) composed = fallback6;
-            stack.push({ tag, bg6: composed });
-          }
-        }
-        return nearest();
-      };
-      result.slides_html = result.slides_html.map((slide: any) => {
-        let html: string = slide.html || "";
-        // Repli si l'élément n'a AUCUN fond englobant déclaré : 1ère couleur de
-        // fond unie du HTML (≈ conteneur racine), sinon le fond de charte (clair).
-        let bg6 = bgDefault6;
-        const bgm = html.match(/background(?:-color)?\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]+\))/i);
-        if (bgm) { const c = hexOnBg(bgm[1], "FFFFFF"); if (c) bg6 = c; }
-        html = html.replace(
-          /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["']title["'][^>]*)>/gi,
-          (full: string, _t: string, _a: string, offset: number, whole: string) =>
-            full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
-              const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
-              if (!cm) return sm;
-              const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
-              const eff = hexOnBg(cm[1], bgLocal);
-              if (!eff) return sm;
-              let repl: string | null = null;
-              if (lum(bgLocal) > 0.5) {
-                if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bestDark(bgLocal);
-              } else {
-                if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
-              }
-              if (!repl || repl === eff) return sm;
-              titlesFixed++;
-              const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
-              return `style="${newStyle}"`;
-            }),
-        );
-
-        // Étendre la MÊME garde déterministe au CORPS et au SOUS-TITRE (texte descriptif
-        // qui DOIT rester lisible). Sinon un body/subtitle colorisé en accent clair sur
-        // fond clair (ex. #C9BFB2 / #FFE561) passe illisible, dans l'aperçu ET l'export.
-        // On NE touche PAS `caption` (labels colorés ❌/✅ et numéros décoratifs voulus)
-        // ni `overlay` (texte sur photo, géré par la passe de contraste photo dédiée).
-        // Repli : le texte de charte (color_text) en priorité, sinon la meilleure option
-        // foncée disponible ; blanc sur fond sombre.
-        const bodyDark = (b: string): string =>
-          ratio(text6, b) >= LIGHT_BG_FLOOR ? text6 : bestDark(b);
-        html = html.replace(
-          /<([a-z0-9]+)([^>]*\bdata-pptx-editable\s*=\s*["'](?:body|subtitle)["'][^>]*)>/gi,
-          (full: string, _t: string, _a: string, offset: number, whole: string) =>
-            full.replace(/style\s*=\s*"([^"]*)"/i, (sm: string, style: string) => {
-              const cm = style.match(/(?:^|;)\s*color\s*:\s*([^;]+)/i);
-              if (!cm) return sm;
-              const bgLocal = bgEnclosingAt(whole, offset, bgDefault6) ?? bg6;
-              const eff = hexOnBg(cm[1], bgLocal);
-              if (!eff) return sm;
-              let repl: string | null = null;
-              if (lum(bgLocal) > 0.5) {
-                if (ratio(eff, bgLocal) < LIGHT_BG_FLOOR) repl = bodyDark(bgLocal);
-              } else {
-                if (ratio(eff, bgLocal) < DARK_BG_FLOOR) repl = "FFFFFF";
-              }
-              if (!repl || repl === eff) return sm;
-              bodyFixed++;
-              const newStyle = style.replace(/((?:^|;)\s*)color\s*:\s*[^;]+/i, `$1color:#${repl}`);
-              return `style="${newStyle}"`;
-            }),
-        );
-        return { ...slide, html };
-      });
-      if (titlesFixed > 0) {
-        console.log(`carousel-visual: ${titlesFixed} titre(s) à faible contraste corrigé(s) (garde déterministe)`);
-      }
-      if (bodyFixed > 0) {
-        console.log(`carousel-visual: ${bodyFixed} corps/sous-titre(s) à faible contraste corrigé(s) (garde déterministe)`);
-      }
-    }
-
-    // P0-3 : remplacer les placeholders {{PHOTO_N}} non substitués par un fallback
-    // (sinon l'iframe affiche `url({{PHOTO_2}})` cassé → slide vide).
-    if ((isPhotoCarousel || isMixCarousel) && result?.slides_html) {
-      // Construire un map des base64 dispos pour fallback (même normalisation que post-proc 1)
-      const photoBase64Map = new Map<number, string>();
-      const reqPhotos = reqBody.photos;
-      if (Array.isArray(reqPhotos)) {
-        reqPhotos.forEach((p: any, i: number) => {
-          const raw = typeof p === "string" ? p : (p?.base64 || p?.data || "");
-          const mime = typeof p === "object" && p?.mimeType ? p.mimeType : "image/jpeg";
-          if (raw) {
-            const dataUrl = raw.startsWith("data:") ? raw : `data:${mime};base64,${raw}`;
-            photoBase64Map.set(i + 1, dataUrl);
-          }
-        });
-      }
-      const fallbackPhoto = photoBase64Map.get(1) || Array.from(photoBase64Map.values())[0] || "";
-      const placeholderColor =
-        "data:image/svg+xml;base64," +
-        btoa(
-          `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350"><rect width="100%" height="100%" fill="#FFE4ED"/><text x="50%" y="50%" font-family="sans-serif" font-size="48" fill="#91014b" text-anchor="middle" dominant-baseline="middle">Photo manquante</text></svg>`
-        );
-
-      result.slides_html = result.slides_html.map((slide: any) => {
-        let html = slide.html || "";
-        if (html.includes("{{PHOTO_")) {
-          html = html.replace(/\{\{PHOTO_(\d+)\}\}/g, (_match: string, num: string) => {
-            const n = parseInt(num, 10);
-            const b64 = photoBase64Map.get(n) || fallbackPhoto || placeholderColor;
-            console.warn(
-              `carousel-visual: placeholder {{PHOTO_${n}}} orphelin slide ${slide.slide_number} → fallback ${photoBase64Map.has(n) ? "(?)" : fallbackPhoto ? "photo 1" : "placeholder"}`
-            );
-            return b64;
-          });
-        }
-        return { ...slide, html };
-      });
-    }
-
-    // Fallback : si Claude a oublié `slides_invariants` dans la réponse, on injecte
-    // les invariants serveur (déduits de la charte) pour que l'exporter ne soit jamais
-    // privé de la source de vérité.
-    if (result && !result.slides_invariants) {
-      result.slides_invariants = {
-        palette_used: {
-          primary: invariants.palette.primary_hex,
-          secondary: invariants.palette.secondary_hex,
-          accent: invariants.palette.accent_hex,
-          bg: invariants.palette.bg_hex,
-          text: invariants.palette.text_hex,
-        },
-        typography_used: {
-          title_pptx_safe: invariants.typography.title_pptx_safe,
-          body_pptx_safe: invariants.typography.body_pptx_safe,
-          title_pt: invariants.typography.title_pt,
-          body_pt: invariants.typography.body_pt,
-        },
-        layouts_used: [],
-        motif: invariants.motif,
-      };
-      console.warn("carousel-visual: slides_invariants manquant dans la réponse Claude → fallback serveur");
-    }
-
-    // ═══ Télémétrie ancres d'édition (tous types de carrousel) ═══
-    // Le prompt exige data-slide-text="title|body|overlay" autour des textes
-    // verbatim (édition en direct côté front). On ne répare pas ici (le front
-    // a un repli par correspondance de texte) mais on compte les manquants —
-    // uniquement pour les slides dont la SOURCE a du texte (une slide photo
-    // sans overlay n'a légitimement pas d'ancre).
-    if (Array.isArray(result?.slides_html)) {
-      const srcByNumber = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
-      const missing = result.slides_html.filter((sl: any) => {
-        if (typeof sl?.html !== "string") return false;
-        const src = srcByNumber.get(sl.slide_number) as any;
-        const hasText = !!(src && (src.title || src.body || src.overlay_text));
-        return hasText && !sl.html.includes("data-slide-text=");
-      }).length;
-      if (missing > 0) {
-        console.warn(`carousel-visual: ${missing} slide(s) avec texte sans ancre data-slide-text (édition live en repli texte)`);
-      }
-    }
-
-    // ═══ Garde DÉTERMINISTE de contraste (tous types de carrousel) ═══
-    // Bug prod 04/07 : texte écrit dans la couleur de sa carte (noir sur noir)
-    // → items de comparison et punchline de timeline invisibles. Le prompt
-    // l'interdit désormais, mais on ne dépend pas du modèle : toute couleur de
-    // texte quasi identique à son fond direct est réécrite en lisible.
-    if (Array.isArray(result?.slides_html)) {
-      let contrastFixes = 0;
-      result.slides_html = result.slides_html.map((slide: any) => {
-        const { html, fixes } = enforceTextContrast(slide?.html || "");
-        contrastFixes += fixes;
-        return fixes > 0 ? { ...slide, html } : slide;
-      });
-      if (contrastFixes > 0) {
-        console.warn(`carousel-visual: ${contrastFixes} couleur(s) de texte illisible(s) corrigée(s) (garde contraste)`);
-      }
-    }
-
-    // ═══ Garde DÉTERMINISTE de taille de police (tous types de carrousel) ═══
-    // Audit lisibilité 12/07 : le modèle gravite vers les 26px des exemples →
-    // illisible sur un feed mobile. Le prompt prescrit 34-40px de corps, mais
-    // on ne dépend pas du modèle : tout élément texte éditable sous le plancher
-    // de son rôle est remonté au plancher (jamais réduit).
-    if (Array.isArray(result?.slides_html)) {
-      let fontFixes = 0;
-      result.slides_html = result.slides_html.map((slide: any) => {
-        const { html, fixes } = enforceMinFontSize(slide?.html || "");
-        fontFixes += fixes;
-        return fixes > 0 ? { ...slide, html } : slide;
-      });
-      if (fontFixes > 0) {
-        console.warn(`carousel-visual: ${fontFixes} font-size sous plancher remontée(s) (garde lisibilité)`);
-      }
-    }
-
-    // ═══ Garde DÉTERMINISTE de verbatim du texte ancré (slides texte) ═══
-    // Audit live 10/07 : malgré la règle d'ancrage, le modèle dévie (casse perdue,
-    // émojis retirés, body éclaté quand il contient des chiffres) — et l'ancien
-    // sanitizeDashes réécrivait les tirets (désormais keepDashes: true sur les
-    // appels de rendu). On ne dépend pas du prompt : si le texte de l'ancre
-    // diffère du texte source, la source est réinjectée telle quelle. Les <span>
-    // d'accent internes sautent alors — même compromis que l'édition live.
-    if (Array.isArray(result?.slides_html)) {
-      const srcText = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
-      let verbatimFixes = 0;
-      let anchorsAdded = 0;
-      let anchorsUnmatched = 0;
-      result.slides_html = result.slides_html.map((slide: any) => {
-        const src = srcText.get(slide.slide_number) as any;
-        // Slides texte uniquement — l'overlay photo a sa propre passe de lisibilité.
-        if (!src || (src.slide_type && src.slide_type !== "text_only")) return slide;
-        let slideHtml: string = slide?.html || "";
-        let changed = false;
-        // Ancre title MANQUANTE (audit 10/07 : slides à visual_schema, ~3 runs
-        // sur 4) : on la pose sur l'élément au texte identique AVANT la passe
-        // verbatim, sinon l'édition live retombe sur le repli par correspondance
-        // de texte de carousel-html-edit.ts.
-        if (typeof src.title === "string" && src.title.trim()) {
-          const ensured = ensureAnchor(slideHtml, "title", src.title);
-          if (ensured.status === "added") {
-            slideHtml = ensured.html;
-            changed = true;
-            anchorsAdded++;
-          } else if (ensured.status === "unmatched") {
-            anchorsUnmatched++;
-          }
-        }
-        const anchors: VerbatimAnchor[] = [];
-        if (typeof src.title === "string" && src.title.trim()) anchors.push({ field: "title", text: src.title });
-        if (typeof src.body === "string" && src.body.trim()) anchors.push({ field: "body", text: src.body });
-        if (anchors.length > 0) {
-          const { html, fixes } = enforceAnchoredText(slideHtml, anchors);
-          if (fixes.length > 0) {
-            slideHtml = html;
-            changed = true;
-            verbatimFixes += fixes.length;
-          }
-        }
-        return changed ? { ...slide, html: slideHtml } : slide;
-      });
-      if (anchorsAdded > 0) {
-        console.warn(`carousel-visual: ${anchorsAdded} ancre(s) data-slide-text="title" ajoutée(s) (garde déterministe)`);
-      }
-      if (anchorsUnmatched > 0) {
-        console.warn(`carousel-visual: ${anchorsUnmatched} slide(s) avec title sans ancre ni élément au texte identique (repli texte côté édition)`);
-      }
-      if (verbatimFixes > 0) {
-        console.warn(`carousel-visual: ${verbatimFixes} texte(s) ancré(s) réécrit(s) verbatim (garde déterministe)`);
-      }
-    }
-
-    // ═══ Ancres d'édition des slides PHOTO (parité avec les slides texte) ═══
-    // La passe ci-dessus ne couvre QUE text_only. Les slides photo n'avaient
-    // AUCUNE réparation d'ancre : overlay (photo_full) et titre/corps
-    // (photo_integrated) non ancrés ⇒ l'édition live est un no-op silencieux
-    // (carousel-html-edit.ts ne retrouve pas l'élément à patcher) ET l'export
-    // hybride/Canva perd le texte édité (le repli d'export re-matche l'overlay_text
-    // COURANT contre un HTML resté sur l'ancien texte → aucune correspondance).
-    // On pose ici l'ancre data-slide-text MANQUANTE + l'annotation d'export
-    // data-pptx-editable, sans réinjection verbatim : on préserve le traitement de
-    // lisibilité de l'overlay (voile/bandeau/spans d'accent). Le champ édité côté
-    // front dépend du type : photo_full → overlay ; photo_integrated → title/body
-    // (cf. CarouselPhotoResult.tsx).
-    if (Array.isArray(result?.slides_html)) {
-      const srcByNum = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
-      const photoFields = (st: string): Array<{ field: string; key: string }> =>
-        st === "photo_full"
-          ? [{ field: "overlay", key: "overlay_text" }]
-          : st === "photo_integrated"
-            ? [{ field: "title", key: "title" }, { field: "body", key: "body" }]
-            : [];
-      let photoAnchorsAdded = 0;
-      let photoAnchorsUnmatched = 0;
-      result.slides_html = result.slides_html.map((slide: any) => {
-        const src = srcByNum.get(slide?.slide_number) as any;
-        const fields = src?.slide_type ? photoFields(src.slide_type) : [];
-        if (fields.length === 0) return slide;
-        let html: string = slide?.html || "";
-        let changed = false;
-        for (const { field, key } of fields) {
-          const text = typeof src[key] === "string" ? src[key].trim() : "";
-          if (!text) continue;
-          const ensured = ensureAnchor(html, field, text);
-          if (ensured.status === "added") {
-            html = ensured.html;
-            changed = true;
-            photoAnchorsAdded++;
-          } else if (ensured.status === "unmatched") {
-            photoAnchorsUnmatched++;
-          }
-          // Annotation d'export : l'ancre étant en place (ajoutée ou déjà présente),
-          // on garantit data-pptx-editable pour que Canva/PPTX traite le bloc comme
-          // texte éditable (Strategy A), au lieu du repli fragile par correspondance.
-          if (ensured.status !== "unmatched") {
-            const withEdit = ensurePptxEditable(html, field);
-            if (withEdit !== html) {
-              html = withEdit;
-              changed = true;
-            }
-          }
-        }
-        return changed ? { ...slide, html } : slide;
-      });
-      if (photoAnchorsAdded > 0) {
-        console.warn(`carousel-visual: ${photoAnchorsAdded} ancre(s) overlay/photo ajoutée(s) (garde déterministe)`);
-      }
-      if (photoAnchorsUnmatched > 0) {
-        console.warn(`carousel-visual: ${photoAnchorsUnmatched} texte(s) de slide photo sans élément au texte identique (repli côté édition)`);
-      }
-    }
-
-    // ═══ Télémétrie fidélité des SCHÉMAS visuels (mesure seule, pas de correction) ═══
-    // Les champs d'un visual_schema ne sont ni ancrés ni couverts par la garde
-    // verbatim (audit 10/07 : attribution de quote_big omise du rendu). On
-    // MESURE d'abord l'ampleur via les logs avant de décider d'une réinjection.
-    if (Array.isArray(result?.slides_html)) {
-      const srcBySlide = new Map((slides || []).map((sl: any) => [sl.slide_number, sl]));
-      const reports: Array<{ slide: number; missing: string[]; checked: number }> = [];
-      for (const slide of result.slides_html) {
-        const src = srcBySlide.get(slide?.slide_number) as any;
-        if (!src?.visual_schema) continue;
-        const { missing, checked } = checkSchemaFidelity(slide?.html || "", src.visual_schema);
-        if (missing.length > 0) {
-          reports.push({ slide: Number(slide.slide_number), missing: missing.map((m) => m.slice(0, 80)), checked });
-        }
-      }
-      if (reports.length > 0) {
-        console.warn(JSON.stringify({
-          type: "carousel_schema_fidelity",
-          user_id: user.id,
-          slides_with_missing: reports.length,
-          detail: reports,
-          timestamp: new Date().toISOString(),
-        }));
-      }
-    }
-
-    // ═══ Illustration de COUVERTURE (opt-in, décoché par défaut) ═══
-    // Recraft génère 1 illustration de marque ; la slide de couverture est
-    // composée EN DUR (layout A validé) — déterministe, pas via l'IA. En cas
-    // d'échec (Recraft KO, pas de clé…), on GARDE la couverture générée par
-    // l'IA : jamais de carrousel cassé, et aucun crédit débité en plus.
-    let coverIllustrationDone = false;
-    if (reqBody?.cover_illustration === true && Array.isArray(result?.slides_html) && result.slides_html.length > 0) {
-      try {
-        const recraftKey = Deno.env.get("RECRAFT_API_TOKEN");
-        if (!recraftKey) throw new Error("RECRAFT_API_TOKEN manquant");
-
-        // Slide de couverture = plus petit slide_number (généralement 1)
-        const coverIdx = result.slides_html.reduce(
-          (best: number, s: any, i: number, arr: any[]) =>
-            (s?.slide_number ?? 999) < (arr[best]?.slide_number ?? 999) ? i : best,
-          0,
-        );
-        const coverSlideNumber = result.slides_html[coverIdx]?.slide_number ?? 1;
-        const srcCover = (slides || []).find((sl: any) => sl.slide_number === coverSlideNumber) as any;
-        const coverTitle: string = (srcCover?.title || srcCover?.overlay_text || "").toString().trim();
-
-        if (!coverTitle) throw new Error("titre de couverture introuvable");
-
-        // Concept visuel dérivé du titre (Haiku, court) — pas de texte dans l'image.
-        const conceptRaw = await callAnthropic({
-          model: "claude-haiku-4-5",
-          system:
-            "Tu proposes une scène d'illustration éditoriale simple et chaleureuse pour une couverture de carrousel. Concret (une personne ou des objets du quotidien du métier), jamais de texte ni de logo dans l'image.",
-          messages: [{
-            role: "user",
-            content:
-              `Titre de couverture : « ${coverTitle} ». Ambiance de marque : ${ch.mood_keywords}. ` +
-              `Décris EN ANGLAIS, en 12 mots maximum, une scène d'illustration simple et positive pour ce carrousel. ` +
-              `Réponds UNIQUEMENT la description, sans guillemets.`,
-          }],
-          temperature: 0.7,
-          max_tokens: 60,
-          abortTimeoutMs: 30_000,
-        }, usage);
-        const concept = (conceptRaw || "").replace(/["\n]/g, " ").trim().slice(0, 180) ||
-          "a creative solopreneur working calmly in a cozy studio";
-
-        const colors = {
-          primary: hexToRgb(ch.color_primary) ?? [28, 28, 32] as [number, number, number],
-          secondary: hexToRgb(ch.color_secondary) ?? [110, 106, 102] as [number, number, number],
-          background: hexToRgb(ch.color_background) ?? [246, 244, 240] as [number, number, number],
-        };
-
-        const svg = await fetchRecraftIllustrationSvg(concept, colors, recraftKey);
-        const coverHtml = buildCoverSlideHtml({
-          title: coverTitle,
-          illustrationSvg: svg,
-          ch: {
-            color_primary: ch.color_primary,
-            color_text: ch.color_text,
-            color_background: ch.color_background,
-            font_title: ch.font_title,
-            font_body: ch.font_body,
-            texture_url: ch.texture_url || undefined,
-          },
-        });
-
-        result.slides_html[coverIdx] = {
-          ...result.slides_html[coverIdx],
-          html: coverHtml,
-        };
-        coverIllustrationDone = true;
-
-        // Coût Recraft distinct (pas de tokens) — 1 illustration par carrousel.
-        await logUsage(user.id, "photo_retouch", "cover_illustration", undefined, "recraftv3-vector", workspaceId);
-        console.log(JSON.stringify({ event: "cover_illustration_success", slide_number: coverSlideNumber, concept }));
-      } catch (coverErr) {
-        console.error(JSON.stringify({
-          event: "cover_illustration_failed",
-          error: coverErr instanceof Error ? coverErr.message.slice(0, 300) : "inconnu",
-        }));
-        // silencieux côté client : la couverture IA d'origine est conservée
-      }
-    }
-
+    await applyContrastCorrectionPass(result, { isPhotoCarousel, isMixCarousel, composedByCode, reqBody, systemPromptWithAnnotations, model });
+    applySafeZoneGuard(result, { isPhotoCarousel, isMixCarousel, composedByCode, slides });
+    stripSlideNumberBadges(result);
+    stripInventedSurtitres(result, { isPhotoCarousel, slides });
+    injectPhotoBase64(result, { isPhotoCarousel, isMixCarousel, reqBody });
+    forceGoogleFontsLink(result, { safeFontTitle, safeFontBody });
+    applyTitleBodyContrastGuard(result, { ch });
+    fillOrphanPhotoPlaceholders(result, { isPhotoCarousel, isMixCarousel, reqBody });
+    injectSlidesInvariantsFallback(result, { invariants });
+    logMissingAnchorsTelemetry(result, { slides });
+    applyTextContrastGuard(result);
+    applyMinFontSizeGuard(result);
+    enforceVerbatimAnchorsGuard(result, { slides });
+    enforcePhotoSlideAnchorsGuard(result, { slides });
+    logSchemaFidelityTelemetry(result, { slides, userId: user.id });
+    const coverIllustrationDone = await applyCoverIllustration(result, { reqBody, slides, ch, userId: user.id, workspaceId, usage });
     await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
 
     return new Response(JSON.stringify({ result, cover_illustration_applied: coverIllustrationDone, remaining: quota.remaining }), {
