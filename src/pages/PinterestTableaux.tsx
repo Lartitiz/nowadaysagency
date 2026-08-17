@@ -49,7 +49,14 @@ export default function PinterestTableaux() {
 
   const removeBoard = async (idx: number) => {
     const b = boards[idx];
-    if (b.id) await supabase.from("pinterest_boards").delete().eq("id", b.id);
+    if (b.id) {
+      const { error } = await supabase.from("pinterest_boards").delete().eq("id", b.id);
+      if (error) {
+        console.error("Erreur technique:", error);
+        toast.error("Erreur", { description: friendlyError(error) });
+        return;
+      }
+    }
     setBoards(prev => prev.filter((_, i) => i !== idx));
     toast.success("Tableau supprimé");
   };
@@ -68,18 +75,25 @@ export default function PinterestTableaux() {
 
   const saveAll = async () => {
     if (!user) return;
-    await (supabase.from("pinterest_boards") as any).delete().eq(column, value);
-    if (boards.length > 0) {
-      await supabase.from("pinterest_boards").insert(boards.filter(b => b.name.trim()).map((b, i) => ({ 
-        user_id: user.id, 
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        name: b.name, 
-        description: b.description, 
-        board_type: b.board_type, 
-        sort_order: i 
-      })));
+    try {
+      const { error: delError } = await (supabase.from("pinterest_boards") as any).delete().eq(column, value);
+      if (delError) throw delError;
+      if (boards.length > 0) {
+        const { error: insError } = await supabase.from("pinterest_boards").insert(boards.filter(b => b.name.trim()).map((b, i) => ({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          name: b.name,
+          description: b.description,
+          board_type: b.board_type,
+          sort_order: i
+        })));
+        if (insError) throw insError;
+      }
+      toast.success("✅ Tableaux sauvegardés !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
     }
-    toast.success("✅ Tableaux sauvegardés !");
   };
 
   return (

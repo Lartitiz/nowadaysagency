@@ -63,16 +63,27 @@ export default function PinterestEpingles() {
 
   const savePin = async (variant: PinVariant, variantType: string) => {
     if (!user) return;
-    const { data } = await supabase.from("pinterest_pins").insert({
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, subject, board_id: boardId || null, link_url: linkUrl,
-      title: variant.title, description: variant.description, variant_type: variantType,
-    }).select("*").single();
-    if (data) setPins(prev => [{ id: data.id, subject: data.subject || "", board_id: data.board_id || "", link_url: data.link_url || "", title: data.title || "", description: data.description || "", variant_type: data.variant_type || "seo" }, ...prev]);
-    toast.success("✅ Épingle sauvegardée !");
+    try {
+      const { data, error } = await supabase.from("pinterest_pins").insert({
+        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, subject, board_id: boardId || null, link_url: linkUrl,
+        title: variant.title, description: variant.description, variant_type: variantType,
+      }).select("*").single();
+      if (error) throw error;
+      if (data) setPins(prev => [{ id: data.id, subject: data.subject || "", board_id: data.board_id || "", link_url: data.link_url || "", title: data.title || "", description: data.description || "", variant_type: data.variant_type || "seo" }, ...prev]);
+      toast.success("✅ Épingle sauvegardée !");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    }
   };
 
   const deletePin = async (id: string) => {
-    await supabase.from("pinterest_pins").delete().eq("id", id);
+    const { error } = await supabase.from("pinterest_pins").delete().eq("id", id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setPins(prev => prev.filter(p => p.id !== id));
     toast.success("Épingle supprimée");
   };
