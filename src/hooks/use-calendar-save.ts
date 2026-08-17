@@ -40,9 +40,9 @@ interface UseCalendarSaveParams {
 
 /**
  * Sauvegarde dans le calendrier — deux fonctions quasi-jumelles partageant
- * la même séquence d'upload (photos → visuels → pinterest visual/overlay)
- * et la même fusion `story_sequence_detail`, gardées côte à côte dans ce
- * fichier pour ne pas propager leur duplication vers deux hooks séparés :
+ * la même séquence d'upload (photos → visuels → pinterest visual/overlay),
+ * mutualisée dans `uploadPostMedia` (les différences réelles passent en
+ * options) :
  * - `handleConfirmCalendar` : nouveau post (insert), avec programmation
  *   optionnelle (auto_publish + scheduled_publish_at).
  * - `handleSaveBackToCalendar` : mise à jour d'un post existant
@@ -90,6 +90,85 @@ export function useCalendarSave({
   const uploadPinterestVisualToStorage = (postId: string, pinHtml: string): Promise<string[]> =>
     uploadPinterestVisualImpl(supabase, session?.user?.id, postId, pinHtml);
 
+  /**
+   * Séquence d'upload commune aux deux sauvegardes : photos originales →
+   * visuels PNG (+ HTML source pour le PowerPoint éditable) → visuel
+   * Pinterest → overlay brief photo. Chaque étape est isolée dans son
+   * try/catch : un échec n'interrompt pas les suivantes. Retourne l'objet
+   * d'updates (photo_urls / visual_urls / visual_html) que chaque appelant
+   * fusionne ensuite à sa façon dans `story_sequence_detail`.
+   */
+  const uploadPostMedia = async (
+    postId: string,
+    {
+      includePhotoModePhotos,
+      warnSuffix,
+      onUploadError,
+    }: {
+      /** handleConfirmCalendar : `photoMode` déclenche aussi l'upload des photos. */
+      includePhotoModePhotos: boolean;
+      /** Suffixe des console.warn — « (non-blocking) » côté confirm ; l'overlay l'a dans les deux flux. */
+      warnSuffix: "" | " (non-blocking)";
+      /** handleSaveBackToCalendar : marque l'échec pour dégrader le toast final. */
+      onUploadError?: () => void;
+    },
+  ): Promise<any> => {
+    const updates: any = {};
+
+    // Upload photos originales dans Storage
+    if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || (includePhotoModePhotos && photoMode)) && uploadedPhotos.length > 0) {
+      try {
+        const photoUrls = await uploadPhotosToStorage(postId);
+        if (photoUrls.length > 0) updates.photo_urls = photoUrls;
+      } catch (err) {
+        console.warn(`Photo upload failed${warnSuffix}:`, err);
+        onUploadError?.();
+      }
+    }
+
+    // Upload visuels PNG dans Storage
+    if (visualSlides.length > 0) {
+      try {
+        toast.info("Upload des visuels...");
+        const visualUrls = await uploadVisualsToStorage(postId);
+        if (visualUrls.length > 0) updates.visual_urls = visualUrls;
+        // Persist source HTML to enable PowerPoint éditable from calendar
+        updates.visual_html = visualSlides;
+      } catch (err) {
+        console.warn(`Visual upload failed${warnSuffix}:`, err);
+        onUploadError?.();
+      }
+    }
+
+    // Upload visuel Pinterest dans Storage
+    if (selectedFormat === "pinterest_visual" && pinterestPinHtml) {
+      try {
+        toast.info("Upload du visuel Pinterest...");
+        const pinVisualUrls = await uploadPinterestVisualToStorage(postId, pinterestPinHtml);
+        if (pinVisualUrls.length > 0) updates.visual_urls = pinVisualUrls;
+        updates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
+      } catch (err) {
+        console.warn(`Pinterest visual upload failed${warnSuffix}:`, err);
+        onUploadError?.();
+      }
+    }
+
+    // Upload overlay Pinterest photo brief
+    if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
+      try {
+        toast.info("Upload de l'overlay...");
+        const overlayUrls = await uploadPinterestVisualToStorage(postId, photoBriefOverlayHtml);
+        if (overlayUrls.length > 0) updates.visual_urls = overlayUrls;
+        updates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
+      } catch (err) {
+        console.warn("Overlay upload failed (non-blocking):", err);
+        onUploadError?.();
+      }
+    }
+
+    return updates;
+  };
+
   // Save back to existing calendar post (when coming from calendar)
   const handleSaveBackToCalendar = async () => {
     if (!session?.user?.id || !calendarPostId || !result?.raw) return;
@@ -121,56 +200,11 @@ export function useCalendarSave({
       // Upload visuels et photos dans Storage
       let uploadFailed = false;
       if (calendarPostId) {
-        const storageUpdates: any = {};
-
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides") && uploadedPhotos.length > 0) {
-          try {
-            const photoUrls = await uploadPhotosToStorage(calendarPostId);
-            if (photoUrls.length > 0) storageUpdates.photo_urls = photoUrls;
-          } catch (err) {
-            console.warn("Photo upload failed:", err);
-            uploadFailed = true;
-          }
-        }
-
-        if (visualSlides.length > 0) {
-          try {
-            toast.info("Upload des visuels...");
-            const visualUrls = await uploadVisualsToStorage(calendarPostId);
-            if (visualUrls.length > 0) storageUpdates.visual_urls = visualUrls;
-            // Persist source HTML to enable PowerPoint éditable from calendar
-            storageUpdates.visual_html = visualSlides;
-          } catch (err) {
-            console.warn("Visual upload failed:", err);
-            uploadFailed = true;
-          }
-        }
-
-        // Upload visuel Pinterest dans Storage
-        if (selectedFormat === "pinterest_visual" && pinterestPinHtml) {
-          try {
-            toast.info("Upload du visuel Pinterest...");
-            const pinVisualUrls = await uploadPinterestVisualToStorage(calendarPostId, pinterestPinHtml);
-            if (pinVisualUrls.length > 0) storageUpdates.visual_urls = pinVisualUrls;
-            storageUpdates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
-          } catch (err) {
-            console.warn("Pinterest visual upload failed:", err);
-            uploadFailed = true;
-          }
-        }
-
-        // Upload overlay Pinterest photo brief
-        if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
-          try {
-            toast.info("Upload de l'overlay...");
-            const overlayUrls = await uploadPinterestVisualToStorage(calendarPostId, photoBriefOverlayHtml);
-            if (overlayUrls.length > 0) storageUpdates.visual_urls = overlayUrls;
-            storageUpdates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
-          } catch (err) {
-            console.warn("Overlay upload failed (non-blocking):", err);
-            uploadFailed = true;
-          }
-        }
+        const storageUpdates = await uploadPostMedia(calendarPostId, {
+          includePhotoModePhotos: false,
+          warnSuffix: "",
+          onUploadError: () => { uploadFailed = true; },
+        });
 
         if (Object.keys(storageUpdates).length > 0) {
           const currentDetail = storyDetail || {};
@@ -263,62 +297,10 @@ export function useCalendarSave({
       let attachedMedia: string[] | null = null;
 
       if (postId) {
-        const updates: any = {};
-
-        // Upload photos originales dans Storage
-        if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || photoMode) && uploadedPhotos.length > 0) {
-          try {
-            const photoUrls = await uploadPhotosToStorage(postId);
-            if (photoUrls.length > 0) {
-              updates.photo_urls = photoUrls;
-            }
-          } catch (err) {
-            console.warn("Photo upload failed (non-blocking):", err);
-          }
-        }
-
-        // Upload visuels PNG dans Storage
-        if (visualSlides.length > 0) {
-          try {
-            toast.info("Upload des visuels...");
-            const visualUrls = await uploadVisualsToStorage(postId);
-            if (visualUrls.length > 0) {
-              updates.visual_urls = visualUrls;
-            }
-            // Persist source HTML to enable PowerPoint éditable from calendar
-            updates.visual_html = visualSlides;
-          } catch (err) {
-            console.warn("Visual upload failed (non-blocking):", err);
-          }
-        }
-
-        // Upload visuel Pinterest dans Storage
-        if (selectedFormat === "pinterest_visual" && pinterestPinHtml) {
-          try {
-            toast.info("Upload du visuel Pinterest...");
-            const pinVisualUrls = await uploadPinterestVisualToStorage(postId, pinterestPinHtml);
-            if (pinVisualUrls.length > 0) {
-              updates.visual_urls = pinVisualUrls;
-            }
-            updates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
-          } catch (err) {
-            console.warn("Pinterest visual upload failed (non-blocking):", err);
-          }
-        }
-
-        // Upload overlay Pinterest photo brief
-        if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
-          try {
-            toast.info("Upload de l'overlay...");
-            const overlayUrls = await uploadPinterestVisualToStorage(postId, photoBriefOverlayHtml);
-            if (overlayUrls.length > 0) {
-              updates.visual_urls = overlayUrls;
-            }
-            updates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
-          } catch (err) {
-            console.warn("Overlay upload failed (non-blocking):", err);
-          }
-        }
+        const updates = await uploadPostMedia(postId, {
+          includePhotoModePhotos: true,
+          warnSuffix: " (non-blocking)",
+        });
 
         if (Object.keys(updates).length > 0) {
           const currentDetail = storyDetail || {};
