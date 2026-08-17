@@ -123,18 +123,29 @@ test("modifier le fond, temps réel coupé : la grille se met à jour sans reloa
 
   // Décrire un décor + lancer
   await page.locator("#retouche-prompt").fill("fond studio beige lumineux, lumière douce");
-  await page.getByRole("button", { name: /Générer le nouveau fond/i }).click();
-  await expect(page.getByText(/la photo se met à jour dans la galerie/i)).toBeVisible({
-    timeout: 15_000,
-  });
 
   // 1. SANS reload : la carte doit passer « Retouche en cours… ». C'est CE point
   //    qui échouait avant #618 (pending jamais reflété faute d'invalidation).
-  await expect(
-    page.getByText("Retouche en cours…").first(),
-    "Le pending doit devenir visible sans Realtime ni rechargement",
-  ).toBeVisible({ timeout: 15_000 });
+  //
+  //    ⚠️ L'observateur est armé AVANT le clic, pas après le toast. Le toast
+  //    « Retouche lancée » est émis en aval de `await mutate(...)`, donc APRÈS
+  //    la réponse de l'edge `photo-background-replace` — c'est-à-dire quand la
+  //    ligne est déjà repassée `ready`. S'ancrer dessus revenait à regarder la
+  //    fenêtre pending une fois refermée. Ça n'a pas cassé tant que Photoroom
+  //    traînait (14 min le 11/08) ; le 17/08 l'edge a répondu en ~5 s et le
+  //    test est tombé alors que le filet #618 fonctionnait (le refetch
+  //    d'invalidation renvoyait bien `status: "pending"`).
+  const pendingVu = page
+    .getByText("Retouche en cours…")
+    .first()
+    .waitFor({ state: "visible", timeout: 60_000 });
+
+  await page.getByRole("button", { name: /Générer le nouveau fond/i }).click();
+  await pendingVu;
   await page.screenshot({ path: path.join(SHOTS, "rt-1-en-cours.png") });
+  await expect(page.getByText(/la photo se met à jour dans la galerie/i)).toBeVisible({
+    timeout: 60_000,
+  });
 
   // 2. SANS reload : le polling (4 s) porte le résultat jusqu'à ready, sans que
   //    le Realtime ait rien poussé.

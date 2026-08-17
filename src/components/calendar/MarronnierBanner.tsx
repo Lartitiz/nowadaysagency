@@ -42,7 +42,11 @@ export function MarronnierBanner({ onDecliner }: MarronnierBannerProps) {
     daysUntil === 0 ? "c'est aujourd'hui" : daysUntil === 1 ? "c'est demain" : `c'est dans ${daysUntil} jours`;
 
   return (
-    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 mb-4">
+    // Au doigt (390 px), le texte et le bloc d'actions ne tiennent pas côte à
+    // côte : les actions sont `shrink-0`, la colonne de texte tombait à ~60 px
+    // et s'écrasait en « Tes photos / produit en / … » (constaté au regard du
+    // 17/08). On empile sous `sm`, on repasse en rangée au-dessus.
+    <div className="flex flex-col items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 mb-4 sm:flex-row sm:items-center">
       <span className="text-2xl shrink-0" aria-hidden="true">
         {m.emoji}
       </span>
@@ -54,7 +58,7 @@ export function MarronnierBanner({ onDecliner }: MarronnierBannerProps) {
           Tes photos produit en version {m.label} — même produit, décor de saison, prêt à poster.
         </p>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
+      <div className="flex w-full items-center justify-end gap-2 sm:w-auto sm:shrink-0">
         <button
           type="button"
           className="text-xs text-muted-foreground hover:text-foreground transition-colors"
