@@ -74,12 +74,12 @@ export async function savePersonaInsights(
   return newPersona?.id || null;
 }
 
-/** Maps coaching insights to storytelling columns and upserts the "fondatrice" story. */
+/** Maps coaching insights to storytelling columns and upserts the primary story. Looks up by is_primary rather than story_type: the "Nouveau storytelling" button creates extra rows that default to story_type="fondatrice" too, and story_type alone can't tell them apart from the one the rest of the app (StoryFicheCards, BrandingSectionPage) treats as canonical. */
 export async function saveStoryInsights(insights: Record<string, any>, ctx: InsightsSaveCtx): Promise<void> {
   const { data: existing } = await (supabase.from("storytelling") as any)
     .select("id")
     .eq(ctx.column, ctx.value)
-    .eq("story_type", "fondatrice")
+    .eq("is_primary", true)
     .limit(1)
     .maybeSingle();
 

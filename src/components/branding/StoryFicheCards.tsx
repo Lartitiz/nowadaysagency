@@ -12,11 +12,22 @@ import { fr } from "date-fns/locale";
 
 interface StoryRow {
   id: string;
+  step_6_full_story?: string | null;
   step_7_polished?: string | null;
+  imported_text?: string | null;
   pitch_short?: string | null;
   is_primary?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
+}
+
+// Matches calculateBrandingCompletion's definition of "has a written story"
+// (src/lib/branding-completion.ts) — step_6_full_story is what the coaching
+// flow and site autofill write; without this, a coaching-completed story
+// showed as permanently "empty" here since nothing in the app ever writes
+// step_7_polished/pitch_short.
+function hasStoryContent(s: StoryRow): boolean {
+  return !!(s.pitch_short || s.step_7_polished || s.step_6_full_story || s.imported_text);
 }
 
 function truncate(text: string, max: number) {
@@ -36,7 +47,7 @@ export default function StoryFicheCards() {
   useEffect(() => {
     if (!user) return;
     (supabase.from("storytelling" as any) as any)
-      .select("id, step_7_polished, pitch_short, is_primary, created_at, updated_at")
+      .select("id, step_6_full_story, step_7_polished, imported_text, pitch_short, is_primary, created_at, updated_at")
       .eq(column, value)
       .order("is_primary", { ascending: false })
       .order("created_at", { ascending: false })
@@ -91,14 +102,16 @@ export default function StoryFicheCards() {
           </Card>
         )}
 
-        {selectedStory.step_7_polished && (
+        {(selectedStory.step_7_polished || selectedStory.step_6_full_story || selectedStory.imported_text) && (
           <Card className="p-5">
             <h4 className="text-xs font-semibold text-foreground uppercase tracking-wide mb-2">Histoire complète</h4>
-            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{selectedStory.step_7_polished}</p>
+            <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
+              {selectedStory.step_7_polished || selectedStory.step_6_full_story || selectedStory.imported_text}
+            </p>
           </Card>
         )}
 
-        {!selectedStory.step_7_polished && !selectedStory.pitch_short && (
+        {!hasStoryContent(selectedStory) && (
           <Card className="p-6 text-center border-dashed">
             <p className="text-muted-foreground text-sm italic">Ce storytelling est encore vide.</p>
             <Button size="sm" className="mt-3" onClick={() => navigate(`/branding/storytelling/${selectedStory.id}/edit`)}>
@@ -134,11 +147,8 @@ export default function StoryFicheCards() {
   return (
     <div className="space-y-3">
       {stories.map((s) => {
-        const preview = s.pitch_short
-          ? truncate(s.pitch_short, 120)
-          : s.step_7_polished
-            ? truncate(s.step_7_polished, 120)
-            : null;
+        const previewSource = s.pitch_short || s.step_7_polished || s.step_6_full_story || s.imported_text;
+        const preview = previewSource ? truncate(previewSource, 120) : null;
 
         return (
           <Card

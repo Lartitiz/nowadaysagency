@@ -15,7 +15,7 @@ interface SimpleMessage {
   content: string;
 }
 
-/** Generates the full first-person story from the coaching conversation and writes it to the existing "fondatrice" storytelling row, if any. Runs once, when the "story" section completes. */
+/** Generates the full first-person story from the coaching conversation and writes it to the existing primary storytelling row, if any. Runs once, when the "story" section completes. */
 export async function generateAndSaveFullStory(
   updatedMessages: SimpleMessage[],
   checklist: string[],
@@ -42,7 +42,7 @@ export async function generateAndSaveFullStory(
       const { data: existing } = await (supabase.from("storytelling") as any)
         .select("id")
         .eq(ctx.column, ctx.value)
-        .eq("story_type", "fondatrice")
+        .eq("is_primary", true)
         .limit(1)
         .maybeSingle();
       if (existing?.id) {
