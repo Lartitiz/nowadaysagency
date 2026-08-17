@@ -7,7 +7,7 @@ import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { deriveCanalFromState, mapFormatToContentType } from "@/features/creer/format-mappers";
 import { pickNonEmpty } from "@/features/creer/photo-source";
 import { uploadPhotosToStorage as uploadPhotosImpl, uploadVisualsToStorage as uploadVisualsImpl, uploadPinterestVisualToStorage as uploadPinterestVisualImpl } from "@/features/creer/upload-helpers";
-import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE } from "@/features/creer/publish-guards";
+import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE, canAutoPublishSchedule, buildScheduledPublishUpdate, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { useSearchParams, useLocation, useNavigate, Link } from "react-router-dom";
@@ -2558,16 +2558,12 @@ export default function CreerUnifie() {
       // Pose l'auto-publication (le cron social-publish-scheduled fera le reste).
       let scheduled = false;
       if (scheduleAt && postId) {
-        if (canal === "instagram" && (!attachedMedia || attachedMedia.length === 0)) {
+        if (!canAutoPublishSchedule({ canal, attachedMedia })) {
           toast.warning("Ajouté au calendrier en brouillon, mais pas programmé : aucun visuel n'a pu être joint. Réessaie la programmation depuis le calendrier.");
         } else {
-          const { error: schedError } = await supabase.from("calendar_posts").update({
-            scheduled_publish_at: scheduleAt.toISOString(),
-            auto_publish: true,
-            publish_status: "scheduled",
-            publish_error: null,
-            updated_at: new Date().toISOString(),
-          } as any).eq("id", postId);
+          const { error: schedError } = await supabase.from("calendar_posts").update(
+            buildScheduledPublishUpdate(scheduleAt) as any,
+          ).eq("id", postId);
           if (schedError) {
             toast.warning("Ajouté au calendrier, mais la programmation a échoué. Programme-le depuis le calendrier.");
           } else {
@@ -3398,36 +3394,34 @@ export default function CreerUnifie() {
   // connecté + date future, puis délègue à handleConfirmCalendar (insert + uploads
   // + auto_publish). Le cron social-publish-scheduled publie à l'heure dite.
   const handleScheduleFromDialog = async (input: string) => {
-    if (!publishChannel) return;
     const reseau = publishChannel === "linkedin" ? "LinkedIn" : "Instagram";
-    if (publishDialogDisabledReason) {
-      toast.error(publishDialogDisabledReason);
-      return;
-    }
-    if (!isSocialConnected(publishChannel)) {
-      toast.error(`Compte ${reseau} non connecté`, {
-        description: "Connecte-le pour que ce contenu parte tout seul à l'heure prévue.",
-        action: { label: "Connecter", onClick: () => versConnexions(navigate) },
-      });
+    const guard = checkScheduleGuards({
+      publishChannel,
+      disabledReason: publishDialogDisabledReason,
+      isChannelConnected: publishChannel ? isSocialConnected(publishChannel) : false,
+      input,
+    });
+    if (guard.blocked) {
+      if (guard.reason === "no_channel") return;
+      if (guard.reason === "not_connected") {
+        toast.error(guard.message, {
+          description: guard.description,
+          action: { label: "Connecter", onClick: () => versConnexions(navigate) },
+        });
+        return;
+      }
+      toast.error(guard.message);
       return;
     }
     const when = new Date(input);
-    if (!input || isNaN(when.getTime())) {
-      toast.error("Choisis une date et une heure.");
-      return;
-    }
-    if (when.getTime() < Date.now() + 60000) {
-      toast.error("Choisis une date/heure dans le futur.");
-      return;
-    }
-    const tokenExpiry = getTokenExpiry(publishChannel);
+    const tokenExpiry = getTokenExpiry(publishChannel!);
     const scheduled = await handleConfirmCalendar({ date: input.split("T")[0], scheduleAt: when });
-    if (scheduled && tokenExpiry && when.getTime() > new Date(tokenExpiry).getTime()) {
+    if (scheduled && tokenExpiresBeforeSchedule(tokenExpiry, when)) {
       // Programmé, mais le jeton OAuth sera expiré à l'heure dite → prévenir MAINTENANT
       // plutôt que laisser la publication échouer en silence (même garde que le calendrier).
       toast.warning("Programmé : mais reconnecte ton compte d'ici là ⚠️", {
         duration: 12000,
-        description: `Ta connexion ${reseau} expire le ${new Date(tokenExpiry).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
+        description: `Ta connexion ${reseau} expire le ${new Date(tokenExpiry!).toLocaleDateString("fr-FR")}, avant la date choisie. Sans reconnexion, la publication échouera.`,
         action: { label: "Reconnecter", onClick: () => versConnexions(navigate) },
       });
     }
