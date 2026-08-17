@@ -19,6 +19,44 @@ export type { UserPhotoRow } from "@/lib/photo-storage";
 
 const QUERY_KEY = ["user-photos"];
 
+const DESCRIBE_AUTO_RETRY_DELAY_MS = 4000;
+
+/**
+ * Lance photo-describe (mode describe) en arrière-plan pour une photo qui
+ * vient d'être uploadée, avec UN réessai après un court délai si le premier
+ * essai échoue (réseau/5xx transitoire). Toujours fire-and-forget : un échec
+ * après le réessai laisse juste la photo sans description, régénérable à la
+ * main depuis sa fiche (PhotoDetailDialog) ou via le rattrapage de PhotosPage.
+ */
+function describePhotoOnUpload(photoId: string, workspaceId: string, isRetry = false): void {
+  invokeWithTimeout(
+    "photo-describe",
+    { body: { mode: "describe", photo_id: photoId, workspace_id: workspaceId } },
+    60_000,
+  )
+    .then(({ error }) => {
+      if (!error) return;
+      if (!isRetry) {
+        setTimeout(
+          () => describePhotoOnUpload(photoId, workspaceId, true),
+          DESCRIBE_AUTO_RETRY_DELAY_MS,
+        );
+        return;
+      }
+      console.warn("[photo-describe]", error.message);
+    })
+    .catch((e) => {
+      if (!isRetry) {
+        setTimeout(
+          () => describePhotoOnUpload(photoId, workspaceId, true),
+          DESCRIBE_AUTO_RETRY_DELAY_MS,
+        );
+        return;
+      }
+      console.warn("[photo-describe]", e);
+    });
+}
+
 export function useUserPhotos() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -242,17 +280,10 @@ export function useUploadLibraryPhotos() {
           );
           // Fait apparaître la vraie carte sans attendre le Realtime.
           queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
-          // Description IA en arrière-plan : un échec laisse juste la photo
-          // sans description (régénérable depuis le détail), jamais bloquant.
-          invokeWithTimeout(
-            "photo-describe",
-            { body: { mode: "describe", photo_id: photoId, workspace_id: workspaceId } },
-            60_000,
-          )
-            .then(({ error }) => {
-              if (error) console.warn("[photo-describe]", error.message);
-            })
-            .catch((e) => console.warn("[photo-describe]", e));
+          // Description IA en arrière-plan (1 réessai auto en cas d'échec) : un
+          // échec laisse juste la photo sans description (régénérable depuis le
+          // détail), jamais bloquant.
+          describePhotoOnUpload(photoId, workspaceId);
         } catch (e) {
           failed++;
           dropPending(batch[i].localId);
