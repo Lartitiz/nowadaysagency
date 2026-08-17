@@ -13,6 +13,15 @@ export function deriveCanalFromState(s: any): string | null {
   return null;
 }
 
+/**
+ * Renumérote les slides 1..N dans l'ordre du tableau. L'IA renvoie parfois des
+ * slide_number fantaisistes (fractionnaires « 4.5 », doublons) alors que
+ * l'ordre du tableau fait foi partout (rendu, visuels, exports, calendrier).
+ */
+export function renumberSlides<T extends { slide_number?: number | string }>(slides: T[]): T[] {
+  return slides.map((s, i) => ({ ...s, slide_number: i + 1 }));
+}
+
 /** Mappe un format d'UI vers le content_type stocké en base. */
 export function mapFormatToContentType(fmt: string | null): ContentType {
   if (fmt === "newsletter") return "newsletter";

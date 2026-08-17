@@ -907,7 +907,10 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
               <div className="flex-1 min-w-0 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="text-xs font-semibold text-foreground">
-                  SLIDE {slide.slide_number || idx + 1} / {slides.length}
+                  {/* Libellé positionnel : l'ordre du tableau fait foi (un
+                      slide_number IA fantaisiste type « 4.5 » ne doit jamais
+                      s'afficher, même sur un état restauré d'avant le fix) */}
+                  SLIDE {idx + 1} / {slides.length}
                 </span>
                 {slide.role && (
                   <Badge variant="secondary" className="text-2xs">
