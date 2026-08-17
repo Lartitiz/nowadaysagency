@@ -14,6 +14,7 @@ import { authenticateRequest, AuthError, getServiceClient } from "../_shared/aut
 import { fetchRecentPostMetrics, type IgPostMetrics } from "../_shared/instagram-insights.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
 import { rankRecycleCandidates, type AppPublishedPost } from "../_shared/recycle-ranking.ts";
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -25,6 +26,13 @@ Deno.serve(async (req) => {
     const workspaceId: string | null = body?.workspace_id ?? null;
 
     const supabase = getServiceClient();
+
+    const membership = await assertWorkspaceMembership(supabase, userId, workspaceId);
+    if (!membership.ok) {
+      console.warn("[workspace-guard] denied", { userId, workspaceId });
+      return workspaceDeniedResponse(corsHeaders);
+    }
+
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || userId;
 
