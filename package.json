@@ -13,7 +13,7 @@
     "code-health": "node e2e-visite/code-health.mjs",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:edges": "deno test --allow-env --allow-read supabase/functions/",
+    "test:edges": "deno test --no-check --allow-env --allow-read --node-modules-dir=none supabase/functions/",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
