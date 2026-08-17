@@ -29,9 +29,14 @@ const FIXTURES = [
   path.join(__dirname, "fixtures-cover-test.jpg"),
 ];
 
-// Sujet collé à ce que MONTRENT les fixtures (un portrait, une image d'ambiance) :
-// un sujet hors-photos déclenche le refus photo_mismatch côté carousel-ai.
-const SUJET = "Qui je suis : le visage derrière la marque, mon univers et ce que je veux transmettre";
+// Sujet collé à ce que MONTRENT les fixtures — littéralement : la cover
+// (fixtures-cover-test.jpg) titre « 5 RITUELS SLOW POUR TA COM' », le portrait
+// incarne la personne qui les partage. L'ancien sujet « Qui je suis : le visage
+// derrière la marque » se faisait refuser par la garde photo_mismatch de
+// carousel-ai (portrait beauté générique jugé sans rapport, 17/08) : un sujet
+// qui REPREND le titre visible sur une des photos ne peut pas la « contredire
+// frontalement », seuil que la garde exige pour refuser.
+const SUJET = "5 rituels slow pour ta com' : ma routine douce pour communiquer sans m'épuiser";
 
 test("carrousel mixte réel : upload → génération → export PPTX composé validé", async ({ page, viewport }) => {
   const isMonday = new Date().getDay() === 1;
@@ -68,6 +73,21 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
   const forkPhotos = page.getByText(/J'ai déjà mes photos/i).first();
   await expect(forkPhotos).toBeVisible({ timeout: 10000 });
   await forkPhotos.click();
+
+  // Décrire les photos AVANT l'upload : dès qu'une photo est posée, la zone
+  // passe en `compact` et le champ description DISPARAÎT (CreerStepFormat
+  // `compact={uploadedPhotos.length > 0}`). Et sans description, la garde
+  // photo_mismatch de carousel-ai refuse ces fixtures en invoquant l'univers de
+  // marque (« savonnerie ») et le doute sur l'identité du portrait — deux motifs
+  // que son propre prompt lui interdit (refus observés 3× le 17/08, avec deux
+  // sujets différents). La description lève l'ambiguïté comme le ferait une
+  // vraie utilisatrice.
+  const photoDesc = page.getByPlaceholder(/photos prises ce matin/i).first();
+  await expect(photoDesc).toBeVisible({ timeout: 8000 });
+  await photoDesc.fill(
+    "Photo 1 : moi, portrait de face — c'est mon visage qui incarne la routine. " +
+      "Photo 2 : la slide de couverture déjà maquettée avec le titre du carrousel (5 rituels slow pour ta com').",
+  );
 
   // Upload des 2 fixtures → 2 vignettes
   await page.locator('input[type="file"]').first().setInputFiles(FIXTURES);
