@@ -4,6 +4,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useQuery } from "@tanstack/react-query";
+import { workspaceScopeFilter } from "@/lib/workspace-scope";
 
 /**
  * Returns the active workspace ID, falling back to the user ID
@@ -32,10 +33,7 @@ export function useWorkspaceFilter(): { column: string; value: string } {
   } catch {
     // fallback
   }
-  if (activeWorkspaceId) {
-    return { column: "workspace_id", value: activeWorkspaceId };
-  }
-  return { column: "user_id", value: user?.id ?? "" };
+  return workspaceScopeFilter(activeWorkspaceId, user?.id ?? "");
 }
 
 
