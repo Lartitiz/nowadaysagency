@@ -10,6 +10,7 @@ export default function UnsubscribePage() {
   const [loading, setLoading] = useState(true);
   const [isUnsubscribed, setIsUnsubscribed] = useState(false);
   const [acting, setActing] = useState(false);
+  const [unsubscribeError, setUnsubscribeError] = useState(false);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -26,11 +27,17 @@ export default function UnsubscribePage() {
   const handleUnsubscribe = async () => {
     if (!user) return;
     setActing(true);
-    await (supabase.from("email_unsubscribes") as any).insert({
+    setUnsubscribeError(false);
+    const { error } = await (supabase.from("email_unsubscribes") as any).insert({
       user_id: user.id,
       email: user.email?.toLowerCase(),
     });
-    setIsUnsubscribed(true);
+    // Code 23505 = contrainte d'unicité déjà en base : la personne est déjà désabonnée, donc succès malgré l'erreur
+    if (!error || error.code === "23505") {
+      setIsUnsubscribed(true);
+    } else {
+      setUnsubscribeError(true);
+    }
     setActing(false);
   };
 
@@ -107,6 +114,11 @@ export default function UnsubscribePage() {
               {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailMinus className="h-4 w-4" />}
               Me désinscrire des emails
             </Button>
+            {unsubscribeError && (
+              <p className="text-sm text-destructive">
+                La désinscription a échoué. Réessaie, ou contacte-nous si le problème persiste.
+              </p>
+            )}
           </>
         )}
 
