@@ -1266,6 +1266,11 @@ export default function CreerUnifie() {
   const [pendingAngleRegen, setPendingAngleRegen] = useState(false);
   const handleChangeAngle = (newAngle: string | null) => {
     setEditorialAngle(newAngle);
+    // Reel : le hook d'ouverture avait été choisi pour l'ANCIEN angle — le garder
+    // forcerait le prompt à répéter le même hook mot pour mot malgré le nouvel
+    // angle (selectedHook prime sur HOOK_AUTO côté edge). On le vide pour que
+    // l'IA en génère un nouveau, cohérent avec le nouvel angle.
+    if (selectedFormat === "reel") setSelectedReelHook(null);
     setPendingAngleRegen(true);
   };
   useEffect(() => {
