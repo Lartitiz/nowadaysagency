@@ -222,9 +222,11 @@ export default function SettingsPage() {
         console.error("[delete-account] Data error:", data.error);
         throw new Error(data.error);
       }
-
-      if (data?.errors && data.errors.length > 0) {
-        console.warn("[delete-account] Partial errors:", data.errors);
+      if (data?.success === false || (data?.errors && data.errors.length > 0)) {
+        console.error("[delete-account] Deletion incomplete:", data?.errors);
+        throw new Error(
+          "La suppression n'a pas pu être finalisée entièrement. Contacte le support avant de réessayer."
+        );
       }
 
       console.log("[delete-account] Success, tables cleaned:", data?.tables_cleaned);
