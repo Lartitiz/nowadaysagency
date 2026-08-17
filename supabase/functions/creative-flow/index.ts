@@ -1174,6 +1174,282 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
   );
 }
 
+// ═══ NORMALISATION HOOKS (lot 7) ═══
+// Le tool forcé garantit le JSON de TRANSPORT, pas les types internes : vu en
+// live au premier test (12/07), le modèle peut remplir `hooks` avec une STRING
+// JSON au lieu du tableau d'objets. On déballe en déterministe — sinon le front
+// tombe en fallback « Continuer sans choisir » alors que les hooks existent.
+// Mute `parsed` en place ; retourne une Response à court-circuiter si aucun
+// hook n'est récupérable (« 200 menteur »), sinon null pour continuer.
+function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: string; corsHeaders: Record<string, string> }): Response | null {
+  const { body, rawContent, corsHeaders } = params;
+  // Forme reçue AVANT normalisation : c'est la seule trace exploitable le
+  // jour où l'écran des angles retombe à zéro (03/08 : aucun log ne disait
+  // par quelle branche le tableau s'était vidé).
+  const shapeIn = Array.isArray(parsed.hooks)
+    ? `array[${parsed.hooks.length}]`
+    : typeof parsed.hooks;
+  if (typeof parsed.hooks === "string") {
+    const inner = tryParseAiJson<any>(parsed.hooks, "creative-flow:hooks-unwrap");
+    parsed.hooks = Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : [];
+  }
+  if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
+  // Entrées en simple CHAÎNE : même dérive que le `hooks` stringifié du
+  // 12/07, un cran plus bas (le modèle liste les phrases sans les
+  // envelopper). Récupérable → on reconstruit l'objet minimal. Le front
+  // n'affiche que les champs présents, il ne manquera qu'un badge.
+  parsed.hooks = parsed.hooks.map((h: any) =>
+    typeof h === "string" && h.trim() ? { text: h.trim() } : h
+  );
+  // Objets valides uniquement : un hook sans texte parlé est inutilisable.
+  parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
+  // Élisions déterministes AVANT affichage : le hook choisi est ensuite
+  // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
+  // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
+  for (const h of parsed.hooks) fixElisionsInFields(h, ["text", "text_overlay"]);
+
+  // ZÉRO angle récupérable = échec, pas un succès. Un 200 avec `hooks: []`
+  // est un « 200 menteur » : le front le lisait comme une réponse valide et
+  // n'avait plus qu'un `throw new Error("empty")` illisible à afficher.
+  if (parsed.hooks.length === 0) {
+    console.warn(JSON.stringify({
+      type: "hooks_vides",
+      shape_in: shapeIn,
+      exclude_count: Array.isArray((body as Record<string, unknown>).exclude_hooks)
+        ? ((body as Record<string, unknown>).exclude_hooks as unknown[]).length
+        : 0,
+      raw: String(rawContent || "").slice(0, 500),
+    }));
+    return new Response(
+      JSON.stringify({ error: "Je n'ai pas réussi à préparer les angles d'attaque. Réessaie, ou laisse l'IA choisir." }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  return null;
+}
+
+// ═══ PASSE DE CORRECTION LinkedIn ═══
+// Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
+// spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
+// En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
+// (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
+// injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
+async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string }): Promise<void> {
+  const { body, fullContext } = params;
+  try {
+    // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
+    // passe de correction existante — retournements (1 max), formules
+    // moulées, chiffres sans source (liste blanche = brief + réponses + actu).
+    const liAllowed = numbersIn([
+      typeof body.context === "string" ? body.context : "",
+      body.answers ? JSON.stringify(body.answers) : "",
+      typeof body.news_context === "string" ? body.news_context : "",
+      fullContext || "",
+    ].join("\n"));
+    const liRedac = analyzeTextRedac(parsed.content, liAllowed);
+    const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
+      logger: (msg) => console.log(msg),
+      // Édition mécanique à règles fermées → Haiku (cf. #364)
+      model: "claude-haiku-4-5",
+      extraInstructions: buildTextFixInstructions(liRedac) || undefined,
+    });
+    if (corrected && corrected.length >= 100) {
+      parsed.content = corrected;
+    }
+  } catch (corrErr) {
+    console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
+  }
+  // Filet déterministe (hors try : s'applique même si la passe a échoué) :
+  // élisions manquantes type « le avant/après » (vécu 21/07).
+  fixElisionsInFields(parsed, ["content", "accroche"]);
+}
+
+// ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
+// Le reel était le seul format riche sans filet post-génération. Trois étages :
+// 1. face_cam=non : enforcement déterministe de la structure (format_type,
+//    format_visuel, plan_tournage) — la passe texte ne touche pas ces champs.
+// 2. Correction JSON-aware (textes seuls, via bloc balisé) avec instructions
+//    ciblées mesurées en code : chiffres sans source (redac-gate) + fuites de
+//    gabarit ("SAUVEGARDE", "Nouveau Reel" : 8/8 au corpus d'audit).
+// 3. Recalibrage déterministe des durées : la durée affichée découle du texte
+//    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
+//    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
+async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string }): Promise<void> {
+  const { body, effectiveObjective, fullContext } = params;
+  if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
+    console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
+  }
+  // Hook CHOISI à l'étape hook_selection : verrouillé sur la section 1 AVANT
+  // la correction (la génération peut paraphraser, la correction peut « améliorer » —
+  // ni l'une ni l'autre ne décide à la place de l'utilisatrice).
+  const hasChosenHook = enforceSelectedReelHook(parsed, body.selected_hook);
+  try {
+    const reelAllowed = numbersIn([
+      typeof body.context === "string" ? body.context : "",
+      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      body.selected_hook ? JSON.stringify(body.selected_hook) : "",
+      typeof body.news_context === "string" ? body.news_context : "",
+      fullContext || "",
+    ].join("\n"));
+    const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed);
+    const extras: string[] = [];
+    const redacFix = buildTextFixInstructions(reelRedac);
+    if (redacFix) extras.push(redacFix);
+    const leaks = reelTemplateLeaks(parsed);
+    if (leaks.length) {
+      extras.push(`FUITES DE GABARIT DÉTECTÉES (réécris chacune) :\n${leaks.map((l) => `- ${l}`).join("\n")}`);
+    }
+    if (body.face_cam === "non") {
+      extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
+    }
+    if (hasChosenHook || (typeof body.selected_hook?.text === "string" && body.selected_hook.text.trim() && !body.selected_hook.text.trim().startsWith("("))) {
+      extras.push(`LE HOOK ([SECTION 1 - PARLE] et [SECTION 1 - OVERLAY]) A ÉTÉ CHOISI PAR L'UTILISATRICE : recopie-le STRICTEMENT à l'identique, ne le réécris sous aucun prétexte (la règle "hook faible" ne s'applique pas à lui).`);
+    }
+    // Plafond de mots par objectif (calibrage du brief), mesuré en code :
+    // au re-test post-#527, la visibilité sortait encore à ~95 mots (cible
+    // 40-80). La durée affichée est honnête (recalibrage), mais un reel
+    // reach doit rester court → coupe pilotée par la passe de correction.
+    const reelWordCap = effectiveObjective === "visibilite" ? 80
+      : (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") ? 190
+      : 150;
+    const reelWords = countReelSpokenWords(parsed);
+    if (reelWords > reelWordCap) {
+      extras.push(`TROP LONG POUR L'OBJECTIF "${effectiveObjective || "standard"}" : ${reelWords} mots parlés, plafond ${reelWordCap}. COUPE le texte parlé à ${reelWordCap} mots maximum : supprime les redites, la mise en contexte longue et les exemples secondaires. Ne touche PAS à la couche mécanisme (le POURQUOI) ni au hook. C'est une exception explicite à la règle "±10 %".`);
+    }
+    // Édition mécanique à règles fermées → Haiku (même choix que LinkedIn/carrousel).
+    const corrected = await applyCorrectionPassReel(parsed, {
+      logger: (msg) => console.log(msg),
+      model: "claude-haiku-4-5",
+      extraInstructions: extras.length ? extras.join("\n\n") : undefined,
+    });
+    if (corrected && typeof corrected === "object") {
+      Object.assign(parsed, corrected);
+    }
+  } catch (corrErr) {
+    console.error("[creative-flow] correction-pass reel failed:", corrErr);
+  }
+  // Filets déterministes TOUJOURS appliqués, même si la correction a échoué :
+  // - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
+  // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
+  //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
+  // - timings recomptés sur la version FINALE du texte.
+  enforceSelectedReelHook(parsed, body.selected_hook);
+  applyReelElisions(parsed);
+  rebuildReelLectureTest(parsed);
+  recalibrateReelTimings(parsed);
+  // La prise face cam du plan de tournage doit couvrir le monologue recompté
+  // (le modèle recopie la durée de l'exemple du prompt sans la relier au script).
+  alignFaceCamTakeDuration(parsed);
+}
+
+// ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
+// La consigne « majorité de fonds photo » du brief est probabiliste et fuit
+// (séquences quasi entières en fond_couleur). Garde déterministe, appliquée
+// AVANT la résolution bibliothèque pour que les stories basculées soient
+// éligibles au placement de photos. photo_index (petit entier émis par l'IA)
+// → photo_id (UUID user_photos) : correspondance stricte, jamais deux stories
+// sur la même photo, et uniquement quand la story attend un fond photo.
+function applyStoriesPhotoGuardAndResolution(parsed: any, params: { storiesPhotoCatalog: { index: number; id: string; description: string; preferred?: boolean }[] }): void {
+  const { storiesPhotoCatalog } = params;
+  enforceStoriesPhotoFirst(parsed);
+
+  if (storiesPhotoCatalog.length > 0 && Array.isArray(parsed?.stories)) {
+    const byIndex = new Map(storiesPhotoCatalog.map((c) => [c.index, c]));
+    const usedPhotoIds = new Set<string>();
+    for (const s of parsed.stories) {
+      const v = s?.visual;
+      if (!v || typeof v !== "object") continue;
+      const idx = typeof v.photo_index === "number" ? v.photo_index : null;
+      delete v.photo_index;
+      if (idx === null) continue;
+      const cat = byIndex.get(idx);
+      if (!cat || v.background !== "photo" || usedPhotoIds.has(cat.id)) continue;
+      v.photo_id = cat.id;
+      v.photo_library_description = cat.description;
+      usedPhotoIds.add(cat.id);
+    }
+    // Garantie lot D : toute photo CHOISIE par l'utilisatrice que l'IA n'a
+    // pas placée est distribuée aux stories à fond photo restées sans photo,
+    // dans l'ordre de la séquence. Ses photos finissent TOUJOURS dans le
+    // résultat (c'était la demande de base du parcours).
+    const leftoverPreferred = storiesPhotoCatalog.filter(
+      (c) => c.preferred && !usedPhotoIds.has(c.id),
+    );
+    if (leftoverPreferred.length > 0) {
+      for (const s of parsed.stories) {
+        if (leftoverPreferred.length === 0) break;
+        const v = s?.visual;
+        if (!v || typeof v !== "object") continue;
+        if (v.background !== "photo" || v.photo_id) continue;
+        const next = leftoverPreferred.shift()!;
+        v.photo_id = next.id;
+        v.photo_library_description = next.description;
+        usedPhotoIds.add(next.id);
+      }
+    }
+  }
+}
+
+// ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
+// Les carrousels loggent leur score de gate à chaque génération (Brique 1,
+// content_quality_events) → le juge du bilan hebdo les note. Les autres
+// formats en étaient absents (angle mort connu). Mesure LÉGÈRE
+// (analyzeTextRedac, zéro appel LLM) sur le texte FINAL, MÊME formule de
+// score que redacScore sur les dimensions du texte libre (retournements /
+// formules moulées / chiffres inventés), + aperçu pour l'échantillon du juge.
+// Fire-and-forget : logContentQuality n'interrompt jamais la génération et
+// exclut déjà les comptes QA. La newsletter (retour SSE anticipé) se logge
+// dans son propre bloc ; le LinkedIn STREAMÉ reste hors couverture ici (il
+// ne passe pas par cette queue) — angle mort résiduel connu.
+async function logGenerationQualityTelemetry(parsed: any, params: {
+  userId: string;
+  context: string;
+  body: any;
+  newsContext?: string | null;
+  fullContext: string;
+  finalUsage: UsageSink;
+  workspace_id?: string | null;
+  isStories: boolean;
+  isReel: boolean;
+  isLinkedIn: boolean;
+}): Promise<void> {
+  const { userId, context, body, newsContext, fullContext, finalUsage, workspace_id, isStories, isReel, isLinkedIn } = params;
+  const qualityAllowed = () =>
+    numbersIn([
+      typeof context === "string" ? context : "",
+      body.answers ? JSON.stringify(body.answers) : "",
+      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      typeof newsContext === "string" ? newsContext : "",
+      fullContext || "",
+    ].join("\n"));
+  const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
+    try {
+      const a = analyzeTextRedac(text, qualityAllowed());
+      const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+      const score = Math.max(40, 100 - 10 * violations);
+      await logContentQuality(
+        userId,
+        format,
+        { score, violations, repassed: false, content: JSON.stringify(previewDoc) },
+        finalUsage.model,
+        workspace_id ?? undefined,
+        typeof context === "string" ? context : undefined,
+      );
+    } catch (e) {
+      console.error(`[creative-flow] log qualité ${format} ignoré (génération intacte):`, (e as any)?.message || e);
+    }
+  };
+
+  if (isStories && Array.isArray(parsed?.stories)) {
+    const storiesText = parsed.stories.map((s: any) => (typeof s?.text === "string" ? s.text : "")).filter(Boolean).join("\n\n");
+    await logTextQuality("stories", storiesText, { stories: parsed.stories });
+  } else if (isReel && Array.isArray(parsed?.script)) {
+    await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
+  } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
+    await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content });
+  }
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
@@ -2270,61 +2546,12 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
     // (step === "recycle" ne passe plus par ici : pipeline parallèle dédié plus haut.)
 
     // ═══ NORMALISATION HOOKS (lot 7) ═══
-    // Le tool forcé garantit le JSON de TRANSPORT, pas les types internes : vu en
-    // live au premier test (12/07), le modèle peut remplir `hooks` avec une STRING
-    // JSON au lieu du tableau d'objets. On déballe en déterministe — sinon le front
-    // tombe en fallback « Continuer sans choisir » alors que les hooks existent.
     if (step === "hooks" && parsed && typeof parsed === "object") {
-      // Forme reçue AVANT normalisation : c'est la seule trace exploitable le
-      // jour où l'écran des angles retombe à zéro (03/08 : aucun log ne disait
-      // par quelle branche le tableau s'était vidé).
-      const shapeIn = Array.isArray(parsed.hooks)
-        ? `array[${parsed.hooks.length}]`
-        : typeof parsed.hooks;
-      if (typeof parsed.hooks === "string") {
-        const inner = tryParseAiJson<any>(parsed.hooks, "creative-flow:hooks-unwrap");
-        parsed.hooks = Array.isArray(inner) ? inner : Array.isArray(inner?.hooks) ? inner.hooks : [];
-      }
-      if (!Array.isArray(parsed.hooks)) parsed.hooks = [];
-      // Entrées en simple CHAÎNE : même dérive que le `hooks` stringifié du
-      // 12/07, un cran plus bas (le modèle liste les phrases sans les
-      // envelopper). Récupérable → on reconstruit l'objet minimal. Le front
-      // n'affiche que les champs présents, il ne manquera qu'un badge.
-      parsed.hooks = parsed.hooks.map((h: any) =>
-        typeof h === "string" && h.trim() ? { text: h.trim() } : h
-      );
-      // Objets valides uniquement : un hook sans texte parlé est inutilisable.
-      parsed.hooks = parsed.hooks.filter((h: any) => h && typeof h === "object" && typeof h.text === "string" && h.text.trim());
-      // Élisions déterministes AVANT affichage : le hook choisi est ensuite
-      // verrouillé tel quel sur le script (enforceSelectedReelHook) — une
-      // coquille née ici se propagerait partout (vécu 21/07 : « qu'on marchand »).
-      for (const h of parsed.hooks) fixElisionsInFields(h, ["text", "text_overlay"]);
-
-      // ZÉRO angle récupérable = échec, pas un succès. Un 200 avec `hooks: []`
-      // est un « 200 menteur » : le front le lisait comme une réponse valide et
-      // n'avait plus qu'un `throw new Error("empty")` illisible à afficher.
-      if (parsed.hooks.length === 0) {
-        console.warn(JSON.stringify({
-          type: "hooks_vides",
-          shape_in: shapeIn,
-          exclude_count: Array.isArray((body as Record<string, unknown>).exclude_hooks)
-            ? ((body as Record<string, unknown>).exclude_hooks as unknown[]).length
-            : 0,
-          raw: String(rawContent || "").slice(0, 500),
-        }));
-        return new Response(
-          JSON.stringify({ error: "Je n'ai pas réussi à préparer les angles d'attaque. Réessaie, ou laisse l'IA choisir." }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      const hooksEarlyExit = normalizeHooksResponse(parsed, { body, rawContent, corsHeaders });
+      if (hooksEarlyExit) return hooksEarlyExit;
     }
 
     // ═══ PASSE DE CORRECTION LinkedIn ═══
-    // Pour TOUT post LinkedIn généré (photo ou texte), on rejoue une 2ᵉ passe
-    // spécialisée qui chasse cascades, anaphores, formules manufacturées, CTA génériques.
-    // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
-    // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
-    // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
     if (
       step === "generate" &&
       contentType?.includes("linkedin") &&
@@ -2333,206 +2560,22 @@ ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      try {
-        // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
-        // passe de correction existante — retournements (1 max), formules
-        // moulées, chiffres sans source (liste blanche = brief + réponses + actu).
-        const liAllowed = numbersIn([
-          typeof body.context === "string" ? body.context : "",
-          body.answers ? JSON.stringify(body.answers) : "",
-          typeof body.news_context === "string" ? body.news_context : "",
-          fullContext || "",
-        ].join("\n"));
-        const liRedac = analyzeTextRedac(parsed.content, liAllowed);
-        const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
-          logger: (msg) => console.log(msg),
-          // Édition mécanique à règles fermées → Haiku (cf. #364)
-          model: "claude-haiku-4-5",
-          extraInstructions: buildTextFixInstructions(liRedac) || undefined,
-        });
-        if (corrected && corrected.length >= 100) {
-          parsed.content = corrected;
-        }
-      } catch (corrErr) {
-        console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
-      }
-      // Filet déterministe (hors try : s'applique même si la passe a échoué) :
-      // élisions manquantes type « le avant/après » (vécu 21/07).
-      fixElisionsInFields(parsed, ["content", "accroche"]);
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext });
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
-    // Le reel était le seul format riche sans filet post-génération. Trois étages :
-    // 1. face_cam=non : enforcement déterministe de la structure (format_type,
-    //    format_visuel, plan_tournage) — la passe texte ne touche pas ces champs.
-    // 2. Correction JSON-aware (textes seuls, via bloc balisé) avec instructions
-    //    ciblées mesurées en code : chiffres sans source (redac-gate) + fuites de
-    //    gabarit ("SAUVEGARDE", "Nouveau Reel" : 8/8 au corpus d'audit).
-    // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
-    //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
-    //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
-        console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
-      }
-      // Hook CHOISI à l'étape hook_selection : verrouillé sur la section 1 AVANT
-      // la correction (la génération peut paraphraser, la correction peut « améliorer » —
-      // ni l'une ni l'autre ne décide à la place de l'utilisatrice).
-      const hasChosenHook = enforceSelectedReelHook(parsed, body.selected_hook);
-      try {
-        const reelAllowed = numbersIn([
-          typeof body.context === "string" ? body.context : "",
-          body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
-          body.selected_hook ? JSON.stringify(body.selected_hook) : "",
-          typeof body.news_context === "string" ? body.news_context : "",
-          fullContext || "",
-        ].join("\n"));
-        const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed);
-        const extras: string[] = [];
-        const redacFix = buildTextFixInstructions(reelRedac);
-        if (redacFix) extras.push(redacFix);
-        const leaks = reelTemplateLeaks(parsed);
-        if (leaks.length) {
-          extras.push(`FUITES DE GABARIT DÉTECTÉES (réécris chacune) :\n${leaks.map((l) => `- ${l}`).join("\n")}`);
-        }
-        if (body.face_cam === "non") {
-          extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
-        }
-        if (hasChosenHook || (typeof body.selected_hook?.text === "string" && body.selected_hook.text.trim() && !body.selected_hook.text.trim().startsWith("("))) {
-          extras.push(`LE HOOK ([SECTION 1 - PARLE] et [SECTION 1 - OVERLAY]) A ÉTÉ CHOISI PAR L'UTILISATRICE : recopie-le STRICTEMENT à l'identique, ne le réécris sous aucun prétexte (la règle "hook faible" ne s'applique pas à lui).`);
-        }
-        // Plafond de mots par objectif (calibrage du brief), mesuré en code :
-        // au re-test post-#527, la visibilité sortait encore à ~95 mots (cible
-        // 40-80). La durée affichée est honnête (recalibrage), mais un reel
-        // reach doit rester court → coupe pilotée par la passe de correction.
-        const reelWordCap = effectiveObjective === "visibilite" ? 80
-          : (effectiveObjective === "confiance" || effectiveObjective === "vente" || effectiveObjective === "credibilite") ? 190
-          : 150;
-        const reelWords = countReelSpokenWords(parsed);
-        if (reelWords > reelWordCap) {
-          extras.push(`TROP LONG POUR L'OBJECTIF "${effectiveObjective || "standard"}" : ${reelWords} mots parlés, plafond ${reelWordCap}. COUPE le texte parlé à ${reelWordCap} mots maximum : supprime les redites, la mise en contexte longue et les exemples secondaires. Ne touche PAS à la couche mécanisme (le POURQUOI) ni au hook. C'est une exception explicite à la règle "±10 %".`);
-        }
-        // Édition mécanique à règles fermées → Haiku (même choix que LinkedIn/carrousel).
-        const corrected = await applyCorrectionPassReel(parsed, {
-          logger: (msg) => console.log(msg),
-          model: "claude-haiku-4-5",
-          extraInstructions: extras.length ? extras.join("\n\n") : undefined,
-        });
-        if (corrected && typeof corrected === "object") {
-          Object.assign(parsed, corrected);
-        }
-      } catch (corrErr) {
-        console.error("[creative-flow] correction-pass reel failed:", corrErr);
-      }
-      // Filets déterministes TOUJOURS appliqués, même si la correction a échoué :
-      // - le hook choisi reste verrouillé (l'instruction de la passe est probabiliste) ;
-      // - lecture_test = concat des texte_parle FINAUX (sinon le monologue affiché
-      //   diverge du script corrigé — faille trouvée à la revue du 12/07) ;
-      // - timings recomptés sur la version FINALE du texte.
-      enforceSelectedReelHook(parsed, body.selected_hook);
-      applyReelElisions(parsed);
-      rebuildReelLectureTest(parsed);
-      recalibrateReelTimings(parsed);
-      // La prise face cam du plan de tournage doit couvrir le monologue recompté
-      // (le modèle recopie la durée de l'exemple du prompt sans la relier au script).
-      alignFaceCamTakeDuration(parsed);
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext });
     }
 
-    // ═══ GARDE PHOTO-D'ABORD (stories) ═══
-    // La consigne « majorité de fonds photo » du brief est probabiliste et
-    // fuit (séquences quasi entières en fond_couleur). Garde déterministe,
-    // appliquée AVANT la résolution bibliothèque pour que les stories
-    // basculées soient éligibles au placement de photos.
+    // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
     if (isStories && step === "generate") {
-      enforceStoriesPhotoFirst(parsed);
-    }
-
-    // ═══ RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories, lot B) ═══
-    // photo_index (petit entier émis par l'IA) → photo_id (UUID user_photos),
-    // de façon déterministe : correspondance stricte, jamais deux stories sur
-    // la même photo, et uniquement quand la story attend un fond photo.
-    if (isStories && step === "generate" && storiesPhotoCatalog.length > 0 && Array.isArray(parsed?.stories)) {
-      const byIndex = new Map(storiesPhotoCatalog.map((c) => [c.index, c]));
-      const usedPhotoIds = new Set<string>();
-      for (const s of parsed.stories) {
-        const v = s?.visual;
-        if (!v || typeof v !== "object") continue;
-        const idx = typeof v.photo_index === "number" ? v.photo_index : null;
-        delete v.photo_index;
-        if (idx === null) continue;
-        const cat = byIndex.get(idx);
-        if (!cat || v.background !== "photo" || usedPhotoIds.has(cat.id)) continue;
-        v.photo_id = cat.id;
-        v.photo_library_description = cat.description;
-        usedPhotoIds.add(cat.id);
-      }
-      // Garantie lot D : toute photo CHOISIE par l'utilisatrice que l'IA n'a
-      // pas placée est distribuée aux stories à fond photo restées sans photo,
-      // dans l'ordre de la séquence. Ses photos finissent TOUJOURS dans le
-      // résultat (c'était la demande de base du parcours).
-      const leftoverPreferred = storiesPhotoCatalog.filter(
-        (c) => c.preferred && !usedPhotoIds.has(c.id),
-      );
-      if (leftoverPreferred.length > 0) {
-        for (const s of parsed.stories) {
-          if (leftoverPreferred.length === 0) break;
-          const v = s?.visual;
-          if (!v || typeof v !== "object") continue;
-          if (v.background !== "photo" || v.photo_id) continue;
-          const next = leftoverPreferred.shift()!;
-          v.photo_id = next.id;
-          v.photo_library_description = next.description;
-          usedPhotoIds.add(next.id);
-        }
-      }
+      applyStoriesPhotoGuardAndResolution(parsed, { storiesPhotoCatalog });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
-    // Les carrousels loggent leur score de gate à chaque génération (Brique 1,
-    // content_quality_events) → le juge du bilan hebdo les note. Les autres
-    // formats en étaient absents (angle mort connu). Mesure LÉGÈRE
-    // (analyzeTextRedac, zéro appel LLM) sur le texte FINAL, MÊME formule de
-    // score que redacScore sur les dimensions du texte libre (retournements /
-    // formules moulées / chiffres inventés), + aperçu pour l'échantillon du juge.
-    // Fire-and-forget : logContentQuality n'interrompt jamais la génération et
-    // exclut déjà les comptes QA. La newsletter (retour SSE anticipé) se logge
-    // dans son propre bloc ; le LinkedIn STREAMÉ reste hors couverture ici (il
-    // ne passe pas par cette queue) — angle mort résiduel connu.
     if (step === "generate") {
-      const qualityAllowed = () =>
-        numbersIn([
-          typeof context === "string" ? context : "",
-          body.answers ? JSON.stringify(body.answers) : "",
-          body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
-          typeof newsContext === "string" ? newsContext : "",
-          fullContext || "",
-        ].join("\n"));
-      const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
-        try {
-          const a = analyzeTextRedac(text, qualityAllowed());
-          const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
-          const score = Math.max(40, 100 - 10 * violations);
-          await logContentQuality(
-            userId,
-            format,
-            { score, violations, repassed: false, content: JSON.stringify(previewDoc) },
-            finalUsage.model,
-            workspace_id,
-            typeof context === "string" ? context : undefined,
-          );
-        } catch (e) {
-          console.error(`[creative-flow] log qualité ${format} ignoré (génération intacte):`, (e as any)?.message || e);
-        }
-      };
-
-      if (isStories && Array.isArray(parsed?.stories)) {
-        const storiesText = parsed.stories.map((s: any) => (typeof s?.text === "string" ? s.text : "")).filter(Boolean).join("\n\n");
-        await logTextQuality("stories", storiesText, { stories: parsed.stories });
-      } else if (isReel && Array.isArray(parsed?.script)) {
-        await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
-      } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
-        await logTextQuality("linkedin", parsed.content, { subject: context, content: parsed.content });
-      }
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, finalUsage, workspace_id, isStories, isReel, isLinkedIn });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
