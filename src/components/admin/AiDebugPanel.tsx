@@ -60,9 +60,11 @@ export default function AiDebugPanel() {
     results[1].status = "running";
     setTests([...results]);
     try {
+      // 250s : "story" passe par le chemin double-appel (pire cas serveur 240s en cas
+      // de relance sur troncature, voir branding-coaching/index.ts) — marge après l'edge.
       const { data, error } = await invokeWithTimeout("branding-coaching", {
         body: { user_id: "test", section: "story", messages: [], context: {}, covered_topics: [] },
-      }, 120000);
+      }, 250000);
       if (error) {
         results[1] = {
           label: results[1].label,

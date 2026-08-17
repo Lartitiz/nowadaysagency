@@ -112,7 +112,9 @@ export default function IntakeQuestionnaire({ programId, onComplete, onBack }: I
           intake_mode: true,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
-      }, 90000);
+      // 250s : ce section passe par le même chemin double-appel que le coaching branding
+      // (pire cas serveur 240s en cas de relance sur troncature) — marge après l'edge.
+      }, 250000);
       if (error) throw new Error(error.message);
       return data.response as AIResponse;
     } finally {

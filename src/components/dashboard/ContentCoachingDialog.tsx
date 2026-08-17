@@ -234,7 +234,9 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
             workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
             upcoming_marronniers: marronniersPayload(),
           },
-        }, 60000);
+          // 130s : l'abort IA côté edge (mode "seeds") est à 120s (GENERATION_ABORT_TIMEOUT_MS) —
+          // le client doit couper APRÈS l'edge, sinon double timeout (cf. PR #839 audit-branding).
+        }, 130000);
         const got = Array.isArray(data?.seeds) ? data.seeds.filter((s: any) => s?.subject) : [];
         if (got.length >= 2) {
           setSeeds(got);
@@ -265,7 +267,10 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
           deepen: !!p.sujet,
           upcoming_marronniers: marronniersPayload(),
         },
-      }, 120000);
+        // 290s : pire cas côté edge = recherche de profondeur (25s) + génération (120s)
+        // + éventuel retry ancrage matière vivante (120s) = 265s. Le client doit couper
+        // APRÈS l'edge, avec marge, sinon double timeout (cf. PR #839 audit-branding).
+      }, 290000);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       setResult(data);
@@ -302,7 +307,9 @@ export default function ContentCoachingDialog({ open, onOpenChange, onSelect, on
           draw_nonce: Math.random().toString(36).slice(2, 10),
           previous_subject: prevIdea.subject,
         },
-      }, 120000);
+        // 130s : regenerate_lens saute la recherche de profondeur et le retry
+        // ancrage côté edge (un seul appel, 120s d'abort) — marge après l'edge.
+      }, 130000);
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
       const newIdea: ContentIdea | undefined = data?.ideas?.[0];

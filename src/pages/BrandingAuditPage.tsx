@@ -307,14 +307,16 @@ export default function BrandingAuditPage() {
             }
           }
           if (Object.keys(safeUpdate).length > 0) {
-            await supabase.from("brand_profile").update(safeUpdate).eq("id", existing.id);
+            const { error } = await supabase.from("brand_profile").update(safeUpdate).eq("id", existing.id);
+            if (error) throw error;
           }
         } else {
-          await supabase.from("brand_profile").insert({
+          const { error } = await supabase.from("brand_profile").insert({
             user_id: user.id,
             workspace_id: column === "workspace_id" ? value : null,
             ...brandUpdate,
           } as any);
+          if (error) throw error;
         }
       }
 
@@ -336,14 +338,16 @@ export default function BrandingAuditPage() {
 
         if (existingPersona) {
           if (!existingPersona.description || existingPersona.description.trim() === "") {
-            await supabase.from("persona").update({ description: personaDesc }).eq("id", existingPersona.id);
+            const { error } = await supabase.from("persona").update({ description: personaDesc }).eq("id", existingPersona.id);
+            if (error) throw error;
           }
         } else {
-          await supabase.from("persona").insert({
+          const { error } = await supabase.from("persona").insert({
             user_id: user.id,
             workspace_id: column === "workspace_id" ? value : null,
             description: personaDesc,
           } as any);
+          if (error) throw error;
         }
       }
 
@@ -358,18 +362,20 @@ export default function BrandingAuditPage() {
 
         if (existingStory) {
           if (!existingStory.imported_text && !existingStory.step_1_raw) {
-            await supabase.from("storytelling").update({
+            const { error } = await supabase.from("storytelling").update({
               imported_text: ext.story.value,
               source: "audit",
             }).eq("id", existingStory.id);
+            if (error) throw error;
           }
         } else {
-          await supabase.from("storytelling").insert({
+          const { error } = await supabase.from("storytelling").insert({
             user_id: user.id,
             workspace_id: column === "workspace_id" ? value : null,
             imported_text: ext.story.value,
             source: "audit",
           } as any);
+          if (error) throw error;
         }
       }
 

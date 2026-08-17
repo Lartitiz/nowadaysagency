@@ -353,7 +353,9 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
           autofill_data: autofillData || undefined,
           autofill_confidence: autofillConfidence || undefined,
         },
-      }, 120000);
+      // 250s : côté edge, une relance sur troncature peut aller jusqu'à 120s + 120s = 240s
+      // (voir branding-coaching/index.ts) — le client doit couper APRÈS, avec marge.
+      }, 250000);
 
       if (fnError) {
         const err = fnError as InvokeError;

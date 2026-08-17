@@ -13,6 +13,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 
 /* ─── Types ─── */
 interface PillarDetail {
@@ -259,15 +260,22 @@ export default function BrandingAuditResultPage() {
 
   const toggleRecCompletion = async (recId: string, currentlyCompleted: boolean) => {
     const newCompleted = !currentlyCompleted;
+    const previous = auditRecs.find(r => r.id === recId);
     // Optimistic update
     setAuditRecs(prev => prev.map(r => r.id === recId ? { ...r, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } : r));
-    await supabase
+    const { error } = await supabase
       .from("audit_recommendations")
       .update({
         completed: newCompleted,
         completed_at: newCompleted ? new Date().toISOString() : null,
       })
       .eq("id", recId);
+    if (error) {
+      console.error("Erreur technique:", error);
+      // Revert l'update optimiste
+      if (previous) setAuditRecs(prev => prev.map(r => r.id === recId ? previous : r));
+      toast.error("Erreur", { description: friendlyError(error) });
+    }
   };
 
   const isModuleCompleted = (coachingModule: string) => !!completedRecs[coachingModule];

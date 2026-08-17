@@ -14,6 +14,15 @@ const MAX_CONTEXT_CHARS = 12000;
 const MAX_LIVING_MATTER_CHARS = 4500;
 const MAX_HISTORY_CHARS = 2200;
 
+// Modèle "coaching" = Opus (convention CLAUDE.md : Opus → 120s d'abort IA).
+// Un seul retry possible (ancrage matière vivante, cf. plus bas) — jamais de cascade.
+// Pire cas total pour le client (sujet fourni + deepen=true + 0 idée ancrée au 1er essai) :
+// recherche de profondeur (25s, RESEARCH_TIMEOUT_MS dans depth-research.ts)
+// + génération (GENERATION_ABORT_TIMEOUT_MS) + retry ancrage (GENERATION_ABORT_TIMEOUT_MS)
+// = 25s + 120s + 120s = 265s. Le timeout client (ContentCoachingDialog.tsx) doit rester
+// nettement au-dessus de ce total, comme pour audit-branding (PR #839).
+const GENERATION_ABORT_TIMEOUT_MS = 120_000;
+
 function truncateForPrompt(text: string, maxChars: number): string {
   if (!text || text.length <= maxChars) return text;
   return `${text.slice(0, maxChars).trim()}\n[… contexte tronqué pour garder la génération stable …]`;
@@ -331,7 +340,7 @@ Réponds UNIQUEMENT avec ce JSON (aucune prose, commence par {) :
         messages: [{ role: "user", content: "Propose les 3 sujets-graines. JSON uniquement, commence par {." }],
         temperature: 0.8,
         max_tokens: 700,
-        abortTimeoutMs: 120_000,
+        abortTimeoutMs: GENERATION_ABORT_TIMEOUT_MS,
       }, seedsUsage);
       const parsedSeeds = tryParseAiJson<any>(rawSeeds, "content-coaching:seeds");
       const seeds = (Array.isArray(parsedSeeds?.seeds) ? parsedSeeds.seeds : [])
@@ -557,6 +566,7 @@ TEST DE VALIDITÉ — applique-le sur CHAQUE idée AVANT de la sortir
 4. CHIFFRE : aucun chiffre inventé (RÈGLE DE VÉRITÉ).
 5. RETEX en JE : cohérent avec le parcours réel visible dans le contexte branding.
 6. MARQUE citée : alignement d'échelle, pas de géants.
+7. MATIÈRE VIVANTE (si le bloc est fourni ci-dessus) : AVANT de sortir le JSON, compte combien de tes 4 idées citent EXPLICITEMENT un prénom de persona, un nom d'offre ou un titre de storytelling listé dans MATIÈRE VIVANTE. Si le compte est inférieur à 2, retravaille des idées (change l'angle, pas juste le champ why_it_works) jusqu'à atteindre au moins 2/4 — ne renvoie jamais un jeu à 0/4 ou 1/4 quand la matière est disponible.
 
 CHAMP "lens" : utilise EXACTEMENT l'un de ces identifiants : ${IDEA_LENSES.map(l => l.id).join(", ")}.
 CHAMP "boldness" : "safe" (idée engageante mais consensuelle), "bold" (sort des sentiers battus, demande un peu de courage), "provoc" (assume une position qui dérange, vulnérabilité forte ou contre-pied frontal).
@@ -611,7 +621,7 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
         messages: [{ role: "user", content: userMessage }],
         temperature: 0.8,
         max_tokens: 4000,
-        abortTimeoutMs: 120_000,
+        abortTimeoutMs: GENERATION_ABORT_TIMEOUT_MS,
       }, usage);
       try {
         return await parseIdeas(raw);
@@ -634,9 +644,11 @@ Retourne UNIQUEMENT ce JSON (pas de markdown, pas de commentaires, pas de prose 
     }
 
     // ─── Enforcement ancrage matière vivante ───
-    // Le prompt exige que 2 idées sur 4 citent la matière vivante, mais la
-    // règle peut s'éteindre en silence (audit 12/07 : 0/44 idées ancrées).
-    // Vérification déterministe + 1 retry maximum, puis on sert quand même.
+    // Le prompt exige que 2 idées sur 4 citent la matière vivante (rappelé dans
+    // TEST DE VALIDITÉ point 7, pour que le modèle l'auto-vérifie avant de sortir
+    // le JSON), mais la règle peut s'éteindre en silence (audit 12/07 : 0/44 idées
+    // ancrées). Filet de sécurité déterministe : AU PLUS 1 retry (jamais de cascade,
+    // même abortTimeoutMs que le premier essai), puis on sert le résultat tel quel.
     const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const anchorTokens: string[] = [];
     for (const p of personas) if (p.portrait_prenom) anchorTokens.push(normalize(p.portrait_prenom));
