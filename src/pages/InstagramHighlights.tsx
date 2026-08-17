@@ -244,7 +244,10 @@ export default function InstagramHighlights() {
       if (delErr) throw delErr;
       const { error: insErr } = await supabase.from("instagram_highlights").insert(toInsert);
       if (insErr) {
-        if (backup?.length) await supabase.from("instagram_highlights").insert(backup);
+        if (backup?.length) {
+          const { error: restoreErr } = await supabase.from("instagram_highlights").insert(backup);
+          if (restoreErr) console.error("Erreur technique (restauration backup):", restoreErr);
+        }
         throw insErr;
       }
       toast.success("Sauvegardé !", { description: "Ta progression highlights est enregistrée." });

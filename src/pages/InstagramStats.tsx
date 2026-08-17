@@ -841,9 +841,11 @@ export default function InstagramStats() {
       };
       delete payload.id; delete payload.created_at;
       if ((existing as any).id) {
-        await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
+        const { error } = await supabase.from("monthly_stats" as any).update(payload).eq("id", (existing as any).id);
+        if (error) throw error;
       } else {
-        await supabase.from("monthly_stats" as any).insert(payload);
+        const { error } = await supabase.from("monthly_stats" as any).insert(payload);
+        if (error) throw error;
       }
       await loadStats();
       toast.success(`✅ ${a.sampleSize} posts analysés`);

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import UpgradeGate from "@/components/UpgradeGate";
 import {
   Video, CalendarDays, Clock, Bell, BellOff, Send,
@@ -68,11 +69,21 @@ export default function LivesPage() {
   const toggleReminder = async (liveId: string) => {
     if (!user) return;
     if (reminders.has(liveId)) {
-      await (supabase.from("live_reminders") as any).delete().eq("live_id", liveId).eq(column, value);
+      const { error } = await (supabase.from("live_reminders") as any).delete().eq("live_id", liveId).eq(column, value);
+      if (error) {
+        console.error("Erreur technique:", error);
+        toast.error("Erreur", { description: friendlyError(error) });
+        return;
+      }
       setReminders((prev) => { const n = new Set(prev); n.delete(liveId); return n; });
       toast("Rappel retiré");
     } else {
-      await supabase.from("live_reminders").insert({ live_id: liveId, user_id: user.id });
+      const { error } = await supabase.from("live_reminders").insert({ live_id: liveId, user_id: user.id });
+      if (error) {
+        console.error("Erreur technique:", error);
+        toast.error("Erreur", { description: friendlyError(error) });
+        return;
+      }
       setReminders((prev) => new Set(prev).add(liveId));
       toast.success("🔔 Rappel activé !");
     }
@@ -81,12 +92,17 @@ export default function LivesPage() {
   const sendQuestion = async () => {
     if (!user || !questionLiveId || !questionText.trim()) return;
     setSendingQuestion(true);
-    await supabase.from("live_questions").insert({
+    const { error } = await supabase.from("live_questions").insert({
       live_id: questionLiveId,
       user_id: user.id,
       question: questionText.trim(),
     });
     setSendingQuestion(false);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setQuestionText("");
     setQuestionLiveId(null);
     toast.success("Question envoyée ✓");
