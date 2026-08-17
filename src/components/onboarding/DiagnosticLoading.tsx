@@ -290,17 +290,23 @@ export default function DiagnosticLoading({
           },
         };
 
-        // Timeout adaptatif : sans source externe (site/insta/linkedin/docs),
-        // l'edge n'a que la synthèse IA des réponses libres à faire — pas de
-        // scraping. On raccourcit le plafond pour basculer vite sur le fallback
-        // local plutôt que de faire patienter une inconnue jusqu'à 120s à vide.
+        // Timeout adaptatif — recalculé lors de l'audit timeouts du 17/08 après
+        // avoir bordé l'appel IA de deep-diagnostic (abortTimeoutMs: 90_000,
+        // voir index.ts) : cet appel peut désormais légitimement prendre jusqu'à
+        // 90s QUELLE QUE SOIT la présence de sources externes — 60s était donc
+        // trop court même sans scraping (l'edge peut aussi tomber sur un scrape
+        // partiel malgré ce flag côté client). Budget serveur réaliste :
+        // scraping ≤ 55s (GLOBAL_TIMEOUT_MS) + appel IA ≤ 90s (pas de retry après
+        // un abort, seulement sur sortie dégénérée) = ~145s avec sources, ~90s
+        // sans. Marge appliquée pour caler sur la fourchette "audits complexes"
+        // du projet (120-180s).
         const hasExternalSources = !!(
           answers.website ||
           answers.instagram ||
           (answers as any).linkedin ||
           (uploadedFileIds && uploadedFileIds.length > 0)
         );
-        const diagnosticTimeout = hasExternalSources ? 120000 : 60000;
+        const diagnosticTimeout = hasExternalSources ? 180000 : 120000;
 
         const { data, error } = await invokeWithTimeout("deep-diagnostic", { body: { ...body, isOnboarding: true, workspace_id: onboardingWorkspaceId, allowOverwrite: allowOverwrite === true } }, diagnosticTimeout);
 

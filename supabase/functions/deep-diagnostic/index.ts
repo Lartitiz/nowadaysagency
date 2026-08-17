@@ -220,6 +220,16 @@ export async function runFastDiagnostic(opts: {
     // (Cause du bug « domaine Mattioli » : en texte libre, une réponse riche
     // dépassait max_tokens 2000 → JSON tronqué imparsable → fallback silencieux.
     // Reproduit avec type "consultante" + site web analysé.)
+    //
+    // abortTimeoutMs obligatoire (audit timeouts 17/08) : sans lui, un appel qui
+    // pend ne libère JAMAIS la requête tant que le retry sur sortie dégénérée
+    // (ci-dessous) n'a rien à réessayer — c'était un appel IA totalement non
+    // borné après le scraping (déjà borné, lui, par GLOBAL_TIMEOUT_MS). 90 s :
+    // ce diagnostic est la phase RAPIDE (Sonnet) — l'enrichissement lourd
+    // (Opus) est en phase 2 séparée à 120_000, voir diagnostic-enrichment.
+    // Un timeout ici tombe direct dans le catch → fallback honnête, PAS de
+    // retry (le retry ne se déclenche que sur une réponse reçue mais dégénérée,
+    // jamais sur un abort) : pire cas borné à 2×90 s, pas illimité.
     const runDiagnosticCall = async (extraInstruction?: string) => {
       const blocks = extraInstruction
         ? [...userContentBlocks, { type: "text", text: extraInstruction }]
@@ -231,6 +241,7 @@ export async function runFastDiagnostic(opts: {
         temperature: instagramScreenshots.length > 0 ? 0.6 : 0.7,
         max_tokens: 4000,
         tool: DIAGNOSTIC_TOOL,
+        abortTimeoutMs: 90_000,
       }, diagUsage);
       return robustJsonParse(rawText);
     };
