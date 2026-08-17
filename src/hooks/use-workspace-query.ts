@@ -1,3 +1,5 @@
+import { useEffect } from "react";
+import { toast } from "sonner";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -76,6 +78,12 @@ export function useWorkspaceReady(): boolean {
  * When viewing a client workspace (role = manager), returns the client's user_id.
  * When on own workspace (role = owner), returns auth user's id.
  * Useful for tables like "profiles" that don't have workspace_id.
+ *
+ * If the owner lookup fails while managing a client workspace, this must NOT
+ * fall back to the manager's own id — that would silently read/write the
+ * manager's account instead of the client's (data leak between comptes).
+ * It returns "" instead, which fails safe: reads come back empty and writes
+ * are rejected (user_id columns are uuid, "" isn't a valid uuid).
  */
 export function useProfileUserId(): string {
   const { user } = useAuth();
@@ -92,21 +100,35 @@ export function useProfileUserId(): string {
 
   const isManager = activeRole === "manager" && !!activeWorkspace?.id;
 
-  const { data: ownerUserId } = useQuery({
+  const { data: ownerUserId, isError } = useQuery({
     queryKey: ["workspace-owner", activeWorkspace?.id],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("workspace_members")
         .select("user_id")
         .eq("workspace_id", activeWorkspace!.id)
         .eq("role", "owner")
         .maybeSingle();
+      if (error) throw error;
       return data?.user_id as string | null;
     },
     enabled: isManager,
     staleTime: 5 * 60 * 1000,
+    retry: 2,
   });
 
+  const ownerLookupFailed = isManager && isError;
+
+  useEffect(() => {
+    if (ownerLookupFailed) {
+      toast.error("Impossible de charger l'espace de la personne accompagnée", {
+        id: "profile-owner-lookup-error",
+        description: "Réessaie dans un instant avant d'enregistrer quoi que ce soit ici.",
+      });
+    }
+  }, [ownerLookupFailed]);
+
+  if (ownerLookupFailed) return "";
   if (isManager && ownerUserId) return ownerUserId;
   return user?.id ?? "";
 }
