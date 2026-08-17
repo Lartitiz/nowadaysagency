@@ -64,7 +64,8 @@ describe("useLinkedInCarouselCaption — auto-déclenchement et garde anti-doubl
     await waitFor(() => expect(mocks.invokeWithTimeout).toHaveBeenCalledTimes(1));
     const [fn, payload, timeout] = mocks.invokeWithTimeout.mock.calls[0];
     expect(fn).toBe("linkedin-ai");
-    expect(timeout).toBe(60000);
+    // 110s : génération 60s + passe de correction 30s côté edge, + marge (cf. #864).
+    expect(timeout).toBe(110000);
     expect(payload.body.action).toBe("caption-for-carousel");
     expect(payload.body.subject).toBe("Mon idée");
     expect(payload.body.slides_summary).toBe("Slide 1: Accroche ; Titre ; Corps");

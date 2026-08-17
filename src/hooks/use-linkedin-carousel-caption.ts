@@ -71,7 +71,8 @@ export function useLinkedInCarouselCaption({
           objective: objective || null,
           workspace_id: workspaceId !== session?.user?.id ? workspaceId : undefined,
         },
-      }, 60000);
+      // 110s : génération 60s + passe de correction 30s côté edge, + marge.
+      }, 110000);
       if (fnError) throw new Error(fnError.message || "Erreur génération légende");
       if (data?.error) {
         if (handleQuotaError(data)) return;

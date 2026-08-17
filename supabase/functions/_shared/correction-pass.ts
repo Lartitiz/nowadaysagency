@@ -21,6 +21,13 @@ export interface CorrectionOptions {
    * latence (carrousel qualité normale) passent Haiku, ~2x plus rapide.
    */
   model?: AnthropicModel;
+  /**
+   * Plafond (ms) de l'appel IA de la passe de correction. undefined = pas d'abort
+   * (comportement historique conservé pour les appelants existants qui ne le
+   * renseignent pas). À poser sur les appelants qui bornent déjà leur appel
+   * principal, pour éviter la cascade principal+correction non bornée.
+   */
+  abortTimeoutMs?: number;
 }
 
 // ── Scan déterministe « faut-il corriger ? » (audit photo 22/07) ──────────────
