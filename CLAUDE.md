@@ -226,7 +226,7 @@ L'outil premium est inclus. L'accompagnement humain se greffe dessus :
 - NE PAS hardcoder `.eq("user_id", user.id)` partout
 
 **Tables spéciales :**
-- `voice_profile` et `brand_charter` : filtrer par `user_id` du propriétaire, PAS par `workspace_id`
+- `voice_profile` et `brand_charter` : accessibles par `user_id` du propriétaire OU par `workspace_id` (policies workspace ajoutées volontairement pour le mode Binôme : la manager accède au branding de sa cliente). Côté front, requêter via `useWorkspaceFilter` comme les autres tables.
 
 **Timeouts :**
 - Opus : 120s
