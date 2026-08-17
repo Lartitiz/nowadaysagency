@@ -10,6 +10,7 @@ import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { Loader2 } from "lucide-react";
 
 export default function StorytellingEditPage() {
@@ -37,12 +38,19 @@ export default function StorytellingEditPage() {
   const handleSave = async () => {
     if (!id) return;
     setSaving(true);
-    await supabase.from("storytelling").update({ title, imported_text: text } as any).eq("id", id);
-    queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
-    queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
-    toast.success("Modifications enregistrées !");
-    setSaving(false);
-    navigate("/branding/section?section=story");
+    try {
+      const { error } = await supabase.from("storytelling").update({ title, imported_text: text } as any).eq("id", id);
+      if (error) throw error;
+      queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+      queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
+      toast.success("Modifications enregistrées !");
+      navigate("/branding/section?section=story");
+    } catch (e: any) {
+      console.error("Erreur technique:", e);
+      toast.error("Erreur", { description: friendlyError(e) });
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) return (

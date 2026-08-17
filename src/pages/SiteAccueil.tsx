@@ -76,15 +76,19 @@ export default function SiteAccueil() {
     if (updates.plan_steps) dbPayload.plan_steps = JSON.stringify(updates.plan_steps);
     if (updates.storybrand_data) dbPayload.storybrand_data = JSON.stringify(updates.storybrand_data);
     if (updates.checklist_data) dbPayload.checklist_data = JSON.stringify(updates.checklist_data);
-    await supabase.from("website_homepage").upsert(
-      { 
-        user_id: user.id, 
+    const { error } = await supabase.from("website_homepage").upsert(
+      {
+        user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        ...dbPayload, 
-        current_step: step 
+        ...dbPayload,
+        current_step: step
       },
       { onConflict: "user_id,workspace_id" }
     );
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+    }
   }, [user, data, step]);
 
   const callAI = async (action: string, extraParams: Record<string, any> = {}) => {

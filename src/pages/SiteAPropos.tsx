@@ -135,14 +135,16 @@ export default function SiteAPropos() {
 
       const { data: existing } = await (supabase.from("website_about") as any).select("id").eq(column, value).maybeSingle();
       if (existing) {
-        await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq(column, value);
+        const { error: updateError } = await (supabase.from("website_about") as any).update({ ...aboutData, updated_at: new Date().toISOString() }).eq(column, value);
+        if (updateError) throw updateError;
         setData({ ...aboutData, id: existing.id, custom_facts: data?.custom_facts || [] });
       } else {
-        const { data: inserted } = await supabase.from("website_about").insert({
+        const { data: inserted, error: insertError } = await supabase.from("website_about").insert({
           user_id: user.id,
           workspace_id: workspaceId !== user.id ? workspaceId : undefined,
           ...aboutData,
         } as any).select("id").single();
+        if (insertError) throw insertError;
         setData({ ...aboutData, id: inserted?.id, custom_facts: [] });
       }
       setMode("display");
