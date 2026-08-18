@@ -18,7 +18,7 @@
 // Fire-and-forget, calqué sur logUsage : même client service, même bypass des
 // comptes QA, et un échec d'insert n'interrompt JAMAIS la génération (try/catch).
 import { getServiceClient, isQaTestAccount } from "./plan-limiter.ts";
-import type { RedacGateResult } from "./redac-gate.ts";
+import { measureSlopSignals, type RedacGateResult } from "./redac-gate.ts";
 
 const trunc = (s: unknown, n: number): string =>
   typeof s === "string" ? s.replace(/\s+/g, " ").trim().slice(0, n) : "";
@@ -118,6 +118,63 @@ export function buildContentPreview(
   return null;
 }
 
+// ── Signaux slop (audit 18/08/2026, lot 5) : mesure seule, aucune re-passe ──
+// Réutilise la même détection de forme que buildContentPreview (carrousel /
+// stories / reel / texte libre) pour donner à `measureSlopSignals` un
+// hook et une chute cohérents avec le format, plutôt qu'un texte joint dans
+// un ordre arbitraire.
+function extractSlopInputs(
+  doc: any,
+): { fullText: string; hookText: string; endingText: string; slides?: any[] } | null {
+  if (!doc) return null;
+
+  if (Array.isArray(doc.slides)) {
+    const slides = doc.slides;
+    const cap = doc.caption || {};
+    const fullText = [slides.map(slideText).join("\n"), cap.hook, cap.body, cap.cta]
+      .filter((x) => typeof x === "string" && x)
+      .join("\n");
+    const hookText = slideText(slides[0]) || cap.hook || "";
+    const endingText = cap.cta || cap.body || slideText(slides[slides.length - 1]) || "";
+    return { fullText, hookText, endingText, slides };
+  }
+
+  if (Array.isArray(doc.stories)) {
+    const st = doc.stories;
+    const fullText = st.map((s: any) => (typeof s?.text === "string" ? s.text : "")).filter(Boolean).join("\n");
+    return { fullText, hookText: st[0]?.text || "", endingText: st[st.length - 1]?.text || "" };
+  }
+
+  if (Array.isArray(doc.script)) {
+    const sc = doc.script;
+    const segText = (s: any) => (typeof s?.texte_parle === "string" ? s.texte_parle : s?.texte_overlay) || "";
+    const fullText = sc.map(segText).filter(Boolean).join("\n");
+    return { fullText, hookText: segText(sc[0]), endingText: segText(sc[sc.length - 1]) };
+  }
+
+  const textBody = typeof doc.content === "string" ? doc.content : typeof doc.text === "string" ? doc.text : "";
+  if (textBody) {
+    const paras = textBody.split(/\n+/).map((s: string) => s.trim()).filter(Boolean);
+    return { fullText: textBody, hookText: paras[0] || "", endingText: paras[paras.length - 1] || "" };
+  }
+
+  return null;
+}
+
+/** Objet `SlopSignals` calculé sur le contenu final du gate, null si rien d'exploitable. */
+function buildSlopSignals(gateContent: unknown): Record<string, unknown> | null {
+  let doc: any = null;
+  if (typeof gateContent === "string") {
+    try { doc = JSON.parse(gateContent); } catch { doc = null; }
+  } else if (gateContent && typeof gateContent === "object") {
+    doc = gateContent;
+  }
+
+  const inputs = extractSlopInputs(doc);
+  if (!inputs || !inputs.fullText.trim()) return null;
+  return measureSlopSignals(inputs) as unknown as Record<string, unknown>;
+}
+
 export async function logContentQuality(
   userId: string,
   format: string,
@@ -143,20 +200,22 @@ export async function logContentQuality(
     redac_repassed: gate.repassed,
   };
   const preview = buildContentPreview(gate.content, subject);
+  const slopSignals = buildSlopSignals(gate.content);
 
   try {
-    const { error } = await getServiceClient()
+    let { error } = await getServiceClient()
       .from("content_quality_events")
-      .insert({ ...base, content_preview: preview });
-    // Repli si la colonne content_preview n'existe pas encore (migration Lovable
+      .insert({ ...base, content_preview: preview, slop_signals: slopSignals });
+    // Replis en cascade si une colonne n'existe pas encore (migration Lovable
     // déployée APRÈS l'edge) : on réinsère sans elle pour ne pas perdre la
     // télémétrie de score pendant la fenêtre de déploiement.
-    if (error && /content_preview/.test(error.message || "")) {
-      const { error: retryError } = await getServiceClient().from("content_quality_events").insert(base);
-      if (retryError) throw retryError;
-    } else if (error) {
-      throw error;
+    if (error && /slop_signals/.test(error.message || "")) {
+      ({ error } = await getServiceClient().from("content_quality_events").insert({ ...base, content_preview: preview }));
     }
+    if (error && /content_preview/.test(error.message || "")) {
+      ({ error } = await getServiceClient().from("content_quality_events").insert(base));
+    }
+    if (error) throw error;
   } catch (e) {
     console.error("[content-quality] insert ignoré (génération intacte) :", (e as any)?.message || e);
   }
