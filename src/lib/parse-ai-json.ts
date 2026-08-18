@@ -15,6 +15,18 @@ import { trackError, trackWarning } from "@/lib/error-tracker";
  *                       a réussi ou pas » → l'appelant toast/erreur).
  *  - `tryParseAiJson` : retourne `null` MAIS loggue un warning (affichage tolérant,
  *                       où l'absence de JSON est parfois légitime).
+ *
+ * Copie edge : supabase/functions/_shared/parse-ai-json.ts (garder en sync).
+ * Duplication VOULUE, pas de la dette : ce fichier tourne dans le navigateur
+ * (import `@/lib/error-tracker`, alias Vite), l'autre tourne en Deno côté edge
+ * function — aucun bundler ne peut les faire partager un seul fichier source à
+ * travers cette frontière de runtime (même limite que strip-markdown.ts). La
+ * logique de parsing (`attemptParse`, `repairSingleQuotedJson`, `excerpt`) doit
+ * rester identique entre les deux copies ; seuls le canal de log (trackError/
+ * trackWarning ici vs console côté edge) et le statut HTTP (absent ici, 502
+ * côté edge) diffèrent légitimement. Tout correctif touchant `attemptParse` ou
+ * `repairSingleQuotedJson` ici doit être répercuté dans la copie edge (cf. PR
+ * #785 et #841, qui ont modifié les deux à chaque fois).
  */
 
 export class AiParseError extends Error {
