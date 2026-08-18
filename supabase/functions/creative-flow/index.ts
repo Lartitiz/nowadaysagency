@@ -14,7 +14,7 @@ import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, 
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
-import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
+import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat } from "../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, textRedacViolations } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import {
@@ -1136,6 +1136,43 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
         await logContentQuality(userId, `recycle_${f}`, gated, (fUsage as any)?.model, workspace_id, typeof topicVal === "string" ? topicVal : undefined);
       } catch (e) {
         console.error("[creative-flow recycle carrousel] garde rédactionnelle échouée, contenu conservé :", e);
+      }
+    } else if (
+      (f === "linkedin" || f === "reel" || f === "stories" || f === "newsletter") &&
+      typeof resultVal === "string" && resultVal.length >= 200
+    ) {
+      // Même garde que le carrousel recyclé (ci-dessus), version texte simple :
+      // jusqu'ici seul le carrousel passait par un contrôle qualité, les 4 autres
+      // formats recyclés sortaient bruts alors qu'ils partent directement en
+      // publication (audit slop 18/08). Même mesure + passe de correction que le
+      // chemin génération normale (applyLinkedInCorrectionPass / runNewsletterStreamed) :
+      // léger (zéro appel LLM pour la mesure), la re-passe LLM ne se déclenche que
+      // si des violations sont trouvées.
+      try {
+        const textAllowed = numbersIn(
+          [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
+        );
+        const before = analyzeTextRedac(resultVal, textAllowed, recBrandGuardText);
+        const corrected = await applyCorrectionPass(resultVal, f as CorrectionFormat, {
+          logger: (m) => console.log(`[creative-flow recycle ${f}] ${m}`),
+          model: "claude-haiku-4-5",
+          extraInstructions: buildTextFixInstructions(before) || undefined,
+          abortTimeoutMs: CORRECTION_ABORT_MS,
+        });
+        if (corrected && corrected.length >= 200) resultVal = corrected;
+        const after = analyzeTextRedac(resultVal, textAllowed, recBrandGuardText);
+        const violations = textRedacViolations(after);
+        const score = Math.max(40, 100 - 10 * violations);
+        await logContentQuality(
+          userId,
+          `recycle_${f}`,
+          { score, violations, repassed: false, content: resultVal },
+          (fUsage as any)?.model,
+          workspace_id,
+          typeof topicVal === "string" ? topicVal : undefined,
+        );
+      } catch (e) {
+        console.error(`[creative-flow recycle ${f}] garde rédactionnelle échouée, contenu conservé :`, e);
       }
     }
     return { f, resultVal, topicVal, usage: fUsage };
