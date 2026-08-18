@@ -38,7 +38,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runDeepResearchWebSearch, runLinkedInTwoStep, applyStoriesCorrectionCalibration } = await import("./index.ts");
+const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionCalibration } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -200,6 +200,86 @@ Deno.test("web search OK mais réponse vide -> logUsage quand même appelé (co�
     const deepResearchLogs = mock.aiUsageInserts.filter((r) => r.category === "deep_research");
     assertEquals(deepResearchLogs.length, 1);
     assertEquals(addendum, "");
+  } finally {
+    mock.restore();
+  }
+});
+
+// ═══ correctPostStreamContent — gate rédactionnel du post Instagram/Pinterest
+// STREAMÉ (audit slop 18/08, constat 2) ═══
+// Avant ce fix, streamDefaultPostSSE (chemin réellement utilisé en prod pour
+// ces deux formats) n'avait NI détection (analyzeTextRedac) NI re-passe de
+// correction : CORRECTION_PROMPTS.instagram_caption existait dans le code
+// sans jamais être appelé. On vérifie ici que la fonction extraite (appelée
+// dans le onDone de createClientSSEStream, juste avant l'event `done` final)
+// déclenche bien la correction quand une violation est mesurée, et ne fait
+// AUCUN appel IA supplémentaire quand le texte est déjà propre.
+
+const POST_BASE_PARAMS = {
+  body: { context: "", answers: null, news_context: "" },
+  fullContext: "",
+};
+
+Deno.test("correctPostStreamContent : formule moulée mesurée en code -> correction déclenchée avec extraInstructions, content remplacé", async () => {
+  const mouldedContent =
+    "Ce qui me dérange dans la façon dont on regarde la céramique, c'est qu'on la juge comme un produit fini plutôt que comme un geste patient répété des centaines de fois avant d'obtenir la bonne forme, la bonne épaisseur.";
+  const full = JSON.stringify({ content: mouldedContent, accroche: "accroche de test" });
+  const correctedContent =
+    "La céramique se juge beaucoup trop souvent comme un simple produit fini, presque jamais comme le geste patient répété des centaines de fois avant d'obtenir la bonne forme, la bonne épaisseur, la bonne tenue en main.";
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: correctedContent }], stop_reason: "end_turn", usage: { input_tokens: 60, output_tokens: 40 } } },
+  ]);
+  try {
+    const result = await correctPostStreamContent(full, POST_BASE_PARAMS);
+    assertEquals(mock.anthropicCallCount, 1);
+    const correctionUserMsg = capturedBodies[0].messages[0].content as string;
+    assertEquals(correctionUserMsg.includes("CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ"), true);
+    assertEquals(correctionUserMsg.includes("FORMULE MOULÉE"), true);
+    const parsedResult = JSON.parse(result!);
+    assertEquals(parsedResult.content, correctedContent);
+    assertEquals(parsedResult.accroche, "accroche de test"); // les autres champs du tool JSON restent intacts
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("correctPostStreamContent : texte propre -> AUCUN appel IA supplémentaire, undefined (garde le `full` streamé tel quel)", async () => {
+  const cleanContent =
+    "J'ai changé quatre mots dans ma bio la semaine dernière et les messages privés ont doublé en trois jours, ce qui m'a appris que la clarté compte plus que l'esthétique dans ce métier.";
+  const full = JSON.stringify({ content: cleanContent, accroche: "accroche propre" });
+  const { mock } = installAnthropicBodyCapture([]);
+  try {
+    const result = await correctPostStreamContent(full, POST_BASE_PARAMS);
+    assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(result, undefined);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("correctPostStreamContent : JSON invalide en entrée -> undefined sans planter, aucun appel IA", async () => {
+  const { mock } = installAnthropicBodyCapture([]);
+  try {
+    const result = await correctPostStreamContent("pas du JSON valide", POST_BASE_PARAMS);
+    assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(result, undefined);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("correctPostStreamContent : réponse de correction illisible/trop courte -> applyCorrectionPass replie sur l'original, content inchangé", async () => {
+  const mouldedContent =
+    "Ce qui me dérange dans la façon dont on regarde la céramique, c'est qu'on la juge comme un produit fini plutôt que comme un geste patient répété des centaines de fois avant d'obtenir la bonne forme et la bonne tenue.";
+  const full = JSON.stringify({ content: mouldedContent, accroche: "accroche de test" });
+  const { mock } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: "trop court" }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 5 } } },
+  ]);
+  try {
+    const result = await correctPostStreamContent(full, POST_BASE_PARAMS);
+    assertEquals(mock.anthropicCallCount, 1);
+    const parsedResult = JSON.parse(result!);
+    assertEquals(parsedResult.content, mouldedContent);
   } finally {
     mock.restore();
   }

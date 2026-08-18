@@ -157,7 +157,13 @@ const backoffDelay = (attempt: number) =>
 export function createClientSSEStream(
   source: AnthropicStreamSource,
   corsHeaders: Record<string, string>,
-  onDone?: (fullText: string, usage?: AnthropicUsage) => Promise<void>,
+  /**
+   * Peut retourner une string pour REMPLACER le texte final envoyé dans
+   * l'event `done` (ex. passe de correction post-génération, cf. post/pinterest
+   * streamé #895) — le live déjà streamé au client n'est pas affecté, seule la
+   * valeur assemblée à la fin change. Retourner void/undefined garde `cleanFull`.
+   */
+  onDone?: (fullText: string, usage?: AnthropicUsage) => Promise<void | string>,
   opts?: {
     maxRetries?: number;
     /**
@@ -298,10 +304,14 @@ export function createClientSSEStream(
             total_tokens: inputTokens + outputTokens,
             model: usageModel,
           };
+          let finalFull = cleanFull;
           if (onDone) {
-            try { await onDone(cleanFull, usage); } catch (e) { console.error("onDone error:", e); }
+            try {
+              const override = await onDone(cleanFull, usage);
+              if (typeof override === "string" && override.trim()) finalFull = override;
+            } catch (e) { console.error("onDone error:", e); }
           }
-          enqueue({ type: "done", full: cleanFull });
+          enqueue({ type: "done", full: finalFull });
           close();
           return;
         }
