@@ -21,10 +21,13 @@ export async function refreshTokenIfNeeded(supabase: any, conn: any): Promise<st
     return conn.access_token;
   }
   const newExpires = new Date(Date.now() + Number(json.expires_in || 60 * 24 * 3600) * 1000).toISOString();
-  await supabase
+  const { error: persistError } = await supabase
     .from("social_connections")
     .update({ access_token: await encryptToken(json.access_token), token_expires_at: newExpires })
     .eq("id", conn.id);
+  // Non-bloquant : le jeton rafraîchi reste utilisable pour CET appel même si
+  // la persistance échoue (au pire, un nouveau refresh au prochain appel).
+  if (persistError) console.error("[instagram-graph] Échec persistance jeton rafraîchi:", persistError);
   return json.access_token as string;
 }
 

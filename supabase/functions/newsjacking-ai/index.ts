@@ -226,13 +226,14 @@ serve(async (req) => {
         const generated = await generateBrandUniverse(brandingContext);
         if (isUniverseUsable(generated)) {
           universe = generated;
-          await sbService
+          const { error: cacheError } = await sbService
             .from("brand_profile")
             .update({
               brand_universe: generated,
               brand_universe_updated_at: new Date().toISOString(),
             })
             .eq("id", bpRow.id);
+          if (cacheError) throw cacheError;
         }
       }
     } catch (e) {

@@ -229,13 +229,14 @@ export default function ContentRecycling() {
 
       if (user) {
         const fileNames = files.map(f => f.file.name).join(", ");
-        await supabase.from("content_recycling").insert({
+        const { error: insertError } = await supabase.from("content_recycling").insert({
           user_id: user.id,
           source_text: source || (files.length > 0 ? `[Fichiers : ${fileNames}]` : ""),
           formats_requested: formats,
           results: r,
           ...(workspaceId && workspaceId !== user.id ? { workspace_id: workspaceId } : {}),
         });
+        if (insertError) throw insertError;
       }
     } catch (e: any) {
       console.error("Erreur technique:", e);

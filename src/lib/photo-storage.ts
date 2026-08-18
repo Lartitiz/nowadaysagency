@@ -191,7 +191,7 @@ export async function uploadPhotoOriginal({
     });
 
   if (upload.error) {
-    // Best-effort cleanup
+    // eslint-disable-next-line nowadays/require-supabase-error-check -- nettoyage best-effort après échec d'upload déjà géré (throw juste après)
     await supabase.from("user_photos").delete().eq("id", photoId);
     const raw = upload.error.message || "";
     if (raw.toLowerCase().includes("row-level security")) {

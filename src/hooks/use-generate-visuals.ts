@@ -400,6 +400,7 @@ export function useGenerateVisuals({
       };
       posthog.capture("carousel_visual_debug", diagnosticPayload);
       if (session?.user?.id) {
+        // eslint-disable-next-line nowadays/require-supabase-error-check -- log de diagnostic fire-and-forget volontaire (erreur déjà avalée par le .then(noop, noop))
         supabase.from("frontend_debug_logs").insert({
           user_id: session.user.id,
           event: "carousel_visual_request",

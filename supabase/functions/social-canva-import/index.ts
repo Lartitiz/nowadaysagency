@@ -60,7 +60,7 @@ async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<stri
     return conn.access_token;
   }
   const newExpires = new Date(Date.now() + Number(j.expires_in || 4 * 3600) * 1000).toISOString();
-  await supabase
+  const { error: persistError } = await supabase
     .from("social_connections")
     .update({
       access_token: await encryptToken(j.access_token),
@@ -68,6 +68,9 @@ async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<stri
       token_expires_at: newExpires,
     })
     .eq("id", conn.id);
+  // Non-bloquant : le jeton rafraîchi reste utilisable pour CET appel même si
+  // la persistance échoue (au pire, un nouveau refresh au prochain appel).
+  if (persistError) console.error("[social-canva-import] Échec persistance jeton rafraîchi:", persistError);
   return j.access_token as string;
 }
 

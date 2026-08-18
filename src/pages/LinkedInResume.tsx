@@ -149,7 +149,7 @@ export default function LinkedInResume() {
       const textToAnalyze = existingText.trim() || savedResume.trim();
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "analyze-resume", existing_resume: textToAnalyze },
-      }, 60000);
+      }, 75000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }

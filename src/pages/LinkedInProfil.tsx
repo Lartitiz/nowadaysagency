@@ -94,7 +94,7 @@ export default function LinkedInProfil() {
   const generateTitle = async () => {
     setGenerating(true);
     try {
-      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "title", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "title", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }

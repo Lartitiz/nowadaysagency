@@ -13,6 +13,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { Heart, MessageCircle, Send, Trash2, Users, Crown, Loader2, Sparkles } from "lucide-react";
 
 interface Post {
@@ -104,22 +105,34 @@ const CommunautePage = () => {
   const toggleReaction = async (postId: string) => {
     if (!user) return;
     const existing = posts.find((p) => p.id === postId)?.reactions.find((r) => r.user_id === user.id);
-    if (existing) {
-      await supabase.from("community_reactions").delete().eq("id", existing.id);
-    } else {
-      await supabase.from("community_reactions").insert({ post_id: postId, user_id: user.id, reaction_type: "❤️" });
+    const { error } = existing
+      ? await supabase.from("community_reactions").delete().eq("id", existing.id)
+      : await supabase.from("community_reactions").insert({ post_id: postId, user_id: user.id, reaction_type: "❤️" });
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
     }
   };
 
   const addComment = async (postId: string) => {
     const text = commentTexts[postId]?.trim();
     if (!text || !user) return;
-    await supabase.from("community_comments").insert({ post_id: postId, user_id: user.id, content: text });
+    const { error } = await supabase.from("community_comments").insert({ post_id: postId, user_id: user.id, content: text });
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setCommentTexts((prev) => ({ ...prev, [postId]: "" }));
   };
 
   const deletePost = async (postId: string) => {
-    await supabase.from("community_posts").delete().eq("id", postId);
+    const { error } = await supabase.from("community_posts").delete().eq("id", postId);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     toast.success("Post supprimé");
   };
 

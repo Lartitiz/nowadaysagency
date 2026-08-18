@@ -218,13 +218,15 @@ serve(async (req) => {
         .maybeSingle();
 
       if (auditRow) {
-        await serviceClient
+        // Best-effort : le diagnostic est renvoyé au client juste après quoi qu'il arrive.
+        const { error: cacheError } = await serviceClient
           .from("website_audit")
           .update({
             diagnostic: diagnosticRaw,
             recommendations: diagnosticRaw,
           })
           .eq("id", auditRow.id);
+        if (cacheError) console.error("website-ai: échec sauvegarde diagnostic:", cacheError);
       }
 
       await logUsage(user.id, "content", "website_diagnostic", diagnosticUsage.total_tokens, diagnosticUsage.model);

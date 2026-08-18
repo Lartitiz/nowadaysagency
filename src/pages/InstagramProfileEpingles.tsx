@@ -129,12 +129,14 @@ export default function InstagramProfileEpingles() {
           .eq("post_type", slot.type)
           .maybeSingle();
         if (existing) {
-          await supabase
+          const { error } = await supabase
             .from("instagram_pinned_posts")
             .update(row)
             .eq("id", existing.id);
+          if (error) throw error;
         } else {
-          await supabase.from("instagram_pinned_posts").insert(row);
+          const { error } = await supabase.from("instagram_pinned_posts").insert(row);
+          if (error) throw error;
         }
       }
       toast.success("Sauvegardé !");

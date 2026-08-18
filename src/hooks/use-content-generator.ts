@@ -463,7 +463,12 @@ export function useContentGenerator() {
                 : {}),
             },
             onStatus: (stage) => setGenerationStage(stage),
-          }, 180000);
+          // 400s : pire cas serveur réel côté carousel-ai (mode photo) — appel
+          // principal (120s) + retry plancher slides (120s) + passe correction
+          // (60s) + re-passe redac-gate (60s) + relecture-gabarits (30s) = 390s,
+          // marge après (même logique que audit-branding #839, branding-coaching
+          // #862) : le client doit couper APRÈS l'edge, jamais avant.
+          }, 400000);
           data = res.data;
           invokeError = res.error;
           break;

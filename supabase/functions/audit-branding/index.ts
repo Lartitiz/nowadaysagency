@@ -400,8 +400,11 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
       });
     }
 
-    // Save to DB (reuse sbService from above)
-    await sbService.from("branding_audits").insert({
+    // Save to DB (reuse sbService from above). Non bloquant : l'audit vient d'être
+    // généré avec succès (crédit débité juste après) — un échec de sauvegarde ne
+    // doit pas priver l'utilisatrice du résultat déjà obtenu, juste dégrader
+    // l'historique.
+    const { error: auditInsertError } = await sbService.from("branding_audits").insert({
       user_id: user.id,
       workspace_id: workspace_id || null,
       sources_used: sourcesUsed,
@@ -416,6 +419,7 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
       plan_action: auditResult.plan_action_recommande || null,
       extraction_branding: auditResult.extraction_branding || null,
     });
+    if (auditInsertError) console.error("audit-branding: échec sauvegarde audit (non bloquant):", auditInsertError);
 
     // Save audit recommendations with enhanced data
     const recommendations = (auditResult.points_faibles || [])
@@ -448,11 +452,13 @@ IMPORTANT : retourne UNIQUEMENT le JSON, sans texte avant ni après.`;
 
     if (lastAudit && recommendations.length > 0) {
       // Delete old recommendations for this user
-      await sbService.from("audit_recommendations").delete().eq(filterCol, filterVal);
+      const { error: delError } = await sbService.from("audit_recommendations").delete().eq(filterCol, filterVal);
+      if (delError) console.error("audit-branding: échec purge recommandations (non bloquant):", delError);
       // Insert new ones
-      await sbService.from("audit_recommendations").insert(
+      const { error: recInsertError } = await sbService.from("audit_recommendations").insert(
         recommendations.map((r: any) => ({ ...r, audit_id: lastAudit.id }))
       );
+      if (recInsertError) console.error("audit-branding: échec sauvegarde recommandations (non bloquant):", recInsertError);
     }
 
     // Log usage

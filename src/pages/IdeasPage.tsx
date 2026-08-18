@@ -264,7 +264,12 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
     if (isBrief) {
       setBriefs(prev => prev.map(b => b.id === id ? { ...b, status: newStatus } : b));
     } else {
-      await supabase.from("saved_ideas").update({ status: newStatus } as any).eq("id", id);
+      const { error } = await supabase.from("saved_ideas").update({ status: newStatus } as any).eq("id", id);
+      if (error) {
+        console.error("Erreur technique:", error);
+        toast.error("Erreur", { description: friendlyError(error) });
+        return;
+      }
       setIdeas(prev => prev.map(i => i.id === id ? { ...i, status: newStatus } : i));
     }
     if (selectedIdea?.id === id) setSelectedIdea(prev => prev ? { ...prev, status: newStatus } : null);
@@ -290,10 +295,12 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
       .single();
     if (error) { toast.error("Erreur", { description: friendlyError(error) }); return; }
     if (!isBrief) {
-      await supabase.from("saved_ideas").update({ status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } as any).eq("id", idea.id);
+      const { error: updateError } = await supabase.from("saved_ideas").update({ status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } as any).eq("id", idea.id);
+      if (updateError) { toast.error("Erreur", { description: friendlyError(updateError) }); return; }
       setIdeas(prev => prev.map(i => i.id === idea.id ? { ...i, status: "planned", planned_date: dateStr, calendar_post_id: calPost.id } : i));
     } else {
-      await supabase.from("content_briefs").update({ calendar_post_id: calPost.id } as any).eq("id", idea.id);
+      const { error: updateError } = await supabase.from("content_briefs").update({ calendar_post_id: calPost.id } as any).eq("id", idea.id);
+      if (updateError) { toast.error("Erreur", { description: friendlyError(updateError) }); return; }
       setBriefs(prev => prev.map(b => b.id === idea.id ? { ...b, status: "planned", calendar_post_id: calPost.id } : b));
     }
     toast.success(`Planifiée le ${fnsFormat(date, "d MMM yyyy", { locale: fr })}`);
@@ -324,7 +331,12 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
     if (isBrief) {
       setBriefs(prev => prev.map(b => b.id === id ? { ...b, notes } : b));
     } else {
-      await supabase.from("saved_ideas").update({ notes } as any).eq("id", id);
+      const { error } = await supabase.from("saved_ideas").update({ notes } as any).eq("id", id);
+      if (error) {
+        console.error("Erreur technique:", error);
+        toast.error("Erreur", { description: friendlyError(error) });
+        return;
+      }
       setIdeas(prev => prev.map(i => i.id === id ? { ...i, notes } : i));
     }
     toast.success("Notes sauvegardées");
@@ -647,7 +659,12 @@ export default function IdeasPage({ embedded = false }: { embedded?: boolean }) 
                               ? { content_data: updatedData, updated_at: new Date().toISOString() }
                               : { content_draft: updatedData, updated_at: new Date().toISOString() };
                             if (selectedIdea.type !== "brief") {
-                              await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
+                              const { error } = await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
+                              if (error) {
+                                console.error("Erreur technique:", error);
+                                toast.error("Erreur", { description: friendlyError(error) });
+                                return;
+                              }
                               setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : i));
                             }
                             setSelectedIdea((prev) => prev ? { ...prev, ...(isJson ? { content_data: updatedData } : { content_draft: updatedData }) } : null);

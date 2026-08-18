@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
+import { trackError } from "@/lib/error-tracker";
 
 export interface PersonaSummary {
   id: string;
@@ -51,20 +52,23 @@ export function usePersonas() {
     // Unset all primary, then set the target
     const ids = personas.map((p) => p.id);
     for (const id of ids) {
-      await supabase.from("persona").update({ is_primary: id === personaId } as any).eq("id", id);
+      const { error } = await supabase.from("persona").update({ is_primary: id === personaId } as any).eq("id", id);
+      if (error) trackError(error, { hook: "usePersonas", action: "setPrimary" });
     }
     await fetchPersonas();
     invalidatePersonaQueries();
   }, [personas, fetchPersonas, invalidatePersonaQueries]);
 
   const updateChannels = useCallback(async (personaId: string, channels: string[]) => {
-    await supabase.from("persona").update({ channels } as any).eq("id", personaId);
+    const { error } = await supabase.from("persona").update({ channels } as any).eq("id", personaId);
+    if (error) trackError(error, { hook: "usePersonas", action: "updateChannels" });
     await fetchPersonas();
     invalidatePersonaQueries();
   }, [fetchPersonas, invalidatePersonaQueries]);
 
   const deletePersona = useCallback(async (personaId: string) => {
-    await supabase.from("persona").delete().eq("id", personaId);
+    const { error } = await supabase.from("persona").delete().eq("id", personaId);
+    if (error) trackError(error, { hook: "usePersonas", action: "deletePersona" });
     await fetchPersonas();
     invalidatePersonaQueries();
   }, [fetchPersonas, invalidatePersonaQueries]);

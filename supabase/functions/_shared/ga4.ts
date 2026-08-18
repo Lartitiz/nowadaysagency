@@ -203,7 +203,7 @@ export async function resolveGoogleUserToken(
   if ((!expMs || expMs <= Date.now()) && conn.refresh_token) {
     const refreshed = await refreshGoogleUserToken(conn.refresh_token);
     accessToken = refreshed.accessToken;
-    await supabase
+    const { error: persistError } = await supabase
       .from("social_connections")
       .update({
         access_token: await helpers.encryptToken(accessToken),
@@ -211,6 +211,9 @@ export async function resolveGoogleUserToken(
         updated_at: new Date().toISOString(),
       })
       .eq("id", conn.id);
+    // Non-bloquant : le jeton rafraîchi reste utilisable pour CET appel même si
+    // la persistance échoue (au pire, un nouveau refresh au prochain appel).
+    if (persistError) console.error("[ga4] Échec persistance jeton rafraîchi:", persistError);
   }
   return { conn, accessToken };
 }

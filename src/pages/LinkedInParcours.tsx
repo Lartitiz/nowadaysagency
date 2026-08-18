@@ -88,7 +88,7 @@ export default function LinkedInParcours() {
     try {
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      }, 60000);
+      }, 75000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
@@ -133,7 +133,7 @@ export default function LinkedInParcours() {
   const suggestSkills = async () => {
     setGeneratingSkills(true);
     try {
-      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }

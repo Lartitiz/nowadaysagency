@@ -13,6 +13,7 @@ import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import { trackError } from "@/lib/error-tracker";
 import { parseAIResponse } from "@/lib/parse-ai-response";
 import { useDemoContext } from "@/contexts/DemoContext";
 import AppHeader from "@/components/AppHeader";
@@ -437,7 +438,8 @@ export default function ChatGuidePage() {
         setConversationId(newId);
         const convRow: any = { id: newId, user_id: user.id, title: "Nouvelle conversation" };
         if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
-        await supabase.from("chat_guide_conversations").insert(convRow);
+        const { error } = await supabase.from("chat_guide_conversations").insert(convRow);
+        if (error) trackError(error, { page: "ChatGuidePage", action: "create-conversation" });
       }
       setLoaded(true);
     })();
@@ -486,15 +488,18 @@ export default function ChatGuidePage() {
       actions: stored.length > 0 ? stored : null,
     };
     if (workspaceId && workspaceId !== user.id) row.workspace_id = workspaceId;
-    await supabase.from("chat_guide_messages").insert(row);
-    await supabase.from("chat_guide_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    const { error: msgError } = await supabase.from("chat_guide_messages").insert(row);
+    if (msgError) trackError(msgError, { page: "ChatGuidePage", action: "save-message" });
+    const { error: convError } = await supabase.from("chat_guide_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversationId);
+    if (convError) trackError(convError, { page: "ChatGuidePage", action: "touch-conversation" });
   }, [user, conversationId, isDemoMode, workspaceId]);
 
   // Update conversation title
   const updateConversationTitle = useCallback(async (text: string) => {
     if (!user || isDemoMode || !conversationId) return;
     const title = text.length > 50 ? text.slice(0, 50) + "…" : text;
-    await supabase.from("chat_guide_conversations").update({ title }).eq("id", conversationId);
+    const { error } = await supabase.from("chat_guide_conversations").update({ title }).eq("id", conversationId);
+    if (error) trackError(error, { page: "ChatGuidePage", action: "update-title" });
   }, [user, conversationId, isDemoMode]);
 
   // Demo response handler
@@ -770,7 +775,8 @@ export default function ChatGuidePage() {
     if (!isDemoMode && user) {
       const convRow: any = { id: newId, user_id: user.id, title: "Nouvelle conversation" };
       if (workspaceId && workspaceId !== user.id) convRow.workspace_id = workspaceId;
-      await supabase.from("chat_guide_conversations").insert(convRow);
+      const { error } = await supabase.from("chat_guide_conversations").insert(convRow);
+      if (error) trackError(error, { page: "ChatGuidePage", action: "start-new-conversation" });
     }
   }, [user, isDemoMode, workspaceId, cancelActiveStream]);
 
@@ -976,7 +982,9 @@ export default function ChatGuidePage() {
                                       objective: objectif,
                                       workspace_id: workspaceId,
                                     },
-                                  }, 120000);
+                                  // 400s : carousel_type peut valoir "photo"/"mix" ici aussi — même pire
+                                  // cas serveur que le flux Créer (voir use-content-generator.ts).
+                                  }, 400000);
                                   if (error) throw new Error(error.message);
                                   const parsed = parseAIResponse(data?.content || "");
                                   navigate("/creer?format=carousel", {

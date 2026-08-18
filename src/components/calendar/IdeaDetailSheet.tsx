@@ -13,6 +13,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -102,7 +103,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   // Persistance silencieuse (update par id, l'idée existe toujours).
   const persistIdea = async () => {
     if (!idea || !user) return;
-    await supabase.from("saved_ideas").update({
+    const { error } = await supabase.from("saved_ideas").update({
       titre: title.trim(),
       format: ideaFormat,
       objectif: objective,
@@ -110,9 +111,14 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       content_draft: contentDraft || null,
       canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
     }).eq("id", idea.id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      throw error;
+    }
   };
 
-  // Auto-save (debounce) : sauve dès qu'un champ change, sans bouton ni toast.
+  // Auto-save (debounce) : sauve dès qu'un champ change, sans bouton (toast.error uniquement en cas d'échec).
   useEffect(() => {
     if (!open || !idea) return;
     if (!title.trim()) return;
@@ -122,7 +128,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       if (savingRef.current) return;
       savingRef.current = true;
       setAutoSaveState("saving");
-      try { await persistIdea(); } finally { savingRef.current = false; }
+      try { await persistIdea(); } catch { setAutoSaveState("idle"); return; } finally { savingRef.current = false; }
       baselineRef.current = serialized;
       setAutoSaveState("saved");
       onUpdated();
@@ -134,7 +140,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   const handlePlan = async () => {
     if (!idea || !planDate || !user) return;
     const dateStr = format(planDate, "yyyy-MM-dd");
-    const { data: newPost } = await supabase.from("calendar_posts").insert({
+    const { data: newPost, error: insertError } = await supabase.from("calendar_posts").insert({
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
@@ -148,8 +154,18 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       series_id: (idea as any).series_id ?? null,
       episode_number: (idea as any).episode_number ?? null,
     } as any).select("id").single();
+    if (insertError) {
+      console.error("Erreur technique:", insertError);
+      toast.error("Erreur", { description: friendlyError(insertError) });
+      return;
+    }
     if (newPost) {
-      await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", idea.id);
+      const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", idea.id);
+      if (updateError) {
+        console.error("Erreur technique:", updateError);
+        toast.error("Erreur", { description: friendlyError(updateError) });
+        return;
+      }
     }
     toast.success(`Planifié le ${format(planDate, "d MMMM", { locale: fr })}`);
     onOpenChange(false);
@@ -159,7 +175,12 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   const handleDelete = async () => {
     if (!idea) return;
     if (!(await confirm({ title: "Supprimer cette idée ?", description: "Cette action est irréversible.", confirmText: "Supprimer", destructive: true }))) return;
-    await supabase.from("saved_ideas").delete().eq("id", idea.id);
+    const { error } = await supabase.from("saved_ideas").delete().eq("id", idea.id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     toast.success("Idée supprimée");
     onOpenChange(false);
     onUpdated();

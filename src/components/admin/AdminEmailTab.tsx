@@ -19,6 +19,7 @@ import { Search, Send, ChevronLeft, ChevronRight, Loader2, Mail } from "lucide-r
 import { formatDistanceToNow, format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { toast } from "sonner";
+import { friendlyError } from "@/lib/error-messages";
 
 // ── Types ──
 
@@ -426,7 +427,12 @@ function SequencesView() {
 
   async function toggleActive(seq: EmailSequence) {
     const newVal = !seq.is_active;
-    await supabase.from("email_sequences").update({ is_active: newVal } as any).eq("id", seq.id);
+    const { error } = await supabase.from("email_sequences").update({ is_active: newVal } as any).eq("id", seq.id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setSequences(prev => prev.map(s => s.id === seq.id ? { ...s, is_active: newVal } : s));
     toast.success(newVal ? "Séquence activée" : "Séquence désactivée");
   }

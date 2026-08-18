@@ -138,7 +138,7 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
 
   const markPosted = async (comment: GeneratedComment, finalText?: string) => {
     if (!user) return;
-    await supabase.from("engagement_comments").insert({
+    const { error: commentError } = await supabase.from("engagement_comments").insert({
       user_id: user.id,
       contact_id: contact.id,
       prospect_id: prospectId || null,
@@ -151,14 +151,20 @@ export default function CommentGenerator({ contact, open, onOpenChange, onCommen
       was_posted: true,
       posted_at: new Date().toISOString(),
     });
+    if (commentError) {
+      console.error("Erreur technique:", commentError);
+      toast.error("Erreur", { description: friendlyError(commentError) });
+      return;
+    }
     if (prospectId) {
-      await supabase.from("prospect_interactions").insert({
+      const { error: interactionError } = await supabase.from("prospect_interactions").insert({
         prospect_id: prospectId,
         user_id: user.id,
         interaction_type: "comment_sent",
         content: (finalText || comment.text).substring(0, 200),
         ai_generated: true,
       });
+      if (interactionError) console.error("Erreur technique (prospect_interactions):", interactionError);
     }
     onCommentPosted(contact.id);
     toast.success("✅ Commentaire noté !");

@@ -22,10 +22,10 @@ export interface CorrectionOptions {
    */
   model?: AnthropicModel;
   /**
-   * Plafond (ms) PAR TENTATIVE de l'appel de correction. undefined = pas de
-   * limite (comportement historique). À renseigner par les appelants dont la
-   * passe de génération principale est déjà bornée, pour éviter qu'une passe
-   * de correction enchaînée derrière reste le seul appel sans filet.
+   * Plafond (ms) de l'appel IA de la passe de correction. undefined = pas d'abort
+   * (comportement historique conservé pour les appelants existants qui ne le
+   * renseignent pas). À poser sur les appelants qui bornent déjà leur appel
+   * principal, pour éviter la cascade principal+correction non bornée.
    */
   abortTimeoutMs?: number;
 }

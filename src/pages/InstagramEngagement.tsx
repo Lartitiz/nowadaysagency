@@ -239,25 +239,45 @@ export default function InstagramEngagement() {
 
   const addContact = async (pseudo: string, tag: string) => {
     if (!user) return;
-    const { data } = await supabase.from("engagement_contacts").insert({
+    const { data, error } = await supabase.from("engagement_contacts").insert({
       user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, pseudo, tag, sort_order: contacts.length,
     }).select("*").single();
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     if (data) setContacts(prev => [...prev, { id: data.id, pseudo: data.pseudo, tag: data.tag || "paire", description: data.description, notes: data.notes, last_interaction: data.last_interaction }]);
   };
 
   const interactContact = async (id: string) => {
-    await supabase.from("engagement_contacts").update({ last_interaction: today, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase.from("engagement_contacts").update({ last_interaction: today, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setContacts(prev => prev.map(c => c.id === id ? { ...c, last_interaction: today } : c));
     toast("💬 Interaction notée !");
   };
 
   const deleteContact = async (id: string) => {
-    await supabase.from("engagement_contacts").delete().eq("id", id);
+    const { error } = await supabase.from("engagement_contacts").delete().eq("id", id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setContacts(prev => prev.filter(c => c.id !== id));
   };
 
   const updateContactNotes = async (id: string, notes: string) => {
-    await supabase.from("engagement_contacts").update({ notes, updated_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase.from("engagement_contacts").update({ notes, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) {
+      console.error("Erreur technique:", error);
+      toast.error("Erreur", { description: friendlyError(error) });
+      return;
+    }
     setContacts(prev => prev.map(c => c.id === id ? { ...c, notes } : c));
   };
 

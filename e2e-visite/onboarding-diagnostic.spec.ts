@@ -55,6 +55,16 @@ test("T5 — DiagnosticLoading s'affiche en < 500 ms après la dernière étape"
   // ── Intercepts ──────────────────────────────────────────────────────────
   // Profiles GET : renvoie onboarding_completed: false pour bloquer la
   // redirection vers /dashboard.
+  //
+  // 🔑 Les ÉCRITURES sont fulfilled à vide, JAMAIS continue()'d. Constaté le
+  // 18/08/2026 : la fin d'onboarding écrit `profileData` de façon
+  // INCONDITIONNELLE (use-onboarding.ts) — donc chaque run de la visite
+  // reversait MINIMAL_ANSWERS dans le VRAI profil de Camille (activite,
+  // type_activite, canaux, main_blocker, main_goal, weekly_time…). La fiche
+  // affichait « Céramiste » alors que tout son contenu parle de savons, et la
+  // correction manuelle faite en base le 17/08 n'a pas survécu au run suivant.
+  // Cette spec ne mesure qu'un DÉLAI D'AFFICHAGE : elle n'a aucune raison de
+  // toucher la base.
   await page.route(/\/rest\/v1\/profiles\?/, async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
@@ -63,11 +73,12 @@ test("T5 — DiagnosticLoading s'affiche en < 500 ms après la dernière étape"
         body: JSON.stringify({ onboarding_completed: false }),
       });
     } else {
-      await route.continue();
+      await route.fulfill({ status: 204, contentType: "application/json", body: "" });
     }
   });
 
-  // user_plan_config GET : même traitement.
+  // user_plan_config : même traitement, écritures comprises (la fin
+  // d'onboarding y reverse aussi main_goal / weekly_time / channels).
   await page.route(/\/rest\/v1\/user_plan_config\?/, async (route) => {
     if (route.request().method() === "GET") {
       await route.fulfill({
@@ -76,7 +87,7 @@ test("T5 — DiagnosticLoading s'affiche en < 500 ms après la dernière étape"
         body: JSON.stringify({ onboarding_completed: false }),
       });
     } else {
-      await route.continue();
+      await route.fulfill({ status: 204, contentType: "application/json", body: "" });
     }
   });
 

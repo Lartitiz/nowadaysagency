@@ -219,7 +219,23 @@ Précisions importantes :
     // décompté par deep-diagnostic (le parent). En logger un 2e ici facturait l'audit
     // en double — et même 1 crédit parasite pendant l'onboarding (où le parent skippe).
 
-    const runEnrichmentCall = async (extraInstruction?: string) => {
+    // Budget temps borné explicitement (audit timeouts 17/08, suite #839) :
+    // 1er essai 120s (convention CLAUDE.md « Opus : 120s ») + réessai 60s si sortie
+    // dégénérée = 180s de pire cas total, pas 240s. Le réessai n'a besoin que de
+    // 60s : c'est une simple consigne corrective (« ne laisse rien vide »), pas un
+    // nouveau raisonnement complet sur tout le contenu scrapé comme le 1er essai.
+    // Aucun timeout côté client ne surveille cet appel : diagnostic-enrichment n'est
+    // JAMAIS invoqué depuis le navigateur (grep confirmé : aucun
+    // invokeWithTimeout("diagnostic-enrichment"...) dans src/) — seulement en
+    // fire-and-forget serveur-à-serveur depuis deep-diagnostic (index.ts L655),
+    // qui n'attend pas sa réponse. Le pattern « double timeout qui perd la
+    // réponse » corrigé sur audit-branding (#839) ne s'applique donc pas ici :
+    // rien ne peut couper la connexion avant l'edge. Seule limite réelle : le
+    // plafond wall-clock Supabase (400s en plan payant) — 180s tient large.
+    const FIRST_CALL_TIMEOUT_MS = 120_000;
+    const RETRY_CALL_TIMEOUT_MS = 60_000;
+
+    const runEnrichmentCall = async (abortTimeoutMs: number, extraInstruction?: string) => {
       const prompt = extraInstruction ? `${userPrompt}\n\n${extraInstruction}` : userPrompt;
       const raw = await callAnthropic({
         model: opusModel,
@@ -228,15 +244,16 @@ Précisions importantes :
         temperature: 0.7,
         max_tokens: 8192,
         tool: ENRICHMENT_TOOL,
-        abortTimeoutMs: 120_000,
+        abortTimeoutMs,
       });
       return parseAiJson(raw, "diagnostic-enrichment"); // JSON valide par construction (tool forcé)
     };
 
-    let enrichmentResult: any = await runEnrichmentCall();
+    let enrichmentResult: any = await runEnrichmentCall(FIRST_CALL_TIMEOUT_MS);
     if (isDegenerateEnrichment(enrichmentResult)) {
       console.warn("Enrichment: sortie dégénérée (branding_prefill vide) — réessai");
       enrichmentResult = await runEnrichmentCall(
+        RETRY_CALL_TIMEOUT_MS,
         "⚠️ ATTENTION : ta précédente réponse était vide. Remplis CHAQUE section du tool avec du contenu concret tiré des données fournies (branding_prefill ne doit PAS être vide)."
       );
     }

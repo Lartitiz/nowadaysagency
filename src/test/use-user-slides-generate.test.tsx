@@ -138,10 +138,11 @@ describe("useUserSlidesGenerate — « Mes slides » sans réécriture IA", () =
       }),
     );
 
-    // Passe gabarits : uniquement les slides photo, 30s, workspace cliente.
+    // Passe gabarits : uniquement les slides photo, 40s (marge sur les 30s
+    // d'abortTimeoutMs edge, audit timeouts 17/08), workspace cliente.
     const [fn, payload, timeout] = mocks.invokeWithTimeout.mock.calls[0];
     expect(fn).toBe("carousel-ai");
-    expect(timeout).toBe(30000);
+    expect(timeout).toBe(40000);
     expect(payload.body.type).toBe("assign_templates");
     expect(payload.body.workspace_id).toBe("w-cliente");
     expect(payload.body.slides.map((s: any) => s.slide_number)).toEqual([1, 3]);

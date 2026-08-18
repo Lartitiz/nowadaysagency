@@ -397,6 +397,13 @@ const STRUCTURE_PROPOSAL_TOOL = {
   },
 };
 
+// ── Budget temps des passes de correction/gate (audit timeouts 17/08) ──
+// applyCorrectionPassCarousel tournait SANS limite, y compris via runRedacGate
+// (2e passe conditionnelle) : un fetch qui traîne sur CETTE étape légère
+// (Haiku, 4096 tokens) pendait indéfiniment. 60s aligné "génération standard"
+// (CLAUDE.md), même convention que audit-instagram-ai (#861).
+const CORRECTION_ABORT_MS = 60_000;
+
 // ── Plancher déterministe de slides (audit carrousel photo 12/07) ──
 // Structure confirmée → on attend EXACTEMENT sa longueur ; sinon min(4, cible).
 function carouselSlideFloor(body: any, defaultTarget: number): number {
@@ -858,7 +865,10 @@ async function runGenerationAndRespond(
     ...(type === "deepening_questions" ? {} : { temperature: 0.85 }),
     // Questions = appel Haiku court et borné : 30s/tentative pour qu'un fetch
     // qui traîne bascule en retry plutôt que de bloquer le chemin d'activation.
-    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : {}),
+    // Les autres types (express_full/slides/hooks) tournaient SANS limite avant
+    // ce correctif (audit timeouts 17/08) — 120s aligné sur la convention
+    // "génération standard" du reste des edges du repo.
+    ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : { abortTimeoutMs: 120_000 }),
   }, usage);
 
   // JSON-aware correction pass for carousels (conditionnelle : cf. mix/photo).
@@ -871,6 +881,7 @@ async function runGenerationAndRespond(
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
+          abortTimeoutMs: CORRECTION_ABORT_MS,
         });
         if (corrected && corrected !== content) {
           content = corrected;
@@ -896,7 +907,7 @@ async function runGenerationAndRespond(
       onStatus: emitStatus,
       inputText: gateInputText,
       captionEnding: captionEndingRule,
-      correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+      correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
     });
     content = gateExpress.content;
     await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
@@ -947,6 +958,11 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   const mixUsage: UsageSink = {};
   emitStatus("writing");
 
+  // Cible affichée à l'IA — même valeur que le plancher de retryIfTooShort plus
+  // bas (carouselSlideFloor(body, 8)) : sans elle, un mix sans slide_count explicite
+  // n'avait AUCUN chiffre de longueur nulle part dans le prompt.
+  const mixSlideTarget = body.slide_count ? `${body.slide_count} à ${body.slide_count + 1}` : "8";
+
   if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
     const messageContent: any[] = [];
 
@@ -963,10 +979,14 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     });
 
     // 3. Instruction finale après les photos (le rappel anti-refus vit aussi ici,
-    // en dernière position avant la génération — cf. PHOTO_MISMATCH_SYSTEM_REMINDER)
+    // en dernière position avant la génération — cf. PHOTO_MISMATCH_SYSTEM_REMINDER).
+    // Rappel de longueur ajouté ici aussi (audit timeouts 17/08) : en vision, la
+    // cible de slides posée tout en haut du 1er bloc se dilue après plusieurs
+    // photos — un carrousel écrasé à 1 slide déclenchait un retry complet ~1
+    // run/2 en photo (même symptôme probable ici, jamais mesuré côté mix).
     messageContent.push({
       type: "text",
-      text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.\n\nRappel : tu GÉNÈRES avec ces photos (en écarter une individuellement est permis). Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
+      text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.\n\nRappel de longueur : livre bien ${mixSlideTarget} slides — compte-les avant de répondre, un carrousel écrasé à 1-2 slides est un échec même si le récit te semble complet.\n\nRappel : tu GÉNÈRES avec ces photos (en écarter une individuellement est permis). Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
     doGenerate = (sink: UsageSink) => _deps.callAnthropic({
@@ -976,6 +996,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       max_tokens: 8192,
       temperature: 0.85,
       tool: MIX_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
     }, sink);
   } else {
     const photoDescLine = body.text_first
@@ -990,6 +1011,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       max_tokens: 8192,
       temperature: 0.85,
       tool: MIX_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
     }, sink);
   }
 
@@ -1017,6 +1039,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
         skipIfShorterThan: 300,
         logger: (msg) => console.log(msg),
         model: pickCorrectionModel(body),
+        abortTimeoutMs: CORRECTION_ABORT_MS,
       });
       if (corrected && corrected !== content) {
         content = corrected;
@@ -1055,7 +1078,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     onStatus: emitStatus,
     inputText: gateInputText,
     captionEnding: captionEndingRule,
-    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gateMix.content;
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
@@ -1078,6 +1101,13 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   const photoUsage: UsageSink = {};
   emitStatus("writing");
 
+  // Cible affichée à l'IA, réutilisée dans le rappel de fin de message (recency,
+  // audit timeouts 17/08) — même valeur que la clause "Nombre de slides cible"
+  // du 1er bloc ci-dessous.
+  const photoSlideTarget = body.slide_count
+    ? `${body.slide_count} à ${body.slide_count + 1}`
+    : `${Math.max(6, Math.min(body.photos?.length || 6, 10))}`;
+
   if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
     // Vision mode: send photos to Claude
     const messageContent: any[] = [];
@@ -1095,10 +1125,14 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     });
 
     // 3. Instruction finale après les photos (le rappel anti-refus vit aussi ici,
-    // en dernière position avant la génération — cf. PHOTO_MISMATCH_SYSTEM_REMINDER)
+    // en dernière position avant la génération — cf. PHOTO_MISMATCH_SYSTEM_REMINDER).
+    // Rappel de longueur ajouté ici aussi (audit timeouts 17/08) : la cible posée
+    // tout en haut du 1er bloc se dilue après plusieurs photos — carrousel écrasé
+    // à 1 slide sur 6 demandées, vu en live ~1 run/2, qui déclenchait un retry
+    // complet (2e appel vision de plein tarif) plutôt qu'une exception rare.
     messageContent.push({
       type: "text",
-      text: `Analyse chaque photo et génère le carrousel photo.\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
+      text: `Analyse chaque photo et génère le carrousel photo.\n\nRappel de longueur : livre bien ${photoSlideTarget} slides (jamais moins de 4) — compte-les avant de répondre, un carrousel écrasé à 1-2 slides est un échec même si le récit te semble complet.\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
     doGenerate = (sink: UsageSink) => _deps.callAnthropic({
@@ -1108,6 +1142,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       max_tokens: 8192,
       temperature: 0.85,
       tool: PHOTO_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
     }, sink);
   } else {
     // Text-only mode: description without actual photos
@@ -1120,6 +1155,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       max_tokens: 8192,
       temperature: 0.85,
       tool: PHOTO_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
     }, sink);
   }
 
@@ -1145,6 +1181,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
         skipIfShorterThan: 300,
         logger: (msg) => console.log(msg),
         model: pickCorrectionModel(body),
+        abortTimeoutMs: CORRECTION_ABORT_MS,
       });
       if (corrected && corrected !== content) {
         content = corrected;
@@ -1177,7 +1214,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     onStatus: emitStatus,
     inputText: gateInputText,
     captionEnding: captionEndingRule,
-    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body) },
+    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gatePhoto.content;
   // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),

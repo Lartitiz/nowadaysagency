@@ -428,7 +428,7 @@ export default function InstagramAudit() {
       let newAuditDate: string | null = res.data?.auditDate ?? null;
 
       if (!newAuditId) {
-        const { data: insertData } = await supabase.from("instagram_audit").insert({
+        const { data: insertData, error: insertError } = await supabase.from("instagram_audit").insert({
           user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined,
           score_global: parsed.score_global,
           score_nom: parsed.sections?.nom?.score ?? parsed.visual_audit?.elements?.find((e: any) => e.element === "nom")?.score ?? 0,
@@ -442,6 +442,7 @@ export default function InstagramAudit() {
           posts_analysis: parsed.posts_analysis || null,
           profile_url: null,
         } as any).select("id, created_at").single();
+        if (insertError) console.error("[InstagramAudit] Fallback insert failed:", insertError);
         newAuditId = insertData?.id ?? null;
         newAuditDate = (insertData as any)?.created_at ?? null;
       }
@@ -496,20 +497,22 @@ export default function InstagramAudit() {
   const handleAdoptBio = async (bio: string) => {
     if (!user) return;
     try {
-      await (supabase.from("profiles") as any).update({
+      const { error: profileError } = await (supabase.from("profiles") as any).update({
         instagram_bio: bio,
         validated_bio: bio,
         validated_bio_at: new Date().toISOString(),
       } as any).eq(column, value);
+      if (profileError) throw profileError;
       queryClient.invalidateQueries({ queryKey: ["profile"] });
 
-      await supabase.from("audit_validations").upsert({
+      const { error: validationError } = await supabase.from("audit_validations").upsert({
         user_id: user.id,
         section: "bio",
         status: "validated",
         validated_at: new Date().toISOString(),
         validated_content: { bio },
       }, { onConflict: "user_id,section" });
+      if (validationError) throw validationError;
 
       toast.success("✅ Bio adoptée et sauvegardée !");
     } catch (e: any) {
@@ -532,9 +535,11 @@ export default function InstagramAudit() {
       };
       const existing = editorialLineData;
       if (existing) {
-        await (supabase.from("instagram_editorial_line") as any).update({ content_insights: insights }).eq("id", existing.id);
+        const { error } = await (supabase.from("instagram_editorial_line") as any).update({ content_insights: insights }).eq("id", existing.id);
+        if (error) throw error;
       } else {
-        await supabase.from("instagram_editorial_line").insert({ user_id: user.id, content_insights: insights, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any);
+        const { error } = await supabase.from("instagram_editorial_line").insert({ user_id: user.id, content_insights: insights, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any);
+        if (error) throw error;
       }
       queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
       toast.success("Insights sauvegardés dans ta ligne éditoriale !");

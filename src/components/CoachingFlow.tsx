@@ -315,10 +315,11 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
       }
 
       if (recId) {
-        await supabase
+        const { error: recError } = await supabase
           .from("audit_recommendations")
           .update({ completed: true, completed_at: new Date().toISOString() })
           .eq("id", recId);
+        if (recError) throw recError;
       }
 
       toast.success("✅ Mis à jour ! L'IA s'en souviendra pour tes prochains contenus.");

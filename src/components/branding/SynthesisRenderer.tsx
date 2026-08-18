@@ -876,7 +876,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
-        await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", localData.id);
+        const { error: writeError } = await supabase.from("storytelling").update({ recap_summary: parsed } as any).eq("id", localData.id);
+        if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
         queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
         setLocalData({ ...localData, recap_summary: parsed });
@@ -888,7 +889,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
-        await supabase.from("persona").update({ portrait: parsed as any, portrait_prenom: parsed.prenom }).eq("id", localData.id);
+        const { error: writeError } = await supabase.from("persona").update({ portrait: parsed as any, portrait_prenom: parsed.prenom }).eq("id", localData.id);
+        if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["persona"] });
         setLocalData({ ...localData, portrait: parsed, portrait_prenom: parsed.prenom });
       } else if (section === "content_strategy") {
@@ -902,7 +904,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
-        await supabase.from("brand_strategy").update({ recap_summary: parsed } as any).eq("id", localData.id);
+        const { error: writeError } = await supabase.from("brand_strategy").update({ recap_summary: parsed } as any).eq("id", localData.id);
+        if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
         setLocalData({ ...localData, recap_summary: parsed });
       } else if (section === "tone_style") {
@@ -934,7 +937,8 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
         if (error) throw new Error(error.message);
         const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
         const parsed = JSON.parse(raw);
-        await (supabase.from("brand_profile") as any).update({ recap_summary: parsed }).eq("id", localData.id);
+        const { error: writeError } = await (supabase.from("brand_profile") as any).update({ recap_summary: parsed }).eq("id", localData.id);
+        if (writeError) throw writeError;
         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
         setLocalData({ ...localData, recap_summary: parsed });
       }

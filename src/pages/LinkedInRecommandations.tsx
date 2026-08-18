@@ -120,7 +120,7 @@ ${prenom || "[Ton prénom]"}`;
   const personalizeMessage = async () => {
     setGeneratingMsg(true);
     try {
-      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
@@ -141,7 +141,7 @@ ${prenom || "[Ton prénom]"}`;
     try {
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "draft-recommendation", person_name: draftName, collab_type: draftType, highlights: draftHighlights, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      }, 60000);
+      }, 75000);
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }

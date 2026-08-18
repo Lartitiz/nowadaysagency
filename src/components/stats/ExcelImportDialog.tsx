@@ -387,7 +387,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
       }
 
       // Save mapping for reuse
-      await supabase.from("import_mappings" as any).upsert({
+      const { error: mappingError } = await supabase.from("import_mappings" as any).upsert({
         user_id: userId,
         file_name: fileName,
         sheet_name: selectedSheet,
@@ -397,6 +397,7 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
         start_row: aiMapping?.start_row || 2,
         headers: allHeaders,
       } as any, { onConflict: "user_id,sheet_name" as any });
+      if (mappingError) throw mappingError;
 
       setImportedCount(count);
       setStep("done");

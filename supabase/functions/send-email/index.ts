@@ -67,7 +67,9 @@ serve(async (req) => {
         .maybeSingle();
 
       if (unsub) {
-        // Log as skipped, don't send
+        // Log as skipped, don't send — best-effort, l'exclusion du destinataire
+        // a déjà eu lieu (recipients.splice ci-dessous) indépendamment de ce log.
+        // eslint-disable-next-line nowadays/require-supabase-error-check -- log fire-and-forget volontaire, cf. justification ci-dessus
         await supabase.from("email_sends").insert({
           to_email: email,
           subject,
@@ -108,7 +110,8 @@ serve(async (req) => {
       const errorMsg = resendData?.message || resendData?.error || "Resend API error";
       console.error("Resend error:", resendResponse.status, errorMsg);
 
-      // Log failed send
+      // Log failed send — best-effort, l'échec Resend est déjà retourné au client ci-dessous.
+      // eslint-disable-next-line nowadays/require-supabase-error-check -- log fire-and-forget volontaire, cf. justification ci-dessus
       await supabase.from("email_sends").insert({
         to_email: recipients.join(", "),
         subject,
@@ -125,7 +128,8 @@ serve(async (req) => {
       });
     }
 
-    // Log successful send
+    // Log successful send — best-effort, l'e-mail est déjà parti via Resend à ce stade.
+    // eslint-disable-next-line nowadays/require-supabase-error-check -- log fire-and-forget volontaire, cf. justification ci-dessus
     await supabase.from("email_sends").insert({
       to_email: recipients.join(", "),
       subject,
