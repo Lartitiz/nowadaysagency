@@ -53,9 +53,17 @@ Deno.test("sous-titres au niveau film par défaut, en français", () => {
   assertEquals(r.elements[0].settings["max-words-per-line"], 3);
 });
 
-Deno.test("sous-titres placés en bas, pas en travers du visage", () => {
+Deno.test("sous-titres placés vers le bas du centre, pas au ras du bord (bandeau Instagram)", () => {
   const r = buildReelRecipe(base) as any;
-  assertEquals(r.elements[0].settings.position, "bottom-center");
+  assertEquals(r.elements[0].settings.position, "custom");
+  assertEquals(r.elements[0].settings.x, 540);
+  assertEquals(r.elements[0].settings.y, 1382);
+});
+
+Deno.test("position sous-titres proportionnelle au format (custom width/height)", () => {
+  const r = buildReelRecipe({ ...base, width: 720, height: 1280 }) as any;
+  assertEquals(r.elements[0].settings.x, 360);
+  assertEquals(r.elements[0].settings.y, 922);
 });
 
 Deno.test("subtitles:false retire complètement l'élément sous-titres", () => {
