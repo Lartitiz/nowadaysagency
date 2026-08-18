@@ -1658,15 +1658,17 @@ function streamLinkedInPhotoVision(params: {
 // correcting) pour que le front affiche la vraie avancée au lieu d'une
 // barre simulée — même pattern que carousel-ai. Le client streaming
 // consomme déjà l'event final `done.full`.
-async function runLinkedInTwoStep(params: {
+export async function runLinkedInTwoStep(params: {
   model: AnthropicModel;
   systemPrompt: string;
   userPrompt: string;
   corsHeaders: Record<string, string>;
   userId: string;
   workspace_id?: string | null | undefined;
+  body: any;
+  fullContext: string;
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
-  const { model, systemPrompt, userPrompt, corsHeaders, userId } = params;
+  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext } = params;
   const workspace_id = params.workspace_id ?? undefined;
   console.log("[CORRECTION DEBUG] LinkedIn correction pass STARTED");
   const genLkUsage: UsageSink = {};
@@ -1691,6 +1693,21 @@ async function runLinkedInTwoStep(params: {
       postText = rawContent;
     }
   }
+
+  // Gate rédactionnel (même patron que applyLinkedInCorrectionPass /
+  // runNewsletterTwoStep) : mesures en code injectées dans la passe de
+  // correction déjà présente ci-dessous — retournements, formules moulées,
+  // chiffres sans source (liste blanche = brief + réponses + actu + branding).
+  // Ce chemin streamé (celui réellement utilisé en prod, cf. audit slop
+  // 18/08 constat 2) en était totalement dépourvu.
+  const liAllowed = numbersIn([
+    typeof body.context === "string" ? body.context : "",
+    body.answers ? JSON.stringify(body.answers) : "",
+    typeof body.news_context === "string" ? body.news_context : "",
+    fullContext || "",
+  ].join("\n"));
+  const liRedac = analyzeTextRedac(postText, liAllowed);
+  const liExtraInstructions = buildTextFixInstructions(liRedac);
 
   // Step 2: Correction pass — short, focused prompt
   const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER systématiquement. Ton job n'est PAS de juger si c'est "déjà bien" — c'est de traquer et corriger TOUS les patterns IA, même subtils.
@@ -1797,10 +1814,13 @@ Réponds UNIQUEMENT en JSON :
   // Correction = édition mécanique à règles fermées → Haiku (~2x plus
   // rapide que Sonnet), même arbitrage que le carrousel (#364).
   emitStatus("correcting");
+  const correctionUserMsg = liExtraInstructions
+    ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${liExtraInstructions}\n\nVoici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`
+    : `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`;
   const correctedRaw = await callAnthropicSimple(
     "claude-haiku-4-5",
     correctionPrompt,
-    `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
+    correctionUserMsg,
     0.3,
     4096,
     corrLkUsage,
@@ -1836,6 +1856,9 @@ Réponds UNIQUEMENT en JSON :
       pillar: originalParsed.pillar || "",
       objectif: originalParsed.objectif || "",
     };
+    // Filet déterministe (même patron que applyLinkedInCorrectionPass) :
+    // élisions manquantes type « le avant/après » (vécu 21/07).
+    fixElisionsInFields(merged, ["content", "accroche"]);
 
     await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
     return new Response(JSON.stringify(merged), {
@@ -1851,6 +1874,9 @@ Réponds UNIQUEMENT en JSON :
     if (m) try { fallbackParsed = JSON.parse(m[0]); } catch { fallbackParsed = { content: rawContent }; }
     else fallbackParsed = { content: rawContent };
   }
+  // Filet déterministe même si la passe de correction a échoué : le texte
+  // brut renvoyé peut encore porter des élisions non faites.
+  fixElisionsInFields(fallbackParsed, ["content", "accroche"]);
 
   await logUsage(userId, "content", "creative_flow", ((genLkUsage.total_tokens ?? 0) + (corrLkUsage.total_tokens ?? 0)) || undefined, genLkUsage.model, workspace_id);
   return new Response(JSON.stringify(fallbackParsed), {
@@ -2629,7 +2655,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isLinkedIn) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runLinkedInTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext }, emitStatus));
       }
 
       if (isNewsletter) {
