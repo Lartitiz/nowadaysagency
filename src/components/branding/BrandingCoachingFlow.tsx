@@ -428,6 +428,10 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       }
     }
 
+    if (response.is_complete && !insightsPersisted) {
+      setError("La fiche n'a pas pu être mise à jour avec tes dernières réponses.");
+      return;
+    }
     if (response.is_complete && insightsPersisted) {
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
@@ -737,7 +741,17 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       console.error("[BrandingCoaching] Save session critical error:", e);
     }
 
-    if (response.is_complete) {
+    // Même garde que markComplete ci-dessus : si la fiche n'a pas pu être
+    // persistée, ne PAS afficher confettis + "Fiche complète ✓" — ce serait
+    // contredire le toast d'échec qu'on vient d'afficher juste au-dessus.
+    // On bascule sur l'écran d'erreur existant (bouton "Réessayer" →
+    // handleRetry) plutôt que de retomber sur setCurrentQuestion(response) :
+    // une réponse "is_complete" n'a en général pas de "question" à afficher.
+    if (response.is_complete && !insightsPersisted) {
+      setError("La fiche n'a pas pu être mise à jour avec tes dernières réponses.");
+      return;
+    }
+    if (response.is_complete && insightsPersisted) {
       const completionCtx = { column, value, profileUserId, workspaceId };
 
       // If storytelling, generate full story
