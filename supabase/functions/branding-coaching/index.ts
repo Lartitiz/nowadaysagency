@@ -442,7 +442,11 @@ Quand is_complete = true, ajoute :
 }`;
 }
 
-serve(async (req) => {
+// Exportée (plutôt qu'inline dans serve()) pour être testable : `serve()` de
+// std/http ouvre un vrai socket TCP à l'import et n'expose pas le handler
+// qu'on lui passe, contrairement à `Deno.serve` (voir _shared/test-edge-harness.ts).
+// Le guard `import.meta.main` plus bas préserve le comportement de prod à l'identique.
+export async function handleBrandingCoachingRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -913,4 +917,12 @@ Ton job : remplir la LIGNE ÉDITORIALE de ${prenom} — c'est-à-dire les facett
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
-});
+}
+
+// Guard nécessaire pour les tests : sans lui, `deno test` important ce module
+// (pour handleBrandingCoachingRequest) ouvrirait aussi un vrai listener HTTP.
+// En prod, l'edge function exécute index.ts directement comme entrypoint →
+// import.meta.main est true, comportement inchangé.
+if (import.meta.main) {
+  serve(handleBrandingCoachingRequest);
+}
