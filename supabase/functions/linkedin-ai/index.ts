@@ -7,6 +7,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
+import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
 
 // Plafond de la passe de correction (Haiku, édition mécanique à règles fermées,
 // sortie capée 4096 tokens) : bornée séparément de l'appel principal pour que
@@ -14,17 +15,19 @@ import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 const CORRECTION_TIMEOUT_MS = 30_000;
 
 // JSON-aware correction: extract a long-text field, run correction-pass, reinject.
-async function correctJsonField(rawJson: string, field: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS): Promise<string> {
+async function correctJsonField(rawJson: string, field: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS, inputText?: string): Promise<string> {
   try {
     const match = rawJson.match(/\{[\s\S]*\}/);
     if (!match) return rawJson;
     const parsed = JSON.parse(match[0]);
     const original = parsed?.[field];
     if (typeof original !== "string" || original.length < 200) return rawJson;
+    const redac = analyzeTextRedac(original, numbersIn(inputText || ""));
     const corrected = await applyCorrectionPass(original, "linkedin", {
       logger: (m) => console.log(`[linkedin-ai] ${m}`),
       // Édition mécanique à règles fermées → Haiku (cf. #364)
       model: "claude-haiku-4-5",
+      extraInstructions: buildTextFixInstructions(redac) || undefined,
       abortTimeoutMs,
     });
     if (!corrected || corrected === original) return rawJson;
@@ -37,17 +40,19 @@ async function correctJsonField(rawJson: string, field: string, abortTimeoutMs =
 }
 
 // Crosspost-aware: correct versions.linkedin.full_text if present
-async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS): Promise<string> {
+async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS, inputText?: string): Promise<string> {
   try {
     const match = rawJson.match(/\{[\s\S]*\}/);
     if (!match) return rawJson;
     const parsed = JSON.parse(match[0]);
     const liText = parsed?.versions?.linkedin?.full_text;
     if (typeof liText !== "string" || liText.length < 200) return rawJson;
+    const redac = analyzeTextRedac(liText, numbersIn(inputText || ""));
     const corrected = await applyCorrectionPass(liText, "linkedin", {
       logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
       // Édition mécanique à règles fermées → Haiku (cf. #364)
       model: "claude-haiku-4-5",
+      extraInstructions: buildTextFixInstructions(redac) || undefined,
       abortTimeoutMs,
     });
     if (!corrected || corrected === liText) return rawJson;
@@ -228,7 +233,7 @@ serve(async (req) => {
           abortTimeoutMs: 90_000,
         }, cpUsage);
 
-        content = await correctCrosspostJson(content);
+        content = await correctCrosspostJson(content, CORRECTION_TIMEOUT_MS, [context, sourceContent].filter(Boolean).join("\n"));
 
         if (!isParseableJson(content)) {
           console.error("[linkedin-ai] crosspost (files): réponse IA inexploitable, pas de débit");
@@ -355,11 +360,14 @@ serve(async (req) => {
 
     // LinkedIn correction pass — applied per action with awareness of output shape
     if (action === "caption-for-carousel") {
-      content = await correctJsonField(content, "body");
+      const inputText = [context, params.subject, params.chosen_angle, params.slides_summary].filter(Boolean).join("\n");
+      content = await correctJsonField(content, "body", CORRECTION_TIMEOUT_MS, inputText);
     } else if (action === "improve-post") {
-      content = await correctJsonField(content, "improved_version");
+      const inputText = [context, params.postContent].filter(Boolean).join("\n");
+      content = await correctJsonField(content, "improved_version", CORRECTION_TIMEOUT_MS, inputText);
     } else if (action === "crosspost") {
-      content = await correctCrosspostJson(content);
+      const inputText = [context, params.sourceContent].filter(Boolean).join("\n");
+      content = await correctCrosspostJson(content, CORRECTION_TIMEOUT_MS, inputText);
     }
 
     if (JSON_ACTIONS.has(action) && !isParseableJson(content)) {
