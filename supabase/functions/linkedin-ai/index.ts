@@ -5,9 +5,8 @@ import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
-import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
-import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
+import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 
 // Plafond de la passe de correction (Haiku, édition mécanique à règles fermées,
 // sortie capée 4096 tokens) : bornée séparément de l'appel principal pour que
@@ -22,16 +21,21 @@ async function correctJsonField(rawJson: string, field: string, abortTimeoutMs =
     const parsed = JSON.parse(match[0]);
     const original = parsed?.[field];
     if (typeof original !== "string" || original.length < 200) return rawJson;
-    const redac = analyzeTextRedac(original, numbersIn(inputText || ""));
-    const corrected = await applyCorrectionPass(original, "linkedin", {
-      logger: (m) => console.log(`[linkedin-ai] ${m}`),
-      // Édition mécanique à règles fermées → Haiku (cf. #364)
-      model: "claude-haiku-4-5",
-      extraInstructions: buildTextFixInstructions(redac) || undefined,
-      abortTimeoutMs,
+    // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
+    // (la correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
+    // cf. échantillon live 18/08 : Haiku introduisait des retournements).
+    const gate = await runTextRedacGate(original, {
+      format: "linkedin",
+      correction: {
+        logger: (m) => console.log(`[linkedin-ai] ${m}`),
+        // Édition mécanique à règles fermées → Haiku (cf. #364)
+        model: "claude-haiku-4-5",
+        abortTimeoutMs,
+      },
+      allowedNumbers: numbersIn(inputText || ""),
     });
-    if (!corrected || corrected === original) return rawJson;
-    parsed[field] = corrected;
+    if (!gate.repassed || gate.content === original) return rawJson;
+    parsed[field] = gate.content;
     return JSON.stringify(parsed);
   } catch (e) {
     console.error(`[linkedin-ai] correctJsonField(${field}) failed:`, e);
@@ -47,18 +51,21 @@ async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION
     const parsed = JSON.parse(match[0]);
     const liText = parsed?.versions?.linkedin?.full_text;
     if (typeof liText !== "string" || liText.length < 200) return rawJson;
-    const redac = analyzeTextRedac(liText, numbersIn(inputText || ""));
-    const corrected = await applyCorrectionPass(liText, "linkedin", {
-      logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
-      // Édition mécanique à règles fermées → Haiku (cf. #364)
-      model: "claude-haiku-4-5",
-      extraInstructions: buildTextFixInstructions(redac) || undefined,
-      abortTimeoutMs,
+    // Même garde anti-régression que correctJsonField ci-dessus.
+    const gate = await runTextRedacGate(liText, {
+      format: "linkedin",
+      correction: {
+        logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
+        // Édition mécanique à règles fermées → Haiku (cf. #364)
+        model: "claude-haiku-4-5",
+        abortTimeoutMs,
+      },
+      allowedNumbers: numbersIn(inputText || ""),
     });
-    if (!corrected || corrected === liText) return rawJson;
-    parsed.versions.linkedin.full_text = corrected;
+    if (!gate.repassed || gate.content === liText) return rawJson;
+    parsed.versions.linkedin.full_text = gate.content;
     if (typeof parsed.versions.linkedin.character_count === "number") {
-      parsed.versions.linkedin.character_count = corrected.length;
+      parsed.versions.linkedin.character_count = gate.content.length;
     }
     return JSON.stringify(parsed);
   } catch (e) {
