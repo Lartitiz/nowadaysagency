@@ -63,9 +63,10 @@ export default function AdminJournalEditor({ programId, clientName }: { programI
   useEffect(() => { loadData(); }, [programId]);
 
   const addEntry = async () => {
-    const { data } = await (supabase.from("coaching_journal" as any) as any)
+    const { data, error } = await (supabase.from("coaching_journal" as any) as any)
       .insert({ program_id: programId, title: "Nouvelle entrée", status: "upcoming", deliverable_ids: [] })
       .select().single();
+    if (error) { toast.error("Erreur lors de l'ajout de l'entrée"); return; }
     if (data) {
       setEntries(prev => [...prev, data as JournalEntry]);
       toast.success("Entrée ajoutée");
@@ -73,12 +74,14 @@ export default function AdminJournalEditor({ programId, clientName }: { programI
   };
 
   const updateEntry = async (id: string, updates: Partial<JournalEntry>) => {
-    await (supabase.from("coaching_journal" as any) as any).update(updates).eq("id", id);
+    const { error } = await (supabase.from("coaching_journal" as any) as any).update(updates).eq("id", id);
+    if (error) { toast.error("Erreur lors de l'enregistrement de l'entrée"); return; }
     setEntries(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
   };
 
   const deleteEntry = async (id: string) => {
-    await (supabase.from("coaching_journal" as any) as any).delete().eq("id", id);
+    const { error } = await (supabase.from("coaching_journal" as any) as any).delete().eq("id", id);
+    if (error) { toast.error("Erreur lors de la suppression de l'entrée"); return; }
     setEntries(prev => prev.filter(e => e.id !== id));
     toast.success("Entrée supprimée");
   };
@@ -87,7 +90,7 @@ export default function AdminJournalEditor({ programId, clientName }: { programI
     // When publishing, unlock the linked deliverables
     const ids = entry.deliverable_ids || [];
     if (ids.length > 0) {
-      await (supabase.from("coaching_deliverables" as any) as any)
+      const { error } = await (supabase.from("coaching_deliverables" as any) as any)
         .update({
           status: "delivered",
           unlocked_at: new Date().toISOString(),
@@ -96,6 +99,7 @@ export default function AdminJournalEditor({ programId, clientName }: { programI
           seen_by_client: false,
         })
         .in("id", ids);
+      if (error) { toast.error("Erreur lors du déblocage des livrables"); return; }
       setDeliverables(prev => prev.map(d =>
         ids.includes(d.id) ? { ...d, status: "delivered", unlocked_at: new Date().toISOString(), unlocked_by_journal_id: entry.id } : d
       ));
@@ -110,16 +114,18 @@ export default function AdminJournalEditor({ programId, clientName }: { programI
     const { error } = await supabase.storage.from("deliverables").upload(path, file, { upsert: true });
     if (error) { toast.error("Erreur upload : " + error.message); return; }
     const { data: urlData } = supabase.storage.from("deliverables").getPublicUrl(path);
-    await (supabase.from("coaching_deliverables" as any) as any)
+    const { error: updateError } = await (supabase.from("coaching_deliverables" as any) as any)
       .update({ file_url: urlData.publicUrl, file_name: file.name }).eq("id", deliverableId);
+    if (updateError) { toast.error("Erreur lors de l'enregistrement du fichier"); return; }
     setDeliverables(prev => prev.map(d => d.id === deliverableId ? { ...d, file_url: urlData.publicUrl, file_name: file.name } : d));
     toast.success("📎 Fichier uploadé !");
   };
 
   const unlockDeliverable = async (id: string) => {
-    await (supabase.from("coaching_deliverables" as any) as any)
+    const { error } = await (supabase.from("coaching_deliverables" as any) as any)
       .update({ status: "delivered", unlocked_at: new Date().toISOString(), delivered_at: new Date().toISOString(), seen_by_client: false })
       .eq("id", id);
+    if (error) { toast.error("Erreur lors du déblocage du livrable"); return; }
     setDeliverables(prev => prev.map(d => d.id === id ? { ...d, status: "delivered", unlocked_at: new Date().toISOString() } : d));
     toast.success("Livrable débloqué !");
   };
@@ -127,8 +133,9 @@ export default function AdminJournalEditor({ programId, clientName }: { programI
   const deleteFile = async (deliverableId: string, fileName: string) => {
     const path = `${programId}/${deliverableId}/${fileName}`;
     await supabase.storage.from("deliverables").remove([path]);
-    await (supabase.from("coaching_deliverables" as any) as any)
+    const { error } = await (supabase.from("coaching_deliverables" as any) as any)
       .update({ file_url: null, file_name: null }).eq("id", deliverableId);
+    if (error) { toast.error("Erreur lors de la suppression du fichier"); return; }
     setDeliverables(prev => prev.map(d => d.id === deliverableId ? { ...d, file_url: null, file_name: null } : d));
     toast.success("Fichier supprimé");
   };

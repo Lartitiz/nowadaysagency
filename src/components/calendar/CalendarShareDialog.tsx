@@ -208,14 +208,22 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   };
 
   const toggleActive = async (share: Share) => {
-    await (supabase.from("calendar_shares") as any)
+    const { error } = await (supabase.from("calendar_shares") as any)
       .update({ is_active: !share.is_active })
       .eq("id", share.id);
+    if (error) {
+      toast.error("Erreur lors de la mise à jour du lien", { description: friendlyError(error) });
+      return;
+    }
     setShares(prev => prev.map(s => s.id === share.id ? { ...s, is_active: !s.is_active } : s));
   };
 
   const deleteShare = async (id: string) => {
-    await (supabase.from("calendar_shares") as any).delete().eq("id", id);
+    const { error } = await (supabase.from("calendar_shares") as any).delete().eq("id", id);
+    if (error) {
+      toast.error("Erreur lors de la suppression du lien", { description: friendlyError(error) });
+      return;
+    }
     setShares(prev => prev.filter(s => s.id !== id));
     setConfirmDeleteId(null);
     toast.success("Lien supprimé");
