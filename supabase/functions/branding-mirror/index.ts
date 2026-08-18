@@ -27,7 +27,7 @@ const MIRROR_TOOL: AnthropicTool = {
   },
 };
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
@@ -35,28 +35,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...cors, "Content-Type": "application/json" },
-      });
-    }
-
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, cors);
+    const auth = await authenticateEdgeUser(req, corsHeaders, { rateLimit: true });
+    if (auth instanceof Response) return auth;
+    const { userId, supabase } = auth;
 
     // Parse body (optional workspace_id)
     let workspace_id: string | undefined;
@@ -67,25 +48,25 @@ serve(async (req) => {
 
     {
       const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+      const membership = await assertWorkspaceMembership(sbGuard, userId, workspace_id);
       if (!membership.ok) {
-        console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+        console.warn("[workspace-guard] denied", { userId: userId, workspaceId: workspace_id });
         return workspaceDeniedResponse(cors);
       }
     }
 
     // Check quota (audit category)
-    const quota = await checkQuota(user.id, "audit", workspace_id);
+    const quota = await checkQuota(userId, "audit", workspace_id);
     if (!quota.allowed) {
       return quotaDeniedResponse(quota, cors);
     }
 
     // Resolve workspace filter
     const filterCol = workspace_id ? "workspace_id" : "user_id";
-    const filterVal = workspace_id || user.id;
+    const filterVal = workspace_id || userId;
 
     // Resolve workspace owner for profile-scoped tables
-    let profileUserId = user.id;
+    let profileUserId = userId;
     if (workspace_id) {
       const sbAdmin = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -183,7 +164,7 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
     const result = await callAnthropicToolSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, MIRROR_TOOL, 0.7, 4096, usage, 60_000);
 
     // Log usage
-    await logUsage(user.id, "audit", "branding_mirror", usage.total_tokens, usage.model, workspace_id);
+    await logUsage(userId, "audit", "branding_mirror", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify(result), {
       headers: { ...cors, "Content-Type": "application/json" },
