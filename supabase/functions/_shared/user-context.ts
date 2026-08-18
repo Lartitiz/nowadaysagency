@@ -276,7 +276,10 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (t.target_beliefs) toneLines.push(`- Croyances limitantes de la cible : ${t.target_beliefs}`);
     if (t.target_verbatims) toneLines.push(`- Verbatims de la cible : ${t.target_verbatims}`);
     if (t.channels?.length) toneLines.push(`- Canaux : ${t.channels.join(", ")}`);
-    if (toneLines.length) sections.push(`TON & STYLE :\n${toneLines.join("\n")}`);
+    // MATIÈRE, PAS TEXTE FINAL : voice_description, key_expressions et
+    // target_verbatims nourrissent le TON — ils ne sont jamais une phrase à
+    // recopier telle quelle dans un contenu (cf. note COMBATS & LIMITES plus bas).
+    if (toneLines.length) sections.push(`TON & STYLE (matière à reformuler, jamais à recopier telle quelle) :\n${toneLines.join("\n")}`);
 
     // Combats
     const combatLines: string[] = [];
@@ -284,7 +287,12 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (t.combat_fights) combatLines.push(`- Ses combats : ${t.combat_fights}`);
     if (t.combat_alternative) combatLines.push(`- Ce qu'elle propose à la place : ${t.combat_alternative}`);
     if (t.combat_refusals) combatLines.push(`- Ce qu'elle refuse : ${t.combat_refusals}`);
-    if (combatLines.length) sections.push(`COMBATS & LIMITES :\n${combatLines.join("\n")}`);
+    // MATIÈRE, PAS TEXTE FINAL (audit slop 18/08) : mesuré au corpus — le même
+    // combat_cause ressortait quasi mot pour mot dans 4 contenus sur 7 du même
+    // run. Ces lignes sont le VÉCU de l'utilisatrice, pas une légende prête à
+    // publier : reformule avec des mots neufs à CHAQUE génération, ne recopie
+    // jamais une phrase de cette fiche telle quelle (le redac-gate le mesure).
+    if (combatLines.length) sections.push(`COMBATS & LIMITES (matière à reformuler, jamais à recopier telle quelle) :\n${combatLines.join("\n")}`);
 
     // Convictions vécues (matière brute spiky — coaching « Ma voix & mes combats »).
     // JAMAIS auto-remplies par l'IA : ce sont les mots de l'utilisatrice.
@@ -293,13 +301,20 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (t.conviction_shift) convictionLines.push(`- Croyance de débuts abandonnée : ${t.conviction_shift}`);
     if (t.conviction_verbatims) convictionLines.push(`- Phrases de clientes qui lui sont restées : ${t.conviction_verbatims}`);
     if (t.conviction_unspoken) convictionLines.push(`- Ce qu'elle n'ose pas dire tout haut : ${t.conviction_unspoken}`);
-    if (convictionLines.length) sections.push(`CONVICTIONS VÉCUES (matière brute, prioritaire pour les contre-pieds, confessions et prises de position — rester FIDÈLE à ces mots, ne pas inventer au-delà) :\n${convictionLines.join("\n")}`);
+    // Même garde que COMBATS & LIMITES : « rester fidèle aux mots » signifiait
+    // au sens, pas à la lettre — le corpus montrait des conviction_verbatims
+    // recopiés tels quels en légende. On garde la fidélité au sens et à
+    // l'intensité, jamais la copie littérale d'une phrase entière.
+    if (convictionLines.length) sections.push(`CONVICTIONS VÉCUES (matière brute, prioritaire pour les contre-pieds, confessions et prises de position — reste FIDÈLE au sens et à l'intensité de ces mots, mais REFORMULE : ne recopie jamais une phrase entière telle quelle) :\n${convictionLines.join("\n")}`);
 
     if (t.mission || t.offer) {
       const idLines: string[] = [];
+      // Mission = matière à reformuler comme le reste (idem note COMBATS &
+      // LIMITES) : une mission recopiée mot pour mot dans plusieurs contenus
+      // se voit dès qu'ils cohabitent sur le même feed.
       if (t.mission) idLines.push(`- Mission : ${t.mission}`);
       if (t.offer) idLines.push(`- Offre : ${t.offer}`);
-      sections.push(`IDENTITÉ :\n${idLines.join("\n")}`);
+      sections.push(`IDENTITÉ (mission à reformuler, jamais à recopier telle quelle) :\n${idLines.join("\n")}`);
     }
   }
 
@@ -573,6 +588,38 @@ export function buildProfileBlock(profile: any): string {
   if (profile.ce_quon_evite) lines.push(`- Ce qu'on évite dans sa com : ${profile.ce_quon_evite}`);
   if (profile.style_communication?.length) lines.push(`- Style de communication : ${profile.style_communication.join(", ")}`);
   return lines.join("\n");
+}
+
+// ── Champs de marque protégés contre la recopie (audit slop 18/08) ──
+// Ces 9 champs sont la MATIÈRE brute de l'utilisatrice (son vécu, ses mots) :
+// injectés tels quels dans les prompts (cf. formatContextForAI ci-dessus) pour
+// que le modèle s'en inspire, jamais pour qu'il les recopie. Le redac-gate
+// (_shared/redac-gate.ts) mesure le chevauchement entre le texte généré et ce
+// même texte pour attraper une recopie quasi mot pour mot.
+const BRAND_GUARD_FIELDS = [
+  "voice_description",
+  "combat_cause",
+  "combat_fights",
+  "combat_alternative",
+  "combat_refusals",
+  "key_expressions",
+  "conviction_verbatims",
+  "target_verbatims",
+  "mission",
+] as const;
+
+/**
+ * Concatène les champs de marque à ne jamais recopier tel quel, pour le
+ * redac-gate (findBrandCopyOverlap). Ne refait AUCUNE requête : lit
+ * uniquement `ctx.tone`, déjà fetché par getUserContext().
+ */
+export function buildBrandGuardText(ctx: any): string {
+  const tone = ctx?.tone;
+  if (!tone) return "";
+  return BRAND_GUARD_FIELDS
+    .map((f) => (typeof tone[f] === "string" ? tone[f].trim() : ""))
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 /**
