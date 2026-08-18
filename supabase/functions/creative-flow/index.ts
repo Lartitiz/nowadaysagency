@@ -2110,6 +2110,54 @@ Réponds UNIQUEMENT en JSON :
 // les `input_json_delta`, donc le live « rédige en temps réel » est
 // préservé à l'identique (cf. streamAnthropicToolSSE). Relance serveur sur
 // overloaded / complétion vide conservée (bug post IG intermittent 10/07).
+// Gate rédactionnel du post streamé (audit slop 18/08, constat 2) : ce chemin
+// — celui réellement utilisé en prod pour post Instagram/Pinterest — n'avait
+// ni détection ni re-passe de correction, contrairement à LinkedIn/newsletter/
+// carrousel. Le live déjà streamé au client n'est pas rejoué : cette fonction
+// tourne dans le onDone de createClientSSEStream, juste avant l'émission de
+// l'event `done` final, dont elle peut remplacer la valeur `full`. Extraite
+// (plutôt qu'inline) pour être testable directement, même principe que
+// `runDeepResearchWebSearch` ci-dessus.
+export async function correctPostStreamContent(
+  full: string,
+  params: { body: any; fullContext: string; brandGuardText?: string },
+): Promise<string | undefined> {
+  const { body, fullContext, brandGuardText } = params;
+  let parsed: any;
+  try {
+    parsed = JSON.parse(full);
+  } catch {
+    return undefined; // JSON déjà invalide en amont (failOnTruncation l'aurait signalé)
+  }
+  if (typeof parsed?.content !== "string" || parsed.content.length < 200) return undefined;
+
+  try {
+    const postAllowed = numbersIn([
+      typeof body.context === "string" ? body.context : "",
+      body.answers ? JSON.stringify(body.answers) : "",
+      typeof body.news_context === "string" ? body.news_context : "",
+      fullContext || "",
+    ].join("\n"));
+    const postRedac = analyzeTextRedac(parsed.content, postAllowed, brandGuardText);
+    if (textRedacViolations(postRedac) === 0) return undefined; // déjà propre : pas d'appel IA de plus
+
+    const corrected = await applyCorrectionPass(parsed.content, "instagram_caption", {
+      logger: (m) => console.log(`[creative-flow post-stream] ${m}`),
+      // Édition mécanique à règles fermées → Haiku (cf. #364)
+      model: "claude-haiku-4-5",
+      extraInstructions: buildTextFixInstructions(postRedac) || undefined,
+      abortTimeoutMs: CORRECTION_ABORT_MS,
+    });
+    if (!corrected || corrected.length < 200) return undefined;
+
+    parsed.content = corrected;
+    return JSON.stringify(parsed);
+  } catch (e) {
+    console.error("[creative-flow post-stream] correction pass failed:", e);
+    return undefined;
+  }
+}
+
 function streamDefaultPostSSE(params: {
   apiKey: string;
   model: AnthropicModel;
@@ -2118,8 +2166,11 @@ function streamDefaultPostSSE(params: {
   corsHeaders: Record<string, string>;
   userId: string;
   workspace_id?: string | null | undefined;
+  body: any;
+  fullContext: string;
+  brandGuardText?: string;
 }): Response {
-  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId } = params;
+  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, brandGuardText } = params;
   const workspace_id = params.workspace_id ?? undefined;
   return createClientSSEStream(
     () => streamAnthropicToolSSE(
@@ -2133,8 +2184,9 @@ function streamDefaultPostSSE(params: {
       60_000,
     ),
     corsHeaders,
-    async (_full, usage) => {
+    async (full, usage) => {
       await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
+      return await correctPostStreamContent(full, { body, fullContext, brandGuardText });
     },
     { failOnTruncation: true },
   );
@@ -2674,7 +2726,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
         return await runCarouselTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id });
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, brandGuardText });
     }
 
     // ── Call Anthropic ──
