@@ -38,7 +38,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent } = await import("./index.ts");
+const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionCalibration } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -280,6 +280,76 @@ Deno.test("correctPostStreamContent : réponse de correction illisible/trop cour
     assertEquals(mock.anthropicCallCount, 1);
     const parsedResult = JSON.parse(result!);
     assertEquals(parsedResult.content, mouldedContent);
+  } finally {
+    mock.restore();
+  }
+});
+
+// ═══ applyStoriesCorrectionCalibration — calibration SHADOW de
+// CORRECTION_PROMPTS.stories (audit slop 18/08 : le prompt existait mais
+// n'était jamais invoqué). Deux garanties à verrouiller : (1) le shadow-run
+// Anthropic ne se déclenche QUE si une violation est mesurée (sinon zéro coût
+// ajouté), et (2) quel que soit le résultat du shadow-run, `parsed.stories`
+// ressort BYTE-FOR-BYTE identique — cette phase ne doit jamais lisser le ton
+// brut des stories tant que la calibration n'a pas validé le prompt.
+const STORIES_CALIBRATION_PARAMS = { body: { context: "", answers: null }, fullContext: "" };
+
+Deno.test("applyStoriesCorrectionCalibration : formule moulée détectée -> shadow-run Anthropic déclenché, stories INCHANGÉES", async () => {
+  const parsed = {
+    stories: [
+      { text: "Ce qui me dérange, c'est de voir tout le monde stresser pour un post Instagram alors que personne ne se souvient de ce qui a été publié la semaine dernière, et ça continue encore et encore sans jamais vraiment changer." },
+      { text: "Bref, on respire, on avance, et on essaie de ne pas se laisser bouffer par la pression du contenu parfait tous les jours de la semaine." },
+    ],
+  };
+  const originalStoriesJson = JSON.stringify(parsed.stories);
+  const mock = installFetchMock({
+    anthropic: () => ({
+      status: 200,
+      body: {
+        content: [{ type: "text", text: "Version totalement réécrite par la passe de correction." }],
+        stop_reason: "end_turn",
+        usage: { input_tokens: 40, output_tokens: 20 },
+      },
+    }),
+  });
+  try {
+    await applyStoriesCorrectionCalibration(parsed, STORIES_CALIBRATION_PARAMS);
+    assertEquals(mock.anthropicCallCount, 1);
+    assertEquals(JSON.stringify(parsed.stories), originalStoriesJson);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyStoriesCorrectionCalibration : stories propres (0 violation) -> aucun appel Anthropic", async () => {
+  const parsed = {
+    stories: [
+      { text: "On a testé un nouveau format cette semaine, et ça a plutôt bien marché avec les abonnées qui ont réagi plus que d'habitude." },
+      { text: "Prochaine étape : voir si ça tient sur la durée, sans forcer le rythme ni se comparer aux autres comptes." },
+    ],
+  };
+  const mock = installFetchMock({
+    anthropic: () => ({
+      status: 200,
+      body: { content: [{ type: "text", text: "ne devrait jamais être appelé" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } },
+    }),
+  });
+  try {
+    await applyStoriesCorrectionCalibration(parsed, STORIES_CALIBRATION_PARAMS);
+    assertEquals(mock.anthropicCallCount, 0);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyStoriesCorrectionCalibration : pas de stories -> no-op silencieux", async () => {
+  const parsed = { script: [] };
+  const mock = installFetchMock({
+    anthropic: () => ({ status: 200, body: { content: [{ type: "text", text: "x" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } } }),
+  });
+  try {
+    await applyStoriesCorrectionCalibration(parsed, STORIES_CALIBRATION_PARAMS);
+    assertEquals(mock.anthropicCallCount, 0);
   } finally {
     mock.restore();
   }
