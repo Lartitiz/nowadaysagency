@@ -393,9 +393,10 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       }
 
       if (Object.keys(validFills).length > 0) {
-        await (supabase.from(table as any) as any)
+        const { error } = await (supabase.from(table as any) as any)
           .update({ ...validFills, updated_at: new Date().toISOString() })
           .eq("id", recordId);
+        if (error) throw error;
         for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
         toast.success(`${Object.keys(validFills).length} champ${Object.keys(validFills).length > 1 ? "s" : ""} complété${Object.keys(validFills).length > 1 ? "s" : ""} par l'IA ✨`);
       } else if (fillResponse) {
@@ -442,9 +443,10 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
         }
 
         if (Object.keys(fillsFromPortrait).length > 0) {
-          await (supabase.from(table as any) as any)
+          const { error } = await (supabase.from(table as any) as any)
             .update({ ...fillsFromPortrait, updated_at: new Date().toISOString() })
             .eq("id", recordId);
+          if (error) throw error;
           for (const [key, val] of Object.entries(fillsFromPortrait)) onFieldUpdate?.(key, val, "");
           portraitFillsCount = Object.keys(fillsFromPortrait).length;
         }
@@ -620,9 +622,10 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
             if (val && typeof val === "string" && val.trim().length > 0) validFills[f.key] = val.trim();
           }
           if (Object.keys(validFills).length > 0) {
-            await (supabase.from(table as any) as any)
+            const { error } = await (supabase.from(table as any) as any)
               .update({ ...validFills, updated_at: new Date().toISOString() })
               .eq("id", recordId);
+            if (error) throw error;
             for (const [key, val] of Object.entries(validFills)) onFieldUpdate?.(key, val, "");
             aiFillsCount = Object.keys(validFills).length;
           } else if (fillResponse) {
@@ -653,7 +656,8 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
           if (pitchParsed.medium) pitchUpdate.pitch_medium = pitchParsed.medium;
           if (pitchParsed.long) pitchUpdate.pitch_long = pitchParsed.long;
           if (Object.keys(pitchUpdate).length > 0) {
-            await (supabase.from("persona") as any).update({ ...pitchUpdate, updated_at: new Date().toISOString() }).eq("id", recordId);
+            const { error } = await (supabase.from("persona") as any).update({ ...pitchUpdate, updated_at: new Date().toISOString() }).eq("id", recordId);
+            if (error) throw error;
             for (const [key, val] of Object.entries(pitchUpdate)) onFieldUpdate?.(key, val, "");
           }
         }

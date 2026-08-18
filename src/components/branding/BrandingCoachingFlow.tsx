@@ -908,11 +908,15 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
               className="rounded-pill text-muted-foreground mt-2"
               onClick={async () => {
                 if (user) {
-                   await (supabase
+                  const { error } = await (supabase
                     .from("branding_coaching_sessions") as any)
                     .delete()
                     .eq(column, value)
                     .eq("section", section);
+                  if (error) {
+                    toast.error("Impossible de réinitialiser cette section, réessaie.");
+                    return;
+                  }
                 }
                 setPhase("intro");
                 setMessages([]);

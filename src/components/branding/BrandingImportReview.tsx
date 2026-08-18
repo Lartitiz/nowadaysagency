@@ -179,9 +179,11 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
         if (comp.key === "story") {
           const { data: existingStory } = await (supabase.from("storytelling") as any).select("id").eq(filterCol, filterVal).limit(1).maybeSingle();
           if (existingStory) {
-            await (supabase.from("storytelling") as any).update({ imported_text: finalValue }).eq("id", existingStory.id);
+            const { error } = await (supabase.from("storytelling") as any).update({ imported_text: finalValue }).eq("id", existingStory.id);
+            if (error) throw error;
           } else {
-            await (supabase.from("storytelling") as any).insert({ ...insertBase, imported_text: finalValue, is_primary: true, completed: false });
+            const { error } = await (supabase.from("storytelling") as any).insert({ ...insertBase, imported_text: finalValue, is_primary: true, completed: false });
+            if (error) throw error;
           }
           continue;
         }
@@ -206,9 +208,11 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
 
         const { data: existing } = await (supabase.from(table as any) as any).select("id").eq(filterCol, filterVal).maybeSingle();
         if (existing) {
-          await (supabase.from(table as any) as any).update(cleanFields).eq("id", existing.id);
+          const { error } = await (supabase.from(table as any) as any).update(cleanFields).eq("id", existing.id);
+          if (error) throw error;
         } else {
-          await (supabase.from(table as any) as any).insert({ ...insertBase, ...cleanFields });
+          const { error } = await (supabase.from(table as any) as any).insert({ ...insertBase, ...cleanFields });
+          if (error) throw error;
         }
       }
 
