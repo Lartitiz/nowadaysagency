@@ -9,6 +9,7 @@
  */
 import { describe, it } from "vitest";
 import { RuleTester } from "eslint";
+import tseslint from "typescript-eslint";
 import { requireSupabaseErrorCheck } from "../../eslint-rules/require-supabase-error-check.js";
 
 // Branche RuleTester sur vitest (sinon il cherche des describe/it globaux).
@@ -18,6 +19,16 @@ import { requireSupabaseErrorCheck } from "../../eslint-rules/require-supabase-e
 
 const ruleTester = new RuleTester({
   languageOptions: { ecmaVersion: 2022, sourceType: "module" },
+});
+
+// Cas `as any` : nécessite le parser TypeScript (espree ne comprend pas les
+// casts). Reflète eslint.config.js, qui lint le vrai code TS avec ce parser.
+const ruleTesterTs = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+    parser: tseslint.parser,
+  },
 });
 
 // Les écritures doivent être dans un contexte async pour les cas `await`.
@@ -105,6 +116,37 @@ ruleTester.run("require-supabase-error-check", requireSupabaseErrorCheck as any,
     },
     {
       code: `void supabase.from("x").insert(y);`,
+      errors: [{ messageId: "jamaisAttendue" }],
+    },
+  ],
+});
+
+// Cast TypeScript entre .from(...) et l'écriture : `(supabase.from(x) as any)
+// .update(y)`. La règle doit voir à travers le TSAsExpression (trou corrigé
+// le 18/08/2026 : avant ça, ce pattern échappait totalement à la détection).
+ruleTesterTs.run("require-supabase-error-check (as any)", requireSupabaseErrorCheck as any, {
+  valid: [
+    // Cast simple, erreur bien lue.
+    dansAsync(`const { error } = await (supabase.from("x") as any).update(y); if (error) throw error;`),
+    // Double cast (vu en prod : `.from(table as any) as any`).
+    dansAsync(`const { error } = await (supabase.from(table as any) as any).insert(y); if (error) throw error;`),
+    // Cast + throwOnError.
+    dansAsync(`await (supabase.from("x") as any).insert(y).throwOnError();`),
+  ],
+  invalid: [
+    // Cast simple, résultat jeté.
+    {
+      code: dansAsync(`await (supabase.from("x") as any).update(y);`),
+      errors: [{ messageId: "erreurIgnoree" }],
+    },
+    // Cast simple, destructuration sans error.
+    {
+      code: dansAsync(`const { data } = await (supabase.from("x") as any).insert(y);`),
+      errors: [{ messageId: "erreurIgnoree" }],
+    },
+    // Double cast, promesse flottante.
+    {
+      code: `(supabase.from("x") as any).delete().eq("id", 1);`,
       errors: [{ messageId: "jamaisAttendue" }],
     },
   ],
