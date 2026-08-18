@@ -80,6 +80,39 @@ Deno.test("le badge format suit le fond : texte_fond basculé devient photo", ()
   assertEquals(parsed.stories[4].format, "texte_fond");
 });
 
+// Régression du 18/08/2026 : la séquence est sortie en format "texte" (et non
+// "texte_fond"). Le fond photo était bien posé — c'est le BADGE qui mentait,
+// 4 stories à fond photo s'affichant « texte ». La garde doit normaliser tout
+// nom de format texte-ish, pas la seule chaîne exacte.
+Deno.test("le badge suit le fond quelle que soit la variante du nom de format", () => {
+  for (const variante of ["texte", "TEXTE", " texte_fond ", "texte sur fond coloré", "text_background"]) {
+    const parsed = {
+      stories: [{
+        number: 1,
+        format: variante,
+        format_label: "📝 Texte sur fond coloré",
+        face_cam: false,
+        visual: { gabarit: "fond_pills", background: "fond_couleur" },
+      }],
+    };
+    enforceStoriesPhotoFirst(parsed);
+    assertEquals(parsed.stories[0].format, "photo", `variante « ${variante} »`);
+    assertEquals(parsed.stories[0].format_label, "📸 Photo avec texte");
+  }
+});
+
+Deno.test("un format non texte-sur-fond garde son badge, même passé en fond photo", () => {
+  // Filet : ni "face_cam" (story mal étiquetée, face_cam booléen absent) ni un
+  // format déjà photo/vidéo ne doivent être réécrits en « photo » par erreur.
+  for (const format of ["face_cam", "face cam", "video", "reel", "photo"]) {
+    const parsed = {
+      stories: [{ number: 1, format, visual: { gabarit: "fond_pills", background: "fond_couleur" } }],
+    };
+    enforceStoriesPhotoFirst(parsed);
+    assertEquals(parsed.stories[0].format, format, `format « ${format} »`);
+  }
+});
+
 Deno.test("story déjà photo et gabarit sans visual : intouchés", () => {
   const parsed = sampleSequence();
   const before = JSON.stringify(parsed.stories[1]);
