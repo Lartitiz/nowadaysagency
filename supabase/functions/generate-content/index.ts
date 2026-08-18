@@ -9,10 +9,9 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 import { validateInput, ValidationError, GenerateContentSchema, clampAiField } from "../_shared/input-validators.ts";
-import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
-import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
+import { numbersIn, runTextRedacGate } from "../_shared/redac-gate.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -699,19 +698,22 @@ FORMAT :
     // LinkedIn correction pass — shared CORRECTION_PROMPTS.linkedin (richer than the previous inline prompt)
     if (isLinkedinGeneration) {
       try {
-        const liRedac = analyzeTextRedac(content, numbersIn(linkedinRedacInput));
-        const corrected = await applyCorrectionPass(content, "linkedin", {
-          logger: (m) => console.log(`[generate-content] ${m}`),
-          // Édition mécanique à règles fermées → Haiku (cf. #364)
-          model: "claude-haiku-4-5",
-          // Aligné sur la génération principale (ligne au-dessus) : budget
-          // serveur total borné à 120s (audit timeouts 17/08).
-          abortTimeoutMs: 60_000,
-          extraInstructions: buildTextFixInstructions(liRedac) || undefined,
+        // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
+        // (la correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
+        // cf. échantillon live 18/08 : Haiku introduisait des retournements).
+        const gate = await runTextRedacGate(content, {
+          format: "linkedin",
+          correction: {
+            logger: (m) => console.log(`[generate-content] ${m}`),
+            // Édition mécanique à règles fermées → Haiku (cf. #364)
+            model: "claude-haiku-4-5",
+            // Aligné sur la génération principale (ligne au-dessus) : budget
+            // serveur total borné à 120s (audit timeouts 17/08).
+            abortTimeoutMs: 60_000,
+          },
+          allowedNumbers: numbersIn(linkedinRedacInput),
         });
-        if (corrected && corrected.length > 200) {
-          content = corrected;
-        }
+        content = gate.content;
       } catch (correctionError) {
         console.error("LinkedIn correction pass failed, using original:", correctionError);
       }

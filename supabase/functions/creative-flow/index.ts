@@ -15,7 +15,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, textRedacViolations } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import {
   alignFaceCamTakeDuration,
@@ -1144,29 +1144,28 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
       // Même garde que le carrousel recyclé (ci-dessus), version texte simple :
       // jusqu'ici seul le carrousel passait par un contrôle qualité, les 4 autres
       // formats recyclés sortaient bruts alors qu'ils partent directement en
-      // publication (audit slop 18/08). Même mesure + passe de correction que le
-      // chemin génération normale (applyLinkedInCorrectionPass / runNewsletterStreamed) :
-      // léger (zéro appel LLM pour la mesure), la re-passe LLM ne se déclenche que
-      // si des violations sont trouvées.
+      // publication (audit slop 18/08). runTextRedacGate mesure, corrige, RE-mesure
+      // et ne garde la correction que si elle n'a dégradé aucun compteur (l'échantillon
+      // live du 18/08 a montré la passe Haiku INTRODUISANT des retournements).
       try {
         const textAllowed = numbersIn(
           [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
         );
-        const before = analyzeTextRedac(resultVal, textAllowed, recBrandGuardText);
-        const corrected = await applyCorrectionPass(resultVal, f as CorrectionFormat, {
-          logger: (m) => console.log(`[creative-flow recycle ${f}] ${m}`),
-          model: "claude-haiku-4-5",
-          extraInstructions: buildTextFixInstructions(before) || undefined,
-          abortTimeoutMs: CORRECTION_ABORT_MS,
+        const gate = await runTextRedacGate(resultVal, {
+          format: f as CorrectionFormat,
+          correction: {
+            logger: (m) => console.log(`[creative-flow recycle ${f}] ${m}`),
+            model: "claude-haiku-4-5",
+            abortTimeoutMs: CORRECTION_ABORT_MS,
+          },
+          allowedNumbers: textAllowed,
+          brandGuardText: recBrandGuardText,
         });
-        if (corrected && corrected.length >= 200) resultVal = corrected;
-        const after = analyzeTextRedac(resultVal, textAllowed, recBrandGuardText);
-        const violations = textRedacViolations(after);
-        const score = Math.max(40, 100 - 10 * violations);
+        resultVal = gate.content;
         await logContentQuality(
           userId,
           `recycle_${f}`,
-          { score, violations, repassed: false, content: resultVal },
+          { score: gate.score, violations: gate.violations, repassed: gate.repassed, content: gate.content },
           (fUsage as any)?.model,
           workspace_id,
           typeof topicVal === "string" ? topicVal : undefined,
@@ -1299,17 +1298,21 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
     ].join("\n"));
-    const liRedac = analyzeTextRedac(parsed.content, liAllowed, brandGuardText);
-    const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
-      logger: (msg) => console.log(msg),
-      // Édition mécanique à règles fermées → Haiku (cf. #364)
-      model: "claude-haiku-4-5",
-      extraInstructions: buildTextFixInstructions(liRedac) || undefined,
-      abortTimeoutMs: CORRECTION_ABORT_MS,
+    // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
+    // (la correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
+    // cf. échantillon live 18/08 : Haiku introduisait des retournements).
+    const gate = await runTextRedacGate(parsed.content, {
+      format: "linkedin",
+      correction: {
+        logger: (msg) => console.log(msg),
+        // Édition mécanique à règles fermées → Haiku (cf. #364)
+        model: "claude-haiku-4-5",
+        abortTimeoutMs: CORRECTION_ABORT_MS,
+      },
+      allowedNumbers: liAllowed,
+      brandGuardText,
     });
-    if (corrected && corrected.length >= 100) {
-      parsed.content = corrected;
-    }
+    parsed.content = gate.content;
   } catch (corrErr) {
     console.error("[creative-flow] correction-pass linkedin failed:", corrErr);
   }
@@ -1850,6 +1853,11 @@ Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUA
    ❌ "C'est pas sexy. C'est pas instagrammable. Ça ressemble à du travail de fond."
    → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
 
+4bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
+   → MAXIMUM 1 par post : garde le plus fort, réécris les autres en affirmation directe.
+   → Et surtout : n'en INTRODUIS JAMAIS un nouveau en réécrivant. "Réécrire en plus brut"
+     ne veut PAS dire "réécrire en négation-puis-affirmation" — c'est le moule IA n°1.
+
 5. ANAPHORES (3+ phrases qui démarrent pareil) :
    → Compte les débuts de phrase. Si 3+ commencent par le même mot/groupe : RÉÉCRIS.
    ❌ "Par dire les choses. Par ne pas forcer. Par être direct·e."
@@ -1942,10 +1950,20 @@ Réponds UNIQUEMENT en JSON :
       if (m) try { originalParsed = JSON.parse(m[0]); } catch { /* best-effort : on garde l'objet vide */ }
     }
 
+    // Garde anti-régression (même politique que runTextRedacGate) : la
+    // correction n'est gardée que si elle ne dégrade aucun compteur mesuré —
+    // l'échantillon live du 18/08 a montré Haiku INTRODUISANT des retournements
+    // dans des textes qui n'en avaient pas.
+    const correctedWorse =
+      textRedacRawCount(analyzeTextRedac(finalResult.content, liAllowed)) >
+      textRedacRawCount(liRedac);
+    if (correctedWorse) {
+      console.log("[CORRECTION DEBUG] correction rejetée (compteurs rédactionnels dégradés), post original conservé");
+    }
     const merged = {
       ...originalParsed,
-      content: finalResult.content,
-      accroche: finalResult.accroche || originalParsed.accroche,
+      content: correctedWorse ? (postText || finalResult.content) : finalResult.content,
+      accroche: correctedWorse ? originalParsed.accroche : (finalResult.accroche || originalParsed.accroche),
       format: originalParsed.format || "linkedin",
       pillar: originalParsed.pillar || "",
       objectif: originalParsed.objectif || "",
@@ -2027,17 +2045,20 @@ async function runNewsletterTwoStep(params: {
         typeof body.news_context === "string" ? body.news_context : "",
         fullContext || "",
       ].join("\n"));
-      const nlRedac = analyzeTextRedac(parsed.content, nlAllowed, brandGuardText);
-      const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
-        logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
-        // Édition mécanique à règles fermées → Haiku (cf. #364)
-        model: "claude-haiku-4-5",
-        extraInstructions: buildTextFixInstructions(nlRedac) || undefined,
-        abortTimeoutMs: CORRECTION_ABORT_MS,
+      // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
+      // (cf. échantillon live 18/08 : la passe Haiku introduisait des retournements).
+      const gate = await runTextRedacGate(parsed.content, {
+        format: "newsletter",
+        correction: {
+          logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+          // Édition mécanique à règles fermées → Haiku (cf. #364)
+          model: "claude-haiku-4-5",
+          abortTimeoutMs: CORRECTION_ABORT_MS,
+        },
+        allowedNumbers: nlAllowed,
+        brandGuardText,
       });
-      if (corrected && corrected.length >= 200) {
-        parsed.content = corrected;
-      }
+      parsed.content = gate.content;
     } catch (e) {
       console.error("[creative-flow newsletter] correction pass failed:", e);
     }
@@ -2232,16 +2253,23 @@ export async function correctPostStreamContent(
     const postRedac = analyzeTextRedac(parsed.content, postAllowed, brandGuardText);
     if (textRedacViolations(postRedac) === 0) return undefined; // déjà propre : pas d'appel IA de plus
 
-    const corrected = await applyCorrectionPass(parsed.content, "instagram_caption", {
-      logger: (m) => console.log(`[creative-flow post-stream] ${m}`),
-      // Édition mécanique à règles fermées → Haiku (cf. #364)
-      model: "claude-haiku-4-5",
-      extraInstructions: buildTextFixInstructions(postRedac) || undefined,
-      abortTimeoutMs: CORRECTION_ABORT_MS,
+    // runTextRedacGate = correction → RE-mesure → garde anti-régression (la
+    // correction n'est gardée que si elle ne dégrade aucun compteur mesuré,
+    // cf. échantillon live 18/08 : Haiku introduisait des retournements).
+    const gate = await runTextRedacGate(parsed.content, {
+      format: "instagram_caption",
+      correction: {
+        logger: (m) => console.log(`[creative-flow post-stream] ${m}`),
+        // Édition mécanique à règles fermées → Haiku (cf. #364)
+        model: "claude-haiku-4-5",
+        abortTimeoutMs: CORRECTION_ABORT_MS,
+      },
+      allowedNumbers: postAllowed,
+      brandGuardText,
     });
-    if (!corrected || corrected.length < 200) return undefined;
+    if (!gate.repassed || gate.content === parsed.content) return undefined;
 
-    parsed.content = corrected;
+    parsed.content = gate.content;
     return JSON.stringify(parsed);
   } catch (e) {
     console.error("[creative-flow post-stream] correction pass failed:", e);
