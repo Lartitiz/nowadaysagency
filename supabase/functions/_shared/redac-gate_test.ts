@@ -279,3 +279,159 @@ Deno.test("durées : un écart chiffré/lettres est vu aussi dans l'autre sens",
   });
   assertEquals(a.durationConflicts.length, 1);
 });
+
+// ── Mesure seule (audit slop 18/08/2026, lot 5) : 6 familles, calibrage avant activation ──
+// Ces compteurs ne déclenchent AUCUNE re-passe : ils alimentent la
+// télémétrie (content-quality.ts) pour calibrer des seuils sur des vraies
+// données avant d'activer quoi que ce soit.
+
+Deno.test("countStaccatoAcrossSlides : 3 slides courtes consécutives = 1 rafale", async () => {
+  const { countStaccatoAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Peu de mots ici" }, // 4 mots
+    { slide_number: 2, title: "Encore moins que ça" }, // 4 mots
+    { slide_number: 3, title: "Trois slides courtes" }, // 3 mots
+    { slide_number: 4, title: "Une slide bien plus longue avec beaucoup de mots pour casser le rythme court" },
+  ];
+  assertEquals(countStaccatoAcrossSlides(slides), 1);
+});
+
+Deno.test("countStaccatoAcrossSlides : slides de longueur normale = 0 rafale", async () => {
+  const { countStaccatoAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Une phrase avec pas mal de mots pour ne pas être staccato" },
+    { slide_number: 2, title: "Une autre phrase également assez longue pour ne pas compter" },
+    { slide_number: 3, title: "Encore une troisième slide qui prend son temps pour dire les choses" },
+  ];
+  assertEquals(countStaccatoAcrossSlides(slides), 0);
+});
+
+Deno.test("countStaccatoAcrossSlides : seulement 2 slides courtes consécutives ne compte pas", async () => {
+  const { countStaccatoAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Deux slides courtes" },
+    { slide_number: 2, title: "Puis ça s'arrête" },
+    { slide_number: 3, title: "Une slide bien plus longue avec beaucoup de mots pour casser le rythme court" },
+  ];
+  assertEquals(countStaccatoAcrossSlides(slides), 0);
+});
+
+Deno.test("countAnaphoraAcrossSlides : 3 slides consécutives démarrant par le même mot = 1 rafale", async () => {
+  const { countAnaphoraAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Le prix grimpe chaque année." },
+    { slide_number: 2, title: "Le temps presse pour tout le monde." },
+    { slide_number: 3, title: "Le geste compte plus que le mot." },
+    { slide_number: 4, title: "Un jour différent commence enfin." },
+  ];
+  assertEquals(countAnaphoraAcrossSlides(slides), 1);
+});
+
+Deno.test("countAnaphoraAcrossSlides : mots d'ouverture différents = 0 rafale", async () => {
+  const { countAnaphoraAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Le prix grimpe chaque année." },
+    { slide_number: 2, title: "Un client m'a écrit hier." },
+    { slide_number: 3, title: "Trois semaines plus tard, tout a changé." },
+  ];
+  assertEquals(countAnaphoraAcrossSlides(slides), 0);
+});
+
+Deno.test("countResultConclusionOpeners : « Résultat : » en début de phrase est compté", async () => {
+  const { countResultConclusionOpeners } = await import("./redac-gate.ts");
+  const text = "Elle a tout changé de méthode. Résultat : les ventes ont doublé en trois mois.";
+  assertEquals(countResultConclusionOpeners(text).length, 1);
+});
+
+Deno.test("countResultConclusionOpeners : « Conclusion : » en début de phrase est compté", async () => {
+  const { countResultConclusionOpeners } = await import("./redac-gate.ts");
+  const text = "On a testé pendant six mois. Conclusion : la régularité compte plus que la perfection.";
+  assertEquals(countResultConclusionOpeners(text).length, 1);
+});
+
+Deno.test("countResultConclusionOpeners : « résultat » en usage courant MI-PHRASE n'est pas compté", async () => {
+  const { countResultConclusionOpeners } = await import("./redac-gate.ts");
+  assertEquals(countResultConclusionOpeners("Le résultat de l'enquête est clair.").length, 0);
+});
+
+Deno.test("isOpeningRhetoricalQuestion : la 1re phrase se termine par « ? »", async () => {
+  const { isOpeningRhetoricalQuestion } = await import("./redac-gate.ts");
+  assertEquals(isOpeningRhetoricalQuestion("Et si tu arrêtais de t'excuser ? Ça changerait tout."), true);
+});
+
+Deno.test("isOpeningRhetoricalQuestion : ouverture affirmative = false", async () => {
+  const { isOpeningRhetoricalQuestion } = await import("./redac-gate.ts");
+  assertEquals(isOpeningRhetoricalQuestion("Le rythme change tout. Tu le sens dès la première semaine."), false);
+});
+
+Deno.test("isOpeningRhetoricalQuestion : texte vide = false", async () => {
+  const { isOpeningRhetoricalQuestion } = await import("./redac-gate.ts");
+  assertEquals(isOpeningRhetoricalQuestion(""), false);
+});
+
+Deno.test("countEmptyAdjectives : compte authentique/aligné/puissant", async () => {
+  const { countEmptyAdjectives } = await import("./redac-gate.ts");
+  const a = countEmptyAdjectives("Ce positionnement authentique et aligné est puissant.");
+  assertEquals(a, { authentique: 1, aligné: 1, puissant: 1 });
+});
+
+Deno.test("countEmptyAdjectives : faux positifs évités (vocabulaire métier légitime)", async () => {
+  const { countEmptyAdjectives } = await import("./redac-gate.ts");
+  // « désaligné » (contraire), « impuissant » (contraire), « alignement » (nom,
+  // pas l'adjectif) ne doivent PAS compter comme des occurrences de la famille.
+  const a = countEmptyAdjectives(
+    "Un discours désaligné, presque impuissant, loin de tout alignement des prix sur le marché.",
+  );
+  assertEquals(a, { authentique: 0, aligné: 0, puissant: 0 });
+});
+
+Deno.test("countEmptyAdjectives : formes féminines/plurielles comptées", async () => {
+  const { countEmptyAdjectives } = await import("./redac-gate.ts");
+  const a = countEmptyAdjectives("Des marques authentiques, alignées et puissantes.");
+  assertEquals(a, { authentique: 1, aligné: 1, puissant: 1 });
+});
+
+Deno.test("hookEndingSimilarity : boucle accroche/chute détectée (reformulation quasi identique)", async () => {
+  const { hookEndingSimilarity } = await import("./redac-gate.ts");
+  const hook = "Le vrai changement commence quand tu arrêtes de t'excuser.";
+  const ending = "Le vrai changement, c'est quand tu arrêtes de t'excuser.";
+  const sim = hookEndingSimilarity(hook, ending);
+  assertEquals(sim >= 0.7, true);
+});
+
+Deno.test("hookEndingSimilarity : accroche et chute sans rapport = similarité faible", async () => {
+  const { hookEndingSimilarity } = await import("./redac-gate.ts");
+  const hook = "Le vrai changement commence aujourd'hui.";
+  const ending = "Un café renversé un mardi matin.";
+  const sim = hookEndingSimilarity(hook, ending);
+  assertEquals(sim <= 0.2, true);
+});
+
+Deno.test("measureSlopSignals : agrège les 6 familles sans modifier le contenu", async () => {
+  const { measureSlopSignals } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Le prix grimpe." },
+    { slide_number: 2, title: "Le temps presse." },
+    { slide_number: 3, title: "Le geste compte." },
+  ];
+  const signals = measureSlopSignals({
+    fullText: "Le prix grimpe. Le temps presse. Le geste compte. Résultat : tout s'accélère.",
+    hookText: "Le prix grimpe.",
+    endingText: "Résultat : tout s'accélère.",
+    slides,
+  });
+  assertEquals(signals.staccato_inter_slides, 1);
+  assertEquals(signals.anaphora_inter_slides, 1);
+  assertEquals(signals.result_conclusion_openers, 1);
+  assertEquals(typeof signals.opening_rhetorical_question, "boolean");
+  assertEquals(signals.empty_adjectives, { authentique: 0, aligné: 0, puissant: 0 });
+  assertEquals(typeof signals.hook_ending_similarity, "number");
+});
+
+Deno.test("measureSlopSignals : sans slides, les familles inter-slides restent à 0", async () => {
+  const { measureSlopSignals } = await import("./redac-gate.ts");
+  const signals = measureSlopSignals({ fullText: "Un texte libre, sans slides, tout simplement." });
+  assertEquals(signals.staccato_inter_slides, 0);
+  assertEquals(signals.anaphora_inter_slides, 0);
+  assertEquals(signals.hook_ending_similarity, 0);
+});

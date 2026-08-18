@@ -569,6 +569,134 @@ export function fixElisionsInFields(obj: Record<string, unknown> | null | undefi
   }
 }
 
+// ── Mesure seule (audit slop 18/08/2026, lot 5) ──
+// 6 familles de tics mesurées dans le corpus mais AUCUNE encore détectée en
+// code. Compteurs PURS (aucun effet de bord, aucune re-passe déclenchée) :
+// branchés en télémétrie (`content-quality.ts`) pour calibrer des seuils sur
+// des vraies données avant d'activer quoi que ce soit. Un mot comme
+// « authentique » est parfois juste — on mesure une FRÉQUENCE, pas une
+// interdiction.
+
+/** Corps mesurable d'une slide pour les familles inter-slides (mêmes champs que slideTexts). */
+function slideTextForSlop(s: any): string {
+  return slideTexts(s);
+}
+
+/**
+ * Rafales de 3+ slides CONSÉCUTIVES courtes (≤ maxWords mots chacune) — le
+ * rythme ternaire/staccato qui ne se voit qu'en enchaînant les slides, jamais
+ * à l'intérieur d'un seul champ (angle mort de `analyzeCarouselRedac`).
+ */
+export function countStaccatoAcrossSlides(slides: any[], maxWords = 6): number {
+  let bursts = 0;
+  let run = 0;
+  for (const s of slides || []) {
+    const words = wordCount(slideTextForSlop(s));
+    if (words > 0 && words <= maxWords) {
+      run++;
+      if (run === 3) bursts++;
+    } else {
+      run = 0;
+    }
+  }
+  return bursts;
+}
+
+/**
+ * Rafales de 3+ slides CONSÉCUTIVES qui démarrent par le même mot — anaphore
+ * vue seulement en enchaînant les slides (même angle mort que le staccato).
+ */
+export function countAnaphoraAcrossSlides(slides: any[]): number {
+  const firstWords = (slides || []).map((s) => {
+    const m = slideTextForSlop(s).trim().match(/^\p{L}+/u);
+    return m ? m[0].toLowerCase() : "";
+  });
+  let bursts = 0;
+  let run = 1;
+  for (let i = 1; i <= firstWords.length; i++) {
+    if (i < firstWords.length && firstWords[i] && firstWords[i] === firstWords[i - 1]) {
+      run++;
+    } else {
+      if (run >= 3) bursts++;
+      run = 1;
+    }
+  }
+  return bursts;
+}
+
+// « Résultat : » / « Conclusion : » EN DÉBUT DE PHRASE uniquement — l'usage
+// courant du nom commun (« Le résultat de l'enquête… ») n'est pas un tic.
+const RESULT_CONCLUSION_OPENER_RE = /(?:^|[.!?]\s+|\n)(?:Résultat|Conclusion)\s*[:.]/gi;
+
+/** Occurrences de « Résultat : » / « Conclusion : » en ouverture de phrase. */
+export function countResultConclusionOpeners(text: string): string[] {
+  return [...(text || "").matchAll(RESULT_CONCLUSION_OPENER_RE)].map((m) => m[0].trim());
+}
+
+/** La 1re phrase du texte se termine-t-elle par « ? » (question rhétorique d'ouverture) ? */
+export function isOpeningRhetoricalQuestion(text: string): boolean {
+  const first = (text || "").trim().split(/(?<=[.!?])\s+/)[0] || "";
+  return /\?\s*$/.test(first.trim());
+}
+
+// Adjectifs vides candidats (audit 18/08) : SEUIL à calibrer, pas une liste
+// noire — « authentique »/« aligné »/« puissant » sont parfois le mot juste.
+// \b évite les faux positifs sur les mots composés/apparentés
+// (« désaligné », « impuissant », « alignement » ne matchent PAS).
+// \b est ASCII-only en JS/Deno : « é » n'est pas un \w, donc \b après
+// « aligné » échoue silencieusement (transition non-mot → non-mot). On
+// utilise des frontières Unicode explicites (lookaround sur \p{L}) à la place.
+const EMPTY_ADJECTIVES: Record<string, RegExp> = {
+  authentique: /(?<![\p{L}])authentiques?(?![\p{L}])/giu,
+  aligné: /(?<![\p{L}])aligné(?:e|es|s)?(?![\p{L}])/giu,
+  puissant: /(?<![\p{L}])puissante?s?(?![\p{L}])/giu,
+};
+
+/** Occurrences par adjectif vide candidat (fréquence brute, pas de blocage). */
+export function countEmptyAdjectives(text: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [name, re] of Object.entries(EMPTY_ADJECTIVES)) {
+    out[name] = ((text || "").match(re) || []).length;
+  }
+  return out;
+}
+
+/**
+ * Similarité lexicale entre l'ouverture (hook) et la chute d'un même contenu
+ * — la même mesure que `tokenSimilarity` (déjà appliquée au CTA↔dernière
+ * slide), ici sur hook↔chute, jamais comparés jusqu'ici.
+ */
+export function hookEndingSimilarity(hookText: string, endingText: string): number {
+  return tokenSimilarity(hookText, endingText);
+}
+
+export interface SlopSignals {
+  staccato_inter_slides: number;
+  anaphora_inter_slides: number;
+  result_conclusion_openers: number;
+  opening_rhetorical_question: boolean;
+  empty_adjectives: Record<string, number>;
+  hook_ending_similarity: number;
+}
+
+/** Agrège les 6 familles en un objet consultable (télémétrie, aucun calcul de score). */
+export function measureSlopSignals(params: {
+  fullText: string;
+  hookText?: string;
+  endingText?: string;
+  slides?: any[];
+}): SlopSignals {
+  const { fullText, hookText = "", endingText = "", slides } = params;
+  return {
+    staccato_inter_slides: slides ? countStaccatoAcrossSlides(slides) : 0,
+    anaphora_inter_slides: slides ? countAnaphoraAcrossSlides(slides) : 0,
+    result_conclusion_openers: countResultConclusionOpeners(fullText).length,
+    opening_rhetorical_question: isOpeningRhetoricalQuestion(hookText || fullText),
+    empty_adjectives: countEmptyAdjectives(fullText),
+    hook_ending_similarity: hookText && endingText ? hookEndingSimilarity(hookText, endingText) : 0,
+  };
+}
+
 /** Instructions ciblées pour la passe de correction texte ("" si rien à corriger). */
 export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   const lines: string[] = [];
