@@ -7,10 +7,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { scrapeWebsite, isSafePublicUrl } from "../_shared/scraping.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
-import { isDemoUser } from "../_shared/guard-demo.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
 const BodySchema = z.object({
@@ -57,25 +56,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-    if (isDemoUser(user.id)) {
-      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    const auth = await authenticateEdgeUser(req, corsHeaders, {
+      demoGuard: true,
+      rateLimit: true,
+      guardOrder: "demo-first",
+    });
+    if (auth instanceof Response) return auth;
+    const { userId } = auth;
 
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) {
@@ -88,10 +75,10 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
-    const membership = await assertWorkspaceMembership(serviceClient, user.id, workspace_id ?? null);
+    const membership = await assertWorkspaceMembership(serviceClient, userId, workspace_id ?? null);
     if (!membership.ok) return workspaceDeniedResponse(corsHeaders);
 
-    const quotaCheck = await checkQuota(user.id, "content", workspace_id);
+    const quotaCheck = await checkQuota(userId, "content", workspace_id);
     if (!quotaCheck.allowed) return quotaDeniedResponse(quotaCheck, corsHeaders);
 
     const cleanUrl = url.startsWith("http") ? url : `https://${url}`;
@@ -130,7 +117,7 @@ RÈGLES STRICTES :
       usage,
     );
 
-    await logUsage(user.id, "content", "extract_offer_from_url", usage.total_tokens, usage.model, workspace_id);
+    await logUsage(userId, "content", "extract_offer_from_url", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify({ success: true, offer }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
