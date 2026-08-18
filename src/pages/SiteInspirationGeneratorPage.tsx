@@ -167,11 +167,12 @@ export default function SiteInspirationGeneratorPage() {
       // Save to DB
       if (user?.id) {
         // Delete old ones first
-        await (supabase
+        const { error: deleteError } = await (supabase
           .from("website_inspirations") as any)
           .delete()
           .eq(column, value)
           .eq("section_type", sectionType);
+        if (deleteError) throw deleteError;
 
         // Single batched insert (avoids partial state if the user reloads mid-loop).
         // workspace_id must match the read filter: a real workspace id, else null.
@@ -182,10 +183,11 @@ export default function SiteInspirationGeneratorPage() {
           html_code: nv.html,
           variant: i + 1,
         }));
-        const { data: insertedRows } = await (supabase
+        const { data: insertedRows, error: insertError } = await (supabase
           .from("website_inspirations") as any)
           .insert(rows)
           .select("id, variant");
+        if (insertError) throw insertError;
         if (insertedRows) {
           for (const r of insertedRows) {
             const idx = (r.variant as number) - 1;
@@ -217,10 +219,13 @@ export default function SiteInspirationGeneratorPage() {
     if (!v.id) return;
     const id = v.id;
     clearTimeout(colorSaveTimers.current[id]);
-    colorSaveTimers.current[id] = setTimeout(() => {
-      (supabase.from("website_inspirations") as any)
+    colorSaveTimers.current[id] = setTimeout(async () => {
+      const { error } = await (supabase.from("website_inspirations") as any)
         .update({ custom_colors: v.colors })
         .eq("id", id);
+      if (error) {
+        console.error("[SiteInspirationGeneratorPage] Échec de la sauvegarde des couleurs:", error);
+      }
     }, 600);
   };
 

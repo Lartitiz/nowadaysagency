@@ -272,8 +272,12 @@ export default function InstagramAudit() {
       if (atd.frequency) profileUpdate.instagram_frequency = atd.frequency;
       if (form.mode === "connected" && live?.profilePictureUrl) profileUpdate.instagram_photo_url = live.profilePictureUrl;
       if (Object.keys(profileUpdate).length) {
-        await (supabase.from("profiles") as any).update(profileUpdate as any).eq(column, value);
-        queryClient.invalidateQueries({ queryKey: ["profile"] });
+        const { error: profileUpdateError } = await (supabase.from("profiles") as any).update(profileUpdate as any).eq(column, value);
+        if (profileUpdateError) {
+          console.error("[InstagramAudit] Profile update failed:", profileUpdateError);
+        } else {
+          queryClient.invalidateQueries({ queryKey: ["profile"] });
+        }
       }
 
       // 4. Upload des captures facultatives (non bloquant : l'audit tourne sans)

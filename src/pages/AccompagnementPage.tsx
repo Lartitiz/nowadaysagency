@@ -199,9 +199,13 @@ export default function AccompagnementPage() {
       if (unseen.length > 0) {
         unseen.forEach(d => toast("✨ Nouveau livrable débloqué : " + d.title + " !", { duration: 4000 }));
         const ids = unseen.map(d => d.id);
-        await (supabase.from("coaching_deliverables" as any) as any)
+        const { error: seenError } = await (supabase.from("coaching_deliverables" as any) as any)
           .update({ seen_by_client: true }).in("id", ids);
-        setDeliverables(prev => prev.map(d => ids.includes(d.id) ? { ...d, seen_by_client: true } : d));
+        if (seenError) {
+          console.error("Erreur lors du marquage des livrables comme vus :", seenError);
+        } else {
+          setDeliverables(prev => prev.map(d => ids.includes(d.id) ? { ...d, seen_by_client: true } : d));
+        }
       }
 
       setLoading(false);
@@ -210,10 +214,14 @@ export default function AccompagnementPage() {
 
   const toggleAction = async (action: Action) => {
     const newCompleted = !action.completed;
-    await (supabase.from("coaching_actions" as any) as any).update({
+    const { error } = await (supabase.from("coaching_actions" as any) as any).update({
       completed: newCompleted,
       completed_at: newCompleted ? new Date().toISOString() : null,
     }).eq("id", action.id);
+    if (error) {
+      toast.error("Impossible de mettre à jour l'action. Réessaie.");
+      return;
+    }
     setActions(prev => prev.map(a => a.id === action.id ? { ...a, completed: newCompleted, completed_at: newCompleted ? new Date().toISOString() : null } : a));
   };
 

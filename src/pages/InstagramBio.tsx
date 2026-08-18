@@ -279,12 +279,13 @@ export default function InstagramBio() {
     setGenerating(true);
     try {
       // Save differentiation + CTA to profile
-      await (supabase.from("profiles") as any).update({
+      const { error: diffError } = await (supabase.from("profiles") as any).update({
         differentiation_type: diffAngle || null,
         differentiation_text: diffText || null,
         bio_cta_type: ctaType || null,
         bio_cta_text: ctaText || null,
       } as any).eq("user_id", profileUserId);
+      if (diffError) throw diffError;
       queryClient.invalidateQueries({ queryKey: ["profile"] });
 
       const res = await invokeWithTimeout("generate-content", {
@@ -376,7 +377,7 @@ export default function InstagramBio() {
       // Historique = best-effort : une panne ici ne doit PAS faire échouer la validation
       // ni créer une fausse erreur alors que la bio est déjà enregistrée.
       try {
-        await (supabase.from("bio_versions") as any).insert({
+        const { error: bioVersionError } = await (supabase.from("bio_versions") as any).insert({
           user_id: user.id,
           workspace_id: workspaceId !== user.id ? workspaceId : null,
           platform: "instagram",
@@ -385,6 +386,7 @@ export default function InstagramBio() {
           structure_type: bioStructure || null,
           source: "generated",
         });
+        if (bioVersionError) throw bioVersionError;
       } catch (histErr) {
         console.error("Historique bio non enregistré (non bloquant):", histErr);
       }
