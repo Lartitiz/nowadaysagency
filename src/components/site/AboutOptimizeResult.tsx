@@ -101,9 +101,11 @@ export default function AboutOptimizeResult({ result, originalText, onRetry, use
 
       const { data: existing } = await (supabase.from("website_about") as any).select("id").eq(column, value).maybeSingle();
       if (existing) {
-        await (supabase.from("website_about") as any).update(aboutData).eq(column, value);
+        const { error: updateError } = await (supabase.from("website_about") as any).update(aboutData).eq(column, value);
+        if (updateError) throw updateError;
       } else {
-        await (supabase.from("website_about") as any).insert({ user_id: userId, ...aboutData });
+        const { error: insertError } = await (supabase.from("website_about") as any).insert({ user_id: userId, ...aboutData });
+        if (insertError) throw insertError;
       }
       toast.success("Sauvegardé comme ta page À propos !");
     } catch (e: any) {

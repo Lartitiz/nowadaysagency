@@ -11,6 +11,7 @@ export default function UnsubscribePage() {
   const [isUnsubscribed, setIsUnsubscribed] = useState(false);
   const [acting, setActing] = useState(false);
   const [unsubscribeError, setUnsubscribeError] = useState(false);
+  const [resubscribeError, setResubscribeError] = useState(false);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
@@ -44,10 +45,15 @@ export default function UnsubscribePage() {
   const handleResubscribe = async () => {
     if (!user) return;
     setActing(true);
-    await (supabase.from("email_unsubscribes") as any)
+    setResubscribeError(false);
+    const { error } = await (supabase.from("email_unsubscribes") as any)
       .delete()
       .eq("user_id", user.id);
-    setIsUnsubscribed(false);
+    if (error) {
+      setResubscribeError(true);
+    } else {
+      setIsUnsubscribed(false);
+    }
     setActing(false);
   };
 
@@ -95,6 +101,11 @@ export default function UnsubscribePage() {
               {acting ? <Loader2 className="h-4 w-4 animate-spin" /> : <MailCheck className="h-4 w-4" />}
               Me réinscrire
             </Button>
+            {resubscribeError && (
+              <p className="text-sm text-destructive">
+                La réinscription a échoué. Réessaie, ou contacte-nous si le problème persiste.
+              </p>
+            )}
           </>
         ) : (
           <>

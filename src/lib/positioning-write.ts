@@ -32,15 +32,17 @@ export async function applyPositioningToProposition(
     const cur = existing.version_final;
     const isEmpty = cur === null || cur === undefined || (typeof cur === "string" && cur.trim() === "");
     if (isEmpty) {
-      await (supabase.from("brand_proposition") as any)
+      const { error } = await (supabase.from("brand_proposition") as any)
         .update({ version_final: value })
         .eq("id", existing.id);
+      if (error) throw error;
     }
   } else {
-    await (supabase.from("brand_proposition") as any).insert({
+    const { error } = await (supabase.from("brand_proposition") as any).insert({
       user_id: ownerUserId,
       workspace_id: filterCol === "workspace_id" ? filterVal : null,
       version_final: value,
     });
+    if (error) throw error;
   }
 }

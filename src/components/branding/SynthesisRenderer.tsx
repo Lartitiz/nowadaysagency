@@ -964,13 +964,21 @@ export default function SynthesisRenderer({ section, data, table, onSynthesisGen
     const lastKey = path[path.length - 1];
     if (Array.isArray(obj) && !isNaN(Number(lastKey))) obj[Number(lastKey)] = value;
     else obj[lastKey] = value;
-    await (supabase.from(table as any) as any).update({ [recapKey]: recap }).eq("id", localData.id);
+    const { error } = await (supabase.from(table as any) as any).update({ [recapKey]: recap }).eq("id", localData.id);
+    if (error) {
+      toast.error("Erreur de sauvegarde, réessaie");
+      return;
+    }
     setLocalData({ ...localData, [recapKey]: recap });
   };
 
   const saveDirectField = async (field: string, value: string) => {
     if (!localData?.id) return;
-    await (supabase.from(table as any) as any).update({ [field]: value }).eq("id", localData.id);
+    const { error } = await (supabase.from(table as any) as any).update({ [field]: value }).eq("id", localData.id);
+    if (error) {
+      toast.error("Erreur de sauvegarde, réessaie");
+      return;
+    }
     setLocalData({ ...localData, [field]: value });
   };
 

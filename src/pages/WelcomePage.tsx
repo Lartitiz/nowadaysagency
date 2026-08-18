@@ -235,9 +235,13 @@ function buildBrandingCards(
           return { ...c, colors: newColors };
         }));
         if (/^#[0-9A-Fa-f]{6}$/.test(newColor)) {
-          await (supabase.from("brand_charter" as any) as any)
+          const { error } = await (supabase.from("brand_charter" as any) as any)
             .update({ [colorKey]: newColor })
             .eq(filterColumn, filterValue);
+          if (error) {
+            console.error("Save error:", error);
+            sonnerToast.error("Erreur de sauvegarde");
+          }
         }
       },
     });

@@ -85,13 +85,17 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
           .select("id, tone_style, combat_cause, combat_fights").eq(filterCol, filterVal).maybeSingle();
         if (existing) {
           const safe = onlyStillEmpty(brandUpdates, existing);
-          if (Object.keys(safe).length > 0) await (supabase.from("brand_profile") as any).update(safe).eq("id", existing.id);
+          if (Object.keys(safe).length > 0) {
+            const { error: updateError } = await (supabase.from("brand_profile") as any).update(safe).eq("id", existing.id);
+            if (updateError) throw updateError;
+          }
         } else {
-          await (supabase.from("brand_profile") as any).insert({
+          const { error: insertError } = await (supabase.from("brand_profile") as any).insert({
             user_id: userId,
             workspace_id: filterCol === "workspace_id" ? filterVal : null,
             ...brandUpdates,
           });
+          if (insertError) throw insertError;
         }
       }
 
@@ -143,13 +147,17 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
           .select("id, color_primary, color_secondary, color_accent, color_background, font_title, font_body, mood_keywords").eq(filterCol, filterVal).maybeSingle();
         if (existingCharter) {
           const safe = onlyStillEmpty(charterUpdates, existingCharter);
-          if (Object.keys(safe).length > 0) await (supabase.from("brand_charter") as any).update(safe).eq("id", existingCharter.id);
+          if (Object.keys(safe).length > 0) {
+            const { error: updateError } = await (supabase.from("brand_charter") as any).update(safe).eq("id", existingCharter.id);
+            if (updateError) throw updateError;
+          }
         } else {
-          await (supabase.from("brand_charter") as any).insert({
+          const { error: insertError } = await (supabase.from("brand_charter") as any).insert({
             user_id: userId,
             workspace_id: filterCol === "workspace_id" ? filterVal : null,
             ...charterUpdates,
           });
+          if (insertError) throw insertError;
         }
       }
 
@@ -161,13 +169,15 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
         const { data: existingVoice } = await (supabase.from("voice_profile") as any)
           .select("id, voice_summary").eq("user_id", profileUserId).maybeSingle();
         if (existingVoice && !existingVoice.voice_summary) {
-          await (supabase.from("voice_profile") as any).update({ voice_summary: editableValues.tone_style }).eq("id", existingVoice.id);
+          const { error: updateError } = await (supabase.from("voice_profile") as any).update({ voice_summary: editableValues.tone_style }).eq("id", existingVoice.id);
+          if (updateError) throw updateError;
         } else if (!existingVoice) {
-          await (supabase.from("voice_profile") as any).insert({
+          const { error: insertError } = await (supabase.from("voice_profile") as any).insert({
             user_id: profileUserId,
             workspace_id: filterCol === "workspace_id" ? filterVal : null,
             voice_summary: editableValues.tone_style,
           });
+          if (insertError) throw insertError;
         }
       }
 

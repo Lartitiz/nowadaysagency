@@ -289,10 +289,15 @@ export default function SuggestedContents() {
       return;
     }
 
-    await (supabase.from("suggested_contents") as any)
+    const { error } = await (supabase.from("suggested_contents") as any)
       .delete()
       .eq(column, value)
       .eq("week_start", weekStart);
+
+    if (error) {
+      toast.error("Erreur lors de la régénération des idées");
+      return;
+    }
 
     const newCount = regenCount + 1;
     setRegenCount(newCount);

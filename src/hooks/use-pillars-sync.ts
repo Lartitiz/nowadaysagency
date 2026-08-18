@@ -142,9 +142,10 @@ export function usePillarsSync(): PillarsSyncResult {
         }));
       }
 
-      await (supabase.from("instagram_editorial_line") as any)
+      const { error } = await (supabase.from("instagram_editorial_line") as any)
         .update({ pillars: newPillars })
         .eq("id", editoId);
+      if (error) throw error;
 
       // Clear dismiss flag for this hash since data is now in sync (key includes branding hash)
       try { localStorage.removeItem(dismissKey); } catch {/* ignore */}

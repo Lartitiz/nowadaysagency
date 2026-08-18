@@ -322,10 +322,11 @@ export default function BrandingPage() {
         // l'étape « relis + valide » qu'on veut imposer après l'inscription.
         if (filledCount >= 5 && !fromOnboarding) {
           // Silently mark as completed — user already has their branding
-          await (supabase.from("branding_autofill") as any)
+          const { error: markCompleteErr } = await (supabase.from("branding_autofill") as any)
             .update({ autofill_status: "completed", autofill_pending_review: false })
             .eq(column, value)
             .eq("autofill_status", "pending_review");
+          if (markCompleteErr) console.error("branding_autofill mark-completed error:", markCompleteErr);
           // La garde de /creer lit cette même fiche : sans invalidation, son
           // cache garderait « fiche en attente » et bloquerait la création.
           queryClient.invalidateQueries({ queryKey: ["pending-brand-review"] });
@@ -579,7 +580,8 @@ export default function BrandingPage() {
 
       // Save autofill status
       if (result.id) {
-        await (supabase.from("branding_autofill") as any).update({ autofill_status: "pending_review" }).eq("id", result.id);
+        const { error: statusError } = await (supabase.from("branding_autofill") as any).update({ autofill_status: "pending_review" }).eq("id", result.id);
+        if (statusError) throw statusError;
       }
 
       // Log completion
@@ -763,10 +765,14 @@ export default function BrandingPage() {
                 mandatory={fromOnboarding}
                 onDone={async () => {
                   if (user?.id && !isDemoMode) {
-                    await (supabase.from("branding_autofill") as any)
+                    const { error: completeErr } = await (supabase.from("branding_autofill") as any)
                       .update({ autofill_status: "completed", autofill_pending_review: false })
                       .eq(column, value)
                       .eq("autofill_status", "pending_review");
+                    if (completeErr) {
+                      toast.error("Impossible d'enregistrer la validation de ta fiche. Réessaie.");
+                      return;
+                    }
                     // Idem : la garde de /creer doit relire la vérité tout de suite.
                     queryClient.invalidateQueries({ queryKey: ["pending-brand-review"] });
                   }
@@ -846,19 +852,29 @@ export default function BrandingPage() {
                         if (sectionKey === "proposition") {
                           // Source de vérité unique = brand_proposition.version_final (lu par la génération ET le Coach).
                           // brand_profile.positioning n'est lu par aucune génération → on n'y écrit plus.
-                          await (supabase.from("brand_proposition") as any).update({ version_final: suggestion }).eq(fCol, fVal);
+                          const { error } = await (supabase.from("brand_proposition") as any).update({ version_final: suggestion }).eq(fCol, fVal);
+                          if (error) throw error;
                         } else if (sectionKey === "persona") {
                           const { data: p } = await (supabase.from("persona") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
-                          if (p) await (supabase.from("persona") as any).update({ step_2_transformation: suggestion }).eq("id", p.id);
+                          if (p) {
+                            const { error } = await (supabase.from("persona") as any).update({ step_2_transformation: suggestion }).eq("id", p.id);
+                            if (error) throw error;
+                          }
                         } else if (sectionKey === "offers") {
-                          await (supabase.from("brand_profile") as any).update({ offer: suggestion }).eq(fCol, fVal);
+                          const { error } = await (supabase.from("brand_profile") as any).update({ offer: suggestion }).eq(fCol, fVal);
+                          if (error) throw error;
                         } else if (sectionKey === "tone") {
-                          await (supabase.from("brand_profile") as any).update({ voice_description: suggestion }).eq(fCol, fVal);
+                          const { error } = await (supabase.from("brand_profile") as any).update({ voice_description: suggestion }).eq(fCol, fVal);
+                          if (error) throw error;
                         } else if (sectionKey === "storytelling") {
                           const { data: st } = await (supabase.from("storytelling") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
-                          if (st) await (supabase.from("storytelling") as any).update({ imported_text: suggestion, source: "audit" }).eq("id", st.id);
+                          if (st) {
+                            const { error } = await (supabase.from("storytelling") as any).update({ imported_text: suggestion, source: "audit" }).eq("id", st.id);
+                            if (error) throw error;
+                          }
                         } else if (sectionKey === "strategy") {
-                          await (supabase.from("brand_profile") as any).update({ content_editorial_line: suggestion }).eq(fCol, fVal);
+                          const { error } = await (supabase.from("brand_profile") as any).update({ content_editorial_line: suggestion }).eq(fCol, fVal);
+                          if (error) throw error;
                         }
                         setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
                         toast.success("✅ Suggestion appliquée !");

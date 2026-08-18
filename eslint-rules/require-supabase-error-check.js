@@ -52,6 +52,22 @@ function patternLitErreur(pattern) {
   });
 }
 
+/**
+ * Types de nœuds « transparents » qu'on traverse sans qu'ils cassent la
+ * chaîne : un cast TypeScript (`as any`, `as Foo`), une assertion de
+ * non-nullité (`!`), ou de simples parenthèses. `(supabase.from(x) as any)
+ * .update(y)` doit rester détecté comme n'importe quel `.update` sur `.from`.
+ */
+function expressionInterne(n) {
+  if (n.type === "TSAsExpression" || n.type === "TSSatisfiesExpression") {
+    return n.expression;
+  }
+  if (n.type === "TSNonNullExpression" || n.type === "ParenthesizedExpression") {
+    return n.expression;
+  }
+  return null;
+}
+
 /** La chaîne sous ce .insert/.update/... contient-elle un appel .from(...) ? */
 function chaineContientFrom(appelEcriture) {
   let n = appelEcriture.callee.object;
@@ -64,7 +80,9 @@ function chaineContientFrom(appelEcriture) {
     ) {
       return true;
     }
-    if (n.type === "CallExpression") n = n.callee;
+    const interne = expressionInterne(n);
+    if (interne) n = interne;
+    else if (n.type === "CallExpression") n = n.callee;
     else if (n.type === "MemberExpression") n = n.object;
     else return false;
   }

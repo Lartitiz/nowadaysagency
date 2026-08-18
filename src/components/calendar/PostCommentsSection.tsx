@@ -8,6 +8,7 @@ import { Check, Loader2, MessageCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { toast } from "sonner";
 
 interface Comment {
   id: string;
@@ -71,9 +72,13 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
   if (comments.length === 0 && !loading && !fallbackShareId) return null;
 
   const toggleResolved = async (commentId: string, current: boolean) => {
-    await (supabase.from("calendar_comments") as any)
+    const { error } = await (supabase.from("calendar_comments") as any)
       .update({ is_resolved: !current })
       .eq("id", commentId);
+    if (error) {
+      toast.error("Erreur lors de la mise à jour du commentaire");
+      return;
+    }
     setComments(prev => prev.map(c => c.id === commentId ? { ...c, is_resolved: !current } : c));
   };
 
@@ -85,7 +90,7 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
     const shareForPost = comments[0]?.share_id || fallbackShareId;
     if (!shareForPost) { setSending(false); return; }
 
-    const { data } = await (supabase.from("calendar_comments") as any)
+    const { data, error } = await (supabase.from("calendar_comments") as any)
       .insert({
         calendar_post_id: postId,
         share_id: shareForPost,
@@ -95,6 +100,12 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
       })
       .select()
       .single();
+
+    if (error) {
+      toast.error("Erreur lors de l'envoi du commentaire");
+      setSending(false);
+      return;
+    }
 
     if (data) {
       setComments(prev => [...prev, data]);

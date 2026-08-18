@@ -112,13 +112,14 @@ async function checkDataCoherence(): Promise<AuditResult[]> {
         detail: `Client ${prog.client_user_id.slice(0, 8)}… a un programme actif mais sub.plan = '${sub?.plan || "absent"}'`,
         fixLabel: "Synchroniser → binome",
         fix: async () => {
-          await (supabase.from("subscriptions" as any) as any)
+          const { error } = await (supabase.from("subscriptions" as any) as any)
             .upsert({
               user_id: prog.client_user_id,
               plan: "binome",
               status: "active",
               source: "coaching",
             }, { onConflict: "user_id" });
+          if (error) throw error;
         },
       });
     }

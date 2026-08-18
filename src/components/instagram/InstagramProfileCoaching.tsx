@@ -160,7 +160,8 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
     if (!user) return;
     try {
       if (profileData) {
-        await (supabase.from("profiles") as any).update({ validated_bio: bioText }).eq("user_id", profileUserId);
+        const { error } = await (supabase.from("profiles") as any).update({ validated_bio: bioText }).eq("user_id", profileUserId);
+        if (error) throw error;
         queryClient.invalidateQueries({ queryKey: ["profile"] });
       }
       toast.success("Bio sauvegardée ! Retrouve-la dans ton espace Bio.");

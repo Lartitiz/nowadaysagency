@@ -46,9 +46,13 @@ export default function BrandingSuggestionsCard({
 
   const handleDismiss = async () => {
     if (suggestionId && user) {
-      await (supabase.from("branding_suggestions" as any) as any)
+      const { error } = await (supabase.from("branding_suggestions" as any) as any)
         .update({ status: "dismissed", resolved_at: new Date().toISOString() })
         .eq("id", suggestionId);
+      if (error) {
+        toast.error("Impossible de fermer cette suggestion, réessaie.");
+        return;
+      }
     }
     onDismiss();
   };
@@ -111,9 +115,10 @@ export default function BrandingSuggestionsCard({
     if (!hasError) {
       try {
         if (suggestionId && user) {
-          await (supabase.from("branding_suggestions" as any) as any)
+          const { error: markAppliedError } = await (supabase.from("branding_suggestions" as any) as any)
             .update({ status: "applied", resolved_at: new Date().toISOString() })
             .eq("id", suggestionId);
+          if (markAppliedError) console.error("Failed to mark suggestion set as applied:", markAppliedError);
         }
       } catch {
         // non-blocking
