@@ -498,7 +498,10 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       const safeObjectif = objectif && validObjectifs.includes(objectif) ? objectif : null;
       const res = await invokeWithTimeout("generate-content", {
         body: { type: "calendar-quick", theme, objectif: safeObjectif, angle, format: format || "post_carrousel", notes, profile: profileData || {}, canal: postCanal, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      }, 120000);
+        // Budget serveur pire cas (LinkedIn) : génération 60s + passe de
+        // correction 60s = 120s bornées côté edge (audit timeouts 17/08).
+        // Marge de 30s côté client pour ne pas courir la même ligne d'arrivée.
+      }, 150000);
       // Handle quota limit
       if (res.data?.error === "limit_reached") {
         toast("Plus de crédits ce mois-ci 🌸", { description: res.data.message || "Tes crédits se renouvellent le 1er du mois." });

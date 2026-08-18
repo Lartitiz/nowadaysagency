@@ -47,13 +47,21 @@ export async function generateAndSaveFullStory(
         .limit(1)
         .maybeSingle();
       if (existing?.id) {
-        await (supabase.from("storytelling") as any)
+        const { error } = await (supabase.from("storytelling") as any)
           .update({ step_6_full_story: generatedStory, completed: true, updated_at: new Date().toISOString() })
           .eq("id", existing.id);
+        if (error) throw error;
       }
+    } else {
+      // L'IA n'a pas renvoyé un texte exploitable (vide ou trop court) : le
+      // fragment brut reste enregistré (saveStoryInsights), mais la version
+      // "racontée" ne l'est pas — le dire plutôt que laisser croire que
+      // l'histoire complète a été rédigée.
+      throw new Error("full story: réponse IA vide ou trop courte");
     }
   } catch (e) {
     console.error("[BrandingCoaching] Error generating full story:", e);
+    toast.error("Ton histoire brute est enregistrée, mais je n'ai pas réussi à en rédiger la version complète. Retourne dans ta fiche storytelling pour relancer la génération.");
   }
 }
 
@@ -165,9 +173,10 @@ async function fillMissingPersonaFields(
   }
 
   if (Object.keys(validFills).length > 0) {
-    await (supabase.from("persona") as any)
+    const { error } = await (supabase.from("persona") as any)
       .update({ ...validFills, updated_at: new Date().toISOString() })
       .eq("id", currentPersona.id);
+    if (error) throw error;
     console.log(`[BrandingCoaching] Persona fill: ${Object.keys(validFills).length} missing fields filled`);
   } else if (fillResponse) {
     console.warn("[BrandingCoaching] Persona fill: AI responded but no exploitable keys. Received:",
@@ -211,9 +220,10 @@ async function generatePersonaPitches(currentPersona: Record<string, any>, ctx: 
         if (pitchParsed.long) pitchUpdate.pitch_long = pitchParsed.long;
 
         if (Object.keys(pitchUpdate).length > 0) {
-          await (supabase.from("persona") as any)
+          const { error } = await (supabase.from("persona") as any)
             .update({ ...pitchUpdate, updated_at: new Date().toISOString() })
             .eq("id", currentPersona.id);
+          if (error) throw error;
           console.log(`[BrandingCoaching] Persona pitches generated: ${Object.keys(pitchUpdate).join(", ")}`);
         }
       }

@@ -10,6 +10,15 @@
 //                     renvoie une erreur propre.
 //  - tryParseAiJson : retourne null mais loggue (affichage tolérant / retour 502
 //                     explicite côté appelant).
+//
+// Copie front : src/lib/parse-ai-json.ts (runtimes séparés, garder en sync).
+// Duplication VOULUE, pas de la dette : Deno (edge) ne peut pas importer un
+// fichier qui dépend d'un alias Vite (@/lib/error-tracker) et le front n'a pas
+// vocation à connaître le statut HTTP 502 — même limite que strip-markdown.ts.
+// `attemptParse` / `repairSingleQuotedJson` / `excerpt` doivent rester
+// identiques entre les deux copies ; seuls le canal de log et le statut HTTP
+// diffèrent légitimement. Tout correctif ici doit être répercuté côté front
+// (cf. PR #785 et #841, qui ont modifié les deux à chaque fois).
 
 export class AiParseError extends Error {
   readonly status = 502;

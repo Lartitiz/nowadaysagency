@@ -10,7 +10,11 @@ import {
 } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
-serve(async (req) => {
+// Exportée (plutôt qu'inline dans serve()) pour être testable : `serve()` de
+// std/http ouvre un vrai socket TCP à l'import et n'expose pas le handler
+// qu'on lui passe, contrairement à `Deno.serve` (voir _shared/test-edge-harness.ts).
+// Le guard `import.meta.main` plus bas préserve le comportement de prod à l'identique.
+export async function handleCheckSubscriptionRequest(req: Request): Promise<Response> {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -144,4 +148,12 @@ serve(async (req) => {
       status: 200,
     });
   }
-});
+}
+
+// Guard nécessaire pour les tests : sans lui, `deno test` important ce module
+// (pour handleCheckSubscriptionRequest) ouvrirait aussi un vrai listener HTTP.
+// En prod, l'edge function exécute index.ts directement comme entrypoint →
+// import.meta.main est true, comportement inchangé.
+if (import.meta.main) {
+  serve(handleCheckSubscriptionRequest);
+}

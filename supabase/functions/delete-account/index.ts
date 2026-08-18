@@ -11,7 +11,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-serve(async (req) => {
+// Exportée (plutôt qu'inline dans serve()) pour être testable : `serve()` de
+// std/http ouvre un vrai socket TCP à l'import et n'expose pas le handler
+// qu'on lui passe, contrairement à `Deno.serve` (voir _shared/test-edge-harness.ts).
+// Le guard `import.meta.main` plus bas préserve le comportement de prod à l'identique.
+export async function handleDeleteAccountRequest(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -301,4 +305,12 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500 }
     );
   }
-});
+}
+
+// Guard nécessaire pour les tests : sans lui, `deno test` important ce module
+// (pour handleDeleteAccountRequest) ouvrirait aussi un vrai listener HTTP. En
+// prod, l'edge function exécute index.ts directement comme entrypoint →
+// import.meta.main est true, comportement inchangé.
+if (import.meta.main) {
+  serve(handleDeleteAccountRequest);
+}

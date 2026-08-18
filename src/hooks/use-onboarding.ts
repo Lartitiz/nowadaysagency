@@ -677,6 +677,13 @@ export function useOnboarding() {
       }
     } catch (e) {
       console.error("Failed to save diagnostic:", e);
+      // Non bloquant : l'onboarding continue quand même (les écritures de
+      // complétion ci-dessus sont ce qui compte pour ne pas se refaire
+      // téléporter au début). Mais on vient de répondre à tout le
+      // questionnaire de diagnostic : le dire plutôt que le perdre en silence.
+      toast.error("Ton diagnostic n'a pas pu être enregistré", {
+        description: "Tes points forts/points faibles ne sont pas sauvegardés — tu peux relancer un diagnostic depuis ta fiche marque.",
+      });
     }
     localStorage.removeItem("lac_onboarding_step");
     localStorage.removeItem("lac_onboarding_answers");

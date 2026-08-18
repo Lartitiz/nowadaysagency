@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { analyzeCarouselRedac, analyzeTextRedac, buildTextFixInstructions, normalizeCaptionHashtags, numbersIn } from "./redac-gate.ts";
+import { analyzeCarouselRedac, analyzeTextRedac, buildTextFixInstructions, findBrandCopyOverlap, normalizeCaptionHashtags, numbersIn } from "./redac-gate.ts";
 
 // Cas réels de l'audit rédactionnel du 10/07 (carrousels 07 et 18).
 
@@ -278,4 +278,224 @@ Deno.test("durées : un écart chiffré/lettres est vu aussi dans l'autre sens",
     caption: { body: "Deux mois après, le constat est le même." },
   });
   assertEquals(a.durationConflicts.length, 1);
+});
+
+// ── Mesure seule (audit slop 18/08/2026, lot 5) : 6 familles, calibrage avant activation ──
+// Ces compteurs ne déclenchent AUCUNE re-passe : ils alimentent la
+// télémétrie (content-quality.ts) pour calibrer des seuils sur des vraies
+// données avant d'activer quoi que ce soit.
+
+Deno.test("countStaccatoAcrossSlides : 3 slides courtes consécutives = 1 rafale", async () => {
+  const { countStaccatoAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Peu de mots ici" }, // 4 mots
+    { slide_number: 2, title: "Encore moins que ça" }, // 4 mots
+    { slide_number: 3, title: "Trois slides courtes" }, // 3 mots
+    { slide_number: 4, title: "Une slide bien plus longue avec beaucoup de mots pour casser le rythme court" },
+  ];
+  assertEquals(countStaccatoAcrossSlides(slides), 1);
+});
+
+Deno.test("countStaccatoAcrossSlides : slides de longueur normale = 0 rafale", async () => {
+  const { countStaccatoAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Une phrase avec pas mal de mots pour ne pas être staccato" },
+    { slide_number: 2, title: "Une autre phrase également assez longue pour ne pas compter" },
+    { slide_number: 3, title: "Encore une troisième slide qui prend son temps pour dire les choses" },
+  ];
+  assertEquals(countStaccatoAcrossSlides(slides), 0);
+});
+
+Deno.test("countStaccatoAcrossSlides : seulement 2 slides courtes consécutives ne compte pas", async () => {
+  const { countStaccatoAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Deux slides courtes" },
+    { slide_number: 2, title: "Puis ça s'arrête" },
+    { slide_number: 3, title: "Une slide bien plus longue avec beaucoup de mots pour casser le rythme court" },
+  ];
+  assertEquals(countStaccatoAcrossSlides(slides), 0);
+});
+
+Deno.test("countAnaphoraAcrossSlides : 3 slides consécutives démarrant par le même mot = 1 rafale", async () => {
+  const { countAnaphoraAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Le prix grimpe chaque année." },
+    { slide_number: 2, title: "Le temps presse pour tout le monde." },
+    { slide_number: 3, title: "Le geste compte plus que le mot." },
+    { slide_number: 4, title: "Un jour différent commence enfin." },
+  ];
+  assertEquals(countAnaphoraAcrossSlides(slides), 1);
+});
+
+Deno.test("countAnaphoraAcrossSlides : mots d'ouverture différents = 0 rafale", async () => {
+  const { countAnaphoraAcrossSlides } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Le prix grimpe chaque année." },
+    { slide_number: 2, title: "Un client m'a écrit hier." },
+    { slide_number: 3, title: "Trois semaines plus tard, tout a changé." },
+  ];
+  assertEquals(countAnaphoraAcrossSlides(slides), 0);
+});
+
+Deno.test("countResultConclusionOpeners : « Résultat : » en début de phrase est compté", async () => {
+  const { countResultConclusionOpeners } = await import("./redac-gate.ts");
+  const text = "Elle a tout changé de méthode. Résultat : les ventes ont doublé en trois mois.";
+  assertEquals(countResultConclusionOpeners(text).length, 1);
+});
+
+Deno.test("countResultConclusionOpeners : « Conclusion : » en début de phrase est compté", async () => {
+  const { countResultConclusionOpeners } = await import("./redac-gate.ts");
+  const text = "On a testé pendant six mois. Conclusion : la régularité compte plus que la perfection.";
+  assertEquals(countResultConclusionOpeners(text).length, 1);
+});
+
+Deno.test("countResultConclusionOpeners : « résultat » en usage courant MI-PHRASE n'est pas compté", async () => {
+  const { countResultConclusionOpeners } = await import("./redac-gate.ts");
+  assertEquals(countResultConclusionOpeners("Le résultat de l'enquête est clair.").length, 0);
+});
+
+Deno.test("isOpeningRhetoricalQuestion : la 1re phrase se termine par « ? »", async () => {
+  const { isOpeningRhetoricalQuestion } = await import("./redac-gate.ts");
+  assertEquals(isOpeningRhetoricalQuestion("Et si tu arrêtais de t'excuser ? Ça changerait tout."), true);
+});
+
+Deno.test("isOpeningRhetoricalQuestion : ouverture affirmative = false", async () => {
+  const { isOpeningRhetoricalQuestion } = await import("./redac-gate.ts");
+  assertEquals(isOpeningRhetoricalQuestion("Le rythme change tout. Tu le sens dès la première semaine."), false);
+});
+
+Deno.test("isOpeningRhetoricalQuestion : texte vide = false", async () => {
+  const { isOpeningRhetoricalQuestion } = await import("./redac-gate.ts");
+  assertEquals(isOpeningRhetoricalQuestion(""), false);
+});
+
+Deno.test("countEmptyAdjectives : compte authentique/aligné/puissant", async () => {
+  const { countEmptyAdjectives } = await import("./redac-gate.ts");
+  const a = countEmptyAdjectives("Ce positionnement authentique et aligné est puissant.");
+  assertEquals(a, { authentique: 1, aligné: 1, puissant: 1 });
+});
+
+Deno.test("countEmptyAdjectives : faux positifs évités (vocabulaire métier légitime)", async () => {
+  const { countEmptyAdjectives } = await import("./redac-gate.ts");
+  // « désaligné » (contraire), « impuissant » (contraire), « alignement » (nom,
+  // pas l'adjectif) ne doivent PAS compter comme des occurrences de la famille.
+  const a = countEmptyAdjectives(
+    "Un discours désaligné, presque impuissant, loin de tout alignement des prix sur le marché.",
+  );
+  assertEquals(a, { authentique: 0, aligné: 0, puissant: 0 });
+});
+
+Deno.test("countEmptyAdjectives : formes féminines/plurielles comptées", async () => {
+  const { countEmptyAdjectives } = await import("./redac-gate.ts");
+  const a = countEmptyAdjectives("Des marques authentiques, alignées et puissantes.");
+  assertEquals(a, { authentique: 1, aligné: 1, puissant: 1 });
+});
+
+Deno.test("hookEndingSimilarity : boucle accroche/chute détectée (reformulation quasi identique)", async () => {
+  const { hookEndingSimilarity } = await import("./redac-gate.ts");
+  const hook = "Le vrai changement commence quand tu arrêtes de t'excuser.";
+  const ending = "Le vrai changement, c'est quand tu arrêtes de t'excuser.";
+  const sim = hookEndingSimilarity(hook, ending);
+  assertEquals(sim >= 0.7, true);
+});
+
+Deno.test("hookEndingSimilarity : accroche et chute sans rapport = similarité faible", async () => {
+  const { hookEndingSimilarity } = await import("./redac-gate.ts");
+  const hook = "Le vrai changement commence aujourd'hui.";
+  const ending = "Un café renversé un mardi matin.";
+  const sim = hookEndingSimilarity(hook, ending);
+  assertEquals(sim <= 0.2, true);
+});
+
+Deno.test("measureSlopSignals : agrège les 6 familles sans modifier le contenu", async () => {
+  const { measureSlopSignals } = await import("./redac-gate.ts");
+  const slides = [
+    { slide_number: 1, title: "Le prix grimpe." },
+    { slide_number: 2, title: "Le temps presse." },
+    { slide_number: 3, title: "Le geste compte." },
+  ];
+  const signals = measureSlopSignals({
+    fullText: "Le prix grimpe. Le temps presse. Le geste compte. Résultat : tout s'accélère.",
+    hookText: "Le prix grimpe.",
+    endingText: "Résultat : tout s'accélère.",
+    slides,
+  });
+  assertEquals(signals.staccato_inter_slides, 1);
+  assertEquals(signals.anaphora_inter_slides, 1);
+  assertEquals(signals.result_conclusion_openers, 1);
+  assertEquals(typeof signals.opening_rhetorical_question, "boolean");
+  assertEquals(signals.empty_adjectives, { authentique: 0, aligné: 0, puissant: 0 });
+  assertEquals(typeof signals.hook_ending_similarity, "number");
+});
+
+Deno.test("measureSlopSignals : sans slides, les familles inter-slides restent à 0", async () => {
+  const { measureSlopSignals } = await import("./redac-gate.ts");
+  const signals = measureSlopSignals({ fullText: "Un texte libre, sans slides, tout simplement." });
+  assertEquals(signals.staccato_inter_slides, 0);
+  assertEquals(signals.anaphora_inter_slides, 0);
+  assertEquals(signals.hook_ending_similarity, 0);
+});
+
+// ── Recopie de la fiche de marque (audit slop 18/08) ──
+// Cas réel de l'audit : le combat_cause d'une fiche de marque ressortait quasi
+// mot pour mot dans 4 contenus sur 7 générés dans le même run.
+
+const COMBAT_CAUSE_TEST = "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau, et contre le greenwashing des marques 'naturelles' aux listes d'ingrédients illisibles.";
+
+Deno.test("findBrandCopyOverlap détecte 10 mots consécutifs recopiés du champ de marque", () => {
+  const generated = "On me demande souvent pourquoi je fabrique mes savons à froid. Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent, je préfère prendre le temps.";
+  const found = findBrandCopyOverlap(generated, COMBAT_CAUSE_TEST);
+  assertEquals(found.length, 1);
+  assertEquals(found[0].toLowerCase().includes("contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent"), true);
+});
+
+Deno.test("findBrandCopyOverlap ne réagit PAS quand le même sujet est abordé avec des mots différents", () => {
+  const generated = "Beaucoup de marques vendent des produits qui martyrisent la peau avec des tensioactifs chimiques, sans jamais l'assumer clairement dans leur communication.";
+  assertEquals(findBrandCopyOverlap(generated, COMBAT_CAUSE_TEST), []);
+});
+
+Deno.test("findBrandCopyOverlap : un seul mot de vocabulaire métier partagé (savon/saponification) ne déclenche jamais seul", () => {
+  const generated = "La saponification est un procédé chimique que j'utilise pour fabriquer mes savons artisanaux, entièrement différent des procédés industriels standards du marché.";
+  assertEquals(findBrandCopyOverlap(generated, COMBAT_CAUSE_TEST), []);
+});
+
+Deno.test("findBrandCopyOverlap : aucun champ de marque fourni → ne plante pas, renvoie []", () => {
+  assertEquals(findBrandCopyOverlap("Un texte quelconque, sans rapport avec quoi que ce soit.", undefined), []);
+  assertEquals(findBrandCopyOverlap("", COMBAT_CAUSE_TEST), []);
+  assertEquals(findBrandCopyOverlap("Un texte quelconque.", ""), []);
+});
+
+Deno.test("analyzeTextRedac : brandGuardText absent → brandCopyOverlap vide, ne plante pas", () => {
+  const a = analyzeTextRedac("Un post LinkedIn tout à fait normal, sans aucun champ de marque fourni en entrée.");
+  assertEquals(a.brandCopyOverlap, []);
+});
+
+Deno.test("analyzeTextRedac : recopie détectée est remontée dans brandCopyOverlap et déclenche buildTextFixInstructions", () => {
+  const generated = "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent, voici ce que je propose à la place.";
+  const a = analyzeTextRedac(generated, undefined, COMBAT_CAUSE_TEST);
+  assertEquals(a.brandCopyOverlap.length, 1);
+  const fix = buildTextFixInstructions(a);
+  assertEquals(fix.includes("RECOPIÉS DE LA FICHE DE MARQUE"), true);
+});
+
+Deno.test("analyzeCarouselRedac : brandGuardText absent → brandCopyOverlap vide, ne plante pas (carrousel)", () => {
+  const a = analyzeCarouselRedac({
+    slides: [{ slide_number: 1, title: "Une tasse met trois semaines à exister", body: "" }],
+    caption: { hook: "", body: "", cta: "" },
+  });
+  assertEquals(a.brandCopyOverlap, []);
+});
+
+Deno.test("analyzeCarouselRedac : recopie détectée sur une slide", () => {
+  const a = analyzeCarouselRedac(
+    {
+      slides: [
+        { slide_number: 1, title: "Mon combat", body: "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau, je fabrique différemment." },
+      ],
+      caption: { hook: "", body: "", cta: "" },
+    },
+    undefined,
+    COMBAT_CAUSE_TEST,
+  );
+  assertEquals(a.brandCopyOverlap.length, 1);
 });

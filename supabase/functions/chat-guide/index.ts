@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { getModelForAction, supportsTemperature, stripTrailingAssistant, forcesDisabledThinking } from "../_shared/anthropic.ts";
+import { getModelForAction, supportsTemperature, stripTrailingAssistant, forcesDisabledThinking, sanitizeStyle } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -16,6 +16,34 @@ function parseSuggestions(text: string): { cleanText: string; suggestions: strin
   }
   const cleanText = text.replace(regex, "").replace(/\n{3,}/g, "\n\n").trim();
   return { cleanText, suggestions };
+}
+
+/**
+ * Nettoie + parse la réponse brute du modèle (tirets cadratins/tics retirés,
+ * puis marqueurs [ACTION_LINK:...]/[PLAN_POST:...]/[SUGGESTION:...] extraits).
+ *
+ * Ce fichier réimplémente sa propre boucle SSE (streamAnthropicSSE ci-dessous)
+ * au lieu d'utiliser _shared/anthropic-stream.ts, qui aurait donné le
+ * nettoyage sanitizeStyle gratuitement (audit slop 18/08, Constat 2). La
+ * vraie réparation — basculer sur createClientSSEStream — reste À FAIRE dans
+ * un lot séparé : son format d'event ({type:"done", full}) diffère de celui
+ * attendu ici ({cleanText, actions, plan, suggestions, creditsUsed}) par
+ * ChatGuidePage.tsx, donc la bascule complète est un rewrite front+back
+ * synchronisé, pas une simple substitution. Filet minimal en attendant :
+ * sanitizeStyle appliqué ici, au même endroit pour la réponse complète et la
+ * réponse interrompue.
+ */
+export function parseChatReply(rawText: string): {
+  cleanText: string;
+  actions: ReturnType<typeof parseActionLinks>["actions"];
+  plan: ReturnType<typeof parsePlanPosts>["plan"];
+  aiSuggestions: string[];
+} {
+  const fullText = sanitizeStyle(rawText);
+  const { cleanText: textAfterActions, actions } = parseActionLinks(fullText);
+  const { cleanText: textAfterPlan, plan } = parsePlanPosts(textAfterActions);
+  const { cleanText, suggestions: aiSuggestions } = parseSuggestions(textAfterPlan);
+  return { cleanText, actions, plan, aiSuggestions };
 }
 
 /** Safely stringify any value */
@@ -570,9 +598,7 @@ Règles pour les suggestions :
           }
 
           // Parse action links, plan cards and suggestions from full text
-          const { cleanText: textAfterActions, actions } = parseActionLinks(fullText);
-          const { cleanText: textAfterPlan, plan } = parsePlanPosts(textAfterActions);
-          const { cleanText, suggestions: aiSuggestions } = parseSuggestions(textAfterPlan);
+          const { cleanText, actions, plan, aiSuggestions } = parseChatReply(fullText);
 
           let finalSuggestions: string[];
           if (aiSuggestions.length >= 2) {
@@ -606,9 +632,7 @@ Règles pour les suggestions :
           // NE facture PAS (sortie cassée). Sinon, message d'erreur classique.
           const partial = fullText.trim();
           if (partial) {
-            const { cleanText: ta, actions: partialActions } = parseActionLinks(fullText);
-            const { cleanText: tp, plan: partialPlan } = parsePlanPosts(ta);
-            const { cleanText: partialClean } = parseSuggestions(tp);
+            const { cleanText: partialClean, actions: partialActions, plan: partialPlan } = parseChatReply(fullText);
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: "done",
               cleanText: partialClean + "\n\n*(Réponse interrompue : réessaie pour la suite.)*",

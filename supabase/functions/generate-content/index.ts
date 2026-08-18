@@ -12,6 +12,7 @@ import { validateInput, ValidationError, GenerateContentSchema, clampAiField } f
 import { applyCorrectionPass } from "../_shared/correction-pass.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
+import { analyzeTextRedac, buildTextFixInstructions, numbersIn } from "../_shared/redac-gate.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
@@ -108,6 +109,9 @@ serve(async (req) => {
     let systemPrompt = "";
     let userPrompt = "";
     let isLinkedinGeneration = false;
+    // Liste blanche des chiffres pour la passe de correction LinkedIn (cf. redac-gate.ts,
+    // même patron que creative-flow) : renseignée dans les branches concernées ci-dessous.
+    let linkedinRedacInput = "";
 
     // Handle "raw" type early - no profile block needed
     if (type === "raw") {
@@ -490,6 +494,7 @@ Réponds en JSON :
         const formatInstruction = calFormat ? `FORMAT : ${formatMap[calFormat] || calFormat}` : "FORMAT : Carrousel par défaut";
         const isLinkedinCalendar = calFormat === "post_linkedin" || (body.canal === "linkedin");
         isLinkedinGeneration = isLinkedinCalendar;
+        linkedinRedacInput = [fullContext, theme, calNotes].filter(Boolean).join("\n");
         const linkedinDepthMandate = `FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 ══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
@@ -569,6 +574,7 @@ FORMAT :
         const formatInstruction = expressFormat ? `FORMAT : ${formatMap[expressFormat] || expressFormat}` : "FORMAT : Post Instagram par défaut";
         const isLinkedinFormat = expressFormat === "linkedin";
         isLinkedinGeneration = isLinkedinFormat;
+        linkedinRedacInput = [fullContext, expressSujet].filter(Boolean).join("\n");
         const expressLinkedinDepth = `FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 ══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
@@ -693,10 +699,15 @@ FORMAT :
     // LinkedIn correction pass — shared CORRECTION_PROMPTS.linkedin (richer than the previous inline prompt)
     if (isLinkedinGeneration) {
       try {
+        const liRedac = analyzeTextRedac(content, numbersIn(linkedinRedacInput));
         const corrected = await applyCorrectionPass(content, "linkedin", {
           logger: (m) => console.log(`[generate-content] ${m}`),
           // Édition mécanique à règles fermées → Haiku (cf. #364)
           model: "claude-haiku-4-5",
+          // Aligné sur la génération principale (ligne au-dessus) : budget
+          // serveur total borné à 120s (audit timeouts 17/08).
+          abortTimeoutMs: 60_000,
+          extraInstructions: buildTextFixInstructions(liRedac) || undefined,
         });
         if (corrected && corrected.length > 200) {
           content = corrected;

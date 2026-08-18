@@ -149,6 +149,74 @@ function findDurationConflicts(slidesText: string, captionText: string): string[
   return out;
 }
 
+// ── Recopie de la fiche de marque (audit slop 18/08) ──
+// Constat du corpus mesuré le 18/08 : le champ combat_cause d'une fiche de
+// marque ressortait QUASI MOT POUR MOT dans 4 contenus sur 7 générés dans le
+// même run. Chaque contenu pris seul était correct — c'est la RÉPÉTITION
+// LITTÉRALE d'un même passage qui trahit la machine dès que deux contenus
+// cohabitent sur le même feed. Symétrique à findFabricatedNumbers() : au lieu
+// d'une liste blanche de chiffres autorisés, une liste de passages à NE PAS
+// recopier (les champs de marque bruts, fournis en entrée).
+const BRAND_COPY_MIN_WORDS = 7;
+
+/** Mots normalisés (accents gardés, ponctuation ignorée) pour comparer deux textes. */
+function normalizeWordsForOverlap(text: string): string[] {
+  return (text || "").toLowerCase().match(/[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu) || [];
+}
+
+interface OffsetWord { word: string; start: number; end: number }
+
+/** Comme normalizeWordsForOverlap, mais garde la position dans le texte source. */
+function wordsWithOffsets(text: string): OffsetWord[] {
+  const out: OffsetWord[] = [];
+  const re = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text || ""))) {
+    out.push({ word: m[0].toLowerCase(), start: m.index, end: m.index + m[0].length });
+  }
+  return out;
+}
+
+/**
+ * Passages du texte généré qui recopient `minWords` mots CONSÉCUTIFS d'un
+ * champ de marque fourni en entrée (brandText). Volontairement une fenêtre
+ * large (7 mots par défaut) : un mot de vocabulaire métier partagé seul
+ * (« savon », « saponification ») ne peut jamais déclencher — il faut une
+ * SÉQUENCE entière recopiée. Fusionne les fenêtres qui se chevauchent en un
+ * seul passage pour ne pas remonter dix fois la même phrase longue.
+ */
+export function findBrandCopyOverlap(text: string, brandText: string | undefined, minWords = BRAND_COPY_MIN_WORDS): string[] {
+  if (!text || !brandText) return [];
+  const sourceWords = normalizeWordsForOverlap(brandText);
+  if (sourceWords.length < minWords) return [];
+  const sourceGrams = new Set<string>();
+  for (let i = 0; i + minWords <= sourceWords.length; i++) {
+    sourceGrams.add(sourceWords.slice(i, i + minWords).join(" "));
+  }
+  if (sourceGrams.size === 0) return [];
+
+  const genWords = wordsWithOffsets(text);
+  const matchedStart: boolean[] = new Array(genWords.length).fill(false);
+  for (let i = 0; i + minWords <= genWords.length; i++) {
+    const gram = genWords.slice(i, i + minWords).map((w) => w.word).join(" ");
+    if (sourceGrams.has(gram)) matchedStart[i] = true;
+  }
+
+  const found: string[] = [];
+  let i = 0;
+  while (i < matchedStart.length) {
+    if (!matchedStart[i]) { i++; continue; }
+    let j = i;
+    while (j < matchedStart.length && matchedStart[j]) j++;
+    // Fenêtres qui démarrent en i..j-1 → passage complet [i, (j-1)+minWords).
+    const spanStart = genWords[i].start;
+    const spanEnd = genWords[j - 1 + minWords - 1].end;
+    found.push(text.slice(spanStart, spanEnd).replace(/\s+/g, " ").trim());
+    i = j;
+  }
+  return found;
+}
+
 /** Similarité lexicale grossière (Jaccard sur tokens > 3 lettres). */
 function tokenSimilarity(a: string, b: string): number {
   const tok = (s: string) =>
@@ -211,9 +279,11 @@ export interface RedacAnalysis {
   fabricatedNumbers: string[];
   /** Durées qui se contredisent entre les slides et la caption (même fait, 2 chiffres). */
   durationConflicts: string[];
+  /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
+  brandCopyOverlap: string[];
 }
 
-export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>): RedacAnalysis {
+export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string): RedacAnalysis {
   const slides: any[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
   const caption = parsed?.caption || {};
   const slidesText = slides.map(slideTexts).join("\n");
@@ -221,6 +291,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>):
   const allText = [slidesText, captionText].join("\n");
 
   const reversals = findReversals(allText);
+  const brandCopyOverlap = findBrandCopyOverlap(allText, brandGuardText);
 
   const overlongSlides = slides
     .map((s: any) => ({ slide: s?.slide_number ?? 0, words: wordCount(slideBody(s)) }))
@@ -255,7 +326,7 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>):
 
   return {
     reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
-    hashtagsCount, fabricatedNumbers, durationConflicts,
+    hashtagsCount, fabricatedNumbers, durationConflicts, brandCopyOverlap,
   };
 }
 
@@ -294,7 +365,8 @@ export function redacViolations(a: RedacAnalysis): number {
     Math.min(3, a.fabricatedNumbers.length) +
     // Plafonné à 1 : une contradiction, c'est UN fait à corriger, même si le
     // croisement slides × caption en remonte plusieurs formulations.
-    Math.min(1, a.durationConflicts.length)
+    Math.min(1, a.durationConflicts.length) +
+    Math.min(3, a.brandCopyOverlap.length)
   );
 }
 
@@ -316,6 +388,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     moulded_verbatims: a.moulded,
     fabricated_numbers: a.fabricatedNumbers.length,
     duration_conflicts: a.durationConflicts,
+    brand_copy_overlap: a.brandCopyOverlap.length,
     hashtags_count: a.hashtagsCount,
     corrected_by_repass: repassed,
   };
@@ -381,6 +454,11 @@ function buildFixInstructions(a: RedacAnalysis): string {
       `DURÉES QUI SE CONTREDISENT entre les slides et la légende :\n${a.durationConflicts.map((c) => `- ${c}`).join("\n")}\nC'est le MÊME fait raconté deux fois avec deux chiffres différents — devant l'audience, ça décrédibilise tout le contenu. Choisis UNE durée et emploie EXACTEMENT la même des deux côtés (ou retire-la d'un des deux). Ne « fais pas la moyenne » : garde celle du brief si le brief en donne une.`,
     );
   }
+  if (a.brandCopyOverlap.length) {
+    lines.push(
+      `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
+    );
+  }
   return lines.join("\n\n");
 }
 
@@ -412,6 +490,8 @@ export async function runRedacGate(
     inputText?: string;
     /** Forme de chute de caption imposée par le tirage code (caption v2). */
     captionEnding?: CaptionEndingRule;
+    /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
+    brandGuardText?: string;
   },
 ): Promise<RedacGateResult> {
   const parseFenced = (c: string): { parsed: any; raw: string } | null => {
@@ -428,7 +508,7 @@ export async function runRedacGate(
   if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis(), score: null, violations: null };
 
   const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
-  const before = analyzeCarouselRedac(first.parsed, allowedNumbers);
+  const before = analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText);
   let out = content;
   let repassed = false;
 
@@ -495,14 +575,14 @@ export async function runRedacGate(
     }
   }
 
-  let after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers);
+  let after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText);
   // Duplication caption/slide PERSISTANTE malgré la re-passe (vue livrée avec le
   // flag true, audit 12/07 lot D) : suppression déterministe — le CTA vit sur la
   // slide, la caption garde sa chute (dernière ligne du body). Supprimer > inventer.
   if (after.ctaDuplicated && finalDoc.parsed?.caption) {
     console.log("[redac-gate] caption.cta supprimé (duplication de la dernière slide persistante après re-passe)");
     finalDoc.parsed.caption.cta = "";
-    after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers);
+    after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText);
   }
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
   finalDoc.parsed.quality_check = buildQualityCheck(after, repassed);
@@ -512,14 +592,14 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
   return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after) };
 }
 
 function emptyAnalysis(): RedacAnalysis {
-  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [], durationConflicts: [] };
+  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [], durationConflicts: [], brandCopyOverlap: [] };
 }
 
 // ── Variante TEXTE (lot 4) : LinkedIn et newsletter ──
@@ -531,13 +611,26 @@ export interface TextRedacAnalysis {
   reversals: string[];
   moulded: string[];
   fabricatedNumbers: string[];
+  /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
+  brandCopyOverlap: string[];
 }
 
-export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>): TextRedacAnalysis {
+export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string): TextRedacAnalysis {
   const reversals = findReversals(text || "");
   const moulded = MOULDED_VERBATIMS.map((re) => (text || "").match(re)?.[0]).filter(Boolean) as string[];
   const fabricatedNumbers = allowedNumbers ? findFabricatedNumbers(text || "", allowedNumbers) : [];
-  return { reversals, moulded, fabricatedNumbers };
+  const brandCopyOverlap = findBrandCopyOverlap(text || "", brandGuardText);
+  return { reversals, moulded, fabricatedNumbers, brandCopyOverlap };
+}
+
+/** Nombre de violations — même formule que redacViolations, pour la variante texte. */
+export function textRedacViolations(a: TextRedacAnalysis): number {
+  return (
+    Math.max(0, a.reversals.length - 1) +
+    a.moulded.length +
+    Math.min(3, a.fabricatedNumbers.length) +
+    Math.min(3, a.brandCopyOverlap.length)
+  );
 }
 
 /**
@@ -569,6 +662,134 @@ export function fixElisionsInFields(obj: Record<string, unknown> | null | undefi
   }
 }
 
+// ── Mesure seule (audit slop 18/08/2026, lot 5) ──
+// 6 familles de tics mesurées dans le corpus mais AUCUNE encore détectée en
+// code. Compteurs PURS (aucun effet de bord, aucune re-passe déclenchée) :
+// branchés en télémétrie (`content-quality.ts`) pour calibrer des seuils sur
+// des vraies données avant d'activer quoi que ce soit. Un mot comme
+// « authentique » est parfois juste — on mesure une FRÉQUENCE, pas une
+// interdiction.
+
+/** Corps mesurable d'une slide pour les familles inter-slides (mêmes champs que slideTexts). */
+function slideTextForSlop(s: any): string {
+  return slideTexts(s);
+}
+
+/**
+ * Rafales de 3+ slides CONSÉCUTIVES courtes (≤ maxWords mots chacune) — le
+ * rythme ternaire/staccato qui ne se voit qu'en enchaînant les slides, jamais
+ * à l'intérieur d'un seul champ (angle mort de `analyzeCarouselRedac`).
+ */
+export function countStaccatoAcrossSlides(slides: any[], maxWords = 6): number {
+  let bursts = 0;
+  let run = 0;
+  for (const s of slides || []) {
+    const words = wordCount(slideTextForSlop(s));
+    if (words > 0 && words <= maxWords) {
+      run++;
+      if (run === 3) bursts++;
+    } else {
+      run = 0;
+    }
+  }
+  return bursts;
+}
+
+/**
+ * Rafales de 3+ slides CONSÉCUTIVES qui démarrent par le même mot — anaphore
+ * vue seulement en enchaînant les slides (même angle mort que le staccato).
+ */
+export function countAnaphoraAcrossSlides(slides: any[]): number {
+  const firstWords = (slides || []).map((s) => {
+    const m = slideTextForSlop(s).trim().match(/^\p{L}+/u);
+    return m ? m[0].toLowerCase() : "";
+  });
+  let bursts = 0;
+  let run = 1;
+  for (let i = 1; i <= firstWords.length; i++) {
+    if (i < firstWords.length && firstWords[i] && firstWords[i] === firstWords[i - 1]) {
+      run++;
+    } else {
+      if (run >= 3) bursts++;
+      run = 1;
+    }
+  }
+  return bursts;
+}
+
+// « Résultat : » / « Conclusion : » EN DÉBUT DE PHRASE uniquement — l'usage
+// courant du nom commun (« Le résultat de l'enquête… ») n'est pas un tic.
+const RESULT_CONCLUSION_OPENER_RE = /(?:^|[.!?]\s+|\n)(?:Résultat|Conclusion)\s*[:.]/gi;
+
+/** Occurrences de « Résultat : » / « Conclusion : » en ouverture de phrase. */
+export function countResultConclusionOpeners(text: string): string[] {
+  return [...(text || "").matchAll(RESULT_CONCLUSION_OPENER_RE)].map((m) => m[0].trim());
+}
+
+/** La 1re phrase du texte se termine-t-elle par « ? » (question rhétorique d'ouverture) ? */
+export function isOpeningRhetoricalQuestion(text: string): boolean {
+  const first = (text || "").trim().split(/(?<=[.!?])\s+/)[0] || "";
+  return /\?\s*$/.test(first.trim());
+}
+
+// Adjectifs vides candidats (audit 18/08) : SEUIL à calibrer, pas une liste
+// noire — « authentique »/« aligné »/« puissant » sont parfois le mot juste.
+// \b évite les faux positifs sur les mots composés/apparentés
+// (« désaligné », « impuissant », « alignement » ne matchent PAS).
+// \b est ASCII-only en JS/Deno : « é » n'est pas un \w, donc \b après
+// « aligné » échoue silencieusement (transition non-mot → non-mot). On
+// utilise des frontières Unicode explicites (lookaround sur \p{L}) à la place.
+const EMPTY_ADJECTIVES: Record<string, RegExp> = {
+  authentique: /(?<![\p{L}])authentiques?(?![\p{L}])/giu,
+  aligné: /(?<![\p{L}])aligné(?:e|es|s)?(?![\p{L}])/giu,
+  puissant: /(?<![\p{L}])puissante?s?(?![\p{L}])/giu,
+};
+
+/** Occurrences par adjectif vide candidat (fréquence brute, pas de blocage). */
+export function countEmptyAdjectives(text: string): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [name, re] of Object.entries(EMPTY_ADJECTIVES)) {
+    out[name] = ((text || "").match(re) || []).length;
+  }
+  return out;
+}
+
+/**
+ * Similarité lexicale entre l'ouverture (hook) et la chute d'un même contenu
+ * — la même mesure que `tokenSimilarity` (déjà appliquée au CTA↔dernière
+ * slide), ici sur hook↔chute, jamais comparés jusqu'ici.
+ */
+export function hookEndingSimilarity(hookText: string, endingText: string): number {
+  return tokenSimilarity(hookText, endingText);
+}
+
+export interface SlopSignals {
+  staccato_inter_slides: number;
+  anaphora_inter_slides: number;
+  result_conclusion_openers: number;
+  opening_rhetorical_question: boolean;
+  empty_adjectives: Record<string, number>;
+  hook_ending_similarity: number;
+}
+
+/** Agrège les 6 familles en un objet consultable (télémétrie, aucun calcul de score). */
+export function measureSlopSignals(params: {
+  fullText: string;
+  hookText?: string;
+  endingText?: string;
+  slides?: any[];
+}): SlopSignals {
+  const { fullText, hookText = "", endingText = "", slides } = params;
+  return {
+    staccato_inter_slides: slides ? countStaccatoAcrossSlides(slides) : 0,
+    anaphora_inter_slides: slides ? countAnaphoraAcrossSlides(slides) : 0,
+    result_conclusion_openers: countResultConclusionOpeners(fullText).length,
+    opening_rhetorical_question: isOpeningRhetoricalQuestion(hookText || fullText),
+    empty_adjectives: countEmptyAdjectives(fullText),
+    hook_ending_similarity: hookText && endingText ? hookEndingSimilarity(hookText, endingText) : 0,
+  };
+}
+
 /** Instructions ciblées pour la passe de correction texte ("" si rien à corriger). */
 export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   const lines: string[] = [];
@@ -583,6 +804,11 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   if (a.fabricatedNumbers.length) {
     lines.push(
       `CHIFFRES SANS SOURCE : ces chiffres ne viennent ni du brief, ni des réponses de l'utilisatrice, ni de son branding, ni de l'actu fournie :\n${a.fabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs heures », « bien plus cher »). N'invente JAMAIS de statistique, de prix, de durée ou de proportion.`,
+    );
+  }
+  if (a.brandCopyOverlap.length) {
+    lines.push(
+      `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
     );
   }
   return lines.join("\n\n");

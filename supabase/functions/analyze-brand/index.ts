@@ -5,7 +5,7 @@ import { scrapeWebsite, scrapeInstagram, scrapeLinkedin, processDocuments, extra
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { type UsageSink, extractUsage, SONNET_MODEL, forcesDisabledThinking } from "../_shared/anthropic.ts";
+import { type UsageSink, extractUsage, SONNET_MODEL, forcesDisabledThinking, sanitizeStyleDeep } from "../_shared/anthropic.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
@@ -247,7 +247,7 @@ serve(async (req) => {
 
 // ====== CLAUDE API ======
 
-async function callClaude(
+export async function callClaude(
   content: Record<string, string>,
   sourcesUsed: string[],
   styleHints: string = "",
@@ -386,7 +386,12 @@ Précisions sur charter :
     }
   };
 
-  const result = await makeRequest();
+  // Ce fichier appelle l'API Anthropic en fetch brut (hors callAnthropic/
+  // callAnthropicWithMeta), donc AUCUN nettoyage n'est appliqué en amont — sans
+  // ce sanitizeStyleDeep, un tiret cadratin ou un tic écrit ici (fiche de marque)
+  // se propage ensuite dans TOUTES les générations de contenu qui relisent ce
+  // contexte (voir _shared/user-context.ts). Audit slop 18/08, Constat 2.
+  const result = sanitizeStyleDeep(await makeRequest());
   result.sources_used = sourcesUsed;
   return result;
 }

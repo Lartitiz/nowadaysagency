@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -585,6 +585,10 @@ export async function handleRequest(req: Request): Promise<Response> {
 
     const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
+    // Champs de marque bruts (combat, mission, ton…) : le redac-gate s'en sert
+    // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
+    // requête supplémentaire — ctx.tone est déjà fetché par getUserContext().
+    const brandGuardText = buildBrandGuardText(ctx);
 
     // Recent briefs context — fetched server-side for deepening_questions ET pour la
     // génération elle-même (anti-sérialité, audit qualité 11/07 : sans mémoire des
@@ -732,6 +736,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       systemPrompt,
       brandingContext,
       gateInputText,
+      brandGuardText,
       captionEndingRule,
       recentBriefsContext,
       brandVocabBlock,
@@ -809,6 +814,8 @@ interface CarouselRequestContext {
   systemPrompt: string;
   brandingContext: string;
   gateInputText: string;
+  /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
+  brandGuardText: string;
   captionEndingRule: CaptionEndingRule | undefined;
   recentBriefsContext: string;
   brandVocabBlock: string;
@@ -844,7 +851,7 @@ async function runGenerationAndRespond(
   userPrompt: string,
   reqCtx: CarouselRequestContext,
 ): Promise<Response> {
-  const { body, userId, workspaceId, category, systemPrompt, gateInputText, captionEndingRule, isLinkedIn, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, corsHeaders, emitStatus } = reqCtx;
 
   // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
   const modelForCall = type === "deepening_questions"
@@ -906,6 +913,7 @@ async function runGenerationAndRespond(
       isLinkedIn,
       onStatus: emitStatus,
       inputText: gateInputText,
+      brandGuardText,
       captionEnding: captionEndingRule,
       correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
     });
@@ -947,7 +955,7 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 
 // ── Mix carousel mode ──
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const mixPrompt = hasNews
@@ -1077,6 +1085,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    brandGuardText,
     captionEnding: captionEndingRule,
     correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
@@ -1090,7 +1099,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 
 // ── Photo carousel mode ──
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const photoPrompt = hasNews
@@ -1213,6 +1222,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    brandGuardText,
     captionEnding: captionEndingRule,
     correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
@@ -2229,35 +2239,82 @@ Réponds UNIQUEMENT en JSON valide, sans texte autour :
 }`;
 }
 
+// Bloc "STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE" injecté en tête de prompt quand
+// la structure de slides a été validée à l'étape précédente (proposition de
+// plan avant génération). Partagé par les 5 builders de prompt carrousel
+// (express, photo, photo+actu, mix, mix+actu) — avant cette extraction (18/08/2026,
+// mesure jscpd) c'était le plus gros clone du fichier : chaque builder le
+// recopiait avec de menues variantes (champs générés, présence du story_beat/
+// visual_anchor/narrative_thread propres au mode photo, règles supplémentaires).
+// Les 3 signatures observées sont couvertes par les options ci-dessous — ne
+// PAS ajouter de 4e variante sans vérifier qu'elle ne peut pas se ramener à
+// l'une des trois existantes.
+function buildConfirmedStructureBlock(
+  confirmed_structure: any,
+  opts: {
+    contentFields?: string;
+    narrativeThread?: string;
+    narrativeContext?: string;
+    withStoryBeat?: boolean;
+    extraRules?: string[];
+  } = {}
+): string {
+  if (!confirmed_structure || !Array.isArray(confirmed_structure) || confirmed_structure.length === 0) return "";
+
+  const {
+    contentFields = "body, visual_schema, caption",
+    narrativeThread,
+    narrativeContext = "décidé en voyant les photos",
+    withStoryBeat = false,
+    extraRules = [],
+  } = opts;
+
+  const structureList = confirmed_structure
+    .map((s: any) => {
+      let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
+      if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+      line += ` — ${s.strategic_note}`;
+      if (withStoryBeat) {
+        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
+        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
+      }
+      return line;
+    })
+    .join("\n");
+
+  const narrativeBlock = withStoryBeat && narrativeThread && typeof narrativeThread === "string" && narrativeThread.trim()
+    ? `RÉCIT À EXÉCUTER (${narrativeContext}) : ${narrativeThread.trim()}
+Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
+
+`
+    : "";
+
+  const rules = [
+    "Ne change NI l'ordre NI les rôles NI le nombre de slides",
+    "Utilise les titres proposés comme base (tu peux les affiner légèrement)",
+    `Génère uniquement le contenu (${contentFields}) pour chaque slide`,
+    `Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides`,
+    "Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie",
+    ...extraRules,
+  ];
+
+  return `══════════════════════════════════════
+STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
+══════════════════════════════════════
+${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
+${structureList}
+
+RÈGLES ABSOLUES :
+${rules.map((r) => `- ${r}`).join("\n")}
+
+`;
+}
+
 function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
   const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure, confirmed_structure } = body;
 
   // ── 0. STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
-  let confirmedStructureBlock = "";
-  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
-    const structureList = confirmed_structure
-      .map((s: any) => {
-        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
-        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
-        line += ` — ${s.strategic_note}`;
-        return line;
-      })
-      .join("\n");
-    confirmedStructureBlock = `══════════════════════════════════════
-STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
-══════════════════════════════════════
-Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
-${structureList}
-
-RÈGLES ABSOLUES :
-- Ne change NI l'ordre NI les rôles NI le nombre de slides
-- Utilise les titres proposés comme base (tu peux les affiner légèrement)
-- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
-- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
-- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
-
-`;
-  }
+  const confirmedStructureBlock = buildConfirmedStructureBlock(confirmed_structure);
 
   // ── 1. BLOC SUJET (priorité absolue, en tête de prompt) ──
 
@@ -2492,41 +2549,14 @@ function buildPhotoCarouselPrompt(body: any, isLinkedIn: boolean = false): strin
   const { editorial_angle, content_structure, deepening_answers, confirmed_structure, narrative_thread } = body;
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
-  let confirmedStructureBlock = "";
-  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
-    const structureList = confirmed_structure
-      .map((s: any) => {
-        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
-        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
-        line += ` — ${s.strategic_note}`;
-        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
-        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
-        return line;
-      })
-      .join("\n");
-    const narrativeBlock = narrative_thread && typeof narrative_thread === "string" && narrative_thread.trim()
-      ? `RÉCIT À EXÉCUTER (décidé en voyant les photos) : ${narrative_thread.trim()}
-Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
-
-`
-      : "";
-    confirmedStructureBlock = `══════════════════════════════════════
-STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
-══════════════════════════════════════
-${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
-${structureList}
-
-RÈGLES ABSOLUES :
-- Ne change NI l'ordre NI les rôles NI le nombre de slides
-- Utilise les titres proposés comme base (tu peux les affiner légèrement)
-- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
-- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
-- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
-- INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
-- Cette structure fixe l'ORDRE et le rôle des slides — PAS la permission d'écrire des légendes indépendantes. Tu écris les overlays comme UN SEUL récit continu qui se lit d'une traite (voir "CHAÎNAGE DES TEXTES" plus bas) : chaque overlay reprend/prolonge le précédent et tient les promesses de décompte dans la phrase.
-
-`;
-  }
+  const confirmedStructureBlock = buildConfirmedStructureBlock(confirmed_structure, {
+    narrativeThread: narrative_thread,
+    withStoryBeat: true,
+    extraRules: [
+      "INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.",
+      "Cette structure fixe l'ORDRE et le rôle des slides — PAS la permission d'écrire des légendes indépendantes. Tu écris les overlays comme UN SEUL récit continu qui se lit d'une traite (voir \"CHAÎNAGE DES TEXTES\" plus bas) : chaque overlay reprend/prolonge le précédent et tient les promesses de décompte dans la phrase.",
+    ],
+  });
 
   let deepeningCtx = "";
   if (deepening_answers) {
@@ -2714,40 +2744,15 @@ function buildPhotoCarouselNewsReactionPrompt(body: any, isLinkedIn: boolean = f
   const { editorial_angle, content_structure, deepening_answers, confirmed_structure, narrative_thread, subject, photos } = body;
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) — calqué sur buildPhotoCarouselPrompt ──
-  let confirmedStructureBlock = "";
-  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
-    const structureList = confirmed_structure
-      .map((s: any) => {
-        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
-        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
-        line += ` — ${s.strategic_note}`;
-        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
-        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
-        return line;
-      })
-      .join("\n");
-    const narrativeBlock = narrative_thread && typeof narrative_thread === "string" && narrative_thread.trim()
-      ? `RÉCIT À EXÉCUTER (décidé en voyant les photos ET en lisant l'actu) : ${narrative_thread.trim()}
-Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
-
-`
-      : "";
-    confirmedStructureBlock = `══════════════════════════════════════
-STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
-══════════════════════════════════════
-${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
-${structureList}
-
-RÈGLES ABSOLUES :
-- Ne change NI l'ordre NI les rôles NI le nombre de slides
-- Utilise les titres proposés comme base (tu peux les affiner légèrement)
-- Génère uniquement le contenu (overlay_text, caption) pour chaque slide
-- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
-- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
-- INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
-
-`;
-  }
+  const confirmedStructureBlock = buildConfirmedStructureBlock(confirmed_structure, {
+    contentFields: "overlay_text, caption",
+    narrativeThread: narrative_thread,
+    narrativeContext: "décidé en voyant les photos ET en lisant l'actu",
+    withStoryBeat: true,
+    extraRules: [
+      "INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.",
+    ],
+  });
 
   let deepeningCtx = "";
   if (deepening_answers) {
@@ -2943,41 +2948,14 @@ Ce carrousel est destiné à LinkedIn (et non Instagram). Tu DOIS adapter ton, o
     : "";
 
   // ── STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
-  let confirmedStructureBlock = "";
-  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
-    const structureList = confirmed_structure
-      .map((s: any) => {
-        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
-        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
-        line += ` — ${s.strategic_note}`;
-        if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;
-        if (s.visual_anchor) line += `\n    → Détail mobilisable : ${s.visual_anchor}`;
-        return line;
-      })
-      .join("\n");
-    const narrativeBlock = narrative_thread && typeof narrative_thread === "string" && narrative_thread.trim()
-      ? `RÉCIT À EXÉCUTER (décidé en voyant les photos) : ${narrative_thread.trim()}
-Chaque slide écrit UNE étape de ce récit. Tu n'inventes pas une autre histoire, tu exécutes celle-ci.
-
-`
-      : "";
-    confirmedStructureBlock = `══════════════════════════════════════
-STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
-══════════════════════════════════════
-${narrativeBlock}Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
-${structureList}
-
-RÈGLES ABSOLUES :
-- Ne change NI l'ordre NI les rôles NI le nombre de slides
-- Utilise les titres proposés comme base (tu peux les affiner légèrement)
-- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
-- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
-- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
-- INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.
-- Cette structure fixe l'ORDRE et le rôle des slides — PAS la permission d'écrire des légendes indépendantes. Tu écris les overlays comme UN SEUL récit continu qui se lit d'une traite (voir "CHAÎNAGE DES TEXTES" plus bas) : chaque overlay reprend/prolonge le précédent et tient les promesses de décompte dans la phrase.
-
-`;
-  }
+  const confirmedStructureBlock = buildConfirmedStructureBlock(confirmed_structure, {
+    narrativeThread: narrative_thread,
+    withStoryBeat: true,
+    extraRules: [
+      "INTERDIT de décrire la photo. L'overlay écrit l'étape du récit définie par le story_beat ; le visual_anchor est une matière optionnelle (un détail à glisser dans la phrase si naturel), JAMAIS un contenu à réciter.",
+      "Cette structure fixe l'ORDRE et le rôle des slides — PAS la permission d'écrire des légendes indépendantes. Tu écris les overlays comme UN SEUL récit continu qui se lit d'une traite (voir \"CHAÎNAGE DES TEXTES\" plus bas) : chaque overlay reprend/prolonge le précédent et tient les promesses de décompte dans la phrase.",
+    ],
+  });
 
   let deepeningCtx = "";
   if (deepening_answers) {
@@ -3236,31 +3214,7 @@ function buildMixCarouselNewsReactionPrompt(body: any, isLinkedIn: boolean = fal
   const { editorial_angle, content_structure, deepening_answers, slide_structure, confirmed_structure, subject } = body;
 
   // Structure imposée (si présente) — réutilise le même bloc que le mode classique
-  let confirmedStructureBlock = "";
-  if (confirmed_structure && Array.isArray(confirmed_structure) && confirmed_structure.length > 0) {
-    const structureList = confirmed_structure
-      .map((s: any) => {
-        let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
-        if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
-        line += ` — ${s.strategic_note}`;
-        return line;
-      })
-      .join("\n");
-    confirmedStructureBlock = `══════════════════════════════════════
-STRUCTURE IMPOSÉE PAR L'UTILISATEUR·ICE — OBLIGATOIRE
-══════════════════════════════════════
-Tu DOIS générer le contenu pour EXACTEMENT ces slides dans cet ordre :
-${structureList}
-
-RÈGLES ABSOLUES :
-- Ne change NI l'ordre NI les rôles NI le nombre de slides
-- Utilise les titres proposés comme base (tu peux les affiner légèrement)
-- Génère uniquement le contenu (body, visual_schema, caption) pour chaque slide
-- Le JSON retourné doit contenir exactement ${confirmed_structure.length} slides
-- Si une slide a un photo_index, le champ photo_index doit être présent dans le JSON de sortie
-
-`;
-  }
+  const confirmedStructureBlock = buildConfirmedStructureBlock(confirmed_structure);
 
   let deepeningCtx = "";
   if (deepening_answers) {

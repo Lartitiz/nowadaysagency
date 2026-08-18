@@ -38,7 +38,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runDeepResearchWebSearch } = await import("./index.ts");
+const { runDeepResearchWebSearch, runLinkedInTwoStep } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -80,6 +80,105 @@ Deno.test("web search échoue (500) -> AUCUN logUsage(deep_research), addendum v
     const deepResearchLogs = mock.aiUsageInserts.filter((r) => r.category === "deep_research");
     assertEquals(deepResearchLogs.length, 0);
     assertEquals(addendum, "");
+  } finally {
+    mock.restore();
+  }
+});
+
+// ═══ runLinkedInTwoStep — chemin STREAMÉ, celui réellement utilisé en
+// production (audit slop 18/08, constat 2) ═══
+// Avant ce fix, ce chemin appelait toujours une 2e passe de correction mais
+// SANS jamais lui donner d'instructions ciblées (pas de analyzeTextRedac /
+// buildTextFixInstructions), contrairement à applyLinkedInCorrectionPass
+// (chemin non-streamé) et runNewsletterTwoStep. On vérifie ici que le
+// contenu réellement envoyé à Anthropic pour la 2e passe porte ces
+// instructions quand une violation est mesurée, et n'en porte AUCUNE quand
+// le texte est déjà propre (pas d'appel IA supplémentaire : la 2e passe est
+// la même, juste enrichie ou non).
+
+/** Capture les bodies des requêtes POST vers l'API Anthropic, dans l'ordre. */
+function installAnthropicBodyCapture(responses: Array<{ status: number; body: unknown }>) {
+  let call = 0;
+  const mock = installFetchMock({
+    anthropic: () => {
+      const r = responses[Math.min(call, responses.length - 1)];
+      call++;
+      return r;
+    },
+  });
+  const capturedBodies: any[] = [];
+  const wrapped = globalThis.fetch;
+  globalThis.fetch = (async (input: any, init?: any) => {
+    const url = typeof input === "string" ? input : input?.url ?? String(input);
+    if (url.startsWith("https://api.anthropic.com/v1/messages")) {
+      capturedBodies.push(init?.body ? JSON.parse(init.body as string) : null);
+    }
+    return wrapped(input, init);
+  }) as typeof fetch;
+  return { mock, capturedBodies };
+}
+
+const LINKEDIN_BASE_PARAMS = {
+  model: "claude-sonnet-4-6" as any,
+  systemPrompt: "system prompt de test",
+  userPrompt: "user prompt de test",
+  corsHeaders: {},
+  userId: "test-user-id",
+  body: { context: "", answers: null, news_context: "" },
+  fullContext: "",
+};
+
+Deno.test("runLinkedInTwoStep : formule moulée mesurée en code -> extraInstructions injectées dans la 2e passe (même appel, pas un appel en plus)", async () => {
+  const generated = { content: "Ce qui me dérange, c'est le manque de clarté dans notre message de marque." };
+  const corrected = { content: "Le manque de clarté dans notre message, c'est ce qui bloque tout le reste.", accroche: "accroche corrigée", corrections_applied: ["formule moulée réécrite"] };
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(generated) }], stop_reason: "end_turn", usage: { input_tokens: 50, output_tokens: 30 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(corrected) }], stop_reason: "end_turn", usage: { input_tokens: 60, output_tokens: 40 } } },
+  ]);
+  try {
+    const res = await runLinkedInTwoStep(LINKEDIN_BASE_PARAMS);
+    assertEquals(mock.anthropicCallCount, 2);
+    const correctionCallBody = capturedBodies[1];
+    const correctionUserMsg = correctionCallBody.messages[0].content as string;
+    assertEquals(correctionUserMsg.includes("CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ"), true);
+    assertEquals(correctionUserMsg.includes("FORMULE MOULÉE"), true);
+    assertEquals(correctionUserMsg.includes("Ce qui me dérange"), true);
+    const json = await res.json();
+    assertEquals(json.content, corrected.content);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : texte propre -> pas d'extraInstructions, prompt de correction inchangé", async () => {
+  const generated = { content: "Le brief était clair dès le départ, alors on a foncé sans hésiter une seconde." };
+  const corrected = { content: "Version corrigée d'un texte déjà propre.", accroche: "accroche", corrections_applied: [] };
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(generated) }], stop_reason: "end_turn", usage: { input_tokens: 50, output_tokens: 30 } } },
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(corrected) }], stop_reason: "end_turn", usage: { input_tokens: 60, output_tokens: 40 } } },
+  ]);
+  try {
+    await runLinkedInTwoStep(LINKEDIN_BASE_PARAMS);
+    const correctionUserMsg = capturedBodies[1].messages[0].content as string;
+    assertEquals(correctionUserMsg.includes("CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ"), false);
+    assertEquals(correctionUserMsg.startsWith('Voici le post LinkedIn à corriger :'), true);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("runLinkedInTwoStep : élisions appliquées même si la 2e passe échoue (filet déterministe, fallback sur le brut)", async () => {
+  const generated = { content: "On montre le avant/après qui brille, sans rien cacher." };
+  const { mock } = installAnthropicBodyCapture([
+    { status: 200, body: { content: [{ type: "text", text: JSON.stringify(generated) }], stop_reason: "end_turn", usage: { input_tokens: 50, output_tokens: 30 } } },
+    // Réponse de correction illisible -> fallback sur le contenu brut
+    { status: 200, body: { content: [{ type: "text", text: "pas du JSON valide" }], stop_reason: "end_turn", usage: { input_tokens: 10, output_tokens: 5 } } },
+  ]);
+  try {
+    const res = await runLinkedInTwoStep(LINKEDIN_BASE_PARAMS);
+    const json = await res.json();
+    assertEquals(json.content.includes("l'avant/après"), true);
+    assertEquals(json.content.includes("le avant/après"), false);
   } finally {
     mock.restore();
   }
