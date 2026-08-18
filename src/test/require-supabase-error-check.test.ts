@@ -27,7 +27,7 @@ const ruleTesterTs = new RuleTester({
   languageOptions: {
     ecmaVersion: 2022,
     sourceType: "module",
-    parser: tseslint.parser,
+    parser: tseslint.parser as any,
   },
 });
 
