@@ -61,15 +61,17 @@ const DEFAULT_TTS_VOICE = "fr-FR-DeniseNeural";
 
 // Style de sous-titres validé au test : mot à mot, lisible.
 //
-// Position : au BAS de l'image, pas au centre. Centrés, ils tombaient en plein
-// sur le visage ou le sujet du clip — la convention Reels les place bas, où ils
-// ne mangent pas l'image. À vérifier sur un rendu réel : si le bandeau
-// Instagram les recouvre, on passera à des coordonnées sur mesure.
+// Position : vérifié sur un rendu réel le 18/08, le préréglage "bottom-center"
+// de JSON2Video colle les sous-titres au ras du bord bas — le bandeau
+// Instagram (légende, icônes) les recouvre complètement. On passe donc à des
+// coordonnées sur mesure (position "custom") pour les remonter vers le bas du
+// centre, sous le sujet du clip mais au-dessus du bandeau Instagram.
+const SUBTITLE_Y_RATIO = 0.72;
+
 const DEFAULT_SUBTITLE_SETTINGS = {
   style: "boxed-word",
   "font-family": "Montserrat",
   "font-size": 90,
-  position: "bottom-center",
   "word-color": "#FFFFFF",
   "line-color": "#FFFFFF",
   "outline-color": "#000000",
@@ -117,11 +119,20 @@ export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown>
   };
 
   if (input.subtitles !== false) {
+    const defaultPosition = {
+      position: "custom",
+      x: Math.round(width / 2),
+      y: Math.round(height * SUBTITLE_Y_RATIO),
+    };
     recipe.elements = [
       {
         type: "subtitles",
         language: "fr",
-        settings: { ...DEFAULT_SUBTITLE_SETTINGS, ...(input.subtitle_settings ?? {}) },
+        settings: {
+          ...DEFAULT_SUBTITLE_SETTINGS,
+          ...defaultPosition,
+          ...(input.subtitle_settings ?? {}),
+        },
       },
     ];
   }
