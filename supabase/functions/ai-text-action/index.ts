@@ -5,6 +5,39 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError } from "../_shared/auth.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { analyzeTextRedac, numbersIn } from "../_shared/redac-gate.ts";
+
+// ── Gate rédactionnel de dérive (audit du 18/08/2026) ──
+// callAnthropic réécrit ici une SÉLECTION de texte (raccourcir, reformuler…)
+// sans jamais re-mesurer : un carrousel/post déjà validé par le gate ressortait
+// dégradé (retournement par négation, chiffre inventé, formule moulée) après un
+// simple "raccourcis ce passage". On ne compare QUE le texte sélectionné vs sa
+// réécriture (pas le document entier, invisible ici) : les défauts déjà présents
+// dans le texte choisi par l'utilisatrice ne sont jamais touchés — seuls ceux
+// que la réécriture a elle-même introduits déclenchent une correction ciblée.
+function buildDriftFixInstructions(
+  newReversals: string[],
+  newMoulded: string[],
+  newFabricatedNumbers: string[],
+): string {
+  const lines: string[] = [];
+  if (newReversals.length) {
+    lines.push(
+      `RETOURNEMENT PAR NÉGATION AJOUTÉ PAR TA RÉÉCRITURE (absent du texte original) :\n${newReversals.map((r) => `- « ${r} »`).join("\n")}\nRéécris ce(s) passage(s) en affirmation directe (même sens, sans « pas X, c'est Y »).`,
+    );
+  }
+  if (newMoulded.length) {
+    lines.push(
+      `FORMULE MOULÉE AJOUTÉE PAR TA RÉÉCRITURE (absente du texte original) : ${newMoulded.map((m) => `« ${m} »`).join(", ")}. Signature IA récurrente : réécris-la autrement (ou supprime-la).`,
+    );
+  }
+  if (newFabricatedNumbers.length) {
+    lines.push(
+      `CHIFFRE SANS SOURCE AJOUTÉ PAR TA RÉÉCRITURE (absent du texte original) :\n${newFabricatedNumbers.map((n) => `- ${n}`).join("\n")}\nRemplace CHACUN par une formulation qualitative honnête (« une bonne partie », « plusieurs semaines »…). N'invente JAMAIS de statistique, de prix, de durée ou de proportion.`,
+    );
+  }
+  return lines.join("\n\n");
+}
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -98,9 +131,50 @@ RÈGLES :
       temperature: 0.7,
     }, usage);
 
+    // Gate rédactionnel de dérive : ce que la réécriture a introduit par
+    // rapport au texte sélectionné, pas les défauts déjà présents que
+    // l'utilisatrice avait déjà acceptés (allowedNumbers = chiffres du texte
+    // source, donc `before.fabricatedNumbers` est toujours vide par construction).
+    const allowedNumbers = numbersIn(selected_text);
+    const before = analyzeTextRedac(selected_text, allowedNumbers);
+    const after = analyzeTextRedac(result, allowedNumbers);
+    const newReversals = after.reversals.filter((r) => !before.reversals.includes(r));
+    const newMoulded = after.moulded.filter((m) => !before.moulded.includes(m));
+    const newFabricatedNumbers = after.fabricatedNumbers;
+
+    let finalResult = result;
+    const driftFixes = buildDriftFixInstructions(newReversals, newMoulded, newFabricatedNumbers);
+    if (driftFixes) {
+      try {
+        const retryUsage: UsageSink = {};
+        const corrected = await callAnthropic({
+          model: getModelForAction("text_action"),
+          system: systemPrompt,
+          messages: [
+            {
+              role: "user",
+              content: `TEXTE SÉLECTIONNÉ ORIGINAL :\n"${selected_text}"\n\nINSTRUCTION : ${action_prompt}\n\nTA RÉÉCRITURE PRÉCÉDENTE À CORRIGER :\n"${result}"\n\nCORRECTIONS CIBLÉES À APPLIQUER (mesurées en code, ne touche à rien d'autre, garde le reste de ta réécriture) :\n${driftFixes}`,
+            },
+          ],
+          max_tokens: 1024,
+          abortTimeoutMs: 30_000,
+          temperature: 0.4,
+        }, retryUsage);
+        if (corrected && corrected.trim()) {
+          finalResult = corrected;
+          if (retryUsage.total_tokens) {
+            usage.total_tokens = (usage.total_tokens || 0) + retryUsage.total_tokens;
+          }
+        }
+        console.log(`[ai-text-action] redac-gate: dérive corrigée (retournements +${newReversals.length}, moulés +${newMoulded.length}, chiffres +${newFabricatedNumbers.length})`);
+      } catch (e) {
+        console.error("[ai-text-action] redac-gate: re-passe ciblée échouée, résultat conservé:", e);
+      }
+    }
+
     await logUsage(userId, "adaptation", "text_action", usage.total_tokens, usage.model, workspace_id || undefined);
 
-    return new Response(JSON.stringify({ result }), {
+    return new Response(JSON.stringify({ result: finalResult }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e) {
