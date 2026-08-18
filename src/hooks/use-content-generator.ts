@@ -501,7 +501,10 @@ export function useContentGenerator() {
               workspace_id: effectiveWorkspaceId || null,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
-          }, 120000);
+            // Budget serveur (audit latences 17/08) : génération bornée à 90s
+            // + passe qualité reel bornée à 45s = 135s pire cas par tentative,
+            // marge incluse pour rester au-dessus du filet serveur.
+          }, 180000);
           data = res.data;
           invokeError = res.error;
           break;
@@ -530,7 +533,9 @@ export function useContentGenerator() {
                 : {}),
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
-          }, 120000);
+            // Budget serveur : génération seule bornée à 90s (pas de passe de
+            // correction pour les stories), marge incluse.
+          }, 150000);
           data = res.data;
           invokeError = res.error;
           break;
@@ -568,7 +573,9 @@ export function useContentGenerator() {
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
-          }, 120000);
+            // Budget serveur : génération seule bornée à 90s (pas de passe de
+            // correction pour le post Instagram/Pinterest), marge incluse.
+          }, 150000);
           data = res.data;
           invokeError = res.error;
           break;
@@ -600,7 +607,10 @@ export function useContentGenerator() {
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
             },
-          }, 120000);
+            // Budget serveur : génération bornée à 90s + passe de correction
+            // LinkedIn bornée à 45s (skip en photo_mode) = 135s pire cas,
+            // marge incluse.
+          }, 180000);
           data = res.data;
           invokeError = res.error;
           break;

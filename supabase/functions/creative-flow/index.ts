@@ -33,6 +33,19 @@ import { enforceStoriesPhotoFirst } from "../_shared/story-photo-gate.ts";
 
 // buildBrandingContext replaced by shared getUserContext + formatContextForAI
 
+// ── Timeouts IA (audit latences 17/08) ──────────────────────────────────
+// abortTimeoutMs PAR TENTATIVE (callAnthropic retente jusqu'à 2 fois en cas
+// d'erreur/timeout, cf. anthropic.ts) : le step `generate` en tournait sans
+// AUCUNE limite (oubli lors d'un refactor precedent — questions/follow-up/
+// hooks l'étaient déjà, pas lui), tout comme les passes de correction
+// enchaînées derrière (LinkedIn/reel/newsletter/carrousel/recycle). Un fetch
+// qui traîne côté Anthropic pouvait donc pendre indéfiniment sans jamais
+// libérer la requête ni basculer en retry.
+const GENERATE_ABORT_MS = 90_000; // appel principal (Sonnet, jusqu'à 8192 tokens de sortie)
+const CORRECTION_ABORT_MS = 45_000; // passe de correction (Haiku, édition mécanique à règles fermées)
+const ADJUST_ABORT_MS = 60_000; // édition d'un contenu déjà généré, plus court qu'une génération complète
+const LIGHT_ABORT_MS = 30_000; // angles / dictation : sortie courte
+
 // ── Sortie structurée pour les steps `questions` / `follow-up` ──
 // Le tool forcé (tool_choice) fait garantir le JSON par l'API elle-même :
 // fini les 502 « réponse IA illisible » quand Haiku glisse un guillemet non
@@ -1093,6 +1106,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
       f === "linkedin" ? 0.7 : 0.85,
       4096,
       fUsage,
+      GENERATE_ABORT_MS,
     );
     const parsed = tryParseAiJson<any>(raw, `creative-flow:recycle:${f}`);
     let resultVal = parsed?.results?.[f]
@@ -1110,7 +1124,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
       try {
         const gated = await runRedacGate(JSON.stringify(resultVal), {
           isLinkedIn: false,
-          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5" },
+          correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(`[creative-flow recycle carrousel] ${m}`), model: "claude-haiku-4-5", abortTimeoutMs: CORRECTION_ABORT_MS },
           // Liste blanche des chiffres : ceux de la source recyclée (le contenu
           // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
           inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
@@ -1252,6 +1266,7 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       // Édition mécanique à règles fermées → Haiku (cf. #364)
       model: "claude-haiku-4-5",
       extraInstructions: buildTextFixInstructions(liRedac) || undefined,
+      abortTimeoutMs: CORRECTION_ABORT_MS,
     });
     if (corrected && corrected.length >= 100) {
       parsed.content = corrected;
@@ -1321,6 +1336,7 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
       logger: (msg) => console.log(msg),
       model: "claude-haiku-4-5",
       extraInstructions: extras.length ? extras.join("\n\n") : undefined,
+      abortTimeoutMs: CORRECTION_ABORT_MS,
     });
     if (corrected && typeof corrected === "object") {
       Object.assign(parsed, corrected);
@@ -1656,7 +1672,7 @@ async function runLinkedInTwoStep(params: {
   const genLkUsage: UsageSink = {};
   const corrLkUsage: UsageSink = {};
   emitStatus("writing");
-  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage);
+  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, genLkUsage, GENERATE_ABORT_MS);
   console.log("[CORRECTION DEBUG] First call done, rawContent length:", rawContent?.length);
 
   // Parse the raw content to extract the post text
@@ -1787,7 +1803,8 @@ Réponds UNIQUEMENT en JSON :
     `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`,
     0.3,
     4096,
-    corrLkUsage
+    corrLkUsage,
+    CORRECTION_ABORT_MS
   );
   console.log("[CORRECTION DEBUG] Correction call done, correctedRaw length:", correctedRaw?.length);
 
@@ -1859,7 +1876,7 @@ async function runNewsletterTwoStep(params: {
   const workspace_id = params.workspace_id ?? undefined;
   const nlUsage: UsageSink = {};
   emitStatus("writing");
-  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage);
+  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.7, 4096, nlUsage, GENERATE_ABORT_MS);
 
   let parsed: any;
   try {
@@ -1895,6 +1912,7 @@ async function runNewsletterTwoStep(params: {
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         extraInstructions: buildTextFixInstructions(nlRedac) || undefined,
+        abortTimeoutMs: CORRECTION_ABORT_MS,
       });
       if (corrected && corrected.length >= 200) {
         parsed.content = corrected;
@@ -1957,7 +1975,7 @@ async function runCarouselTwoStep(params: {
   const workspace_id = params.workspace_id ?? undefined;
   const caUsage: UsageSink = {};
   const caCorrUsage: UsageSink = {};
-  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage);
+  const rawContent = await callAnthropicSimple(model, systemPrompt, userPrompt!, 0.85, 4096, caUsage, GENERATE_ABORT_MS);
 
   // Parse the raw content
   let parsedContent: any = null;
@@ -2017,7 +2035,8 @@ Réponds UNIQUEMENT en JSON :
     `Voici le carrousel à corriger :\n\n"""\n${slidesText}\n"""`,
     0.3,
     4096,
-    caCorrUsage
+    caCorrUsage,
+    CORRECTION_ABORT_MS
   );
 
   // Parse corrected content, fallback to original if correction fails
@@ -2258,6 +2277,7 @@ async function runVisionGenerate(params: {
     messages: [{ role: "user", content: photoContent }],
     temperature: isLinkedInPhoto ? 0.7 : 0.85,
     max_tokens: 4096,
+    abortTimeoutMs: GENERATE_ABORT_MS,
     tool: buildVisionTool(contentType),
   }, finalUsage);
 }
@@ -2652,7 +2672,15 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       // Questions/follow-up = appels Haiku courts et bornés : on plafonne chaque
       // tentative à 30s pour qu'un fetch qui traîne bascule vite en retry plutôt
       // que de faire patienter l'utilisatrice >1 min sur le chemin d'activation.
-      const abortMs = (step === "questions" || step === "follow-up") ? 30000 : step === "hooks" ? 45000 : undefined;
+      // `generate` (et adjust/angles/dictation) suivaient le même chemin sans
+      // aucune limite jusqu'ici — le générateur le plus utilisé de l'outil
+      // tournait sans filet (audit latences 17/08).
+      const abortMs = (step === "questions" || step === "follow-up") ? 30000
+        : step === "hooks" ? 45000
+        : step === "generate" ? GENERATE_ABORT_MS
+        : step === "adjust" ? ADJUST_ABORT_MS
+        : (step === "angles" || step === "dictation") ? LIGHT_ABORT_MS
+        : undefined;
       // `hooks` reste sur le modèle content (Sonnet) : le hook est LE levier de
       // rétention du reel, la qualité prime sur les ~5 s gagnées avec Haiku.
       const structuredTool = step === "questions" ? QUESTIONS_TOOL : step === "follow-up" ? FOLLOW_UP_TOOL : step === "hooks" ? HOOKS_TOOL : undefined;

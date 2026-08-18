@@ -169,7 +169,12 @@ export default function ContentRecycling() {
       }
 
       const recycleStartedAt = performance.now();
-      const { data, error } = await invokeWithTimeout("creative-flow", { body }, 120000);
+      // Budget serveur : plan borné à 60s + jusqu'à 5 formats en parallèle,
+      // chacun borné à 90s (+45s si le carrousel déclenche sa passe de
+      // correction) — pire cas ~195s pour un premier passage propre, marge
+      // incluse pour absorber une éventuelle 2e tentative séquentielle sur
+      // un format en échec transitoire (audit latences 17/08).
+      const { data, error } = await invokeWithTimeout("creative-flow", { body }, 240000);
       if (error?.isRateLimit || data?.error === "limit_reached") {
         if (handleQuotaError({ message: error?.message || data?.message, data })) {
           return;
