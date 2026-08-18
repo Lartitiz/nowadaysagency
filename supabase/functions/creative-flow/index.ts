@@ -1408,6 +1408,60 @@ function applyStoriesPhotoGuardAndResolution(parsed: any, params: { storiesPhoto
   }
 }
 
+// ═══ CALIBRATION CORRECTION_PROMPTS.stories (audit slop 18/08 — code mort) ═══
+// CORRECTION_PROMPTS.stories (_shared/correction-pass.ts) n'était appelé nulle
+// part : seules une garde photo (applyStoriesPhotoGuardAndResolution) et une
+// télémétrie passive (logTextQuality, zéro LLM) tournaient sur les stories.
+// Avant d'activer une VRAIE re-passe, calibration PRUDENTE en mode SHADOW :
+// - la correction ne tourne QUE si le gate rédactionnel générique (même mesure
+//   que LinkedIn/reel : retournements, formules moulées, chiffres sans source,
+//   recopie de fiche de marque) détecte déjà une violation — "re-passe
+//   conditionnelle sur violation" ;
+// - son résultat est comparé à l'original et logué (console.log, aucune
+//   nouvelle colonne à ce stade), mais JAMAIS appliqué à `parsed.stories`.
+// Les stories ont un ton volontairement brut/spontané (contrairement aux
+// autres formats) : une correction trop appliquée risque de les lisser et de
+// leur faire perdre ce qui les rend justement moins "IA" — on regarde
+// d'abord ce que la passe détecte sur des générations réelles avant de la
+// brancher pour de vrai (remplacer le console.log par une affectation à
+// `parsed.stories` une fois la calibration validée).
+export async function applyStoriesCorrectionCalibration(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string }): Promise<void> {
+  const { body, fullContext, brandGuardText } = params;
+  if (!Array.isArray(parsed?.stories)) return;
+  const storiesText = parsed.stories
+    .map((s: any) => (typeof s?.text === "string" ? s.text : ""))
+    .filter(Boolean)
+    .join("\n\n");
+  if (!storiesText || storiesText.length < 150) return;
+  try {
+    const storiesAllowed = numbersIn([
+      typeof body.context === "string" ? body.context : "",
+      body.answers ? JSON.stringify(body.answers) : "",
+      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      fullContext || "",
+    ].join("\n"));
+    const storiesRedac = analyzeTextRedac(storiesText, storiesAllowed, brandGuardText);
+    const violations = textRedacViolations(storiesRedac);
+    if (violations === 0) return;
+    const corrected = await applyCorrectionPass(storiesText, "stories", {
+      logger: (msg) => console.log(msg),
+      model: "claude-haiku-4-5",
+      extraInstructions: buildTextFixInstructions(storiesRedac) || undefined,
+      abortTimeoutMs: CORRECTION_ABORT_MS,
+    });
+    const wouldChange = !!corrected && corrected.trim() !== storiesText.trim();
+    console.log(JSON.stringify({
+      type: "stories_correction_calibration",
+      violations,
+      would_repass: wouldChange,
+      original_preview: storiesText.slice(0, 500),
+      corrected_preview: wouldChange ? corrected.slice(0, 500) : null,
+    }));
+  } catch (e) {
+    console.error("[creative-flow] calibration correction-pass stories ignorée :", (e as any)?.message || e);
+  }
+}
+
 // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
 // Les carrousels loggent leur score de gate à chaque génération (Brique 1,
 // content_quality_events) → le juge du bilan hebdo les note. Les autres
@@ -2770,6 +2824,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
     if (isStories && step === "generate") {
       applyStoriesPhotoGuardAndResolution(parsed, { storiesPhotoCatalog });
+      await applyStoriesCorrectionCalibration(parsed, { body, fullContext, brandGuardText });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
