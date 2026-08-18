@@ -1736,8 +1736,8 @@ Le hook (slide 1) est une CLAQUE, pas un titre de blog.
 
 Exemples de hooks ton Nowadays (noter : majorité en JE, c'est la voix par défaut) :
 - "J'ai arrêté de poster pendant 3 semaines. Voilà ce qui s'est passé."
-- "Mon contenu n'était pas nul. Il était juste invisible."
-- "Le problème c'est pas l'algo. C'est la stratégie derrière."
+- "Mon contenu était bon. Juste invisible."
+- "L'algo n'a jamais été mon problème. Ma stratégie, oui."
 - "On m'a dit que mon feed était 'trop rose'. J'ai doublé le rose."
 - "J'ai compté : 47h de formation en ligne. Résultat : 0 post publié."
 - "On nous vend la régularité comme une religion. J'ai arrêté d'y croire."
@@ -2619,7 +2619,7 @@ MÉTHODE D'ÉCRITURE (la plus importante) : n'écris PAS slide par slide comme s
 
 TENIR LES PROMESSES : si une slide (souvent la 1re) annonce une liste ou un nombre ("il y a trois conversations…", "j'ai fait 2 erreurs…", "trois étapes…"), les overlays SUIVANTS DOIVENT tenir cette promesse explicitement DANS LA PHRASE ("Première conversation : …", "La deuxième : …", "Et la troisième…"). Une promesse ouverte qu'on ne paie pas dans le texte (ou qu'on renvoie à un décor / un badge) = raté. Le lecteur doit pouvoir suivre le décompte sans rien d'autre que les phrases.
 
-COMMENT ENCHAÎNER (sans mécaniser) : la plupart des transitions s'appuient naturellement sur l'UN de ces deux appuis — (a) un connecteur ("Puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Mais", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce que personne ne dit"…), (b) la reprise d'un mot-clé de la slide précédente. MAIS ne PLAQUE pas un connecteur sur chaque slide : si deux ou trois overlays d'affilée démarrent par "Puis… Et là… C'est là que…", c'est raté → varie, et souvent la simple continuité du sens (même sujet, même scène qui se prolonge) suffit. Le fil doit se SENTIR, pas se cocher. La vraie cible, c'est la fluidité du PRINCIPE Nº1, pas la présence mécanique d'un connecteur.
+COMMENT ENCHAÎNER (sans mécaniser) : la plupart des transitions s'appuient naturellement sur l'UN de ces deux appuis — (a) un connecteur ("Puis", "Sauf que", "Alors", "Du coup", "Mais", "Trois mois plus tard", "Au début", "Maintenant", "Ce que personne ne dit"…), (b) la reprise d'un mot-clé de la slide précédente. MAIS ne PLAQUE pas un connecteur sur chaque slide : si deux ou trois overlays d'affilée démarrent par "Puis… Et là… C'est là que…", c'est raté → varie, et souvent la simple continuité du sens (même sujet, même scène qui se prolonge) suffit. Le fil doit se SENTIR, pas se cocher. La vraie cible, c'est la fluidité du PRINCIPE Nº1, pas la présence mécanique d'un connecteur.
 
 Test interne : si on permute deux slides au hasard et que le carrousel "marche encore", c'est raté → recommence. Une slide qui pourrait vivre seule sur ${isLinkedIn ? "LinkedIn" : "Instagram"} = mauvais signe. On veut une slide qui n'a de sens QUE parce qu'on a lu la précédente.
 
@@ -2840,7 +2840,7 @@ ${photoCountBlock}
 Les overlay_text doivent se lire à la suite comme UN MONOLOGUE de l'autrice qui réagit. Chaque slide REPREND, PROLONGE ou FAIT BASCULER ce que la précédente a posé.
 MÉTHODE : n'écris pas slide par slide. Écris d'abord le monologue entier comme un seul texte courant qui se déroule d'une traite, PUIS découpe-le en overlays. Chaque overlay est un morceau du même flux, pas une légende autonome.
 À partir de la slide 2, chaque overlay DOIT contenir au moins l'UN des deux :
-  (a) un connecteur narratif ("Puis", "Sauf que", "C'est là que", "Ce qui me frappe", "Ce que personne ne dit"…)
+  (a) un connecteur narratif ("Puis", "Sauf que", "Ce que personne ne dit"…)
   (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente.
 Aucun overlay n'est une suite de groupes nominaux sans verbe conjugué (ex INTERDIT : "Dix formations ouvertes. Zéro post publié." → réécris en phrase complète). Si une slide annonce un décompte ("trois choses…"), tiens-le explicitement dans les phrases suivantes.
 
@@ -3094,7 +3094,7 @@ Le carrousel mix doit se lire comme UN SEUL mini-récit continu, slides photo ET
 
 Sur les slides photo_full :
 - À partir de la slide 2, CHAQUE overlay_text DOIT contenir au moins l'UN des deux éléments suivants :
-  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir".
+  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "Alors", "Du coup", "Trois mois plus tard", "Au début", "Maintenant", "Ce qu'on n'a pas vu venir".
   (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
 - Les overlays lus à la suite (en ignorant les text_only entre eux) doivent former un fil narratif cohérent — pas une galerie de légendes interchangeables.
 
@@ -3358,7 +3358,7 @@ Le carrousel mix doit se lire comme UN SEUL mini-récit continu, slides photo ET
 
 Sur les slides photo_full :
 - À partir de la slide 2, CHAQUE overlay_text DOIT contenir au moins l'UN des deux éléments suivants :
-  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "C'est là que", "Alors", "Du coup", "Trois mois plus tard", "Au début", "Maintenant", "Résultat", "Ce qu'on n'a pas vu venir".
+  (a) un connecteur narratif en début ou milieu de phrase : "Puis", "Et puis", "Sauf que", "Alors", "Du coup", "Trois mois plus tard", "Au début", "Maintenant", "Ce qu'on n'a pas vu venir".
   (b) une reprise lexicale d'un mot/groupe-clé de la slide précédente (le même mot, ou un synonyme évident qui boucle la référence).
 - Les overlays lus à la suite (en ignorant les text_only entre eux) doivent former un fil narratif cohérent — pas une galerie de légendes interchangeables.
 

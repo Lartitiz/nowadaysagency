@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BROETRY_LINKEDIN, LINKEDIN_PRINCIPLES_COMPACT, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
+import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, LINKEDIN_PRINCIPLES_COMPACT, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -490,9 +490,7 @@ Réponds en JSON :
         const formatInstruction = calFormat ? `FORMAT : ${formatMap[calFormat] || calFormat}` : "FORMAT : Carrousel par défaut";
         const isLinkedinCalendar = calFormat === "post_linkedin" || (body.canal === "linkedin");
         isLinkedinGeneration = isLinkedinCalendar;
-        const linkedinDepthMandate = `${ANTI_BROETRY_LINKEDIN}
-
-FORMAT : POST LINKEDIN (1300-2000 caractères)
+        const linkedinDepthMandate = `FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 ══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
 
@@ -571,9 +569,7 @@ FORMAT :
         const formatInstruction = expressFormat ? `FORMAT : ${formatMap[expressFormat] || expressFormat}` : "FORMAT : Post Instagram par défaut";
         const isLinkedinFormat = expressFormat === "linkedin";
         isLinkedinGeneration = isLinkedinFormat;
-        const expressLinkedinDepth = `${ANTI_BROETRY_LINKEDIN}
-
-FORMAT : POST LINKEDIN (1300-2000 caractères)
+        const expressLinkedinDepth = `FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 ══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
 
