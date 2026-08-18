@@ -33,12 +33,14 @@ export async function saveCharterInsights(
     .eq(ctx.column, ctx.value)
     .maybeSingle();
   if (existing?.id) {
-    await (supabase.from("brand_charter") as any)
+    const { error } = await (supabase.from("brand_charter") as any)
       .update(charterPayload)
       .eq("id", existing.id);
+    if (error) throw error;
   } else {
-    await (supabase.from("brand_charter") as any)
+    const { error } = await (supabase.from("brand_charter") as any)
       .insert({ user_id: ctx.profileUserId, workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined, ...charterPayload });
+    if (error) throw error;
   }
   return charterPayload;
 }
@@ -58,19 +60,21 @@ export async function savePersonaInsights(
   }
 
   if (targetPersonaId) {
-    await (supabase.from("persona") as any)
+    const { error } = await (supabase.from("persona") as any)
       .update({ ...insights, updated_at: new Date().toISOString() })
       .eq("id", targetPersonaId);
+    if (error) throw error;
     return targetPersonaId;
   }
 
-  const { data: newPersona } = await (supabase.from("persona") as any).insert({
+  const { data: newPersona, error } = await (supabase.from("persona") as any).insert({
     user_id: ctx.profileUserId,
     workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
     is_primary: true,
     ...insights,
     updated_at: new Date().toISOString(),
   }).select("id").single();
+  if (error) throw error;
   return newPersona?.id || null;
 }
 
@@ -91,11 +95,12 @@ export async function saveStoryInsights(insights: Record<string, any>, ctx: Insi
   if (insights.story_vision) storyData.step_5_emotions = insights.story_vision;
 
   if (existing?.id) {
-    await (supabase.from("storytelling") as any)
+    const { error } = await (supabase.from("storytelling") as any)
       .update({ ...storyData, updated_at: new Date().toISOString() })
       .eq("id", existing.id);
+    if (error) throw error;
   } else {
-    await (supabase.from("storytelling") as any).insert({
+    const { error } = await (supabase.from("storytelling") as any).insert({
       user_id: ctx.profileUserId,
       workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
       ...storyData,
@@ -105,6 +110,7 @@ export async function saveStoryInsights(insights: Record<string, any>, ctx: Insi
       is_primary: true,
       updated_at: new Date().toISOString(),
     });
+    if (error) throw error;
   }
 }
 
@@ -148,13 +154,15 @@ export async function saveContentStrategyInsights(
     const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
       .select("id").eq(ctx.column, ctx.value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
     if (existingStrat?.id) {
-      await (supabase.from("brand_strategy") as any).update(strategyData).eq("id", existingStrat.id);
+      const { error } = await (supabase.from("brand_strategy") as any).update(strategyData).eq("id", existingStrat.id);
+      if (error) throw error;
     } else {
-      await (supabase.from("brand_strategy") as any).insert({
+      const { error } = await (supabase.from("brand_strategy") as any).insert({
         user_id: ctx.profileUserId,
         workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
         ...strategyData,
       });
+      if (error) throw error;
     }
     queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });
   }
@@ -175,13 +183,15 @@ export async function saveContentStrategyInsights(
     const { data: existingEdito } = await (supabase.from("instagram_editorial_line") as any)
       .select("id").eq(ctx.column, ctx.value).maybeSingle();
     if (existingEdito?.id) {
-      await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
+      const { error } = await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
+      if (error) throw error;
     } else {
-      await (supabase.from("instagram_editorial_line") as any).insert({
+      const { error } = await (supabase.from("instagram_editorial_line") as any).insert({
         user_id: ctx.profileUserId,
         workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
         ...editoData,
       });
+      if (error) throw error;
     }
     queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
   }
@@ -205,8 +215,12 @@ export async function saveContentSeriesInsights(
   ctx: InsightsSaveCtx,
   queryClient: QueryClient
 ): Promise<void> {
-  // A. Sauvegarde des séries
+  // A. Sauvegarde des séries. Best-effort PAR série (une série ratée ne doit
+  // pas empêcher les autres d'être enregistrées) mais on retient les échecs
+  // pour prévenir l'appelant : sinon la fiche affiche "complet" alors que
+  // certaines séries n'ont jamais été écrites.
   const seriesArr: any[] = Array.isArray(insights.series) ? insights.series.slice(0, 8) : [];
+  let failedSeries = 0;
   for (const serie of seriesArr) {
     try {
       if (!serie?.name || !serie?.promise) continue;
@@ -238,17 +252,18 @@ export async function saveContentSeriesInsights(
         const { error } = await (supabase.from("series") as any)
           .update({ ...payload, updated_at: new Date().toISOString() })
           .eq("id", existingSerie.id);
-        if (error) console.error("[ContentSeries] Update error:", error);
+        if (error) { console.error("[ContentSeries] Update error:", error); failedSeries++; }
       } else {
         const { error } = await (supabase.from("series") as any).insert({
           ...payload,
           user_id: ctx.profileUserId,
           workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
         });
-        if (error) console.error("[ContentSeries] Insert error:", error);
+        if (error) { console.error("[ContentSeries] Insert error:", error); failedSeries++; }
       }
     } catch (serieErr) {
       console.error("[ContentSeries] Failed to save serie:", serie?.name, serieErr);
+      failedSeries++;
     }
   }
 
@@ -256,6 +271,7 @@ export async function saveContentSeriesInsights(
   const pillarsNew: string[] = Array.isArray(insights.pillars_new)
     ? insights.pillars_new.filter((p: any) => typeof p === "string" && p.trim()).slice(0, 4)
     : [];
+  let pillarsFailed = false;
   if (pillarsNew.length > 0) {
     try {
       const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
@@ -276,20 +292,30 @@ export async function saveContentSeriesInsights(
 
       if (Object.keys(updates).length > 0) {
         if (existingStrat?.id) {
-          await (supabase.from("brand_strategy") as any)
+          const { error } = await (supabase.from("brand_strategy") as any)
             .update({ ...updates, updated_at: new Date().toISOString() })
             .eq("id", existingStrat.id);
+          if (error) throw error;
         } else {
-          await (supabase.from("brand_strategy") as any).insert({
+          const { error } = await (supabase.from("brand_strategy") as any).insert({
             user_id: ctx.profileUserId,
             workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
             ...updates,
           });
+          if (error) throw error;
         }
       }
     } catch (pillarsErr) {
       console.error("[ContentSeries] Failed to save pillars_new:", pillarsErr);
+      pillarsFailed = true;
     }
+  }
+
+  if (failedSeries > 0 || pillarsFailed) {
+    throw new Error(
+      `content_series: ${failedSeries} série(s) sur ${seriesArr.length} non enregistrée(s)` +
+      (pillarsFailed ? " ; piliers non enregistrés" : "")
+    );
   }
 
   queryClient.invalidateQueries({ queryKey: ["series"] });
@@ -305,14 +331,16 @@ export async function saveDefaultBrandProfileInsights(
   const { data: existingBP } = await (supabase.from("brand_profile") as any)
     .select("id").eq(ctx.column, ctx.value).maybeSingle();
   if (existingBP?.id) {
-    await (supabase.from("brand_profile") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingBP.id);
+    const { error } = await (supabase.from("brand_profile") as any).update({ ...insights, updated_at: new Date().toISOString() }).eq("id", existingBP.id);
+    if (error) throw error;
   } else {
-    await (supabase.from("brand_profile") as any).insert({
+    const { error } = await (supabase.from("brand_profile") as any).insert({
       user_id: ctx.profileUserId,
       workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
       ...insights,
       updated_at: new Date().toISOString(),
     });
+    if (error) throw error;
   }
   queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
   queryClient.invalidateQueries({ queryKey: ["brand-strategy"] });

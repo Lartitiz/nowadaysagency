@@ -414,16 +414,25 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     updateCoveredTopics(response);
     setCompletionPct(response.completion_percentage || completionPct);
 
-    // Save extracted insights on retry too (was missing entirely)
+    // Save extracted insights on retry too (was missing entirely). Même
+    // garde que dans askAI : un échec d'écriture ne doit pas afficher l'écran
+    // "complet" (sinon la fiche croit être remplie alors qu'elle ne l'est pas).
+    let insightsPersisted = true;
     if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
       try {
         await saveInsights(section, response.extracted_insights);
       } catch (e) {
         console.error("[BrandingCoaching] Failed to save insights on retry:", e);
+        insightsPersisted = false;
+        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
       }
     }
 
-    if (response.is_complete) {
+    if (response.is_complete && !insightsPersisted) {
+      setError("La fiche n'a pas pu être mise à jour avec tes dernières réponses.");
+      return;
+    }
+    if (response.is_complete && insightsPersisted) {
       setFinalSummary(response.final_summary || "");
       setCompletionPct(100);
       setShowConfetti(true);
@@ -732,7 +741,17 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       console.error("[BrandingCoaching] Save session critical error:", e);
     }
 
-    if (response.is_complete) {
+    // Même garde que markComplete ci-dessus : si la fiche n'a pas pu être
+    // persistée, ne PAS afficher confettis + "Fiche complète ✓" — ce serait
+    // contredire le toast d'échec qu'on vient d'afficher juste au-dessus.
+    // On bascule sur l'écran d'erreur existant (bouton "Réessayer" →
+    // handleRetry) plutôt que de retomber sur setCurrentQuestion(response) :
+    // une réponse "is_complete" n'a en général pas de "question" à afficher.
+    if (response.is_complete && !insightsPersisted) {
+      setError("La fiche n'a pas pu être mise à jour avec tes dernières réponses.");
+      return;
+    }
+    if (response.is_complete && insightsPersisted) {
       const completionCtx = { column, value, profileUserId, workspaceId };
 
       // If storytelling, generate full story
@@ -756,33 +775,33 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     setCurrentQuestion(response);
   }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist, loading]);
 
+  // Ne PAS avaler l'erreur ici : elle doit remonter jusqu'à l'appelant
+  // (askAI ci-dessus), qui met insightsPersisted=false et affiche le toast
+  // d'échec. Un try/catch local qui se contente de console.error ferait
+  // croire au caller que l'écriture a réussi alors qu'elle a échoué.
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
     if (!user) return;
     const ctx = { column, value, profileUserId, workspaceId };
-    try {
-      if (sec === "charter") {
-        const savedPayload = await saveCharterInsights(insights, ctx);
-        if (savedPayload) {
-          charterDataRef.current = { ...charterDataRef.current, ...savedPayload };
-        }
-      } else if (sec === "persona") {
-        const targetPersonaId = await savePersonaInsights(insights, ctx, resolvedPersonaIdRef.current);
-        if (targetPersonaId) resolvedPersonaIdRef.current = targetPersonaId;
-      } else if (sec === "story") {
-        await saveStoryInsights(insights, ctx);
-      } else if (sec === "content_strategy") {
-        await saveContentStrategyInsights(insights, ctx, queryClient);
-      } else if (sec === "content_series") {
-        await saveContentSeriesInsights(insights, ctx, queryClient);
-      } else {
-        await saveDefaultBrandProfileInsights(insights, ctx, queryClient);
+    if (sec === "charter") {
+      const savedPayload = await saveCharterInsights(insights, ctx);
+      if (savedPayload) {
+        charterDataRef.current = { ...charterDataRef.current, ...savedPayload };
       }
-      // Always invalidate the global branding data cache so BrandingPage/BrandingSectionPage see fresh data
-      queryClient.invalidateQueries({ queryKey: ["branding-data"] });
-      queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
-    } catch (e) {
-      console.error("[BrandingCoaching] Error saving insights:", e);
+    } else if (sec === "persona") {
+      const targetPersonaId = await savePersonaInsights(insights, ctx, resolvedPersonaIdRef.current);
+      if (targetPersonaId) resolvedPersonaIdRef.current = targetPersonaId;
+    } else if (sec === "story") {
+      await saveStoryInsights(insights, ctx);
+    } else if (sec === "content_strategy") {
+      await saveContentStrategyInsights(insights, ctx, queryClient);
+    } else if (sec === "content_series") {
+      await saveContentSeriesInsights(insights, ctx, queryClient);
+    } else {
+      await saveDefaultBrandProfileInsights(insights, ctx, queryClient);
     }
+    // Always invalidate the global branding data cache so BrandingPage/BrandingSectionPage see fresh data
+    queryClient.invalidateQueries({ queryKey: ["branding-data"] });
+    queryClient.invalidateQueries({ queryKey: ["branding-completion"] });
   };
 
   const estimatedTotal = checklist.length || 8;
