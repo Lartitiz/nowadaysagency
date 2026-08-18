@@ -245,12 +245,20 @@ export default function SuggestedContents() {
 
   async function saveIdeas(ideas: IdeaSpark[]) {
     if (!user || ideas.length === 0) return;
-    await (supabase.from("suggested_contents") as any).insert({
+    const { error } = await (supabase.from("suggested_contents") as any).insert({
       user_id: user.id,
       workspace_id: workspaceId || null,
       contents: JSON.stringify(ideas),
       week_start: weekStart,
     });
+    if (error) {
+      // Écriture ratée : sans ça, `cachedContents` reste vide, le widget
+      // affiche "rien à faire cette semaine" au lieu de la vraie cause, et
+      // relance un appel IA payant à chaque visite tant que la ligne
+      // n'existe pas en base.
+      console.error("[SuggestedContents] Failed to save weekly ideas:", error);
+      return;
+    }
     refetch();
   }
 
