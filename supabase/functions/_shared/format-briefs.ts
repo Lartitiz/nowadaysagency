@@ -356,8 +356,8 @@ ${pg.anecdote ? `MOMENT PERSO : "${pg.anecdote}"
 ${pg.emotion ? `ÉNERGIE : ${pg.emotion}
 → Guide le rythme, le ton, les coupes du script entier.` : ""}
 
-${pg.conviction ? `PUNCHLINE : "${pg.conviction}"
-→ Cette phrase doit apparaître quasi textuellement dans le script, au moment du twist ou de la conclusion.` : ""}
+${pg.conviction ? `PUNCHLINE (matière, pas texte final — voir CONSIGNE ci-dessous) : "${pg.conviction}"
+→ Elle porte le twist ou la conclusion du script. REFORMULE-la avec des mots neufs : garde le sens et l'intensité, ne recopie jamais la phrase telle quelle (elle peut venir de la fiche de marque, réutilisée mot pour mot elle se voit dès que deux contenus cohabitent sur le même feed).` : ""}
 
 RÈGLE : ces éléments sont plus importants que le template. Le script doit sonner comme l'utilisatrice, pas comme un framework.`
     : `

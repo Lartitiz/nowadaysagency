@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock, buildPreGenFallback, buildBrandGuardText } from "../_shared/user-context.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -15,7 +15,7 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, textRedacViolations } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import {
   alignFaceCamTakeDuration,
@@ -975,6 +975,7 @@ async function handleRecycleStep(params: {
   const recActivity = ctx?.profile?.activite || profile?.activite || "";
   const recTarget = ctx?.profile?.cible || profile?.cible || "";
   const recPiliers = ctx?.profile?.piliers || "";
+  const recBrandGuardText = buildBrandGuardText(ctx || {});
   const requestedLabels = fmtIds.map((f) => formatLabels[f] || f);
 
   // ── Fichiers : mêmes validations que l'ancien chemin ──
@@ -1128,6 +1129,7 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
           // Liste blanche des chiffres : ceux de la source recyclée (le contenu
           // vient d'elle, ses chiffres sont légitimes) + réponses/actu/branding.
           inputText: [sourceForFormats, plan?.synthese_source || "", recActivity, recTarget, recPiliers].filter(Boolean).join("\n"),
+          brandGuardText: recBrandGuardText,
         });
         const reparsed = tryParseAiJson<any>(gated.content, "creative-flow:recycle:carrousel:gated");
         if (reparsed && Array.isArray(reparsed.slides)) resultVal = reparsed;
@@ -1248,8 +1250,8 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
 // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
 // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
-async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string }): Promise<void> {
-  const { body, fullContext } = params;
+async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string }): Promise<void> {
+  const { body, fullContext, brandGuardText } = params;
   try {
     // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
     // passe de correction existante — retournements (1 max), formules
@@ -1260,7 +1262,7 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
     ].join("\n"));
-    const liRedac = analyzeTextRedac(parsed.content, liAllowed);
+    const liRedac = analyzeTextRedac(parsed.content, liAllowed, brandGuardText);
     const corrected = await applyCorrectionPass(parsed.content, "linkedin", {
       logger: (msg) => console.log(msg),
       // Édition mécanique à règles fermées → Haiku (cf. #364)
@@ -1289,8 +1291,8 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
 // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
 //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
-async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string }): Promise<void> {
-  const { body, effectiveObjective, fullContext } = params;
+async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; brandGuardText?: string }): Promise<void> {
+  const { body, effectiveObjective, fullContext, brandGuardText } = params;
   if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
     console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
   }
@@ -1306,7 +1308,7 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
     ].join("\n"));
-    const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed);
+    const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed, brandGuardText);
     const extras: string[] = [];
     const redacFix = buildTextFixInstructions(reelRedac);
     if (redacFix) extras.push(redacFix);
@@ -1423,13 +1425,14 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   body: any;
   newsContext?: string | null;
   fullContext: string;
+  brandGuardText?: string;
   finalUsage: UsageSink;
   workspace_id?: string | null;
   isStories: boolean;
   isReel: boolean;
   isLinkedIn: boolean;
 }): Promise<void> {
-  const { userId, context, body, newsContext, fullContext, finalUsage, workspace_id, isStories, isReel, isLinkedIn } = params;
+  const { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn } = params;
   const qualityAllowed = () =>
     numbersIn([
       typeof context === "string" ? context : "",
@@ -1440,8 +1443,8 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
     ].join("\n"));
   const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
     try {
-      const a = analyzeTextRedac(text, qualityAllowed());
-      const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+      const a = analyzeTextRedac(text, qualityAllowed(), brandGuardText);
+      const violations = textRedacViolations(a);
       const score = Math.max(40, 100 - 10 * violations);
       await logContentQuality(
         userId,
@@ -1897,8 +1900,9 @@ async function runNewsletterTwoStep(params: {
   context?: string | null;
   newsContext?: string | null;
   fullContext: string;
+  brandGuardText?: string;
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
-  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext } = params;
+  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext, brandGuardText } = params;
   const workspace_id = params.workspace_id ?? undefined;
   const nlUsage: UsageSink = {};
   emitStatus("writing");
@@ -1932,7 +1936,7 @@ async function runNewsletterTwoStep(params: {
         typeof body.news_context === "string" ? body.news_context : "",
         fullContext || "",
       ].join("\n"));
-      const nlRedac = analyzeTextRedac(parsed.content, nlAllowed);
+      const nlRedac = analyzeTextRedac(parsed.content, nlAllowed, brandGuardText);
       const corrected = await applyCorrectionPass(parsed.content, "newsletter", {
         logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
@@ -1966,8 +1970,8 @@ async function runNewsletterTwoStep(params: {
         typeof newsContext === "string" ? newsContext : "",
         fullContext || "",
       ].join("\n"));
-      const a = analyzeTextRedac(parsed.content, nlAllowed);
-      const violations = Math.max(0, a.reversals.length - 1) + a.moulded.length + Math.min(3, a.fabricatedNumbers.length);
+      const a = analyzeTextRedac(parsed.content, nlAllowed, brandGuardText);
+      const violations = textRedacViolations(a);
       const score = Math.max(40, 100 - 10 * violations);
       await logContentQuality(
         userId,
@@ -2388,6 +2392,10 @@ serve(async (req) => {
     const profileBlock = profile ? buildProfileBlock(profile) : "";
     const ctx = await getUserContext(supabase, userId, workspace_id, channelFromType);
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
+    // Champs de marque bruts (combat, mission, ton…) : le redac-gate s'en sert
+    // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
+    // requête supplémentaire — ctx.tone est déjà fetché par getUserContext().
+    const brandGuardText = buildBrandGuardText(ctx);
 
     // Recent briefs context — fetched server-side as fallback if not provided.
     // Used by `questions` step to avoid repeating angles already covered.
@@ -2659,7 +2667,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isNewsletter) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, brandGuardText }, emitStatus));
       }
 
       if (isCarousel) {
@@ -2751,12 +2759,12 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext });
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText });
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext });
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, brandGuardText });
     }
 
     // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
@@ -2766,7 +2774,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, finalUsage, workspace_id, isStories, isReel, isLinkedIn });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.

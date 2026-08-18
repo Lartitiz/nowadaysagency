@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { analyzeCarouselRedac, analyzeTextRedac, buildTextFixInstructions, normalizeCaptionHashtags, numbersIn } from "./redac-gate.ts";
+import { analyzeCarouselRedac, analyzeTextRedac, buildTextFixInstructions, findBrandCopyOverlap, normalizeCaptionHashtags, numbersIn } from "./redac-gate.ts";
 
 // Cas réels de l'audit rédactionnel du 10/07 (carrousels 07 et 18).
 
@@ -434,4 +434,68 @@ Deno.test("measureSlopSignals : sans slides, les familles inter-slides restent �
   assertEquals(signals.staccato_inter_slides, 0);
   assertEquals(signals.anaphora_inter_slides, 0);
   assertEquals(signals.hook_ending_similarity, 0);
+});
+
+// ── Recopie de la fiche de marque (audit slop 18/08) ──
+// Cas réel de l'audit : le combat_cause d'une fiche de marque ressortait quasi
+// mot pour mot dans 4 contenus sur 7 générés dans le même run.
+
+const COMBAT_CAUSE_TEST = "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau, et contre le greenwashing des marques 'naturelles' aux listes d'ingrédients illisibles.";
+
+Deno.test("findBrandCopyOverlap détecte 10 mots consécutifs recopiés du champ de marque", () => {
+  const generated = "On me demande souvent pourquoi je fabrique mes savons à froid. Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent, je préfère prendre le temps.";
+  const found = findBrandCopyOverlap(generated, COMBAT_CAUSE_TEST);
+  assertEquals(found.length, 1);
+  assertEquals(found[0].toLowerCase().includes("contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent"), true);
+});
+
+Deno.test("findBrandCopyOverlap ne réagit PAS quand le même sujet est abordé avec des mots différents", () => {
+  const generated = "Beaucoup de marques vendent des produits qui martyrisent la peau avec des tensioactifs chimiques, sans jamais l'assumer clairement dans leur communication.";
+  assertEquals(findBrandCopyOverlap(generated, COMBAT_CAUSE_TEST), []);
+});
+
+Deno.test("findBrandCopyOverlap : un seul mot de vocabulaire métier partagé (savon/saponification) ne déclenche jamais seul", () => {
+  const generated = "La saponification est un procédé chimique que j'utilise pour fabriquer mes savons artisanaux, entièrement différent des procédés industriels standards du marché.";
+  assertEquals(findBrandCopyOverlap(generated, COMBAT_CAUSE_TEST), []);
+});
+
+Deno.test("findBrandCopyOverlap : aucun champ de marque fourni → ne plante pas, renvoie []", () => {
+  assertEquals(findBrandCopyOverlap("Un texte quelconque, sans rapport avec quoi que ce soit.", undefined), []);
+  assertEquals(findBrandCopyOverlap("", COMBAT_CAUSE_TEST), []);
+  assertEquals(findBrandCopyOverlap("Un texte quelconque.", ""), []);
+});
+
+Deno.test("analyzeTextRedac : brandGuardText absent → brandCopyOverlap vide, ne plante pas", () => {
+  const a = analyzeTextRedac("Un post LinkedIn tout à fait normal, sans aucun champ de marque fourni en entrée.");
+  assertEquals(a.brandCopyOverlap, []);
+});
+
+Deno.test("analyzeTextRedac : recopie détectée est remontée dans brandCopyOverlap et déclenche buildTextFixInstructions", () => {
+  const generated = "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent, voici ce que je propose à la place.";
+  const a = analyzeTextRedac(generated, undefined, COMBAT_CAUSE_TEST);
+  assertEquals(a.brandCopyOverlap.length, 1);
+  const fix = buildTextFixInstructions(a);
+  assertEquals(fix.includes("RECOPIÉS DE LA FICHE DE MARQUE"), true);
+});
+
+Deno.test("analyzeCarouselRedac : brandGuardText absent → brandCopyOverlap vide, ne plante pas (carrousel)", () => {
+  const a = analyzeCarouselRedac({
+    slides: [{ slide_number: 1, title: "Une tasse met trois semaines à exister", body: "" }],
+    caption: { hook: "", body: "", cta: "" },
+  });
+  assertEquals(a.brandCopyOverlap, []);
+});
+
+Deno.test("analyzeCarouselRedac : recopie détectée sur une slide", () => {
+  const a = analyzeCarouselRedac(
+    {
+      slides: [
+        { slide_number: 1, title: "Mon combat", body: "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau, je fabrique différemment." },
+      ],
+      caption: { hook: "", body: "", cta: "" },
+    },
+    undefined,
+    COMBAT_CAUSE_TEST,
+  );
+  assertEquals(a.brandCopyOverlap.length, 1);
 });

@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -585,6 +585,10 @@ export async function handleRequest(req: Request): Promise<Response> {
 
     const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
+    // Champs de marque bruts (combat, mission, ton…) : le redac-gate s'en sert
+    // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
+    // requête supplémentaire — ctx.tone est déjà fetché par getUserContext().
+    const brandGuardText = buildBrandGuardText(ctx);
 
     // Recent briefs context — fetched server-side for deepening_questions ET pour la
     // génération elle-même (anti-sérialité, audit qualité 11/07 : sans mémoire des
@@ -732,6 +736,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       systemPrompt,
       brandingContext,
       gateInputText,
+      brandGuardText,
       captionEndingRule,
       recentBriefsContext,
       brandVocabBlock,
@@ -809,6 +814,8 @@ interface CarouselRequestContext {
   systemPrompt: string;
   brandingContext: string;
   gateInputText: string;
+  /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
+  brandGuardText: string;
   captionEndingRule: CaptionEndingRule | undefined;
   recentBriefsContext: string;
   brandVocabBlock: string;
@@ -844,7 +851,7 @@ async function runGenerationAndRespond(
   userPrompt: string,
   reqCtx: CarouselRequestContext,
 ): Promise<Response> {
-  const { body, userId, workspaceId, category, systemPrompt, gateInputText, captionEndingRule, isLinkedIn, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, corsHeaders, emitStatus } = reqCtx;
 
   // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
   const modelForCall = type === "deepening_questions"
@@ -906,6 +913,7 @@ async function runGenerationAndRespond(
       isLinkedIn,
       onStatus: emitStatus,
       inputText: gateInputText,
+      brandGuardText,
       captionEnding: captionEndingRule,
       correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
     });
@@ -947,7 +955,7 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 
 // ── Mix carousel mode ──
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const mixPrompt = hasNews
@@ -1077,6 +1085,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    brandGuardText,
     captionEnding: captionEndingRule,
     correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
@@ -1090,7 +1099,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 
 // ── Photo carousel mode ──
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const photoPrompt = hasNews
@@ -1213,6 +1222,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    brandGuardText,
     captionEnding: captionEndingRule,
     correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
