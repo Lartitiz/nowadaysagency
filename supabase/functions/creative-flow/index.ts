@@ -2729,6 +2729,16 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
             tool: structuredTool,
           }, finalUsage)
         : await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
+
+      // Step "adjust" (bouton "Ajuster" de CreerStepEdit.tsx) : jamais streamé, sans
+      // tool forcé quel que soit le format → le modèle peut renvoyer du JSON en texte
+      // libre illisible (audit slop 18/08 : ~1 génération non-streamée sur 3 sur ce
+      // chemin). Un seul retry avant le 502 sec suffit à verrouiller ce point precis
+      // (pas étendu aux autres steps ici, hors périmètre de ce fix).
+      if (step === "adjust" && tryParseAiJson<any>(rawContent, `creative-flow:${step}`) === null) {
+        console.warn("[creative-flow] parse échec (adjust), retry unique");
+        rawContent = await callAnthropicSimple(modelForCall, systemPrompt, userPrompt!, tempText, maxTokens, finalUsage, abortMs);
+      }
     }
 
     // Plus de fallback { raw } muet : une réponse illisible = erreur claire (502),
