@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -7,8 +6,7 @@ import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { isDemoUser } from "../_shared/guard-demo.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 
 function buildProfileBlock(p: any) {
   return [
@@ -101,32 +99,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user }, error: authError2 } = await supabase.auth.getUser();
-    if (authError2 || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = user.id;
-
-    const rateCheck = checkRateLimit(userId);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
-
-    if (isDemoUser(userId)) {
-      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    const auth = await authenticateEdgeUser(req, corsHeaders, {
+      rateLimit: true,
+      demoGuard: true,
+      guardOrder: "rate-first",
+    });
+    if (auth instanceof Response) return auth;
+    const { userId } = auth;
 
     // Anthropic API key checked in shared helper
 

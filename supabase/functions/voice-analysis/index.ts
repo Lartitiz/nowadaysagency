@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { callAnthropicToolSimple, getModelForAction, type AnthropicTool, type UsageSink } from "../_shared/anthropic.ts";
 
 // Tool forcé : transport JSON garanti (chantier éradication parse texte, 26/07).
@@ -21,7 +20,7 @@ const VOICE_TOOL: AnthropicTool = {
 
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { corsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 
@@ -29,28 +28,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    const auth = await authenticateEdgeUser(req, corsHeaders, { rateLimit: true });
+    if (auth instanceof Response) return auth;
+    const { userId } = auth;
 
     // Anthropic API key checked in shared helper
 
@@ -89,7 +69,7 @@ RÈGLES :
 - Max 5 points par catégorie
 - Réponds UNIQUEMENT avec le JSON`;
 
-    const quotaCheck = await checkQuota(user.id, "bio_profile");
+    const quotaCheck = await checkQuota(userId, "bio_profile");
     if (!quotaCheck.allowed) {
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
@@ -106,7 +86,7 @@ RÈGLES :
       60_000
     );
 
-    await logUsage(user.id, "bio_profile", "voice_analysis", usage.total_tokens, usage.model);
+    await logUsage(userId, "bio_profile", "voice_analysis", usage.total_tokens, usage.model);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

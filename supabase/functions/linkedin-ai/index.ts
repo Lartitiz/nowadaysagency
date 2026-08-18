@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback } from "../_shared/user-context.ts";
@@ -98,7 +97,7 @@ const aiUnusableResponse = () => new Response(
 import { corsHeaders } from "../_shared/cors.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 
 // Voice profile is fetched by getUserContext now
@@ -107,27 +106,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    const auth = await authenticateEdgeUser(req, corsHeaders, { rateLimit: true });
+    if (auth instanceof Response) return auth;
+    const { userId, supabase } = auth;
 
     // Anthropic API key checked in shared helper
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
@@ -163,11 +146,11 @@ serve(async (req) => {
       "analyze-resume": "bio_profile",
     };
     const category = categoryMap[action] || "content";
-    const quotaCheck = await checkQuota(user.id, category, workspace_id);
+    const quotaCheck = await checkQuota(userId, category, workspace_id);
     if (!quotaCheck.allowed) {
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
-    const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
+    const ctx = await getUserContext(supabase, userId, workspace_id, "linkedin");
     const context = formatContextForAI(ctx, CONTEXT_PRESETS.linkedin);
     const qualityBlocks = `${EMBEDDED_EDUCATION}\n\n${ANTI_SLOP}\n\n${ANTI_BIAS}\n\n${CHAIN_OF_THOUGHT}\n\nPRIORITÉ VOIX : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature. Respecte les expressions interdites. Le résultat doit sonner comme si l'utilisatrice l'avait écrit elle-même.`;
     const branding = { storytelling: ctx.storytelling };
@@ -247,7 +230,7 @@ serve(async (req) => {
           return aiUnusableResponse();
         }
 
-        await logUsage(user.id, category, `linkedin_crosspost_files`, cpUsage.total_tokens, cpUsage.model, workspace_id);
+        await logUsage(userId, category, `linkedin_crosspost_files`, cpUsage.total_tokens, cpUsage.model, workspace_id);
 
         return new Response(JSON.stringify({ content }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -382,7 +365,7 @@ serve(async (req) => {
       return aiUnusableResponse();
     }
 
-    await logUsage(user.id, category, `linkedin_${action}`, usage.total_tokens, usage.model, workspace_id);
+    await logUsage(userId, category, `linkedin_${action}`, usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

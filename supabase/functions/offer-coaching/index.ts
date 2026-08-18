@@ -16,7 +16,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 
 serve(async (req) => {
@@ -24,27 +24,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    const auth = await authenticateEdgeUser(req, corsHeaders, { rateLimit: true });
+    if (auth instanceof Response) return auth;
+    const { userId, supabase } = auth;
 
     const reqBody = await req.json();
     validateInput(reqBody, z.object({
@@ -56,20 +38,20 @@ serve(async (req) => {
 
     // Garde d'appartenance workspace (défense en profondeur, en plus de la RLS)
     const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-    const membership = await assertWorkspaceMembership(sbGuard, user.id, workspace_id);
+    const membership = await assertWorkspaceMembership(sbGuard, userId, workspace_id);
     if (!membership.ok) {
-      console.warn("[workspace-guard] denied", { userId: user.id, workspaceId: workspace_id });
+      console.warn("[workspace-guard] denied", { userId: userId, workspaceId: workspace_id });
       return workspaceDeniedResponse(corsHeaders);
     }
 
     // Check plan limits (décompté sur le bon workspace)
-    const usageCheck = await checkQuota(user.id, "content", workspace_id);
+    const usageCheck = await checkQuota(userId, "content", workspace_id);
     if (!usageCheck.allowed) {
       return quotaDeniedResponse(usageCheck, corsHeaders);
     }
 
     // Fetch full user context server-side for richer coaching
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, userId, workspace_id);
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.offerCoaching);
 
     const stepPrompts: Record<number, string> = {
@@ -204,7 +186,7 @@ Réponds UNIQUEMENT en JSON valide, sans markdown, sans backticks.`;
     const usage: UsageSink = {};
     const parsed = await callAnthropicToolSimple(getModelForAction("offer"), BASE_SYSTEM_RULES + "\n\n" + systemPrompt, userPrompt, OFFER_COACH_TOOL, 0.7, 2000, usage, 60_000);
 
-    await logUsage(user.id, "content", "offer_coaching", usage.total_tokens, usage.model, workspace_id);
+    await logUsage(userId, "content", "offer_coaching", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify(parsed), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

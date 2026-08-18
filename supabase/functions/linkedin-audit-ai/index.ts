@@ -1,12 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { LINKEDIN_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getDefaultModel, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { scrapeLinkedin } from "../_shared/scraping.ts";
@@ -21,24 +20,9 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    const auth = await authenticateEdgeUser(req, corsHeaders, { rateLimit: true });
+    if (auth instanceof Response) return auth;
+    const { userId, supabase } = auth;
 
     const body = await req.json();
     validateInput(body, z.object({
@@ -52,12 +36,12 @@ serve(async (req) => {
     // Anthropic API key checked in shared helper
 
     // Check plan limits (audit type)
-    const quotaCheck = await checkQuota(user.id, "audit", workspace_id);
+    const quotaCheck = await checkQuota(userId, "audit", workspace_id);
     if (!quotaCheck.allowed) {
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
-    const ctx = await getUserContext(supabase, user.id, workspace_id, "linkedin");
+    const ctx = await getUserContext(supabase, userId, workspace_id, "linkedin");
     const contextStr = formatContextForAI(ctx, CONTEXT_PRESETS.linkedinAudit);
 
     // Build screenshot content array for multimodal
@@ -119,10 +103,10 @@ serve(async (req) => {
     try {
       const svc = getServiceClient();
       const filterCol = workspace_id ? "workspace_id" : "user_id";
-      const filterVal = workspace_id || user.id;
+      const filterVal = workspace_id || userId;
       let connQ = svc.from("social_connections").select("*")
         .eq("platform", "linkedin_analytics").eq(filterCol, filterVal);
-      connQ = workspace_id ? connQ.eq("user_id", user.id) : connQ.is("workspace_id", null);
+      connQ = workspace_id ? connQ.eq("user_id", userId) : connQ.is("workspace_id", null);
       const { data: conn } = await connQ.maybeSingle();
       if (conn) {
         await decryptConnTokens(conn);
@@ -323,7 +307,7 @@ Réponds UNIQUEMENT en JSON sans backticks :
       max_tokens: 12000,
     }, usage);
 
-    await logUsage(user.id, "audit", "audit_linkedin", usage.total_tokens, usage.model, workspace_id);
+    await logUsage(userId, "audit", "audit_linkedin", usage.total_tokens, usage.model, workspace_id);
 
     return new Response(JSON.stringify({ content }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

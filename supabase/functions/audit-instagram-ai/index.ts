@@ -1,13 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { isDemoUser } from "../_shared/guard-demo.ts";
 import { isSafePublicUrl, scrapeInstagram } from "../_shared/scraping.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 
@@ -85,30 +83,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Authentification requise" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: "Authentification invalide" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Guard: demo user cannot trigger real AI calls
-    if (isDemoUser(user.id)) {
-      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    const auth = await authenticateEdgeUser(req, corsHeaders, {
+      demoGuard: true,
+      rateLimit: true,
+      guardOrder: "demo-first",
+    });
+    if (auth instanceof Response) return auth;
+    const { userId, supabase } = auth;
 
     const rawBody = await req.json();
     const parseResult = AuditInstagramSchema.safeParse(rawBody);
@@ -124,7 +105,7 @@ serve(async (req) => {
     const { bestContent: bc, worstContent: wc, rhythm: rh, objective: obj, profileUrl: pu } = body;
 
     // Check quota
-    const quotaCheck = await checkQuota(user.id, "audit", workspace_id);
+    const quotaCheck = await checkQuota(userId, "audit", workspace_id);
     if (!quotaCheck.allowed) {
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
@@ -151,7 +132,7 @@ serve(async (req) => {
       visionImages = [...visionImages, ...validPostImages];
     }
 
-    const ctx = await getUserContext(supabase, user.id, workspace_id);
+    const ctx = await getUserContext(supabase, userId, workspace_id);
     const fullContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
     // Build structured post descriptions for AI
@@ -642,7 +623,7 @@ Réponds en JSON :
     let savedAuditDate: string | null = null;
     try {
       const m = merged as any;
-      const wsId = workspace_id && workspace_id !== user.id ? workspace_id : undefined;
+      const wsId = workspace_id && workspace_id !== userId ? workspace_id : undefined;
       const findEl = (name: string) =>
         m.visual_audit?.elements?.find((e: any) => e.element === name)?.score;
       const bestPosts = (atd?.bestPostUrls || []).map((url: string, i: number) => ({
@@ -652,7 +633,7 @@ Réponds en JSON :
         image_url: url, comment: i === 0 ? (atd?.worstPostsComment || null) : null,
       }));
       const { data: ins, error: insertError } = await supabase.from("instagram_audit").insert({
-        user_id: user.id,
+        user_id: userId,
         workspace_id: wsId,
         score_global: m.score_global,
         score_nom: m.sections?.nom?.score ?? findEl("nom") ?? 0,
@@ -676,7 +657,7 @@ Réponds en JSON :
       console.error("[audit-instagram-ai] insert audit échoué (non bloquant):", insErr?.message || insErr);
     }
 
-    await logUsage(user.id, "audit", "audit_instagram", auditTokens || undefined, auditModel || undefined, workspace_id);
+    await logUsage(userId, "audit", "audit_instagram", auditTokens || undefined, auditModel || undefined, workspace_id);
     return new Response(
       JSON.stringify({ content: JSON.stringify(merged), auditId: savedAuditId, auditDate: savedAuditDate }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

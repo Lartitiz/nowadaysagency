@@ -1,10 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, LINKEDIN_PRINCIPLES_COMPACT, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildProfileBlock } from "../_shared/user-context.ts";
-import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { isDemoUser } from "../_shared/guard-demo.ts";
+import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
@@ -51,35 +49,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: "Authentification requise" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return new Response(
-        JSON.stringify({ error: "Authentification invalide" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (isDemoUser(user.id)) {
-      return new Response(JSON.stringify({ error: "Demo mode: this feature is simulated" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
-
-    // Rate limit check
-    const rateCheck = checkRateLimit(user.id);
-    if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
+    const auth = await authenticateEdgeUser(req, corsHeaders, {
+      demoGuard: true,
+      rateLimit: true,
+      guardOrder: "demo-first",
+    });
+    if (auth instanceof Response) return auth;
+    const { userId, supabase } = auth;
 
     // Anthropic API key checked in shared helper
 
@@ -100,7 +76,7 @@ serve(async (req) => {
     // Check plan limits — use "audit" category for audit types, "content" otherwise
     const isAuditType = type === "bio-audit";
     const usageCategory = isAuditType ? "audit" : "content";
-    const quotaCheck = await checkQuota(user.id, usageCategory, workspace_id);
+    const quotaCheck = await checkQuota(userId, usageCategory, workspace_id);
     if (!quotaCheck.allowed) {
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
@@ -118,7 +94,7 @@ serve(async (req) => {
       userPrompt = rawPrompt || "";
     } else if (type === "playground") {
       // Playground: use branding context + user-provided prompt
-      const ctx = await getUserContext(supabase, user.id, workspace_id);
+      const ctx = await getUserContext(supabase, userId, workspace_id);
       const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
       const profileBlock = buildProfileBlock(profile || {});
       const fullContext = profileBlock + (brandingContext ? `\n${brandingContext}` : "");
@@ -126,7 +102,7 @@ serve(async (req) => {
       userPrompt = playground_prompt || rawPrompt || "";
     } else {
       const canalLabel = canal === "linkedin" ? "LinkedIn" : canal === "blog" ? "un article de blog" : canal === "pinterest" ? "Pinterest" : "Instagram";
-      const ctx = await getUserContext(supabase, user.id, workspace_id);
+      const ctx = await getUserContext(supabase, userId, workspace_id);
       const fullContext = formatContextForAI(ctx, CONTEXT_PRESETS.content);
 
       if (type === "suggest") {
@@ -137,12 +113,12 @@ serve(async (req) => {
         userPrompt = `Propose-moi 5 sujets de posts ${canalLabel}.`;
 
       } else if (type === "weekly-suggestions") {
-        const ctx = await getUserContext(supabase, user.id, workspace_id);
+        const ctx = await getUserContext(supabase, userId, workspace_id);
         const wFullContext = formatContextForAI(ctx, CONTEXT_PRESETS.weeklySuggestions);
 
         // Fetch recent posts to avoid repetition
-        const col = workspace_id && workspace_id !== user.id ? "workspace_id" : "user_id";
-        const val = workspace_id || user.id;
+        const col = workspace_id && workspace_id !== userId ? "workspace_id" : "user_id";
+        const val = workspace_id || userId;
         const { data: recentPosts } = await supabase
           .from("calendar_posts")
           .select("theme, content_draft, format, objective")
@@ -680,7 +656,7 @@ FORMAT :
           { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      await logUsage(user.id, usageCategory, type, weeklyUsage.total_tokens, weeklyUsage.model, workspace_id);
+      await logUsage(userId, usageCategory, type, weeklyUsage.total_tokens, weeklyUsage.model, workspace_id);
       return new Response(
         JSON.stringify({ suggestions, type: "weekly-suggestions" }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -720,7 +696,7 @@ FORMAT :
     }
 
 
-    await logUsage(user.id, usageCategory, type, genUsage.total_tokens, genUsage.model, workspace_id);
+    await logUsage(userId, usageCategory, type, genUsage.total_tokens, genUsage.model, workspace_id);
     return new Response(
       JSON.stringify({ content }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
