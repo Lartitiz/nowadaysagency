@@ -9,7 +9,7 @@
 // re-passe LLM ciblée sur les phrases fautives (jamais plus d'une), et re-mesurer.
 // Le quality_check émis au front est celui calculé ici (source: "code").
 
-import { applyCorrectionPassCarousel, type CorrectionOptions } from "./correction-pass.ts";
+import { applyCorrectionPass, applyCorrectionPassCarousel, type CorrectionFormat, type CorrectionOptions } from "./correction-pass.ts";
 
 // ── Détection de la famille « retournement par négation » ──
 // Mêmes variantes que la règle ANTI_SLOP : "Ce n'est pas X, c'est Y" /
@@ -812,4 +812,90 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
     );
   }
   return lines.join("\n\n");
+}
+
+// ── Gate texte complet : mesure → correction → RE-mesure → garde anti-régression ──
+// Diagnostic 18/08 (recyclage, échantillon live) : la passe de correction Haiku
+// peut INTRODUIRE les tics qu'elle chasse (contenus conformes avant correction,
+// 2-3 retournements après). Tous les appelants texte gardaient la version
+// corrigée les yeux fermés — la mesure `after` ne servait qu'à la télémétrie.
+// Ce helper est le pendant texte de runRedacGate (carrousels) : il ne rend la
+// version corrigée QUE si elle ne dégrade aucun compteur mesuré, et rejoue UNE
+// re-passe ciblée quand des violations subsistent (même politique « une seule
+// re-passe » que le gate carrousel).
+
+/** Somme brute des 4 familles mesurées — le comparateur de la garde anti-régression.
+ * Plus strict que textRedacViolations (qui tolère 1 retournement) : une correction
+ * qui fait passer un texte de 0 à 1 retournement est déjà une dégradation. */
+export function textRedacRawCount(a: TextRedacAnalysis): number {
+  return a.reversals.length + a.moulded.length + a.fabricatedNumbers.length + a.brandCopyOverlap.length;
+}
+
+export interface TextGateResult {
+  content: string;
+  before: TextRedacAnalysis;
+  after: TextRedacAnalysis;
+  /** Au moins une version corrigée a été conservée. */
+  repassed: boolean;
+  /** Une correction a été rejetée car mesurablement pire que la meilleure version connue. */
+  reverted: boolean;
+  score: number;
+  violations: number;
+}
+
+export async function runTextRedacGate(
+  text: string,
+  opts: {
+    format: CorrectionFormat;
+    correction: CorrectionOptions;
+    /** Liste blanche des chiffres autorisés (numbersIn du brief/réponses/branding/actu). */
+    allowedNumbers?: Set<string>;
+    brandGuardText?: string;
+    /** Passes LLM max (défaut 2 : 1 relecture générale + 1 rattrapage si violations restantes). */
+    maxPasses?: number;
+  },
+): Promise<TextGateResult> {
+  const analyze = (t: string) => analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText);
+  const before = analyze(text);
+  let best = text;
+  let bestA = before;
+  let current = text;
+  let currentA = before;
+  let repassed = false;
+  let reverted = false;
+  const maxPasses = opts.maxPasses ?? 2;
+
+  for (let pass = 1; pass <= maxPasses; pass++) {
+    // La 1re passe tourne toujours (relecture générale + instructions ciblées
+    // si mesures) ; les suivantes seulement s'il reste des violations au sens
+    // du score officiel (1 retournement toléré ne mérite pas un appel de plus).
+    if (pass > 1 && textRedacViolations(bestA) === 0) break;
+    const corrected = await applyCorrectionPass(current, opts.format, {
+      ...opts.correction,
+      extraInstructions: buildTextFixInstructions(currentA) || undefined,
+    });
+    if (!corrected || corrected === current) break;
+    const a = analyze(corrected);
+    if (textRedacRawCount(a) <= textRedacRawCount(bestA)) {
+      // Égalité incluse : la correction porte aussi des améliorations que la
+      // mesure ne voit pas (broetry, anaphores…), on garde la plus récente.
+      best = corrected;
+      bestA = a;
+      current = corrected;
+      currentA = a;
+      repassed = true;
+    } else {
+      // La correction dérive (elle a introduit plus de tics qu'elle n'en a
+      // retiré) : on s'arrête sur la meilleure version connue.
+      reverted = true;
+      break;
+    }
+  }
+
+  const violations = textRedacViolations(bestA);
+  const score = Math.max(40, 100 - 10 * violations);
+  opts.correction.logger?.(
+    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, repassé=${repassed}, rejeté=${reverted}`,
+  );
+  return { content: best, before, after: bestA, repassed, reverted, score, violations };
 }

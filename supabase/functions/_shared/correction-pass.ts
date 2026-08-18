@@ -186,6 +186,11 @@ Le critère : INDISTINGUABLE d'un humain.
    ❌ "C'est pas sexy. C'est pas instagrammable. Ça ressemble à du travail de fond."
    → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
 
+4bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
+   → MAXIMUM 1 par post : garde le plus fort, réécris les autres en affirmation directe.
+   → Et surtout : n'en INTRODUIS JAMAIS un nouveau en réécrivant. "Réécrire en plus brut"
+     ne veut PAS dire "réécrire en négation-puis-affirmation" — c'est le moule IA n°1.
+
 5. ANAPHORES (3+ phrases qui démarrent pareil) :
    ❌ "Par dire les choses. Par ne pas forcer. Par être direct·e."
    → ✅ "En disant les choses sans forcer personne à deviner."
@@ -299,6 +304,10 @@ Cette newsletter pourrait-elle avoir été écrite par une IA ? Si oui → réé
 
 4. FORMULES MANUFACTURÉES : voir liste LinkedIn → réécris en plus brut.
 
+4bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
+   → MAXIMUM 1 par newsletter, et n'en INTRODUIS JAMAIS un nouveau en réécrivant :
+     préfère l'affirmation directe.
+
 5. EMPILEMENT INSPIRATIONNEL : 2+ phrases-valeurs → exemple concret.
 
 6. MANQUE D'APARTÉS PERSONNELS : ajoute 1-2 apartés entre parenthèses (autocorrection humaine). PAS d'italique : l'email part en texte brut.
@@ -329,6 +338,10 @@ INDISTINGUABLE d'un humain ? Sinon → réécris.
 2. PHRASES COURTES CONSÉCUTIVES : 2+ < 10 mots → fusionne.
 
 3. FORMULES MANUFACTURÉES : réécris en plus brut.
+
+3bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
+   → MAXIMUM 1 par caption, et n'en INTRODUIS JAMAIS un nouveau en réécrivant :
+     préfère l'affirmation directe.
 
 4. ÉNUMÉRATIONS RYTHMIQUES PARFAITES : casse la symétrie.
 

@@ -268,7 +268,7 @@ Deno.test("correctPostStreamContent : JSON invalide en entrée -> undefined sans
   }
 });
 
-Deno.test("correctPostStreamContent : réponse de correction illisible/trop courte -> applyCorrectionPass replie sur l'original, content inchangé", async () => {
+Deno.test("correctPostStreamContent : réponse de correction illisible/trop courte -> repli sur l'original (undefined = rien à remplacer dans le stream)", async () => {
   const mouldedContent =
     "Ce qui me dérange dans la façon dont on regarde la céramique, c'est qu'on la juge comme un produit fini plutôt que comme un geste patient répété des centaines de fois avant d'obtenir la bonne forme et la bonne tenue.";
   const full = JSON.stringify({ content: mouldedContent, accroche: "accroche de test" });
@@ -278,8 +278,10 @@ Deno.test("correctPostStreamContent : réponse de correction illisible/trop cour
   try {
     const result = await correctPostStreamContent(full, POST_BASE_PARAMS);
     assertEquals(mock.anthropicCallCount, 1);
-    const parsedResult = JSON.parse(result!);
-    assertEquals(parsedResult.content, mouldedContent);
+    // Depuis runTextRedacGate : une correction repliée sur l'original n'est plus
+    // re-sérialisée — undefined dit au stream « garde le texte déjà émis »
+    // (même état final côté client, sans réécriture inutile du payload).
+    assertEquals(result, undefined);
   } finally {
     mock.restore();
   }
