@@ -157,9 +157,10 @@ export default function SiteAuditResult({
   useEffect(() => {
     if (saved || !auditId) return;
     const save = async () => {
-      await (supabase.from("website_audit") as any)
+      const { error } = await (supabase.from("website_audit") as any)
         .update({ scores: scoreResult.categories, score_global: scoreResult.total, completed: true })
         .eq("id", auditId);
+      if (error) { console.error("Failed to save audit scores:", error); return; }
       setSaved(true);
     };
     save();

@@ -234,7 +234,8 @@ export default function SiteAPropos() {
   const saveEdit = async (field: string) => {
     if (!user || !data) return;
     const update: any = { [field]: editValue, updated_at: new Date().toISOString() };
-    await (supabase.from("website_about") as any).update(update).eq(column, value);
+    const { error } = await (supabase.from("website_about") as any).update(update).eq(column, value);
+    if (error) { toast.error("Erreur", { description: friendlyError(error) }); return; }
     setData({ ...data, [field]: editValue });
     setEditingField(null);
     toast.success("Sauvegardé !");

@@ -267,10 +267,11 @@ const SiteAuditPage = () => {
       // Save to DB — mark old audits as not latest, always insert new.
       // Demarque across ALL modes (not just "auto") so a single row stays is_latest=true;
       // loadAudit reads the latest regardless of mode.
-      await (supabase.from("website_audit") as any)
+      const { error: demarkError } = await (supabase.from("website_audit") as any)
         .update({ is_latest: false })
         .eq(column, value)
         .eq("is_latest", true);
+      if (demarkError) throw demarkError;
 
       const payload: Record<string, unknown> = {
         user_id: user.id,
@@ -287,7 +288,8 @@ const SiteAuditPage = () => {
         is_latest: true,
       };
 
-      const { data: inserted } = await (supabase.from("website_audit") as any).insert(payload).select("id").single();
+      const { data: inserted, error: insertError } = await (supabase.from("website_audit") as any).insert(payload).select("id").single();
+      if (insertError) throw insertError;
       if (inserted) setExisting({ ...payload, id: inserted.id, created_at: new Date().toISOString() } as any);
 
       setStep("auto-results");
