@@ -88,7 +88,7 @@ Tu postes au hasard sans savoir pourquoi."
 
 EXEMPLE 2, ACCROCHE CLICKBAIT :
 ❌ "Tu fais sûrement cette erreur sur Instagram (et elle te coûte des clients)"
-✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé en 2 semaines."
+✅ "J'ai changé 4 mots dans ma bio. Les DM ont recommencé à arriver."
 → POURQUOI : "Tu fais sûrement cette erreur" = accusation générique sans preuve. La version corrigée part d'un FAIT CONCRET avec un résultat mesurable.
 
 EXEMPLE 3, CAPTION QUI DÉCRIT AU LIEU DE PRENDRE POSITION :
@@ -306,13 +306,13 @@ PRINCIPE : si une relance orale arrive naturellement dans le flux du texte, ok. 
 
 Apartés entre parenthèses = OK quand ils ajoutent une nuance sincère : "(Et c'est ok.)", "(Je sais, ça fait peur.)"
 
-Les mots de liaison oraux s'utilisent EN MILIEU DE PHRASE, jamais comme phrase isolée dramatique : "en vrai", "franchement", "du coup", "bon".
+Les mots de liaison oraux s'utilisent EN MILIEU DE PHRASE, jamais comme phrase isolée dramatique. Varie-les d'un contenu à l'autre : ne réutilise pas systématiquement la même cheville de transition.
 
 ═══════════════════════════════════════════════════
 CTA ÉTHIQUES (à adapter au contexte)
 ═══════════════════════════════════════════════════
 
-Dialogue : "Qu'est-ce que tu en penses ?", "Et toi, tu fais comment ?", "Ça te parle ? Raconte-moi en DM."
+Dialogue : "Qu'est-ce que tu en penses ?", "Ça te parle ? Raconte-moi en DM."
 Save/partage : "Enregistre pour y revenir.", "Envoie ça à la personne qui a besoin de lire ça."
 Transition vers l'offre : "Si ça te parle, on en discute en DM. Zéro pression.", "Envie d'aller plus loin ? Le lien est en bio.", "C'est exactement ce qu'on travaille dans [offre]."
 Communauté : "On en parle ?", "Tu veux que je développe ce sujet ?", "C'est le genre de contenu que tu veux voir plus souvent ?"
@@ -542,7 +542,7 @@ Exemples de transformation :
 
   ❌ "3 conseils pour fidéliser ses clients" → ✅ "J'ai perdu ma meilleure cliente en mars. Voilà ce que j'ai compris 3 mois après."
 
-  ❌ "Comment bien rédiger sa bio Instagram" → ✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé en 2 semaines."
+  ❌ "Comment bien rédiger sa bio Instagram" → ✅ "J'ai changé 4 mots dans ma bio. Les DM ont recommencé à arriver."
 
 Signal algorithmique : partages en DM ("ça m'est arrivé aussi"), commentaires d'identification.
 
@@ -558,7 +558,7 @@ Exemples de transformation :
 
   ❌ "3 conseils pour ta bio" → ✅ "Une cliente m'a renvoyé ses photos en me disant 'je ne me reconnais pas'. Ça m'a obligée à repenser tout mon process."
 
-  ❌ "Les stats Instagram à connaître" → ✅ "J'ai découvert que 73% des solopreneur·es ne répondent pas à leurs DM. Ça m'a fait réaliser un truc."
+  ❌ "Les stats Instagram à connaître" → ✅ "J'ai lu une étude sur les DM qu'on laisse sans réponse. Ça m'a fait réaliser un truc."
 
   ❌ "Comment choisir ses matières" → ✅ "Un fournisseur m'a dit que ma commande était 'trop petite pour être intéressante'. Voilà ce que ça dit sur l'artisanat aujourd'hui."
 
@@ -815,7 +815,7 @@ PATTERN 6, LE VOCABULAIRE GÉNÉRIQUE : jamais "ça a tout changé", "game chang
    - DENSITÉ > LONGUEUR. Court et dense > long et qui meuble.
    - Au moins 1 DÉTAIL CONCRET par paragraphe : un chiffre, un lieu, une situation vécue, une phrase entendue.
    - 1 imperfection humaine par post : parenthèse, autocorrection ("enfin, pas exactement"), mot familier.
-   - Transitions naturelles : "Sauf que." / "Le truc, c'est que..." / "En vrai,"
+   - Transitions naturelles, variées d'un post à l'autre : ne réutilise pas systématiquement la même cheville de transition.
 
 3. FIN :
    - Question PRÉCISE et SPÉCIFIQUE liée au sujet concret du post, ou rien du tout.
@@ -948,7 +948,7 @@ ARCHITECTURE DU POST :
 5. LA LEÇON TRANSFÉRABLE : Un insight que le lecteur peut appliquer à sa propre situation. Le CTA vers l'offre vient APRÈS la valeur, en PS ou en commentaire.
 
 EXIGENCES DE DENSITÉ :
-- Des chiffres ou des faits vérifiables (même approximatifs : « le taux d'engagement est passé de ~2% à ~7% » > « les résultats ont explosé »)
+- Des chiffres ou des faits vérifiables, tirés des données réelles fournies (même approximatifs) > des formules vagues comme « les résultats ont explosé »
 - Le process décrit est assez spécifique pour prouver l'expertise, pas assez détaillé pour être reproduit sans accompagnement
 - Si c'est un cas client : anonymiser avec assez de détails pour que ça reste crédible
 

@@ -2,7 +2,7 @@
 // Extracted verbatim from index.ts to keep prompt quality identical.
 // Each function returns the exact same string literal that was previously inlined.
 
-import { ANTI_BROETRY_LINKEDIN, LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
+import { LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
 
 export function carouselBrief(): string {
   return `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
@@ -151,11 +151,11 @@ vu ça comme ça".
 Au-delà des "alors", "tu vois" cosmétiques, il faut des marqueurs qui
 SIGNALENT qu'on est en train de creuser une idée :
 
-• Bascule de regard : "et en vrai, le truc qu'on voit pas c'est que…",
-  "ce qu'il se passe vraiment c'est…", "le vrai problème c'est pas X, c'est Y".
+• Bascule de regard : "ce qu'il se passe vraiment c'est…",
+  "le vrai problème c'est pas X, c'est Y".
 • Mécanisme révélé : "tu sais pourquoi ? parce que…", "ce qui se joue
   là-dessous c'est…", "la mécanique c'est…".
-• Contre-pied assumé : "sauf que…", "et c'est là que ça devient intéressant…",
+• Contre-pied assumé : "et c'est là que ça devient intéressant…",
   "en fait on s'est trompé d'endroit…".
 • Nuance honnête : "alors attention, je dis pas que…", "c'est pas aussi
   simple, mais…".
@@ -170,8 +170,8 @@ mais le texte parlé doit s'enchaîner comme UN SEUL monologue continu.
 
 CONTINUITÉ ENTRE SECTIONS, règle stricte :
 - Le texte_parle de chaque section body DOIT commencer par un connecteur qui
-  enchaîne sur la section précédente ("Et là…", "Sauf que…", "Le truc c'est
-  que…", "Donc…", "Attends…").
+  enchaîne sur la section précédente ("Et là…", "Donc…", "Attends…"), varié
+  d'un reel à l'autre.
 - Première phrase de chaque section ≠ phrase autonome qu'on pourrait poster.
   C'est la SUITE de la phrase précédente.
 - Hook + body 1 = paire question/réponse (ou affirmation/preuve), pas 2
@@ -180,7 +180,7 @@ CONTINUITÉ ENTRE SECTIONS, règle stricte :
   mal écrite, elle ne s'enchaîne pas.
 
 L'oral naturel inclut ~25-30% de mots-outils ("alors", "donc", "tu vois",
-"en fait", "le truc c'est"). Ne les compte PAS comme du gras à supprimer.
+"en fait"). Ne les compte PAS comme du gras à supprimer.
 
 AVANT D'ÉCRIRE, identifie aussi :
 
@@ -238,7 +238,7 @@ sans le son. C'est un MINI-HOOK lisible seul (promesse concrète, situation
 reconnaissable, ou affirmation contre-intuitive).
 
 ❌ MAUVAIS : "POSITIONNEMENT" / "Stratégie Instagram" / "Mes conseils"
-✅ BON : "10K abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
+✅ BON : "Plein d'abonnés. Zéro client." / "Pourquoi j'ai supprimé tous mes posts."
 
 ══ DENSITÉ DE TEXTE PARLÉ (règle d'or : 1 seconde ≈ 2,5 mots) ══
 
@@ -273,18 +273,18 @@ CTA   : "Augmente, tu verras."
 ✅ APRÈS (profondeur + oralité, 3 couches identifiables) :
 Hook  : "Tu sais le truc bizarre avec les prix ? On pense que c'est une question
          de calcul. C'est pas ça."
-Body 1: "En vrai, quand tu galères à fixer tes tarifs, c'est rarement un problème
-         de marché. Le marché il s'en fout, il s'aligne. Le truc c'est que TOI,
-         tu te demandes en boucle si tu vaux ça. Et cette question-là, elle se
+Body 1: "Quand tu galères à fixer tes tarifs, c'est rarement un problème
+         de marché. Le marché il s'en fout, il s'aligne. C'est TOI qui
+         te demandes en boucle si tu vaux ça. Et cette question-là, elle se
          voit dans ta voix au moment où tu annonces le prix."
 Body 2: "Et c'est ÇA que les clients captent. Pas le chiffre. L'hésitation derrière
-         le chiffre. Ils achètent ta certitude, pas ton tarif. C'est pour ça que
-         deux freelances avec le même tarif vendent pas pareil."
+         le chiffre. Ils achètent ta certitude, pas ton tarif. Deux freelances
+         avec le même tarif vendent pas pareil, pour cette raison-là."
 CTA   : "Donc avant de toucher à tes prix, regarde plutôt comment tu les dis.
-         C'est là que tout se joue."
+         Tout se joue à cet endroit-là."
 → Symptôme (galère à tarifer) → Mécanisme (l'hésitation perçue) → Reformulation
-   (regarde comment tu les dis). Connecteurs oraux ("en vrai", "le truc c'est
-   que", "et c'est ÇA", "donc"). ~145 mots ≈ 58 secondes. Profondeur + monologue continu.
+   (regarde comment tu les dis). Connecteurs oraux variés, sans cheville répétée.
+   ~140 mots ≈ 56 secondes. Profondeur + monologue continu.
 
 INTERDITS :
 - Script qui LISTE des conseils au lieu de RACONTER + EXPLIQUER LE POURQUOI
@@ -884,7 +884,7 @@ GARDE-FOUS OBLIGATOIRES :
 7. Étaler les stories : matin/midi/soir
 8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
 9. Écriture inclusive point médian
-10. Expressions naturelles : "bon", "en vrai", "franchement", "le truc c'est que"
+10. Expressions naturelles et orales, variées d'une story à l'autre : évite de réutiliser toujours la même cheville
 11. Apartés entre parenthèses : "(oui oui, même moi)", "(je sais, c'est contre-intuitif)", "(pas besoin de se ruiner)"
 12. JAMAIS de jargon marketing
 13. JAMAIS de tiret cadratin (—)
@@ -964,9 +964,7 @@ export function linkedinBrief(editorialFormat: string | null): string {
     ? (LINKEDIN_TEMPLATES as any)[editorialFormat]
     : "";
 
-  return `${ANTI_BROETRY_LINKEDIN}
-
-FORMAT : POST LINKEDIN (1300-2000 caractères)
+  return `FORMAT : POST LINKEDIN (1300-2000 caractères)
 
 ══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
 
@@ -1010,7 +1008,7 @@ ACCROCHE (< 210 caractères) :
 
 CORPS :
 
-- LinkedIn = conversation entre pro. Le ton est direct, chaleureux, engagé. L'oral est OK : "en vrai", "le truc c'est que", "bon", "franchement".
+- LinkedIn = conversation entre pro. Le ton est direct, chaleureux, engagé. L'oral est OK, à condition de varier les mots-outils d'un post à l'autre.
 
 - 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
 
@@ -1262,7 +1260,7 @@ CORPS :
 - Développe UNE idée en profondeur. Pas 3 idées survolées.
 - Au moins 1 exemple concret, 1 anecdote ou 1 chiffre.
 - Apartés entre parenthèses *(comme ça)* ou en italique pour la respiration humaine.
-- Bucket brigades naturelles : "Sauf que", "Le truc c'est que", "En vrai", "Bon"
+- Bucket brigades naturelles, variées d'une caption à l'autre : ne réutilise pas systématiquement la même cheville
 - 1 imperfection humaine par caption : autocorrection, parenthèse, mot familier
 
 FIN :

@@ -239,7 +239,7 @@ Un carrousel de 8 slides qui va au bout d'UNE idée > un carrousel de 8 slides q
 Un reel de 45 secondes sur UN point percutant > un reel de 60 secondes qui liste des conseils.
 
 RÈGLE DE VOIX :
-Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si elle utilise "en vrai", "le truc c'est que", "franchement" dans le contenu source, RÉUTILISE ces expressions. L'IA structure et amplifie, elle ne réécrit pas.
+Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si le contenu source contient des expressions ou tournures caractéristiques de sa voix, RÉUTILISE-les telles quelles, sans les remplacer par une formulation plus "propre". L'IA structure et amplifie, elle ne réécrit pas.
 
 SELF-CHECK FINAL (fais-le en interne avant de répondre) :
 - Si un ANGLE t'est imposé dans le message : est-ce que tu l'as vraiment suivi, sans déborder sur les angles des autres formats ?
@@ -398,9 +398,9 @@ ${sourceText}
 Transforme en : ${targetFormat}
 
 RÈGLES ABSOLUES :
-- Garde SES mots. Si elle dit "le truc c'est que", utilise "le truc c'est que".
+- Garde SES mots : reprends telles quelles les tournures qu'elle emploie réellement dans le texte source.
 - Garde SON rythme. Si elle fait des phrases longues qui déroulent, garde ça.
-- Garde SES expressions. Si elle dit "franchement" ou "genre", c'est sa voix.
+- Garde SES expressions, même familières ou imparfaites : c'est sa voix.
 - NE réécris PAS dans un style "professionnel". Structure, c'est tout.
 - Tu peux couper les répétitions et les hésitations.
 - Tu peux réorganiser l'ordre pour plus de clarté.

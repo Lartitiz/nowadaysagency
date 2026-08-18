@@ -239,7 +239,7 @@ Si oui → réécris.
 
 3. SLIDES REDONDANTES OU CASCADE D'AMPLIFICATION :
    → Cascade = même idée reformulée plus fort d'une slide à l'autre ("c'est important" → "c'est crucial" → "c'est vital"), ou paraphrase qui reprend le même mot-clé central sans rien ajouter. Dans ce cas SEULEMENT : fusionne les deux slides, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène).
-   → Chaînage narratif = idée NOUVELLE (fait, scène, donnée, exemple, bascule) accrochée à la précédente par un connecteur ("Sauf que", "Et puis", "C'est là que", "Puis", "Alors", "Résultat") ou une reprise lexicale. C'est VOULU, on ne touche pas.
+   → Chaînage narratif = idée NOUVELLE (fait, scène, donnée, exemple, bascule) accrochée à la précédente par un connecteur ("Sauf que", "Et puis", "Puis", "Alors") ou une reprise lexicale. C'est VOULU, on ne touche pas.
    → Test de distinction : si la slide qui ouvre par "Sauf que / Et là / C'est là que" apporte un contenu nouveau (fait, détail, retournement) → garde l'ouverture intacte. Si elle ne fait que reformuler la précédente en plus fort → réécris.
 
 4. RAFALES DE PHRASES COURTES (2+ phrases < 10 mots dans une slide) :
@@ -269,7 +269,7 @@ Si oui → réécris.
 
 11. OVERLAYS PHOTO (carrousels mixtes, marqueur [SLIDE N - OVERLAY]) :
     → Si l'overlay est une formule chic ou pourrait s'appliquer à n'importe quelle photo ("Quand la magie opère", "Un instant suspendu", "L'art du détail"), réécris-le en phrase ANCRÉE dans CE moment précis : un fait sensoriel (ce qu'on voit/entend/sent), un détail concret, ou une parole captée. 5-25 mots (même règle que partout). Pas d'abstraction décorative.
-    → NE JAMAIS supprimer le connecteur narratif ("Sauf que", "Et puis", "C'est là que"…) ou la reprise lexicale qui ouvre un overlay : c'est le chaînage voulu entre slides. Si tu réécris l'overlay, la version réécrite doit conserver un lien explicite avec la slide précédente (connecteur ou reprise d'un mot-clé).
+    → NE JAMAIS supprimer le connecteur narratif ("Sauf que", "Et puis"…) ou la reprise lexicale qui ouvre un overlay : c'est le chaînage voulu entre slides. Si tu réécris l'overlay, la version réécrite doit conserver un lien explicite avec la slide précédente (connecteur ou reprise d'un mot-clé).
     → Un overlay reste 1 phrase de 5-25 mots. Ne JAMAIS le développer en 2-4 phrases : la consigne globale de longueur ne s'applique PAS aux lignes [SLIDE N - OVERLAY].
     → Un overlay qui n'a de sens qu'après la slide précédente est un signe de qualité, pas un défaut à corriger.
 
@@ -375,8 +375,9 @@ et tu dois les CORRIGER systématiquement, même subtils.
 6. CTA GÉNÉRIQUE : question spécifique au sujet ou ouverture.
 
 7. CONNECTEURS ORAUX : chaque section parlée (hors hook) doit S'ENCHAÎNER sur la
-   précédente ("Sauf que", "Et là", "Le truc c'est que", "Donc"). Ne supprime
-   JAMAIS un connecteur existant : c'est le monologue voulu.
+   précédente, avec des connecteurs variés d'une section à l'autre plutôt qu'une
+   cheville répétée. Ne supprime JAMAIS un connecteur existant : c'est le
+   monologue voulu.
 
 8. FAUTES DE FRANÇAIS (élisions, homophones) : corrige sans reformuler.
    ❌ "qu'on marchand de biens ça cache" → ✅ "qu'un marchand de biens, ça cache"
@@ -406,7 +407,7 @@ Réponds UNIQUEMENT avec les sections corrigées (marqueurs + textes), sans comm
 
 4. STORIES TROP LONGUES (> 4 lignes) : raccourcis.
 
-5. MANQUE D'INTIMITÉ : ajoute des marqueurs d'oralité ("bon", "en vrai", "attends").
+5. MANQUE D'INTIMITÉ : ajoute des marqueurs d'oralité, variés d'une séquence à l'autre.
 
 ══ RÈGLES ABSOLUES ══
 - Garde le format de sortie (texte, type, ambiance visuelle).
