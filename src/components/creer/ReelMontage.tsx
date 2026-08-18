@@ -34,7 +34,9 @@ import {
   pollReelRender,
   archiveReelMp4,
   sectionDuration,
+  subtitleSettingsFromCharter,
 } from "@/lib/reel-render";
+import { useBrandCharter } from "@/hooks/use-branding";
 import type { VoiceClip } from "@/lib/reel-voice";
 import {
   uploadReelVideo,
@@ -114,6 +116,7 @@ type MontageMode = "filme" | "cache";
 
 export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Ready }: Props) {
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
+  const { data: charter } = useBrandCharter();
 
   const [montageMode, setMontageMode] = useState<MontageMode | null>(null);
 
@@ -286,6 +289,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
               voiceAudioUrls: voiceUrls,
               voiceDurations,
             });
+      // Police + couleur d'accent de la charte sur les sous-titres ; sans
+      // charte (ou champs vides), le moteur retombe sur son style par défaut.
+      plan.subtitle_settings = subtitleSettingsFromCharter(charter);
       const project = await submitReelRender(plan);
       const url = await pollReelRender(project, { onTick: setTick });
       // Le rendu vit chez JSON2Video et y expire : on le recopie chez nous

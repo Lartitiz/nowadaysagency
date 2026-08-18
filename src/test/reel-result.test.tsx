@@ -16,6 +16,12 @@ vi.mock("@/lib/reel-user-videos", () => ({
   loadVideoDuration: vi.fn().mockResolvedValue(null),
   listReelVideos: vi.fn().mockResolvedValue([]),
 }));
+// Sous-titres à l'identité de marque : ReelMontage lit la charte via
+// useBrandCharter (useAuth + react-query), hors de portée sans AuthProvider.
+// Ce test couvre le PARCOURS, pas la couleur/police — mocké à vide.
+vi.mock("@/hooks/use-branding", () => ({
+  useBrandCharter: vi.fn().mockReturnValue({ data: null }),
+}));
 
 // Le plan de tournage (shot list) est un champ ADDITIF du JSON reel : les
 // contenus générés avant le chantier « scripts Reels » ne l'ont pas et le

@@ -96,6 +96,36 @@ export function videoSectionDuration(clipDuration: number): number {
 /** Clip choisi pour une section : URL + seconde d'entrée dans le clip source. */
 export type ClipChoice = string | { url: string; seek?: number } | null | undefined;
 
+const HEX_COLOR_RE = /^#[0-9a-f]{6}$/i;
+
+/** Sous-ensemble de `brand_charter` utile aux sous-titres. */
+export interface CharterForSubtitles {
+  font_title?: string | null;
+  color_accent?: string | null;
+}
+
+/**
+ * Sous-titres à l'identité de la marque : police du titre (déjà l'usage
+ * "emphase" dans le reste de l'app — carrousels, etc.) sur le texte, couleur
+ * d'accentuation sur le mot mis en avant (même rôle que le mot-clé surligné
+ * des carrousels). Le reste (fond blanc/noir, position) ne bouge PAS : c'est
+ * ce qui garantit la lisibilité sur un fond vidéo quelconque, validée au test
+ * — seule la touche de marque doit changer, pas la lisibilité.
+ *
+ * `color_accent` est filtré au format hex : une valeur invalide envoyée telle
+ * quelle à JSON2Video ferait échouer le rendu ENTIER, pas juste la couleur.
+ */
+export function subtitleSettingsFromCharter(
+  charter: CharterForSubtitles | null | undefined,
+): Record<string, unknown> {
+  const settings: Record<string, unknown> = {};
+  if (charter?.font_title) settings["font-family"] = charter.font_title;
+  if (charter?.color_accent && HEX_COLOR_RE.test(charter.color_accent)) {
+    settings["word-color"] = charter.color_accent;
+  }
+  return settings;
+}
+
 /**
  * Sections qui partiront au montage SANS la voix de la créatrice (mode
  * "recorded") : un clip est choisi mais aucune phrase enregistrée. Le moteur

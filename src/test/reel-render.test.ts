@@ -7,6 +7,7 @@ import {
   buildRenderPlan,
   countSectionsWithoutVoice,
   sectionsWithVoiceButNoClip,
+  subtitleSettingsFromCharter,
 } from "@/lib/reel-plan";
 
 // Garde « prise perdue » : une phrase enregistrée mais sans clip est écartée du
@@ -217,5 +218,42 @@ describe("buildRenderPlan", () => {
   it("mode par défaut (omis) : \"cache\", comportement inchangé", () => {
     const plan = buildRenderPlan(sections, ["a.mp4"], { voice_mode: "tts" });
     expect(plan.mode).toBe("cache");
+  });
+});
+
+// Sous-titres à l'identité de marque : police du titre + couleur d'accent sur
+// le mot mis en avant. Le reste (fond, position) ne doit jamais bouger — c'est
+// ce qui garde les sous-titres lisibles quel que soit le fond vidéo.
+describe("subtitleSettingsFromCharter", () => {
+  it("reprend la police du titre et la couleur d'accent", () => {
+    const s = subtitleSettingsFromCharter({ font_title: "Poppins", color_accent: "#FB3D80" });
+    expect(s["font-family"]).toBe("Poppins");
+    expect(s["word-color"]).toBe("#FB3D80");
+  });
+
+  it("sans charte : objet vide, le moteur retombe sur son défaut", () => {
+    expect(subtitleSettingsFromCharter(null)).toEqual({});
+    expect(subtitleSettingsFromCharter(undefined)).toEqual({});
+  });
+
+  it("charte incomplète : seuls les champs présents sont posés", () => {
+    expect(subtitleSettingsFromCharter({ font_title: "Poppins" })).toEqual({
+      "font-family": "Poppins",
+    });
+    expect(subtitleSettingsFromCharter({ color_accent: "#000000" })).toEqual({
+      "word-color": "#000000",
+    });
+  });
+
+  it("une couleur d'accent invalide est ignorée (jamais envoyée telle quelle au moteur)", () => {
+    expect(subtitleSettingsFromCharter({ color_accent: "not-a-color" })).toEqual({});
+    expect(subtitleSettingsFromCharter({ color_accent: "#fff" })).toEqual({});
+    expect(subtitleSettingsFromCharter({ color_accent: "" })).toEqual({});
+  });
+
+  it("la casse hex minuscule est acceptée", () => {
+    expect(subtitleSettingsFromCharter({ color_accent: "#fb3d80" })).toEqual({
+      "word-color": "#fb3d80",
+    });
   });
 });

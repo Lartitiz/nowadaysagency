@@ -15,8 +15,14 @@ export {
   buildRenderPlan,
   countSectionsWithoutVoice,
   sectionsWithVoiceButNoClip,
+  subtitleSettingsFromCharter,
 } from "@/lib/reel-plan";
-export type { RenderPlan, RenderSectionInput, RenderPlanOptions } from "@/lib/reel-plan";
+export type {
+  RenderPlan,
+  RenderSectionInput,
+  RenderPlanOptions,
+  CharterForSubtitles,
+} from "@/lib/reel-plan";
 
 /** Lance un rendu. Renvoie l'identifiant de projet. */
 export async function submitReelRender(plan: RenderPlan): Promise<string> {
