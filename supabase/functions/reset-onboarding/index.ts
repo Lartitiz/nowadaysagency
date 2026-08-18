@@ -175,6 +175,21 @@ Deno.serve(async (req) => {
       }
       // ─── Mode brandingOnly : reset branding de /branding, rien d'autre ───
       if (body.brandingOnly === true) {
+        // Destructeur (efface le branding de TOUT l'espace, service role) :
+        // réservé aux rôles owner / manager, comme la gestion des membres
+        // (invite-to-workspace). Une membre simple d'un espace partagé ne
+        // doit pas pouvoir effacer le branding de tout l'espace. (Le reset
+        // complet ci-dessous a déjà sa propre garde owner-only, #844.)
+        const callerMemberBO = (members || []).find((m) => m.user_id === callerUserId);
+        if (!isAdmin && !["owner", "manager"].includes(callerMemberBO?.role ?? "")) {
+          console.error(
+            `[reset-onboarding] Forbidden: ${callerEmail} role=${callerMemberBO?.role} on ${workspaceId} (owner/manager requis pour brandingOnly)`
+          );
+          return new Response(JSON.stringify({ error: "Forbidden: rôle owner ou manager requis" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         console.log(`[reset-onboarding] BRANDING-ONLY reset of ${workspaceId} by ${callerEmail}`);
         for (const table of BRANDING_ONLY_TABLES) {
           await del(table, "workspace_id", workspaceId);
