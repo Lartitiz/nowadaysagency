@@ -359,12 +359,17 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
         const subId = getInvoiceSubscriptionId(invoice);
         if (!subId) { log("No subscription id on invoice", { invoiceId: invoice.id }); break; }
 
-        // Increment studio_months_paid for studio plans
+        // Increment studio_months_paid for studio plans.
+        // maybeSingle() et pas single() : Stripe envoie AUSSI des invoice.paid pour des
+        // abonnements qui n'existent pas dans cette table (liens de paiement hors app,
+        // ex. « Ta binôme de com' »). Avec single(), zéro ligne = erreur PGRST116 →
+        // checkError lève → 500 → Stripe retente en boucle et finit par couper
+        // l'endpoint. Une facture qu'on ne connaît pas n'est pas une erreur : on l'ignore.
         const { data: subData, error: subDataError } = await supabase
           .from("subscriptions")
           .select("plan, studio_months_paid")
           .eq("stripe_subscription_id", subId)
-          .single();
+          .maybeSingle();
         checkError("subscriptions select (invoice.paid lookup)", subDataError, { subId });
 
         if (subData?.plan === "studio") {
