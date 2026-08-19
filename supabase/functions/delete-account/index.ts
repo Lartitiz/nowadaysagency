@@ -224,13 +224,32 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
     let tablesCleaned = 0;
     const errors: string[] = [];
 
+    // Ces tables n'ont pas de colonne user_id : la ligne qui identifie
+    // la cliente porte un autre nom (créatrice, invitante, membre d'un
+    // binôme...). Sans ce mapping, .eq("user_id", userId) échoue avec
+    // "column ... does not exist" pour chacune d'elles.
+    const OWNER_COLUMN: Record<string, string> = {
+      workspaces: "created_by",
+      coach_exercises: "created_by",
+      workspace_invitations: "invited_by",
+      plan_step_visibility: "hidden_by",
+    };
+
     const deleteFromTables = async (tables: string[]) => {
       for (const table of tables) {
         try {
-          const col = table === "workspaces" ? "created_by" : "user_id";
-          const { error } = await admin.from(table).delete().eq(col, userId);
+          const { error } =
+            table === "studio_binomes"
+              // Pas de user_id : la cliente peut être user_a OU user_b du binôme.
+              ? await admin.from(table).delete().or(`user_a.eq.${userId},user_b.eq.${userId}`)
+              : await admin.from(table).delete().eq(OWNER_COLUMN[table] ?? "user_id", userId);
           if (error) {
-            if (error.message?.includes("does not exist") || error.code === "42P01") {
+            // 42P01 = relation (table) inexistante : cas légitime, une table
+            // peut avoir été retirée du schéma sans que cette liste suive.
+            // Toute autre erreur (ex: 42703 colonne inexistante) est réelle et
+            // ne doit JAMAIS être avalée silencieusement — c'est exactement
+            // le bug qui laissait des lignes orphelines sans jamais le dire.
+            if (error.code === "42P01") {
               console.log(`[delete-account] Table ${table} does not exist, skipping`);
               tablesCleaned++;
             } else {
@@ -242,13 +261,8 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
           }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
-          if (msg.includes("does not exist")) {
-            console.log(`[delete-account] Table ${table} does not exist, skipping`);
-            tablesCleaned++;
-          } else {
-            console.error(`[delete-account] Exception on ${table}:`, msg);
-            errors.push(`${table}: ${msg}`);
-          }
+          console.error(`[delete-account] Exception on ${table}:`, msg);
+          errors.push(`${table}: ${msg}`);
         }
       }
     };
