@@ -44,6 +44,7 @@ interface MockOpts {
 
 function installMockFetch(opts: MockOpts) {
   const deletedTables: string[] = [];
+  const deletedQueries: Record<string, string> = {};
   const stripeCalls: string[] = [];
   let authUserDeleted = false;
 
@@ -96,13 +97,14 @@ function installMockFetch(opts: MockOpts) {
         return json({ message: `constraint violation on ${table}`, code: "23503" }, 409);
       }
       deletedTables.push(table);
+      deletedQueries[table] = url.slice(SUPABASE_URL.length).split("?")[1] ?? "";
       return json([]);
     }
 
     return json([]);
   }) as typeof fetch;
 
-  return { deletedTables, stripeCalls, get authUserDeleted() { return authUserDeleted; } };
+  return { deletedTables, deletedQueries, stripeCalls, get authUserDeleted() { return authUserDeleted; } };
 }
 
 function restore() {
@@ -206,6 +208,36 @@ Deno.test("delete-account: RÉGRESSION incident prod — la suppression du compt
     assert(body.success !== true, "success ne doit jamais être true si l'auth user survit à sa propre suppression");
     assert(Array.isArray(body.errors) && body.errors.some((e: string) => e.startsWith("auth.user:")));
     assertEquals(mock.authUserDeleted, false);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("delete-account: RÉGRESSION Lovable 19/08 — workspace_invitations, studio_binomes, plan_step_visibility et coach_exercises n'ont pas de colonne user_id, la requête DELETE doit viser leur vraie colonne", async () => {
+  const mock = installMockFetch({ callerId: SELF_USER_ID, callerEmail: "cliente@example.com", activeSubscription: null });
+  try {
+    const res = await call(req({}));
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.success, true, "aucune de ces 4 tables ne doit faire échouer la suppression");
+
+    assert(
+      mock.deletedQueries["workspace_invitations"]?.includes(`invited_by=eq.${SELF_USER_ID}`),
+      "workspace_invitations doit filtrer sur invited_by, pas user_id"
+    );
+    assert(
+      mock.deletedQueries["coach_exercises"]?.includes(`created_by=eq.${SELF_USER_ID}`),
+      "coach_exercises doit filtrer sur created_by, pas user_id"
+    );
+    assert(
+      mock.deletedQueries["plan_step_visibility"]?.includes(`hidden_by=eq.${SELF_USER_ID}`),
+      "plan_step_visibility doit filtrer sur hidden_by, pas user_id"
+    );
+    const binomesQuery = mock.deletedQueries["studio_binomes"] ?? "";
+    assert(
+      binomesQuery.includes(`user_a.eq.${SELF_USER_ID}`) && binomesQuery.includes(`user_b.eq.${SELF_USER_ID}`),
+      "studio_binomes doit filtrer sur user_a OU user_b"
+    );
   } finally {
     restore();
   }
