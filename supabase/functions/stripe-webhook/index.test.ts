@@ -72,7 +72,19 @@ function createFakeSupabase(
     builder.order = () => builder;
     builder.limit = () => builder;
     builder.maybeSingle = async () => ({ data: find() ?? null, error: null });
-    builder.single = async () => ({ data: find() ?? null, error: null });
+    // Fidèle au vrai supabase-js : single() sur zéro ligne renvoie une ERREUR PGRST116,
+    // il ne renvoie pas data:null tranquillement. Un fake indulgent ici a laissé passer
+    // le 500 en boucle du 18/08 sur invoice.paid (facture d'un abonnement hors app).
+    builder.single = async () => {
+      const row = find();
+      if (!row) {
+        return {
+          data: null,
+          error: { message: "JSON object requested, multiple (or no) rows returned", code: "PGRST116" },
+        };
+      }
+      return { data: row, error: null };
+    };
 
     builder.insert = async (row: Row) => {
       calls.push({ table, op: "insert", payload: row });
@@ -394,6 +406,24 @@ Deno.test("invoice.paid (plan studio) : incrémente studio_months_paid et repass
   const sub = supabase.tables.subscriptions[0];
   assertEquals(sub.studio_months_paid, 3);
   assertEquals(sub.status, "active");
+});
+
+Deno.test("invoice.paid d'un abonnement ABSENT de la table (lien de paiement hors app) : 200, aucune écriture", async () => {
+  // Incident du 18/08/2026 : Stripe facture aussi des abonnements vendus hors app
+  // (liens de paiement « Ta binôme de com' »), qui n'ont pas de ligne dans `subscriptions`.
+  // Le lookup en single() rendait alors une erreur PGRST116 → checkError → 500 → Stripe
+  // retentait en boucle (endpoint coupé au bout de ~9 j). Une facture inconnue est normale.
+  const stripe = createFakeStripe({
+    event: stripeEvent("evt_paid_inconnu", "invoice.paid", {
+      id: "in_hors_app",
+      parent: { subscription_details: { subscription: "sub_hors_app" } },
+    }),
+  });
+  const supabase = createFakeSupabase({ subscriptions: [] });
+
+  const res = await handleStripeWebhookRequest(webhookRequest({}), { stripe, supabase });
+  assertEquals(res.status, 200);
+  assertEquals(supabase.calls.filter((c) => c.table === "subscriptions" && c.op === "update").length, 0);
 });
 
 Deno.test("invoice.paid (plan non-studio) : ne touche pas studio_months_paid", async () => {
