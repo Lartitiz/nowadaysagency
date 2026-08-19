@@ -184,13 +184,11 @@
   }
 
   /* Sous-titres (h2 à h6) : le serif devient illisible à petite taille.
-     On repasse en Hanken Grotesk semi-bold, sauf demande explicite de serif. */
-  h2:not(.font-heading):not(.font-display),
-  h3:not(.font-heading):not(.font-display),
-  h4:not(.font-heading):not(.font-display),
-  h5:not(.font-heading):not(.font-display),
-  h6:not(.font-heading):not(.font-display) {
-    font-family: 'Hanken Grotesk', system-ui, sans-serif;
+     On repasse en Hanken Grotesk semi-bold, y compris quand .font-display /
+     .font-heading est posé dans le code : seuls les h1 (gros titres) restent
+     en Instrument Serif. */
+  h2, h3, h4, h5, h6 {
+    font-family: 'Hanken Grotesk', system-ui, sans-serif !important;
     font-weight: 600 !important;
     letter-spacing: -0.01em;
   }
