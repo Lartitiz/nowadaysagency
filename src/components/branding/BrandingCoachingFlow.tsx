@@ -1003,7 +1003,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
               transition={{ duration: 0.3 }}
               className="w-full"
             >
-              <MarkdownText content={currentQuestion.question} className="font-display text-lg md:text-xl font-bold text-foreground mb-6 leading-relaxed text-center" />
+              <MarkdownText content={currentQuestion.question} className="font-body text-lg md:text-xl font-semibold text-foreground mb-6 leading-relaxed text-center" />
 
               {currentQuestion.question_type === "textarea" && (
                 <TextareaWithVoice
