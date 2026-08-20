@@ -233,15 +233,75 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
       coach_exercises: "created_by",
       workspace_invitations: "invited_by",
       plan_step_visibility: "hidden_by",
+      coaching_programs: "client_user_id",
+    };
+
+    // Ces tables-là ne portent AUCUNE colonne qui désigne la cliente, même
+    // sous un autre nom : elles se rattachent à elle par un PARENT (l'espace
+    // de travail qu'elle a créé, son programme de coaching, un partage de
+    // calendrier). Un mapping de colonne ne suffit donc pas — il faut d'abord
+    // aller chercher les identifiants du parent, puis supprimer par `in`.
+    const idsOf = async (table: string, column: string): Promise<string[] | null> => {
+      const { data, error } = await admin.from(table).select("id").eq(column, userId);
+      if (error) {
+        // 42P01 = table absente du schéma : pas de parent, donc pas d'enfant.
+        if (error.code === "42P01") return [];
+        console.error(`[delete-account] Lookup ${table}.${column} failed:`, error.message);
+        return null;
+      }
+      return (data ?? []).map((row: { id: string }) => row.id);
+    };
+
+    const workspaceIds = await idsOf("workspaces", "created_by");
+    const programIds = await idsOf("coaching_programs", "client_user_id");
+    const shareIds = await idsOf("calendar_shares", "user_id");
+    const postIds = await idsOf("calendar_posts", "user_id");
+
+    type ParentFilter = { column: string; ids: string[] | null };
+    const PARENT_FILTERS: Record<string, ParentFilter[]> = {
+      calendar_comments: [
+        { column: "share_id", ids: shareIds },
+        { column: "calendar_post_id", ids: postIds },
+      ],
+      coaching_actions: [
+        { column: "program_id", ids: programIds },
+        { column: "workspace_id", ids: workspaceIds },
+      ],
+      coaching_deliverables: [
+        { column: "program_id", ids: programIds },
+        { column: "workspace_id", ids: workspaceIds },
+      ],
+      coaching_sessions: [
+        { column: "program_id", ids: programIds },
+        { column: "workspace_id", ids: workspaceIds },
+      ],
+      lives: [{ column: "workspace_id", ids: workspaceIds }],
+    };
+
+    // Supprime par lots de parents. `null` = la recherche du parent a échoué :
+    // on le REMONTE au lieu de l'avaler, sinon des lignes restent sans le dire.
+    const deleteByParents = async (table: string, filters: ParentFilter[]) => {
+      for (const filter of filters) {
+        if (filter.ids === null) {
+          return { error: { code: "lookup", message: `parent ${filter.column} illisible` } };
+        }
+        if (filter.ids.length === 0) continue;
+        const { error } = await admin.from(table).delete().in(filter.column, filter.ids);
+        if (error) return { error };
+      }
+      return { error: null };
     };
 
     const deleteFromTables = async (tables: string[]) => {
       for (const table of tables) {
         try {
+          const parentFilters = PARENT_FILTERS[table];
           const { error } =
             table === "studio_binomes"
               // Pas de user_id : la cliente peut être user_a OU user_b du binôme.
               ? await admin.from(table).delete().or(`user_a.eq.${userId},user_b.eq.${userId}`)
+              : parentFilters
+              ? await deleteByParents(table, parentFilters)
               : await admin.from(table).delete().eq(OWNER_COLUMN[table] ?? "user_id", userId);
           if (error) {
             // 42P01 = relation (table) inexistante : cas légitime, une table
