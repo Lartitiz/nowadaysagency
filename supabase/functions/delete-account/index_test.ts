@@ -40,6 +40,10 @@ interface MockOpts {
   stripeCancelError?: string | null;
   failingTable?: string | null;
   authDeleteUserError?: string | null;
+  // Lignes rendues par les recherches de PARENT (workspaces, coaching_programs,
+  // calendar_shares, calendar_posts) : c'est par elles que passent les tables
+  // qui n'ont aucune colonne désignant la cliente.
+  parentIds?: Record<string, string[]>;
 }
 
 function installMockFetch(opts: MockOpts) {
@@ -91,13 +95,22 @@ function installMockFetch(opts: MockOpts) {
       return json({ id: TARGET_USER_ID });
     }
 
+    if (path.startsWith("/rest/v1/") && method === "GET") {
+      const table = path.replace("/rest/v1/", "");
+      return json((opts.parentIds?.[table] ?? []).map((id) => ({ id })));
+    }
+
     if (path.startsWith("/rest/v1/") && method === "DELETE") {
       const table = path.replace("/rest/v1/", "");
       if (opts.failingTable && table === opts.failingTable) {
         return json({ message: `constraint violation on ${table}`, code: "23503" }, 409);
       }
       deletedTables.push(table);
-      deletedQueries[table] = url.slice(SUPABASE_URL.length).split("?")[1] ?? "";
+      // Une même table peut être vidée en PLUSIEURS requêtes (les tables sans
+      // colonne propriétaire passent par chacun de leurs parents) : on cumule,
+      // sinon la dernière requête efface la trace des précédentes.
+      const query = url.slice(SUPABASE_URL.length).split("?")[1] ?? "";
+      deletedQueries[table] = deletedQueries[table] ? `${deletedQueries[table]}&&${query}` : query;
       return json([]);
     }
 
@@ -237,6 +250,57 @@ Deno.test("delete-account: RÉGRESSION Lovable 19/08 — workspace_invitations, 
     assert(
       binomesQuery.includes(`user_a.eq.${SELF_USER_ID}`) && binomesQuery.includes(`user_b.eq.${SELF_USER_ID}`),
       "studio_binomes doit filtrer sur user_a OU user_b"
+    );
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("delete-account: RÉGRESSION 20/08 — calendar_comments, coaching_* et lives n'ont AUCUNE colonne désignant la cliente : la suppression doit passer par leur PARENT", async () => {
+  const WS = "44444444-4444-4444-8444-444444444444";
+  const PROGRAM = "55555555-5555-4555-8555-555555555555";
+  const SHARE = "66666666-6666-4666-8666-666666666666";
+  const POST = "77777777-7777-4777-8777-777777777777";
+  const mock = installMockFetch({
+    callerId: SELF_USER_ID,
+    callerEmail: "cliente@example.com",
+    activeSubscription: null,
+    parentIds: {
+      workspaces: [WS],
+      coaching_programs: [PROGRAM],
+      calendar_shares: [SHARE],
+      calendar_posts: [POST],
+    },
+  });
+  try {
+    const res = await call(req({}));
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.success, true, "aucune de ces tables ne doit faire échouer la suppression");
+
+    // Le smoke à froid du 20/08 a attrapé le vrai symptôme : delete-account
+    // renvoyait 500 sur `calendar_comments: column ... does not exist`, la
+    // table n'ayant ni user_id ni équivalent — elle pend à un partage/post.
+    const comments = mock.deletedQueries["calendar_comments"] ?? "";
+    assert(
+      comments.includes(`share_id=in.`) && comments.includes(SHARE),
+      "calendar_comments doit se supprimer par les partages de la cliente"
+    );
+    for (const table of ["coaching_actions", "coaching_deliverables", "coaching_sessions"]) {
+      const query = mock.deletedQueries[table] ?? "";
+      assert(
+        query.includes(`program_id=in.`) && query.includes(PROGRAM),
+        `${table} doit se supprimer par le programme de coaching de la cliente`
+      );
+    }
+    const lives = mock.deletedQueries["lives"] ?? "";
+    assert(
+      lives.includes(`workspace_id=in.`) && lives.includes(WS),
+      "lives doit se supprimer par l'espace de travail de la cliente"
+    );
+    assert(
+      (mock.deletedQueries["coaching_programs"] ?? "").includes(`client_user_id=eq.${SELF_USER_ID}`),
+      "coaching_programs doit filtrer sur client_user_id, pas user_id"
     );
   } finally {
     restore();
