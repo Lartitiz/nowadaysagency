@@ -56,7 +56,7 @@ const FIRST_SEEN_KEY = "lac_missions_first_seen";
  * diagnostic » — deux réponses à la même question. Une seule voix à la fois :
  * ici le bandeau retombe sur sa barre de progression (et son dépliage).
  */
-function OnboardingBanner({ onNavigate, heroOwnsNextStep }: { onNavigate: (route: string) => void; heroOwnsNextStep: boolean }) {
+function OnboardingBanner({ onNavigate, heroOwnsNextStep, className = "" }: { onNavigate: (route: string) => void; heroOwnsNextStep: boolean; className?: string }) {
   const { missions, completedCount, allDone, nextMission, dismissed, isLoading } = useOnboardingMissions();
 
   const [collapsed, setCollapsed] = useState(() => {
@@ -89,7 +89,7 @@ function OnboardingBanner({ onNavigate, heroOwnsNextStep }: { onNavigate: (route
   return (
     <div
       data-tour="card-missions"
-      className="rounded-2xl border border-border/70 bg-rose-pale/70 p-3 sm:p-4"
+      className={`rounded-2xl border border-border/70 bg-rose-pale/70 p-3 sm:p-4 ${className}`}
     >
       <button onClick={toggle} className="w-full flex items-center gap-3">
         <Rocket className="h-4 w-4 text-bordeaux/80 shrink-0" />
@@ -257,13 +257,55 @@ const CANAL_LABELS: Record<string, string> = {
   pinterest: "Pinterest",
 };
 
+/* Deux vocabulaires de format cohabitent en base : celui du parcours /creer
+   (« carousel », « story_serie »…) et celui du dialogue calendrier
+   (« post_carrousel », « post_photo »…). On les ramène tous les deux à un
+   libellé court — un format inconnu n'affiche rien plutôt qu'un mot technique. */
+const FORMAT_SHORT_LABELS: Record<string, string> = {
+  post: "Post",
+  post_photo: "Post photo",
+  post_carrousel: "Carrousel",
+  carousel: "Carrousel",
+  reel: "Reel",
+  story: "Stories",
+  story_serie: "Stories",
+  live: "Live",
+  linkedin: "Post",
+  newsletter: "Newsletter",
+  pinterest: "Épingle",
+  pinterest_visual: "Épingle",
+  pinterest_photo: "Épingle",
+  pinterest_inspiration: "Épingle",
+};
+
+/* ── Rappel « contenus prêts, jamais publiés » ── */
+interface ForgottenDraft {
+  id: string;
+  date: string;
+  canal: string | null;
+  theme: string | null;
+  format: string | null;
+  accroche: string | null;
+  created_at: string | null;
+  publish_status: string | null;
+}
+
 /** « lun. 10 » — sans année ni ponctuation superflue. */
 function shortDate(dateStr: string): string {
   const d = new Date(`${dateStr}T12:00:00`);
   return d.toLocaleDateString("fr-FR", { weekday: "short", day: "numeric" });
 }
 
-function publishHour(iso: string): string {
+/** « 15 août » — la date posée au calendrier, sans année. */
+function dayMonth(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+  });
+}
+
+/** « 14 h 32 » — heure locale d'un horodatage (départ programmé, écriture…). */
+function hourLabel(iso: string): string {
   const d = new Date(iso);
   const h = d.getHours();
   const m = d.getMinutes();
@@ -385,9 +427,7 @@ export default function AdaptiveHome() {
   // grosse chute du tunnel : 26 % au calendrier → 2 % publiés), dont la date est
   // passée sans jamais être partis — ni auto-publiés (publish_status), ni cochés
   // publiés à la main. Sans ce rappel, rien ne ramène jamais dessus.
-  const { data: forgottenDrafts = [] } = useQuery<
-    { id: string; date: string; canal: string | null; theme: string | null }[]
-  >({
+  const { data: forgottenDrafts = [] } = useQuery<ForgottenDraft[]>({
     queryKey: ["adaptive-home-forgotten-drafts", wsFilter.column, wsFilter.value],
     queryFn: async () => {
       const todayStr = toLocalDateStr(new Date());
@@ -395,7 +435,11 @@ export default function AdaptiveHome() {
         .from("calendar_posts")
         // `theme` = le sujet du contenu. Sans lui, les lignes se lisaient toutes
         // « 15 août · instagram » et rien ne les distinguait (regard du 17/08).
-        .select("id, date, canal, theme")
+        // `format`/`accroche`/`created_at`/`publish_status` : de quoi séparer
+        // deux contenus qui partagent le MÊME sujet et la MÊME date (regard du
+        // 22/08 : 5 lignes strictement identiques). On ne charge PAS
+        // `content_draft` (le post entier ×50) : l'accroche suffit à distinguer.
+        .select("id, date, canal, theme, format, accroche, created_at, publish_status")
         .eq(wsFilter.column, wsFilter.value)
         .lt("date", todayStr)
         .neq("status", "published")
@@ -405,7 +449,7 @@ export default function AdaptiveHome() {
         .order("date", { ascending: false })
         .limit(50);
       if (error) throw error;
-      return (data ?? []) as { id: string; date: string; canal: string | null; theme: string | null }[];
+      return (data ?? []) as ForgottenDraft[];
     },
     enabled: !!wsFilter.value,
     staleTime: 5 * 60 * 1000,
@@ -451,6 +495,19 @@ export default function AdaptiveHome() {
 
   const nextPost = upcomingPosts[0] ?? null;
   const nextAuto = !!nextPost?.auto_publish && !!nextPost?.scheduled_publish_at;
+
+  // ── Rappel des brouillons : rendre chaque ligne reconnaissable ──
+  // Plusieurs variantes d'un même sujet posées le même jour donnaient des lignes
+  // au mot près identiques (« Les 3 erreurs… — 15 août » ×5, regard du 22/08) :
+  // impossible de savoir laquelle ouvrir. On repère les lignes qui partagent
+  // sujet + date, et on leur donne de quoi se distinguer.
+  const forgottenPreview = forgottenDrafts.slice(0, FORGOTTEN_PREVIEW);
+  const sameSubjectKey = (d: ForgottenDraft) => `${(d.theme ?? "").trim().toLowerCase()}|${d.date}`;
+  const sameSubjectCount = forgottenPreview.reduce<Record<string, number>>((acc, d) => {
+    const key = sameSubjectKey(d);
+    acc[key] = (acc[key] ?? 0) + 1;
+    return acc;
+  }, {});
 
   // ── Espace cliente vide (rôle manager) : l'onboarding client vivait dans la
   // vue complète supprimée ; il est re-hébergé ici pour ne pas perdre le geste.
@@ -526,15 +583,18 @@ export default function AdaptiveHome() {
   return (
     <div className="min-h-screen bg-rose-pale">
       <AppHeader />
-      {/* Rythme resserré au doigt (py-5/space-y-5) : au large on garde l'air
+      {/* Rythme resserré au doigt (py-5/gap-5) : au large on garde l'air
           d'origine. Cumulé aux 2 lignes de rappel, ça ramène le CTA du hero
-          AU-DESSUS de la barre d'onglets sur un 390×844 (regard du 17/08). */}
-      <main className="max-w-[720px] mx-auto px-4 py-5 sm:py-8 space-y-5 sm:space-y-7">
+          AU-DESSUS de la barre d'onglets sur un 390×844 (regard du 17/08).
+          Colonne flex (et non `space-y`) : au doigt on remonte le hero avec
+          `order-*`, et `gap` suit l'ordre visuel là où `space-y` suivrait
+          l'ordre du DOM. Au large (sm:) tout revient à l'ordre d'écriture. */}
+      <main className="max-w-[720px] mx-auto px-4 py-5 sm:py-8 flex flex-col gap-5 sm:gap-7">
 
         {/* Erreur de chargement visible (pattern /profil) : sans ce bandeau, un
             réseau qui tombe affiche un dashboard « normal » à zéro, sans indice. */}
         {(ideasError || postsError) && (
-          <div className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
+          <div className="order-first sm:order-none rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
             <p className="text-sm text-foreground">
               Impossible de charger certaines de tes données — ce que tu vois peut être incomplet.
             </p>
@@ -553,21 +613,26 @@ export default function AdaptiveHome() {
             setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
             pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
         {activeRole === "owner" && (
-          <OnboardingBanner onNavigate={handleNavigate} heroOwnsNextStep={!launched} />
+          <OnboardingBanner
+            onNavigate={handleNavigate}
+            heroOwnsNextStep={!launched}
+            className="order-3 sm:order-none"
+          />
         )}
 
         {/* Rappel des brouillons oubliés — la case « premier contenu » et le
             calendrier savent déjà qu'un contenu existe ; ce qu'ils ne disaient
             jamais, c'est qu'il est resté sans suite. Discret (pas de couleur
-            d'alerte, c'est un oubli, pas une erreur), toujours au-dessus du
-            hero pour rester visible sans dominer la page.
+            d'alerte, c'est un oubli, pas une erreur). Au large il reste au-dessus
+            du hero ; au doigt il passe juste dessous (order-4) pour ne plus
+            repousser « Créer un contenu » hors du premier écran.
             Chaque ligne mène directement au post concerné (?date=&post=), au
             lieu de renvoyer vers un calendrier générique qu'il fallait fouiller
             mois par mois (audit du 14/08 : jusqu'à 3 semaines pour retomber dessus).
             Aperçu court (2 lignes) : au doigt, 5 lignes + le bandeau premiers pas
             repoussaient le CTA du hero SOUS la barre d'onglets (regard du 17/08). */}
         {forgottenDrafts.length > 0 && (
-          <div className="w-full rounded-xl border border-border bg-card px-4 py-3">
+          <div className="order-4 sm:order-none w-full rounded-xl border border-border bg-card px-4 py-3">
             <div className="flex items-center gap-3">
               <Bell className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
               <span className="min-w-0 flex-1">
@@ -582,41 +647,52 @@ export default function AdaptiveHome() {
               </span>
             </div>
             <div className="mt-2 flex flex-col gap-0.5">
-              {forgottenDrafts.slice(0, FORGOTTEN_PREVIEW).map((post) => (
-                <button
-                  key={post.id}
-                  type="button"
-                  onClick={() => {
-                    porte("programmer");
-                    navigate(`/calendrier?date=${post.date}&post=${post.id}`);
-                  }}
-                  className="w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-muted transition-colors"
-                >
-                  <span className="min-w-0 flex-1 truncate text-xs text-foreground">
-                    {post.theme?.trim() ? (
-                      <>
-                        {post.theme.trim()}
-                        <span className="text-muted-foreground">
-                          {" — "}
-                          {new Date(post.date + "T00:00:00").toLocaleDateString("fr-FR", {
-                            day: "numeric",
-                            month: "short",
-                          })}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        {new Date(post.date + "T00:00:00").toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "short",
-                        })}
-                        {post.canal ? ` · ${post.canal}` : ""}
-                      </>
-                    )}
-                  </span>
-                  <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden="true" />
-                </button>
-              ))}
+              {forgottenPreview.map((post) => {
+                // Deux lignes de même sujet et même date : on met en tête ce qui
+                // les sépare — l'accroche, la première phrase du post, propre à
+                // chaque variante. En tête et pas en fin de ligne : au doigt, le
+                // `truncate` mange la fin, donc le discriminant doit passer devant.
+                const ambigu = (sameSubjectCount[sameSubjectKey(post)] ?? 0) > 1;
+                const accroche = post.accroche?.trim();
+                const theme = post.theme?.trim();
+                const titre = (ambigu && accroche) || theme || accroche || "Contenu sans titre";
+
+                const canalLabel = post.canal ? CANAL_LABELS[post.canal] ?? post.canal : null;
+                const formatLabel = post.format ? FORMAT_SHORT_LABELS[post.format] ?? null : null;
+                const meta = [
+                  dayMonth(post.date),
+                  // Dernier recours quand même l'accroche manque : l'heure
+                  // d'écriture, toujours différente d'une variante à l'autre.
+                  ambigu && !accroche && post.created_at ? `écrite à ${hourLabel(post.created_at)}` : null,
+                  canalLabel,
+                  formatLabel !== canalLabel ? formatLabel : null,
+                ].filter(Boolean).join(" · ");
+
+                return (
+                  <button
+                    key={post.id}
+                    type="button"
+                    onClick={() => {
+                      porte("programmer");
+                      navigate(`/calendrier?date=${post.date}&post=${post.id}`);
+                    }}
+                    className="w-full flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-muted transition-colors"
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-xs text-foreground">{titre}</span>
+                      <span className="block truncate text-2xs text-muted-foreground">
+                        {meta}
+                        {/* L'envoi automatique a échoué : ce n'est plus un oubli,
+                            c'est un contenu qui a essayé de partir et n'a pas pu. */}
+                        {post.publish_status === "failed" && (
+                          <span className="text-destructive"> · envoi échoué</span>
+                        )}
+                      </span>
+                    </span>
+                    <ArrowRight className="h-3 w-3 text-muted-foreground shrink-0" aria-hidden="true" />
+                  </button>
+                );
+              })}
               {forgottenDrafts.length > FORGOTTEN_PREVIEW && (
                 <button
                   type="button"
@@ -632,7 +708,7 @@ export default function AdaptiveHome() {
 
         {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit
             gagner sa place pour que la page tienne dans une fenêtre */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="order-1 sm:order-none flex items-center justify-between gap-4">
           <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight">
             Salut {profileSummary.firstName} !
           </h1>
@@ -649,10 +725,14 @@ export default function AdaptiveHome() {
         </div>
 
         {/* Hero — bordeaux foncé : seule tache sombre de la page, impossible à
-            rater sur le fond grège (le rose pâle d'avant se fondait dedans) */}
+            rater sur le fond grège (le rose pâle d'avant se fondait dedans).
+            Au doigt il monte juste sous le bonjour (order-2) : c'est le CTA
+            principal de l'app, il doit être cliquable sans scroller (regard du
+            22/08 sur un 390×844 — le bandeau premiers pas + le rappel des
+            brouillons le poussaient sous la ligne de flottaison). */}
         <div
           data-tour="card-next-step"
-          className="group rounded-[18px_28px_14px_24px] bg-[hsl(var(--bento-dark))] p-6 sm:p-7 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
+          className="order-2 sm:order-none group rounded-[18px_28px_14px_24px] bg-[hsl(var(--bento-dark))] p-6 sm:p-7 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
           onClick={() => { if (hero.route.startsWith("/creer")) porte("creer"); handleNavigate(hero.route); }}
         >
           <p className="font-mono-ui text-2xs text-rose-soft/90 uppercase tracking-[0.14em] font-semibold mb-3">
@@ -738,7 +818,7 @@ export default function AdaptiveHome() {
             tout seul) et Mes photos (le différenciant). La grille complète du
             calendrier reste sur /calendrier : ici on ne dit que ce qui déclenche
             une décision (prochain départ, rien ensuite, contenus sans date). */}
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="order-5 sm:order-none grid sm:grid-cols-2 gap-4">
 
           {/* Porte 2 — Programmer */}
           <section
@@ -755,7 +835,7 @@ export default function AdaptiveHome() {
                   <div className="min-w-0">
                     <p className="font-body font-bold text-sm text-foreground">
                       {shortDate(nextPost.date)}
-                      {nextAuto && ` · ${publishHour(nextPost.scheduled_publish_at!)}`}
+                      {nextAuto && ` · ${hourLabel(nextPost.scheduled_publish_at!)}`}
                       {nextPost.canal && CANAL_LABELS[nextPost.canal] && ` · ${CANAL_LABELS[nextPost.canal]}`}
                     </p>
                     <p className="text-sm text-muted-foreground truncate">
@@ -831,7 +911,7 @@ export default function AdaptiveHome() {
         </div>
 
         {/* Raccourcis restants — ce qui n'est pas une porte mais sert au quotidien */}
-        <div className="flex flex-wrap gap-2">
+        <div className="order-6 sm:order-none flex flex-wrap gap-2">
           <PilotPill
             dataTour="card-ideas"
             icon={Lightbulb}
@@ -849,7 +929,7 @@ export default function AdaptiveHome() {
         {/* Le coaching n'est plus un pavé permanent : une ligne discrète suffit
             (décision maquettes 07/08). Les Binôme ont déjà leur accompagnement. */}
         {!isBinome && (
-          <p className="text-center text-sm text-muted-foreground pt-1">
+          <p className="order-7 sm:order-none text-center text-sm text-muted-foreground pt-1">
             Envie d'être accompagnée ?{" "}
             <a
               href="https://calendly.com/laetitia-mattioli/appel-decouverte"
