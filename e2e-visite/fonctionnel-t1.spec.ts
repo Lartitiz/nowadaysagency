@@ -10,6 +10,12 @@
  * - Le brouillon calendrier (option `publish-draft-option`) déclenche le toast de succès
  * - Variante LinkedIn : même flow, canal différent
  *
+ * NETTOYAGE : ce spec crée de VRAIES lignes sur le compte de référence (au
+ * minimum le post calendrier de T1a). Camille ne peut pas être supprimée comme
+ * le compte jetable du smoke à froid → on supprime en afterAll les seules
+ * lignes que CE run a créées, tracées par leurs ids d'insert REST.
+ * Voir e2e-visite/nettoyage-camille.ts pour le pourquoi et les garde-fous.
+ *
  * Note : le compte Camille est à 109 % de quota mais génère encore
  * (coaching_programs binôme resté actif). Si la QuotaWallModal apparaît,
  * le test log le fait et passe en skip plutôt que d'échouer.
@@ -19,12 +25,25 @@ import { test, expect, Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
+import { traceurDeCreations, supprimeLignesCreees } from "./nettoyage-camille";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/fonctionnel");
 fs.mkdirSync(SHOTS, { recursive: true });
 
 const IDEA = "Les 3 erreurs qui font que les solopreneurs vendent mal leurs offres";
+
+// Trace les lignes créées par le run (T1a + T1b partagent le même traceur :
+// un seul afterAll, un seul log à lire).
+const traceur = traceurDeCreations();
+
+// 🧹 Teardown — modelé sur cold-smoke.spec.ts. Ne jette JAMAIS : un nettoyage
+// raté ne doit pas rougir un test vert, il doit se LIRE dans la sortie.
+test.afterAll(async () => {
+  const lignes = await traceur.collectees();
+  const res = await supprimeLignesCreees(lignes);
+  console.log(`🧹 nettoyage T1 (compte de référence Camille) : ${res}`);
+});
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -134,6 +153,7 @@ async function generateDirectly(page: Page): Promise<boolean> {
 test("T1a — Post Instagram : génération streaming + ajout calendrier", async ({ page }) => {
   test.setTimeout(300_000); // 5 min : questions (≤90 s) + génération (≤150 s, cf. budget bouton) + navigation
   const quota429 = watchQuota429(page);
+  traceur.branche(page); // AVANT toute navigation : les inserts REST partent dès /creer
   await goToCreer(page);
   await enterIdea(page, IDEA);
   await selectFormat(page, "instagram");
@@ -217,12 +237,22 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
   await expect(toast).toBeVisible({ timeout: 8000 });
 
   await page.screenshot({ path: path.join(SHOTS, "t1a-instagram-calendrier.png") });
+
+  // Filet du traçage : après la pose, l'app redirige vers
+  // /calendrier?date=…&post=<id>. Si l'écoute réseau a raté l'insert (corps
+  // illisible, réponse arrivée après la fermeture), l'URL redonne l'id — et
+  // c'est CE post-là qui alimente l'alerte « contenus prêts, jamais publiés ».
+  await page.waitForURL(/\/calendrier\?/, { timeout: 10000 }).catch(() => {});
+  traceur.ajouteDepuisUrl(page.url());
+
   console.log("✅ T1a — Post Instagram OK (streaming + calendrier)");
 });
 
 // ── T1b : LinkedIn Post ───────────────────────────────────────────────────────
 
 test("T1b — Post LinkedIn : génération streaming", async ({ page }) => {
+  traceur.branche(page); // idem T1a : T1b ne pose rien au calendrier, mais le
+  // parcours peut enregistrer un brief — on trace pour ne rien laisser derrière.
   await goToCreer(page);
   await enterIdea(page, IDEA);
   await selectFormat(page, "linkedin");
