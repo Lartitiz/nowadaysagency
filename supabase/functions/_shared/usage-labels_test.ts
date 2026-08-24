@@ -71,3 +71,41 @@ Deno.test("recraftModel : défaut V3 inchangé, et V4 bascule sur le modèle vec
 
   Deno.env.delete("RECRAFT_MODEL");
 });
+
+/**
+ * Le trou trouvé au bilan du 24/08 : le mappage ne connaissait que la valeur
+ * EXACTE `recraftv4`, donc `recraftv4.1` — la version qu'on veut justement
+ * tester — partait en RASTER sans erreur, là où l'appelant attend un SVG.
+ */
+Deno.test("recraftModel : V4.1 (et toute version future) obtient bien sa variante vectorielle", async () => {
+  const { recraftModel } = await import("./recraft-illustration.ts");
+
+  Deno.env.set("RECRAFT_MODEL", "recraftv4.1");
+  assertEquals(recraftModel(true), "recraftv4.1_vector");
+  assertEquals(recraftModel(false), "recraftv4.1");
+
+  // Le motif vaut pour la suite : aucune liste à tenir à jour.
+  Deno.env.set("RECRAFT_MODEL", "recraftv5");
+  assertEquals(recraftModel(true), "recraftv5_vector");
+
+  // Casse indifférente, et pas de double suffixe sur une valeur déjà vectorielle.
+  Deno.env.set("RECRAFT_MODEL", "RecraftV4.1_Vector");
+  assertEquals(recraftModel(true), "RecraftV4.1_Vector");
+
+  Deno.env.delete("RECRAFT_MODEL");
+});
+
+/**
+ * Valeur hors motif + vectoriel demandé : on retombe sur V3 (connue bonne)
+ * plutôt que de livrer un raster muet à la place du SVG attendu.
+ */
+Deno.test("recraftModel : une valeur non reconnue ne part JAMAIS en raster silencieux", async () => {
+  const { recraftModel } = await import("./recraft-illustration.ts");
+
+  Deno.env.set("RECRAFT_MODEL", "recraft-v4.1-pro");
+  assertEquals(recraftModel(true), "recraftv3");
+  // Hors vectoriel, aucune raison de se substituer à la configuration.
+  assertEquals(recraftModel(false), "recraft-v4.1-pro");
+
+  Deno.env.delete("RECRAFT_MODEL");
+});
