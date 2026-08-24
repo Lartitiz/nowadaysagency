@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { cleanDictation } from "@/lib/clean-dictation";
 
 // Types Web Speech API (webkitSpeechRecognition) absents des libs DOM de TypeScript —
 // déclarés localement, propriétés limitées à ce que ce hook consomme.
@@ -101,8 +102,16 @@ export function useSpeechRecognition(onResult: (text: string) => void): UseSpeec
           finalTranscript += t;
         }
       }
-      if (finalTranscript) {
-        onResultRef.current(finalTranscript);
+      // Le moteur transcrit fidèlement les hésitations (« Euh. »), et pour
+      // /creer ce texte devient le SUJET, donc le titre affiché du contenu
+      // (bilan hebdo 24/08). Nettoyage déterministe et volontairement étroit
+      // ici, à l'unique porte d'entrée de la dictée : tous les champs dictés
+      // en profitent, aucun n'a à y penser. Un fragment qui n'était QUE de
+      // l'hésitation revient vide — on n'appelle alors pas onResult, sinon
+      // les consommateurs ajouteraient une espace pour rien.
+      const cleaned = cleanDictation(finalTranscript);
+      if (cleaned) {
+        onResultRef.current(cleaned);
       }
     };
 
