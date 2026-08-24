@@ -145,7 +145,9 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
         <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
           Mon calendrier éditorial
         </h1>
-        <p className="mt-1 text-base text-muted-foreground">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
+        {/* Baseline masquée au doigt : 2 lignes de promesse sur un premier écran
+            où l'on vient voir SON calendrier (bilan hebdo 24/08). */}
+        <p className="mt-1 hidden text-base text-muted-foreground sm:block">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
         <DropdownMenu>
@@ -885,14 +887,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const monthName = currentDate.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
   const calendarContent = (
-    <>
-      {/* Marronnier proche : proposer la déclinaison saisonnière d'une photo produit */}
-      <MarronnierBanner
-        onDecliner={(occ) => {
-          setSeasonalOcc(occ);
-          setSeasonalOpen(true);
-        }}
-      />
+    <div className="flex flex-col">
+      {/* Marronnier proche : proposer la déclinaison saisonnière d'une photo produit.
+          Au doigt il passe SOUS le calendrier (order-last) : c'est une PROPOSITION,
+          et à ~370 px il repoussait à lui seul la première case hors du premier
+          écran (bilan hebdo 24/08). Il reste juste sous la grille, donc visible
+          au premier défilement. */}
+      <div className="order-last sm:order-none">
+        <MarronnierBanner
+          onDecliner={(occ) => {
+            setSeasonalOcc(occ);
+            setSeasonalOpen(true);
+          }}
+        />
+      </div>
 
       {/* Filtres regroupés (canal + objectif + série) */}
       <CalendarFilterBar
@@ -986,30 +994,46 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           
         </>
       )}
-    </>
+    </div>
   );
 
+  // 🔑 AU DOIGT, LE CALENDRIER PASSE DEVANT (bilan hebdo 24/08). Le regard du
+  // 17/08 avait déjà fusionné les deux encarts de connexion en un seul, mais la
+  // page « Calendrier » n'affichait toujours AUCUN calendrier sur le premier
+  // écran : encart de connexion (~300 px) + titre et sous-titre + 3 boutons +
+  // encart marronnier (~370 px) faisaient ~1700 px de préambule avant la
+  // première case. Même parade que #911 sur le tableau de bord : sur mobile
+  // uniquement, `order-*` fait remonter la grille au-dessus des encarts
+  // secondaires (qui restent atteignables juste en dessous) ; `sm:order-none`
+  // rend au desktop l'ordre du DOM, inchangé. Le conteneur doit être flex pour
+  // que `order` s'applique — d'où la colonne qui remplace le fragment.
   const body = (
-    <>
+    <div className="flex flex-col">
       {/* Découverte du statut de connexion AVANT le blocage à la programmation :
           masqué en mode démo et quand le compte est déjà connecté (HubConnectBanner).
           UN SEUL encart pour les deux réseaux : empilés, ils remplissaient à eux
           seuls le premier écran au doigt et aucune case de calendrier n'était
           visible à l'arrivée (regard du 17/08). */}
       {!isDemoMode && (
-        <HubConnectBanner
-          platform={["instagram", "linkedin"]}
-          benefit="publier tes posts en 1 clic depuis ton calendrier"
-        />
+        <div className="order-4 sm:order-none">
+          <HubConnectBanner
+            platform={["instagram", "linkedin"]}
+            benefit="publier tes posts en 1 clic depuis ton calendrier"
+          />
+        </div>
       )}
-      <AuditRecommendationBanner />
-      <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
+      <div className="order-5 sm:order-none">
+        <AuditRecommendationBanner />
+      </div>
+      <div className="order-1 sm:order-none">
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
+      </div>
 
       {/* Mobile tabs — masqués quand le calendrier est embarqué dans OrganizationHub :
           ses onglets « Calendrier / Mes idées / Ma stratégie » fournissent déjà cette nav
           (et la page Idées gère la planification), donc ce 2e toggle faisait doublon. */}
       {!embedded && isMobile && (
-        <div className="flex rounded-full border border-border overflow-hidden mb-4">
+        <div className="order-2 sm:order-none flex rounded-full border border-border overflow-hidden mb-4">
           <button onClick={() => setMobileTab("calendar")}
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             <CalendarDays className="h-4 w-4" strokeWidth={1.75} /> Calendrier
@@ -1022,9 +1046,11 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       )}
 
       {isMobile ? (
-        mobileTab === "calendar" ? calendarContent : (
-          <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile refreshKey={ideasRefreshKey} />
-        )
+        <div className="order-3 sm:order-none">
+          {mobileTab === "calendar" ? calendarContent : (
+            <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile refreshKey={ideasRefreshKey} />
+          )}
+        </div>
       ) : (
         <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
           <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
@@ -1132,7 +1158,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         initialFiles={importFiles}
         onSaved={fetchPosts}
       />
-    </>
+    </div>
   );
 
   if (embedded) {
