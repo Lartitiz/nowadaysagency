@@ -10,6 +10,7 @@ import { validateInput, ValidationError, clampAiField } from "../_shared/input-v
 import { applyCorrectionPassCarousel, carouselNeedsPolish } from "../_shared/correction-pass.ts";
 import { runRedacGate, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
+import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
 import { runWithHeartbeatSSE, type StatusEmitter } from "../_shared/anthropic-stream.ts";
 import { getRecentBriefsContext } from "../_shared/recent-briefs.ts";
@@ -727,6 +728,16 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       systemPrompt += `\n\n══ CHUTE DE CAPTION IMPOSÉE POUR CETTE GÉNÉRATION ══\nLa caption se termine par : ${captionEndingRule.instruction}.\nCette forme est NON NÉGOCIABLE pour cette génération (elle assure qu'un feed ne montre pas dix captions construites pareil). Si la forme imposée n'est pas une question, le champ "cta" de la caption ne contient AUCUN point d'interrogation.`;
     }
 
+    // Accroches déjà écrites par cette utilisatrice sur CE sujet. Le bloc
+    // anti-sérialité ci-dessus est une CONSIGNE (probabiliste) ; ceci est la
+    // MESURE qui va avec (déterministe) : le gate compare l'accroche produite
+    // aux précédentes et déclenche une re-passe si elle les redit. Lecture
+    // best-effort — une erreur renvoie [] et ne change rien au flux.
+    const previousHooks = await fetchPreviousHooks(userId, body.subject);
+    if (previousHooks.length) {
+      console.log(`[carousel-ai] ${previousHooks.length} accroche(s) déjà écrite(s) sur ce sujet — garde anti-redite active`);
+    }
+
     const reqCtx: CarouselRequestContext = {
       body,
       userId,
@@ -739,6 +750,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       brandGuardText,
       captionEndingRule,
       recentBriefsContext,
+      previousHooks,
       brandVocabBlock,
       newsContext,
       corsHeaders,
@@ -818,6 +830,8 @@ interface CarouselRequestContext {
   brandGuardText: string;
   captionEndingRule: CaptionEndingRule | undefined;
   recentBriefsContext: string;
+  /** Accroches déjà écrites sur CE sujet : garde déterministe anti-redite (24/08). */
+  previousHooks: string[];
   brandVocabBlock: string;
   newsContext: any;
   corsHeaders: Record<string, string>;
@@ -851,7 +865,7 @@ async function runGenerationAndRespond(
   userPrompt: string,
   reqCtx: CarouselRequestContext,
 ): Promise<Response> {
-  const { body, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus } = reqCtx;
 
   // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
   const modelForCall = type === "deepening_questions"
@@ -913,6 +927,7 @@ async function runGenerationAndRespond(
       isLinkedIn,
       onStatus: emitStatus,
       inputText: gateInputText,
+      echo: { previousHooks, subject: body.subject },
       brandGuardText,
       captionEnding: captionEndingRule,
       correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
@@ -955,7 +970,7 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 
 // ── Mix carousel mode ──
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const mixPrompt = hasNews
@@ -1085,6 +1100,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
     correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
@@ -1099,7 +1115,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 
 // ── Photo carousel mode ──
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, corsHeaders, emitStatus } = reqCtx;
+  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const photoPrompt = hasNews
@@ -1222,6 +1238,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
+    echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
     correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },

@@ -17,6 +17,7 @@ import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat } from "../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
+import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import {
   alignFaceCamTakeDuration,
   applyReelElisions,
@@ -1286,7 +1287,7 @@ function normalizeHooksResponse(parsed: any, params: { body: any; rawContent: st
 // En photo_mode, on SKIP la 2ᵉ passe pour éviter le double appel Anthropic
 // (vision déjà coûteuse en wall-time). Les règles anti-broetry sont déjà
 // injectées AVANT les images dans le prompt photo LinkedIn (lignes 1272+).
-async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string }): Promise<void> {
+async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
   const { body, fullContext, brandGuardText } = params;
   try {
     // Gate rédactionnel (lots 3+4) : mesures en code injectées dans la
@@ -1311,6 +1312,7 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       },
       allowedNumbers: liAllowed,
       brandGuardText,
+      echo: { previousHooks: params.previousHooks, subject: params.echoSubject },
     });
     parsed.content = gate.content;
   } catch (corrErr) {
@@ -1331,8 +1333,8 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
 // 3. Recalibrage déterministe des durées : la durée affichée découle du texte
 //    réel (2,5 mots/s). Mesuré à l'audit : durées déclarées sous-estimées de
 //    40-80 % (90 s réelles annoncées "50 sec" = pénalité de distribution).
-async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; brandGuardText?: string }): Promise<void> {
-  const { body, effectiveObjective, fullContext, brandGuardText } = params;
+async function applyReelQualityPass(parsed: any, params: { body: any; effectiveObjective?: string | null; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<void> {
+  const { body, effectiveObjective, fullContext, brandGuardText, echoSubject, previousHooks } = params;
   if (body.face_cam === "non" && enforceReelNoFaceCam(parsed)) {
     console.log("[creative-flow] reel face_cam=non : structure convertie en voix off");
   }
@@ -1348,7 +1350,20 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
     ].join("\n"));
-    const reelRedac = analyzeTextRedac(reelAuditableText(parsed), reelAllowed, brandGuardText);
+    // 🔑 L'écho d'accroche n'est mesuré QUE si le hook n'est pas verrouillé.
+    // Quand l'utilisatrice a choisi son hook à l'étape hook_selection, la passe
+    // reçoit déjà l'ordre de le recopier À L'IDENTIQUE : y ajouter « réécris
+    // l'accroche » ferait deux consignes contradictoires dans le même prompt,
+    // exactement le défaut résorbé par #888. Son choix prime sur notre garde.
+    const hookVerrouille =
+      hasChosenHook ||
+      (typeof body.selected_hook?.text === "string" && body.selected_hook.text.trim() && !body.selected_hook.text.trim().startsWith("("));
+    const reelRedac = analyzeTextRedac(
+      reelAuditableText(parsed),
+      reelAllowed,
+      brandGuardText,
+      hookVerrouille ? undefined : { previousHooks, subject: echoSubject },
+    );
     const extras: string[] = [];
     const redacFix = buildTextFixInstructions(reelRedac);
     if (redacFix) extras.push(redacFix);
@@ -1359,7 +1374,7 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
     if (body.face_cam === "non") {
       extras.push(`CE REEL EST EN VOIX OFF (l'utilisatrice ne se montre pas) : aucun texte parlé ne doit dire "regarde la caméra" ni supposer qu'on la voit parler.`);
     }
-    if (hasChosenHook || (typeof body.selected_hook?.text === "string" && body.selected_hook.text.trim() && !body.selected_hook.text.trim().startsWith("("))) {
+    if (hookVerrouille) {
       extras.push(`LE HOOK ([SECTION 1 - PARLE] et [SECTION 1 - OVERLAY]) A ÉTÉ CHOISI PAR L'UTILISATRICE : recopie-le STRICTEMENT à l'identique, ne le réécris sous aucun prétexte (la règle "hook faible" ne s'applique pas à lui).`);
     }
     // Plafond de mots par objectif (calibrage du brief), mesuré en code :
@@ -1525,8 +1540,10 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   isStories: boolean;
   isReel: boolean;
   isLinkedIn: boolean;
+  /** Accroches déjà écrites sur ce sujet : la redite compte dans le score mesuré (24/08). */
+  previousHooks?: string[];
 }): Promise<void> {
-  const { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn } = params;
+  const { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks } = params;
   const qualityAllowed = () =>
     numbersIn([
       typeof context === "string" ? context : "",
@@ -1537,7 +1554,10 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
     ].join("\n"));
   const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
     try {
-      const a = analyzeTextRedac(text, qualityAllowed(), brandGuardText);
+      const a = analyzeTextRedac(text, qualityAllowed(), brandGuardText, {
+        previousHooks,
+        subject: typeof context === "string" ? context : undefined,
+      });
       const violations = textRedacViolations(a);
       const score = Math.max(40, 100 - 10 * violations);
       await logContentQuality(
@@ -2010,8 +2030,10 @@ async function runNewsletterTwoStep(params: {
   newsContext?: string | null;
   fullContext: string;
   brandGuardText?: string;
+  /** Accroches déjà écrites sur ce sujet : garde déterministe anti-redite (24/08). */
+  previousHooks?: string[];
 }, emitStatus: StatusEmitter = () => {}): Promise<Response> {
-  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext, brandGuardText } = params;
+  const { model, systemPrompt, userPrompt, corsHeaders, userId, body, context, newsContext, fullContext, brandGuardText, previousHooks } = params;
   const workspace_id = params.workspace_id ?? undefined;
   const nlUsage: UsageSink = {};
   emitStatus("writing");
@@ -2057,6 +2079,7 @@ async function runNewsletterTwoStep(params: {
         },
         allowedNumbers: nlAllowed,
         brandGuardText,
+        echo: { previousHooks, subject: typeof context === "string" ? context : undefined },
       });
       parsed.content = gate.content;
     } catch (e) {
@@ -2232,9 +2255,9 @@ Réponds UNIQUEMENT en JSON :
 // `runDeepResearchWebSearch` ci-dessus.
 export async function correctPostStreamContent(
   full: string,
-  params: { body: any; fullContext: string; brandGuardText?: string },
+  params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] },
 ): Promise<string | undefined> {
-  const { body, fullContext, brandGuardText } = params;
+  const { body, fullContext, brandGuardText, echoSubject, previousHooks } = params;
   let parsed: any;
   try {
     parsed = JSON.parse(full);
@@ -2266,6 +2289,7 @@ export async function correctPostStreamContent(
       },
       allowedNumbers: postAllowed,
       brandGuardText,
+      echo: { previousHooks, subject: echoSubject },
     });
     if (!gate.repassed || gate.content === parsed.content) return undefined;
 
@@ -2288,8 +2312,11 @@ function streamDefaultPostSSE(params: {
   body: any;
   fullContext: string;
   brandGuardText?: string;
+  /** Sujet + accroches déjà écrites dessus : garde déterministe anti-redite (24/08). */
+  echoSubject?: string;
+  previousHooks?: string[];
 }): Response {
-  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, brandGuardText } = params;
+  const { apiKey, model, systemPrompt, userPrompt, corsHeaders, userId, body, fullContext, brandGuardText, echoSubject, previousHooks } = params;
   const workspace_id = params.workspace_id ?? undefined;
   return createClientSSEStream(
     () => streamAnthropicToolSSE(
@@ -2305,7 +2332,7 @@ function streamDefaultPostSSE(params: {
     corsHeaders,
     async (full, usage) => {
       await logUsage(userId, "content", "creative_flow", usage?.total_tokens, usage?.model, workspace_id);
-      return await correctPostStreamContent(full, { body, fullContext, brandGuardText });
+      return await correctPostStreamContent(full, { body, fullContext, brandGuardText, echoSubject, previousHooks });
     },
     { failOnTruncation: true },
   );
@@ -2820,6 +2847,20 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       });
     }
 
+    // Accroches déjà écrites par cette utilisatrice sur CE sujet — garde
+    // déterministe anti-redite (bilan hebdo 24/08 : trois reels d'un même sujet
+    // ouvraient tous par « En 2026, on… », notés 100/100 chacun parce que le
+    // gate juge un contenu ISOLÉMENT). Calculé UNE fois ici et transmis aux
+    // chemins de correction et à la télémétrie. Lecture best-effort : une
+    // erreur renvoie [] et ne change rien.
+    // ⚠️ AVANT l'aiguillage SSE, jamais dedans : un await de plus une fois le
+    // flux ouvert, c'est le deadlock déjà vécu (corps lu DANS le stream).
+    const echoSubject = typeof context === "string" ? context : undefined;
+    const previousHooks = await fetchPreviousHooks(userId, echoSubject);
+    if (previousHooks.length) {
+      console.log(`[creative-flow] ${previousHooks.length} accroche(s) déjà écrite(s) sur ce sujet — garde anti-redite active`);
+    }
+
     // ── Streaming SSE (generate step) ──
     // Activé pour : texte pur, ET pour LinkedIn photo (sinon la socket casse pendant la vision).
     const wantsStream = req.headers.get("Accept") === "text/event-stream";
@@ -2838,14 +2879,14 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       }
 
       if (isNewsletter) {
-        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, brandGuardText }, emitStatus));
+        return runWithHeartbeatSSE(corsHeaders, (emitStatus) => runNewsletterTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, context, newsContext, fullContext, brandGuardText, previousHooks }, emitStatus));
       }
 
       if (isCarousel) {
         return await runCarouselTwoStep({ model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id });
       }
 
-      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, brandGuardText });
+      return streamDefaultPostSSE({ apiKey, model, systemPrompt, userPrompt: userPrompt!, corsHeaders, userId, workspace_id, body, fullContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ── Call Anthropic ──
@@ -2940,12 +2981,12 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       typeof parsed.content === "string" &&
       parsed.content.length >= 200
     ) {
-      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText });
+      await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
     if (isReel && step === "generate" && parsed && typeof parsed === "object" && Array.isArray(parsed.script)) {
-      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, brandGuardText });
+      await applyReelQualityPass(parsed, { body, effectiveObjective, fullContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
@@ -2956,7 +2997,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
