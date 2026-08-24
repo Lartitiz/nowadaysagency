@@ -229,19 +229,44 @@ export async function validatePptx(
       mediaSlideHasText.set(base, (mediaSlideHasText.get(base) ?? false) || hasText);
     }
     const pics: { media: string; fullSlide: boolean }[] = [];
-    for (const pm of slideXml.matchAll(/<p:pic>[\s\S]*?<\/p:pic>/g)) {
-      const frag = pm[0];
-      const rid = frag.match(/r:embed="(rId\d+)"/)?.[1];
+    // Parcours du spTree DANS L'ORDRE DE PEINTURE, images ET formes mêlées :
+    // l'occultation d'une photo se juge sur ce qui est posé APRÈS elle, quelle
+    // que soit sa nature (cf. « forme opaque » plus bas).
+    const isFullSlide = (frag: string) => {
       const off = frag.match(/<a:off x="(-?\d+)" y="(-?\d+)"\/>/);
       const ext = frag.match(/<a:ext cx="(\d+)" cy="(\d+)"\/>/);
-      const media = rid ? ridToMedia.get(rid) : undefined;
-      if (!media) continue;
-      const fullSlide =
+      return (
         !!off && !!ext && sldW > 0 && sldH > 0 &&
         Number(ext[1]) >= sldW * 0.95 && Number(ext[2]) >= sldH * 0.95 &&
-        Math.abs(Number(off[1])) <= sldW * 0.03 && Math.abs(Number(off[2])) <= sldH * 0.03;
+        Math.abs(Number(off[1])) <= sldW * 0.03 && Math.abs(Number(off[2])) <= sldH * 0.03
+      );
+    };
+    for (const em of slideXml.matchAll(/<p:(pic|sp)>[\s\S]*?<\/p:\1>/g)) {
+      const frag = em[0];
+      if (em[1] === "sp") {
+        // FORME opaque pleine slide posée par-dessus une photo : même occultation
+        // qu'un raster, mais invisible au test « photo occultée » qui ne regarde
+        // que les images. Le piège est réel — les shapes structurels de l'export
+        // hybride sont posés APRÈS les photos natives (c'est pourquoi le prompt
+        // interdit d'annoter data-pptx-shape un élément qui contient une photo).
+        if (pics.length === 0) continue;
+        if (/<a:t>/.test(frag)) continue; // porte du texte → bloc de texte, pas un aplat
+        // Remplissage du CORPS uniquement (avant <a:ln>, sinon on lirait la
+        // couleur du contour) et sans <a:alpha> : un voile laisse passer la photo.
+        const corps = frag.split("<a:ln")[0];
+        if (!/<a:solidFill><a:srgbClr val="[0-9A-Fa-f]{6}"\s*\/><\/a:solidFill>/.test(corps)) continue;
+        if (!isFullSlide(frag)) continue;
+        problems.push(
+          `photo occultée (forme) : slide${n} — une forme pleine slide opaque est posée ` +
+            `par-dessus ${pics.length} image(s) (la photo native dessous est invisible)`,
+        );
+        continue;
+      }
+      const rid = frag.match(/r:embed="(rId\d+)"/)?.[1];
+      const media = rid ? ridToMedia.get(rid) : undefined;
+      if (!media) continue;
       if (pics.length > 0) overImageMedia.add(media);
-      pics.push({ media, fullSlide });
+      pics.push({ media, fullSlide: isFullSlide(frag) });
     }
     slidePicStacks.push({ n, pics });
   }

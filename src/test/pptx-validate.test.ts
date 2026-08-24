@@ -278,3 +278,75 @@ describe("validatePptx — photo occultée / voile sur photo native (21/07)", ()
     expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(true);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Photo occultée par une FORME native (piège de l'export hybride, 24/08).
+//
+// Les shapes structurels sont posés APRÈS les photos natives — une forme
+// opaque pleine slide y occulte la photo exactement comme le raster du 21/07,
+// mais aucune image n'est empilée : le test « photo occultée » ci-dessus ne la
+// voit pas. C'est le risque direct du correctif « photo en encart » (qui, lui,
+// repeint ces fonds AVANT les photos).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** .pptx minimal : une photo, puis une FORME, puis un bloc de texte. */
+async function valideFormeSurPhoto(forme: string) {
+  const zip = new JSZip();
+  zip.file("ppt/presentation.xml", PRESENTATION_XML);
+  zip.file(
+    "ppt/slides/slide1.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"
+ xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+ xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><p:cSld><p:spTree>
+ ${PIC("rId1")}
+ ${forme}
+ <p:sp><p:txBody><a:p><a:r><a:t>Un titre bien réel</a:t></a:r></a:p></p:txBody></p:sp>
+ </p:spTree></p:cSld></p:sld>`,
+  );
+  zip.file(
+    "ppt/slides/_rels/slide1.xml.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+      `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image-1-1.png"/></Relationships>`,
+  );
+  zip.file("ppt/media/image-1-1.png", PHOTO_NATIVE);
+  zip.file("docProps/thumbnail.txt", "x".repeat(20_000));
+  const buf = await zip.generateAsync({ type: "nodebuffer" });
+  const p = path.join(fs.mkdtempSync(path.join(os.tmpdir(), "pptx-")), "t.pptx");
+  fs.writeFileSync(p, buf);
+  return validatePptx(p, { minSlides: 1, expectEditableText: true, backgroundIsDecorative: true });
+}
+
+const FORME = (fill: string, cx = SLD_W, cy = SLD_H) =>
+  `<p:sp><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm>` +
+  `<a:prstGeom prst="roundRect"><a:avLst/></a:prstGeom>${fill}<a:ln></a:ln></p:spPr></p:sp>`;
+
+describe("validatePptx — photo occultée par une FORME native (24/08)", () => {
+  it("flagge un aplat opaque pleine slide posé APRÈS la photo", async () => {
+    const r = await valideFormeSurPhoto(FORME(`<a:solidFill><a:srgbClr val="1A1815"/></a:solidFill>`));
+    expect(r.problems.some((p) => p.startsWith("photo occultée (forme)"))).toBe(true);
+  });
+
+  it("laisse passer une forme SEMI-TRANSPARENTE (voile : la photo reste lisible dessous)", async () => {
+    const r = await valideFormeSurPhoto(
+      FORME(`<a:solidFill><a:srgbClr val="1A1815"><a:alpha val="40000"/></a:srgbClr></a:solidFill>`),
+    );
+    expect(r.problems.some((p) => p.startsWith("photo occultée"))).toBe(false);
+  });
+
+  it("laisse passer une forme PARTIELLE (carte, pilule : le trou photo est ailleurs)", async () => {
+    const r = await valideFormeSurPhoto(
+      FORME(`<a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>`, Math.round(SLD_W * 0.6), Math.round(SLD_H * 0.3)),
+    );
+    expect(r.problems.some((p) => p.startsWith("photo occultée"))).toBe(false);
+  });
+
+  it("ne confond pas le CONTOUR avec le remplissage (forme sans fond, bordure colorée)", async () => {
+    const r = await valideFormeSurPhoto(
+      `<p:sp><p:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${SLD_W}" cy="${SLD_H}"/></a:xfrm>` +
+        `<a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:noFill/>` +
+        `<a:ln><a:solidFill><a:srgbClr val="C96F4A"/></a:solidFill></a:ln></p:spPr></p:sp>`,
+    );
+    expect(r.problems.some((p) => p.startsWith("photo occultée"))).toBe(false);
+  });
+});
