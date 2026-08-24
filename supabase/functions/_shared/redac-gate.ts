@@ -157,6 +157,108 @@ function findDurationConflicts(slidesText: string, captionText: string): string[
 // cohabitent sur le même feed. Symétrique à findFabricatedNumbers() : au lieu
 // d'une liste blanche de chiffres autorisés, une liste de passages à NE PAS
 // recopier (les champs de marque bruts, fournis en entrée).
+// ── Écho d'accroche entre contenus d'un MÊME sujet (bilan hebdo 24/08/2026) ──
+//
+// Le trou trouvé par le juge : trois reels générés sur le même sujet ouvraient
+// par « En 2026, on utilise encore l'immersion… », « En 2026, on désensibilise
+// encore… », « On est en 2026 et il y a encore des pros qui… ». Le gate leur a
+// mis 100/100 À TOUS LES TROIS — et c'est logique : il note chaque contenu
+// ISOLÉMENT. Il compte des tics dans UN texte, il n'a jamais vu les autres.
+// Une régénération qui reformule la même ouverture est pourtant le défaut le
+// plus visible pour l'audience, qui, elle, voit la série.
+//
+// 🔑 LE PIÈGE À ÉVITER, ET IL EST DE TAILLE : le sujet lui-même revient
+// forcément dans les accroches. « Le rond de longe, on en parle ? » et « Et si
+// le rond de longe faisait l'inverse ? » partagent quatre mots — mais ce sont
+// les mots du SUJET, pas une redite de formulation. D'où le retrait des tokens
+// du sujet avant toute comparaison : on ne compare que ce que la rédaction a
+// choisi d'ajouter.
+
+/** Fenêtre d'ouverture comparée : au-delà, ce n'est plus l'accroche. */
+const HOOK_WINDOW_WORDS = 8;
+/** Similarité globale (hors sujet) à partir de laquelle deux accroches redisent la même chose. */
+const HOOK_SIMILARITY_THRESHOLD = 0.6;
+
+/** Mots trop courants pour porter à eux seuls une redite de formulation. */
+const HOOK_STOPWORDS = new Set([
+  "le", "la", "les", "un", "une", "des", "du", "de", "d", "l", "et", "ou", "mais",
+  "que", "qui", "quoi", "dont", "ce", "cet", "cette", "ces", "on", "je", "tu", "il",
+  "elle", "nous", "vous", "ils", "elles", "se", "sa", "son", "ses", "mon", "ma",
+  "mes", "ton", "ta", "tes", "au", "aux", "en", "dans", "sur", "pour", "par",
+  "avec", "sans", "est", "sont", "a", "as", "ai", "y", "ne", "pas", "plus", "si",
+  "tout", "tous", "toute", "toutes", "c", "s", "n", "j", "t", "m", "qu",
+]);
+
+/** Un token porte-t-il assez de matière pour signer une redite ? */
+function isDistinctiveToken(w: string): boolean {
+  if (HOOK_STOPWORDS.has(w)) return false;
+  return /\d/.test(w) || w.length >= 4;
+}
+
+/**
+ * Tokens d'une accroche, PRIVÉS des mots du sujet : deux contenus du même sujet
+ * partagent son vocabulaire par construction, ce n'est pas une redite.
+ */
+function hookTokens(text: string, subject?: string): string[] {
+  const sujet = new Set(normalizeWordsForOverlap(subject || ""));
+  return normalizeWordsForOverlap(text).filter((w) => !sujet.has(w));
+}
+
+/** Plus long n-gramme commun aux deux ouvertures, s'il porte au moins un mot distinctif. */
+function sharedOpening(a: string[], b: string[]): string | null {
+  const fa = a.slice(0, HOOK_WINDOW_WORDS);
+  const fb = b.slice(0, HOOK_WINDOW_WORDS);
+  let best: string[] = [];
+  for (let i = 0; i < fa.length; i++) {
+    for (let j = 0; j < fb.length; j++) {
+      let k = 0;
+      while (i + k < fa.length && j + k < fb.length && fa[i + k] === fb[j + k]) k++;
+      if (k > best.length) best = fa.slice(i, i + k);
+    }
+  }
+  if (best.length < 2) return null;
+  if (!best.some(isDistinctiveToken)) return null;
+  return best.join(" ");
+}
+
+/**
+ * Accroches déjà écrites pour ce sujet que la nouvelle redit.
+ *
+ * Deux signaux, l'un sur la forme d'ouverture, l'autre sur le fond :
+ *  - une ouverture commune d'au moins 2 mots dont un distinctif (« en 2026 ») ;
+ *  - une similarité de vocabulaire hors sujet ≥ 60 % (même angle reformulé).
+ * Renvoie les accroches précédentes en cause, tronquées pour l'instruction.
+ */
+export function findHookEchoes(
+  hook: string,
+  previousHooks: string[] | undefined,
+  subject?: string,
+): string[] {
+  if (!hook || !previousHooks?.length) return [];
+  const cur = hookTokens(hook, subject);
+  if (cur.length < 2) return [];
+
+  const echoes: string[] = [];
+  for (const prev of previousHooks) {
+    if (!prev || typeof prev !== "string") continue;
+    const prevTok = hookTokens(prev, subject);
+    if (prevTok.length < 2) continue;
+
+    const opening = sharedOpening(cur, prevTok);
+    // La similarité globale ne se prononce que sur des accroches assez fournies
+    // (4 tokens hors sujet de chaque côté), sinon deux titres courts se
+    // ressemblent mécaniquement.
+    const similar =
+      cur.length >= 4 && prevTok.length >= 4 &&
+      tokenSimilarity(cur.join(" "), prevTok.join(" ")) >= HOOK_SIMILARITY_THRESHOLD;
+
+    if (opening || similar) {
+      echoes.push(prev.replace(/\s+/g, " ").trim().slice(0, 120));
+    }
+  }
+  return echoes;
+}
+
 const BRAND_COPY_MIN_WORDS = 7;
 
 /** Mots normalisés (accents gardés, ponctuation ignorée) pour comparer deux textes. */
@@ -281,9 +383,19 @@ export interface RedacAnalysis {
   durationConflicts: string[];
   /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
   brandCopyOverlap: string[];
+  /** Accroches DÉJÀ écrites pour ce sujet que celle-ci redit (cf. findHookEchoes). */
+  hookEchoes: string[];
 }
 
-export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string): RedacAnalysis {
+/** Contexte inter-contenus : ce que le gate ne peut pas voir dans le document seul. */
+export interface EchoContext {
+  /** Accroches des contenus précédents du MÊME sujet, pour la même utilisatrice. */
+  previousHooks?: string[];
+  /** Sujet, dont les mots sont neutralisés avant comparaison (ils reviennent forcément). */
+  subject?: string;
+}
+
+export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext): RedacAnalysis {
   const slides: any[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
   const caption = parsed?.caption || {};
   const slidesText = slides.map(slideTexts).join("\n");
@@ -323,10 +435,13 @@ export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, 
     : [];
 
   const durationConflicts = findDurationConflicts(slidesText, captionText);
+  // L'accroche d'un carrousel = le texte de sa slide 1, quel que soit le format
+  // (le mixte et le photo portent `overlay_text`, pas `title`).
+  const hookEchoes = findHookEchoes(slideTexts(slides[0]) || caption.hook || "", echo?.previousHooks, echo?.subject);
 
   return {
     reversals, overlongSlides, overlongOverlays, ctaDuplicated, moulded,
-    hashtagsCount, fabricatedNumbers, durationConflicts, brandCopyOverlap,
+    hashtagsCount, fabricatedNumbers, durationConflicts, brandCopyOverlap, hookEchoes,
   };
 }
 
@@ -366,7 +481,10 @@ export function redacViolations(a: RedacAnalysis): number {
     // Plafonné à 1 : une contradiction, c'est UN fait à corriger, même si le
     // croisement slides × caption en remonte plusieurs formulations.
     Math.min(1, a.durationConflicts.length) +
-    Math.min(3, a.brandCopyOverlap.length)
+    Math.min(3, a.brandCopyOverlap.length) +
+    // Plafonné à 1 : c'est UNE accroche à réécrire, qu'elle fasse écho à un ou
+    // à cinq contenus précédents.
+    Math.min(1, a.hookEchoes.length)
   );
 }
 
@@ -389,6 +507,7 @@ function buildQualityCheck(a: RedacAnalysis, repassed: boolean) {
     fabricated_numbers: a.fabricatedNumbers.length,
     duration_conflicts: a.durationConflicts,
     brand_copy_overlap: a.brandCopyOverlap.length,
+    hook_echoes: a.hookEchoes,
     hashtags_count: a.hashtagsCount,
     corrected_by_repass: repassed,
   };
@@ -459,6 +578,11 @@ function buildFixInstructions(a: RedacAnalysis): string {
       `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
     );
   }
+  if (a.hookEchoes.length) {
+    lines.push(
+      `ACCROCHE DÉJÀ UTILISÉE POUR CE SUJET : cette ouverture redit une accroche déjà écrite pour le même sujet :\n${a.hookEchoes.map((h) => `- « ${h} »`).join("\n")}\nL'audience voit la SÉRIE, pas un contenu isolé : deux publications qui ouvrent pareil donnent l'impression d'un contenu recyclé à la chaîne. Réécris l'accroche avec un angle d'attaque VRAIMENT différent — change ce sur quoi elle ouvre (une scène vécue plutôt qu'un constat, une question plutôt qu'une affirmation, un détail concret plutôt qu'une généralité). Garde le sujet et le fond du contenu, change l'entrée.`,
+    );
+  }
   return lines.join("\n\n");
 }
 
@@ -492,6 +616,8 @@ export async function runRedacGate(
     captionEnding?: CaptionEndingRule;
     /** Champs de marque bruts (buildBrandGuardText) : passages à ne jamais recopier tels quels. */
     brandGuardText?: string;
+    /** Contenus DÉJÀ générés sur ce sujet : garde anti-redite d'accroche. */
+    echo?: EchoContext;
   },
 ): Promise<RedacGateResult> {
   const parseFenced = (c: string): { parsed: any; raw: string } | null => {
@@ -508,7 +634,7 @@ export async function runRedacGate(
   if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis(), score: null, violations: null };
 
   const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
-  const before = analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText);
+  const before = analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo);
   let out = content;
   let repassed = false;
 
@@ -575,14 +701,14 @@ export async function runRedacGate(
     }
   }
 
-  let after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText);
+  let after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo);
   // Duplication caption/slide PERSISTANTE malgré la re-passe (vue livrée avec le
   // flag true, audit 12/07 lot D) : suppression déterministe — le CTA vit sur la
   // slide, la caption garde sa chute (dernière ligne du body). Supprimer > inventer.
   if (after.ctaDuplicated && finalDoc.parsed?.caption) {
     console.log("[redac-gate] caption.cta supprimé (duplication de la dernière slide persistante après re-passe)");
     finalDoc.parsed.caption.cta = "";
-    after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText);
+    after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo);
   }
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
   finalDoc.parsed.quality_check = buildQualityCheck(after, repassed);
@@ -592,14 +718,14 @@ export async function runRedacGate(
     : content.replace(first.raw, JSON.stringify(finalDoc.parsed, null, 2));
 
   console.log(
-    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
+    `[redac-gate] retournements ${before.reversals.length}→${after.reversals.length}, slides>50 ${before.overlongSlides.length}→${after.overlongSlides.length}, ctaDup ${before.ctaDuplicated}→${after.ctaDuplicated}, moulés ${before.moulded.length}→${after.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${after.fabricatedNumbers.length}, durées contradictoires ${before.durationConflicts.length}→${after.durationConflicts.length}, recopie fiche marque ${before.brandCopyOverlap.length}→${after.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${after.hookEchoes.length}, hashtags ${before.hashtagsCount}→${Math.min(before.hashtagsCount, opts.isLinkedIn ? 2 : 3)}, re-passe=${repassed}${opts.captionEnding ? `, chute caption ${endingViolatedBefore ? "NON CONFORME" : "ok"}→${captionEndingViolated(finalDoc.parsed, opts.captionEnding) ? "NON CONFORME" : "ok"} (forme ${opts.captionEnding.requiresQuestion ? "question" : "non-question"})` : ""}`,
   );
 
   return { content: out, repassed, before, after, score: redacScore(after), violations: redacViolations(after) };
 }
 
 function emptyAnalysis(): RedacAnalysis {
-  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [], durationConflicts: [], brandCopyOverlap: [] };
+  return { reversals: [], overlongSlides: [], overlongOverlays: [], ctaDuplicated: false, moulded: [], hashtagsCount: 0, fabricatedNumbers: [], durationConflicts: [], brandCopyOverlap: [], hookEchoes: [] };
 }
 
 // ── Variante TEXTE (lot 4) : LinkedIn et newsletter ──
@@ -613,14 +739,24 @@ export interface TextRedacAnalysis {
   fabricatedNumbers: string[];
   /** Passages qui recopient quasi mot pour mot un champ de la fiche de marque. */
   brandCopyOverlap: string[];
+  /** Accroches DÉJÀ écrites pour ce sujet que celle-ci redit (cf. findHookEchoes). */
+  hookEchoes: string[];
 }
 
-export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string): TextRedacAnalysis {
+/** Accroche d'un texte libre : sa 1re ligne non vide, tronquée à une phrase. */
+export function textHook(text: string): string {
+  const ligne = (text || "").split(/\n+/).map((l) => l.trim()).find(Boolean) || "";
+  const phrase = ligne.split(/(?<=[.!?…])\s/)[0] || ligne;
+  return phrase.slice(0, 200);
+}
+
+export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext): TextRedacAnalysis {
   const reversals = findReversals(text || "");
   const moulded = MOULDED_VERBATIMS.map((re) => (text || "").match(re)?.[0]).filter(Boolean) as string[];
   const fabricatedNumbers = allowedNumbers ? findFabricatedNumbers(text || "", allowedNumbers) : [];
   const brandCopyOverlap = findBrandCopyOverlap(text || "", brandGuardText);
-  return { reversals, moulded, fabricatedNumbers, brandCopyOverlap };
+  const hookEchoes = findHookEchoes(textHook(text), echo?.previousHooks, echo?.subject);
+  return { reversals, moulded, fabricatedNumbers, brandCopyOverlap, hookEchoes };
 }
 
 /** Nombre de violations — même formule que redacViolations, pour la variante texte. */
@@ -629,7 +765,8 @@ export function textRedacViolations(a: TextRedacAnalysis): number {
     Math.max(0, a.reversals.length - 1) +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
-    Math.min(3, a.brandCopyOverlap.length)
+    Math.min(3, a.brandCopyOverlap.length) +
+    Math.min(1, a.hookEchoes.length)
   );
 }
 
@@ -811,6 +948,11 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
       `PASSAGES RECOPIÉS DE LA FICHE DE MARQUE : ces extraits reprennent quasi mot pour mot un champ de la fiche de marque de l'utilisatrice (combat, mission, ton, expressions, convictions) :\n${a.brandCopyOverlap.map((o) => `- « ${o} »`).join("\n")}\nCette fiche est la MATIÈRE de l'utilisatrice, jamais son texte final. Reformule CHAQUE extrait avec des mots neufs, garde le sens et l'intensité, mais ne recopie plus la fiche de marque telle quelle.`,
     );
   }
+  if (a.hookEchoes.length) {
+    lines.push(
+      `ACCROCHE DÉJÀ UTILISÉE POUR CE SUJET : cette ouverture redit une accroche déjà écrite pour le même sujet :\n${a.hookEchoes.map((h) => `- « ${h} »`).join("\n")}\nL'audience voit la SÉRIE, pas un contenu isolé : deux publications qui ouvrent pareil donnent l'impression d'un contenu recyclé à la chaîne. Réécris l'accroche avec un angle d'attaque VRAIMENT différent — change ce sur quoi elle ouvre (une scène vécue plutôt qu'un constat, une question plutôt qu'une affirmation, un détail concret plutôt qu'une généralité). Garde le sujet et le fond du contenu, change l'entrée.`,
+    );
+  }
   return lines.join("\n\n");
 }
 
@@ -828,7 +970,8 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
  * Plus strict que textRedacViolations (qui tolère 1 retournement) : une correction
  * qui fait passer un texte de 0 à 1 retournement est déjà une dégradation. */
 export function textRedacRawCount(a: TextRedacAnalysis): number {
-  return a.reversals.length + a.moulded.length + a.fabricatedNumbers.length + a.brandCopyOverlap.length;
+  return a.reversals.length + a.moulded.length + a.fabricatedNumbers.length + a.brandCopyOverlap.length +
+    a.hookEchoes.length;
 }
 
 export interface TextGateResult {
@@ -853,9 +996,11 @@ export async function runTextRedacGate(
     brandGuardText?: string;
     /** Passes LLM max (défaut 2 : 1 relecture générale + 1 rattrapage si violations restantes). */
     maxPasses?: number;
+    /** Contenus DÉJÀ générés sur ce sujet : garde anti-redite d'accroche. */
+    echo?: EchoContext;
   },
 ): Promise<TextGateResult> {
-  const analyze = (t: string) => analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText);
+  const analyze = (t: string) => analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText, opts.echo);
   const before = analyze(text);
   let best = text;
   let bestA = before;
@@ -895,7 +1040,7 @@ export async function runTextRedacGate(
   const violations = textRedacViolations(bestA);
   const score = Math.max(40, 100 - 10 * violations);
   opts.correction.logger?.(
-    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, repassé=${repassed}, rejeté=${reverted}`,
+    `[text-gate:${opts.format}] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
   );
   return { content: best, before, after: bestA, repassed, reverted, score, violations };
 }
