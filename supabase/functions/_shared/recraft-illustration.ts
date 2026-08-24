@@ -26,11 +26,40 @@ const RETRY_DELAY_MS = 2_000;
  * ⚠️ En V4, le vectoriel est un modèle À PART (`recraftv4_vector`), là où V3
  * l'obtenait via `style: "vector_illustration"` — d'où le mappage ci-dessous,
  * sinon un simple « recraftv4 » sortirait du raster et casserait le SVG attendu.
+ *
+ * 🔑 GÉNÉRALISÉ LE 24/08/2026 (bilan hebdo, item ouvert depuis le 03/08) : le
+ * mappage ne connaissait QUE la valeur exacte `recraftv4`. Poser
+ * `RECRAFT_MODEL=recraftv4.1` — la version stable depuis mai 2026, et la
+ * raison même d'exister de ce réglage — retombait donc dans le `return
+ * configured` final : appel RASTER là où l'appelant attend un SVG, sans le
+ * moindre bruit. Le piège se serait re-tendu à l'identique en V5.
+ *
+ * Deux garde-fous, parce qu'ici l'échec est SILENCIEUX (on reçoit une image, pas
+ * une erreur) :
+ *  1. la variante vectorielle se déduit du MOTIF `recraftv<version>` (v4, v4.1,
+ *     v5…), plus d'une liste de valeurs en dur ;
+ *  2. si on demande du vectoriel avec une valeur hors motif, on CRIE et on
+ *     retombe sur le défaut V3 — mieux vaut la version connue-bonne qu'un
+ *     raster muet livré à la place d'un SVG.
+ * Une valeur portant déjà `_vector` est respectée telle quelle : c'est
+ * l'échappatoire si Recraft nomme un jour sa variante autrement.
  */
+const RECRAFT_MODEL_RE = /^recraftv\d+(?:\.\d+)?$/i;
+const RECRAFT_MODEL_DEFAULT = "recraftv3";
+
 export function recraftModel(wantsVector: boolean): string {
-  const configured = (Deno.env.get("RECRAFT_MODEL") || "recraftv3").trim();
-  if (wantsVector && configured === "recraftv4") return "recraftv4_vector";
-  return configured;
+  const configured = (Deno.env.get("RECRAFT_MODEL") || RECRAFT_MODEL_DEFAULT).trim();
+  if (!wantsVector) return configured;
+  if (/_vector$/i.test(configured)) return configured;
+  // V3 obtient son vectoriel par `style: "vector_illustration"`, pas par un
+  // modèle séparé : ne rien suffixer (comportement historique).
+  if (configured.toLowerCase() === "recraftv3") return configured;
+  if (RECRAFT_MODEL_RE.test(configured)) return `${configured}_vector`;
+  console.warn(
+    `[recraft] RECRAFT_MODEL="${configured}" non reconnu pour du vectoriel — repli sur ${RECRAFT_MODEL_DEFAULT} ` +
+      `(sans ce repli, l'appel partirait en RASTER et le SVG attendu serait cassé sans erreur)`,
+  );
+  return RECRAFT_MODEL_DEFAULT;
 }
 
 export type Rgb = [number, number, number];
