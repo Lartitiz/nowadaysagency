@@ -706,9 +706,51 @@ function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZon
 }
 
 /**
+ * Fond opaque neutralisé derrière une zone photo, et ce qu'il faut en refaire.
+ *
+ * `needsRepaint` distingue les deux situations :
+ *  - la photo recouvre ENTIÈREMENT le fond → il suffit de l'effacer du raster,
+ *    la photo native le remplace pixel pour pixel (cas historique) ;
+ *  - la photo n'est qu'un ENCART dans ce fond → l'effacer troue le raster
+ *    AILLEURS que sous la photo : il faut le repeindre en natif, SOUS la photo.
+ */
+interface ClearedBackdrop {
+  el: HTMLElement;
+  rect: { x: number; y: number; w: number; h: number };
+  /** Hex 6 chars sans `#`. */
+  color: string;
+  borderRadiusPx: number;
+  needsRepaint: boolean;
+}
+
+/** La zone photo recouvre-t-elle ENTIÈREMENT ce rectangle ? (tolérance 1 px) */
+export function zoneCoversRect(
+  zr: { x: number; y: number; w: number; h: number },
+  r: { x: number; y: number; w: number; h: number },
+): boolean {
+  return (
+    zr.x <= r.x + 1 && zr.y <= r.y + 1 &&
+    zr.x + zr.w >= r.x + r.w - 1 && zr.y + zr.h >= r.y + r.h - 1
+  );
+}
+
+/**
+ * La zone photo et ce rectangle se chevauchent-ils VRAIMENT ? (≥ 4 px sur les
+ * deux axes — un simple contact de bord ne peint rien sous la photo).
+ */
+export function zoneOverlapsRect(
+  zr: { x: number; y: number; w: number; h: number },
+  r: { x: number; y: number; w: number; h: number },
+): boolean {
+  const ow = Math.min(zr.x + zr.w, r.x + r.w) - Math.max(zr.x, r.x);
+  const oh = Math.min(zr.y + zr.h, r.y + r.h) - Math.max(zr.y, r.y);
+  return ow >= 4 && oh >= 4;
+}
+
+/**
  * Neutralise (pour la capture) les fonds UNIS et OPAQUES peints DERRIÈRE une
- * zone photo masquée : l'élément de zone lui-même et chaque ancêtre que la
- * zone recouvre entièrement.
+ * zone photo masquée : l'élément de zone lui-même et chaque ancêtre qui peint
+ * des pixels SOUS la photo.
  *
  * Sans ça, le raster « bouche le trou » : la racine des gabarits photo
  * composés porte `background:#1a1815` SANS annotation data-pptx-shape
@@ -717,27 +759,35 @@ function extractPhotoZones(doc: Document, fallbackPhotoIndex?: number): PhotoZon
  * invisible, toute la slide est un bloc noir (vu en prod le 21/07 dans Canva
  * sur un carrousel photo immo).
  *
+ * PHOTO EN ENCART (24/08) : on ne peut PAS se limiter aux ancêtres que la photo
+ * recouvre entièrement. Les gabarits `photo_integrated` du prompt (top_photo,
+ * left_photo, right_photo, card_photo, banner_photo) posent la photo dans un
+ * coin d'une racine 1080×1350 opaque que le prompt interdit justement d'annoter
+ * `data-pptx-shape` (« l'élément CONTIENT un descendant data-pptx-photo ») →
+ * cette racine restait opaque et occultait la photo une génération sur deux.
+ * On neutralise donc AUSSI ces fonds débordants, mais on les marque
+ * `needsRepaint` : l'appelant les repeint en shape natif AVANT de poser les
+ * photos, donc SOUS elles. Le DOM ne sait pas percer un trou dans un fond CSS :
+ * la seule parade est de ne pas le peindre dans le raster et de le refaire en
+ * natif dessous.
+ *
  * On ne touche NI aux background-image (texture de marque : la retirer la
  * perdrait des deux côtés, cf. #575) NI aux fonds semi-transparents (voiles :
  * leur alpha traverse le PNG et reste fidèle sur la photo native). Les
  * éléments déjà promus en shape natif (data-pptx-shape-hide) sont déjà
  * transparents ici → ignorés naturellement.
- *
- * Retourne la couleur du plus GRAND fond neutralisé (hex sans #), à reporter
- * sur slide.background — filet visuel si la photo native manque à l'arrivée.
  */
-function clearOpaqueBackdropsBehindZone(zone: PhotoZone, doc: Document): string | null {
+function clearOpaqueBackdropsBehindZone(zone: PhotoZone, doc: Document): ClearedBackdrop[] {
   const win = doc.defaultView;
-  if (!win) return null;
+  if (!win) return [];
   const zr = zone.rect;
-  let best: { color: string; area: number } | null = null;
+  const out: ClearedBackdrop[] = [];
   let el: HTMLElement | null = zone.el;
   while (el && el !== doc.body && el !== doc.documentElement) {
-    const r = el.getBoundingClientRect();
-    const covered =
-      zr.x <= r.left + 1 && zr.y <= r.top + 1 &&
-      zr.x + zr.w >= r.right - 1 && zr.y + zr.h >= r.bottom - 1;
-    if (covered) {
+    const b = el.getBoundingClientRect();
+    const r = { x: b.left, y: b.top, w: b.width, h: b.height };
+    const covered = zoneCoversRect(zr, r);
+    if (covered || zoneOverlapsRect(zr, r)) {
       const cs = win.getComputedStyle(el);
       // Pour l'élément de zone lui-même, le background-image (photo, gradients
       // conservés) est géré par le masquage de zone — seul son background-color
@@ -749,15 +799,31 @@ function clearOpaqueBackdropsBehindZone(zone: PhotoZone, doc: Document): string 
         bgColor !== "transparent" &&
         bgColor !== "rgba(0, 0, 0, 0)" &&
         (!alphaM || parseFloat(alphaM[1]) >= 0.99);
-      if (opaque && bgImage === "none") {
+      if (opaque && bgImage !== "none") {
+        // Fond opaque MATIÉRÉ (texture de marque) débordant sous la photo : on ne
+        // sait ni l'effacer sans le perdre (#575) ni le repeindre en natif
+        // (pptxgenjs = aplat seul). Il reste dans le raster — donc la photo reste
+        // occultée. Jamais observé sur les gabarits photo ; tracé pour le jour où.
+        if (!covered) {
+          console.warn(
+            "[hybrid] fond opaque À IMAGE débordant sous une photo — non neutralisable, photo potentiellement occultée",
+            { bgImage: bgImage.slice(0, 80) },
+          );
+        }
+      } else if (opaque) {
         el.style.setProperty("background-color", "transparent", "important");
-        const area = r.width * r.height;
-        if (!best || area > best.area) best = { color: normalizeHex(bgColor, "FFFFFF"), area };
+        out.push({
+          el,
+          rect: r,
+          color: normalizeHex(bgColor, "FFFFFF"),
+          borderRadiusPx: parseFloat(cs.borderTopLeftRadius || cs.borderRadius || "0px") || 0,
+          needsRepaint: !covered,
+        });
       }
     }
     el = el.parentElement;
   }
-  return best ? best.color : null;
+  return out;
 }
 
 /** Police à chasse fixe ? (IBM Plex Mono, Courier…) */
@@ -1321,7 +1387,7 @@ export async function exportCarouselHybridPptx(
       // Fond opaque derrière une zone masquée (racine charbon des gabarits photo
       // composés) : neutralisé pour que le trou du raster reste transparent au-dessus
       // de la photo native, et reporté en fond NATIF de slide (cf. helper).
-      let photoBackdrop: string | null = null;
+      const clearedBackdrops = new Map<HTMLElement, ClearedBackdrop>();
       for (const zone of usableZones) {
         if (zone.type === "img") {
           const target = zone.el.parentElement || zone.el;
@@ -1333,9 +1399,31 @@ export async function exportCarouselHybridPptx(
           // !important via setProperty pour battre les classes Tailwind / CSS overlay
           zone.el.style.setProperty("background-image", cleaned, "important");
         }
-        const cleared = clearOpaqueBackdropsBehindZone(zone, doc);
-        if (cleared && !photoBackdrop) photoBackdrop = cleared;
+        // Un même ancêtre peut servir deux zones : la 2e passe le lit déjà
+        // transparent, donc la 1re entrée (la seule) fait foi.
+        for (const cb of clearOpaqueBackdropsBehindZone(zone, doc)) {
+          if (!clearedBackdrops.has(cb.el)) clearedBackdrops.set(cb.el, cb);
+        }
       }
+      // Le PLUS GRAND fond neutralisé devient le fond NATIF de la slide
+      // (comportement historique : filet visuel si la photo native manque). S'il
+      // déborde de la photo, ce même report le repeint AUSSI pour de bon — donc
+      // pas de shape à poser pour lui, sauf si un shape `background` annoté
+      // revendique déjà ce slot avec sa propre couleur.
+      const backdropsBySize = [...clearedBackdrops.values()].sort(
+        (a, b) => b.rect.w * b.rect.h - a.rect.w * a.rect.h,
+      );
+      const slotLibre = !usableShapes.some((sb) => sb.type === "background");
+      const backdropDeSlide = slotLibre ? backdropsBySize[0] : undefined;
+      const photoBackdrop: string | null = backdropDeSlide?.color ?? null;
+      /**
+       * Fonds débordants à REPEINDRE en shape natif SOUS les photos : tout ce que
+       * ni la photo (recouvrement total) ni slide.background ne remet en place.
+       * Du plus grand au plus petit → l'imbrication HTML est respectée.
+       */
+      const backdropShapes = backdropsBySize.filter(
+        (cb) => cb.needsRepaint && cb !== backdropDeSlide,
+      );
 
       // ---- Voiles de lisibilité : retirés du raster, fusionnés dans la photo
       // native (cf. bloc « Voiles de lisibilité » en tête de fichier — l'import
@@ -1375,9 +1463,34 @@ export async function exportCarouselHybridPptx(
       perf.captureBody = Math.round(performance.now() - tCapture);
 
       // ---- Z-ORDER (bottom → top) :
-      // 1. Photos natives (couche bottom)
+      // 0. Fonds opaques débordants repeints en natif (couche sous-photo)
+      // 1. Photos natives
       // 2. Fond rasterisé transparent sur zones photo (couche middle)
       // 3. Blocs texte éditables (couche top)
+      //
+      // La couche 0 DOIT rester avant les photos : les shapes structurels
+      // habituels (couche middle-bas, plus bas) sont posés APRÈS les photos et
+      // les couvriraient — c'est exactement pourquoi le prompt interdit
+      // d'annoter `data-pptx-shape` un élément qui contient une photo.
+      for (const cb of backdropShapes) {
+        const x = Math.max(0, pxToInches(cb.rect.x, PX_PER_IN));
+        const y = Math.max(0, pxToInches(cb.rect.y, PX_PER_IN));
+        const w = Math.min(PPTX_W_IN - x, pxToInches(cb.rect.w, PX_PER_IN));
+        const h = Math.min(PPTX_H_IN - y, pxToInches(cb.rect.h, PX_PER_IN));
+        if (w <= 0 || h <= 0) continue;
+        const radius = Math.min(pxToInches(cb.borderRadiusPx, PX_PER_IN), Math.min(w, h) / 2);
+        try {
+          slide.addShape("roundRect", {
+            x, y, w, h,
+            fill: { color: cb.color },
+            line: { type: "none" },
+            rectRadius: radius,
+          });
+        } catch (e) {
+          console.warn("[hybrid] addShape(fond sous photo) failed", e);
+        }
+      }
+
       for (const zone of usableZones) {
         const photo = originalPhotos![zone.photoIndex - 1]; // garanti par filtre ci-dessus
         // Clamp dans les limites de la slide pour éviter les coordonnées négatives
