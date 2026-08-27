@@ -8210,7 +8210,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string
-          created_by: string
+          created_by: string | null
           extra_links: Json | null
           id: string
           instagram_url: string | null
@@ -8224,7 +8224,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string
-          created_by: string
+          created_by?: string | null
           extra_links?: Json | null
           id?: string
           instagram_url?: string | null
@@ -8238,7 +8238,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string
-          created_by?: string
+          created_by?: string | null
           extra_links?: Json | null
           id?: string
           instagram_url?: string | null
