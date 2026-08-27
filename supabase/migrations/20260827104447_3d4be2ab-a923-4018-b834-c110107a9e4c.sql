@@ -1,0 +1,1 @@
+ALTER TABLE public.workspaces ALTER COLUMN created_by DROP NOT NULL;
