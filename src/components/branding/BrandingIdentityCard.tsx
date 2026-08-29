@@ -159,7 +159,12 @@ function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, 
   if (actions.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap gap-2">
+    // Mobile : grille 2 colonnes — en `flex flex-wrap`, les libellés longs
+    // (« Importer un document », « Analyser mon site web ») ne tiennent pas à
+    // deux par rangée en 390 px et laissent la moitié droite vide, ce qui rend
+    // le bloc bancal. Au-delà de `sm`, on garde le flex d'origine : les 4
+    // boutons tiennent sur une seule rangée à leur largeur naturelle.
+    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
       {actions.map((a) => (
         <button
           key={a.label}
