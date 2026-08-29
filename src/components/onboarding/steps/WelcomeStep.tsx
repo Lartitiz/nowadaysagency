@@ -9,7 +9,13 @@ export default function WelcomeStep({ onNext }: WelcomeStepProps) {
     <div className="text-center space-y-8">
       <div className="space-y-5 max-w-md mx-auto">
         <p className="text-3xl md:text-4xl font-display font-bold text-foreground leading-tight">
-          Hey 👋 Bienvenue.
+          {/* L'espace typographique d'Instrument Serif est étroite (0,17 em) et
+              l'emoji, lui, est calé à droite dans son approche : le 👋 vient
+              coller le « B » de Bienvenue alors que le texte contient bien des
+              espaces. On compense l'approche droite plutôt que d'ajouter une
+              seconde espace, pour que le titre reste « Hey 👋 Bienvenue. » à la
+              sélection et à la lecture d'écran. */}
+          Hey <span className="mr-[0.12em]">👋</span> Bienvenue.
         </p>
         <div className="space-y-4 text-left">
           <p className="text-base text-muted-foreground leading-relaxed">
