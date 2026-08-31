@@ -14,6 +14,9 @@ const CAPPED_TRIGGER_EVENTS = new Set([
   "not_activated", "forgotten_draft_reminder",
 ]);
 
+// Nombre maximum de relances automatiques par personne sur 30 jours glissants.
+const MONTHLY_CAP = 2;
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
