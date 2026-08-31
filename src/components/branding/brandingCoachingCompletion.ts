@@ -193,7 +193,7 @@ async function generatePersonaPitches(currentPersona: Record<string, any>, ctx: 
       .maybeSingle();
 
     const { data: brandData } = await (supabase.from("brand_profile") as any)
-      .select("activite, mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
+      .select("mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
       .eq(ctx.column, ctx.value)
       .maybeSingle();
 
