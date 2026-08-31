@@ -14,6 +14,9 @@ const CAPPED_TRIGGER_EVENTS = new Set([
   "not_activated", "forgotten_draft_reminder",
 ]);
 
+// Nombre maximum de relances automatiques par personne sur 30 jours glissants.
+const MONTHLY_CAP = 2;
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -100,9 +103,9 @@ serve(async (req) => {
       });
     }
 
-    // Plafond quotidien anti-cumul : si cet envoi vient d'une séquence de relance/marketing
-    // et que la personne a déjà reçu UNE relance de ce type dans les dernières 24h (via une
-    // AUTRE séquence), on n'en envoie pas une deuxième le même jour.
+    // Plafond anti-cumul : si cet envoi vient d'une séquence de relance/marketing,
+    // on limite à 1 par 24h ET à 2 par 30 jours glissants, toutes séquences de ce
+    // type confondues. Les événements transactionnels ne sont jamais plafonnés.
     if (sequence_id && user_id) {
       const { data: thisSequence } = await supabase
         .from("email_sequences")
@@ -117,33 +120,43 @@ serve(async (req) => {
           .in("trigger_event", [...CAPPED_TRIGGER_EVENTS]);
         const cappedSequenceIds = (cappedSequences || []).map((s: any) => s.id);
 
-        const twentyFourHoursAgo = new Date(Date.now() - 24 * 3600000).toISOString();
-        const { data: recentSend } = await supabase
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 3600000).toISOString();
+        const { data: recentSends } = await supabase
           .from("email_sends")
-          .select("id")
+          .select("id, sent_at")
           .eq("user_id", user_id)
           .eq("status", "sent")
           .in("sequence_id", cappedSequenceIds)
-          .gte("sent_at", twentyFourHoursAgo)
-          .limit(1);
+          .gte("sent_at", thirtyDaysAgo);
 
-        if (recentSend?.length) {
+        const sends = recentSends || [];
+        const twentyFourHoursAgo = Date.now() - 24 * 3600000;
+        const lastDay = sends.filter((s: any) => new Date(s.sent_at).getTime() >= twentyFourHoursAgo);
+
+        const reason = lastDay.length >= 1
+          ? "Plafond quotidien atteint (déjà une relance automatique dans les dernières 24h)"
+          : sends.length >= MONTHLY_CAP
+            ? `Plafond mensuel atteint (${MONTHLY_CAP} relances automatiques max par 30 jours)`
+            : null;
+
+        if (reason) {
           // eslint-disable-next-line nowadays/require-supabase-error-check -- log fire-and-forget volontaire, cf. justifications ci-dessus
           await supabase.from("email_sends").insert({
             to_email: recipients.join(", "),
             subject,
             status: "skipped",
-            error: "Plafond quotidien atteint (déjà une relance automatique dans les dernières 24h)",
+            error: reason,
             user_id,
             template_id: template_id || null,
             sequence_id,
           });
-          return new Response(JSON.stringify({ success: true, skipped: true, reason: "Daily cap reached" }), {
+          return new Response(JSON.stringify({ success: true, skipped: true, reason }), {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
       }
     }
+
 
     const resendResponse = await fetch("https://api.resend.com/emails", {
       method: "POST",

@@ -364,10 +364,10 @@ async function handleCheckForgottenDrafts(supabase: any): Promise<any> {
   return { event: "check_forgotten_drafts", checked: userIds.length, triggered };
 }
 
-// Rendez-vous hebdo : email récurrent « tes idées de la semaine ».
-// Envoi DIRECT (pas la file one-shot) pour pouvoir repartir chaque semaine ;
-// garde anti-doublon = pas déjà envoyé ce template dans les 6 derniers jours.
-// Les désabonnées sont filtrées par send-email lui-même.
+// Rendez-vous « tes idées » : email récurrent, désormais MENSUEL (et non plus
+// hebdomadaire) pour réduire le volume d'emails. Envoi DIRECT (pas la file one-shot) ;
+// il part le jour de la semaine choisi, uniquement lors de sa 1re occurrence du mois,
+// avec une garde anti-doublon de 27 jours. Les désabonnées sont filtrées par send-email.
 async function handleWeeklyDigest(supabase: any, supabaseUrl: string, serviceRoleKey: string): Promise<any> {
   // 1. Séquence active "weekly_digest" → étape → template (respecte le toggle admin)
   const { data: sequences } = await supabase
@@ -389,7 +389,14 @@ async function handleWeeklyDigest(supabase: any, supabaseUrl: string, serviceRol
   // ne reçoit donc l'email QUE le jour qu'elle a choisi (l'admin et les désabonnées sont exclues).
   // Valeurs par défaut tolérantes si la migration de préférences n'est pas encore appliquée :
   // rituel actif + lundi.
-  const todayIso = isoDayOfWeek(new Date());
+  const now = new Date();
+  const todayIso = isoDayOfWeek(now);
+  // Cadence mensuelle : on n'envoie que lors de la 1re occurrence du jour choisi
+  // dans le mois (donc entre le 1er et le 7).
+  const dayOfMonth = now.getUTCDate();
+  if (dayOfMonth > 7) {
+    return { event: "weekly_digest", reason: "cadence mensuelle (hors 1re semaine)", sent: 0 };
+  }
   const { data: allProfiles } = await supabase
     .from("profiles")
     .select("user_id, prenom, email, activite, weekly_ritual_enabled, weekly_ritual_day")
@@ -402,10 +409,10 @@ async function handleWeeklyDigest(supabase: any, supabaseUrl: string, serviceRol
   });
   if (!profiles.length) return { event: "weekly_digest", day: todayIso, eligible: 0, sent: 0 };
 
-  // 3. Anti-doublon : qui a déjà reçu ce template dans les 6 derniers jours
-  const sixDaysAgo = new Date(Date.now() - 6 * 86400000).toISOString();
+  // 3. Anti-doublon : qui a déjà reçu ce template dans les 27 derniers jours
+  const lastMonth = new Date(Date.now() - 27 * 86400000).toISOString();
   const { data: recent } = await supabase
-    .from("email_sends").select("user_id").eq("template_id", templateId).gte("sent_at", sixDaysAgo);
+    .from("email_sends").select("user_id").eq("template_id", templateId).gte("sent_at", lastMonth);
   const alreadyThisWeek = new Set((recent || []).map((r: any) => r.user_id));
 
   // 4. Idées de la semaine → liste HTML injectée dans {{ideas}}
