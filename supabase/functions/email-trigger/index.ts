@@ -364,10 +364,10 @@ async function handleCheckForgottenDrafts(supabase: any): Promise<any> {
   return { event: "check_forgotten_drafts", checked: userIds.length, triggered };
 }
 
-// Rendez-vous hebdo : email récurrent « tes idées de la semaine ».
-// Envoi DIRECT (pas la file one-shot) pour pouvoir repartir chaque semaine ;
-// garde anti-doublon = pas déjà envoyé ce template dans les 6 derniers jours.
-// Les désabonnées sont filtrées par send-email lui-même.
+// Rendez-vous « tes idées » : email récurrent, désormais MENSUEL (et non plus
+// hebdomadaire) pour réduire le volume d'emails. Envoi DIRECT (pas la file one-shot) ;
+// il part le jour de la semaine choisi, uniquement lors de sa 1re occurrence du mois,
+// avec une garde anti-doublon de 27 jours. Les désabonnées sont filtrées par send-email.
 async function handleWeeklyDigest(supabase: any, supabaseUrl: string, serviceRoleKey: string): Promise<any> {
   // 1. Séquence active "weekly_digest" → étape → template (respecte le toggle admin)
   const { data: sequences } = await supabase
