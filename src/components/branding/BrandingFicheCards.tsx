@@ -638,7 +638,7 @@ function FieldCards({ fields, data, table, recordId, section, onFieldUpdate }: F
       // Generate pitches
       const { data: freshPersona } = await (supabase.from("persona") as any).select("*").eq("id", recordId).maybeSingle();
       const { data: brandData } = await (supabase.from("brand_profile") as any)
-        .select("activite, mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
+        .select("mission, offer, target_description, tone_register, voice_description, target_verbatims, combat_cause")
         .eq(column, workspaceValue).maybeSingle();
       const { data: pitchData } = await invokeWithTimeout("persona-ai", {
         body: { type: "pitch", persona: freshPersona || data, profile: brandData || {} },
