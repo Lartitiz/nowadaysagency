@@ -27,14 +27,19 @@ test("membres : liste, invitation, lien, révocation", async ({ page }, testInfo
   // Liste des membres chargée (au moins la ligne « (toi) » avec badge de rôle)
   await expect(section.getByText("(toi)")).toBeVisible({ timeout: 20_000 });
 
-  // Reliquat d'un run précédent interrompu : on révoque avant de recréer
-  const revokeLeftover = section.getByRole("button", {
+  // Reliquats de runs précédents interrompus : on les révoque TOUS avant de recréer.
+  // Il peut y en avoir plusieurs (un par run échoué avant la révocation finale) :
+  // on compte au lieu de tester la visibilité, car `isVisible()` sur 2 boutons ou
+  // plus lève une violation du mode strict — jadis avalée par un catch, ce qui
+  // désactivait le nettoyage précisément quand il devenait nécessaire.
+  const revokeLeftovers = section.getByRole("button", {
     name: `Révoquer l'invitation de ${DUMMY_EMAIL}`,
   });
-  if (await revokeLeftover.isVisible().catch(() => false)) {
-    await revokeLeftover.click();
-    await expect(section.getByText(DUMMY_EMAIL)).toBeHidden({ timeout: 20_000 });
+  for (let restants = await revokeLeftovers.count(); restants > 0; restants--) {
+    await revokeLeftovers.first().click();
+    await expect(revokeLeftovers).toHaveCount(restants - 1, { timeout: 20_000 });
   }
+  await expect(section.getByText(DUMMY_EMAIL)).toHaveCount(0);
   await shot("1-liste");
 
   // Créer une invitation pour l'email jetable
@@ -43,7 +48,9 @@ test("membres : liste, invitation, lien, révocation", async ({ page }, testInfo
 
   // Le lien apparaît + la ligne « en attente »
   await expect(section.getByText("Lien d'invitation prêt")).toBeVisible({ timeout: 20_000 });
-  await expect(section.getByText(DUMMY_EMAIL)).toBeVisible();
+  // Exactement une ligne : on partait d'une ardoise propre, donc un doublon ici
+  // serait une vraie duplication côté app, pas un reliquat de test.
+  await expect(section.getByText(DUMMY_EMAIL)).toHaveCount(1);
   await shot("2-invitation-creee");
 
   // Copie du lien (bouton du bloc « lien prêt »)
