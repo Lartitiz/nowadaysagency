@@ -150,7 +150,7 @@ export default function CharterStoriesSection({ data, onDataChange }: Props) {
       </p>
 
       <p className="text-xs font-medium text-muted-foreground mb-2">L'assemblage</p>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" role="radiogroup" aria-label="Assemblage">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" role="radiogroup" aria-label="Assemblage">
         {cards.map(({ asm, photo, liste }) => {
           const active = asm.key === resolved.assemblage;
           return (
@@ -161,7 +161,7 @@ export default function CharterStoriesSection({ data, onDataChange }: Props) {
               aria-checked={active}
               data-story-assemblage={asm.key}
               onClick={() => onDataChange({ story_assemblage: asm.key })}
-              className={`relative text-left rounded-xl border p-3 transition-all hover:border-primary/40 hover:bg-muted/30 ${
+              className={`relative min-w-0 text-left rounded-xl border p-3 transition-all hover:border-primary/40 hover:bg-muted/30 ${
                 active ? "border-primary bg-primary/5 ring-2 ring-primary/20" : "border-border"
               }`}
             >
@@ -178,9 +178,9 @@ export default function CharterStoriesSection({ data, onDataChange }: Props) {
                   <span className="text-2xs text-primary font-medium">Sélectionné</span>
                 )}
               </div>
-              <div className="flex gap-2">
-                <StoryFramePreview html={photo} title={`${asm.name}, story photo`} width={104} />
-                <StoryFramePreview html={liste} title={`${asm.name}, story liste`} width={104} />
+              <div className="flex gap-2 min-w-0">
+                <StoryFramePreview html={photo} title={`${asm.name}, story photo`} fluid />
+                <StoryFramePreview html={liste} title={`${asm.name}, story liste`} fluid />
               </div>
               <p className="text-2xs text-muted-foreground/80 leading-snug mt-2.5">{asm.description}</p>
             </button>
@@ -211,9 +211,9 @@ export default function CharterStoriesSection({ data, onDataChange }: Props) {
 
       <div className="mt-6 pt-5 border-t border-border">
         <p className="text-xs font-medium text-muted-foreground mb-2">Aperçu sur trois stories classiques</p>
-        <div className="flex flex-wrap gap-3" data-charter-stories-preview>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-w-[560px]" data-charter-stories-preview>
           {big.map((s) => (
-            <StoryFramePreview key={s.key} html={s.html} title={`Aperçu ${s.key}`} width={168} />
+            <StoryFramePreview key={s.key} html={s.html} title={`Aperçu ${s.key}`} fluid />
           ))}
         </div>
         <p className="text-2xs text-muted-foreground/80 mt-2">
