@@ -300,10 +300,24 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     });
   }, [onStoriesUpdate]);
 
-  const updateVisualPill = useCallback((index: number, field: "title_pill" | "body_pill", newValue: string) => {
+  const updateVisualPill = useCallback((index: number, field: "title_pill" | "body_pill" | "quote", newValue: string) => {
     setStories(prev => {
       const updated = [...prev];
       updated[index] = { ...updated[index], visual: { ...updated[index].visual, [field]: newValue } };
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+  }, [onStoriesUpdate]);
+
+  // Choix du fond, story par story : photo (la bande de photos s'ouvre dessous)
+  // ou couleur de la marque, sans rien. Vaut pour tous les gabarits, citation
+  // comprise (demande Laetitia 07/09 : « soit un fond sans rien, soit la photo
+  // que je veux »).
+  const setBackground = useCallback((index: number, background: "photo" | "fond_couleur") => {
+    setStories((prev) => {
+      const updated = [...prev];
+      const story = updated[index];
+      updated[index] = { ...story, visual: { ...(story.visual || {}), background } };
       onStoriesUpdate?.(updated);
       return updated;
     });
@@ -556,23 +570,67 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                   )}
                   {frames[i] && story.visual && (
                     <div className="space-y-1.5 pt-1">
-                      {typeof story.visual.title_pill === "string" && (
-                        <Input
-                          value={story.visual.title_pill}
-                          onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
-                          className="h-7 text-xs"
-                          aria-label="Pastille titre"
-                          placeholder="Pastille titre"
-                        />
-                      )}
-                      {typeof story.visual.body_pill === "string" && (
-                        <Input
-                          value={story.visual.body_pill}
-                          onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
-                          className="h-7 text-xs"
-                          aria-label="Pastille texte"
-                          placeholder="Pastille texte"
-                        />
+                      <div className="flex items-center gap-1.5" role="group" aria-label="Fond de la story">
+                        <span className="text-2xs text-muted-foreground">Fond :</span>
+                        {([
+                          ["photo", "📷 Photo"],
+                          ["fond_couleur", "Couleur"],
+                        ] as const).map(([value, label]) => {
+                          const active = (story.visual?.background || "fond_couleur") === value;
+                          return (
+                            <Button
+                              key={value}
+                              type="button"
+                              variant={active ? "secondary" : "ghost"}
+                              size="sm"
+                              className="h-6 px-2 text-2xs"
+                              aria-pressed={active}
+                              data-story-background={value}
+                              onClick={() => setBackground(i, value)}
+                            >
+                              {label}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                      {story.visual.gabarit === "citation" ? (
+                        <>
+                          <Input
+                            value={story.visual.quote ?? ""}
+                            onChange={(e) => updateVisualPill(i, "quote", e.target.value)}
+                            className="h-7 text-xs"
+                            aria-label="Citation"
+                            placeholder="La citation (verbatim)"
+                          />
+                          <Input
+                            value={story.visual.body_pill ?? ""}
+                            onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
+                            className="h-7 text-xs"
+                            aria-label="Qui l'a dit"
+                            placeholder="Qui l'a dit (optionnel)"
+                          />
+                        </>
+                      ) : (
+                        <>
+                          {typeof story.visual.title_pill === "string" && (
+                            <Input
+                              value={story.visual.title_pill}
+                              onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
+                              className="h-7 text-xs"
+                              aria-label="Pastille titre"
+                              placeholder="Pastille titre"
+                            />
+                          )}
+                          {typeof story.visual.body_pill === "string" && (
+                            <Input
+                              value={story.visual.body_pill}
+                              onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
+                              className="h-7 text-xs"
+                              aria-label="Pastille texte"
+                              placeholder="Pastille texte"
+                            />
+                          )}
+                        </>
                       )}
                     </div>
                   )}
