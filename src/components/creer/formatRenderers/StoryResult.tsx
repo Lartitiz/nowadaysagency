@@ -351,16 +351,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
           format: "photo",
           format_label: "📸 Photo avec texte",
           visual: {
-            background: "photo",
-            gabarit: "photo_pills",
-            title_pill: title,
-            body_pill: body,
             photo_directive: story.visual?.photo_directive ?? null,
             photo_query_en: story.visual?.photo_query_en ?? null,
             ...(story.visual || {}),
-            ...(story.visual?.title_pill ? {} : { title_pill: title, body_pill: body }),
+            title_pill: story.visual?.title_pill || title,
+            body_pill: story.visual?.body_pill || body,
             background: "photo",
-            gabarit: story.visual?.gabarit && story.visual.gabarit !== "fond_pills" ? story.visual.gabarit : "photo_pills",
+            gabarit:
+              story.visual?.gabarit && story.visual.gabarit !== "fond_pills"
+                ? story.visual.gabarit
+                : "photo_pills",
           },
         };
       } else {
