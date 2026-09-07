@@ -499,3 +499,66 @@ Deno.test("analyzeCarouselRedac : recopie détectée sur une slide", () => {
   );
   assertEquals(a.brandCopyOverlap.length, 1);
 });
+
+// ═══ Audit stories 07/09/2026 — lot C : formes COURTES du retournement ═══
+import { dropUserSourcedReversals } from "./redac-gate.ts";
+
+const SHORT_REVERSALS = [
+  "J'ai arrêté les marchés du dimanche. Et non, c'est pas parce que ça marchait pas.",
+  "Elle m'a dit que ses plaques s'étaient calmées. Pas 'amélioré un peu'. Calmées.",
+  "Ton savon fond en trois douches ? C'est pas de ta faute.",
+  "J'ai arrêté de vendre sur les marchés. Pas pour les raisons que tu crois.",
+  "Un savon, ça se choisit comme une crème. Pas comme un produit ménager.",
+  "Le problème, c'est pas l'outil. C'est ceux qui l'utilisent.",
+  "Ce n'est pas pousser quelqu'un. C'est le comprendre.",
+];
+
+Deno.test("retournements courts : les 7 formes du corpus stories sont toutes détectées", () => {
+  for (const s of SHORT_REVERSALS) {
+    assertEquals(analyzeTextRedac(s).reversals.length >= 1, true, `non détecté : ${s}`);
+  }
+});
+
+Deno.test("retournements courts : des phrases normales avec « pas » ne déclenchent pas", () => {
+  const ok = [
+    "Je ne vends pas le dimanche, je suis à l'atelier ou je me repose.",
+    "Ce savon n'est pas parfumé, il sent juste l'huile d'olive.",
+    "Pas de marché ce week-end, la boutique en ligne reste ouverte.",
+    "Comme chaque semaine, on pèse les huiles au gramme près.",
+  ];
+  for (const s of ok) assertEquals(analyzeTextRedac(s).reversals, [], `faux positif : ${s}`);
+});
+
+Deno.test("dropUserSourcedReversals : un retournement écrit par l'utilisatrice (message clé) n'est plus compté", () => {
+  const text = "Un savon, ça se choisit comme une crème. Pas comme un produit ménager. Et non, c'est pas parce que c'est cher.";
+  const a = analyzeTextRedac(text);
+  assertEquals(a.reversals.length, 2);
+  const filtered = dropUserSourcedReversals(a, JSON.stringify({ message_cle: "Un savon ça se choisit comme une crème, pas comme un produit ménager" }));
+  assertEquals(filtered.reversals.length, 1);
+  assertEquals(filtered.reversals[0].includes("Et non"), true);
+  // Sans source : inchangé
+  assertEquals(dropUserSourcedReversals(a, "").reversals.length, 2);
+});
+
+// ═══ Audit stories 07/09/2026 — lot E4 : expressions courtes de la fiche de marque ═══
+const FICHE_FRAGMENTS = [
+  "Direct et chaleureux, comme une binôme experte qui te dit les choses honnêtement.",
+  "engagé, éthique, émancipation, visible, sans vendre son âme, binôme, concret, désirable, safe place, dans le beau et dans la joie",
+  "« Je fais un travail que j'aime mais personne ne le voit », « je ne veux pas devenir trop commerciale »",
+].join("\n\n");
+
+Deno.test("findBrandCopyOverlap : une expression courte (3-6 mots) listée dans la fiche est vue même sous la fenêtre de 7 mots", () => {
+  const generated = "Communiquer = vendre son âme. J'entends ça tout le temps, et je crois qu'on peut être visible sans vendre son âme.";
+  const found = findBrandCopyOverlap(generated, FICHE_FRAGMENTS);
+  assertEquals(found.includes("sans vendre son âme"), true);
+});
+
+Deno.test("findBrandCopyOverlap : un mot seul ou deux mots de la fiche (« safe place », « éthique ») ne déclenchent pas", () => {
+  const generated = "Je veux que mon compte reste une safe place, éthique et concrète, pour les créatrices qui débutent.";
+  assertEquals(findBrandCopyOverlap(generated, FICHE_FRAGMENTS), []);
+});
+
+Deno.test("findBrandCopyOverlap : un verbatim cible recopié n'est compté qu'une fois (fenêtre longue OU expression courte)", () => {
+  const generated = "Ce que j'entends : je fais un travail que j'aime mais personne ne le voit. Et c'est là qu'on peut agir.";
+  assertEquals(findBrandCopyOverlap(generated, FICHE_FRAGMENTS).length, 1);
+});

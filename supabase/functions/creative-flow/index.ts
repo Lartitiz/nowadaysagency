@@ -15,9 +15,9 @@ import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool }
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
 import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, storiesAuditableText } from "../_shared/correction-pass.ts";
-import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations } from "../_shared/redac-gate.ts";
+import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations, dropUserSourcedReversals } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
-import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
+import { fetchPreviousHooks, fetchPreviousHooksByFormat } from "../_shared/previous-hooks.ts";
 import {
   alignFaceCamTakeDuration,
   applyReelElisions,
@@ -1503,7 +1503,13 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
       fullContext || "",
     ].join("\n"));
     const echo = { previousHooks, subject: echoSubject };
-    const analyze = (stories: any[]) => analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo);
+    // Un retournement écrit PAR l'utilisatrice (message clé, réponses) n'est pas un tic.
+    const userSource = [
+      typeof body.context === "string" ? body.context : "",
+      body.answers ? JSON.stringify(body.answers) : "",
+      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+    ].join("\n");
+    const analyze = (stories: any[]) => dropUserSourcedReversals(analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo), userSource);
     const before = analyze(parsed.stories);
     let best = parsed.stories;
     let bestA = before;
@@ -2888,6 +2894,14 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // flux ouvert, c'est le deadlock déjà vécu (corps lu DANS le stream).
     const echoSubject = typeof context === "string" ? context : undefined;
     const previousHooks = await fetchPreviousHooks(userId, echoSubject);
+    if (isStories) {
+      // Stories : la redite d'accroche se voit aussi ENTRE sujets (même amorce
+      // trois semaines plus tard sur un autre thème) → on ajoute les accroches
+      // des dernières séquences de la même personne, tous sujets confondus.
+      for (const h of await fetchPreviousHooksByFormat(userId, "stories")) {
+        if (!previousHooks.includes(h)) previousHooks.push(h);
+      }
+    }
     if (previousHooks.length) {
       console.log(`[creative-flow] ${previousHooks.length} accroche(s) déjà écrite(s) sur ce sujet — garde anti-redite active`);
     }
