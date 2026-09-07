@@ -528,16 +528,23 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                         {formatSlideRole(story.role)}
                       </Badge>
                     )}
-                    {story.format && (
-                      <Badge variant="outline" className="text-2xs">{story.format}</Badge>
-                    )}
                     <Button
-                      variant="ghost"
+                      variant="outline"
                       size="sm"
-                      className="h-6 px-2 text-2xs text-muted-foreground hover:text-foreground"
+                      className="h-7 px-2.5 text-2xs gap-1.5 font-medium border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
                       onClick={() => toggleFaceCam(i)}
                     >
-                      {story.face_cam ? "Plutôt une story designée" : "Plutôt me filmer"}
+                      {story.face_cam ? (
+                        <>
+                          <ImageIcon className="h-3.5 w-3.5" />
+                          Story designée
+                        </>
+                      ) : (
+                        <>
+                          <Camera className="h-3.5 w-3.5" />
+                          Me filmer
+                        </>
+                      )}
                     </Button>
                   </div>
                   {(story.text || story.texte || story.content) && (
