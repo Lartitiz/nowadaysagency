@@ -339,7 +339,7 @@ export function buildAdjustPrompt(params: {
   } else if (adjustLower.includes("court")) {
     adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde les punchlines et les exemples concrets. Ne sacrifie pas la profondeur.";
   } else if (adjustLower.includes("punchy")) {
-    adjustGuidance = "Raccourcis les phrases longues. Ajoute des bucket brigades. L'accroche doit claquer plus fort.";
+    adjustGuidance = "Raccourcis les phrases longues et resserre chaque idée. Garde l'oralité, sans cheville de relance ni phrase isolée pour faire de l'effet. L'accroche doit claquer plus fort, avec un détail du sujet.";
   } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
     adjustGuidance = "Remplace les conseils abstraits par des situations concrètes. Chaque point doit avoir un exemple terrain, un cas réel, ou un chiffre.";
   } else if (adjustLower.includes("storytelling") || adjustLower.includes("histoire")) {
