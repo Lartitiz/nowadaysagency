@@ -145,9 +145,10 @@ export function useOpenInCanva() {
         // Filet serveur (statut local périmé ou inconnu) : même invitation à connecter.
         if ((data as any)?.error === "not_connected") {
           toast.dismiss(TOAST_ID);
-          promptToConnect();
+          promptToConnect((data as any)?.message);
           return;
         }
+
         if (error) throw new Error(error.message);
         if ((data as any)?.error) throw new Error((data as any).error);
 
