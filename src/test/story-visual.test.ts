@@ -176,6 +176,16 @@ describe("texte long dans la pastille", () => {
   });
 });
 
+describe("citation : attribution courte seulement", () => {
+  it("garde « qui l'a dit » quand c'est court, l'omet quand body_pill est le texte entier", () => {
+    const short = buildStoryFrameHtml({ visual: { gabarit: "citation", quote: "le bol est encore plus beau en vrai", body_pill: "Marion, cliente depuis juin" } }, branding)!;
+    expect(short).toContain('data-story-pptx="attribution"');
+    const long = buildStoryFrameHtml({ visual: { gabarit: "citation", quote: "le bol est encore plus beau en vrai", body_pill: "Une dame a pris un bol dans les mains. Elle l'a tourné, elle a regardé la texture, et elle m'a dit ça. Ça m'a fait un truc, vraiment." } }, branding)!;
+    expect(long).not.toContain('data-story-pptx="attribution"');
+    expect(long).toContain("« le bol est encore plus beau en vrai »");
+  });
+});
+
 describe("buildStoryFrames", () => {
   it("numérote les frames et laisse null les stories sans visuel", () => {
     const frames = buildStoryFrames(

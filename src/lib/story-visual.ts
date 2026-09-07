@@ -311,7 +311,12 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
     // L'IA remet parfois le verbatim tel quel dans body_pill : ne montrer
     // l'attribution que si elle apporte autre chose que la citation.
     const normalize = (s: string) => s.toLowerCase().replace(/[«»"'’\s.?!,:;()-]/g, "");
-    const attribution = visual.quote && normalize(body) && normalize(body) !== normalize(quote) ? body : "";
+    // L'attribution, c'est « qui l'a dit » : une ligne. Depuis que body_pill
+    // porte le texte entier de la story (07/09), une citation pouvait recevoir
+    // 300 caractères sous le verbatim : au-delà de 80, on ne montre que la
+    // citation (le texte reste dans la story, pas sur l'image).
+    const attribution =
+      visual.quote && normalize(body) && normalize(body) !== normalize(quote) && body.length <= 80 ? body : "";
     const quoteStyle: StoryTextStyle = asm.quote
       ? { ...asm.quote, mode: "wh" }
       : { ...asm.title, mode: "wh", size: asm.title.size * 0.92, upper: false, letterSpacing: undefined };
