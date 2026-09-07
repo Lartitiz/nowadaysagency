@@ -55,10 +55,11 @@ export function useOpenInCanva() {
   // null = statut encore inconnu (chargement ou échec réseau) → on ne bloque pas.
   const canvaConnected: boolean | null = known ? isConnected("canva") : null;
 
-  const promptToConnect = useCallback(() => {
-    toast.error("Ton compte Canva n'est pas encore connecté.", {
+  const promptToConnect = useCallback((titre?: string) => {
+    toast.error(titre || "Ton compte Canva n'est pas encore connecté.", {
       description:
         "Connecte-le une fois, et on te ramène tout de suite à ton contenu — tu ne perds rien.",
+
       action: {
         label: "Connecter Canva",
         // On note d'où l'on part : la page des connexions y ramènera.
