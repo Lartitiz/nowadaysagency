@@ -3,13 +3,27 @@
 // Contrairement aux carrousels (HTML généré par l'IA via carousel-visual),
 // les stories sont assemblées en pur TypeScript à partir du plan visuel
 // produit par storiesBrief (champ "visual" de chaque story) : le look doit
-// imiter le texte natif Instagram (pastilles surlignées ligne à ligne),
-// pas un visuel designé. Déterministe = zéro slop, zéro coût IA, aperçu
-// instantané quand l'utilisatrice édite le texte.
+// imiter le texte natif Instagram (pastilles ligne à ligne), pas un visuel
+// designé. Déterministe = zéro slop, zéro coût IA, aperçu instantané quand
+// l'utilisatrice édite le texte.
 //
-// Typographies : équivalents libres des styles natifs Instagram
-// (SF Pro et Brutal Type ne sont pas librement embarquables) :
-// Classic → Inter, Strong → Oswald, Elegant → Playfair Display italique.
+// Typographies et habillages : l'ASSEMBLAGE choisi dans la charte
+// (story-styles.ts, défaut « A · Éditorial »). Les couleurs viennent de la
+// charte, jamais de celle de Nowadays.
+
+import {
+  FONT_CLASSIC,
+  FONT_MONO,
+  STORY_FONTS_HREF,
+  STORY_PILL,
+  estimateLines,
+  getStoryAssemblage,
+  resolveStoryStyle,
+  type StoryAssemblage,
+  type StoryStyleResolved,
+  type StoryStyleSettings,
+  type StoryTextStyle,
+} from "./story-styles";
 
 export const STORY_W = 1080;
 export const STORY_H = 1920;
@@ -48,7 +62,8 @@ export interface StoryFrameStory {
   face_cam?: boolean | null;
 }
 
-export interface StoryFrameBranding {
+/** Couleurs de la charte + réglages story_* (colonnes brand_charter, optionnelles). */
+export interface StoryFrameBranding extends StoryStyleSettings {
   color_primary?: string | null;
   color_secondary?: string | null;
   color_background?: string | null;
@@ -62,13 +77,7 @@ export interface StoryFrameOptions {
   preview?: boolean;
 }
 
-const FONT_LINK =
-  '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700&family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@1,500;1,600&family=IBM+Plex+Mono:wght@500&display=swap">';
-
-const FONT_CLASSIC = "'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif";
-const FONT_STRONG = "'Oswald', 'Arial Narrow', sans-serif";
-const FONT_ELEGANT = "'Playfair Display', Georgia, serif";
-const FONT_MONO = "'IBM Plex Mono', ui-monospace, monospace";
+const FONT_LINK = `<link rel="stylesheet" href="${STORY_FONTS_HREF}">`;
 
 function escapeHtml(s: string): string {
   return s
@@ -117,57 +126,76 @@ interface Palette {
   secondary: string;
   background: string;
   ink: string;
+  /** Couleur des pastilles « couleur » (réglage de la charte). */
+  pill: string;
+  /** Couleur du texte sur pastille claire (tint). */
+  tintInk: string;
 }
 
-function buildPalette(branding: StoryFrameBranding | null | undefined): Palette {
+function buildPalette(branding: StoryFrameBranding | null | undefined, style: StoryStyleResolved): Palette {
   const primary = normalizeHex(branding?.color_primary, "#FB3D80");
   const secondary = normalizeHex(branding?.color_secondary, tintWithWhite(primary, 0.35));
   const background = normalizeHex(branding?.color_background, tintWithWhite(primary, 0.88));
   const ink = normalizeHex(branding?.color_text, "#2A2521");
-  return { primary, secondary, background, ink };
+  const pill = style.pillColor === "secondary" ? secondary : style.pillColor === "ink" ? ink : primary;
+  // Sur pastille claire, une couleur secondaire trop pâle serait illisible :
+  // on retombe sur la primaire.
+  const tintInk = style.pillColor === "secondary" && luminance(secondary) > 0.45 ? primary : pill;
+  return { primary, secondary, background, ink, pill, tintInk };
 }
 
-/** Une pastille façon texte natif Instagram : fond ligne à ligne (box-decoration-break). */
-function pill(text: string, opts: { bg: string; color: string; font: string; size: number; transform?: string; letterSpacing?: string; italic?: boolean; role?: string }): string {
-  const style = [
+interface RenderCtx {
+  p: Palette;
+  style: StoryStyleResolved;
+  asm: StoryAssemblage;
+}
+
+type Role = "title" | "body" | "aside" | "quote" | "attribution" | "item";
+
+/**
+ * Un bloc de texte façon natif Instagram : une boîte PAR LIGNE ajustée au
+ * texte (box-decoration-break:clone), boîtes qui se touchent, coins courts.
+ * Mode « nu » = pas de boîte, ombre portée (texte blanc sur photo).
+ */
+function textBlock(text: string, st: StoryTextStyle, ctx: RenderCtx, role: Role, overrides: Partial<StoryTextStyle> = {}): string {
+  const s: StoryTextStyle = { ...st, ...overrides };
+  const { p, style } = ctx;
+  const radiusEm = style.corners === "droits" ? STORY_PILL.radiusDroitsEm : (s.radiusEm ?? STORY_PILL.radiusEm);
+  const base = [
     "display:inline",
-    "box-decoration-break:clone",
-    "-webkit-box-decoration-break:clone",
-    `background:${opts.bg}`,
-    `color:${opts.color}`,
-    `font-family:${opts.font}`,
-    `font-size:${opts.size}px`,
-    "font-weight:600",
-    `line-height:1.72`,
-    "padding:8px 30px",
-    "border-radius:18px",
-    opts.transform ? `text-transform:${opts.transform}` : "",
+    `font-family:${s.font}`,
+    `font-size:${Math.round(s.size)}px`,
+    `font-weight:${s.weight}`,
+    `line-height:${STORY_PILL.lineHeight}`,
+    s.italic ? "font-style:italic" : "",
+    s.upper ? "text-transform:uppercase" : "",
     // letter-spacing TOUJOURS explicite (jamais "normal") : html2canvas mesure
-    // mal les espaces de certaines fontes (Playfair italique → mots collés à
-    // l'export) ; un letter-spacing non nul le force à poser chaque caractère.
-    `letter-spacing:${opts.letterSpacing || "0.01em"}`,
-    opts.italic ? "font-style:italic" : "",
-  ]
-    .filter(Boolean)
-    .join(";");
+    // mal les espaces de certaines fontes (italiques → mots collés à l'export) ;
+    // un letter-spacing non nul le force à poser chaque caractère.
+    `letter-spacing:${s.letterSpacing || "0.01em"}`,
+  ];
+  let look: string[];
+  if (s.mode === "nu") {
+    look = [
+      "background:transparent",
+      "color:#FFFFFF",
+      "text-shadow:0 0.05em 0.3em rgba(0,0,0,0.8),0 0 1.1em rgba(0,0,0,0.55)",
+    ];
+  } else {
+    const bg = s.mode === "col" ? p.pill : s.mode === "tint" ? "rgba(255,255,255,0.86)" : "#FFFFFF";
+    const color = s.mode === "col" ? textOn(p.pill, p.ink) : s.mode === "tint" ? p.tintInk : p.ink;
+    look = [
+      "box-decoration-break:clone",
+      "-webkit-box-decoration-break:clone",
+      `background:${bg}`,
+      `color:${color}`,
+      `padding:${STORY_PILL.paddingEm}`,
+      `border-radius:${radiusEm}em`,
+    ];
+  }
+  const css = [...base, ...look].filter(Boolean).join(";");
   // data-story-pptx : repère de mesure pour l'export PPTX natif (export-story-pptx).
-  return `<span data-story-pptx="${opts.role || "text"}" style="${style}">${escapeHtml(text)}</span>`;
-}
-
-function titlePillHtml(text: string, p: Palette): string {
-  return pill(text, {
-    bg: p.primary,
-    color: textOn(p.primary, p.ink),
-    font: FONT_STRONG,
-    size: 66,
-    transform: "uppercase",
-    letterSpacing: "2px",
-    role: "title",
-  });
-}
-
-function bodyPillHtml(text: string, p: Palette, size = 52): string {
-  return pill(text, { bg: "#FFFFFF", color: p.ink, font: FONT_CLASSIC, size, role: "body" });
+  return `<span data-story-pptx="${role}" data-story-mode="${s.mode}" style="${css}">${escapeHtml(text)}</span>`;
 }
 
 /** Zone sticker : matérialisée en aperçu, espace vide (même encombrement) à l'export. */
@@ -202,6 +230,24 @@ function wrapFrame(inner: string, backgroundCss: string): string {
 <div data-story-frame style="width:${STORY_W}px;height:${STORY_H}px;position:relative;${backgroundCss}">${inner}</div>`;
 }
 
+/** Alignement d'une story : réglage de la charte, ou auto (centré ≤ 2 lignes, gauche au-delà). */
+function alignFor(ctx: RenderCtx, longest: { text: string; style: StoryTextStyle } | null): "center" | "left" {
+  if (ctx.style.align === "centre") return "center";
+  if (ctx.style.align === "gauche") return "left";
+  if (!longest) return "center";
+  return estimateLines(longest.text, longest.style) > 2 ? "left" : "center";
+}
+
+function column(align: "center" | "left", extra: string, blocks: string[]): string {
+  const items = align === "center" ? "center" : "flex-start";
+  return `<div style="height:100%;${SAFE};display:flex;flex-direction:column;align-items:${items};text-align:${align};${extra}">
+${blocks.filter(Boolean).map((b) => `<div style="max-width:100%">${b}</div>`).join("\n")}
+</div>`;
+}
+
+// Zone de sécurité Instagram : ~250px en haut (avatar, ✕) et ~300px en bas (répondre).
+const SAFE = "padding:280px 84px 320px";
+
 /**
  * Construit le HTML autonome (1080×1920) du visuel d'une story.
  * Retourne null si la story n'a pas de visuel à rendre (face cam, plan absent).
@@ -214,7 +260,10 @@ export function buildStoryFrameHtml(
   const visual = story?.visual;
   if (!visual || story?.face_cam) return null;
 
-  const p = buildPalette(branding);
+  const style = resolveStoryStyle(branding);
+  const asm = getStoryAssemblage(style.assemblage);
+  const p = buildPalette(branding, style);
+  const ctx: RenderCtx = { p, style, asm };
   const preview = opts.preview !== false;
   const gabarit = (visual.gabarit || "fond_pills") as StoryGabarit;
 
@@ -224,19 +273,25 @@ export function buildStoryFrameHtml(
     ? `background-image:url('${String(opts.photoUrl).replace(/'/g, "%27")}');background-size:cover;background-position:center`
     : `background:${gabarit === "citation" ? p.ink : p.background}`;
 
-  // Zone de sécurité Instagram : ~250px en haut (avatar, ✕) et ~300px en bas (répondre).
-  const SAFE = "padding:280px 84px 320px";
-
   const title = (visual.title_pill || "").trim();
   const body = (visual.body_pill || "").trim();
+
+  // Sur fond couleur, le texte « nu » (blanc + ombre) n'a pas de sens : il
+  // devient une pastille blanche. Sur photo, il reste nu.
+  const bodyStyle: StoryTextStyle = !onPhoto && asm.body.mode === "nu" ? { ...asm.body, mode: "wh" } : asm.body;
+  const titleStyle: StoryTextStyle = !onPhoto && asm.title.mode === "nu" ? { ...asm.title, mode: "col" } : asm.title;
 
   let inner = "";
 
   if (gabarit === "liste") {
     const items = (Array.isArray(visual.list_pills) ? visual.list_pills : []).filter(Boolean).slice(0, 4);
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;gap:44px">
-${title ? `<div style="text-align:center">${titlePillHtml(title, p)}</div>` : ""}
-${items.map((it) => `<div>${bodyPillHtml(it, p, 48)}</div>`).join("\n")}
+    // Les items d'une liste sont toujours en pastille (jamais nus) et à gauche,
+    // comme les listes natives ; le titre reste centré sauf réglage « gauche ».
+    const itemStyle: StoryTextStyle = { ...asm.body, mode: asm.body.mode === "nu" ? "wh" : asm.body.mode, size: asm.body.size * 0.92 };
+    const titleAlign = style.align === "gauche" ? "flex-start" : "center";
+    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;gap:34px">
+${title ? `<div style="max-width:100%;align-self:${titleAlign};text-align:${titleAlign === "center" ? "center" : "left"}">${textBlock(title, titleStyle, ctx, "title")}</div>` : ""}
+${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx, "item")}</div>`).join("\n")}
 </div>`;
   } else if (gabarit === "citation") {
     const quote = (visual.quote || body || title).trim();
@@ -244,28 +299,35 @@ ${items.map((it) => `<div>${bodyPillHtml(it, p, 48)}</div>`).join("\n")}
     // l'attribution que si elle apporte autre chose que la citation.
     const normalize = (s: string) => s.toLowerCase().replace(/[«»"'’\s.?!,:;()-]/g, "");
     const attribution = visual.quote && normalize(body) && normalize(body) !== normalize(quote) ? body : "";
-    const quoteBg = tintWithWhite(p.background, 0.5);
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:44px">
-<div>${pill(`« ${quote} »`, { bg: quoteBg, color: p.ink, font: FONT_ELEGANT, size: 58, italic: true, role: "quote" })}</div>
-${attribution ? `<div>${pill(attribution, { bg: p.primary, color: textOn(p.primary, p.ink), font: FONT_CLASSIC, size: 38, role: "attribution" })}</div>` : ""}
-</div>`;
+    const quoteStyle: StoryTextStyle = asm.quote
+      ? { ...asm.quote, mode: "wh" }
+      : { ...asm.title, mode: "wh", size: asm.title.size * 0.92, upper: false, letterSpacing: undefined };
+    const quoteText = `« ${quote} »`;
+    const align = alignFor(ctx, { text: quoteText, style: quoteStyle });
+    inner = column(align, "justify-content:center;gap:34px", [
+      textBlock(quoteText, quoteStyle, ctx, "quote"),
+      attribution ? textBlock(attribution, { ...asm.aside, mode: "col" }, ctx, "attribution") : "",
+    ]);
   } else if (gabarit === "interaction") {
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;gap:70px;text-align:center">
-${title ? `<div>${titlePillHtml(title, p)}</div>` : ""}
-${body ? `<div>${bodyPillHtml(body, p)}</div>` : ""}
-${stickerZoneHtml(story?.sticker, p, preview, onPhoto)}
+    const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
+    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:${align === "center" ? "center" : "flex-start"};text-align:${align};gap:60px">
+${title ? `<div style="max-width:100%">${textBlock(title, titleStyle, ctx, "title")}</div>` : ""}
+${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}</div>` : ""}
+<div style="align-self:stretch">${stickerZoneHtml(story?.sticker, p, preview, onPhoto)}</div>
 </div>`;
   } else if (gabarit === "photo_pills" && wantsPhoto) {
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:flex-end;gap:30px">
-${title ? `<div>${titlePillHtml(title, p)}</div>` : ""}
-${body ? `<div>${bodyPillHtml(body, p)}</div>` : ""}
-</div>`;
+    const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
+    inner = column(align, "justify-content:flex-end;gap:28px", [
+      title ? textBlock(title, titleStyle, ctx, "title") : "",
+      body ? textBlock(body, bodyStyle, ctx, "body") : "",
+    ]);
   } else {
     // fond_pills, et fallback des gabarits photo sans photo attachée.
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:36px">
-${title ? `<div>${titlePillHtml(title, p)}</div>` : ""}
-${body ? `<div>${bodyPillHtml(body, p)}</div>` : ""}
-</div>`;
+    const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
+    inner = column(align, "justify-content:center;gap:34px", [
+      title ? textBlock(title, titleStyle, ctx, "title") : "",
+      body ? textBlock(body, bodyStyle, ctx, "body") : "",
+    ]);
   }
 
   // En aperçu, si le plan demande une photo mais qu'aucune n'est attachée :

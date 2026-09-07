@@ -108,6 +108,13 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         color_secondary: charter.color_secondary,
         color_background: charter.color_background,
         color_text: charter.color_text,
+        // Réglages « Stories » de la charte (assemblage, pastilles, coins,
+        // alignement) — absents tant que la migration n'est pas passée : le
+        // renderer retombe alors sur l'assemblage A.
+        story_assemblage: charter.story_assemblage ?? null,
+        story_pill_color: charter.story_pill_color ?? null,
+        story_corners: charter.story_corners ?? null,
+        story_align: charter.story_align ?? null,
       }
     : null;
 

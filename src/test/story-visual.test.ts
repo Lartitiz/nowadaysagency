@@ -76,7 +76,7 @@ describe("buildStoryFrameHtml", () => {
       branding,
     )!;
     expect(html).toContain("« le bol est encore plus beau en vrai »");
-    expect(html).toContain("font-style:italic");
+    expect(html).toContain('data-story-pptx="quote"');
     expect(html).toContain("reçu en DM");
   });
 
@@ -96,6 +96,60 @@ describe("buildStoryFrameHtml", () => {
       null,
     )!;
     expect(html).toContain("#FB3D80");
+  });
+});
+
+describe("assemblages et pastilles façon native", () => {
+  const story = {
+    visual: { gabarit: "photo_pills", background: "photo", title_pill: "Bon, je vous montre un truc", body_pill: "Là je tourne la série de bols pour le marché de samedi." },
+  };
+
+  it("A par défaut : titre serif sur pastille couleur, texte nu (ombre) sur photo", () => {
+    const html = buildStoryFrameHtml(story, branding, { photoUrl: "https://x.test/p.jpg" })!;
+    expect(html).toContain("Newsreader");
+    expect(html).toContain('data-story-mode="col"');
+    expect(html).toContain('data-story-mode="nu"');
+    expect(html).toContain("text-shadow");
+    expect(html).not.toContain("font-family:'Oswald'");
+  });
+
+  it("géométrie calibrée : une boîte par ligne, interligne serré, coins courts", () => {
+    const html = buildStoryFrameHtml(story, branding, { photoUrl: "https://x.test/p.jpg" })!;
+    expect(html).toContain("box-decoration-break:clone");
+    expect(html).toContain("line-height:1.24");
+    expect(html).toContain("padding:0.09em 0.42em");
+    expect(html).toContain("border-radius:0.26em");
+  });
+
+  it("sur fond couleur, le texte nu devient une pastille blanche", () => {
+    const html = buildStoryFrameHtml(story, branding, {})!;
+    expect(html).not.toContain('data-story-mode="nu"');
+    expect(html).toContain('data-story-mode="wh"');
+  });
+
+  it("réglages de la charte : assemblage B, pastilles encre, coins droits, alignement gauche", () => {
+    const html = buildStoryFrameHtml(story, { ...branding, story_assemblage: "B", story_pill_color: "ink", story_corners: "droits", story_align: "gauche" }, { photoUrl: "https://x.test/p.jpg" })!;
+    expect(html).toContain("font-family:'Oswald'");
+    expect(html).toContain("text-transform:uppercase");
+    expect(html).toContain("background:#4A3F35");
+    expect(html).toContain("border-radius:0.05em");
+    expect(html).toContain("text-align:left");
+  });
+
+  it("alignement auto : court = centré, long = à gauche", () => {
+    const short = buildStoryFrameHtml({ visual: { gabarit: "fond_pills", title_pill: "T", body_pill: "Deux mots." } }, branding)!;
+    expect(short).toContain("text-align:center");
+    const long = buildStoryFrameHtml(
+      { visual: { gabarit: "fond_pills", title_pill: "T", body_pill: "Pendant longtemps je faisais sécher trop vite, et forcément, résultat : des fissures partout, sur toutes mes pièces, même celles du marché." } },
+      branding,
+    )!;
+    expect(long).toContain("text-align:left");
+  });
+
+  it("liste : items toujours en pastille et à gauche, jamais nus", () => {
+    const html = buildStoryFrameHtml({ visual: { gabarit: "liste", background: "photo", title_pill: "3 gestes", list_pills: ["un", "deux"] } }, branding, { photoUrl: "https://x.test/p.jpg" })!;
+    expect(html.match(/data-story-pptx="item"/g)).toHaveLength(2);
+    expect(html).not.toContain('data-story-pptx="item" data-story-mode="nu"');
   });
 });
 
