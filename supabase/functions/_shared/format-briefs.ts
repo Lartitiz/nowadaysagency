@@ -190,7 +190,7 @@ AVANT D'ÉCRIRE, identifie aussi :
 
 2. QUELLE SITUATION CONCRÈTE illustre ce point ?
    Un reel qui RACONTE une scène (un moment, un échange, un avant/après) 
-   fonctionne 10x mieux qu'un reel qui EXPLIQUE un concept.
+   fonctionne bien mieux qu'un reel qui EXPLIQUE un concept.
 
 3. QUEL EST LE HOOK DES 3 PREMIÈRES SECONDES ?
    Le spectateur décide en 1-3 secondes de rester ou scroller. Le hook 
@@ -364,7 +364,7 @@ RÈGLE : ces éléments sont plus importants que le template. Le script doit son
 
 L'utilisatrice n'a pas fourni d'éléments personnels.
 Génère le script normalement mais REMPLIS le champ "personal_tip" du JSON :
-"Ce script sera 10x plus fort avec ton anecdote perso. Ajoute un truc vécu avant de filmer."`;
+"Ce script sera bien plus fort avec ton anecdote perso. Ajoute un truc vécu avant de filmer."`;
 
   // ── Hook choisi (fallback auto champ par champ) ──
   // Un hook récupéré côté `step:"hooks"` peut n'avoir que son `text`. On fusionne
@@ -588,27 +588,27 @@ export interface StoriesBriefParams {
 function getStoriesVenteInstructions(priceRange?: string | null): string {
   const instructions: Record<string, string> = {
     petit: `SÉQUENCE PETIT PRIX (<100€) : 3-4 stories
-1. Story contexte : ton décontracté, "j'ai créé un truc"
+1. Story contexte : ton décontracté, annoncer qu'on a créé quelque chose
 2. Story offre : visuel + bénéfice principal + prix
 3. Story preuve : screenshot témoignage
-4. Story CTA : "Écris [MOT] en DM"`,
+4. Story CTA : proposer un mot-clé à envoyer en DM (mot choisi dans le sujet)`,
     moyen: `SÉQUENCE MOYEN (100-500€) : 5-7 stories
-1. Story émotion : face cam intime, "faut que je te parle"
+1. Story émotion : face cam intime, confidence directe
 2. Story problème : identification + sondage
 3. Story solution : concept clé en face cam
 4. Story offre : visuel + prix + dates
 5. Story preuve : témoignage
-6. Story interaction : sondage "tu veux les détails en DM ?"
-7. Story CTA : "Écris [MOT] en DM"`,
+6. Story interaction : sondage qui propose les détails en DM
+7. Story CTA : proposer un mot-clé à envoyer en DM (mot choisi dans le sujet)`,
     premium: `SÉQUENCE PREMIUM (500€+) : 7-10 stories
-1. Hook : "j'ai un truc à te dire"
+1. Hook : confidence directe, ancrée dans l'offre
 2-3. Contexte perso : pourquoi tu as créé cette offre
 4. Problème : identification forte
 5-6. Transformation : before/after cliente
 7. Offre : format, pour qui
 8. Pratique : prix, dates, modalités
 9. Objection principale : face cam douce
-10. CTA : "écris-moi pour en parler"`,
+10. CTA : inviter à écrire en DM, en mode permission`,
     physique: `SÉQUENCE PRODUIT PHYSIQUE : 4-6 stories
 1. Teasing : gros plan détail
 2. Révélation : produit entier
@@ -617,10 +617,10 @@ function getStoriesVenteInstructions(priceRange?: string | null): string {
 5. Preuve : photo cliente OU avis
 6. CTA : lien boutique`,
     gratuit: `SÉQUENCE FREEBIE : 3-4 stories
-1. Problème : "si tu galères avec [sujet]"
-2. Solution : "j'ai créé un [type] gratuit qui [bénéfice]"
+1. Problème : la galère concrète que le freebie résout
+2. Solution : ce qu'on a créé gratuitement et ce que ça apporte
 3. Preuve : capture d'écran + résultat
-4. CTA : "Écris [MOT] en DM"`,
+4. CTA : proposer un mot-clé à envoyer en DM (mot choisi dans le sujet)`,
   };
   return instructions[priceRange || ""] || "";
 }
@@ -644,7 +644,8 @@ export function storiesBrief(p: StoriesBriefParams = {}): string {
 ${p.pre_gen_answers.vecu ? `VÉCU RÉCENT : "${p.pre_gen_answers.vecu}"
 → C'est du contenu authentique. UTILISE ses mots exacts, ses formulations, ses images.
 → Intègre-le dans la story 1 (hook) ou story 2 (identification).
-→ Ne reformule PAS son vécu en langage corporate. Garde le côté brut.` : ""}
+→ Ne reformule PAS son vécu en langage corporate. Garde le côté brut.
+→ N'ajoute AUCUN moment ni date qui n'est pas dans son vécu (pas de "hier", "ce matin", "hier soir", "la semaine dernière" inventé).` : ""}
 
 ${p.pre_gen_answers.energy ? `ÉNERGIE CHOISIE : ${p.pre_gen_answers.energy}
 → L'énergie guide le ton de TOUTE la séquence, pas juste une story :
@@ -665,8 +666,7 @@ RÈGLE D'OR : Si la personne a fourni ces éléments, ils sont plus importants q
     preGenBlock = `
 
 La personne n'a pas fourni d'éléments personnels.
-Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
-"Tes stories seront 10x plus engageantes avec un truc vécu. Ajoute un moment perso dans la story 1 ou 2 avant de publier."
+Génère normalement, sans inventer de vécu. Remplis le champ "personal_tip" du JSON avec UN conseil court et concret (une phrase, sans chiffre, sans emoji) : quel moment perso, lié à CE sujet, elle pourrait ajouter en story 1 ou 2 avant de publier.
 `;
   }
 
@@ -678,18 +678,18 @@ Génère normalement. Ajoute un champ "personal_tip" dans le JSON :
     ? (face_cam === "oui"
       ? `HOOK STORY 1, RÈGLES :
 
-La story 1 décide de TOUT. 24% de l'audience part après.
+La story 1 décide de TOUT : une grande partie de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
 
 FORMAT : face cam
 - Hook oral : 5-10 mots max
 - Dicible en 2 secondes sans reprendre sa respiration
-- Ton conversationnel : "Bon, faut qu'on parle de..."
-- Sous-titres OBLIGATOIRES (60-80% regardent sans le son)
+- Ton conversationnel : la première phrase d'un vocal à une amie, avec SES mots à elle, jamais une amorce passe-partout
+- Sous-titres OBLIGATOIRES (la plupart regardent sans le son)
 `
       : `HOOK STORY 1, RÈGLES :
 
-La story 1 décide de TOUT. 24% de l'audience part après.
+La story 1 décide de TOUT : une grande partie de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
 
 FORMAT : texte sur fond
@@ -700,7 +700,7 @@ FORMAT : texte sur fond
 `)
     : `HOOK STORY 1, RÈGLES :
 
-La story 1 décide de TOUT. 24% de l'audience part après.
+La story 1 décide de TOUT : une grande partie de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
 
 SELON LE FORMAT DE LA STORY 1 :
@@ -714,8 +714,8 @@ Si format = texte sur fond :
 Si format = face cam :
 - Hook oral : 5-10 mots max
 - Dicible en 2 secondes sans reprendre sa respiration
-- Ton conversationnel : "Bon, faut qu'on parle de..."
-- Sous-titres OBLIGATOIRES (60-80% regardent sans le son)
+- Ton conversationnel : la première phrase d'un vocal à une amie, avec SES mots à elle, jamais une amorce passe-partout
+- Sous-titres OBLIGATOIRES (la plupart regardent sans le son)
 
 Si format = visuel/photo :
 - Text overlay : 3-8 mots en gros
@@ -726,7 +726,7 @@ Si format = visuel/photo :
     ? `STRUCTURES DISPONIBLES (choisis la plus adaptée) :
 - journal_bord : Connexion, 2-3 stories
 - probleme_solution : Éducation, 2-3 stories
-- vente_douce : Vente, 3-4 stories (max)
+- vente_douce : Vente, 2-3 stories (max)
 `
     : `STRUCTURES DISPONIBLES (choisis la plus adaptée) :
 - journal_bord : Connexion, 3-5 stories
@@ -774,26 +774,26 @@ ANGLE DE NARRATION, CHOISIS LE PLUS ADAPTÉ AU SUJET :
 Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'angle qui détermine la VOIX de toute la séquence.
 
 1. 🎬 COULISSES ("Je vous montre")
+   Story 1 : une action concrète en cours, décrite comme si on filmait par-dessus l'épaule
    Voix : narrateur·ice de son propre quotidien pro
-   Story 1 : "Là je suis en train de [action concrète]…"
    Le fil : on suit une action en cours, comme si on filmait par-dessus l'épaule
    Idéal pour : process de création, journée type, préparation d'un lancement
 
-2. 💭 RÉFLEXION PERSO ("J'ai tilté sur un truc")
+2. 💭 RÉFLEXION PERSO (la pensée à voix haute)
    Voix : pensée à voix haute, introspective
-   Story 1 : entrer par la prise de conscience elle-même : "J'ai tilté sur un truc à propos de [thème]…" (sans date fabriquée si ce n'est pas un vrai moment vécu)
+   Story 1 : entrer par la prise de conscience elle-même (sans date fabriquée si ce n'est pas un vrai moment vécu)
    Le fil : une prise de conscience qui se déroule story après story
    Idéal pour : partager une leçon, un déclic, un changement de perspective
 
 3. 🙋 INTERPELLATION COMMUNAUTÉ ("Et vous ?")
    Voix : on s'adresse au groupe, on inclut
-   Story 1 : "Qui ici galère aussi avec [problème concret] ?"
+   Story 1 : une question au groupe sur un problème concret du sujet
    Le fil : on part d'un problème partagé, on explore ensemble, on ouvre le dialogue
    Idéal pour : engagement, sondages, créer de la conversation
 
 4. 📖 CONSEIL PAR L'EXPÉRIENCE ("J'ai appris")
    Voix : retour d'expérience personnel, pas de leçon descendante
-   Story 1 : "Pendant longtemps je faisais [erreur]. Et puis…"
+   Story 1 : l'erreur qu'on faisait avant, dite simplement
    Le fil : MON parcours → ce que j'en ai tiré → ce que ça peut t'apporter
    Idéal pour : tips, bonnes pratiques, éducation douce
 
@@ -803,13 +803,14 @@ Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'a
    Le fil : situation client → problème → ce qu'on a fait → résultat
    Idéal pour : preuve sociale, démontrer son expertise, humaniser
 
-6. 🔥 COUP DE GUEULE DOUX ("Faut qu'on en parle")
+6. 🔥 COUP DE GUEULE DOUX (la position affirmée)
    Voix : position affirmée mais bienveillante
-   Story 1 : "Un truc qui me fatigue dans [secteur/habitude]…"
+   Story 1 : le constat qui agace, formulé avec les mots du sujet (pas une amorce générique)
    Le fil : constat → pourquoi ça pose problème → ce qu'on peut faire autrement
    Idéal pour : se positionner, affirmer ses valeurs, créer du débat sain
 
 RÈGLE D'OR DE LA VOIX :
+- AUCUNE amorce passe-partout : la première phrase de la séquence doit être IMPOSSIBLE à coller sur un autre sujet ou un autre métier. Si elle pourrait ouvrir n'importe quelle story de n'importe quel compte, réécris-la à partir d'un détail de CE sujet.
 - Le "JE" narratif est la voix PAR DÉFAUT. On raconte depuis son expérience.
 - Le "TU" n'arrive que dans les moments d'interpellation directe ou les CTA, JAMAIS comme ton dominant.
 - Le "VOUS" inclusif ("qui ici…", "est-ce que ça vous parle…") est préféré au "tu" pour les questions.
@@ -861,31 +862,28 @@ RÈGLES BIBLIOTHÈQUE :
 - Remplis quand même "photo_directive" et "photo_query_en" dans tous les cas (l'utilisatrice peut préférer reprendre la photo elle-même).`;
   })() : ""}
 
-POUR LA STORY 1, GÉNÈRE 2 OPTIONS DE HOOK dans le champ "hook_options" :
-- Option A : hook court (le plus percutant, 5-10 mots)
-- Option B : hook développé (pour ceux·celles qui préfèrent contextualiser, 10-15 mots)
-
 TYPES DE HOOKS STORIES (adaptés à l'angle choisi) :
-1. Coulisses en direct : "Là je suis en train de [action]…" / "Bon, je vous montre un truc."
-2. Confidence / pensée à voix haute : "J'ai réalisé un truc ce matin." / "Faut que je vous parle de quelque chose."
-3. Question communautaire : "Qui ici a déjà [situation] ?" / "Est-ce que ça vous fait ça aussi ?"
-4. Retour d'expérience : "Pendant longtemps je faisais [erreur]." / "Ce que j'aurais aimé savoir il y a 6 mois."
-5. Storytime : un vécu réel fourni par l'utilisatrice, anonymisé. Si rien n'est fourni, ne pas fabriquer de date ni d'anecdote : généraliser ("ce qui revient souvent…").
-6. Prise de position : "Un truc qui me fatigue dans [secteur]." / "Je vais dire un truc qui ne va pas plaire à tout le monde."
+1. Coulisses en direct : une action précise, en cours, nommée avec le vocabulaire du métier.
+2. Confidence / pensée à voix haute : la prise de conscience elle-même, sans moment inventé (pas de "ce matin" fabriqué).
+3. Question communautaire : une question au groupe sur une situation concrète du sujet.
+4. Retour d'expérience : l'erreur d'avant ou ce qu'on aurait voulu savoir, sans durée inventée.
+5. Storytime : un vécu réel fourni par l'utilisatrice, anonymisé. Si rien n'est fourni, ne pas fabriquer de date ni d'anecdote : généraliser.
+6. Prise de position : le constat précis qui dérange, ancré dans le sujet, pas une formule d'agacement générique.
+Dans tous les cas : ne recycle JAMAIS une amorce vue ailleurs, écris la phrase à partir d'un détail de CE sujet.
 IMPORTANT : Le hook par défaut est en "JE" ou en "VOUS inclusif". Le "TU" direct est réservé UNIQUEMENT à l'angle "interpellation communauté" et doit rester rare.
 
 GARDE-FOUS OBLIGATOIRES :
 1. Max 10 stories par séquence
 2. TOUJOURS au moins 1 sticker interactif (DM>Question>Sondage>Slider>Lien)
 3. Sticker lien JAMAIS sur story 1 ou 2, toujours avant-dernière ou dernière
-4. JAMAIS de CTA agressif. Toujours en mode permission : "si ça te parle", "écris-moi"
+4. JAMAIS de CTA agressif. Toujours en mode permission : une invitation qu'on peut ignorer sans gêne, formulée avec un mot ou une image de la séquence (pas une formule de CTA réutilisable telle quelle)
 5. Si face cam → TOUJOURS mentionner sous-titres
-6. Story 1 = hook fort (24% de l'audience part après)
+6. Story 1 = hook fort (c'est là que l'audience décroche)
 7. Étaler les stories : matin/midi/soir
 8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
 9. Écriture inclusive point médian
 10. Expressions naturelles et orales, variées d'une story à l'autre : évite de réutiliser toujours la même cheville
-11. Apartés entre parenthèses : "(oui oui, même moi)", "(je sais, c'est contre-intuitif)", "(pas besoin de se ruiner)"
+11. Aparté entre parenthèses : 1 MAXIMUM par séquence, jamais dans deux stories de suite, et uniquement s'il dit quelque chose de propre à ce sujet (un aparté qui pourrait aller dans n'importe quelle story est un tic : supprime-le)
 12. JAMAIS de jargon marketing
 13. JAMAIS de tiret cadratin (—)
 14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
@@ -913,18 +911,6 @@ Réponds en JSON strict :
       "format": "photo",
       "format_label": "📸 Photo avec texte",
       "text": "...",
-      "hook_options": {
-        "option_a": {
-          "text": "[hook court 5-10 mots]",
-          "word_count": 7,
-          "label": "Court et percutant"
-        },
-        "option_b": {
-          "text": "[hook développé 10-15 mots]",
-          "word_count": 13,
-          "label": "Contextualisé"
-        }
-      },
       "sticker": {
         "type": "sondage",
         "label": "Sondage",
@@ -950,8 +936,7 @@ Réponds en JSON strict :
 }
 
 IMPORTANT :
-- Seule la story 1 a "hook_options". Les autres stories ont "hook_options": null
-- Le champ "text" de la story 1 contient le hook option_a par défaut
+- Le champ "text" de la story 1 EST le hook (une seule version, la meilleure)
 - CHAQUE story a un "visual", SAUF les stories face cam : si "face_cam": true → "visual": null (c'est une vidéo à filmer, pas un visuel à rendre)
 - Le champ "narrative_angle" indique l'angle de narration choisi pour la séquence
 - Pas de markdown dans les valeurs JSON
