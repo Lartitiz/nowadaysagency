@@ -35,7 +35,7 @@ function json(body: unknown, status: number, corsHeaders: Record<string, string>
 }
 
 // Rafraîchit le jeton d'accès Canva via le refresh_token (rotation possible).
-async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<string> {
+async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<string | null> {
   const expiresAtMs = conn.token_expires_at ? new Date(conn.token_expires_at).getTime() : 0;
   if (expiresAtMs - Date.now() > REFRESH_THRESHOLD_MS) return conn.access_token;
   if (!conn.refresh_token) return conn.access_token; // pas de refresh dispo : on tente l'actuel
@@ -57,8 +57,12 @@ async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<stri
   const j = await res.json();
   if (!res.ok || !j.access_token) {
     console.warn("Canva refresh failed:", j);
+    // invalid_grant = refresh token expiré/révoqué : le jeton actuel est mort
+    // aussi, inutile de partir dans un export de 2 min qui finira en erreur.
+    if (j?.error === "invalid_grant") return null;
     return conn.access_token;
   }
+
   const newExpires = new Date(Date.now() + Number(j.expires_in || 4 * 3600) * 1000).toISOString();
   const { error: persistError } = await supabase
     .from("social_connections")
@@ -141,6 +145,17 @@ Deno.serve(async (req) => {
     await decryptConnTokens(conn);
 
     const token = await refreshCanvaTokenIfNeeded(supabase, conn);
+    if (!token) {
+      return json(
+        {
+          error: "not_connected",
+          message: "Ta connexion Canva a expiré. Reconnecte ton compte Canva pour continuer.",
+        },
+        400,
+        corsHeaders,
+      );
+    }
+
 
     // Si le fichier arrive en base64, on le dépose côté serveur (service-role :
     // pas de RLS, et on crée le bucket public au besoin) puis on importe par URL.
@@ -188,12 +203,23 @@ Deno.serve(async (req) => {
     const importJson = await importRes.json();
     if (!importRes.ok || !importJson?.job?.id) {
       console.error("Canva url-imports error:", importJson);
+      if (importJson?.code === "invalid_access_token" || importRes.status === 401) {
+        return json(
+          {
+            error: "not_connected",
+            message: "Ta connexion Canva a expiré. Reconnecte ton compte Canva pour continuer.",
+          },
+          400,
+          corsHeaders,
+        );
+      }
       return json(
         { error: importJson?.message || importJson?.error || "Échec du lancement de l'import Canva." },
         502,
         corsHeaders,
       );
     }
+
 
     // 2. Attend la fin du job.
     const designId = await pollImport(importJson.job.id, token);
