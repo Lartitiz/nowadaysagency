@@ -155,8 +155,14 @@ async function renderFrameToSlide(
       if (cs.textTransform === "uppercase") text = text.toUpperCase();
 
       const fontSizePx = parseFloat(cs.fontSize) || 44;
+      // Bloc « nu » (texte blanc sans pastille, assemblages A/D/E/F) : pas de
+      // fond, une ombre portée à la place — sinon l'export peindrait une
+      // pastille blanche que l'aperçu n'a jamais montrée.
+      const bare = el.dataset.storyMode === "nu";
       const fill = rgbToHex(cs.backgroundColor, "FFFFFF");
+      const shapeFill = bare ? undefined : { fill: { color: fill } };
       const textProps = {
+        ...(bare ? { shadow: { type: "outer" as const, blur: 6, offset: 2, angle: 90, color: "000000", opacity: 0.6 } } : {}),
         color: rgbToHex(cs.color, "2A2521"),
         fontFace: mapFontToPptx(cs.fontFamily),
         fontSize: fontSizePxToPt(fontSizePx, PX_PER_IN),
@@ -182,7 +188,7 @@ async function renderFrameToSlide(
           y: pxToInches(rect.y, PX_PER_IN),
           w: pxToInches(rect.width, PX_PER_IN),
           h: pxToInches(rect.height, PX_PER_IN),
-          fill: { color: fill },
+          ...shapeFill,
           line: { type: "none" },
           ...textProps,
         });
@@ -214,7 +220,7 @@ async function renderFrameToSlide(
               y: yIn,
               w: Math.min(wIn, PPTX_W_IN - Math.max(0, xIn)),
               h: hIn,
-              fill: { color: fill },
+              ...shapeFill,
               line: { type: "none" },
               ...textProps,
               wrap: false,
@@ -229,7 +235,7 @@ async function renderFrameToSlide(
             y: pxToInches(rect.y, PX_PER_IN),
             w: pxToInches(rect.width, PX_PER_IN),
             h: pxToInches(rect.height, PX_PER_IN),
-            fill: { color: fill },
+            ...shapeFill,
             line: { type: "none" },
             ...textProps,
             align: centered ? "center" : "left",
