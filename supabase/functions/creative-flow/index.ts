@@ -810,11 +810,11 @@ export async function buildGeneratePrompt(params: {
 
 ${ANTI_BIAS}
 
-${isLinkedIn || isPinterest || isNewsletter ? "" : FORMAT_STRUCTURES}
+${isLinkedIn || isPinterest || isNewsletter || isStories ? "" : FORMAT_STRUCTURES}
 
-${isLinkedIn || isPinterest ? "" : WRITING_RESOURCES}
+${isLinkedIn || isPinterest || isStories ? "" : WRITING_RESOURCES}
 
-${isLinkedIn || isPinterest || isNewsletter ? "" : VISUAL_ANALOGIES}
+${isLinkedIn || isPinterest || isNewsletter || isStories ? "" : VISUAL_ANALOGIES}
 
 ${angle ? `ANGLE CHOISI :
 - Titre : ${angle.title}
@@ -904,7 +904,7 @@ Tu DOIS proposer une version SIGNIFICATIVEMENT DIFFÉRENTE :
 - Le message central reste cohérent mais l'angle d'attaque change
 - Ne fais PAS une variation cosmétique (mêmes idées avec d'autres mots). Fais une VRAIE alternative.
 ` : ""}
-Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus.
+${isStories ? "Rédige la séquence en suivant le FORMAT et les GARDE-FOUS ci-dessus." : "Rédige le contenu en suivant les INSTRUCTIONS DE RÉDACTION FINALE ci-dessus."}
 Le contenu doit être PRÊT À POSTER (pas un brouillon).
 
 ${isReel || isStories ? `` : isNewsletter ? `Un email part en TEXTE BRUT : aucune valeur ne doit contenir de markdown (**gras**, *italique*, ## titres) — les astérisques s'afficheraient tels quels chez le lecteur. Pour un aparté, utilise des parenthèses.
