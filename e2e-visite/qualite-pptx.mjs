@@ -51,8 +51,17 @@ try {
   }
 
   const sains = rows.filter((r) => r.ok).length;
-  const inks = rows.map((r) => r.mediaMinInk).filter((v) => typeof v === "number" && v >= 0);
-  const worstInk = inks.length ? Math.min(...inks) : null;
+  // 🔑 L'encre la plus basse se lit AVEC le verdict du validateur, jamais seule
+  // (bilan du 07/09) : `pptx-validate.ts` exempte déjà l'aplat LÉGITIME — un fond
+  // décoratif uni coiffé de texte NATIF est un choix de design, et c'est même le
+  // signe SAIN de l'export hybride (rien de cuit dans le PNG, cf diagnostic du
+  // 03/09 sur le « fond en Courier/Times »). Crier au white-out sur 0 % d'encre
+  // alors que l'export est sorti `ok` réapprend à ignorer l'alerte.
+  const inkRows = rows.filter((r) => typeof r.mediaMinInk === "number" && r.mediaMinInk >= 0);
+  const worstRow = inkRows.length
+    ? inkRows.reduce((a, b) => (b.mediaMinInk < a.mediaMinInk ? b : a))
+    : null;
+  const worstInk = worstRow ? worstRow.mediaMinInk : null;
   const slideCounts = rows.map((r) => r.slideCount).filter((v) => typeof v === "number");
   // Le carrousel PHOTO (brut) n'a légitimement AUCUN texte éditable (photos 1:1) :
   // on l'exclut du check « texte éditable », sinon il déclenche un faux ⚠️.
@@ -69,7 +78,12 @@ try {
   }
   console.log(`   texte éditable : ${textRunsMin > 0 ? "oui sur tous les exports" : "⚠️ un export sans texte éditable (rendu image ?)"}`);
   if (worstInk != null) {
-    const flag = worstInk < 0.02 ? "  🔴 fond quasi vide / white-out possible" : "";
+    const flag =
+      worstInk < 0.02
+        ? worstRow.ok
+          ? "  (aplat jugé légitime par le validateur : fond décoratif + texte natif)"
+          : "  🔴 fond quasi vide / white-out"
+        : "";
     console.log(`   taux d'encre le plus faible : ${(worstInk * 100).toFixed(2)} %${flag}`);
   }
 

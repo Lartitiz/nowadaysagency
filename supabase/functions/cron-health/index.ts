@@ -455,6 +455,17 @@ Deno.serve(async (req) => {
       "claude-opus-5": 10,
       "claude-opus-4-8": 10,
       "claude-opus-4-7": 10,
+      // Modèles servis par la passerelle Lovable (`ai.gateway.lovable.dev`,
+      // préfixe `google/`) : mini-audit Instagram, audit IA, impact branding,
+      // suggestion de format, score de contenu, insight engagement, LinkedIn.
+      // Lovable les facture en CRÉDITS d'abonnement, pas à l'appel — on retient
+      // donc le tarif public Google comme APPROXIMATION d'ordre de grandeur
+      // (Flash 0,30$/2,50$ ; Flash-Lite 0,10$/0,40$ par Mtok), même hypothèse
+      // 75 % input / 25 % output que ci-dessus. Sans ces lignes, ces appels
+      // étaient comptés ZÉRO et ressortaient chaque lundi dans l'alerte
+      // `modeles_non_tarifes` (bilan du 07/09).
+      "google/gemini-2.5-flash": 0.85,
+      "google/gemini-2.5-flash-lite": 0.18,
     };
 
     // Générations RÉELLES mais sans appel modèle : coût API nul, et c'est VOULU.
