@@ -22,6 +22,18 @@ const REVERSAL_PATTERNS: RegExp[] = [
   /(?:^|[.!?]\s+)Pas (?:parce que|pour|un|une|de|du|des|le|la|les|ça)\b[^.!?\n]{0,80}[.:] ?(?:[CcJj](?:'|’)|Juste|Parce que|Mais)/,
   /\bJe ne [^.!?\n]{2,60} pas(?: ça)?[^.!?\n]{0,40}\. ?Je [^\s]+ (?:parce que|pour|que)\b/,
   /(?:^|[.!?]\s+)Pas [^.!?\n]{2,60}\. ?(?:C(?:'|’)est|Juste|Plutôt)\b/,
+  // ── Formes COURTES, mesurées hors radar sur le corpus stories du 07/09/2026
+  // (5 des 7 retournements d'une séquence passaient sans être comptés) ──
+  // « Et non, c'est pas parce que ça marchait pas. »
+  /\bEt non, c(?:'|’)est pas\b/,
+  // « Pas "amélioré un peu". Calmées. » (négation citée, puis un mot seul)
+  /(?:^|[.!?]\s+)Pas ["'«“‘][^"'»”’\n]{2,60}["'»”’]\. ?\p{Lu}[^.!?\n]{0,40}[.!]/u,
+  // « C'est pas de ta faute. » / « Ce n'est pas de votre faute. »
+  /\bc(?:'|’)est pas de (?:ta|votre|sa|leur) faute\b/i,
+  // « Pas pour les raisons que tu crois. »
+  /\bpas pour les raisons que (?:tu crois|vous croyez|tu penses|vous pensez)\b/i,
+  // « … comme une crème. Pas comme un produit ménager. »
+  /\bcomme [^.!?\n]{2,50}\. ?Pas comme\b/,
 ];
 
 // Formules moulées repérées à l'identique dans deux contenus générés à 30 min
@@ -287,7 +299,36 @@ function wordsWithOffsets(text: string): OffsetWord[] {
  * SÉQUENCE entière recopiée. Fusionne les fenêtres qui se chevauchent en un
  * seul passage pour ne pas remonter dix fois la même phrase longue.
  */
+/**
+ * Expressions COURTES (3 à 6 mots) listées telles quelles dans la fiche de
+ * marque : items séparés par virgule / point-virgule / retour à la ligne, ou
+ * verbatims entre guillemets. Une fiche écrite en fragments (« sans vendre son
+ * âme », « safe place ») passait sous la fenêtre de 7 mots : la recopie était
+ * invisible (audit stories 07/09/2026, fiche de Laetitia).
+ */
+function shortBrandExpressions(brandText: string): string[] {
+  const out = new Set<string>();
+  const segments = (brandText || "").split(/[\n,;«»"“”]+/);
+  for (const seg of segments) {
+    const words = normalizeWordsForOverlap(seg);
+    if (words.length >= 3 && words.length <= 6) out.add(words.join(" "));
+  }
+  return [...out];
+}
+
 export function findBrandCopyOverlap(text: string, brandText: string | undefined, minWords = BRAND_COPY_MIN_WORDS): string[] {
+  if (!text || !brandText) return [];
+  const passages = findBrandCopyWindows(text, brandText, minWords);
+  const normalizedText = " " + normalizeWordsForOverlap(text).join(" ") + " ";
+  for (const expr of shortBrandExpressions(brandText)) {
+    if (normalizedText.includes(" " + expr + " ") && !passages.some((p) => normalizeWordsForOverlap(p).join(" ").includes(expr))) {
+      passages.push(expr);
+    }
+  }
+  return passages;
+}
+
+function findBrandCopyWindows(text: string, brandText: string, minWords: number): string[] {
   if (!text || !brandText) return [];
   const sourceWords = normalizeWordsForOverlap(brandText);
   if (sourceWords.length < minWords) return [];
@@ -757,6 +798,24 @@ export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, bra
   const brandCopyOverlap = findBrandCopyOverlap(text || "", brandGuardText);
   const hookEchoes = findHookEchoes(textHook(text), echo?.previousHooks, echo?.subject);
   return { reversals, moulded, fabricatedNumbers, brandCopyOverlap, hookEchoes };
+}
+
+/**
+ * Retire des retournements ceux que l'utilisatrice a ÉCRITS elle-même (brief,
+ * réponses, message clé) : « Un savon ça se choisit comme une crème, pas comme
+ * un produit ménager » fourni en message clé n'est pas un tic du modèle.
+ */
+export function dropUserSourcedReversals(a: TextRedacAnalysis, userSourceText: string | undefined): TextRedacAnalysis {
+  if (!userSourceText || !a.reversals.length) return a;
+  const src = normalizeWordsForOverlap(userSourceText).join(" ");
+  if (!src) return a;
+  const kept = a.reversals.filter((r) => {
+    const words = normalizeWordsForOverlap(r);
+    // Le premier tiers du passage suffit : c'est la pivot qui est distinctive.
+    const probe = words.slice(0, Math.max(4, Math.ceil(words.length / 2))).join(" ");
+    return !(probe && src.includes(probe));
+  });
+  return kept.length === a.reversals.length ? a : { ...a, reversals: kept };
 }
 
 /** Nombre de violations — même formule que redacViolations, pour la variante texte. */

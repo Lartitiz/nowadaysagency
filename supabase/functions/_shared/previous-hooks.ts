@@ -68,3 +68,39 @@ export async function fetchPreviousHooks(
     return [];
   }
 }
+
+/**
+ * Accroches récentes de la même utilisatrice pour un FORMAT donné, tous
+ * sujets confondus (audit stories 07/09/2026 : « Un truc qui me fatigue
+ * dans… » ouvrait deux séquences de stories à trois semaines d'écart, sur deux
+ * sujets différents — la garde par sujet ne pouvait pas le voir). Même contrat
+ * de sûreté : best-effort, jamais bloquant, [] en cas d'erreur.
+ */
+export async function fetchPreviousHooksByFormat(
+  userId: string,
+  format: string,
+  limit = MAX_HOOKS,
+): Promise<string[]> {
+  if (!userId || !format) return [];
+  try {
+    const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+    const { data, error } = await getServiceClient()
+      .from("content_quality_events")
+      .select("content_preview, created_at")
+      .eq("user_id", userId)
+      .eq("format", format)
+      .gte("created_at", since)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    const hooks: string[] = [];
+    for (const row of data || []) {
+      const p = (row as { content_preview?: { hook?: string } }).content_preview;
+      if (typeof p?.hook === "string" && p.hook.trim()) hooks.push(p.hook.trim());
+    }
+    return hooks;
+  } catch (e) {
+    console.error("[previous-hooks] lecture par format ignorée (génération intacte) :", (e as Error)?.message || e);
+    return [];
+  }
+}

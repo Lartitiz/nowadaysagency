@@ -78,3 +78,17 @@ Deno.test("subjectKey : rapproche les mêmes sujets, sépare les autres", () => 
   // Trop court pour être un sujet : le garde-fou de fetchPreviousHooks s'appuie dessus.
   assertEquals(subjectKey("oui").length < 8, true);
 });
+
+// ═══ Audit stories 07/09/2026 — redite ENTRE sujets (stories) ═══
+Deno.test("findHookEchoes : la même amorce sur deux sujets différents est une redite (« Un truc qui me fatigue dans… »)", () => {
+  const hook = "Un truc qui me fatigue dans le milieu du marketing.";
+  const previous = ["Un truc qui me fatigue dans le savon fait main : personne ne parle du vrai prix."];
+  const echoes = findHookEchoes(hook, previous, "Ok mon take du jour : je crois que communiquer et convaincre ce n'est pas pousser");
+  assertEquals(echoes.length, 1);
+});
+
+Deno.test("findHookEchoes : deux accroches de stories vraiment différentes passent", () => {
+  const hook = "J'ai relu trois fois le message d'une cliente dans l'atelier.";
+  const previous = ["Le démoulage, à chaque fois j'ai un petit stress."];
+  assertEquals(findHookEchoes(hook, previous, "Le savon à l'avoine est de retour"), []);
+});
