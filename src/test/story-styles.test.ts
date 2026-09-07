@@ -8,11 +8,13 @@ import {
 } from "@/lib/story-styles";
 
 describe("story-styles", () => {
-  it("propose 6 assemblages A→F, A par défaut", () => {
-    expect(STORY_ASSEMBLAGES.map((a) => a.key)).toEqual(["A", "B", "C", "D", "E", "F"]);
-    expect(getStoryAssemblage(null).key).toBe("A");
-    expect(getStoryAssemblage("zz").key).toBe("A");
-    expect(getStoryAssemblage("b").key).toBe("B");
+  it("propose 2 assemblages B et C, B par défaut ; les anciens A/D/E/F retombent sur B", () => {
+    expect(STORY_ASSEMBLAGES.map((a) => a.key)).toEqual(["B", "C"]);
+    expect(getStoryAssemblage(null).key).toBe("B");
+    expect(getStoryAssemblage("zz").key).toBe("B");
+    expect(getStoryAssemblage("A").key).toBe("B");
+    expect(getStoryAssemblage("f").key).toBe("B");
+    expect(getStoryAssemblage("c").key).toBe("C");
   });
 
   it("chaque police utilisée est chargée par la feuille Google Fonts", () => {
@@ -36,19 +38,20 @@ describe("story-styles", () => {
   });
 
   it("normalise les réglages persistés (valeurs inconnues → défauts)", () => {
-    expect(resolveStoryStyle(null)).toEqual({ assemblage: "A", pillColor: "primary", corners: "courts", align: "auto" });
+    expect(resolveStoryStyle(null)).toEqual({ assemblage: "B", pillColor: "primary", corners: "courts", align: "centre" });
     expect(
-      resolveStoryStyle({ story_assemblage: "d", story_pill_color: "ink", story_corners: "droits", story_align: "gauche" }),
-    ).toEqual({ assemblage: "D", pillColor: "ink", corners: "droits", align: "gauche" });
+      resolveStoryStyle({ story_assemblage: "c", story_pill_color: "ink", story_corners: "droits", story_align: "gauche" }),
+    ).toEqual({ assemblage: "C", pillColor: "ink", corners: "droits", align: "gauche" });
     expect(resolveStoryStyle({ story_pill_color: "rose", story_corners: "ronds", story_align: "milieu" })).toMatchObject({
       pillColor: "primary",
       corners: "courts",
-      align: "auto",
+      align: "centre",
     });
+    expect(resolveStoryStyle({ story_align: "auto" }).align).toBe("auto");
   });
 
   it("estime les lignes : une accroche courte tient sur 1-2 lignes, un pavé déborde", () => {
-    const body = getStoryAssemblage("A").body;
+    const body = getStoryAssemblage("B").body;
     expect(estimateLines("Bon, je vous montre un truc", body)).toBeLessThanOrEqual(2);
     expect(
       estimateLines("Pendant longtemps je faisais sécher trop vite, et forcément, résultat : des fissures partout, sur toutes mes pièces.", body),

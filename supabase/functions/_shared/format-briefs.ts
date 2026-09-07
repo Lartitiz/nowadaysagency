@@ -833,8 +833,8 @@ GABARITS DISPONIBLES (champ "gabarit") :
 - "citation" : verbatim en italique élégant dans une grande pastille. Pour la preuve sociale, les retours clients.
 
 RÈGLES DU PLAN VISUEL :
-1. "title_pill" : 3-7 mots MAX, pas de point final (affiché en majuscules condensées type "Strong" Instagram).
-2. "body_pill" : 1-2 phrases courtes, 120 caractères MAX (affiché en gras type "Classic" Instagram). Le texte complet de la story reste dans "text" ; les pastilles n'en sont que la version AFFICHABLE.
+1. "title_pill" : OPTIONNEL, et null le plus souvent. Une story native, c'est UN bloc de texte posé sur la photo ; un titre + un texte dessous sur chaque story, c'est la signature d'un outil, pas d'une personne. Ne mets un "title_pill" (3-7 mots, pas de point final, affiché en capitales condensées type "Strong") QUE si la story annonce quelque chose qui se lit d'abord : une liste, une question posée à l'audience, une offre, une date. Jamais de titre qui répète ou résume le body_pill. Sur une séquence de 5 stories, 1 ou 2 titres maximum.
+2. "body_pill" : 1-2 phrases courtes, 120 caractères MAX (affiché en gras type "Classic" Instagram), écrites comme on parle, jamais en formule. Le texte complet de la story reste dans "text" ; la pastille n'en est que la version AFFICHABLE.
 3. "list_pills" : uniquement pour le gabarit "liste", 2-4 items de 6-10 mots.
 4. "quote" : uniquement pour le gabarit "citation". Verbatim court, jamais inventé : s'il n'y a pas de vrai retour client fourni, n'utilise PAS ce gabarit.
 5. "background" : "photo" ou "fond_couleur". Les stories, ce sont des IMAGES : "photo" est le fond de TOUTES les stories (hors face cam) — le fond de chaque story illustre CE QU'ELLE DIT. La SEULE exception tolérée : le gabarit "citation" (verbatim sur fond couleur, choix design). Une story texte sur fond coloré au milieu de photos casse l'authenticité : n'en produis pas.
@@ -920,7 +920,7 @@ Réponds en JSON strict :
       "visual": {
         "gabarit": "interaction",
         "background": "photo",
-        "title_pill": "[3-7 mots]",
+        "title_pill": null,
         "body_pill": "[1-2 phrases courtes, 120 car. max]",
         "list_pills": null,
         "quote": null,

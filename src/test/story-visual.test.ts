@@ -104,14 +104,17 @@ describe("assemblages et pastilles façon native", () => {
     visual: { gabarit: "photo_pills", background: "photo", title_pill: "Bon, je vous montre un truc", body_pill: "Là je tourne la série de bols pour le marché de samedi." },
   };
 
-  it("A par défaut : titre serif sur pastille couleur, texte sur pastille blanche, jamais de texte nu", () => {
+  it("B par défaut : titre Strong sur pastille couleur, texte Classic sur pastille blanche, centré au milieu", () => {
     const html = buildStoryFrameHtml(story, branding, { photoUrl: "https://x.test/p.jpg" })!;
-    expect(html).toContain("Newsreader");
+    expect(html).toContain("font-family:'Oswald'");
+    expect(html).toContain("font-family:'Inter'");
     expect(html).toContain('data-story-mode="col"');
     expect(html).toContain('data-story-mode="wh"');
     expect(html).not.toContain('data-story-mode="nu"');
     expect(html).not.toContain("text-shadow");
-    expect(html).not.toContain("font-family:'Oswald'");
+    expect(html).toContain("justify-content:center");
+    expect(html).not.toContain("justify-content:flex-end");
+    expect(html).toContain("text-align:center");
   });
 
   it("géométrie calibrée : une boîte par ligne, interligne serré, coins courts", () => {
@@ -123,7 +126,7 @@ describe("assemblages et pastilles façon native", () => {
   });
 
   it("tous les assemblages : chaque bloc est une pastille, sur photo comme sur fond couleur", () => {
-    for (const key of ["A", "B", "C", "D", "E", "F"]) {
+    for (const key of ["B", "C"]) {
       for (const opts of [{ photoUrl: "https://x.test/p.jpg" }, {}]) {
         const html = buildStoryFrameHtml(story, { ...branding, story_assemblage: key }, opts)!;
         expect(html, key).not.toContain('data-story-mode="nu"');
@@ -141,14 +144,12 @@ describe("assemblages et pastilles façon native", () => {
     expect(html).toContain("text-align:left");
   });
 
-  it("alignement auto : court = centré, long = à gauche", () => {
-    const short = buildStoryFrameHtml({ visual: { gabarit: "fond_pills", title_pill: "T", body_pill: "Deux mots." } }, branding)!;
+  it("alignement : centré par défaut même sur un pavé ; « auto » passe à gauche au-delà de 2 lignes", () => {
+    const pave = { visual: { gabarit: "fond_pills", title_pill: "T", body_pill: "Pendant longtemps je faisais sécher trop vite, et forcément, résultat : des fissures partout, sur toutes mes pièces, même celles du marché." } };
+    expect(buildStoryFrameHtml(pave, branding)!).toContain("text-align:center");
+    expect(buildStoryFrameHtml(pave, { ...branding, story_align: "auto" })!).toContain("text-align:left");
+    const short = buildStoryFrameHtml({ visual: { gabarit: "fond_pills", title_pill: "T", body_pill: "Deux mots." } }, { ...branding, story_align: "auto" })!;
     expect(short).toContain("text-align:center");
-    const long = buildStoryFrameHtml(
-      { visual: { gabarit: "fond_pills", title_pill: "T", body_pill: "Pendant longtemps je faisais sécher trop vite, et forcément, résultat : des fissures partout, sur toutes mes pièces, même celles du marché." } },
-      branding,
-    )!;
-    expect(long).toContain("text-align:left");
   });
 
   it("liste : items toujours en pastille et à gauche, jamais nus", () => {

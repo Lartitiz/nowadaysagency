@@ -146,7 +146,9 @@ export default function CharterStoriesSection({ data, onDataChange }: Props) {
       <h2 className="font-body text-base font-bold text-foreground mb-1">📱 Mes stories Instagram</h2>
       <p className="text-sm text-muted-foreground mb-4 max-w-prose">
         Choisis sur des exemples. Le style s'applique à toutes tes prochaines stories, avec tes couleurs.
-        Tu peux le changer quand tu veux, ça ne touche pas aux stories déjà créées.
+        Tu peux le changer quand tu veux, ça ne touche pas aux stories déjà créées. Les polices sont
+        celles des stories Instagram (Strong, Classic, Typewriter) : le texte reste retouchable dans
+        Canva ou PowerPoint.
       </p>
 
       <p className="text-xs font-medium text-muted-foreground mb-2">L'assemblage</p>
