@@ -9,6 +9,7 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
+import StoryFramePreview from "@/components/stories/StoryFramePreview";
 import { classerParPertinence } from "@/lib/rank-library-photos";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
@@ -54,37 +55,6 @@ interface Props {
    * n'est pas rendue. null = aucune frame exportable.
    */
   onExportActionsChange?: (actions: StoryExportActions | null) => void;
-}
-
-const PREVIEW_W = 150;
-
-/** Aperçu d'une frame : le HTML 1080×1920 du renderer, mis à l'échelle dans une iframe. */
-function StoryFramePreview({ html, title }: { html: string; title: string }) {
-  return (
-    <div
-      // self-start : sans lui, le flex parent étire le cadre à la hauteur de la
-      // colonne texte (align-items: stretch) et l'aperçu dépasse son 9:16.
-      className="relative overflow-hidden rounded-lg border border-border shrink-0 self-start"
-      style={{ width: PREVIEW_W, aspectRatio: "1080 / 1920" }}
-    >
-      <iframe
-        srcDoc={html}
-        title={title}
-        sandbox="allow-same-origin"
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          width: "1080px",
-          height: "1920px",
-          transform: `scale(${PREVIEW_W / 1080})`,
-          transformOrigin: "top left",
-          border: "none",
-          pointerEvents: "none",
-        }}
-      />
-    </div>
-  );
 }
 
 export default function StoryResult({ result, onStoriesUpdate, photos, onExportActionsChange }: Props) {
