@@ -2198,6 +2198,7 @@ export type Database = {
           redac_repassed: boolean | null
           redac_score: number | null
           redac_violations: number | null
+          slop_signals: Json | null
           user_id: string
           workspace_id: string | null
         }
@@ -2210,6 +2211,7 @@ export type Database = {
           redac_repassed?: boolean | null
           redac_score?: number | null
           redac_violations?: number | null
+          slop_signals?: Json | null
           user_id: string
           workspace_id?: string | null
         }
@@ -2222,6 +2224,7 @@ export type Database = {
           redac_repassed?: boolean | null
           redac_score?: number | null
           redac_violations?: number | null
+          slop_signals?: Json | null
           user_id?: string
           workspace_id?: string | null
         }
