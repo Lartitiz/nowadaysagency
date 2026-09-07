@@ -203,12 +203,23 @@ Deno.serve(async (req) => {
     const importJson = await importRes.json();
     if (!importRes.ok || !importJson?.job?.id) {
       console.error("Canva url-imports error:", importJson);
+      if (importJson?.code === "invalid_access_token" || importRes.status === 401) {
+        return json(
+          {
+            error: "not_connected",
+            message: "Ta connexion Canva a expiré. Reconnecte ton compte Canva pour continuer.",
+          },
+          400,
+          corsHeaders,
+        );
+      }
       return json(
         { error: importJson?.message || importJson?.error || "Échec du lancement de l'import Canva." },
         502,
         corsHeaders,
       );
     }
+
 
     // 2. Attend la fin du job.
     const designId = await pollImport(importJson.job.id, token);
