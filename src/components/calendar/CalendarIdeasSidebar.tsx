@@ -18,6 +18,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { getIdeaState } from "@/lib/idea-state";
+import { buildCalendarPostFromIdea } from "@/lib/idea-to-calendar";
 
 export interface SavedIdea {
   id: string;
@@ -145,15 +146,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
       user_id: user.id,
       workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       date: dateStr,
-      theme: planDialogIdea.titre,
-      status: "idea",
-      canal: planDialogIdea.canal || "instagram",
-      objectif: planDialogIdea.objectif,
-      format: planDialogIdea.format,
-      notes: planDialogIdea.notes,
-      content_draft: planDialogIdea.content_draft,
-      series_id: (planDialogIdea as any).series_id ?? null,
-      episode_number: (planDialogIdea as any).episode_number ?? null,
+      ...buildCalendarPostFromIdea(planDialogIdea as any),
     } as any).select("id").single();
     if (insertError) {
       console.error("Erreur technique:", insertError);
@@ -162,7 +155,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
     }
 
     if (newPost) {
-      const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", planDialogIdea.id);
+      const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr, status: "planned" }).eq("id", planDialogIdea.id);
       if (updateError) {
         console.error("Erreur technique:", updateError);
         toast.error("Erreur", { description: friendlyError(updateError) });
