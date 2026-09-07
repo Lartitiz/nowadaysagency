@@ -3266,6 +3266,13 @@ Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'a
    Le fil : constat → pourquoi ça pose problème → ce qu'on peut faire autrement
    Idéal pour : se positionner, affirmer ses valeurs, créer du débat sain
 
+══ SI UN CONTENU SOURCE EST FOURNI (bloc « CONTENU SOURCE » ou fichiers) ══
+
+Ce texte, c'est ELLE qui l'a écrit : c'est la matière, pas un point de départ à résumer.
+- Garde TOUTES ses idées, ses étapes, ses chiffres, ses exemples. Améliore l'oral, les transitions, le rythme ; ne compresse jamais deux idées en une phrase, ne saute aucune étape. Une story qu'on ne comprend pas sans avoir lu le texte d'origine est ratée.
+- UNE idée par story. Le NOMBRE de stories découle du texte : autant qu'il en faut pour tout dire clairement (jusqu'à 10), pas un nombre décidé d'avance. Cette règle PRIME sur la contrainte de temps : si elle a écrit 8 idées, il y a 8 stories, pas 4.
+- Ses mots à elle passent avant les tiens : reprends ses formulations quand elles sont vivantes, ne les remplace pas par des tournures plus « propres ».
+
 ══ FIL NARRATIF : UNE SEULE HISTOIRE, PAS UNE SUITE DE STORIES ══
 
 On regarde les stories UNE PAR UNE, en tapotant. Si la story 4 pourrait être lue avant la story 2 sans rien perdre, la séquence n'est pas une histoire, c'est une liste. Règles :
@@ -3381,7 +3388,7 @@ GARDE-FOUS OBLIGATOIRES :
 14. PRIORITÉ ABSOLUE : si un profil de voix existe dans le contexte, reproduis ce style. Réutilise les expressions signature, imite les patterns de structure et de ton.
 15. Ne JAMAIS utiliser les expressions interdites du profil de voix.
 16. Le résultat doit sonner comme si l'utilisateur·ice l'avait écrit.
-17. Si le temps dispo est "5min", MAXIMUM 3 stories. Ne génère JAMAIS 5+ stories pour quelqu'un qui a 5 minutes.
+17. Si le temps dispo est "5min", MAXIMUM 3 stories. Ne génère JAMAIS 5+ stories pour quelqu'un qui a 5 minutes — SAUF si un contenu source est fourni : alors le nombre de stories suit le texte (une idée par story, 10 max).
 18. La longueur du texte de chaque story doit être RÉALISTE : une story texte = 2-3 phrases max. Une story face cam = 15-30 secondes de parole (50-80 mots). Ne génère pas des pavés pour des stories.
 
 Réponds en JSON strict :
