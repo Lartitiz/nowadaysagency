@@ -1,11 +1,10 @@
 import { lazy, Suspense } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarDays, Lightbulb, ClipboardList } from "lucide-react";
+import { CalendarDays, ClipboardList } from "lucide-react";
 
 const CalendarPage = lazy(() => import("./Calendar"));
-const IdeasPage = lazy(() => import("./IdeasPage"));
 const CommPlanPage = lazy(() => import("./CommPlanPage"));
 
 const LOADER = (
@@ -20,7 +19,6 @@ const LOADER = (
 
 const TAB_MAP: Record<string, string> = {
   calendrier: "calendrier",
-  idees: "idees",
   strategie: "strategie",
 };
 
@@ -28,6 +26,15 @@ export default function OrganizationHub() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawTab = searchParams.get("tab") || "calendrier";
   const activeTab = TAB_MAP[rawTab] || "calendrier";
+
+  // « Mes idées » a sa propre page depuis la refonte : les anciens liens
+  // /calendrier?tab=idees (raccourcis, favoris, e-mails) y sont renvoyés.
+  if (rawTab === "idees") {
+    const next = new URLSearchParams(searchParams);
+    next.delete("tab");
+    const qs = next.toString();
+    return <Navigate to={`/idees${qs ? `?${qs}` : ""}`} replace />;
+  }
 
   const handleTabChange = (tab: string) => {
     const next = new URLSearchParams(searchParams);
@@ -53,13 +60,6 @@ export default function OrganizationHub() {
               Calendrier
             </TabsTrigger>
             <TabsTrigger
-              value="idees"
-              className="rounded-full px-4 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5"
-            >
-              <Lightbulb className="h-4 w-4" />
-              Mes idées
-            </TabsTrigger>
-            <TabsTrigger
               value="strategie"
               className="rounded-full px-4 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5"
             >
@@ -71,12 +71,6 @@ export default function OrganizationHub() {
           <TabsContent value="calendrier" className="mt-0">
             <Suspense fallback={LOADER}>
               <CalendarPage embedded />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="idees" className="mt-0">
-            <Suspense fallback={LOADER}>
-              <IdeasPage embedded />
             </Suspense>
           </TabsContent>
 

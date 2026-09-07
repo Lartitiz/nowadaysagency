@@ -16,6 +16,8 @@ import { friendlyError } from "@/lib/error-messages";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { Link } from "react-router-dom";
+import { getIdeaState } from "@/lib/idea-state";
 
 export interface SavedIdea {
   id: string;
@@ -93,7 +95,9 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   }, [refreshKey]);
 
   const filteredIdeas = useMemo(() => {
-    let result = ideas;
+    // Le panneau sert à POSER une idée sur une date : celles déjà créées
+    // (contenu au calendrier) n'ont rien à y faire — elles vivent dans /idees.
+    let result = ideas.filter(i => getIdeaState(i) !== "created");
 
     if (filter !== "all") {
       result = result.filter(i => {
@@ -192,11 +196,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-body text-sm font-bold text-foreground">💡 Glisser une idée sur le calendrier</h3>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-muted-foreground">
-            {filteredIdeas.length !== ideas.length
-              ? `${filteredIdeas.length}/${ideas.length}`
-              : ideas.length}
-          </span>
+          <Link to="/idees" className="text-2xs font-semibold text-primary hover:underline whitespace-nowrap">Toutes mes idées →</Link>
         </div>
       </div>
 
@@ -363,7 +363,7 @@ function MobileIdeaCard({ idea, onDelete, onPlan, onClick }: { idea: SavedIdea; 
 }
 
 /* ── Add Idea Dialog ── */
-function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; onAdded: () => void }) {
+export function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenChange: (o: boolean) => void; onAdded: () => void }) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const [title, setTitle] = useState("");
@@ -389,7 +389,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
       toast.error("Erreur", { description: friendlyError(error) });
       return;
     }
-    toast.success("Idée ajoutée !");
+    toast.success("Idée notée");
     setTitle(""); setNotes("");
     onOpenChange(false);
     onAdded();
@@ -413,13 +413,13 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle className="font-display">💡 Nouvelle idée</DialogTitle>
+          <DialogTitle className="font-display">Noter une idée</DialogTitle>
           <DialogDescription className="sr-only">Formulaire pour ajouter une nouvelle idée de contenu</DialogDescription>
         </DialogHeader>
         <div className="space-y-3 mt-2">
           <div>
             <label className="text-xs font-medium mb-1 block">Titre</label>
-            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Mon idée de contenu..." className="rounded-[10px] h-10 text-sm" />
+            <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="Une phrase suffit : « pourquoi je refuse les commandes en urgence »" className="rounded-[10px] h-10 text-sm" autoFocus />
           </div>
           <div>
             <label className="text-xs font-medium mb-1 block">Format</label>
@@ -450,7 +450,7 @@ function AddIdeaDialog({ open, onOpenChange, onAdded }: { open: boolean; onOpenC
             <Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Idées en vrac..." className="rounded-[10px] min-h-[50px] text-sm" />
           </div>
           <Button onClick={handleAdd} disabled={!title.trim()} className="w-full rounded-pill">
-            Ajouter l'idée
+            Noter cette idée
           </Button>
         </div>
       </DialogContent>

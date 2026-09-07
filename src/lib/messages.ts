@@ -116,9 +116,9 @@ export const MESSAGES = {
     },
     ideas: {
       icon: "💡",
-      title: "Ta boîte à idées est vide",
-      body: "Commence par générer des idées dans l'atelier. Elles atterriront ici automatiquement.",
-      cta: "Aller à l'atelier →",
+      title: "Rien à faire pour l'instant",
+      body: "Note une idée qui te passe par la tête, ou lance-toi directement dans un contenu.",
+      cta: "Créer un contenu →",
     },
     lives: {
       icon: "🎬",

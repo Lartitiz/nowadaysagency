@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench, IdCard, Menu } from "lucide-react";
+import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench, IdCard, Menu, Lightbulb } from "lucide-react";
 import { useMobileNav } from "@/contexts/MobileNavContext";
 import { isMobileNavAvailable } from "@/lib/app-shell-visibility";
 
@@ -30,6 +30,7 @@ import QuotaWallModal from "@/components/QuotaWallModal";
 const NAV_ITEMS = [
   { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/idees", label: "Mes idées", icon: Lightbulb, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
 
@@ -42,6 +43,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/branding/coaching": "Coaching identité",
   "/branding/section": "Mon identité",
   "/creer": "Créer",
+  "/idees": "Mes idées",
   "/calendrier": "Calendrier",
   "/instagram": "Instagram",
   "/linkedin": "LinkedIn",
@@ -79,12 +81,10 @@ function Breadcrumb() {
   if (!matchedPath) return null;
 
   let label = BREADCRUMB_LABELS[matchedPath];
-  // /idees et /plan redirigent vers /calendrier?tab=… : sans ça, le fil
-  // d'Ariane affiche « Calendrier » sur la boîte à idées et la stratégie.
-  if (matchedPath === "/calendrier") {
-    const tab = searchParams.get("tab");
-    if (tab === "idees") label = "Mes idées";
-    else if (tab === "strategie") label = "Ma stratégie";
+  // /plan redirige vers /calendrier?tab=strategie : sans ça, le fil
+  // d'Ariane affiche « Calendrier » sur la stratégie.
+  if (matchedPath === "/calendrier" && searchParams.get("tab") === "strategie") {
+    label = "Ma stratégie";
   }
   const section = searchParams.get("section");
   const sectionLabel = section ? SECTION_LABELS[section] : null;

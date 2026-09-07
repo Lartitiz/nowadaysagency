@@ -141,24 +141,16 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     // (11 accumulées le 05/07) et un run raté peut même laisser un post errant
     // sur la grille — le drop raté atterrit sur le jour le plus proche du panneau.
     try {
-      await page.getByText("Mes idées", { exact: true }).first().click();
-      const title = page.getByText(IDEA_TITLE).first();
-      await title.waitFor({ timeout: 8_000 });
-      const tb = await title.boundingBox();
-      if (!tb) throw new Error("carte introuvable");
-      // le ✗ de la carte : petit bouton en haut à droite, au-dessus du titre
-      const buttons = page.locator("button");
-      const nb = await buttons.count();
-      let xBtn: Locator | null = null;
-      for (let i = 0; i < nb; i++) {
-        const b = await buttons.nth(i).boundingBox().catch(() => null);
-        if (b && b.width < 40 && b.height < 40 && b.x > tb.x + 500 && b.y > tb.y - 70 && b.y < tb.y + 5) {
-          xBtn = buttons.nth(i);
-          break;
-        }
+      // /idees s'ouvre sur « À faire » ; si le retour en idée a raté, la carte
+      // est restée « Créée » → on regarde aussi cet onglet.
+      let card: Locator | null = null;
+      for (const url of ["/idees", "/idees?etat=created"]) {
+        await page.goto(url, { waitUntil: "networkidle" });
+        const candidate = page.locator("li", { hasText: IDEA_TITLE }).first();
+        if (await candidate.isVisible({ timeout: 8_000 }).catch(() => false)) { card = candidate; break; }
       }
-      if (!xBtn) throw new Error("✗ de la carte introuvable");
-      await xBtn.click();
+      if (!card) throw new Error("carte introuvable");
+      await card.getByRole("button", { name: "Supprimer cette idée" }).click();
       const confirmBtn = page.getByRole("button", { name: /supprimer/i }).last();
       if (await confirmBtn.isVisible({ timeout: 1_500 }).catch(() => false)) await confirmBtn.click();
       await expect(page.getByText(IDEA_TITLE)).toHaveCount(0, { timeout: 8_000 });

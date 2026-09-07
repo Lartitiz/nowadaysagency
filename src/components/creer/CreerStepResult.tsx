@@ -947,12 +947,7 @@ export default function CreerStepResult({
 
           <DropdownMenuSeparator />
 
-          {/* ── Ranger ── */}
-          {onSave && (
-            <DropdownMenuItem onClick={onSave} className="gap-2">
-              <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
-            </DropdownMenuItem>
-          )}
+          {/* ── Ranger ── (« Garder en idée » est un bouton visible plus bas) */}
           <DropdownMenuItem onClick={onReset} className="gap-2">
             <RotateCcw className="h-4 w-4" /> Nouveau contenu
           </DropdownMenuItem>
@@ -963,13 +958,27 @@ export default function CreerStepResult({
           cachée tout en bas du menu « Autres actions » — sur un contenu déjà
           terminé arrivé sans ?new=1 (brouillon restauré silencieusement),
           rien à l'écran ne disait comment démarrer un nouveau contenu. */}
-      <Button
-        onClick={onReset}
-        variant="outline"
-        className="w-full gap-2 h-10 text-sm font-medium"
-      >
-        <RotateCcw className="h-4 w-4" /> Créer un nouveau contenu
-      </Button>
+      <div className="flex flex-col sm:flex-row gap-2">
+        {/* « Garder en idée » sorti du menu « Autres actions » : c'est la porte
+            vers /idees (état « En cours »), elle doit se voir. */}
+        {onSave && (
+          <Button
+            onClick={onSave}
+            variant="outline"
+            data-testid="save-as-idea"
+            className="w-full sm:flex-1 gap-2 h-10 text-sm font-medium"
+          >
+            <Lightbulb className="h-4 w-4" /> Garder en idée pour plus tard
+          </Button>
+        )}
+        <Button
+          onClick={onReset}
+          variant="outline"
+          className="w-full sm:flex-1 gap-2 h-10 text-sm font-medium"
+        >
+          <RotateCcw className="h-4 w-4" /> Créer un nouveau contenu
+        </Button>
+      </div>
     </div>
   );
 }
