@@ -104,12 +104,13 @@ describe("assemblages et pastilles façon native", () => {
     visual: { gabarit: "photo_pills", background: "photo", title_pill: "Bon, je vous montre un truc", body_pill: "Là je tourne la série de bols pour le marché de samedi." },
   };
 
-  it("A par défaut : titre serif sur pastille couleur, texte nu (ombre) sur photo", () => {
+  it("A par défaut : titre serif sur pastille couleur, texte sur pastille blanche, jamais de texte nu", () => {
     const html = buildStoryFrameHtml(story, branding, { photoUrl: "https://x.test/p.jpg" })!;
     expect(html).toContain("Newsreader");
     expect(html).toContain('data-story-mode="col"');
-    expect(html).toContain('data-story-mode="nu"');
-    expect(html).toContain("text-shadow");
+    expect(html).toContain('data-story-mode="wh"');
+    expect(html).not.toContain('data-story-mode="nu"');
+    expect(html).not.toContain("text-shadow");
     expect(html).not.toContain("font-family:'Oswald'");
   });
 
@@ -121,10 +122,14 @@ describe("assemblages et pastilles façon native", () => {
     expect(html).toContain("border-radius:0.26em");
   });
 
-  it("sur fond couleur, le texte nu devient une pastille blanche", () => {
-    const html = buildStoryFrameHtml(story, branding, {})!;
-    expect(html).not.toContain('data-story-mode="nu"');
-    expect(html).toContain('data-story-mode="wh"');
+  it("tous les assemblages : chaque bloc est une pastille, sur photo comme sur fond couleur", () => {
+    for (const key of ["A", "B", "C", "D", "E", "F"]) {
+      for (const opts of [{ photoUrl: "https://x.test/p.jpg" }, {}]) {
+        const html = buildStoryFrameHtml(story, { ...branding, story_assemblage: key }, opts)!;
+        expect(html, key).not.toContain('data-story-mode="nu"');
+        expect(html, key).not.toContain("text-shadow");
+      }
+    }
   });
 
   it("réglages de la charte : assemblage B, pastilles encre, coins droits, alignement gauche", () => {
