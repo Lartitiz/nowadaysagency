@@ -57,8 +57,12 @@ async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<stri
   const j = await res.json();
   if (!res.ok || !j.access_token) {
     console.warn("Canva refresh failed:", j);
+    // invalid_grant = refresh token expiré/révoqué : le jeton actuel est mort
+    // aussi, inutile de partir dans un export de 2 min qui finira en erreur.
+    if (j?.error === "invalid_grant") return null;
     return conn.access_token;
   }
+
   const newExpires = new Date(Date.now() + Number(j.expires_in || 4 * 3600) * 1000).toISOString();
   const { error: persistError } = await supabase
     .from("social_connections")
