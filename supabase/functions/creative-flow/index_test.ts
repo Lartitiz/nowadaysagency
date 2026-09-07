@@ -38,7 +38,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionCalibration } = await import("./index.ts");
+const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -287,71 +287,135 @@ Deno.test("correctPostStreamContent : réponse de correction illisible/trop cour
   }
 });
 
-// ═══ applyStoriesCorrectionCalibration — calibration SHADOW de
-// CORRECTION_PROMPTS.stories (audit slop 18/08 : le prompt existait mais
-// n'était jamais invoqué). Deux garanties à verrouiller : (1) le shadow-run
-// Anthropic ne se déclenche QUE si une violation est mesurée (sinon zéro coût
-// ajouté), et (2) quel que soit le résultat du shadow-run, `parsed.stories`
-// ressort BYTE-FOR-BYTE identique — cette phase ne doit jamais lisser le ton
-// brut des stories tant que la calibration n'a pas validé le prompt.
-const STORIES_CALIBRATION_PARAMS = { body: { context: "", answers: null }, fullContext: "" };
+// ═══ applyStoriesCorrectionPass — la passe de correction stories, ACTIVE
+// (audit stories 07/09/2026 : elle tournait en mode ombre depuis #896 et ne
+// corrigeait jamais). Garanties : (1) 0 appel IA quand rien n'est mesuré ;
+// (2) sur violation, le bloc annoté [STORY N - CHAMP] est envoyé et la
+// correction est réinjectée story par story (texte ET pastilles) ; (3) une
+// correction qui laisse plus de tics bruts est REJETÉE (original gardé) ;
+// (4) quality_check est posé sur la réponse avec le score APRÈS passe.
+const STORIES_PASS_PARAMS = { body: { context: "", answers: null }, fullContext: "" };
+const MOULDED_STORIES = () => ({
+  stories: [
+    { number: 1, text: "Ce qui me dérange, c'est de voir tout le monde stresser pour un post Instagram alors que personne ne se souvient de ce qui a été publié la semaine dernière, et ça continue encore et encore sans jamais vraiment changer.", visual: { gabarit: "photo_pills", title_pill: "CE QUI ME DÉRANGE", body_pill: "Tout le monde stresse pour un post que personne ne retient.", list_pills: null, quote: null } },
+    { number: 2, text: "Bref, on respire, on avance, et on essaie de ne pas se laisser bouffer par la pression du contenu parfait tous les jours de la semaine.", visual: null, face_cam: true },
+  ],
+});
+const anthropicText = (text: string) => ({
+  status: 200,
+  body: { content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 40, output_tokens: 20 } },
+});
 
-Deno.test("applyStoriesCorrectionCalibration : formule moulée détectée -> shadow-run Anthropic déclenché, stories INCHANGÉES", async () => {
-  const parsed = {
-    stories: [
-      { text: "Ce qui me dérange, c'est de voir tout le monde stresser pour un post Instagram alors que personne ne se souvient de ce qui a été publié la semaine dernière, et ça continue encore et encore sans jamais vraiment changer." },
-      { text: "Bref, on respire, on avance, et on essaie de ne pas se laisser bouffer par la pression du contenu parfait tous les jours de la semaine." },
-    ],
-  };
+Deno.test("applyStoriesCorrectionPass : formule moulée détectée -> bloc annoté envoyé, correction réinjectée story par story, quality_check posé", async () => {
+  const parsed: any = MOULDED_STORIES();
+  const { mock, capturedBodies } = installAnthropicBodyCapture([
+    anthropicText([
+      "[STORY 1 - TEXT] Voir tout le monde stresser pour un post Instagram dont personne ne se souvient la semaine suivante, ça continue sans jamais changer.",
+      "[STORY 1 - TITLE] LE POST QUE PERSONNE NE RETIENT",
+      "[STORY 1 - BODY] Tout le monde stresse pour un post que personne ne retient.",
+      "[STORY 2 - TEXT] Bref, on respire, on avance, et on essaie de ne pas se laisser bouffer par la pression du contenu parfait tous les jours de la semaine.",
+    ].join("\n")),
+  ]);
+  try {
+    const gate = await applyStoriesCorrectionPass(parsed, STORIES_PASS_PARAMS);
+    assertEquals(mock.anthropicCallCount, 1);
+    const sent = JSON.stringify(capturedBodies[0]);
+    assertEquals(sent.includes("[STORY 1 - TEXT]"), true);
+    assertEquals(sent.includes("[STORY 1 - TITLE] CE QUI ME DÉRANGE"), true);
+    assertEquals(parsed.stories[0].text.startsWith("Voir tout le monde stresser"), true);
+    assertEquals(parsed.stories[0].visual.title_pill, "LE POST QUE PERSONNE NE RETIENT");
+    assertEquals(parsed.stories[0].visual.body_pill, "Tout le monde stresse pour un post que personne ne retient.");
+    assertEquals(parsed.stories[1].text.startsWith("Bref, on respire"), true);
+    assertEquals(gate?.repassed, true);
+    assertEquals(gate?.violations, 0);
+    assertEquals(parsed.quality_check.source, "code");
+    assertEquals(parsed.quality_check.score, 100);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyStoriesCorrectionPass : la correction réintroduit plus de tics -> rejetée, stories INCHANGÉES, reverted=true", async () => {
+  const parsed: any = MOULDED_STORIES();
   const originalStoriesJson = JSON.stringify(parsed.stories);
   const mock = installFetchMock({
-    anthropic: () => ({
-      status: 200,
-      body: {
-        content: [{ type: "text", text: "Version totalement réécrite par la passe de correction." }],
-        stop_reason: "end_turn",
-        usage: { input_tokens: 40, output_tokens: 20 },
-      },
-    }),
+    anthropic: () => anthropicText([
+      "[STORY 1 - TEXT] Ce qui me dérange, c'est le stress. Je ne dis pas ça pour râler, mais ce n'est pas le post qui compte, c'est la personne.",
+      "[STORY 1 - TITLE] CE QUI ME DÉRANGE",
+      "[STORY 1 - BODY] Ce n'est pas le post qui compte, c'est la personne.",
+      "[STORY 2 - TEXT] Je ne dis pas ça pour me plaindre, on respire et on avance.",
+    ].join("\n")),
   });
   try {
-    await applyStoriesCorrectionCalibration(parsed, STORIES_CALIBRATION_PARAMS);
+    const gate = await applyStoriesCorrectionPass(parsed, STORIES_PASS_PARAMS);
     assertEquals(mock.anthropicCallCount, 1);
     assertEquals(JSON.stringify(parsed.stories), originalStoriesJson);
+    assertEquals(gate?.repassed, false);
+    assertEquals(gate?.reverted, true);
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("applyStoriesCorrectionCalibration : stories propres (0 violation) -> aucun appel Anthropic", async () => {
-  const parsed = {
+Deno.test("applyStoriesCorrectionPass : réponse sans marqueurs -> original gardé, quality_check reflète l'état avant", async () => {
+  const parsed: any = MOULDED_STORIES();
+  const originalStoriesJson = JSON.stringify(parsed.stories);
+  const mock = installFetchMock({ anthropic: () => anthropicText("Version totalement réécrite par la passe de correction.") });
+  try {
+    const gate = await applyStoriesCorrectionPass(parsed, STORIES_PASS_PARAMS);
+    assertEquals(mock.anthropicCallCount, 1);
+    assertEquals(JSON.stringify(parsed.stories), originalStoriesJson);
+    assertEquals(gate?.repassed, false);
+    assertEquals(gate?.violations, 1);
+    assertEquals(parsed.quality_check.score, 90);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyStoriesCorrectionPass : stories propres (0 violation) -> aucun appel Anthropic, quality_check 100", async () => {
+  const parsed: any = {
     stories: [
-      { text: "On a testé un nouveau format cette semaine, et ça a plutôt bien marché avec les abonnées qui ont réagi plus que d'habitude." },
-      { text: "Prochaine étape : voir si ça tient sur la durée, sans forcer le rythme ni se comparer aux autres comptes." },
+      { text: "On a testé un nouveau format cette semaine, et ça a plutôt bien marché avec les abonnées qui ont réagi plus que d'habitude.", visual: { title_pill: "NOUVEAU FORMAT TESTÉ", body_pill: "Les abonnées ont réagi plus que d'habitude." } },
+      { text: "Prochaine étape : voir si ça tient sur la durée, sans forcer le rythme ni se comparer aux autres comptes.", visual: null },
     ],
   };
-  const mock = installFetchMock({
-    anthropic: () => ({
-      status: 200,
-      body: { content: [{ type: "text", text: "ne devrait jamais être appelé" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } },
-    }),
-  });
+  const mock = installFetchMock({ anthropic: () => anthropicText("ne devrait jamais être appelé") });
   try {
-    await applyStoriesCorrectionCalibration(parsed, STORIES_CALIBRATION_PARAMS);
+    const gate = await applyStoriesCorrectionPass(parsed, STORIES_PASS_PARAMS);
     assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(gate?.score, 100);
+    assertEquals(parsed.quality_check.repassed, false);
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("applyStoriesCorrectionCalibration : pas de stories -> no-op silencieux", async () => {
-  const parsed = { script: [] };
-  const mock = installFetchMock({
-    anthropic: () => ({ status: 200, body: { content: [{ type: "text", text: "x" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } } }),
-  });
+Deno.test("applyStoriesCorrectionPass : pastilles récitant la fiche de marque -> mesurées (le texte seul serait propre)", async () => {
+  const brand = "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau, et contre le greenwashing des marques naturelles aux listes illisibles.";
+  const parsed: any = {
+    stories: [
+      { text: "Une journée à l'atelier, de la pesée des huiles au démoulage, et le petit stress du dernier moment qui ne part jamais vraiment.", visual: { title_pill: "POURQUOI JE FAIS ÇA", body_pill: "Contre les savons industriels bourrés de tensioactifs agressifs qui dessèchent la peau." } },
+      { text: "Le démoulage, à chaque fois j'ai un petit stress, même après tout ce temps, et ça me rappelle pourquoi je travaille en petites séries.", visual: null },
+    ],
+  };
+  const mock = installFetchMock({ anthropic: () => anthropicText("réponse sans marqueur, ignorée") });
   try {
-    await applyStoriesCorrectionCalibration(parsed, STORIES_CALIBRATION_PARAMS);
+    const gate = await applyStoriesCorrectionPass(parsed, { ...STORIES_PASS_PARAMS, brandGuardText: brand });
+    assertEquals(mock.anthropicCallCount, 1);
+    assertEquals(gate?.violations, 1);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("applyStoriesCorrectionPass : pas de stories -> no-op silencieux", async () => {
+  const parsed = { script: [] };
+  const mock = installFetchMock({ anthropic: () => anthropicText("x") });
+  try {
+    const gate = await applyStoriesCorrectionPass(parsed, STORIES_PASS_PARAMS);
     assertEquals(mock.anthropicCallCount, 0);
+    assertEquals(gate, null);
   } finally {
     mock.restore();
   }
