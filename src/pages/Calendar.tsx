@@ -45,6 +45,7 @@ import { ImportContentDialog } from "@/components/calendar/ImportContentDialog";
 import { MarronnierBanner } from "@/components/calendar/MarronnierBanner";
 import { SeasonalPhotoDialog } from "@/components/calendar/SeasonalPhotoDialog";
 import type { MarronnierOccurrence } from "@/lib/marronniers";
+import { buildCalendarPostFromIdea } from "@/lib/idea-to-calendar";
 import { lazy, Suspense } from "react";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 const CalendarDndWrapper = lazy(() => import("@/components/calendar/CalendarDndWrapper"));
@@ -840,19 +841,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
     if (data?.type === "idea") {
       const idea = data.idea;
+      // L'idée emporte tout son contenu (stories, slides, accroche…), pas
+      // seulement le texte brut — cf. src/lib/idea-to-calendar.ts.
       const { data: newPost, error: insertError } = await supabase.from("calendar_posts").insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         date: newDate,
-        theme: idea.titre,
-        status: "idea",
-        canal: idea.canal || "instagram",
-        objectif: idea.objectif,
-        format: idea.format,
-        notes: idea.notes,
-        content_draft: idea.content_draft,
-        series_id: (idea as any).series_id ?? null,
-        episode_number: (idea as any).episode_number ?? null,
+        ...buildCalendarPostFromIdea(idea),
       } as any).select("id").single();
       if (insertError) {
         console.error("Erreur technique:", insertError);

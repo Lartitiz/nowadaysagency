@@ -19,6 +19,7 @@ import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { friendlyError } from "@/lib/error-messages";
 import { getIdeaState, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
+import { buildCalendarPostFromIdea } from "@/lib/idea-to-calendar";
 
 /* ─── Types ─── */
 interface SavedIdea {
@@ -194,26 +195,18 @@ export default function IdeasPage() {
     toast.success("Idée supprimée");
   };
 
-  /** Pose l'idée à une date du calendrier. Un brouillon texte part avec elle. */
+  /** Pose l'idée à une date du calendrier. Tout son contenu part avec elle
+      (stories, slides, accroche…), reconstruit comme Créer le ferait. */
   const handlePlan = async (idea: SavedIdea, date: Date) => {
     if (!user) return;
     const dateStr = fnsFormat(date, "yyyy-MM-dd");
-    const draft = idea.content_draft?.trim();
-    const hasTextDraft = !!draft && !draft.startsWith("{");
     const { data: calPost, error } = await supabase
       .from("calendar_posts")
       .insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        theme: cleanTitle(idea.titre),
-        angle: idea.angle,
-        canal: idea.canal || "instagram",
-        objectif: idea.objectif,
-        format: idea.format || null,
-        notes: idea.notes || null,
         date: dateStr,
-        status: hasTextDraft ? "drafting" : "idea",
-        ...(hasTextDraft ? { content_draft: draft } : {}),
+        ...buildCalendarPostFromIdea(idea),
       } as any)
       .select("id")
       .single();
