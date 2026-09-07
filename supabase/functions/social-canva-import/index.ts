@@ -35,7 +35,7 @@ function json(body: unknown, status: number, corsHeaders: Record<string, string>
 }
 
 // Rafraîchit le jeton d'accès Canva via le refresh_token (rotation possible).
-async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<string> {
+async function refreshCanvaTokenIfNeeded(supabase: any, conn: any): Promise<string | null> {
   const expiresAtMs = conn.token_expires_at ? new Date(conn.token_expires_at).getTime() : 0;
   if (expiresAtMs - Date.now() > REFRESH_THRESHOLD_MS) return conn.access_token;
   if (!conn.refresh_token) return conn.access_token; // pas de refresh dispo : on tente l'actuel
