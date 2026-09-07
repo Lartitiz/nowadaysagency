@@ -19,6 +19,7 @@ import CharterBackgroundSection from "@/components/branding/charter/CharterBackg
 import CharterColorsSection from "@/components/branding/charter/CharterColorsSection";
 import CharterTypographySection from "@/components/branding/charter/CharterTypographySection";
 import CharterTemplatesSection from "@/components/branding/charter/CharterTemplatesSection";
+import CharterStoriesSection from "@/components/branding/charter/CharterStoriesSection";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import { toast } from "sonner";
@@ -138,6 +139,11 @@ interface CharterData {
   texture_enabled: boolean;
   texture_material: string | null;
   texture_url?: string | null;
+  // Style des stories Instagram (section « Mes stories », 07/09/2026).
+  story_assemblage: string | null;
+  story_pill_color: string | null;
+  story_corners: string | null;
+  story_align: string | null;
 }
 
 const INITIAL: CharterData = {
@@ -167,6 +173,10 @@ const INITIAL: CharterData = {
   texture_enabled: false,
   texture_material: null,
   texture_url: null,
+  story_assemblage: null,
+  story_pill_color: null,
+  story_corners: null,
+  story_align: null,
 };
 
 /** Get display color for UI (neutral fallback if null) */
@@ -463,6 +473,10 @@ export default function BrandCharterPage() {
       // l'auto-save ne doit jamais l'écraser avec un état local périmé.
       texture_enabled: d.texture_enabled,
       texture_material: d.texture_material,
+      story_assemblage: d.story_assemblage,
+      story_pill_color: d.story_pill_color,
+      story_corners: d.story_corners,
+      story_align: d.story_align,
     };
 
     if (d.id) {
@@ -991,6 +1005,12 @@ export default function BrandCharterPage() {
             data={data}
             onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
             toneKeywords={toneKeywords}
+          />
+
+          {/* SECTION: Stories Instagram (assemblage choisi sur des exemples) */}
+          <CharterStoriesSection
+            data={data}
+            onDataChange={(updates) => { setData(prev => ({ ...prev, ...updates })); triggerSave(); }}
           />
 
           {/* SECTION: Moodboard */}
