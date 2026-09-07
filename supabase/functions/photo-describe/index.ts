@@ -268,7 +268,7 @@ serve(async (req) => {
       // 1. Ligne photo (client user-scoped : la RLS garantit l'accès workspace)
       const { data: photo, error: fetchErr } = await supabase
         .from("user_photos")
-        .select("id, user_id, workspace_id, storage_path, status, tags")
+        .select("id, user_id, workspace_id, storage_path, original_storage_path, status, tags")
         .eq("id", body.photo_id)
         .maybeSingle();
 
@@ -285,13 +285,26 @@ serve(async (req) => {
       }
 
       // 2. Téléchargement de l'image affichée (storage_path, pas l'originale :
-      // si la photo a été retouchée, c'est la version retouchée qu'on décrit)
-      const { data: blob, error: dlErr } = await supabase.storage
-        .from("user-photos")
-        .download(photo.storage_path);
-      if (dlErr || !blob) {
-        console.error("[photo-describe] download error:", dlErr);
-        return json({ error: "Photo introuvable dans le stockage" }, 500);
+      // si la photo a été retouchée, c'est la version retouchée qu'on décrit).
+      // Juste après un upload/une retouche, l'objet peut ne pas encore être
+      // visible : on réessaie une fois, puis on retombe sur l'original avant
+      // d'abandonner. Un fichier vraiment absent n'est pas une erreur serveur
+      // (409 = réessayable), sinon la description remonte un 500 en boucle.
+      const tryDownload = async (path: string) => {
+        const res = await supabase.storage.from("user-photos").download(path);
+        return res.error || !res.data ? null : res.data;
+      };
+      let blob = await tryDownload(photo.storage_path);
+      if (!blob) {
+        await new Promise((r) => setTimeout(r, 1500));
+        blob = await tryDownload(photo.storage_path);
+      }
+      if (!blob && photo.original_storage_path && photo.original_storage_path !== photo.storage_path) {
+        blob = await tryDownload(photo.original_storage_path);
+      }
+      if (!blob) {
+        console.error("[photo-describe] fichier absent du stockage:", photo.storage_path);
+        return json({ error: "Photo pas encore disponible dans le stockage" }, 409);
       }
 
       const data = await blobToBase64(blob);
