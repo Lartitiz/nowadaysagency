@@ -332,6 +332,50 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     });
   }, [onStoriesUpdate]);
 
+  // Choix face cam / story designée, story par story. L'IA propose souvent du
+  // face cam ; beaucoup de créatrices ne se filment pas. Le passage en version
+  // designée fabrique un plan visuel minimal (fond photo + pastilles tirées du
+  // texte) pour que l'aperçu et les exports existent tout de suite.
+  const toggleFaceCam = useCallback((index: number) => {
+    setStories((prev) => {
+      const updated = [...prev];
+      const story = updated[index];
+      const text = String(story.text || story.texte || story.content || "").trim();
+      if (story.face_cam) {
+        const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
+        const title = (sentences[0] || text).slice(0, 60);
+        const body = sentences.slice(1).join(" ").slice(0, 140);
+        updated[index] = {
+          ...story,
+          face_cam: false,
+          format: "photo",
+          format_label: "📸 Photo avec texte",
+          visual: {
+            photo_directive: story.visual?.photo_directive ?? null,
+            photo_query_en: story.visual?.photo_query_en ?? null,
+            ...(story.visual || {}),
+            title_pill: story.visual?.title_pill || title,
+            body_pill: story.visual?.body_pill || body,
+            background: "photo",
+            gabarit:
+              story.visual?.gabarit && story.visual.gabarit !== "fond_pills"
+                ? story.visual.gabarit
+                : "photo_pills",
+          },
+        };
+      } else {
+        updated[index] = {
+          ...story,
+          face_cam: true,
+          format: "face_cam",
+          format_label: "🎥 Face cam",
+        };
+      }
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+  }, [onStoriesUpdate]);
+
   // Fond choisi après génération (stock Pexels ou « Ma photo ») : URL stable
   // (https Pexels ou data:) + crédit — persistés dans le JSON de la séquence.
   const applyStoryPhoto = useCallback(
@@ -487,6 +531,14 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                     {story.format && (
                       <Badge variant="outline" className="text-2xs">{story.format}</Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-2xs text-muted-foreground hover:text-foreground"
+                      onClick={() => toggleFaceCam(i)}
+                    >
+                      {story.face_cam ? "Plutôt une story designée" : "Plutôt me filmer"}
+                    </Button>
                   </div>
                   {(story.text || story.texte || story.content) && (
                     <div
