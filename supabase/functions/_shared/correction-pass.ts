@@ -408,26 +408,33 @@ et tu dois les CORRIGER systématiquement, même subtils.
 
 Réponds UNIQUEMENT avec les sections corrigées (marqueurs + textes), sans commentaire.`,
 
-  stories: `Tu es un éditeur de séquences Stories Instagram exigeant.
+  stories: `Tu es un éditeur de séquences Stories Instagram exigeant. Tu reçois les TEXTES d'une séquence, annotés par marqueurs [STORY N - CHAMP] :
+- TEXT = ce que la story dit (texte complet ou paroles face cam)
+- TITLE = pastille titre affichée sur l'image (3-7 mots, sans point final)
+- BODY = pastille texte affichée sur l'image (1-2 phrases courtes, 120 caractères max)
+- ITEM k = un item de liste affiché sur l'image (6-10 mots)
+- QUOTE = verbatim affiché sur l'image
+
+══ TON JOB ══
+Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané : c'est leur force. Tu ne lisses pas, tu ne reformules pas ce qui est déjà naturel, tu ne changes pas le sens, tu n'ajoutes ni vécu ni date ni chiffre.
 
 ══ CORRECTIONS OBLIGATOIRES ══
-
-1. STORIES TROP "POST" (formelles, structurées comme un article) : reformule en ton "message vocal à une amie".
-
-2. SONDAGE GÉNÉRIQUE pour faire interactif ("Quel est ton format préféré ?") : remplace par une vraie question qui révèle quelque chose.
-
-3. CONCLUSION QUI RÉSUME : remplace par une ouverture ou un cliff-hanger.
-
-4. STORIES TROP LONGUES (> 4 lignes) : raccourcis.
-
-5. MANQUE D'INTIMITÉ : ajoute des marqueurs d'oralité, variés d'une séquence à l'autre.
+1. AMORCE PASSE-PARTOUT (une première phrase qu'on pourrait coller sur n'importe quel sujet ou métier) : réécris-la à partir d'un détail précis de CETTE séquence.
+2. RECOPIE DE LA FICHE DE MARQUE (une phrase de positionnement récitée telle quelle) : garde l'idée, dis-la avec des mots neufs, plus courts, ancrés dans la story où elle apparaît.
+3. RETOURNEMENT PAR NÉGATION ("c'est pas X, c'est Y", "pas X. Juste Y", "X. Pas Y.") : UN maximum pour toute la séquence ; réécris les autres en affirmation directe.
+4. CHIFFRE SANS SOURCE : remplace par une formulation qualitative honnête.
+5. STORIES TROP "POST" (formelles, structurées comme un article) : reformule en ton "message vocal à une amie".
+6. SONDAGE OU QUESTION GÉNÉRIQUE ("Et toi, tu fais comment ?") : remplace par une question qui reprend un mot ou une image de la séquence.
+7. CONCLUSION QUI RÉSUME : remplace par une ouverture.
+8. APARTÉ ENTRE PARENTHÈSES PASSE-PARTOUT ("(oui, ça arrive)") : supprime-le, ou garde-en un seul s'il dit quelque chose de propre au sujet.
 
 ══ RÈGLES ABSOLUES ══
-- Garde le format de sortie (texte, type, ambiance visuelle).
-- Lecture par story : 3-5 secondes max.
-- JAMAIS de tiret cadratin (—).
+- Retourne EXACTEMENT le même format annoté, TOUTES les lignes, dans le même ordre, même celles que tu ne changes pas (recopiées à l'identique).
+- Ne fusionne pas, ne supprime pas, n'ajoute pas de ligne ni de story.
+- Respecte les tailles des pastilles : TITLE 3-7 mots sans point final, BODY 120 caractères max, ITEM 6-10 mots.
+- JAMAIS de tiret cadratin (—). Pas de markdown.
 
-Réponds UNIQUEMENT avec la séquence corrigée en gardant la structure originale.`,
+Réponds UNIQUEMENT avec le bloc annoté corrigé.`,
 };
 
 const CAROUSEL_CORRECTION_PROMPT = `Tu es un éditeur de carrousels Instagram/LinkedIn exigeant. Tu reçois les TEXTES extraits d'un carrousel, annotés par marqueurs [SLIDE N - TYPE].
@@ -814,6 +821,149 @@ export async function applyCorrectionPassCarousel(
  * plan_tournage, checklist) ne passe jamais par le correcteur et ne peut pas
  * casser. Fallback : retourne l'objet original si quoi que ce soit échoue.
  */
+/**
+ * Textes d'une séquence de stories, annotés [STORY N - CHAMP] — ce que
+ * l'abonnée LIT : le texte de la story ET les pastilles rendues sur l'image
+ * (title_pill, body_pill, list_pills, quote). Audit stories 07/09/2026 : le
+ * gate ne mesurait que `text`, jamais les pastilles, alors que ce sont elles
+ * qui portent les slogans passe-partout (« SI ÇA TE PARLE », « POURQUOI JE
+ * FAIS ÇA »).
+ */
+export function extractStoriesTexts(stories: any[]): string {
+  const lines: string[] = [];
+  if (!Array.isArray(stories)) return "";
+  for (let i = 0; i < stories.length; i++) {
+    const st = stories[i];
+    const num = i + 1;
+    if (typeof st?.text === "string" && st.text.trim()) lines.push(`[STORY ${num} - TEXT] ${st.text.trim()}`);
+    const v = st?.visual;
+    if (v && typeof v === "object") {
+      if (typeof v.title_pill === "string" && v.title_pill.trim()) lines.push(`[STORY ${num} - TITLE] ${v.title_pill.trim()}`);
+      if (typeof v.body_pill === "string" && v.body_pill.trim()) lines.push(`[STORY ${num} - BODY] ${v.body_pill.trim()}`);
+      if (Array.isArray(v.list_pills)) {
+        v.list_pills.forEach((it: unknown, k: number) => {
+          if (typeof it === "string" && it.trim()) lines.push(`[STORY ${num} - ITEM ${k + 1}] ${it.trim()}`);
+        });
+      }
+      if (typeof v.quote === "string" && v.quote.trim()) lines.push(`[STORY ${num} - QUOTE] ${v.quote.trim()}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+/**
+ * Même matière que extractStoriesTexts mais SANS marqueurs : c'est ce texte-là
+ * qu'on MESURE (les « [STORY 1 - TEXT] » contiennent des chiffres que le
+ * détecteur de chiffres inventés compterait à tort).
+ */
+export function storiesAuditableText(stories: any[]): string {
+  return extractStoriesTexts(stories).replace(/^\[STORY \d+ - [A-Z]+(?: \d+)?\] /gm, "");
+}
+
+/** Bornes des pastilles (mêmes que le brief stories) : une correction qui les casse est ignorée. */
+const STORY_TITLE_MAX_WORDS = 8;
+const STORY_BODY_MAX_CHARS = 140;
+const STORY_ITEM_MAX_WORDS = 12;
+
+/**
+ * Réinjecte un bloc annoté corrigé dans la liste de stories. Ne touche QUE
+ * les champs présents dans le bloc, avec la garde de fidélité
+ * keepUnlessRealEdit ; une ligne absente, vide ou hors gabarit garde
+ * l'original. Renvoie une COPIE profonde (l'original n'est jamais muté), plus
+ * le nombre de champs réellement changés — 0 = correction sans effet.
+ */
+export function reinjectStoriesTexts(stories: any[], correctedBlock: string): { stories: any[]; changed: number } {
+  const result: any[] = JSON.parse(JSON.stringify(stories));
+  const corrections = new Map<string, string>();
+  const regex = /\[([^\]]+)\]\s*([\s\S]*?)(?=\n\[|$)/g;
+  let match;
+  while ((match = regex.exec(correctedBlock)) !== null) {
+    corrections.set(match[1].trim(), match[2].trim());
+  }
+  let changed = 0;
+  const wordCount = (t: string) => t.trim().split(/\s+/).filter(Boolean).length;
+  const apply = (holder: any, field: string, key: string, ok: (t: string) => boolean) => {
+    if (!holder || !corrections.has(key)) return;
+    const candidate = corrections.get(key)!;
+    if (!candidate || !ok(candidate)) return;
+    const val = keepUnlessRealEdit(holder[field], candidate);
+    if (val !== holder[field]) {
+      holder[field] = val;
+      changed++;
+    }
+  };
+  for (let i = 0; i < result.length; i++) {
+    const st = result[i];
+    const num = i + 1;
+    apply(st, "text", `STORY ${num} - TEXT`, () => true);
+    const v = st?.visual;
+    if (v && typeof v === "object") {
+      apply(v, "title_pill", `STORY ${num} - TITLE`, (t) => wordCount(t) <= STORY_TITLE_MAX_WORDS);
+      apply(v, "body_pill", `STORY ${num} - BODY`, (t) => t.length <= STORY_BODY_MAX_CHARS);
+      if (Array.isArray(v.list_pills)) {
+        for (let k = 0; k < v.list_pills.length; k++) {
+          const key = `STORY ${num} - ITEM ${k + 1}`;
+          if (!corrections.has(key)) continue;
+          const candidate = corrections.get(key)!;
+          if (!candidate || wordCount(candidate) > STORY_ITEM_MAX_WORDS) continue;
+          const val = keepUnlessRealEdit(v.list_pills[k], candidate);
+          if (val !== v.list_pills[k]) {
+            v.list_pills[k] = val;
+            changed++;
+          }
+        }
+      }
+      apply(v, "quote", `STORY ${num} - QUOTE`, () => true);
+    }
+  }
+  return { stories: result, changed };
+}
+
+/**
+ * Passe de correction d'une séquence de stories, story par story (même
+ * mécanique que le carrousel : extraction annotée → Haiku → réinjection par
+ * marqueur). Renvoie une nouvelle liste ; l'original n'est jamais muté. En cas
+ * d'échec ou de réponse inexploitable, renvoie l'original avec changed = 0.
+ */
+export async function applyCorrectionPassStories(
+  stories: any[],
+  options: CorrectionOptions = {},
+): Promise<{ stories: any[]; changed: number }> {
+  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
+  const unchanged = { stories, changed: 0 };
+  if (!enabled || !Array.isArray(stories) || stories.length === 0) return unchanged;
+  const textBlock = extractStoriesTexts(stories);
+  if (!textBlock || textBlock.length < skipIfShorterThan) {
+    logger?.(`[correction-pass:stories] SKIPPED (text too short: ${textBlock?.length})`);
+    return unchanged;
+  }
+  try {
+    logger?.(`[correction-pass:stories] STARTED, text block length: ${textBlock.length}`);
+    const correctedBlock = await callAnthropicSimple(
+      model ?? getModelForAction("content"),
+      CORRECTION_PROMPTS.stories,
+      extraInstructions
+        ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes de la séquence à corriger :\n\n${textBlock}`
+        : `Voici les textes de la séquence à corriger :\n\n${textBlock}`,
+      0.3,
+      4096,
+      undefined,
+      abortTimeoutMs,
+    );
+    if (!correctedBlock || !/\[STORY 1 - /.test(correctedBlock)) {
+      logger?.(`[correction-pass:stories] FALLBACK (réponse sans marqueurs: ${correctedBlock?.length})`);
+      return unchanged;
+    }
+    const out = reinjectStoriesTexts(stories, correctedBlock);
+    logger?.(`[correction-pass:stories] DONE, ${out.changed} champ(s) modifié(s)`);
+    return out;
+  } catch (error) {
+    logger?.(`[correction-pass:stories] ERROR: ${error}`);
+    console.error(`[correction-pass:stories] Failed, using original:`, error);
+    return unchanged;
+  }
+}
+
 export async function applyCorrectionPassReel(
   parsedReel: unknown,
   options: CorrectionOptions = {},

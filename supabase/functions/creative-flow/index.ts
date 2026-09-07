@@ -14,7 +14,7 @@ import { carouselBrief, reelBrief, storiesBrief, linkedinBrief, pinterestBrief, 
 import { buildVisionQuestionsPrompt, buildVisionGenerateBrief, buildVisionTool } from "../_shared/vision-prompts.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { buildSeriesContext } from "../_shared/series-context.ts";
-import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat } from "../_shared/correction-pass.ts";
+import { applyCorrectionPass, applyCorrectionPassReel, type CorrectionFormat, applyCorrectionPassStories, storiesAuditableText } from "../_shared/correction-pass.ts";
 import { analyzeTextRedac, buildTextFixInstructions, fixElisionsInFields, numbersIn, runRedacGate, runTextRedacGate, textRedacRawCount, textRedacViolations } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
@@ -1463,31 +1463,38 @@ function applyStoriesPhotoGuardAndResolution(parsed: any, params: { storiesPhoto
   }
 }
 
-// ═══ CALIBRATION CORRECTION_PROMPTS.stories (audit slop 18/08 — code mort) ═══
-// CORRECTION_PROMPTS.stories (_shared/correction-pass.ts) n'était appelé nulle
-// part : seules une garde photo (applyStoriesPhotoGuardAndResolution) et une
-// télémétrie passive (logTextQuality, zéro LLM) tournaient sur les stories.
-// Avant d'activer une VRAIE re-passe, calibration PRUDENTE en mode SHADOW :
-// - la correction ne tourne QUE si le gate rédactionnel générique (même mesure
-//   que LinkedIn/reel : retournements, formules moulées, chiffres sans source,
-//   recopie de fiche de marque) détecte déjà une violation — "re-passe
-//   conditionnelle sur violation" ;
-// - son résultat est comparé à l'original et logué (console.log, aucune
-//   nouvelle colonne à ce stade), mais JAMAIS appliqué à `parsed.stories`.
-// Les stories ont un ton volontairement brut/spontané (contrairement aux
-// autres formats) : une correction trop appliquée risque de les lisser et de
-// leur faire perdre ce qui les rend justement moins "IA" — on regarde
-// d'abord ce que la passe détecte sur des générations réelles avant de la
-// brancher pour de vrai (remplacer le console.log par une affectation à
-// `parsed.stories` une fois la calibration validée).
-export async function applyStoriesCorrectionCalibration(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string }): Promise<void> {
-  const { body, fullContext, brandGuardText } = params;
-  if (!Array.isArray(parsed?.stories)) return;
-  const storiesText = parsed.stories
-    .map((s: any) => (typeof s?.text === "string" ? s.text : ""))
-    .filter(Boolean)
-    .join("\n\n");
-  if (!storiesText || storiesText.length < 150) return;
+// ═══ PASSE DE CORRECTION STORIES (audit stories 07/09/2026) ═══
+// Historique : depuis le 18/08 (#896) cette passe tournait en mode « ombre » :
+// elle mesurait, appelait la correction sur violation… et jetait le résultat
+// dans un console.log que personne ne lisait. Les stories étaient donc le SEUL
+// format sans filet, alors que 4 séquences sur 4 du corpus du 07/09 (et la
+// séquence réelle de Laetitia du même jour, score 80) auraient déclenché la
+// re-passe. Ici la boucle est refermée, avec les mêmes garde-fous que le
+// texte libre (runTextRedacGate) :
+// - on mesure ce que l'abonnée LIT : le texte de chaque story ET les
+//   pastilles rendues sur l'image (extractStoriesTexts) ;
+// - la correction ne tourne QUE s'il y a violation (0 appel IA sinon) ;
+// - elle est réinjectée story par story, par marqueur, avec garde de
+//   fidélité et bornes de pastilles (reinjectStoriesTexts) ;
+// - garde anti-régression : une correction qui laisse plus de tics bruts
+//   qu'avant est rejetée, l'original reste ;
+// - le ton brut est protégé par le prompt (« retirer les tics, rien d'autre »).
+// Le résultat est posé dans parsed.quality_check (source:"code"), comme pour
+// les carrousels : preuve de version lisible dans la réponse, et la
+// télémétrie reprend ces chiffres au lieu de re-mesurer à vide.
+export interface StoriesGateResult {
+  source: "code";
+  score: number;
+  violations: number;
+  repassed: boolean;
+  reverted: boolean;
+}
+
+export async function applyStoriesCorrectionPass(parsed: any, params: { body: any; fullContext: string; brandGuardText?: string; echoSubject?: string; previousHooks?: string[] }): Promise<StoriesGateResult | null> {
+  const { body, fullContext, brandGuardText, echoSubject, previousHooks } = params;
+  if (!Array.isArray(parsed?.stories) || parsed.stories.length === 0) return null;
+  const auditable = storiesAuditableText(parsed.stories);
+  if (!auditable || auditable.length < 150) return null;
   try {
     const storiesAllowed = numbersIn([
       typeof body.context === "string" ? body.context : "",
@@ -1495,25 +1502,42 @@ export async function applyStoriesCorrectionCalibration(parsed: any, params: { b
       body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
       fullContext || "",
     ].join("\n"));
-    const storiesRedac = analyzeTextRedac(storiesText, storiesAllowed, brandGuardText);
-    const violations = textRedacViolations(storiesRedac);
-    if (violations === 0) return;
-    const corrected = await applyCorrectionPass(storiesText, "stories", {
-      logger: (msg) => console.log(msg),
-      model: "claude-haiku-4-5",
-      extraInstructions: buildTextFixInstructions(storiesRedac) || undefined,
-      abortTimeoutMs: CORRECTION_ABORT_MS,
-    });
-    const wouldChange = !!corrected && corrected.trim() !== storiesText.trim();
-    console.log(JSON.stringify({
-      type: "stories_correction_calibration",
-      violations,
-      would_repass: wouldChange,
-      original_preview: storiesText.slice(0, 500),
-      corrected_preview: wouldChange ? corrected.slice(0, 500) : null,
-    }));
+    const echo = { previousHooks, subject: echoSubject };
+    const analyze = (stories: any[]) => analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo);
+    const before = analyze(parsed.stories);
+    let best = parsed.stories;
+    let bestA = before;
+    let repassed = false;
+    let reverted = false;
+    if (textRedacViolations(before) > 0) {
+      const out = await applyCorrectionPassStories(parsed.stories, {
+        logger: (msg) => console.log(msg),
+        model: "claude-haiku-4-5",
+        extraInstructions: buildTextFixInstructions(before) || undefined,
+        abortTimeoutMs: CORRECTION_ABORT_MS,
+      });
+      if (out.changed > 0) {
+        const after = analyze(out.stories);
+        if (textRedacRawCount(after) <= textRedacRawCount(before)) {
+          best = out.stories;
+          bestA = after;
+          repassed = true;
+        } else {
+          reverted = true;
+        }
+      }
+    }
+    const violations = textRedacViolations(bestA);
+    const result: StoriesGateResult = { source: "code", score: Math.max(40, 100 - 10 * violations), violations, repassed, reverted };
+    console.log(
+      `[stories-gate] retournements ${before.reversals.length}→${bestA.reversals.length}, moulés ${before.moulded.length}→${bestA.moulded.length}, chiffres inventés ${before.fabricatedNumbers.length}→${bestA.fabricatedNumbers.length}, recopie marque ${before.brandCopyOverlap.length}→${bestA.brandCopyOverlap.length}, échos d'accroche ${before.hookEchoes.length}→${bestA.hookEchoes.length}, repassé=${repassed}, rejeté=${reverted}`,
+    );
+    parsed.stories = best;
+    parsed.quality_check = result;
+    return result;
   } catch (e) {
-    console.error("[creative-flow] calibration correction-pass stories ignorée :", (e as any)?.message || e);
+    console.error("[creative-flow] passe de correction stories ignorée (génération intacte) :", (e as any)?.message || e);
+    return null;
   }
 }
 
@@ -1542,8 +1566,10 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   isLinkedIn: boolean;
   /** Accroches déjà écrites sur ce sujet : la redite compte dans le score mesuré (24/08). */
   previousHooks?: string[];
+  /** Résultat de la passe stories (score APRÈS correction) : loggé tel quel, sans re-mesure. */
+  storiesGate?: StoriesGateResult | null;
 }): Promise<void> {
-  const { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks } = params;
+  const { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate } = params;
   const qualityAllowed = () =>
     numbersIn([
       typeof context === "string" ? context : "",
@@ -1552,18 +1578,23 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
       typeof newsContext === "string" ? newsContext : "",
       fullContext || "",
     ].join("\n"));
-  const logTextQuality = async (format: string, text: string, previewDoc: unknown) => {
+  const logTextQuality = async (format: string, text: string, previewDoc: unknown, gate?: StoriesGateResult | null) => {
     try {
-      const a = analyzeTextRedac(text, qualityAllowed(), brandGuardText, {
-        previousHooks,
-        subject: typeof context === "string" ? context : undefined,
-      });
-      const violations = textRedacViolations(a);
-      const score = Math.max(40, 100 - 10 * violations);
+      let score: number, violations: number, repassed = false;
+      if (gate) {
+        ({ score, violations, repassed } = gate);
+      } else {
+        const a = analyzeTextRedac(text, qualityAllowed(), brandGuardText, {
+          previousHooks,
+          subject: typeof context === "string" ? context : undefined,
+        });
+        violations = textRedacViolations(a);
+        score = Math.max(40, 100 - 10 * violations);
+      }
       await logContentQuality(
         userId,
         format,
-        { score, violations, repassed: false, content: JSON.stringify(previewDoc) },
+        { score, violations, repassed, content: JSON.stringify(previewDoc) },
         finalUsage.model,
         workspace_id ?? undefined,
         typeof context === "string" ? context : undefined,
@@ -1574,8 +1605,8 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
   };
 
   if (isStories && Array.isArray(parsed?.stories)) {
-    const storiesText = parsed.stories.map((s: any) => (typeof s?.text === "string" ? s.text : "")).filter(Boolean).join("\n\n");
-    await logTextQuality("stories", storiesText, { stories: parsed.stories });
+    // Texte audité = texte + pastilles (ce que l'abonnée lit), même mesure que la passe.
+    await logTextQuality("stories", storiesAuditableText(parsed.stories), { stories: parsed.stories }, storiesGate);
   } else if (isReel && Array.isArray(parsed?.script)) {
     await logTextQuality("reel", reelAuditableText(parsed), { script: parsed.script });
   } else if (isLinkedIn && typeof parsed?.content === "string" && parsed.content.trim()) {
@@ -2990,14 +3021,15 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     }
 
     // ═══ GARDE PHOTO-D'ABORD + RÉSOLUTION PHOTOS BIBLIOTHÈQUE (stories) ═══
+    let storiesGate: StoriesGateResult | null = null;
     if (isStories && step === "generate") {
       applyStoriesPhotoGuardAndResolution(parsed, { storiesPhotoCatalog });
-      await applyStoriesCorrectionCalibration(parsed, { body, fullContext, brandGuardText });
+      storiesGate = await applyStoriesCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
     }
 
     // ═══ TÉLÉMÉTRIE QUALITÉ (stories / reel / LinkedIn) ═══
     if (step === "generate") {
-      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks });
+      await logGenerationQualityTelemetry(parsed, { userId, context, body, newsContext, fullContext, brandGuardText, finalUsage, workspace_id, isStories, isReel, isLinkedIn, previousHooks, storiesGate });
     }
 
     // Ne débite que les steps facturés (generate/adjust/recycle) ; angles/questions/follow-up/dictation = gratuits.
