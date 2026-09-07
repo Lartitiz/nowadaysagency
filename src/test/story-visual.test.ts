@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildStoryFrameHtml, buildStoryFrames } from "@/lib/story-visual";
+import { buildStoryFrameHtml, buildStoryFrames, bodyScale } from "@/lib/story-visual";
 
 const branding = {
   color_primary: "#A9542F",
@@ -156,6 +156,23 @@ describe("assemblages et pastilles façon native", () => {
     const html = buildStoryFrameHtml({ visual: { gabarit: "liste", background: "photo", title_pill: "3 gestes", list_pills: ["un", "deux"] } }, branding, { photoUrl: "https://x.test/p.jpg" })!;
     expect(html.match(/data-story-pptx="item"/g)).toHaveLength(2);
     expect(html).not.toContain('data-story-pptx="item" data-story-mode="nu"');
+  });
+});
+
+describe("texte long dans la pastille", () => {
+  it("le corps se réduit par paliers quand le texte s'allonge, jamais sous 70 %", () => {
+    expect(bodyScale("Deux mots.")).toBe(1);
+    expect(bodyScale("a".repeat(180))).toBe(0.88);
+    expect(bodyScale("a".repeat(250))).toBe(0.78);
+    expect(bodyScale("a".repeat(340))).toBe(0.7);
+  });
+
+  it("un texte de 4 phrases est rendu entier, en corps réduit", () => {
+    const long = "Pendant longtemps je faisais sécher trop vite. Résultat : des fissures partout, sur toutes mes pièces. J'ai fini par comprendre que c'était l'air du four. Depuis, je laisse une nuit de plus, et plus rien ne casse.";
+    const html = buildStoryFrameHtml({ visual: { gabarit: "photo_pills", background: "photo", body_pill: long } }, branding, { photoUrl: "https://x.test/p.jpg" })!;
+    expect(html).toContain("plus rien ne casse.");
+    expect(bodyScale(long)).toBeLessThan(1);
+    expect(html).toContain(`font-size:${Math.round(52 * bodyScale(long))}px`);
   });
 });
 

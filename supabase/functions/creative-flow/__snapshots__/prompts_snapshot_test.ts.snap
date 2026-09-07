@@ -3266,6 +3266,14 @@ Chaque séquence de stories doit avoir UN angle de narration dominant. C'est l'a
    Le fil : constat → pourquoi ça pose problème → ce qu'on peut faire autrement
    Idéal pour : se positionner, affirmer ses valeurs, créer du débat sain
 
+══ FIL NARRATIF : UNE SEULE HISTOIRE, PAS UNE SUITE DE STORIES ══
+
+On regarde les stories UNE PAR UNE, en tapotant. Si la story 4 pourrait être lue avant la story 2 sans rien perdre, la séquence n'est pas une histoire, c'est une liste. Règles :
+- La story 1 pose UNE situation précise (un moment, un détail, une phrase entendue) et ouvre une attente : quelque chose reste en suspens.
+- Chaque story suivante REPREND là où la précédente s'est arrêtée : elle commence par la conséquence, la suite ou la réaction de ce qui vient d'être dit (« Et là… », « Sauf que… », « Du coup… », « Ce que j'ai fait : … »), varié d'une story à l'autre, jamais deux fois la même cheville. Pas de nouveau sujet en cours de route.
+- L'attente ouverte en story 1 est résolue dans l'avant-dernière ou la dernière story. Le sticker ou l'invitation finale découle de cette résolution, il ne tombe pas du ciel.
+- Test avant de rendre : relis les "text" à la suite comme un seul message vocal. Si ça ne s'enchaîne pas à voix haute, réécris les transitions, pas les stories.
+
 RÈGLE D'OR DE LA VOIX :
 - AUCUNE amorce passe-partout : la première phrase de la séquence doit être IMPOSSIBLE à coller sur un autre sujet ou un autre métier. Si elle pourrait ouvrir n'importe quelle story de n'importe quel compte, réécris-la à partir d'un détail de CE sujet.
 - Le "JE" narratif est la voix PAR DÉFAUT. On raconte depuis son expérience.
@@ -3321,7 +3329,7 @@ GABARITS DISPONIBLES (champ "gabarit") :
 
 RÈGLES DU PLAN VISUEL :
 1. "title_pill" : OPTIONNEL, et null le plus souvent. Une story native, c'est UN bloc de texte posé sur la photo ; un titre + un texte dessous sur chaque story, c'est la signature d'un outil, pas d'une personne. Ne mets un "title_pill" (3-7 mots, pas de point final, affiché en capitales condensées type "Strong") QUE si la story annonce quelque chose qui se lit d'abord : une liste, une question posée à l'audience, une offre, une date. Jamais de titre qui répète ou résume le body_pill. Sur une séquence de 5 stories, 1 ou 2 titres maximum.
-2. "body_pill" : 1-2 phrases courtes, 120 caractères MAX (affiché en gras type "Classic" Instagram), écrites comme on parle, jamais en formule. Le texte complet de la story reste dans "text" ; la pastille n'en est que la version AFFICHABLE.
+2. "body_pill" : LE TEXTE DE LA STORY, mot pour mot (= le champ "text"), 350 caractères MAX. Ce qui est écrit sur la story, c'est ce qu'on lit : pas de résumé, pas de version raccourcie, pas de "titre puis texte". Un texte de 3-4 phrases qui raconte vraiment, c'est ce qui fait lire ; une accroche de 8 mots, on la swipe. Écrit comme on parle, jamais en formule. Si "text" dépasse 350 caractères, coupe "text" lui-même : une story ne doit pas dire plus.
 3. "list_pills" : uniquement pour le gabarit "liste", 2-4 items de 6-10 mots.
 4. "quote" : uniquement pour le gabarit "citation". Verbatim court, jamais inventé : s'il n'y a pas de vrai retour client fourni, n'utilise PAS ce gabarit.
 5. "background" : "photo" ou "fond_couleur". Les stories, ce sont des IMAGES : "photo" est le fond de TOUTES les stories (hors face cam) — le fond de chaque story illustre CE QU'ELLE DIT. La SEULE exception tolérée : le gabarit "citation" (verbatim sur fond couleur, choix design). Une story texte sur fond coloré au milieu de photos casse l'authenticité : n'en produis pas.
@@ -3405,7 +3413,7 @@ Réponds en JSON strict :
         "gabarit": "interaction",
         "background": "photo",
         "title_pill": null,
-        "body_pill": "[1-2 phrases courtes, 120 car. max]",
+        "body_pill": "[= le champ text, mot pour mot, 350 car. max]",
         "list_pills": null,
         "quote": null,
         "photo_directive": "[quelle photo prendre/choisir, concrète, ancrée dans l'activité]",

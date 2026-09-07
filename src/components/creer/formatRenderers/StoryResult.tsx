@@ -333,9 +333,10 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       const story = updated[index];
       const text = String(story.text || story.texte || story.content || "").trim();
       if (story.face_cam) {
-        const sentences = text.split(/(?<=[.!?])\s+/).filter(Boolean);
-        const title = (sentences[0] || text).slice(0, 60);
-        const body = sentences.slice(1).join(" ").slice(0, 140);
+        // Le vrai texte de la story dans la pastille (pas un titre + un résumé) :
+        // c'est ce qu'on lit. 350 caractères = plafond du brief.
+        const title = "";
+        const body = text.slice(0, 350);
         updated[index] = {
           ...story,
           face_cam: false,
@@ -345,7 +346,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
             photo_directive: story.visual?.photo_directive ?? null,
             photo_query_en: story.visual?.photo_query_en ?? null,
             ...(story.visual || {}),
-            title_pill: story.visual?.title_pill || title,
+            title_pill: story.visual?.title_pill || title || null,
             body_pill: story.visual?.body_pill || body,
             background: "photo",
             gabarit:
