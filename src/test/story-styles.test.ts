@@ -27,6 +27,14 @@ describe("story-styles", () => {
     }
   });
 
+  it("aucun assemblage n'utilise le texte nu avec ombre (décision 07/09)", () => {
+    for (const a of STORY_ASSEMBLAGES) {
+      for (const st of [a.title, a.body, a.aside, ...(a.quote ? [a.quote] : [])]) {
+        expect(st.mode, `${a.key}`).not.toBe("nu");
+      }
+    }
+  });
+
   it("normalise les réglages persistés (valeurs inconnues → défauts)", () => {
     expect(resolveStoryStyle(null)).toEqual({ assemblage: "A", pillColor: "primary", corners: "courts", align: "auto" });
     expect(

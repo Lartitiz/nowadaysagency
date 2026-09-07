@@ -29,12 +29,13 @@ export interface StoryStyleResolved {
 }
 
 /**
- * Habillage d'un bloc de texte, = les 3 modes du bouton « fond » d'Instagram
- * + le texte nu :
+ * Habillage d'un bloc de texte, = les 3 modes du bouton « fond » d'Instagram :
  * - col  : texte blanc (ou encre si couleur claire) sur pastille couleur
  * - wh   : encre sur pastille blanche
  * - tint : couleur sur pastille blanche translucide
- * - nu   : blanc sans pastille, ombre portée
+ * (« nu » = blanc sans pastille avec ombre existe encore dans le type pour le
+ * renderer, mais AUCUN assemblage ne l'utilise : décision Laetitia 07/09,
+ * « jamais de texte en fond avec une ombre, ça ne rend pas bien ».)
  */
 export type StoryTextMode = "col" | "wh" | "tint" | "nu";
 
@@ -109,7 +110,7 @@ export const STORY_ASSEMBLAGES: readonly StoryAssemblage[] = [
     name: "Éditorial",
     description: "Une serif de lecture partout. Le rendu le plus proche d'une story faite à la main.",
     title: NEWS(66, "col"),
-    body: NEWS(56, "nu"),
+    body: NEWS(54, "wh"),
     aside: NEWS(44, "tint", { italic: true }),
   },
   {
@@ -134,13 +135,13 @@ export const STORY_ASSEMBLAGES: readonly StoryAssemblage[] = [
     description: "Italique élégante sur pastille claire, texte sur pastille couleur. Bien-être, artisanat, mode.",
     title: { font: FONT_ELEGANT, weight: 600, size: 78, mode: "tint", italic: true, charWidth: 0.42 },
     body: INTER(50, "col", { weight: 600 }),
-    aside: { font: FONT_ELEGANT, weight: 600, size: 50, mode: "nu", italic: true, charWidth: 0.42 },
+    aside: { font: FONT_ELEGANT, weight: 600, size: 50, mode: "wh", italic: true, charWidth: 0.42 },
   },
   {
     key: "E",
     name: "Moderne",
     description: "Capitales espacées et nues, texte serif sur pastille couleur. Architecture, design, conseil.",
-    title: { font: FONT_MODERN, weight: 600, size: 54, mode: "nu", upper: true, letterSpacing: "0.14em", charWidth: 0.78 },
+    title: { font: FONT_MODERN, weight: 600, size: 54, mode: "wh", upper: true, letterSpacing: "0.14em", charWidth: 0.78 },
     body: NEWS(54, "col"),
     aside: { font: FONT_MODERN, weight: 600, size: 38, mode: "tint", upper: true, letterSpacing: "0.1em", charWidth: 0.72 },
   },
@@ -148,7 +149,7 @@ export const STORY_ASSEMBLAGES: readonly StoryAssemblage[] = [
     key: "F",
     name: "Manuscrit",
     description: "Accroche manuscrite nue, texte gras sur blanc. À réserver aux accroches courtes.",
-    title: { font: FONT_SIGNATURE, weight: 400, size: 84, mode: "nu", charWidth: 0.5 },
+    title: { font: FONT_SIGNATURE, weight: 400, size: 84, mode: "col", charWidth: 0.5 },
     body: INTER(52, "wh"),
     aside: { font: FONT_SIGNATURE, weight: 400, size: 50, mode: "tint", charWidth: 0.5 },
     // Une citation en manuscrite est illisible : serif de lecture.
