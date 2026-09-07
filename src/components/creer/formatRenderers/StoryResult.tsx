@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Download, FileDown, Loader2, Palette } from "lucide-react";
+import { Camera, Download, FileDown, ImageIcon, Loader2, Palette } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
