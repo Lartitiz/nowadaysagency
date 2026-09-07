@@ -487,6 +487,14 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                     {story.format && (
                       <Badge variant="outline" className="text-2xs">{story.format}</Badge>
                     )}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 px-2 text-2xs text-muted-foreground hover:text-foreground"
+                      onClick={() => toggleFaceCam(i)}
+                    >
+                      {story.face_cam ? "Plutôt une story designée" : "Plutôt me filmer"}
+                    </Button>
                   </div>
                   {(story.text || story.texte || story.content) && (
                     <div
