@@ -2,13 +2,17 @@
 // que la charte propose, et la géométrie des pastilles mesurée sur de vraies
 // stories (recherche du 07/09/2026).
 //
-// Polices : équivalents LIBRES (Google Fonts, licence OFL) des styles natifs —
+// Polices : équivalents LIBRES (Google Fonts, licence OFL) des 3 styles natifs
+// gardés (Classic ≈ Inter, Strong ≈ Oswald, Typewriter = Courier Prime) —
 // les polices récentes d'Instagram sont des créations sur mesure (Colophon),
 // jamais vendues, et les licences web/app des polices du commerce interdisent
 // explicitement « un éditeur d'images avec fonction texte ». Décision Laetitia
 // 07/09 : que du gratuit, chaque police reste remplaçable ici en une ligne.
 
-export type StoryAssemblageKey = "A" | "B" | "C" | "D" | "E" | "F";
+// A (Éditorial), D (Doux), E (Moderne), F (Manuscrit) ont été retirés le 07/09 :
+// leurs polices (serif, italique, capitales espacées, manuscrite) se voyaient
+// « pas Instagram ». Les chartes qui les avaient choisis retombent sur B.
+export type StoryAssemblageKey = "B" | "C";
 export type StoryPillColor = "primary" | "secondary" | "ink";
 export type StoryCorners = "courts" | "droits";
 export type StoryAlign = "auto" | "centre" | "gauche";
@@ -71,16 +75,12 @@ export interface StoryAssemblage {
 
 export const FONT_CLASSIC = "'Inter', -apple-system, 'Segoe UI', Roboto, sans-serif";
 export const FONT_STRONG = "'Oswald', 'Arial Narrow', sans-serif";
-export const FONT_LITERATURE = "'Newsreader', Georgia, serif";
-export const FONT_ELEGANT = "'Cormorant Garamond', Georgia, serif";
 export const FONT_TYPEWRITER = "'Courier Prime', 'Courier New', monospace";
-export const FONT_MODERN = "'Jost', 'Futura', sans-serif";
-export const FONT_SIGNATURE = "'Homemade Apple', cursive";
 export const FONT_MONO = "'IBM Plex Mono', ui-monospace, monospace";
 
 /** Une seule feuille Google Fonts pour tout ce que les stories peuvent afficher. */
 export const STORY_FONTS_HREF =
-  "https://fonts.googleapis.com/css2?family=Inter:wght@600;700&family=Oswald:wght@500;600&family=Newsreader:ital,opsz,wght@0,6..72,500;0,6..72,600;1,6..72,500&family=Cormorant+Garamond:ital,wght@0,600;1,600&family=Courier+Prime:wght@700&family=Jost:wght@600&family=Homemade+Apple&family=IBM+Plex+Mono:wght@500&display=swap";
+  "https://fonts.googleapis.com/css2?family=Inter:wght@600;700&family=Oswald:wght@500;600&family=Courier+Prime:wght@700&family=IBM+Plex+Mono:wght@500&display=swap";
 
 /**
  * Géométrie de la pastille, relevée sur de vraies stories natives : une boîte
@@ -94,9 +94,6 @@ export const STORY_PILL = {
   radiusDroitsEm: 0.05,
 } as const;
 
-const NEWS = (size: number, mode: StoryTextMode, extra: Partial<StoryTextStyle> = {}): StoryTextStyle => ({
-  font: FONT_LITERATURE, weight: 500, size, mode, charWidth: 0.47, ...extra,
-});
 const INTER = (size: number, mode: StoryTextMode, extra: Partial<StoryTextStyle> = {}): StoryTextStyle => ({
   font: FONT_CLASSIC, weight: 700, size, mode, charWidth: 0.53, ...extra,
 });
@@ -106,17 +103,9 @@ const STRONG = (size: number, mode: StoryTextMode): StoryTextStyle => ({
 
 export const STORY_ASSEMBLAGES: readonly StoryAssemblage[] = [
   {
-    key: "A",
-    name: "Éditorial",
-    description: "Une serif de lecture partout. Le rendu le plus proche d'une story faite à la main.",
-    title: NEWS(66, "col"),
-    body: NEWS(54, "wh"),
-    aside: NEWS(44, "tint", { italic: true }),
-  },
-  {
     key: "B",
     name: "Direct",
-    description: "Titre en capitales condensées, texte gras sur blanc. Le duo le plus « actu ».",
+    description: "Titre en capitales condensées, texte gras sur blanc. Le style de story le plus courant.",
     title: STRONG(66, "col"),
     body: INTER(52, "wh"),
     aside: INTER(40, "tint", { weight: 600 }),
@@ -129,35 +118,9 @@ export const STORY_ASSEMBLAGES: readonly StoryAssemblage[] = [
     body: { font: FONT_TYPEWRITER, weight: 700, size: 46, mode: "wh", radiusEm: 0.12, charWidth: 0.6 },
     aside: { font: FONT_TYPEWRITER, weight: 700, size: 38, mode: "tint", radiusEm: 0.12, charWidth: 0.6 },
   },
-  {
-    key: "D",
-    name: "Doux",
-    description: "Italique élégante sur pastille claire, texte sur pastille couleur. Bien-être, artisanat, mode.",
-    title: { font: FONT_ELEGANT, weight: 600, size: 78, mode: "tint", italic: true, charWidth: 0.42 },
-    body: INTER(50, "col", { weight: 600 }),
-    aside: { font: FONT_ELEGANT, weight: 600, size: 50, mode: "wh", italic: true, charWidth: 0.42 },
-  },
-  {
-    key: "E",
-    name: "Moderne",
-    description: "Capitales espacées et nues, texte serif sur pastille couleur. Architecture, design, conseil.",
-    title: { font: FONT_MODERN, weight: 600, size: 54, mode: "wh", upper: true, letterSpacing: "0.14em", charWidth: 0.78 },
-    body: NEWS(54, "col"),
-    aside: { font: FONT_MODERN, weight: 600, size: 38, mode: "tint", upper: true, letterSpacing: "0.1em", charWidth: 0.72 },
-  },
-  {
-    key: "F",
-    name: "Manuscrit",
-    description: "Accroche manuscrite nue, texte gras sur blanc. À réserver aux accroches courtes.",
-    title: { font: FONT_SIGNATURE, weight: 400, size: 84, mode: "col", charWidth: 0.5 },
-    body: INTER(52, "wh"),
-    aside: { font: FONT_SIGNATURE, weight: 400, size: 50, mode: "tint", charWidth: 0.5 },
-    // Une citation en manuscrite est illisible : serif de lecture.
-    quote: NEWS(60, "wh"),
-  },
 ];
 
-export const DEFAULT_STORY_ASSEMBLAGE: StoryAssemblageKey = "A";
+export const DEFAULT_STORY_ASSEMBLAGE: StoryAssemblageKey = "B";
 
 export function getStoryAssemblage(key: string | null | undefined): StoryAssemblage {
   const k = (key || "").trim().toUpperCase();
@@ -173,7 +136,8 @@ export function resolveStoryStyle(s: StoryStyleSettings | null | undefined): Sto
     assemblage: getStoryAssemblage(s?.story_assemblage).key,
     pillColor: pill === "secondary" || pill === "ink" ? pill : "primary",
     corners: corners === "droits" ? "droits" : "courts",
-    align: align === "centre" || align === "gauche" ? align : "auto",
+    // Défaut « centre » (décision 07/09) ; « auto » reste possible.
+    align: align === "auto" || align === "gauche" ? align : "centre",
   };
 }
 

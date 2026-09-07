@@ -316,8 +316,9 @@ ${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}
 <div style="align-self:stretch">${stickerZoneHtml(story?.sticker, p, preview, onPhoto)}</div>
 </div>`;
   } else if (gabarit === "photo_pills" && wantsPhoto) {
+    // Centré au milieu de la story (décision 07/09), plus ancré en bas.
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
-    inner = column(align, "justify-content:flex-end;gap:28px", [
+    inner = column(align, "justify-content:center;gap:34px", [
       title ? textBlock(title, titleStyle, ctx, "title") : "",
       body ? textBlock(body, bodyStyle, ctx, "body") : "",
     ]);
