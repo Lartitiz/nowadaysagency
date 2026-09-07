@@ -145,6 +145,17 @@ Deno.serve(async (req) => {
     await decryptConnTokens(conn);
 
     const token = await refreshCanvaTokenIfNeeded(supabase, conn);
+    if (!token) {
+      return json(
+        {
+          error: "not_connected",
+          message: "Ta connexion Canva a expiré. Reconnecte ton compte Canva pour continuer.",
+        },
+        400,
+        corsHeaders,
+      );
+    }
+
 
     // Si le fichier arrive en base64, on le dépose côté serveur (service-role :
     // pas de RLS, et on crée le bucket public au besoin) puis on importe par URL.
