@@ -230,6 +230,15 @@ function wrapFrame(inner: string, backgroundCss: string): string {
 <div data-story-frame style="width:${STORY_W}px;height:${STORY_H}px;position:relative;${backgroundCss}">${inner}</div>`;
 }
 
+/** Facteur de taille du corps selon la longueur du texte (paliers, jamais sous 0.7). */
+export function bodyScale(text: string): number {
+  const n = (text || "").trim().length;
+  if (n > 300) return 0.7;
+  if (n > 220) return 0.78;
+  if (n > 150) return 0.88;
+  return 1;
+}
+
 /** Alignement d'une story : réglage de la charte, ou auto (centré ≤ 2 lignes, gauche au-delà). */
 function alignFor(ctx: RenderCtx, longest: { text: string; style: StoryTextStyle } | null): "center" | "left" {
   if (ctx.style.align === "centre") return "center";
@@ -278,7 +287,11 @@ export function buildStoryFrameHtml(
 
   // Sur fond couleur, le texte « nu » (blanc + ombre) n'a pas de sens : il
   // devient une pastille blanche. Sur photo, il reste nu.
-  const bodyStyle: StoryTextStyle = !onPhoto && asm.body.mode === "nu" ? { ...asm.body, mode: "wh" } : asm.body;
+  const bodyBase: StoryTextStyle = !onPhoto && asm.body.mode === "nu" ? { ...asm.body, mode: "wh" } : asm.body;
+  // La pastille porte LE texte de la story (jusqu'à ~350 caractères, décision
+  // 07/09 : « le texte un peu long, c'est ça qui fait qu'on lit »). Le corps
+  // se réduit par paliers pour que 4 phrases tiennent dans la zone sûre.
+  const bodyStyle: StoryTextStyle = { ...bodyBase, size: bodyBase.size * bodyScale(body) };
   const titleStyle: StoryTextStyle = !onPhoto && asm.title.mode === "nu" ? { ...asm.title, mode: "col" } : asm.title;
 
   let inner = "";
