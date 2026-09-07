@@ -345,10 +345,14 @@ export default function AdaptiveHome() {
       if (!user) return 0;
       const filterCol = workspaceId ? "workspace_id" : "user_id";
       const filterVal = workspaceId ?? user.id;
+      // Seulement ce qui reste à faire : une idée déjà créée (posée au
+      // calendrier) n'est plus un rappel.
       const { count, error } = await supabase
         .from("saved_ideas")
         .select("*", { count: "exact", head: true })
-        .eq(filterCol, filterVal);
+        .eq(filterCol, filterVal)
+        .is("calendar_post_id", null)
+        .or("status.is.null,status.not.in.(planned,published)");
       if (error) throw error;
       return count ?? 0;
     },

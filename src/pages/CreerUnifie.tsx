@@ -493,7 +493,10 @@ export default function CreerUnifie() {
   const [saving, setSaving] = useState(false);
   const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
-  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? null);
+  // L'idée de départ (« Créer ce contenu » depuis /idees ou la fiche du
+  // calendrier) : gardée tout le long pour relier le contenu à l'idée quand il
+  // est posé au calendrier (l'idée passe alors en « Créée »).
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   // Visual states (carousel only)
@@ -1891,6 +1894,7 @@ export default function CreerUnifie() {
     pinterestPinHtml,
     photoBriefOverlayHtml,
     currentBriefId,
+    editingIdeaId,
     reelMp4Url,
     publishableImageUrl,
     calendarPostId,

@@ -860,7 +860,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         return;
       }
       if (newPost) {
-        const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate }).eq("id", idea.id);
+        const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate, status: "planned" }).eq("id", idea.id);
         if (updateError) {
           console.error("Erreur technique:", updateError);
           toast.error("Erreur", { description: friendlyError(updateError) });

@@ -41,6 +41,7 @@ const ChatGuidePage = lazy(() => import("./pages/ChatGuidePage"));
 const Profile = lazy(() => import("./pages/Profile"));
 const SettingsPage = lazy(() => import("./pages/SettingsPage"));
 const OrganizationHub = lazy(() => import("./pages/OrganizationHub"));
+const IdeasPage = lazy(() => import("./pages/IdeasPage"));
 const BrandingPage = lazy(() => import("./pages/BrandingPage"));
 const StorytellingEditPage = lazy(() => import("./pages/StorytellingEditPage"));
 const InstagramHub = lazy(() => import("./pages/InstagramHub"));
@@ -231,7 +232,7 @@ function AnimatedRoutes() {
               <Route path="/dashboard" element={<ProtectedRoute><AdaptiveHome /></ProtectedRoute>} />
               <Route path="/dashboard/guide" element={<ProtectedRoute><ChatGuidePage /></ProtectedRoute>} />
               <Route path="/dashboard/complet" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/idees" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "idees" }} />} />
+              <Route path="/idees" element={<ProtectedRoute><IdeasPage /></ProtectedRoute>} />
               <Route element={<ErrorBoundaryLayout />}>
                 <Route path="/branding" element={<ProtectedRoute><BrandingPage /></ProtectedRoute>} />
                 <Route path="/branding/audit" element={<ProtectedRoute><BrandingAuditPage /></ProtectedRoute>} />
@@ -349,7 +350,7 @@ function AnimatedRoutes() {
               <Route path="/site/inspirations/:sectionType" element={<ProtectedRoute><SiteInspirationGeneratorPage /></ProtectedRoute>} />
               <Route path="/site/optimiser" element={<ProtectedRoute><SalesPageOptimizer /></ProtectedRoute>} />
               {/* Redirects from old routes */}
-              <Route path="/instagram/idees" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "idees", canal: "instagram" }} />} />
+              <Route path="/instagram/idees" element={<RedirectWithParams to="/idees" mergeParams={{ canal: "instagram" }} />} />
               <Route path="/instagram/calendrier" element={<Navigate to="/calendrier?canal=instagram" replace />} />
               <Route path="/instagram/atelier" element={<Navigate to="/atelier?canal=instagram" replace />} />
               <Route path="*" element={<NotFound />} />

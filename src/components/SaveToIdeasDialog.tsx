@@ -104,9 +104,13 @@ export function SaveToIdeasDialog({
 
     if (editingIdeaId) {
       isUpdate = true;
+      // On range le contenu SUR l'idée de départ sans lui voler son identité :
+      // le titre et l'angle notés par l'utilisatrice restent, seuls le contenu,
+      // le format/canal et les notes sont mis à jour.
+      const { titre: _titre, angle: _angle, ...contentFields } = baseFields;
       const { error } = await supabase
         .from("saved_ideas")
-        .update({ ...baseFields, updated_at: new Date().toISOString() } as any)
+        .update({ ...contentFields, updated_at: new Date().toISOString() } as any)
         .eq("id", editingIdeaId);
       if (error) {
         setSaving(false);

@@ -1,7 +1,7 @@
 import BrandLogo from "@/components/BrandLogo";
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, X, Plus, Trash2, Image, BarChart3, IdCard, MessageCircle, Sparkles } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, X, Plus, Trash2, Image, BarChart3, IdCard, MessageCircle, Sparkles, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -42,6 +42,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
     label: "CRÉER ET PLANIFIER",
     items: [
       { label: "Créer un contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
+      { label: "Mes idées", path: "/idees", icon: <Lightbulb size={16} /> },
       { label: "Mon calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
       // La page /instagram/stats agrège déjà Instagram + site (GA4) + CA ("Suivre
       // mes stats") ; on l'expose ici en porte directe, sans passer par le hub Insta.
@@ -81,6 +82,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
 const MOBILE_NAV: { to: string; label: string; icon: typeof Home; matchExact: boolean }[] = [
   { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true },
   { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
+  { to: "/idees", label: "Idées", icon: Lightbulb, matchExact: false },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
 

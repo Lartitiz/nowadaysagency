@@ -30,6 +30,8 @@ interface UseCalendarSaveParams {
   pinterestPinHtml: string | null;
   photoBriefOverlayHtml: string | null;
   currentBriefId: string | null;
+  /** Idée de départ (saved_ideas.id) : reliée au post et passée en « Créée ». */
+  editingIdeaId?: string | null;
   reelMp4Url: string | null;
   publishableImageUrl: string | null | undefined;
   calendarPostId: string | null;
@@ -69,6 +71,7 @@ export function useCalendarSave({
   pinterestPinHtml,
   photoBriefOverlayHtml,
   currentBriefId,
+  editingIdeaId = null,
   reelMp4Url,
   publishableImageUrl,
   calendarPostId,
@@ -78,6 +81,20 @@ export function useCalendarSave({
 }: UseCalendarSaveParams) {
   const navigate = useNavigate();
   const [savingToCalendar, setSavingToCalendar] = useState(false);
+
+  /**
+   * Relie l'idée de départ au post du calendrier : elle passe en « Créée »
+   * dans /idees (état dérivé de calendar_post_id, cf. src/lib/idea-state.ts).
+   * Best-effort : un échec ici ne doit pas faire échouer la sauvegarde du post.
+   */
+  const linkIdeaToPost = async (postId: string, date: string | null) => {
+    if (!editingIdeaId || !postId) return;
+    const { error } = await supabase
+      .from("saved_ideas")
+      .update({ calendar_post_id: postId, status: "planned", ...(date ? { planned_date: date } : {}), updated_at: new Date().toISOString() } as any)
+      .eq("id", editingIdeaId);
+    if (error) console.error("[use-calendar-save] lien idée → post échoué :", error);
+  };
 
   // Extraction pure (testée) : voir src/features/creer/build-calendar-content.ts
   const extractContentForCalendar = () => buildCalendarContent(selectedFormat, result?.raw);
@@ -220,6 +237,7 @@ export function useCalendarSave({
         const { error: briefError } = await supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId);
         if (briefError) throw briefError;
       }
+      if (calendarPostId) await linkIdeaToPost(calendarPostId, calendarPostDate);
 
       if (uploadFailed) {
         toast.warning("Texte sauvegardé, mais l'upload des visuels a échoué. Tu pourras les régénérer depuis le calendrier.");
@@ -348,6 +366,7 @@ export function useCalendarSave({
         const { error: briefError } = await supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId);
         if (briefError) throw briefError;
       }
+      if (postId) await linkIdeaToPost(postId, date);
 
       // Pose l'auto-publication (le cron social-publish-scheduled fera le reste).
       let scheduled = false;
