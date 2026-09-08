@@ -100,10 +100,9 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   expect(previewCount).toBeGreaterThan(0);
 
   // ── GARDE 1 : « photo d'abord » (le contrat de enforceStoriesPhotoFirst) ──
-  // La garde serveur (#615) bascule toute story non face-cam en fond photo et
-  // réécrit son badge format "texte_fond" → "photo". Compter les badges est
-  // robuste au chargement stock différé : le badge reflète le PLAN
-  // (background=photo), pas la photo effectivement chargée.
+  // La garde serveur (#615) bascule toute story non face-cam en fond photo.
+  // Lire l'état du sélecteur de fond est robuste au chargement stock différé :
+  // il reflète le PLAN (background=photo), pas la photo effectivement chargée.
   //
   // 🔑 Ce que la garde NE promet PAS : elle exempte VOLONTAIREMENT le gabarit
   // "citation" (verbatim sur fond encre, choix design assumé — cf.
@@ -120,14 +119,24 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   // couleur — 1 seule story photo sur toute la séquence. Les 3 assertions
   // ci-dessous l'attrapent, tout en laissant passer les citations.
   const totalCards = await page.getByText(/^Story \d+$/).count();
-  const faceCamBadges = await page.getByText(/^face_cam$/).count();
-  const photoBadges = await page.getByText(/^photo$/).count();
-  const texteFondBadges = await page.getByText(/^texte_fond$/).count();
-  // Dénominateur = stories À VISUEL (les face cam sont des vidéos à filmer,
-  // jamais un fond photo). Inclut encore les citations, faute de pouvoir les
-  // distinguer — d'où un plancher volontairement bas, épaulé par le
-  // « photo ≥ texte_fond » qui, lui, ne dépend pas du dénominateur.
-  const eligible = Math.max(1, totalCards - faceCamBadges);
+  // 🔑 08/09 — Le front n'affiche PLUS les valeurs brutes du format
+  // (`photo` / `texte_fond` / `face_cam`) : le choix du fond par story
+  // (StoryResult.tsx) les a remplacées par un sélecteur « Fond : 📷 Photo /
+  // Couleur ». Compter le TEXTE des badges rendait donc 0 partout et faisait
+  // échouer la garde alors que l'app était saine. On lit maintenant l'ÉTAT
+  // déterministe exposé par le sélecteur — `data-story-background` +
+  // `aria-pressed` — au lieu d'un libellé humain qui peut être réécrit à
+  // tout moment.
+  const bgPressed = (value: string) =>
+    page.locator(`[data-story-background="${value}"][aria-pressed="true"]`).count();
+  const photoBadges = await bgPressed("photo");
+  const texteFondBadges = await bgPressed("fond_couleur");
+  // Dénominateur = stories À VISUEL. Le sélecteur de fond n'est rendu QUE
+  // pour celles-là (`frames[i] && story.visual`), donc le compter est plus
+  // juste que « total − face cam » : plus besoin de deviner les face cam.
+  // Repli sur l'ancien calcul si le sélecteur n'est pas encore peint.
+  const faceCamBadges = await page.getByRole("button", { name: "Story designée" }).count();
+  const eligible = Math.max(1, photoBadges + texteFondBadges || totalCards - faceCamBadges);
   console.log(`Fonds : ${photoBadges} photo / ${texteFondBadges} texte_fond / ${eligible} à visuel (${totalCards} stories, ${faceCamBadges} face cam)`);
 
   // Inventaire COMPLET des badges : le jour où cette garde retombe en rouge, on

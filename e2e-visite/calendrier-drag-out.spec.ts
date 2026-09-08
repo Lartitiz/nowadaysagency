@@ -98,9 +98,16 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
 
     // Créer une idée de test dédiée (panneau possiblement vide sur Camille)
     await panel.getByText("+ Ajouter une idée").click();
-    await page.getByPlaceholder("Mon idée de contenu...").fill(IDEA_TITLE);
-    await page.getByRole("button", { name: "Ajouter l'idée" }).click();
-    await expect(page.getByText("Idée ajoutée !").first()).toBeVisible({ timeout: 8_000 });
+    // 🔑 08/09 — La refonte « Mes idées » a remplacé le formulaire en ligne par
+    // le dialogue « Noter une idée » (AddIdeaDialog dans CalendarIdeasSidebar).
+    // Placeholder, bouton et toast ont TOUS changé de libellé : on vise le
+    // dialogue par son titre puis son premier champ, plutôt qu'un placeholder
+    // en dur qui se réécrit à chaque retouche de copy.
+    const addDialog = page.getByRole("dialog").filter({ hasText: "Noter une idée" });
+    await expect(addDialog).toBeVisible({ timeout: 10_000 });
+    await addDialog.getByRole("textbox").first().fill(IDEA_TITLE);
+    await addDialog.getByRole("button", { name: "Noter cette idée" }).click();
+    await expect(page.getByText("Idée notée").first()).toBeVisible({ timeout: 8_000 });
     const ideaCard = panel.getByText(IDEA_TITLE).first();
     await expect(ideaCard).toBeVisible({ timeout: 8_000 });
     await page.screenshot({ path: path.join(SHOTS, "01-idee-creee.png") });
@@ -115,10 +122,14 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     await expect(async () => {
       await gridOccurrence(page, panelHeading, IDEA_TITLE);
     }).toPass({ timeout: 10_000 });
-    // Scopé à LA carte de ce run : des idées résiduelles d'anciens runs peuvent
-    // porter leur propre badge « Planifiée » dans le panneau.
+    // 🔑 08/09 — La refonte « Mes idées » a changé le contrat observable :
+    // planifier une idée la fait passer en état « Créée » (idea-state.ts), et
+    // le panneau calendrier FILTRE les idées créées (CalendarIdeasSidebar
+    // ligne ~101, `getIdeaState(i) !== "created"`). La carte ne porte donc plus
+    // un badge « 📅 Planifiée » : elle QUITTE le panneau. On asserte la
+    // disparition, qui est le vrai signe que la planification a pris.
     const myCard = panel.locator("div.rounded-lg", { hasText: IDEA_TITLE }).first();
-    await expect(myCard.getByText("📅 Planifiée")).toBeVisible({ timeout: 8_000 });
+    await expect(myCard).toHaveCount(0, { timeout: 8_000 });
 
     // 2) Post → panneau idées (le geste corrigé par #330). Point de drop =
     // 220px SOUS l'en-tête (zone des cartes) : le drop sur l'en-tête lui-même
@@ -131,9 +142,10 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     await page.screenshot({ path: path.join(SHOTS, "03-deprogramme.png") });
 
     // Pas de doublon : une seule occurrence du titre (l'idée, plus de pill),
-    // et le badge « Planifiée » a disparu — sur LA carte de ce run uniquement.
+    // et l'idée est REVENUE dans le panneau (elle repasse hors de l'état
+    // « Créée » — le miroir exact de sa disparition à l'étape 1).
     await expect(page.getByText(IDEA_TITLE)).toHaveCount(1, { timeout: 10_000 });
-    await expect(myCard.getByText("📅 Planifiée")).toHaveCount(0);
+    await expect(myCard).toHaveCount(1, { timeout: 10_000 });
 
     // Nettoyage : supprimer l'idée de test via « Ma boîte à idées » (le ✗ des
     // cartes — la sheet du panneau calendrier n'a PAS de bouton Supprimer).
