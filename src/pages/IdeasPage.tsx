@@ -55,6 +55,19 @@ const CANAL_OPTIONS: { id: string; label: string; icon: LucideIcon }[] = [
 
 const STATE_TABS: IdeaState[] = ["todo", "in_progress", "created"];
 
+/** Un brief = les réponses déjà saisies dans Créer, reprises telles quelles. */
+interface SavedBrief {
+  id: string;
+  subject: string;
+  format: string | null;
+  editorial_angle: string | null;
+  objective: string | null;
+  questions: any;
+  answers: any;
+  calendar_post_id: string | null;
+  created_at: string | null;
+}
+
 /* ─── Preview helpers ─── */
 function cleanSlideMarkers(text: string): string {
   return text
@@ -123,6 +136,7 @@ export default function IdeasPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
+  const [briefs, setBriefs] = useState<SavedBrief[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
@@ -160,14 +174,33 @@ export default function IdeasPage() {
       console.error("[IdeasPage] saved_ideas fetch failed:", e);
       setLoadError(true);
     }
+    await fetchBriefs();
     setLoading(false);
+  };
+
+  /** Les briefs déjà rattachés à un post du calendrier sont exclus : ils vivent
+      désormais dans la fiche du calendrier, pas ici (sinon doublon). */
+  const fetchBriefs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("content_briefs" as any)
+        .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
+        .eq(column, value)
+        .is("calendar_post_id", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setBriefs((data || []) as unknown as SavedBrief[]);
+    } catch (e) {
+      console.error("[IdeasPage] content_briefs fetch failed:", e);
+    }
   };
 
   const counts = useMemo(() => {
     const c: Record<IdeaState, number> = { todo: 0, in_progress: 0, created: 0 };
     for (const idea of ideas) c[getIdeaState(idea)]++;
+    c.in_progress += briefs.length;
     return c;
-  }, [ideas]);
+  }, [ideas, briefs]);
 
   const filtered = useMemo(() => {
     let result = ideas.filter((i) => getIdeaState(i) === stateTab);
@@ -176,6 +209,41 @@ export default function IdeasPage() {
     result.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime());
     return result;
   }, [ideas, stateTab, canalFilter]);
+
+  /** Les briefs n'ont pas de canal : ils n'apparaissent que sans filtre canal. */
+  const filteredBriefs = useMemo(() => {
+    if (stateTab !== "in_progress" || canalFilter !== "all") return [];
+    return briefs;
+  }, [briefs, stateTab, canalFilter]);
+
+  /** Reprend un brief là où il s'était arrêté : questions et réponses déjà remplies. */
+  const handleResumeBrief = (brief: SavedBrief) => {
+    const params = new URLSearchParams({
+      sujet: brief.subject || "",
+      format: brief.format || "",
+      angle: brief.editorial_angle || "",
+      objectif: brief.objective || "",
+    });
+    navigate(`/creer?${params.toString()}`, {
+      state: {
+        fromBrief: true,
+        questions: brief.questions,
+        answers: brief.answers,
+        briefId: brief.id,
+        angle: brief.editorial_angle || undefined,
+      },
+    });
+  };
+
+  const handleDeleteBrief = async (id: string) => {
+    const { error } = await supabase.from("content_briefs").delete().eq("id", id);
+    if (error) {
+      toast.error("Suppression impossible", { description: friendlyError(error) });
+      return;
+    }
+    setBriefs((prev) => prev.filter((b) => b.id !== id));
+    toast.success("Brief supprimé");
+  };
 
   const changeTab = (tab: IdeaState) => {
     setStateTab(tab);
@@ -341,10 +409,51 @@ export default function IdeasPage() {
             body="Une erreur réseau est survenue. Tes idées n'ont pas été perdues : réessaie dans un instant."
             action={<Button className="rounded-pill" onClick={() => fetchIdeas()}>Réessayer</Button>}
           />
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && filteredBriefs.length === 0 ? (
           <EmptyTab state={stateTab} filteredByCanal={canalFilter !== "all"} onAdd={() => setAddOpen(true)} onResetCanal={() => setCanalFilter("all")} />
         ) : (
           <ul className="space-y-2.5" data-testid="ideas-list">
+            {filteredBriefs.map((brief) => (
+              <li
+                key={`brief-${brief.id}`}
+                className="relative rounded-xl border border-[#F0E4EC] bg-card px-4 py-3.5 transition-all cursor-pointer animate-fade-in hover:border-rose-medium hover:shadow-sm"
+                onClick={() => handleResumeBrief(brief)}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1 pr-6 sm:pr-0">
+                    <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">{cleanTitle(brief.subject)}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="inline-flex items-center rounded-pill bg-rose-pale px-2 py-0.5 text-2xs font-semibold text-primary-text mr-2">
+                        Brief en cours
+                      </span>
+                      {formatLabel(brief.format || "")}
+                      {brief.created_at && <> · commencé le {formatDate(brief.created_at, "d MMM")}</>}
+                    </p>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
+                      <Button size="sm" className="rounded-pill text-xs gap-1.5" onClick={() => handleResumeBrief(brief)}>
+                        <PenLine className="h-3.5 w-3.5" /> Reprendre ce brief
+                      </Button>
+                    </div>
+                    <div className="hidden sm:block">
+                      <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
+                        <Button variant="ghost" size="sm" aria-label="Supprimer ce brief" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </DeleteIdeaDialog>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute top-2 right-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
+                  <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
+                    <Button variant="ghost" size="sm" aria-label="Supprimer ce brief" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </DeleteIdeaDialog>
+                </div>
+              </li>
+            ))}
             {filtered.map((idea, idx) => {
               const state = getIdeaState(idea);
               const preview = state === "in_progress" ? getIdeaPreview(idea) : {};
