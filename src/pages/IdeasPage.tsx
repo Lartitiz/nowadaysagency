@@ -174,14 +174,33 @@ export default function IdeasPage() {
       console.error("[IdeasPage] saved_ideas fetch failed:", e);
       setLoadError(true);
     }
+    await fetchBriefs();
     setLoading(false);
+  };
+
+  /** Les briefs déjà rattachés à un post du calendrier sont exclus : ils vivent
+      désormais dans la fiche du calendrier, pas ici (sinon doublon). */
+  const fetchBriefs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("content_briefs")
+        .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
+        .eq(column, value)
+        .is("calendar_post_id", null)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      setBriefs((data || []) as unknown as SavedBrief[]);
+    } catch (e) {
+      console.error("[IdeasPage] content_briefs fetch failed:", e);
+    }
   };
 
   const counts = useMemo(() => {
     const c: Record<IdeaState, number> = { todo: 0, in_progress: 0, created: 0 };
     for (const idea of ideas) c[getIdeaState(idea)]++;
+    c.in_progress += briefs.length;
     return c;
-  }, [ideas]);
+  }, [ideas, briefs]);
 
   const filtered = useMemo(() => {
     let result = ideas.filter((i) => getIdeaState(i) === stateTab);
