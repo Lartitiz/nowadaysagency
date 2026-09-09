@@ -183,7 +183,7 @@ export default function IdeasPage() {
   const fetchBriefs = async () => {
     try {
       const { data, error } = await supabase
-        .from("content_briefs")
+        .from("content_briefs" as any)
         .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
         .eq(column, value)
         .is("calendar_post_id", null)
