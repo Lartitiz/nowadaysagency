@@ -173,8 +173,15 @@ export async function handleRedeemPromoRequest(req: Request): Promise<Response> 
       headers: { ...cors, "Content-Type": "application/json" },
       status: 200,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("redeem-promo error:", error);
+    // Session expirée → 401 pour déclencher le refresh silencieux côté client.
+    if (error?.message === "Non authentifié") {
+      return new Response(JSON.stringify({ error: "Non authentifié" }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
     return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
       headers: { ...cors, "Content-Type": "application/json" },
       status: 500,
