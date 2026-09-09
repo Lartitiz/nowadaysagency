@@ -192,8 +192,16 @@ RÈGLES :
     return new Response(JSON.stringify({ suggestions, suggestionId: inserted?.id || null }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch (e) {
+  } catch (e: any) {
     console.error("analyze-branding-impact error:", e);
+    // Session expirée / jeton absent → 401 pour que le client tente un refresh
+    // silencieux et rejoue l'appel, au lieu d'afficher une erreur serveur.
+    if (e?.message === "Missing authorization" || e?.message === "Unauthorized") {
+      return new Response(JSON.stringify({ error: "Non autorisé", suggestions: [] }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     return new Response(JSON.stringify({ error: "Erreur interne du serveur", suggestions: [] }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
