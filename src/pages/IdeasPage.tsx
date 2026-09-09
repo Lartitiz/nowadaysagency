@@ -409,10 +409,51 @@ export default function IdeasPage() {
             body="Une erreur réseau est survenue. Tes idées n'ont pas été perdues : réessaie dans un instant."
             action={<Button className="rounded-pill" onClick={() => fetchIdeas()}>Réessayer</Button>}
           />
-        ) : filtered.length === 0 ? (
+        ) : filtered.length === 0 && filteredBriefs.length === 0 ? (
           <EmptyTab state={stateTab} filteredByCanal={canalFilter !== "all"} onAdd={() => setAddOpen(true)} onResetCanal={() => setCanalFilter("all")} />
         ) : (
           <ul className="space-y-2.5" data-testid="ideas-list">
+            {filteredBriefs.map((brief) => (
+              <li
+                key={`brief-${brief.id}`}
+                className="relative rounded-xl border border-[#F0E4EC] bg-card px-4 py-3.5 transition-all cursor-pointer animate-fade-in hover:border-rose-medium hover:shadow-sm"
+                onClick={() => handleResumeBrief(brief)}
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1 pr-6 sm:pr-0">
+                    <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">{cleanTitle(brief.subject)}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      <span className="inline-flex items-center rounded-pill bg-rose-pale px-2 py-0.5 text-2xs font-semibold text-primary-text mr-2">
+                        Brief en cours
+                      </span>
+                      {formatLabel(brief.format || "")}
+                      {brief.created_at && <> · commencé le {formatDate(brief.created_at, "d MMM")}</>}
+                    </p>
+                  </div>
+                  <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
+                    <div className="w-full sm:w-auto [&>button]:w-full sm:[&>button]:w-auto">
+                      <Button size="sm" className="rounded-pill text-xs gap-1.5" onClick={() => handleResumeBrief(brief)}>
+                        <PenLine className="h-3.5 w-3.5" /> Reprendre ce brief
+                      </Button>
+                    </div>
+                    <div className="hidden sm:block">
+                      <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
+                        <Button variant="ghost" size="sm" aria-label="Supprimer ce brief" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </DeleteIdeaDialog>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute top-2 right-2 sm:hidden" onClick={(e) => e.stopPropagation()}>
+                  <DeleteIdeaDialog onConfirm={() => handleDeleteBrief(brief.id)}>
+                    <Button variant="ghost" size="sm" aria-label="Supprimer ce brief" className="h-7 w-7 p-0 rounded-full text-muted-foreground/60 hover:bg-destructive/10 hover:text-destructive">
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </DeleteIdeaDialog>
+                </div>
+              </li>
+            ))}
             {filtered.map((idea, idx) => {
               const state = getIdeaState(idea);
               const preview = state === "in_progress" ? getIdeaPreview(idea) : {};
