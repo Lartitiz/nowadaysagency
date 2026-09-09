@@ -136,6 +136,7 @@ export default function IdeasPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
+  const [briefs, setBriefs] = useState<SavedBrief[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
