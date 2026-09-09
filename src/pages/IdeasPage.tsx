@@ -55,6 +55,19 @@ const CANAL_OPTIONS: { id: string; label: string; icon: LucideIcon }[] = [
 
 const STATE_TABS: IdeaState[] = ["todo", "in_progress", "created"];
 
+/** Un brief = les réponses déjà saisies dans Créer, reprises telles quelles. */
+interface SavedBrief {
+  id: string;
+  subject: string;
+  format: string | null;
+  editorial_angle: string | null;
+  objective: string | null;
+  questions: any;
+  answers: any;
+  calendar_post_id: string | null;
+  created_at: string | null;
+}
+
 /* ─── Preview helpers ─── */
 function cleanSlideMarkers(text: string): string {
   return text
