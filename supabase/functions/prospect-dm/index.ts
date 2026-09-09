@@ -171,6 +171,12 @@ Retourne EXACTEMENT ce JSON (pas de texte autour) :
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error: any) {
+    // Session expirée → 401 pour déclencher le refresh silencieux côté client.
+    if (error?.message === "Non authentifié") {
+      return new Response(JSON.stringify({ error: "Non authentifié" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     if (error instanceof ValidationError) {
       return new Response(JSON.stringify({ error: error.message }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
