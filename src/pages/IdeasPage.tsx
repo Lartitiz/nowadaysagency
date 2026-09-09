@@ -210,6 +210,41 @@ export default function IdeasPage() {
     return result;
   }, [ideas, stateTab, canalFilter]);
 
+  /** Les briefs n'ont pas de canal : ils n'apparaissent que sans filtre canal. */
+  const filteredBriefs = useMemo(() => {
+    if (stateTab !== "in_progress" || canalFilter !== "all") return [];
+    return briefs;
+  }, [briefs, stateTab, canalFilter]);
+
+  /** Reprend un brief là où il s'était arrêté : questions et réponses déjà remplies. */
+  const handleResumeBrief = (brief: SavedBrief) => {
+    const params = new URLSearchParams({
+      sujet: brief.subject || "",
+      format: brief.format || "",
+      angle: brief.editorial_angle || "",
+      objectif: brief.objective || "",
+    });
+    navigate(`/creer?${params.toString()}`, {
+      state: {
+        fromBrief: true,
+        questions: brief.questions,
+        answers: brief.answers,
+        briefId: brief.id,
+        angle: brief.editorial_angle || undefined,
+      },
+    });
+  };
+
+  const handleDeleteBrief = async (id: string) => {
+    const { error } = await supabase.from("content_briefs").delete().eq("id", id);
+    if (error) {
+      toast.error("Suppression impossible", { description: friendlyError(error) });
+      return;
+    }
+    setBriefs((prev) => prev.filter((b) => b.id !== id));
+    toast.success("Brief supprimé");
+  };
+
   const changeTab = (tab: IdeaState) => {
     setStateTab(tab);
     const next = new URLSearchParams(searchParams);
