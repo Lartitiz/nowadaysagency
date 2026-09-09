@@ -23,6 +23,7 @@
 // l'autrice). Gardé par le même secret partagé que activation-funnel :
 // `CRON_STATS_SECRET` (header x-cron-secret).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { jugerCredits, joursDepuisReset } from "./photoroom-alerte.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
 // Comptes internes exclus (mêmes que activation-funnel / admin-users) + alias +cs/+qaneuf.
@@ -53,9 +54,8 @@ const DAY = 24 * HOUR;
 // Crédits Photoroom (plan Basic 1000 img/mois, souscrit le 09/07/2026 → reset le 9
 // de chaque mois ; une retouche fond IA ≈ 5 crédits). À épuisement l'API renvoie 402
 // et TOUTES les retouches photo de l'app échouent — d'où la surveillance quotidienne.
-const PHOTOROOM_RESET_DAY = 9;
-const PHOTOROOM_ALERTE_RESTANTS = 300; // seuil bas absolu
-const PHOTOROOM_ALERTE_PAR_JOUR = 150; // rythme insoutenable (1000/mois ≈ 33/j)
+// Le jugement (seuils + significativité du rythme) vit dans `photoroom-alerte.ts`,
+// testé par `photoroom-alerte_test.ts` — cf. le faux positif du 09/09/2026.
 
 async function photoroomCredits(now: number) {
   const key = Deno.env.get("PHOTOROOM_API_KEY");
@@ -72,17 +72,13 @@ async function photoroomCredits(now: number) {
     const abonnement = typeof credits.subscription === "number" ? credits.subscription : null;
     const consommes = abonnement !== null ? abonnement - restants : null;
     // Jours écoulés depuis le dernier reset (le 9 du mois), pour le rythme moyen.
-    const d = new Date(now);
-    const reset = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() - (d.getUTCDate() < PHOTOROOM_RESET_DAY ? 1 : 0), PHOTOROOM_RESET_DAY));
-    const joursDepuisReset = Math.max(1, Math.ceil((now - reset.getTime()) / DAY));
-    const moyenneParJour = consommes !== null ? Math.round((consommes / joursDepuisReset) * 10) / 10 : null;
-    const alerte =
-      restants < PHOTOROOM_ALERTE_RESTANTS
-        ? `moins de ${PHOTOROOM_ALERTE_RESTANTS} crédits restants — risque de 402 sur les retouches photo`
-        : moyenneParJour !== null && moyenneParJour > PHOTOROOM_ALERTE_PAR_JOUR
-          ? `rythme ${moyenneParJour}/j > ${PHOTOROOM_ALERTE_PAR_JOUR}/j — épuisement avant le reset du ${PHOTOROOM_RESET_DAY}`
-          : null;
-    return { restants, abonnement, consommes_mois: consommes, jours_depuis_reset: joursDepuisReset, moyenne_par_jour: moyenneParJour, alerte };
+    // ⚠️ Le jour du reset, ce recul vaut 1 : la moyenne n'est alors PAS significative
+    // (et le compteur Photoroom, qui rebascule à l'heure de souscription ~23h15,
+    // reflète encore le mois précédent) → `jugerCredits` s'abstient. Faux positif
+    // du 09/09/2026 : 210 crédits sur 31 jours affichés « 210/j ».
+    const jours = joursDepuisReset(now);
+    const { moyenne_par_jour, rythme_significatif, alerte } = jugerCredits(restants, consommes, jours);
+    return { restants, abonnement, consommes_mois: consommes, jours_depuis_reset: jours, moyenne_par_jour, rythme_significatif, alerte };
   } catch (e) {
     return { erreur: String((e as any)?.message || e).slice(0, 90) };
   }
