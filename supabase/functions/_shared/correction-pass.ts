@@ -862,7 +862,9 @@ export function storiesAuditableText(stories: any[]): string {
 
 /** Bornes des pastilles (mêmes que le brief stories) : une correction qui les casse est ignorée. */
 const STORY_TITLE_MAX_WORDS = 8;
-const STORY_BODY_MAX_CHARS = 140;
+// Le brief et le renderer stories acceptent le texte complet jusqu'à 350 car.
+// La passe de correction doit pouvoir le réinjecter sans le tronquer.
+const STORY_BODY_MAX_CHARS = 350;
 const STORY_ITEM_MAX_WORDS = 12;
 
 /**

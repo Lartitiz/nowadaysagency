@@ -57,19 +57,39 @@ interface Props {
   onExportActionsChange?: (actions: StoryExportActions | null) => void;
 }
 
+const getTextField = (story: any): "text" | "texte" | "content" => {
+  if ("text" in story) return "text";
+  if ("texte" in story) return "texte";
+  return "content";
+};
+
+// Les nouvelles stories photo/fond/interaction affichent le texte entier.
+// Garder ces deux représentations ensemble quand elles étaient identiques.
+// Les anciennes pastilles personnalisées, listes et attributions restent
+// indépendantes : leur contenu n'a pas le même rôle que la narration.
+const hasMirroredBody = (story: any): boolean => {
+  const visual = story.visual;
+  return !story.face_cam && !!visual &&
+    [undefined, null, "", "photo_pills", "fond_pills", "interaction"].includes(visual.gabarit) &&
+    typeof visual.body_pill === "string" && visual.body_pill === story[getTextField(story)];
+};
+
+
 export default function StoryResult({ result, onStoriesUpdate, photos, onExportActionsChange }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
   const [stories, setStories] = useState(rawStories);
 
-  const prevSignature = useRef(JSON.stringify(rawStories.map((_: any, i: number) => i)));
+  const rawSignature = JSON.stringify(rawStories);
+  const prevSignature = useRef(rawSignature);
 
   useEffect(() => {
-    const newSig = JSON.stringify(rawStories.map((_: any, i: number) => i));
-    if (newSig !== prevSignature.current) {
-      setStories(rawStories);
-      prevSignature.current = newSig;
+    // Une régénération peut garder le même nombre de stories. Comparer le
+    // contenu, tout en gardant les éditions locales si le parent ne change rien.
+    if (rawSignature !== prevSignature.current) {
+      setStories(JSON.parse(rawSignature));
+      prevSignature.current = rawSignature;
     }
-  }, [result]);
+  }, [rawSignature]);
 
   const { data: charter } = useBrandCharter();
   const branding: StoryFrameBranding | null = charter
@@ -284,17 +304,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   const narrativeAngle = result?.narrative_angle;
   const angleInfo = narrativeAngle ? ANGLE_LABELS[narrativeAngle] : null;
 
-  const getTextField = (story: any): "text" | "texte" | "content" => {
-    if ("text" in story) return "text";
-    if ("texte" in story) return "texte";
-    return "content";
-  };
-
   const updateStoryText = useCallback((index: number, newValue: string) => {
     setStories(prev => {
       const updated = [...prev];
       const field = getTextField(updated[index]);
-      updated[index] = { ...updated[index], [field]: newValue };
+      const story = updated[index];
+      updated[index] = {
+        ...story,
+        [field]: newValue,
+        ...(hasMirroredBody(story) ? { visual: { ...story.visual, body_pill: newValue } } : {}),
+      };
       onStoriesUpdate?.(updated);
       return updated;
     });
@@ -303,7 +322,12 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   const updateVisualPill = useCallback((index: number, field: "title_pill" | "body_pill" | "quote", newValue: string) => {
     setStories(prev => {
       const updated = [...prev];
-      updated[index] = { ...updated[index], visual: { ...updated[index].visual, [field]: newValue } };
+      const story = updated[index];
+      updated[index] = {
+        ...story,
+        ...(field === "body_pill" && hasMirroredBody(story) ? { [getTextField(story)]: newValue } : {}),
+        visual: { ...story.visual, [field]: newValue },
+      };
       onStoriesUpdate?.(updated);
       return updated;
     });

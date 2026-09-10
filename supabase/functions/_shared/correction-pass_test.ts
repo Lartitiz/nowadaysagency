@@ -70,10 +70,10 @@ Deno.test("reinjectStoriesTexts : les champs corrigés sont remplacés, les abse
   assertEquals(STORIES_FIXTURE[0].visual!.title_pill, "UN TRUC QUI ME FATIGUE");
 });
 
-Deno.test("reinjectStoriesTexts : une pastille hors gabarit (titre trop long, body > 140 car.) garde l'original", () => {
+Deno.test("reinjectStoriesTexts : une pastille hors gabarit (titre trop long, body > 350 car.) garde l'original", () => {
   const corrected = [
     "[STORY 1 - TITLE] Un titre beaucoup trop long pour une pastille de story Instagram affichée en capitales",
-    `[STORY 1 - BODY] ${"x".repeat(160)}`,
+    `[STORY 1 - BODY] ${"x".repeat(351)}`,
     "[STORY 2 - ITEM 1] un item de liste vraiment beaucoup trop long pour tenir dans une pastille lisible",
   ].join("\n");
   const { stories, changed } = reinjectStoriesTexts(STORIES_FIXTURE, corrected);
@@ -86,4 +86,15 @@ Deno.test("reinjectStoriesTexts : bloc sans marqueur ou espaces seulement chang�
   assertEquals(reinjectStoriesTexts(STORIES_FIXTURE, "Version totalement réécrite sans marqueurs.").changed, 0);
   const spaces = "[STORY 1 - TEXT] Un truc qui me fatigue dans le savon fait main : personne ne parle du vrai  prix.";
   assertEquals(reinjectStoriesTexts(STORIES_FIXTURE, spaces).changed, 0);
+});
+
+Deno.test("reinjectStoriesTexts : accepte une correction du texte complet entre 141 et 350 caractères", () => {
+  for (const length of [141, 220, 350]) {
+    const prefix = "Le détail du col : ";
+    const candidate = prefix + "a".repeat(length - prefix.length);
+    assertEquals(candidate.length, length);
+    const { stories, changed } = reinjectStoriesTexts(STORIES_FIXTURE, `[STORY 1 - BODY] ${candidate}`);
+    assertEquals(changed, 1);
+    assertEquals(stories[0].visual.body_pill, candidate);
+  }
 });
