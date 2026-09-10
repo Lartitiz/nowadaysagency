@@ -80,7 +80,12 @@ try {
     if (pr?.erreur) {
       console.log(`   crédits Photoroom              : ⚠️ non lus (${pr.erreur})`);
     } else if (pr) {
-      const conso = pr.consommes_mois != null ? `, consommés ${pr.consommes_mois} (~${pr.moyenne_par_jour}/j sur ${pr.jours_depuis_reset} j)` : "";
+      // Depuis #937, l'edge renvoie moyenne_par_jour = null tant qu'il n'y a pas 3 j de
+      // recul depuis le reset : ne pas imprimer « ~null/j », qui se lit comme une panne.
+      const rythme = pr.moyenne_par_jour != null
+        ? `~${pr.moyenne_par_jour}/j sur ${pr.jours_depuis_reset} j`
+        : `rythme pas encore significatif, ${pr.jours_depuis_reset} j depuis le reset`;
+      const conso = pr.consommes_mois != null ? `, consommés ${pr.consommes_mois} (${rythme})` : "";
       console.log(`   crédits Photoroom restants     : ${pr.restants}${pr.abonnement ? ` / ${pr.abonnement}` : ""}${conso}${pr.alerte ? `  🔴 ${pr.alerte}` : ""}`);
     }
 
