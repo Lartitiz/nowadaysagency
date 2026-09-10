@@ -128,9 +128,18 @@ export function getServiceClient() {
 async function getUserPlan(sb: any, userId: string): Promise<string> {
   const { data } = await sb
     .from("subscriptions")
-    .select("plan")
+    .select("plan, source, status, current_period_end")
     .eq("user_id", userId)
     .single();
+  // Promo access is time-limited. Stripe subscriptions have their own
+  // lifecycle and are deliberately left to webhook status updates.
+  if (
+    data?.source === "promo" &&
+    data?.current_period_end &&
+    new Date(data.current_period_end).getTime() <= Date.now()
+  ) {
+    return "free";
+  }
   return resolvePlan(data?.plan || "free");
 }
 

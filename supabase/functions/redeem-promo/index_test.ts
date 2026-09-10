@@ -51,6 +51,7 @@ interface MockOpts {
   alreadyRedeemed?: boolean;
   grantError?: string | null;
   coachingError?: string | null;
+  activeStripeSubscription?: boolean;
 }
 
 function installMockFetch(opts: MockOpts) {
@@ -77,6 +78,18 @@ function installMockFetch(opts: MockOpts) {
     if (path === "/rest/v1/promo_redemptions") {
       if (opts.alreadyRedeemed) return json({ id: "redemption-1" }, 200);
       return json({ message: "no rows" }, 406);
+    }
+
+    if (path === "/rest/v1/subscriptions") {
+      if (opts.activeStripeSubscription) {
+        return json({
+          source: "stripe",
+          status: "active",
+          stripe_subscription_id: "sub_active",
+          current_period_end: new Date(Date.now() + 86400000).toISOString(),
+        });
+      }
+      return json(null, 200);
     }
 
     if (path === "/rest/v1/profiles") {
@@ -174,6 +187,14 @@ Deno.test("redeem-promo: code valide -> 200, plan accordé via le RPC atomique",
   } finally {
     restore();
   }
+});
+
+Deno.test("redeem-promo: abonnement Stripe actif -> 400, sans octroi", async () => {
+  const mock = installMockFetch({ promo: BASE_PROMO, activeStripeSubscription: true });
+  const res = await handleRedeemPromoRequest(redeemReq({ code: "LECODEPROMO" }));
+  assertEquals(res.status, 400);
+  assertEquals((await res.json()).error, "Un abonnement payant est déjà actif sur ton compte. Termine-le avant d'activer ce code.");
+  assertEquals(mock.rpcCalls.length, 0);
 });
 
 Deno.test("redeem-promo: échec du RPC d'octroi -> 500, JAMAIS success:true (pas de faux octroi)", async () => {
