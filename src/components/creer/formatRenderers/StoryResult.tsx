@@ -326,12 +326,19 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       updated[index] = {
         ...story,
         ...(field === "body_pill" && hasMirroredBody(story) ? { [getTextField(story)]: newValue } : {}),
-        visual: { ...story.visual, [field]: newValue },
+        visual: { ...story.visual, [field]: newValue, ...(field === "body_pill" ? { body_pill_edited: true } : {}) },
       };
       onStoriesUpdate?.(updated);
       return updated;
     });
   }, [onStoriesUpdate]);
+
+  const setTextPosition = (index: number, text_position: "top" | "middle" | "bottom") => {
+    const updated = stories.map((story, i) => i === index
+      ? { ...story, visual: { ...story.visual, text_position } } : story);
+    setStories(updated);
+    onStoriesUpdate?.(updated);
+  };
 
   // Choix du fond, story par story : photo (la bande de photos s'ouvre dessous)
   // ou couleur de la marque, sans rien. Vaut pour tous les gabarits, citation
@@ -617,6 +624,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                             </Button>
                           );
                         })}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap" role="group" aria-label="Emplacement du texte">
+                        <span className="text-2xs text-muted-foreground">Texte :</span>
+                        {([["top", "Haut"], ["middle", "Milieu"], ["bottom", "Bas"]] as const).map(([value, label]) => (
+                          <Button key={value} type="button" size="sm"
+                            variant={(story.visual.text_position || "middle") === value ? "secondary" : "ghost"}
+                            className="h-6 px-2 text-2xs"
+                            aria-pressed={(story.visual.text_position || "middle") === value}
+                            onClick={() => setTextPosition(i, value)}>{label}</Button>
+                        ))}
                       </div>
                       {story.visual.gabarit === "citation" ? (
                         <>

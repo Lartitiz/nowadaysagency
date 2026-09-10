@@ -35,6 +35,33 @@ function previewHtml() {
 }
 
 describe("Stories : édition et remplacement du résultat", () => {
+  it("garde le texte saisi sous une citation au-delà de 80 caractères", () => {
+    const onStoriesUpdate = vi.fn();
+    const text = "Alors je vais fouiller dans les avis 1 étoile. Et je tombe sur cet avis. Rien à voir avec la machine.";
+    render(<StoryResult result={sequence("Le récit", { gabarit: "citation", quote: "Une grosse différence de goût", body_pill: "Avis client" })} onStoriesUpdate={onStoriesUpdate} />);
+    fireEvent.change(screen.getByLabelText("Qui l'a dit"), { target: { value: text } });
+    expect(text.length).toBeGreaterThan(80);
+    expect(previewHtml()).toContain(text);
+    expect(previewHtml()).toContain("Une grosse différence de goût");
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].visual.body_pill_edited).toBe(true);
+  });
+
+  it("déplace le groupe titre et texte, et conserve la position à la réouverture", () => {
+    const onStoriesUpdate = vi.fn();
+    const { unmount } = render(<StoryResult result={sequence("La doublure", { title_pill: "Le détail" })} onStoriesUpdate={onStoriesUpdate} />);
+    fireEvent.click(screen.getByRole("button", { name: "Haut", exact: true }));
+    expect(previewHtml()).toContain("justify-content:flex-start");
+    expect(previewHtml()).toContain("Le détail");
+    fireEvent.click(screen.getByRole("button", { name: "Bas", exact: true }));
+    const saved = onStoriesUpdate.mock.lastCall?.[0];
+    unmount();
+    render(<StoryResult result={{ stories: saved }} />);
+    expect(previewHtml()).toContain("justify-content:flex-end");
+    expect(screen.getByRole("button", { name: "Bas", exact: true })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Milieu", exact: true }));
+    expect(previewHtml()).toContain("justify-content:center");
+  });
+
   it("affiche une nouvelle séquence même si le nombre de stories ne change pas", () => {
     const { rerender } = render(<StoryResult result={sequence("Les boutons en nacre")} />);
     rerender(<StoryResult result={sequence("La doublure en coton")} />);
