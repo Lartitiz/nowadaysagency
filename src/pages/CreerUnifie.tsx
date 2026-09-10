@@ -2846,7 +2846,7 @@ export default function CreerUnifie() {
                           format={selectedFormat || "post"}
                           generating={false}
                           onEdit={handleEdit}
-                          onResultTextChange={(text) => setResult((prev) => prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: text, content: text } } : prev)}
+                          onResultTextChange={(text) => setLaunchResults((prev) => prev.map((chapter, index) => index !== i ? chapter : chapter?.raw ? { ...chapter, raw: { ...chapter.raw, edited_text: text, content: text } } : { ...chapter, edited_text: text, content: text }))}
                           onReset={requestReset}
                           onRegenerate={handleRegenerate}
                           onCopy={handleCopy}

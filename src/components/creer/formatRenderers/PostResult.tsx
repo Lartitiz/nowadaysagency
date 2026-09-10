@@ -33,7 +33,7 @@ function humanFormat(raw: string): string {
 
 export default function PostResult({ result, content, photos, onTextChange }: Props) {
   // Filet : le conseil d'incarnation vit dans personal_tip, jamais dans le texte.
-  const postText = stripCoachingHint(content || result?.content || result?.post || result?.text || "");
+  const postText = stripCoachingHint(content ?? result?.edited_text ?? result?.content ?? result?.post ?? result?.text ?? "");
   const personalTip = result?.personal_tip;
   const accroche = result?.accroche || result?.hook || "";
   const format = result?.format || result?.content_type;
@@ -42,9 +42,10 @@ export default function PostResult({ result, content, photos, onTextChange }: Pr
 
   const [checkedText, setCheckedText] = useState(postText);
   useEffect(() => setCheckedText(postText), [postText]);
-  useEffect(() => {
-    if (checkedText !== postText) onTextChange?.(checkedText);
-  }, [checkedText, postText, onTextChange]);
+  const handleFix = (text: string) => {
+    setCheckedText(text);
+    onTextChange?.(text);
+  };
 
   // Image rattachée au résultat (raw.image_url — ex : ajoutée depuis la fenêtre
   // « Publier ou programmer ») : c'est elle qui sera publiée, l'aperçu doit la montrer.
@@ -82,7 +83,7 @@ export default function PostResult({ result, content, photos, onTextChange }: Pr
         </div>
       )}
 
-      <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
+      <RedFlagsChecker content={checkedText} onFix={handleFix} />
 
       <AiGeneratedMention />
     </div>
