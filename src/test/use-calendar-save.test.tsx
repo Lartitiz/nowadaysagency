@@ -347,3 +347,32 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/calendrier?date=2026-08-22&post=cal-9");
   });
 });
+
+describe('publication immédiate — suivi après succès réseau', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.db.ops = [];
+    mocks.db.schedError = null;
+    mocks.db.insertResponse = { data: { id: 'post-1' }, error: null };
+    mocks.buildCalendarContent.mockReturnValue({ contentDraft: 'Brouillon', accroche: 'Lin', storyDetail: null });
+  });
+  it('crée le post publié et le relie à son idée dans le bon espace', async () => {
+    const { result } = renderHook(() => useCalendarSave(makeParams({ editingIdeaId: 'idea-1', workspaceId: 'atelier' })));
+    await act(async () => { expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Légende envoyée', postId: 'ig-1' })).toBe(true); });
+    expect(inserts()[0].row).toMatchObject({ workspace_id: 'atelier', status: 'published', publish_status: 'published', published_post_id: 'ig-1', content_draft: 'Légende envoyée', auto_publish: false });
+    expect(updates().find(o => o.table === 'saved_ideas')).toMatchObject({ row: { calendar_post_id: 'post-1' }, eq: ['id', 'idea-1'] });
+  });
+  it('met à jour le post du calendrier existant sans doublon', async () => {
+    const { result } = renderHook(() => useCalendarSave(makeParams({ calendarPostId: 'existing' })));
+    await act(async () => { await result.current.recordImmediatePublication({ canal: 'linkedin', caption: 'Lin', postId: 'li-1' }); });
+    expect(inserts()).toHaveLength(0);
+    expect(updates()[0]).toMatchObject({ eq: ['id', 'existing'], row: { publish_status: 'published', scheduled_publish_at: null } });
+  });
+  it('une panne du calendrier ne prétend pas que la publication a échoué', async () => {
+    mocks.db.insertResponse = { data: null, error: new Error('offline') };
+    const { result } = renderHook(() => useCalendarSave(makeParams()));
+    await act(async () => { expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Lin' })).toBe(false); });
+    expect(mocks.toast.warning).toHaveBeenCalledWith(expect.stringContaining('Ne le republie pas'));
+    expect(mocks.toast.error).not.toHaveBeenCalled();
+  });
+});

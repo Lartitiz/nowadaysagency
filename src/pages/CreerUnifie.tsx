@@ -496,7 +496,7 @@ export default function CreerUnifie() {
   // L'idée de départ (« Créer ce contenu » depuis /idees ou la fiche du
   // calendrier) : gardée tout le long pour relier le contenu à l'idée quand il
   // est posé au calendrier (l'idée passe alors en « Créée »).
-  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(ps?.editingIdeaId ?? paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? null);
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? ps?.editingIdeaId ?? null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   // Visual states (carousel only)
@@ -771,10 +771,25 @@ export default function CreerUnifie() {
     if (fmt) setSelectedFormat(fmt);
     if (paramCarouselSubMode) setCarouselSubMode(paramCarouselSubMode);
 
+    // Saved output is an editing request, never an automatic regeneration.
+    if (locState.resumeIdea?.raw && locState.resumeIdea?.format) {
+      const { raw, format } = locState.resumeIdea;
+      setSelectedFormat(format);
+      setResult({ type: format, raw });
+      setEditingIdeaId(locState.ideaId || paramIdeaId || null);
+      setEditorialAngle(locState.angle || paramAngle || null);
+      setIsLinkedInCarousel(format === "carousel" && paramCanal === "linkedin");
+      setCarouselSubMode(raw.carousel_type === "photo" || raw.carousel_type === "mix" ? raw.carousel_type : null);
+      setVisualSlides(stripFontImportLeakFromSlides(Array.isArray(raw.visual_html) ? raw.visual_html : []));
+      setPinterestPinHtml(raw.pin_html || null);
+      setPhotoBriefOverlayHtml(raw.overlay_html || null);
+      setSavedId(null);
+      setStep("result");
+    }
     // « Créer à partir de ce brief » (boîte à idées) : on réutilise les questions
     // et réponses déjà saisies et on atterrit directement sur l'étape questions
     // pré-remplie, au lieu de tout recommencer.
-    if (locState?.fromBrief && Array.isArray(locState.questions) && locState.questions.length > 0) {
+    if (!locState.resumeIdea?.raw && locState?.fromBrief && Array.isArray(locState.questions) && locState.questions.length > 0) {
       const briefAngle = locState?.angle || paramAngle || undefined;
       if (briefAngle) setEditorialAngle(briefAngle);
       setQuestions(locState.questions as any);
@@ -789,7 +804,7 @@ export default function CreerUnifie() {
       return;
     }
 
-    if (fmt && subject.trim()) {
+    if (!locState.resumeIdea?.raw && fmt && subject.trim()) {
       // Build enriched subject directly from locState to avoid race condition
       // (setExistingCalendarContent is async and not yet available)
       const calendarContent = locState?.existingContent || null;
@@ -809,18 +824,18 @@ export default function CreerUnifie() {
         // auto=1 : on saute l'étape format → questions directement (l'IA choisit l'angle)
         handleFormatNext(fmt, calendarAngle, { overrideSubject: enrichedSubject });
       }
-    } else if (locState?.fromCalendar && subject) {
+    } else if (!locState.resumeIdea?.raw && locState?.fromCalendar && subject) {
       // Calendar fallback path (already handled above with FORMAT_MAP)
       if (locState.angle) setEditorialAngle(locState.angle);
       setStep("format");
-    } else if (subject.trim()) {
+    } else if (!locState.resumeIdea?.raw && subject.trim()) {
       // Sujet présent mais format absent ou non-supporté (ex : coach « Surprise »
       // qui renvoie recommended_format="auto") → ouvrir l'étape format pour
       // choisir canal + format, au lieu de retomber sur l'étape « idée ».
       setStep("format");
-    } else if (fmt) {
+    } else if (!locState.resumeIdea?.raw && fmt) {
       setStep("format");
-    } else if (!ps) {
+    } else if (!locState.resumeIdea?.raw && !ps) {
       setStep("idea");
     }
     // Clean up location.state after reading it to prevent re-init on tab switch
@@ -1875,7 +1890,7 @@ export default function CreerUnifie() {
   const [reelMp4Url, setReelMp4Url] = useState<string | null>(null);
 
   // ── Sauvegarde dans le calendrier (nouveau post + mise à jour d'un post existant) ──
-  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage } = useCalendarSave({
+  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage } = useCalendarSave({
     session,
     result,
     selectedFormat,
@@ -1969,6 +1984,7 @@ export default function CreerUnifie() {
     setPublishingInstagram(true);
     try {
       let permalink: string | undefined;
+      let publishedPostId: string | undefined;
       if (isCarouselPublish) {
         const { getIncludeLogoPref } = await import("@/lib/export-logo");
         const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
@@ -1981,6 +1997,7 @@ export default function CreerUnifie() {
           userId: session.user.id,
         });
         permalink = res.permalink;
+        publishedPostId = res.postId;
       } else {
         const res = await publishImageToInstagram({
           caption,
@@ -1989,7 +2006,9 @@ export default function CreerUnifie() {
           userId: session.user.id,
         });
         permalink = res.permalink;
+        publishedPostId = res.postId;
       }
+      await recordImmediatePublication({ canal: "instagram", caption, postId: publishedPostId || permalink });
       toast.success(
         permalink
           ? "Publié sur Instagram ! Ouvre ton profil pour le voir."
@@ -2034,6 +2053,7 @@ export default function CreerUnifie() {
         workspaceId,
         userId: session.user.id,
       });
+      await recordImmediatePublication({ canal: "linkedin", caption: text, postId: res.postId || res.permalink });
       toast.success(
         res.permalink
           ? "Publié sur LinkedIn ! Ouvre ton profil pour le voir."
@@ -2697,6 +2717,7 @@ export default function CreerUnifie() {
                 photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
+                onResultTextChange={(text) => setResult((prev) => prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: text, content: text } } : prev)}
                 onReset={requestReset}
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
@@ -2825,6 +2846,7 @@ export default function CreerUnifie() {
                           format={selectedFormat || "post"}
                           generating={false}
                           onEdit={handleEdit}
+                          onResultTextChange={(text) => setResult((prev) => prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: text, content: text } } : prev)}
                           onReset={requestReset}
                           onRegenerate={handleRegenerate}
                           onCopy={handleCopy}

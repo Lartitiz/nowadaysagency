@@ -249,6 +249,7 @@ interface Props {
   onReset: () => void;
   onRegenerate: () => void;
   onCopy: (text: string) => void;
+  onResultTextChange?: (text: string) => void;
   onSave?: () => void;
   /** Ouvre la fenêtre « Publier ou programmer » (ou sauvegarde directe si fromCalendar). */
   onPublishOrSchedule?: () => void;
@@ -315,6 +316,7 @@ export default function CreerStepResult({
   onReset,
   onRegenerate,
   onCopy,
+  onResultTextChange,
   onSave,
   onPublishOrSchedule,
   publishOrScheduleLabel,
@@ -534,7 +536,7 @@ export default function CreerStepResult({
       case "story":
         return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
       case "post":
-        return <PostResult result={result} photos={photos} />;
+        return <PostResult result={result} photos={photos} onTextChange={onResultTextChange} />;
       case "linkedin":
         return <LinkedInResult result={result} photos={photos} />;
       case "newsletter":
@@ -544,7 +546,7 @@ export default function CreerStepResult({
       case "pinterest_visual":
         return <PinterestVisualResult result={{ raw: result }} pinHtml={pinterestPinHtml || null} onRetry={onRegenerate} />;
       default:
-        return <PostResult result={result} photos={photos} />;
+        return <PostResult result={result} photos={photos} onTextChange={onResultTextChange} />;
     }
   };
 

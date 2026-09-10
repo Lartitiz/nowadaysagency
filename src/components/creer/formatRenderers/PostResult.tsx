@@ -3,12 +3,13 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import FeedPreview from "@/components/creer/formatRenderers/FeedPreview";
 import { stripCoachingHint } from "@/features/creer/build-calendar-content";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Props {
   result: any;
   content?: string;
   photos?: { preview?: string; base64?: string; name?: string }[];
+  onTextChange?: (text: string) => void;
 }
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -30,7 +31,7 @@ function humanFormat(raw: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export default function PostResult({ result, content, photos }: Props) {
+export default function PostResult({ result, content, photos, onTextChange }: Props) {
   // Filet : le conseil d'incarnation vit dans personal_tip, jamais dans le texte.
   const postText = stripCoachingHint(content || result?.content || result?.post || result?.text || "");
   const personalTip = result?.personal_tip;
@@ -40,6 +41,10 @@ export default function PostResult({ result, content, photos }: Props) {
   const hashtags = Array.isArray(result?.hashtags) ? result.hashtags : undefined;
 
   const [checkedText, setCheckedText] = useState(postText);
+  useEffect(() => setCheckedText(postText), [postText]);
+  useEffect(() => {
+    if (checkedText !== postText) onTextChange?.(checkedText);
+  }, [checkedText, postText, onTextChange]);
 
   // Image rattachée au résultat (raw.image_url — ex : ajoutée depuis la fenêtre
   // « Publier ou programmer ») : c'est elle qui sera publiée, l'aperçu doit la montrer.
