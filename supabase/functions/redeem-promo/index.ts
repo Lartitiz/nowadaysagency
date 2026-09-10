@@ -77,6 +77,25 @@ export async function handleRedeemPromoRequest(req: Request): Promise<Response> 
       });
     }
 
+    // Do not hide an active Stripe subscription behind a free promo access.
+    // The customer must cancel or let that subscription end first, otherwise
+    // Stripe could continue billing while the app displays a promo plan.
+    const { data: subscription } = await supabase
+      .from("subscriptions")
+      .select("source, status, stripe_subscription_id, current_period_end")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const stripeStillActive = subscription?.source !== "promo" &&
+      subscription?.stripe_subscription_id &&
+      subscription?.status === "active" &&
+      (!subscription.current_period_end || new Date(subscription.current_period_end).getTime() > Date.now());
+    if (stripeStillActive) {
+      return new Response(JSON.stringify({ error: "Un abonnement payant est déjà actif sur ton compte. Termine-le avant d'activer ce code." }), {
+        headers: { ...cors, "Content-Type": "application/json" },
+        status: 400,
+      });
+    }
+
     // Calculate expiry
     let expiresAt: string | null = null;
     if (promo.duration_days) {
