@@ -1,3 +1,4 @@
+import { promoteMixedText, charterFontUrl } from "./pptx-mixed-text";
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
 import * as Sentry from "@sentry/react";
@@ -263,7 +264,7 @@ async function burnScrimsIntoPhoto(
 // iframe mounting + readiness
 // ---------------------------------------------------------------------------
 
-async function mountIframe(html: string): Promise<HTMLIFrameElement> {
+async function mountIframe(html: string, charter?: HybridCharter | null): Promise<HTMLIFrameElement> {
   const iframe = document.createElement("iframe");
   iframe.style.cssText = `position:fixed;top:-99999px;left:-99999px;width:${SLIDE_W_PX}px;height:${SLIDE_H_PX}px;border:0;z-index:-1;pointer-events:none;`;
   iframe.setAttribute("aria-hidden", "true");
@@ -273,12 +274,15 @@ async function mountIframe(html: string): Promise<HTMLIFrameElement> {
     .map((l) => l.outerHTML)
     .join("\n");
 
+  const charterFonts = charterFontUrl([charter?.font_title, charter?.font_body]);
+  const charterLink = charterFonts ? `<link rel="stylesheet" href="${charterFonts.replace(/&/g, "&amp;")}">` : "";
+
   // NB: tous les descendants d'un bloc annoté sont masqués pour éviter le double-rendu
   // dans la rasterisation html2canvas (sinon les spans avec couleur explicite restent visibles
   // sous le bloc éditable PPTX rajouté par-dessus).
   // Si un descendant doit rester visible (badge, sticker, illustration), ne pas annoter le
   // parent en data-pptx-editable — annoter chaque sous-bloc texte individuellement.
-  iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8" />${fontLinks}
+  iframe.srcdoc = `<!doctype html><html><head><meta charset="utf-8" />${fontLinks}${charterLink}
 <style>
   html, body { margin:0; padding:0; width:${SLIDE_W_PX}px; height:${SLIDE_H_PX}px; overflow:hidden; background:transparent; }
   *, *::before, *::after { box-sizing: border-box; }
@@ -1154,7 +1158,7 @@ export async function exportCarouselHybridPptx(
     const tSlide0 = performance.now(); // perf instrumentation
     const perf: Record<string, number> = {}; // perf instrumentation (sous-phases)
 
-    const iframe = await mountIframe(vs.html);
+    const iframe = await mountIframe(vs.html, charter);
     perf.mount = Math.round(performance.now() - tSlide0);
     try {
       const tReady = performance.now();
@@ -1163,6 +1167,7 @@ export async function exportCarouselHybridPptx(
       const doc = iframe.contentDocument!;
       const win = doc.defaultView!;
 
+      promoteMixedText(doc);
       const blocks: BlockRender[] = [];
 
       // ---- Strategy A (priority): explicit [data-pptx-editable] annotations

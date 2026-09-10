@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,6 +94,61 @@ export function useCalendarSave({
       .update({ calendar_post_id: postId, status: "planned", ...(date ? { planned_date: date } : {}), updated_at: new Date().toISOString() } as any)
       .eq("id", editingIdeaId);
     if (error) console.error("[use-calendar-save] lien idée → post échoué :", error);
+  };
+
+  const publishedCalendarId = useRef<string | null>(null);
+
+  /** Called only after the social API confirms success. A tracking failure must
+   * never be presented as a failed publication (which invites a public duplicate).
+   */
+  const recordImmediatePublication = async ({ canal, caption, postId }: {
+    canal: "instagram" | "linkedin"; caption: string; postId?: string;
+  }): Promise<boolean> => {
+    if (!session?.user?.id) return false;
+    try {
+      const now = new Date();
+      const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      const { accroche, storyDetail } = extractContentForCalendar();
+      const payload = {
+        theme: ideaText, canal, date, format: selectedFormat || "post",
+        content_draft: caption, accroche, status: "published",
+        publish_status: "published", published_at: now.toISOString(),
+        published_post_id: postId || null, publish_error: null,
+        auto_publish: false, scheduled_publish_at: null,
+        updated_at: now.toISOString(),
+        story_sequence_detail: { ...(storyDetail || {}), ...(visualSlides.length ? { visual_html: visualSlides } : {}) },
+        ...(publishableImageUrl ? { media_urls: [publishableImageUrl] } : {}),
+      };
+      let id = publishedCalendarId.current || calendarPostId;
+      if (id) {
+        const { error } = await supabase.from("calendar_posts").update(payload).eq("id", id);
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase.from("calendar_posts").insert({
+          ...payload, user_id: session.user.id,
+          ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
+        }).select("id").single();
+        if (error) throw error;
+        if (!data?.id) throw new Error("Publication non retrouvée dans le calendrier");
+        id = data.id;
+      }
+      publishedCalendarId.current = id;
+      if (editingIdeaId) {
+        const { error } = await supabase.from("saved_ideas").update({
+          calendar_post_id: id, status: "planned", planned_date: date, updated_at: now.toISOString(),
+        }).eq("id", editingIdeaId);
+        if (error) throw error;
+      }
+      if (currentBriefId) {
+        const { error } = await supabase.from("content_briefs").update({ calendar_post_id: id }).eq("id", currentBriefId);
+        if (error) throw error;
+      }
+      return true;
+    } catch (error) {
+      console.error("Publication réussie, suivi calendrier incomplet", error);
+      toast.warning("Ton contenu est publié, mais son suivi dans le calendrier n’a pas été enregistré. Ne le republie pas.");
+      return false;
+    }
   };
 
   // Extraction pure (testée) : voir src/features/creer/build-calendar-content.ts
@@ -409,5 +464,5 @@ export function useCalendarSave({
     }
   };
 
-  return { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage };
+  return { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage, recordImmediatePublication };
 }

@@ -1,3 +1,4 @@
+import { resumeIdea } from "@/lib/resume-idea";
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -298,7 +299,7 @@ export default function IdeasPage() {
       objectif: idea.objectif || "",
       idea_id: idea.id,
     });
-    navigate(`/creer?${params.toString()}`);
+    navigate(`/creer?${params.toString()}`, { state: { resumeIdea: resumeIdea(idea), ideaId: idea.id } });
   };
 
   const handleViewCalendar = (idea: SavedIdea) => {
