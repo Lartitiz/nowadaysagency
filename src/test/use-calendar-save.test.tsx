@@ -18,6 +18,8 @@ const mocks = vi.hoisted(() => ({
   }),
   navigate: vi.fn(),
   clearFlowState: vi.fn(),
+  loadFlowState: vi.fn(() => null),
+  saveFlowState: vi.fn(),
   buildCalendarContent: vi.fn(),
   uploadPhotos: vi.fn(),
   uploadVisuals: vi.fn(),
@@ -31,7 +33,11 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => mocks.navigate }));
-vi.mock("@/hooks/use-flow-persistence", () => ({ clearFlowState: mocks.clearFlowState }));
+vi.mock("@/hooks/use-flow-persistence", () => ({
+  clearFlowState: mocks.clearFlowState,
+  loadFlowState: mocks.loadFlowState,
+  saveFlowState: mocks.saveFlowState,
+}));
 vi.mock("@/features/creer/build-calendar-content", () => ({
   buildCalendarContent: mocks.buildCalendarContent,
 }));
@@ -367,6 +373,31 @@ describe('publication immédiate — suivi après succès réseau', () => {
     await act(async () => { await result.current.recordImmediatePublication({ canal: 'linkedin', caption: 'Lin', postId: 'li-1' }); });
     expect(inserts()).toHaveLength(0);
     expect(updates()[0]).toMatchObject({ eq: ['id', 'existing'], row: { publish_status: 'published', scheduled_publish_at: null } });
+  });
+  it('publication immédiate puis sauvegarde calendrier → réutilise la ligne publiée sans insert', async () => {
+    const params = makeParams();
+    const { result } = renderHook(() => useCalendarSave(params));
+    await act(async () => {
+      expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Lin', postId: 'ig-1' })).toBe(true);
+    });
+    expect(inserts()).toHaveLength(1);
+    await act(async () => {
+      expect(await result.current.handleConfirmCalendar({ date: '2026-08-25' })).toBe(false);
+    });
+    expect(inserts()).toHaveLength(1);
+    expect(mocks.toast.info).toHaveBeenCalledWith(expect.stringContaining('déjà enregistré'));
+    expect(mocks.navigate).toHaveBeenCalledWith(expect.stringMatching(/^\/calendrier\?date=.*&post=post-1$/));
+  });
+
+  it('publication immédiate puis programmation → ne programme ni ne duplique le contenu déjà publié', async () => {
+    const { result } = renderHook(() => useCalendarSave(makeParams()));
+    await act(async () => { await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Lin', postId: 'ig-1' }); });
+    await act(async () => {
+      expect(await result.current.handleConfirmCalendar({ date: '2026-08-25', scheduleAt: new Date('2026-08-25T10:00:00Z') })).toBe(false);
+    });
+    expect(inserts()).toHaveLength(1);
+    expect(schedUpdates()).toHaveLength(0);
+    expect(mocks.toast.info).toHaveBeenCalledWith(expect.stringContaining('déjà publié'));
   });
   it('une panne du calendrier ne prétend pas que la publication a échoué', async () => {
     mocks.db.insertResponse = { data: null, error: new Error('offline') };

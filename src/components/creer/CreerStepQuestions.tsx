@@ -89,6 +89,7 @@ interface Props {
   loadError?: string | null;
   previousBriefsCount?: number;
   initialAnswers?: Record<string, string>;
+  onAnswersChange?: (answers: Record<string, string>) => void;
   onNext: (answers: Record<string, string>) => void;
   onSkip: () => void;
   onBack: () => void;
@@ -106,6 +107,7 @@ export default function CreerStepQuestions({
   loadError,
   previousBriefsCount,
   initialAnswers,
+  onAnswersChange,
   onNext,
   onSkip,
   onBack,
@@ -115,6 +117,12 @@ export default function CreerStepQuestions({
   const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers || {});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [refine, setRefine] = useState(false);
+
+  // Remonte chaque réponse pendant la saisie afin que le flux la persiste avant
+  // même le clic sur « Générer » (reload mobile, retour de veille, HMR…).
+  useEffect(() => {
+    onAnswersChange?.(answers);
+  }, [answers, onAnswersChange]);
 
   const handleSkip = () => {
     setIsSubmitting(true);
