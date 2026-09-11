@@ -165,7 +165,11 @@ export default function Onboarding() {
 
                   {step === 0 && <WelcomeStep onNext={next} />}
                   {step === 1 && <OnboardingPhase1Profile prenom={answers.prenom} activite={answers.activite} onPrenomChange={v => set("prenom", v)} onActiviteChange={v => set("activite", v)} onNext={validatedNext} />}
-                  {step === 2 && <ProductServiceScreen value={answers.product_or_service} onChange={v => { set("product_or_service", v); set("activity_type", v); }} detailValue={answers.activity_detail} onDetailChange={v => set("activity_detail", v)} activite={answers.activite} onNext={validatedNext} />}
+                  {/* `activity_type` est une clé de SECTEUR (artisane, coach…) lue par
+                      ACTIVITY_INSIGHTS, LOADING_TIPS, typeLabels et getSectorFontEntry.
+                      Ne pas y recopier la réponse produits/services/les_deux : elle est
+                      déjà conservée telle quelle dans `product_or_service`. */}
+                  {step === 2 && <ProductServiceScreen value={answers.product_or_service} onChange={v => set("product_or_service", v)} detailValue={answers.activity_detail} onDetailChange={v => set("activity_detail", v)} activite={answers.activite} onNext={validatedNext} />}
                   {step === 3 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />}
                   {step === 4 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
                   {step === 5 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}

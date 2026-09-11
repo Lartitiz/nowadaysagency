@@ -98,6 +98,7 @@ export function PhotoLibraryPickerDialog({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [urlMap, setUrlMap] = useState<Map<string, string>>(new Map());
   const [signDone, setSignDone] = useState(false);
+  const [signRetryToken, setSignRetryToken] = useState(0);
   const [importOpen, setImportOpen] = useState(false);
   const [importing, setImporting] = useState(false);
 
@@ -167,15 +168,35 @@ export function PhotoLibraryPickerDialog({
     }
     let cancelled = false;
     setSignDone(false);
-    getSignedPhotoUrls(readyPhotos.map((p) => p.storage_path)).then((map) => {
-      if (cancelled) return;
-      setUrlMap(map);
-      setSignDone(true);
-    });
+    getSignedPhotoUrls(readyPhotos.map((p) => p.storage_path))
+      .then((map) => {
+        if (cancelled) return;
+        setUrlMap(map);
+      })
+      .catch((e) => {
+        // Un rejet réel (réseau, session invalide) ne doit pas laisser
+        // signDone bloqué à false pour toujours — sans quoi les vignettes
+        // restent en chargement indéfiniment, sans jamais basculer vers
+        // l'état « échec » ci-dessous.
+        console.error("[PhotoLibraryPickerDialog] échec de signature des photos", e);
+        if (cancelled) return;
+        setUrlMap(new Map());
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setSignDone(true);
+      });
     return () => {
       cancelled = true;
     };
-  }, [open, readyPhotos]);
+  }, [open, readyPhotos, signRetryToken]);
+
+  // getSignedPhotoUrls retente déjà une fois en interne puis rend une Map
+  // vide en silence (cf. photo-storage.ts) : on ne peut pas la distinguer
+  // d'une bibliothèque réellement vide autrement qu'en comparant à
+  // readyPhotos. Un échec TOTAL (aucune vignette signée) mérite un message
+  // explicite avec reprise — pas 49 icônes cassées sans explication.
+  const allSigningFailed = signDone && readyPhotos.length > 0 && urlMap.size === 0;
 
   const atMax = selectedIds.length >= maxSelectable;
 
@@ -210,6 +231,21 @@ export function PhotoLibraryPickerDialog({
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
               {importing ? "Ajout de tes photos…" : "Chargement…"}
+            </div>
+          ) : allSigningFailed ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+              <ImageIcon className="h-8 w-8 text-muted-foreground" />
+              <div className="space-y-1">
+                <p className="text-sm text-foreground font-medium">
+                  On n'arrive pas à charger tes photos pour le moment.
+                </p>
+                <p className="text-xs text-muted-foreground max-w-sm">
+                  Ça peut venir d'une coupure passagère. Réessaie — si ça persiste, recharge la page.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => setSignRetryToken((n) => n + 1)}>
+                Réessayer
+              </Button>
             </div>
           ) : readyPhotos.length === 0 ? (
             // Bibliothèque vide EN PLEINE CRÉATION : on ne renvoie pas vers

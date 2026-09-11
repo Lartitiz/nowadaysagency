@@ -190,7 +190,10 @@ export default function ProtectedRoute({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user) {
+    const target = `${location.pathname}${location.search || ""}`;
+    return <Navigate to={`/login?redirect=${encodeURIComponent(target)}`} replace />;
+  }
 
   // Feature flag: redirect non-admin from hidden module routes.
   // Only applies to flag-gated routes. Wait for the admin-role query to resolve
