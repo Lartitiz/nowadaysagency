@@ -161,16 +161,16 @@ const FORMAT_DONE_LABELS: Record<string, string> = {
 const TIPS_GENERIC = [
   "💡 Un bon hook = une promesse. Pas un clickbait.",
   "💡 L'algorithme favorise les contenus sauvegardés. Éducatif = jackpot.",
-  "💡 Un CTA doux performe 2x mieux qu'un CTA directif.",
-  "💡 Les posts qui prennent position = 3x plus de commentaires.",
+  "💡 Termine par une invitation qui te ressemble, sans forcer la vente.",
+  "💡 Une prise de position gagne à s'appuyer sur un exemple concret.",
   "💡 2x/semaine avec intention > tous les jours sans stratégie.",
 ];
 
 // Tips spécifiques à un format (évite ex. un tip "stories" pendant un LinkedIn).
 const TIPS_BY_FORMAT: Record<string, string[]> = {
-  carousel: ["💡 Le premier slide détermine 80% de l'engagement."],
+  carousel: ["💡 Le premier slide doit donner une raison de lire la suite."],
   reel: ["💡 Un bon reel = un hook en 3s + une seule idée claire."],
-  story: ["💡 Les stories avec sondage = +40% d'engagement."],
+  story: ["💡 Un sondage : une question simple à laquelle ta communauté peut répondre."],
 };
 
 function getTipsForFormat(format: string): string[] {
@@ -250,6 +250,7 @@ interface Props {
   onRegenerate: () => void;
   onCopy: (text: string) => void;
   onResultTextChange?: (text: string) => void;
+  onPostPhotosChange?: (photos: PhotoItem[]) => void | Promise<void>;
   onSave?: () => void;
   /** Ouvre la fenêtre « Publier ou programmer » (ou sauvegarde directe si fromCalendar). */
   onPublishOrSchedule?: () => void;
@@ -317,6 +318,7 @@ export default function CreerStepResult({
   onRegenerate,
   onCopy,
   onResultTextChange,
+  onPostPhotosChange,
   onSave,
   onPublishOrSchedule,
   publishOrScheduleLabel,
@@ -536,7 +538,7 @@ export default function CreerStepResult({
       case "story":
         return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
       case "post":
-        return <PostResult result={result} photos={photos} onTextChange={onResultTextChange} />;
+        return <PostResult result={result} photos={photos} onTextChange={onResultTextChange} onPhotosChange={onPostPhotosChange} />;
       case "linkedin":
         return <LinkedInResult result={result} photos={photos} />;
       case "newsletter":

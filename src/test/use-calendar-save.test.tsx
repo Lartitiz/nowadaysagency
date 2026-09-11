@@ -304,6 +304,18 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     expect(mocks.db.ops).toHaveLength(0);
   });
 
+  it("sauvegarde une retouche de post photo dans les médias ET les détails du calendrier", async () => {
+    mocks.uploadPhotos.mockResolvedValue(["https://img.example/retouched.png"]);
+    const params = makeParams({ calendarPostId: "cal-photo", photoMode: true, uploadedPhotos: [{ base64: "data:image/png;base64,new" }] });
+    const { result } = renderHook(() => useCalendarSave(params));
+    await act(() => result.current.handleSaveBackToCalendar());
+    expect(mocks.uploadPhotos).toHaveBeenCalledWith(expect.anything(), "u1", "cal-photo", params.uploadedPhotos);
+    expect(updates().find(o => o.row.media_urls)?.row).toMatchObject({
+      media_urls: ["https://img.example/retouched.png"],
+      story_sequence_detail: { photo_urls: ["https://img.example/retouched.png"] },
+    });
+  });
+
   it("met à jour le post d'origine puis renvoie vers lui dans le calendrier", async () => {
     const params = makeParams({ calendarPostId: "cal-9", calendarPostDate: "2026-08-22" });
     const { result } = renderHook(() => useCalendarSave(params));

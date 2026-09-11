@@ -126,11 +126,24 @@ async function renderFrameToSlide(
     const rootStyle = root ? win.getComputedStyle(root) : null;
     const hasPhotoBg = !!(rootStyle && rootStyle.backgroundImage && rootStyle.backgroundImage !== "none");
     if (hasPhotoBg && photoUrl) {
+      // PptxGenJS uses w/h as SOURCE dimensions for its sizing calculation.
+      // Supplying the slide size here produces a zero crop and stretches photos.
+      const dimensions = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+        const img = new Image();
+        const timer = setTimeout(() => reject(new Error("La photo n'a pas pu être préparée pour le PPTX. Réessaie.")), 15000);
+        img.onload = () => {
+          clearTimeout(timer);
+          if (!img.naturalWidth || !img.naturalHeight) reject(new Error("Dimensions de photo invalides."));
+          else resolve({ width: img.naturalWidth, height: img.naturalHeight });
+        };
+        img.onerror = () => { clearTimeout(timer); reject(new Error("Impossible de lire la photo du PPTX. Réessaie.")); };
+        img.src = photoUrl;
+      });
       const imgProps: Record<string, unknown> = {
         x: 0,
         y: 0,
-        w: PPTX_W_IN,
-        h: PPTX_H_IN,
+        w: dimensions.width / PX_PER_IN,
+        h: dimensions.height / PX_PER_IN,
         sizing: { type: "cover", w: PPTX_W_IN, h: PPTX_H_IN },
       };
       if (photoUrl.startsWith("data:")) imgProps.data = photoUrl;
