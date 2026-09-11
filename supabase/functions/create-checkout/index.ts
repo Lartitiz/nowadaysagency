@@ -3,12 +3,13 @@ import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { validateInput, ValidationError, CreateCheckoutSchema } from "../_shared/input-validators.ts";
+import { subscriptionCheckout, CheckoutConflict } from "./subscription-checkout.ts";
 
 const log = (step: string, details?: any) => {
   console.log(`[CREATE-CHECKOUT] ${step}${details ? ` - ${JSON.stringify(details)}` : ''}`);
 };
 
-serve(async (req) => {
+export async function handleCreateCheckoutRequest(req: Request) {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -20,7 +21,9 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       log("ERROR: No authorization header");
-      throw new Error("Non authentifié - pas de header Authorization");
+      return new Response(JSON.stringify({ error: "Reconnecte-toi pour continuer." }), {
+        headers: { ...cors, "Content-Type": "application/json" }, status: 401,
+      });
     }
 
     const supabaseClient = createClient(
@@ -30,12 +33,12 @@ serve(async (req) => {
 
     const token = authHeader.replace("Bearer ", "");
     const { data, error: authError } = await supabaseClient.auth.getUser(token);
-    if (authError) {
-      log("ERROR: Auth failed", { message: authError.message });
-      throw new Error(`Erreur d'authentification: ${authError.message}`);
-    }
     const user = data.user;
-    if (!user?.email) throw new Error("Non authentifié");
+    if (authError || !user?.email) {
+      return new Response(JSON.stringify({ error: "Reconnecte-toi pour continuer." }), {
+        headers: { ...cors, "Content-Type": "application/json" }, status: 401,
+      });
+    }
     log("User authenticated", { email: user.email });
 
     const { priceId, mode, successUrl, cancelUrl } = validateInput(await req.json(), CreateCheckoutSchema);
@@ -97,7 +100,12 @@ serve(async (req) => {
     }
 
     log("Creating checkout session", { mode: sessionParams.mode, priceId });
-    const session = await stripe.checkout.sessions.create(sessionParams);
+    const admin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+      auth: { persistSession: false },
+    });
+    const session = mode === "subscription"
+      ? await subscriptionCheckout(stripe, admin, { id: user.id, email: user.email }, sessionParams)
+      : await stripe.checkout.sessions.create(sessionParams);
     log("Checkout session created", { sessionId: session.id, url: session.url?.substring(0, 50) });
 
     return new Response(JSON.stringify({ url: session.url }), {
@@ -107,6 +115,11 @@ serve(async (req) => {
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     log("ERROR", { message: msg });
+    if (error instanceof CheckoutConflict) {
+      return new Response(JSON.stringify({ error: msg }), {
+        headers: { ...cors, "Content-Type": "application/json" }, status: 409,
+      });
+    }
     if (error instanceof ValidationError) {
       return new Response(JSON.stringify({ error: msg }), {
         headers: { ...cors, "Content-Type": "application/json" },
@@ -118,4 +131,6 @@ serve(async (req) => {
       status: 500,
     });
   }
-});
+}
+
+if (import.meta.main) serve(handleCreateCheckoutRequest);

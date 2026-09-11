@@ -165,6 +165,7 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
             plan,
             stripe_customer_id: session.customer as string,
             stripe_subscription_id: sub.id,
+            source: "stripe",
             stripe_price_id: priceId,
             status: "active",
             current_period_start: getPeriod(sub).start,
@@ -253,6 +254,7 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
           if (productType === "studio_once") {
             const { error: studioSubError } = await supabase.from("subscriptions").upsert({
               user_id: userId,
+              source: "stripe",
               plan: "studio",
               stripe_customer_id: session.customer as string,
               status: "active",
@@ -275,6 +277,7 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
       case "customer.subscription.updated": {
         const sub = event.data.object as Stripe.Subscription;
         const { error: subUpdateError } = await supabase.from("subscriptions").update({
+          source: "stripe",
           status: sub.status === "active" ? "active" : sub.status,
           current_period_start: getPeriod(sub).start,
           current_period_end: getPeriod(sub).end,
@@ -298,6 +301,7 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
         checkError("subscriptions select (customer.subscription.deleted lookup)", canceledSubError, { subId: sub.id });
 
         const { error: subCancelError } = await supabase.from("subscriptions").update({
+          source: "stripe",
           status: "canceled",
           canceled_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
@@ -327,6 +331,7 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
         checkError("subscriptions select (invoice.payment_failed lookup)", failedSubError, { subId });
 
         const { error: pastDueError } = await supabase.from("subscriptions").update({
+          source: "stripe",
           status: "past_due",
           updated_at: new Date().toISOString(),
         }).eq("stripe_subscription_id", subId);
@@ -374,6 +379,7 @@ export async function handleStripeWebhookRequest(req: Request, deps: StripeWebho
 
         if (subData?.plan === "studio") {
           const { error: studioMonthsError } = await supabase.from("subscriptions").update({
+            source: "stripe",
             studio_months_paid: (subData.studio_months_paid || 0) + 1,
             status: "active",
             updated_at: new Date().toISOString(),

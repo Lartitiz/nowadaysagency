@@ -240,6 +240,7 @@ Deno.test("checkout.session.completed (subscription, plan outil) : active l'acc√
   assertEquals(sub.user_id, "user-1");
   assertEquals(sub.plan, "outil");
   assertEquals(sub.status, "active");
+  assertEquals(sub.source, "stripe");
   assertEquals(sub.stripe_subscription_id, "sub_1");
   assertEquals(sub.stripe_price_id, "price_outil");
   assertEquals(sub.current_period_start, new Date(1735689600 * 1000).toISOString());

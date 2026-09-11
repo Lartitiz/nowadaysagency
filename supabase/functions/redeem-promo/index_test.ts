@@ -52,6 +52,7 @@ interface MockOpts {
   grantError?: string | null;
   coachingError?: string | null;
   activeStripeSubscription?: boolean;
+  stripeSource?: string;
 }
 
 function installMockFetch(opts: MockOpts) {
@@ -83,7 +84,7 @@ function installMockFetch(opts: MockOpts) {
     if (path === "/rest/v1/subscriptions") {
       if (opts.activeStripeSubscription) {
         return json({
-          source: "stripe",
+          source: opts.stripeSource ?? "stripe",
           status: "active",
           stripe_subscription_id: "sub_active",
           current_period_end: new Date(Date.now() + 86400000).toISOString(),
@@ -124,6 +125,15 @@ function redeemReq(body: Record<string, unknown>): Request {
     body: JSON.stringify(body),
   });
 }
+
+Deno.test("promo puis Stripe : source promo périmée ne permet pas un nouvel octroi", async () => {
+  const mock = installMockFetch({ promo: BASE_PROMO, activeStripeSubscription: true, stripeSource: "promo" });
+  try {
+    const response = await handleRedeemPromoRequest(redeemReq({ code: "BIENVENUE" }));
+    assertEquals(response.status, 400);
+    assertEquals(mock.rpcCalls.length, 0);
+  } finally { restore(); }
+});
 
 Deno.test("redeem-promo: code inconnu -> 400 'Code invalide ou expiré.'", async () => {
   installMockFetch({ promo: null });

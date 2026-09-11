@@ -8271,6 +8271,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      report_client_error: {
+        Args: { p_kind: string; p_route: string; p_asset?: string | null }
+        Returns: boolean
+      }
       consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
       create_coaching_program_full: {
         Args: {

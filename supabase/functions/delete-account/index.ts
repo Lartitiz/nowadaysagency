@@ -1,7 +1,8 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
-import { cancelActiveStripeSubscription } from "./cancel-subscription.ts";
+import { cancelActiveStripeSubscription, type SupabaseLike, type StripeLike } from "./cancel-subscription.ts";
+import { cleanupUserStorage } from "./storage-cleanup.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
 
@@ -87,7 +88,9 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
       apiVersion: "2025-08-27.basil",
     });
-    const cancelResult = await cancelActiveStripeSubscription(userId, admin, stripe);
+    // Contrats étroits testés séparément : évite l'expansion récursive des types
+    // génériques des deux SDK dans Deno lors de leur comparaison structurelle.
+    const cancelResult = await cancelActiveStripeSubscription(userId, admin as unknown as SupabaseLike, stripe as unknown as StripeLike);
     if (cancelResult.error) {
       console.error(`[delete-account] Stripe cancellation failed for ${userId}:`, cancelResult.error);
       return new Response(
@@ -98,6 +101,9 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
     if (cancelResult.canceled) {
       console.log(`[delete-account] Stripe subscription canceled for ${userId}`);
     }
+
+    // Conserver le compte et ses lignes si l'effacement des fichiers échoue.
+    await cleanupUserStorage(admin, userId);
 
     // Phase 1 — Child tables (dependencies first)
     const phase1: string[] = [
@@ -341,26 +347,12 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
     await deleteFromTables(phase1);
     await deleteFromTables(phase2);
 
-    // Phase 2.5 — Delete storage files
-    const buckets = [
-      "audit-screenshots", "linkedin-audit-screenshots", "inspiration-screenshots",
-      "deliverables", "onboarding-uploads", "audit-posts", "brand-assets",
-      "crosspost-uploads", "moodboards", "beta-feedback", "calendar-media",
-    ];
-    for (const bucket of buckets) {
-      try {
-        const { data: files } = await admin.storage.from(bucket).list(userId);
-        if (files && files.length > 0) {
-          const paths = files.map((f: any) => `${userId}/${f.name}`);
-          await admin.storage.from(bucket).remove(paths);
-          console.log(`[delete-account] Removed ${paths.length} files from ${bucket}`);
-        }
-      } catch (e) {
-        console.log(`[delete-account] Storage ${bucket} cleanup skipped:`, e instanceof Error ? e.message : String(e));
-      }
-    }
-
     // Phase 3 — Delete auth user
+    if (errors.length > 0) {
+      return new Response(JSON.stringify({ success: false, tables_cleaned: tablesCleaned, errors }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 500,
+      });
+    }
     console.log(`[delete-account] Deleting auth user ${userId}`);
     const { error: deleteUserError } = await admin.auth.admin.deleteUser(userId);
     if (deleteUserError) {

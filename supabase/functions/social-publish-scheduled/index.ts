@@ -92,6 +92,7 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
     .eq("publish_status", "scheduled")
     .in("canal", ["instagram", "linkedin"])
     .lte("scheduled_publish_at", nowIso)
+    .order("scheduled_publish_at", { ascending: true })
     .limit(20);
   if (dueErr) throw dueErr;
 
@@ -153,7 +154,7 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
 
       let postId: string;
       if (platform === "linkedin") {
-        const text = (post.content_draft || "").trim();
+        const text = resolveCaption(post);
         const media = (post.media_urls || []) as string[];
         const pdf = media.find(isLinkedInPdfUrl);
         const liImages = media.filter(isLinkedInImageUrl);
@@ -177,10 +178,10 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
         const videoUrl = publicUrls.find(isMp4);
         const imageUrls = publicUrls.filter((u: string) => !isMp4(u));
         if (videoUrl) {
-          postId = await publishReelToInstagram(supabase, conn, post.content_draft || "", videoUrl);
+          postId = await publishReelToInstagram(supabase, conn, resolveCaption(post), videoUrl);
         } else {
           if (imageUrls.length === 0) throw new Error("Aucun média public à publier.");
-          postId = await publishImagesToInstagram(supabase, conn, post.content_draft || "", imageUrls);
+          postId = await publishImagesToInstagram(supabase, conn, resolveCaption(post), imageUrls);
         }
       }
 

@@ -1,8 +1,10 @@
 import { Sentry } from "@/lib/sentry";
+import { reportClientError } from "@/lib/client-error-monitor";
 
 export function trackError(error: unknown, context?: Record<string, any>) {
   const err = error instanceof Error ? error : new Error(String(error));
   console.error(err.message, context);
+  void reportClientError("operation");
 
   if (import.meta.env.PROD) {
     (Sentry as any).captureException(err, {

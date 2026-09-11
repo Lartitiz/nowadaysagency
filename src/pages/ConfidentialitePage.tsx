@@ -24,7 +24,7 @@ export default function ConfidentialitePage() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-6">Politique de confidentialité</h1>
 
         <div className="rounded-2xl bg-card border border-border p-6 space-y-5 text-sm leading-relaxed">
-          <p className="text-xs text-muted-foreground">Dernière mise à jour : 26 février 2026</p>
+          <p className="text-xs text-muted-foreground">Dernière mise à jour : 11 septembre 2026</p>
 
           <p className="italic text-muted-foreground">
             Chez Nowadays Agency, on prend la protection de tes données au sérieux. Pas par obligation (bon, un peu quand même), mais parce qu'on croit que la confiance, ça se construit aussi dans les petits caractères.
@@ -48,7 +48,7 @@ export default function ConfidentialitePage() {
               <p><span className="font-medium text-foreground/80">Données de branding :</span> ton identité visuelle, ton storytelling, ta proposition de valeur, ta charte : tout ce que tu renseignes dans l'outil pour construire ta communication.</p>
               <p><span className="font-medium text-foreground/80">Contenus créés :</span> tes posts générés, brouillons, calendrier éditorial, idées sauvegardées, scripts, carrousels.</p>
               <p><span className="font-medium text-foreground/80">Données de navigation :</span> pages visitées et actions dans l'outil, collectées via PostHog (hébergé en Union européenne, serveur eu.i.posthog.com) : uniquement après ton consentement.</p>
-              <p><span className="font-medium text-foreground/80">Données techniques :</span> logs d'erreur anonymisés via Sentry, avec masquage automatique du texte et des médias. Utilisés uniquement pour corriger les bugs.</p>
+              <p><span className="font-medium text-foreground/80">Données techniques :</span> un journal de pannes dans notre hébergement Supabase conserve la catégorie de panne, la rubrique concernée, le module technique et l'identifiant du compte connecté. Il ne contient ni tes textes, ni tes photos, ni tes saisies. Il sert uniquement à repérer et corriger les bugs. Sentry peut compléter ce suivi lorsqu'il est configuré ; ses replays de session nécessitent ton consentement.</p>
               <p><span className="font-medium text-foreground/80">Données de facturation :</span> gérées directement par Stripe. On ne stocke jamais tes coordonnées bancaires.</p>
             </div>
           </div>
@@ -70,6 +70,7 @@ export default function ConfidentialitePage() {
               <p><span className="font-medium text-foreground/80">Logs de navigation (PostHog) :</span> 12 mois maximum.</p>
               <p><span className="font-medium text-foreground/80">Pixel Meta :</span> selon la politique de conservation de Meta, hors de notre contrôle direct.</p>
               <p><span className="font-medium text-foreground/80">Logs d'erreur (Sentry) :</span> 90 jours.</p>
+              <p><span className="font-medium text-foreground/80">Journal technique Supabase :</span> 30 jours maximum, effacé aussi à la suppression du compte.</p>
               <p><span className="font-medium text-foreground/80">Données de facturation (Stripe) :</span> conservées par Stripe selon leurs obligations légales.</p>
             </div>
           </div>
