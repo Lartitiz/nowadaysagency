@@ -15,10 +15,11 @@
  * Jamais bloquant : chargements différés, étalés par story (stagger).
  */
 
-import { useEffect, useRef, useState } from "react";
-import { Camera, Check, Images, Loader2, Plus, Upload } from "lucide-react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
+import { Camera, Check, Images, Loader2, Plus, Search, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Input } from "@/components/ui/input";
 import { searchStockPhotos, type StockPhoto } from "@/lib/stock-photos";
 import { fileToResizedDataUrl } from "@/lib/story-photos";
 import { convertHeicIfNeeded, isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
@@ -72,31 +73,46 @@ export default function StoryPhotoSuggestions({
   const [suggestions, setSuggestions] = useState<StockPhoto[] | null>(null);
   const [stockRequested, setStockRequested] = useState(autoApply);
   const [failed, setFailed] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
   const [wishlistBusy, setWishlistBusy] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const started = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const startedQuery = useRef<string | null>(null);
+  const searchRequestId = useRef(0);
   const autoApplied = useRef(false);
 
   const query = (queryEn || directive || "").trim();
+  const [searchInput, setSearchInput] = useState(query);
+  const previousQuery = useRef(query);
 
   useEffect(() => {
-    if (!query || !stockRequested || started.current) return;
-    started.current = true;
+    const oldQuery = previousQuery.current;
+    setSearchInput((current) => (!current.trim() || current === oldQuery ? query : current));
+    previousQuery.current = query;
+  }, [query]);
+
+  useEffect(() => {
+    if (!query || !stockRequested || startedQuery.current === query) return;
+    startedQuery.current = query;
     let cancelled = false;
+    const requestId = ++searchRequestId.current;
 
     (async () => {
+      setSearching(true);
+      setFailed(false);
+      setSuggestions(null);
       // Stagger : les stories chargent leurs suggestions l'une après l'autre
       await new Promise((r) => setTimeout(r, storyIndex * 700));
-      if (cancelled) return;
+      if (cancelled || requestId !== searchRequestId.current) return;
       try {
         const results = await searchStockPhotos(query, {
           perPage: EXPANDED,
           orientation: "portrait",
           locale: "en-US",
         });
-        if (cancelled) return;
+        if (cancelled || requestId !== searchRequestId.current) return;
         if (!results.length) {
           setFailed(true);
           return;
@@ -127,7 +143,7 @@ export default function StoryPhotoSuggestions({
             console.warn("[pick_stock]", error.message);
           }
         }
-        if (cancelled) return;
+        if (cancelled || requestId !== searchRequestId.current) return;
         setSuggestions(ordered);
 
         if (autoApply && !autoApplied.current && ordered[0]) {
@@ -147,7 +163,9 @@ export default function StoryPhotoSuggestions({
         }
       } catch (e) {
         console.warn("[StoryPhotoSuggestions]", e);
-        if (!cancelled) setFailed(true);
+        if (!cancelled && requestId === searchRequestId.current) setFailed(true);
+      } finally {
+        if (!cancelled && requestId === searchRequestId.current) setSearching(false);
       }
     })();
 
@@ -156,6 +174,44 @@ export default function StoryPhotoSuggestions({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, stockRequested]);
+
+  async function handleStockSearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const term = searchInput.trim();
+    if (!term) {
+      searchInputRef.current?.focus();
+      return;
+    }
+
+    const requestId = ++searchRequestId.current;
+    setStockRequested(true);
+    setExpanded(true);
+    setSearching(true);
+    setFailed(false);
+    setSuggestions(null);
+
+    try {
+      const results = await searchStockPhotos(term, {
+        perPage: EXPANDED,
+        orientation: "portrait",
+        locale: "fr-FR",
+      });
+      if (requestId !== searchRequestId.current) return;
+      setSuggestions(results);
+      setFailed(results.length === 0);
+    } catch (e: unknown) {
+      console.warn("[StoryPhotoSuggestions]", e);
+      if (requestId !== searchRequestId.current) return;
+      setFailed(true);
+      toast.error(
+        e instanceof Error
+          ? e.message
+          : "La recherche de photos est momentanément indisponible.",
+      );
+    } finally {
+      if (requestId === searchRequestId.current) setSearching(false);
+    }
+  }
 
   async function handleOwnPhoto(raw: File | null | undefined) {
     if (!raw) return;
@@ -202,9 +258,6 @@ export default function StoryPhotoSuggestions({
       setWishlistBusy(false);
     }
   }
-
-  const hasLibrary = libraryStrip.length > 0;
-  if (!query && !hasLibrary) return null;
 
   const shown = suggestions ? suggestions.slice(0, expanded ? EXPANDED : VISIBLE) : [];
   const thumbClass = (active: boolean) =>
@@ -255,45 +308,86 @@ export default function StoryPhotoSuggestions({
         </button>
 
         {/* ── Stock : d'office si story vide, sinon à la demande ── */}
-        {stockRequested ? (
-          <>
-            {!suggestions && !failed && (
+        {!stockRequested && (
+          <button
+            type="button"
+            onClick={() => {
+              setStockRequested(true);
+              window.setTimeout(() => searchInputRef.current?.focus(), 0);
+            }}
+            className="self-center inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-2xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+          >
+            <Plus className="h-3 w-3" /> libres de droits
+          </button>
+        )}
+      </div>
+
+      {stockRequested && (
+        <>
+          <form onSubmit={handleStockSearch} className="flex w-full max-w-md items-center gap-1.5">
+            <Input
+              ref={searchInputRef}
+              type="search"
+              value={searchInput}
+              onChange={(event) => setSearchInput(event.target.value)}
+              placeholder="Ex. : machine à café, bureau lumineux…"
+              aria-label={`Rechercher une photo libre de droit pour la story ${storyIndex + 1}`}
+              className="h-8 min-w-0 rounded-full border px-3 py-1 text-xs"
+            />
+            <button
+              type="submit"
+              disabled={searching || !searchInput.trim()}
+              className="inline-flex h-8 shrink-0 items-center gap-1 rounded-full bg-primary px-3 text-2xs font-medium text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {searching ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
+              Rechercher
+            </button>
+          </form>
+
+          <div className="flex items-start gap-1.5 flex-wrap" aria-live="polite">
+            {searching && (
               <span className="inline-flex items-center gap-1 self-center text-2xs text-muted-foreground px-1">
-                <Loader2 className="h-3 w-3 animate-spin" /> libres de droits…
+                <Loader2 className="h-3 w-3 animate-spin" /> Recherche en cours…
               </span>
             )}
-            {shown.map((p) => {
-              const active = appliedUrl === p.url;
-              return (
-                <button
-                  key={p.id}
-                  type="button"
-                  onClick={() =>
-                    onApply({
-                      url: p.url,
-                      credit: { photographer: p.photographer, source_url: p.source_url },
-                    })
-                  }
-                  className={thumbClass(active)}
-                  style={{ aspectRatio: "9 / 16" }}
-                  aria-label={`Utiliser la photo de ${p.photographer}`}
-                  title={`${p.alt || "Photo"} — ${p.photographer} · Pexels`}
-                >
-                  <img
-                    src={p.thumbnail}
-                    alt={p.alt || `Photo de ${p.photographer}`}
-                    loading="lazy"
-                    className="h-full w-full object-cover"
-                  />
-                  {active && (
-                    <span className="absolute top-0.5 right-0.5 h-3.5 w-3.5 rounded-full bg-primary flex items-center justify-center">
-                      <Check className="h-2.5 w-2.5 text-primary-foreground" />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            {suggestions && suggestions.length > VISIBLE && !expanded && (
+            {!searching && failed && (
+              <span className="self-center text-2xs text-muted-foreground px-1">
+                Aucune photo trouvée. Essaie avec d'autres mots.
+              </span>
+            )}
+            {!searching &&
+              shown.map((p) => {
+                const active = appliedUrl === p.url;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() =>
+                      onApply({
+                        url: p.url,
+                        credit: { photographer: p.photographer, source_url: p.source_url },
+                      })
+                    }
+                    className={thumbClass(active)}
+                    style={{ aspectRatio: "9 / 16" }}
+                    aria-label={`Utiliser la photo de ${p.photographer}`}
+                    title={`${p.alt || "Photo"} — ${p.photographer} · Pexels`}
+                  >
+                    <img
+                      src={p.thumbnail}
+                      alt={p.alt || `Photo de ${p.photographer}`}
+                      loading="lazy"
+                      className="h-full w-full object-cover"
+                    />
+                    {active && (
+                      <span className="absolute top-0.5 right-0.5 h-3.5 w-3.5 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="h-2.5 w-2.5 text-primary-foreground" />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            {!searching && suggestions && suggestions.length > VISIBLE && !expanded && (
               <button
                 type="button"
                 onClick={() => setExpanded(true)}
@@ -305,19 +399,9 @@ export default function StoryPhotoSuggestions({
                 plus
               </button>
             )}
-          </>
-        ) : (
-          query && (
-            <button
-              type="button"
-              onClick={() => setStockRequested(true)}
-              className="self-center inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-2xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-            >
-              <Plus className="h-3 w-3" /> libres de droits
-            </button>
-          )
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       <div className="flex items-center gap-1.5 flex-wrap">
         <button
