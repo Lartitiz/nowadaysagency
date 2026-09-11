@@ -1447,6 +1447,57 @@ export type Database = {
           },
         ]
       }
+      checkout_attempts: {
+        Row: {
+          attempt_id: string
+          expires_at: string
+          params: Json
+          stripe_session_id: string | null
+          user_id: string
+        }
+        Insert: {
+          attempt_id?: string
+          expires_at?: string
+          params: Json
+          stripe_session_id?: string | null
+          user_id: string
+        }
+        Update: {
+          attempt_id?: string
+          expires_at?: string
+          params?: Json
+          stripe_session_id?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      client_error_events: {
+        Row: {
+          asset: string | null
+          created_at: string
+          id: string
+          kind: string
+          route: string
+          user_id: string
+        }
+        Insert: {
+          asset?: string | null
+          created_at?: string
+          id?: string
+          kind: string
+          route: string
+          user_id: string
+        }
+        Update: {
+          asset?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          route?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coach_exercises: {
         Row: {
           app_route: string | null
@@ -8271,10 +8322,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      report_client_error: {
-        Args: { p_kind: string; p_route: string; p_asset?: string | null }
-        Returns: boolean
-      }
       consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
       create_coaching_program_full: {
         Args: {
@@ -8324,6 +8371,14 @@ export type Database = {
           p_user_id: string
         }
         Returns: undefined
+      }
+      report_client_error: {
+        Args: { p_asset?: string; p_kind: string; p_route: string }
+        Returns: boolean
+      }
+      reserve_subscription_checkout: {
+        Args: { p_params: Json; p_user_id: string }
+        Returns: Json
       }
       trigger_email_event: { Args: { _event: string }; Returns: undefined }
       trigger_publish_due_posts: { Args: never; Returns: undefined }
