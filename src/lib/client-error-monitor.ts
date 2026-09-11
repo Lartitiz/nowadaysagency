@@ -16,7 +16,7 @@ export async function reportClientError(kind: ErrorKind, filename?: string) {
   seen.add(key);
   try {
     const { data } = await supabase.auth.getSession();
-    if (!data.session) return;
+    if (!data.session) { seen.delete(key); return; }
     // Le schéma serveur valide des catégories fermées ; aucun message brut envoyé.
     const { error } = await supabase.rpc("report_client_error", {
       p_kind: kind, p_route: route, p_asset: asset,
