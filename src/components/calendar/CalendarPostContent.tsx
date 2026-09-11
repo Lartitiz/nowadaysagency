@@ -65,7 +65,7 @@ export function CalendarPostContent({
 
   const VisualActions = () => {
     const ssd = editingPost?.story_sequence_detail as any;
-    const hasStructuredContent = !!ssd;
+    const hasStructuredContent = !!ssd && ssd.type !== "photo_composition";
     const isCarousel = ssd?.type === "carousel" || ssd?.type === "carousel_photo" || ssd?.type === "carousel_mix";
     const hasVisuals = mediaUrls && mediaUrls.length > 0;
 

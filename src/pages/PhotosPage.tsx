@@ -7,7 +7,7 @@
  * (remplacement de décor) reste accessible en action secondaire.
  */
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Loader2, Plus, Wand2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
@@ -38,6 +38,7 @@ import {
   CreateVisualDialog,
   type CreateVisualChoice,
 } from "@/components/photos/CreateVisualDialog";
+import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
@@ -52,6 +53,7 @@ import { isHeic, PHOTO_INPUT_ACCEPT } from "@/lib/heic";
 import { UX_UPLOAD_LIMITS, formatMb } from "@/lib/upload-limits";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
+const PhotoPreparationDialog = lazy(() => import("@/components/photos/PhotoPreparationDialog"));
 const MAX_BATCH = 20;
 const MAX_FILE_BYTES = UX_UPLOAD_LIMITS.photo;
 const MAX_TAG_CHIPS = 8;
@@ -85,6 +87,8 @@ export default function PhotosPage() {
   // en arrière-plan après l'upload, sinon `photo.kind` reste figé sur l'instantané
   // pris au clic d'ouverture — même si Realtime a bien rafraîchi `photos` derrière,
   // Portrait pro n'apparaît jamais sans fermer/rouvrir OU recharger la page.
+  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+  const [preparation, setPreparation] = useState<{ photos: UserPhotoRow[]; mode: "single" | "collection" | "kit" } | null>(null);
   const [detailPhotoId, setDetailPhotoId] = useState<string | null>(null);
   const detailPhoto = detailPhotoId ? (photos.find((p) => p.id === detailPhotoId) ?? null) : null;
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
@@ -290,6 +294,7 @@ export default function PhotosPage() {
             <Button variant="outline" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
               <Wand2 className="h-4 w-4 mr-2" /> Créer un visuel
             </Button>
+            <Button variant="outline" disabled={!wsReady} onClick={() => setCollectionPickerOpen(true)}>Préparer une collection</Button>
           </div>
           {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
               plutôt qu'un bouton frère qui doublerait le poids de « Ajouter ». */}
@@ -431,7 +436,14 @@ export default function PhotosPage() {
         maxSelectable={MAX_BATCH}
         onImportFiles={handleFilesSelected}
       />
+      <PhotoLibraryPickerDialog open={collectionPickerOpen} onOpenChange={setCollectionPickerOpen} maxSelectable={12}
+        onConfirm={photos => { setCollectionPickerOpen(false); if (photos.length) setPreparation({ photos, mode: "collection" }); }} />
+      {preparation && <Suspense fallback={<p role="status">Ouverture de la préparation…</p>}><PhotoPreparationDialog open
+        sources={preparation.photos.map(p => ({ id: p.id, photoId: p.id, name: p.name || "Photo" }))} mode={preparation.mode}
+        onOpenChange={open => { if (!open) setPreparation(null); }} /></Suspense>}
       <PhotoDetailDialog
+        onPrepare={p => { setDetailPhotoId(null); setPreparation({ photos: [p], mode: "single" }); }}
+        onPrepareKit={p => { setDetailPhotoId(null); setPreparation({ photos: [p], mode: "kit" }); }}
         photo={detailPhoto}
         open={!!detailPhoto}
         onOpenChange={(v) => !v && setDetailPhotoId(null)}

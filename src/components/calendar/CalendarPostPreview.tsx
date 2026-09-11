@@ -15,6 +15,7 @@ import { getIncludeLogoPref, setIncludeLogoPref } from "@/lib/export-logo";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 
 interface Props {
+  photoComposition?: boolean;
   canal: string;
   format: string | null;
   caption: string | null;
@@ -37,7 +38,7 @@ interface Props {
 }
 
 export function CalendarPostPreview({
-  canal, format, caption, theme, username, displayName,
+  photoComposition = false, canal, format, caption, theme, username, displayName,
   mediaUrls, visualHtml, visualUrls, onNavigateToGenerator, hasAngle, hasTheme,
   slidesData, photoUrls, storiesData, compact = false, onFullscreen, syncStatus,
 }: Props) {
@@ -211,7 +212,7 @@ export function CalendarPostPreview({
               <Copy className="h-3.5 w-3.5" />
             </Button>
           )}
-          {format === "story_serie" && <StoryExportButtons api={storyExport} />}
+          {format === "story_serie" && !photoComposition && <StoryExportButtons api={storyExport} />}
           {visualHtml && visualHtml.length > 0 && (
             <Button
               size="sm"
@@ -228,7 +229,8 @@ export function CalendarPostPreview({
               Canva
             </Button>
           )}
-          {hasVisuals && (
+          {photoComposition && visualUrls?.length > 0 && <Button variant="outline" size="sm" disabled={downloadingPng} onClick={handleDownloadFromUrls}><Download className="h-3 w-3 mr-1" /> Télécharger le visuel</Button>}
+          {hasVisuals && !photoComposition && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -280,7 +282,7 @@ export function CalendarPostPreview({
     );
   };
 
-  if (!caption) {
+  if (!caption && !photoComposition) {
     return (
       <div className="flex flex-col items-center justify-center py-12 text-center">
         <p className="text-3xl mb-3">👁️</p>
