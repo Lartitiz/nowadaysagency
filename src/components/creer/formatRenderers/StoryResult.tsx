@@ -66,6 +66,11 @@ const getTextField = (story: any): "text" | "texte" | "content" => {
 
 const getStoryText = (story: any): string => String(story[getTextField(story)] ?? "");
 
+const getDisplayedBody = (story: any): string => {
+  if (story.visual?.body_pill_edited) return String(story.visual.body_pill ?? "");
+  return getStoryText(story).trim() || String(story.visual?.body_pill ?? "");
+};
+
 // Les nouvelles stories photo/fond/interaction affichent le texte entier.
 // Garder ces deux représentations ensemble quand elles étaient identiques.
 // Les anciennes pastilles personnalisées, listes et attributions restent
@@ -782,7 +787,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                               <label htmlFor={`story-${i}-body-pill`} className="text-2xs text-muted-foreground">Texte affiché</label>
                               <Textarea
                                 id={`story-${i}-body-pill`}
-                                value={story.visual.body_pill}
+                                value={getDisplayedBody(story)}
                                 onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
                                 className="min-h-[64px] resize-y text-xs"
                                 aria-label="Texte affiché"

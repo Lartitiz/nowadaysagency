@@ -94,7 +94,10 @@ describe("Stories : édition et remplacement du résultat", () => {
   });
 
   it("conserve une pastille personnalisée distincte du texte", () => {
-    render(<StoryResult result={sequence("Les boutons en nacre", { body_pill: "Un détail choisi à la main" })} />);
+    render(<StoryResult result={sequence("Les boutons en nacre", {
+      body_pill: "Un détail choisi à la main",
+      body_pill_edited: true,
+    })} />);
     editNarration("Les boutons en bois");
     expect(previewHtml()).toContain("Un détail choisi à la main");
   });
@@ -154,5 +157,20 @@ describe("Stories : édition et remplacement du résultat", () => {
     fireEvent.change(screen.getByLabelText("Option 2 du sticker de la story 1"), { target: { value: "Pas du tout" } });
     expect(previewHtml()).toContain("Pas du tout");
     expect(onStoriesUpdate.mock.lastCall?.[0][0].sticker.options[1]).toBe("Pas du tout");
+  });
+
+  it("propose le texte complet dans le champ visuel quand l’IA l’a raccourci", () => {
+    const full = "Sauf que ce petit avis inutile te rassure plus qu'il ne te fait fuir. Des études le montrent : ça sonne vrai.";
+    render(<StoryResult result={sequence(full, { body_pill: "Une perfection qui paraît suspecte" })} />);
+    expect(screen.getByLabelText("Texte affiché")).toHaveValue(full);
+    expect(previewHtml()).toContain(full);
+    expect(previewHtml()).not.toContain("Une perfection qui paraît suspecte");
+  });
+
+  it("garde la possibilité de raccourcir volontairement le texte du visuel", () => {
+    render(<StoryResult result={sequence("Le texte complet de départ", { body_pill: "Résumé généré" })} />);
+    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Mon raccourci" } });
+    expect(previewHtml()).toContain("Mon raccourci");
+    expect(previewHtml()).not.toContain("Le texte complet de départ");
   });
 });

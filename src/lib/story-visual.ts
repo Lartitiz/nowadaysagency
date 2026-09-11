@@ -295,6 +295,7 @@ export function buildStoryFrameHtml(
   const gabarit = (visual.gabarit || "fond_pills") as StoryGabarit;
   const justify = visual.text_position === "top" ? "flex-start"
     : visual.text_position === "bottom" ? "flex-end" : "center";
+  const narration = String(story?.text || story?.texte || story?.content || "").trim();
 
   const wantsPhoto = visual.background === "photo" && !!opts.photoUrl;
   const onPhoto = wantsPhoto;
@@ -303,7 +304,13 @@ export function buildStoryFrameHtml(
     : `background:${gabarit === "citation" ? p.ink : p.background}`;
 
   const title = (visual.title_pill || "").trim();
-  const body = (visual.body_pill || "").trim();
+  // Le texte complet porte la voix de la personne. Les résumés de body_pill
+  // générés par l'IA sonnent souvent plus génériques : afficher la narration
+  // telle quelle par défaut, même si elle est plus longue. Une modification
+  // explicite du champ « Texte affiché » reste prioritaire.
+  const useFullNarration = gabarit !== "citation" && gabarit !== "liste" &&
+    !visual.body_pill_edited && Boolean(narration);
+  const body = (useFullNarration ? narration : visual.body_pill || "").trim();
 
   // Sur fond couleur, le texte « nu » (blanc + ombre) n'a pas de sens : il
   // devient une pastille blanche. Sur photo, il reste nu.
@@ -328,7 +335,6 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
 </div>`;
   } else if (gabarit === "citation") {
     const quote = (visual.quote || body || title).trim();
-    const narration = String(story?.text || story?.texte || story?.content || "").trim();
     // L'IA remet parfois le verbatim tel quel dans body_pill : ne montrer
     // l'attribution que si elle apporte autre chose que la citation.
     const normalize = (s: string) => s.toLowerCase().replace(/[«»"'’\s.?!,:;()-]/g, "");
