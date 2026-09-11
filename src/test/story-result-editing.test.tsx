@@ -18,16 +18,14 @@ vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({ PhotoLibraryPic
 
 afterEach(cleanup);
 
-function sequence(text: string, visual = {}) {
+function sequence(text: string, visual = {}): any {
   return { stories: [{ text, face_cam: false, visual: {
     gabarit: "fond_pills", background: "fond_couleur", body_pill: text, ...visual,
   } }] };
 }
 
 function editNarration(text: string) {
-  const editor = document.querySelector('[contenteditable="true"]')!;
-  editor.textContent = text;
-  fireEvent.blur(editor);
+  fireEvent.change(screen.getByLabelText("Texte complet de la story 1"), { target: { value: text } });
 }
 
 function previewHtml() {
@@ -48,10 +46,11 @@ describe("Stories : édition et remplacement du résultat", () => {
     const onStoriesUpdate = vi.fn();
     const text = "Alors je vais fouiller dans les avis 1 étoile. Et je tombe sur cet avis. Rien à voir avec la machine.";
     render(<StoryResult result={sequence("Le récit", { gabarit: "citation", quote: "Une grosse différence de goût", body_pill: "Avis client" })} onStoriesUpdate={onStoriesUpdate} />);
-    fireEvent.change(screen.getByLabelText("Qui l'a dit"), { target: { value: text } });
+    fireEvent.change(screen.getByLabelText("Petit texte sous la citation"), { target: { value: text } });
     expect(text.length).toBeGreaterThan(80);
     expect(previewHtml()).toContain(text);
     expect(previewHtml()).toContain("Une grosse différence de goût");
+    expect(previewHtml()).toContain("Le récit");
     expect(onStoriesUpdate.mock.lastCall?.[0][0].visual.body_pill_edited).toBe(true);
   });
 
@@ -89,8 +88,8 @@ describe("Stories : édition et remplacement du résultat", () => {
   it("répercute la pastille corrigée dans le texte quand ils sont identiques", () => {
     const onStoriesUpdate = vi.fn();
     render(<StoryResult result={sequence("Les boutons en nacre")} onStoriesUpdate={onStoriesUpdate} />);
-    fireEvent.change(screen.getByLabelText("Pastille texte"), { target: { value: "Les boutons en bois" } });
-    expect(document.querySelector('[contenteditable="true"]')?.textContent).toBe("Les boutons en bois");
+    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Les boutons en bois" } });
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue("Les boutons en bois");
     expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("Les boutons en bois");
   });
 
@@ -103,14 +102,57 @@ describe("Stories : édition et remplacement du résultat", () => {
   it("ne remplace pas l’attribution d’une citation par le texte narratif", () => {
     render(<StoryResult result={sequence("Camille", { gabarit: "citation", quote: "Le col tombe parfaitement" })} />);
     editNarration("Camille a essayé la chemise");
-    expect(screen.getByLabelText("Qui l'a dit")).toHaveValue("Camille");
+    expect(screen.getByLabelText("Petit texte sous la citation")).toHaveValue("Camille");
   });
 
   it("garde une édition locale quand le parent renvoie le même contenu", () => {
     const initial = sequence("Les boutons en nacre");
     const { rerender } = render(<StoryResult result={initial} />);
-    fireEvent.change(screen.getByLabelText("Pastille texte"), { target: { value: "Les boutons en bois" } });
+    fireEvent.change(screen.getByLabelText("Texte affiché"), { target: { value: "Les boutons en bois" } });
     rerender(<StoryResult result={JSON.parse(JSON.stringify(initial))} />);
     expect(previewHtml()).toContain("Les boutons en bois");
+  });
+
+  it("rend le texte complet clairement modifiable même quand il est vide", () => {
+    const onStoriesUpdate = vi.fn();
+    render(<StoryResult result={sequence("")} onStoriesUpdate={onStoriesUpdate} />);
+    const field = screen.getByLabelText("Texte complet de la story 1");
+    expect(field).toBeVisible();
+    fireEvent.change(field, { target: { value: "Une nouvelle accroche parlée" } });
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("Une nouvelle accroche parlée");
+    fireEvent.change(field, { target: { value: "" } });
+    expect(field).toHaveValue("");
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe("");
+  });
+
+  it("répercute une citation modifiée dans le récit complet et garde le contexte", () => {
+    const onStoriesUpdate = vi.fn();
+    const initial = "Tu lis les avis. Et là : une vraie différence de goût. Tu ris.";
+    render(<StoryResult result={sequence(initial, { gabarit: "citation", quote: "une vraie différence de goût", body_pill: "Avis client" })} onStoriesUpdate={onStoriesUpdate} />);
+    fireEvent.change(screen.getByLabelText("Citation mise en avant"), { target: { value: "le café a un goût incroyable" } });
+    expect(screen.getByLabelText("Texte complet de la story 1")).toHaveValue(
+      "Tu lis les avis. Et là : le café a un goût incroyable. Tu ris.",
+    );
+    expect(previewHtml()).toContain("Tu lis les avis");
+    expect(previewHtml()).toContain("le café a un goût incroyable");
+    expect(previewHtml()).toContain("Tu ris");
+  });
+
+  it("permet de modifier chaque élément d’une liste", () => {
+    const onStoriesUpdate = vi.fn();
+    render(<StoryResult result={sequence("Trois détails", { gabarit: "liste", title_pill: "À regarder", list_pills: ["Le prix", "Les avis"] })} onStoriesUpdate={onStoriesUpdate} />);
+    fireEvent.change(screen.getByLabelText("Élément 2 de la liste"), { target: { value: "Les avis récents" } });
+    expect(previewHtml()).toContain("Les avis récents");
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].visual.list_pills[1]).toBe("Les avis récents");
+  });
+
+  it("permet de modifier chaque option d’un sticker", () => {
+    const onStoriesUpdate = vi.fn();
+    const result = sequence("Tu aurais vérifié ?", { gabarit: "interaction" });
+    result.stories[0].sticker = { type: "sondage", options: ["Oui", "Jamais"] };
+    render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
+    fireEvent.change(screen.getByLabelText("Option 2 du sticker de la story 1"), { target: { value: "Pas du tout" } });
+    expect(previewHtml()).toContain("Pas du tout");
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].sticker.options[1]).toBe("Pas du tout");
   });
 });

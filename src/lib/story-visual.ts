@@ -350,23 +350,32 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
     // réaction après le verbatim font partie du visuel. Si le verbatim ne se
     // retrouve pas exactement dans le texte, afficher le texte complet évite
     // toute perte de contenu.
-    const blocks = visual.body_pill_edited
-      ? [
-          textBlock(quoteText, quoteStyle, ctx, "quote"),
-          attribution ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution") : "",
-        ]
-      : narration
+    const narrativeBlocks = narration
       ? split
         ? [
             split.before ? textBlock(split.before, narrativeStyle, ctx, "body") : "",
             textBlock(quoteText, { ...quoteStyle, size: quoteStyle.size * bodyScale(narration) }, ctx, "quote"),
             split.after ? textBlock(split.after, narrativeStyle, ctx, "body") : "",
           ]
-        : [textBlock(narration, narrativeStyle, ctx, "body")]
+        : [
+            textBlock(narration, narrativeStyle, ctx, "body"),
+            visual.body_pill_edited ? textBlock(quoteText, quoteStyle, ctx, "quote") : "",
+          ]
       : [
           textBlock(quoteText, quoteStyle, ctx, "quote"),
-          attribution ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution") : "",
         ];
+    // Une petite ligne ajoutée sous la citation complète le récit. Elle ne doit
+    // jamais remplacer l'introduction ni la réaction quand on la modifie.
+    const normalizedNarration = normalize(narration);
+    const normalizedAttribution = normalize(attribution);
+    const showAttribution = Boolean(attribution) && normalizedAttribution !== normalizedNarration &&
+      !normalizedNarration.includes(normalizedAttribution);
+    const blocks = [
+      ...narrativeBlocks,
+      showAttribution
+        ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution")
+        : "",
+    ];
     inner = column(align, `justify-content:${justify};gap:34px`, blocks);
   } else if (gabarit === "interaction") {
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
