@@ -262,7 +262,11 @@ export async function getSignedPhotoUrls(
       }
       return map;
     }
-    if (attempt === 0) await new Promise((r) => setTimeout(r, 400));
+    if (attempt === 0) {
+      await new Promise((r) => setTimeout(r, 400));
+    } else {
+      console.error("[getSignedPhotoUrls] échec après retry", error);
+    }
   }
   return new Map();
 }

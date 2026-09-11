@@ -58,12 +58,14 @@ beforeEach(() => {
 });
 
 describe("ProtectedRoute — redirection /login", () => {
-  it("redirige vers /login quand il n'y a pas d'utilisateur·ice", async () => {
+  it("redirige vers /login en gardant la page d'origine (?redirect=) quand il n'y a pas d'utilisateur·ice", async () => {
     mocks.auth.user = null;
     renderProtected();
     await waitFor(() => {
       const nav = screen.getByTestId("navigate");
-      expect(nav).toHaveAttribute("data-to", "/login");
+      // La page d'origine est conservée pour y revenir après connexion (sinon
+      // la reconnexion renvoie toujours vers /dashboard, cf. AuthContext).
+      expect(nav).toHaveAttribute("data-to", "/login?redirect=%2Fdashboard");
     });
     expect(screen.queryByTestId("children")).not.toBeInTheDocument();
   });

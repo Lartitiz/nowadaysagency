@@ -195,7 +195,12 @@ function AnimatedRoutes() {
       Sentry.captureException(event.reason || new Error(msg));
       
       if (!msg.includes("NetworkError") && !msg.includes("Failed to fetch")) {
-        toast.error("Un problème est survenu. Si ça persiste, recharge la page.");
+        // id fixe : plusieurs rejets d'affilée (ex. plusieurs appels qui
+        // échouent en même temps sur une session expirée) remplacent le même
+        // toast au lieu de l'empiler 4 fois à l'identique.
+        toast.error("Un problème est survenu. Si ça persiste, recharge la page.", {
+          id: "global-unhandled-rejection",
+        });
       }
     };
 

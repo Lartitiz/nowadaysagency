@@ -9,6 +9,7 @@ import { clearAppStorage } from "@/lib/storage-cleanup";
 import { setFlowUserId } from "@/hooks/use-flow-persistence";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
 import { invalidateUserPlanCache } from "@/hooks/use-user-plan";
+import { isSafeRedirectTarget } from "@/lib/safe-redirect";
 
 interface AuthContextType {
   user: User | null;
@@ -124,8 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const searchParams = new URLSearchParams(window.location.search);
           const redirectTo = searchParams.get("redirect");
 
-          // Security: only allow redirects to /invite/ paths
-          if (redirectTo && redirectTo.startsWith("/invite/") && (path === "/login" || path === "/connexion")) {
+          if (redirectTo && isSafeRedirectTarget(redirectTo) && (path === "/login" || path === "/connexion")) {
             navigate(redirectTo);
             return;
           }
@@ -167,7 +167,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const urlParams = new URLSearchParams(window.location.search);
           const redirectTo = urlParams.get("redirect");
 
-          if (redirectTo && redirectTo.startsWith("/invite/") && (path === "/login" || path === "/connexion")) {
+          if (redirectTo && isSafeRedirectTarget(redirectTo) && (path === "/login" || path === "/connexion")) {
             navigate(redirectTo);
             initialSessionHandled = true;
             return;

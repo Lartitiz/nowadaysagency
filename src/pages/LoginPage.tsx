@@ -9,11 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
-
-const isValidRedirect = (path: string | null): path is string => {
-  if (!path) return false;
-  return path.startsWith("/invite/") || path.startsWith("/dashboard") || path.startsWith("/onboarding");
-};
+import { isSafeRedirectTarget as isValidRedirect } from "@/lib/safe-redirect";
 
 export default function LoginPage() {
   const { user, loading: authLoading } = useAuth();
