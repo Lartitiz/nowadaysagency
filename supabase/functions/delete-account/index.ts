@@ -27,10 +27,20 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
       Deno.env.get("SUPABASE_ANON_KEY")!
     );
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Non authentifié" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
     const token = authHeader.replace("Bearer ", "");
     const { data: userData, error: authError } = await anonClient.auth.getUser(token);
-    if (authError || !userData.user) throw new Error("User not authenticated");
+    if (authError || !userData.user) {
+      return new Response(JSON.stringify({ error: "Non authentifié" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+      });
+    }
 
     // Determine target user (self-delete vs admin-delete)
     const body = await req.json().catch(() => ({}));
