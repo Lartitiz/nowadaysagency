@@ -31,7 +31,7 @@ import { Loader2, Palette, RefreshCw, Sparkles } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
-import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
+
 import BrandReviewGate from "@/components/branding/BrandReviewGate";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { useLinkedInCarouselCaption } from "@/hooks/use-linkedin-carousel-caption";
@@ -2493,10 +2493,6 @@ export default function CreerUnifie() {
         )}
 
         {/* Mode tabs — first visible choice */}
-        {/* Levier A : sur le 1er contenu (auto=1, juste après le diagnostic), on masque
-            la bannière « remplis ton identité de marque » — contradictoire avec le diagnostic
-            qu'on vient de finir. Elle reste sur les créations suivantes. */}
-        {!autoFlow && <BrandingStatusBanner />}
 
         <div className="mt-4">
           {/* Unified stepper — visible from step 1, hidden on result/edit screens to give content full focus */}
