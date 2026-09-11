@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { clearFlowState } from "@/hooks/use-flow-persistence";
+import { clearFlowState, loadFlowState, saveFlowState } from "@/hooks/use-flow-persistence";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 import { extractInstagramCaption, extractLinkedInText, canAutoPublishSchedule, buildScheduledPublishUpdate } from "@/features/creer/publish-guards";
 import {
@@ -96,7 +96,7 @@ export function useCalendarSave({
     if (error) console.error("[use-calendar-save] lien idée → post échoué :", error);
   };
 
-  const publishedCalendarId = useRef<string | null>(null);
+  const publishedCalendarId = useRef<string | null>(loadFlowState()?.publishedCalendarId || null);
 
   /** Called only after the social API confirms success. A tracking failure must
    * never be presented as a failed publication (which invites a public duplicate).
@@ -133,6 +133,7 @@ export function useCalendarSave({
         id = data.id;
       }
       publishedCalendarId.current = id;
+      saveFlowState({ publishedCalendarId: id });
       if (editingIdeaId) {
         const { error } = await supabase.from("saved_ideas").update({
           calendar_post_id: id, status: "planned", planned_date: date, updated_at: now.toISOString(),
@@ -317,6 +318,21 @@ export function useCalendarSave({
    */
   const handleConfirmCalendar = async ({ date, scheduleAt }: { date: string; scheduleAt?: Date }): Promise<boolean> => {
     if (!session?.user?.id || !date || savingToCalendar) return false;
+    // La publication immédiate a déjà créé sa ligne de suivi. Une sauvegarde ou
+    // programmation consécutive doit ouvrir cette ligne, sans nouvel insert et
+    // sans risquer de republier le même contenu.
+    if (publishedCalendarId.current) {
+      const id = publishedCalendarId.current;
+      const now = new Date();
+      const publishedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+      setPublishDialogOpen(false);
+      clearFlowState();
+      toast.info(scheduleAt
+        ? "Ce contenu est déjà publié : il reste enregistré une seule fois dans ton calendrier."
+        : "Ce contenu est déjà enregistré dans ton calendrier.");
+      navigate(`/calendrier?date=${publishedDate}&post=${id}`);
+      return false;
+    }
     setSavingToCalendar(true);
     try {
       let { contentDraft } = extractContentForCalendar();

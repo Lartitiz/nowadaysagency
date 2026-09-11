@@ -380,7 +380,7 @@ export default function CreerUnifie() {
   const [briefPrefillAnswers, setBriefPrefillAnswers] = useState<Record<string, string> | null>(null);
   // Id du brief d'origine quand on vient de « Créer à partir de ce brief » :
   // on met à jour ce brief au lieu d'en créer un doublon à la génération.
-  const [incomingBriefId, setIncomingBriefId] = useState<string | null>(null);
+  const [incomingBriefId, setIncomingBriefId] = useState<string | null>(ps?.incomingBriefId || null);
   const [briefsCount, setBriefsCount] = useState(0);
   const [photoBriefOverlayHtml, setPhotoBriefOverlayHtml] = useState<string | null>(null);
   const [structureProposal, setStructureProposal] = useState<StructureProposal | null>(null);
@@ -682,6 +682,7 @@ export default function CreerUnifie() {
         inspirationImagePreview: inspirationImagePreview || null,
         demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
         editingIdeaId,
+        incomingBriefId,
         carouselSubMode,
         slideLength,
         photoDescription,
@@ -689,7 +690,7 @@ export default function CreerUnifie() {
         autoFlow,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -791,16 +792,31 @@ export default function CreerUnifie() {
     // pré-remplie, au lieu de tout recommencer.
     if (!locState.resumeIdea?.raw && locState?.fromBrief && Array.isArray(locState.questions) && locState.questions.length > 0) {
       const briefAngle = locState?.angle || paramAngle || undefined;
+      const restoredAnswers = locState.answers && typeof locState.answers === "object"
+        ? locState.answers as Record<string, string>
+        : {};
+      const restoredBriefId = typeof locState.briefId === "string" ? locState.briefId : null;
       if (briefAngle) setEditorialAngle(briefAngle);
       setQuestions(locState.questions as any);
-      if (locState.answers && typeof locState.answers === "object") {
-        setBriefPrefillAnswers(locState.answers as Record<string, string>);
-      }
-      if (locState.briefId) setIncomingBriefId(locState.briefId as string);
+      setAnswers(restoredAnswers);
+      setBriefPrefillAnswers(restoredAnswers);
+      setIncomingBriefId(restoredBriefId);
       setStep("questions");
-      if (location.state) {
-        window.history.replaceState({}, "", window.location.href);
-      }
+      // Persister la reprise AVANT d'effacer son ordre d'initialisation : un
+      // refresh immédiat retrouve les questions, les réponses et le même brief.
+      saveFlowState({
+        step: "questions",
+        ideaText: subject,
+        objective: obj,
+        selectedFormat: fmt,
+        editorialAngle: briefAngle || null,
+        questions: locState.questions as any,
+        answers: restoredAnswers,
+        incomingBriefId: restoredBriefId,
+      });
+      // Les paramètres sujet/format rejoueraient handleFormatNext au refresh et
+      // déclencheraient une nouvelle génération de questions.
+      window.history.replaceState({}, "", location.pathname);
       return;
     }
 
@@ -2565,6 +2581,7 @@ export default function CreerUnifie() {
                 onBack={() => setStep("format")}
                 previousBriefsCount={briefsCount}
                 initialAnswers={briefPrefillAnswers ?? (Object.keys(answers).length > 0 ? answers : undefined) ?? (aurianaDemoActive && ideaText === AURIANA_DEMO_SUBJECT && carouselSubMode === "text" && uploadedPhotos.length === 0 ? AURIANA_DEMO_FLOW.answers : undefined)}
+                onAnswersChange={setAnswers}
                 autoFirstContent={autoFlow}
               />
             )}

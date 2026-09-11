@@ -25,6 +25,12 @@ interface FlowState {
   pendingStream?: { text: string; format: string; ts: number } | null;
   demoScenario?: string | null;
   editingIdeaId?: string | null;
+  /** Brief repris depuis « Mes idées » : conservé après un rechargement pour
+   * mettre à jour le même brief au lieu d'en créer un second. */
+  incomingBriefId?: string | null;
+  /** Ligne créée par une publication immédiate, afin que les actions calendrier
+   * suivantes réutilisent ce suivi au lieu de dupliquer le contenu. */
+  publishedCalendarId?: string | null;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
   slideLength?: "auto" | "short" | "classic";
   photoDescription?: string;
