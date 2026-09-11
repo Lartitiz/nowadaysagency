@@ -732,6 +732,19 @@ export default function CreerUnifie() {
       initDone.current = true;
       return;
     }
+    // Reload en pleine reprise (brief ou idée déjà générée) : location.state
+    // ne survit pas à un vrai rechargement (onglet mobile recyclé, F5…), mais
+    // les query params de la navigation d'origine (sujet/format/angle…)
+    // restent collés dans l'URL et hasUrlParams reste vrai. Sans cette garde,
+    // le bloc ci-dessous les relit comme une NOUVELLE demande et relance l'IA
+    // par-dessus le step déjà restauré par la persistance — perdant réponses
+    // et régénérant les questions. `conflictPending` (déjà filtré plus haut)
+    // garantit que ps correspond bien à CETTE navigation (sujet identique)
+    // et pas à un brouillon sans rapport.
+    if (ps && !location.state && ps.step !== "idea") {
+      initDone.current = true;
+      return;
+    }
     // Prevent re-running on subsequent location.search changes after first init
     if (initDone.current && !hasUrlParams) return;
     initDone.current = true;
@@ -795,6 +808,11 @@ export default function CreerUnifie() {
       setQuestions(locState.questions as any);
       if (locState.answers && typeof locState.answers === "object") {
         setBriefPrefillAnswers(locState.answers as Record<string, string>);
+        // Aussi dans `answers` (pas seulement le prefill d'affichage) : c'est CE
+        // state que l'auto-persist (plus bas) écrit dans la session — sinon un
+        // reload juste après l'arrivée retrouve les questions mais des réponses
+        // vides (briefPrefillAnswers ne survit pas au remount, lui).
+        setAnswers(locState.answers as Record<string, string>);
       }
       if (locState.briefId) setIncomingBriefId(locState.briefId as string);
       setStep("questions");

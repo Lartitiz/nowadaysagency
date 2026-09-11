@@ -375,4 +375,19 @@ describe('publication immédiate — suivi après succès réseau', () => {
     expect(mocks.toast.warning).toHaveBeenCalledWith(expect.stringContaining('Ne le republie pas'));
     expect(mocks.toast.error).not.toHaveBeenCalled();
   });
+  it("RÉGRESSION doublon calendrier : « Programmer »/« Sauvegarder » après une publication « Maintenant » ne crée PAS une 2e ligne", async () => {
+    const setPublishDialogOpen = vi.fn();
+    const { result } = renderHook(() => useCalendarSave(makeParams({ setPublishDialogOpen })));
+    await act(async () => {
+      expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Légende', postId: 'ig-1' })).toBe(true);
+    });
+    mocks.db.ops = []; // ne garder que ce que handleConfirmCalendar fait ensuite
+    await act(async () => {
+      expect(await result.current.handleConfirmCalendar({ date: '2026-09-11' })).toBe(false);
+    });
+    expect(inserts()).toHaveLength(0);
+    expect(updates()).toHaveLength(0);
+    expect(setPublishDialogOpen).toHaveBeenCalledWith(false);
+    expect(mocks.navigate).toHaveBeenCalledWith('/calendrier?date=2026-09-11&post=post-1');
+  });
 });

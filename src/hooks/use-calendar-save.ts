@@ -317,6 +317,18 @@ export function useCalendarSave({
    */
   const handleConfirmCalendar = async ({ date, scheduleAt }: { date: string; scheduleAt?: Date }): Promise<boolean> => {
     if (!session?.user?.id || !date || savingToCalendar) return false;
+    // Ce contenu a déjà été publié « Maintenant » dans cette session
+    // (recordImmediatePublication a posé la trace calendrier). Insérer une
+    // seconde ligne ici créerait un doublon visuel dans le calendrier, et la
+    // programmer risquerait pire : faire republier le contenu par le cron
+    // alors qu'il est déjà en ligne. On ne touche pas à la ligne déjà
+    // publiée — on prévient et on s'arrête là au lieu de dupliquer.
+    if (publishedCalendarId.current) {
+      toast.info("Ce contenu est déjà publié aujourd'hui : pas besoin de le programmer aussi.");
+      setPublishDialogOpen(false);
+      navigate(`/calendrier?date=${date}&post=${publishedCalendarId.current}`);
+      return false;
+    }
     setSavingToCalendar(true);
     try {
       let { contentDraft } = extractContentForCalendar();
