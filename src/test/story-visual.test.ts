@@ -53,6 +53,28 @@ describe("buildStoryFrameHtml", () => {
     expect(html).not.toContain("Une autre formulation");
   });
 
+  it("affiche le texte complet plutôt qu’un résumé généré dans une story standard", () => {
+    const text = "Sauf que ce petit avis inutile te rassure plus qu'il ne te fait fuir. Des études le montrent : un avis bas et un peu hors sujet augmente la confiance dans un produit noté haut d'environ 15%. Parce que ça sonne vrai.";
+    const summary = "Ce petit avis te rassure. La perfection affichée, jamais.";
+    const html = buildStoryFrameHtml({
+      text,
+      visual: { gabarit: "photo_pills", background: "fond_couleur", title_pill: "Pourquoi ça marche", body_pill: summary },
+    }, branding)!;
+    expect(html).toContain(text);
+    expect(html).not.toContain(summary);
+  });
+
+  it("respecte un texte visuel raccourci manuellement", () => {
+    const text = "Le texte complet reste disponible dans le script de la story.";
+    const edited = "La version courte que j'ai choisie.";
+    const html = buildStoryFrameHtml({
+      text,
+      visual: { gabarit: "fond_pills", body_pill: edited, body_pill_edited: true },
+    }, branding)!;
+    expect(html).toContain(edited);
+    expect(html).not.toContain(text);
+  });
+
   it("retourne null pour une story face cam", () => {
     const html = buildStoryFrameHtml(
       { face_cam: true, visual: { gabarit: "fond_pills", title_pill: "Titre" } },
