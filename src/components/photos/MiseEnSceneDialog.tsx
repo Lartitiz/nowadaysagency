@@ -40,6 +40,7 @@ import {
   type UserPhotoRow,
 } from "@/lib/photo-storage";
 import { useRefreshUserPhotos } from "@/hooks/use-user-photos";
+import PhotoDetailComparison from "./PhotoDetailComparison";
 
 interface MiseEnSceneDialogProps {
   photo: UserPhotoRow | null;
@@ -118,6 +119,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
   const [isAddingVariants, setIsAddingVariants] = useState(false);
   const [proposals, setProposals] = useState<string[]>([]);
   const [selectedIdx, setSelectedIdx] = useState(0);
+  const [previousProposals, setPreviousProposals] = useState<Record<number, string>>({});
   const [customAdjust, setCustomAdjust] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
@@ -133,6 +135,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     setIsAdjusting(false);
     setIsAddingVariants(false);
     setProposals([]);
+    setPreviousProposals({});
     setSelectedIdx(0);
     setCustomAdjust("");
     setIsSaving(false);
@@ -243,6 +246,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
     if (images?.length) {
       // La nouvelle image remplace la proposition sélectionnée (générée depuis
       // la photo d'origine, jamais depuis l'image précédente).
+      setPreviousProposals(prev => ({ ...prev, [selectedIdx]: proposals[selectedIdx] }));
       setProposals((prev) => prev.map((p, i) => (i === selectedIdx ? images[0] : p)));
       setCustomAdjust("");
     }
@@ -553,6 +557,12 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
 
             <div className="space-y-2">
               <p className="text-xs font-medium text-foreground">Un détail à changer ? (1 crédit)</p>
+              <p className="text-xs text-muted-foreground">L’image sera régénérée depuis ton originale : d’autres détails peuvent changer.</p>
+              {previousProposals[selectedIdx] && <Button variant="outline" size="sm" disabled={busy} onClick={() => {
+                setProposals(prev => prev.map((p, i) => i === selectedIdx ? previousProposals[selectedIdx] : p));
+                setPreviousProposals(prev => { const next = { ...prev }; delete next[selectedIdx]; return next; });
+              }}>Annuler le dernier ajustement</Button>}
+              {sourceBase64 && <PhotoDetailComparison original={sourceBase64} proposal={proposals[selectedIdx]} />}
               <div className="flex flex-wrap gap-1.5">
                 {ADJUST_CHIPS.map((c) => (
                   <button

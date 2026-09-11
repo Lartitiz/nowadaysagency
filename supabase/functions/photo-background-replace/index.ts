@@ -309,7 +309,9 @@ serve(async (req) => {
           file_size_bytes: outputBytes,
           error_message: null,
         })
-        .eq("id", photo_id),
+        .eq("id", photo_id)
+        .select("id")
+        .single(),
       markFailed,
       () => logUsage(
         userId,
