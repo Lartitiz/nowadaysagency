@@ -16,7 +16,10 @@ vi.mock("@/components/RedFlagsChecker", () => ({ default: () => null }));
 vi.mock("@/components/creer/formatRenderers/StoryPhotoSuggestions", () => ({ default: () => null }));
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({ PhotoLibraryPickerDialog: () => null }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  vi.unstubAllGlobals();
+});
 
 function sequence(text: string, visual = {}): any {
   return { stories: [{ text, face_cam: false, visual: {
@@ -33,6 +36,74 @@ function previewHtml() {
 }
 
 describe("Stories : édition et remplacement du résultat", () => {
+  it("présente toute la séquence avec un seul horaire et la lit story par story", () => {
+    vi.stubGlobal("ResizeObserver", class {
+      observe() {}
+      disconnect() {}
+    });
+    const result = {
+      publication_time: "soir",
+      stories: [
+        sequence("Première story").stories[0],
+        { ...sequence("Deuxième story").stories[0], timing: "midi" },
+      ],
+    };
+    render(<StoryResult result={result} />);
+
+    expect(screen.getByText("Toute la séquence à la suite, le soir")).toBeVisible();
+    expect(screen.queryByText("midi")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Lire la séquence" }));
+    expect(screen.getByRole("dialog")).toHaveAttribute("data-story-sequence-reader");
+    expect(screen.getByLabelText("Story 1 sur 2")).toBeInTheDocument();
+    expect(screen.getByText("1 / 2")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: /Suivante/ }));
+    expect(screen.getByLabelText("Story 2 sur 2")).toBeInTheDocument();
+    expect(screen.getByText("2 / 2")).toBeVisible();
+  });
+
+  it("ajoute un détail réel de la personne au début de la story 1", () => {
+    const onStoriesUpdate = vi.fn();
+    const result = {
+      ...sequence("Ça t'est déjà arrivé de scroller sur une machine à café ?"),
+      personal_tip: "Ajoute ce que tu as vraiment pensé à ce moment-là.",
+    };
+    render(<StoryResult result={result} onStoriesUpdate={onStoriesUpdate} />);
+
+    fireEvent.change(screen.getByLabelText("Ce que tu as vraiment pensé, vu ou dit"), {
+      target: { value: "Là, je me suis dit : il y a un truc qui cloche" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Ajouter à la story 1" }));
+
+    expect(onStoriesUpdate.mock.lastCall?.[0][0].text).toBe(
+      "Là, je me suis dit : il y a un truc qui cloche. Ça t'est déjà arrivé de scroller sur une machine à café ?",
+    );
+    expect(screen.getByLabelText("Ce que tu as vraiment pensé, vu ou dit")).toHaveValue("");
+  });
+
+  it("permet de placer librement le texte depuis l’aperçu", () => {
+    const onStoriesUpdate = vi.fn();
+    render(<StoryResult result={sequence("Déplace-moi")} onStoriesUpdate={onStoriesUpdate} />);
+    const control = screen.getByRole("button", { name: "Déplacer le texte de la story 1" });
+    Object.defineProperty(control, "setPointerCapture", { value: vi.fn() });
+    Object.defineProperty(control, "getBoundingClientRect", {
+      value: () => ({ left: 0, top: 0, width: 170, height: 302, right: 170, bottom: 302, x: 0, y: 0, toJSON: () => ({}) }),
+    });
+
+    const pointerDown = new Event("pointerdown", { bubbles: true });
+    Object.defineProperties(pointerDown, {
+      pointerId: { value: 1 },
+      clientX: { value: 119 },
+      clientY: { value: 75.5 },
+    });
+    fireEvent(control, pointerDown);
+    const visual = onStoriesUpdate.mock.lastCall?.[0][0].visual;
+    expect(visual.text_position_x).toBe(70);
+    expect(visual.text_position_y).toBe(25);
+    expect(visual.text_position_edited).toBe(true);
+    expect(previewHtml()).toContain("left:70%");
+    expect(previewHtml()).toContain("top:25%");
+  });
+
   it("met à jour le contexte complet visible d’une citation", () => {
     const initial = "Alors tu vas voir les avis 1 étoile. Et là tu tombes sur : une vraie différence de goût. Tu ris.";
     render(<StoryResult result={sequence(initial, { gabarit: "citation", quote: "une vraie différence de goût", body_pill: "Avis client" })} />);

@@ -31,6 +31,8 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 export interface AppliedStockPhoto {
   url: string;
+  /** Description Pexels utilisée localement pour placer le texte hors d'un portrait. */
+  alt?: string | null;
   credit: { photographer?: string | null; source_url?: string | null } | null;
 }
 
@@ -153,6 +155,7 @@ export default function StoryPhotoSuggestions({
           onApply(
             {
               url: ordered[0].url,
+              alt: ordered[0].alt,
               credit: {
                 photographer: ordered[0].photographer,
                 source_url: ordered[0].source_url,
@@ -365,6 +368,7 @@ export default function StoryPhotoSuggestions({
                     onClick={() =>
                       onApply({
                         url: p.url,
+                        alt: p.alt,
                         credit: { photographer: p.photographer, source_url: p.source_url },
                       })
                     }

@@ -81,12 +81,24 @@ describe("buildCalendarContent", () => {
 
   it("story : format STORY + storyDetail.type=stories", () => {
     const res = buildCalendarContent("story", {
+      publication_time: "soir",
       stories: [{ number: 1, timing: "matin", text: "Mon texte story", format: "question" }],
     });
     expect(res.accroche).toBe("Mon texte story");
     expect(res.contentDraft).toContain("STORY 1");
     expect(res.contentDraft).toContain("Mon texte story");
+    expect(res.contentDraft).toContain("SÉQUENCE À PUBLIER À LA SUITE (soir)");
+    expect(res.contentDraft).not.toContain("(matin)");
     expect(res.storyDetail.type).toBe("stories");
+    expect(res.storyDetail.publication_time).toBe("soir");
+  });
+
+  it("story : conserve l’horaire d’un ancien contenu comme horaire unique", () => {
+    const res = buildCalendarContent("story", {
+      stories: [{ number: 1, timing: "midi", text: "Ancienne story" }],
+    });
+    expect(res.storyDetail.publication_time).toBe("midi");
+    expect(res.contentDraft).toContain("SÉQUENCE À PUBLIER À LA SUITE (midi)");
   });
 
   it("pinterest_visual : titre + description", () => {
