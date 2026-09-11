@@ -9,6 +9,50 @@ const branding = {
 };
 
 describe("buildStoryFrameHtml", () => {
+  it("applique la position choisie en aperçu et export pour chaque gabarit", () => {
+    for (const gabarit of ["photo_pills", "fond_pills", "citation", "liste", "interaction"]) {
+      for (const [position, justification] of [["top", "flex-start"], ["middle", "center"], ["bottom", "flex-end"]] as const) {
+        const story = { visual: { gabarit, text_position: position, background: "photo", title_pill: "Titre", body_pill: "Texte", quote: "Citation", list_pills: ["Détail"] } };
+        for (const preview of [true, false]) {
+          const html = buildStoryFrameHtml(story, branding, { preview, photoUrl: "https://example.com/photo.jpg" })!;
+          expect(html).toContain(`justify-content:${justification}`);
+          expect(html).toContain("padding:280px 84px 320px");
+        }
+      }
+    }
+  });
+
+  it("conserve le texte long explicitement édité sous la citation dans l’export", () => {
+    const body = "Un texte de contexte écrit par la créatrice, suffisamment long pour dépasser la limite historique de quatre-vingts caractères.";
+    const story = { visual: { gabarit: "citation", quote: "Le retour client", body_pill: body, body_pill_edited: true } };
+    expect(buildStoryFrameHtml(story, branding, { preview: false })).toContain(body);
+    expect(buildStoryFrameHtml({ visual: { ...story.visual, body_pill_edited: false } }, branding)).not.toContain(body);
+  });
+
+  it("affiche le contexte, le verbatim et la réaction d’une story citation", () => {
+    const text = "Alors tu vas voir les avis 1 étoile. Et là tu tombes sur : 'Il y a une vraie différence de goût entre eau filtrée et eau du robinet.' Tu ris. Ça n'a rien à voir avec la machine, mon coco !";
+    const html = buildStoryFrameHtml({
+      text,
+      visual: {
+        gabarit: "citation",
+        background: "fond_couleur",
+        quote: "Il y a une vraie différence de goût entre eau filtrée et eau du robinet.",
+        body_pill: "L'avis 1 étoile qui sauve tout",
+      },
+    }, branding)!;
+    expect(html).toContain("Alors tu vas voir les avis 1 étoile");
+    expect(html).toContain("« Il y a une vraie différence de goût entre eau filtrée et eau du robinet. »");
+    expect(html).toContain("Tu ris. Ça n'a rien à voir avec la machine, mon coco !");
+    expect(html).not.toContain("L&#39;avis 1 étoile qui sauve tout");
+  });
+
+  it("affiche toute la narration si la citation a été reformulée séparément", () => {
+    const text = "Le contexte complet reste indispensable, même quand le verbatim ne correspond plus exactement.";
+    const html = buildStoryFrameHtml({ text, visual: { gabarit: "citation", quote: "Une autre formulation" } }, branding)!;
+    expect(html).toContain(text);
+    expect(html).not.toContain("Une autre formulation");
+  });
+
   it("retourne null pour une story face cam", () => {
     const html = buildStoryFrameHtml(
       { face_cam: true, visual: { gabarit: "fond_pills", title_pill: "Titre" } },

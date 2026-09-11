@@ -31,6 +31,9 @@ export const STORY_H = 1920;
 export type StoryGabarit = "photo_pills" | "fond_pills" | "interaction" | "liste" | "citation";
 
 export interface StoryVisualPlan {
+  text_position?: "top" | "middle" | "bottom" | null;
+  /** Une édition explicite ne doit pas être masquée par les gardes IA. */
+  body_pill_edited?: boolean;
   gabarit?: StoryGabarit | string | null;
   background?: "photo" | "fond_couleur" | string | null;
   title_pill?: string | null;
@@ -57,6 +60,9 @@ export interface StoryStickerPlan {
 }
 
 export interface StoryFrameStory {
+  text?: string | null;
+  texte?: string | null;
+  content?: string | null;
   visual?: StoryVisualPlan | null;
   sticker?: StoryStickerPlan | null;
   face_cam?: boolean | null;
@@ -254,6 +260,18 @@ ${blocks.filter(Boolean).map((b) => `<div style="max-width:100%">${b}</div>`).jo
 </div>`;
 }
 
+/** Découpe la narration autour du verbatim pour garder le contexte sans répéter la citation. */
+function splitAroundQuote(text: string, quote: string): { before: string; quote: string; after: string } | null {
+  if (!text || !quote) return null;
+  const index = text.toLocaleLowerCase("fr").indexOf(quote.toLocaleLowerCase("fr"));
+  if (index < 0) return null;
+  return {
+    before: text.slice(0, index).replace(/[\s«“"'‘]+$/u, "").trim(),
+    quote: text.slice(index, index + quote.length).trim(),
+    after: text.slice(index + quote.length).replace(/^[\s»”"'’]+/u, "").trim(),
+  };
+}
+
 // Zone de sécurité Instagram : ~250px en haut (avatar, ✕) et ~300px en bas (répondre).
 const SAFE = "padding:280px 84px 320px";
 
@@ -275,6 +293,8 @@ export function buildStoryFrameHtml(
   const ctx: RenderCtx = { p, style, asm };
   const preview = opts.preview !== false;
   const gabarit = (visual.gabarit || "fond_pills") as StoryGabarit;
+  const justify = visual.text_position === "top" ? "flex-start"
+    : visual.text_position === "bottom" ? "flex-end" : "center";
 
   const wantsPhoto = visual.background === "photo" && !!opts.photoUrl;
   const onPhoto = wantsPhoto;
@@ -302,48 +322,70 @@ export function buildStoryFrameHtml(
     // comme les listes natives ; le titre reste centré sauf réglage « gauche ».
     const itemStyle: StoryTextStyle = { ...asm.body, mode: asm.body.mode === "nu" ? "wh" : asm.body.mode, size: asm.body.size * 0.92 };
     const titleAlign = style.align === "gauche" ? "flex-start" : "center";
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:flex-start;text-align:left;gap:34px">
+    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:${justify};align-items:flex-start;text-align:left;gap:34px">
 ${title ? `<div style="max-width:100%;align-self:${titleAlign};text-align:${titleAlign === "center" ? "center" : "left"}">${textBlock(title, titleStyle, ctx, "title")}</div>` : ""}
 ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx, "item")}</div>`).join("\n")}
 </div>`;
   } else if (gabarit === "citation") {
     const quote = (visual.quote || body || title).trim();
+    const narration = String(story?.text || story?.texte || story?.content || "").trim();
     // L'IA remet parfois le verbatim tel quel dans body_pill : ne montrer
     // l'attribution que si elle apporte autre chose que la citation.
     const normalize = (s: string) => s.toLowerCase().replace(/[«»"'’\s.?!,:;()-]/g, "");
     // L'attribution, c'est « qui l'a dit » : une ligne. Depuis que body_pill
     // porte le texte entier de la story (07/09), une citation pouvait recevoir
     // 300 caractères sous le verbatim : au-delà de 80, on ne montre que la
-    // citation (le texte reste dans la story, pas sur l'image).
+    // citation (le texte reste dans la story, pas sur l'image). Cette garde
+    // concerne la génération : une édition explicite reste toujours visible.
     const attribution =
-      visual.quote && normalize(body) && normalize(body) !== normalize(quote) && body.length <= 80 ? body : "";
+      visual.quote && body && (visual.body_pill_edited || (normalize(body) !== normalize(quote) && body.length <= 80)) ? body : "";
     const quoteStyle: StoryTextStyle = asm.quote
       ? { ...asm.quote, mode: "wh" }
       : { ...asm.title, mode: "wh", size: asm.title.size * 0.92, upper: false, letterSpacing: undefined };
-    const quoteText = `« ${quote} »`;
-    const align = alignFor(ctx, { text: quoteText, style: quoteStyle });
-    inner = column(align, "justify-content:center;gap:34px", [
-      textBlock(quoteText, quoteStyle, ctx, "quote"),
-      attribution ? textBlock(attribution, { ...asm.aside, mode: "col" }, ctx, "attribution") : "",
-    ]);
+    const narrativeStyle = { ...bodyBase, size: bodyBase.size * bodyScale(narration) };
+    const split = splitAroundQuote(narration, quote);
+    const quoteText = `« ${split?.quote || quote} »`;
+    const align = alignFor(ctx, { text: narration || quoteText, style: narration ? narrativeStyle : quoteStyle });
+    // Une story « citation » reste une histoire : le contexte avant et la
+    // réaction après le verbatim font partie du visuel. Si le verbatim ne se
+    // retrouve pas exactement dans le texte, afficher le texte complet évite
+    // toute perte de contenu.
+    const blocks = visual.body_pill_edited
+      ? [
+          textBlock(quoteText, quoteStyle, ctx, "quote"),
+          attribution ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution") : "",
+        ]
+      : narration
+      ? split
+        ? [
+            split.before ? textBlock(split.before, narrativeStyle, ctx, "body") : "",
+            textBlock(quoteText, { ...quoteStyle, size: quoteStyle.size * bodyScale(narration) }, ctx, "quote"),
+            split.after ? textBlock(split.after, narrativeStyle, ctx, "body") : "",
+          ]
+        : [textBlock(narration, narrativeStyle, ctx, "body")]
+      : [
+          textBlock(quoteText, quoteStyle, ctx, "quote"),
+          attribution ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution") : "",
+        ];
+    inner = column(align, `justify-content:${justify};gap:34px`, blocks);
   } else if (gabarit === "interaction") {
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:center;align-items:${align === "center" ? "center" : "flex-start"};text-align:${align};gap:60px">
+    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:${justify};align-items:${align === "center" ? "center" : "flex-start"};text-align:${align};gap:60px">
 ${title ? `<div style="max-width:100%">${textBlock(title, titleStyle, ctx, "title")}</div>` : ""}
 ${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}</div>` : ""}
 <div style="align-self:stretch">${stickerZoneHtml(story?.sticker, p, preview, onPhoto)}</div>
 </div>`;
   } else if (gabarit === "photo_pills" && wantsPhoto) {
-    // Centré au milieu de la story (décision 07/09), plus ancré en bas.
+    // Milieu par défaut ; le choix local permet de dégager le sujet de la photo.
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
-    inner = column(align, "justify-content:center;gap:34px", [
+    inner = column(align, `justify-content:${justify};gap:34px`, [
       title ? textBlock(title, titleStyle, ctx, "title") : "",
       body ? textBlock(body, bodyStyle, ctx, "body") : "",
     ]);
   } else {
     // fond_pills, et fallback des gabarits photo sans photo attachée.
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
-    inner = column(align, "justify-content:center;gap:34px", [
+    inner = column(align, `justify-content:${justify};gap:34px`, [
       title ? textBlock(title, titleStyle, ctx, "title") : "",
       body ? textBlock(body, bodyStyle, ctx, "body") : "",
     ]);
