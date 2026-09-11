@@ -95,14 +95,14 @@ export function CalendarPostContent({
             📥 Télécharger les visuels
           </a>
         )}
-        {isCarousel && !hasVisuals && (
+        {isCarousel && (
           <Button
             variant="ghost"
             size="sm"
             onClick={onOpenAtelier}
             className="rounded-pill text-xs gap-1.5 text-primary hover:bg-primary/10"
           >
-            🎨 Générer les visuels
+            {ssd?.visual_html?.length ? "✏️ Modifier le carrousel" : "🎨 Générer les visuels"}
           </Button>
         )}
       </div>

@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
+import CarouselEditor from "@/components/creer/CarouselEditor";
 import CarouselPhotoResult, { type CarouselColors } from "@/components/creer/formatRenderers/CarouselPhotoResult";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import ReelResult from "@/components/creer/formatRenderers/ReelResult";
@@ -271,6 +272,7 @@ interface Props {
   visualChunkProgress?: { done: number; total: number } | null;
   visualSlides?: { slide_number: number; html: string }[];
   onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
+  onCarouselDocumentChange?: (raw: any, slides: { slide_number: number; html: string }[]) => void;
   onExportPptx?: () => void;
   onExportHybridPptx?: () => void;
   /** Pont Canva : exporte le PPTX et l'ouvre comme design éditable dans Canva. */
@@ -332,6 +334,7 @@ export default function CreerStepResult({
   visualChunkProgress,
   visualSlides,
   onVisualSlidesUpdate,
+  onCarouselDocumentChange,
   onExportPptx,
   onExportHybridPptx,
   onOpenInCanva,
@@ -522,6 +525,12 @@ export default function CreerStepResult({
   if (!result) return null;
 
   const renderResult = () => {
+    if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
+      return <fieldset disabled={visualLoading} className={visualLoading ? "pointer-events-none opacity-60" : ""} aria-busy={visualLoading}>
+        {visualLoading && <p role="status" className="mb-3 text-sm">Régénération en cours. Les retouches seront disponibles dès que les nouveaux visuels seront prêts.</p>}
+        <CarouselEditor result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} />
+      </fieldset>;
+    }
     // Carousel photo gets its own renderer — si on a des photos, OU si les slides
     // portent des directives d'image (régime texte d'abord : le casting se fait
     // dans CarouselPhotoResult, qui démarre alors sans aucune photo).
@@ -535,7 +544,7 @@ export default function CreerStepResult({
 
     switch (format) {
       case "carousel":
-        return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} />;
+        return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} onStaleChange={onCarouselStaleChange} />;
       case "reel":
         return <ReelResult result={result} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} />;
       case "story":
@@ -673,11 +682,9 @@ export default function CreerStepResult({
         </Link>
       )}
 
-      {/* HÉROS carrousel : finir le visuel dans Canva = action principale après
-          génération (l'aperçu in-app est un brouillon ; l'asset final vit dans
-          Canva). Publier/Calendrier deviennent secondaires. */}
+      {/* The in-app document is ready to publish; Canva is an optional handoff. */}
       {isCarousel && hasVisuals && onOpenInCanva && (
-        <CanvaHeroButton onClick={onOpenInCanva} loading={openingCanva} />
+        <Button variant="outline" onClick={onOpenInCanva} disabled={openingCanva}>{openingCanva ? "Ouverture…" : "Continuer dans Canva (optionnel)"}</Button>
       )}
 
       {/* HÉROS stories : mêmes visuels prêts à publier que le carrousel — le
@@ -769,7 +776,7 @@ export default function CreerStepResult({
           data-testid="publish-or-schedule"
           onClick={onPublishOrSchedule}
           variant={
-            (isCarousel && ((hasVisuals && onOpenInCanva) || (!hasVisuals && onGenerateVisuals && !visualLoading))) ||
+            (isCarousel && !hasVisuals && onGenerateVisuals && !visualLoading) ||
             (isStory && !!storyActions)
               ? "outline"
               : "default"

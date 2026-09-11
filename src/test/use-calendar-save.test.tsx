@@ -377,6 +377,17 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     expect(mocks.toast.success).not.toHaveBeenCalled();
     expect(mocks.navigate).toHaveBeenCalledWith("/calendrier?date=2026-08-22&post=cal-9");
   });
+  it("carrousel : un upload en échec conserve intégralement le post précédent", async () => {
+    mocks.uploadVisuals.mockRejectedValue(new Error("storage KO"));
+    const params=makeParams({calendarPostId:"cal-9",selectedFormat:"carousel",savedId:"idea-1",result:{raw:{slides:[{slide_number:1,title:"Nouveau titre"}]}},visualSlides:[{slide_number:1,html:"<div>Nouveau titre</div>"}]});
+    const {result}=renderHook(()=>useCalendarSave(params));
+    await act(()=>result.current.handleSaveBackToCalendar());
+    expect(updates()).toHaveLength(0);
+    expect(mocks.toast.error).toHaveBeenCalled();
+    expect(mocks.toast.success).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
+  });
 });
 
 describe('publication immédiate — suivi après succès réseau', () => {

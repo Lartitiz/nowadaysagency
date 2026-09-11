@@ -77,6 +77,7 @@ export function useGenerateVisuals({
 
   const handleGenerateVisuals = async (opts?: { forceText?: boolean; background?: boolean }) => {
     if (!result?.raw?.slides || visualLoading) return;
+    if (result.raw.carousel_editor_version && !opts?.background && !window.confirm("Recréer le design des slides non verrouillées ? Cela remplacera leurs réglages manuels. Enregistre une copie dans Mes idées si tu souhaites les conserver.")) return;
     // Casting texte-d'abord incomplet : chaque slide photo doit avoir son image avant
     // le rendu (sinon le curseur auto poserait des photos arbitraires dessus).
     const uncastCount = (result.raw.slides || []).filter(
@@ -176,7 +177,7 @@ export function useGenerateVisuals({
       // slides « photo nue » sont dérivées des photos elles-mêmes, le reste du
       // flux (vision, luminance, charte, réponse) est inchangé.
       const slidesSource =
-        carouselSubMode === "pure_photo" && totalPhotos > 0
+        carouselSubMode === "pure_photo" && totalPhotos > 0 && !result.raw.carousel_editor_version
           ? photosForVisuals.map((_p: any, i: number) => ({
               slide_number: i + 1,
               role: i === 0 ? "hook" : i === totalPhotos - 1 ? "cta" : "body",
@@ -481,7 +482,7 @@ export function useGenerateVisuals({
             return html === s.html ? s : { ...s, html };
           })
         : normalizedSlides;
-      setVisualSlides(rehydratedSlides);
+      setVisualSlides(rehydratedSlides.map((visual, i) => rawSlides[i]?.editor_locked && visualSlides[i] ? visualSlides[i] : visual));
       setVisualsAutoError(null);
       if (!opts?.background) {
         if (downgradeReason === "user_chose_text") {

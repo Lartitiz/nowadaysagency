@@ -55,6 +55,11 @@ export function saveFlowState(state: Partial<FlowState>) {
   try {
     const existing = loadFlowState();
     const merged = { ...existing, ...state, ts: Date.now() };
+    // One HTML copy in browser storage. The source is restored through visualSlides.
+    if (merged.result?.raw?.carousel_editor_version && merged.visualSlides?.length) {
+      const { visual_html: _html, ...raw } = merged.result.raw;
+      merged.result = { ...merged.result, raw };
+    }
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
 
     const userId = getFlowUserId();
@@ -63,14 +68,14 @@ export function saveFlowState(state: Partial<FlowState>) {
     if (userId && state.step && state.step !== "idea") {
       try {
         localStorage.setItem(backupKeyFor(userId), JSON.stringify(merged));
-      } catch {}
+      } catch { toast.warning("La copie de secours n’a pas pu être enregistrée. Enregistre ton carrousel dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" }); }
     }
     // Returning to the "idea" step purges any stale backup for this user.
     if (userId && state.step === "idea") {
       try { localStorage.removeItem(backupKeyFor(userId)); } catch {}
     }
   } catch {
-    // Storage full or unavailable — silently ignore
+    if (state.result?.raw?.carousel_editor_version) toast.warning("Sauvegarde locale indisponible. Enregistre ton carrousel dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" });
   }
 }
 
@@ -79,7 +84,7 @@ export function loadFlowState(): FlowState | null {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as FlowState;
-      if (parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
+      if (!parsed.result?.raw?.carousel_editor_version && parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
         clearFlowState();
         return null;
       }
@@ -91,7 +96,7 @@ export function loadFlowState(): FlowState | null {
     const backup = localStorage.getItem(backupKeyFor(userId));
     if (backup) {
       const parsed = JSON.parse(backup) as FlowState;
-      if (parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
+      if (!parsed.result?.raw?.carousel_editor_version && parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
         localStorage.removeItem(backupKeyFor(userId));
         return null;
       }
@@ -138,7 +143,7 @@ export function clearFlowState() {
 const PHOTOS_BACKUP_PREFIX = PHOTOS_KEY + "_backup";
 function photosBackupKeyFor(userId: string) { return `${PHOTOS_BACKUP_PREFIX}:${userId}`; }
 
-const MAX_PHOTOS = 10; // aligné sur maxPhotos de PhotoUploadZone
+const MAX_PHOTOS = 100; // original assets plus replacements across a 20-slide editor
 
 export interface PhotoManifestEntry {
   id: string;

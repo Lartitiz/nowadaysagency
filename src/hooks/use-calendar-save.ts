@@ -209,6 +209,7 @@ export function useCalendarSave({
         updates.visual_html = visualSlides;
       } catch (err) {
         console.warn(`Visual upload failed${warnSuffix}:`, err);
+        if (selectedFormat === "carousel") throw err;
         onUploadError?.();
       }
     }
@@ -252,6 +253,11 @@ export function useCalendarSave({
       }
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
+      // Upload the complete edited carousel before changing a saved/scheduled
+      // post. A failed capture or upload leaves its previous version intact.
+      const carouselMedia = selectedFormat === "carousel" ? await uploadPostMedia(calendarPostId, {
+        includePhotoModePhotos: true, warnSuffix: "",
+      }) : null;
       const { error } = await supabase.from("calendar_posts").update({
         content_draft: contentDraft,
         accroche: accroche || null,
@@ -259,7 +265,8 @@ export function useCalendarSave({
         format: selectedFormat === "story" ? "story_serie" : (selectedFormat || "post"),
         objectif: objective || null,
         angle: editorialAngle || null,
-        ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
+        ...(storyDetail ? { story_sequence_detail: { ...storyDetail, ...(carouselMedia || {}) } } : {}),
+        ...(carouselMedia?.visual_urls?.length ? { media_urls: carouselMedia.visual_urls } : {}),
         ...(selectedFormat === "story" && r?.stories ? {
           stories_count: r.total_stories || r.stories?.length || null,
           stories_structure: r.structure_label || r.structure_type || null,
@@ -273,7 +280,7 @@ export function useCalendarSave({
       // Upload visuels et photos dans Storage
       let uploadFailed = false;
       if (calendarPostId) {
-        const storageUpdates = await uploadPostMedia(calendarPostId, {
+        const storageUpdates = carouselMedia || await uploadPostMedia(calendarPostId, {
           includePhotoModePhotos: true,
           warnSuffix: "",
           onUploadError: () => { uploadFailed = true; },

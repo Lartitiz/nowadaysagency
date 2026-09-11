@@ -70,59 +70,24 @@ export async function uploadVisualsToStorage(
 ): Promise<string[]> {
   if (!userId || visualSlides.length === 0) return [];
 
-  const container = document.createElement("div");
-  container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1080px;height:1350px;overflow:hidden;z-index:-1;";
-  document.body.appendChild(container);
-
+  // Same renderer and dimensions as direct publication. It fails before upload
+  // when any slide cannot be captured, instead of returning an amputated carousel.
+  const { renderCarouselSlidesToBlobs } = await import("@/lib/export-carousel-png");
+  const rendered = await renderCarouselSlidesToBlobs(visualSlides.map(v => ({ ...v, slide_number: Number(v.slide_number) })));
   const urls: string[] = [];
-  let done = 0;
-  let failedCount = 0;
-  try {
-    for (const vs of visualSlides) {
-      container.innerHTML = vs.html;
-      await document.fonts?.ready;
-      await new Promise(r => setTimeout(r, 400));
-
-      const canvas = await (await import("html2canvas")).default(container, {
-        width: 1080,
-        height: 1350,
-        scale: 1,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: null,
-        logging: false,
-      });
-
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((b) => resolve(b!), "image/png");
-      });
-
-      const path = `${userId}/${postId}/slides/slide-${vs.slide_number}.png`;
+  // Versioned paths prevent a failed upload replacing half of an older post.
+  const version = crypto.randomUUID();
+  for (const vs of rendered) {
+      const path = `${userId}/${postId}/slides/${version}/slide-${vs.slide_number}.jpg`;
       const { error } = await supabase.storage
         .from("calendar-visuals")
-        .upload(path, blob, { contentType: "image/png", upsert: true });
-
-      if (error) {
-        console.error(`Failed to upload slide ${vs.slide_number}:`, error);
-        failedCount++;
-      } else {
+        .upload(path, vs.blob, { contentType: "image/jpeg", upsert: false });
+      if (error) throw new Error(`La slide ${vs.slide_number} n’a pas pu être sauvegardée. Réessaie avant de programmer le carrousel.`);
         const { data: urlData } = supabase.storage
           .from("calendar-visuals")
           .getPublicUrl(path);
-
         urls.push(urlData.publicUrl);
-      }
-
-      done += 1;
-      onProgress?.(done, visualSlides.length);
-    }
-  } finally {
-    document.body.removeChild(container);
-  }
-  if (failedCount > 0) {
-    toast.warning(
-      `${failedCount} visuel${failedCount > 1 ? "s n'ont" : " n'a"} pas pu être généré${failedCount > 1 ? "s" : ""}.`,
-    );
+      onProgress?.(urls.length, visualSlides.length);
   }
   return urls;
 }

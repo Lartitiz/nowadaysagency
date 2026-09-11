@@ -132,6 +132,23 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     // Le débit vient d'être tranché côté serveur → resynchroniser les crédits.
     expect(params.refreshPlan).toHaveBeenCalledTimes(1);
   });
+  it("préserve le HTML d'une slide verrouillée pendant une régénération explicite", async () => {
+    const confirm=vi.spyOn(window,"confirm").mockReturnValue(true);
+    const raw=makeTextResult().raw;
+    const params=makeParams({result:{raw:{...raw,carousel_editor_version:1,slides:raw.slides.map((s,i)=>({...s,editor_locked:i===0}))}},visualSlides:[{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>Ancien design</div>"}]});
+    const {result}=renderHook(()=>useGenerateVisuals(params));
+    await act(()=>result.current.handleGenerateVisuals());
+    expect(params.setVisualSlides).toHaveBeenCalledWith([{slide_number:1,html:"<div>Design verrouillé</div>"},{slide_number:2,html:"<div>2</div>"}]);
+    expect(confirm).toHaveBeenCalled();confirm.mockRestore();
+  });
+  it("ne facture ni ne remplace les retouches quand la régénération est annulée", async () => {
+    const confirm=vi.spyOn(window,"confirm").mockReturnValue(false);
+    const params=makeParams({result:{raw:{...makeTextResult().raw,carousel_editor_version:1}}});
+    const {result}=renderHook(()=>useGenerateVisuals(params));
+    await act(()=>result.current.handleGenerateVisuals());
+    expect(mocks.invokeWithHeartbeat).not.toHaveBeenCalled();expect(params.setVisualSlides).not.toHaveBeenCalled();
+    confirm.mockRestore();
+  });
 
   it("résultat amputé (1 slide sur 2) → jamais « Visuels générés ! », erreur réessayable", async () => {
     mocks.invokeWithHeartbeat.mockResolvedValue({

@@ -13,10 +13,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
-import RedFlagsChecker from "@/components/RedFlagsChecker";
+import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { Maximize2, ArrowUp, ArrowDown, Trash2, X } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
+import { renumberDocument } from "@/lib/carousel-editor";
 import {
   replaceSlideText,
   removeSlideCta,
@@ -25,7 +26,7 @@ import {
 } from "@/lib/carousel-html-edit";
 
 /** En dessous, un carrousel n'a plus de sens : on bloque la suppression. */
-const MIN_SLIDES = 3;
+const MIN_SLIDES = 2;
 
 interface SlideData {
   slide_number: number;
@@ -49,6 +50,7 @@ interface Props {
   onSlidesUpdate?: (slides: SlideData[], caption: CaptionData) => void;
   /** Remonte les visuels patchés quand une édition de texte est répercutée dans le HTML. */
   onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
+  onStaleChange?: (stale: boolean) => void;
 }
 
 /** Inline editable text block */
@@ -269,7 +271,7 @@ export function SlideFramePreview({ html, title, width = 180 }: { html: string; 
   );
 }
 
-export default function CarouselResult({ result, visualSlides, onSlidesUpdate, onVisualSlidesUpdate }: Props) {
+export default function CarouselResult({ result, visualSlides, onSlidesUpdate, onVisualSlidesUpdate, onStaleChange }: Props) {
   const rawSlides: SlideData[] = result?.slides || result?.carousel?.slides || [];
   const rawCaption: CaptionData = result?.caption || result?.carousel?.caption || {};
   const qualityCheck = result?.quality_check || result?.carousel?.quality_check;
@@ -280,7 +282,9 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
   const [slides, setSlides] = useState<SlideData[]>(rawSlides);
   const [caption, setCaption] = useState<CaptionData>(rawCaption);
 
-  const prevSlidesSignature = useRef(JSON.stringify(rawSlides.map(s => s.slide_number)));
+  const prevSlidesSignature = useRef(JSON.stringify([rawSlides, rawCaption]));
+  const [stale, setStale] = useState(false);
+  useEffect(() => { onStaleChange?.(stale); }, [stale, onStaleChange]);
 
   const slidesRef = useRef(slides);
   slidesRef.current = slides;
@@ -289,7 +293,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
 
   // Sync only when slides are structurally different (new generation)
   useEffect(() => {
-    const newSignature = JSON.stringify(rawSlides.map(s => s.slide_number));
+    const newSignature = JSON.stringify([rawSlides, rawCaption]);
     if (newSignature !== prevSlidesSignature.current) {
       setSlides(rawSlides);
       setCaption(rawCaption);
@@ -321,7 +325,7 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
             const next = [...visuals];
             next[vi] = { ...next[vi], html: patched };
             onVisualSlidesUpdate(next);
-          }
+          } else setStale(true);
         }
       }
       return updated;
@@ -362,12 +366,13 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
     const visuals = visualSlidesRef.current;
     if (!visuals?.length || !onVisualSlidesUpdate) return;
     const vmap = new Map(visuals.map((v) => [v.slide_number, v]));
-    const next = orderedOrigNums
+    const reordered = orderedOrigNums
       .map((num, i) => {
         const v = vmap.get(num);
-        return v ? { ...v, slide_number: i + 1 } : null;
+        return v ? { ...v } : null;
       })
       .filter(Boolean) as { slide_number: number; html: string }[];
+    const next = renumberDocument({ caption: {}, slides: reordered.map(v => ({ id: String(v.slide_number), data: { slide_number: v.slide_number }, html: v.html })) }).slides.map(s => ({ slide_number: s.data.slide_number, html: s.html }));
     onVisualSlidesUpdate(next);
   }, [onVisualSlidesUpdate]);
 
@@ -647,7 +652,25 @@ export default function CarouselResult({ result, visualSlides, onSlidesUpdate, o
       )}
 
       {/* Red flags */}
-      <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
+      {stale && <p role="alert" className="text-sm text-amber-700">Une slide n’a pas pu être actualisée. Mets à jour les visuels avant l’export.</p>}
+      <RedFlagsChecker content={checkedText} onFix={() => {
+        const nextSlides = slides.map(s => ({ ...s, title: s.title == null ? s.title : fixRedFlags(s.title), body: s.body == null ? s.body : fixRedFlags(s.body) }));
+        const nextCaption = { ...caption, hook: fixRedFlags(caption.hook || ""), body: fixRedFlags(caption.body || ""), cta: fixRedFlags(caption.cta || "") };
+        const nextVisuals = (visualSlides || []).map(v => {
+          const before = slides.find(s => s.slide_number === v.slide_number);
+          const after = nextSlides.find(s => s.slide_number === v.slide_number);
+          let html = v.html;
+          for (const field of ["title", "body"] as const) {
+            if (before?.[field] !== after?.[field]) {
+              const patched = replaceSlideText(html, field, before?.[field] || "", after?.[field] || "");
+              if (patched) html = patched; else setStale(true);
+            }
+          }
+          return { ...v, html };
+        });
+        setSlides(nextSlides);setCaption(nextCaption);onSlidesUpdate?.(nextSlides,nextCaption);
+        if (nextVisuals.length) onVisualSlidesUpdate?.(nextVisuals);
+      }} />
 
       <AiGeneratedMention />
 

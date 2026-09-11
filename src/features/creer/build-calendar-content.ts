@@ -53,7 +53,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
     // Libellés positionnels (i + 1) : l'ordre du tableau fait foi, un
     // slide_number IA fantaisiste ne doit jamais fuir dans le calendrier.
     contentDraft = (r.slides || []).map((s: any, i: number) => s.overlay_text ? `SLIDE ${i + 1}: ${s.overlay_text}` : `SLIDE ${i + 1}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
-    const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
+    const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check, ...(r.carousel_editor_version ? { carousel_editor_version: r.carousel_editor_version, visual_html: r.visual_html } : {}) };
     if (r.edited_text?.trim()) contentDraft = r.edited_text;
     return { contentDraft, accroche, storyDetail };
   }
@@ -66,7 +66,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       if (type === "photo_integrated") return `SLIDE ${i + 1} [📷+📝]: ${s.title || ""} — ${s.body || ""}`;
       return `SLIDE ${i + 1} [📝]: ${s.title || ""} — ${s.body || ""}`;
     }).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
-    const storyDetail: any = { type: "carousel_mix", slides: r.slides, caption: r.caption, quality_check: r.quality_check };
+    const storyDetail: any = { type: "carousel_mix", slides: r.slides, caption: r.caption, quality_check: r.quality_check, ...(r.carousel_editor_version ? { carousel_editor_version: r.carousel_editor_version, visual_html: r.visual_html } : {}) };
     if (r.edited_text?.trim()) contentDraft = r.edited_text;
     return { contentDraft, accroche, storyDetail };
   }
@@ -128,6 +128,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       slides: r.slides,
       caption: r.caption,
       quality_check: r.quality_check,
+      ...(r.carousel_editor_version ? { carousel_editor_version: r.carousel_editor_version, visual_html: r.visual_html } : {}),
     };
   } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
     storyDetail = {

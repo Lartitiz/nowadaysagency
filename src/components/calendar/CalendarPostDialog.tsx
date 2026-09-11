@@ -532,8 +532,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
     onOpenChange(false);
     setTimeout(() => {
+      const detail = editingPost?.story_sequence_detail as any;
+      const resumeIdea = detail?.slides && detail?.visual_html?.length && /^carousel/.test(detail.type || "")
+        ? { format: "carousel", raw: { ...detail, carousel_type: detail.type === "carousel_photo" ? "photo" : detail.type === "carousel_mix" ? "mix" : detail.carousel_type || "text" } } : undefined;
       navigate("/creer?canal=" + (postCanal || "instagram"), {
-        state: { fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, contentTypeEmoji: editingPost?.content_type_emoji, category: editingPost?.category, objective: editingPost?.objective, angleSuggestion: editingPost?.angle_suggestion, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase },
+        state: { resumeIdea, fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, contentTypeEmoji: editingPost?.content_type_emoji, category: editingPost?.category, objective: editingPost?.objective, angleSuggestion: editingPost?.angle_suggestion, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase },
       });
     }, 100);
   };
@@ -1003,7 +1006,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               : (editingPost?.story_sequence_detail as any)?.type === "carousel_mix" ? "carousel_mix"
               : undefined
             }
-            editable
+            editable={!/^carousel/.test((editingPost?.story_sequence_detail as any)?.type || "")}
             onContentChange={async (updatedData) => {
               if (!editingPost) return;
               const { error } = await supabase.from("calendar_posts").update({ story_sequence_detail: updatedData, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
@@ -1013,6 +1016,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               }
             }}
           />
+          {/^carousel/.test((editingPost?.story_sequence_detail as any)?.type || "") && <Button variant="outline" onClick={() => { setShowContentViewer(false); void handleOpenAtelier(); }}>Modifier dans l’éditeur de carrousel</Button>}
           {editingPost && (editingPost as any).original_content_data && (
             <RevertToOriginalButton onRevert={async () => {
               const original = (editingPost as any).original_content_data;

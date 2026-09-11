@@ -75,6 +75,14 @@ export function replaceSlideText(
 
   if (!el) return null;
 
+  const numbers = /\d+(?:[.,]\d+)?\s*(?:%|×|h)?/g;
+  const before = oldText.match(numbers) || [], after = newText.match(numbers) || [];
+  if (before.length === 1 && after.length === 1 && before[0] !== after[0]) {
+    doc.body.querySelectorAll<HTMLElement>("*").forEach(node => {
+      if (node !== el && !node.children.length && node.textContent?.trim() === before[0]) node.textContent = after[0];
+    });
+  }
+
   // textContent efface les <span> d'accent internes — assumé : le texte a
   // changé, la mise en valeur mot-à-mot de l'ancien texte n'a plus de sens.
   el.textContent = newText;

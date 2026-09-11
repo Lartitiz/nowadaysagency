@@ -690,7 +690,7 @@ export default function CreerUnifie() {
         autoFlow,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides?.length, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -1772,8 +1772,8 @@ export default function CreerUnifie() {
 
   // Remplacement de la photo d'une slide de carrousel (depuis CarouselPhotoResult).
   // Ajoute la photo choisie au set du carrousel si elle est nouvelle (ou retrouve son
-  // index si elle y est déjà) et renvoie son index 1-based. Les visuels seront
-  // régénérés ensuite par l'utilisatrice via la bannière « Mettre à jour les visuels ».
+  // index si elle y est déjà) et renvoie son index 1-based. L’éditeur applique
+  // directement l’image au document sans génération IA.
   const handleAddCarouselPhoto = useCallback(
     (photo: PhotoItem): number => {
       const matches = (p: any) =>
@@ -2204,6 +2204,7 @@ export default function CreerUnifie() {
     if (visualSlides.length === 0) return;
     if (isCarouselPublish && carouselVisualsStale) {
       toast.warning("Les visuels ne reflètent pas tes dernières éditions. Mets-les à jour pour un export fidèle.");
+      return;
     }
     try {
       toast.info("Export PNG en cours…");
@@ -2228,6 +2229,7 @@ export default function CreerUnifie() {
     if (visualSlides.length === 0) return;
     if (isCarouselPublish && carouselVisualsStale) {
       toast.warning("Les visuels ne reflètent pas tes dernières éditions. Mets-les à jour pour un export fidèle.");
+      return;
     }
     try {
       toast.info("Export PowerPoint éditable en cours…");
@@ -2254,6 +2256,7 @@ export default function CreerUnifie() {
   const { openInCanva, openingCanva } = useOpenInCanva();
   const handleOpenInCanva = () => {
     if (visualSlides.length === 0) return;
+    if (carouselVisualsStale) { toast.warning("Mets à jour les visuels avant de les ouvrir dans Canva."); return; }
     return openInCanva(
       async (onProgress) => {
         const { exportCarouselHybridPptx } = await import("@/lib/export-carousel-hybrid-pptx");
@@ -2727,7 +2730,7 @@ export default function CreerUnifie() {
                 streamingContent={streaming ? streamingContent : undefined}
                 step2of2={selectedFormat === "carousel" && !!lastConfirmedStructure && (carouselSubMode === "photo" || carouselSubMode === "mix")}
                 qualityMax={qualityMax}
-                photos={(carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
+                photos={(selectedFormat === "carousel" || (photoMode && uploadedPhotos.length > 0)) ? uploadedPhotos : undefined}
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
                 onResultTextChange={(text) => setResult((prev) => prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: text, content: text } } : prev)}
@@ -2761,6 +2764,10 @@ export default function CreerUnifie() {
                 visualChunkProgress={visualChunkProgress}
                 visualSlides={visualSlides.length > 0 ? visualSlides : undefined}
                 onVisualSlidesUpdate={setVisualSlides}
+                onCarouselDocumentChange={(raw, visuals) => {
+                  setResult((prev: any) => prev ? { ...prev, raw } : prev);
+                  setVisualSlides(visuals);
+                }}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
                 onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}

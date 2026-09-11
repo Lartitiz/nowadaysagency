@@ -204,7 +204,7 @@ export default function PhotoSwapDialog({
           <DialogDescription>
             Réutilise une photo du carrousel, choisis-en une dans ta photothèque (ou
             importe-la depuis ton site ou Instagram), cherche une photo libre de
-            droit, ou importe la tienne. Pense à mettre à jour les visuels ensuite.
+            droit, ou importe la tienne.
           </DialogDescription>
         </DialogHeader>
 
@@ -343,12 +343,12 @@ export default function PhotoSwapDialog({
       {/* Photothèque complète, empilée par-dessus (même patron que le bouton
           « Ma photothèque » de CarouselPhotoResult) : ferme aussi ce dialogue
           à la sélection, via onSelect + onOpenChange(false) dans pickFromLibrary. */}
-      <PhotoLibraryPickerDialog
+      {libraryPickerOpen && <PhotoLibraryPickerDialog
         open={libraryPickerOpen}
         onOpenChange={setLibraryPickerOpen}
         maxSelectable={1}
         onConfirm={pickFromLibrary}
-      />
+      />}
     </Dialog>
   );
 }

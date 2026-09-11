@@ -336,7 +336,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   const visualsStale = useMemo(
     () =>
       Boolean(
-        visualSlides && visualSlides.length > 0 && renderedSig !== "" &&
+        visualSlides && visualSlides.length > 0 &&
         slidesSignature(slides, colors) !== renderedSig,
       ),
     [visualSlides, renderedSig, slides, colors, slidesSignature],
@@ -389,16 +389,26 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // À chaque nouveau rendu visuel, on photographie la signature des slides DU MOMENT :
-  // tout ce qui change ensuite (texte, photo, ordre) marquera l'aperçu comme à régénérer.
-  // Volontairement déclenché par le seul changement de `visualSlides` (on capture l'état
-  // au moment du rendu, pas à chaque édition).
+  // Only a completed replacement render clears staleness; a failed request or
+  // a local text patch must not validate an older color/photo composition.
+  const renderRequest = useRef<{ signature: string; visuals: typeof visualSlides } | null>(null);
   useEffect(() => {
-    if (visualSlides && visualSlides.length > 0) {
-      setRenderedSig(slidesSignature(slides, colors));
+    if (visualLoading && !renderRequest.current) renderRequest.current = { signature: slidesSignature(slides, colors), visuals: visualSlides };
+    if (!visualLoading && renderRequest.current) {
+      if (visualSlides?.length && visualSlides !== renderRequest.current.visuals) setRenderedSig(renderRequest.current.signature);
+      renderRequest.current = null;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visualSlides]);
+  }, [visualLoading]);
+  useEffect(() => {
+    if (renderedSig || colors || !visualSlides?.length) return;
+    const matches = slides.every((s: any) => {
+      const visual = visualSlides.find(v => v.slide_number === s.slide_number);
+      if (!visual) return false;
+      const doc = new DOMParser().parseFromString(visual.html, "text/html");
+      return ([['title',s.title],['body',s.body],['overlay',s.overlay_text]] as const).every(([field,text]) => !text || doc.querySelector(`[data-slide-text="${field}"]`)?.textContent?.trim() === text.trim());
+    });
+    if (matches) setRenderedSig(slidesSignature(slides, colors));
+  }, [visualSlides, renderedSig, colors]);
 
   // P2 : Quality check calculé côté front (au lieu de faire confiance à l'IA)
   const computedQuality = useMemo(() => {
@@ -458,7 +468,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     const nextVisuals = [...visuals];
     nextVisuals[vi] = { ...nextVisuals[vi], html: patched };
     onVisualSlidesUpdate(nextVisuals);
-    setRenderedSig(slidesSignature(nextSlides, colors));
+    if (!visualsStale) setRenderedSig(slidesSignature(nextSlides, colors));
   };
 
   const updateSlideText = (idx: number, text: string) => {
@@ -1223,11 +1233,10 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
               {(slide.slide_type === "photo_full" ||
                 (!slide.slide_type && slide.overlay_text !== undefined)) ? (
                 <>
-                  {slide.overlay_text !== null && slide.overlay_text !== undefined ? (
                     <div className="space-y-1">
                       <Textarea
                         aria-label={`Texte de la slide ${slide.slide_number || idx + 1}`}
-                        value={slide.overlay_text}
+                        value={slide.overlay_text || ""}
                         onChange={(e) => updateSlideText(idx, e.target.value)}
                         className={`resize-none min-h-[48px] ${OVERLAY_STYLE_CLASS[slide.overlay_style] || "text-sm"}`}
                         rows={2}
@@ -1238,9 +1247,6 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
                         </Badge>
                       )}
                     </div>
-                  ) : (
-                    <p className="text-xs text-muted-foreground italic">(Pas de texte : laisser l'image parler)</p>
-                  )}
                 </>
               ) : (
                 <div className="space-y-2">

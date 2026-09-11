@@ -1343,7 +1343,10 @@ export async function exportCarouselHybridPptx(
       // ---- Photo zones extraction + filtering on availability
       // Si originalPhotos n'est pas fourni → usableZones vide → fallback total :
       // les photos restent visibles dans le rasterisé (comportement legacy).
-      const allZones = extractPhotoZones(doc, (data as any)?.photo_index);
+      // Edited photos carry their final source/crop/zoom in HTML. Replacing them
+      // with a numbered original would undo the user's framing or even use an
+      // unrelated replacement asset. Keep that exact photo raster; text stays native.
+      const allZones = (data as any)?.editor_id ? [] : extractPhotoZones(doc, (data as any)?.photo_index);
       const usableZones: PhotoZone[] = [];
       for (const zone of allZones) {
         let photo = originalPhotos?.[zone.photoIndex - 1];
