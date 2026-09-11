@@ -130,6 +130,19 @@ function req(body: Record<string, unknown> = {}, opts: { auth?: boolean } = {}):
   return new Request("https://edge.local/delete-account", { method: "POST", headers, body: JSON.stringify(body) });
 }
 
+Deno.test("delete-account: session expirée (pas de header Authorization) -> 401, pas 500 — sinon le front ne tente jamais le refresh silencieux", async () => {
+  const mock = installMockFetch({ callerId: SELF_USER_ID, callerEmail: "cliente@example.com" });
+  try {
+    const res = await call(req({}, { auth: false }));
+    assertEquals(res.status, 401);
+    const body = await res.json();
+    assertEquals(body.error, "Non authentifié");
+    assertEquals(mock.deletedTables.length, 0);
+  } finally {
+    restore();
+  }
+});
+
 Deno.test("delete-account: suppression d'un AUTRE compte par une utilisatrice normale -> 403, rien n'est supprimé", async () => {
   const mock = installMockFetch({ callerId: SELF_USER_ID, callerEmail: "cliente@example.com", hasAdminRole: false });
   try {
