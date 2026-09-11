@@ -1,5 +1,11 @@
 import { describe, it, expect } from "vitest";
-import { buildStoryFrameHtml, buildStoryFrames, bodyScale } from "@/lib/story-visual";
+import {
+  buildStoryFrameHtml,
+  buildStoryFrames,
+  bodyScale,
+  placeTextAwayFromLikelyFace,
+  resolveStoryViewport,
+} from "@/lib/story-visual";
 
 const branding = {
   color_primary: "#A9542F",
@@ -134,6 +140,53 @@ describe("buildStoryFrameHtml", () => {
     expect(withoutPhoto).not.toContain("background-image");
     expect(withoutPhoto).toContain("background:#F3ECDF");
     expect(withoutPhoto).toContain("ton plan de travail");
+  });
+
+  it("applique le déplacement du texte et le recadrage photo à l’aperçu comme à l’export", () => {
+    const story = {
+      visual: {
+        gabarit: "photo_pills",
+        background: "photo",
+        body_pill: "Un texte placé à la main",
+        text_position_x: 72,
+        text_position_y: 24,
+        photo_position_x: 35,
+        photo_position_y: 65,
+        photo_zoom: 1.4,
+      },
+    };
+    for (const preview of [true, false]) {
+      const html = buildStoryFrameHtml(story, branding, { preview, photoUrl: "https://x.test/portrait.jpg" })!;
+      expect(html).toContain("left:72%");
+      expect(html).toContain("top:24%");
+      expect(html).toContain("background-position:35% 65%");
+      expect(html).toContain("transform:scale(1.4)");
+      expect(html).toContain("data-story-photo");
+    }
+  });
+
+  it("borne les positions libres et le zoom aux limites de l’éditeur", () => {
+    expect(resolveStoryViewport({
+      text_position_x: -20,
+      text_position_y: 99,
+      photo_position_x: 120,
+      photo_position_y: -5,
+      photo_zoom: 9,
+    })).toEqual({ textX: 25, textY: 80, photoX: 100, photoY: 0, photoZoom: 2 });
+  });
+
+  it("dégage automatiquement le centre d’un portrait sans écraser un placement manuel", () => {
+    expect(placeTextAwayFromLikelyFace({ text_position: "middle" }, "Portrait d'une femme")).toMatchObject({
+      text_position: "bottom",
+      face_avoidance_applied: true,
+    });
+    expect(placeTextAwayFromLikelyFace(
+      { text_position: "top", text_position_edited: true },
+      "Woman smiling at camera",
+    )).toMatchObject({
+      text_position: "top",
+      text_position_edited: true,
+    });
   });
 
   it("citation : rend le verbatim en italique avec guillemets", () => {

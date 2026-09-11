@@ -21,6 +21,48 @@ const PPTX_W_IN = 7.5;
 const PPTX_H_IN = PPTX_W_IN * (H_PX / W_PX); // 13.333 — ratio 9:16 exact
 const PX_PER_IN = W_PX / PPTX_W_IN; // 144
 
+interface StoryPhotoCrop {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+
+/** Reproduit le background-size:cover puis le zoom/point focal du renderer. */
+export function computeStoryPhotoCrop(
+  imageWidth: number,
+  imageHeight: number,
+  positionX = 50,
+  positionY = 50,
+  zoom = 1,
+): StoryPhotoCrop {
+  const safeWidth = Math.max(1, imageWidth);
+  const safeHeight = Math.max(1, imageHeight);
+  const xPercent = clamp(Number.isFinite(positionX) ? positionX : 50, 0, 100) / 100;
+  const yPercent = clamp(Number.isFinite(positionY) ? positionY : 50, 0, 100) / 100;
+  const safeZoom = clamp(Number.isFinite(zoom) ? zoom : 1, 1, 2);
+  const coverScale = Math.max(W_PX / safeWidth, H_PX / safeHeight);
+  const displayedWidth = safeWidth * coverScale;
+  const displayedHeight = safeHeight * coverScale;
+  const backgroundLeft = (W_PX - displayedWidth) * xPercent;
+  const backgroundTop = (H_PX - displayedHeight) * yPercent;
+  const originX = W_PX * xPercent;
+  const originY = H_PX * yPercent;
+  const visibleLeft = originX - originX / safeZoom;
+  const visibleTop = originY - originY / safeZoom;
+  const width = W_PX / safeZoom / coverScale;
+  const height = H_PX / safeZoom / coverScale;
+
+  return {
+    x: clamp((visibleLeft - backgroundLeft) / coverScale, 0, safeWidth - width),
+    y: clamp((visibleTop - backgroundTop) / coverScale, 0, safeHeight - height),
+    width,
+    height,
+  };
+}
+
 interface StoryFrame {
   story_number: number;
   html: string;
@@ -124,7 +166,9 @@ async function renderFrameToSlide(
 
     // ── Fond ──
     const rootStyle = root ? win.getComputedStyle(root) : null;
-    const hasPhotoBg = !!(rootStyle && rootStyle.backgroundImage && rootStyle.backgroundImage !== "none");
+    const photoLayer = doc.querySelector("[data-story-photo]") as HTMLElement | null;
+    const photoStyle = photoLayer ? win.getComputedStyle(photoLayer) : null;
+    const hasPhotoBg = !!(photoStyle && photoStyle.backgroundImage && photoStyle.backgroundImage !== "none");
     if (hasPhotoBg && photoUrl) {
       // PptxGenJS uses w/h as SOURCE dimensions for its sizing calculation.
       // Supplying the slide size here produces a zero crop and stretches photos.
@@ -139,12 +183,24 @@ async function renderFrameToSlide(
         img.onerror = () => { clearTimeout(timer); reject(new Error("Impossible de lire la photo du PPTX. Réessaie.")); };
         img.src = photoUrl;
       });
+      const positionX = Number(photoLayer?.dataset.photoX ?? 50);
+      const positionY = Number(photoLayer?.dataset.photoY ?? 50);
+      const zoom = Number(photoLayer?.dataset.photoZoom ?? 1);
+      const crop = computeStoryPhotoCrop(dimensions.width, dimensions.height, positionX, positionY, zoom);
+      const horizontalScale = PPTX_W_IN / crop.width;
+      const verticalScale = PPTX_H_IN / crop.height;
       const imgProps: Record<string, unknown> = {
         x: 0,
         y: 0,
-        w: dimensions.width / PX_PER_IN,
-        h: dimensions.height / PX_PER_IN,
-        sizing: { type: "cover", w: PPTX_W_IN, h: PPTX_H_IN },
+        w: dimensions.width * horizontalScale,
+        h: dimensions.height * verticalScale,
+        sizing: {
+          type: "crop",
+          x: crop.x * horizontalScale,
+          y: crop.y * verticalScale,
+          w: PPTX_W_IN,
+          h: PPTX_H_IN,
+        },
       };
       if (photoUrl.startsWith("data:")) imgProps.data = photoUrl;
       else imgProps.path = photoUrl;

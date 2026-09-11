@@ -90,6 +90,7 @@ describe("StoryPhotoSuggestions", () => {
     await user.click(await screen.findByRole("button", { name: "Utiliser la photo de Alice Martin" }));
     expect(onApply).toHaveBeenCalledWith({
       url: stockPhoto.url,
+      alt: stockPhoto.alt,
       credit: {
         photographer: "Alice Martin",
         source_url: stockPhoto.source_url,

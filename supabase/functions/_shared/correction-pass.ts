@@ -411,7 +411,7 @@ Réponds UNIQUEMENT avec les sections corrigées (marqueurs + textes), sans comm
   stories: `Tu es un éditeur de séquences Stories Instagram exigeant. Tu reçois les TEXTES d'une séquence, annotés par marqueurs [STORY N - CHAMP] :
 - TEXT = ce que la story dit (texte complet ou paroles face cam)
 - TITLE = pastille titre affichée sur l'image (3-7 mots, sans point final)
-- BODY = pastille texte affichée sur l'image (1-2 phrases courtes, 120 caractères max)
+- BODY = texte réellement affiché sur l'image (même voix que TEXT, jusqu'à 350 caractères)
 - ITEM k = un item de liste affiché sur l'image (6-10 mots)
 - QUOTE = verbatim affiché sur l'image
 
@@ -431,7 +431,7 @@ Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané :
 ══ RÈGLES ABSOLUES ══
 - Retourne EXACTEMENT le même format annoté, TOUTES les lignes, dans le même ordre, même celles que tu ne changes pas (recopiées à l'identique).
 - Ne fusionne pas, ne supprime pas, n'ajoute pas de ligne ni de story.
-- Respecte les tailles des pastilles : TITLE 3-7 mots sans point final, BODY 120 caractères max, ITEM 6-10 mots.
+- Respecte les tailles des pastilles : TITLE 3-7 mots sans point final, BODY 350 caractères max, ITEM 6-10 mots.
 - JAMAIS de tiret cadratin (—). Pas de markdown.
 
 Réponds UNIQUEMENT avec le bloc annoté corrigé.`,

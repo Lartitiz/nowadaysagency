@@ -85,7 +85,15 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
     contentDraft = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
   } else if (selectedFormat === "story" && r?.stories) {
     accroche = r.stories?.[0]?.text || "";
-    contentDraft = r.stories?.map((s: any) => `STORY ${s.number || ""} (${s.timing || ""})\n${s.format_label || s.format || ""}\n${s.text || ""}${s.sticker ? `\n🎯 ${s.sticker.label || s.sticker.type || ""}` : ""}`).join("\n\n───\n\n");
+    const sequenceTime = r.publication_time
+      || r.stories.find((story: any) => story?.timing)?.timing
+      || null;
+    const sequenceHeader = sequenceTime
+      ? `SÉQUENCE À PUBLIER À LA SUITE (${sequenceTime})\n\n`
+      : "";
+    contentDraft = sequenceHeader + r.stories
+      .map((s: any) => `STORY ${s.number || ""}\n${s.format_label || s.format || ""}\n${s.text || ""}${s.sticker ? `\n🎯 ${s.sticker.label || s.sticker.type || ""}` : ""}`)
+      .join("\n\n───\n\n");
   } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
     accroche = r.title || "";
     contentDraft = `📌 ${r.title || ""}\n\n${r.description || ""}`;
@@ -141,6 +149,9 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       structure_type: r.structure_type,
       structure_label: r.structure_label,
       narrative_angle: r.narrative_angle || null,
+      publication_time: r.publication_time
+        || (Array.isArray(r.stories) ? r.stories.find((story: any) => story?.timing)?.timing : null)
+        || null,
       stickers_used: r.stickers_used,
       garde_fou_alerte: r.garde_fou_alerte,
       personal_tip: r.personal_tip,

@@ -32,6 +32,17 @@ export type StoryGabarit = "photo_pills" | "fond_pills" | "interaction" | "liste
 
 export interface StoryVisualPlan {
   text_position?: "top" | "middle" | "bottom" | null;
+  /** Position libre choisie dans l'aperçu, en pourcentage de la frame. */
+  text_position_x?: number | null;
+  text_position_y?: number | null;
+  /** Empêche un nouveau fond photo de déplacer un texte déjà positionné à la main. */
+  text_position_edited?: boolean | null;
+  /** Le placement bas a été choisi automatiquement car la photo semble montrer un visage. */
+  face_avoidance_applied?: boolean | null;
+  /** Recadrage non destructif du fond photo. */
+  photo_position_x?: number | null;
+  photo_position_y?: number | null;
+  photo_zoom?: number | null;
   /** Une édition explicite ne doit pas être masquée par les gardes IA. */
   body_pill_edited?: boolean;
   gabarit?: StoryGabarit | string | null;
@@ -230,10 +241,10 @@ function stickerZoneHtml(sticker: StoryStickerPlan | null | undefined, p: Palett
 // Fragment (pas un document complet) : composable à la fois en srcDoc d'aperçu
 // (le navigateur reconstruit html/body autour) et dans l'iframe de capture PNG
 // (export-carousel-png), qui fournit son propre wrapper <html>.
-function wrapFrame(inner: string, backgroundCss: string): string {
+function wrapFrame(inner: string, backgroundCss: string, backgroundLayer = ""): string {
   return `${FONT_LINK}
 <style>html,body{margin:0;padding:0;width:${STORY_W}px;height:${STORY_H}px;overflow:hidden}*,*::before,*::after{box-sizing:border-box}</style>
-<div data-story-frame style="width:${STORY_W}px;height:${STORY_H}px;position:relative;${backgroundCss}">${inner}</div>`;
+<div data-story-frame style="width:${STORY_W}px;height:${STORY_H}px;position:relative;overflow:hidden;${backgroundCss}">${backgroundLayer}<div data-story-content style="position:absolute;inset:0;z-index:1">${inner}</div></div>`;
 }
 
 /** Facteur de taille du corps selon la longueur du texte (paliers, jamais sous 0.7). */
@@ -253,9 +264,14 @@ function alignFor(ctx: RenderCtx, longest: { text: string; style: StoryTextStyle
   return estimateLines(longest.text, longest.style) > 2 ? "left" : "center";
 }
 
-function column(align: "center" | "left", extra: string, blocks: string[]): string {
+function column(
+  align: "center" | "left",
+  extra: string,
+  blocks: string[],
+  placement = `height:100%;${SAFE};`,
+): string {
   const items = align === "center" ? "center" : "flex-start";
-  return `<div style="height:100%;${SAFE};display:flex;flex-direction:column;align-items:${items};text-align:${align};${extra}">
+  return `<div style="${placement}display:flex;flex-direction:column;align-items:${items};text-align:${align};${extra}">
 ${blocks.filter(Boolean).map((b) => `<div style="max-width:100%">${b}</div>`).join("\n")}
 </div>`;
 }
@@ -274,6 +290,54 @@ function splitAroundQuote(text: string, quote: string): { before: string; quote:
 
 // Zone de sécurité Instagram : ~250px en haut (avatar, ✕) et ~300px en bas (répondre).
 const SAFE = "padding:280px 84px 320px";
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/** Coordonnées sûres pour les contrôles directs de l'aperçu. */
+export function resolveStoryViewport(visual: StoryVisualPlan | null | undefined) {
+  return {
+    textX: clamp(finiteNumber(visual?.text_position_x, 50), 25, 75),
+    textY: clamp(finiteNumber(visual?.text_position_y, 50), 20, 80),
+    photoX: clamp(finiteNumber(visual?.photo_position_x, 50), 0, 100),
+    photoY: clamp(finiteNumber(visual?.photo_position_y, 50), 0, 100),
+    photoZoom: clamp(finiteNumber(visual?.photo_zoom, 1), 1, 2),
+  };
+}
+
+const PORTRAIT_CUE = /\b(visage|portrait|personne|femme|homme|woman|man|person|face|headshot|selfie)\b/i;
+
+/** Place le texte hors du centre quand les métadonnées de la photo décrivent un portrait. */
+export function placeTextAwayFromLikelyFace(
+  visual: StoryVisualPlan | null | undefined,
+  ...descriptions: unknown[]
+): StoryVisualPlan {
+  const current = visual || {};
+  const hasFaceCue = PORTRAIT_CUE.test(
+    descriptions.filter((value) => typeof value === "string").join(" "),
+  );
+  if (current.text_position_edited || !hasFaceCue) return current;
+  return {
+    ...current,
+    text_position: "bottom",
+    text_position_x: null,
+    text_position_y: null,
+    face_avoidance_applied: true,
+  };
+}
+
+function customTextPlacement(visual: StoryVisualPlan): string | null {
+  const hasCustom = Number.isFinite(visual.text_position_x) || Number.isFinite(visual.text_position_y);
+  if (!hasCustom) return null;
+  const { textX, textY } = resolveStoryViewport(visual);
+  const maxWidth = Math.min(84, 2 * Math.min(textX - 4, 96 - textX));
+  return `position:absolute;left:${textX}%;top:${textY}%;transform:translate(-50%,-50%);width:max-content;max-width:${maxWidth}%;max-height:68%;`;
+}
 
 /**
  * Construit le HTML autonome (1080×1920) du visuel d'une story.
@@ -295,13 +359,16 @@ export function buildStoryFrameHtml(
   const gabarit = (visual.gabarit || "fond_pills") as StoryGabarit;
   const justify = visual.text_position === "top" ? "flex-start"
     : visual.text_position === "bottom" ? "flex-end" : "center";
+  const freePlacement = customTextPlacement(visual);
   const narration = String(story?.text || story?.texte || story?.content || "").trim();
 
   const wantsPhoto = visual.background === "photo" && !!opts.photoUrl;
   const onPhoto = wantsPhoto;
-  const backgroundCss = wantsPhoto
-    ? `background-image:url('${String(opts.photoUrl).replace(/'/g, "%27")}');background-size:cover;background-position:center`
-    : `background:${gabarit === "citation" ? p.ink : p.background}`;
+  const backgroundCss = `background:${gabarit === "citation" ? p.ink : p.background}`;
+  const viewport = resolveStoryViewport(visual);
+  const backgroundLayer = wantsPhoto
+    ? `<div data-story-photo data-photo-x="${viewport.photoX}" data-photo-y="${viewport.photoY}" data-photo-zoom="${viewport.photoZoom}" style="position:absolute;inset:0;z-index:0;background-image:url('${String(opts.photoUrl).replace(/'/g, "%27")}');background-size:cover;background-position:${viewport.photoX}% ${viewport.photoY}%;transform:scale(${viewport.photoZoom});transform-origin:${viewport.photoX}% ${viewport.photoY}%"></div>`
+    : "";
 
   const title = (visual.title_pill || "").trim();
   // Le texte complet porte la voix de la personne. Les résumés de body_pill
@@ -329,7 +396,7 @@ export function buildStoryFrameHtml(
     // comme les listes natives ; le titre reste centré sauf réglage « gauche ».
     const itemStyle: StoryTextStyle = { ...asm.body, mode: asm.body.mode === "nu" ? "wh" : asm.body.mode, size: asm.body.size * 0.92 };
     const titleAlign = style.align === "gauche" ? "flex-start" : "center";
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:${justify};align-items:flex-start;text-align:left;gap:34px">
+    inner = `<div style="${freePlacement || `height:100%;${SAFE};`}display:flex;flex-direction:column;${freePlacement ? "" : `justify-content:${justify};`}align-items:flex-start;text-align:left;gap:34px">
 ${title ? `<div style="max-width:100%;align-self:${titleAlign};text-align:${titleAlign === "center" ? "center" : "left"}">${textBlock(title, titleStyle, ctx, "title")}</div>` : ""}
 ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx, "item")}</div>`).join("\n")}
 </div>`;
@@ -382,10 +449,10 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
         ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution")
         : "",
     ];
-    inner = column(align, `justify-content:${justify};gap:34px`, blocks);
+    inner = column(align, `${freePlacement ? "" : `justify-content:${justify};`}gap:34px`, blocks, freePlacement || undefined);
   } else if (gabarit === "interaction") {
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
-    inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:${justify};align-items:${align === "center" ? "center" : "flex-start"};text-align:${align};gap:60px">
+    inner = `<div style="${freePlacement || `height:100%;${SAFE};`}display:flex;flex-direction:column;${freePlacement ? "" : `justify-content:${justify};`}align-items:${align === "center" ? "center" : "flex-start"};text-align:${align};gap:60px">
 ${title ? `<div style="max-width:100%">${textBlock(title, titleStyle, ctx, "title")}</div>` : ""}
 ${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}</div>` : ""}
 <div style="align-self:stretch">${stickerZoneHtml(story?.sticker, p, preview, onPhoto)}</div>
@@ -393,17 +460,17 @@ ${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}
   } else if (gabarit === "photo_pills" && wantsPhoto) {
     // Milieu par défaut ; le choix local permet de dégager le sujet de la photo.
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
-    inner = column(align, `justify-content:${justify};gap:34px`, [
+    inner = column(align, `${freePlacement ? "" : `justify-content:${justify};`}gap:34px`, [
       title ? textBlock(title, titleStyle, ctx, "title") : "",
       body ? textBlock(body, bodyStyle, ctx, "body") : "",
-    ]);
+    ], freePlacement || undefined);
   } else {
     // fond_pills, et fallback des gabarits photo sans photo attachée.
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
-    inner = column(align, `justify-content:${justify};gap:34px`, [
+    inner = column(align, `${freePlacement ? "" : `justify-content:${justify};`}gap:34px`, [
       title ? textBlock(title, titleStyle, ctx, "title") : "",
       body ? textBlock(body, bodyStyle, ctx, "body") : "",
-    ]);
+    ], freePlacement || undefined);
   }
 
   // En aperçu, si le plan demande une photo mais qu'aucune n'est attachée :
@@ -414,7 +481,7 @@ ${body ? `<div style="max-width:100%">${textBlock(body, bodyStyle, ctx, "body")}
 </div>`;
   }
 
-  return wrapFrame(inner, backgroundCss);
+  return wrapFrame(inner, backgroundCss, backgroundLayer);
 }
 
 /** Construit les frames de toute une séquence ; les stories sans visuel donnent null. */

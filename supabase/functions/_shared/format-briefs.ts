@@ -682,8 +682,8 @@ La story 1 décide de TOUT : une grande partie de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
 
 FORMAT : face cam
-- Hook oral : 5-10 mots max
-- Dicible en 2 secondes sans reprendre sa respiration
+- Les 5-10 premiers mots ouvrent une attente, mais ils ne sont PAS toute la story
+- Continue dans le même champ "text" avec 1-2 phrases naturelles : une vraie entrée de message vocal, 15-30 secondes au total
 - Ton conversationnel : la première phrase d'un vocal à une amie, avec SES mots à elle, jamais une amorce passe-partout
 - Sous-titres OBLIGATOIRES (la plupart regardent sans le son)
 `
@@ -693,8 +693,8 @@ La story 1 décide de TOUT : une grande partie de l'audience part après.
 Le hook doit arrêter le swipe en 1-2 secondes.
 
 FORMAT : texte sur fond
-- Hook principal : 8-15 mots max
-- 1 phrase. Pas 2.
+- La première phrase accroche en 8-15 mots ; elle ouvre la story, elle ne la remplace pas
+- Continue avec 1-2 phrases orales dans le même champ "text" pour installer la situation
 - Doit créer l'identification OU la curiosité immédiate
 - Le sondage/sticker complète le hook (pas l'inverse)
 `)
@@ -706,20 +706,20 @@ Le hook doit arrêter le swipe en 1-2 secondes.
 SELON LE FORMAT DE LA STORY 1 :
 
 Si format = texte sur fond :
-- Hook principal : 8-15 mots max
-- 1 phrase. Pas 2.
+- Première phrase : 8-15 mots, puis 1-2 phrases qui continuent naturellement
+- Le hook désigne les premiers mots de la story, pas tout son texte
 - Doit créer l'identification OU la curiosité immédiate
 - Le sondage/sticker complète le hook (pas l'inverse)
 
 Si format = face cam :
-- Hook oral : 5-10 mots max
-- Dicible en 2 secondes sans reprendre sa respiration
+- Les 5-10 premiers mots arrêtent le swipe, puis la personne continue 15-30 secondes
+- Écris tout ce qu'elle dit dans le même champ "text" : 2-3 phrases orales maximum
 - Ton conversationnel : la première phrase d'un vocal à une amie, avec SES mots à elle, jamais une amorce passe-partout
 - Sous-titres OBLIGATOIRES (la plupart regardent sans le son)
 
 Si format = visuel/photo :
-- Text overlay : 3-8 mots en gros
-- L'image fait le travail visuel, le texte fait l'accroche
+- Les 3-8 premiers mots doivent se comprendre immédiatement, puis le texte peut continuer sur 1-2 phrases
+- L'image fait le travail visuel ; le texte ouvre une attente et commence vraiment le récit
 `;
 
   const structuresBlock = isQuick
@@ -894,7 +894,7 @@ GARDE-FOUS OBLIGATOIRES :
 4. JAMAIS de CTA agressif. Toujours en mode permission : une invitation qu'on peut ignorer sans gêne, formulée avec un mot ou une image de la séquence (pas une formule de CTA réutilisable telle quelle)
 5. Si face cam → TOUJOURS mentionner sous-titres
 6. Story 1 = hook fort (c'est là que l'audience décroche)
-7. Étaler les stories : matin/midi/soir
+7. Publier TOUTE la séquence à la suite, dans un seul bloc. Choisis UN créneau conseillé (matin, midi ou soir) dans "publication_time" ; ne répartis jamais les stories d'une même histoire sur plusieurs moments.
 8. Ton oral, décontracté, comme si on parlait face caméra ou en message vocal. Le "JE" raconte, le "VOUS/TU" n'intervient que ponctuellement pour interpeller.
 9. Écriture inclusive point médian
 10. Expressions naturelles et orales, variées d'une story à l'autre : évite de réutiliser toujours la même cheville
@@ -913,6 +913,7 @@ Réponds en JSON strict :
   "structure_label": "...",
   "narrative_angle": "coulisses | reflexion | interpellation | conseil_vecu | storytime_client | coup_de_gueule",
   "total_stories": N,
+  "publication_time": "matin | midi | soir",
   "estimated_time": "X min",
   "stickers_used": ["sondage", "question_ouverte"],
   "garde_fou_alerte": ${p.gardeFouAlerte ? `"${p.gardeFouAlerte.replace(/"/g, '\\"')}"` : "null"},
@@ -920,8 +921,6 @@ Réponds en JSON strict :
   "stories": [
     {
       "number": 1,
-      "timing": "matin",
-      "timing_emoji": "🌅",
       "role": "Hook",
       "format": "photo",
       "format_label": "📸 Photo avec texte",
@@ -951,7 +950,7 @@ Réponds en JSON strict :
 }
 
 IMPORTANT :
-- Le champ "text" de la story 1 EST le hook (une seule version, la meilleure)
+- Le champ "text" de la story 1 contient la story complète : ses premiers mots sont le hook, puis elle continue naturellement (une seule version, jamais un slogan séparé)
 - CHAQUE story a un "visual", SAUF les stories face cam : si "face_cam": true → "visual": null (c'est une vidéo à filmer, pas un visuel à rendre)
 - Le champ "narrative_angle" indique l'angle de narration choisi pour la séquence
 - Pas de markdown dans les valeurs JSON

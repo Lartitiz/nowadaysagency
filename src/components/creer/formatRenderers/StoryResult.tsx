@@ -3,15 +3,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Camera, Download, FileDown, ImageIcon, Loader2, Palette } from "lucide-react";
+import { Camera, Clock3, Download, FileDown, ImageIcon, Loader2, Palette, Play, Sparkles } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
-import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
-import StoryFramePreview from "@/components/stories/StoryFramePreview";
+import { buildStoryFrameHtml, placeTextAwayFromLikelyFace, type StoryFrameBranding } from "@/lib/story-visual";
 import { classerParPertinence } from "@/lib/rank-library-photos";
 import { exportStoryPng } from "@/lib/export-carousel-png";
 import { exportStoryPptx } from "@/lib/export-story-pptx";
@@ -23,6 +22,8 @@ import StoryPhotoSuggestions, {
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { useUserPhotos } from "@/hooks/use-user-photos";
 import { getSignedPhotoUrls, type UserPhotoRow } from "@/lib/photo-storage";
+import StorySequenceReaderDialog from "@/components/stories/StorySequenceReaderDialog";
+import StoryVisualDirectControls from "@/components/stories/StoryVisualDirectControls";
 
 /** Photos signées d'avance, dans lesquelles chaque story pioche. */
 const LIBRARY_POOL = 12;
@@ -90,10 +91,19 @@ const replaceCitationInNarration = (narration: string, oldQuote: string, newQuot
   return narration.slice(0, index) + newQuote + narration.slice(index + oldQuote.length);
 };
 
+function publicationTimeLabel(value: unknown): string | null {
+  if (typeof value !== "string" || !value.trim()) return null;
+  const normalized = value.trim().toLowerCase();
+  const labels: Record<string, string> = { matin: "le matin", midi: "à midi", soir: "le soir" };
+  return labels[normalized] || value.trim();
+}
+
 
 export default function StoryResult({ result, onStoriesUpdate, photos, onExportActionsChange }: Props) {
   const rawStories: any[] = result?.stories || result?.sequences || result?.slides || [];
   const [stories, setStories] = useState(rawStories);
+  const [readerOpen, setReaderOpen] = useState(false);
+  const [personalAnchor, setPersonalAnchor] = useState("");
 
   const rawSignature = JSON.stringify(rawStories);
   const prevSignature = useRef(rawSignature);
@@ -347,6 +357,9 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
 
   const narrativeAngle = result?.narrative_angle;
   const angleInfo = narrativeAngle ? ANGLE_LABELS[narrativeAngle] : null;
+  const publicationTime = publicationTimeLabel(
+    result?.publication_time || stories.find((story: any) => story?.timing)?.timing,
+  );
 
   const updateStoryText = useCallback((index: number, newValue: string) => {
     setStories(prev => {
@@ -362,6 +375,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       return updated;
     });
   }, [onStoriesUpdate]);
+
+  const insertPersonalAnchor = useCallback(() => {
+    const note = personalAnchor.trim();
+    if (!note || stories.length === 0) return;
+    const existing = getStoryText(stories[0]).trim();
+    const separator = /[.!?…]$/u.test(note) ? " " : ". ";
+    updateStoryText(0, `${note}${existing ? separator + existing : ""}`);
+    setPersonalAnchor("");
+    toast.success("Ta phrase a été ajoutée au début de la story 1.");
+  }, [personalAnchor, stories, updateStoryText]);
 
   const updateVisualPill = useCallback((index: number, field: "title_pill" | "body_pill" | "quote", newValue: string) => {
     setStories(prev => {
@@ -413,10 +436,44 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
 
   const setTextPosition = (index: number, text_position: "top" | "middle" | "bottom") => {
     const updated = stories.map((story, i) => i === index
-      ? { ...story, visual: { ...story.visual, text_position } } : story);
+      ? { ...story, visual: {
+          ...story.visual,
+          text_position,
+          text_position_x: null,
+          text_position_y: null,
+          text_position_edited: true,
+          face_avoidance_applied: false,
+        } } : story);
     setStories(updated);
     onStoriesUpdate?.(updated);
   };
+
+  const updateVisualViewport = useCallback((index: number, patch: Record<string, unknown>) => {
+    setStories((prev) => {
+      const updated = [...prev];
+      updated[index] = {
+        ...updated[index],
+        visual: { ...(updated[index]?.visual || {}), ...patch },
+      };
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+  }, [onStoriesUpdate]);
+
+  const moveStoryText = useCallback((index: number, x: number, y: number) => {
+    updateVisualViewport(index, {
+      text_position_x: x,
+      text_position_y: y,
+      text_position_edited: true,
+      face_avoidance_applied: false,
+    });
+  }, [updateVisualViewport]);
+
+  const resetStoryViewport = useCallback((index: number, mode: "text" | "photo") => {
+    updateVisualViewport(index, mode === "text"
+      ? { text_position: "middle", text_position_x: null, text_position_y: null, text_position_edited: true, face_avoidance_applied: false }
+      : { photo_position_x: 50, photo_position_y: 50, photo_zoom: 1 });
+  }, [updateVisualViewport]);
 
   // Choix du fond, story par story : photo (la bande de photos s'ouvre dessous)
   // ou couleur de la marque, sans rien. Vaut pour tous les gabarits, citation
@@ -490,11 +547,16 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         if (opts?.onlyIfEmpty && (current?.photo_id || current?.photo_url)) {
           return prev;
         }
+        const positionedVisual = placeTextAwayFromLikelyFace(
+          current,
+          photo.alt,
+          current?.photo_directive,
+        );
         const updated = [...prev];
         updated[index] = {
           ...updated[index],
           visual: {
-            ...updated[index].visual,
+            ...positionedVisual,
             photo_url: photo.url,
             photo_stock_credit: photo.credit,
           },
@@ -512,10 +574,18 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     (index: number, row: UserPhotoRow) => {
       setStories((prev) => {
         const updated = [...prev];
+        const current = updated[index]?.visual;
+        const positionedVisual = placeTextAwayFromLikelyFace(
+          current,
+          row.kind,
+          row.description,
+          ...(row.tags || []),
+          current?.photo_directive,
+        );
         updated[index] = {
           ...updated[index],
           visual: {
-            ...updated[index].visual,
+            ...positionedVisual,
             photo_id: row.id,
             photo_library_description: row.description ?? null,
             photo_url: null,
@@ -584,7 +654,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   return (
     <div className="space-y-4 animate-fade-in">
       <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           {angleInfo && (
             <Badge variant="outline" className="text-xs font-medium bg-primary/5 border-primary/20 text-primary">
               {angleInfo.emoji} {angleInfo.label}
@@ -593,9 +663,20 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
           {result?.structure_label && (
             <span className="text-xs text-muted-foreground">{result.structure_label}</span>
           )}
+          {publicationTime && (
+            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock3 className="h-3.5 w-3.5" /> Toute la séquence à la suite, {publicationTime}
+            </span>
+          )}
         </div>
-        {hasFrames && !onExportActionsChange && (
-          <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {stories.length > 0 && (
+            <Button variant="outline" size="sm" onClick={() => setReaderOpen(true)} className="gap-1.5">
+              <Play className="h-3.5 w-3.5" /> Lire la séquence
+            </Button>
+          )}
+          {hasFrames && !onExportActionsChange && (
+            <>
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="gap-1.5">
               {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               Télécharger les visuels
@@ -608,22 +689,49 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
               {openingCanva ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Palette className="h-3.5 w-3.5" />}
               Ouvrir dans Canva
             </Button>
-          </div>
-        )}
+            </>
+          )}
+        </div>
       </div>
+
+      {result?.personal_tip && stories.length > 0 && (
+        <div className="rounded-xl border border-primary/20 bg-primary/5 p-3 space-y-2" data-story-personal-anchor>
+          <div className="flex items-start gap-2">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div>
+              <p className="text-sm font-semibold text-foreground">Le détail qui rendra cette séquence vraiment tienne</p>
+              <p className="text-xs text-muted-foreground">{result.personal_tip}</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+            <div className="flex-1 space-y-1">
+              <label htmlFor="story-personal-anchor" className="text-2xs font-medium text-muted-foreground">
+                Ce que tu as vraiment pensé, vu ou dit
+              </label>
+              <Textarea
+                id="story-personal-anchor"
+                value={personalAnchor}
+                onChange={(event) => setPersonalAnchor(event.target.value)}
+                className="min-h-[64px] resize-y bg-background text-sm"
+                placeholder="Ex. Là, je me suis dit : il y a un truc qui cloche."
+              />
+            </div>
+            <Button type="button" size="sm" onClick={insertPersonalAnchor} disabled={!personalAnchor.trim()}>
+              Ajouter à la story 1
+            </Button>
+          </div>
+        </div>
+      )}
       <div className="space-y-2" data-selection-enabled="true">
         {stories.map((story: any, i: number) => (
           <Card key={i} className="border-border">
             <CardContent className="p-3">
-              <div className="flex gap-3">
+              <div className="flex flex-col gap-3 sm:flex-row">
                 <div className="flex-1 min-w-0 space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <Badge variant="secondary" className="font-mono text-2xs">
                       Story {i + 1}
                     </Badge>
-                    {story.timing && (
-                      <Badge variant="outline" className="font-mono text-2xs">{story.timing}</Badge>
-                    )}
                     {story.role && (
                       <Badge className="bg-primary/10 text-primary border-primary/20 text-2xs font-mono">
                         {formatSlideRole(story.role)}
@@ -732,12 +840,17 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                         <span className="text-2xs text-muted-foreground">Texte :</span>
                         {([["top", "Haut"], ["middle", "Milieu"], ["bottom", "Bas"]] as const).map(([value, label]) => (
                           <Button key={value} type="button" size="sm"
-                            variant={(story.visual.text_position || "middle") === value ? "secondary" : "ghost"}
+                            variant={!Number.isFinite(story.visual.text_position_y) && (story.visual.text_position || "middle") === value ? "secondary" : "ghost"}
                             className="h-6 px-2 text-2xs"
-                            aria-pressed={(story.visual.text_position || "middle") === value}
+                            aria-pressed={!Number.isFinite(story.visual.text_position_y) && (story.visual.text_position || "middle") === value}
                             onClick={() => setTextPosition(i, value)}>{label}</Button>
                         ))}
                       </div>
+                      {story.visual.face_avoidance_applied && (
+                        <p className="text-2xs text-muted-foreground">
+                          Le fond semble montrer une personne : le texte a été placé en bas pour dégager le visage. Tu peux le déplacer sur l'aperçu.
+                        </p>
+                      )}
                       {story.visual.gabarit === "citation" ? (
                         <>
                           <div className="space-y-1">
@@ -874,7 +987,20 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                     />
                   )}
                 </div>
-                {frames[i] && <StoryFramePreview html={frames[i]!} title={`Aperçu story ${i + 1}`} />}
+                {frames[i] && story.visual && (
+                  <div className="self-center sm:self-start">
+                    <StoryVisualDirectControls
+                      storyIndex={i}
+                      html={frames[i]!}
+                      visual={story.visual}
+                      photoEnabled={story.visual.background === "photo" && Boolean(getStoryPhotoUrl(story, i))}
+                      onTextMove={(x, y) => moveStoryText(i, x, y)}
+                      onPhotoMove={(x, y) => updateVisualViewport(i, { photo_position_x: x, photo_position_y: y })}
+                      onPhotoZoom={(zoom) => updateVisualViewport(i, { photo_zoom: zoom })}
+                      onReset={(mode) => resetStoryViewport(i, mode)}
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -889,6 +1015,13 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
           if (pickerFor !== null && rows[0]) applyLibraryPhoto(pickerFor, rows[0]);
           setPickerFor(null);
         }}
+      />
+
+      <StorySequenceReaderDialog
+        open={readerOpen}
+        onOpenChange={setReaderOpen}
+        stories={stories}
+        frames={frames}
       />
 
       <RedFlagsChecker content={fullText} onFix={fixStoryExpressions} />
