@@ -43,7 +43,7 @@ const SubmitSchema = z.object({
   width: z.number().int().positive().optional(),
   height: z.number().int().positive().optional(),
   sections: z.array(SectionSchema).min(1).max(20),
-  voice_mode: z.enum(["recorded", "tts"]),
+  voice_mode: z.enum(["recorded", "tts", "silent"]),
   tts_voice: z.string().max(60).optional(),
   subtitles: z.boolean().optional(),
   subtitle_settings: z.record(z.unknown()).optional(),

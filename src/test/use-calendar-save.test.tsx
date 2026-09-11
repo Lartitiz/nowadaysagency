@@ -316,6 +316,19 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     });
   });
 
+  it("rattache le MP4 d'un reel au post calendrier existant", async () => {
+    const params = makeParams({
+      calendarPostId: "cal-reel",
+      selectedFormat: "reel",
+      reelMp4Url: "https://cdn.example/reel-durable.mp4",
+    });
+    const { result } = renderHook(() => useCalendarSave(params));
+    await act(() => result.current.handleSaveBackToCalendar());
+    expect(updates().find((o) => o.row.media_urls)?.row.media_urls).toEqual([
+      "https://cdn.example/reel-durable.mp4",
+    ]);
+  });
+
   it("met à jour le post d'origine puis renvoie vers lui dans le calendrier", async () => {
     const params = makeParams({ calendarPostId: "cal-9", calendarPostDate: "2026-08-22" });
     const { result } = renderHook(() => useCalendarSave(params));

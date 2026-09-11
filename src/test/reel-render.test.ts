@@ -127,11 +127,24 @@ describe("buildRenderPlan", () => {
       voiceAudioUrls: ["voix1.wav", null],
     });
     expect(plan.sections[0].voice_audio_url).toBe("voix1.wav");
-    // Le texte reste présent : repli voix générée côté moteur.
-    expect(plan.sections[0].voice_text).toBe("Phrase une.");
-    // Section sans enregistrement : pas d'URL audio, le texte fera le travail.
+    // Le texte n'est plus envoyé comme repli TTS : une voix manquante ne doit
+    // jamais fabriquer une voix synthétique sans accord explicite.
+    expect(plan.sections[0].voice_text).toBeUndefined();
+    // Section sans enregistrement : pas d'URL audio, ni de repli TTS.
     expect(plan.sections[1].voice_audio_url).toBeUndefined();
-    expect(plan.sections[1].voice_text).toBe("Phrase deux.");
+    expect(plan.sections[1].voice_text).toBeUndefined();
+  });
+
+  it("mode silent : transmet le texte à incruster, sans piste voix", () => {
+    const plan = buildRenderPlan(
+      [{ timing: "0-4 sec", texte_parle: "Texte long", texte_overlay: "Le message clé" }],
+      ["a.mp4"],
+      { voice_mode: "silent" },
+    );
+    expect(plan.voice_mode).toBe("silent");
+    expect(plan.sections[0].overlay_text).toBe("Le message clé");
+    expect(plan.sections[0].voice_audio_url).toBeUndefined();
+    expect(plan.sections[0].voice_text).toBeUndefined();
   });
 
   it("accepte un clip objet {url, seek} : la fenêtre choisie est transmise", () => {

@@ -9,14 +9,14 @@
  * Choix validés au test du 22/07 :
  *  - clips en `muted` + `resize: cover` (le son du clip stock est coupé, le clip
  *    remplit le 9:16) ;
- *  - la voix est posée par SCÈNE (voix enregistrée = élément audio ; sinon TTS) ;
+ *  - la voix est posée par SCÈNE (voix enregistrée ; TTS historique uniquement) ;
  *  - les sous-titres sont un élément AU NIVEAU FILM (JSON2Video ne les accepte
  *    pas par scène) et se génèrent depuis la piste voix → ils reprennent
  *    exactement les mots dits.
  *
  * Fourche à deux modes ÉGAUX, décidée le 01/08 (aucun n'est le défaut côté UI —
  * beaucoup de clientes ne se montreront jamais) :
- *  - "cache" : comportement ci-dessus, inchangé (clip muet + voix posée).
+ *  - "cache" : clip muet + voix off de la créatrice, ou texte à l'écran sans voix.
  *  - "filme" : la créatrice parle à la caméra. Le clip GARDE son son original
  *    (`muted: false`) et aucune voix séparée n'est posée dessus — les
  *    sous-titres, qui se génèrent depuis la piste audio finale du film,
@@ -34,14 +34,16 @@ export interface ReelSectionInput {
   voice_audio_url?: string;
   /** Texte parlé — utilisé pour la voix de synthèse (mode "tts"). Ignoré en mode "filme". */
   voice_text?: string;
+  /** Texte affiché à l'écran dans le mode silencieux. */
+  overlay_text?: string;
 }
 
 export interface ReelRenderInput {
   width?: number;
   height?: number;
   sections: ReelSectionInput[];
-  /** "recorded" = voix de la créatrice ; "tts" = voix de synthèse (test). Ignoré en mode "filme". */
-  voice_mode: "recorded" | "tts";
+  /** "recorded" = voix de la créatrice ; "silent" = texte à l'écran, sans voix. */
+  voice_mode: "recorded" | "tts" | "silent";
   /** Voix TTS (mode "tts"). Défaut : voix française Denise. */
   tts_voice?: string;
   /** Incruster les sous-titres (défaut true). */
@@ -102,9 +104,29 @@ export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown>
       if (input.voice_mode === "recorded" && s.voice_audio_url) {
         // Voix de la créatrice : posée telle quelle sur la scène.
         elements.push({ type: "audio", src: s.voice_audio_url });
-      } else if (s.voice_text) {
-        // Voix de synthèse (test / secours).
+      } else if (input.voice_mode === "tts" && s.voice_text) {
+        // Compatibilité avec les anciens plans TTS ; l'interface ne le propose plus.
         elements.push({ type: "voice", voice: ttsVoice, text: s.voice_text });
+      } else if (input.voice_mode === "silent" && s.overlay_text) {
+        // Le récit reste lisible, mais aucune piste audio n'est fabriquée.
+        elements.push({
+          type: "text",
+          text: s.overlay_text,
+          style: "001",
+          duration: -2,
+          x: 70,
+          y: Math.round(height * 0.64),
+          width: width - 140,
+          height: Math.round(height * 0.22),
+          settings: {
+            "font-family": "Montserrat",
+            "font-size": "58px",
+            "font-weight": "700",
+            color: "#FFFFFF",
+            "background-color": "#00000099",
+            "text-align": "center",
+          },
+        });
       }
     }
 
@@ -118,7 +140,9 @@ export function buildReelRecipe(input: ReelRenderInput): Record<string, unknown>
     scenes,
   };
 
-  if (input.subtitles !== false) {
+  // Les sous-titres automatiques se synchronisent sur une piste audio. En
+  // mode silencieux, le texte de chaque scène est déjà incrusté ci-dessus.
+  if (input.subtitles !== false && input.voice_mode !== "silent") {
     const defaultPosition = {
       position: "custom",
       x: Math.round(width / 2),

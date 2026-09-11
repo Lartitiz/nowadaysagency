@@ -260,6 +260,33 @@ describe("ReelResult — montage vidéo : monté seulement à son étape", () =>
     expect(suggestStockKeywords).toHaveBeenCalledTimes(1);
     expect(screen.queryByText("Je ne me montre pas")).toBeNull();
   });
+
+  it("propose un reel sans voix avec texte à l'écran, sans voix générée", async () => {
+    render(<ReelResult result={baseResult} />);
+    fireEvent.click(screen.getByText("Monter ma vidéo"));
+    fireEvent.click(screen.getByText("Je ne me montre pas"));
+    expect(await screen.findByText("Sans voix")).toBeTruthy();
+    fireEvent.click(screen.getByText("Sans voix"));
+    expect(screen.getByText(/sans piste voix : le texte reste visible à l'écran/)).toBeTruthy();
+    expect(screen.queryByText("Voix générée")).toBeNull();
+  });
+});
+
+describe("ReelResult — correction des drapeaux rouges", () => {
+  it("propage la correction aux sections structurées, pas seulement au toast", () => {
+    const onResultChange = vi.fn();
+    const result = {
+      ...baseResult,
+      script: [{ ...baseResult.script[0], texte_parle: "Dans un monde où la céramique coûte cher." }],
+      sections: [{ ...baseResult.sections[0], texte_parle: "Dans un monde où la céramique coûte cher." }],
+    };
+    render(<ReelResult result={result} onResultChange={onResultChange} />);
+    fireEvent.click(screen.getByText("Corriger automatiquement"));
+    expect(onResultChange).toHaveBeenCalledTimes(1);
+    const corrected = onResultChange.mock.calls[0][0];
+    expect(corrected.sections[0].texte_parle).not.toContain("Dans un monde où");
+    expect(corrected.script[0].texte_parle).not.toContain("Dans un monde où");
+  });
 });
 
 // ── Les correctifs de la passe du 03/08 ─────────────────────────────────

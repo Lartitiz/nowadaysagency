@@ -259,6 +259,8 @@ interface Props {
    * (`media_urls`) pour que publication et programmation l'emportent.
    */
   onReelMp4Change?: (url: string | null) => void;
+  /** Correction structurée d'un Reel (script, montage et sauvegarde). */
+  onReelResultChange?: (result: any) => void;
   publishOrScheduleLabel?: string;
   onGenerateVisuals?: () => void;
   visualLoading?: boolean;
@@ -323,6 +325,7 @@ export default function CreerStepResult({
   onPublishOrSchedule,
   publishOrScheduleLabel,
   onReelMp4Change,
+  onReelResultChange,
   onGenerateVisuals,
   visualLoading,
   visualsAutoError,
@@ -534,7 +537,7 @@ export default function CreerStepResult({
       case "carousel":
         return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} />;
       case "reel":
-        return <ReelResult result={result} onStepChange={setReelStep} onMp4Change={onReelMp4Change} />;
+        return <ReelResult result={result} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} />;
       case "story":
         return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
       case "post":

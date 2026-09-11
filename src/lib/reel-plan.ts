@@ -41,13 +41,15 @@ export interface RenderSectionInput {
   duration: number;
   voice_audio_url?: string;
   voice_text?: string;
+  /** Texte affiché dans un reel sans voix (pas une voix de synthèse). */
+  overlay_text?: string;
 }
 
 export interface RenderPlan {
   width?: number;
   height?: number;
   sections: RenderSectionInput[];
-  voice_mode: "recorded" | "tts";
+  voice_mode: "recorded" | "tts" | "silent";
   tts_voice?: string;
   subtitles?: boolean;
   subtitle_settings?: Record<string, unknown>;
@@ -89,9 +91,9 @@ export function videoSectionDuration(clipDuration: number): number {
  * pour chacune. Ignore les sections sans clip (rien à montrer).
  *
  * Voix : en mode "recorded", chaque section reçoit l'enregistrement de la
- * créatrice si disponible (`voiceAudioUrls`). Le texte parlé est TOUJOURS
- * embarqué : côté moteur, il sert de repli voix générée pour les sections
- * sans enregistrement (une phrase ratée ne rend pas le reel muet).
+ * créatrice si disponible (`voiceAudioUrls`). Le texte parlé est embarqué
+ * seulement pour le mode historique TTS ; le mode « ma voix » ne bascule
+ * jamais en voix synthétique à l'insu de la créatrice.
  */
 /** Clip choisi pour une section : URL + seconde d'entrée dans le clip source. */
 export type ClipChoice = string | { url: string; seek?: number } | null | undefined;
@@ -143,7 +145,7 @@ export function countSectionsWithoutVoice(
 export interface RenderPlanOptions {
   /** "filme" (prise face cam, son gardé) / "cache" (défaut, comportement existant). */
   mode?: "filme" | "cache";
-  voice_mode: "recorded" | "tts";
+  voice_mode: "recorded" | "tts" | "silent";
   voiceAudioUrls?: Array<string | null | undefined>;
   /** Durée RÉELLE de chaque prise, en secondes (même index que les sections). */
   voiceDurations?: Array<number | null | undefined>;
@@ -152,7 +154,7 @@ export interface RenderPlanOptions {
 }
 
 export function buildRenderPlan(
-  sections: Array<{ timing?: unknown; texte_parle?: unknown }>,
+  sections: Array<{ timing?: unknown; texte_parle?: unknown; texte_overlay?: unknown }>,
   clipBySection: ClipChoice[],
   opts: RenderPlanOptions = { voice_mode: "tts" },
 ): RenderPlan {
@@ -187,7 +189,10 @@ export function buildRenderPlan(
       seek,
       duration,
       ...(voiceUrl ? { voice_audio_url: voiceUrl } : {}),
-      ...(typeof s.texte_parle === "string" ? { voice_text: s.texte_parle } : {}),
+      ...(opts.voice_mode === "tts" && typeof s.texte_parle === "string" ? { voice_text: s.texte_parle } : {}),
+      ...(opts.voice_mode === "silent" && typeof (s.texte_overlay || s.texte_parle) === "string"
+        ? { overlay_text: String(s.texte_overlay || s.texte_parle) }
+        : {}),
     });
   });
   return { sections: built, voice_mode: opts.voice_mode, mode };

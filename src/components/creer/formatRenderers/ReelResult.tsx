@@ -29,7 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Copy, Loader2 } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
-import RedFlagsChecker from "@/components/RedFlagsChecker";
+import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import ReelMontage from "@/components/creer/ReelMontage";
 import { cn } from "@/lib/utils";
 import { useEffect, useRef, useState } from "react";
@@ -56,9 +56,20 @@ interface Props {
    * que le contenu joindra à `media_urls` et que la publication utilisera.
    */
   onMp4Change?: (url: string | null) => void;
+  /** Persiste les corrections locales dans la source de vérité du résultat. */
+  onResultChange?: (result: any) => void;
 }
 
-export default function ReelResult({ result, onStepChange, onMp4Change }: Props) {
+function correctedSection(section: any) {
+  if (!section || typeof section !== "object") return section;
+  return {
+    ...section,
+    ...(typeof section.texte_parle === "string" ? { texte_parle: fixRedFlags(section.texte_parle) } : {}),
+    ...(typeof section.texte_overlay === "string" ? { texte_overlay: fixRedFlags(section.texte_overlay) } : {}),
+  };
+}
+
+export default function ReelResult({ result, onStepChange, onMp4Change, onResultChange }: Props) {
   // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
   // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
   // On affichait la clé — même bug que #688 ailleurs dans l'app.
@@ -96,6 +107,31 @@ export default function ReelResult({ result, onStepChange, onMp4Change }: Props)
   // Vit ICI, pas dans ScriptStep : l'étape est démontée quand on la quitte,
   // les corrections anti red-flags doivent lui survivre.
   const [checkedText, setCheckedText] = useState(fullText);
+
+  /**
+   * RedFlagsChecker travaille sur une concaténation lisible. Pour qu'une
+   * correction soit réelle, on la réapplique aux champs structurés qui
+   * alimentent le script, le montage et la sauvegarde, puis on remonte un
+   * nouvel objet au parent (déclenche aussi son autosauvegarde).
+   */
+  const handleRedFlagsFix = () => {
+    const nextSections = sections.map(correctedSection);
+    const nextResult = {
+      ...result,
+      ...(Array.isArray(result?.sections) ? { sections: nextSections } : {}),
+      ...(Array.isArray(result?.script)
+        ? { script: result.script.map(correctedSection) }
+        : Array.isArray(result?.script?.sections)
+          ? { script: { ...result.script, sections: nextSections } }
+          : {}),
+    };
+    const nextFullText = nextSections
+      .map((s: any) => [s.texte_parle, s.texte_overlay].filter(Boolean).join("\n"))
+      .filter(Boolean)
+      .join("\n\n");
+    setCheckedText(nextFullText);
+    onResultChange?.(nextResult);
+  };
 
   // Le montage ne sait travailler que sur les sections qui ont un texte parlé
   // (`spoken` dans ReelMontage). Un script sans aucun texte parlé ouvrirait une
@@ -223,7 +259,7 @@ export default function ReelResult({ result, onStepChange, onMp4Change }: Props)
           lectureTest={lectureTest}
           sections={sections}
           checkedText={checkedText}
-          onCheckedTextChange={setCheckedText}
+          onCheckedTextChange={handleRedFlagsFix}
         />
       )}
 

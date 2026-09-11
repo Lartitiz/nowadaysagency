@@ -9,8 +9,8 @@
  * Sources d'un clip : les VIDÉOS DE LA CRÉATRICE (dépôt ou bibliothèque
  * `reel-videos`, avec fenêtre de lecture réglable — la coupe est faite par le
  * moteur via `seek`, on ne découpe rien côté client) et la banque libre en
- * secours. La voix : enregistrée au téléprompteur (ReelVoiceRecorder) ou
- * générée, avec repli phrase par phrase.
+ * secours. La voix est celle de la créatrice, enregistrée au téléprompteur
+ * (ReelVoiceRecorder), ou le reel reste volontairement sans voix.
  */
 
 import { useEffect, useRef, useState } from "react";
@@ -18,7 +18,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Loader2, Search, Film, Download, Mic, Wand2, Upload, Video, EyeOff } from "lucide-react";
+import { Loader2, Search, Film, Download, Mic, Upload, Video, EyeOff, VolumeX } from "lucide-react";
 import { toast } from "sonner";
 import ReelVoiceRecorder from "@/components/creer/ReelVoiceRecorder";
 import {
@@ -48,6 +48,7 @@ import {
 interface Section {
   timing?: string;
   texte_parle?: string;
+  texte_overlay?: string;
   format_visuel?: string;
 }
 
@@ -142,10 +143,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
     onPhaseChange?.(phase);
   }, [onPhaseChange, phase]);
 
-  // Voix : "recorded" = la créatrice lit le script (téléprompteur) ;
-  // "tts" = voix générée. Les phrases non enregistrées retombent sur la
-  // voix générée (repli géré par buildRenderPlan + le moteur).
-  const [voiceMode, setVoiceMode] = useState<"recorded" | "tts">("recorded");
+  // Voix : « recorded » = voix off de la créatrice ; « silent » = montage
+  // muet avec texte à l'écran. La voix synthétique n'est pas proposée.
+  const [voiceMode, setVoiceMode] = useState<"recorded" | "silent">("recorded");
   // Prises de voix : URL publique ET durée réelle. La durée cale la scène.
   const [voiceClips, setVoiceClips] = useState<(VoiceClip | null)[]>(() => spoken.map(() => null));
   const voiceUrls = voiceClips.map((c) => c?.url ?? null);
@@ -257,17 +257,16 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
         );
         if (!ok) return;
       }
-      // Garde « voix mixte » : en mode "Ma voix", les phrases non enregistrées
-      // partent en voix générée (repli moteur). Sans confirmation, le reel sort
-      // avec sa voix UNE phrase sur deux et ça ressemble à un bug.
+      // Aucun repli en voix générée : une prise manquante doit être visible et
+      // résolue par la créatrice, ou elle peut choisir « Sans voix ».
       const missing = countSectionsWithoutVoice(chosen, voiceUrls);
       if (missing > 0) {
-        const ok = window.confirm(
+        toast.error(
           missing === 1
-            ? "1 phrase n'a pas ta voix : elle aura la voix générée. Assembler quand même ?"
-            : `${missing} phrases n'ont pas ta voix : elles auront la voix générée. Assembler quand même ?`,
+            ? "Enregistre la voix de cette phrase, ou choisis « Sans voix » pour monter un reel muet."
+            : `Enregistre les ${missing} phrases sans voix, ou choisis « Sans voix » pour monter un reel muet.`,
         );
-        if (!ok) return;
+        return;
       }
     }
     setPhase("rendering");
@@ -366,7 +365,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
             <p className="text-2xs text-muted-foreground">
               {montageMode === "filme"
                 ? "Une prise face cam par phrase : ta voix est déjà dedans, les sous-titres suivent."
-                : "Un clip libre de droit par phrase, ta voix par-dessus, les sous-titres suivent."}
+                : voiceMode === "silent"
+                  ? "Un clip par phrase, sans piste voix : le texte reste visible à l'écran."
+                  : "Un clip par phrase, ta voix off par-dessus, les sous-titres suivent."}
             </p>
             <button
               type="button"
@@ -379,7 +380,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
 
           {montageMode === "cache" && (
             <>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 <button
                   type="button"
                   onClick={() => setVoiceMode("recorded")}
@@ -388,21 +389,21 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
                   }`}
                 >
                   <span className="flex items-center gap-1.5 text-xs font-medium">
-                    <Mic className="h-3.5 w-3.5" /> Ma voix
+                    <Mic className="h-3.5 w-3.5" /> Ma voix off
                   </span>
                   <span className="block text-2xs text-muted-foreground">J'enregistre en lisant le script</span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setVoiceMode("tts")}
+                  onClick={() => setVoiceMode("silent")}
                   className={`flex-1 rounded-md border px-3 py-2 text-left ${
-                    voiceMode === "tts" ? "border-primary bg-primary/5" : "border-border"
+                    voiceMode === "silent" ? "border-primary bg-primary/5" : "border-border"
                   }`}
                 >
                   <span className="flex items-center gap-1.5 text-xs font-medium">
-                    <Wand2 className="h-3.5 w-3.5" /> Voix générée
+                    <VolumeX className="h-3.5 w-3.5" /> Sans voix
                   </span>
-                  <span className="block text-2xs text-muted-foreground">Lecture automatique du script</span>
+                  <span className="block text-2xs text-muted-foreground">Texte à l'écran ; ajoute ta musique dans Instagram si tu veux</span>
                 </button>
               </div>
 
@@ -412,8 +413,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
                   de laisser croire à un micro cassé ; le mode "Je me filme" existe
                   pour ce cas. */}
               <p className="text-2xs text-muted-foreground">
-                Le son de tes vidéos n'est pas conservé dans ce mode : c'est la voix choisie ici qui
-                est posée par-dessus. Pour une prise face cam où tu parles, choisis « Je me filme ».
+                Le son de tes vidéos n'est pas conservé dans ce mode. Choisis « Ma voix off » pour
+                raconter le reel, ou « Sans voix » pour un montage visuel avec texte à l'écran. Pour une
+                prise face cam où tu parles, choisis « Je me filme ».
               </p>
 
               {voiceMode === "recorded" && (

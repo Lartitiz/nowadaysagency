@@ -284,9 +284,22 @@ export function useCalendarSave({
           const { error: mediaError } = await supabase.from("calendar_posts").update({
             story_sequence_detail: { ...currentDetail, ...storageUpdates },
             ...(selectedFormat === "post" && storageUpdates.photo_urls?.length
-              ? { media_urls: storageUpdates.photo_urls } : {}),
+              ? { media_urls: storageUpdates.photo_urls }
+              : selectedFormat === "carousel" && storageUpdates.visual_urls?.length
+                ? { media_urls: storageUpdates.visual_urls }
+                : {}),
           }).eq("id", calendarPostId);
           if (mediaError) throw mediaError;
+        }
+
+        // Même règle que pour un nouveau post : un MP4 durable remplace les
+        // médias de repli et devient celui que la programmation publiera.
+        if (selectedFormat === "reel" && reelMp4Url) {
+          const { error: reelError } = await supabase
+            .from("calendar_posts")
+            .update({ media_urls: [reelMp4Url] })
+            .eq("id", calendarPostId);
+          if (reelError) throw reelError;
         }
       }
 

@@ -2756,6 +2756,7 @@ export default function CreerUnifie() {
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
                 onReelMp4Change={setReelMp4Url}
+                onReelResultChange={(nextReel) => setResult((prev) => prev ? { ...prev, raw: nextReel } : prev)}
                 onPublishOrSchedule={effectiveHandleAddToCalendar}
                 publishOrScheduleLabel={fromCalendar ? "Sauvegarder dans le calendrier" : undefined}
                 onGenerateVisuals={selectedFormat === "carousel" ? handleGenerateVisuals : undefined}

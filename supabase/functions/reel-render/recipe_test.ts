@@ -45,6 +45,18 @@ Deno.test("mode tts : voix de synthèse depuis le texte", () => {
   assertEquals(voix.text, "Bonjour");
 });
 
+Deno.test("mode silent : texte à l'écran, sans voix ni sous-titres audio", () => {
+  const r = buildReelRecipe({
+    voice_mode: "silent",
+    sections: [{ clip_url: "a.mp4", duration: 4, overlay_text: "Le geste compte." }],
+  }) as any;
+  const texte = r.scenes[0].elements[1];
+  assertEquals(texte.type, "text");
+  assertEquals(texte.text, "Le geste compte.");
+  assertEquals(texte.duration, -2);
+  assertEquals(r.elements, undefined);
+});
+
 Deno.test("sous-titres au niveau film par défaut, en français", () => {
   const r = buildReelRecipe(base) as any;
   assertEquals(Array.isArray(r.elements), true);
@@ -78,14 +90,12 @@ Deno.test("réglages de sous-titres personnalisés fusionnés au défaut", () =>
   assertEquals(r.elements[0].settings.style, "boxed-word");
 });
 
-Deno.test("mode recorded sans audio mais avec texte : bascule sur la voix TTS", () => {
+Deno.test("mode recorded sans audio : ne bascule jamais sur une voix TTS", () => {
   const r = buildReelRecipe({
     voice_mode: "recorded",
     sections: [{ clip_url: "a.mp4", duration: 4, voice_text: "Secours" }],
   }) as any;
-  // pas d'audio fourni → on ne laisse pas la scène muette, on retombe sur le texte
-  assertEquals(r.scenes[0].elements[1].type, "voice");
-  assertEquals(r.scenes[0].elements[1].text, "Secours");
+  assertEquals(r.scenes[0].elements.length, 1);
 });
 
 Deno.test("mode filme : le clip garde son son (muted false)", () => {

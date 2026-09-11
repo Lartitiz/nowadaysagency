@@ -386,7 +386,8 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
   if (options.includeOffers && ctx.offers?.length > 0) {
     const offerLines: string[] = [];
     for (const offer of ctx.offers) {
-      offerLines.push(`\n· ${offer.name} (${offer.offer_type === "paid" ? "💎 Payante" : offer.offer_type === "free" ? "🎁 Gratuite" : "🎤 Service"}) — ${offer.price_text || "Gratuit"}`);
+      const price = typeof offer.price_text === "string" ? offer.price_text.trim() : "";
+      offerLines.push(`\n· ${offer.name} (${offer.offer_type === "paid" ? "💎 Payante" : offer.offer_type === "free" ? "🎁 Gratuite" : "🎤 Service"})${price ? ` — ${price}` : ""}`);
       if (offer.promise) offerLines.push(`  Promesse : ${offer.promise}`);
       if (offer.sales_line) offerLines.push(`  Phrase de vente : ${offer.sales_line}`);
       if (offer.target_ideal) offerLines.push(`  Pour qui : ${offer.target_ideal}`);
