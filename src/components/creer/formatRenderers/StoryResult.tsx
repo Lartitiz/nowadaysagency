@@ -2,6 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Camera, Download, FileDown, ImageIcon, Loader2, Palette } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
@@ -63,6 +64,8 @@ const getTextField = (story: any): "text" | "texte" | "content" => {
   return "content";
 };
 
+const getStoryText = (story: any): string => String(story[getTextField(story)] ?? "");
+
 // Les nouvelles stories photo/fond/interaction affichent le texte entier.
 // Garder ces deux représentations ensemble quand elles étaient identiques.
 // Les anciennes pastilles personnalisées, listes et attributions restent
@@ -72,6 +75,13 @@ const hasMirroredBody = (story: any): boolean => {
   return !story.face_cam && !!visual &&
     [undefined, null, "", "photo_pills", "fond_pills", "interaction"].includes(visual.gabarit) &&
     typeof visual.body_pill === "string" && visual.body_pill === story[getTextField(story)];
+};
+
+const replaceCitationInNarration = (narration: string, oldQuote: string, newQuote: string): string => {
+  if (!narration || !oldQuote) return narration;
+  const index = narration.toLocaleLowerCase("fr").indexOf(oldQuote.toLocaleLowerCase("fr"));
+  if (index < 0) return narration;
+  return narration.slice(0, index) + newQuote + narration.slice(index + oldQuote.length);
 };
 
 
@@ -281,7 +291,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   ]);
 
   const fullText = stories
-    .map((s: any) => s.text || s.texte || s.content || "")
+    .map(getStoryText)
     .filter(Boolean)
     .join("\n\n");
 
@@ -323,11 +333,45 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     setStories(prev => {
       const updated = [...prev];
       const story = updated[index];
+      const textField = getTextField(story);
+      const narration = String(story[textField] || "");
+      const syncedNarration = field === "quote"
+        ? replaceCitationInNarration(narration, String(story.visual?.quote || ""), newValue)
+        : narration;
       updated[index] = {
         ...story,
+        ...(field === "quote" && syncedNarration !== narration ? { [textField]: syncedNarration } : {}),
         ...(field === "body_pill" && hasMirroredBody(story) ? { [getTextField(story)]: newValue } : {}),
         visual: { ...story.visual, [field]: newValue, ...(field === "body_pill" ? { body_pill_edited: true } : {}) },
       };
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+  }, [onStoriesUpdate]);
+
+  const updateVisualListPill = useCallback((storyIndex: number, itemIndex: number, newValue: string) => {
+    setStories(prev => {
+      const updated = [...prev];
+      const story = updated[storyIndex];
+      const list = Array.isArray(story.visual?.list_pills) ? [...story.visual.list_pills] : [];
+      list[itemIndex] = newValue;
+      updated[storyIndex] = { ...story, visual: { ...story.visual, list_pills: list } };
+      onStoriesUpdate?.(updated);
+      return updated;
+    });
+  }, [onStoriesUpdate]);
+
+  const updateStickerText = useCallback((storyIndex: number, optionIndex: number | null, newValue: string) => {
+    setStories(prev => {
+      const updated = [...prev];
+      const story = updated[storyIndex];
+      if (optionIndex === null) {
+        updated[storyIndex] = { ...story, sticker: { ...story.sticker, label: newValue } };
+      } else {
+        const options = Array.isArray(story.sticker?.options) ? [...story.sticker.options] : [];
+        options[optionIndex] = newValue;
+        updated[storyIndex] = { ...story, sticker: { ...story.sticker, options } };
+      }
       onStoriesUpdate?.(updated);
       return updated;
     });
@@ -362,7 +406,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     setStories((prev) => {
       const updated = [...prev];
       const story = updated[index];
-      const text = String(story.text || story.texte || story.content || "").trim();
+      const text = getStoryText(story).trim();
       if (story.face_cam) {
         // Le vrai texte de la story dans la pastille (pas un titre + un résumé) :
         // c'est ce qu'on lit. 350 caractères = plafond du brief.
@@ -570,34 +614,59 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                       )}
                     </Button>
                   </div>
-                  {(story.text || story.texte || story.content) && (
-                    <div
-                      contentEditable
-                      suppressContentEditableWarning
-                      onBlur={(e) => {
-                        const newText = e.currentTarget.textContent || "";
-                        const oldText = story.text || story.texte || story.content || "";
-                        if (newText !== oldText) {
-                          updateStoryText(i, newText);
-                        }
-                      }}
-                      className="text-sm text-foreground leading-relaxed whitespace-pre-wrap rounded px-1 -mx-1 transition-colors hover:bg-muted/50 focus:bg-muted/50 focus:outline-none focus:ring-1 focus:ring-primary/30 cursor-text"
-                    >
-                      {story.text || story.texte || story.content}
-                    </div>
-                  )}
+                  <div className="space-y-1 pt-1">
+                    <label htmlFor={`story-${i}-full-text`} className="text-2xs font-medium text-muted-foreground">
+                      Texte complet de la story
+                    </label>
+                    <Textarea
+                      id={`story-${i}-full-text`}
+                      aria-label={`Texte complet de la story ${i + 1}`}
+                      value={getStoryText(story)}
+                      onChange={(e) => updateStoryText(i, e.target.value)}
+                      className="min-h-[84px] resize-y text-sm leading-relaxed"
+                      placeholder="Écris ici tout ce que tu veux dire dans cette story"
+                    />
+                  </div>
                   {story.sticker && (
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <Badge variant="secondary" className="text-2xs">
-                        {story.sticker.type || "Sticker"}
-                      </Badge>
+                    <div className="space-y-1.5 rounded-lg border border-border/60 bg-muted/20 p-2">
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="secondary" className="text-2xs">
+                          {story.sticker.type || "Sticker"}
+                        </Badge>
+                        <span className="text-2xs text-muted-foreground">à poser dans Instagram</span>
+                      </div>
                       {Array.isArray(story.sticker.options) && story.sticker.options.length > 0 ? (
-                        <span className="text-xs text-muted-foreground">
-                          {story.sticker.options.join(" · ")} — à poser dans Instagram
-                        </span>
-                      ) : story.sticker.label ? (
-                        <span className="text-xs text-muted-foreground">{story.sticker.label}</span>
-                      ) : null}
+                        <div className="grid gap-1.5 sm:grid-cols-2">
+                          {story.sticker.options.map((option: string, optionIndex: number) => (
+                            <div key={optionIndex} className="space-y-1">
+                              <label htmlFor={`story-${i}-sticker-option-${optionIndex}`} className="text-2xs text-muted-foreground">
+                                Option {optionIndex + 1}
+                              </label>
+                              <Input
+                                id={`story-${i}-sticker-option-${optionIndex}`}
+                                aria-label={`Option ${optionIndex + 1} du sticker de la story ${i + 1}`}
+                                value={option}
+                                onChange={(e) => updateStickerText(i, optionIndex, e.target.value)}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <label htmlFor={`story-${i}-sticker-label`} className="text-2xs text-muted-foreground">
+                            Texte du sticker
+                          </label>
+                          <Input
+                            id={`story-${i}-sticker-label`}
+                            aria-label={`Texte du sticker de la story ${i + 1}`}
+                            value={story.sticker.label || ""}
+                            onChange={(e) => updateStickerText(i, null, e.target.value)}
+                            className="h-7 text-xs"
+                            placeholder="Texte du sticker"
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   {frames[i] && story.visual && (
@@ -637,40 +706,89 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
                       </div>
                       {story.visual.gabarit === "citation" ? (
                         <>
-                          <Input
-                            value={story.visual.quote ?? ""}
-                            onChange={(e) => updateVisualPill(i, "quote", e.target.value)}
-                            className="h-7 text-xs"
-                            aria-label="Citation"
-                            placeholder="La citation (verbatim)"
-                          />
-                          <Input
-                            value={story.visual.body_pill ?? ""}
-                            onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
-                            className="h-7 text-xs"
-                            aria-label="Qui l'a dit"
-                            placeholder="Qui l'a dit (optionnel)"
-                          />
+                          <div className="space-y-1">
+                            <label htmlFor={`story-${i}-quote`} className="text-2xs text-muted-foreground">
+                              Citation mise en avant
+                            </label>
+                            <Input
+                              id={`story-${i}-quote`}
+                              value={story.visual.quote ?? ""}
+                              onChange={(e) => updateVisualPill(i, "quote", e.target.value)}
+                              className="h-7 text-xs"
+                              aria-label="Citation mise en avant"
+                              placeholder="La citation exacte"
+                            />
+                          </div>
+                          <div className="space-y-1">
+                            <label htmlFor={`story-${i}-citation-footer`} className="text-2xs text-muted-foreground">
+                              Petit texte sous la citation (optionnel)
+                            </label>
+                            <Input
+                              id={`story-${i}-citation-footer`}
+                              value={story.visual.body_pill ?? ""}
+                              onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
+                              className="h-7 text-xs"
+                              aria-label="Petit texte sous la citation"
+                              placeholder="Ex. Avis laissé par Camille"
+                            />
+                          </div>
+                        </>
+                      ) : story.visual.gabarit === "liste" ? (
+                        <>
+                          {typeof story.visual.title_pill === "string" && (
+                            <div className="space-y-1">
+                              <label htmlFor={`story-${i}-list-title`} className="text-2xs text-muted-foreground">Titre</label>
+                              <Input
+                                id={`story-${i}-list-title`}
+                                value={story.visual.title_pill}
+                                onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
+                                className="h-7 text-xs"
+                                aria-label="Titre de la liste"
+                              />
+                            </div>
+                          )}
+                          {Array.isArray(story.visual.list_pills) && story.visual.list_pills.map((item: string, itemIndex: number) => (
+                            <div key={itemIndex} className="space-y-1">
+                              <label htmlFor={`story-${i}-list-item-${itemIndex}`} className="text-2xs text-muted-foreground">
+                                Élément {itemIndex + 1}
+                              </label>
+                              <Input
+                                id={`story-${i}-list-item-${itemIndex}`}
+                                value={item}
+                                onChange={(e) => updateVisualListPill(i, itemIndex, e.target.value)}
+                                className="h-7 text-xs"
+                                aria-label={`Élément ${itemIndex + 1} de la liste`}
+                              />
+                            </div>
+                          ))}
                         </>
                       ) : (
                         <>
                           {typeof story.visual.title_pill === "string" && (
-                            <Input
-                              value={story.visual.title_pill}
-                              onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
-                              className="h-7 text-xs"
-                              aria-label="Pastille titre"
-                              placeholder="Pastille titre"
-                            />
+                            <div className="space-y-1">
+                              <label htmlFor={`story-${i}-title-pill`} className="text-2xs text-muted-foreground">Titre</label>
+                              <Input
+                                id={`story-${i}-title-pill`}
+                                value={story.visual.title_pill}
+                                onChange={(e) => updateVisualPill(i, "title_pill", e.target.value)}
+                                className="h-7 text-xs"
+                                aria-label="Titre affiché"
+                                placeholder="Titre"
+                              />
+                            </div>
                           )}
                           {typeof story.visual.body_pill === "string" && (
-                            <Input
-                              value={story.visual.body_pill}
-                              onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
-                              className="h-7 text-xs"
-                              aria-label="Pastille texte"
-                              placeholder="Pastille texte"
-                            />
+                            <div className="space-y-1">
+                              <label htmlFor={`story-${i}-body-pill`} className="text-2xs text-muted-foreground">Texte affiché</label>
+                              <Textarea
+                                id={`story-${i}-body-pill`}
+                                value={story.visual.body_pill}
+                                onChange={(e) => updateVisualPill(i, "body_pill", e.target.value)}
+                                className="min-h-[64px] resize-y text-xs"
+                                aria-label="Texte affiché"
+                                placeholder="Texte affiché sur la story"
+                              />
+                            </div>
                           )}
                         </>
                       )}
