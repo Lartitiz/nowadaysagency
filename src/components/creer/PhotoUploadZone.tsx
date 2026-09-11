@@ -92,20 +92,24 @@ function resizeAndEncode(file: File, maxWidth = 1600, quality = 0.8): Promise<{ 
     img.onload = () => {
       let w = img.width;
       let h = img.height;
-      if (w > maxWidth) {
-        h = Math.round(h * (maxWidth / w));
-        w = maxWidth;
+      if (w > maxWidth || h > maxWidth) {
+        const scale = Math.min(maxWidth / w, maxWidth / h);
+        h = Math.round(h * scale);
+        w = Math.round(w * scale);
       }
       const canvas = document.createElement("canvas");
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext("2d");
-      if (!ctx) { reject(new Error("canvas")); return; }
+      if (!ctx) { URL.revokeObjectURL(objectUrl); reject(new Error("canvas")); return; }
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
       const base64 = canvas.toDataURL("image/jpeg", quality);
-      resolve({ base64, preview: objectUrl });
+      URL.revokeObjectURL(objectUrl);
+      resolve({ base64, preview: base64 });
     };
-    img.onerror = () => reject(new Error("load"));
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("load")); };
     img.src = objectUrl;
   });
 }
@@ -616,7 +620,7 @@ export function PhotoUploadZone({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); removePhoto(idx); }}
-                    className="absolute top-1 right-1 h-5 w-5 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity"
+                    className="absolute top-1 right-1 h-9 w-9 rounded-full bg-destructive/80 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity"
                     aria-label={`Supprimer ${p.name}`}
                   >
                     <X className="h-3 w-3" />
@@ -624,7 +628,7 @@ export function PhotoUploadZone({
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); setEditIdx(idx); }}
-                    className="absolute top-1 left-1 h-5 w-5 rounded-full bg-primary/85 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity"
+                    className="absolute top-1 left-1 h-9 w-9 rounded-full bg-primary/85 text-primary-foreground flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 coarse:opacity-100 transition-opacity"
                     aria-label={`Changer le décor de ${p.name}`}
                     title="Changer le décor avec l'IA"
                   >
@@ -643,6 +647,15 @@ export function PhotoUploadZone({
                   )}
                   <GripVertical className="absolute bottom-1 left-1 h-3.5 w-3.5 text-white/70 opacity-0 group-hover:opacity-100 coarse:opacity-100 transition-opacity drop-shadow" />
                 </div>
+                {photos.length > 1 && <div className="flex justify-between gap-1">
+                  <button type="button" className="min-h-9 text-xs px-2 rounded border disabled:opacity-40" disabled={idx === 0} aria-label={`Avancer ${p.name}`} onClick={() => {
+                    const next = [...photos]; [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]]; updatePhotos(next);
+                  }}>←</button>
+                  <span className="self-center text-xs text-muted-foreground">{idx + 1}</span>
+                  <button type="button" className="min-h-9 text-xs px-2 rounded border disabled:opacity-40" disabled={idx === photos.length - 1} aria-label={`Reculer ${p.name}`} onClick={() => {
+                    const next = [...photos]; [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]]; updatePhotos(next);
+                  }}>→</button>
+                </div>}
                 {showContexts && (
                   <Input
                     value={p.context ?? ""}

@@ -57,23 +57,31 @@ function describePhotoOnUpload(photoId: string, workspaceId: string, isRetry = f
     });
 }
 
-export function useUserPhotos() {
+export function useUserPhotos(limit = 200) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
 
   const query = useQuery<UserPhotoRow[]>({
-    queryKey: [...QUERY_KEY, workspaceId],
+    queryKey: [...QUERY_KEY, workspaceId, limit],
     enabled: !!user?.id && !!workspaceId,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("user_photos")
-        .select("*")
-        .eq("workspace_id", workspaceId)
-        .order("created_at", { ascending: false })
-        .limit(200);
-      if (error) throw error;
-      return (data ?? []) as UserPhotoRow[];
+      const rows: UserPhotoRow[] = [];
+      // Bounded pages avoid the server row cap and keep older photos reachable.
+      for (let offset = 0; offset < limit; offset += 200) {
+        const pageSize = Math.min(200, limit - offset);
+        const { data, error } = await supabase
+          .from("user_photos")
+          .select("*")
+          .eq("workspace_id", workspaceId)
+          .order("created_at", { ascending: false })
+          .order("id", { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error) throw error;
+        rows.push(...((data ?? []) as UserPhotoRow[]));
+        if (!data || data.length < pageSize) break;
+      }
+      return rows;
     },
     // Filet quand le Realtime ne pousse rien (vécu 21/07 : retouche « Changer un
     // fond » terminée côté serveur, grille jamais rafraîchie avant un F5) : tant
@@ -409,7 +417,7 @@ export function useRetouchExistingPhoto() {
           throw new Error(copyErr.message);
         }
         originalPath = dest;
-        snapshotPath = dest;
+        snapshotPath = copyErr ? null : dest;
       }
 
       // Repasse en pending + mémorise le nouveau prompt (l'edge rejette `ready`).
@@ -459,10 +467,16 @@ export function useRetouchExistingPhoto() {
         if (cur?.status === "pending") {
           const { error: rollbackError } = await supabase
             .from("user_photos")
-            .update({ status: "ready", original_storage_path: prevOriginalPath })
+            .update({
+              status: "ready",
+              original_storage_path: prevOriginalPath,
+              background_prompt: photo.background_prompt,
+              background_preset_key: photo.background_preset_key,
+              error_message: photo.error_message,
+            })
             .eq("id", photo.id);
           if (rollbackError) console.error("Failed to rollback photo status:", rollbackError);
-          if (snapshotPath) {
+          if (snapshotPath && !rollbackError) {
             await supabase.storage.from(USER_PHOTOS_BUCKET).remove([snapshotPath]);
           }
         }

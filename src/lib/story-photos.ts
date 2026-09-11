@@ -91,6 +91,9 @@ export async function fileToResizedDataUrl(file: File, maxDim = 1600): Promise<s
   canvas.height = height;
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas indisponible");
+  // Same explicit white matte as library imports: JPEG cannot retain alpha.
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, width, height);
   ctx.drawImage(bitmap, 0, 0, width, height);
   bitmap.close?.();
   return canvas.toDataURL("image/jpeg", 0.82);
