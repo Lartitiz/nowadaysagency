@@ -1,7 +1,10 @@
 import posthog from 'posthog-js';
+import { hasAnalyticsConsent } from './analytics-consent';
+
+let initialized = false;
 
 export function initPostHog() {
-  if (typeof window === 'undefined') return;
+  if (!hasAnalyticsConsent() || initialized) return;
   const key = import.meta.env.VITE_POSTHOG_KEY;
   // Sans clé configurée (env Lovable manquant), ne pas initialiser :
   // posthog.init('') logue une erreur console à chaque chargement et ne sert à rien.
@@ -14,14 +17,17 @@ export function initPostHog() {
     persistence: 'memory',
     autocapture: true,
   });
-}
-
-export function enablePostHog() {
+  initialized = true;
   posthog.opt_in_capturing();
 }
 
+export function enablePostHog() {
+  initPostHog();
+  if (initialized && hasAnalyticsConsent()) posthog.opt_in_capturing();
+}
+
 export function disablePostHog() {
-  posthog.opt_out_capturing();
+  if (initialized) posthog.opt_out_capturing();
 }
 
 export { posthog };

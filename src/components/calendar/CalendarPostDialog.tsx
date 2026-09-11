@@ -432,8 +432,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (postCanal === "instagram") {
       // Même garde que la publication immédiate : le cron publie en feed, pas en story.
       if (format === "story_serie") { toast.error("La publication directe des stories arrive bientôt : publie-la depuis l'app Instagram."); return; }
-      if (igValidImages.length === 0) { toast.error("Ajoute au moins un visuel (image) avant de programmer."); return; }
-      if (igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
+      if (!igVideo && igValidImages.length === 0) { toast.error("Ajoute une image ou monte ta vidéo avant de programmer."); return; }
+      if (!igVideo && igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
     } else if (postCanal === "linkedin") {
       if (!linkedInText) { toast.error("Rédige le texte du post avant de programmer."); return; }
     }
@@ -846,8 +846,8 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
               ⚠️ Ta connexion {postCanal === "linkedin" ? "LinkedIn" : "Instagram"} expire le {new Date(scheduleTokenExpiry!).toLocaleDateString("fr-FR")}, avant cette date. Reconnecte ton compte d'ici là, sinon la publication échouera.
             </p>
           )}
-          {(postCanal === "instagram" ? igValidImages.length === 0 : !linkedInText) && (
-            <p className="text-2xs text-muted-foreground">{postCanal === "linkedin" ? "Rédige le texte du post pour pouvoir programmer." : "Ajoute au moins un visuel (image) pour pouvoir programmer."}</p>
+          {(postCanal === "instagram" ? !igVideo && igValidImages.length === 0 : !linkedInText) && (
+            <p className="text-2xs text-muted-foreground">{postCanal === "linkedin" ? "Rédige le texte du post pour pouvoir programmer." : "Ajoute une image ou monte ta vidéo pour pouvoir programmer."}</p>
           )}
         </div>
       )}

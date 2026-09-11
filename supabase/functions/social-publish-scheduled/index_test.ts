@@ -73,6 +73,7 @@ function fakeSupabase(opts: {
       limit(_n: number) {
         return builder;
       },
+      order() { return builder; },
       update(patch: any) {
         state.update = patch;
         return builder;
@@ -163,6 +164,18 @@ function withMockedFetch<T>(impl: (input: any, init?: any) => Promise<Response>,
     globalThis.fetch = original;
   });
 }
+
+Deno.test("carrousel programmé : la légende structurée remplace le dump des slides", async () => {
+  const sb = fakeSupabase({ dueRows: [{ ...DUE_POST, content_draft: "SLIDE 1 : texte de visuel", story_sequence_detail: { caption: "Voici la vraie légende." } }] });
+  let payload = "";
+  const result = await withMockedFetch(async (_input: any, init: any) => {
+    payload = init.body;
+    return new Response(JSON.stringify({ id: "urn:li:share:caption" }), { status: 201 });
+  }, () => processScheduledPosts(sb));
+  assertEquals(result.results[0].ok, true);
+  assertStringIncludes(payload, "Voici la vraie légende.");
+  assertEquals(payload.includes("SLIDE 1"), false);
+});
 
 Deno.test("post échu et 'scheduled' est publié puis passe à 'published'", async () => {
   const sb = fakeSupabase();

@@ -276,7 +276,7 @@ Deno.serve(async (req) => {
     const now = Date.now();
 
     if (scope === "daily") {
-      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation] = await Promise.all([
+      const [postsRows, connRows, fbRows, fbNewRows, photoroom, facturation, clientErrors] = await Promise.all([
         fetchAllRows(
           supabase,
           "calendar_posts",
@@ -300,6 +300,7 @@ Deno.serve(async (req) => {
         fetchAllRows(supabase, "beta_feedback", "user_id", (q) => q.eq("status", "new")),
         photoroomCredits(now),
         facturationHealth(supabase, now),
+        fetchAllRows(supabase, "client_error_events", "kind, route, asset, created_at", (q) => q.gte("created_at", new Date(now - DAY).toISOString())),
       ]);
       const posts = postsRows.filter((p: any) => isClient(p.user_id));
       const conns = connRows.filter((c: any) => isClient(c.user_id));
@@ -393,6 +394,7 @@ Deno.serve(async (req) => {
         feedback_new_total: feedbackNewTotal,
         photoroom_credits: photoroom,
         facturation,
+        client_errors_24h: { count: clientErrors.length, items: clientErrors.slice(-20) },
       });
     }
 

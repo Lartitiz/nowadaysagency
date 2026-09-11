@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -18,6 +18,7 @@ const signupSchema = z.object({
 type SignupValues = z.infer<typeof signupSchema>;
 
 export default function SignupForm({ compact = false }: { compact?: boolean }) {
+  const formId = useId();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [submittedEmail, setSubmittedEmail] = useState("");
@@ -138,24 +139,24 @@ export default function SignupForm({ compact = false }: { compact?: boolean }) {
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" aria-label="Formulaire d'inscription">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label htmlFor="signup-prenom" className="sr-only">Prénom</label>
-          <Input id="signup-prenom" {...register("prenom")} placeholder="Ton prénom" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
+          <label htmlFor={`${formId}-prenom`} className="sr-only">Prénom</label>
+          <Input id={`${formId}-prenom`} {...register("prenom")} placeholder="Ton prénom" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
           {errors.prenom && <p className="text-destructive text-xs mt-1" role="alert">{errors.prenom.message}</p>}
         </div>
         <div>
-          <label htmlFor="signup-email" className="sr-only">Email</label>
-          <Input id="signup-email" type="email" {...register("email")} placeholder="Ton email" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
+          <label htmlFor={`${formId}-email`} className="sr-only">Email</label>
+          <Input id={`${formId}-email`} type="email" {...register("email")} placeholder="Ton email" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
           {errors.email && <p className="text-destructive text-xs mt-1" role="alert">{errors.email.message}</p>}
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label htmlFor="signup-activite" className="sr-only">Activité</label>
-          <Input id="signup-activite" {...register("activite")} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
+          <label htmlFor={`${formId}-activite`} className="sr-only">Activité</label>
+          <Input id={`${formId}-activite`} {...register("activite")} placeholder="Ex : photographe, coach, artisane..." className="rounded-xl h-12 bg-card border-border" />
         </div>
         <div>
-          <label htmlFor="signup-password" className="sr-only">Mot de passe</label>
-          <Input id="signup-password" type="password" {...register("password")} placeholder="Mot de passe (8 car. min.)" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
+          <label htmlFor={`${formId}-password`} className="sr-only">Mot de passe</label>
+          <Input id={`${formId}-password`} type="password" {...register("password")} placeholder="Mot de passe (8 car. min.)" aria-required="true" className="rounded-xl h-12 bg-card border-border" />
           {errors.password && <p className="text-destructive text-xs mt-1" role="alert">{errors.password.message}</p>}
           <PasswordStrengthIndicator password={watch("password") || ""} />
         </div>

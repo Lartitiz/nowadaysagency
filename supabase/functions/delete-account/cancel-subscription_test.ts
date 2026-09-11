@@ -40,6 +40,23 @@ function fakeStripe(opts: { throwMessage?: string } = {}) {
   };
 }
 
+Deno.test("suppression : ferme les checkouts et annule aussi une ancienne souscription oubliée", async () => {
+  const calls: string[] = [];
+  const stripe = {
+    checkout: { sessions: {
+      list: async function* () { yield { id: "cs_open", metadata: { user_id: "u1" } }; yield { id: "cs_other", metadata: { user_id: "someone-else" } }; },
+      expire: async (id: string) => { calls.push(`expire:${id}`); },
+    } },
+    subscriptions: {
+      list: async function* () { yield { id: "sub_old", status: "active", metadata: { user_id: "u1" } }; yield { id: "sub_current", status: "active" }; yield { id: "sub_other", status: "active", metadata: { user_id: "someone-else" } }; yield { id: "sub_ended", status: "canceled" }; },
+      cancel: async (id: string) => { calls.push(id); },
+    },
+  };
+  const result = await cancelActiveStripeSubscription("u1", fakeAdmin({ stripe_customer_id: "cus_1", stripe_subscription_id: "sub_current", status: "active" }), stripe);
+  assertEquals(result, { canceled: true });
+  assertEquals(calls, ["expire:cs_open", "sub_old", "sub_current"]);
+});
+
 Deno.test("plan gratuit (pas d'abonnement Stripe) → rien à annuler, Stripe jamais appelé", async () => {
   const admin = fakeAdmin({ stripe_subscription_id: null, status: null });
   const stripe = fakeStripe();
