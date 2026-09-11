@@ -9,6 +9,8 @@
  * à J-offset avant le marronnier, photo attachée (media_urls, URL signée 1 an).
  */
 
+import { PhotoDirectionPicker } from "@/components/photos/PhotoDirectionPicker";
+import type { PhotoDirection } from "@/lib/photo-composition";
 import { useEffect, useMemo, useState } from "react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -75,6 +77,7 @@ export function SeasonalPhotoDialog({
   const { mutate: adjust, isPending: isAdjusting } = useRetouchExistingPhoto();
 
   const occurrences = useMemo(() => nextMarronniers(new Date(), 3), []);
+  const [direction, setDirection] = useState<PhotoDirection | null>(null);
   const [occKey, setOccKey] = useState<string | null>(null);
   const [selectedPhotoId, setSelectedPhotoId] = useState<string | null>(null);
   const [result, setResult] = useState<UserPhotoRow | null>(null);
@@ -133,6 +136,7 @@ export function SeasonalPhotoDialog({
   useEffect(() => {
     if (!open) return;
     setOccKey(initialOccurrence?.marronnier.key ?? null);
+    setDirection(null);
     setSelectedPhotoId(null);
     setResult(null);
     setResultUrl(null);
@@ -142,13 +146,13 @@ export function SeasonalPhotoDialog({
   const busy = isGenerating || isAdjusting || isPlanning;
 
   const buildPrompt = (): string => {
-    const tones = [charter?.color_primary, charter?.color_background]
+    const tones = (direction ? [direction.background] : [charter?.color_primary, charter?.color_background])
       .map((h) => (h ? hexToFrenchColorName(h) : null))
       .filter(Boolean);
     return (
-      occ.marronnier.scenePrompt +
+      (direction?.scenePrompt ? `${occ.marronnier.scenePrompt} Direction visuelle : ${direction.scenePrompt}.` : occ.marronnier.scenePrompt) +
       (tones.length ? ` Palette cohérente avec la marque : tons ${tones.join(" et ")}.` : "")
-    );
+    ).slice(0, 500);
   };
 
   const refreshResult = async (photoId: string) => {
@@ -196,7 +200,7 @@ export function SeasonalPhotoDialog({
     setAdjustingKey(chip.key);
     try {
       const base = result.background_prompt ?? buildPrompt();
-      await adjust({ photo: result, backgroundPrompt: `${base} ${chip.directive}`.trim() });
+      await adjust({ photo: result, backgroundPrompt: `${base.slice(0, Math.max(0, 499 - chip.directive.length))} ${chip.directive}`.trim() });
       await refreshResult(result.id);
     } catch (e: any) {
       toast.error(e?.message || "L'ajustement a échoué, réessaie.");
@@ -322,6 +326,8 @@ export function SeasonalPhotoDialog({
               </div>
             </div>
 
+            <PhotoDirectionPicker disabled={busy} onChoose={setDirection} />
+            {direction && <p className="text-xs text-muted-foreground">Direction ajoutée : {direction.scenePrompt || `fond ${direction.background}`} <button type="button" className="underline" disabled={busy} onClick={() => setDirection(null)}>Revenir à la charte</button></p>}
             <DialogFooter className="flex-row items-center gap-2 sm:justify-between">
               <span className="text-xs rounded-full bg-primary/10 text-primary px-2.5 py-1 shrink-0">1 crédit</span>
               <Button onClick={handleGenerate} disabled={busy || !selectedPhoto}>

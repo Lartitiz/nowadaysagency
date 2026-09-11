@@ -708,6 +708,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   // Bloc preview (avec props compact + sync)
   const previewBlock = (compact: boolean) => (
     <CalendarPostPreview
+      photoComposition={ssd?.type === "photo_composition"}
       canal={postCanal} format={format} caption={contentDraft} theme={theme}
       username={igUsername || ownerName} displayName={ownerName} mediaUrls={mediaUrls}
       visualHtml={ssd?.visual_html || null}
@@ -718,7 +719,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       photoUrls={ssd?.photo_urls || null}
       storiesData={ssd?.type === "stories" ? ssd.stories || null : null}
       compact={compact}
-      onFullscreen={ssd ? () => setShowContentViewer(true) : undefined}
+      onFullscreen={ssd && ssd.type !== "photo_composition" ? () => setShowContentViewer(true) : undefined}
       syncStatus={contentDraft ? syncStatus : undefined}
     />
   );

@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PhotoEditDialog } from "./PhotoEditDialog";
 import PhotoSwapDialog from "./PhotoSwapDialog";
 import type { PhotoItem } from "./PhotoUploadZone";
 import { urlToDataUrl } from "@/lib/story-photos";
+
+const PhotoPreparationDialog = lazy(() => import("@/components/photos/PhotoPreparationDialog"));
 
 type EditablePhoto = Partial<PhotoItem>;
 
@@ -13,6 +15,7 @@ export default function PostPhotoEditor({ photo, onChange }: {
   photo: EditablePhoto;
   onChange: (photo: PhotoItem) => void | Promise<void>;
 }) {
+  const [preparing, setPreparing] = useState(false);
   const [editing, setEditing] = useState(false);
   const [replacing, setReplacing] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -39,7 +42,8 @@ export default function PostPhotoEditor({ photo, onChange }: {
       });
       setEditing(false); setReplacing(false);
       toast.success("Photo mise à jour, ta légende est conservée.");
-    } catch (error) { toast.error(error instanceof Error ? error.message : "La photo n'a pas pu être enregistrée. Réessaie."); }
+      return true;
+    } catch (error) { toast.error(error instanceof Error ? error.message : "La photo n'a pas pu être enregistrée. Réessaie."); return false; }
     finally { setBusy(false); }
   };
   const applyEdit = (data: string) => apply({
@@ -51,6 +55,12 @@ export default function PostPhotoEditor({ photo, onChange }: {
   });
   return <div className="space-y-2">
     <div className="flex flex-wrap justify-center gap-2">
+      <Button variant="outline" disabled={busy} onClick={async () => {
+        setBusy(true);
+        try { setSource(await currentData()); setPreparing(true); }
+        catch (error) { toast.error(error instanceof Error ? error.message : "Photo indisponible."); }
+        finally { setBusy(false); }
+      }}>Adapter le format et la lumière</Button>
       <Button variant="outline" disabled={busy} onClick={beginEdit}>Retoucher la photo</Button>
       <Button variant="outline" disabled={busy} onClick={() => setReplacing(true)}>Remplacer la photo</Button>
       {photo.originalBase64 && photo.edited && <Button variant="ghost" disabled={busy} onClick={() => {
@@ -59,6 +69,9 @@ export default function PostPhotoEditor({ photo, onChange }: {
       }}>Revenir à l’originale</Button>}
     </div>
     {busy && <p role="status" className="text-center text-sm text-muted-foreground">Préparation de la photo…</p>}
+    {preparing && <Suspense fallback={<p role="status">Ouverture de la préparation…</p>}><PhotoPreparationDialog open
+      onOpenChange={setPreparing} sources={[{ id: photo.id || "post-photo", name: photo.name || "Photo du post", dataUrl: source }]}
+      onApply={async data => { if (!await applyEdit(data)) throw new Error("La photo n’a pas été enregistrée. Réessaie."); }} /></Suspense>}
     {editing && <PhotoEditDialog open={editing} onOpenChange={value => { if (!busy) setEditing(value); }} originalBase64={source} name={photo.name} onApply={data => { if (!busy) void applyEdit(data); }} />}
     {replacing && <PhotoSwapDialog open={replacing} onOpenChange={value => { if (!busy) setReplacing(value); }} onSelect={next => { if (!busy) void apply(next); }} />}
   </div>;

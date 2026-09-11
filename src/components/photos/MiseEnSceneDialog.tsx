@@ -14,6 +14,7 @@
  * jamais de l'image générée (sinon le produit s'érode).
  */
 
+import { PhotoDirectionPicker } from "./PhotoDirectionPicker";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Download, Info, Loader2, RotateCcw, Shirt, Sparkles } from "lucide-react";
@@ -449,6 +450,7 @@ export function MiseEnSceneDialog({ photo, open, onOpenChange }: MiseEnSceneDial
                   </div>
                 </div>
                 <div className="space-y-1.5">
+                  <PhotoDirectionPicker disabled={busy} onChoose={d => setAmbiance((d.scenePrompt || `Fond uni ${d.background}`).slice(0, 200))} />
                   <p className="text-xs font-medium text-foreground">Ambiance (optionnel)</p>
                   <Input
                     value={ambiance}

@@ -50,6 +50,8 @@ interface PhotoDetailDialogProps {
   /** Ouvre le Portrait pro (fond de marque, visage intact) — photos kind=portrait. */
   onPortraitPro?: (photo: UserPhotoRow) => void;
   /** Demande la suppression (le détail se ferme, la confirmation est côté page). */
+  onPrepare?: (photo: UserPhotoRow) => void;
+  onPrepareKit?: (photo: UserPhotoRow) => void;
   onDelete?: (photo: UserPhotoRow) => void;
 }
 
@@ -60,6 +62,7 @@ interface RetouchOption {
   title: string;
   hint: string;
   fits: boolean;
+  free?: boolean;
   run: () => void;
 }
 
@@ -73,7 +76,7 @@ function slugify(s: string): string {
     .slice(0, 60) || "photo";
 }
 
-export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro, onDelete }: PhotoDetailDialogProps) {
+export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro, onDelete, onPrepare, onPrepareKit }: PhotoDetailDialogProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -127,11 +130,12 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
     setDownloading(true);
     try {
       const baseName = slugify(photo.name ?? "photo");
+      const extension = (view === "before" ? photo.original_storage_path : photo.storage_path).match(/\.(png|webp)$/i)?.[1] || "jpg";
       const filename = !hasRetouch
-        ? `${baseName}.jpg`
+        ? `${baseName}.${extension}`
         : view === "after"
-          ? `${baseName}-retouchee.jpg`
-          : `${baseName}-originale.jpg`;
+          ? `${baseName}-retouchee.${extension}`
+          : `${baseName}-originale.${extension}`;
       const path = view === "after" ? photo.storage_path : photo.original_storage_path;
       await downloadPhoto(path, filename);
     } catch (e: any) {
@@ -168,6 +172,10 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   // tromper) : ils passent sous un repli avec la raison.
   const isPortrait = photo.kind === "portrait";
   const retouchOptions: RetouchOption[] = [];
+  if (onPrepare) retouchOptions.push({ key: "composition", icon: Camera, title: "Adapter le format et la lumière",
+    hint: "Garder la photo entière, ajuster les marges et ajouter du texte.", fits: true, free: true, run: () => onPrepare(photo) });
+  if (onPrepareKit) retouchOptions.push({ key: "preparation", icon: Sparkles, title: "Une photo, plusieurs contenus",
+    hint: "Préparer un post, une story et une couverture, avec tes informations.", fits: true, free: true, run: () => onPrepareKit(photo) });
   if (isPortrait && onPortraitPro) {
     retouchOptions.push({
       key: "portrait",
@@ -229,7 +237,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
             <span className="truncate">{o.title}</span>
           </span>
           <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-2xs text-primary">
-            1 crédit
+            {o.free ? "Sans crédit IA" : "1 crédit"}
           </span>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">{o.hint}</p>

@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
+import { lazy, Suspense, useState, useRef, useCallback, useEffect, DragEvent as ReactDragEvent } from "react";
 import { Upload, X, GripVertical, Wand2, Undo2, Globe, Library, Loader2, Images, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +13,8 @@ import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { convertHeicIfNeeded, isHeic } from "@/lib/heic";
 
 const MAX_FILE_SIZE_MB = UX_UPLOAD_LIMITS.photo / MB;
+
+const PhotoPreparationDialog = lazy(() => import("@/components/photos/PhotoPreparationDialog"));
 
 export interface PhotoItem {
   base64: string;
@@ -133,6 +135,7 @@ export function PhotoUploadZone({
   const [isDragOver, setIsDragOver] = useState(false);
   const [dragIdx, setDragIdx] = useState<number | null>(null);
   const [showContexts, setShowContexts] = useState(false);
+  const [prepareIdx, setPrepareIdx] = useState<number | null>(null);
   const [editIdx, setEditIdx] = useState<number | null>(null);
   const [libraryOpen, setLibraryOpen] = useState(false);
   // true = le picker s'ouvre directement sur l'import site / Instagram
@@ -656,6 +659,7 @@ export function PhotoUploadZone({
                     const next = [...photos]; [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]]; updatePhotos(next);
                   }}>→</button>
                 </div>}
+                <button type="button" className="min-h-9 text-xs text-primary hover:underline" onClick={() => setPrepareIdx(idx)}>Adapter le format</button>
                 {showContexts && (
                   <Input
                     value={p.context ?? ""}
@@ -693,6 +697,11 @@ export function PhotoUploadZone({
       )}
 
       {/* ── PhotoRoom edit dialog ─────────────────── */}
+      {prepareIdx !== null && photos[prepareIdx] && <Suspense fallback={<p role="status">Ouverture de la préparation…</p>}><PhotoPreparationDialog open
+        onOpenChange={open => { if (!open) setPrepareIdx(null); }}
+        sources={[{ id: photos[prepareIdx].id || "uploaded-photo", name: photos[prepareIdx].name,
+          dataUrl: photos[prepareIdx].base64.startsWith("data:") ? photos[prepareIdx].base64 : `data:${photos[prepareIdx].mimeType || "image/jpeg"};base64,${photos[prepareIdx].base64}` }]}
+        onApply={data => applyEditedPhoto(prepareIdx, data)} /></Suspense>}
       {editIdx !== null && photos[editIdx] && (
         <PhotoEditDialog
           open={editIdx !== null}
