@@ -29,6 +29,30 @@ describe("buildStoryFrameHtml", () => {
     expect(buildStoryFrameHtml({ visual: { ...story.visual, body_pill_edited: false } }, branding)).not.toContain(body);
   });
 
+  it("affiche le contexte, le verbatim et la réaction d’une story citation", () => {
+    const text = "Alors tu vas voir les avis 1 étoile. Et là tu tombes sur : 'Il y a une vraie différence de goût entre eau filtrée et eau du robinet.' Tu ris. Ça n'a rien à voir avec la machine, mon coco !";
+    const html = buildStoryFrameHtml({
+      text,
+      visual: {
+        gabarit: "citation",
+        background: "fond_couleur",
+        quote: "Il y a une vraie différence de goût entre eau filtrée et eau du robinet.",
+        body_pill: "L'avis 1 étoile qui sauve tout",
+      },
+    }, branding)!;
+    expect(html).toContain("Alors tu vas voir les avis 1 étoile");
+    expect(html).toContain("« Il y a une vraie différence de goût entre eau filtrée et eau du robinet. »");
+    expect(html).toContain("Tu ris. Ça n'a rien à voir avec la machine, mon coco !");
+    expect(html).not.toContain("L&#39;avis 1 étoile qui sauve tout");
+  });
+
+  it("affiche toute la narration si la citation a été reformulée séparément", () => {
+    const text = "Le contexte complet reste indispensable, même quand le verbatim ne correspond plus exactement.";
+    const html = buildStoryFrameHtml({ text, visual: { gabarit: "citation", quote: "Une autre formulation" } }, branding)!;
+    expect(html).toContain(text);
+    expect(html).not.toContain("Une autre formulation");
+  });
+
   it("retourne null pour une story face cam", () => {
     const html = buildStoryFrameHtml(
       { face_cam: true, visual: { gabarit: "fond_pills", title_pill: "Titre" } },

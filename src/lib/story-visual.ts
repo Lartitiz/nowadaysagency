@@ -60,6 +60,9 @@ export interface StoryStickerPlan {
 }
 
 export interface StoryFrameStory {
+  text?: string | null;
+  texte?: string | null;
+  content?: string | null;
   visual?: StoryVisualPlan | null;
   sticker?: StoryStickerPlan | null;
   face_cam?: boolean | null;
@@ -257,6 +260,18 @@ ${blocks.filter(Boolean).map((b) => `<div style="max-width:100%">${b}</div>`).jo
 </div>`;
 }
 
+/** Découpe la narration autour du verbatim pour garder le contexte sans répéter la citation. */
+function splitAroundQuote(text: string, quote: string): { before: string; quote: string; after: string } | null {
+  if (!text || !quote) return null;
+  const index = text.toLocaleLowerCase("fr").indexOf(quote.toLocaleLowerCase("fr"));
+  if (index < 0) return null;
+  return {
+    before: text.slice(0, index).replace(/[\s«“"'‘]+$/u, "").trim(),
+    quote: text.slice(index, index + quote.length).trim(),
+    after: text.slice(index + quote.length).replace(/^[\s»”"'’]+/u, "").trim(),
+  };
+}
+
 // Zone de sécurité Instagram : ~250px en haut (avatar, ✕) et ~300px en bas (répondre).
 const SAFE = "padding:280px 84px 320px";
 
@@ -313,6 +328,7 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
 </div>`;
   } else if (gabarit === "citation") {
     const quote = (visual.quote || body || title).trim();
+    const narration = String(story?.text || story?.texte || story?.content || "").trim();
     // L'IA remet parfois le verbatim tel quel dans body_pill : ne montrer
     // l'attribution que si elle apporte autre chose que la citation.
     const normalize = (s: string) => s.toLowerCase().replace(/[«»"'’\s.?!,:;()-]/g, "");
@@ -326,12 +342,32 @@ ${items.map((it) => `<div style="max-width:100%">${textBlock(it, itemStyle, ctx,
     const quoteStyle: StoryTextStyle = asm.quote
       ? { ...asm.quote, mode: "wh" }
       : { ...asm.title, mode: "wh", size: asm.title.size * 0.92, upper: false, letterSpacing: undefined };
-    const quoteText = `« ${quote} »`;
-    const align = alignFor(ctx, { text: quoteText, style: quoteStyle });
-    inner = column(align, `justify-content:${justify};gap:34px`, [
-      textBlock(quoteText, quoteStyle, ctx, "quote"),
-      attribution ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution") : "",
-    ]);
+    const narrativeStyle = { ...bodyBase, size: bodyBase.size * bodyScale(narration) };
+    const split = splitAroundQuote(narration, quote);
+    const quoteText = `« ${split?.quote || quote} »`;
+    const align = alignFor(ctx, { text: narration || quoteText, style: narration ? narrativeStyle : quoteStyle });
+    // Une story « citation » reste une histoire : le contexte avant et la
+    // réaction après le verbatim font partie du visuel. Si le verbatim ne se
+    // retrouve pas exactement dans le texte, afficher le texte complet évite
+    // toute perte de contenu.
+    const blocks = visual.body_pill_edited
+      ? [
+          textBlock(quoteText, quoteStyle, ctx, "quote"),
+          attribution ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution") : "",
+        ]
+      : narration
+      ? split
+        ? [
+            split.before ? textBlock(split.before, narrativeStyle, ctx, "body") : "",
+            textBlock(quoteText, { ...quoteStyle, size: quoteStyle.size * bodyScale(narration) }, ctx, "quote"),
+            split.after ? textBlock(split.after, narrativeStyle, ctx, "body") : "",
+          ]
+        : [textBlock(narration, narrativeStyle, ctx, "body")]
+      : [
+          textBlock(quoteText, quoteStyle, ctx, "quote"),
+          attribution ? textBlock(attribution, { ...asm.aside, size: asm.aside.size * bodyScale(attribution), mode: "col" }, ctx, "attribution") : "",
+        ];
+    inner = column(align, `justify-content:${justify};gap:34px`, blocks);
   } else if (gabarit === "interaction") {
     const align = alignFor(ctx, body ? { text: body, style: bodyStyle } : null);
     inner = `<div style="height:100%;${SAFE};display:flex;flex-direction:column;justify-content:${justify};align-items:${align === "center" ? "center" : "flex-start"};text-align:${align};gap:60px">

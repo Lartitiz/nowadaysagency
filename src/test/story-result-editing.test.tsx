@@ -35,6 +35,15 @@ function previewHtml() {
 }
 
 describe("Stories : édition et remplacement du résultat", () => {
+  it("met à jour le contexte complet visible d’une citation", () => {
+    const initial = "Alors tu vas voir les avis 1 étoile. Et là tu tombes sur : une vraie différence de goût. Tu ris.";
+    render(<StoryResult result={sequence(initial, { gabarit: "citation", quote: "une vraie différence de goût", body_pill: "Avis client" })} />);
+    expect(previewHtml()).toContain("Alors tu vas voir les avis 1 étoile");
+    editNarration("Alors tu lis l'avis. Et là : une vraie différence de goût. Ça n'a rien à voir avec la machine.");
+    expect(previewHtml()).toContain("Alors tu lis l'avis");
+    expect(previewHtml()).toContain("Ça n'a rien à voir avec la machine");
+  });
+
   it("garde le texte saisi sous une citation au-delà de 80 caractères", () => {
     const onStoriesUpdate = vi.fn();
     const text = "Alors je vais fouiller dans les avis 1 étoile. Et je tombe sur cet avis. Rien à voir avec la machine.";
