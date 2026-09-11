@@ -6,7 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Camera, Download, FileDown, ImageIcon, Loader2, Palette } from "lucide-react";
 import { formatSlideRole } from "@/lib/slide-roles";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
-import RedFlagsChecker from "@/components/RedFlagsChecker";
+import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
+import { toast } from "sonner";
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { buildStoryFrameHtml, type StoryFrameBranding } from "@/lib/story-visual";
@@ -184,7 +185,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     let cancelled = false;
     resolveLibraryPhotoUrls(stories).then((map) => {
       if (!cancelled) setLibraryUrls(map);
-    });
+    }).catch(() => { if (!cancelled) setLibraryUrls(new Map()); });
     return () => {
       cancelled = true;
     };
@@ -225,10 +226,20 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
   // pour que html2canvas et le PPTX n'aient jamais de souci CORS / d'expiration.
   const buildExportFrames = useCallback(async () => {
     const frames: { story_number: number; html: string; photoUrl?: string | null }[] = [];
+    // Resolve library IDs at export time: the preview's signed URLs can expire.
+    const freshUrls = await resolveLibraryPhotoUrls(stories);
     for (let i = 0; i < stories.length; i++) {
       const s = stories[i];
-      const rawUrl = getStoryPhotoUrl(s, i);
+      if (!buildStoryFrameHtml(s, branding, { preview: false })) continue;
+      const visual = s?.visual;
+      const usesPhoto = visual?.background === "photo";
+      // Never substitute an attached photo for an explicitly selected missing ID.
+      const rawUrl = !usesPhoto ? null : visual?.photo_url ||
+        (visual?.photo_id ? freshUrls.get(visual.photo_id) : getStoryPhotoUrl(s, i));
       const exportUrl = rawUrl ? await urlToDataUrl(rawUrl) : null;
+      if (usesPhoto && (visual?.photo_id || visual?.photo_url || rawUrl) && !exportUrl) {
+        throw new Error(`La photo de la story ${i + 1} est indisponible. Réessaie ou choisis une autre photo avant d'exporter.`);
+      }
       const html = buildStoryFrameHtml(s, branding, { photoUrl: exportUrl, preview: false });
       if (html) frames.push({ story_number: i + 1, html, photoUrl: exportUrl });
     }
@@ -240,6 +251,8 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     setExporting(true);
     try {
       await exportStoryPng(await buildExportFrames(), result?.structure_type || "sequence");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Export impossible. Réessaie.");
     } finally {
       setExporting(false);
     }
@@ -251,6 +264,8 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
       await exportStoryPptx(await buildExportFrames(), {
         fileName: result?.structure_type || "sequence",
       });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Export impossible. Réessaie.");
     } finally {
       setExportingPptx(false);
     }
@@ -300,11 +315,25 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
     .filter(Boolean)
     .join("\n\n");
 
-  const [checkedText, setCheckedText] = useState(fullText);
-
-  useEffect(() => {
-    setCheckedText(fullText);
-  }, [fullText]);
+  const fixStoryExpressions = () => {
+    const updated = stories.map(story => {
+      const field = getTextField(story);
+      const visual = story.visual;
+      return {
+        ...story,
+        [field]: fixRedFlags(getStoryText(story)),
+        ...(visual ? { visual: {
+          ...visual,
+          ...Object.fromEntries(["title_pill", "body_pill", "quote"]
+            .filter(key => typeof visual[key] === "string")
+            .map(key => [key, fixRedFlags(visual[key])])),
+          ...(Array.isArray(visual.list_pills) ? { list_pills: visual.list_pills.map((text: string) => fixRedFlags(text)) } : {}),
+        } } : {}),
+      };
+    });
+    setStories(updated);
+    onStoriesUpdate?.(updated);
+  };
 
   const ANGLE_LABELS: Record<string, { emoji: string; label: string }> = {
     coulisses: { emoji: "🎬", label: "Coulisses" },
@@ -862,7 +891,7 @@ export default function StoryResult({ result, onStoriesUpdate, photos, onExportA
         }}
       />
 
-      <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
+      <RedFlagsChecker content={fullText} onFix={fixStoryExpressions} />
 
       <AiGeneratedMention />
     </div>

@@ -12,6 +12,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Globe, Image as ImageIcon, Loader2 } from "lucide-react";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUploadLibraryPhotos, useUserPhotos } from "@/hooks/use-user-photos";
@@ -47,6 +48,7 @@ function PickerThumb({
   onToggle: () => void;
 }) {
   const [imgError, setImgError] = useState(false);
+  useEffect(() => { setImgError(false); }, [url]);
   // Aperçu KO (signature échouée ou image en erreur) ≠ « en chargement » :
   // la photo reste sélectionnable, l'import passe par storage_path.
   const broken = imgError || (signDone && !url);
@@ -54,6 +56,8 @@ function PickerThumb({
     <button
       type="button"
       onClick={onToggle}
+      aria-label={photo.name || photo.description || "Photo"}
+      aria-pressed={selected}
       disabled={disabled && !selected}
       className={cn(
         "group relative aspect-square overflow-hidden rounded-lg border bg-muted/40 transition",
@@ -82,6 +86,9 @@ function PickerThumb({
           <Check className="h-3 w-3" />
         </div>
       )}
+      <span className="absolute inset-x-0 bottom-0 bg-background/95 px-1 py-1 text-xs truncate">
+        {photo.name || photo.description || "Photo"}
+      </span>
     </button>
   );
 }
@@ -93,7 +100,10 @@ export function PhotoLibraryPickerDialog({
   onConfirm,
   autoOpenImport = false,
 }: PhotoLibraryPickerDialogProps) {
-  const { data: photos, isLoading } = useUserPhotos();
+  const [photoLimit, setPhotoLimit] = useState(200);
+  const { data: photos, isLoading, isError, refetch } = useUserPhotos(photoLimit);
+  const [search, setSearch] = useState("");
+  const [kind, setKind] = useState("");
   const { mutate: uploadLibrary } = useUploadLibraryPhotos();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [urlMap, setUrlMap] = useState<Map<string, string>>(new Map());
@@ -106,6 +116,12 @@ export function PhotoLibraryPickerDialog({
     () => (photos ?? []).filter((p) => p.status === "ready"),
     [photos],
   );
+  const visiblePhotos = useMemo(() => {
+    const normalize = (text: string) => text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const words = normalize(search).trim().split(/\s+/).filter(Boolean);
+    return readyPhotos.filter(photo => (!kind || photo.kind === kind) &&
+      words.every(word => normalize([photo.name, photo.description, ...(photo.tags ?? [])].filter(Boolean).join(" ")).includes(word)));
+  }, [readyPhotos, search, kind]);
 
   // Snapshot de chaque UserPhotoRow déjà vue, par id. handleConfirm lit CE
   // cache plutôt que de re-filtrer `readyPhotos` au moment du clic : si la
@@ -122,7 +138,7 @@ export function PhotoLibraryPickerDialog({
 
   // Reset selection on every open
   useEffect(() => {
-    if (open) setSelectedIds([]);
+    if (open) { setSelectedIds([]); setSearch(""); setKind(""); }
   }, [open]);
 
   // Entrée « depuis mon site » : on saute l'écran intermédiaire et on ouvre
@@ -226,11 +242,26 @@ export function PhotoLibraryPickerDialog({
           </DialogDescription>
         </DialogHeader>
 
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Input aria-label="Rechercher dans mes photos" placeholder="Nom, description ou mot-clé…" value={search} onChange={e => setSearch(e.target.value)} />
+          <select aria-label="Type de photo" value={kind} onChange={e => setKind(e.target.value)} className="h-10 rounded-md border border-input bg-background px-3 text-sm">
+            <option value="">Tous les types</option>
+            <option value="produit">Produit</option><option value="produit_porte">Produit porté</option>
+            <option value="portrait">Portrait</option><option value="ambiance">Ambiance</option>
+            <option value="coulisses">Coulisses</option><option value="autre">Autre</option>
+          </select>
+        </div>
+
         <div className="min-h-[200px] max-h-[60vh] overflow-y-auto">
           {isLoading || importing ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
               {importing ? "Ajout de tes photos…" : "Chargement…"}
+            </div>
+          ) : isError ? (
+            <div className="text-center py-8 space-y-3" role="alert">
+              <p>Impossible de charger la bibliothèque pour le moment.</p>
+              <Button variant="outline" onClick={() => refetch()}>Réessayer</Button>
             </div>
           ) : allSigningFailed ? (
             <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
@@ -264,9 +295,11 @@ export function PhotoLibraryPickerDialog({
                 <Globe className="h-4 w-4 mr-2" /> Importer depuis mon site ou Instagram
               </Button>
             </div>
+          ) : visiblePhotos.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-8">Aucune photo ne correspond dans les photos chargées. Essaie un autre mot-clé ou affiche plus de photos.</p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 p-1">
-              {readyPhotos.map((p) => (
+              {visiblePhotos.map((p) => (
                 <PickerThumb
                   key={p.id}
                   photo={p}
@@ -281,6 +314,9 @@ export function PhotoLibraryPickerDialog({
           )}
         </div>
 
+        {(photos?.length ?? 0) >= photoLimit && (
+          <Button variant="outline" disabled={isLoading} onClick={() => setPhotoLimit(limit => limit + 200)}>Afficher plus de photos</Button>
+        )}
         <DialogFooter className="items-center gap-2 sm:justify-between">
           <div className="flex items-center gap-3">
             <p className="text-xs text-muted-foreground">

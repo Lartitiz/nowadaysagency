@@ -2735,6 +2735,22 @@ export default function CreerUnifie() {
                 usedPhotoCount={photoMode && uploadedPhotos.length > 0 ? uploadedPhotos.length : undefined}
                 onEdit={handleEdit}
                 onResultTextChange={(text) => setResult((prev) => prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: text, content: text } } : prev)}
+                onPostPhotosChange={!isDemoMode ? async (photos) => {
+                  if (!session?.user || !photos[0]?.base64) throw new Error("Photo indisponible. Réessaie après reconnexion.");
+                  // Commit the new preview + durable publish URL together, only after upload.
+                  // Unique path preserves the old image if the upload fails or edits are undone.
+                  const response = await fetch(photos[0].base64);
+                  const blob = await response.blob();
+                  const ext = blob.type === "image/png" ? "png" : "jpg";
+                  const path = `${session.user.id}/post-retouche-${crypto.randomUUID()}.${ext}`;
+                  const { error } = await supabase.storage.from("calendar-media").upload(path, blob, { contentType: blob.type });
+                  if (error) throw new Error("La nouvelle photo n'a pas pu être enregistrée. L'ancienne est conservée.");
+                  const { data } = supabase.storage.from("calendar-media").getPublicUrl(path);
+                  if (!data?.publicUrl) throw new Error("Adresse de la photo introuvable. Réessaie.");
+                  setUploadedPhotos(photos);
+                  setPhotoMode(true);
+                  setResult((prev) => prev ? { ...prev, raw: { ...(prev.raw || {}), image_url: data.publicUrl } } : prev);
+                } : undefined}
                 onReset={requestReset}
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}

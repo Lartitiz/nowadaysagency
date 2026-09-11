@@ -274,7 +274,7 @@ export function useCalendarSave({
       let uploadFailed = false;
       if (calendarPostId) {
         const storageUpdates = await uploadPostMedia(calendarPostId, {
-          includePhotoModePhotos: false,
+          includePhotoModePhotos: true,
           warnSuffix: "",
           onUploadError: () => { uploadFailed = true; },
         });
@@ -283,6 +283,8 @@ export function useCalendarSave({
           const currentDetail = storyDetail || {};
           const { error: mediaError } = await supabase.from("calendar_posts").update({
             story_sequence_detail: { ...currentDetail, ...storageUpdates },
+            ...(selectedFormat === "post" && storageUpdates.photo_urls?.length
+              ? { media_urls: storageUpdates.photo_urls } : {}),
           }).eq("id", calendarPostId);
           if (mediaError) throw mediaError;
         }

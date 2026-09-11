@@ -21,6 +21,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { logUsage } from "../_shared/plan-limiter.ts";
 import { fetchWithRetry } from "../_shared/http-retry.ts";
+import { finalizeRetouch } from "./finalize.ts";
 
 // ── Body schema ──
 const BodySchema = z
@@ -296,9 +297,9 @@ serve(async (req) => {
       });
     }
 
-    // 13. Update DB to ready
-    {
-      const { error: finalUpdErr } = await supabase
+    // 13. Confirm DB state before charging or announcing success.
+    await finalizeRetouch(
+      () => supabase
         .from("user_photos")
         .update({
           status: "ready",
@@ -308,23 +309,16 @@ serve(async (req) => {
           file_size_bytes: outputBytes,
           error_message: null,
         })
-        .eq("id", photo_id);
-
-      if (finalUpdErr) {
-        // Photo is in storage but DB row is not updated — log loudly but
-        // still return success since the file exists. Caller can refetch.
-        console.error("[photo-background-replace] final update error:", finalUpdErr);
-      }
-    }
-
-    // 14. Log usage (only after full success)
-    await logUsage(
-      userId,
-      "photo_retouch",
-      "background_replace",
-      undefined,
-      "photoroom-v2",
-      bodyWorkspaceId ?? undefined
+        .eq("id", photo_id),
+      markFailed,
+      () => logUsage(
+        userId,
+        "photo_retouch",
+        "background_replace",
+        undefined,
+        "photoroom-v2",
+        bodyWorkspaceId ?? undefined
+      ),
     );
 
     // 15. Structured success log

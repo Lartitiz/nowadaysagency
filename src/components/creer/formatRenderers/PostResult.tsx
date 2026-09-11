@@ -4,12 +4,15 @@ import RedFlagsChecker from "@/components/RedFlagsChecker";
 import FeedPreview from "@/components/creer/formatRenderers/FeedPreview";
 import { stripCoachingHint } from "@/features/creer/build-calendar-content";
 import { useEffect, useState } from "react";
+import PostPhotoEditor from "@/components/creer/PostPhotoEditor";
+import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 
 interface Props {
   result: any;
   content?: string;
   photos?: { preview?: string; base64?: string; name?: string }[];
   onTextChange?: (text: string) => void;
+  onPhotosChange?: (photos: PhotoItem[]) => void | Promise<void>;
 }
 
 const FORMAT_LABELS: Record<string, string> = {
@@ -31,7 +34,7 @@ function humanFormat(raw: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
-export default function PostResult({ result, content, photos, onTextChange }: Props) {
+export default function PostResult({ result, content, photos, onTextChange, onPhotosChange }: Props) {
   // Filet : le conseil d'incarnation vit dans personal_tip, jamais dans le texte.
   const postText = stripCoachingHint(content ?? result?.edited_text ?? result?.content ?? result?.post ?? result?.text ?? "");
   const personalTip = result?.personal_tip;
@@ -76,6 +79,7 @@ export default function PostResult({ result, content, photos, onTextChange }: Pr
 
       {/* Aperçu réaliste « comme dans le feed » */}
       <FeedPreview variant="instagram" text={caption} hashtags={hashtags} photos={previewPhotos} />
+      {onPhotosChange && previewPhotos?.[0] && <PostPhotoEditor photo={previewPhotos[0]} onChange={photo => onPhotosChange([photo, ...((photos?.slice(1) || []) as PhotoItem[])])} />}
 
       {personalTip && (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
