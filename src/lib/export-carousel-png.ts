@@ -98,7 +98,7 @@ async function preloadImage(url: string, timeoutMs = 8000): Promise<void> {
     img.crossOrigin = "anonymous";
     img.onload = async () => {
       try {
-        if ((img as any).decode) await (img as any).decode();
+        if (typeof img.decode === "function") await img.decode();
       } catch {
         /* noop */
       }
@@ -123,11 +123,32 @@ async function waitForIframeReady(
 
   // Fonts
   try {
-    if ((doc as any).fonts?.ready) {
+    if (doc.fonts?.ready) {
       await Promise.race([
-        (doc as any).fonts.ready,
+        doc.fonts.ready,
         new Promise((r) => setTimeout(r, timeoutMs)),
       ]);
+
+      // Les fontes de stories vivent dans le srcdoc, pas dans la page React.
+      // Une demande explicite par graisse/taille évite qu'un export lancé juste
+      // après l'affichage capture la police de secours pendant le chargement.
+      const storyText = Array.from(doc.querySelectorAll<HTMLElement>("[data-story-pptx]"));
+      const requested = new Set<string>();
+      const loads = storyText.flatMap((el) => {
+        const cs = doc.defaultView?.getComputedStyle(el);
+        if (!cs) return [];
+        const shorthand = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+        const key = `${shorthand}|${el.textContent || ""}`;
+        if (requested.has(key)) return [];
+        requested.add(key);
+        return [(doc as Document & { fonts: FontFaceSet }).fonts.load(shorthand, el.textContent || "")];
+      });
+      if (loads.length > 0) {
+        await Promise.race([
+          Promise.allSettled(loads),
+          new Promise((r) => setTimeout(r, timeoutMs)),
+        ]);
+      }
     }
   } catch {
     /* noop */
@@ -140,19 +161,24 @@ async function waitForIframeReady(
       Promise.all(
         imgs.map(
           (img) =>
-            new Promise<void>(async (res) => {
-              if (!(img.complete && img.naturalWidth > 0)) {
-                await new Promise<void>((r) => {
-                  img.addEventListener("load", () => r(), { once: true });
-                  img.addEventListener("error", () => r(), { once: true });
-                });
+            new Promise<void>((res) => {
+              let started = false;
+              const finish = async () => {
+                if (started) return;
+                started = true;
+                try {
+                  if (typeof img.decode === "function") await img.decode();
+                } catch {
+                  /* noop */
+                }
+                res();
+              };
+              if (img.complete && img.naturalWidth > 0) {
+                void finish();
+              } else {
+                img.addEventListener("load", () => void finish(), { once: true });
+                img.addEventListener("error", () => void finish(), { once: true });
               }
-              try {
-                if ((img as any).decode) await (img as any).decode();
-              } catch {
-                /* noop */
-              }
-              res();
             }),
         ),
       ),
@@ -181,6 +207,116 @@ async function waitForIframeReady(
   await new Promise((r) => setTimeout(r, 200));
 }
 
+interface RenderedCharacter {
+  value: string;
+  top: number;
+}
+
+/**
+ * Lit les retours à la ligne réellement calculés par le navigateur. Le texte
+ * des stories ne contient pas de balises imbriquées : chaque bloc est un seul
+ * nœud texte, ce qui permet de conserver exactement les mêmes coupures que
+ * l'aperçu, quelle que soit la police choisie.
+ */
+function readRenderedLines(el: HTMLElement): string[] {
+  const node = el.firstChild;
+  if (!node || node.nodeType !== Node.TEXT_NODE || el.childNodes.length !== 1) return [];
+  const text = node.textContent || "";
+  if (!text.trim()) return [];
+
+  const characters: RenderedCharacter[] = [];
+  const range = el.ownerDocument.createRange();
+  let offset = 0;
+  for (const value of Array.from(text)) {
+    const nextOffset = offset + value.length;
+    range.setStart(node, offset);
+    range.setEnd(node, nextOffset);
+    const rect = range.getBoundingClientRect();
+    characters.push({ value, top: rect.top });
+    offset = nextOffset;
+  }
+  range.detach?.();
+
+  const lines: { top: number; text: string }[] = [];
+  for (const character of characters) {
+    const current = lines[lines.length - 1];
+    if (!current || Math.abs(character.top - current.top) > 1) {
+      lines.push({ top: character.top, text: character.value });
+    } else {
+      current.text += character.value;
+    }
+  }
+  return lines.map((line) => line.text.trim()).filter(Boolean);
+}
+
+/**
+ * Transforme, dans l'iframe temporaire d'export seulement, les pastilles
+ * multilignes en une pile de vraies pastilles. html2canvas calcule sinon un
+ * seul rectangle englobant car il ignore `box-decoration-break: clone`.
+ */
+export function materializeStoryPillsForCapture(doc: Document): void {
+  const win = doc.defaultView;
+  if (!win) return;
+
+  for (const el of Array.from(doc.querySelectorAll<HTMLElement>("[data-story-pptx]"))) {
+    if (el.dataset.storyMode === "nu") continue;
+    const fragments = Array.from(el.getClientRects());
+    if (fragments.length < 2) continue;
+
+    const lines = readRenderedLines(el);
+    if (lines.length < 2) continue;
+
+    const parent = el.parentElement;
+    if (!parent) continue;
+    const parentRect = parent.getBoundingClientRect();
+    const cs = win.getComputedStyle(el);
+    const parentCs = win.getComputedStyle(parent);
+    const paddingTop = Number.parseFloat(cs.paddingTop) || 0;
+    const paddingBottom = Number.parseFloat(cs.paddingBottom) || 0;
+    const lineHeight = Number.parseFloat(cs.lineHeight) || el.getBoundingClientRect().height / lines.length;
+    const decoratedLineHeight = lineHeight + paddingTop + paddingBottom;
+    const maxWidth = Math.max(...fragments.map((fragment) => fragment.width));
+    const minLeft = Math.min(...fragments.map((fragment) => fragment.left));
+
+    if (parentCs.position === "static") parent.style.position = "relative";
+    parent.style.width = `${parentRect.width}px`;
+    parent.style.height = `${parentRect.height}px`;
+
+    const stack = doc.createElement("span");
+    stack.dataset.storyRasterizedPill = el.dataset.storyPptx || "text";
+    stack.style.cssText = [
+      "position:absolute",
+      `top:${fragments[0].top - parentRect.top}px`,
+      `left:${minLeft - parentRect.left}px`,
+      `width:${maxWidth}px`,
+      "display:flex",
+      "flex-direction:column",
+      `align-items:${cs.textAlign === "left" ? "flex-start" : cs.textAlign === "right" ? "flex-end" : "center"}`,
+    ].join(";");
+
+    lines.forEach((lineText, index) => {
+      const line = doc.createElement("span");
+      line.textContent = lineText;
+      line.style.cssText = el.style.cssText;
+      line.style.display = "block";
+      line.style.width = "max-content";
+      line.style.maxWidth = "100%";
+      line.style.whiteSpace = "pre";
+      line.style.boxDecorationBreak = "slice";
+      line.style.setProperty("-webkit-box-decoration-break", "slice");
+      if (index > 0) {
+        const previousFragment = fragments[Math.min(index - 1, fragments.length - 1)];
+        const fragment = fragments[Math.min(index, fragments.length - 1)];
+        const visualStep = fragment.top - previousFragment.top;
+        line.style.marginTop = `${visualStep - decoratedLineHeight}px`;
+      }
+      stack.appendChild(line);
+    });
+
+    el.replaceWith(stack);
+  }
+}
+
 /** Format de sortie d'une slide rasterisée. */
 interface SlideOutput {
   /** Échelle html2canvas (2 = retina pour téléchargement, 1 = natif 1080px pour Instagram). */
@@ -189,6 +325,8 @@ interface SlideOutput {
   mime: "image/png" | "image/jpeg";
   /** Qualité (0–1) pour le JPEG ; ignoré en PNG. */
   quality?: number;
+  /** Matérialise les pastilles multilignes avant capture (stories uniquement). */
+  materializeStoryPills?: boolean;
 }
 
 // Sortie par défaut : PNG retina (scale 2) pour téléchargement / Canva.
@@ -208,6 +346,14 @@ async function captureSlide(
   const iframe = await mountSlideIframe(html, logoOverlayHtml, dims);
   try {
     await waitForIframeReady(iframe, html);
+
+    // html2canvas ne prend pas en charge `box-decoration-break: clone` : une
+    // pastille Instagram multiligne devient alors un grand rectangle. On
+    // remplace uniquement dans l'iframe d'export chaque fragment visuel par
+    // une ligne réelle, sans modifier le HTML de l'aperçu.
+    if (output.materializeStoryPills && iframe.contentDocument) {
+      materializeStoryPillsForCapture(iframe.contentDocument);
+    }
 
     const target = iframe.contentDocument!.body;
     const canvas = await html2canvas(target, {
@@ -377,7 +523,11 @@ interface StoryFrame {
 
 // Sortie story : PNG 1080×1920 natif (la taille exacte d'une story Instagram,
 // scale 1 — un retina 2160×3840 n'apporte rien et alourdit le fichier).
-const PNG_STORY: SlideOutput = { scale: 1, mime: "image/png" };
+const PNG_STORY: SlideOutput = {
+  scale: 1,
+  mime: "image/png",
+  materializeStoryPills: true,
+};
 
 /**
  * Rend les frames de stories en JPEG 1080×1920 et renvoie les Blobs, SANS téléchargement.
@@ -390,7 +540,12 @@ export async function renderStoryFramesToBlobs(
   if (!frames || frames.length === 0) return [];
   const out: { story_number: number; blob: Blob }[] = [];
   for (const f of frames) {
-    const blob = await captureSlideWithRetry(f.html, "", { scale: 1, mime: "image/jpeg", quality: 0.9 }, STORY_DIMS);
+    const blob = await captureSlideWithRetry(
+      f.html,
+      "",
+      { scale: 1, mime: "image/jpeg", quality: 0.9, materializeStoryPills: true },
+      STORY_DIMS,
+    );
     if (blob) out.push({ story_number: f.story_number, blob });
   }
   return out;
