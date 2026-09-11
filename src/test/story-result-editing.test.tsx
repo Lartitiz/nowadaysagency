@@ -49,16 +49,16 @@ describe("Stories : édition et remplacement du résultat", () => {
   it("déplace le groupe titre et texte, et conserve la position à la réouverture", () => {
     const onStoriesUpdate = vi.fn();
     const { unmount } = render(<StoryResult result={sequence("La doublure", { title_pill: "Le détail" })} onStoriesUpdate={onStoriesUpdate} />);
-    fireEvent.click(screen.getByRole("button", { name: "Haut", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Haut" }));
     expect(previewHtml()).toContain("justify-content:flex-start");
     expect(previewHtml()).toContain("Le détail");
-    fireEvent.click(screen.getByRole("button", { name: "Bas", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: "Bas" }));
     const saved = onStoriesUpdate.mock.lastCall?.[0];
     unmount();
     render(<StoryResult result={{ stories: saved }} />);
     expect(previewHtml()).toContain("justify-content:flex-end");
-    expect(screen.getByRole("button", { name: "Bas", exact: true })).toHaveAttribute("aria-pressed", "true");
-    fireEvent.click(screen.getByRole("button", { name: "Milieu", exact: true }));
+    expect(screen.getByRole("button", { name: "Bas" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Milieu" }));
     expect(previewHtml()).toContain("justify-content:center");
   });
 
