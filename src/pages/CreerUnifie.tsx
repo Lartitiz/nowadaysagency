@@ -77,7 +77,10 @@ import { CONTENT_STRUCTURES, EDITORIAL_ANGLES, LINKEDIN_EDITORIAL_ANGLES, PINTER
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 // DEMO_DATA n'est plus importé directement — on utilise demoData du context
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceReady, useIsOwnSpace } from "@/hooks/use-workspace-query";
+import { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
+import { useCarouselQuality } from "@/hooks/use-carousel-quality";
+import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
 import { publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
@@ -146,6 +149,8 @@ export default function CreerUnifie() {
   // l'arrache plus ; le portail attendra la prochaine entrée sur /creer.
   const flowShownRef = useRef(false);
   const workspaceId = useWorkspaceId();
+  const workspaceReady = useWorkspaceReady();
+  const isOwnSpace = useIsOwnSpace();
   const { data: charterData } = useBrandCharter();
   const { activityText } = useActivityExamples();
   const { remainingWithBonus, loading: planLoading, plan, usage, refresh: refreshPlan } = useUserPlan();
@@ -568,6 +573,17 @@ export default function CreerUnifie() {
     streamStage,
     streamReset,
   } = useContentGenerator();
+
+  const carouselCloudEnabled = workspaceReady && !!session?.user?.id && !isDemoMode && !aurianaDemoActive && step === "result" && selectedFormat === "carousel" && !!result?.raw?.carousel_editor_version;
+  const carouselSave = useCarouselAutosave({
+    enabled: carouselCloudEnabled,
+    userId: session?.user?.id || "", workspaceId, isOwnSpace, ideaId: editingIdeaId,
+    raw: result?.raw, title: ideaText, channel: isLinkedInCarousel ? "linkedin" : "instagram",
+    onId: (id) => { setEditingIdeaId(id); saveFlowState({ editingIdeaId: id }); },
+    onSaved: (meta) => setResult((prev: any) => prev ? { ...prev, raw: { ...prev.raw, _carousel_cloud: meta } } : prev),
+    onRestore: (raw) => { setResult((prev: any) => prev ? { ...prev, raw } : prev); setVisualSlides(raw.visual_html || []); },
+  });
+  const carouselQuality = useCarouselQuality(visualSlides, selectedFormat === "carousel" && step === "result" && !visualLoading && !generating);
 
   // Réhydrate les questions persistées : elles vivent dans useContentGenerator
   // (initialisées à [] à chaque mount) alors que le flux les sauvegarde. Sans
@@ -1754,6 +1770,10 @@ export default function CreerUnifie() {
   };
 
   const handleSave = async () => {
+    if (carouselCloudEnabled) {
+      if (await carouselSave.flush()) toast.success("Ton carrousel est enregistré dans Mes idées.");
+      return;
+    }
     await persistCarousel();
     // Ouvrir le dialog SaveToIdeasDialog (insertion réelle dans saved_ideas)
     setSaveIdeaDialogOpen(true);
@@ -1761,6 +1781,7 @@ export default function CreerUnifie() {
 
   const handleAddToCalendar = async () => {
     if (!session?.user?.id || !result?.raw) return;
+    if (carouselCloudEnabled && !(await carouselSave.flush())) return;
     // Auto-save carousel if not already saved
     if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
       await persistCarousel();
@@ -1929,6 +1950,7 @@ export default function CreerUnifie() {
     photoBriefOverlayHtml,
     currentBriefId,
     editingIdeaId,
+    carouselQualityDisabledReason: selectedFormat === "carousel" ? carouselQuality.disabledReason : undefined,
     reelMp4Url,
     publishableImageUrl,
     calendarPostId,
@@ -1987,7 +2009,7 @@ export default function CreerUnifie() {
     // Visuels périmés : ne pas publier une version qui ne reflète plus les éditions.
     (isCarouselPublish && carouselVisualsStale
       ? "Tu as modifié des slides depuis le dernier rendu. Mets à jour les visuels avant de publier."
-      : undefined);
+      : undefined) || (isCarouselPublish ? (visualLoading || generating ? "Les visuels sont en cours de préparation." : carouselQuality.disabledReason) : undefined);
 
   const handlePublishInstagram = async () => {
     if (!session?.user) {
@@ -1998,6 +2020,7 @@ export default function CreerUnifie() {
       toast.error(publishInstagramDisabledReason);
       return;
     }
+    if (carouselCloudEnabled && !(await carouselSave.flush())) return;
     const caption: string = extractInstagramCaption(result?.raw || result);
 
     setPublishingInstagram(true);
@@ -2165,6 +2188,7 @@ export default function CreerUnifie() {
       return;
     }
     const when = new Date(input);
+    if (carouselCloudEnabled && !(await carouselSave.flush())) return;
     const tokenExpiry = getTokenExpiry(publishChannel!);
     const scheduled = await handleConfirmCalendar({ date: input.split("T")[0], scheduleAt: when });
     if (scheduled && tokenExpiresBeforeSchedule(tokenExpiry, when)) {
@@ -2771,6 +2795,8 @@ export default function CreerUnifie() {
                   setResult((prev: any) => prev ? { ...prev, raw } : prev);
                   setVisualSlides(visuals);
                 }}
+                carouselCloudTools={<CarouselSaveStatus save={carouselSave} />}
+                carouselQuality={carouselQuality}
                 onExportPptx={selectedFormat === "carousel" ? effectiveHandleExportPptx : undefined}
                 onExportVisualPng={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportVisualPng : undefined}
                 onExportHybridPptx={selectedFormat === "carousel" && visualSlides.length > 0 ? effectiveHandleExportHybridPptx : undefined}

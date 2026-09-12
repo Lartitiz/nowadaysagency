@@ -1,5 +1,6 @@
 import { Loader2, Pencil, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Send, MoreHorizontal } from "lucide-react";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import CarouselResult from "@/components/creer/formatRenderers/CarouselResult";
@@ -273,6 +274,8 @@ interface Props {
   visualSlides?: { slide_number: number; html: string }[];
   onVisualSlidesUpdate?: (slides: { slide_number: number; html: string }[]) => void;
   onCarouselDocumentChange?: (raw: any, slides: { slide_number: number; html: string }[]) => void;
+  carouselCloudTools?: ReactNode;
+  carouselQuality?: CarouselQuality;
   onExportPptx?: () => void;
   onExportHybridPptx?: () => void;
   /** Pont Canva : exporte le PPTX et l'ouvre comme design éditable dans Canva. */
@@ -335,6 +338,8 @@ export default function CreerStepResult({
   visualSlides,
   onVisualSlidesUpdate,
   onCarouselDocumentChange,
+  carouselCloudTools,
+  carouselQuality,
   onExportPptx,
   onExportHybridPptx,
   onOpenInCanva,
@@ -528,7 +533,7 @@ export default function CreerStepResult({
     if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
       return <fieldset disabled={visualLoading} className={visualLoading ? "pointer-events-none opacity-60" : ""} aria-busy={visualLoading}>
         {visualLoading && <p role="status" className="mb-3 text-sm">Régénération en cours. Les retouches seront disponibles dès que les nouveaux visuels seront prêts.</p>}
-        <CarouselEditor result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} />
+        <CarouselEditor result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} />
       </fieldset>;
     }
     // Carousel photo gets its own renderer — si on a des photos, OU si les slides

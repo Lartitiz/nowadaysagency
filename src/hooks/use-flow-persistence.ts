@@ -58,6 +58,7 @@ export function saveFlowState(state: Partial<FlowState>) {
     // One HTML copy in browser storage. The source is restored through visualSlides.
     if (merged.result?.raw?.carousel_editor_version && merged.visualSlides?.length) {
       const { visual_html: _html, ...raw } = merged.result.raw;
+      if (raw._carousel_cloud) raw._carousel_cloud = { ...raw._carousel_cloud, history: [] };
       merged.result = { ...merged.result, raw };
     }
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(merged));

@@ -11,6 +11,7 @@
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
 
 export interface IdeaForCalendar {
+  updated_at?: string | null;
   titre: string;
   angle?: string | null;
   format?: string | null;

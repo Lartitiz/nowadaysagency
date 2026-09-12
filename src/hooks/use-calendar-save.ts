@@ -32,6 +32,7 @@ interface UseCalendarSaveParams {
   currentBriefId: string | null;
   /** Idée de départ (saved_ideas.id) : reliée au post et passée en « Créée ». */
   editingIdeaId?: string | null;
+  carouselQualityDisabledReason?: string;
   reelMp4Url: string | null;
   publishableImageUrl: string | null | undefined;
   calendarPostId: string | null;
@@ -72,6 +73,7 @@ export function useCalendarSave({
   photoBriefOverlayHtml,
   currentBriefId,
   editingIdeaId = null,
+  carouselQualityDisabledReason,
   reelMp4Url,
   publishableImageUrl,
   calendarPostId,
@@ -248,6 +250,11 @@ export function useCalendarSave({
     if (!session?.user?.id || !calendarPostId || !result?.raw) return;
     setSavingToCalendar(true);
     try {
+      if (carouselQualityDisabledReason) {
+        const { data: current, error: readError } = await supabase.from("calendar_posts").select("auto_publish").eq("id", calendarPostId).single();
+        if (readError) throw readError;
+        if (current?.auto_publish) { toast.error(carouselQualityDisabledReason); return; }
+      }
       if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
         await persistCarousel();
       }
@@ -340,6 +347,7 @@ export function useCalendarSave({
    */
   const handleConfirmCalendar = async ({ date, scheduleAt }: { date: string; scheduleAt?: Date }): Promise<boolean> => {
     if (!session?.user?.id || !date || savingToCalendar) return false;
+    if (scheduleAt && carouselQualityDisabledReason) { toast.error(carouselQualityDisabledReason); return false; }
     // La publication immédiate a déjà créé sa ligne de suivi. Une sauvegarde ou
     // programmation consécutive doit ouvrir cette ligne, sans nouvel insert et
     // sans risquer de republier le même contenu.
@@ -420,7 +428,8 @@ export function useCalendarSave({
             warnSuffix: " (non-blocking)",
           });
         } catch (mediaErr) {
-          await supabase.from("calendar_posts").delete().eq("id", postId);
+          const { error: cleanupError } = await supabase.from("calendar_posts").delete().eq("id", postId);
+          if (cleanupError) console.error("Failed to remove incomplete carousel draft:", cleanupError);
           throw mediaErr;
         }
 

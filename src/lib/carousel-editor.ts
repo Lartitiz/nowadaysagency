@@ -426,6 +426,7 @@ export function documentOutput(document: CarouselDocument, raw: any) {
       caption: document.caption,
       visual_html: visualSlides,
       carousel_editor_version: 1,
+      _carousel_document_id: raw._carousel_document_id || newId(),
     },
     visualSlides,
   };

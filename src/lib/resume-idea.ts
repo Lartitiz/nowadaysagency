@@ -21,5 +21,6 @@ export function resumeIdea(idea: IdeaForCalendar) {
     raw = { content: idea.content_draft, edited_text: idea.content_draft };
   }
   if (!raw) return null;
+  if (format === 'carousel' && idea.updated_at !== undefined) raw = { ...raw, _carousel_base_updated_at: idea.updated_at };
   return { format, raw };
 }

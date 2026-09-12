@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import type { CarouselQuality } from "@/hooks/use-carousel-quality";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -44,6 +45,8 @@ interface Props {
   photos?: PhotoItem[];
   onAddPhoto?: (photo: PhotoItem) => number;
   onStaleChange?: (stale: boolean) => void;
+  cloudTools?: ReactNode;
+  quality?: CarouselQuality;
 }
 // Compare immutable references, not megabytes of embedded photo HTML on every
 // keystroke. Parent echoes retain these exact references.
@@ -241,6 +244,8 @@ export default function CarouselEditor({
   photos,
   onAddPhoto,
   onStaleChange,
+  cloudTools,
+  quality,
 }: Props) {
   const raw = result?.raw || result;
   const [document, setDocument] = useState<CarouselDocument>(() =>
@@ -418,6 +423,94 @@ export default function CarouselEditor({
   if (!slide) return null;
   return (
     <section aria-label="Éditeur de carrousel" className="space-y-4">
+      {cloudTools}
+      {quality && quality.status !== "idle" && (
+        <div
+          className="rounded-xl border p-3 space-y-2 text-sm"
+          aria-label="Contrôle qualité"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <p role="status">
+              {quality.status === "checking"
+                ? "Contrôle de toutes les slides…"
+                : quality.status === "error"
+                  ? quality.message
+                  : quality.issues.length
+                    ? `${quality.issues.filter((i) => i.severity === "error").length} point(s) bloquant(s) · ${quality.issues.filter((i) => i.severity === "warning").length} conseil(s)`
+                    : "Contrôle terminé : aucun problème détecté"}
+            </p>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={quality.recheck}
+              disabled={quality.status === "checking"}
+            >
+              Revérifier
+            </Button>
+          </div>
+          {!!quality.issues.length && (
+            <details>
+              <summary className="cursor-pointer">
+                Voir les points à vérifier
+              </summary>
+              <ul className="max-h-64 overflow-auto space-y-2 pt-2">
+                {quality.issues.map((issue, index) => (
+                  <li
+                    key={`${issue.slide}-${issue.elementId}-${index}`}
+                    className="rounded border p-2"
+                  >
+                    <p>
+                      Slide {issue.slide + 1} —{" "}
+                      {issue.severity === "error" ? "À corriger : " : ""}
+                      {issue.message}
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => {
+                        setActive(issue.slide);
+                        setSelected(issue.elementId);
+                      }}
+                    >
+                      Voir cet élément
+                    </Button>
+                    {issue.fix && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={document.slides[issue.slide]?.locked}
+                        onClick={() => {
+                          const target = current.current.slides[issue.slide];
+                          if (!target || target.locked) return;
+                          commit({
+                            ...current.current,
+                            slides: current.current.slides.map((s, i) =>
+                              i === issue.slide
+                                ? patchElement(s, issue.elementId, {
+                                    styles: issue.fix,
+                                  })
+                                : s,
+                            ),
+                          });
+                          setActive(issue.slide);
+                          setSelected(issue.elementId);
+                        }}
+                      >
+                        Appliquer la correction
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Les textes coupés et images manquantes bloquent la publication. Les
+            conseils de lisibilité restent indicatifs ; relis aussi le fond et
+            les textes sur photo.
+          </p>
+        </div>
+      )}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-semibold text-lg">Modifier mon carrousel</h2>

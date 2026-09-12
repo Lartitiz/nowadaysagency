@@ -28,6 +28,7 @@ const mocks = vi.hoisted(() => ({
     ops: [] as any[],
     insertResponse: { data: { id: "post-1" }, error: null } as any,
     schedError: null as any,
+    autoPublish: false,
   },
 }));
 
@@ -49,6 +50,7 @@ vi.mock("@/features/creer/upload-helpers", () => ({
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: (table: string) => ({
+      select: () => ({ eq: () => ({ single: async () => ({ data: { auto_publish: mocks.db.autoPublish }, error: null }) }) }),
       insert: (row: any) => {
         mocks.db.ops.push({ table, type: "insert", row });
         return { select: () => ({ single: async () => mocks.db.insertResponse }) };
@@ -103,6 +105,16 @@ const updates = () => mocks.db.ops.filter((o) => o.type === "update");
 const schedUpdates = () => updates().filter((o) => o.row.auto_publish !== undefined);
 
 describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
+  it("quality errors block scheduling but still allow saving a draft", async () => {
+    mocks.db.ops = [];
+    mocks.buildCalendarContent.mockReturnValue({ contentDraft: "Test", accroche: null, storyDetail: null });
+    const params = makeParams({ selectedFormat: "carousel", carouselQualityDisabledReason: "Texte coupé" });
+    const { result } = renderHook(() => useCalendarSave(params));
+    await act(async () => { expect(await result.current.handleConfirmCalendar({ date: "2026-09-20", scheduleAt: new Date("2026-09-20") })).toBe(false); });
+    expect(mocks.db.ops).toHaveLength(0);
+    await act(async () => { await result.current.handleConfirmCalendar({ date: "2026-09-20" }); });
+    expect(inserts()).toHaveLength(1);
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.db.ops = [];
@@ -282,6 +294,15 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
 });
 
 describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
+  it("does not replace the media of a scheduled carousel with a failed quality check", async () => {
+    mocks.db.autoPublish = true;
+    const params = makeParams({ selectedFormat: "carousel", calendarPostId: "post-1", carouselQualityDisabledReason: "Texte coupé" });
+    const { result } = renderHook(() => useCalendarSave(params));
+    await act(async () => { await result.current.handleSaveBackToCalendar(); });
+    expect(mocks.db.ops).toHaveLength(0);
+    expect(mocks.toast.error).toHaveBeenCalledWith("Texte coupé");
+    mocks.db.autoPublish = false;
+  });
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.db.ops = [];
