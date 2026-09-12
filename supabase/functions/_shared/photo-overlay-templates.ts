@@ -155,11 +155,11 @@ function contentWrap(
 }
 
 function kickerHtml(text: string): string {
-  return `<div style="font-size:26px;letter-spacing:6px;text-transform:uppercase;color:rgba(255,255,255,0.85);margin-bottom:18px;">${escapeHtml(text)}</div>`;
+  return `<div data-pptx-editable="caption" style="font-size:32px;letter-spacing:2px;color:#FFFFFF;margin-bottom:18px;">${escapeHtml(text)}</div>`;
 }
 
 function detailHtml(text: string, marginTop = 22): string {
-  return `<div style="font-size:29px;line-height:1.5;color:rgba(255,255,255,0.85);margin-top:${marginTop}px;max-width:820px;">${escapeHtml(text)}</div>`;
+  return `<div data-pptx-editable="caption" style="font-size:32px;line-height:1.5;color:#FFFFFF;margin-top:${marginTop}px;max-width:820px;">${escapeHtml(text)}</div>`;
 }
 
 function overlayAnchor(text: string, style: string, tag = "p"): string {
@@ -181,10 +181,10 @@ function heroSize(text: string): number {
  * un texte trop long serait coupé hors cadre par le haut. */
 function fitSize(base: number, text: string, nominalWords: number): number {
   const wc = wordCount(text);
-  if (wc <= nominalWords) return base;
-  if (wc <= Math.round(nominalWords * 1.4)) return Math.round(base * 0.85);
-  if (wc <= Math.round(nominalWords * 1.8)) return Math.round(base * 0.72);
-  return Math.round(base * 0.62);
+  if (wc <= nominalWords) return Math.max(38, base);
+  if (wc <= Math.round(nominalWords * 1.4)) return Math.max(38, Math.round(base * 0.85));
+  if (wc <= Math.round(nominalWords * 1.8)) return Math.max(38, Math.round(base * 0.72));
+  return 38; // Real browser QA flags excess copy; never make it unreadable.
 }
 
 // ── Gabarits ────────────────────────────────────────────────────────────────
@@ -258,7 +258,7 @@ function tplListe(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
     ));
   }
   const points = (s.points || []).slice(0, 3).map((p, i) =>
-    `<div style="font-size:34px;line-height:1.7;color:#FFFFFF;"><span style="font-family:${fontTitle};font-style:italic;color:${accent};margin-right:14px;">${i + 1}</span>${escapeHtml(p)}</div>`
+    `<div data-pptx-editable="body" style="font-size:38px;line-height:1.5;color:#FFFFFF;"><span style="font-family:${fontTitle};font-style:italic;color:${accent};margin-right:14px;">${i + 1}</span>${escapeHtml(p)}</div>`
   ).join("");
   parts.push(`<div style="display:flex;flex-direction:column;gap:10px;">${points}</div>`);
   // Bloc haut (kicker + titre + points) : dégradé rallongé pour couvrir le sommet.
@@ -293,7 +293,7 @@ function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string 
     "blockquote",
   );
   const who = s.attribution
-    ? `<div style="font-size:24px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,0.85);margin-top:28px;">${escapeHtml(s.attribution)}</div>`
+    ? `<div data-pptx-editable="caption" style="font-size:32px;letter-spacing:1px;color:#FFFFFF;margin-top:28px;">${escapeHtml(s.attribution)}</div>`
     : "";
   // Défaut BAS (pas centré) : un portrait a son visage en haut/milieu, une
   // citation centrée atterrissait dessus. Le voile uniforme garantit le
@@ -310,7 +310,7 @@ function tplFinale(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
     "h2",
   );
   const cta = s.cta_label
-    ? `<div data-slide-cta="1" style="margin-top:30px;"><span data-slide-text="cta" style="display:inline-block;border:2px solid rgba(255,255,255,0.85);border-radius:999px;padding:14px 36px;font-size:28px;color:#FFFFFF;">${escapeHtml(s.cta_label)}</span></div>`
+    ? `<div data-slide-cta="1" style="margin-top:30px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;border:2px solid rgba(255,255,255,0.85);border-radius:999px;padding:14px 36px;font-size:32px;color:#FFFFFF;">${escapeHtml(s.cta_label)}</span></div>`
     : "";
   return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72)) +
     contentWrap(s.overlay_position || "bottom_center", "center", q + cta);

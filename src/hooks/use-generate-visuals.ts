@@ -254,58 +254,9 @@ export function useGenerateVisuals({
         };
       });
 
-      // P1-8 : Validation sequencing post-IA pour mix
-      // - Slide 1 doit être visuelle (photo_full / photo_integrated) pour ouvrir fort
-      // - Dernière slide doit être text_only (CTA)
-      // On corrige silencieusement (log console) sans bloquer l'utilisateur.
-      // « Mes slides » : JAMAIS de correction — l'ordre et le type de chaque
-      // slide sont un choix de l'utilisatrice, pas une sortie IA à rattraper.
-      if (isMixCarousel && carouselSubMode !== "user_slides" && mappedSlides.length >= 2) {
-        const first = mappedSlides[0];
-        const last = mappedSlides[mappedSlides.length - 1];
-        if (first.slide_type === "text_only") {
-          console.warn(
-            `[carousel] sequencing: slide 1 était text_only — conversion en photo_full pour ouvrir fort.`
-          );
-          const targetPhoto = totalPhotos > 0 ? 1 : undefined;
-          mappedSlides[0] = {
-            slide_number: first.slide_number,
-            role: first.role,
-            slide_type: "photo_full",
-            overlay_text: (first as any).title || "",
-            overlay_position: "bottom_center",
-            overlay_style: "sensoriel",
-            note: (first as any).note,
-            photo_index: targetPhoto,
-          };
-        }
-        if (
-          last.slide_type !== "text_only" &&
-          last.slide_type !== undefined &&
-          last.role !== "cta"
-        ) {
-          console.warn(
-            `[carousel] sequencing: dernière slide n'était pas text_only — conversion en CTA texte.`
-          );
-          // Mapping CTA propre : on supprime overlay_text/photo_index/photo_layout
-          // pour ne garder que les champs pertinents pour une slide texte CTA.
-          mappedSlides[mappedSlides.length - 1] = {
-            slide_number: last.slide_number,
-            role: "cta",
-            slide_type: "text_only",
-            title: (last as any).title || (last as any).overlay_text || "",
-            body: (last as any).body || (last as any).note || "",
-            ...((last as any).visual_suggestion ? { visual_suggestion: (last as any).visual_suggestion } : {}),
-          };
-        }
-      }
-
-      if (!mappedSlides || mappedSlides.length === 0) {
-        console.error("[carousel-visual] mapping a produit 0 slides");
-        toast.error("Erreur de préparation des slides. Régénère le carrousel.");
-        setVisualLoading(false);
-        return;
-      }
+      // The reviewed storyboard owns slide order and type. A text opening and
+      // a photographic conclusion are both valid: coercion here used to discard
+      // the opening body and silently change the final slide's purpose.
 
       // Filet anti-dégénéré — source unique de vérité avec l'export PPTX éditable.
       // Si l'IA a mis la même photo partout (ou un index invalide) sur les slides-photo,
