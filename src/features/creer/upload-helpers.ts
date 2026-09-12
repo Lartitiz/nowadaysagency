@@ -69,17 +69,15 @@ export async function uploadVisualsToStorage(
   // Versioned paths prevent a failed upload replacing half of an older post.
   const version = crypto.randomUUID();
   for (const vs of rendered) {
-      const path = `${userId}/${postId}/slides/${version}/slide-${vs.slide_number}.jpg`;
-      const { error } = await supabase.storage
-        .from("calendar-visuals")
-        .upload(path, vs.blob, { contentType: "image/jpeg", upsert: false });
-      if (error) throw new Error(`La slide ${vs.slide_number} n’a pas pu être sauvegardée. Réessaie avant de programmer le carrousel.`);
-        onUploaded?.(path);
-    const { data: urlData } = supabase.storage
-          .from("calendar-visuals")
-          .getPublicUrl(path);
-        urls.push(urlData.publicUrl);
-      onProgress?.(urls.length, visualSlides.length);
+    const path = `${userId}/${postId}/slides/${version}/slide-${vs.slide_number}.jpg`;
+    const { error } = await supabase.storage
+      .from("calendar-visuals")
+      .upload(path, vs.blob, { contentType: "image/jpeg", upsert: false });
+    if (error) throw new Error(`La slide ${vs.slide_number} n’a pas pu être sauvegardée. Réessaie avant de programmer le carrousel.`);
+    onUploaded?.(path);
+    const { data: urlData } = supabase.storage.from("calendar-visuals").getPublicUrl(path);
+    urls.push(urlData.publicUrl);
+    onProgress?.(urls.length, visualSlides.length);
   }
   return urls;
 }

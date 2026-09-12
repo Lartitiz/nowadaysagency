@@ -107,12 +107,12 @@ async function pollImport(jobId: string, token: string, maxMs = CANVA_POLL_BUDGE
     await new Promise((r) => setTimeout(r, 2000));
   }
   throw new Error(
-    "Canva met trop de temps à traiter ton carrousel. Réessaie, ou allège-le (moins de photos, ou des photos moins lourdes).",
+    "La réponse de Canva prend trop de temps. L’import peut encore se terminer : vérifie tes designs Canva avant de le relancer.",
   );
 }
 
 Deno.serve(async (req) => {
-  const corsHeaders = getCorsHeaders(req);
+  const corsHeaders = { ...getCorsHeaders(req), "X-App-Revision": "calendar-reliability-20260912" };
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
@@ -204,7 +204,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({ title, url: fileUrl }),
     });
     const importJson = await importRes.json();
-    if (!importRes.ok || !importJson?.job?.id) {
+    checkCanvaResponse(importRes, importJson);
+    if (!importJson?.job?.id) {
       console.error("Canva url-imports error:", importJson);
       if (importJson?.code === "invalid_access_token" || importRes.status === 401) {
         return json(
