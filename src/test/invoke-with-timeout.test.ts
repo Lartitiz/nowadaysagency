@@ -121,3 +121,35 @@ describe("invokeWithTimeout — non-régression", () => {
     expect(data).toEqual({ ok: true });
   });
 });
+
+describe("reliability: no ambiguous replay", () => {
+  it("never retries a network failure that could hide a successful write", async () => {
+    mocks.invoke.mockResolvedValue(fetchError());
+    await invokeWithTimeout("social-canva-import", { body: {} });
+    expect(mocks.invoke).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshSession).not.toHaveBeenCalled();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+  it("403 preserves permission context without logging out or refreshing", async () => {
+    mocks.invoke.mockResolvedValue(httpError(403, { message: "Accès à cet espace refusé" }));
+    const { error } = await invokeWithTimeout("example", { body: {} });
+    expect(error?.code).toBe("FORBIDDEN");
+    expect(error?.message).toContain("espace");
+    expect(mocks.refreshSession).not.toHaveBeenCalled();
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+  it("a refresh finishing after the deadline cannot start another invocation", async () => {
+    vi.useFakeTimers();
+    let finishRefresh: (v: any) => void = () => {};
+    mocks.invoke.mockResolvedValue(httpError(401, {}));
+    mocks.refreshSession.mockImplementation(() => new Promise(resolve => { finishRefresh = resolve; }));
+    const pending = invokeWithTimeout("example", {}, 20);
+    await vi.advanceTimersByTimeAsync(21);
+    expect((await pending).error?.code).toBe("TIMEOUT");
+    finishRefresh({ data: { session: { access_token: "fresh" } }, error: null });
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mocks.invoke).toHaveBeenCalledTimes(1);
+    expect(mocks.invoke.mock.calls[0][1].signal.aborted).toBe(true);
+    vi.useRealTimers();
+  });
+});

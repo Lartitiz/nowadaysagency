@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
 import { supabase } from "@/integrations/supabase/client";
@@ -341,14 +341,23 @@ export function useContentGenerator() {
     reset: streamReset,
   } = useStreamingInvoke();
 
+  const generationEpoch = useRef(0);
+  const questionsEpoch = useRef(0);
+  useEffect(() => () => { generationEpoch.current++; questionsEpoch.current++; }, [defaultWorkspaceId]);
+
   const reset = useCallback(() => {
+    generationEpoch.current++;
+    questionsEpoch.current++;
+    streamReset();
+    setQuestionsError(null);
+    setGenerationStage(null);
     setGenerating(false);
     setResult(null);
     setError(null);
     setQuotaExhausted(null);
     setLoadingQuestions(false);
     setQuestions([]);
-  }, []);
+  }, [streamReset]);
 
   // Pour les générations qui n'empruntent PAS generate()/generateStream()
   // (structure proposal carrousel, visuels/briefs Pinterest : appels directs
@@ -362,6 +371,7 @@ export function useContentGenerator() {
   const clearQuotaExhausted = useCallback(() => setQuotaExhausted(null), []);
 
   const generate = useCallback(async (params: GenerateParams) => {
+    const epoch = ++generationEpoch.current;
     const {
       format,
       subject,
@@ -462,7 +472,7 @@ export function useContentGenerator() {
                 ? { photo_catalog: params.photoCatalog.slice(0, 40) }
                 : {}),
             },
-            onStatus: (stage) => setGenerationStage(stage),
+            onStatus: (stage) => { if (epoch === generationEpoch.current) setGenerationStage(stage); },
           // 400s : pire cas serveur réel côté carousel-ai (mode photo) — appel
           // principal (120s) + retry plancher slides (120s) + passe correction
           // (60s) + re-passe redac-gate (60s) + relecture-gabarits (30s) = 390s,
@@ -621,6 +631,8 @@ export function useContentGenerator() {
           throw new Error(`Format non supporté : ${format}`);
       }
 
+      if (epoch !== generationEpoch.current) return null;
+
       // Quota : détection par le CODE structuré, AVANT le throw générique. Les
       // helpers d'invocation renvoient TOUJOURS le couple { data, error.isRateLimit }
       // sur un limit_reached — l'ancien throw générique sur invokeError passait donc
@@ -677,6 +689,7 @@ export function useContentGenerator() {
       setResult(normalized);
       return normalized;
     } catch (e: any) {
+      if (epoch !== generationEpoch.current) return null;
       // Erreurs quota/premium → toast convivial (jamais le JSON brut affiché).
       const cleaned = cleanErrorMessage(e?.message);
       if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
@@ -687,13 +700,16 @@ export function useContentGenerator() {
       setError(cleaned || "Erreur lors de la génération");
       return null;
     } finally {
-      setGenerating(false);
-      setGenerationStage(null);
+      if (epoch === generationEpoch.current) {
+        setGenerating(false);
+        setGenerationStage(null);
+      }
     }
   }, [defaultWorkspaceId]);
 
   const generateQuestions = useCallback(
     async (params: GenerateQuestionsParams) => {
+      const epoch = ++questionsEpoch.current;
       const { format, subject, editorialAngle, objective, workspaceId } = params;
       const effectiveWorkspaceId = workspaceId || defaultWorkspaceId;
       setQuestionsError(null);
@@ -865,6 +881,7 @@ export function useContentGenerator() {
           invokeError = res.error;
         }
 
+        if (epoch !== questionsEpoch.current) return [];
         if (invokeError) throw new Error(invokeError.message || "Erreur edge function");
         if (data?.error) throw new Error(data.message || data.error);
 
@@ -890,12 +907,13 @@ export function useContentGenerator() {
         setQuestions(parsedQuestions);
         return parsedQuestions;
       } catch (e: any) {
+        if (epoch !== questionsEpoch.current) return [];
         const cleaned = cleanErrorMessage(e?.message) || "Erreur lors de la génération des questions";
         setError(cleaned);
         setQuestionsError(cleaned);
         return [];
       } finally {
-        setLoadingQuestions(false);
+        if (epoch === questionsEpoch.current) setLoadingQuestions(false);
       }
     },
     [defaultWorkspaceId]
@@ -907,6 +925,7 @@ export function useContentGenerator() {
   // angle resolution across all 4 angle catalogs, JSON parsing, quota handling.
   const generateStream = useCallback(
     async (params: GenerateStreamParams): Promise<ContentResult | null> => {
+      const epoch = ++generationEpoch.current;
       const {
         format,
         subject,
@@ -1008,7 +1027,9 @@ export function useContentGenerator() {
       let fullText = "";
       try {
         fullText = await streamInvoke("creative-flow", streamBody);
+        if (epoch !== generationEpoch.current) return null;
       } catch (e: any) {
+        if (epoch !== generationEpoch.current) return null;
         const cleaned = cleanErrorMessage(e?.message);
         if (handleQuotaError(e?._isQuota ? e : { message: cleaned, data: e?.data })) {
           setQuotaExhausted(quotaInlineMessage(cleaned));

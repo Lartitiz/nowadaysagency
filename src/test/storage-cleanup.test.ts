@@ -43,11 +43,15 @@ describe("clearAppStorage — isolation entre comptes", () => {
   it("purge aussi les clés/préfixes app connus (creer_flow, backups, IDB)", async () => {
     const { clearAppStorage } = await import("@/lib/storage-cleanup");
     sessionStorage.setItem("creer_flow_state", "x");
+    sessionStorage.setItem("creer_flow_state:brand", "x");
+    sessionStorage.setItem("creer_unifie_result:user:brand:draft", "x");
     localStorage.setItem("creer_flow_state_backup:user-123", "y");
 
     clearAppStorage();
 
     expect(sessionStorage.getItem("creer_flow_state")).toBeNull();
+    expect(sessionStorage.getItem("creer_flow_state:brand")).toBeNull();
+    expect(sessionStorage.getItem("creer_unifie_result:user:brand:draft")).toBeNull();
     expect(localStorage.getItem("creer_flow_state_backup:user-123")).toBeNull();
     expect(deletedDbs).toContain("creer_photos");
   });

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface UseStreamingInvokeReturn {
@@ -30,7 +30,11 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
   const [error, setError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  const requestEpoch = useRef(0);
+  useEffect(() => () => { requestEpoch.current++; abortRef.current?.abort(); }, []);
+
   const reset = useCallback(() => {
+    requestEpoch.current++;
     abortRef.current?.abort();
     setContent("");
     setStreaming(false);
@@ -41,20 +45,24 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
 
   const invoke = useCallback(async (functionName: string, body: any): Promise<string> => {
     reset();
+    const epoch = requestEpoch.current;
+    const controller = new AbortController();
+    abortRef.current = controller;
+    let deadline: ReturnType<typeof setTimeout> | undefined;
     setStreaming(true);
 
     try {
       const session = await supabase.auth.getSession();
+      if (epoch !== requestEpoch.current) return "";
       let token = session.data.session?.access_token;
       if (!token) throw new Error("Non authentifié");
 
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const controller = new AbortController();
-      abortRef.current = controller;
 
+      deadline = setTimeout(() => controller.abort(), 180000);
       const doFetch = async (authToken: string) => {
         // Timeout de 180s — couvre LinkedIn vision multi-photos, newsletters et deep research
-        const timeout = setTimeout(() => controller.abort(), 180000);
+        if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
         const resp = await fetch(`${supabaseUrl}/functions/v1/${functionName}`, {
           method: "POST",
           headers: {
@@ -66,27 +74,33 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
           body: JSON.stringify(body),
           signal: controller.signal,
         });
-        return { resp, timeout };
+        return resp;
       };
 
-      let { resp, timeout } = await doFetch(token);
-      clearTimeout(timeout);
+      let resp = await doFetch(token);
+      if (epoch !== requestEpoch.current) return "";
 
       // Retry silencieux UNE SEULE FOIS si le token est périmé (onglet en veille)
-      if (resp.status === 401 || resp.status === 403) {
+      if (resp.status === 401) {
         const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
         const newToken = refreshed?.session?.access_token;
         if (!refreshErr && newToken) {
           token = newToken;
-          ({ resp, timeout } = await doFetch(newToken));
-          clearTimeout(timeout);
+          if (epoch !== requestEpoch.current) return "";
+          resp = await doFetch(newToken);
         }
       }
+
+      if (epoch !== requestEpoch.current) return "";
+      if (resp.status === 401) throw new Error("Ta session a expiré. Reconnecte-toi pour continuer.");
+      if (resp.status === 403) throw new Error("Tu n’as pas accès à cette action.");
 
       // Handle JSON responses (non-streaming, e.g. LinkedIn 2-step generation)
       const contentType = resp.headers.get("Content-Type") || "";
       if (contentType.includes("application/json")) {
         const json = await resp.json();
+        if (epoch !== requestEpoch.current) return "";
+        if (!resp.ok && !json.error) throw new Error(json.message || "La génération a échoué. Ton contenu reste disponible.");
         if (json.error === "limit_reached" || json.message?.includes("ce mois")) {
           const err = new Error(json.message || json.error);
           (err as any)._isQuota = true;
@@ -118,6 +132,8 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
           if (json.error) {
             errorMsg = json.message || json.error;
           } else {
+            if (!resp.ok) throw new Error(json.message || "Erreur de génération");
+            if (epoch !== requestEpoch.current) return "";
             const text = json.content || json.raw || JSON.stringify(json);
             setContent(text);
             setDone(true);
@@ -141,6 +157,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
 
       while (true) {
         const { done: streamDone, value } = await reader.read();
+        if (epoch !== requestEpoch.current) { await reader.cancel(); return ""; }
         if (streamDone) break;
         textBuffer += decoder.decode(value, { stream: true });
 
@@ -187,6 +204,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
       setDone(true);
       return doneFull || fullText;
     } catch (err: any) {
+      if (epoch !== requestEpoch.current) return "";
       const msg = err?.name === "AbortError"
         ? "La génération a pris trop de temps. Réessaie."
         : err?.message || "Erreur de génération";
@@ -196,6 +214,9 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
       const wrapped = new Error(msg);
       (wrapped as any).cause = err;
       throw wrapped;
+    } finally {
+      clearTimeout(deadline);
+      if (epoch === requestEpoch.current) abortRef.current = null;
     }
   }, [reset]);
 

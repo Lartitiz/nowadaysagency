@@ -23,7 +23,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { loadFlowState, loadPhotos } from "@/hooks/use-flow-persistence";
+import { loadFlowState, loadPhotos, clearFlowState } from "@/hooks/use-flow-persistence";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -651,6 +651,8 @@ export default function AppSidebar() {
             <AlertDialogAction
               onClick={() => {
                 const target = freshStartTarget || "/creer?new=1";
+                // The user has explicitly confirmed discarding this draft.
+                clearFlowState();
                 setFreshStartTarget(null);
                 setOpen(false);
                 navigate(target);

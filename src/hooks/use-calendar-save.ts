@@ -1,6 +1,8 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { commitCalendarContent, calendarSaveError } from "@/lib/calendar-persistence";
+import { reportClientError } from "@/lib/client-error-monitor";
 import { supabase } from "@/integrations/supabase/client";
 import { clearFlowState, loadFlowState, saveFlowState } from "@/hooks/use-flow-persistence";
 import { buildCalendarContent } from "@/features/creer/build-calendar-content";
@@ -12,6 +14,7 @@ import {
 } from "@/features/creer/upload-helpers";
 
 interface UseCalendarSaveParams {
+  creationId?: string;
   session: { user: { id?: string } } | null;
   result: any;
   selectedFormat: string | null;
@@ -38,14 +41,13 @@ interface UseCalendarSaveParams {
   calendarPostId: string | null;
   calendarPostDate: string | null;
   setPublishDialogOpen: (open: boolean) => void;
-  persistCarousel: () => Promise<void>;
+  persistCarousel?: () => Promise<unknown>;
 }
 
 /**
  * Sauvegarde dans le calendrier — deux fonctions quasi-jumelles partageant
- * la même séquence d'upload (photos → visuels → pinterest visual/overlay),
- * mutualisée dans `uploadPostMedia` (les différences réelles passent en
- * options) :
+ * la même préparation des médias (photos → visuels → Pinterest),
+ * mutualisée dans `uploadPostMedia`, avant une écriture complète du post :
  * - `handleConfirmCalendar` : nouveau post (insert), avec programmation
  *   optionnelle (auto_publish + scheduled_publish_at).
  * - `handleSaveBackToCalendar` : mise à jour d'un post existant
@@ -54,6 +56,7 @@ interface UseCalendarSaveParams {
  * Retourne `{ savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar }`.
  */
 export function useCalendarSave({
+  creationId: flowCreationId,
   session,
   result,
   selectedFormat,
@@ -79,23 +82,42 @@ export function useCalendarSave({
   calendarPostId,
   calendarPostDate,
   setPublishDialogOpen,
-  persistCarousel,
 }: UseCalendarSaveParams) {
   const navigate = useNavigate();
   const [savingToCalendar, setSavingToCalendar] = useState(false);
+  // React state is asynchronous: also lock synchronously before the first await.
+  const saveInFlight = useRef(false);
 
-  /**
-   * Relie l'idée de départ au post du calendrier : elle passe en « Créée »
-   * dans /idees (état dérivé de calendar_post_id, cf. src/lib/idea-state.ts).
-   * Best-effort : un échec ici ne doit pas faire échouer la sauvegarde du post.
-   */
-  const linkIdeaToPost = async (postId: string, date: string | null) => {
-    if (!editingIdeaId || !postId) return;
-    const { error } = await supabase
-      .from("saved_ideas")
-      .update({ calendar_post_id: postId, status: "planned", ...(date ? { planned_date: date } : {}), updated_at: new Date().toISOString() } as any)
-      .eq("id", editingIdeaId);
-    if (error) console.error("[use-calendar-save] lien idée → post échoué :", error);
+  const creationId = useRef(flowCreationId || loadFlowState()?.creationId || crypto.randomUUID());
+  if (flowCreationId) creationId.current = flowCreationId;
+  const editorScope = `${session?.user?.id || ""}:${workspaceId}:${calendarPostId || "new"}:${creationId.current}`;
+  const activeScope = useRef(editorScope);
+  activeScope.current = editorScope;
+  const versionRead = useRef<{ id: string; promise: Promise<string> } | null>(null);
+  const readVersion = (id: string): Promise<string> => {
+    if (versionRead.current?.id === id) return versionRead.current.promise;
+    const persisted = loadFlowState();
+    const promise = persisted?.calendarPostId === id && persisted.calendarPostUpdatedAt
+      ? Promise.resolve(persisted.calendarPostUpdatedAt)
+      : (async () => {
+        const { data, error } = await supabase.from("calendar_posts").select("updated_at").eq("id", id).single();
+        if (error || !data?.updated_at) throw error || new Error("calendar_not_found");
+        if (activeScope.current === editorScope) saveFlowState({ calendarPostUpdatedAt: data.updated_at });
+        return data.updated_at;
+      })();
+    versionRead.current = { id, promise };
+    return promise;
+  };
+  useEffect(() => {
+    activeScope.current = editorScope;
+    saveFlowState({ creationId: creationId.current });
+    if (calendarPostId) void readVersion(calendarPostId).catch(() => { versionRead.current = null; });
+    return () => { activeScope.current = "unmounted"; };
+    // Capture the version when opening this calendar document, not after editing it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editorScope]);
+  const assertCurrentEditor = () => {
+    if (activeScope.current !== editorScope) throw new Error("Le contenu ouvert a changé. Reviens au contenu d’origine pour terminer sa sauvegarde.");
   };
 
   const publishedCalendarId = useRef<string | null>(loadFlowState()?.publishedCalendarId || null);
@@ -134,8 +156,11 @@ export function useCalendarSave({
         if (!data?.id) throw new Error("Publication non retrouvée dans le calendrier");
         id = data.id;
       }
-      publishedCalendarId.current = id;
-      saveFlowState({ publishedCalendarId: id });
+      // Track the completed publication, but never attach it to a newer editor.
+      if (activeScope.current === editorScope) {
+        publishedCalendarId.current = id;
+        saveFlowState({ publishedCalendarId: id });
+      }
       if (editingIdeaId) {
         const { error } = await supabase.from("saved_ideas").update({
           calendar_post_id: id, status: "planned", planned_date: date, updated_at: now.toISOString(),
@@ -158,96 +183,56 @@ export function useCalendarSave({
   const extractContentForCalendar = () => buildCalendarContent(selectedFormat, result?.raw);
 
   // Upload helpers extraits dans src/features/creer/upload-helpers.ts (wrappers fins).
-  const uploadPhotosToStorage = (postId: string): Promise<string[]> =>
-    uploadPhotosImpl(supabase, session?.user?.id, postId, uploadedPhotos);
   const uploadVisualsToStorage = (postId: string, onProgress?: (done: number, total: number) => void): Promise<string[]> =>
     uploadVisualsImpl(supabase, session?.user?.id, postId, visualSlides, onProgress);
-  const uploadPinterestVisualToStorage = (postId: string, pinHtml: string): Promise<string[]> =>
-    uploadPinterestVisualImpl(supabase, session?.user?.id, postId, pinHtml);
 
-  /**
-   * Séquence d'upload commune aux deux sauvegardes : photos originales →
-   * visuels PNG (+ HTML source pour le PowerPoint éditable) → visuel
-   * Pinterest → overlay brief photo. Chaque étape est isolée dans son
-   * try/catch : un échec n'interrompt pas les suivantes. Retourne l'objet
-   * d'updates (photo_urls / visual_urls / visual_html) que chaque appelant
-   * fusionne ensuite à sa façon dans `story_sequence_detail`.
-   */
-  const uploadPostMedia = async (
-    postId: string,
-    {
-      includePhotoModePhotos,
-      warnSuffix,
-      onUploadError,
-    }: {
-      /** handleConfirmCalendar : `photoMode` déclenche aussi l'upload des photos. */
-      includePhotoModePhotos: boolean;
-      /** Suffixe des console.warn — « (non-blocking) » côté confirm ; l'overlay l'a dans les deux flux. */
-      warnSuffix: "" | " (non-blocking)";
-      /** handleSaveBackToCalendar : marque l'échec pour dégrader le toast final. */
-      onUploadError?: () => void;
-    },
-  ): Promise<any> => {
+  /** Prepare every required asset before committing the calendar record. */
+  const uploadPostMedia = async (postId: string): Promise<any> => {
+    const paths: string[] = [];
+    const uploaded = (path: string) => paths.push(path);
     const updates: any = {};
-
-    // Upload photos originales dans Storage
-    if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || (includePhotoModePhotos && photoMode)) && uploadedPhotos.length > 0) {
-      try {
-        const photoUrls = await uploadPhotosToStorage(postId);
-        if (photoUrls.length > 0) updates.photo_urls = photoUrls;
-      } catch (err) {
-        console.warn(`Photo upload failed${warnSuffix}:`, err);
-        onUploadError?.();
-      }
+    try {
+    if ((carouselSubMode === "photo" || carouselSubMode === "mix" || carouselSubMode === "pure_photo" || carouselSubMode === "user_slides" || photoMode) && uploadedPhotos.length > 0) {
+      const urls = await uploadPhotosImpl(supabase, session?.user?.id, postId, uploadedPhotos, uploaded);
+      if (urls.length !== uploadedPhotos.length) throw new Error("Certaines photos manquent. Ton contenu reste dans l’éditeur : réessaie l’enregistrement.");
+      updates.photo_urls = urls;
     }
-
-    // Upload visuels PNG dans Storage
     if (visualSlides.length > 0) {
-      try {
-        toast.info("Upload des visuels...");
-        const visualUrls = await uploadVisualsToStorage(postId);
-        if (visualUrls.length > 0) updates.visual_urls = visualUrls;
-        // Persist source HTML to enable PowerPoint éditable from calendar
-        updates.visual_html = visualSlides;
-      } catch (err) {
-        console.warn(`Visual upload failed${warnSuffix}:`, err);
-        if (selectedFormat === "carousel") throw err;
-        onUploadError?.();
-      }
+      toast.info("Upload des visuels...");
+      const urls = await uploadVisualsImpl(supabase, session?.user?.id, postId, visualSlides, undefined, uploaded);
+      if (urls.length !== visualSlides.length) throw new Error("Certains visuels manquent. Ton contenu reste dans l’éditeur : réessaie l’enregistrement.");
+      updates.visual_urls = urls;
+      updates.visual_html = visualSlides;
     }
-
-    // Upload visuel Pinterest dans Storage
-    if (selectedFormat === "pinterest_visual" && pinterestPinHtml) {
-      try {
-        toast.info("Upload du visuel Pinterest...");
-        const pinVisualUrls = await uploadPinterestVisualToStorage(postId, pinterestPinHtml);
-        if (pinVisualUrls.length > 0) updates.visual_urls = pinVisualUrls;
-        updates.visual_html = [{ slide_number: 1, html: pinterestPinHtml }];
-      } catch (err) {
-        console.warn(`Pinterest visual upload failed${warnSuffix}:`, err);
-        onUploadError?.();
-      }
+    const pinHtml = selectedFormat === "pinterest_visual" ? pinterestPinHtml
+      : selectedFormat === "pinterest_photo" ? photoBriefOverlayHtml : null;
+    if (pinHtml) {
+      const urls = await uploadPinterestVisualImpl(supabase, session?.user?.id, postId, pinHtml, uploaded);
+      if (urls.length !== 1) throw new Error("Le visuel Pinterest n’a pas pu être enregistré. Ton contenu reste dans l’éditeur.");
+      updates.visual_urls = urls;
+      updates.visual_html = [{ slide_number: 1, html: pinHtml }];
     }
-
-    // Upload overlay Pinterest photo brief
-    if (selectedFormat === "pinterest_photo" && photoBriefOverlayHtml) {
-      try {
-        toast.info("Upload de l'overlay...");
-        const overlayUrls = await uploadPinterestVisualToStorage(postId, photoBriefOverlayHtml);
-        if (overlayUrls.length > 0) updates.visual_urls = overlayUrls;
-        updates.visual_html = [{ slide_number: 1, html: photoBriefOverlayHtml }];
-      } catch (err) {
-        console.warn("Overlay upload failed (non-blocking):", err);
-        onUploadError?.();
-      }
-    }
-
     return updates;
+    } catch (error) {
+      // No DB write has started. Only remove this attempt's acknowledged uploads,
+      // never older assets or files from an ambiguous database commit.
+      if (paths.length) {
+        try {
+          const { error: cleanupError } = await supabase.storage.from("calendar-visuals").remove(paths);
+          if (cleanupError) throw cleanupError;
+        } catch {
+          void reportClientError("operation");
+          toast.warning("L’enregistrement a été interrompu. Le nettoyage de certains fichiers temporaires n’a pas pu être confirmé.");
+        }
+      }
+      throw error;
+    }
   };
 
   // Save back to existing calendar post (when coming from calendar)
   const handleSaveBackToCalendar = async () => {
-    if (!session?.user?.id || !calendarPostId || !result?.raw) return;
+    if (!session?.user?.id || !calendarPostId || !result?.raw || saveInFlight.current) return;
+    saveInFlight.current = true;
     setSavingToCalendar(true);
     try {
       if (carouselQualityDisabledReason) {
@@ -255,25 +240,23 @@ export function useCalendarSave({
         if (readError) throw readError;
         if (current?.auto_publish) { toast.error(carouselQualityDisabledReason); return; }
       }
-      if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
-        await persistCarousel();
-      }
+      const expectedUpdatedAt = await readVersion(calendarPostId);
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
-      // Upload the complete edited carousel before changing a saved/scheduled
-      // post. A failed capture or upload leaves its previous version intact.
-      const carouselMedia = selectedFormat === "carousel" ? await uploadPostMedia(calendarPostId, {
-        includePhotoModePhotos: true, warnSuffix: "",
-      }) : null;
-      const { error } = await supabase.from("calendar_posts").update({
+      const storageUpdates = await uploadPostMedia(calendarPostId);
+      const attachedMedia = selectedFormat === "reel" && reelMp4Url ? [reelMp4Url]
+        : storageUpdates.visual_urls || storageUpdates.photo_urls;
+      assertCurrentEditor();
+      const receipt = await commitCalendarContent({ postId: calendarPostId, create: false,
+        briefId: currentBriefId, ideaId: editingIdeaId, expectedUpdatedAt, payload: {
         content_draft: contentDraft,
         accroche: accroche || null,
         status: "drafting",
         format: selectedFormat === "story" ? "story_serie" : (selectedFormat || "post"),
         objectif: objective || null,
         angle: editorialAngle || null,
-        ...(storyDetail ? { story_sequence_detail: { ...storyDetail, ...(carouselMedia || {}) } } : {}),
-        ...(carouselMedia?.visual_urls?.length ? { media_urls: carouselMedia.visual_urls } : {}),
+        ...((storyDetail || Object.keys(storageUpdates).length) ? { story_sequence_detail: { ...(storyDetail || {}), ...storageUpdates } } : {}),
+        ...(attachedMedia?.length ? { media_urls: attachedMedia } : {}),
         ...(selectedFormat === "story" && r?.stories ? {
           stories_count: r.total_stories || r.stories?.length || null,
           stories_structure: r.structure_label || r.structure_type || null,
@@ -281,59 +264,17 @@ export function useCalendarSave({
         } : {}),
         ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
         updated_at: new Date().toISOString(),
-      }).eq("id", calendarPostId);
-      if (error) throw error;
-
-      // Upload visuels et photos dans Storage
-      let uploadFailed = false;
-      if (calendarPostId) {
-        const storageUpdates = carouselMedia || await uploadPostMedia(calendarPostId, {
-          includePhotoModePhotos: true,
-          warnSuffix: "",
-          onUploadError: () => { uploadFailed = true; },
-        });
-
-        if (Object.keys(storageUpdates).length > 0) {
-          const currentDetail = storyDetail || {};
-          const { error: mediaError } = await supabase.from("calendar_posts").update({
-            story_sequence_detail: { ...currentDetail, ...storageUpdates },
-            ...(selectedFormat === "post" && storageUpdates.photo_urls?.length
-              ? { media_urls: storageUpdates.photo_urls }
-              : selectedFormat === "carousel" && storageUpdates.visual_urls?.length
-                ? { media_urls: storageUpdates.visual_urls }
-                : {}),
-          }).eq("id", calendarPostId);
-          if (mediaError) throw mediaError;
-        }
-
-        // Même règle que pour un nouveau post : un MP4 durable remplace les
-        // médias de repli et devient celui que la programmation publiera.
-        if (selectedFormat === "reel" && reelMp4Url) {
-          const { error: reelError } = await supabase
-            .from("calendar_posts")
-            .update({ media_urls: [reelMp4Url] })
-            .eq("id", calendarPostId);
-          if (reelError) throw reelError;
-        }
-      }
-
-      // Lier le brief au post calendrier
-      if (currentBriefId && calendarPostId) {
-        const { error: briefError } = await supabase.from("content_briefs").update({ calendar_post_id: calendarPostId } as any).eq("id", currentBriefId);
-        if (briefError) throw briefError;
-      }
-      if (calendarPostId) await linkIdeaToPost(calendarPostId, calendarPostDate);
-
-      if (uploadFailed) {
-        toast.warning("Texte sauvegardé, mais l'upload des visuels a échoué. Tu pourras les régénérer depuis le calendrier.");
-      } else {
-        toast.success("Contenu sauvegardé dans ton calendrier !");
-      }
+      } });
+      assertCurrentEditor();
+      versionRead.current = { id: calendarPostId, promise: Promise.resolve(receipt.updated_at) };
+      toast.success("Contenu sauvegardé dans ton calendrier !");
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
     } catch (e: any) {
-      toast.error(e?.message || "Erreur de sauvegarde");
+      void reportClientError("operation");
+      if (activeScope.current === editorScope) toast.error(calendarSaveError(e));
     } finally {
+      saveInFlight.current = false;
       setSavingToCalendar(false);
     }
   };
@@ -346,7 +287,7 @@ export function useCalendarSave({
    * Renvoie true si la programmation a bien été posée.
    */
   const handleConfirmCalendar = async ({ date, scheduleAt }: { date: string; scheduleAt?: Date }): Promise<boolean> => {
-    if (!session?.user?.id || !date || savingToCalendar) return false;
+    if (!session?.user?.id || !date || !result?.raw || saveInFlight.current) return false;
     if (scheduleAt && carouselQualityDisabledReason) { toast.error(carouselQualityDisabledReason); return false; }
     // La publication immédiate a déjà créé sa ligne de suivi. Une sauvegarde ou
     // programmation consécutive doit ouvrir cette ligne, sans nouvel insert et
@@ -363,6 +304,7 @@ export function useCalendarSave({
       navigate(`/calendrier?date=${publishedDate}&post=${id}`);
       return false;
     }
+    saveInFlight.current = true;
     setSavingToCalendar(true);
     try {
       let { contentDraft } = extractContentForCalendar();
@@ -388,7 +330,20 @@ export function useCalendarSave({
         }
       }
 
-      const { data: insertedPost, error: insertError } = await supabase.from("calendar_posts").insert({
+      // Allocate an ID without exposing a half-written calendar row.
+      const preparedPostId = creationId.current;
+      saveFlowState({ creationId: preparedPostId });
+      const updates = await uploadPostMedia(preparedPostId);
+      let attachedMedia: string[] | null = updates.visual_urls || updates.photo_urls || null;
+      if (selectedFormat === "reel" && reelMp4Url) attachedMedia = [reelMp4Url];
+      if (scheduleAt && canal === "instagram" && !attachedMedia && publishableImageUrl) attachedMedia = [publishableImageUrl];
+      if (scheduleAt && !canAutoPublishSchedule({ canal, attachedMedia })) {
+        throw new Error("Aucun visuel n’a pu être joint. Ton contenu reste dans l’éditeur : ajoute un média avant de programmer.");
+      }
+      assertCurrentEditor();
+      const receipt = await commitCalendarContent({ postId: preparedPostId, create: true,
+        briefId: currentBriefId, ideaId: editingIdeaId, payload: {
+        id: preparedPostId,
         user_id: session.user.id,
         ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
         date,
@@ -401,99 +356,25 @@ export function useCalendarSave({
         content_draft: contentDraft,
         accroche,
         ...(calendarNotes ? { notes: calendarNotes } : {}),
-        ...(storyDetail ? { story_sequence_detail: storyDetail } : {}),
+        ...((storyDetail || Object.keys(updates).length) ? { story_sequence_detail: { ...(storyDetail || {}), ...updates } } : {}),
+        ...(attachedMedia ? { media_urls: attachedMedia } : {}),
+        ...(scheduleAt ? buildScheduledPublishUpdate(scheduleAt) : {}),
         ...(selectedFormat === "story" && r?.stories ? {
           stories_count: r.total_stories || r.stories?.length || null,
           stories_structure: r.structure_label || r.structure_type || null,
           stories_objective: objective || null,
         } : {}),
         ...(savedId ? { generated_content_id: savedId, generated_content_type: "carousel" } : {}),
-      }).select("id").single();
-
-      if (insertError) throw insertError;
-
-      const postId = insertedPost?.id;
-      // Médias effectivement joints au post (visuels rendus > photos brutes) —
-      // c'est ce que le cron de publication programmée lira dans media_urls.
-      let attachedMedia: string[] | null = null;
-
-      if (postId) {
-        // Les visuels d'un carrousel sont bloquants : si leur rendu/upload
-        // échoue, la ligne déjà insérée doit disparaître, sinon chaque
-        // nouvelle tentative laisserait un carrousel vide de plus au calendrier.
-        let updates: any;
-        try {
-          updates = await uploadPostMedia(postId, {
-            includePhotoModePhotos: true,
-            warnSuffix: " (non-blocking)",
-          });
-        } catch (mediaErr) {
-          const { error: cleanupError } = await supabase.from("calendar_posts").delete().eq("id", postId);
-          if (cleanupError) console.error("Failed to remove incomplete carousel draft:", cleanupError);
-          throw mediaErr;
-        }
-
-        if (Object.keys(updates).length > 0) {
-          const currentDetail = storyDetail || {};
-          // Surface les visuels/photos dans la colonne top-level media_urls :
-          // c'est elle que lisent la vue partagée, la vue liste ET le cron de
-          // publication programmée (pas story_sequence_detail).
-          const mediaForColumn =
-            (updates.visual_urls && updates.visual_urls.length > 0)
-              ? updates.visual_urls
-              : (updates.photo_urls && updates.photo_urls.length > 0 ? updates.photo_urls : null);
-          attachedMedia = mediaForColumn;
-          const { error: mediaError } = await supabase.from("calendar_posts").update({
-            story_sequence_detail: {
-              ...currentDetail,
-              ...updates,
-            },
-            ...(mediaForColumn ? { media_urls: mediaForColumn } : {}),
-          }).eq("id", postId);
-          if (mediaError) throw mediaError;
-        }
-
-        // Reel monté : la VIDÉO est le média du post, elle passe avant tout
-        // visuel de repli. Son URL est déjà durable (bucket `calendar-media`),
-        // donc publiable par le cron comme par la publication immédiate.
-        if (selectedFormat === "reel" && reelMp4Url) {
-          attachedMedia = [reelMp4Url];
-          const { error: reelError } = await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
-          if (reelError) throw reelError;
-        }
-
-        // Programmation d'un post image simple sans upload (ex: photo Pexels) :
-        // l'image publiable vit à une URL https publique → on la met dans
-        // media_urls pour que le cron ait quelque chose à publier.
-        if (scheduleAt && canal === "instagram" && !attachedMedia && publishableImageUrl) {
-          attachedMedia = [publishableImageUrl];
-          const { error: imageError } = await supabase.from("calendar_posts").update({ media_urls: attachedMedia }).eq("id", postId);
-          if (imageError) throw imageError;
-        }
-      }
-
-      // Lier le brief au post calendrier
-      if (currentBriefId && postId) {
-        const { error: briefError } = await supabase.from("content_briefs").update({ calendar_post_id: postId } as any).eq("id", currentBriefId);
-        if (briefError) throw briefError;
-      }
-      if (postId) await linkIdeaToPost(postId, date);
-
-      // Pose l'auto-publication (le cron social-publish-scheduled fera le reste).
-      let scheduled = false;
-      if (scheduleAt && postId) {
-        if (!canAutoPublishSchedule({ canal, attachedMedia })) {
-          toast.warning("Ajouté au calendrier en brouillon, mais pas programmé : aucun visuel n'a pu être joint. Réessaie la programmation depuis le calendrier.");
-        } else {
-          const { error: schedError } = await supabase.from("calendar_posts").update(
-            buildScheduledPublishUpdate(scheduleAt) as any,
-          ).eq("id", postId);
-          if (schedError) {
-            toast.warning("Ajouté au calendrier, mais la programmation a échoué. Programme-le depuis le calendrier.");
-          } else {
-            scheduled = true;
-          }
-        }
+      } });
+      assertCurrentEditor();
+      const postId = receipt.id;
+      const scheduled = receipt.scheduled;
+      if (receipt.replayed) {
+        toast.info("La première tentative avait déjà été enregistrée. Ton travail reste dans l’éditeur pour comparer les versions.", {
+          action: { label: "Voir le calendrier", onClick: () => navigate(`/calendrier?post=${postId}`) },
+        });
+        setPublishDialogOpen(false);
+        return scheduled;
       }
 
       if (scheduled) {
@@ -506,16 +387,14 @@ export function useCalendarSave({
       setPublishDialogOpen(false);
       clearFlowState();
 
-      if (postId) {
-        navigate(`/calendrier?date=${date}&post=${postId}`);
-      } else {
-        navigate(`/calendrier?date=${date}`);
-      }
+      navigate(`/calendrier?date=${date}&post=${postId}`);
       return scheduled;
     } catch (e: any) {
-      toast.error(e?.message || "Erreur");
+      void reportClientError("operation");
+      if (activeScope.current === editorScope) toast.error(calendarSaveError(e));
       return false;
     } finally {
+      saveInFlight.current = false;
       setSavingToCalendar(false);
     }
   };
@@ -524,6 +403,9 @@ export function useCalendarSave({
    * bloquer l'enregistrement du contenu suivant dans le même onglet. */
   const resetPublishedTracking = () => {
     publishedCalendarId.current = null;
+    creationId.current = crypto.randomUUID();
+    versionRead.current = null;
+    activeScope.current = "reset";
   };
 
   return { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage, recordImmediatePublication, resetPublishedTracking };
