@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { assertWorkspaceMembership } from "../_shared/workspace-guard.ts";
+import { assertWorkspaceMembership } from "./workspace-guard.ts";
 
 /** Resolve the resource owner, never silently substitute the connected manager. */
 export async function generationOwner(sb: SupabaseClient, userId: string, workspaceId?: string): Promise<string> {

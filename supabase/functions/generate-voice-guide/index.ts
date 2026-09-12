@@ -56,7 +56,7 @@ import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { generationOwner } from "./owner.ts";
+import { generationOwner } from "../_shared/branding-generation-owner.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
