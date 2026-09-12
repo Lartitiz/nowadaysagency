@@ -8421,6 +8421,17 @@ export type Database = {
         Args: { p_params: Json; p_user_id: string }
         Returns: Json
       }
+      save_calendar_content: {
+        Args: {
+          p_brief_id?: string
+          p_create: boolean
+          p_expected_updated_at?: string
+          p_idea_id?: string
+          p_payload: Json
+          p_post_id: string
+        }
+        Returns: Json
+      }
       trigger_email_event: { Args: { _event: string }; Returns: undefined }
       trigger_publish_due_posts: { Args: never; Returns: undefined }
       trigger_stats_monthly_snapshot: { Args: never; Returns: undefined }
