@@ -23,7 +23,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "test");
 
 const TEST_USER_ID = "test-user-1";
 // Exercise the actual three handlers; only external services are faked.
-for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "ACTUALITÉ_TEST : annonce fournie sans résultat mesuré."]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}, actu=${!!news}`, async () => {
+for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "ACTUALITÉ_TEST : annonce fournie sans résultat mesuré."]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}, actu=${!!news}, Max=${qualityMax}`, async () => {
   resetDeps();
   const draft = { slides: [
     { slide_number: 1, slide_type: "text_only", title: "Les retours sur la maquette", body: "Une réponse commune permet de choisir entre les demandes." },
@@ -31,7 +31,9 @@ for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "
     { slide_number: 3, slide_type: "text_only", title: "Avant de reprendre le fichier", body: "Je te demande de choisir entre les demandes." },
     { slide_number: 4, slide_type: "text_only", title: "La réponse commune", body: "J'attends votre réponse avant de modifier la maquette." },
   ], caption: { body: "Les retours arrivent par e-mail.", hashtags: [] } };
-  _deps.callAnthropic = (async (options: any) => {
+  _deps.callAnthropic = (async (options: any, sink: any) => {
+    assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5");
+    Object.assign(sink, { model: options.model, total_tokens: 30 });
     const prompt = options.system + JSON.stringify(options.messages) + JSON.stringify(options.tool);
     for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "MÉCANISME INVISIBLE", "CROYANCE SOUS-JACENTE", "AU MOINS 1 analogie", "30-50 mots MINIMUM", "le retournement FORMULÉ", "finale=dernière slide uniquement (question ouverte)", "Mieux vaut une généralisation honnête", "ce que ce mouvement révèle", "cf. DEPTH_LAYER_DUAL"]) {
       assert(!prompt.includes(contradiction), `Contradiction dans le prompt réellement envoyé : ${contradiction}`);
@@ -65,9 +67,10 @@ for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "
     return Promise.resolve(new Response(JSON.stringify({ content, stop_reason: request.tool_choice ? "tool_use" : "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try {
-    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, news_context: news, slide_count: 4, deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, slide_count: 4, deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
     assertEquals(res.status, 200);
     const output = await res.json();
+    assertEquals(output.writer, { version: "opus5-astra-medium-v1", model: qualityMax ? "gpt-6-astra" : "claude-opus-5", effort: "medium" });
     assertEquals(typeof output.content, "string");
     const parsed = JSON.parse(output.content.match(/\{[\s\S]*\}/)[0]);
     assertEquals(parsed.slides[1].body, "Les demandes se contredisent.");
@@ -81,6 +84,51 @@ for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "
   }
 });
 const TEST_WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
+
+for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/slides, Max=${qualityMax}`, async () => {
+  for(const type of ["hooks", "slides"]) {
+    resetDeps();
+    const order: string[] = [];
+    let category = "", logged: any[] = [];
+    _deps.checkQuota = (async (_id: string, cat: string) => { category = cat; order.push("quota"); return { allowed: true, plan: "outil" }; }) as any;
+    _deps.callCarouselWriter = (async (options: any, sink: any) => {
+      order.push("writer");
+      assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5");
+      Object.assign(sink, { model: options.model, total_tokens: 123 });
+      return JSON.stringify(type === "hooks" ? { hooks: [] } : { slides: [], caption: {} });
+    }) as any;
+    _deps.logUsage = (async (...args: any[]) => { order.push("usage"); logged = args; }) as any;
+    const res = await handleRequest(makeHooksRequest({ type, quality_max: qualityMax }));
+    await res.text();
+    assertEquals(res.status, 200);
+    assertEquals(order, ["quota", "writer", "usage"]);
+    assertEquals(category, qualityMax ? "quality_max" : "content");
+    assertEquals(logged[3], 123);
+    assertEquals(logged[4], qualityMax ? "gpt-6-astra" : "claude-opus-5");
+    assertEquals(logged[5], TEST_WORKSPACE_ID);
+  }
+});
+Deno.test("Max quota denial never calls writer or bills usage", async () => {
+  resetDeps();
+  _deps.checkQuota = (async (_id: string, category: string) => { assertEquals(category, "quality_max"); return { allowed: false, plan: "free", reason: "quality_max" }; }) as any;
+  _deps.callCarouselWriter = (async () => { throw new Error("FORBIDDEN"); }) as any;
+  _deps.logUsage = (async () => { throw new Error("FORBIDDEN"); }) as any;
+  const res = await handleRequest(makeHooksRequest({ quality_max: true }));
+  assertEquals(res.status, 429);
+  await res.text();
+});
+Deno.test("Mes slides never uses new writer, preserves authored text", async () => {
+  resetDeps();
+  _deps.callCarouselWriter = (async () => { throw new Error("FORBIDDEN"); }) as any;
+  _deps.checkQuota = (async () => { throw new Error("FORBIDDEN"); }) as any;
+  _deps.logUsage = (async () => { throw new Error("FORBIDDEN"); }) as any;
+  const slides = [{ slide_number: 1, slide_type: "text_only", title: "Mon titre", body: "C'est un signal, pas un accident." }];
+  const res = await handleRequest(makeHooksRequest({ type: "assign_templates", quality_max: true, slides }));
+  assertEquals(res.status, 200);
+  const out = await res.json();
+  assertEquals(out.result.slides[0].title, slides[0].title);
+  assertEquals(out.result.slides[0].body, slides[0].body);
+});
 
 /**
  * Faux client Supabase générique et permissif : répond gracieusement à N'IMPORTE
@@ -120,6 +168,7 @@ function makeFakeSupabase() {
 
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
+  _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
   _deps.runPipeline = (async () => ({
     ok: true,
     userId: TEST_USER_ID,

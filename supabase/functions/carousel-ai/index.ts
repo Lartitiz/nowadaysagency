@@ -1,10 +1,11 @@
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
+import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
-import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
+import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel, type AnthropicOptions } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
 import { buildCarouselWritingSystem, CAROUSEL_SUBSTANCE, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
@@ -35,6 +36,7 @@ export const _deps = {
   checkQuota,
   logUsage,
   callAnthropic,
+  callCarouselWriter,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -64,13 +66,9 @@ const QUESTIONS_TOOL = {
   },
 };
 
-// Choix du modèle de RÉDACTION du carrousel.
-// Par défaut Sonnet (rapide). Opus seulement si l'utilisatrice a coché
-// explicitement "Mode qualité Max" (quality_max) — plus soigné mais ~2-3x plus
-// lent. Fini l'escalade silencieuse vers Opus basée sur la longueur des réponses.
-function pickCarouselModel(body: any) {
-  return body?.quality_max ? "claude-opus-4-8" : getModelForAction("carousel");
-}
+// Rédaction uniquement : Opus 5 normal / Astra medium en Qualité Max.
+// Les suggestions, questions, corrections et visuels gardent leurs modèles.
+const pickCarouselModel = pickCarouselWriter;
 
 // Modèle de la PASSE DE CORRECTION anti-patterns IA. La correction est une
 // édition mécanique à règles fermées : en qualité normale, Haiku la tient et
@@ -579,8 +577,8 @@ export async function handleRequest(req: Request): Promise<Response> {
     }
 
     let category = (type === "suggest_topics" || type === "suggest_angles" || type === "deepening_questions" || type === "structure_proposal") ? "suggestion" : "content";
-    // Les carrousels « Qualité Max » tournent sur Opus (~50× le coût d'un post) →
-    // on les compte sur un quota dédié `quality_max` (gratuit = 0, Premium = 20/mois).
+    // Qualité Max garde son quota dédié ; la migration des modèles ne change
+    // ni les droits d'accès ni les plafonds définis dans plan-limiter.
     if (category === "content" && body?.quality_max) category = "quality_max";
     const quotaCheck = await _deps.checkQuota(userId, category, workspace_id);
     if (!quotaCheck.allowed) {
@@ -889,15 +887,10 @@ async function runGenerationAndRespond(
   const { body, currentAuthoredText, currentBrief, semanticReviewEnabled, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus } = reqCtx;
 
   // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
-  const modelForCall = type === "deepening_questions"
-    ? getModelForAction("questions")
-    : type === "express_full"
-      ? pickCarouselModel(body)
-      : getModelForAction("carousel");
+  const isWriting = ["express_full", "slides", "hooks"].includes(type);
   const usage: UsageSink = {};
   if (type !== "deepening_questions") emitStatus("writing");
-  let content = await _deps.callAnthropic({
-    model: modelForCall,
+  const writingOptions: Omit<AnthropicOptions, "model"> = {
     system: systemPrompt,
     messages: [{ role: "user", content: userPrompt }],
     max_tokens: type === "deepening_questions" ? 1024 : 8192,
@@ -911,7 +904,10 @@ async function runGenerationAndRespond(
     // ce correctif (audit timeouts 17/08) — 120s aligné sur la convention
     // "génération standard" du reste des edges du repo.
     ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : { abortTimeoutMs: 120_000 }),
-  }, usage);
+  };
+  let content = isWriting
+    ? await _deps.callCarouselWriter({ ...writingOptions, model: pickCarouselModel(body) }, usage)
+    : await _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage);
 
   const editorialBaseline = content;
   // Contextual review for every generated carousel, legacy scan only on rollback.
@@ -969,7 +965,9 @@ async function runGenerationAndRespond(
     await _deps.logUsage(userId, category, `carousel_${type}`, usage.total_tokens, usage.model, workspaceId);
   }
 
-  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION }), {
+  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
+    ...(isWriting ? { writer: { version: CAROUSEL_WRITER_VERSION, model: usage.model, effort: "medium" } } : {}),
+  }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
@@ -1038,7 +1036,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.\n\nRappel de longueur : livre bien ${mixSlideTarget} slides — compte-les avant de répondre, un carrousel écrasé à 1-2 slides est un échec même si le récit te semble complet.\n\nRappel : tu GÉNÈRES avec ces photos (en écarter une individuellement est permis). Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
-    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + mixPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
@@ -1053,7 +1051,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
     const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}${body.slide_count ? " — choix explicite de l'utilisatrice, il PRIME sur toute autre fourchette" : ""}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
-    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt }],
@@ -1136,7 +1134,9 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   content = gateMix.content;
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
-  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION }), {
+  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
+    writer: { version: CAROUSEL_WRITER_VERSION, model: mixUsage.model, effort: "medium" },
+  }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
@@ -1188,7 +1188,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       text: `Analyse chaque photo et génère le carrousel photo.\n\nRappel de longueur : livre bien ${photoSlideTarget} slides (jamais moins de 4) — compte-les avant de répondre, un carrousel écrasé à 1-2 slides est un échec même si le récit te semble complet.\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
-    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt + "\n\n" + photoPrompt + PHOTO_MISMATCH_SYSTEM_REMINDER,
       messages: [{ role: "user", content: messageContent }],
@@ -1201,7 +1201,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     // Text-only mode: description without actual photos
     const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides cible : ${body.slide_count || 6} — ne descends JAMAIS sous ${Math.min(4, body.slide_count || 6)} slides, quel que soit le nombre de photos (les textes portent la progression).\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
 
-    doGenerate = (sink: UsageSink) => _deps.callAnthropic({
+    doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
       system: systemPrompt,
       messages: [{ role: "user", content: textPrompt }],
@@ -1289,7 +1289,9 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   });
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject);
-  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION }), {
+  return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
+    writer: { version: CAROUSEL_WRITER_VERSION, model: photoUsage.model, effort: "medium" },
+  }), {
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
