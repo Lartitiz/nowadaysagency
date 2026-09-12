@@ -7,7 +7,10 @@ import {
   captionFromText,
   captionText,
   documentOutput,
+  documentTokens,
+  extractStyleTokens,
   getEditorElements,
+  listDocumentFonts,
   makeSlide,
   patchElement,
   prepareSlideHtml,
@@ -231,5 +234,48 @@ describe("carousel editor interaction", () => {
     expect(change.mock.calls.at(-1)![0].caption.fullText).toBe(
       "Ma nouvelle légende",
     );
+  });
+});
+
+describe("carousel brand tokens", () => {
+  const branded = `<style>@import url('https://fonts.googleapis.com/css2?family=Fraunces');</style><div style="width:1080px;height:1350px;background:#0f2a2a;color:#f7efe2;font-family:Fraunces, serif"><h1 data-pptx-editable="title" style="font-size:80px;font-family:Fraunces, serif;color:#ffd166">Titre</h1><p data-pptx-editable="body" style="font-size:42px;font-family:Chivo, sans-serif;color:#f7efe2">Corps</p></div>`;
+  it("reads the fonts, colors, background and font imports of the document", () => {
+    const tokens = extractStyleTokens(branded);
+    expect(tokens.titleFont).toContain("Fraunces");
+    expect(tokens.bodyFont).toContain("Chivo");
+    expect(tokens.titleColor).toBe("rgb(255, 209, 102)");
+    expect(tokens.background).toBe("rgb(15, 42, 42)");
+    expect(tokens.fontImports).toContain("fonts.googleapis.com");
+  });
+  it("keeps the brand when a new slide or a layout change is created", () => {
+    const tokens = extractStyleTokens(branded);
+    const created = makeSlide({ title: "Nouveau" }, "text_only", "", tokens);
+    expect(created.html).toContain("Fraunces");
+    expect(created.html).toContain("rgb(15, 42, 42)");
+    expect(created.html).toContain("fonts.googleapis.com");
+    expect(created.html).not.toContain("Arial");
+    expect(created.html).not.toContain("#faf7f2");
+  });
+  it("adds a text in the brand style without a generic white block", () => {
+    const slide = { id: "s", data: {}, html: prepareSlideHtml(branded) };
+    const html = addTextElement(slide).html;
+    expect(html).toContain("Chivo");
+    expect(html).toContain("rgb(247, 239, 226)");
+    expect(html).not.toContain("background:#ffffff");
+  });
+  it("never adds unreadable sizes to a generated slide", () => {
+    const tokens = { ...extractStyleTokens(branded), bodySize: "22px" };
+    expect(makeSlide({}, "text_only", "", tokens).html).toContain(
+      "font-size:38px",
+    );
+  });
+  it("lists the real carousel fonts with readable names", () => {
+    const fonts = listDocumentFonts([{ html: branded }]);
+    expect(fonts.map((f) => f.label)).toEqual(
+      expect.arrayContaining(["Fraunces", "Chivo"]),
+    );
+  });
+  it("falls back to the document brand for the whole carousel", () => {
+    expect(documentTokens([{ html: branded }]).bodyFont).toContain("Chivo");
   });
 });

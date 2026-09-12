@@ -296,14 +296,135 @@ export function replacePhoto(
     html: prepareSlideHtml(serialize(doc)),
   };
 }
+/** Styles réels du carrousel (charte de la personne), extraits du document. */
+export interface StyleTokens {
+  fontImports: string;
+  titleFont: string;
+  bodyFont: string;
+  titleColor: string;
+  bodyColor: string;
+  background: string;
+  titleSize: string;
+  bodySize: string;
+  titleWeight: string;
+  align: string;
+}
+export const DEFAULT_TOKENS: StyleTokens = {
+  fontImports: "",
+  titleFont: "Georgia, serif",
+  bodyFont: "Helvetica, Arial, sans-serif",
+  titleColor: "#1a1a1a",
+  bodyColor: "#1a1a1a",
+  background: "#ffffff",
+  titleSize: "72px",
+  bodySize: "40px",
+  titleWeight: "500",
+  align: "left",
+};
+function inherited(el: HTMLElement | null, key: string): string {
+  for (let n = el; n; n = n.parentElement) {
+    const value = n.style.getPropertyValue(key);
+    if (value) return value;
+  }
+  return "";
+}
+function pick(doc: Document, role: "title" | "body"): HTMLElement | null {
+  return (
+    doc.body.querySelector<HTMLElement>(
+      `[data-pptx-editable="${role}"],[data-slide-text="${role}"]`,
+    ) ||
+    doc.body.querySelector<HTMLElement>(role === "title" ? "h1,h2" : "p") ||
+    null
+  );
+}
+/**
+ * Extrait la charte réellement utilisée par une slide : polices, couleurs,
+ * fond et imports de polices. Aucun style générique n'est inventé quand la
+ * slide en porte déjà un.
+ */
+export function extractStyleTokens(html?: string): StyleTokens {
+  if (!html) return { ...DEFAULT_TOKENS };
+  const doc = parse(html);
+  const root = doc.body.firstElementChild as HTMLElement | null;
+  const title = pick(doc, "title"),
+    body = pick(doc, "body");
+  const fontImports = Array.from(doc.head.children)
+    .map((el) => el.outerHTML)
+    .concat(
+      Array.from(
+        doc.body.querySelectorAll<HTMLElement>("style,link[rel=stylesheet]"),
+      ).map((el) => el.outerHTML),
+    )
+    .filter((markup) => /@import|@font-face|fonts\.(googleapis|gstatic)/i.test(markup))
+    .join("");
+  const rootBg =
+    root?.style.backgroundColor ||
+    (root?.style.background || "").match(/#[0-9a-f]{3,8}|rgba?\([^)]*\)/i)?.[0] ||
+    "";
+  return {
+    fontImports,
+    titleFont:
+      inherited(title, "font-family") ||
+      inherited(root, "font-family") ||
+      DEFAULT_TOKENS.titleFont,
+    bodyFont:
+      inherited(body, "font-family") ||
+      inherited(root, "font-family") ||
+      DEFAULT_TOKENS.bodyFont,
+    titleColor:
+      inherited(title, "color") ||
+      inherited(root, "color") ||
+      DEFAULT_TOKENS.titleColor,
+    bodyColor:
+      inherited(body, "color") ||
+      inherited(root, "color") ||
+      DEFAULT_TOKENS.bodyColor,
+    background: rootBg || DEFAULT_TOKENS.background,
+    titleSize: title?.style.fontSize || DEFAULT_TOKENS.titleSize,
+    bodySize: body?.style.fontSize || DEFAULT_TOKENS.bodySize,
+    titleWeight: title?.style.fontWeight || DEFAULT_TOKENS.titleWeight,
+    align:
+      inherited(body, "text-align") ||
+      inherited(root, "text-align") ||
+      DEFAULT_TOKENS.align,
+  };
+}
+/** Charte du carrousel entier : première slide qui porte des styles réels. */
+export function documentTokens(slides: { html: string }[]): StyleTokens {
+  for (const slide of slides) {
+    const tokens = extractStyleTokens(slide.html);
+    if (tokens.titleFont !== DEFAULT_TOKENS.titleFont || tokens.fontImports)
+      return tokens;
+  }
+  return extractStyleTokens(slides[0]?.html);
+}
+const readableFont = (value: string) =>
+  value.split(",")[0].replace(/["']/g, "").trim();
+/** Polices réellement présentes dans le carrousel, avec un nom lisible. */
+export function listDocumentFonts(
+  slides: { html: string }[],
+): { value: string; label: string }[] {
+  const found = new Map<string, string>();
+  slides.forEach((slide) => {
+    const doc = parse(slide.html);
+    doc.body.querySelectorAll<HTMLElement>("[style]").forEach((el) => {
+      const value = el.style.getPropertyValue("font-family");
+      const label = readableFont(value);
+      if (label && !found.has(label)) found.set(label, value);
+    });
+  });
+  return Array.from(found, ([label, value]) => ({ label, value }));
+}
 export function addTextElement(slide: EditorSlide): EditorSlide {
   if (slide.locked) return slide;
+  const tokens = extractStyleTokens(slide.html);
   const doc = parse(slide.html),
     el = doc.createElement("p");
   el.textContent = "Ton texte";
   el.dataset.pptxEditable = "body";
-  el.style.cssText =
-    "position:absolute;left:100px;top:550px;width:880px;font-size:44px;font-family:Arial,sans-serif;line-height:1.3;color:#222222;background:#ffffff;padding:20px;z-index:5;white-space:pre-wrap";
+  // Aucun bloc blanc générique : on reprend la charte de la slide.
+  const size = Math.max(38, parseFloat(tokens.bodySize) || 40);
+  el.style.cssText = `position:absolute;left:100px;top:550px;width:880px;font-size:${size}px;font-family:${tokens.bodyFont};line-height:1.3;color:${tokens.bodyColor};text-align:${tokens.align};padding:0;z-index:5;white-space:pre-wrap`;
   doc.body.firstElementChild?.append(el);
   return { ...slide, html: prepareSlideHtml(serialize(doc)) };
 }
@@ -327,6 +448,7 @@ export function makeSlide(
   data: Record<string, any> = {},
   type = "text_only",
   photo = "",
+  tokens: StyleTokens = DEFAULT_TOKENS,
 ): EditorSlide {
   const title = String(data.title || data.overlay_text || "Ton titre"),
     body = String(data.body || "");
@@ -336,15 +458,19 @@ export function makeSlide(
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
-  const bg = type === "photo_full" ? "#111111" : "#faf7f2",
-    color = type === "photo_full" ? "#ffffff" : "#222222";
-  const html = `<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${color};font-family:Arial,sans-serif">${photo && type !== "text_only" ? `<img data-pptx-photo="${data.photo_index || 1}" src="${escape(photo)}" style="position:absolute;left:0;top:0;width:1080px;height:${type === "photo_full" ? 1350 : 650}px;object-fit:cover;object-position:50% 50%">` : ""}<div style="position:absolute;left:80px;top:${type === "photo_integrated" ? 700 : 160}px;width:920px;${type === "photo_full" ? "background:rgba(0,0,0,.65);padding:28px;box-sizing:border-box;" : ""}"><h1 data-slide-text="title" data-pptx-editable="title" style="font-size:72px;line-height:1.1;font-weight:500;margin:0 0 40px;white-space:pre-wrap">${escape(title)}</h1><p data-slide-text="body" data-pptx-editable="body" style="font-size:40px;line-height:1.4;white-space:pre-wrap">${escape(body)}</p></div><span data-slide-page style="position:absolute;bottom:65px;right:80px;font-size:24px">1 / 1</span></div>`;
+  const bg = type === "photo_full" ? "#111111" : tokens.background,
+    titleColor = type === "photo_full" ? "#ffffff" : tokens.titleColor,
+    bodyColor = type === "photo_full" ? "#ffffff" : tokens.bodyColor;
+  const titleSize = Math.max(38, parseFloat(tokens.titleSize) || 72),
+    bodySize = Math.max(38, parseFloat(tokens.bodySize) || 40);
+  const html = `${tokens.fontImports}<div style="width:1080px;height:1350px;position:relative;overflow:hidden;background:${bg};color:${bodyColor};font-family:${tokens.bodyFont};text-align:${tokens.align}">${photo && type !== "text_only" ? `<img data-pptx-photo="${data.photo_index || 1}" src="${escape(photo)}" style="position:absolute;left:0;top:0;width:1080px;height:${type === "photo_full" ? 1350 : 650}px;object-fit:cover;object-position:50% 50%">` : ""}<div style="position:absolute;left:80px;top:${type === "photo_integrated" ? 700 : 160}px;width:920px;${type === "photo_full" ? "background:rgba(0,0,0,.65);padding:28px;box-sizing:border-box;" : ""}"><h1 data-slide-text="title" data-pptx-editable="title" style="font-size:${titleSize}px;font-family:${tokens.titleFont};color:${titleColor};line-height:1.1;font-weight:${tokens.titleWeight};margin:0 0 40px;white-space:pre-wrap">${escape(title)}</h1><p data-slide-text="body" data-pptx-editable="body" style="font-size:${bodySize}px;font-family:${tokens.bodyFont};color:${bodyColor};line-height:1.4;white-space:pre-wrap">${escape(body)}</p></div><span data-slide-page style="position:absolute;bottom:65px;right:80px;font-size:24px">1 / 1</span></div>`;
   return {
     id: newId(),
     data: { ...data, title, body, slide_type: type },
     html: prepareSlideHtml(html),
   };
 }
+
 export function renumberDocument(document: CarouselDocument): CarouselDocument {
   const total = document.slides.length;
   return {
