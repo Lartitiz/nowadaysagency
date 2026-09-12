@@ -1,3 +1,4 @@
+import { useCreationEntryKey } from "@/hooks/use-creation-entry-key";
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
@@ -134,13 +135,15 @@ type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_revi
 
 
 export default function CreerUnifie() {
+  const entryLocation = useLocation();
+  const entryKey = useCreationEntryKey(entryLocation.search, entryLocation.key);
   const workspaceId = useWorkspaceId();
   const ready = useWorkspaceReady();
   const { user } = useAuth();
   if (!ready) return null;
   setFlowUserId(user?.id && user.id !== "demo-user" ? user.id : null);
   setFlowWorkspaceId(workspaceId);
-  return <CreerWorkspace key={`${user?.id || "demo"}:${workspaceId}`} />;
+  return <CreerWorkspace key={`${user?.id || "demo"}:${workspaceId}:${entryKey}`} />;
 }
 
 function CreerWorkspace() {
@@ -2537,7 +2540,10 @@ function CreerWorkspace() {
             window.location.replace(location.pathname);
           }}
           onStartNew={() => {
-            clearFlowState();
+            handleReset();
+            persistedState.current = null;
+            initDone.current = false;
+            justStrippedRef.current = false;
             setConflictResolved(true);
           }}
         />
