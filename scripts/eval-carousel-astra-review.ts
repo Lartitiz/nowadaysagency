@@ -17,8 +17,9 @@ globalThis.fetch = (async (url: any, init?: RequestInit) => {
   const body = JSON.parse(String(init?.body));
   if (body.model !== "gpt-6-astra" || body.reasoning?.effort !== "medium" || body.store !== false || body.max_output_tokens !== 8192 || body.tool_choice?.name !== "review_carousel_fields") throw new Error("Unexpected review contract");
   // UTF-8 request bytes conservatively bound text input tokens; no images/tools
-  // with external execution are permitted. Reserve the entire output ceiling.
-  const ceiling = new TextEncoder().encode(String(init?.body)).length * 10 / 1e6 + 8192 * 50 / 1e6;
+  // with external execution are permitted. Include the higher cache-write input
+  // rate (12.5 USD/M), without assuming cache discounts, and all output tokens.
+  const ceiling = new TextEncoder().encode(String(init?.body)).length * 12.5 / 1e6 + 8192 * 50 / 1e6;
   if (reservedUSD + ceiling > 3) throw new Error("Budget ceiling reached; no further request");
   reservedUSD += ceiling;
   calls++;
@@ -45,7 +46,7 @@ try {
     const after = carouselEditorialFields(output).map(f => f.text).join("\n");
     console.log(JSON.stringify({ id: fixture.id, latency_ms: Math.round(performance.now() - started),
       calls: calls - beforeCalls, provider: responseEvidence,
-      estimated_api_usd: usage ? (usage.input_tokens * 10 + usage.output_tokens * 50) / 1e6 : null,
+      estimated_api_usd_upper_bound: usage ? (usage.input_tokens * 12.5 + usage.output_tokens * 50) / 1e6 : null,
       output, changed_fields: carouselEditorialFields(fixture.doc).filter(f => carouselEditorialFields(output).find(o => o.id === f.id)?.text !== f.text).map(f => f.id),
       residual_exact_regressions: ["elles ne se lisent pas entre elles", "je ne fais pas une version de chaque", "la refaire ensuite", "tout le monde en même temps", "une seule fois", "C'est un signal, pas un accident", "Une matière discrète, une vérité qui s'impose"].filter(t => after.includes(t)),
     }));
