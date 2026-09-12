@@ -219,8 +219,8 @@ export default function PropositionRecapPage() {
             Sans référence, la création utilise l’ancienne version complète, puis la bio ; le Coach utilise la version complète, puis la phrase courte. Choisis une variante ci-dessous pour leur donner la même référence.
           </p>}
           {versions.map(v => <div key={v.field} className="rounded-lg border border-border p-3 space-y-2">
-            <p className="text-sm whitespace-pre-line">{data[v.field]}</p>
-            <Button variant="outline" size="sm" className="mr-2"
+            <p className="text-sm whitespace-pre-line break-words">{data[v.field]}</p>
+            <Button variant="outline" size="sm" className="h-auto max-w-full whitespace-normal text-left"
             disabled={data.version_final === data[v.field]}
             onClick={async () => {
               try { await saveVersionField("version_final", data[v.field]); toast.success("Formulation de référence enregistrée."); }
