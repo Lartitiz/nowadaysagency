@@ -410,10 +410,19 @@ export function useCalendarSave({
       let attachedMedia: string[] | null = null;
 
       if (postId) {
-        const updates = await uploadPostMedia(postId, {
-          includePhotoModePhotos: true,
-          warnSuffix: " (non-blocking)",
-        });
+        // Les visuels d'un carrousel sont bloquants : si leur rendu/upload
+        // échoue, la ligne déjà insérée doit disparaître, sinon chaque
+        // nouvelle tentative laisserait un carrousel vide de plus au calendrier.
+        let updates: any;
+        try {
+          updates = await uploadPostMedia(postId, {
+            includePhotoModePhotos: true,
+            warnSuffix: " (non-blocking)",
+          });
+        } catch (mediaErr) {
+          await supabase.from("calendar_posts").delete().eq("id", postId);
+          throw mediaErr;
+        }
 
         if (Object.keys(updates).length > 0) {
           const currentDetail = storyDetail || {};
@@ -502,5 +511,11 @@ export function useCalendarSave({
     }
   };
 
-  return { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage, recordImmediatePublication };
+  /** « Nouveau contenu » : le suivi de la publication précédente ne doit plus
+   * bloquer l'enregistrement du contenu suivant dans le même onglet. */
+  const resetPublishedTracking = () => {
+    publishedCalendarId.current = null;
+  };
+
+  return { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, uploadVisualsToStorage, recordImmediatePublication, resetPublishedTracking };
 }
