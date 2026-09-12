@@ -1,4 +1,4 @@
-import { authoredContentSource } from "../_shared/editorial-voice.ts";
+import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
@@ -681,6 +681,11 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
 - Ne réutilise AUCUNE formule d'ouverture de slide, de prise de position ou de CTA qui pourrait déjà être sortie sur ces sujets : quelqu'un qui lit le feed voit les carrousels CÔTE À CÔTE.
 - Varie la construction par rapport à un carrousel précédent probable : place de la prise de position, forme de la caption, type de hook.`;
     }
+
+    systemPrompt += currentContentContract([
+      body.subject, body.photo_description, authoredContentSource(body),
+      typeof body.news_context === "string" ? body.news_context : "",
+    ].filter(Boolean).join("\n"));
 
     // Inject SERIES context if the post belongs to a series
     if (series_id && (type === "express_full" || type === "hooks" || type === "slides" || type === "structure_proposal")) {

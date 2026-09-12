@@ -61,10 +61,27 @@ const wordCount = (s: string) => (s || "").trim().split(/\s+/).filter(Boolean).l
 
 const NUMBER_TOKEN = /\d+(?:[.,]\d+)?/g;
 
+/** Multipliers/ratios need their own source: « deux usages » does not prove « deux fois plus ». */
+function measuredMultipliers(text: string): Array<{ raw: string; key: string; value: string; index: number }> {
+  const number = "(?:\\d+(?:[.,]\\d+)?|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|vingt|cent)";
+  const re = new RegExp(`(?<!\\p{L})(${number})\\s+fois\\s+(plus|moins|sur\\s+(${number}))(?!\\p{L})`, "giu");
+  const valueOf = (word: string) => String(FRENCH_NUMERALS[word.toLowerCase()] ?? Number(word.replace(",", ".")));
+  return [...text.matchAll(re)].map(m => ({ raw: m[0], value: valueOf(m[1]),
+    key: m[3] ? `ratio:${valueOf(m[1])}/${valueOf(m[3])}` : `multiplier:${valueOf(m[1])}:${m[2].toLowerCase()}`,
+    index: m.index!,
+  }));
+}
+
+
 /** Tokens numériques d'un texte (pour construire la liste blanche d'entrée). */
 export function numbersIn(text: string): Set<string> {
   const out = new Set<string>();
   for (const m of (text || "").matchAll(NUMBER_TOKEN)) out.add(m[0].replace(",", "."));
+  for (const m of measuredMultipliers(text || "")) {
+    out.add(m.key);
+    out.add(m.value);
+    if (m.key.startsWith("ratio:")) out.add(m.key.split("/")[1]);
+  }
   return out;
 }
 
@@ -83,6 +100,12 @@ function findFabricatedNumbers(text: string, allowed: Set<string>): string[] {
     seenValues.add(tok);
     const ctx = text.slice(Math.max(0, m.index! - 30), m.index! + m[0].length + 30).replace(/\s+/g, " ").trim();
     found.push(`${m[0]} (« …${ctx}… »)`);
+  }
+  for (const m of measuredMultipliers(text || "")) {
+    if (allowed.has(m.key) || seenValues.has(m.value)) continue;
+    seenValues.add(m.value);
+    const ctx = text.slice(Math.max(0, m.index - 30), m.index + m.raw.length + 40).replace(/\s+/g, " ").trim();
+    found.push(`${m.raw} (« …${ctx}… »)`);
   }
   return found;
 }

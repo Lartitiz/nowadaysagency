@@ -20,3 +20,9 @@ export function authoredContentSource(body: Record<string, unknown>): string {
     .map((value) => typeof value === "string" ? value : JSON.stringify(value))
     .join("\n");
 }
+
+/** Final reminder near the current task, after generic framework instructions. */
+export function currentContentContract(source: string): string {
+  if (!source.trim()) return "";
+  return `\nPRIORITÉ FINALE AU BRIEF ACTUEL :\n${JSON.stringify(source.slice(0, 8000))}\nCes éléments fixent les faits et limites de CE contenu. Le branding guide la voix ; il ne complète pas la fiche de ce produit. Le métier d’une personne ne prouve pas qu’elle a fabriqué ou dessiné l’objet présenté. Ne transforme pas un usage en résultat mesuré, une durée supposée, un bénéfice pour la peau ou une disponibilité commerciale. Chaque action attribuée à la personne et chaque caractéristique produit doivent être explicitement étayées. Relis aussi les titres, l’objet, l’aperçu, les overlays et la légende. Un framework, une accroche ou une exigence de profondeur ne justifie jamais d’ajouter ces faits. En cas de manque, développe l’usage connu ou reste plus court ; aucun faux récit personnel. Respecte le ton, la longueur et les formulations demandées ici.\n`;
+}
