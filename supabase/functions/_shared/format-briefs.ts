@@ -254,7 +254,7 @@ par 2,5, et vérifie que le résultat correspond à la durée annoncée. Un scri
 de 200 mots annoncé "50 sec" est un MENSONGE : il dure 80 secondes en vrai, et
 au-delà de 90 secondes l'algo pénalise la distribution.
 
-Si tu dépasses le plafond de mots → COUPE dans le contexte et les redites,
+Si tu dépasses le plafond de mots → COUPE les redites et les détails secondaires ; conserve le sujet, les faits de départ et les attributions,
 jamais dans la couche "mécanisme". Si tu es sous le plancher → DÉVELOPPE la
 couche "mécanisme", ne resserre PAS le reste.
 Une section body de 8 mots = slogan, pas du parlé. Vise 25-50 mots par section body.
@@ -985,13 +985,13 @@ Avant de rédiger une seule ligne, tu DOIS répondre mentalement à ces 3 questi
 
    Un post LinkedIn n'est pas une fiche info. C'est un MOUVEMENT qui embarque :
 
-   - Annonce/événement → ne PAS décrire l'événement. Raconter le CHEMIN qui y mène ou la CONVICTION derrière.
+   - Annonce/événement → nommer et situer brièvement l'événement, puis raconter le CHEMIN qui y mène ou la CONVICTION derrière. Éviter le compte rendu exhaustif.
 
    - Partage d'expertise → ne PAS lister des conseils. Partir d'un CONSTAT TERRAIN et creuser le POURQUOI.
 
    - Milestone/bilan → ne PAS énumérer les accomplissements. Choisir UN fil rouge émotionnel (ce qui n'a pas changé, ce qui a été le plus dur, ce qu'on referait).
 
-   - Collaboration/rencontre → ne PAS présenter les personnes. Raconter ce que cette rencontre a PROVOQUÉ ou RÉVÉLÉ.
+   - Collaboration/rencontre → présenter brièvement les personnes et le sujet de la rencontre si nécessaires à la compréhension, puis raconter ce qu'elle a PROVOQUÉ ou RÉVÉLÉ.
 
 ${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplateContent}\n\nSuis cette structure pour organiser le post.` : ""}
 
@@ -1113,7 +1113,7 @@ pas un broadcast.
 AVANT DE RÉDIGER, identifie :
 
 1. QUELLE EST L'HISTOIRE PERSONNELLE qui porte ce sujet ?
-   Chaque bonne newsletter part d'un VÉCU : un moment de la semaine, 
+   Si un VÉCU est fourni, pars de ce moment : un moment de la semaine,
    une conversation, une lecture, un échec, une découverte. 
    Pas "je vais te parler de [sujet]" mais "il m'est arrivé un truc 
    cette semaine et ça m'a fait réaliser quelque chose sur [sujet]".
@@ -1132,13 +1132,13 @@ AVANT DE RÉDIGER, identifie :
 OBJET D'EMAIL :
 - Max 50 caractères. Accrocheur mais pas clickbait.
 - Le meilleur test : "est-ce que j'ouvrirais cet email entre 2 réunions ?"
-- Patterns qui marchent : question courte, constat décalé, confession
+- Patterns possibles : question courte, constat décalé, confidence réellement fournie. Si l'objet est allusif, l'aperçu nomme le sujet ; le corps tient cette promesse.
 - ❌ "Ma newsletter #12" / "Les news du mois"
 - ✅ "J'ai failli tout annuler" / "Le conseil que je regrette d'avoir suivi"
 
 INTRO (2-3 phrases) :
 - Direct dans le vif. Pas de "Bonjour, j'espère que tu vas bien".
-- Commencer par le VÉCU : la scène, le moment, la phrase entendue.
+- Installer le sujet et la situation en 2-3 phrases : scène réellement fournie, observation ou fait concret. Sans vécu fourni, entrer par le sujet ; ne pas fabriquer de confidence.
 - ❌ "Aujourd'hui je voulais te parler de..."
 - ✅ "Mardi, une cliente m'a renvoyé son brouillon avec ce commentaire : '...'"
 
@@ -1165,7 +1165,7 @@ export function photoCaptionBrief(photo_description: string | null | undefined):
 
 ══ AVANT D'ÉCRIRE : LA LÉGENDE EST LE HORS-CHAMP DE LA PHOTO ══
 
-La légende ne décrit JAMAIS la photo. La photo se suffit visuellement. La légende raconte ce que la photo NE PEUT PAS montrer : le contexte invisible, l'émotion derrière le geste, ce qui s'est passé juste avant ou juste après.
+La légende évite la paraphrase visuelle, mais nomme le produit, le projet ou la situation si nécessaire pour comprendre. La photo se suffit visuellement. La légende raconte ce que la photo NE PEUT PAS montrer : le contexte invisible, l'émotion derrière le geste, ce qui s'est passé juste avant ou juste après.
 
 ${photo_description ? `PHOTO DÉCRITE PAR L'UTILISATRICE : "${photo_description}"` : ""}
 
@@ -1205,7 +1205,7 @@ FORMAT :
 - 5-10 hashtags niche en fin
 
 INTERDITS :
-- Décrire ce qu'on voit (la photo le fait)
+- Décrire inutilement toute l'image ; nommer le sujet et expliquer son usage restent nécessaires
 - "Voici / Voilà / Aujourd'hui je vous partage" en accroche
 - Ton "fiche produit" ou "présentation"
 - Légende qui pourrait fonctionner avec n'importe quelle autre photo`;

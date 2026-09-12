@@ -128,7 +128,7 @@ Le contournement le plus fréquent : remplacer "Photo 1" par une désignation vi
 ❌ "Ce comptoir bleu avec ses illustrations de tartines, c'est l'intérieur des Petits Pâtis."
 ❌ "Sur la première, on voit… sur la seconde…"
 ✅ NOMMER directement le sujet sans le présenter comme une image : "Aire You Ready, c'est…", "Aux Petits Pâtis, on…".
-Règle simple : si tu retires la phrase, le lecteur ne doit PAS perdre une info, sinon c'est une légende, pas un post.
+Règle simple : retire les descriptions visuelles inutiles, mais GARDE toute phrase qui permet de comprendre le sujet, les personnes, le produit ou l'événement. Le texte doit se comprendre sans deviner ces repères dans l'image.
 
 ══ INTERDIT : CASCADES / PHRASES-LISTES PARALLÈLES ══
 Même déguisées en "oral" ou "rythme", elles sonnent IA.

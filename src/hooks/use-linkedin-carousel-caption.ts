@@ -10,6 +10,7 @@ interface UseLinkedInCarouselCaptionParams {
   isLinkedInCarousel: boolean;
   carouselSubMode: string | null;
   ideaText: string;
+  newsContext?: string | null;
   editorialAngle: string | null;
   objective: string | null;
   workspaceId: string;
@@ -33,6 +34,7 @@ export function useLinkedInCarouselCaption({
   isLinkedInCarousel,
   carouselSubMode,
   ideaText,
+  newsContext,
   editorialAngle,
   objective,
   workspaceId,
@@ -51,7 +53,7 @@ export function useLinkedInCarouselCaption({
     const slidesArr: any[] = Array.isArray(r.slides) ? r.slides : [];
     const slidesSummary = slidesArr
       .map((s: any, i: number) => {
-        const parts = [s.overlay_text, s.title, s.body].filter((x: any) => typeof x === "string" && x.trim());
+        const parts = [s.overlay_text, s.title, s.body, s.kicker, s.detail, s.attribution, s.big_number, ...(Array.isArray(s.points) ? s.points : [])].filter((x: any) => typeof x === "string" && x.trim());
         return `Slide ${s.slide_number ?? i + 1}: ${parts.join(" ; ")}`;
       })
       .join("\n")
@@ -63,6 +65,7 @@ export function useLinkedInCarouselCaption({
         body: {
           action: "caption-for-carousel",
           subject: ideaText,
+          ...(newsContext?.trim() ? { news_context: newsContext.trim().slice(0, 3800) } : {}),
           chosen_angle: typeof r.chosen_angle === "string"
             ? r.chosen_angle
             : (r.chosen_angle?.title || r.chosen_angle?.angle || (r.chosen_angle ? JSON.stringify(r.chosen_angle) : null)),
@@ -118,7 +121,7 @@ export function useLinkedInCarouselCaption({
       setCaptionLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result, isLinkedInCarousel, carouselSubMode, ideaText, editorialAngle, objective, workspaceId, session?.user?.id]);
+  }, [result, isLinkedInCarousel, carouselSubMode, ideaText, newsContext, editorialAngle, objective, workspaceId, session?.user?.id]);
 
   // Auto-trigger après une génération de carrousel LinkedIn mix/photo si la légende est vide
   useEffect(() => {

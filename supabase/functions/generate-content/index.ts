@@ -1,3 +1,4 @@
+import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, LINKEDIN_PRINCIPLES_COMPACT, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -634,6 +635,10 @@ FORMAT :
 
     // Prepend voice priority instruction
     systemPrompt = BASE_SYSTEM_RULES + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + systemPrompt;
+
+    if (["calendar-quick", "express-draft", "caption", "redaction-draft", "redaction-accroches"].includes(type)) {
+      systemPrompt += CONTENT_CLARITY_RULES;
+    }
 
     // Use Claude Sonnet for weekly-suggestions (better quality ideas)
     if (type === "weekly-suggestions") {

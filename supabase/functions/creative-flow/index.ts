@@ -1,3 +1,4 @@
+import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -243,7 +244,7 @@ RÈGLE DE VOIX :
 Chaque format doit sonner comme si l'utilisatrice l'avait écrit elle-même. Si le contenu source contient des expressions ou tournures caractéristiques de sa voix, RÉUTILISE-les telles quelles, sans les remplacer par une formulation plus "propre". L'IA structure et amplifie, elle ne réécrit pas.
 
 SELF-CHECK FINAL (fais-le en interne avant de répondre) :
-- Si un ANGLE t'est imposé dans le message : est-ce que tu l'as vraiment suivi, sans déborder sur les angles des autres formats ?
+- Si un ANGLE t'est imposé dans le message : est-ce que tu l'as vraiment suivi, sans déborder sur les angles des autres formats ? Les repères de contexte indispensables peuvent être répétés dans chaque version : chacune doit se comprendre seule.
 - Est-ce que les accroches sont assez fortes pour stopper le scroll ?
 - Est-ce que le contenu passe le test du café (lisible à voix haute sans sonner robot) ?
 - Est-ce que j'ai utilisé des expressions de la source ou est-ce que j'ai tout réécrit en mode IA ?
@@ -326,8 +327,9 @@ export function buildAdjustPrompt(params: {
   angle: any;
   currentContent: string;
   adjustment: string;
+  sourceContext?: string;
 }): { systemPrompt: string; userPrompt: string } {
-  const { COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment } = params;
+  const { COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment, sourceContext } = params;
   // Smart guidance based on adjustment type
   const adjustLower = (adjustment || "").toLowerCase();
   let adjustGuidance = "";
@@ -337,7 +339,7 @@ export function buildAdjustPrompt(params: {
       ? "AJOUTE une slide supplémentaire qui développe un point existant en profondeur. Ne rallonge pas les slides existantes."
       : "Développe l'idée principale avec un exemple concret ou une anecdote. Ne rallonge pas artificiellement avec des transitions vides.";
   } else if (adjustLower.includes("court")) {
-    adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde les punchlines et les exemples concrets. Ne sacrifie pas la profondeur.";
+    adjustGuidance = "Coupe les transitions faibles et les répétitions. Garde le sujet explicite, les faits de départ, les attributions et les exemples utiles. Ne sacrifie ni la compréhension ni la profondeur.";
   } else if (adjustLower.includes("punchy")) {
     adjustGuidance = "Raccourcis les phrases longues et resserre chaque idée. Garde l'oralité, sans cheville de relance ni phrase isolée pour faire de l'effet. L'accroche doit claquer plus fort, avec un détail du sujet.";
   } else if (adjustLower.includes("exemples") || adjustLower.includes("concret")) {
@@ -360,6 +362,7 @@ ${editorialFormatLabel ? `FORMAT ÉDITORIAL : ${editorialFormatLabel}` : ""}
 ${effectiveObjective ? `OBJECTIF : ${effectiveObjective}` : ""}
 ${angle ? `ANGLE : ${angle.title} (${angle.tone})` : ""}
 
+${claritySourceBlock(sourceContext)}
 CONTENU ACTUEL :
 """
 ${currentContent}
@@ -912,8 +915,8 @@ ${isReel || isStories ? `` : isNewsletter ? `Un email part en TEXTE BRUT : aucun
 Réponds UNIQUEMENT en JSON :
 {
   "subject": "objet de l'email (max 50 caractères, accrocheur, jamais 'Newsletter #N')",
-  "preview_text": "texte de preview (40-90 caractères, complète l'objet sans le répéter)",
-  "content": "corps complet de la newsletter (avec \\n\\n entre paragraphes)",
+  "preview_text": "texte de preview (40-90 caractères, situe le sujet si l'objet est allusif, fidèle au corps)",
+  "content": "corps complet de la newsletter : situation identifiable dans les premières phrases, même sans lire l'objet (avec \\n\\n entre paragraphes)",
   "accroche": "première phrase du corps",
   "cta_suggestion": "suggestion de CTA doux si pertinent, sinon null",
   "format": "newsletter",
@@ -1018,7 +1021,7 @@ async function handleRecycleStep(params: {
       type: "object",
       properties: {
         message_central: { type: "string", description: "La thèse du contenu source en 1 phrase." },
-        synthese_source: { type: "string", description: "Synthèse FIDÈLE du contenu source (10-20 phrases) : thèse, sous-idées, exemples et anecdotes, chiffres, et les expressions typiques de l'auteure recopiées VERBATIM. N'invente rien." },
+        synthese_source: { type: "string", description: "Synthèse FIDÈLE du contenu source (10-20 phrases) : sujet et situation de départ, acteurs et attributions, définitions nécessaires, thèse, sous-idées, exemples et anecdotes, chiffres, et les expressions typiques de l'auteure recopiées VERBATIM. N'invente rien." },
         angles: {
           type: "array",
           description: "Un élément par format demandé.",
@@ -2715,7 +2718,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
 `;
 
     // COMMON_PREFIX: identical for ALL steps → maximizes Anthropic prompt caching
-    const COMMON_PREFIX = BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + fullContext;
+    const COMMON_PREFIX = CONTENT_CLARITY_RULES + "\n\n" + BASE_SYSTEM_RULES + "\n\n" + incarnationBlock + "\n\n" + `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :\n- Reproduis fidèlement le style décrit\n- Réutilise les expressions signature naturellement dans le texte\n- RESPECTE les expressions interdites : ne les utilise JAMAIS\n- Imite les patterns de ton et de structure\n- Le contenu doit sonner comme s'il avait été écrit par l'utilisatrice elle-même, pas par une IA\n\n` + CORE_PRINCIPLES + "\n\n" + EMBEDDED_EDUCATION + "\n\n" + ANTI_SLOP + "\n\n" + fullContext;
 
     // QUESTIONS_PREFIX : version allégée pour les steps `questions` et `follow-up`.
     // On retire CORE_PRINCIPLES / EMBEDDED_EDUCATION / ANTI_SLOP / bloc voix :
@@ -2832,7 +2835,7 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       storiesPhotoCatalog = genResult.storiesPhotoCatalog;
 
     } else if (step === "adjust") {
-      ({ systemPrompt, userPrompt } = buildAdjustPrompt({ COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment }));
+      ({ systemPrompt, userPrompt } = buildAdjustPrompt({ COMMON_PREFIX, editorialFormatLabel, effectiveObjective, angle, currentContent, adjustment, sourceContext: [newsContext, context, JSON.stringify(answers || []), JSON.stringify(followUpAnswers || [])].filter(Boolean).join("\n") }));
 
     } else if (step === "recycle") {
       // Les prompts du recyclage sont construits PAR FORMAT dans le pipeline

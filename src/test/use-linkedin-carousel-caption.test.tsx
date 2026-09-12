@@ -55,6 +55,17 @@ describe("useLinkedInCarouselCaption — auto-déclenchement et garde anti-doubl
     });
   });
 
+  it("transmet l'actualité indépendamment du résumé et les repères visibles des slides", async () => {
+    renderHook(() => useLinkedInCarouselCaption(makeProps({
+      newsContext: "ACTUALITÉ : une coopérative passe aux précommandes. Source : communiqué fourni.",
+      result: { raw: { slides: [{ slide_number: 1, overlay_text: "Ce qui change", kicker: "Précommandes", attribution: "Coopérative", points: ["Réservation avant fabrication"] }], caption: { body: "" } } },
+    })));
+    await waitFor(() => expect(mocks.invokeWithTimeout).toHaveBeenCalledTimes(1));
+    const payload = mocks.invokeWithTimeout.mock.calls[0][1].body;
+    expect(payload.news_context).toContain("Source : communiqué fourni");
+    expect(payload.slides_summary).toContain("Précommandes ; Coopérative ; Réservation avant fabrication");
+  });
+
   it("légende vide (<200) → un seul appel, jamais re-déclenché sur le même résultat", async () => {
     const props = makeProps();
     const { rerender } = renderHook((p) => useLinkedInCarouselCaption(p), {

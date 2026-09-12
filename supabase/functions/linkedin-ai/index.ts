@@ -1,3 +1,4 @@
+import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
@@ -125,6 +126,7 @@ serve(async (req) => {
       subject: z.string().max(5000).optional().nullable(),
       chosen_angle: z.string().max(500).optional().nullable(),
       slides_summary: z.string().max(8000).optional().nullable(),
+      news_context: z.string().max(4000).optional().nullable(),
       objective: z.string().max(200).optional().nullable(),
       series_id: z.string().uuid().optional().nullable(),
       episode_number: z.number().int().min(1).optional().nullable(),
@@ -210,7 +212,7 @@ serve(async (req) => {
           text: `\n\nTu as reçu ${uploadedFiles.length} fichier(s). Extrais TOUT le contenu textuel visible. Si ce sont des captures de posts Instagram ou LinkedIn, extrais le texte du post, les hashtags, et note le format visuel. Puis adapte pour les canaux : ${JSON.stringify(targetChannels)}`
         });
 
-        systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt;
+        systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt + CONTENT_CLARITY_RULES;
         const cpUsage: UsageSink = {};
         // 90s : plus lourd qu'une génération texte standard (vision sur images/PDF
         // + 4 versions par canal), mais borné — cf. convention CLAUDE.md.
@@ -343,6 +345,9 @@ serve(async (req) => {
       }
     }
 
+    if (["caption-for-carousel", "improve-post", "adapt-instagram", "crosspost"].includes(action)) {
+      systemPrompt += CONTENT_CLARITY_RULES + claritySourceBlock(params.news_context);
+    }
     const usage: UsageSink = {};
     // 60s : génération standard (convention CLAUDE.md). La passe de correction
     // qui suit (actions concernées ci-dessous) est bornée séparément à 30s.
