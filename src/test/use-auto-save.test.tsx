@@ -1,0 +1,42 @@
+import { act, cleanup, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+vi.mock("@/lib/error-tracker", () => ({ trackError: vi.fn() }));
+import { useAutoSave } from "@/hooks/use-auto-save";
+beforeEach(() => { vi.useFakeTimers(); Object.defineProperty(navigator, "onLine", { configurable: true, value: true }); });
+afterEach(() => { cleanup(); vi.useRealTimers(); });
+it("does not report saved on rejection and retries the same pending draft", async () => {
+  const save = vi.fn().mockRejectedValueOnce(new Error("offline database")).mockResolvedValue(undefined);
+  const { result } = renderHook(() => useAutoSave(save, 100));
+  act(() => result.current.triggerSave());
+  await act(() => vi.advanceTimersByTimeAsync(100));
+  expect(result.current.saved).toBe(false);
+  await act(() => result.current.flush());
+  expect(result.current.saved).toBe(true);
+  expect(save).toHaveBeenCalledTimes(2);
+});
+it("serializes in-flight saves, persists the latest edit and does not flush again on unmount", async () => {
+  let release!: () => void;
+  const save = vi.fn().mockImplementationOnce(() => new Promise<void>(r => { release = r; })).mockResolvedValue(undefined);
+  const { result, unmount } = renderHook(() => useAutoSave(save, 100));
+  act(() => result.current.triggerSave());
+  await act(() => vi.advanceTimersByTimeAsync(100));
+  act(() => result.current.triggerSave());
+  expect(result.current.saved).toBe(false);
+  await act(async () => { release(); await result.current.flush(); });
+  expect(save).toHaveBeenCalledTimes(2);
+  expect(result.current.saved).toBe(true);
+  unmount();
+  expect(save).toHaveBeenCalledTimes(2);
+});
+it("blocks explicit transitions offline and replays only retained edits on reconnect", async () => {
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: false });
+  const save = vi.fn().mockResolvedValue(undefined);
+  const { result } = renderHook(() => useAutoSave(save, 100, "test"));
+  act(() => result.current.triggerSave());
+  await act(async () => { await expect(result.current.flush()).rejects.toThrow(); });
+  expect(save).not.toHaveBeenCalled();
+  expect(result.current.saved).toBe(false);
+  Object.defineProperty(navigator, "onLine", { configurable: true, value: true });
+  await act(async () => { window.dispatchEvent(new Event("online")); });
+  expect(save).toHaveBeenCalledTimes(1);
+});

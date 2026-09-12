@@ -54,15 +54,16 @@ export async function savePersonaInsights(
   let targetPersonaId = existingPersonaId;
 
   if (!targetPersonaId) {
-    const { data: primaryPersona } = await (supabase.from("persona") as any)
+    const { data: primaryPersona, error: readError } = await (supabase.from("persona") as any)
       .select("id").eq(ctx.column, ctx.value).eq("is_primary", true).maybeSingle();
+    if (readError) throw readError;
     targetPersonaId = primaryPersona?.id || null;
   }
 
   if (targetPersonaId) {
     const { error } = await (supabase.from("persona") as any)
       .update({ ...insights, updated_at: new Date().toISOString() })
-      .eq("id", targetPersonaId);
+      .eq("id", targetPersonaId).eq(ctx.column, ctx.value).select("id").single();
     if (error) throw error;
     return targetPersonaId;
   }
@@ -180,8 +181,9 @@ export async function saveContentStrategyInsights(
     if (insights.content_editorial_line) {
       editoData.free_notes = insights.content_editorial_line;
     }
-    const { data: existingEdito } = await (supabase.from("instagram_editorial_line") as any)
+    const { data: existingEdito, error: editorialReadError } = await (supabase.from("instagram_editorial_line") as any)
       .select("id").eq(ctx.column, ctx.value).maybeSingle();
+    if (editorialReadError) throw editorialReadError;
     if (existingEdito?.id) {
       const { error } = await (supabase.from("instagram_editorial_line") as any).update(editoData).eq("id", existingEdito.id);
       if (error) throw error;

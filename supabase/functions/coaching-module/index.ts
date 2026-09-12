@@ -93,7 +93,7 @@ const MODULE_QUESTIONS: Record<string, string[]> = {
 // Map module to the branding table/fields to update
 const MODULE_UPDATE_MAP: Record<string, { table: string; fields: string[] }> = {
   persona: { table: "persona", fields: ["step_1_frustrations", "step_2_transformation"] },
-  offers: { table: "offers", fields: ["name", "description", "benefits"] },
+  offers: { table: "offers", fields: ["name", "description_short", "benefits"] },
   bio: { table: "brand_profile", fields: ["mission", "offer", "target_description"] },
   story: { table: "storytelling", fields: ["step_1_declencheur", "step_2_combat", "step_3_message"] },
   tone: { table: "brand_profile", fields: ["tone_register", "tone_style", "combat_cause", "combat_fights", "key_expressions"] },
@@ -129,7 +129,7 @@ Deno.serve(async (req) => {
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
     const body = await req.json();
-    const { phase, module, answers, rec_id, previous_diagnostic, adjustment_feedback, iteration_history, iteration, workspace_id } = body;
+    const { phase, module, answers, rec_id, previous_diagnostic, adjustment_feedback, iteration_history, iteration, workspace_id, offer_id, persona_id } = body;
 
     if (!module || !phase) {
       return new Response(JSON.stringify({ error: "module et phase requis" }), {
@@ -167,8 +167,29 @@ Deno.serve(async (req) => {
     const [brandRes, auditRes, recRes] = await Promise.all([
       sbService.from("brand_profile").select("*").eq(filterCol, filterVal).maybeSingle(),
       sbService.from("branding_audits").select("*").eq(filterCol, filterVal).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      rec_id ? sbService.from("audit_recommendations").select("*").eq("id", rec_id).maybeSingle() : Promise.resolve({ data: null }),
+      rec_id ? sbService.from("audit_recommendations").select("*").eq("id", rec_id).eq(filterCol, filterVal).maybeSingle() : Promise.resolve({ data: null }),
     ]);
+
+    if (brandRes.error || auditRes.error || ("error" in recRes && recRes.error)) {
+      throw new Error("Impossible de charger le contexte de cet espace");
+    }
+    let selectedRecord = null;
+    if (module === "offers" || module === "persona") {
+      const targetId = module === "offers" ? offer_id : persona_id;
+      if (typeof targetId !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId)) {
+        return new Response(JSON.stringify({ error: "Choisis la fiche à travailler" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data, error } = await sbService.from(module === "offers" ? "offers" : "persona")
+        .select("*").eq(filterCol, filterVal).eq("id", targetId).single();
+      if (error || !data) return new Response(JSON.stringify({ error: "Fiche introuvable dans cet espace" }), {
+        status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+      selectedRecord = data;
+    }
+    const targetContext = selectedRecord
+      ? `FICHE SÉLECTIONNÉE (seule cible de cette conversation) : ${JSON.stringify(selectedRecord)}\nNe propose aucun changement à une autre fiche. Les variantes et champs non proposés restent inchangés.` : "";
 
     const branding = brandRes.data;
     const audit = auditRes.data;
@@ -182,6 +203,7 @@ Deno.serve(async (req) => {
 
 CONTEXTE :
 - Module : ${module}
+${targetContext}
 - Branding existant : ${branding ? JSON.stringify({ mission: branding.mission, offer: branding.offer, target_description: branding.target_description, voice_description: branding.voice_description }) : "Pas encore rempli"}
 - Recommandation d'audit : ${recommendation ? `"${recommendation.conseil || recommendation.label}" (priorité ${recommendation.priorite})` : "Aucune"}
 - Dernier score audit : ${audit?.score_global || "Non disponible"}
@@ -248,6 +270,7 @@ RECOMMANDATION D'AUDIT :
 ${recommendation ? `"${recommendation.titre || recommendation.label}" - ${recommendation.conseil_contextuel || recommendation.conseil || ""}` : "Aucune"}
 
 MODULE : ${module}
+${targetContext}
 TABLE CIBLE : ${updateMap.table}
 CHAMPS À METTRE À JOUR : ${updateMap.fields.join(", ")}
 
@@ -285,7 +308,7 @@ Pour le module persona, propose : description (portrait complet), frustrations, 
 Pour le module tone, propose : tone_register, tone_style, combat_cause, key_expressions.
 Pour le module bio, propose : mission (pitch court), offer (offre résumée), target_description.
 Pour le module story, propose des éléments narratifs clés.
-Pour le module offers, propose nom, description, bénéfices pour chaque offre.
+Pour le module offers, propose uniquement les clés name, description_short, benefits pour LA fiche sélectionnée. Chaque clé doit être unique. benefits est un texte (une ligne par bénéfice). Ne regroupe jamais plusieurs offres dans une proposition.
 Pour le module editorial, propose piliers de contenu.`;
 
       // Streaming SSE if client requests it
@@ -352,6 +375,7 @@ BRANDING ACTUEL :
 ${branding ? JSON.stringify({ mission: branding.mission, offer: branding.offer, target_description: branding.target_description, voice_description: branding.voice_description }) : "Pas encore rempli"}
 
 MODULE : ${module}
+${targetContext}
 
 RÉPONSES ORIGINALES DE L'UTILISATRICE :
 ${answers ? answers.map((a: any, i: number) => `Q${i + 1}: ${a.question}\nR${i + 1}: ${a.answer}`).join("\n\n") : "Non disponibles"}
@@ -392,7 +416,7 @@ Pour le module persona, propose : description, frustrations, desires, phrase_sig
 Pour le module tone, propose : tone_register, tone_style, combat_cause, key_expressions.
 Pour le module bio, propose : mission, offer, target_description.
 Pour le module story, propose des éléments narratifs clés.
-Pour le module offers, propose nom, description, bénéfices.
+Pour le module offers, propose uniquement les clés uniques name, description_short, benefits pour LA fiche sélectionnée. benefits est un texte (une ligne par bénéfice).
 Pour le module editorial, propose piliers de contenu.`;
 
       // Streaming SSE if client requests it

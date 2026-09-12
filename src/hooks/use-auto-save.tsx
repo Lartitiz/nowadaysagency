@@ -8,7 +8,8 @@ const UNSAVED_PREFIX = "unsaved_";
  * Reusable debounced auto-save hook.
  * Returns { saved, saving, triggerSave } to show save indicator.
  * 
- * When offline, queues data to localStorage and replays on reconnect.
+ * When offline, retains pending edits in memory and replays on reconnect.
+ * Callers must store the actual draft if it should survive a reload.
  * 
  * @param storageKey — unique key for offline queue (e.g. "branding_profile")
  *
@@ -34,76 +35,76 @@ export function useAutoSave(
 
   const lsKey = storageKey ? `${UNSAVED_PREFIX}${storageKey}` : null;
 
-  const doSave = useCallback(async () => {
-    if (!navigator.onLine) {
-      // Queue a marker in localStorage so we know a save is pending
-      if (lsKey) {
-        try {
-          localStorage.setItem(lsKey, Date.now().toString());
-        } catch { /* quota exceeded — ignore */ }
+  const revision = useRef(0);
+  const persisted = useRef(0);
+  const inFlight = useRef<Promise<void> | null>(null);
+  const mounted = useRef(true);
+
+  const flush = useCallback(async (): Promise<void> => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = null;
+    if (inFlight.current) await inFlight.current;
+    if (persisted.current === revision.current) return;
+    const run = async () => {
+      if (mounted.current) { setSaving(true); setSaved(false); }
+      try {
+        while (persisted.current !== revision.current) {
+          if (!navigator.onLine) {
+            toast.info("Sauvegarde en attente, tu es hors-ligne", { duration: 3000 });
+            throw new Error("Sauvegarde en attente, tu es hors-ligne");
+          }
+          const savingRevision = revision.current;
+          await saveFnRef.current();
+          persisted.current = savingRevision;
+        }
+        if (lsKey) localStorage.removeItem(lsKey);
+        if (mounted.current) {
+          setSaved(true);
+          if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+          savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
+        }
+      } catch (e) {
+        if (mounted.current) setSaved(false);
+        if (lsKey) { try { localStorage.setItem(lsKey, "pending"); } catch { /* draft is managed by the caller */ } }
+        trackError(e, { hook: "useAutoSave", action: "doSave" });
+        throw e;
+      } finally {
+        if (mounted.current) setSaving(false);
       }
-      toast.info("Sauvegarde en attente, tu es hors-ligne", { duration: 3000 });
-      return;
-    }
-    setSaving(true);
-    try {
-      await saveFnRef.current();
-      setSaved(true);
-      // Clear any pending offline marker
-      if (lsKey) localStorage.removeItem(lsKey);
-      if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
-      savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
-    } catch (e) {
-      trackError(e, { hook: "useAutoSave", action: "doSave" });
-    } finally {
-      setSaving(false);
-    }
+    };
+    const pending = run();
+    inFlight.current = pending;
+    try { await pending; } finally { if (inFlight.current === pending) inFlight.current = null; }
   }, [lsKey]);
 
   const triggerSave = useCallback(() => {
+    revision.current++;
     setSaved(false);
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(doSave, debounceMs);
-  }, [debounceMs, doSave]);
+    timeoutRef.current = setTimeout(() => { void flush().catch(() => {}); }, debounceMs);
+  }, [debounceMs, flush]);
 
-  // Replay pending saves when coming back online
   useEffect(() => {
-    const handleOnline = async () => {
-      if (!lsKey) return;
-      const pending = localStorage.getItem(lsKey);
-      if (!pending) return;
-      setSaving(true);
-      try {
-        await saveFnRef.current();
-        localStorage.removeItem(lsKey);
-        setSaved(true);
-        toast.success("Tout est sauvegardé ✓", { duration: 2500 });
-        if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
-        savedTimeoutRef.current = setTimeout(() => setSaved(false), 2000);
-      } catch (e) {
-        trackError(e, { hook: "useAutoSave", action: "replayOnline" });
-      } finally {
-        setSaving(false);
-      }
+    const handleOnline = () => {
+      // A storage marker alone cannot reconstruct data after a reload.
+      // Only replay edits retained in this mounted form.
+      if (revision.current !== persisted.current) void flush().catch(() => {});
     };
-
     window.addEventListener("online", handleOnline);
     return () => window.removeEventListener("online", handleOnline);
-  }, [lsKey]);
+  }, [flush]);
 
-  // Cleanup on unmount — flush pending save
   useEffect(() => {
+    mounted.current = true;
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        // Fire save immediately on unmount
-        saveFnRef.current().catch(() => {});
-      }
+      mounted.current = false;
+      if (timeoutRef.current) { clearTimeout(timeoutRef.current); timeoutRef.current = null; }
       if (savedTimeoutRef.current) clearTimeout(savedTimeoutRef.current);
+      void flush().catch(() => {});
     };
-  }, []);
+  }, [flush]);
 
-  return { saving, saved, triggerSave };
+  return { saving, saved, triggerSave, flush };
 }
 
 /**

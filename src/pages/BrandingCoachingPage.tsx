@@ -51,6 +51,7 @@ export default function BrandingCoachingPage() {
       <BrandingCoachingFlow
         section={section}
         personaId={personaId || undefined}
+        offerId={searchParams.get("offerId") || undefined}
         focus={focus || undefined}
         onComplete={() => navigate(RECAP_ROUTES[section] || "/branding")}
         onBack={() => navigate("/branding")}
