@@ -54,7 +54,7 @@ function makeFakeSupabase() {
     return b;
   }
   return {
-    from: () => builder(),
+    from: (_table?: string) => builder(),
     rpc: () => Promise.resolve({ data: null, error: null }),
     auth: { getUser: () => Promise.resolve({ data: { user: { id: TEST_USER_ID } }, error: null }) },
   };
@@ -95,6 +95,42 @@ function makeHooksRequest(overrides: Record<string, unknown> = {}): Request {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+}
+
+for (const requested of ["linkedin", "instagram", undefined]) {
+  for (const hasSpecificPersona of [true, false]) {
+    Deno.test(`persona carrousel : ${requested || "défaut"}, spécifique=${hasSpecificPersona}`, async () => {
+      resetDeps();
+      const sb = makeFakeSupabase();
+      const from = sb.from;
+      sb.from = (table: string) => {
+        const b = from(table);
+        if (table === "persona") {
+          let chosen: any = null;
+          b.contains = (_column: string, channels: string[]) => {
+            chosen = hasSpecificPersona ? { step_1_frustrations: `PUBLIC_${channels[0]}` } : null;
+            return b;
+          };
+          b.eq = (column: string) => {
+            if (column === "is_primary") chosen = { step_1_frustrations: "PUBLIC_PRINCIPAL" };
+            return b;
+          };
+          b.maybeSingle = () => Promise.resolve({ data: chosen, error: null });
+        }
+        return b;
+      };
+      _deps.runPipeline = (async () => ({ ok: true, userId: TEST_USER_ID, supabase: sb, corsHeaders: {}, quota: null })) as any;
+      let prompt = "";
+      _deps.callAnthropic = (async (options: any) => {
+        prompt = options.system;
+        return JSON.stringify({ hooks: [{ text: "Accroche fictive" }] });
+      }) as any;
+      const response = await handleRequest(makeHooksRequest({ channel: requested }));
+      await response.text();
+      assertEquals(response.status, 200);
+      assertEquals(prompt.includes(hasSpecificPersona ? `PUBLIC_${requested || "instagram"}` : "PUBLIC_PRINCIPAL"), true);
+    });
+  }
 }
 
 // ---------- Test 1 : quota épuisée bloque avant l'appel IA ----------

@@ -8,8 +8,8 @@ import { ANTI_SLOP, EDITORIAL_ANGLES_REFERENCE, CHAIN_OF_THOUGHT, DEPTH_LAYER, P
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
-import { applyCorrectionPassCarousel, carouselNeedsPolish } from "../_shared/correction-pass.ts";
-import { runRedacGate, type CaptionEndingRule } from "../_shared/redac-gate.ts";
+import { carouselNeedsPolish } from "../_shared/correction-pass.ts";
+import { runRedacGate, applyGuardedCarouselCorrection, type CaptionEndingRule } from "../_shared/redac-gate.ts";
 import { logContentQuality } from "../_shared/content-quality.ts";
 import { fetchPreviousHooks } from "../_shared/previous-hooks.ts";
 import { limitVisualSchemas } from "../_shared/schema-limit.ts";
@@ -585,7 +585,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       return quotaDeniedResponse(quotaCheck, corsHeaders);
     }
 
-    const ctx = await getUserContext(supabase, userId, workspace_id, "instagram");
+    const ctx = await getUserContext(supabase, userId, workspace_id, isLinkedIn ? "linkedin" : "instagram");
     const brandingContext = formatContextForAI(ctx, CONTEXT_PRESETS.posts);
     // Champs de marque bruts (combat, mission, ton…) : le redac-gate s'en sert
     // pour détecter une recopie quasi mot pour mot (audit slop 18/08). Aucune
@@ -659,6 +659,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     // tout ce que l'utilisatrice, son branding, l'actu ou la recherche ont réellement fourni.
     const gateInputText = [
       body.subject,
+      body.subject_details,
       body.photo_description,
       body.editorial_angle,
       body.objective,
@@ -734,7 +735,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
     // MESURE qui va avec (déterministe) : le gate compare l'accroche produite
     // aux précédentes et déclenche une re-passe si elle les redit. Lecture
     // best-effort — une erreur renvoie [] et ne change rien au flux.
-    const previousHooks = await fetchPreviousHooks(userId, body.subject);
+    const previousHooks = await fetchPreviousHooks(userId, body.subject, undefined, workspace_id);
     if (previousHooks.length) {
       console.log(`[carousel-ai] ${previousHooks.length} accroche(s) déjà écrite(s) sur ce sujet — garde anti-redite active`);
     }
@@ -898,12 +899,15 @@ async function runGenerationAndRespond(
     try {
       if (carouselNeedsPolish(content)) {
         emitStatus("correcting");
-        const corrected = await applyCorrectionPassCarousel(content, {
-          enabled: true,
-          skipIfShorterThan: 300,
-          logger: (msg) => console.log(msg),
-          model: pickCorrectionModel(body),
-          abortTimeoutMs: CORRECTION_ABORT_MS,
+        const corrected = await applyGuardedCarouselCorrection(content, {
+          inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
+          correction: {
+            enabled: true,
+            skipIfShorterThan: 300,
+            logger: (msg) => console.log(msg),
+            model: pickCorrectionModel(body),
+            abortTimeoutMs: CORRECTION_ABORT_MS,
+          },
         });
         if (corrected && corrected !== content) {
           content = corrected;
@@ -1058,12 +1062,15 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   try {
     if (carouselNeedsPolish(content)) {
       emitStatus("correcting");
-      const corrected = await applyCorrectionPassCarousel(content, {
-        enabled: true,
-        skipIfShorterThan: 300,
-        logger: (msg) => console.log(msg),
-        model: pickCorrectionModel(body),
-        abortTimeoutMs: CORRECTION_ABORT_MS,
+      const corrected = await applyGuardedCarouselCorrection(content, {
+        inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
+        correction: {
+          enabled: true,
+          skipIfShorterThan: 300,
+          logger: (msg) => console.log(msg),
+          model: pickCorrectionModel(body),
+          abortTimeoutMs: CORRECTION_ABORT_MS,
+        },
       });
       if (corrected && corrected !== content) {
         content = corrected;
@@ -1202,12 +1209,15 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   try {
     if (carouselNeedsPolish(content)) {
       emitStatus("correcting");
-      const corrected = await applyCorrectionPassCarousel(content, {
-        enabled: true,
-        skipIfShorterThan: 300,
-        logger: (msg) => console.log(msg),
-        model: pickCorrectionModel(body),
-        abortTimeoutMs: CORRECTION_ABORT_MS,
+      const corrected = await applyGuardedCarouselCorrection(content, {
+        inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
+        correction: {
+          enabled: true,
+          skipIfShorterThan: 300,
+          logger: (msg) => console.log(msg),
+          model: pickCorrectionModel(body),
+          abortTimeoutMs: CORRECTION_ABORT_MS,
+        },
       });
       if (corrected && corrected !== content) {
         content = corrected;

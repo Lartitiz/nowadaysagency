@@ -19,6 +19,7 @@
 // comptes QA, et un échec d'insert n'interrompt JAMAIS la génération (try/catch).
 import { getServiceClient, isQaTestAccount } from "./plan-limiter.ts";
 import { measureSlopSignals, type RedacGateResult } from "./redac-gate.ts";
+import { subjectKey } from "./previous-hooks.ts";
 
 const trunc = (s: unknown, n: number): string =>
   typeof s === "string" ? s.replace(/\s+/g, " ").trim().slice(0, n) : "";
@@ -60,10 +61,11 @@ export function buildContentPreview(
   }
 
   const sujetIn = trunc(subject, 100);
+  const key = subjectKey(subject || (typeof doc?.subject === "string" ? doc.subject : ""));
   // Constructeur commun aux formats non-carrousel (stories/reel/texte) :
   // même forme d'aperçu, null si rien d'exploitable.
   const make = (hook: string, apercu: string[]) =>
-    !sujetIn && !hook && apercu.length === 0 ? null : { sujet: sujetIn, hook, apercu_slides: apercu, caption: "" };
+    !sujetIn && !hook && apercu.length === 0 ? null : { sujet: sujetIn, subject_key: key, hook, apercu_slides: apercu, caption: "" };
 
   // Stories : { stories: [{ text }] }.
   if (Array.isArray(doc?.stories)) {
@@ -100,7 +102,7 @@ export function buildContentPreview(
       .slice(0, 300);
     const apercu = slidePreview(doc.slides);
     if (!sujetIn && !hook && !caption && apercu.length === 0) return null;
-    return { sujet: sujetIn, hook, apercu_slides: apercu, caption };
+    return { sujet: sujetIn, subject_key: key, hook, apercu_slides: apercu, caption };
   }
 
   // Texte libre : LinkedIn { content }, newsletter { subject, content }.
@@ -112,7 +114,7 @@ export function buildContentPreview(
     const sujetT = sujetIn || trunc(doc?.subject, 100);
     return !sujetT && !hookT && apercuT.length === 0
       ? null
-      : { sujet: sujetT, hook: hookT, apercu_slides: apercuT, caption: "" };
+      : { sujet: sujetT, subject_key: key, hook: hookT, apercu_slides: apercuT, caption: "" };
   }
 
   return null;

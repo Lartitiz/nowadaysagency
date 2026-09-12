@@ -2897,12 +2897,12 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
     // ⚠️ AVANT l'aiguillage SSE, jamais dedans : un await de plus une fois le
     // flux ouvert, c'est le deadlock déjà vécu (corps lu DANS le stream).
     const echoSubject = typeof context === "string" ? context : undefined;
-    const previousHooks = await fetchPreviousHooks(userId, echoSubject);
+    const previousHooks = await fetchPreviousHooks(userId, echoSubject, undefined, workspace_id);
     if (isStories) {
       // Stories : la redite d'accroche se voit aussi ENTRE sujets (même amorce
       // trois semaines plus tard sur un autre thème) → on ajoute les accroches
       // des dernières séquences de la même personne, tous sujets confondus.
-      for (const h of await fetchPreviousHooksByFormat(userId, "stories")) {
+      for (const h of await fetchPreviousHooksByFormat(userId, "stories", undefined, workspace_id)) {
         if (!previousHooks.includes(h)) previousHooks.push(h);
       }
     }
