@@ -15,6 +15,9 @@ import { applyCorrectionPass, applyCorrectionPassCarousel, type CorrectionFormat
 // Mêmes variantes que la règle ANTI_SLOP : "Ce n'est pas X, c'est Y" /
 // "Pas X. Y." / "X n'est plus Y. C'est Z." / "Je ne dis pas X. Je dis Y."
 const REVERSAL_PATTERNS: RegExp[] = [
+  // Nominal antithesis: punctuation/newlines and curly apostrophes included.
+  // Deliberately exclude factual fragments such as « Pas dimanche » / « Pas de stock ».
+  /(?:^|[.!?]\s+)[^.!?\n]{2,100}[.!]\s+Pas (?:un(?:e)?|des|du|de la|de l['’]|le|la|les|l['’])\s*[^.!?\n]{2,100}[.!?]?/i,
   /\bn(?:'|’)est pas [^.!?\n]{2,90}[.,:] ?[Cc](?:'|’)est\b/,
   /\bc(?:'|’)est pas [^.!?\n]{2,90}[.,:] ?[Cc](?:'|’)est\b/,
   /\bne sont pas [^.!?\n]{2,90}[.,:] ?[Cc]e sont\b/,
@@ -513,7 +516,7 @@ export function normalizeCaptionHashtags(parsed: any, isLinkedIn: boolean): void
 /** Nombre de violations rédactionnelles — formule partagée avec le quality_check. */
 export function redacViolations(a: RedacAnalysis): number {
   return (
-    Math.max(0, a.reversals.length - 1) + // 1 retournement est toléré (règle « 1 max »)
+    a.reversals.length + // Dès la première formule ajoutée par le modèle.
     a.overlongSlides.length +
     a.overlongOverlays.length +
     (a.ctaDuplicated ? 1 : 0) +
@@ -583,9 +586,9 @@ export function captionEndingViolated(parsed: any, rule?: CaptionEndingRule): bo
 /** Construit les instructions ciblées de la re-passe à partir des mesures. */
 function buildFixInstructions(a: RedacAnalysis): string {
   const lines: string[] = [];
-  if (a.reversals.length > 1) {
+  if (a.reversals.length > 0) {
     lines.push(
-      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, le maximum est 1 PAR CARROUSEL (caption comprise). Garde UNIQUEMENT le plus fort, réécris les autres en affirmation directe (même sens, sans « pas X, c'est Y ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
+      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé (caption comprise). Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder (même sens, sans « pas X, c'est Y ») :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
     );
   }
   for (const s of a.overlongSlides) {
@@ -658,8 +661,8 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const original = originalDoc.carousel?.slides ? originalDoc.carousel : originalDoc;
     const candidate = candidateDoc.carousel?.slides ? candidateDoc.carousel : candidateDoc;
     const allowed = source === undefined ? undefined : numbersIn(source);
-    const before = analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo);
-    const after = analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo);
+    const before = dropUserSourcedReversals(analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo), opts.correction.authoredText);
+    const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo), opts.correction.authoredText);
     // Compare raw counts, not the capped score: a fifth invented number is
     // still a regression even when the score already caps that penalty at 3.
     const counts = (a: RedacAnalysis) => [a.reversals.length, a.overlongSlides.length,
@@ -731,7 +734,7 @@ export async function runRedacGate(
   if (!first) return { content, repassed: false, before: emptyAnalysis(), after: emptyAnalysis(), score: null, violations: null };
 
   const allowedNumbers = opts.inputText !== undefined ? numbersIn(opts.inputText) : undefined;
-  const before = analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo);
+  const before = dropUserSourcedReversals(analyzeCarouselRedac(first.parsed, allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText);
   let out = content;
   let repassed = false;
 
@@ -800,14 +803,14 @@ export async function runRedacGate(
     }
   }
 
-  let after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo);
+  let after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText);
   // Duplication caption/slide PERSISTANTE malgré la re-passe (vue livrée avec le
   // flag true, audit 12/07 lot D) : suppression déterministe — le CTA vit sur la
   // slide, la caption garde sa chute (dernière ligne du body). Supprimer > inventer.
   if (after.ctaDuplicated && finalDoc.parsed?.caption) {
     console.log("[redac-gate] caption.cta supprimé (duplication de la dernière slide persistante après re-passe)");
     finalDoc.parsed.caption.cta = "";
-    after = analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo);
+    after = dropUserSourcedReversals(analyzeCarouselRedac(finalDoc.parsed, allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText);
   }
   normalizeCaptionHashtags(finalDoc.parsed, opts.isLinkedIn);
   finalDoc.parsed.quality_check = buildQualityCheck(after, repassed);
@@ -863,14 +866,14 @@ export function analyzeTextRedac(text: string, allowedNumbers?: Set<string>, bra
  * réponses, message clé) : « Un savon ça se choisit comme une crème, pas comme
  * un produit ménager » fourni en message clé n'est pas un tic du modèle.
  */
-export function dropUserSourcedReversals(a: TextRedacAnalysis, userSourceText: string | undefined): TextRedacAnalysis {
+export function dropUserSourcedReversals<T extends { reversals: string[] }>(a: T, userSourceText: string | undefined): T {
   if (!userSourceText || !a.reversals.length) return a;
   const src = normalizeWordsForOverlap(userSourceText).join(" ");
   if (!src) return a;
   const kept = a.reversals.filter((r) => {
     const words = normalizeWordsForOverlap(r);
-    // Le premier tiers du passage suffit : c'est la pivot qui est distinctive.
-    const probe = words.slice(0, Math.max(4, Math.ceil(words.length / 2))).join(" ");
+    // Exige tout le passage détecté : partager quelques mots ne suffit pas.
+    const probe = words.length >= 3 ? words.join(" ") : "";
     return !(probe && src.includes(probe));
   });
   return kept.length === a.reversals.length ? a : { ...a, reversals: kept };
@@ -879,7 +882,7 @@ export function dropUserSourcedReversals(a: TextRedacAnalysis, userSourceText: s
 /** Nombre de violations — même formule que redacViolations, pour la variante texte. */
 export function textRedacViolations(a: TextRedacAnalysis): number {
   return (
-    Math.max(0, a.reversals.length - 1) +
+    a.reversals.length +
     a.moulded.length +
     Math.min(3, a.fabricatedNumbers.length) +
     Math.min(3, a.brandCopyOverlap.length) +
@@ -1047,9 +1050,9 @@ export function measureSlopSignals(params: {
 /** Instructions ciblées pour la passe de correction texte ("" si rien à corriger). */
 export function buildTextFixInstructions(a: TextRedacAnalysis): string {
   const lines: string[] = [];
-  if (a.reversals.length > 1) {
+  if (a.reversals.length > 0) {
     lines.push(
-      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, le maximum est 1 PAR CONTENU. Garde UNIQUEMENT le plus fort, réécris les autres en affirmation directe :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
+      `RETOURNEMENTS PAR NÉGATION : ${a.reversals.length} détectés, aucun effet ajouté n’est autorisé. Réécris chaque passage signalé en affirmation directe, en préservant les négations factuelles et verbatims fournis à garder :\n${a.reversals.map((r) => `- « ${r} »`).join("\n")}`,
     );
   }
   for (const m of a.moulded) {
@@ -1084,8 +1087,8 @@ export function buildTextFixInstructions(a: TextRedacAnalysis): string {
 // re-passe » que le gate carrousel).
 
 /** Somme brute des 4 familles mesurées — le comparateur de la garde anti-régression.
- * Plus strict que textRedacViolations (qui tolère 1 retournement) : une correction
- * qui fait passer un texte de 0 à 1 retournement est déjà une dégradation. */
+ * Compte sans plafonner les catégories : une correction qui ajoute un défaut
+ * ne doit pas profiter du plafond de pénalité d’une autre catégorie. */
 export function textRedacRawCount(a: TextRedacAnalysis): number {
   return a.reversals.length + a.moulded.length + a.fabricatedNumbers.length + a.brandCopyOverlap.length +
     a.hookEchoes.length;
@@ -1117,7 +1120,9 @@ export async function runTextRedacGate(
     echo?: EchoContext;
   },
 ): Promise<TextGateResult> {
-  const analyze = (t: string) => analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText, opts.echo);
+  const analyze = (t: string) => dropUserSourcedReversals(
+    analyzeTextRedac(t, opts.allowedNumbers, opts.brandGuardText, opts.echo), opts.correction.authoredText,
+  );
   const before = analyze(text);
   let best = text;
   let bestA = before;
@@ -1130,7 +1135,7 @@ export async function runTextRedacGate(
   for (let pass = 1; pass <= maxPasses; pass++) {
     // La 1re passe tourne toujours (relecture générale + instructions ciblées
     // si mesures) ; les suivantes seulement s'il reste des violations au sens
-    // du score officiel (1 retournement toléré ne mérite pas un appel de plus).
+    // du score officiel (chaque effet ajouté compte).
     if (pass > 1 && textRedacViolations(bestA) === 0) break;
     const corrected = await applyCorrectionPass(current, opts.format, {
       ...opts.correction,

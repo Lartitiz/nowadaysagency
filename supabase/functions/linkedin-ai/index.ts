@@ -31,6 +31,7 @@ async function correctJsonField(rawJson: string, field: string, abortTimeoutMs =
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs,
+        sourceContext: inputText,
       },
       allowedNumbers: numbersIn(inputText || ""),
     });
@@ -59,6 +60,7 @@ async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs,
+        sourceContext: inputText,
       },
       allowedNumbers: numbersIn(inputText || ""),
     });

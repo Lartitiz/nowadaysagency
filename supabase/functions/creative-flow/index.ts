@@ -1,3 +1,4 @@
+import { authoredContentSource } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { CORE_PRINCIPLES, FRAMEWORK_SELECTION, FORMAT_STRUCTURES, WRITING_RESOURCES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, PREGEN_INJECTION_RULES, EDITORIAL_ANGLES_REFERENCE, VISUAL_ANALOGIES, LINKEDIN_TEMPLATES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
@@ -599,10 +600,10 @@ Pose exactement 3 questions pour récupérer SA matière première sur le sujet 
 
 RÈGLES :
 1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
-2. AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND : pourquoi elle pense ça, pourquoi c'est important pour elle, quelle conviction personnelle se cache derrière ce sujet.
+2. Priorise ce qui manque pour écrire juste sur CE sujet : un fait précis, un exemple, un choix, une nuance. Creuse une conviction quand elle sert le propos, sans imposer une introspection. Ne redemande pas une information déjà fournie.
 3. ${channelGuidance}
 4. Questions OUVERTES (pas oui/non).
-5. VARIÉTÉ DE TYPES DE QUESTIONS OBLIGATOIRE — les 3 questions doivent utiliser des TYPES DIFFÉRENTS parmi :
+5. Choisis des questions complémentaires parmi les types utiles au sujet, sans quota par type :
    - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
    - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
    - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
@@ -1159,6 +1160,8 @@ Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reforma
           format: f as CorrectionFormat,
           correction: {
             logger: (m) => console.log(`[creative-flow recycle ${f}] ${m}`),
+            sourceContext: sourceForFormats,
+            authoredText: sourceForFormats,
             model: "claude-haiku-4-5",
             abortTimeoutMs: CORRECTION_ABORT_MS,
           },
@@ -1309,6 +1312,8 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       format: "linkedin",
       correction: {
         logger: (msg) => console.log(msg),
+        authoredText: authoredContentSource(body),
+        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1348,7 +1353,7 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
   try {
     const reelAllowed = numbersIn([
       typeof body.context === "string" ? body.context : "",
-      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
       body.selected_hook ? JSON.stringify(body.selected_hook) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
@@ -1394,6 +1399,8 @@ async function applyReelQualityPass(parsed: any, params: { body: any; effectiveO
     // Édition mécanique à règles fermées → Haiku (même choix que LinkedIn/carrousel).
     const corrected = await applyCorrectionPassReel(parsed, {
       logger: (msg) => console.log(msg),
+      authoredText: authoredContentSource(body),
+      sourceContext: [fullContext, authoredContentSource(body)].filter(Boolean).join("\n"),
       model: "claude-haiku-4-5",
       extraInstructions: extras.length ? extras.join("\n\n") : undefined,
       abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1502,7 +1509,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     const storiesAllowed = numbersIn([
       typeof body.context === "string" ? body.context : "",
       body.answers ? JSON.stringify(body.answers) : "",
-      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
       fullContext || "",
     ].join("\n"));
     const echo = { previousHooks, subject: echoSubject };
@@ -1510,7 +1517,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     const userSource = [
       typeof body.context === "string" ? body.context : "",
       body.answers ? JSON.stringify(body.answers) : "",
-      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
     ].join("\n");
     const analyze = (stories: any[]) => dropUserSourcedReversals(analyzeTextRedac(storiesAuditableText(stories), storiesAllowed, brandGuardText, echo), userSource);
     const before = analyze(parsed.stories);
@@ -1521,6 +1528,8 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     if (textRedacViolations(before) > 0) {
       const out = await applyCorrectionPassStories(parsed.stories, {
         logger: (msg) => console.log(msg),
+        authoredText: authoredContentSource(body),
+        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
         model: "claude-haiku-4-5",
         extraInstructions: buildTextFixInstructions(before) || undefined,
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1583,7 +1592,7 @@ async function logGenerationQualityTelemetry(parsed: any, params: {
     numbersIn([
       typeof context === "string" ? context : "",
       body.answers ? JSON.stringify(body.answers) : "",
-      body.pre_gen_answers ? JSON.stringify(body.pre_gen_answers) : "",
+      (body.preGenAnswers || body.pre_gen_answers) ? JSON.stringify(body.preGenAnswers || body.pre_gen_answers) : "",
       typeof newsContext === "string" ? newsContext : "",
       fullContext || "",
     ].join("\n"));
@@ -1867,26 +1876,18 @@ export async function runLinkedInTwoStep(params: {
   const liExtraInstructions = buildTextFixInstructions(liRedac);
 
   // Step 2: Correction pass — short, focused prompt
-  const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER systématiquement. Ton job n'est PAS de juger si c'est "déjà bien" — c'est de traquer et corriger TOUS les patterns IA, même subtils.
+  const correctionPrompt = `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges uniquement les défauts identifiés. Préserve les passages déjà naturels, les formulations personnelles et les nuances.
 
 ══ TEST FONDAMENTAL (à appliquer AVANT toute correction) ══
 
-Lis le post à voix haute mentalement. Pose-toi cette question :
-
-"Est-ce que ce post pourrait avoir été écrit par une assistante IA bien entraînée ?"
-
-Si la réponse est "oui, possiblement" → tu DOIS réécrire les passages qui te font hésiter.
-
-Si la réponse est "non, c'est clairement humain" → tu peux retourner la version corrigée.
-
-Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUABLE d'un humain".
+Lis le post à voix haute mentalement. Identifie les passages répétitifs, artificiels ou infidèles aux sources. Corrige ces passages uniquement ; si aucun défaut précis n'est établi, préserve le texte. Le registre, les formulations réussies et les nuances de la personne restent prioritaires.
 
 ══ CORRECTIONS OBLIGATOIRES — APPLIQUE TOUTES CELLES QUI S'APPLIQUENT ══
 
 1. PHRASES COURTES CONSÉCUTIVES (compte-les) :
    → COMPTE les phrases consécutives de moins de 10 mots.
-   → Si tu trouves 2 phrases courtes (< 10 mots) qui se suivent : FUSIONNE-LES.
-   → Si tu trouves 1 phrase isolée < 10 mots seule entre 2 sauts de ligne : INTÈGRE-LA dans le paragraphe précédent ou suivant.
+   → Fusionne seulement une rafale artificielle qui gêne la lecture ; deux phrases courtes utiles peuvent rester.
+   → Une phrase courte isolée peut rester si elle sert le propos et la voix.
    → Le rythme vient de l'ALTERNANCE longue/courte, pas de la répétition courte/courte.
    ❌ "C'était brillant. Trop brillant." → ✅ "C'était brillant. Tellement brillant que ça en devenait illisible."
    ❌ "C'était beau. Vraiment." → ✅ "C'était objectivement beau, et c'est exactement là le problème."
@@ -1903,7 +1904,7 @@ Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUA
 3. FORMULES MANUFACTURÉES (mots-valises copywriting) :
    → Détecte les expressions qui sonnent comme un livre de marketing.
    → Liste non-exhaustive (cherche des variantes) : "noyé dans l'esthétique", "bruit joli", "vitrine sans produit", "fondations bancales", "habiller un message", "habillage du fond", "emballage sans contenu", "décorer la maison", "le squelette du contenu", "l'ADN de la marque", "le pilier de", "le socle de", "transformer notre manière de [verbe]".
-   → Si tu vois UNE de ces expressions OU UNE expression du même registre → réécris en plus brut, plus parlé.
+   → Si tu vois UNE de ces expressions OU UNE expression du même registre → réécris avec des mots précis, dans le registre de la personne.
    ❌ "Le message était noyé dans l'esthétique." → ✅ "Le message était invisible derrière le visuel."
    ❌ "transformer notre manière de consommer, de créer et de vivre" → ✅ "changer comment on consomme, comment on crée : et même comment on vit"
 
@@ -1914,7 +1915,7 @@ Le critère n'est pas "est-ce que c'est joli" mais "est-ce que c'est INDISTINGUA
    → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
 
 4bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
-   → MAXIMUM 1 par post : garde le plus fort, réécris les autres en affirmation directe.
+   → Corrige chaque effet préfabriqué ajouté par le modèle dès la première occurrence ; conserve les négations factuelles et les verbatims demandés.
    → Et surtout : n'en INTRODUIS JAMAIS un nouveau en réécrivant. "Réécrire en plus brut"
      ne veut PAS dire "réécrire en négation-puis-affirmation" — c'est le moule IA n°1.
 
@@ -2114,6 +2115,7 @@ async function runNewsletterTwoStep(params: {
         correction: {
           logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
           sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n"),
+          authoredText: authoredContentSource(body),
           // Édition mécanique à règles fermées → Haiku (cf. #364)
           model: "claude-haiku-4-5",
           abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -2314,7 +2316,7 @@ export async function correctPostStreamContent(
       typeof body.news_context === "string" ? body.news_context : "",
       fullContext || "",
     ].join("\n"));
-    const postRedac = analyzeTextRedac(parsed.content, postAllowed, brandGuardText);
+    const postRedac = dropUserSourcedReversals(analyzeTextRedac(parsed.content, postAllowed, brandGuardText), authoredContentSource(body));
     if (textRedacViolations(postRedac) === 0) return undefined; // déjà propre : pas d'appel IA de plus
 
     // runTextRedacGate = correction → RE-mesure → garde anti-régression (la
@@ -2324,6 +2326,8 @@ export async function correctPostStreamContent(
       format: "instagram_caption",
       correction: {
         logger: (m) => console.log(`[creative-flow post-stream] ${m}`),
+        authoredText: authoredContentSource(body),
+        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -2680,7 +2684,7 @@ serve(async (req) => {
     }
 
     // Pre-generation personal answers (with branding fallback)
-    let effectivePreGen = preGenAnswers;
+    let effectivePreGen = preGenAnswers ?? body.pre_gen_answers;
     if (!effectivePreGen && step === "generate") {
       effectivePreGen = buildPreGenFallback(ctx);
     }
@@ -2691,9 +2695,11 @@ serve(async (req) => {
       const pl: string[] = [];
       if (effectivePreGen.anecdote) pl.push(`- Anecdote${sourceNote} (UTILISE ses mots exacts, garde le côté brut et authentique) : "${effectivePreGen.anecdote}"`);
       if (effectivePreGen.emotion) pl.push(`- Énergie/émotion visée${sourceNote} (guide le ton de TOUT le contenu) : ${effectivePreGen.emotion}`);
-      if (effectivePreGen.conviction) pl.push(`- Conviction/phrase clé${sourceNote} (doit apparaître TEXTUELLEMENT dans le contenu, c'est SA voix) : "${effectivePreGen.conviction}"`);
+      if (effectivePreGen.conviction) pl.push(fromBranding
+        ? `- Conviction issue du branding (repère de fond seulement si pertinent pour CE sujet, à reformuler ; présence non obligatoire) : "${effectivePreGen.conviction}"`
+        : `- Conviction/phrase clé fournie pour CE contenu (conserve son sens et ses mots lorsqu’ils fonctionnent, sans insertion forcée) : "${effectivePreGen.conviction}"`);
       if (pl.length) {
-        preGenBlock = `\nL'UTILISATRICE A PARTAGÉ CES ÉLÉMENTS PERSONNELS :\n${pl.join("\n")}\n\nINTÈGRE CES ÉLÉMENTS dans le contenu généré :\n- L'anecdote doit apparaître naturellement (en accroche ou en illustration)\n- L'émotion visée guide le ton et la structure\n- La conviction doit être présente, formulée dans le style de l'utilisatrice\n- Ne change PAS le sens de ce qu'elle a dit, juste la structure\n`;
+        preGenBlock = `\nL'UTILISATRICE A PARTAGÉ CES ÉLÉMENTS PERSONNELS :\n${pl.join("\n")}\n\nINTÈGRE CES ÉLÉMENTS dans le contenu généré :\n- L'anecdote doit apparaître naturellement (en accroche ou en illustration)\n- L'émotion visée guide le ton et la structure\n- La conviction éclaire le propos si elle est pertinente ; ne récite pas une conviction de marque sans lien avec le sujet\n- Ne change PAS le sens de ce qu'elle a dit, juste la structure\n`;
       }
     }
     if (!effectivePreGen && step === "generate") {

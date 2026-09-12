@@ -146,21 +146,8 @@ vu ça comme ça".
 ❌ Conclusion qui répète le hook au lieu de le RETOURNER.
 ❌ Texte parlé qui ressemble à un post écrit lu à voix haute.
 
-══ MARQUEURS DE PROFONDEUR ORALE (utilise-en au moins 2) ══
-
-Au-delà des "alors", "tu vois" cosmétiques, il faut des marqueurs qui
-SIGNALENT qu'on est en train de creuser une idée :
-
-• Bascule de regard : "ce qu'il se passe vraiment c'est…",
-  "le vrai problème c'est pas X, c'est Y".
-• Mécanisme révélé : "tu sais pourquoi ? parce que…", "ce qui se joue
-  là-dessous c'est…", "la mécanique c'est…".
-• Contre-pied assumé : "et c'est là que ça devient intéressant…",
-  "en fait on s'est trompé d'endroit…".
-• Nuance honnête : "alors attention, je dis pas que…", "c'est pas aussi
-  simple, mais…".
-
-Ces marqueurs ≠ remplisseurs. Chacun introduit une VRAIE idée nouvelle.
+══ PROFONDEUR ORALE ══
+Explique le mécanisme, développe ce qui change le regard et ajoute les nuances utiles. Les transitions viennent des idées et de la façon de parler de la personne. Aucun nombre de marqueurs oraux imposé : on doit suivre le raisonnement sans entendre une collection de formules.
 
 ══ ORALITÉ : MONOLOGUE, PAS SCRIPT TÉLÉ ══
 
@@ -169,9 +156,9 @@ L'utilisatrice va lire ce script FACE CAM, en une prise, comme si elle parlait
 mais le texte parlé doit s'enchaîner comme UN SEUL monologue continu.
 
 CONTINUITÉ ENTRE SECTIONS, règle stricte :
-- Le texte_parle de chaque section body DOIT commencer par un connecteur qui
-  enchaîne sur la section précédente ("Et là…", "Donc…", "Attends…"), varié
-  d'un reel à l'autre.
+- Le texte_parle de chaque section body poursuit la section précédente.
+  Utilise un connecteur seulement s’il aide à suivre le raisonnement ;
+  la continuité peut aussi venir du sens.
 - Première phrase de chaque section ≠ phrase autonome qu'on pourrait poster.
   C'est la SUITE de la phrase précédente.
 - Hook + body 1 = paire question/réponse (ou affirmation/preuve), pas 2
@@ -469,7 +456,7 @@ Retourne UNIQUEMENT ce JSON valide, sans texte avant ou après, sans backticks :
   "objectif": "${effectiveObjective || "non précisé"}",
   "editorial_angle_used": "${params.editorial_angle || "auto"}",
   "personal_tip": null,
-  "lecture_test": "MONOLOGUE CONTINU : concatène ici tous les texte_parle des sections dans l'ordre, sans coupure, comme un seul paragraphe lisible d'une traite face cam. Doit contenir les 3 couches (symptôme + mécanisme + reformulation) et au moins 2 marqueurs de profondeur orale.",
+  "lecture_test": "MONOLOGUE CONTINU : concatène ici tous les texte_parle des sections dans l'ordre, sans coupure, comme un seul paragraphe lisible d'une traite face cam. Doit contenir les 3 couches (symptôme + mécanisme + reformulation) avec des transitions naturelles, sans quota de marqueurs oraux.",
   "accroche": "le hook des 3 premières secondes (pour le calendrier)",
   "pillar": "le pilier de contenu",
   "script": [
@@ -1144,8 +1131,8 @@ INTRO (2-3 phrases) :
 
 CORPS :
 - Développe en profondeur. C'est le format France Culture de la com.
-- Apartés personnels entre parenthèses. JAMAIS d'italique ni de gras : l'email part en texte brut, le markdown (**, *) s'afficherait tel quel.
-- Au moins 2 exemples concrets ou anecdotes.
+- Apartés personnels entre parenthèses seulement s’ils apportent une nuance propre au sujet et correspondent à la voix. JAMAIS d'italique ni de gras : l'email part en texte brut, le markdown (**, *) s'afficherait tel quel.
+- Développe les exemples fournis et les explications utiles ; aucun quota d’anecdotes et aucun vécu à inventer.
 - Des nuances, des "oui mais", des zones grises. La newsletter n'est pas 
   un cours : c'est une réflexion partagée.
 
@@ -1157,7 +1144,7 @@ CONCLUSION :
 
 CTA : doux, en lien avec le sujet. Pas de vente agressive.
 
-LONGUEUR : vise 2000+ caractères. La profondeur justifie la longueur ici.`;
+LONGUEUR : repère 1500-3000 caractères selon la matière. La demande de longueur de la personne prime. Développe les explications utiles sans remplir artificiellement.`;
 }
 
 export function photoCaptionBrief(photo_description: string | null | undefined): string {
@@ -1194,7 +1181,7 @@ CORPS :
 - Développe ce que la photo NE DIT PAS
 - Ton SENSORIEL : texture, lumière, chaleur, poids, odeur, son
 - 2-4 phrases qui avancent. Chaque phrase apporte du nouveau.
-- 1 imperfection humaine (aparté, autocorrection, mot familier)
+- Garde l’oralité de la personne, sans ajouter d’imperfection obligatoire.
 
 FIN :
 - CTA doux : invitation, question, ou rien si la phrase finale se suffit
@@ -1257,10 +1244,10 @@ ACCROCHE (les 125 premiers caractères) :
 
 CORPS :
 - Développe UNE idée en profondeur. Pas 3 idées survolées.
-- Au moins 1 exemple concret, 1 anecdote ou 1 chiffre.
+- Un exemple ou un détail fourni quand il est utile ; sinon, une explication précise, sans anecdote ni chiffre à inventer.
 - Apartés entre parenthèses *(comme ça)* ou en italique pour la respiration humaine.
 - Bucket brigades naturelles, variées d'une caption à l'autre : ne réutilise pas systématiquement la même cheville
-- 1 imperfection humaine par caption : autocorrection, parenthèse, mot familier
+- Oralité fidèle à la personne, sans imperfection obligatoire
 
 FIN :
 - Question PRÉCISE liée au sujet (pas "Et toi, qu'en penses-tu ?")
