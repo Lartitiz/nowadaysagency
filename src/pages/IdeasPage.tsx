@@ -690,7 +690,7 @@ function EmptyTab({ state, filteredByCanal, onAdd, onResetCanal }: { state: Idea
     return (
       <EmptyState
         title="Rien en cours"
-        body="Ici tu retrouves les contenus que tu as gardés pour plus tard depuis Créer, avec le bouton « Garder en idée »."
+        body="Ici tu retrouves les contenus que tu as gardés pour plus tard depuis Créer, avec le bouton « Enregistrer mon contenu »."
       />
     );
   }

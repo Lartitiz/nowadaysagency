@@ -1,20 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, fireEvent, waitFor } from "@testing-library/react";
 
-// Garde-fou UX : sauvegarder une idée ferme la fenêtre dès que l'idée est en
-// base — l'attache des visuels (rasterisation + upload, plusieurs secondes par
-// slide) se fait en arrière-plan avec un toast de progression, et ne doit
-// JAMAIS re-bloquer la fenêtre (régression du 21/07 : 30 s de « Sauvegarde... »).
+// The dialog closes after the text is saved, but complete success waits for all visuals.
 
 const mocks = vi.hoisted(() => {
   const updatePayloads: any[] = [];
   const insertSingle = vi.fn(async () => ({ data: { id: "idea-1" }, error: null }));
-  const updateEq = vi.fn(async () => ({ error: null }));
+  const updateEq = vi.fn(async () => ({ data: { id: "idea-1" }, error: null }));
   const from = vi.fn(() => ({
     insert: vi.fn(() => ({ select: vi.fn(() => ({ single: insertSingle })) })),
     update: vi.fn((payload: any) => {
       updatePayloads.push(payload);
-      return { eq: updateEq };
+      return { eq: () => ({ select: () => ({ single: updateEq }) }) };
     }),
   }));
   const toast = {
@@ -57,7 +54,7 @@ describe("SaveToIdeasDialog — attache des visuels en arrière-plan", () => {
     mocks.updatePayloads.length = 0;
   });
 
-  it("ferme la fenêtre et confirme la sauvegarde AVANT la fin de l'upload des visuels", async () => {
+  it("ferme la fenêtre sans annoncer un succès complet avant la fin des visuels", async () => {
     let resolveUpload!: (urls: string[]) => void;
     let progressCb: ((d: number, t: number) => void) | undefined;
     const onUploadVisuals = vi.fn((_id: string, onProgress?: (d: number, t: number) => void) => {
@@ -67,15 +64,19 @@ describe("SaveToIdeasDialog — attache des visuels en arrière-plan", () => {
       });
     });
     const onOpenChange = vi.fn();
+    const onSaved = vi.fn();
+    const onSavingChange = vi.fn();
 
     const { getByText } = render(
-      <SaveToIdeasDialog {...baseProps} onOpenChange={onOpenChange} onUploadVisuals={onUploadVisuals} />
+      <SaveToIdeasDialog {...baseProps} onOpenChange={onOpenChange} onUploadVisuals={onUploadVisuals} onSaved={onSaved} onSavingChange={onSavingChange} />
     );
-    fireEvent.click(getByText("💾 Sauvegarder"));
+    fireEvent.click(getByText("Enregistrer dans Mes idées"));
 
     // La fenêtre se ferme et le succès s'affiche alors que l'upload est encore en cours
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
-    expect(mocks.toast.success).toHaveBeenCalledWith(expect.stringContaining("Idée sauvegardée"));
+    expect(mocks.toast.success).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onSavingChange).toHaveBeenLastCalledWith(true);
     expect(onUploadVisuals).toHaveBeenCalledWith("idea-1", expect.any(Function));
     expect(mocks.toast.loading).toHaveBeenCalledWith(expect.stringContaining("0/2"));
 
@@ -90,10 +91,12 @@ describe("SaveToIdeasDialog — attache des visuels en arrière-plan", () => {
     resolveUpload(["https://x/slide-1.png", "https://x/slide-2.png"]);
     await waitFor(() =>
       expect(mocks.toast.success).toHaveBeenCalledWith(
-        "Visuels attachés à ton idée ✓",
+        "Texte et visuels enregistrés ✓",
         expect.objectContaining({ id: "toast-visuels" })
       )
     );
+    expect(onSaved).toHaveBeenCalledWith("idea-1", true);
+    expect(onSavingChange).toHaveBeenLastCalledWith(false);
     const withVisuals = mocks.updatePayloads.find((p) => p.content_data?.visual_urls);
     expect(withVisuals.content_data.visual_urls).toHaveLength(2);
     expect(withVisuals.content_data.hook).toBe("abc");
@@ -106,12 +109,12 @@ describe("SaveToIdeasDialog — attache des visuels en arrière-plan", () => {
     const { getByText } = render(
       <SaveToIdeasDialog {...baseProps} onOpenChange={onOpenChange} onUploadVisuals={onUploadVisuals} />
     );
-    fireEvent.click(getByText("💾 Sauvegarder"));
+    fireEvent.click(getByText("Enregistrer dans Mes idées"));
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     await waitFor(() =>
       expect(mocks.toast.warning).toHaveBeenCalledWith(
-        expect.stringContaining("n'ont pas pu y être attachés"),
+        expect.stringContaining("visuels incomplets"),
         expect.objectContaining({ id: "toast-visuels" })
       )
     );
@@ -129,9 +132,30 @@ describe("SaveToIdeasDialog — attache des visuels en arrière-plan", () => {
         onUploadVisuals={undefined}
       />
     );
-    fireEvent.click(getByText("💾 Sauvegarder"));
+    fireEvent.click(getByText("Enregistrer dans Mes idées"));
 
     await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
     expect(mocks.toast.loading).not.toHaveBeenCalled();
   });
+  it("keeps the dialog open and never confirms after a server failure", async () => {
+    mocks.insertSingle.mockResolvedValueOnce({ data: null, error: { message: "network" } } as any);
+    const onSaved = vi.fn();
+    const onOpenChange = vi.fn();
+    const onSavingChange = vi.fn();
+    const { getByText } = render(<SaveToIdeasDialog {...baseProps} visualSlides={undefined} onSaved={onSaved} onOpenChange={onOpenChange} onSavingChange={onSavingChange} />);
+    fireEvent.click(getByText("Enregistrer dans Mes idées"));
+    await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    expect(onSaved).not.toHaveBeenCalled();
+    expect(onSavingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("reports a partial save when not all requested visuals are attached", async () => {
+    const onSaved = vi.fn();
+    const { getByText } = render(<SaveToIdeasDialog {...baseProps} onOpenChange={vi.fn()} onSaved={onSaved} onUploadVisuals={async () => ["one.png"]} />);
+    fireEvent.click(getByText("Enregistrer dans Mes idées"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("idea-1", false));
+    expect(mocks.toast.success).not.toHaveBeenCalled();
+  });
+
 });

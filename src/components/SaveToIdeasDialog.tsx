@@ -1,6 +1,6 @@
 // ============= Full file contents =============
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
@@ -31,6 +31,8 @@ interface Props {
   visualSlides?: { slide_number: number; html: string }[];
   onUploadVisuals?: (ideaId: string, onProgress?: (done: number, total: number) => void) => Promise<string[]>;
   editingIdeaId?: string | null;
+  onSavingChange?: (saving: boolean) => void;
+  onSaved?: (id: string, complete: boolean) => void;
 }
 
 export function SaveToIdeasDialog({
@@ -46,6 +48,8 @@ export function SaveToIdeasDialog({
   visualSlides,
   onUploadVisuals,
   editingIdeaId,
+  onSavingChange,
+  onSaved,
 }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -53,6 +57,7 @@ export function SaveToIdeasDialog({
   const [customTag, setCustomTag] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -69,87 +74,93 @@ export function SaveToIdeasDialog({
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (savingRef.current) return;
+    if (!user) { toast.error("Reconnecte-toi pour enregistrer ton contenu."); return; }
+    savingRef.current = true;
     setSaving(true);
+    onSavingChange?.(true);
+    try {
+      const contentEmoji =
+        contentType === "newsletter" ? "📧" :
+        contentType === "story" ? "📱" :
+        contentType === "reel" ? "🎬" :
+        contentType === "pinterest" ? "📌" : "📸";
+      const formatLabel =
+        contentType === "newsletter" ? "newsletter" :
+        contentType === "story" ? "story_serie" :
+        contentType === "reel" ? "reel" :
+        contentType === "pinterest" ? (format || "pinterest") : (format || "post");
+      const canalValue =
+        contentType === "newsletter" ? "newsletter" :
+        contentType === "post_linkedin" ? "linkedin" :
+        contentType === "pinterest" ? "pinterest" : "instagram";
 
-    const contentEmoji =
-      contentType === "newsletter" ? "📧" :
-      contentType === "story" ? "📱" :
-      contentType === "reel" ? "🎬" :
-      contentType === "pinterest" ? "📌" : "📸";
-    const formatLabel =
-      contentType === "newsletter" ? "newsletter" :
-      contentType === "story" ? "story_serie" :
-      contentType === "reel" ? "reel" :
-      contentType === "pinterest" ? (format || "pinterest") : (format || "post");
-    const canalValue =
-      contentType === "newsletter" ? "newsletter" :
-      contentType === "post_linkedin" ? "linkedin" :
-      contentType === "pinterest" ? "pinterest" : "instagram";
+      const baseFields = {
+        titre: `${contentEmoji} ${subject || contentType}`,
+        angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
+        format: formatLabel,
+        canal: canalValue,
+        objectif: objectif || null,
+        notes: note || null,
+        content_draft: typeof contentData === "string" ? contentData : JSON.stringify(contentData),
+        content_data: visualSlides?.length && typeof contentData === "object" ? { ...contentData, visual_html: visualSlides } : contentData,
+        personal_elements: personalElements || null,
+      };
 
-    const baseFields = {
-      titre: `${contentEmoji} ${subject || contentType}`,
-      angle: selectedTags.length > 0 ? selectedTags.join(", ") : contentType,
-      format: formatLabel,
-      canal: canalValue,
-      objectif: objectif || null,
-      notes: note || null,
-      content_draft: typeof contentData === "string" ? contentData : JSON.stringify(contentData),
-      content_data: contentData,
-      personal_elements: personalElements || null,
-    };
+      let targetId: string | null = null;
+      let isUpdate = false;
 
-    let targetId: string | null = null;
-    let isUpdate = false;
+      if (editingIdeaId) {
+        isUpdate = true;
+        // On range le contenu SUR l'idée de départ sans lui voler son identité :
+        // le titre et l'angle notés par l'utilisatrice restent, seuls le contenu,
+        // le format/canal et les notes sont mis à jour.
+        const { titre: _titre, angle: _angle, ...contentFields } = baseFields;
+        const { error } = await supabase
+          .from("saved_ideas")
+          .update({ ...contentFields, updated_at: new Date().toISOString() } as any)
+          .eq("id", editingIdeaId).select("id").single();
+        if (error) {
+          setSaving(false);
+          console.error("Update idea error:", error);
+          throw error;
+        }
+        targetId = editingIdeaId;
+      } else {
+        const { data: newIdea, error } = await supabase.from("saved_ideas").insert({
+          user_id: user.id,
+          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
+          ...baseFields,
+          type: "draft",
+          status: "to_explore",
+          source_module: sourceModule,
+        } as any).select("id").single();
 
-    if (editingIdeaId) {
-      isUpdate = true;
-      // On range le contenu SUR l'idée de départ sans lui voler son identité :
-      // le titre et l'angle notés par l'utilisatrice restent, seuls le contenu,
-      // le format/canal et les notes sont mis à jour.
-      const { titre: _titre, angle: _angle, ...contentFields } = baseFields;
-      const { error } = await supabase
-        .from("saved_ideas")
-        .update({ ...contentFields, updated_at: new Date().toISOString() } as any)
-        .eq("id", editingIdeaId);
-      if (error) {
-        setSaving(false);
-        onOpenChange(false);
-        console.error("Update idea error:", error);
-        toast.error("Erreur lors de la mise à jour");
-        return;
+        if (error) {
+          setSaving(false);
+          console.error("Save to ideas error:", error);
+          throw error;
+        }
+        targetId = newIdea?.id ?? null;
       }
-      targetId = editingIdeaId;
-    } else {
-      const { data: newIdea, error } = await supabase.from("saved_ideas").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        ...baseFields,
-        type: "draft",
-        status: "to_explore",
-        source_module: sourceModule,
-      } as any).select("id").single();
 
-      if (error) {
-        setSaving(false);
-        onOpenChange(false);
-        console.error("Save to ideas error:", error);
-        toast.error("Erreur lors de la sauvegarde");
-        return;
-      }
-      targetId = newIdea?.id ?? null;
-    }
-
-    // L'idée est en base : on ferme tout de suite, l'attache des visuels
-    // (rasterisation + upload, plusieurs secondes par slide) se fait en arrière-plan.
-    setSaving(false);
-    onOpenChange(false);
-    toast.success(isUpdate ? "💡 Idée mise à jour !" : "💡 Idée sauvegardée ! Tu la retrouveras dans Mes idées.");
-    setSelectedTags([]);
-    setNote("");
-
-    if (visualSlides && visualSlides.length > 0 && onUploadVisuals && targetId) {
-      void attachVisualsInBackground(targetId);
+      if (!targetId) throw new Error("L’enregistrement n’a pas été confirmé.");
+      // Close once the text is safe; the result keeps a visible progress status.
+      onOpenChange(false);
+      // Do not claim a complete save before the visuals have also been attached.
+      const complete = visualSlides?.length && onUploadVisuals
+        ? await attachVisualsInBackground(targetId) : true;
+      onSaved?.(targetId, complete);
+      if (complete) toast.success(isUpdate ? "Contenu mis à jour dans Mes idées → En cours." : "Contenu enregistré dans Mes idées → En cours.");
+      setSelectedTags([]);
+      setNote("");
+    } catch (error) {
+      console.error("Save content failed:", error);
+      toast.error("L’enregistrement a échoué. Ton contenu reste ouvert : réessaie avant de fermer.");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+      onSavingChange?.(false);
     }
   };
 
@@ -160,33 +171,35 @@ export function SaveToIdeasDialog({
       const urls = await onUploadVisuals!(ideaId, (done, t) => {
         toast.loading(`Visuels en cours d'ajout… ${done}/${t}`, { id: toastId });
       });
-      if (urls.length === 0) throw new Error("Aucun visuel n'a pu être uploadé");
+      if (urls.length !== total) throw new Error("Tous les visuels n’ont pas pu être enregistrés.");
       const { error: visualError } = await supabase
         .from("saved_ideas")
         .update({
           content_data: { ...contentData, visual_urls: urls, visual_html: visualSlides },
         } as any)
-        .eq("id", ideaId);
+        .eq("id", ideaId).select("id").single();
       if (visualError) throw visualError;
-      toast.success("Visuels attachés à ton idée ✓", { id: toastId });
+      toast.success("Texte et visuels enregistrés ✓", { id: toastId });
+      return true;
     } catch (e) {
       console.warn("Visual upload failed (idea saved without visuals):", e);
-      toast.warning("Idée sauvegardée, mais ses visuels n'ont pas pu y être attachés.", { id: toastId });
+      toast.warning("Texte enregistré, mais visuels incomplets. Garde cet onglet ouvert et réessaie.", { id: toastId });
+      return false;
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(next) => { if (!saving) onOpenChange(next); }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="font-display text-lg">💡 Sauvegarder dans mes idées</DialogTitle>
-          <DialogDescription className="sr-only">Enregistrer ce contenu dans ta banque d'idées</DialogDescription>
+          <DialogTitle className="font-display text-lg">Enregistrer mon contenu</DialogTitle>
+          <DialogDescription>Tu le retrouveras dans Mes idées → En cours, avec son texte et ses visuels. Rien ne sera publié.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 mt-2">
           <div>
             <label className="text-sm font-medium text-foreground block mb-2">
-              Un tag pour retrouver cette idée ? (optionnel)
+              Un mot-clé pour retrouver ce contenu ? (optionnel)
             </label>
             <div className="flex flex-wrap gap-2">
               {TAG_OPTIONS.map((t) => (
@@ -240,7 +253,7 @@ export function SaveToIdeasDialog({
           </div>
 
           <Button onClick={handleSave} disabled={saving} className="w-full rounded-pill">
-            {saving ? "Sauvegarde..." : "💾 Sauvegarder"}
+            {saving ? "Enregistrement du contenu…" : "Enregistrer dans Mes idées"}
           </Button>
         </div>
       </DialogContent>

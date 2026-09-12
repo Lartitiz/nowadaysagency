@@ -5,7 +5,7 @@ import AiGeneratedMention from "@/components/AiGeneratedMention";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { useState } from "react";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { stripCoachingHint } from "@/features/creer/build-calendar-content";
+import { newsletterCopyText, newsletterFields } from "@/lib/newsletter-copy";
 import { stripInlineMarkdown } from "@/lib/strip-markdown";
 
 interface Props {
@@ -17,9 +17,7 @@ export default function NewsletterResult({ result }: Props) {
   // et partirait dans le presse-papier (l'edge nettoie les nouvelles générations,
   // ici on couvre l'existant et le chemin "adjust") ; le conseil d'incarnation
   // vit dans personal_tip, jamais dans le corps.
-  const subject = stripInlineMarkdown(result?.subject || "");
-  const previewText = stripInlineMarkdown(result?.preview_text || "");
-  const body = stripCoachingHint(stripInlineMarkdown(result?.body || result?.content || result?.text || ""));
+  const { subject, preview: previewText, body } = newsletterFields(result);
   const personalTip = result?.personal_tip;
   const wordCount = result?.word_count;
   const ctaSuggestion = stripInlineMarkdown(result?.cta_suggestion || "");
@@ -34,12 +32,7 @@ export default function NewsletterResult({ result }: Props) {
   };
 
   const copyAll = () => {
-    const text = [
-      subject ? `Objet : ${subject}` : null,
-      previewText ? `Preview : ${previewText}` : null,
-      body,
-      ctaSuggestion ? `---\n${ctaSuggestion}` : null,
-    ].filter(Boolean).join("\n\n");
+    const text = newsletterCopyText(result);
     copy(text, "Newsletter copiée !");
   };
 
@@ -62,11 +55,11 @@ export default function NewsletterResult({ result }: Props) {
         </Card>
       )}
 
-      {/* Preview text */}
+      {/* Texte d’aperçu */}
       {previewText && (
         <Card className="border-border">
           <CardContent className="p-3 space-y-1">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Preview text</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Texte d’aperçu</p>
             <p className="text-sm text-muted-foreground italic">{previewText}</p>
             <p className="text-2xs text-muted-foreground">{previewText.length} caractères</p>
           </CardContent>
@@ -89,7 +82,7 @@ export default function NewsletterResult({ result }: Props) {
       {ctaSuggestion && (
         <Card className="border-accent/30 bg-accent/5">
           <CardContent className="p-3 space-y-1">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Suggestion de CTA</p>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Suggestion de conclusion</p>
             <p className="text-sm text-foreground">{ctaSuggestion}</p>
           </CardContent>
         </Card>
