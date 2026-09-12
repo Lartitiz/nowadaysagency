@@ -3,6 +3,7 @@ import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { Link, useNavigate } from "react-router-dom";
 import { memoriseRetour } from "@/lib/retour-apres-detour";
 import { useWorkspaceFilter, useWorkspaceId, useIsOwnSpace, useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { useSocialConnections } from "@/hooks/use-social-connections";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -74,16 +75,16 @@ export default function InstagramStats() {
   const [showImportDialog, setShowImportDialog] = useState(false);
 
   // Connexion Instagram + récupération auto des stats via l'API (instagram-insights-fetch).
-  const [igConnected, setIgConnected] = useState(false);
-  const [igStatusChecked, setIgStatusChecked] = useState(false);
+  const { isConnected, needsProperty, known: igStatusChecked, loading: connectionsLoading, refresh: refreshConnections } = useSocialConnections();
+  const igConnected = isConnected("instagram");
   const [fetchingLive, setFetchingLive] = useState(false);
   const [backfilling, setBackfilling] = useState<string | null>(null);
   const [fetchingGa4, setFetchingGa4] = useState(false);
   const [backfillingGa4, setBackfillingGa4] = useState<string | null>(null);
-  const [ga4Connected, setGa4Connected] = useState(false);
+  const ga4Connected = isConnected("google");
   // GA4 per-user : la connexion Google peut exister sans propriété choisie (compte
   // à plusieurs propriétés) → on propose alors un sélecteur.
-  const [ga4NeedsProperty, setGa4NeedsProperty] = useState(false);
+  const ga4NeedsProperty = !!needsProperty.google;
   const [ga4Properties, setGa4Properties] = useState<{ propertyId: string; displayName: string; account: string }[] | null>(null);
   const [ga4PropLoading, setGa4PropLoading] = useState(false);
   const [ga4SelectedProp, setGa4SelectedProp] = useState("");
@@ -91,7 +92,7 @@ export default function InstagramStats() {
   const [audience, setAudience] = useState<{ age?: any[]; gender?: any[]; cities?: any[]; countries?: any[] } | null>(null);
   // Connexion LinkedIn Analytics (distincte de la publication) + récupération auto
   // des stats via linkedin-insights-fetch (Community Management API).
-  const [liConnected, setLiConnected] = useState(false);
+  const liConnected = isConnected("linkedin_analytics");
   const [fetchingLiStats, setFetchingLiStats] = useState(false);
   const [liStats, setLiStats] = useState<{
     followers?: number; followersGained30d?: number;
@@ -188,27 +189,6 @@ export default function InstagramStats() {
   }, [user?.id, column, value, isOwnSpace, workspaceReady]);
 
   useEffect(() => { loadConfig(); loadStats(); }, [loadConfig, loadStats]);
-
-  // Sait si un compte Instagram est connecté (pour proposer le remplissage auto).
-  // Gated sur workspaceReady + igStatusChecked : l'encart ne s'affiche qu'une
-  // fois la réponse reçue (avant, « Connecte ton compte » flashait à tort).
-  useEffect(() => {
-    if (!user || !workspaceReady) return;
-    supabase.functions.invoke("social-status", {
-      body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
-    }).then(({ data }) => {
-      const conns = (data as any)?.connections || [];
-      setIgConnected(conns.some((c: any) => c.platform === "instagram" && c.connected));
-      // GA4 : le bloc de remplissage auto n'apparaît QUE si une connexion Google
-      // existe pour cet espace (pas juste uses_ga4) — sinon la propriété globale
-      // Phase 1 fuiterait chez les autres comptes.
-      const googleConn = conns.find((c: any) => c.platform === "google" && c.connected);
-      setGa4Connected(!!googleConn);
-      setGa4NeedsProperty(!!googleConn?.needsProperty);
-      setLiConnected(conns.some((c: any) => c.platform === "linkedin_analytics" && c.connected));
-      setIgStatusChecked(true);
-    }).catch(() => { setIgStatusChecked(true); /* non bloquant */ });
-  }, [user?.id, workspaceId, workspaceReady]);
 
   useEffect(() => {
     const row = allStats.find(s => s.month_date === selectedMonth);
@@ -684,7 +664,7 @@ export default function InstagramStats() {
       if (error) throw new Error(error.message);
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success("Propriété Google Analytics enregistrée");
-      setGa4NeedsProperty(false);
+      void refreshConnections();
       setGa4Properties(null);
     } catch (e: any) {
       toast.error("Échec de l'enregistrement de la propriété", { description: e?.message });
@@ -1247,6 +1227,12 @@ export default function InstagramStats() {
         {/* ─── Remplissage auto depuis l'API Instagram ─── */}
         {/* Rien tant que social-status n'a pas répondu : « Connecte ton compte »
             flashait à tort pendant la vérification. */}
+        {!igStatusChecked && !connectionsLoading && (
+          <p className="text-sm text-muted-foreground">
+            Impossible de vérifier tes connexions pour le moment.
+            <button type="button" onClick={() => void refreshConnections()} className="ml-2 underline">Réessayer</button>
+          </p>
+        )}
         {!igStatusChecked ? null : igConnected ? (
           <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-start gap-2 text-sm text-muted-foreground">

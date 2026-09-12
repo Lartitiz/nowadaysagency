@@ -1,65 +1,84 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 
-export type SocialPlatform = "instagram" | "linkedin" | "pinterest" | "canva";
+export type SocialPlatform = "instagram" | "linkedin" | "pinterest" | "canva" | "google" | "linkedin_analytics";
 
-/**
- * Statut de connexion OAuth des réseaux (et Canva) du workspace courant.
- * Source unique : l'edge function `social-status` (mêmes données que la page
- * Paramètres › Connexions). À réutiliser partout où l'on veut inciter à
- * connecter un compte — au lieu de redemander `social-status` à la main.
+type ConnectionData = {
+  connected: Record<string, boolean>;
+  expiresAt: Record<string, string | null>;
+  needsProperty: Record<string, boolean>;
+};
+const EMPTY: ConnectionData = { connected: {}, expiresAt: {}, needsProperty: {} };
+
+/** OAuth connections belong to one account/workspace visit and its latest request.
+ * An unavailable status is not proof that a connection is missing. Token expiry
+ * is metadata, not disconnection: Canva can refresh an expired token server-side.
  */
 export function useSocialConnections() {
   const { user } = useAuth();
+  const userId = user?.id;
   const workspaceId = useWorkspaceId();
-  const [connected, setConnected] = useState<Record<string, boolean>>({});
-  const [expiresAt, setExpiresAt] = useState<Record<string, string | null>>({});
-  const [loading, setLoading] = useState(true);
-  // true uniquement après une réponse RÉUSSIE de social-status : permet de
-  // distinguer « vraiment pas connecté » d'un simple échec réseau (où l'on ne
-  // doit jamais bloquer l'utilisatrice sur un faux négatif).
-  const [known, setKnown] = useState(false);
+  const ready = useWorkspaceReady();
+  // Object identity also distinguishes the two visits in A → B → A.
+  const scope = useMemo(() => ({ userId, workspaceId, ready }), [userId, workspaceId, ready]);
+  const activeScope = useRef<typeof scope | null>(null);
+  const request = useRef(0);
+  const [state, setState] = useState<{
+    scope: typeof scope;
+    loading: boolean;
+    data: ConnectionData | null;
+  } | null>(null);
 
-  const load = useCallback(() => {
-    if (!user) { setLoading(false); return; }
-    setLoading(true);
-    supabase.functions
-      .invoke("social-status", {
-        body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
-      })
-      .then(({ data, error }) => {
-        // Réponse en erreur (edge KO, cold start…) → statut inconnu, pas « déconnecté ».
-        if (error || !Array.isArray((data as any)?.connections)) return;
-        const conns = (data as any).connections;
-        const map: Record<string, boolean> = {};
-        const expMap: Record<string, string | null> = {};
-        for (const c of conns) {
-          if (!c?.platform) continue;
-          map[c.platform] = !!c.connected;
-          expMap[c.platform] = c.expiresAt || null;
+  const load = useCallback(async (): Promise<ConnectionData | null> => {
+    // A retained refresh callback must not cancel a newer workspace's request.
+    if (activeScope.current !== scope || !userId || !ready) return null;
+    const id = ++request.current;
+    const isCurrent = () => activeScope.current === scope && request.current === id;
+    setState({ scope, loading: true, data: null });
+    try {
+      const { data, error } = await supabase.functions.invoke("social-status", {
+        body: { workspace_id: workspaceId && workspaceId !== userId ? workspaceId : undefined },
+      });
+      if (!isCurrent()) return null;
+      if (error || data?.error || !Array.isArray(data?.connections)) throw new Error("Unknown social status");
+      const connected: ConnectionData["connected"] = {};
+      const needsProperty: ConnectionData["needsProperty"] = {};
+      const expiresAt: ConnectionData["expiresAt"] = {};
+      for (const c of data.connections) {
+        if (!c || typeof c.platform !== "string" || typeof c.connected !== "boolean") {
+          throw new Error("Invalid social status");
         }
-        setConnected(map);
-        setExpiresAt(expMap);
-        setKnown(true);
-      })
-      .catch(() => { /* non bloquant : on n'empêche jamais l'usage de l'app */ })
-      .finally(() => setLoading(false));
-  }, [user?.id, workspaceId]);
+        connected[c.platform] = c.connected;
+        needsProperty[c.platform] = c.needsProperty === true;
+        expiresAt[c.platform] = typeof c.expiresAt === "string" && Number.isFinite(Date.parse(c.expiresAt))
+          ? c.expiresAt : null;
+      }
+      const result = { connected, expiresAt, needsProperty };
+      setState({ scope, loading: false, data: result });
+      return result;
+    } catch {
+      if (isCurrent()) setState({ scope, loading: false, data: null });
+      return null;
+    }
+  }, [scope, userId, workspaceId, ready]);
 
-  useEffect(() => { load(); }, [load]);
+  useLayoutEffect(() => {
+    activeScope.current = scope;
+    void load();
+    return () => {
+      activeScope.current = null;
+    };
+  }, [scope, load]);
 
-  const isConnected = useCallback(
-    (platform: SocialPlatform) => !!connected[platform],
-    [connected],
-  );
+  // Mask a previous scope on the transition render, before effects execute.
+  const current = state?.scope === scope && userId && ready ? state : null;
+  const known = !!current?.data;
+  const loading = !!userId && (!ready || (current?.loading ?? true));
+  const { connected, expiresAt, needsProperty } = current?.data ?? EMPTY;
+  const isConnected = useCallback((platform: SocialPlatform) => connected[platform] === true, [connected]);
+  const getTokenExpiry = useCallback((platform: SocialPlatform) => expiresAt[platform] || null, [expiresAt]);
 
-  /** Date d'expiration du jeton OAuth (ISO) si connue — pour avertir avant qu'une publication programmée échoue. */
-  const getTokenExpiry = useCallback(
-    (platform: SocialPlatform) => expiresAt[platform] || null,
-    [expiresAt],
-  );
-
-  return { connected, loading, known, isConnected, getTokenExpiry, refresh: load };
+  return { connected, needsProperty, loading, known, isConnected, getTokenExpiry, refresh: load };
 }

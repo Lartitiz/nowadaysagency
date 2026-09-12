@@ -1957,7 +1957,7 @@ function CreerWorkspace() {
   const [publishingLinkedIn, setPublishingLinkedIn] = useState(false);
   // Connexions sociales : conditionnent « Maintenant » / « Programmer » dans la
   // fenêtre de publication (sans compte connecté, les deux échoueraient).
-  const { isConnected: isSocialConnected, getTokenExpiry } = useSocialConnections();
+  const { isConnected: isSocialConnected, getTokenExpiry, known: connectionsKnown, loading: connectionsLoading, refresh: refreshConnections } = useSocialConnections();
 
   const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
   // Reel monté : URL durable (bucket `calendar-media`) remontée par ReelResult.
@@ -2205,6 +2205,11 @@ function CreerWorkspace() {
   // connecté + date future, puis délègue à handleConfirmCalendar (insert + uploads
   // + auto_publish). Le cron social-publish-scheduled publie à l'heure dite.
   const handleScheduleFromDialog = async (input: string) => {
+    if (!connectionsKnown) {
+      void refreshConnections();
+      toast.error("Connexion en cours de vérification. Réessaie de programmer dans un instant.");
+      return;
+    }
     const reseau = publishChannel === "linkedin" ? "LinkedIn" : "Instagram";
     const guard = checkScheduleGuards({
       publishChannel,
@@ -3033,7 +3038,9 @@ function CreerWorkspace() {
               }
             : null
         }
-        channelConnected={publishChannel ? isSocialConnected(publishChannel) : false}
+        channelConnected={connectionsKnown ? (publishChannel ? isSocialConnected(publishChannel) : false) : null}
+        connectionLoading={connectionsLoading}
+        onRefreshConnection={() => void refreshConnections()}
         onConnectChannel={handleConnectFromDialog}
         connectingChannel={connectingPublishChannel}
         publishing={publishingInstagram || publishingLinkedIn}
