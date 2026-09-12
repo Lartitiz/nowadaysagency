@@ -1,3 +1,4 @@
+import { SELECTED_TEXT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { callAnthropic, getModelForAction, type UsageSink } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
@@ -114,7 +115,8 @@ RÈGLES :
 - Pas de guillemets autour
 - Pas d'explication, pas de commentaire
 - Garde le ton de la cliente
-- Même langue que le texte original`;
+- Même langue que le texte original
+${SELECTED_TEXT_CLARITY_RULES}`;
 
     const usage: UsageSink = {};
     const result = await callAnthropic({

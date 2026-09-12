@@ -1334,6 +1334,7 @@ export default function CreerUnifie() {
 
   // ── LinkedIn carousel caption: appel dédié à linkedin-ai/caption-for-carousel ──
   const { captionLoading, regenerateCaption } = useLinkedInCarouselCaption({
+    newsContext: newsjackingContext,
     result,
     setResult,
     generating,
@@ -2932,6 +2933,9 @@ export default function CreerUnifie() {
             {step === "edit" && (
               <CreerStepEdit
                 content={editContent}
+                subject={ideaText}
+                newsContext={newsjackingContext}
+                workspaceId={workspaceId}
                 format={selectedFormat || "post"}
                 onSave={(edited) => {
                   setEditContent(edited);

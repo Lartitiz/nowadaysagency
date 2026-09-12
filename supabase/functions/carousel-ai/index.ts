@@ -1,3 +1,4 @@
+import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -1356,7 +1357,8 @@ ${photo_description ? `Description complémentaire des photos : "${photo_descrip
     ? `\nCONSIGNE STRUCTURE — NEWSJACKING ACTIF :\n- La slide 1 (hook) DOIT partir de l'actualité ci-dessus, pas d'une description des photos.\n- Au moins une slide de corps doit exploiter un fait précis de l'actu (chiffre, nom, citation, mécanisme évoqué).\n- Les photos illustrent et incarnent ce propos ; elles ne le remplacent pas.\n- Pense "article + photos", pas "photos seules".\n`
     : "";
 
-  const structureSystemPrompt = `${BASE_SYSTEM_RULES}
+  const structureSystemPrompt = `${CONTENT_CLARITY_RULES}
+${BASE_SYSTEM_RULES}
 
 Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedIn.
 
@@ -1628,7 +1630,8 @@ async function handleDeepeningQuestionsRequest(reqCtx: CarouselRequestContext): 
 }
 
 function buildSystemPrompt(brandingContext: string, isLinkedIn: boolean = false, profile?: any): string {
-  return `${BASE_SYSTEM_RULES}
+  return `${CONTENT_CLARITY_RULES}
+${BASE_SYSTEM_RULES}
 
 Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
 - Reproduis fidèlement le style décrit
@@ -2804,7 +2807,7 @@ Ce carrousel photo est destiné à LinkedIn (PDF natif posté comme document), p
 
   return `${confirmedStructureBlock}${channelBlock}Tu es l'AUTRICE qui réagit à une actualité dans un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.
 
-Ce N'EST PAS un résumé d'actu. Ce N'EST PAS un diaporama joli avec des légendes. C'est UNE PRISE DE PAROLE PERSONNELLE — incarnée dans tes photos — qui rebondit sur cette actu.
+Une ou deux phrases de contexte factuel précèdent la réaction ; pas de résumé exhaustif de l'actu. Ce N'EST PAS un diaporama joli avec des légendes. C'est UNE PRISE DE PAROLE PERSONNELLE — incarnée dans tes photos — qui rebondit sur cette actu.
 
 ══════════════════════════════════════
 MODE "RÉACTION D'AUTRICE EN PHOTOS" — RÈGLES NON NÉGOCIABLES
@@ -2816,7 +2819,7 @@ MODE "RÉACTION D'AUTRICE EN PHOTOS" — RÈGLES NON NÉGOCIABLES
    - À la place : "ce que je vois passer / ce que ça me fait / pourquoi je trouve que c'est plus profond que ce qu'on raconte / ce que ça touche dans MON terrain".
 
 2. ARC NARRATIF UNIQUE (obligatoire)
-   - Slide 1 (hook) : l'actu comme point d'entrée — un détail, une phrase, une image qui m'a frappée. PAS le résumé de l'article. L'overlay slide 1 part de l'actu, pas de la photo.
+   - Slide 1 (hook) : l'actu comme point d'entrée — un détail, une phrase, une image qui m'a frappée. Pas de résumé exhaustif : nomme le sujet dès cette slide, puis situe les faits avant la réaction. L'overlay slide 1 part de l'actu, pas de la photo.
    - Slides milieu : ce qui m'a vraiment frappée + le DÉCALAGE (là où je ne suis pas d'accord avec la lecture commune, là où je vois autre chose). C'est la pépite.
    - Au moins UNE slide doit exploiter un FAIT PRÉCIS de l'actu (chiffre, nom, citation, date, mécanisme). Si l'actu n'en contient pas, formule honnêtement avec une tournure prudente plutôt que d'inventer.
    - Dernière slide : ouverture — pas une leçon, une question ou un constat qui invite à la conversation.
@@ -3267,7 +3270,7 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 
   return `${confirmedStructureBlock}Tu es l'AUTRICE qui réagit à une actualité dans un carrousel ${isLinkedIn ? "LinkedIn" : "Instagram"} mixte (photos + texte).
 
-Ce N'EST PAS un résumé d'actu. Ce N'EST PAS une explication slide-par-slide. C'est UNE PRISE DE PAROLE PERSONNELLE qui rebondit sur cette actu.
+Une ou deux phrases de contexte factuel précèdent la réaction ; pas de résumé exhaustif de l'actu. Ce N'EST PAS une explication slide-par-slide. C'est UNE PRISE DE PAROLE PERSONNELLE qui rebondit sur cette actu.
 
 ══════════════════════════════════════
 MODE "RÉACTION D'AUTRICE" — RÈGLES NON NÉGOCIABLES
@@ -3279,8 +3282,8 @@ MODE "RÉACTION D'AUTRICE" — RÈGLES NON NÉGOCIABLES
    - À la place : "voilà ce que je vois passer / ce que ça me fait / pourquoi je trouve que c'est plus profond que ce qu'on raconte / ce que ça touche dans MON terrain".
 
 2. ARC NARRATIF UNIQUE (obligatoire)
-   - Slide 1 (hook visuel) : entrée scène — l'actu déclencheuse, mais pas comme un résumé : un détail, une phrase, une image qui m'a frappée.
-   - Slides 2-3 : ce qui m'a vraiment frappée (précis, sensoriel, daté). C'est MON regard, pas le résumé.
+   - Slide 1 (hook visuel) : nomme le sujet de l'actu déclencheuse et le détail qui m'a frappée. La curiosité porte sur la suite, pas sur l'identité du sujet.
+   - Slide 2 : situe les faits et les termes indispensables pour une personne qui découvre le sujet. Puis slides 2-3 : ce qui m'a frappée, à partir de ces faits, sans inventer de date ni de vécu.
    - Slide PIVOT (vers le milieu) : LE DÉCALAGE. Là où je ne suis pas d'accord avec la lecture commune. Là où je vois autre chose. C'est la pépite. Pas un diagnostic sur la lectrice — une PRISE DE POSITION sur le sujet.
    - Slides suivantes : ce que ça révèle de plus large (systémique, culturel, sectoriel). Lien avec mon terrain/métier formulé en JE ("dans mon métier je vois", "ce que ça touche chez moi").
    - Dernière slide : ouverture — pas une leçon, pas un conseil, une question ou un constat qui invite à la conversation.
@@ -3391,7 +3394,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "slide_type": "photo_full",
       "photo_index": 1,
       "role": "hook_visuel_actu",
-      "overlay_text": "placeholder — détail/phrase/image qui m'a frappée dans cette actu (5-20 mots)",
+      "overlay_text": "placeholder — sujet de l'actualité nommé + détail qui m'a frappée (5-20 mots)",
       "overlay_position": "bottom_center",
       "overlay_style": "sensoriel",
       "visual_anchor": "3-8 mots pointant UN détail concret de CETTE photo (matière de composition pour la DA). Attendu sur chaque slide photo.",
@@ -3403,7 +3406,7 @@ RETOURNE UNIQUEMENT ce JSON exact, sans texte avant ou après :
       "photo_index": null,
       "role": "ce_qui_m_a_frappee",
       "title": "placeholder — entrée scène en JE, 4-9 mots",
-      "body": "placeholder — 30-50 mots en JE, ce qui m'a vraiment touchée dans cette actu, précis et sensoriel, AUCUN tu/vous, aucune leçon à l'audience",
+      "body": "placeholder — 30-50 mots : faits de départ et termes indispensables, puis réaction personnelle ; compréhensible sans avoir lu l'article, aucun fait inventé",
       "visual_schema": null
     },
     {
