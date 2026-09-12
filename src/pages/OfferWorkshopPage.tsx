@@ -126,7 +126,12 @@ function OfferWorkshop() {
     const next = updater(formDataRef.current);
     formDataRef.current = next;
     setFormData(next);
-    try { localStorage.setItem(draftKey, JSON.stringify(next)); } catch { toast.error("Le brouillon local n'a pas pu être conservé."); }
+    try {
+      const changes = Object.fromEntries(Object.entries(next).filter(([key, value]) =>
+        JSON.stringify(value) !== JSON.stringify(persistedFormRef.current[key])));
+      if (Object.keys(changes).length) localStorage.setItem(draftKey, JSON.stringify({ version: 1, changes }));
+      else localStorage.removeItem(draftKey);
+    } catch { toast.error("Le brouillon local n'a pas pu être conservé."); }
     triggerSave();
   }, [triggerSave, draftKey]);
 
@@ -155,7 +160,13 @@ function OfferWorkshop() {
         testimonials: data.testimonials || [],
       };
       let restored = loaded;
-      try { const raw = localStorage.getItem(draftKey); if (raw) restored = { ...loaded, ...JSON.parse(raw) }; } catch { /* Keep server data if the draft cannot be decoded. */ }
+      try {
+        const raw = localStorage.getItem(draftKey);
+        if (raw) {
+          const draft = JSON.parse(raw);
+          if (draft.version === 1 && draft.changes && typeof draft.changes === "object") restored = { ...loaded, ...draft.changes };
+        }
+      } catch { /* Keep server data if the draft cannot be decoded. */ }
       persistedFormRef.current = loaded;
       formDataRef.current = restored;
       setFormData(restored);

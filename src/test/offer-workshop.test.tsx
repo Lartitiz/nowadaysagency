@@ -79,3 +79,19 @@ it("never announces or leaves a completed step after a failed synthesis save", a
   expect(screen.queryByText("Liste des offres")).not.toBeInTheDocument();
   expect(mock.toast.success).not.toHaveBeenCalled();
 });
+it("restores only dirty fields so a newer server value in another field is preserved", async () => {
+  db.fail("offers", "update");
+  const view = render(page());
+  fireEvent.change(await screen.findByLabelText("Prix"), { target: { value: "300 €" } });
+  view.unmount();
+  await act(async () => {});
+  db.rows.offers[0].name = "Nouveau nom depuis une autre fiche";
+  db.rows.offers[0].objections[0].response = "Réponse actualisée";
+  db.recover();
+  render(page());
+  expect(await screen.findByLabelText("Prix")).toHaveValue("300 €");
+  fireEvent.click(screen.getByRole("button", { name: "Suivant →" }));
+  await screen.findByText("② Le problème que ton offre résout");
+  expect(db.rows.offers[0].name).toBe("Nouveau nom depuis une autre fiche");
+  expect(db.rows.offers[0].objections[0].response).toBe("Réponse actualisée");
+});
