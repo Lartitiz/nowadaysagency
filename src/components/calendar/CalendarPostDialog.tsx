@@ -65,7 +65,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
-  const { isConnected: isSocialConnected, getTokenExpiry } = useSocialConnections();
+  const { isConnected: isSocialConnected, getTokenExpiry, known: connectionsKnown, loading: connectionsLoading, refresh: refreshConnections } = useSocialConnections();
   const [ownerName, setOwnerName] = useState("Moi");
   const [igUsername, setIgUsername] = useState("");
   const [mediaUrls, setMediaUrls] = useState<string[]>([]);
@@ -408,7 +408,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   // ── Publication PROGRAMMÉE (auto-publication à une date/heure) ──
   // Canaux publiables : Instagram (image/carrousel) et LinkedIn (texte).
   const canSchedule = postCanal === "instagram" || postCanal === "linkedin";
-  const scheduleNeedsConnection = canSchedule && !isSocialConnected(postCanal as "instagram" | "linkedin");
+  const scheduleNeedsConnection = canSchedule && connectionsKnown && !isSocialConnected(postCanal as "instagram" | "linkedin");
   // Le jeton OAuth expirera-t-il AVANT la date de publication choisie ? (LinkedIn ne se
   // rafraîchit pas tout seul : sans reconnexion d'ici là, la publication échouera.)
   const scheduleTokenExpiry = canSchedule ? getTokenExpiry(postCanal as "instagram" | "linkedin") : null;
@@ -420,6 +420,11 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const handleSchedulePublish = async () => {
     if (!effectiveId) { toast.error("Ajoute un sujet : le post s'enregistre tout seul, puis tu pourras le programmer."); return; }
     if (!canSchedule) { toast.error("Programmation disponible pour Instagram et LinkedIn."); return; }
+    if (!connectionsKnown) {
+      void refreshConnections();
+      toast.error("Connexion en cours de vérification. Réessaie de programmer dans un instant.");
+      return;
+    }
     // Garde-fou : sans compte connecté, la publication programmée échouerait en silence à l'heure dite.
     if (!isSocialConnected(postCanal as "instagram" | "linkedin")) {
       const reseau = postCanal === "linkedin" ? "LinkedIn" : "Instagram";
@@ -834,6 +839,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
         <div className="rounded-[10px] border border-border bg-card/40 p-3 space-y-2">
           <p className="text-xs font-semibold text-foreground">🗓️ Programmer la publication {postCanal === "linkedin" ? "LinkedIn" : "Instagram"}</p>
           <p className="text-2xs text-muted-foreground">{postCanal === "linkedin" ? "Choisis quand publier ce post texte : il partira automatiquement." : `Choisis quand publier ce post (${igValidImages.length > 1 ? `carrousel de ${igValidImages.length} images` : "1 image"}) — il partira automatiquement.`}</p>
+          {!connectionsKnown && (
+            <div className="text-2xs text-muted-foreground">
+              {connectionsLoading ? "Vérification de la connexion…" : "Impossible de vérifier la connexion pour le moment."}
+              <button type="button" disabled={connectionsLoading} onClick={() => void refreshConnections()} className="ml-2 underline">Réessayer</button>
+            </div>
+          )}
           {scheduleNeedsConnection && (
             <div className="rounded-[8px] border border-amber-300/60 bg-amber-50/60 px-2.5 py-2 text-2xs text-amber-900 flex items-center justify-between gap-2 flex-wrap dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
               <span>⚠️ Connecte ton compte {postCanal === "linkedin" ? "LinkedIn" : "Instagram"} pour que la publication parte automatiquement.</span>

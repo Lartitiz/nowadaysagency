@@ -8,7 +8,7 @@ import { render, screen } from "@testing-library/react";
 // pour vérifier ça en live (comptes réels tous connectés) → couvert ici.
 
 const mocks = vi.hoisted(() => ({
-  social: { loading: false, connectedMap: {} as Record<string, boolean> },
+  social: { loading: false, known: true, connectedMap: {} as Record<string, boolean> },
 }));
 
 vi.mock("react-router-dom", () => ({
@@ -21,6 +21,7 @@ vi.mock("react-router-dom", () => ({
 vi.mock("@/hooks/use-social-connections", () => ({
   useSocialConnections: () => ({
     loading: mocks.social.loading,
+    known: mocks.social.known,
     isConnected: (p: string) => !!mocks.social.connectedMap[p],
   }),
 }));
@@ -29,6 +30,7 @@ import HubConnectBanner from "@/components/hub/HubConnectBanner";
 
 beforeEach(() => {
   mocks.social.loading = false;
+  mocks.social.known = true;
   mocks.social.connectedMap = {};
 });
 
@@ -88,4 +90,10 @@ describe("HubConnectBanner — pas de faux négatif", () => {
     const { container } = render(<HubConnectBanner platform="linkedin" />);
     expect(container).toBeEmptyDOMElement();
   });
+});
+
+it("ne propose pas une reconnexion après une erreur de statut", () => {
+  mocks.social.known = false;
+  const { container } = render(<HubConnectBanner platform="instagram" />);
+  expect(container).toBeEmptyDOMElement();
 });

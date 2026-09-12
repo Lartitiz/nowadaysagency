@@ -83,7 +83,13 @@ function base64ToFile(base64: string, contentType: string, name: string): File {
   return new File([bytes], name, { type: contentType });
 }
 
-export function SitePhotoImportDialog({
+export function SitePhotoImportDialog(props: SitePhotoImportDialogProps) {
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  return <ScopedSitePhotoImportDialog key={JSON.stringify([user?.id, workspaceId])} {...props} />;
+}
+
+function ScopedSitePhotoImportDialog({
   open,
   onOpenChange,
   maxSelectable,
@@ -92,7 +98,7 @@ export function SitePhotoImportDialog({
 }: SitePhotoImportDialogProps) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const { connected, known: connectionsKnown } = useSocialConnections();
+  const { connected, known: connectionsKnown, loading: connectionsLoading, refresh: refreshConnections } = useSocialConnections();
   const instagramConnected = !!connected.instagram;
 
   const [source, setSource] = useState<PhotoImportSource>(initialSource);
@@ -356,7 +362,12 @@ export function SitePhotoImportDialog({
                 <Link to="/parametres/connexions">Connecter mon compte</Link>
               </Button>
             </div>
-          ) : scanning || (source === "instagram" && !connectionsKnown && visible.length === 0 && !error) ? (
+          ) : source === "instagram" && !connectionsKnown && !connectionsLoading ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center gap-3 text-muted-foreground">
+              <p className="text-sm">Impossible de vérifier ta connexion Instagram pour le moment.</p>
+              <Button variant="outline" onClick={() => void refreshConnections()}>Réessayer</Button>
+            </div>
+          ) : scanning || (source === "instagram" && connectionsLoading && visible.length === 0 && !error) ? (
             <div className="flex items-center justify-center py-12 text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin mr-2" />
               {source === "site" ? "Lecture du site…" : "Lecture de tes posts…"}

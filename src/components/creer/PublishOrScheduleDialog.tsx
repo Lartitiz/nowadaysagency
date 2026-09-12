@@ -21,7 +21,9 @@ interface Props {
    */
   blockedAction?: { label: string; onClick: () => void; busy?: boolean } | null;
   /** Compte du canal connecté ? Sans connexion, publier/programmer échoueraient. */
-  channelConnected: boolean;
+  channelConnected: boolean | null;
+  connectionLoading?: boolean;
+  onRefreshConnection?: () => void;
   /**
    * Démarre la connexion OAuth du canal SANS quitter cet écran (popup au
    * retour). Affiché à la place de `blockedAction` quand le blocage vient
@@ -73,6 +75,8 @@ export default function PublishOrScheduleDialog({
   disabledReason,
   blockedAction,
   channelConnected,
+  connectionLoading,
+  onRefreshConnection,
   onConnectChannel,
   connectingChannel,
   publishing,
@@ -89,11 +93,12 @@ export default function PublishOrScheduleDialog({
   const [draftDate, setDraftDate] = useState("");
 
   const channelLabel = channel === "linkedin" ? "LinkedIn" : "Instagram";
-  const notConnected = !!channel && !channelConnected;
+  const notConnected = !!channel && channelConnected === false;
+  const connectionUnknown = !!channel && channelConnected === null;
   // Message court : le bouton "Connecter X" juste en dessous porte l'action —
   // pas besoin de répéter "connecte-le dans Paramètres" (le cul-de-sac d'avant).
   const blockedReason =
-    disabledReason || (notConnected ? `Compte ${channelLabel} non connecté.` : null);
+    disabledReason || (connectionUnknown ? (connectionLoading ? "Vérification de la connexion…" : "Impossible de vérifier la connexion pour le moment.") : null) || (notConnected ? `Compte ${channelLabel} non connecté.` : null);
 
   const handleOpenChange = (next: boolean) => {
     if (!next) setMode(null);
@@ -161,6 +166,11 @@ export default function PublishOrScheduleDialog({
                   )}
                 </span>
               </button>
+              {connectionUnknown && onRefreshConnection && (
+                <Button type="button" variant="outline" className="w-full" disabled={connectionLoading} onClick={onRefreshConnection}>
+                  Réessayer la connexion
+                </Button>
+              )}
               {/* Action de déblocage : sans elle, la raison affichée serait un cul-de-sac.
                   Priorité au blocage le plus immédiat (image) ; la connexion ne s'affiche
                   que quand ce n'est PAS ce qui bloque — se corrige d'elle-même une fois

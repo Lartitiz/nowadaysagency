@@ -33,8 +33,8 @@ export default function HubConnectBanner({
   platform: SocialPlatform | SocialPlatform[];
   benefit?: string;
 }) {
-  const { isConnected, loading } = useSocialConnections();
-  if (loading) return null;
+  const { isConnected, loading, known } = useSocialConnections();
+  if (loading || !known) return null;
 
   const demandes = (Array.isArray(platform) ? platform : [platform]).filter((p) => COPY[p]);
   const manquants = demandes.filter((p) => !isConnected(p));
