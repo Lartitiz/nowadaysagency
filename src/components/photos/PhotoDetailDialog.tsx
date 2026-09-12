@@ -6,7 +6,7 @@
  * régénérables via l'edge photo-describe.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Camera,
@@ -90,6 +90,13 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   // étaient 4 boutons frères en escalier, avec le bouton vedette « Créer un
   // contenu » coincé au milieu de la 2e ligne.
   const [retouchOpen, setRetouchOpen] = useState(false);
+  const retouchPanelRef = useRef<HTMLDivElement>(null);
+
+  // Le panneau s'ouvre SOUS la photo : sur un écran de portable, ses dernières
+  // options tombent sous le bord. On l'amène en vue (le dialogue défile).
+  useEffect(() => {
+    if (retouchOpen) retouchPanelRef.current?.scrollIntoView?.({ block: "nearest", behavior: "smooth" });
+  }, [retouchOpen]);
 
   // Photo bibliothèque = un seul fichier (pas de version originale distincte)
   const hasRetouch =
@@ -247,7 +254,12 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[720px]">
+      {/* max-h + overflow-y-auto : DialogContent est centré en position fixe,
+          sans défilement. Avec « Retoucher » ouvert (5 options depuis #953), la
+          fiche dépassait 900 px de haut : le titre, « Changer le décor »,
+          « Télécharger » et « Supprimer » sortaient de l'écran, inatteignables
+          (constaté par la visite du 12/09 en 1440×900). */}
+      <DialogContent className="sm:max-w-[720px] max-h-[90dvh] overflow-y-auto">
         {/* min-w-0 : sans lui, un nom long (fichier brut, suffixes) fixe la
             largeur minimale de la grille du dialogue — le truncate ne joue
             jamais et le dialogue déborde de l'écran en mobile. */}
@@ -387,7 +399,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
         )}
 
         {photo.status === "ready" && retouchOpen && (
-          <div className="rounded-xl bg-muted/50 p-2 space-y-2 min-w-0">
+          <div ref={retouchPanelRef} className="rounded-xl bg-muted/50 p-2 space-y-2 min-w-0">
             {fittingOptions.map(renderOption)}
             {/* Les outils qui ne collent pas au type détecté restent atteignables
                 (le classement IA peut se tromper) mais sous un repli, avec la
