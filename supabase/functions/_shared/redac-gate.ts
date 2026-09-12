@@ -453,10 +453,11 @@ export interface EchoContext {
 }
 
 export function analyzeCarouselRedac(parsed: any, allowedNumbers?: Set<string>, brandGuardText?: string, echo?: EchoContext): RedacAnalysis {
-  const slides: any[] = Array.isArray(parsed?.slides) ? parsed.slides : [];
-  const caption = parsed?.caption || {};
+  const doc = parsed?.carousel?.slides ? parsed.carousel : parsed;
+  const slides: any[] = Array.isArray(doc?.slides) ? doc.slides : [];
+  const caption = doc?.caption ?? doc?.instagram_caption ?? parsed?.caption ?? parsed?.instagram_caption ?? {};
   const slidesText = slides.map(slideTexts).join("\n");
-  const captionText = [caption.hook, caption.body, caption.cta].filter(Boolean).join(" ");
+  const captionText = typeof caption === "string" ? caption : [caption.hook, caption.body, caption.cta].filter(Boolean).join(" ");
   const allText = [slidesText, captionText].join("\n");
 
   const reversals = findReversals(allText);
@@ -704,7 +705,8 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     if (regression || newUnsupported || lostNumber || lostQuote) {
       opts.correction.logger?.("[carousel-correction] original conservé : contrôle dégradé ou donnée source supprimée");
       if (opts.correction.semanticReview) {
-        originalDoc.editorial_review = { ...candidateDoc.editorial_review, status: "rejected", edits: 0, error: "fidelity-guard" };
+        originalDoc.editorial_review = { ...candidateDoc.editorial_review, status: "rejected", edits: 0,
+          total_edits: originalDoc.editorial_review?.total_edits || 0, error: "fidelity-guard" };
         return content.replace(content.match(/\{[\s\S]*\}/)![0], () => JSON.stringify(originalDoc));
       }
       return content;

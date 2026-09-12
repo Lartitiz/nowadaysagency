@@ -1,7 +1,7 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { applyEditorialReview, carouselEditorialFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT } from "./carousel-editorial-review.ts";
 import { applyCorrectionPassCarousel } from "./correction-pass.ts";
-import { applyGuardedCarouselCorrection } from "./redac-gate.ts";
+import { analyzeCarouselRedac, applyGuardedCarouselCorrection } from "./redac-gate.ts";
 
 const doc = { slides: [{ title: "Les retours sur la maquette", body: "Les demandes se contredisent. Et c'est là que tout se joue.", photo_index: 2, photo_url: "https://example.com/photo", template: "liste", points: ["Une réponse commune", "Un arbitrage explicite"], visual_schema: { type: "timeline", steps: [{ label: "Retours", desc: "Choisir entre les demandes" }], color: "pink" } }], caption: { body: "J'attends votre réponse commune.", hashtags: ["design"] } };
 const cleanReview = (d = doc): any => ({ reviews: carouselEditorialFields(d).map(f => ({ field_id: f.id, decision: "keep", reason: "information utile", edits: [] })) });
@@ -107,4 +107,23 @@ Deno.test("contrat : privilégie le sens et protège les contrastes utiles", () 
   assertStringIncludes(CAROUSEL_EDITORIAL_REVIEW_PROMPT, "quelle que soit leur formulation ou leur ponctuation");
   assertStringIncludes(CAROUSEL_EDITORIAL_REVIEW_PROMPT, "indice versus preuve");
   assertStringIncludes(CAROUSEL_EDITORIAL_REVIEW_PROMPT, "aucune obligation de trouver un défaut");
+});
+
+Deno.test("garde : chiffres dans légende legacy et carrousel imbriqué restent contrôlés", () => {
+  for (const d of [
+    { slides: [], caption: "Livraison en 9 jours." },
+    { carousel: { slides: [], instagram_caption: "Livraison en 9 jours." } },
+  ]) assertEquals(analyzeCarouselRedac(d, new Set()).fabricatedNumbers.length, 1);
+});
+Deno.test("révision : liens existants protégés", () => {
+  const draft = { ...doc, slides: [{ ...doc.slides[0], body: "Voir https://example.com/offre pour les détails." }] };
+  assertEquals(applyEditorialReview(draft, JSON.stringify(editReview(draft, "https://example.com/offre", "mon site"))).error, "removed-link");
+});
+Deno.test("transport : tiret source préservé pour les correspondances exactes", async () => {
+  const draft = { ...doc, slides: [{ ...doc.slides[0], body: "Un retour — une décision. Voilà la magie." }] };
+  await mockReview(JSON.stringify(editReview(draft, "Un retour — une décision. Voilà la magie.", "Un retour — une décision.")), async () => {
+    const output = JSON.parse(await applyCorrectionPassCarousel(JSON.stringify(draft), { semanticReview: true }));
+    assertEquals(output.slides[0].body, "Un retour — une décision.");
+    assertEquals(output.editorial_review.status, "reviewed");
+  });
 });

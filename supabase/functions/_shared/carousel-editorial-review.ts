@@ -106,6 +106,8 @@ export function applyEditorialReview(doc: any, raw: string, authoredText = ""): 
       if (!text.trim() && (["title", "hook", "accroche"].includes(String(key)) || field.path.includes("visual_schema") || field.path.includes("points"))) return invalid("empty-required-field");
       const quotes = [...field.text.matchAll(/«\s*([^»]+?)\s*»|“([^”]+)”|"([^"\n]{6,})"/g)].map(m => (m[1] || m[2] || m[3]).trim());
       if (quotes.some(q => authoredText.includes(q) && !text.includes(q))) return invalid("locked-quote");
+      const links = field.text.match(/https?:\/\/[^\s<>"»]+/g) || [];
+      if (links.some(url => !text.includes(url))) return invalid("removed-link");
       if (text !== field.text) { updates.push({ path: field.path, text }); count += spans.length; }
     }
     const result = structuredClone(doc);
