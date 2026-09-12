@@ -16,6 +16,8 @@ CREATE POLICY members_read ON workspace_members FOR SELECT TO authenticated USIN
 GRANT SELECT ON workspace_members TO authenticated;
 \ir ../migrations/20260225092738_ffee24a8-9744-4d80-9abf-fb9f47917a22.sql
 \ir ../migrations/20260225143557_5457ce71-a035-4c01-8057-17ef5e4a421d.sql
+-- Existing cross-table restrictive policy, also verified on the live schema.
+\ir ../migrations/20260630091107_3b84ce9b-2c15-4512-b98c-42c84299b249.sql
 GRANT SELECT, INSERT, UPDATE, DELETE ON voice_guides, branding_mirror_results TO authenticated, anon;
 INSERT INTO auth.users VALUES ('11111111-1111-4111-8111-111111111111'),('22222222-2222-4222-8222-222222222222'),('33333333-3333-4333-8333-333333333333');
 INSERT INTO workspaces VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
