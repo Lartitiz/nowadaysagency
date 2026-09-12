@@ -25,13 +25,6 @@ const TEST_USER_ID = "test-user-1";
 // Exercise the actual three handlers; only external services are faked.
 for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}`, async () => {
   resetDeps();
-  let selections = 0;
-  _deps.chooseCarouselCopy = async (content, context) => {
-    selections++;
-    assert(context.currentBrief.includes("Attendre une réponse commune"));
-    assert(context.authoredText.includes("Retours par e-mail"));
-    return content;
-  };
   const draft = { slides: [
     { slide_number: 1, slide_type: "text_only", title: "Les retours sur la maquette", body: "Une réponse commune permet de choisir entre les demandes." },
     { slide_number: 2, slide_type: "text_only", title: "Quand les retours se contredisent", body: "Les demandes se contredisent. C'est un signal, pas un accident." },
@@ -54,6 +47,7 @@ for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuell
     const request = init?.body ? JSON.parse(String(init.body)) : {};
     let text = "{}";
     if (JSON.stringify(request.system).includes("révision éditoriale de ce carrousel")) {
+      assertEquals(request.model, "claude-opus-4-8");
       reviews++;
       const message = request.messages[0].content;
       assert(message.includes("BRIEF ACTUEL PRIORITAIRE"));
@@ -80,7 +74,6 @@ for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuell
     assertEquals(parsed.editorial_review.status, "reviewed");
     assertEquals(parsed.editorial_review.pass, 2);
     assertEquals(reviews, 2);
-    assertEquals(selections, 1);
   } finally {
     globalThis.fetch = previousFetch;
     if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
@@ -126,7 +119,6 @@ function makeFakeSupabase() {
 
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
-  _deps.chooseCarouselCopy = async (content) => content;
   _deps.runPipeline = (async () => ({
     ok: true,
     userId: TEST_USER_ID,
