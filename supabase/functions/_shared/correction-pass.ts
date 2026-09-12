@@ -1,3 +1,4 @@
+import { CONTENT_CLARITY_RULES } from "./content-clarity.ts";
 import { callAnthropicSimple, getModelForAction, type AnthropicModel } from "./anthropic.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
@@ -215,7 +216,7 @@ Le critère : INDISTINGUABLE d'un humain.
 12. LONGUEUR : cible 1300-2000 caractères. Ne raccourcis PAS un post déjà dans cette fourchette.
 
 ══ RÈGLES ABSOLUES ══
-- Garde le SENS et la CONVICTION. Tu corriges la FORME, pas le FOND.
+- Garde le SENS, la CONVICTION et les informations qui situent le sujet. N'invente aucun fait, chiffre, citation ou vécu. Tu corriges la FORME, pas le FOND.
 - N'invente pas de nouveaux faits.
 - JAMAIS de tiret cadratin (—).
 - Écriture inclusive avec point médian.
@@ -295,7 +296,7 @@ Cette newsletter pourrait-elle avoir été écrite par une IA ? Si oui → réé
 ══ CORRECTIONS OBLIGATOIRES ══
 
 1. INTRO PLATE ("Bonjour, j'espère que tu vas bien", "Aujourd'hui je voulais te parler de") :
-   → Remplace par une scène concrète, un moment vécu, une phrase entendue.
+   → Installe le sujet par une scène ou un fait déjà fourni. Ne fabrique aucun vécu ni citation pour rendre l'introduction plus personnelle.
 
 2. CONCLUSION QUI RÉSUME ("Pour résumer", "En conclusion", "Les 3 points à retenir") :
    → Ouverture : question, tension non résolue, invitation.
@@ -317,7 +318,7 @@ Cette newsletter pourrait-elle avoir été écrite par une IA ? Si oui → réé
 8. MARKDOWN RÉSIDUEL (**gras**, *italique*, ## titre) : supprime les délimiteurs, garde le texte.
 
 ══ RÈGLES ABSOLUES ══
-- Garde le SENS et la CONVICTION.
+- Garde le SENS, la CONVICTION et les informations qui situent le sujet. N'invente aucun fait, chiffre, citation ou vécu.
 - Cible : 2000-3000 caractères.
 - JAMAIS de tiret cadratin (—).
 - JAMAIS de markdown : texte brut uniquement.
@@ -515,7 +516,7 @@ Retourne EXACTEMENT le même format annoté :
 [CAPTION] texte corrigé
 
 ══ RÈGLES ABSOLUES ══
-- Garde le SENS et la CONVICTION. Tu corriges la FORME, pas le FOND.
+- Garde le SENS, la CONVICTION et les informations qui situent le sujet. N'invente aucun fait, chiffre, citation ou vécu. Tu corriges la FORME, pas le FOND.
 - N'invente pas de nouveaux faits.
 - JAMAIS de tiret cadratin (—).
 - Écriture inclusive avec point médian.
@@ -711,7 +712,7 @@ export async function applyCorrectionPass(
 
     const corrected = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      correctionPrompt,
+      correctionPrompt + "\n" + CONTENT_CLARITY_RULES,
       extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
         : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`,
@@ -779,7 +780,7 @@ export async function applyCorrectionPassCarousel(
     // Step 3: Send only text to correction
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      CAROUSEL_CORRECTION_PROMPT,
+      CAROUSEL_CORRECTION_PROMPT + "\n" + CONTENT_CLARITY_RULES,
       extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
         : `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
@@ -943,7 +944,7 @@ export async function applyCorrectionPassStories(
     logger?.(`[correction-pass:stories] STARTED, text block length: ${textBlock.length}`);
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      CORRECTION_PROMPTS.stories,
+      CORRECTION_PROMPTS.stories + "\n" + CONTENT_CLARITY_RULES,
       extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes de la séquence à corriger :\n\n${textBlock}`
         : `Voici les textes de la séquence à corriger :\n\n${textBlock}`,
@@ -989,7 +990,7 @@ export async function applyCorrectionPassReel(
 
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      CORRECTION_PROMPTS.reel,
+      CORRECTION_PROMPTS.reel + "\n" + CONTENT_CLARITY_RULES,
       extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du reel à corriger :\n\n${textBlock}`
         : `Voici les textes du reel à corriger :\n\n${textBlock}`,

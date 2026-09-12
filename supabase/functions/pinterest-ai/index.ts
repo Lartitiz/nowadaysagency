@@ -1,3 +1,4 @@
+import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { CORE_PRINCIPLES } from "../_shared/copywriting-prompts.ts";
@@ -124,7 +125,7 @@ serve(async (req) => {
       return new Response(JSON.stringify({ error: "Action inconnue" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    systemPrompt = VOICE_PRIORITY + systemPrompt;
+    systemPrompt = VOICE_PRIORITY + systemPrompt + (action === "pin" ? CONTENT_CLARITY_RULES : "");
     const usage: UsageSink = {};
     const content = await callAnthropicSimple(getModelForAction("pinterest"), systemPrompt, userPrompt, 0.8, undefined, usage, 60_000);
     await logUsage(user.id, "content", "pinterest", usage.total_tokens, usage.model, workspace_id || undefined);

@@ -9,6 +9,9 @@ import { toast } from "sonner";
 interface Props {
   content: string;
   format: string;
+  subject?: string;
+  newsContext?: string | null;
+  workspaceId?: string;
   onSave: (editedContent: string) => void;
   onBack: () => void;
   onCopy: () => void;
@@ -30,7 +33,7 @@ const QUALITY_CHECKLIST = [
   "Le CTA est naturel et non agressif ?",
 ];
 
-export default function CreerStepEdit({ content, format, onSave, onBack, onCopy, onCalendar }: Props) {
+export default function CreerStepEdit({ content, format, subject, newsContext, workspaceId, onSave, onBack, onCopy, onCalendar }: Props) {
   const [editedContent, setEditedContent] = useState(content);
   const [adjusting, setAdjusting] = useState<string | null>(null);
   const [checkedItems, setCheckedItems] = useState<boolean[]>(new Array(QUALITY_CHECKLIST.length).fill(false));
@@ -43,7 +46,10 @@ export default function CreerStepEdit({ content, format, onSave, onBack, onCopy,
           step: "adjust",
           contentType: format === "linkedin" ? "linkedin_post" : format === "newsletter" ? "newsletter" : "instagram_post",
           content: editedContent,
-          adjustment: adjustmentId,
+          adjustment: ADJUSTMENTS.find((a) => a.id === adjustmentId)?.label || adjustmentId,
+          context: subject || "",
+          ...(newsContext?.trim() ? { news_context: newsContext.trim().slice(0, 3800) } : {}),
+          ...(workspaceId ? { workspace_id: workspaceId } : {}),
         },
         // Budget serveur : appel unique borné à 60s (audit latences 17/08) — le
         // timeout client doit rester au-dessus pour ne pas courir avec le filet serveur.
@@ -58,7 +64,7 @@ export default function CreerStepEdit({ content, format, onSave, onBack, onCopy,
     } finally {
       setAdjusting(null);
     }
-  }, [editedContent, format]);
+  }, [editedContent, format, subject, newsContext, workspaceId]);
 
   const toggleCheck = (index: number) => {
     setCheckedItems((prev) => {
