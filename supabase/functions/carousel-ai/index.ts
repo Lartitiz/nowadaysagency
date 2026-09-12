@@ -851,6 +851,7 @@ interface CarouselRequestContext {
 async function handleAssignTemplatesRequest(body: any, corsHeaders: Record<string, string>): Promise<Response> {
   const enriched = await assignTemplatesToProvidedSlides(body.slides, {
     model: pickCorrectionModel(body),
+            authoredText: authoredContentSource(body),
     logger: (m) => console.log(m),
   });
   return new Response(JSON.stringify({ result: { slides: enriched } }), {
@@ -907,6 +908,7 @@ async function runGenerationAndRespond(
             skipIfShorterThan: 300,
             logger: (msg) => console.log(msg),
             model: pickCorrectionModel(body),
+            authoredText: authoredContentSource(body),
             abortTimeoutMs: CORRECTION_ABORT_MS,
           },
         });
@@ -1070,6 +1072,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
+            authoredText: authoredContentSource(body),
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
       });
@@ -1217,6 +1220,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
+            authoredText: authoredContentSource(body),
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
       });
@@ -1261,6 +1265,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // réel, aucun quota de variété, anti-invention par code, fail-open.
   content = await assignPhotoTemplates(content, {
     model: pickCorrectionModel(body),
+            authoredText: authoredContentSource(body),
     logger: (m) => console.log(m),
   });
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);

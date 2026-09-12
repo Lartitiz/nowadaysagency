@@ -768,7 +768,7 @@ export async function applyCorrectionPassCarousel(
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       CAROUSEL_CORRECTION_PROMPT + "\n" + CONTENT_CLARITY_RULES,
-      claritySourceBlock(options.sourceContext) + (extraInstructions
+      claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
         : `Voici les textes du carrousel à corriger :\n\n${textBlock}`),
       0.3,
@@ -932,9 +932,9 @@ export async function applyCorrectionPassStories(
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       CORRECTION_PROMPTS.stories + "\n" + CONTENT_CLARITY_RULES,
-      extraInstructions
+      claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes de la séquence à corriger :\n\n${textBlock}`
-        : `Voici les textes de la séquence à corriger :\n\n${textBlock}`,
+        : `Voici les textes de la séquence à corriger :\n\n${textBlock}`),
       0.3,
       4096,
       undefined,
@@ -978,9 +978,9 @@ export async function applyCorrectionPassReel(
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       CORRECTION_PROMPTS.reel + "\n" + CONTENT_CLARITY_RULES,
-      extraInstructions
+      claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du reel à corriger :\n\n${textBlock}`
-        : `Voici les textes du reel à corriger :\n\n${textBlock}`,
+        : `Voici les textes du reel à corriger :\n\n${textBlock}`),
       0.3,
       4096,
       undefined,

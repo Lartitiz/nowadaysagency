@@ -661,8 +661,8 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const original = originalDoc.carousel?.slides ? originalDoc.carousel : originalDoc;
     const candidate = candidateDoc.carousel?.slides ? candidateDoc.carousel : candidateDoc;
     const allowed = source === undefined ? undefined : numbersIn(source);
-    const before = analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo);
-    const after = analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo);
+    const before = dropUserSourcedReversals(analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo), opts.correction.authoredText);
+    const after = dropUserSourcedReversals(analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo), opts.correction.authoredText);
     // Compare raw counts, not the capped score: a fifth invented number is
     // still a regression even when the score already caps that penalty at 3.
     const counts = (a: RedacAnalysis) => [a.reversals.length, a.overlongSlides.length,

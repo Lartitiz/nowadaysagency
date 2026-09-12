@@ -1312,7 +1312,8 @@ async function applyLinkedInCorrectionPass(parsed: any, params: { body: any; ful
       format: "linkedin",
       correction: {
         logger: (msg) => console.log(msg),
-      authoredText: authoredContentSource(body),
+        authoredText: authoredContentSource(body),
+        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -1527,7 +1528,8 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     if (textRedacViolations(before) > 0) {
       const out = await applyCorrectionPassStories(parsed.stories, {
         logger: (msg) => console.log(msg),
-      authoredText: authoredContentSource(body),
+        authoredText: authoredContentSource(body),
+        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
         model: "claude-haiku-4-5",
         extraInstructions: buildTextFixInstructions(before) || undefined,
         abortTimeoutMs: CORRECTION_ABORT_MS,
@@ -2325,6 +2327,7 @@ export async function correctPostStreamContent(
       correction: {
         logger: (m) => console.log(`[creative-flow post-stream] ${m}`),
         authoredText: authoredContentSource(body),
+        sourceContext: [authoredContentSource(body), fullContext].filter(Boolean).join("\n"),
         // Édition mécanique à règles fermées → Haiku (cf. #364)
         model: "claude-haiku-4-5",
         abortTimeoutMs: CORRECTION_ABORT_MS,
