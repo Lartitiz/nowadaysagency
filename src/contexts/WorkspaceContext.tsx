@@ -1,3 +1,4 @@
+import { setFlowWorkspaceId } from "@/hooks/use-flow-persistence";
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -54,6 +55,8 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const { isDemoMode } = useDemoContext();
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [activeWorkspace, setActiveWorkspace] = useState<Workspace | null>(null);
+  // Draft helpers are also read by the home page before opening /creer.
+  setFlowWorkspaceId(activeWorkspace?.id || null);
   const [ownWorkspace, setOwnWorkspace] = useState<Workspace | null>(null);
   const [activeRole, setActiveRole] = useState<"owner" | "manager" | "editor" | "viewer">("owner");
   const [loading, setLoading] = useState(true);

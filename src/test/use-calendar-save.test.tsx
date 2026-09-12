@@ -303,7 +303,7 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     });
 
     expect(scheduled).toBe(false);
-    expect(mocks.toast.error).toHaveBeenCalledWith("insert KO");
+    expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining("Vérifie le calendrier"));
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.clearFlowState).not.toHaveBeenCalled();
   });

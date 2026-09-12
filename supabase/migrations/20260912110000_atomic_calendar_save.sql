@@ -54,7 +54,7 @@ BEGIN
     IF new_post.canal = 'instagram' AND coalesce(cardinality(new_post.media_urls),0) = 0 THEN
       RAISE EXCEPTION 'calendar_media_required';
     END IF;
-    -- A previously scheduled post must still have a publishable caption when edited.
+    -- A scheduled caption differs from the editable calendar document: require rescheduling.
     IF NOT p_create AND NOT (fields ? 'scheduled_publish_at') THEN
       RAISE EXCEPTION 'calendar_scheduled_edit_requires_reschedule';
     END IF;
