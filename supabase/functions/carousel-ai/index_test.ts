@@ -46,7 +46,7 @@ for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuell
       const fields = JSON.parse(message.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
       text = JSON.stringify({ reviews: fields.map((f: any) => {
         const before = " C'est un signal, pas un accident.";
-        return { field_id: f.id, decision: f.text.includes(before) ? "edit" : "keep", reason: "analyse du rôle du passage", edits: f.text.includes(before) ? [{ before, after: "" }] : [] };
+        return { field_id: f.field_id, decision: f.text.includes(before) ? "edit" : "keep", reason: "analyse du rôle du passage", edits: f.text.includes(before) ? [{ before, after: "" }] : [] };
       }) });
     }
     const content = request.tool_choice?.name === "review_carousel_fields"

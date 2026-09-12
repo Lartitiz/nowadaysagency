@@ -832,7 +832,7 @@ export async function applyCorrectionPassCarousel(
           "\nALERTES À EXAMINER EN CONTEXTE :\n" + (extraInstructions || "Aucune alerte automatique ; effectuer la relecture de tous les champs.") +
           (options.currentBrief ? "\nBRIEF ACTUEL PRIORITAIRE (faits, ton et limites de la demande ; respecter ces contraintes) :\n" + JSON.stringify(options.currentBrief.slice(0, 16000)) +
             "\nUne information déclarée absente dans CE brief reste absente, même si la marque décrit ailleurs une boutique, un produit disponible ou une habitude. Ne transpose pas ces informations à cet objet.\n" : "") +
-          baseline + "\nCHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n" + JSON.stringify(fields.map(({ id, text }) => ({ id, text }))),
+          baseline + "\nCHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n" + JSON.stringify(fields.map(({ id, text }) => ({ field_id: id, text }))),
           }],
           temperature: 0.3, max_tokens: 8192, abortTimeoutMs,
           tool: CAROUSEL_REVIEW_TOOL,
