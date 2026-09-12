@@ -2262,7 +2262,7 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     const usage: UsageSink = {};
     const tStart = Date.now();
     let result: any;
-    const editorialSlides = !isPhotoCarousel && !isMixCarousel && !isCharterRef && !custom_overrides
+    const editorialSlides: Array<{ slide_number: number; html: string } | null> = !isPhotoCarousel && !isMixCarousel && !isCharterRef && !custom_overrides
       ? slides.map((s: any, i: number) => composeEditorialSlide(s, designPlan.sequence[i], ch))
       : [];
     const allEditorial = editorialSlides.length === slides.length && editorialSlides.every(Boolean);
