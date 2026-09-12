@@ -127,3 +127,16 @@ Deno.test("transport : tiret source préservé pour les correspondances exactes"
     assertEquals(output.editorial_review.status, "reviewed");
   });
 });
+
+Deno.test("brief actuel : ses limites sont séparées du contexte général de marque", async () => {
+  const draft = { slides: [{ body: "Porte-savon en céramique, 18 euros." }] };
+  await mockReview(JSON.stringify(cleanReview(draft as any)), async calls => {
+    await applyCorrectionPassCarousel(JSON.stringify(draft), { semanticReview: true,
+      sourceContext: "La marque possède une boutique en ligne.", currentBrief: "Porte-savon : aucune disponibilité communiquée. Ton descriptif." });
+    const message = calls[0].messages[0].content;
+    assertStringIncludes(message, "BRIEF ACTUEL PRIORITAIRE");
+    assertStringIncludes(message, "aucune disponibilité communiquée");
+    assertStringIncludes(message, "Une information déclarée absente dans CE brief reste absente");
+    assertEquals(message.indexOf("BRIEF ACTUEL PRIORITAIRE") > message.indexOf("REPÈRES SOURCE"), true);
+  });
+});

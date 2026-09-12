@@ -41,6 +41,8 @@ for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuell
     if (JSON.stringify(request.system).includes("révision éditoriale de ce carrousel")) {
       reviews++;
       const message = request.messages[0].content;
+      assert(message.includes("BRIEF ACTUEL PRIORITAIRE"));
+      assert(message.includes("Attendre une réponse commune"));
       const fields = JSON.parse(message.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
       text = JSON.stringify({ reviews: fields.map((f: any) => {
         const before = " C'est un signal, pas un accident.";
