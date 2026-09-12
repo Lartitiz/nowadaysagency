@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useLayoutEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -77,6 +77,7 @@ interface Props {
   prospect: Prospect;
   interactions: ProspectInteraction[];
   onBack: () => void;
+  onSaveContext?: (updates: Partial<Prospect>) => Promise<boolean>;
   onMessageSent: (content: string, approach: string, meta?: Record<string, any>) => void;
 }
 
@@ -86,8 +87,12 @@ function getUsername(p: Prospect) {
   return p.instagram_username || p.username || "";
 }
 
-export default function DmGenerator({ prospect, interactions, onBack, onMessageSent }: Props) {
+export default function DmGenerator({ prospect, interactions, onBack, onMessageSent, onSaveContext }: Props) {
   const { user } = useAuth();
+  const userId = user?.id;
+  const active = useRef(false);
+  const saving = useRef(false);
+  useLayoutEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
 
@@ -117,16 +122,25 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
   const [editingVariant, setEditingVariant] = useState<"a" | "b" | null>(null);
   const [editedText, setEditedText] = useState("");
 
-  // Load offers on mount
+  // Offers and late results belong to this dialog's lifetime.
   useEffect(() => {
-    if (!user) return;
-    (supabase.from("offers") as any)
-      .select("id, name, offer_type, promise, price_text, sales_line, url_sales_page, url_booking, problem_deep, description_short")
-      .eq(column, value)
-      .then(({ data }) => {
-        if (data) setOffers(data as Offer[]);
-      });
-  }, [user?.id]);
+    if (!userId) return;
+    let cancelled = false;
+    setOffers([]);
+    void (async () => {
+      try {
+        const { data, error } = await supabase.from("offers")
+          .select("id, name, offer_type, promise, price_text, sales_line, url_sales_page, url_booking, problem_deep, description_short")
+          .eq(column as "workspace_id" | "user_id", value);
+        if (cancelled) return;
+        if (error || !data) throw error || new Error("Offres indisponibles");
+        setOffers(data as Offer[]);
+      } catch (error) {
+        if (!cancelled) toast.error("Offres indisponibles", { description: friendlyError(error) });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [userId, column, value]);
 
   // Compute suggestion when entering step 3
   useEffect(() => {
@@ -190,14 +204,16 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
         },
       }, 60000);
 
+      if (!active.current) return;
       if (error) throw new Error(error.message);
       setVariants(data);
     } catch (err: any) {
+      if (!active.current) return;
       console.error("Erreur technique:", err);
       toast.error("Erreur", { description: friendlyError(err) });
       setStep(3);
     } finally {
-      setLoading(false);
+      if (active.current) setLoading(false);
     }
   };
 
@@ -205,52 +221,47 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
     navigator.clipboard.writeText(text).then(() => toast.success("📋 Copié !"));
   };
 
-  const handleSent = async (text: string) => {
-    // Save context back to prospect
-    if (user) {
-      const updates: Record<string, any> = {};
-      if (conversationHistory.trim()) updates.last_conversation = conversationHistory;
-      if (notedInterest.trim()) updates.noted_interest = notedInterest;
-      if (prospectProblem.trim()) updates.probable_problem = prospectProblem;
-      if (toAvoid.trim()) updates.to_avoid = toAvoid;
-      if (messageContext.trim()) updates.last_dm_context = messageContext;
-      if (Object.keys(updates).length > 0) {
-        try {
-          const { error } = await supabase.from("prospects").update(updates).eq("id", prospect.id);
-          if (error) throw error;
-        } catch (e) {
-          console.error("[DmGenerator] Failed to save prospect context:", e);
-        }
-      }
+  const saveContext = async () => {
+    if (!user || !active.current) return false;
+    const updates: Partial<Prospect> = {};
+    if (conversationHistory.trim()) updates.last_conversation = conversationHistory;
+    if (notedInterest.trim()) updates.noted_interest = notedInterest;
+    if (prospectProblem.trim()) updates.probable_problem = prospectProblem;
+    if (toAvoid.trim()) updates.to_avoid = toAvoid;
+    if (messageContext.trim()) updates.last_dm_context = messageContext;
+    if (Object.keys(updates).length === 0) return true;
+    if (onSaveContext) return onSaveContext(updates);
+    try {
+      const { data, error } = await supabase.from("prospects").update(updates).eq("id", prospect.id)
+        .eq(column as "workspace_id" | "user_id", value).select("id").single();
+      if (!active.current) return false;
+      if (error || data?.id !== prospect.id) throw error || new Error("Contexte non confirmé");
+      return true;
+    } catch (error) {
+      if (active.current) toast.error("Contexte non enregistré", { description: friendlyError(error) });
+      return false;
     }
+  };
 
-    const selectedOffer = offers.find(o => o.id === selectedOfferId);
-    onMessageSent(text, selectedApproach!, {
-      offer_id: selectedOffer?.id,
-      conversation_provided: !skippedHistory && conversationHistory.trim().length > 0,
-      approach: selectedApproach,
-    });
+  const handleSent = async (text: string) => {
+    if (!active.current || saving.current) return;
+    saving.current = true;
+    try {
+      if (!await saveContext() || !active.current) return;
+      const selectedOffer = offers.find(o => o.id === selectedOfferId);
+      await onMessageSent(text, selectedApproach!, {
+        offer_id: selectedOffer?.id,
+        conversation_provided: !skippedHistory && conversationHistory.trim().length > 0,
+        approach: selectedApproach,
+      });
+    } finally { saving.current = false; }
   };
 
   const handlePostpone = async () => {
-    // Save context even if not sending now
-    if (user) {
-      const updates: Record<string, any> = {};
-      if (conversationHistory.trim()) updates.last_conversation = conversationHistory;
-      if (notedInterest.trim()) updates.noted_interest = notedInterest;
-      if (prospectProblem.trim()) updates.probable_problem = prospectProblem;
-      if (toAvoid.trim()) updates.to_avoid = toAvoid;
-      if (messageContext.trim()) updates.last_dm_context = messageContext;
-      if (Object.keys(updates).length > 0) {
-        try {
-          const { error } = await supabase.from("prospects").update(updates).eq("id", prospect.id);
-          if (error) throw error;
-        } catch (e) {
-          console.error("[DmGenerator] Failed to save prospect context on postpone:", e);
-        }
-      }
-    }
-    onBack();
+    if (!active.current || saving.current) return;
+    saving.current = true;
+    try { if (await saveContext() && active.current) onBack(); }
+    finally { saving.current = false; }
   };
 
   // ─── STEP 1: Conversation History ───
