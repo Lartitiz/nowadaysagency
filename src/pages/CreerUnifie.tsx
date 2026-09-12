@@ -1909,7 +1909,7 @@ export default function CreerUnifie() {
   const [reelMp4Url, setReelMp4Url] = useState<string | null>(null);
 
   // ── Sauvegarde dans le calendrier (nouveau post + mise à jour d'un post existant) ──
-  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage } = useCalendarSave({
+  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage, resetPublishedTracking } = useCalendarSave({
     session,
     result,
     selectedFormat,
