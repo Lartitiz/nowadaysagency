@@ -8,7 +8,7 @@ The content policy accepts descriptive, practical, analytical and narrative prog
 
 ## Acceptance route
 
-`carousel-ai-candidate` temporarily imports the same handler for production-like acceptance. It uses the identical authentication, workspace access, quota check and accounting path. It does not accept an arbitrary system prompt, impersonation, admin bypass or new credentials. No frontend references it. Deploy only this route initially; `carousel-ai` continues running its previously deployed bundle until separately deployed after acceptance. Retire the candidate after release.
+`carousel-ai-candidate` temporarily contains byte-identical copies of the handler and two writing modules for production-like acceptance. The host cannot resolve imports between sibling functions; parity tests enforce exact source equality. This temporary duplication must be removed after acceptance. It uses the identical authentication, workspace access, quota check and accounting path. It does not accept an arbitrary system prompt, impersonation, admin bypass or new credentials. No frontend references it. Deploy only this route initially; `carousel-ai` continues running its previously deployed bundle until separately deployed after acceptance. Retire the candidate after release.
 
 ## Comparison
 

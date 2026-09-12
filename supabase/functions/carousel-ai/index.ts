@@ -1666,7 +1666,7 @@ function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?
 
 function buildHooksPrompt(body: any): string {
   const { carousel_type, subject, objective, slide_count, deepening_answers, chosen_angle } = body;
-  
+
   let deepeningCtx = "";
   if (deepening_answers) {
     const answers = Object.entries(deepening_answers)
