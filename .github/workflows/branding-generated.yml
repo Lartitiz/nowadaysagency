@@ -1,0 +1,31 @@
+name: Generated branding persistence
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/voice-guide-mirror.sql'
+      - '.github/workflows/branding-generated.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/**'
+      - 'supabase/tests/voice-guide-mirror.sql'
+      - '.github/workflows/branding-generated.yml'
+jobs:
+  persistence:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: branding_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Workspace generations, history and access (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d branding_test -f supabase/tests/voice-guide-mirror.sql

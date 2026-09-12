@@ -11,6 +11,7 @@ import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, LayoutGrid, CheckCircle2, AlertTriangle, Zap, Download, Lightbulb } from "lucide-react";
+import { useBrandingMirror } from "@/hooks/use-branding-mirror";
 import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
@@ -123,9 +124,7 @@ export default function BrandingPage() {
   const [hasEnoughData, setHasEnoughData] = useState(false);
   const [hasProposition, setHasProposition] = useState(false);
   const [generatingProp, setGeneratingProp] = useState(false);
-  const [mirrorOpen, setMirrorOpen] = useState(false);
-  const [mirrorLoading, setMirrorLoading] = useState(false);
-  const [mirrorData, setMirrorData] = useState<any>(null);
+  const { mirrorOpen, setMirrorOpen, mirrorLoading, mirrorData, runMirror, refreshMirror } = useBrandingMirror();
   // Reanalyze mode
   const [reanalyzeMode, setReanalyzeMode] = useState(false);
   const [reanalyzeUrls, setReanalyzeUrls] = useState<{ website?: string; instagram?: string; linkedin?: string }>({});
@@ -144,41 +143,6 @@ export default function BrandingPage() {
       posthog.capture(eventType, { source: "branding_autofill", workspace_id: workspaceId !== user.id ? workspaceId : null });
     } catch { /* silent */ }
   }, [user?.id, workspaceId, isDemoMode]);
-
-  const runMirror = async () => {
-    setMirrorOpen(true);
-    if (mirrorData) return;
-    setMirrorLoading(true);
-    try {
-      const { data, error } = await invokeWithTimeout("branding-mirror", {
-        body: { workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
-      }, 90000);
-      if (error) {
-        throw new Error(error.message);
-      }
-      if (data?.error) throw new Error(data.error);
-      setMirrorData(data);
-      const wsId = workspaceId !== user?.id ? workspaceId : undefined;
-      await supabase.from("branding_mirror_results").upsert({
-        user_id: user?.id ?? "",
-        workspace_id: wsId || null,
-        coherence_score: data.coherence_score,
-        summary: data.summary,
-        alignments: data.alignments,
-        gaps: data.gaps,
-        quick_wins: data.quick_wins,
-      }, { onConflict: "user_id" }).then(({ error: saveErr }) => {
-        if (saveErr) console.error("Mirror save error:", saveErr);
-      });
-    } catch (e: any) {
-      console.error("Mirror error:", e);
-      const { friendlyError } = await import("@/lib/error-messages");
-      toast.error(friendlyError(e));
-      setMirrorOpen(false);
-    } finally {
-      setMirrorLoading(false);
-    }
-  };
 
   const fromAudit = searchParams.get("from") === "audit";
   const coachingModule = searchParams.get("module");
@@ -937,7 +901,7 @@ export default function BrandingPage() {
                 </div>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={() => { setMirrorData(null); runMirror(); }}><RefreshCw className="h-3.5 w-3.5" /> Refaire l'analyse</Button>
+                <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={refreshMirror}><RefreshCw className="h-3.5 w-3.5" /> Refaire l'analyse</Button>
                 <Button variant="outline" size="sm" className="flex-1 gap-2 text-xs" onClick={() => exportMirrorPDF(mirrorData)}><Download className="h-3.5 w-3.5" /> Exporter PDF</Button>
               </div>
             </div>

@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -28,9 +27,9 @@ const MIRROR_TOOL: AnthropicTool = {
 };
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
-import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { generationOwner } from "../generate-voice-guide/owner.ts";
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -46,14 +45,8 @@ serve(async (req) => {
       workspace_id = body?.workspace_id || undefined;
     } catch { /* no body = own workspace */ }
 
-    {
-      const sbGuard = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-      const membership = await assertWorkspaceMembership(sbGuard, userId, workspace_id);
-      if (!membership.ok) {
-        console.warn("[workspace-guard] denied", { userId: userId, workspaceId: workspace_id });
-        return workspaceDeniedResponse(cors);
-      }
-    }
+    const sbAdmin = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+    const ownerId = await generationOwner(sbAdmin, userId, workspace_id);
 
     // Check quota (audit category)
     const quota = await checkQuota(userId, "audit", workspace_id);
@@ -65,22 +58,6 @@ serve(async (req) => {
     const filterCol = workspace_id ? "workspace_id" : "user_id";
     const filterVal = workspace_id || userId;
 
-    // Resolve workspace owner for profile-scoped tables
-    let profileUserId = userId;
-    if (workspace_id) {
-      const sbAdmin = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-      );
-      const { data: ownerRow } = await sbAdmin
-        .from("workspace_members")
-        .select("user_id")
-        .eq("workspace_id", workspace_id)
-        .eq("role", "owner")
-        .maybeSingle();
-      if (ownerRow?.user_id) profileUserId = ownerRow.user_id;
-    }
-
     // Fetch brand_profile + last instagram audit + last generated contents in parallel
     const [brandRes, auditRes, contentsRes] = await Promise.all([
       supabase.from("brand_profile").select("voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, combat_cause, combat_fights, combat_refusals, combat_alternative, tone_keywords").eq(filterCol, filterVal).maybeSingle(),
@@ -88,6 +65,9 @@ serve(async (req) => {
       supabase.from("calendar_posts").select("content_draft, theme, format").eq(filterCol, filterVal).not("content_draft", "is", null).order("created_at", { ascending: false }).limit(5),
     ]);
 
+    if (brandRes.error || auditRes.error || contentsRes.error) {
+      throw new Error("Impossible de charger les données de cet espace pour le miroir.");
+    }
     const brand = brandRes.data;
     const audit = auditRes.data;
 
@@ -163,10 +143,26 @@ Sois bienveillante et constructive. L'objectif n'est pas de culpabiliser mais de
     const usage: UsageSink = {};
     const result = await callAnthropicToolSimple(model, systemPrompt + "\n\n" + ANTI_SLOP, userPrompt, MIRROR_TOOL, 0.7, 4096, usage, 60_000);
 
+    // Save before charging or reporting success. Append to preserve previous
+    // results; the UI and AI context read the latest version of this workspace.
+    const { error: saveError } = await supabase.from("branding_mirror_results").insert({
+      user_id: ownerId,
+      workspace_id: workspace_id || null,
+      coherence_score: result.coherence_score,
+      summary: result.summary,
+      alignments: result.alignments,
+      gaps: result.gaps,
+      quick_wins: result.quick_wins,
+    });
+    if (saveError) {
+      console.error("branding-mirror save error:", saveError);
+      throw new Error("Le miroir n'a pas pu être enregistré. Ton crédit n'a pas été décompté, réessaie dans un instant.");
+    }
+
     // Log usage
     await logUsage(userId, "audit", "branding_mirror", usage.total_tokens, usage.model, workspace_id);
 
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({ ...result, saved: true }), {
       headers: { ...cors, "Content-Type": "application/json" },
     });
   } catch (error: any) {
