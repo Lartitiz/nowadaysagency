@@ -84,16 +84,44 @@ describe("carousel quality checks", () => {
       }),
     );
   });
-  it("suggests undoable font and contrast corrections", () => {
+  it("blocks unreadable font sizes and measured low contrast", () => {
     fixture("font-size:20px;color:rgb(220,220,220)");
     const issues = inspectSlide(document, 0);
     expect(issues).toContainEqual(
-      expect.objectContaining({ kind: "size", fix: { "font-size": "32px" } }),
+      expect.objectContaining({
+        kind: "size",
+        severity: "error",
+        fix: { "font-size": "38px" },
+      }),
     );
     expect(issues).toContainEqual(
-      expect.objectContaining({ kind: "contrast", fix: { color: "#000000" } }),
+      expect.objectContaining({
+        kind: "contrast",
+        severity: "error",
+        fix: { color: "#000000" },
+      }),
     );
   });
+  it("only advises on an essential text that is readable but tight", () => {
+    fixture("font-size:34px");
+    expect(inspectSlide(document, 0)).toContainEqual(
+      expect.objectContaining({ kind: "size", severity: "warning" }),
+    );
+  });
+  it("accepts secondary microcopy at 30 px and blocks below it", () => {
+    const el = fixture("font-size:30px");
+    el.dataset.pptxEditable = "caption";
+    expect(inspectSlide(document, 0).some((i) => i.kind === "size")).toBe(false);
+    el.style.fontSize = "22px";
+    expect(inspectSlide(document, 0)).toContainEqual(
+      expect.objectContaining({
+        kind: "size",
+        severity: "error",
+        fix: { "font-size": "30px" },
+      }),
+    );
+  });
+
   it("warns about safe margins without blocking publication", () => {
     fixture("", {
       left: 20,

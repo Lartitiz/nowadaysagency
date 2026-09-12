@@ -56,14 +56,28 @@ export function useCarouselQuality(
           ? "error"
           : "done";
   const issues = current ? report!.issues : [];
+  const errors = issues.filter((i) => i.severity === "error");
+  const reason = (kinds: string[], text: string) =>
+    errors.some((i) => kinds.includes(i.kind)) ? text : "";
   const disabledReason =
     status === "checking"
       ? "Contrôle qualité en cours : attends sa fin avant de publier."
       : status === "error"
         ? "Relance le contrôle qualité avant de publier."
-        : issues.some((i) => i.severity === "error")
-          ? "Corrige les textes coupés ou les images manquantes avant de publier."
+        : errors.length
+          ? `Corrige avant de publier : ${
+              [
+                reason(["overflow"], "textes ou blocs coupés"),
+                reason(["size"], "textes trop petits sur mobile"),
+                reason(["contrast"], "contraste insuffisant"),
+                reason(["image"], "images manquantes"),
+              ]
+                .filter(Boolean)
+                .join(", ") || "problèmes de lisibilité détectés"
+            }.`
           : undefined;
+
+
   return {
     status,
     issues,

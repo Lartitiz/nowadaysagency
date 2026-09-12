@@ -18,13 +18,17 @@ import PhotoSwapDialog from "@/components/creer/PhotoSwapDialog";
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
+import { hasClippedElement } from "@/lib/carousel-quality";
 import {
   addTextElement,
   captionFromText,
   captionText,
   CAROUSEL_MAX_SLIDES,
   documentOutput,
+  documentTokens,
+  extractStyleTokens,
   getEditorElements,
+  listDocumentFonts,
   makeSlide,
   patchElement,
   readCarouselDocument,
@@ -34,6 +38,7 @@ import {
   type CarouselDocument,
   type EditorSlide,
 } from "@/lib/carousel-editor";
+
 
 interface Props {
   result: any;
@@ -183,25 +188,13 @@ function SlideCanvas({
     doc.addEventListener("pointercancel", () => {
       drag = null;
     });
-    const check = () =>
-      setOverflow(
-        Array.from(doc.querySelectorAll<HTMLElement>("[data-editor-id]")).some(
-          (el) => {
-            const r = el.getBoundingClientRect();
-            return (
-              r.width > 0 &&
-              (r.left < 0 ||
-                r.top < 0 ||
-                r.right > 1081 ||
-                r.bottom > 1351 ||
-                (el.scrollHeight > el.clientHeight + 2 && el.clientHeight > 0))
-            );
-          },
-        ),
-      );
+    // Même inspection géométrique que le contrôle qualité global : l'aperçu
+    // n'annonce jamais un débordement que la QA ignorerait, ni l'inverse.
+    const check = () => setOverflow(hasClippedElement(doc));
     check();
     doc.fonts?.ready.then(check);
   };
+
   return (
     <div>
       <div
@@ -316,6 +309,11 @@ export default function CarouselEditor({
     [slide],
   );
   const element = elements.find((e) => e.id === selected);
+  const documentFonts = useMemo(
+    () => listDocumentFonts(document.slides),
+    [document.slides],
+  );
+
   const changeSlide = (next: EditorSlide, key = "") =>
     commit(
       {
@@ -345,7 +343,8 @@ export default function CarouselEditor({
     if (document.slides.length >= CAROUSEL_MAX_SLIDES) return;
     const next = duplicate
       ? { ...slide, id: crypto.randomUUID(), locked: false }
-      : makeSlide();
+      : makeSlide({}, "text_only", "", documentTokens(document.slides));
+
     const slides = [...document.slides];
     slides.splice(active + 1, 0, next);
     commit(renumberDocument({ ...document, slides }));
@@ -379,9 +378,16 @@ export default function CarouselEditor({
       .querySelector<HTMLElement>("[data-pptx-photo],[data-editor-photo]")
       ?.style.backgroundImage.match(/url\(["']?(.*?)["']?\)/)?.[1];
     changeSlide({
-      ...makeSlide(slide.data, type, img?.src || bg || ""),
+      // La mise en page change, la charte de la slide reste.
+      ...makeSlide(
+        slide.data,
+        type,
+        img?.src || bg || "",
+        extractStyleTokens(slide.html),
+      ),
       id: slide.id,
     });
+
     setSelected(null);
   };
   const range = (
@@ -505,10 +511,12 @@ export default function CarouselEditor({
             </details>
           )}
           <p className="text-xs text-muted-foreground">
-            Les textes coupés et images manquantes bloquent la publication. Les
-            conseils de lisibilité restent indicatifs ; relis aussi le fond et
-            les textes sur photo.
+            Bloquent la publication : textes coupés, textes trop petits pour le
+            mobile, contraste mesuré insuffisant sur fond uni et images
+            manquantes. Les textes posés sur une photo ou une transparence
+            restent des conseils : vérifie-les à l’œil.
           </p>
+
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -711,6 +719,11 @@ export default function CarouselEditor({
                     <option value={css["font-family"] || ""}>
                       Police actuelle
                     </option>
+                    {documentFonts.map((f) => (
+                      <option key={f.value} value={f.value}>
+                        {f.label} (ton carrousel)
+                      </option>
+                    ))}
                     {[
                       "Arial, sans-serif",
                       "Georgia, serif",
@@ -721,6 +734,7 @@ export default function CarouselEditor({
                         {f.split(",")[0]}
                       </option>
                     ))}
+
                   </select>
                 </label>
                 <div className="flex flex-wrap gap-1">
