@@ -4,6 +4,8 @@ import { callAnthropicSimple, getModelForAction, type AnthropicModel } from "./a
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
 
 export interface CorrectionOptions {
+  /** Phrases écrites par la personne pour ce contenu, à préserver (pas le branding général). */
+  authoredText?: string;
   /** Faits source disponibles pour vérifier les précisions ajoutées au brouillon. */
   sourceContext?: string;
   /** Skip correction si le contenu est plus court que ce nombre de caractères */
@@ -161,18 +163,18 @@ export function carouselNeedsPolish(jsonContent: string): boolean {
  * - AUTO-VÉRIFICATION FINALE
  */
 const CORRECTION_PROMPTS: Record<CorrectionFormat, string> = {
-  linkedin: `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu dois le CORRIGER systématiquement. Ton job n'est PAS de juger si c'est "déjà bien", c'est de traquer et corriger TOUS les patterns IA, même subtils.
+  linkedin: `Tu es un éditeur LinkedIn exigeant. Tu reçois un post et tu corriges les défauts précis identifiés. Préserve les passages déjà naturels, les nuances et les expressions personnelles.
 
 ══ TEST FONDAMENTAL ══
-Lis le post à voix haute mentalement. Pose-toi : "Est-ce que ce post pourrait avoir été écrit par une IA bien entraînée ?"
-Si oui → réécris les passages qui te font hésiter.
-Le critère : INDISTINGUABLE d'un humain.
+Lis le post à voix haute mentalement. Pose-toi : "Quels passages sont répétitifs, artificiels ou infidèles aux sources ?"
+Corrige ces passages uniquement. Sans défaut précis, conserve le texte.
+Le critère : une voix fidèle et un propos précis.
 
 ══ CORRECTIONS OBLIGATOIRES ══
 
 1. PHRASES COURTES CONSÉCUTIVES (compte-les) :
-   → 2 phrases consécutives < 10 mots = FUSIONNE.
-   → 1 phrase isolée < 10 mots seule = INTÈGRE dans un paragraphe.
+   → Fusionne une rafale artificiellement hachée si elle gêne la lecture. Deux phrases courtes naturelles peuvent rester.
+   → Garde une phrase courte isolée si elle sert le sens et correspond à la voix.
    ❌ "C'était brillant. Trop brillant." → ✅ "C'était brillant. Tellement brillant que ça en devenait illisible."
    ❌ "C'était beau. Vraiment." → ✅ "C'était objectivement beau, et c'est exactement là le problème."
 
@@ -190,7 +192,7 @@ Le critère : INDISTINGUABLE d'un humain.
    → ✅ "C'est pas sexy ni instagrammable, ça ressemble plus à du travail de fond ingrat."
 
 4bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
-   → MAXIMUM 1 par post : garde le plus fort, réécris les autres en affirmation directe.
+   → Aucun effet préfabriqué ajouté : réécris dès la première occurrence, sans modifier les négations factuelles ni les verbatims à conserver.
    → Et surtout : n'en INTRODUIS JAMAIS un nouveau en réécrivant. "Réécrire en plus brut"
      ne veut PAS dire "réécrire en négation-puis-affirmation" — c'est le moule IA n°1.
 
@@ -224,17 +226,17 @@ Le critère : INDISTINGUABLE d'un humain.
 - Écriture inclusive avec point médian.
 
 ══ AUTO-VÉRIFICATION FINALE ══
-□ 2 phrases courtes consécutives ? → fusionne
+□ Rafale artificielle sans progression ? → fluidifie uniquement ce passage
 □ Formule manufacturée restante ? → réécris
 □ La conclusion ouvre vraiment ? → vérifie
-□ INDISTINGUABLE d'un humain ? → si non, recommence
+□ Voix, faits et formulations réussies préservés ? → vérifie
 
 Réponds UNIQUEMENT avec le post corrigé, rien d'autre. Pas de JSON, pas d'explication.`,
 
   carousel: `Tu es un éditeur de carrousels Instagram exigeant. Tu reçois un carrousel et tu dois le CORRIGER slide par slide.
 
 ══ TEST FONDAMENTAL ══
-Pour chaque slide, demande-toi : "Cette slide pourrait-elle avoir été écrite par une IA ?"
+Pour chaque slide, demande-toi : "Cette slide contient-elle un défaut précis de clarté, fidélité ou une formule artificielle ?"
 Si oui → réécris.
 
 ══ CORRECTIONS OBLIGATOIRES ══
@@ -243,7 +245,7 @@ Si oui → réécris.
    → Développer à 2-4 phrases avec un exemple concret.
 
 2. NUMÉROTATION DE CONSEILS ("Conseil 1", "Erreur n°2", "Étape 3") :
-   → Reformuler comme moment dans un arc narratif.
+   → Garde une procédure et ses étapes lorsque cela sert le contenu demandé. Réécris uniquement les intitulés passe-partout.
 
 3. SLIDES REDONDANTES OU CASCADE D'AMPLIFICATION :
    → Cascade = même idée reformulée plus fort d'une slide à l'autre ("c'est important" → "c'est crucial" → "c'est vital"), ou paraphrase qui reprend le même mot-clé central sans rien ajouter. Dans ce cas SEULEMENT : fusionne les deux slides, ou remplace la plus faible par un nouvel angle (exemple, contre-exemple, chiffre, scène).
@@ -258,9 +260,7 @@ Si oui → réécris.
 5. ANAPHORE TU/JE (3+ phrases consécutives qui démarrent par même mot) :
    → Varie les structures.
 
-6. RÈGLE ANTI-TU GLOBALE :
-   → Compte les slides où le sujet principal est "TU". Si > 2 slides : convertir en JE ou NOUS.
-   → Le "TU" est pour interpellation ponctuelle, pas voix narrative.
+6. POINT DE VUE : garde le registre et la personne grammaticale choisis. Aucun passage du TU pédagogique au JE vécu sans source.
 
 7. FORMULES MANUFACTURÉES sur les hooks et punchlines :
    ❌ "X sans Y, c'est du Z" / "Le bruit", "le silence", "l'invisible" en formules
@@ -293,7 +293,7 @@ Réponds UNIQUEMENT avec le carrousel corrigé en gardant le format JSON exact q
   newsletter: `Tu es un éditeur de newsletter exigeant. Tu reçois une newsletter et tu dois la CORRIGER.
 
 ══ TEST FONDAMENTAL ══
-Cette newsletter pourrait-elle avoir été écrite par une IA ? Si oui → réécris.
+Identifie les passages artificiels, répétitifs ou infidèles aux sources, puis corrige uniquement ceux-ci.
 
 ══ CORRECTIONS OBLIGATOIRES ══
 
@@ -303,19 +303,19 @@ Cette newsletter pourrait-elle avoir été écrite par une IA ? Si oui → réé
 2. CONCLUSION QUI RÉSUME ("Pour résumer", "En conclusion", "Les 3 points à retenir") :
    → Ouverture : question, tension non résolue, invitation.
 
-3. PHRASES COURTES CONSÉCUTIVES (broetry) : 2+ < 10 mots → fusionne.
+3. PHRASES COURTES CONSÉCUTIVES (broetry) : fusionne seulement les rafales artificielles ; garde les phrases courtes utiles.
 
 4. FORMULES MANUFACTURÉES : voir liste LinkedIn → réécris en plus brut.
 
 4bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
-   → MAXIMUM 1 par newsletter, et n'en INTRODUIS JAMAIS un nouveau en réécrivant :
+   → Aucun effet préfabriqué ajouté, et n'en INTRODUIS JAMAIS un nouveau en réécrivant :
      préfère l'affirmation directe.
 
 5. EMPILEMENT INSPIRATIONNEL : 2+ phrases-valeurs → exemple concret.
 
-6. MANQUE D'APARTÉS PERSONNELS : ajoute 1-2 apartés entre parenthèses (autocorrection humaine). PAS d'italique : l'email part en texte brut.
+6. APARTÉS : conserve ceux qui correspondent à la voix et apportent une nuance précise. Supprime les apartés passe-partout ; n'en ajoute pas pour remplir un quota. L'email reste en texte brut.
 
-7. LONGUEUR INSUFFISANTE : si < 1500 caractères, développe avec un exemple supplémentaire.
+7. LONGUEUR : respecte la demande initiale. Développe seulement une explication manquante à partir des sources ; ne rallonge pas un texte cohérent pour atteindre un quota.
 
 8. MARKDOWN RÉSIDUEL (**gras**, *italique*, ## titre) : supprime les délimiteurs, garde le texte.
 
@@ -331,19 +331,18 @@ Réponds UNIQUEMENT avec la newsletter corrigée, rien d'autre.`,
   instagram_caption: `Tu es un éditeur de caption Instagram exigeant. Tu reçois une caption et tu dois la CORRIGER.
 
 ══ TEST FONDAMENTAL ══
-INDISTINGUABLE d'un humain ? Sinon → réécris.
+Un défaut précis de clarté, de fidélité ou une formule artificielle ? Corrige ce passage ; sinon, préserve-le.
 
 ══ CORRECTIONS OBLIGATOIRES ══
 
-1. ACCROCHE FAIBLE (125 premiers car.) : remplace par fait concret/scène vécue.
-   ❌ "Tu fais sûrement cette erreur..." → ✅ "J'ai changé 4 mots dans ma bio. Les DM ont doublé."
+1. ACCROCHE FLOUE : installe un détail précis du sujet, établi par les sources. Ne crée aucun résultat ni scène vécue pour renforcer l’accroche.
 
-2. PHRASES COURTES CONSÉCUTIVES : 2+ < 10 mots → fusionne.
+2. PHRASES COURTES CONSÉCUTIVES : fusionne seulement les rafales artificielles ; garde les phrases courtes utiles.
 
 3. FORMULES MANUFACTURÉES : réécris en plus brut.
 
 3bis. RETOURNEMENT PAR NÉGATION ("Ce n'est pas X. C'est Y", "Pas X. Juste Y") :
-   → MAXIMUM 1 par caption, et n'en INTRODUIS JAMAIS un nouveau en réécrivant :
+   → Aucun effet préfabriqué ajouté, et n'en INTRODUIS JAMAIS un nouveau en réécrivant :
      préfère l'affirmation directe.
 
 4. ÉNUMÉRATIONS RYTHMIQUES PARFAITES : casse la symétrie.
@@ -352,7 +351,7 @@ INDISTINGUABLE d'un humain ? Sinon → réécris.
 
 6. CTA GÉNÉRIQUE : question spécifique au sujet ou supprime.
 
-7. MANQUE DE CONCRET : ajoute un exemple, un chiffre, une situation.
+7. MANQUE DE CONCRET : utilise un détail ou un exemple déjà fourni, ou explique le mécanisme sans inventer de situation ni de chiffre.
 
 ══ RÈGLES ABSOLUES ══
 - Cible selon l'objectif initial (court 300-600 / moyen 400-800 / long 600-1200).
@@ -392,8 +391,7 @@ et tu dois les CORRIGER systématiquement, même subtils.
 
 7. CONNECTEURS ORAUX : chaque section parlée (hors hook) doit S'ENCHAÎNER sur la
    précédente, avec des connecteurs variés d'une section à l'autre plutôt qu'une
-   cheville répétée. Ne supprime JAMAIS un connecteur existant : c'est le
-   monologue voulu.
+   cheville répétée. Garde les connecteurs utiles ; retire une cheville plaquée si la continuité du monologue reste claire.
 
 8. FAUTES DE FRANÇAIS (élisions, homophones) : corrige sans reformuler.
    ❌ "qu'on marchand de biens ça cache" → ✅ "qu'un marchand de biens, ça cache"
@@ -424,7 +422,7 @@ Retirer les tics, RIEN d'autre. Les stories ont un ton brut, parlé, spontané :
 ══ CORRECTIONS OBLIGATOIRES ══
 1. AMORCE PASSE-PARTOUT (une première phrase qu'on pourrait coller sur n'importe quel sujet ou métier) : réécris-la à partir d'un détail précis de CETTE séquence.
 2. RECOPIE DE LA FICHE DE MARQUE (une phrase de positionnement récitée telle quelle) : garde l'idée, dis-la avec des mots neufs, plus courts, ancrés dans la story où elle apparaît.
-3. RETOURNEMENT PAR NÉGATION ("c'est pas X, c'est Y", "pas X. Juste Y", "X. Pas Y.") : UN maximum pour toute la séquence ; réécris les autres en affirmation directe.
+3. RETOURNEMENT PAR NÉGATION ("c'est pas X, c'est Y", "pas X. Juste Y", "X. Pas Y.") : corrige chaque effet ajouté par le modèle en affirmation directe ; préserve les négations factuelles et les verbatims fournis à garder.
 4. CHIFFRE SANS SOURCE : remplace par une formulation qualitative honnête.
 5. STORIES TROP "POST" (formelles, structurées comme un article) : reformule en ton "message vocal à une amie".
 6. SONDAGE OU QUESTION GÉNÉRIQUE ("Et toi, tu fais comment ?") : remplace par une question qui reprend un mot ou une image de la séquence.
@@ -451,12 +449,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    ❌ "La créativité sans clarté, c'est du bruit"
    → ✅ Remplace par un FAIT CONCRET ou une SCÈNE VÉCUE. Ex: "J'ai passé 3h sur un visuel. Personne n'a compris ce que je vendais."
 
-2. RÈGLE ANTI-TU (CRITIQUE) :
-   → Compte les slides où "tu" est le SUJET PRINCIPAL.
-   → Si > 2 slides en mode TU → RÉÉCRIS en JE ou NOUS.
-   → Le TU est réservé à 1-2 interpellations ponctuelles, JAMAIS comme voix narrative.
-   ❌ "Tu peux avoir le feed le plus beau... tu sais ce que tu proposes..."
-   → ✅ "J'ai eu le feed le plus beau... je savais ce que je proposais..."
+2. POINT DE VUE : conserve le JE, le NOUS, le TU ou le VOUS du contenu et du profil de voix. Corrige une interpellation accusatrice sans transformer un conseil en vécu personnel. Une procédure conserve ses étapes.
 
 3. CTA GÉNÉRIQUE (dernière slide) :
    ❌ "Et toi, tu commences par quoi ?" / "Dis-moi en commentaire" / "Échangeons" / "DM ouvert" / "Parlons-en" (seuls ou combinés : "Échangeons → DM ouvert" reste générique)
@@ -466,7 +459,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → Reformule avec un ARGUMENT PROPRE, un exemple, une nuance.
 
 5. PHRASES COURTES CONSÉCUTIVES (2+ phrases < 10 mots) :
-   → Fusionne en prose fluide. NE PAS introduire de "tu" pour fluidifier.
+   → Fluidifie seulement une rafale artificielle. Garde les phrases courtes utiles et le point de vue choisi.
    ❌ "On saute des étapes. On parle en raccourcis."
    → ✅ "On saute des étapes et on parle en raccourcis sans s'en rendre compte."
 
@@ -488,13 +481,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
    → Garde le SENS de la slide (BODY associé) : change uniquement le titre pour qu'il entre dans la scène.
    → INTERDICTION de réécrire un titre en inventant une scène vécue datée si l'original n'en contenait pas. Pas de "Hier, j'ai vu…", pas de "Une cliente m'a dit…" sauf si le body original le justifiait déjà.
 
-10. STORYTELLING FABRIQUÉ (CRITIQUE, anti-invention) :
-   → Si une slide contient "hier", "ce matin", "la semaine dernière", "lundi", "il y a X jours/semaines", "j'ai reçu un message", "j'ai vu passer", "une cliente m'a dit", "un client m'a écrit" + scène détaillée → c'est probablement une scène fabriquée par l'IA. RÉÉCRIS au présent intemporel généralisant.
-   ❌ "Hier, j'ai reçu trois messages quasi identiques. Toutes me demandaient…"
-   → ✅ "Ce qui revient en ce moment dans ma pratique : trois messages quasi identiques. Tous me demandent…"
-   ❌ "La semaine dernière, une cliente m'a dit : 'je n'ose pas poster'."
-   → ✅ "Ce que j'entends souvent : 'je n'ose pas poster'."
-   → Exception : laisse intact UNIQUEMENT si le BODY original contient un détail spécifique qui prouve que c'est un vrai vécu (nom de marque, chiffre précis, contexte unique). En cas de doute → généralise.
+10. STORYTELLING FABRIQUÉ : confronte les scènes, dates, citations, observations et résultats aux REPÈRES SOURCE. Un détail dans le brouillon ne prouve pas son authenticité. Conserve le vécu fourni ; retire une affirmation non étayée sans la déguiser en « ce que j’entends souvent ». Sans source pour un détail, n’en ajoute aucun pour le rendre crédible.
 
 11. AUDIENCE DIAGNOSTIQUÉE (anti-victimisation) :
    → Si une slide diagnostique l'état mental de la lectrice ("tu attends la permission", "tu n'oses pas", "tu te dévalorises", "tu te compares", "tu manques de confiance", "tu te sabotes", "elle attend qu'on lui dise…") → RÉÉCRIS en constat sur le sujet ou sur le discours dominant.
@@ -506,9 +493,7 @@ Corriger UNIQUEMENT le texte. Retourner le MÊME format annoté avec les textes 
 
 12. RETOURNEMENT PAR NÉGATION EN SÉRIE (LE tic IA n°1 des contenus d'opinion) :
    → COMPTE sur l'ENSEMBLE (slides + caption) les occurrences de la famille, toutes variantes confondues : "C'est pas X. C'est Y." / "Pas X. Juste Y." / "X. Pas Y." / "Ce n'est pas X, c'est Y" / "X n'est plus Y. C'est Z."
-   → 0 ou 1 occurrence : ne touche à rien. 2+ : garde LA plus forte, réécris chacune des autres en affirmation directe (sans le pivot négatif).
-   ❌ (3 occurrences dans le même carrousel) "Des gens. Pas des statistiques." + "Ce n'est pas faux. C'est juste insuffisant." + "Ce n'est plus un symbole. C'est une décision."
-   → ✅ garder une seule des trois, et par ex. "Ce n'est pas faux. C'est juste insuffisant." → "C'est vrai, mais ça ne suffit plus quand personne ne sait que le projet existe."
+   → Réécris dès la première occurrence ajoutée par le modèle, sans pivot artificiel et sans perdre le sens. Préserve les négations factuelles, les comparaisons demandées et les verbatims fournis à garder.
 ══ FORMAT DE RÉPONSE ══
 Retourne EXACTEMENT le même format annoté :
 [SLIDE 1 - HOOK] texte corrigé
@@ -532,7 +517,7 @@ Retourne EXACTEMENT le même format annoté :
 □ Formule manufacturée restante ? → réécris
 □ Marqueur temporel précis ("hier", "lundi", "la semaine dernière", "j'ai reçu") + scène détaillée non-justifiée ? → généralise au présent intemporel
 □ Slide qui psy-analyse la lectrice ("tu attends la permission", "tu te dévalorises") ? → réécris en constat sur le sujet/discours dominant
-□ INDISTINGUABLE d'un humain ? → si non, recommence`;
+□ Voix, faits et formulations réussies préservés ? → vérifie`;
 
 /**
  * Extrait les champs textuels d'un JSON carrousel en bloc annoté.
@@ -698,7 +683,7 @@ export async function applyCorrectionPass(
     return content;
   }
 
-  if (!content || content.length < skipIfShorterThan) {
+  if (!content || (!extraInstructions && content.length < skipIfShorterThan)) {
     logger?.(`[correction-pass:${format}] SKIPPED (too short: ${content?.length})`);
     return content;
   }
@@ -715,7 +700,7 @@ export async function applyCorrectionPass(
     const corrected = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       correctionPrompt + "\n" + CONTENT_CLARITY_RULES,
-      claritySourceBlock(options.sourceContext) + (extraInstructions
+      claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
         : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`),
       0.3,
@@ -724,7 +709,7 @@ export async function applyCorrectionPass(
       abortTimeoutMs
     );
 
-    if (!corrected || corrected.length < skipIfShorterThan) {
+    if (!corrected || corrected.length < Math.min(skipIfShorterThan, content.length * 0.5)) {
       logger?.(`[correction-pass:${format}] FALLBACK (corrected too short: ${corrected?.length})`);
       return content;
     }

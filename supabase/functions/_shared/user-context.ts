@@ -255,7 +255,7 @@ export function formatContextForAI(ctx: any, opts: ContextOptions = {}): string 
     if (p.step_4_repulsive) lines.push(`- Ce qui la rebute : ${p.step_4_repulsive}`);
     if (p.step_4_feeling) lines.push(`- L'émotion qu'elle cherche : ${p.step_4_feeling}`);
     if (p.step_5_actions) lines.push(`- Ses déclencheurs d'achat : ${p.step_5_actions}`);
-    if (lines.length) sections.push(`CLIENTE IDÉALE :\n${lines.join("\n")}`);
+    if (lines.length) sections.push(`CLIENTE IDÉALE (désirs, problèmes et hypothèses de cible ; aucune preuve de résultat produit ou de témoignage) :\n${lines.join("\n")}`);
   }
 
   // === TON & STYLE ===

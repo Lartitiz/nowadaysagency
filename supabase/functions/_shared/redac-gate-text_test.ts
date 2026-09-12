@@ -69,8 +69,8 @@ Deno.test("2 retournements corrigés en 0 -> correction gardée, une seule passe
 
 Deno.test("violations restantes après la 1re passe -> UNE passe de rattrapage, puis stop", async () => {
   const original = `${REVERSAL_1} ${REVERSAL_2} ${REVERSAL_3} ${FILLER}`;
-  const partial = `${REVERSAL_1} ${REVERSAL_2} ${FILLER}`; // encore 2 -> violations 1
-  const cleaned = `${REVERSAL_1} ${FILLER}`; // 1 retournement toléré -> violations 0
+  const partial = `${REVERSAL_1} ${REVERSAL_2} ${FILLER}`; // encore 2 -> violations 2
+  const cleaned = `${REVERSAL_1} ${FILLER}`; // 1 retournement restant -> violation signalée
   let call = 0;
   const mock = installFetchMock({
     anthropic: () => anthropicText(++call === 1 ? partial : cleaned),
@@ -84,7 +84,7 @@ Deno.test("violations restantes après la 1re passe -> UNE passe de rattrapage, 
     assertEquals(gate.content, cleaned);
     assertEquals(gate.repassed, true);
     assertEquals(gate.after.reversals.length, 1);
-    assertEquals(gate.violations, 0);
+    assertEquals(gate.violations, 1);
   } finally {
     mock.restore();
   }

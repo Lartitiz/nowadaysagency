@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { CORE_PRINCIPLES, FORMAT_STRUCTURES, WRITING_RESOURCES } from "../_shared/copywriting-prompts.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
@@ -86,10 +87,12 @@ IMPORTANT : Analyse le contenu VISIBLE sur les images :
       sourceBlock = `CONTENU SOURCE (celui que l'utilisatrice a aimé) :
 """
 ${source_text}
-"""`;
+"""
+${context ? `SUJET ET FAITS POUR L’ADAPTATION (distincts du contenu modèle) : ${JSON.stringify(context)}` : ""}`;
     }
 
-    const systemPrompt = `Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
+    const systemPrompt = `${CONTENT_CLARITY_RULES}
+Si une section VOIX PERSONNELLE est présente dans le contexte, c'est ta PRIORITÉ ABSOLUE :
 - Reproduis fidèlement le style décrit
 - Réutilise les expressions signature naturellement dans le texte
 - RESPECTE les expressions interdites : ne les utilise JAMAIS
@@ -120,11 +123,11 @@ Génère 1 contenu complet adapté à l'utilisatrice :
 - Reprends la STRUCTURE qui fonctionne dans le contenu source
 - Remplace le SUJET par quelque chose en lien avec son activité, ses piliers, son combat
 - Écris dans SON TON (ses expressions, son registre, son niveau de familiarité)
-- Utilise les frustrations ou la transformation de SON persona
+- Tiens compte des préoccupations de SON persona sans présenter ses aspirations comme des résultats obtenus
 - Si elle a un concept créatif, intègre-le
 - L'accroche doit être aussi forte que l'originale mais avec ses mots à elle
-- Intègre naturellement 2-3 BUCKET BRIGADES pour relancer la lecture
-- Termine par un CTA ÉTHIQUE adapté
+- Utilise des transitions propres au sujet, sans quota de relances orales
+- Termine par une fin concrète ou un CTA pertinent pour le sujet et l’objectif
 
 Le contenu doit être PRÊT À POSTER. Pas un brouillon. Un vrai post.
 

@@ -1,3 +1,4 @@
+import { authoredContentSource } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
@@ -935,7 +936,7 @@ async function runGenerationAndRespond(
       echo: { previousHooks, subject: body.subject },
       brandGuardText,
       captionEnding: captionEndingRule,
-      correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+      correction: { authoredText: authoredContentSource(body), enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
     });
     content = gateExpress.content;
     await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
@@ -1111,7 +1112,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
-    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+    correction: { authoredText: authoredContentSource(body), enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gateMix.content;
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
@@ -1252,7 +1253,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
-    correction: { enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+    correction: { authoredText: authoredContentSource(body), enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gatePhoto.content;
   // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),
