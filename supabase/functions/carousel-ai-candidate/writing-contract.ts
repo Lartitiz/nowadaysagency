@@ -1,5 +1,5 @@
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "subject-first-v1";
+export const CAROUSEL_WRITING_VERSION = "source-choice-v1";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
