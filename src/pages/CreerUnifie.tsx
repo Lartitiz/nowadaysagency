@@ -1686,6 +1686,9 @@ export default function CreerUnifie() {
     setStructureProposal(null);
     setLastConfirmedStructure(null);
     setEditingIdeaId(null);
+    // Sans ça, le suivi de la publication précédente restait en mémoire et
+    // renvoyait « déjà enregistré » pour tout contenu créé ensuite.
+    resetPublishedTracking();
     clearFlowState();
     
     sessionStorage.removeItem(CREER_RESULT_KEY);
@@ -1906,7 +1909,7 @@ export default function CreerUnifie() {
   const [reelMp4Url, setReelMp4Url] = useState<string | null>(null);
 
   // ── Sauvegarde dans le calendrier (nouveau post + mise à jour d'un post existant) ──
-  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage } = useCalendarSave({
+  const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage, resetPublishedTracking } = useCalendarSave({
     session,
     result,
     selectedFormat,
