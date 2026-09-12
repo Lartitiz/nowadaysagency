@@ -1,5 +1,5 @@
 /** Editorial review contract. No layout, photo, link or structural field is editable. */
-export const CAROUSEL_REVIEW_VERSION = "contextual-v2";
+export const CAROUSEL_REVIEW_VERSION = "contextual-v2.1";
 export const CAROUSEL_REVIEW_TOOL = {
   name: "review_carousel_fields",
   description: "Révision de chaque champ, avec retouches locales exactes ou conservation explicite.",
@@ -20,7 +20,7 @@ export interface EditorialField { id: string; path: (string | number)[]; text: s
 
 const SLIDE_TEXT_KEYS = ["title", "hook", "accroche", "body", "text", "content", "punchline", "overlay_text", "kicker", "detail", "big_number", "attribution", "cta_label"];
 const SCHEMA_TEXT_KEYS = new Set(["title", "label", "desc", "text", "number", "quote", "attribution", "context", "objection", "response", "start", "question", "condition", "result", "badge", "left", "right", "top", "bottom"]);
-const SCHEMA_CONTAINERS = new Set(["before", "after", "left", "right", "items", "before_items", "after_items", "steps", "stats", "parts", "result", "quadrants", "x_axis", "y_axis", "levels", "branches", "marker", "stages"]);
+const SCHEMA_CONTAINERS = new Set(["data", "before", "after", "left", "right", "items", "before_items", "after_items", "steps", "stats", "parts", "result", "quadrants", "x_axis", "y_axis", "levels", "branches", "marker", "stages"]);
 
 /** Same registry for revision and its factual guard; only known visible prose. */
 export function carouselEditorialFields(doc: any): EditorialField[] {
@@ -85,8 +85,15 @@ export function applyEditorialReview(doc: any, raw: string, authoredText = ""): 
     const updates: { path: (string | number)[]; text: string }[] = [];
     let count = 0;
     for (const review of payload.reviews) {
-      const field = byId.get(review?.field_id);
-      if (!field || !["keep", "edit"].includes(review.decision) || typeof review.reason !== "string" || !review.reason.trim() || !Array.isArray(review.edits)) return invalid("contract");
+      const field = byId.get(review?.field_id ?? review?.id);
+      if (!field) return invalid("unknown-or-duplicate-field");
+      if (!["keep", "edit"].includes(review.decision)) return invalid("invalid-decision");
+      // Some valid keep decisions omit an empty edits array despite the tool
+      // schema. This safe normalization cannot change text or hide an edit.
+      if (review.decision === "keep" && review.edits === undefined) review.edits = [];
+      if (review.decision === "keep" && review.reason === undefined) review.reason = "Conservation explicite";
+      if (typeof review.reason !== "string" || !review.reason.trim()) return invalid("missing-reason");
+      if (!Array.isArray(review.edits)) return invalid("missing-edits");
       byId.delete(field.id);
       if ((review.decision === "keep") !== (review.edits.length === 0)) return invalid("decision");
       const spans: { start: number; end: number; after: string }[] = [];

@@ -30,6 +30,17 @@ Deno.test("révision locale : supprime le seul extrait ciblé, garde photos/stru
 Deno.test("révision : une décision keep conserve chaque caractère", () => {
   assertEquals(applyEditorialReview(doc, JSON.stringify(cleanReview())).doc, doc);
 });
+Deno.test("révision : keep sans tableau vide reste une conservation explicite", () => {
+  const review = editReview();
+  delete review.reviews[0].edits;
+  const result = applyEditorialReview(doc, JSON.stringify(review));
+  assertEquals(result.status, "reviewed");
+  assertEquals(result.doc.slides[0].title, doc.slides[0].title);
+  assertEquals(result.doc.slides[0].body, "Les demandes se contredisent.");
+});
+Deno.test("registre : schéma enveloppé dans data inclut ses textes, pas ses coordonnées", () => {
+  assertEquals(carouselEditorialFields({ slides: [{ visual_schema: { type: "flowchart", data: { start: "Question", branches: [{ condition: "Oui", result: "Vérifier" }], x: 12 } } }] }).map(f => f.text), ["Question", "Oui", "Vérifier"]);
+});
 for (const [name, mutate] of Object.entries({
   omission: (r: any): void => { r.reviews.pop(); },
   duplication: (r: any): void => { r.reviews[1] = r.reviews[0]; },
