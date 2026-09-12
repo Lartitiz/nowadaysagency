@@ -10,6 +10,7 @@ interface EditableTextProps {
   placeholder?: string;
   className?: string;
   disabled?: boolean;
+  preserveDraftOnError?: boolean;
 }
 
 export default function EditableText({
@@ -19,6 +20,7 @@ export default function EditableText({
   placeholder,
   className = "",
   disabled = false,
+  preserveDraftOnError = false,
 }: EditableTextProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
@@ -56,11 +58,12 @@ export default function EditableText({
     } catch (e: any) {
       console.error("Erreur technique:", e);
       toast.error("Erreur de sauvegarde", { description: friendlyError(e) });
+      if (preserveDraftOnError) { setSaving(false); return; }
       setDraft(value);
     }
     setSaving(false);
     setEditing(false);
-  }, [draft, value, onSave]);
+  }, [draft, value, onSave, preserveDraftOnError]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") { setDraft(value); setEditing(false); }

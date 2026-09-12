@@ -11,6 +11,7 @@ import BrandingCoachingFlow from "@/components/branding/BrandingCoachingFlow";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
+import { importTarget, readImportRows } from "@/lib/branding-import-persistence";
 import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
 import { posthog } from "@/lib/posthog";
 
@@ -25,6 +26,7 @@ export interface AnalysisResult {
   charter?: { confidence?: string; color_primary?: string; color_secondary?: string; color_accent?: string; color_background?: string; font_title?: string; font_body?: string; mood_keywords?: string[]; visual_style_description?: string };
   /** Reprise d'onboarding confirmée : valider une section écrase l'existant. */
   allow_overwrite?: boolean;
+  reviewed_sections?: string[];
   sources_used?: string[];
   sources_failed?: string[];
   overall_confidence?: string;
@@ -35,7 +37,8 @@ interface Props {
   analysis: AnalysisResult;
   sourcesUsed?: string[];
   sourcesFailed?: string[];
-  onDone: () => void;
+  onDone: (complete?: boolean) => void;
+  onProgress?: (sections: string[]) => Promise<void>;
   /** Sections already filled by the user (won't be overwritten) */
   preFilledSections?: Set<string>;
   /** Callback for Instagram bio paste + reanalysis */
@@ -220,6 +223,7 @@ function OffersSection({ data, onUpdate, onDelete }: { data: AnalysisResult["off
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <p className="text-xs text-muted-foreground sm:col-span-2">Les nouvelles fiches sont classées « payantes » par défaut ; tu pourras préciser leur type dans Mes offres. Un nom déjà présent doit être renommé ou retiré de cet import ; la fiche existante est conservée.</p>
       {data.offers.map((o, i) => (
         <div key={i} className="p-4 rounded-[12px] border border-border bg-background relative group">
           {editingIndex === i ? (
@@ -426,11 +430,12 @@ export function CharterSection({ data, onUpdate }: { data: AnalysisResult["chart
 // inaperçue et la section affichait « sauvegardée ✓ » alors que rien n'était
 // persisté (cf. bug portrait_age). On force la remontée vers handleValidate.
 async function writeOrThrow(query: any, ctx: string) {
-  const { error } = await query;
+  const { data, error } = await query.select("id");
   if (error) {
     console.error(`[branding save] ${ctx}:`, error);
     throw error;
   }
+  if (!data?.length) throw new Error("Aucune fiche enregistrée. Recharge les données avant de réessayer.");
 }
 
 /**
@@ -451,14 +456,15 @@ async function fillBrandProfileSynthesis(
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
   const selectCols = `id, ${Object.keys(fields).join(", ")}`;
-  const { data: existing } = await (supabase.from("brand_profile") as any)
+  const { data: existing, error: readError } = await (supabase.from("brand_profile") as any)
     .select(selectCols).eq(filterCol, filterVal).maybeSingle();
+  if (readError) throw readError;
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length === 0) return;
     await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.synthesis.update");
   } else {
-    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.synthesis.insert");
+    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.synthesis.insert");
   }
 }
 
@@ -473,24 +479,22 @@ async function saveStory(data: AnalysisResult["story"], userId: string, workspac
   if (data.vision) fields.step_5_emotions = data.vision;
   if (data.full_story) fields.step_6_full_story = data.full_story;
 
+  if (Object.keys(fields).length === 0) return;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
 
-  const { data: existing } = await (supabase.from("storytelling") as any)
-    .select("id, step_1_raw, step_2_location, step_3_action, step_4_thoughts, step_5_emotions, step_6_full_story")
-    .eq(filterCol, filterVal)
-    .eq("is_primary", true)
-    .limit(1)
-    .maybeSingle();
+  const existing = importTarget(await readImportRows("storytelling", { column: filterCol, value: filterVal, userId }), true);
 
   if (existing?.id) {
-    const toWrite = fillOnlyEmpty(fields, existing, overwrite);
-    if (Object.keys(toWrite).length === 0) return; // rien à compléter
-    await writeOrThrow((supabase.from("storytelling") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "storytelling.update");
+    const toWrite = fillOnlyEmpty(fields, existing, false);
+    if (data.full_story && overwrite) toWrite.step_7_polished = data.full_story;
+    if (Object.keys(toWrite).length > 0) {
+      await writeOrThrow((supabase.from("storytelling") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "storytelling.update");
+    }
   } else {
     await writeOrThrow((supabase.from("storytelling") as any).insert({
       user_id: userId,
-      workspace_id: workspaceId || null,
+      workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
       is_primary: true,
       title: "Mon histoire fondatrice",
       story_type: "fondatrice",
@@ -522,15 +526,11 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
   if (data.channels?.length) fields.channels = data.channels;
   if (data.brands_they_follow?.length) fields.step_4_inspiring = data.brands_they_follow.join(", ");
 
+  if (Object.keys(fields).length === 0) return;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
 
-  const { data: existing } = await (supabase.from("persona") as any)
-    .select("id, portrait, portrait_prenom, description, step_1_frustrations, step_2_transformation, step_3a_objections, step_4_beautiful, step_5_actions, channels, step_4_inspiring")
-    .eq(filterCol, filterVal)
-    .eq("is_primary", true)
-    .limit(1)
-    .maybeSingle();
+  const existing = importTarget(await readImportRows("persona", { column: filterCol, value: filterVal, userId }), true);
 
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, overwrite);
@@ -559,7 +559,7 @@ async function savePersona(data: AnalysisResult["persona"], userId: string, work
     if (Object.keys(qui).length > 0) fields.portrait = { qui_elle_est: qui };
     await writeOrThrow((supabase.from("persona") as any).insert({
       user_id: userId,
-      workspace_id: workspaceId || null,
+      workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
       is_primary: true,
       updated_at: new Date().toISOString(),
       ...fields,
@@ -579,27 +579,32 @@ async function saveValueProp(data: AnalysisResult["value_proposition"], userId: 
   // toute version_final déjà rédigée par l'utilisatrice.
   if (data.key_phrase) { fields.step_1_what = data.key_phrase; fields.version_one_liner = data.key_phrase; fields.version_final = data.key_phrase; }
   if (data.solution) fields.step_2a_process = data.solution;
-  if (data.differentiator) fields.step_2d_refuse = data.differentiator;
-  if (data.problem) fields.step_3_for_whom = data.problem;
+
+
   // Preuves/témoignages : extraits + affichés mais jamais sauvegardés jusqu'ici.
   // On les range dans step_2c_feedback (« validation reçue » de la proposition).
   if (data.proofs?.length) fields.step_2c_feedback = data.proofs.join("\n");
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  const { data: existing } = await (supabase.from("brand_proposition") as any)
+  const { data: existing, error: readError } = await (supabase.from("brand_proposition") as any)
     .select("id, step_1_what, version_one_liner, version_final, step_2a_process, step_2d_refuse, step_3_for_whom, step_2c_feedback").eq(filterCol, filterVal).maybeSingle();
+  if (readError) throw readError;
+  if (Object.keys(fields).length > 0) {
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, overwrite);
+    if (!isEmptyVal(existing.version_one_liner)) delete toWrite.version_one_liner;
     if (Object.keys(toWrite).length > 0) {
       await writeOrThrow((supabase.from("brand_proposition") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_proposition.update");
     }
   } else {
-    await writeOrThrow((supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields }), "brand_proposition.insert");
+    await writeOrThrow((supabase.from("brand_proposition") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...fields }), "brand_proposition.insert");
+  }
   }
 
   // Le problème principal de la cible est lu par la génération (brand_profile.target_problem)
   // et restait vide — on le complète depuis le problème de la proposition de valeur.
-  if (data.problem) await fillBrandProfileSynthesis({ target_problem: data.problem }, userId, workspaceId, overwrite);
+  if (data.problem) await fillBrandProfileSynthesis({ target_problem: data.problem, value_prop_problem: data.problem }, userId, workspaceId, overwrite);
+  if (data.differentiator) await fillBrandProfileSynthesis({ value_prop_difference: data.differentiator }, userId, workspaceId, overwrite);
   // L'offre (brand_profile.offer) est injectée dans le prompt de génération (section
   // IDENTITÉ) et restait vide — on la complète depuis la solution de la proposition.
   if (data.solution) await fillBrandProfileSynthesis({ offer: data.solution }, userId, workspaceId, overwrite);
@@ -622,16 +627,18 @@ async function saveTone(data: AnalysisResult["tone_style"], userId: string, work
   if (data.target_verbatims) fields.target_verbatims = data.target_verbatims;
   if (data.channels?.length) fields.channels = data.channels;
   if (data.visual_style) fields.visual_style = data.visual_style;
+  if (Object.keys(fields).length === 0) return;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  const { data: existing } = await (supabase.from("brand_profile") as any)
+  const { data: existing, error: readError } = await (supabase.from("brand_profile") as any)
     .select("id, tone_keywords, voice_description, tone_register, tone_level, tone_style, tone_humor, tone_engagement, tone_do, tone_dont, combat_cause, key_expressions, things_to_avoid, target_verbatims, channels, visual_style").eq(filterCol, filterVal).maybeSingle();
+  if (readError) throw readError;
   if (existing?.id) {
     const toWrite = fillOnlyEmpty(fields, existing, overwrite);
     if (Object.keys(toWrite).length === 0) return;
     await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existing.id), "brand_profile.update");
   } else {
-    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.insert");
+    await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...fields }), "brand_profile.insert");
   }
 }
 async function saveStrategy(data: AnalysisResult["content_strategy"], userId: string, workspaceId: string, overwrite = false) {
@@ -644,31 +651,35 @@ async function saveStrategy(data: AnalysisResult["content_strategy"], userId: st
   if (data.pillars?.[2]) stratFields.pillar_minor_2 = data.pillars[2];
   if (data.pillars?.[3]) stratFields.pillar_minor_3 = data.pillars[3]; // 4e pilier (était jeté)
   if (data.creative_twist) stratFields.creative_concept = data.creative_twist;
-  const { data: existingStrat } = await (supabase.from("brand_strategy") as any)
+  const { data: existingStrat, error: readError } = await (supabase.from("brand_strategy") as any)
     .select("id, pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept").eq(filterCol, filterVal).order("updated_at", { ascending: false }).limit(1).maybeSingle();
+  if (readError) throw readError;
+  if (Object.keys(stratFields).length > 0) {
   if (existingStrat?.id) {
     const toWrite = fillOnlyEmpty(stratFields, existingStrat, overwrite);
     if (Object.keys(toWrite).length > 0) {
       await writeOrThrow((supabase.from("brand_strategy") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingStrat.id), "brand_strategy.update");
     }
   } else {
-    await writeOrThrow((supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...stratFields }), "brand_strategy.insert");
+    await writeOrThrow((supabase.from("brand_strategy") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...stratFields }), "brand_strategy.insert");
   }
-  if (data.editorial_line || data.formats?.length) {
+  }
+  if (data.editorial_line || data.formats?.length || data.rhythm || data.pillars?.length) {
     const profileFields: Record<string, any> = {};
     if (data.pillars?.length) profileFields.content_pillars = data.pillars;
     if (data.editorial_line) profileFields.content_editorial_line = data.editorial_line;
     if (data.formats?.length) profileFields.content_formats = data.formats;
     if (data.rhythm) profileFields.content_frequency = data.rhythm;
-    const { data: existingProfile } = await (supabase.from("brand_profile") as any)
+    const { data: existingProfile, error: readError } = await (supabase.from("brand_profile") as any)
       .select("id, content_pillars, content_editorial_line, content_formats, content_frequency").eq(filterCol, filterVal).maybeSingle();
+  if (readError) throw readError;
     if (existingProfile?.id) {
       const toWrite = fillOnlyEmpty(profileFields, existingProfile, overwrite);
       if (Object.keys(toWrite).length > 0) {
         await writeOrThrow((supabase.from("brand_profile") as any).update({ ...toWrite, updated_at: new Date().toISOString() }).eq("id", existingProfile.id), "brand_profile.content.update");
       }
     } else {
-      await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId || null, updated_at: new Date().toISOString(), ...profileFields }), "brand_profile.content.insert");
+      await writeOrThrow((supabase.from("brand_profile") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, updated_at: new Date().toISOString(), ...profileFields }), "brand_profile.content.insert");
     }
   }
 }
@@ -676,34 +687,31 @@ async function saveOffers(data: AnalysisResult["offers"], userId: string, worksp
   if (!data?.offers?.length) return;
   const col = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const val = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  // Check existing offers to avoid duplicates by name
-  const { data: existing } = await (supabase.from("offers") as any).select("name").eq(col, val);
-  const existingNames = new Set((existing || []).map((o: any) => (o.name || "").toLowerCase().trim()));
-
-  for (const offer of data.offers) {
-    const normalizedName = (offer.name || "Offre").toLowerCase().trim();
-    if (existingNames.has(normalizedName)) continue; // Skip duplicates
-    const { error } = await (supabase.from("offers") as any).insert({
+  const existing = await readImportRows("offers", { column: col, value: val, userId });
+  const names = new Set(existing.map(o => (o.name || "").toLocaleLowerCase().trim()));
+  const payload = data.offers.map(offer => {
+    const name = offer.name?.trim();
+    if (!name) throw new Error("Donne un nom à chaque offre avant de valider.");
+    const normalized = name.toLocaleLowerCase();
+    if (names.has(normalized)) throw new Error(`Une offre « ${name} » existe déjà. Renomme la nouvelle offre ou retire-la de cet import pour conserver la fiche existante.`);
+    names.add(normalized);
+    return {
       user_id: userId,
-      workspace_id: workspaceId || null,
-      name: offer.name || "Offre",
+      workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null,
+      name,
       offer_type: "paid",
       price_text: offer.price || null,
       description_short: offer.description || null,
       target_ideal: offer.target || null,
       promise: offer.promise || null,
-    });
-    if (error) {
-      console.error("Error saving offer:", offer.name, error);
-      throw error;
-    }
-    existingNames.add(normalizedName);
-  }
+    };
+  });
+  await writeOrThrow((supabase.from("offers") as any).insert(payload), "offers.insert");
 }
 
 async function saveCharter(data: AnalysisResult["charter"], userId: string, workspaceId: string, overwrite = false) {
   if (!data) return;
-  const payload: Record<string, any> = { updated_at: new Date().toISOString() };
+  const payload: Record<string, any> = {};
   if (data.color_primary) payload.color_primary = data.color_primary;
   if (data.color_secondary) payload.color_secondary = data.color_secondary;
   if (data.color_accent) payload.color_accent = data.color_accent;
@@ -714,12 +722,15 @@ async function saveCharter(data: AnalysisResult["charter"], userId: string, work
   if (data.visual_style_description) payload.moodboard_description = data.visual_style_description;
   const filterCol = workspaceId && workspaceId !== userId ? "workspace_id" : "user_id";
   const filterVal = workspaceId && workspaceId !== userId ? workspaceId : userId;
-  const { data: existing } = await (supabase.from("brand_charter") as any)
-    .select("id").eq(filterCol, filterVal).maybeSingle();
+  if (Object.keys(payload).length === 0) return;
+  const { data: existing, error: readError } = await (supabase.from("brand_charter") as any)
+    .select("*").eq(filterCol, filterVal).maybeSingle();
+  if (readError) throw readError;
   if (existing?.id) {
-    await writeOrThrow((supabase.from("brand_charter") as any).update(payload).eq("id", existing.id), "brand_charter.update");
+    const toWrite = fillOnlyEmpty(payload, existing, overwrite);
+    await writeOrThrow((supabase.from("brand_charter") as any).update(toWrite).eq("id", existing.id), "brand_charter.update");
   } else {
-    await writeOrThrow((supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: workspaceId || null, ...payload }), "brand_charter.insert");
+    await writeOrThrow((supabase.from("brand_charter") as any).insert({ user_id: userId, workspace_id: workspaceId && workspaceId !== userId ? workspaceId : null, ...payload }), "brand_charter.insert");
   }
 }
 
@@ -728,7 +739,7 @@ const SAVE_FNS: Record<SectionKey, (data: any, uid: string, wsId: string, overwr
 };
 
 const QUERY_KEYS: Record<SectionKey, string[]> = {
-  story: ["storytelling-primary", "storytelling-list", "brand-profile"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition", "brand-profile"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["brand-profile"], charter: ["brand-charter"],
+  story: ["storytelling-primary", "storytelling-list", "brand-profile"], persona: ["persona", "brand-profile"], value_proposition: ["brand-proposition", "brand-profile"], tone_style: ["brand-profile"], content_strategy: ["brand-strategy", "brand-profile"], offers: ["offers", "brand-profile"], charter: ["brand-charter"],
 };
 
 const RENDERERS: Record<SectionKey, (analysis: AnalysisResult) => React.ReactNode> = {
@@ -743,21 +754,23 @@ function sectionHasData(key: SectionKey, analysis: AnalysisResult): boolean {
 }
 
 // ─── Main Component ──────────────────────────────────────────
-export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, preFilledSections, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false, mandatory = false }: Props) {
+export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFailed = [], onDone, onProgress, preFilledSections, onReanalyzeWithBio, onDescribeProject, allSourcesFailed = false, mandatory = false }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
 
-  const [validated, setValidated] = useState<Set<SectionKey>>(() => {
-    // Pre-fill validated for already-completed sections
-    const initial = new Set<SectionKey>();
-    if (preFilledSections) {
-      for (const s of preFilledSections) {
-        if (SECTIONS.some(sec => sec.key === s)) initial.add(s as SectionKey);
-      }
-    }
-    return initial;
-  });
+  const [validated, setValidated] = useState<Set<SectionKey>>(() => new Set(
+    SECTIONS.filter(s => analysis.reviewed_sections?.includes(s.key)).map(s => s.key),
+  ));
+  const validatedRef = useRef(validated);
+  const written = useRef(new Set<SectionKey>());
+  const savingRef = useRef(false);
+  const markValidated = useCallback(async (key: SectionKey) => {
+    const next = new Set(validatedRef.current).add(key);
+    await onProgress?.([...next]);
+    validatedRef.current = next;
+    setValidated(next);
+  }, [onProgress]);
   const [savingSection, setSavingSection] = useState<SectionKey | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
   const [coachingSection, setCoachingSection] = useState<SectionKey | null>(null);
@@ -857,11 +870,14 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   }, []);
 
   // « Garder tel quel » : on valide sans rien réécrire (l'existant prime).
-  const handleKeepAsIs = useCallback((key: SectionKey) => {
-    setValidated((prev) => new Set(prev).add(key));
-    clearToReview(key);
-    goNext();
-  }, [clearToReview, goNext]);
+  const handleKeepAsIs = useCallback(async (key: SectionKey) => {
+    if (savingRef.current) return;
+    savingRef.current = true;
+    setSavingSection(key);
+    try { await markValidated(key); clearToReview(key); goNext(); }
+    catch { toast.error("Impossible d’enregistrer ta relecture. Réessaie."); }
+    finally { savingRef.current = false; setSavingSection(null); }
+  }, [markValidated, clearToReview, goNext]);
 
   // « À revoir » : on ne jette rien — la section est mise de côté et rappelée
   // sur la carte de fin, avec le lien pour y revenir.
@@ -871,7 +887,8 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
   }, [goNext]);
 
   const handleValidate = useCallback(async (key: SectionKey) => {
-    if (!user?.id) return;
+    if (!user?.id || savingRef.current) return;
+    savingRef.current = true;
     setSavingSection(key);
     try {
       const dataToSave = key === "offers" ? { ...analysis.offers, offers: editedOffers }
@@ -880,9 +897,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       // `allow_overwrite` est posé par diagnostic-enrichment quand la reprise
       // d'onboarding a été confirmée à l'écran : dans ce cas seulement, ce que
       // la personne valide ici écrase ce qui était en place.
-      await SAVE_FNS[key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
+      if (!written.current.has(key)) {
+        await SAVE_FNS[key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
+        written.current.add(key);
+      }
       for (const qk of QUERY_KEYS[key]) queryClient.invalidateQueries({ queryKey: [qk] });
-      setValidated((prev) => new Set(prev).add(key));
+      await markValidated(key);
       clearToReview(key);
       toast.success("Section sauvegardée ✓");
       logEvent("section_validated");
@@ -893,11 +913,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
       goNext();
     } catch (e) {
       console.error("Save error:", e);
-      toast.error("Erreur lors de la sauvegarde");
+      toast.error(e instanceof Error ? e.message : "Erreur lors de la sauvegarde");
     } finally {
+      savingRef.current = false;
       setSavingSection(null);
     }
-  }, [user?.id, workspaceId, analysis, editedOffers, editedCharter, validated.size, queryClient, preFilledSections, logEvent, clearToReview, goNext]);
+  }, [user?.id, workspaceId, analysis, editedOffers, editedCharter, validated.size, queryClient, preFilledSections, logEvent, clearToReview, goNext, markValidated]);
 
   /* « Je valide tout » : le raccourci pour qui fait confiance à l'analyse.
      On enregistre section par section (les save* écrivent dans 7 tables
@@ -905,9 +926,11 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
      échoué — on ramène alors la carte fautive à l'écran. Une section vide est
      marquée validée sans écriture : les save* sortent tôt sur données nulles. */
   const handleValidateAll = useCallback(async () => {
-    if (!user?.id || validatingAll) return;
+    if (!user?.id || savingRef.current) return;
+    savingRef.current = true;
     setValidatingAll(true);
     const failed: SectionKey[] = [];
+    const reasons: string[] = [];
     try {
       for (const sec of SECTIONS) {
         if (validated.has(sec.key)) continue;
@@ -915,19 +938,23 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           : sec.key === "charter" ? editedCharter
           : analysis[sec.key];
         try {
-          await SAVE_FNS[sec.key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
+          if (!written.current.has(sec.key)) {
+            await SAVE_FNS[sec.key](dataToSave, user.id, workspaceId, analysis.allow_overwrite === true);
+            written.current.add(sec.key);
+          }
           for (const qk of QUERY_KEYS[sec.key]) queryClient.invalidateQueries({ queryKey: [qk] });
-          setValidated((prev) => new Set(prev).add(sec.key));
+          await markValidated(sec.key);
           clearToReview(sec.key);
         } catch (e) {
           console.error("[valider tout]", sec.key, e);
           failed.push(sec.key);
+          if (e instanceof Error) reasons.push(e.message);
         }
       }
       logEvent("branding_validate_all", { failed: failed.length });
       if (failed.length > 0) {
         const labels = failed.map((k) => SECTIONS.find((s) => s.key === k)?.title || k).join(", ");
-        toast.error(`Je n'ai pas réussi à enregistrer : ${labels}. Reprends ${failed.length > 1 ? "ces cartes" : "cette carte"} une par une.`);
+        toast.error(`Je n'ai pas réussi à enregistrer : ${labels}. Reprends ${failed.length > 1 ? "ces cartes" : "cette carte"} une par une. ${reasons[0] || ""}`);
         setIndex(SECTIONS.findIndex((s) => s.key === failed[0]));
       } else {
         setShowConfetti(true);
@@ -936,9 +963,10 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         setIndex(total);
       }
     } finally {
+      savingRef.current = false;
       setValidatingAll(false);
     }
-  }, [user?.id, validatingAll, validated, analysis, editedOffers, editedCharter, workspaceId, queryClient, clearToReview, logEvent, total]);
+  }, [user?.id, validatingAll, validated, analysis, editedOffers, editedCharter, workspaceId, queryClient, clearToReview, logEvent, total, markValidated]);
 
   const overallConf = analysis.overall_confidence || "medium";
   const confMessages: Record<string, { emoji: string; text: string }> = {
@@ -977,7 +1005,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           {!allDone && (
             <button
               onClick={handleValidateAll}
-              disabled={validatingAll}
+              disabled={validatingAll || !!savingSection}
               className="inline-flex items-center justify-center gap-1.5 bg-primary text-white rounded-pill px-4 py-2 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 shrink-0 self-start"
             >
               {validatingAll ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
@@ -986,12 +1014,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           )}
         </div>
         <p className="font-mono-ui text-sm text-muted-foreground mb-4 leading-relaxed">
-          J'ai analysé {subtitleSources}. Une carte par morceau de ta marque : tu valides, ou tu mets de côté pour y revenir.
+          {sourceLabels.length > 0 ? `J’ai analysé ${subtitleSources}.` : 'Voici les informations à relire.'} Une carte par morceau de ta marque : tu valides, ou tu mets de côté pour y revenir.
         </p>
 
         {hasPreFilled && (
           <p className="font-mono-ui text-sm text-success bg-success-bg border border-success/30 rounded-[12px] px-3 py-2 mb-3">
-            ✅ J'ai gardé ce que tu avais déjà rempli et j'ai complété le reste.
+            ✅ Tes informations existantes sont conservées. Les suggestions attendent ta validation.
           </p>
         )}
 
@@ -1054,8 +1082,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               section={COACHING_SECTION_MAP[coachingSection] as any}
               autofillData={analysis[coachingSection]}
               autofillConfidence={getConfidence(analysis[coachingSection])}
-              onComplete={() => {
-                setValidated((prev) => new Set(prev).add(coachingSection));
+              onComplete={async () => {
+                if (savingRef.current) return;
+                savingRef.current = true;
+                try {
+                  written.current.add(coachingSection);
+                  await markValidated(coachingSection);
                 setRefinedSections((prev) => new Set(prev).add(coachingSection));
                 for (const qk of QUERY_KEYS[coachingSection]) queryClient.invalidateQueries({ queryKey: [qk] });
                 clearToReview(coachingSection);
@@ -1064,6 +1096,8 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                 logEvent("section_validated");
                 if (validated.size === 6) { setShowConfetti(true); setTimeout(() => setShowConfetti(false), 4000); }
                 goNext();
+                } catch { toast.error("La section est enregistrée, mais sa relecture n’a pas pu être confirmée. Réessaie."); }
+                finally { savingRef.current = false; }
               }}
               onBack={() => setCoachingSection(null)}
             />
@@ -1236,11 +1270,11 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
           <div className="bg-card rounded-[20px] shadow-card border border-border p-6 sm:p-8 text-center animate-in fade-in duration-300">
             <div className="text-3xl mb-2">{done ? "🎉" : "📝"}</div>
             <h2 className="font-display text-2xl text-foreground mb-2" style={{ fontWeight: 400 }}>
-              {done ? "Ta marque est prête" : "Il reste des cartes sans réponse"}
+              {done ? "Ta relecture est terminée" : "Il reste des cartes sans réponse"}
             </h2>
             <p className="text-sm text-muted-foreground mb-5 max-w-md mx-auto leading-relaxed">
               {done
-                ? "Tout est enregistré. C'est cette fiche que j'utilise pour écrire à ta place : tu pourras la retoucher quand tu veux depuis ton Branding."
+                ? "Tes choix sont enregistrés. Les informations manquantes restent à compléter quand tu en as besoin depuis ton Branding."
                 : `${pending.length} carte${pending.length > 1 ? "s attendent" : " attend"} encore ta réponse. Reprends-${pending.length > 1 ? "les" : "la"} une par une, ou valide tout d'un coup si l'analyse te convient.`}
             </p>
 
@@ -1261,12 +1295,12 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
 
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               {done ? (
-                <button onClick={onDone} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
+                <button onClick={() => onDone(true)} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg">
                   {mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
                 </button>
               ) : (
                 <>
-                  <button onClick={handleValidateAll} disabled={validatingAll} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
+                  <button onClick={handleValidateAll} disabled={validatingAll || !!savingSection} className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-2.5 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50">
                     {validatingAll ? <Spinner className="h-4 w-4 text-white" /> : <CheckCircle2 className="h-4 w-4" />}
                     Valider tout le reste
                   </button>
@@ -1290,7 +1324,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
               </span>
               <div className="flex items-center gap-3 shrink-0">
                 {allDone ? (
-                  <button onClick={onDone} className="text-sm font-semibold text-primary-text hover:underline whitespace-nowrap">
+                  <button onClick={() => onDone(true)} className="text-sm font-semibold text-primary-text hover:underline whitespace-nowrap">
                     {mandatory ? "Créer mon premier contenu →" : "Voir mon branding complet →"}
                   </button>
                 ) : (
@@ -1298,7 +1332,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                     {/* Le raccourci demandé : tout valider d'un coup, sans parcourir les 7 cartes. */}
                     <button
                       onClick={handleValidateAll}
-                      disabled={validatingAll}
+                      disabled={validatingAll || !!savingSection}
                       className="inline-flex items-center gap-1.5 bg-primary text-white rounded-pill px-4 py-1.5 text-xs font-semibold transition-all hover:scale-[1.02] hover:shadow-lg disabled:opacity-50 whitespace-nowrap"
                     >
                       {validatingAll ? <Spinner className="h-3.5 w-3.5 text-white" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
@@ -1309,7 +1343,7 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                         l'onboarding (mandatory), valider sa fiche EST l'étape. */}
                     {!mandatory && (
                       <button
-                        onClick={onDone}
+                        onClick={() => onDone(false)}
                         className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
                         title="Les cartes validées sont gardées ; tu pourras finir le reste depuis ta page branding."
                       >

@@ -1,9 +1,11 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { useQueryClient } from "@tanstack/react-query";
+import { readImportRows, importTarget, saveImportRow } from "@/lib/branding-import-persistence";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { extractTextFromFile, ACCEPTED_MIME_TYPES } from "@/lib/file-extractors";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -50,6 +52,8 @@ export default function BrandingImportDialog({
   const [saving, setSaving] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const workspaceId = useWorkspaceId();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const reset = () => {
     setStep("input");
@@ -59,6 +63,8 @@ export default function BrandingImportDialog({
     setChecked({});
     setEditedValues({});
   };
+
+  useEffect(() => { reset(); }, [filterColumn, filterValue]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -102,7 +108,7 @@ export default function BrandingImportDialog({
       const initialEdited: Record<string, string> = {};
       for (const f of fields) {
         if (result[f.key] && result[f.key] !== null) {
-          initialChecked[f.key] = true;
+          initialChecked[f.key] = !existingData?.[f.key];
           initialEdited[f.key] = result[f.key]!;
         }
       }
@@ -119,7 +125,7 @@ export default function BrandingImportDialog({
     if (saving) return;
     const updates: Record<string, string> = {};
     for (const [key, isChecked] of Object.entries(checked)) {
-      if (isChecked && editedValues[key]) {
+      if (isChecked && fields.some(f => f.key === key) && editedValues[key]?.trim()) {
         updates[key] = editedValues[key];
       }
     }
@@ -131,14 +137,14 @@ export default function BrandingImportDialog({
 
     setSaving(true);
     try {
-      const { error } = await (supabase.from(sectionTable as any) as any)
-        .update(updates)
-        .eq(filterColumn, filterValue);
-
-      if (error) throw error;
-
+      const scope = { column: filterColumn, value: filterValue, userId: user?.id || "" };
+      const target = existingData?.id ? existingData : importTarget(await readImportRows(sectionTable, scope));
+      const saved = await saveImportRow(sectionTable, scope, target?.id || null, updates);
+      for (const key of ["brand-profile", "persona", "brand-proposition", "brand-strategy", "storytelling-primary", "storytelling-list"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
+      }
       toast.success(`${Object.keys(updates).length} champ(s) importé(s) avec succès !`);
-      onImportDone({ ...existingData, ...updates });
+      onImportDone(saved);
       reset();
       onOpenChange(false);
     } catch (err: any) {
@@ -151,7 +157,7 @@ export default function BrandingImportDialog({
   const filledFields = fields.filter((f) => extracted[f.key] && extracted[f.key] !== null);
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (saving) return; if (!v) reset(); onOpenChange(v); }}>
       <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display">
@@ -220,7 +226,7 @@ export default function BrandingImportDialog({
             ) : (
               <>
                 <p className="text-xs text-muted-foreground">
-                  {filledFields.length} champ(s) détecté(s). Décoche ceux que tu ne veux pas importer.
+                  {filledFields.length} champ(s) détecté(s). Les champs déjà remplis sont conservés par défaut. Coche un champ pour le remplacer.
                 </p>
 
                 <div className="space-y-3 max-h-[50vh] overflow-y-auto pr-1">
@@ -240,6 +246,7 @@ export default function BrandingImportDialog({
                           {f.label}
                         </label>
                       </div>
+                      {existingData?.[f.key] && <p className="text-xs text-muted-foreground whitespace-pre-line">Actuellement : {String(existingData[f.key])}</p>}
                       <Textarea
                         value={editedValues[f.key] || ""}
                         onChange={(e) =>
