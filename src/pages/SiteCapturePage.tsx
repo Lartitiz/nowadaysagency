@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import BrandingStatusBanner from "@/components/content/BrandingStatusBanner";
@@ -13,40 +13,71 @@ import { toast } from "sonner";
 import RedFlagsChecker from "@/components/RedFlagsChecker";
 import { friendlyError } from "@/lib/error-messages";
 
+interface CaptureResult {
+  title: string;
+  subtitle?: string;
+  bullets?: string[];
+  cta_text?: string;
+  micro_copy?: string;
+}
+
+interface CaptureDraft {
+  leadName: string;
+  leadDesc: string;
+  result: CaptureResult | null;
+}
+
+function readDraft(workspaceId: string): CaptureDraft {
+  const empty = { leadName: "", leadDesc: "", result: null };
+  if (!workspaceId) return empty;
+  try {
+    const saved = JSON.parse(localStorage.getItem(`capture-page:${workspaceId}`) || "null");
+    return {
+      leadName: typeof saved?.leadName === "string" ? saved.leadName : "",
+      leadDesc: typeof saved?.leadDesc === "string" ? saved.leadDesc : "",
+      result: saved?.result && typeof saved.result.title === "string" ? saved.result : null,
+    };
+  } catch {
+    // Un cache illisible n'est pas effacé ni réécrit au chargement.
+    return empty;
+  }
+}
+
 export default function SiteCapturePage() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const [leadName, setLeadName] = useState("");
-  const [leadDesc, setLeadDesc] = useState("");
+  const ready = useWorkspaceReady();
+  const scope = ready && user ? workspaceId : "";
+  // Chaque visite possède son état et ses callbacks, y compris A → B → A.
+  return <WorkspaceCapturePage key={JSON.stringify([user?.id, scope])} workspaceId={scope} />;
+}
+
+function WorkspaceCapturePage({ workspaceId }: { workspaceId: string }) {
+  // La lecture précède toute sauvegarde : aucun rendu de A ne peut écrire dans B.
+  const [draft, setDraft] = useState(() => readDraft(workspaceId));
+  const [dirty, setDirty] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const active = useRef(false);
+  const request = useRef(0);
+  const { leadName, leadDesc, result } = draft;
 
-  // Persistance locale (scopée workspace) : la page de capture générée n'a pas de table
-  // dédiée → sans ça, elle disparaît au refresh. On réhydrate au montage et on
-  // sauvegarde à chaque changement de résultat (génération OU correction RedFlags).
-  const storageKey = `capture-page:${workspaceId ?? "default"}`;
+  useLayoutEffect(() => {
+    active.current = true;
+    return () => { active.current = false; request.current += 1; };
+  }, []);
 
-  useEffect(() => {
-    if (!workspaceId) return;
-    try {
-      const saved = localStorage.getItem(`capture-page:${workspaceId}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed?.result) {
-          setResult(parsed.result);
-          if (parsed.leadName) setLeadName(parsed.leadName);
-          if (parsed.leadDesc) setLeadDesc(parsed.leadDesc);
-        }
-      }
-    } catch { /* cache corrompu : on ignore */ }
-  }, [workspaceId]);
+  const updateDraft = (patch: Partial<CaptureDraft>) => {
+    if (!active.current) return;
+    setDraft(current => ({ ...current, ...patch }));
+    setDirty(true);
+  };
 
   useEffect(() => {
-    if (!workspaceId || !result) return;
+    if (!workspaceId || !dirty) return;
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ result, leadName, leadDesc }));
+      localStorage.setItem(`capture-page:${workspaceId}`, JSON.stringify(draft));
     } catch { /* quota localStorage plein : non bloquant */ }
-  }, [result, workspaceId]);
+  }, [draft, dirty, workspaceId]);
 
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
@@ -54,21 +85,27 @@ export default function SiteCapturePage() {
   };
 
   const generate = async () => {
-    if (!user) return;
+    if (!workspaceId || loading) return;
+    const generation = ++request.current;
+    const isCurrent = () => active.current && request.current === generation;
     setLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("website-ai", {
         body: { action: "capture-page", lead_magnet_name: leadName, lead_magnet_description: leadDesc, workspace_id: workspaceId },
       }, 90000);
+      if (!isCurrent()) return;
       if (error) throw new Error(error.message);
       const raw = data?.content || "";
       const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-      setResult(JSON.parse(cleaned));
-    } catch (e: any) {
+      const generated = JSON.parse(cleaned);
+      if (!generated || typeof generated.title !== "string") throw new Error("Réponse de génération invalide");
+      updateDraft({ result: generated });
+    } catch (e: unknown) {
+      if (!isCurrent()) return;
       console.error("Erreur technique:", e);
       toast.error(friendlyError(e));
     } finally {
-      setLoading(false);
+      if (isCurrent()) setLoading(false);
     }
   };
 
@@ -90,13 +127,13 @@ export default function SiteCapturePage() {
           <div className="space-y-4">
             <div>
               <label className="text-sm font-semibold block mb-1">Nom du lead magnet</label>
-              <Input value={leadName} onChange={(e) => setLeadName(e.target.value)} placeholder="Ex : Le guide de la com' éthique en 7 étapes" />
+              <Input value={leadName} onChange={(e) => updateDraft({ leadName: e.target.value })} placeholder="Ex : Le guide de la com' éthique en 7 étapes" />
             </div>
             <div>
               <label className="text-sm font-semibold block mb-1">Description (ce qu'il contient)</label>
-              <Textarea className="min-h-[80px]" value={leadDesc} onChange={(e) => setLeadDesc(e.target.value)} placeholder="7 étapes concrètes pour rendre ta marque visible sans marketing agressif..." />
+              <Textarea className="min-h-[80px]" value={leadDesc} onChange={(e) => updateDraft({ leadDesc: e.target.value })} placeholder="7 étapes concrètes pour rendre ta marque visible sans marketing agressif..." />
             </div>
-            <Button onClick={generate} disabled={loading || !leadName.trim()}>
+            <Button onClick={generate} disabled={!workspaceId || loading || !leadName.trim()}>
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Sparkles className="h-4 w-4 mr-2" />}
               {loading ? "Génération..." : "Générer ma page de capture"}
             </Button>
@@ -110,7 +147,7 @@ export default function SiteCapturePage() {
               <p className="font-mono-ui text-2xs font-semibold text-primary mb-1">🎯 TITRE</p>
               <p className="text-xl font-bold text-foreground">{result.title}</p>
               {result.subtitle && <p className="text-sm text-muted-foreground mt-1">{result.subtitle}</p>}
-              <RedFlagsChecker content={result.title} onFix={(fixed) => setResult({ ...result, title: fixed })} />
+              <RedFlagsChecker content={result.title} onFix={(fixed) => updateDraft({ result: { ...result, title: fixed } })} />
             </div>
 
             {/* Bullets */}
