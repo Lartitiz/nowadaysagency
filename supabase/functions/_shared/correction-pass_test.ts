@@ -175,3 +175,14 @@ Deno.test("newsletter : une enveloppe Markdown ne fuit jamais dans le dernier ch
   assertEquals(reinjectNewsletterTexts(draft, "```text\n" + block + "\n```"), draft);
   assertEquals(reinjectNewsletterTexts(draft, block.replace("Voir le produit", "Découvrir le porte-savon") + "\n```"), { ...draft, cta_suggestion: "Découvrir le porte-savon" });
 });
+
+import { unwrapCorrectionOutput } from "./correction-pass.ts";
+
+Deno.test("relecture : retire les enveloppes techniques complètes et préserve les citations internes", () => {
+  const text = 'Elle appelle cet objet « mon porte-savon ». Le client dit "merci".';
+  assertEquals(unwrapCorrectionOutput('"""\n' + text + '\n"""'), text);
+  assertEquals(unwrapCorrectionOutput('```text\n' + text + '\n```'), text);
+  assertEquals(unwrapCorrectionOutput(text), text);
+  assertEquals(unwrapCorrectionOutput('Une citation """ au milieu.'), 'Une citation """ au milieu.');
+  assertEquals(unwrapCorrectionOutput('[STORY 1 - TEXT] ' + text), '[STORY 1 - TEXT] ' + text);
+});
