@@ -1981,8 +1981,8 @@ Réponds UNIQUEMENT en JSON :
     : `Voici le post LinkedIn à corriger :\n\n"""\n${postText}\n"""`;
   const correctedRaw = await callAnthropicSimple(
     "claude-haiku-4-5",
-    correctionPrompt,
-    correctionUserMsg,
+    correctionPrompt + CONTENT_CLARITY_RULES,
+    claritySourceBlock([body.news_context, body.context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n")) + correctionUserMsg,
     0.3,
     4096,
     corrLkUsage,
@@ -2113,6 +2113,7 @@ async function runNewsletterTwoStep(params: {
         format: "newsletter",
         correction: {
           logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+          sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n"),
           // Édition mécanique à règles fermées → Haiku (cf. #364)
           model: "claude-haiku-4-5",
           abortTimeoutMs: CORRECTION_ABORT_MS,

@@ -3,7 +3,36 @@
 // mots (« je l'aitrouvé commeça ») : keepUnlessRealEdit rejette toute
 // « correction » qui ne diffère de l'original que par des espaces.
 import { assertEquals } from "https://deno.land/std@0.208.0/assert/mod.ts";
-import { keepUnlessRealEdit } from "./correction-pass.ts";
+import { keepUnlessRealEdit, applyCorrectionPass } from "./correction-pass.ts";
+
+Deno.test("correction newsletter : transmet la source et le brouillon au même appel", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalKey = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
+  let payload: any;
+  globalThis.fetch = ((_input: unknown, init?: RequestInit) => {
+    payload = JSON.parse(String(init?.body));
+    return Promise.resolve(new Response(JSON.stringify({
+      content: [{ type: "text", text: "La tasse est fabriquée après la réservation." }],
+      usage: { input_tokens: 1, output_tokens: 1 }, stop_reason: "end_turn",
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+  }) as typeof fetch;
+  try {
+    const result = await applyCorrectionPass("L'atelier attend un nombre minimum de réservations.", "newsletter", {
+      skipIfShorterThan: 1,
+      sourceContext: "La tasse est fabriquée après réservation. Aucun minimum n'est indiqué.",
+    });
+    assertEquals(result, "La tasse est fabriquée après la réservation.");
+    const userMessage = JSON.stringify(payload.messages);
+    assertEquals(userMessage.includes("Aucun minimum n'est indiqué"), true);
+    assertEquals(userMessage.includes("attend un nombre minimum"), true);
+    assertEquals(JSON.stringify(payload.system).includes("COMPRÉHENSION DU SUJET"), true);
+  } finally {
+    globalThis.fetch = originalFetch;
+    if (originalKey === undefined) Deno.env.delete("ANTHROPIC_API_KEY");
+    else Deno.env.set("ANTHROPIC_API_KEY", originalKey);
+  }
+});
 
 Deno.test("keepUnlessRealEdit : espaces avalés → original conservé", () => {
   const original = "je l'ai trouvé comme ça";
