@@ -107,13 +107,13 @@ export default function PublishOrScheduleDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Quand publier ce contenu ?</DialogTitle>
+          <DialogTitle>{channel ? "Publier ou garder au calendrier" : "Garder ce contenu au calendrier"}</DialogTitle>
         </DialogHeader>
         <div className="space-y-2 py-1">
           {channel && (
             <>
               <p className="text-xs font-medium text-muted-foreground px-1">
-                Ça part tout seul sur {channelLabel}
+                Publication automatique sur {channelLabel}
               </p>
               {/* 1. Maintenant */}
               <button
@@ -203,6 +203,7 @@ export default function PublishOrScheduleDialog({
               {mode === "schedule" && !blockedReason && (
                 <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
                   <Input
+                    aria-label="Date et heure de publication"
                     type="datetime-local"
                     value={scheduleInput}
                     onChange={(e) => setScheduleInput(e.target.value)}
@@ -244,16 +245,17 @@ export default function PublishOrScheduleDialog({
             <FileEdit className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-foreground">
-                Brouillon (à publier toi-même)
+                Garder au calendrier (sans publication)
               </span>
               <span className="block text-xs text-muted-foreground">
-                Posé sur une date, mais rien ne part tout seul
+                Un rappel daté. Tu publieras ou enverras ce contenu toi-même.
               </span>
             </span>
           </button>
           {mode === "draft" && (
             <div className="rounded-xl bg-muted/40 p-3 space-y-2 animate-fade-in">
               <Input
+                aria-label="Date du rappel au calendrier"
                 type="date"
                 value={draftDate}
                 onChange={(e) => setDraftDate(e.target.value)}
@@ -273,8 +275,7 @@ export default function PublishOrScheduleDialog({
 
           {!channel && (
             <p className="text-xs text-muted-foreground px-1">
-              La publication automatique n'est pas disponible pour ce format — ajoute-le au
-              calendrier, puis publie-le depuis son réseau.
+              {canal === "newsletter" ? "Ta newsletter sera conservée à cette date. L’envoi se fait depuis ton outil d’emailing." : "Ce format sera conservé à cette date. La publication se fait depuis son réseau."}
             </p>
           )}
         </div>

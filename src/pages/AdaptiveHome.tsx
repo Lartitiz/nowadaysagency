@@ -858,7 +858,7 @@ export default function AdaptiveHome() {
               </>
             ) : (
               <p className="text-sm text-muted-foreground mb-3">
-                Rien de prévu pour l'instant. Donne une date à un contenu prêt : il partira à ta place.
+                Rien de prévu pour l'instant. Choisis un contenu prêt, puis programme sa publication ou garde-le comme rappel dans ton calendrier.
               </p>
             )}
             <button

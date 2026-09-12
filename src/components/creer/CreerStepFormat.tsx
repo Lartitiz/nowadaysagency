@@ -1,3 +1,5 @@
+import CarouselModePicker from "./CarouselModePicker";
+import { recommendContentFormat } from "@/lib/format-recommendation";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -71,7 +73,9 @@ interface Props {
   // Canal imposé par l'URL (?canal=) — pré-sélectionne ce canal même si un brouillon
   // d'un autre canal a été restauré. Null = aucun forçage (comportement normal).
   forcedChannel?: ChannelId | null;
+  onChannelChange?: (channel: ChannelId | null) => void;
   initialFormat?: string;
+  initialChannel?: ChannelId;
   initialCarouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
   initialSlideLength?: SlideLength;
   suggestedFormat?: string;
@@ -85,23 +89,23 @@ interface Props {
   // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
   // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
   // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
-  onSelectionChange?: (sel: { format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null }) => void;
+  onSelectionChange?: (sel: { channel: ChannelId | null; format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null }) => void;
   onBack: () => void;
 }
 
-export default function CreerStepFormat({ idea, objective, forcedChannel, initialFormat, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack }: Props) {
+export default function CreerStepFormat({ idea, objective, forcedChannel, onChannelChange, initialFormat, initialChannel, initialCarouselSubMode, initialSlideLength, suggestedFormat, initialPhotos, initialPhotoDescription, newsjackingActive, onNext, onSelectionChange, onBack }: Props) {
   // Pré-sélection du canal : on déduit du format déjà choisi, sinon du format
   // suggéré par le newsjacking. Évite de juxtaposer « L'IA suggère : Carrousel »
   // (un format) avec « Sur quel canal publier ? » (un canal) — la suggestion
   // s'affiche alors DANS le bon canal, plus de confusion format/canal.
   // Un canal forcé (?canal=) prime sur le canal déduit d'un format restauré.
   const [selectedChannel, setSelectedChannel] = useState<ChannelId | null>(
-    forcedChannel ?? (initialFormat ? deduceChannel(initialFormat) : suggestedFormat ? deduceChannel(suggestedFormat) : null)
+    forcedChannel ?? initialChannel ?? (initialFormat ? deduceChannel(initialFormat) : suggestedFormat ? deduceChannel(suggestedFormat) : null)
   );
   // Si le canal forcé diffère du format restauré, on repart sans format (l'utilisateur
   // choisit le format DANS le bon canal).
   const [selectedFormat, setSelectedFormat] = useState<string | null>(
-    forcedChannel && initialFormat && deduceChannel(initialFormat) !== forcedChannel ? null : (initialFormat || null)
+    forcedChannel && initialFormat && (initialChannel || deduceChannel(initialFormat)) !== forcedChannel ? null : (initialFormat || (forcedChannel === "newsletter" ? "newsletter" : null))
   );
   const [selectedAngle, setSelectedAngle] = useState<string | undefined>(undefined);
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(initialCarouselSubMode ?? null);
@@ -140,8 +144,8 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
   useEffect(() => {
-    onSelectionChangeRef.current?.({ format: selectedFormat, carouselSubMode });
-  }, [selectedFormat, carouselSubMode]);
+    onSelectionChangeRef.current?.({ channel: selectedChannel, format: selectedFormat, carouselSubMode });
+  }, [selectedChannel, selectedFormat, carouselSubMode]);
   // Quitter le sous-mode mixte annule la fourche texte-d'abord (elle ne concerne
   // que le mixte hors newsjacking).
   useEffect(() => {
@@ -252,6 +256,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
 
   const handleChannelSelect = (channelId: ChannelId) => {
     setSelectedChannel(channelId);
+    onChannelChange?.(channelId);
     if (channelId === "linkedin") {
       // Don't auto-select format — show sub-mode choice first
       setLinkedinSubMode(null);
@@ -273,6 +278,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
   const handleChangeChannel = () => {
     hasUserChangedFormat.current = false;
     setSelectedChannel(null);
+    onChannelChange?.(null);
     setSelectedFormat(null);
     setSelectedAngle(undefined);
     setCarouselSubMode(null);
@@ -427,7 +433,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
         </div>
       )}
       {/* Newsjacking format suggestion */}
-      {suggestedFormat && !selectedFormat && (
+      {suggestedFormat && !selectedFormat && (!selectedChannel || selectedChannel === deduceChannel(suggestedFormat)) && (
         <div className="rounded-2xl bg-primary/5 border border-primary/10 p-3 flex items-center gap-3">
           <span className="text-lg">📡</span>
           <div className="flex-1">
@@ -523,6 +529,18 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
         </p>
       )}
 
+      {selectedChannel && !selectedFormat && !suggestedFormat && (() => {
+        const recommendation = recommendContentFormat(selectedChannel, initialPhotos?.length || 0, idea);
+        return (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-2">
+            <p className="text-sm font-semibold text-foreground">Pour commencer : {recommendation.label}</p>
+            <p className="text-sm text-muted-foreground">{recommendation.reason}</p>
+            <Button type="button" onClick={() => handleFormatSelect(recommendation.format, { keepCarouselSubMode: recommendation.mode })}>Choisir ce format</Button>
+            <p className="text-xs text-muted-foreground">Ou choisis un autre format ci-dessous.</p>
+          </div>
+        );
+      })()}
+
       {/* LinkedIn sub-mode selection */}
       {selectedChannel === "linkedin" && !selectedFormat && (
         <div className="space-y-3 animate-fade-in">
@@ -543,7 +561,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
               >
                 <span className="text-2xl block mb-1">🎠</span>
                 <span className="text-xs font-semibold text-foreground">Texte design</span>
-                <p className="text-2xs text-muted-foreground mt-0.5">7-10 slides, design auto, .pptx téléchargeable</p>
+                <p className="text-2xs text-muted-foreground mt-0.5">Texte mis en page aux couleurs de ta marque</p>
               </button>
             )}
             <button
@@ -552,7 +570,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
             >
               <span className="text-2xl block mb-1">✨</span>
               <span className="text-xs font-semibold text-foreground">Photos + slides design</span>
-              <p className="text-2xs text-muted-foreground mt-0.5">Alternance photos / slides texte (6-8 slides)</p>
+              <p className="text-2xs text-muted-foreground mt-0.5">Alternance de photos et de slides texte</p>
             </button>
             <button
               onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "photo" }); }}
@@ -731,160 +749,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
         </div>
       )}
 
-      {/* Carousel sub-mode — collapsed chip once chosen, full picker otherwise */}
-      {selectedFormat === "carousel" &&
-        (selectedChannel === "instagram" || selectedChannel === "linkedin") && (
-        carouselSubMode ? (
-          // Collapsed chip — replaces the full picker once a sub-mode is selected
-          (() => {
-            const subModeMeta = {
-              text: { emoji: "📝", label: "Texte design", desc: "L'IA écrit et designe 7-10 slides" },
-              photo: { emoji: "📸", label: "Tes photos en fond", desc: "Photos plein écran + texte par-dessus" },
-              mix: { emoji: "✨", label: "Photos + slides design", desc: "Alternance photos et slides texte design" },
-              pure_photo: { emoji: "🖼️", label: "Photos brutes", desc: "Photos cadrées, aucun texte par-dessus" },
-              user_slides: { emoji: "✍️", label: "Mes slides", desc: "Ton texte slide par slide, l'IA fait seulement le design" },
-            }[carouselSubMode];
-            return (
-              <div className="flex items-center justify-between gap-3 rounded-xl bg-muted/30 border border-border px-3 py-2 animate-fade-in">
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="text-lg">{subModeMeta.emoji}</span>
-                  <span className="text-sm font-semibold text-foreground truncate">
-                    {subModeMeta.label}
-                  </span>
-                  <span className="text-xs text-muted-foreground hidden sm:inline truncate">
-                    · {subModeMeta.desc}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCarouselSubMode(null);
-                    setUploadedPhotos([]);
-                    setPhotoDescription("");
-                    setPhotoWarning(false);
-                  }}
-                  className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 shrink-0"
-                >
-                  Changer
-                </button>
-              </div>
-            );
-          })()
-        ) : (
-          <div className="space-y-3 animate-fade-in">
-            <p className="text-sm font-semibold text-foreground">Quel type de carrousel ?</p>
-            <div className={`grid grid-cols-1 ${hasPreloadedPhotos ? "sm:grid-cols-3" : "sm:grid-cols-2 lg:grid-cols-4"} gap-2`}>
-              {!hasPreloadedPhotos && (
-                <button
-                  onClick={() => { setCarouselSubMode("text"); setUploadedPhotos([]); setPhotoDescription(""); }}
-                  className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
-                >
-                  <div className="flex gap-[3px] mb-1">
-                    <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
-                      <div className="h-0.5 bg-primary/50 rounded-full" />
-                      <div className="h-0.5 bg-primary/50 rounded-full" />
-                    </div>
-                    <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
-                      <div className="h-0.5 bg-primary/50 rounded-full" />
-                      <div className="h-0.5 bg-primary/50 rounded-full" />
-                    </div>
-                    <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
-                      <div className="h-0.5 bg-primary/50 rounded-full" />
-                      <div className="h-0.5 bg-primary/50 rounded-full" />
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xl">📝</span>
-                    <span className="text-sm font-semibold text-foreground">Texte design</span>
-                  </div>
-                  <p className="text-2xs leading-snug text-muted-foreground">L'IA écrit et designe 7-10 slides. .pptx téléchargeable.</p>
-                </button>
-              )}
-              <button
-                onClick={() => setCarouselSubMode("photo")}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
-              >
-                <div className="flex gap-[3px] mb-1">
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
-                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
-                  </div>
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
-                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
-                  </div>
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
-                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xl">📸</span>
-                  <span className="text-sm font-semibold text-foreground">Tes photos en fond</span>
-                </div>
-                <p className="text-2xs leading-snug text-muted-foreground">Photos plein écran, un texte court posé par-dessus chaque slide.</p>
-              </button>
-              <button
-                onClick={() => setCarouselSubMode("mix")}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
-              >
-                <div className="flex gap-[3px] mb-1">
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
-                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
-                  </div>
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
-                    <div className="h-0.5 bg-primary/50 rounded-full" />
-                    <div className="h-0.5 bg-primary/50 rounded-full" />
-                  </div>
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30 relative">
-                    <div className="absolute bottom-1 left-1 right-1 h-0.5 bg-background/70 rounded-full" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xl">✨</span>
-                  <span className="text-sm font-semibold text-foreground">Photos + slides design</span>
-                </div>
-                <p className="text-2xs leading-snug text-muted-foreground">Alternance de tes photos et de slides texte designées.</p>
-              </button>
-              <button
-                onClick={() => setCarouselSubMode("pure_photo")}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
-              >
-                <div className="flex gap-[3px] mb-1">
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30" />
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30" />
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-muted-foreground/30" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xl">🖼️</span>
-                  <span className="text-sm font-semibold text-foreground">Photos brutes</span>
-                </div>
-                <p className="text-2xs leading-snug text-muted-foreground">Tes photos cadrées au bon format, zéro texte dessus. L'IA écrit juste la légende.</p>
-              </button>
-              <button
-                onClick={() => setCarouselSubMode("user_slides")}
-                className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-4 text-left transition-all flex flex-col gap-1.5"
-              >
-                <div className="flex gap-[3px] mb-1">
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
-                    <div className="h-[3px] bg-primary/70 rounded-full" />
-                    <div className="h-0.5 bg-primary/40 rounded-full" />
-                  </div>
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
-                    <div className="h-[3px] bg-primary/70 rounded-full" />
-                    <div className="h-0.5 bg-primary/40 rounded-full" />
-                  </div>
-                  <div className="w-[22px] h-[28px] rounded-[4px] bg-primary/15 flex flex-col justify-center gap-1 px-1">
-                    <div className="h-[3px] bg-primary/70 rounded-full" />
-                    <div className="h-0.5 bg-primary/40 rounded-full" />
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xl">✍️</span>
-                  <span className="text-sm font-semibold text-foreground">Mes slides</span>
-                </div>
-                <p className="text-2xs leading-snug text-muted-foreground">Ton texte est prêt, slide par slide : l'IA fait seulement le design, sans le réécrire.</p>
-              </button>
-            </div>
-          </div>
-        )
+      {/* All five modes stay visible, including when one has been selected. */}
+      {selectedFormat === "carousel" && (selectedChannel === "instagram" || selectedChannel === "linkedin") && (
+        <CarouselModePicker value={carouselSubMode} photos={uploadedPhotos.map(p => p.base64).filter(Boolean)} onChange={(mode) => { setCarouselSubMode(mode); setPhotoWarning(false); }} />
       )}
 
       {/* Longueur du carrousel — puces discrètes, seulement pour les sous-modes
@@ -1089,7 +956,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
             <div className="flex items-start gap-2.5">
               <Wand2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-primary">L'IA va choisir l'angle parfait</p>
+                <p className="text-sm font-semibold text-primary">L'IA te propose une façon d'aborder ton sujet</p>
                 <p className="text-xs text-muted-foreground mt-0.5">Selon ton idée, ton objectif et ta voix de marque.</p>
               </div>
             </div>
@@ -1097,9 +964,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
           <button
             type="button"
             onClick={() => setExpandAngles(true)}
-            className="text-xs text-muted-foreground hover:text-primary underline underline-offset-2 transition-colors"
+            className="rounded-lg border border-primary/30 bg-card px-3 py-2 text-sm font-medium text-primary hover:bg-primary/5 transition-colors"
           >
-            Choisir mon angle moi-même
+            Personnaliser ma façon d’aborder le sujet
           </button>
         </div>
       )}
@@ -1197,7 +1064,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
       {/* Navigation */}
       <div className="space-y-2 pt-2">
         <Button
-          disabled={!selectedFormat || mixForkPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
+          disabled={!selectedFormat || (selectedFormat === "carousel" && !carouselSubMode) || mixForkPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
           className="w-full gap-2"
           size="lg"
@@ -1209,7 +1076,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, initia
             ? "Choisis d'abord comment construire ton carrousel mixte, juste au-dessus."
             : carouselSubMode === "user_slides"
               ? "Prochaine étape : tu colles ton texte, slide par slide."
-              : "On affinera ensuite ton brief avec quelques questions rapides."}
+              : "Quelques précisions ensuite, avec la possibilité de passer les questions."}
         </p>
         <div className="flex justify-center">
           <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-muted-foreground">
