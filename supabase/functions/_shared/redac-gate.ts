@@ -1,3 +1,4 @@
+import { carouselEditorialFields } from "./carousel-editorial-review.ts";
 // ── Quality-gate rédactionnel des carrousels (audit du 10/07/2026) ──
 //
 // Constat de l'audit corpus : le `quality_check` auto-déclaré par le modèle est
@@ -399,20 +400,9 @@ function tokenSimilarity(a: string, b: string): number {
 }
 
 function slideTexts(s: any): string {
-  return [
-    s?.title,
-    s?.body,
-    s?.overlay_text,
-    // Champs de gabarit photo AFFICHÉS à l'écran (composés 13/07) : les ignorer
-    // laissait passer sans contrôle un big_number inventé (rendu en 170px), des
-    // tics ou des verbatims moulés logés dans kicker/detail/points/cta_label.
-    s?.kicker,
-    s?.detail,
-    s?.big_number,
-    ...(Array.isArray(s?.points) ? s.points : []),
-    s?.attribution,
-    s?.cta_label,
-  ].filter(Boolean).join(" ");
+  return [...carouselEditorialFields({ slides: [s] }).map(f => f.text),
+    ...(typeof s?.big_number === "number" ? [String(s.big_number)] : []),
+  ].join(" ");
 }
 
 /** Corps mesurable d'une slide pour la règle « 50 mots » (titre exclu). */
@@ -702,7 +692,8 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
       ...(Array.isArray(doc.slides) ? doc.slides.map(slideTexts) : []),
       typeof doc.caption === "string" ? doc.caption : [doc.caption?.hook, doc.caption?.body, doc.caption?.cta].filter(Boolean).join(" "),
     ].join("\n");
-    const originalText = prose(original), candidateText = prose(candidate);
+    const originalText = opts.correction.semanticReview ? carouselEditorialFields(originalDoc).map(f => f.text).join("\n") : prose(original);
+    const candidateText = opts.correction.semanticReview ? carouselEditorialFields(candidateDoc).map(f => f.text).join("\n") : prose(candidate);
     const candidateNumbers = numbersIn(candidateText);
     const lostNumber = allowed && [...numbersIn(originalText)].some(n => allowed.has(n) && !candidateNumbers.has(n));
     // Protect sourced quotations; unrelated quotation marks in the brand
@@ -712,6 +703,10 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const lostQuote = source && quotes.some(q => source.includes(q) && !candidateText.includes(q));
     if (regression || newUnsupported || lostNumber || lostQuote) {
       opts.correction.logger?.("[carousel-correction] original conservé : contrôle dégradé ou donnée source supprimée");
+      if (opts.correction.semanticReview) {
+        originalDoc.editorial_review = { ...candidateDoc.editorial_review, status: "rejected", edits: 0, error: "fidelity-guard" };
+        return content.replace(content.match(/\{[\s\S]*\}/)![0], () => JSON.stringify(originalDoc));
+      }
       return content;
     }
     return corrected;
@@ -770,7 +765,10 @@ export async function runRedacGate(
         ? `La caption ne contient aucune question : réécris le champ "cta" de la CAPTION en question spécifique au sujet.`
         : `La caption se termine par une question alors que la forme imposée n'en est pas une : réécris le champ "cta" de la CAPTION dans la forme imposée, SANS aucun point d'interrogation. Garde le sens, change la forme.`);
   }
-  if (fixes) {
+  const review = first.parsed.editorial_review;
+  const verifySemanticReview = opts.correction.semanticReview && opts.correction.reviewBaseline &&
+    (review?.status !== "reviewed" || review?.edits > 0);
+  if (fixes || verifySemanticReview) {
     try {
       opts.onStatus?.("correcting");
       const corrected = await applyGuardedCarouselCorrection(out, {

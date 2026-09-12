@@ -22,6 +22,52 @@ Deno.env.set("SUPABASE_URL", "http://localhost");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "test");
 
 const TEST_USER_ID = "test-user-1";
+// Exercise the actual three handlers; only external services are faked.
+for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}`, async () => {
+  resetDeps();
+  const draft = { slides: [
+    { slide_number: 1, slide_type: "text_only", title: "Les retours sur la maquette", body: "Une réponse commune permet de choisir entre les demandes." },
+    { slide_number: 2, slide_type: "text_only", title: "Quand les retours se contredisent", body: "Les demandes se contredisent. C'est un signal, pas un accident." },
+    { slide_number: 3, slide_type: "text_only", title: "Avant de reprendre le fichier", body: "Je te demande de choisir entre les demandes." },
+    { slide_number: 4, slide_type: "text_only", title: "La réponse commune", body: "J'attends votre réponse avant de modifier la maquette." },
+  ], caption: { body: "Les retours arrivent par e-mail.", hashtags: [] } };
+  _deps.callAnthropic = (async () => JSON.stringify(draft)) as any;
+  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
+  let reviews = 0;
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    const request = init?.body ? JSON.parse(String(init.body)) : {};
+    let text = "{}";
+    if (JSON.stringify(request.system).includes("révision éditoriale de ce carrousel")) {
+      reviews++;
+      const message = request.messages[0].content;
+      const fields = JSON.parse(message.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
+      text = JSON.stringify({ reviews: fields.map((f: any) => {
+        const before = " C'est un signal, pas un accident.";
+        return { field_id: f.id, decision: f.text.includes(before) ? "edit" : "keep", reason: "analyse du rôle du passage", edits: f.text.includes(before) ? [{ before, after: "" }] : [] };
+      }) });
+    }
+    const content = request.tool_choice?.name === "review_carousel_fields"
+      ? [{ type: "tool_use", id: "test", name: "review_carousel_fields", input: JSON.parse(text) }]
+      : [{ type: "text", text }];
+    return Promise.resolve(new Response(JSON.stringify({ content, stop_reason: request.tool_choice ? "tool_use" : "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
+  }) as typeof fetch;
+  try {
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, slide_count: 4, deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
+    assertEquals(res.status, 200);
+    const output = await res.json();
+    assertEquals(typeof output.content, "string");
+    const parsed = JSON.parse(output.content.match(/\{[\s\S]*\}/)[0]);
+    assertEquals(parsed.slides[1].body, "Les demandes se contredisent.");
+    assertEquals(parsed.slides.length, 4);
+    assertEquals(parsed.editorial_review.status, "reviewed");
+    assertEquals(parsed.editorial_review.pass, 2);
+    assertEquals(reviews, 2);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
+  }
+});
 const TEST_WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";
 
 /**

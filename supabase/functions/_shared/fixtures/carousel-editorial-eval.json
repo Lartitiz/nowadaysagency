@@ -1,0 +1,108 @@
+[
+  {
+    "id": "signal",
+    "expectation": "remove_empty_ending",
+    "facts": "Exemple fictif : trois séances annulées consécutivement, chaque fois faute de participants. Le texte analyse cette répétition. Voix directe, sans slogan. Ne pas conclure à une cause particulière des annulations.",
+    "text": "Trois séances ont été annulées d'affilée faute de participants. Cette répétition mérite qu'on regarde ce qui empêche les inscriptions. C'est un signal, pas un accident.",
+    "rejected": [
+      "C'est un signal, pas un accident."
+    ],
+    "preserve": [
+      "Trois séances",
+      "faute de participants"
+    ]
+  },
+  {
+    "id": "slogan_without_negation",
+    "expectation": "remove_empty_ending",
+    "facts": "Exemple fictif : atelier de réparation de vélos. Avant chaque réparation, devis envoyé, accord du client attendu. Ton direct. Ne pas inventer de témoignage ou de garantie.",
+    "text": "Avant de réparer ton vélo, je t'envoie le devis et j'attends ton accord. La confiance se construit dans les détails.",
+    "rejected": [
+      "La confiance se construit dans les détails."
+    ],
+    "preserve": [
+      "devis",
+      "accord"
+    ]
+  },
+  {
+    "id": "generic_replacement",
+    "expectation": "remove_empty_ending",
+    "facts": "Exemple fictif : une formatrice répond à chaque inscription pour demander le niveau de départ et ajuste les exercices. Voix simple et chaleureuse. Aucune phrase de marque à préserver.",
+    "text": "Je réponds à chaque inscription pour connaître ton niveau de départ et adapter les exercices. Chaque personne compte.",
+    "rejected": [
+      "Chaque personne compte."
+    ],
+    "preserve": [
+      "niveau de départ",
+      "exercices"
+    ]
+  },
+  {
+    "id": "useful_contrast",
+    "expectation": "keep_exact",
+    "facts": "Exemple fictif : atelier samedi, et non dimanche. Apporter un vêtement à réparer. Ne changer aucun de ces faits. Voix directe.",
+    "text": "L'atelier a lieu samedi, pas dimanche. Apporte un vêtement à réparer : on travaillera directement dessus.",
+    "rejected": [],
+    "preserve": [
+      "samedi, pas dimanche",
+      "vêtement à réparer"
+    ]
+  },
+  {
+    "id": "personal_humor",
+    "expectation": "keep_exact",
+    "facts": "Exemple fictif, vécu fourni par l'autrice : vingt minutes à chercher ses lunettes, déjà sur sa tête ; elle trie ensuite ses papiers. Elle souhaite conserver l'autodérision, l'aparté et le rythme de son texte.",
+    "text": "J'ai passé vingt minutes à chercher mes lunettes. Elles étaient sur ma tête. Voilà, voilà. Maintenant que mon grand sens de l'organisation est établi, on peut parler du tri de mes papiers.",
+    "rejected": [],
+    "preserve": [
+      "vingt minutes",
+      "sur ma tête",
+      "Voilà, voilà.",
+      "grand sens de l'organisation"
+    ]
+  },
+  {
+    "id": "locked_quote",
+    "expectation": "keep_exact",
+    "facts": "Exemple fictif : citation explicitement demandée et verrouillée par l'autrice, à conserver exactement : « Chaque personne compte. » Elle explique concrètement cette phrase par l'adaptation des exercices à chacun dans un groupe de six. Conserver tout ce court passage.",
+    "text": "« Chaque personne compte. » Dans mon groupe de six, j'adapte les exercices au niveau de chacun.",
+    "rejected": [],
+    "preserve": [
+      "« Chaque personne compte. »",
+      "groupe de six"
+    ]
+  },
+  {
+    "id": "sequence_unknown_formulas",
+    "expectation": "local_edits_preserve_sequence",
+    "facts": "Cas fictif. Graphiste, échanges par e-mail après chaque proposition. Quand trois personnes envoient leurs retours séparément, certains se contredisent et la graphiste demande au client de les arbitrer. Elle attend une réponse commune pour reprendre la maquette. Ton personnel, chaleureux et explicatif. Préserver les faits et l'ordre des quatre slides. Aucun chiffre supplémentaire ni anecdote. Conserver les marqueurs [SLIDE N].",
+    "text": "[SLIDE 1]\nPourquoi je demande un retour commun sur la maquette\n\n[SLIDE 2]\nAprès chaque proposition, tu m'envoies tes retours par e-mail. Quand trois personnes répondent séparément, il arrive que leurs demandes se contredisent. Et c'est là que tout se joue.\n\n[SLIDE 3]\nJe te demande alors de choisir entre ces demandes avant de reprendre la maquette. Les messages peuvent être très détaillés, mais je ne peux pas deviner laquelle des trois versions tu préfères.\n\n[SLIDE 4]\nJ'attends donc votre réponse commune avant de modifier le fichier. Au fond, une maquette raconte toujours bien plus qu'une histoire de pixels.",
+    "rejected": [
+      "Et c'est là que tout se joue.",
+      "Au fond, une maquette raconte toujours bien plus qu'une histoire de pixels."
+    ],
+    "preserve": [
+      "[SLIDE 1]",
+      "[SLIDE 2]",
+      "[SLIDE 3]",
+      "[SLIDE 4]",
+      "trois personnes",
+      "je ne peux pas deviner"
+    ]
+  },
+  {
+    "id": "sequence_useful_reasoning",
+    "expectation": "keep_exact",
+    "facts": "Cas fictif fourni par l'auteur, consultant. Il analyse un questionnaire où trois personnes mentionnent un frein mais ignore combien de personnes ont vu l'offre. On ne peut pas estimer la fréquence ni choisir une cause unique. Conserver le contraste méthodologique, la nuance et le registre accessible. Garder les marqueurs [SLIDE N].",
+    "text": "[SLIDE 1]\nTrois réponses suffisent-elles pour changer ton offre ?\n\n[SLIDE 2]\nDans le questionnaire, trois personnes expliquent que le prix les a freinées. C'est un indice à examiner, pas une preuve que ton offre est trop chère.\n\n[SLIDE 3]\nTu ne sais pas combien de personnes ont vu l'offre sans répondre. Ces trois retours permettent de formuler une question ; ils ne permettent pas d'estimer la fréquence du problème.\n\n[SLIDE 4]\nAvant de changer le tarif, demande ce que ces personnes avaient compris de l'offre. Tu pourras préciser la question du prix en la reliant à ce qu'elles pensaient recevoir.",
+    "rejected": [],
+    "preserve": [
+      "[SLIDE 1]",
+      "[SLIDE 2]",
+      "[SLIDE 3]",
+      "[SLIDE 4]",
+      "C'est un indice à examiner, pas une preuve que ton offre est trop chère."
+    ]
+  }
+]
