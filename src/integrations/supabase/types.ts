@@ -910,6 +910,7 @@ export type Database = {
       }
       branding_coaching_sessions: {
         Row: {
+          archived_at: string | null
           completed_at: string | null
           covered_topics: Json | null
           created_at: string | null
@@ -917,16 +918,16 @@ export type Database = {
           id: string
           is_complete: boolean | null
           messages: Json | null
-          question_count: number | null
-          archived_at: string | null
-          persona_id: string | null
           offer_id: string | null
+          persona_id: string | null
+          question_count: number | null
           section: string
           updated_at: string | null
           user_id: string
           workspace_id: string | null
         }
         Insert: {
+          archived_at?: string | null
           completed_at?: string | null
           covered_topics?: Json | null
           created_at?: string | null
@@ -934,16 +935,16 @@ export type Database = {
           id?: string
           is_complete?: boolean | null
           messages?: Json | null
-          question_count?: number | null
-          archived_at?: string | null
-          persona_id?: string | null
           offer_id?: string | null
+          persona_id?: string | null
+          question_count?: number | null
           section: string
           updated_at?: string | null
           user_id: string
           workspace_id?: string | null
         }
         Update: {
+          archived_at?: string | null
           completed_at?: string | null
           covered_topics?: Json | null
           created_at?: string | null
@@ -951,10 +952,9 @@ export type Database = {
           id?: string
           is_complete?: boolean | null
           messages?: Json | null
-          question_count?: number | null
-          archived_at?: string | null
-          persona_id?: string | null
           offer_id?: string | null
+          persona_id?: string | null
+          question_count?: number | null
           section?: string
           updated_at?: string | null
           user_id?: string
