@@ -27,7 +27,7 @@ const MIRROR_TOOL: AnthropicTool = {
 };
 import { ANTI_SLOP } from "../_shared/copywriting-prompts.ts";
 import { authenticateEdgeUser } from "../_shared/edge-auth.ts";
-import { generationOwner } from "../generate-voice-guide/owner.ts";
+import { generationOwner } from "../_shared/branding-generation-owner.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req); const cors = corsHeaders;
