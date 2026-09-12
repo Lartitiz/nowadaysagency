@@ -95,3 +95,18 @@ it("restores only dirty fields so a newer server value in another field is prese
   expect(db.rows.offers[0].name).toBe("Nouveau nom depuis une autre fiche");
   expect(db.rows.offers[0].objections[0].response).toBe("Réponse actualisée");
 });
+it("restores an unapplied AI synthesis after a write failure and reload", async () => {
+  db.rows.offers[0].current_step = 7; db.fail("offers", "update");
+  mock.invoke.mockResolvedValue({ data: { sales_line: "Proposition à conserver", before: "Flou", after: "Clair", feelings: ["Confiance"] }, error: null });
+  const view = render(page());
+  fireEvent.click(await screen.findByRole("button", { name: "Générer la synthèse" }));
+  await screen.findByText('"Proposition à conserver"');
+  await waitFor(() => expect(mock.toast.error).toHaveBeenCalled());
+  view.unmount(); db.recover();
+  render(page());
+  await screen.findByText('"Proposition à conserver"');
+  fireEvent.click(screen.getByRole("button", { name: "Terminer" }));
+  await screen.findByText("Liste des offres");
+  expect(db.rows.offers[0].sales_line).toBe("Proposition à conserver");
+  expect(mock.invoke).toHaveBeenCalledTimes(1);
+});

@@ -64,6 +64,8 @@ function OfferWorkshop() {
   const workspaceId = useWorkspaceId();
   const [offer, setOffer] = useState<any>(null);
   const [step, setStep] = useState(1);
+  const activeStepRef = useRef(step);
+  activeStepRef.current = step;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [aiLoading, setAiLoading] = useState(false);
@@ -174,6 +176,14 @@ function OfferWorkshop() {
       setLoading(false);
     });
   }, [user?.id, id]);
+
+  useEffect(() => {
+    if (loading) return;
+    try {
+      const raw = localStorage.getItem(`${draftKey}:ai:${step}`);
+      if (raw) setAiResponse(JSON.parse(raw));
+    } catch { /* Leave persisted offer data available if a proposal cannot be decoded. */ }
+  }, [step, loading, draftKey]);
 
   const save = useCallback(async (fields: Record<string, any>, nextStep?: number) => {
     if (!id || !user) throw new Error("Offre indisponible");
@@ -294,6 +304,9 @@ function OfferWorkshop() {
         throw new Error(res.data.error);
       }
       if (!alive.current) return;
+      try { localStorage.setItem(`${draftKey}:ai:${stepNum}`, JSON.stringify(res.data)); }
+      catch { toast.error("La proposition reste ici, mais sa copie locale n'a pas pu être conservée."); }
+      if (activeStepRef.current !== stepNum) return;
       setAiResponse(res.data);
 
       // Auto-save step 7 synthesis immediately
@@ -307,13 +320,15 @@ function OfferWorkshop() {
         if (res.data.promise_summary) fields.promise = res.data.promise_summary;
         if (res.data.sales_line_long) fields.promise_long = res.data.sales_line_long;
         await save(fields);
+        localStorage.removeItem(`${draftKey}:ai:${stepNum}`);
         toast.success("Synthèse sauvegardée !");
       }
     } catch (e: any) {
       console.error("offer-coaching error:", e);
       toast.error(friendlyError(e));
+    } finally {
+      if (alive.current) setAiLoading(false);
     }
-    setAiLoading(false);
   };
 
   const goNext = async () => {
@@ -344,6 +359,7 @@ function OfferWorkshop() {
 
       const nextStep = step < 7 ? step + 1 : 7;
       await save(fields, nextStep);
+      localStorage.removeItem(`${draftKey}:ai:${step}`);
       if (!alive.current) return;
       if (step < 7) {
         setStep(nextStep);
