@@ -826,7 +826,10 @@ export async function applyCorrectionPassCarousel(
           } catch { /* A missing baseline does not change the patch contract. */ }
         }
         const raw = await callAnthropic({
-          model: getModelForAction("content"), system: CAROUSEL_EDITORIAL_REVIEW_PROMPT,
+          // Live tests found content-tier review/selection too permissive.
+          // Keep the bounded exact-patch review with the existing stronger model;
+          // generation's normal/quality_max choice and other formats are unchanged.
+          model: "claude-opus-4-8", system: CAROUSEL_EDITORIAL_REVIEW_PROMPT,
           messages: [{ role: "user", content:
           claritySourceBlock(options.sourceContext, options.authoredText) +
           "\nALERTES À EXAMINER EN CONTEXTE :\n" + (extraInstructions || "Aucune alerte automatique ; effectuer la relecture de tous les champs.") +

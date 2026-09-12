@@ -1,5 +1,5 @@
 /** Editorial review contract. No layout, photo, link or structural field is editable. */
-export const CAROUSEL_REVIEW_VERSION = "contextual-v2.1";
+export const CAROUSEL_REVIEW_VERSION = "contextual-opus-v3";
 export const CAROUSEL_REVIEW_TOOL = {
   name: "review_carousel_fields",
   description: "Révision de chaque champ, avec retouches locales exactes ou conservation explicite.",

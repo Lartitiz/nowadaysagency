@@ -1,5 +1,4 @@
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
-import { chooseCarouselCopy } from "../_shared/carousel-copy-choice.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -32,7 +31,6 @@ import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 // remplacent un ou plusieurs de ces champs pour observer/court-circuiter les
 // appels réseau (Supabase, Anthropic) sans toucher à la logique métier.
 export const _deps = {
-  chooseCarouselCopy,
   runPipeline,
   checkQuota,
   logUsage,
@@ -951,7 +949,7 @@ async function runGenerationAndRespond(
     if (capped.stripped > 0) console.warn(`carousel-ai: ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
     content = capped.content;
     // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-    let gateExpress = await runRedacGate(content, {
+    const gateExpress = await runRedacGate(content, {
       isLinkedIn,
       onStatus: emitStatus,
       inputText: gateInputText,
@@ -960,7 +958,6 @@ async function runGenerationAndRespond(
       captionEnding: captionEndingRule,
       correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
     });
-    gateExpress = await selectFinalCarouselCopy(gateExpress, reqCtx);
     content = gateExpress.content;
     await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
   }
@@ -1127,7 +1124,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     content = capped.content;
   }
   // Quality-gate rédactionnel : mesures en code + re-passe ciblée si violations
-  let gateMix = await runRedacGate(content, {
+  const gateMix = await runRedacGate(content, {
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
@@ -1136,7 +1133,6 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     captionEnding: captionEndingRule,
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
-  gateMix = await selectFinalCarouselCopy(gateMix, reqCtx);
   content = gateMix.content;
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
@@ -1274,7 +1270,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     if (capped.stripped > 0) console.warn(`carousel-ai(photo): ${capped.stripped} visual_schema retiré(s) (max 2, jamais consécutifs)`);
     content = capped.content;
   }
-  let gatePhoto = await runRedacGate(content, {
+  const gatePhoto = await runRedacGate(content, {
     isLinkedIn,
     onStatus: emitStatus,
     inputText: gateInputText,
@@ -1283,7 +1279,6 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     captionEnding: captionEndingRule,
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
-  gatePhoto = await selectFinalCarouselCopy(gatePhoto, reqCtx);
   content = gatePhoto.content;
   // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),
   // pose le gabarit visuel de chaque slide. Décision prise sur le texte
@@ -1663,20 +1658,6 @@ async function handleDeepeningQuestionsRequest(reqCtx: CarouselRequestContext): 
     userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
   }
   return runGenerationAndRespond("deepening_questions", userPrompt, reqCtx);
-}
-
-async function selectFinalCarouselCopy(gate: Awaited<ReturnType<typeof runRedacGate>>, ctx: CarouselRequestContext) {
-  if (!ctx.semanticReviewEnabled) return gate;
-  ctx.emitStatus("correcting");
-  const { body } = ctx;
-  const content = await _deps.chooseCarouselCopy(gate.content, {
-    currentBrief: ctx.currentBrief, sourceContext: ctx.gateInputText, authoredText: ctx.currentAuthoredText, isLinkedIn: ctx.isLinkedIn,
-    constraints: { selected_hook: body.selected_hook, selected_offer: body.selected_offer, chosen_angle: body.chosen_angle, editorial_angle: body.editorial_angle, content_structure: body.content_structure, confirmed_structure: body.confirmed_structure, narrative_thread: body.narrative_thread, photo_description: body.photo_description },
-  });
-  if (content === gate.content) return gate;
-  // Recompute deterministic metrics after selection, without another rewrite.
-  return await runRedacGate(content, { isLinkedIn: ctx.isLinkedIn, inputText: ctx.gateInputText, brandGuardText: ctx.brandGuardText,
-    echo: { previousHooks: ctx.previousHooks, subject: body.subject }, correction: { enabled: false, authoredText: ctx.currentAuthoredText } });
 }
 
 function buildSystemPrompt(brandingContext: string, isLinkedIn = false, profile?: any): string {
