@@ -1,3 +1,4 @@
+import { currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { LINKEDIN_PRINCIPLES_COMPACT, LINKEDIN_TEMPLATES, ANTI_SLOP, CHAIN_OF_THOUGHT, ANTI_BIAS, EDITORIAL_ANGLES_REFERENCE, PREGEN_INJECTION_RULES, EMBEDDED_EDUCATION } from "../_shared/copywriting-prompts.ts";
@@ -214,7 +215,7 @@ serve(async (req) => {
           text: `\n\nTu as reçu ${uploadedFiles.length} fichier(s). Extrais TOUT le contenu textuel visible. Si ce sont des captures de posts Instagram ou LinkedIn, extrais le texte du post, les hashtags, et note le format visuel. Puis adapte pour les canaux : ${JSON.stringify(targetChannels)}`
         });
 
-        systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt + CONTENT_CLARITY_RULES;
+        systemPrompt = BASE_SYSTEM_RULES + "\n\n" + VOICE_PRIORITY + crosspostSystemPrompt + CONTENT_CLARITY_RULES + currentContentContract(sourceContent || "");
         const cpUsage: UsageSink = {};
         // 90s : plus lourd qu'une génération texte standard (vision sur images/PDF
         // + 4 versions par canal), mais borné — cf. convention CLAUDE.md.
@@ -348,7 +349,8 @@ serve(async (req) => {
     }
 
     if (["caption-for-carousel", "improve-post", "adapt-instagram", "crosspost"].includes(action)) {
-      systemPrompt += CONTENT_CLARITY_RULES + claritySourceBlock(params.news_context);
+      systemPrompt += CONTENT_CLARITY_RULES + claritySourceBlock(params.news_context)
+        + currentContentContract([params.sourceContent, params.postContent, params.subject, params.slides_summary, params.news_context].filter(Boolean).join("\n"));
     }
     const usage: UsageSink = {};
     // 60s : génération standard (convention CLAUDE.md). La passe de correction
@@ -363,7 +365,7 @@ serve(async (req) => {
       const inputText = [context, params.postContent].filter(Boolean).join("\n");
       content = await correctJsonField(content, "improved_version", CORRECTION_TIMEOUT_MS, inputText);
     } else if (action === "crosspost") {
-      const inputText = [context, params.sourceContent].filter(Boolean).join("\n");
+      const inputText = [params.sourceContent, context].filter(Boolean).join("\n");
       content = await correctCrosspostJson(content, CORRECTION_TIMEOUT_MS, inputText);
     }
 

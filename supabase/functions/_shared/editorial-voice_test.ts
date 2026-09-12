@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { analyzeTextRedac, analyzeCarouselRedac, dropUserSourcedReversals, textRedacViolations, buildTextFixInstructions, runTextRedacGate } from "./redac-gate.ts";
+import { analyzeTextRedac, analyzeCarouselRedac, dropUserSourcedReversals, textRedacViolations, buildTextFixInstructions, runTextRedacGate, numbersIn } from "./redac-gate.ts";
 import { authoredContentSource } from "./editorial-voice.ts";
 import { claritySourceBlock } from "./content-clarity.ts";
 import { installFetchMock, setTestEnv } from "./test-edge-harness.ts";
@@ -76,4 +76,19 @@ Deno.test("une correction qui introduit X. Pas Y. est rejetée", async () => {
     assertEquals(result.content, original);
     assertEquals(result.reverted, true);
   } finally { mock.restore(); }
+});
+
+Deno.test("les multiplicateurs en lettres ne passent plus pour de simples détails qualitatifs", () => {
+  const allowed = numbersIn("Deux usages. Trois rainures. Prix : 18 euros. Lot de 2 objets.");
+  for (const text of ["Il fond deux fois plus vite.", "Il fond 2 fois plus vite.", "Neuf fois sur dix, on oublie."]) {
+    assertEquals(analyzeTextRedac(text, allowed).fabricatedNumbers.length, 1, text);
+  }
+  assertEquals(analyzeTextRedac("Le savon sèche entre deux usages.", allowed).fabricatedNumbers, []);
+});
+
+Deno.test("un multiplicateur réellement fourni est reconnu en lettres comme en chiffres", () => {
+  assertEquals(analyzeTextRedac("Le temps est deux fois moins long.", numbersIn("Mesure : 2 fois moins long.")).fabricatedNumbers, []);
+  assertEquals(analyzeTextRedac("Le temps est 2 fois moins long.", numbersIn("Mesure : deux fois moins long.")).fabricatedNumbers, []);
+  assertEquals(analyzeTextRedac("Neuf fois sur dix.", numbersIn("9 fois sur 10.")).fabricatedNumbers, []);
+  assertEquals(analyzeTextRedac("Deux fois plus long.", numbersIn("Deux fois moins long.")).fabricatedNumbers.length, 1);
 });

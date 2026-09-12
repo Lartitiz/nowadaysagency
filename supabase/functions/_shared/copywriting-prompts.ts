@@ -1247,11 +1247,11 @@ Quand des réponses de coaching sont fournies (anecdote, émotion, conviction), 
 
 - ÉMOTION fournie → elle donne le TON de TOUT le contenu. Si l'émotion est la frustration, tout le texte porte cette énergie. Si c'est la fierté, le texte rayonne.
 
-- CONVICTION fournie → elle devient la PUNCHLINE du contenu. À placer au moment du twist ou en conclusion. C'est une matière à reformuler, jamais une légende prête à publier : garde le sens et l'intensité de ses mots, mais réécris la phrase (elle peut venir de sa fiche de marque — recopiée telle quelle, elle se voit dès que deux contenus cohabitent sur le même feed).
+- CONVICTION fournie pour CE contenu → garde son sens et ses formulations réussies si elle éclaire le propos. Une conviction générale du branding reste un repère facultatif ; ne la transforme pas automatiquement en punchline.
 
 ### Si aucun élément pre-gen n'est fourni :
 
-- Piocher dans le branding de l'utilisatrice (storytelling, valeurs, combats définis dans son profil)
+- Utiliser le branding pour le registre et le vocabulaire pertinent. Ne transpose pas son histoire à un autre objet, produit ou événement ; le sujet peut être traité sans récit personnel.
 
 - Si le branding est aussi vide, générer un contenu correct mais signaler dans le JSON de sortie : "personalization_level": "low"
 
