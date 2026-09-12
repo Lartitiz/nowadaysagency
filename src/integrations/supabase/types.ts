@@ -918,6 +918,9 @@ export type Database = {
           is_complete: boolean | null
           messages: Json | null
           question_count: number | null
+          archived_at: string | null
+          persona_id: string | null
+          offer_id: string | null
           section: string
           updated_at: string | null
           user_id: string
@@ -932,6 +935,9 @@ export type Database = {
           is_complete?: boolean | null
           messages?: Json | null
           question_count?: number | null
+          archived_at?: string | null
+          persona_id?: string | null
+          offer_id?: string | null
           section: string
           updated_at?: string | null
           user_id: string
@@ -946,6 +952,9 @@ export type Database = {
           is_complete?: boolean | null
           messages?: Json | null
           question_count?: number | null
+          archived_at?: string | null
+          persona_id?: string | null
+          offer_id?: string | null
           section?: string
           updated_at?: string | null
           user_id?: string

@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { collectCoachingProposals, proposalEditKey } from "@/lib/coaching-proposals";
+import CoachingTarget from "@/components/branding/CoachingTarget";
+import { saveOfferInsights } from "@/lib/offer-coaching-persistence";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
+import { useWorkspaceReady, useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
@@ -22,6 +25,8 @@ interface AuditCoachingPanelProps {
   pillarLabel: string;
   pillarEmoji: string;
   recId?: string;
+  offerId?: string;
+  personaId?: string;
   conseil?: string;
   onComplete: () => void;
   onSkipToModule: (route: string) => void;
@@ -68,9 +73,26 @@ const ACTION_ROUTES: Record<string, { label: string; route: string; emoji: strin
   branding: { label: "Compléter mon branding", route: "/branding", emoji: "💎" },
 };
 
-export default function AuditCoachingPanel({
+export default function AuditCoachingPanel(props: AuditCoachingPanelProps) {
+  const { column, value } = useWorkspaceFilter();
+  const ready = useWorkspaceReady();
+  if (!ready) return <p className="p-6 text-sm">Chargement de l'espace…</p>;
+  const scope = `${column}:${value}:${props.module}:${props.recId || ""}`;
+  if (!props.open) return null;
+  if (props.module === "offers" || props.module === "persona") {
+    return <CoachingTarget kind={props.module} id={props.module === "offers" ? props.offerId : props.personaId}
+      renderChoice={choice => <Sheet open={props.open} onOpenChange={props.onOpenChange}>
+        <SheetContent><SheetHeader><SheetTitle>Choisir une fiche</SheetTitle><SheetDescription>Choisis la fiche à travailler dans cet espace.</SheetDescription></SheetHeader>{choice}</SheetContent>
+      </Sheet>}>
+      {id => <AuditCoachingPanelInner key={`${scope}:${id}`} {...props} {...(props.module === "offers" ? { offerId: id } : { personaId: id })} />}
+    </CoachingTarget>;
+  }
+  return <AuditCoachingPanelInner key={scope} {...props} />;
+}
+
+function AuditCoachingPanelInner({
   open, onOpenChange, module, pillarKey, pillarLabel, pillarEmoji,
-  recId, conseil, onComplete, onSkipToModule,
+  offerId, personaId, recId, conseil, onComplete, onSkipToModule,
 }: AuditCoachingPanelProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
@@ -84,6 +106,9 @@ export default function AuditCoachingPanel({
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<string[]>([]);
   const [diagnostic, setDiagnostic] = useState<DiagnosticResult | null>(null);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
   const [editedProposals, setEditedProposals] = useState<Record<string, string>>({});
 
   // Reset state when panel opens
@@ -101,7 +126,7 @@ export default function AuditCoachingPanel({
   const loadQuestions = async () => {
     try {
       const { data, error } = await invokeWithTimeout("coaching-module", {
-        body: { phase: "questions", module, rec_id: recId },
+        body: { phase: "questions", module, rec_id: recId, offer_id: offerId, persona_id: personaId, workspace_id: column === "workspace_id" ? workspaceId : undefined },
       }, 60000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -131,14 +156,15 @@ export default function AuditCoachingPanel({
         answer: answers[i] || "",
       }));
       const { data, error } = await invokeWithTimeout("coaching-module", {
-        body: { phase: "diagnostic", module, answers: answersPayload, rec_id: recId },
+        body: { phase: "diagnostic", module, answers: answersPayload, rec_id: recId, offer_id: offerId, persona_id: personaId, workspace_id: column === "workspace_id" ? workspaceId : undefined },
       }, 90000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       setDiagnostic(data);
       const edited: Record<string, string> = {};
-      (data.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
+      (data.proposals || []).forEach((p: Proposal, i: number) => { edited[proposalEditKey(p, i)] = p.value; });
       setEditedProposals(edited);
+      setSelectedVariants({});
       setPhase("diagnostic");
     } catch (e: any) {
       toast.error(friendlyError(e));
@@ -150,10 +176,7 @@ export default function AuditCoachingPanel({
     if (!user || !diagnostic) return;
     setPhase("saving");
     try {
-      const updates: Record<string, string> = {};
-      diagnostic.proposals.forEach(p => {
-        updates[p.field] = editedProposals[p.field] || p.value;
-      });
+      const updates = collectCoachingProposals(diagnostic.proposals, editedProposals, selectedVariants);
 
       const tableMap: Record<string, string> = {
         persona: "persona",
@@ -165,14 +188,19 @@ export default function AuditCoachingPanel({
         branding: "brand_profile",
       };
       const table = tableMap[module];
-      if (table) {
-        const { data: existing } = await (supabase.from(table as any) as any)
+      if (module === "offers") {
+        await saveOfferInsights(updates, { column, value }, offerId);
+      } else if (table) {
+        const { data: existing, error: readError } = await (supabase.from(table as any) as any)
           .select("id")
           .eq(column, value)
+          .match(module === "persona" ? { id: personaId } : {})
           .maybeSingle();
+        if (readError) throw readError;
+        if (module === "persona" && !existing) throw new Error("Public introuvable");
 
         if (existing) {
-          const { error } = await (supabase.from(table as any) as any).update(updates).eq(column, value);
+          const { error } = await (supabase.from(table as any) as any).update(updates).eq("id", existing.id).eq(column, value);
           if (error) throw error;
         } else {
           const { error } = await supabase.from(table as any).insert({ ...updates, user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined });
@@ -181,6 +209,7 @@ export default function AuditCoachingPanel({
       }
 
       // Mark recommendation as completed
+      if (!alive.current) return;
       if (recId) {
         const { error: recError } = await supabase
           .from("audit_recommendations")
@@ -189,9 +218,11 @@ export default function AuditCoachingPanel({
         if (recError) throw recError;
       }
 
+      if (!alive.current) return;
       setPhase("done");
       toast.success("✅ Mis à jour !");
       setTimeout(() => {
+        if (!alive.current) return;
         onOpenChange(false);
         onComplete();
       }, 1500);
@@ -341,12 +372,15 @@ export default function AuditCoachingPanel({
               <div className="space-y-4">
                 <h4 className="font-body font-bold text-sm text-foreground">Proposition de textes</h4>
                 <p className="text-xs text-muted-foreground">Tu peux modifier avant de valider.</p>
-                {diagnostic.proposals.map((p) => (
-                  <div key={p.field}>
+                {diagnostic.proposals.map((p, i) => (
+                  <div key={proposalEditKey(p, i)}>
                     <label className="text-xs font-semibold text-foreground mb-1.5 block">{p.label}</label>
+                    {diagnostic.proposals.filter(other => other.field === p.field).length > 1 && <label className="block text-xs my-2">
+                      <input type="radio" name={`variant-${p.field}`} checked={selectedVariants[p.field] === i} onChange={() => setSelectedVariants(prev => ({ ...prev, [p.field]: i }))} /> Utiliser cette version
+                    </label>}
                     <Textarea
-                      value={editedProposals[p.field] || p.value}
-                      onChange={(e) => setEditedProposals(prev => ({ ...prev, [p.field]: e.target.value }))}
+                      value={editedProposals[proposalEditKey(p, i)] ?? p.value}
+                      onChange={(e) => setEditedProposals(prev => ({ ...prev, [proposalEditKey(p, i)]: e.target.value }))}
                       className="min-h-[80px] text-sm"
                     />
                   </div>

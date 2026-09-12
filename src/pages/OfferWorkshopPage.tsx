@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useParams, useNavigate, Link, useSearchParams } from "react-router-dom";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceReady, useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import { useAutoSave, SaveIndicator } from "@/hooks/use-auto-save";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 import OfferSynthesisCard from "@/components/branding/OfferSynthesisCard";
+import { objectionsText, reconcileObjections } from "@/lib/offer-coaching-persistence";
 import { friendlyError } from "@/lib/error-messages";
 
 const STEPS = [
@@ -44,6 +45,14 @@ function computeCompletion(offer: any): number {
 }
 
 export default function OfferWorkshopPage() {
+  const { id } = useParams();
+  const { column, value } = useWorkspaceFilter();
+  const ready = useWorkspaceReady();
+  if (!ready) return <p className="p-6 text-sm">Chargement de l'espace…</p>;
+  return <OfferWorkshop key={`${column}:${value}:${id}`} />;
+}
+
+function OfferWorkshop() {
   const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -62,13 +71,17 @@ export default function OfferWorkshopPage() {
 
   // Form fields per step
   const [formData, setFormData] = useState<Record<string, any>>({});
+  const draftKey = `offer-draft:${user?.id}:${column}:${value}:${id}`;
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const persistedFormRef = useRef<Record<string, any>>({});
   const formDataRef = useRef(formData);
   formDataRef.current = formData;
 
   // Map formData keys to DB columns for auto-save
   const getDbFields = useCallback(() => {
     const fd = formDataRef.current;
-    return {
+    const fields: Record<string, any> = {
       offer_type: fd.offer_type,
       name: fd.name,
       description_short: fd.description_short,
@@ -81,41 +94,50 @@ export default function OfferWorkshopPage() {
       features: fd.features_text ? fd.features_text.split("\n").filter((f: string) => f.trim()) : [],
       target_ideal: fd.target_ideal,
       target_not_for: fd.target_not_for,
-      objections: fd.objections_text
-        ? fd.objections_text.split("\n").filter((o: string) => o.trim()).map((o: string) => ({ objection: o, response: "" }))
-        : [],
+      objections: reconcileObjections(fd.objections_text || "", fd.objections),
       testimonials: fd.testimonials || [],
     };
+    const formKeys: Record<string, string> = { features: "features_text", objections: "objections_text" };
+    return Object.fromEntries(Object.entries(fields).filter(([key]) => {
+      const formKey = formKeys[key] || key;
+      return JSON.stringify(fd[formKey]) !== JSON.stringify(persistedFormRef.current[formKey]);
+    }));
   }, []);
 
   const autoSaveFn = useCallback(async () => {
-    if (!id || !user) return;
+    if (!id || !user) throw new Error("Offre indisponible");
+    const snapshot = formDataRef.current;
     const fields = getDbFields();
+    if (!Object.keys(fields).length) return;
     const { error } = await supabase.from("offers").update({
       ...fields,
       updated_at: new Date().toISOString(),
-    }).eq("id", id);
-    if (error) { toast.error("Erreur de sauvegarde"); }
-  }, [id, user, getDbFields]);
+    }).eq("id", id).eq(column as "workspace_id" | "user_id", value).select("id").single();
+    if (error) { toast.error("Erreur de sauvegarde : ton brouillon est conservé."); throw error; }
+    persistedFormRef.current = snapshot;
+    if (snapshot === formDataRef.current) localStorage.removeItem(draftKey);
+    if (alive.current) setOffer((prev: any) => ({ ...prev, ...fields }));
+  }, [id, user, getDbFields, column, value, draftKey]);
 
-  const { saved, saving: autoSaving, triggerSave } = useAutoSave(autoSaveFn, 1000);
+  const { saved, saving: autoSaving, triggerSave, flush } = useAutoSave(autoSaveFn, 1000, draftKey);
 
   // Wrap setFormData to trigger auto-save on every change
   const updateFormData = useCallback((updater: (prev: Record<string, any>) => Record<string, any>) => {
-    setFormData(prev => {
-      const next = updater(prev);
-      return next;
-    });
+    const next = updater(formDataRef.current);
+    formDataRef.current = next;
+    setFormData(next);
+    try { localStorage.setItem(draftKey, JSON.stringify(next)); } catch { toast.error("Le brouillon local n'a pas pu être conservé."); }
     triggerSave();
-  }, [triggerSave]);
+  }, [triggerSave, draftKey]);
 
   useEffect(() => {
     if (!user || !id || !loading) return;
     (supabase.from("offers") as any).select("*").eq("id", id).eq(column, value).single().then(({ data, error }: any) => {
+      if (!alive.current) return;
       if (error || !data) { navigate("/branding/offres"); return; }
       setOffer(data);
       setStep(data.current_step || 1);
-      setFormData({
+      const loaded = {
         offer_type: data.offer_type || "paid",
         name: data.name || "",
         description_short: data.description_short || "",
@@ -128,28 +150,42 @@ export default function OfferWorkshopPage() {
         features_text: Array.isArray(data.features) ? data.features.join("\n") : "",
         target_ideal: data.target_ideal || "",
         target_not_for: data.target_not_for || "",
-        objections_text: Array.isArray(data.objections) ? data.objections.map((o: any) => o.objection).join("\n") : "",
+        objections: data.objections,
+        objections_text: objectionsText(data.objections),
         testimonials: data.testimonials || [],
-      });
+      };
+      let restored = loaded;
+      try { const raw = localStorage.getItem(draftKey); if (raw) restored = { ...loaded, ...JSON.parse(raw) }; } catch { /* Keep server data if the draft cannot be decoded. */ }
+      persistedFormRef.current = loaded;
+      formDataRef.current = restored;
+      setFormData(restored);
+      if (restored !== loaded) { toast.info("Ton brouillon non enregistré a été restauré."); triggerSave(); }
       setLoading(false);
     });
   }, [user?.id, id]);
 
   const save = useCallback(async (fields: Record<string, any>, nextStep?: number) => {
-    if (!id || !user) return;
+    if (!id || !user) throw new Error("Offre indisponible");
     setSaving(true);
-    const update: any = { ...fields, updated_at: new Date().toISOString() };
-    if (nextStep) update.current_step = nextStep;
-    // Compute completion
-    const merged = { ...offer, ...update };
-    update.completion_pct = computeCompletion(merged);
-    if (update.completion_pct === 100) update.completed = true;
+    try {
+      await flush();
+      if (!alive.current) throw new Error("Cette fiche n'est plus ouverte");
+      const update: any = { ...fields, updated_at: new Date().toISOString() };
+      if (nextStep) update.current_step = nextStep;
+      // Compute completion
+      const merged = { ...offer, ...update };
+      update.completion_pct = computeCompletion(merged);
+      if (update.completion_pct === 100) update.completed = true;
 
-    const { error } = await supabase.from("offers").update(update).eq("id", id);
-    if (error) toast.error("Erreur de sauvegarde");
-    else setOffer((prev: any) => ({ ...prev, ...update }));
-    setSaving(false);
-  }, [id, user, offer]);
+      const { error } = await supabase.from("offers").update(update).eq("id", id).eq(column as "workspace_id" | "user_id", value).select("id").single();
+      if (error) throw error;
+      formDataRef.current = { ...formDataRef.current, ...fields };
+      if (fields.objections !== undefined) formDataRef.current.objections_text = objectionsText(fields.objections);
+      persistedFormRef.current = formDataRef.current;
+      setFormData(formDataRef.current);
+      setOffer((prev: any) => ({ ...prev, ...update }));
+    } finally { setSaving(false); }
+  }, [id, user, offer, flush, column, value]);
 
   // « Remplir à ma place » : lit la page de vente et pré-remplit les champs VIDES
   // de toutes les étapes (jamais par-dessus une saisie existante).
@@ -172,6 +208,7 @@ export default function OfferWorkshopPage() {
         throw new Error(msg);
       }
       if (res.data?.error) throw new Error(res.data.error);
+      if (!alive.current) return;
       const ex = res.data?.offer;
       if (!ex || Object.keys(ex).length === 0) {
         toast("Rien à extraire", { description: "La page ne contient pas assez d'infos exploitables — remplis l'atelier à la main." });
@@ -225,14 +262,14 @@ export default function OfferWorkshopPage() {
   };
 
   const askAI = async (stepNum: number, answer: string) => {
-    
+
     setAiLoading(true);
     setAiResponse(null);
     try {
       const res = await invokeWithTimeout("offer-coaching", {
-        body: { step: stepNum, answer, offerData: { ...offer, ...formData }, brandContext: {}, workspace_id: workspaceId },
+        body: { step: stepNum, answer, offerData: { ...offer, ...getDbFields() }, brandContext: {}, workspace_id: column === "workspace_id" ? workspaceId : undefined },
       }, 90000);
-      
+
       if (res.error) {
         const msg = typeof res.error === "string" ? res.error : (res.error as any)?.message || "Erreur inconnue";
         throw new Error(msg);
@@ -245,6 +282,7 @@ export default function OfferWorkshopPage() {
         }
         throw new Error(res.data.error);
       }
+      if (!alive.current) return;
       setAiResponse(res.data);
 
       // Auto-save step 7 synthesis immediately
@@ -268,59 +306,42 @@ export default function OfferWorkshopPage() {
   };
 
   const goNext = async () => {
-    // Save current step data
-    const fields: Record<string, any> = {};
-    if (step === 1) {
-      fields.offer_type = formData.offer_type;
-      fields.name = formData.name;
-      fields.description_short = formData.description_short;
-      fields.price_text = formData.price_text;
-      fields.url_sales_page = formData.url_sales_page;
-      fields.url_booking = formData.url_booking;
-    } else if (step === 2) {
-      fields.problem_surface = formData.problem_surface;
-      if (aiResponse?.deep_problem) fields.problem_deep = aiResponse.deep_problem;
-    } else if (step === 3) {
-      fields.promise = formData.promise;
-      if (aiResponse?.suggestions) fields.promise_long = aiResponse.suggestions.map((s: any) => s.text).join(" | ");
-    } else if (step === 4) {
-      fields.features = formData.features_text.split("\n").filter((f: string) => f.trim());
-      if (aiResponse?.features_to_benefits) {
+    try {
+      // Save current step data
+      const fields: Record<string, any> = { ...getDbFields() };
+      if (step === 2 && aiResponse?.deep_problem) fields.problem_deep = aiResponse.deep_problem;
+      if (step === 3 && aiResponse?.suggestions) fields.promise_long = aiResponse.suggestions.map((s: any) => s.text).join(" | ");
+      if (step === 4 && aiResponse?.features_to_benefits) {
         fields.features_to_benefits = aiResponse.features_to_benefits;
         fields.benefits = aiResponse.features_to_benefits.map((f: any) => f.benefit);
       }
-    } else if (step === 5) {
-      fields.target_ideal = formData.target_ideal;
-      fields.target_not_for = formData.target_not_for;
-    } else if (step === 6) {
-      const rawObj = formData.objections_text.split("\n").filter((o: string) => o.trim());
-      if (aiResponse?.objections) {
-        fields.objections = aiResponse.objections;
-      } else {
-        fields.objections = rawObj.map((o: string) => ({ objection: o, response: "" }));
+      if (step === 6 && aiResponse?.objections) {
+        // Keep only responses for objections still present in the edited form.
+        fields.objections = reconcileObjections(formData.objections_text || "", aiResponse.objections);
       }
-      fields.testimonials = formData.testimonials;
-    } else if (step === 7) {
-      if (aiResponse) {
-        fields.sales_line = aiResponse.sales_line || formData.sales_line;
-        fields.emotional_before = aiResponse.before || "";
-        fields.emotional_after = aiResponse.after || "";
-        fields.feelings_after = aiResponse.feelings || [];
-        if (aiResponse.promise_summary) fields.promise = aiResponse.promise_summary;
-        if (aiResponse.sales_line_long) fields.promise_long = aiResponse.sales_line_long;
+      if (step === 7) {
+        if (aiResponse) {
+          fields.sales_line = aiResponse.sales_line || "";
+          fields.emotional_before = aiResponse.before || "";
+          fields.emotional_after = aiResponse.after || "";
+          fields.feelings_after = aiResponse.feelings || [];
+          if (aiResponse.promise_summary) fields.promise = aiResponse.promise_summary;
+          if (aiResponse.sales_line_long) fields.promise_long = aiResponse.sales_line_long;
+        }
+        fields.completed = true;
       }
-      fields.completed = true;
-    }
 
-    const nextStep = step < 7 ? step + 1 : 7;
-    await save(fields, nextStep);
-    if (step < 7) {
-      setStep(nextStep);
-      setAiResponse(null);
-    } else {
-      toast.success("🎉 Fiche offre complétée !");
-      navigate("/branding/offres");
-    }
+      const nextStep = step < 7 ? step + 1 : 7;
+      await save(fields, nextStep);
+      if (!alive.current) return;
+      if (step < 7) {
+        setStep(nextStep);
+        setAiResponse(null);
+      } else {
+        toast.success("🎉 Fiche offre complétée !");
+        navigate("/branding/offres");
+      }
+    } catch (error) { toast.error("Erreur de sauvegarde : reste sur cette étape et réessaie."); }
   };
 
   const goPrev = () => {
@@ -377,6 +398,7 @@ export default function OfferWorkshopPage() {
         <p className="text-2xs text-muted-foreground mt-1">Étape {step}/7</p>
       </div>
 
+      <fieldset disabled={saving} className="contents">
       {/* Step content */}
       {step === 1 && <Step1 formData={formData} setFormData={updateFormData} saved={saved} autoSaving={autoSaving} onExtract={handleExtractFromPage} extracting={extracting} />}
       {step === 2 && <Step2 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(2, formData.problem_surface)} saved={saved} autoSaving={autoSaving} />}
@@ -386,6 +408,7 @@ export default function OfferWorkshopPage() {
       {step === 6 && <Step6 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} onAskAI={() => askAI(6, formData.objections_text)} saved={saved} autoSaving={autoSaving} />}
       {step === 7 && <Step7 formData={formData} setFormData={updateFormData} aiResponse={aiResponse} aiLoading={aiLoading} offer={offer} onAskAI={() => askAI(7, "")} />}
       {aiResponse && <AiGeneratedMention />}
+      </fieldset>
 
       {/* Navigation */}
       <div className="flex items-center justify-between mt-8 pt-4 border-t border-border">
@@ -519,7 +542,7 @@ function Step2({ formData, setFormData, aiResponse, aiLoading, onAskAI, saved, a
       </div>
       <Label htmlFor="offer-problem-surface" className="text-sm text-muted-foreground font-normal">Quel problème ta cliente a AVANT de travailler avec toi ?</Label>
       <Textarea id="offer-problem-surface" value={formData.problem_surface} onChange={(e) => update("problem_surface", e.target.value)} placeholder="Elle ne sait pas communiquer, elle est invisible..." rows={3} />
-      
+
       <Button onClick={onAskAI} disabled={aiLoading || !formData.problem_surface?.trim()} variant="outline" className="gap-2">
         {aiLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
         L'IA te coache

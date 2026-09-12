@@ -175,7 +175,7 @@ async function fillMissingPersonaFields(
   if (Object.keys(validFills).length > 0) {
     const { error } = await (supabase.from("persona") as any)
       .update({ ...validFills, updated_at: new Date().toISOString() })
-      .eq("id", currentPersona.id);
+      .eq("id", currentPersona.id).eq(ctx.column, ctx.value).select("id").single();
     if (error) throw error;
     console.log(`[BrandingCoaching] Persona fill: ${Object.keys(validFills).length} missing fields filled`);
   } else if (fillResponse) {
@@ -189,7 +189,7 @@ async function generatePersonaPitches(currentPersona: Record<string, any>, ctx: 
   try {
     const { data: freshPersona } = await (supabase.from("persona") as any)
       .select("*")
-      .eq("id", currentPersona.id)
+      .eq("id", currentPersona.id).eq(ctx.column, ctx.value)
       .maybeSingle();
 
     const { data: brandData } = await (supabase.from("brand_profile") as any)
@@ -200,6 +200,7 @@ async function generatePersonaPitches(currentPersona: Record<string, any>, ctx: 
     const { data: pitchData } = await invokeWithTimeout("persona-ai", {
       body: {
         type: "pitch",
+        workspace_id: ctx.workspaceId !== ctx.profileUserId ? ctx.workspaceId : undefined,
         persona: freshPersona || currentPersona,
         profile: brandData || {},
       },
@@ -222,7 +223,7 @@ async function generatePersonaPitches(currentPersona: Record<string, any>, ctx: 
         if (Object.keys(pitchUpdate).length > 0) {
           const { error } = await (supabase.from("persona") as any)
             .update({ ...pitchUpdate, updated_at: new Date().toISOString() })
-            .eq("id", currentPersona.id);
+            .eq("id", currentPersona.id).eq(ctx.column, ctx.value).select("id").single();
           if (error) throw error;
           console.log(`[BrandingCoaching] Persona pitches generated: ${Object.keys(pitchUpdate).join(", ")}`);
         }
@@ -244,7 +245,7 @@ export async function completePersonaSection(
   try {
     let personaQuery = (supabase.from("persona") as any).select("*");
     if (resolvedPersonaId) {
-      personaQuery = personaQuery.eq("id", resolvedPersonaId);
+      personaQuery = personaQuery.eq("id", resolvedPersonaId).eq(ctx.column, ctx.value);
     } else {
       personaQuery = personaQuery.eq(ctx.column, ctx.value).eq("is_primary", true);
     }

@@ -1,10 +1,13 @@
+import CoachingTarget from "@/components/branding/CoachingTarget";
+import { saveOfferInsights } from "@/lib/offer-coaching-persistence";
+import { loadCoachingSession, persistCoachingSession, archiveCoachingSession } from "@/lib/branding-coaching-session";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invokeWithTimeout, type InvokeError } from "@/lib/invoke-with-timeout";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
+import { useWorkspaceReady, useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useQueryClient } from "@tanstack/react-query";
 import { Progress } from "@/components/ui/progress";
@@ -115,6 +118,7 @@ function CoachingProgress({ section, coveredTopics }: { section: Section; covere
 interface BrandingCoachingFlowProps {
   section: Section;
   personaId?: string;
+  offerId?: string;
   focus?: string;
   onComplete?: () => void;
   onBack?: () => void;
@@ -128,7 +132,21 @@ interface BrandingCoachingFlowProps {
 // déjà complète.
 const CONVICTION_TOPICS = ["conviction_pairs", "conviction_vecu"];
 
-export default function BrandingCoachingFlow({ section, personaId, focus, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
+export default function BrandingCoachingFlow(props: BrandingCoachingFlowProps) {
+  const { column, value } = useWorkspaceFilter();
+  const ready = useWorkspaceReady();
+  const { isDemoMode } = useDemoContext();
+  if (!ready) return <p className="p-6 text-sm">Chargement de l'espace…</p>;
+  const scope = `${column}:${value}:${props.section}:${props.focus || ""}`;
+  if (!isDemoMode && (props.section === "offers" || props.section === "persona")) {
+    return <CoachingTarget kind={props.section} id={props.section === "offers" ? props.offerId : props.personaId}>
+      {id => <BrandingCoachingSession key={`${scope}:${id}`} {...props} {...(props.section === "offers" ? { offerId: id } : { personaId: id })} />}
+    </CoachingTarget>;
+  }
+  return <BrandingCoachingSession key={scope} {...props} />;
+}
+
+function BrandingCoachingSession({ section, personaId, offerId, focus, onComplete, onBack, autofillData, autofillConfidence }: BrandingCoachingFlowProps) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -139,6 +157,15 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const sessionScope = { column, value, section, personaId, offerId };
+  const sessionIdRef = useRef(crypto.randomUUID());
+  const sessionExistsRef = useRef(false);
+  const sessionExtractedRef = useRef<Record<string, any>>({});
+  const [sessionReady, setSessionReady] = useState(isDemoMode);
+  const pendingResponseRef = useRef<{ response: AIResponse; messages: Message[]; nextIndex: number; topics: string[]; pct: number } | null>(null);
+
   const [phase, setPhase] = useState<"intro" | "coaching" | "complete">("intro");
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<AIResponse | null>(null);
@@ -146,6 +173,8 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
   const [answer, setAnswer] = useState("");
   const [selectedOptions, setSelectedOptions] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [persisting, setPersisting] = useState(false);
+  const submittingRef = useRef(false);
   const [loadingPhrase, setLoadingPhrase] = useState("");
   const [completionPct, setCompletionPct] = useState(5);
   const [finalSummary, setFinalSummary] = useState("");
@@ -176,12 +205,14 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     if (isDemoMode || !user) return;
 
     const loadSession = async () => {
-      let { data } = await (supabase
-        .from("branding_coaching_sessions") as any)
-        .select("*")
-        .eq(column, value)
-        .eq("section", section)
-        .maybeSingle();
+      const data = await loadCoachingSession(sessionScope);
+      if (!alive.current) return;
+      if (data) {
+        sessionIdRef.current = data.id;
+        sessionExistsRef.current = true;
+        sessionExtractedRef.current = data.extracted_data || {};
+        pendingResponseRef.current = data.extracted_data?.pending_response || null;
+      }
 
       // Mode focus convictions : on démarre une mini-session fraîche qui ne
       // repose QUE les 2 sujets convictions. On marque tout le reste comme
@@ -226,8 +257,12 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
         setHasPrefilledData(true);
       }
     };
-    loadSession();
-  }, [user?.id, section, isDemoMode]);
+    loadSession().then(() => { if (alive.current) setSessionReady(true); }).catch(e => {
+      if (!alive.current) return;
+      setError("La conversation n'a pas pu être chargée. Recharge la page avant de continuer.");
+      trackError(e, { where: "branding.coaching.loadSession" });
+    });
+  }, [user?.id, section, isDemoMode, column, value, personaId, offerId]);
 
   // Fetch context
   const contextRef = useRef<any>(null);
@@ -287,9 +322,16 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       if (bs) ctx.brand_strategy = bs;
     }
 
+    if (section === "offers" || section === "persona") {
+      const { data, error } = await (supabase.from(section === "offers" ? "offers" : "persona") as any)
+        .select("*").eq(column, value).eq("id", section === "offers" ? offerId! : personaId!).single();
+      if (error) throw error;
+      ctx.existing_data = data;
+      ctx[section === "offers" ? "selected_offer" : "selected_persona"] = data;
+    }
     contextRef.current = ctx;
     return ctx;
-  }, [user?.id, profileData, brandProfileData, section, column, value]);
+  }, [user?.id, profileData, brandProfileData, section, column, value, personaId, offerId]);
 
   // Charter coaching state
   const charterStepRef = useRef(0);
@@ -321,7 +363,8 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
           },
         }, 120000);
 
-        if (fnError) {
+        if (!alive.current) return null;
+      if (fnError) {
           const err = fnError as InvokeError;
           console.error("[CharterCoaching] Edge function error:", err);
           setError(getInvokeErrorMessage(err));
@@ -357,6 +400,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       // (voir branding-coaching/index.ts) — le client doit couper APRÈS, avec marge.
       }, 250000);
 
+      if (!alive.current) return null;
       if (fnError) {
         const err = fnError as InvokeError;
         console.error("[BrandingCoaching] Edge function error:", err);
@@ -395,6 +439,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
   const lastCallMsgsRef = useRef<Message[]>([]);
   const lastRetryRef = useRef(0);
   const handleRetry = useCallback(async () => {
+    if (submittingRef.current) return;
     const now = Date.now();
     if (now - lastRetryRef.current < 3000) {
       toast.error("Attends quelques secondes avant de réessayer.");
@@ -402,44 +447,20 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     }
     lastRetryRef.current = now;
 
+    if (pendingResponseRef.current) {
+      setLoading(true);
+      try { await persistResponse(pendingResponseRef.current); }
+      finally { if (alive.current) setLoading(false); }
+      return;
+    }
     setError(null);
     const response = await askAI(lastCallMsgsRef.current);
-    if (!response) return;
-
-    const updatedMessages: Message[] = [
-      ...lastCallMsgsRef.current,
-      makeMsg("assistant", response.question || response.final_summary || ""),
-    ];
+    if (!response || !alive.current) return;
+    const updatedMessages = [...lastCallMsgsRef.current, makeMsg("assistant", response.question || response.final_summary || "")];
+    const topics = response.covered_topic && !coveredTopicsRef.current.includes(response.covered_topic)
+      ? [...coveredTopicsRef.current, response.covered_topic] : coveredTopicsRef.current;
     setMessages(updatedMessages);
-    updateCoveredTopics(response);
-    setCompletionPct(response.completion_percentage || completionPct);
-
-    // Save extracted insights on retry too (was missing entirely). Même
-    // garde que dans askAI : un échec d'écriture ne doit pas afficher l'écran
-    // "complet" (sinon la fiche croit être remplie alors qu'elle ne l'est pas).
-    let insightsPersisted = true;
-    if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
-      try {
-        await saveInsights(section, response.extracted_insights);
-      } catch (e) {
-        console.error("[BrandingCoaching] Failed to save insights on retry:", e);
-        insightsPersisted = false;
-        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
-      }
-    }
-
-    if (response.is_complete && !insightsPersisted) {
-      setError("La fiche n'a pas pu être mise à jour avec tes dernières réponses.");
-      return;
-    }
-    if (response.is_complete && insightsPersisted) {
-      setFinalSummary(response.final_summary || "");
-      setCompletionPct(100);
-      setShowConfetti(true);
-      setPhase("complete");
-      return;
-    }
-    setCurrentQuestion(response);
+    await persistResponse({ response, messages: updatedMessages, nextIndex: questionIndexRef.current, topics, pct: response.completion_percentage || completionPct });
   }, [askAI, completionPct, section]);
 
   const updateCoveredTopics = useCallback((response: AIResponse) => {
@@ -472,7 +493,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
 
   const handleStart = useCallback(async () => {
     // Guard against double-start (React strict mode / double mount)
-    if (startingRef.current) return;
+    if (startingRef.current || !sessionReady) return;
     startingRef.current = true;
 
     // Garde démo : content_series n'est pas dispo en démo
@@ -546,6 +567,10 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
         return;
       }
 
+      if (pendingResponseRef.current) {
+        await persistResponse(pendingResponseRef.current);
+        return;
+      }
       if (hasExistingSession && messagesRef.current.length > 0) {
         const lastMsg = messagesRef.current[messagesRef.current.length - 1];
 
@@ -565,10 +590,10 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
         // Last message is from user — AI needs to respond
         lastCallMsgsRef.current = messagesRef.current;
         const response = await askAI(messagesRef.current);
-        if (response) {
-          setCurrentQuestion(response);
-          updateCoveredTopics(response);
-          setCompletionPct(response.completion_percentage || 5);
+        if (response && alive.current) {
+          const updatedMessages = [...messagesRef.current, makeMsg("assistant", response.question || response.final_summary || "")];
+          setMessages(updatedMessages);
+          await persistResponse({ response, messages: updatedMessages, nextIndex: questionIndexRef.current, topics: coveredTopicsRef.current, pct: response.completion_percentage || completionPct });
         }
         return;
       }
@@ -584,7 +609,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     } finally {
       startingRef.current = false;
     }
-  }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section, completionPct]);
+  }, [isDemoMode, demoQuestions, hasExistingSession, askAI, updateCoveredTopics, section, completionPct, sessionReady]);
 
   // Mode focus convictions : on lance directement la mini-session dès que les
   // sujets non-convictions ont été marqués couverts par loadSession (pas d'écran
@@ -600,13 +625,15 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
   }, [isConvictionFocus, isDemoMode, user, phase, coveredTopics, handleStart]);
 
   const handleNext = useCallback(async () => {
-    if (loading) return;
+    if (loading || submittingRef.current) return;
     const rawAnswer = currentQuestion?.question_type === "select" || currentQuestion?.question_type === "multi_select"
       ? selectedOptions.join(", ")
       : answer;
     const userAnswer = rawAnswer.trim();
     if (!userAnswer) return;
-
+    submittingRef.current = true;
+    setPersisting(true);
+    try {
     const nextIndex = questionIndexRef.current + 1;
     setQuestionIndex(nextIndex);
     setAnswer("");
@@ -657,6 +684,19 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     setMessages(newMessages);
     lastCallMsgsRef.current = newMessages;
 
+    // A failed AI call must still leave the user's answer resumable.
+    try {
+      await persistCoachingSession(sessionIdRef.current, sessionExistsRef.current, sessionScope, {
+        user_id: profileUserId, workspace_id: column === "workspace_id" ? workspaceId : null,
+        section, messages: newMessages, question_count: nextIndex, extracted_data: sessionExtractedRef.current,
+        covered_topics: coveredTopicsRef.current, is_complete: false, completed_at: null, updated_at: new Date().toISOString(),
+      });
+      sessionExistsRef.current = true;
+    } catch (e) {
+      setError("La conversation n'a pas pu être enregistrée. Ta réponse reste ici : réessaie.");
+      return;
+    }
+    if (!alive.current) return;
     const response = await askAI(newMessages);
     if (!response) return;
 
@@ -689,91 +729,52 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       : response.completion_percentage || completionPct;
     setCompletionPct(realPct);
 
-    // Save session
-    const wsId = workspaceId !== user!.id ? workspaceId : undefined;
-    const { data: existingSession } = await (supabase.from("branding_coaching_sessions") as any)
-      .select("id").eq(column, value).eq("section", section).maybeSingle();
-
-    // Écrire la fiche (insights) AVANT de marquer la session complète : sinon
-    // un échec d'écriture laisse une session "complète" mais une fiche à moitié
-    // remplie. On ne passe is_complete=true que si la fiche a bien été persistée.
-    let insightsPersisted = true;
-    if (response.extracted_insights && Object.keys(response.extracted_insights).length > 0) {
-      try {
-        await saveInsights(section, response.extracted_insights);
-      } catch (e) {
-        console.error("[BrandingCoaching] Failed to save insights:", e);
-        insightsPersisted = false;
-        toast.error("Tes réponses sont enregistrées dans la conversation mais la fiche n'a pas pu être mise à jour. Clique sur 'Affiner avec l'IA' pour réessayer.");
-      }
-    }
-    const markComplete = response.is_complete && insightsPersisted;
-
-    const sessionPayload = {
-      user_id: user!.id,
-      workspace_id: wsId,
-      section,
-      messages: updatedMessages as any,
-      extracted_data: {
-        ...response.extracted_insights,
-        completion_percentage: realPct,
-        final_summary: response.final_summary,
-        covered_topics: newCovered,
-      },
-      question_count: nextIndex,
-      is_complete: markComplete,
-      completed_at: markComplete ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-      covered_topics: newCovered as any,
-    };
-
-    try {
-      if (existingSession?.id) {
-        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
-          .update(sessionPayload).eq("id", existingSession.id);
-        if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      } else {
-        const { error: saveErr } = await (supabase.from("branding_coaching_sessions") as any)
-          .insert(sessionPayload);
-        if (saveErr) console.error("[BrandingCoaching] Save session error:", saveErr);
-      }
-    } catch (e) {
-      console.error("[BrandingCoaching] Save session critical error:", e);
-    }
-
-    // Même garde que markComplete ci-dessus : si la fiche n'a pas pu être
-    // persistée, ne PAS afficher confettis + "Fiche complète ✓" — ce serait
-    // contredire le toast d'échec qu'on vient d'afficher juste au-dessus.
-    // On bascule sur l'écran d'erreur existant (bouton "Réessayer" →
-    // handleRetry) plutôt que de retomber sur setCurrentQuestion(response) :
-    // une réponse "is_complete" n'a en général pas de "question" à afficher.
-    if (response.is_complete && !insightsPersisted) {
-      setError("La fiche n'a pas pu être mise à jour avec tes dernières réponses.");
-      return;
-    }
-    if (response.is_complete && insightsPersisted) {
-      const completionCtx = { column, value, profileUserId, workspaceId };
-
-      // If storytelling, generate full story
-      if (section === "story") {
-        await generateAndSaveFullStory(updatedMessages, checklist, completionCtx, fetchContext);
-      }
-
-      // If persona, fill missing fields + generate pitches
-      if (section === "persona") {
-        await completePersonaSection(updatedMessages, checklist, completionCtx, resolvedPersonaIdRef.current, fetchContext);
-      }
-
-      setFinalSummary(response.final_summary || "");
-      setCompletionPct(100);
-      setCoveredTopics(checklist);
-      setShowConfetti(true);
-      setPhase("complete");
-      return;
-    }
-
-    setCurrentQuestion(response);
+    await persistResponse({ response, messages: updatedMessages, nextIndex, topics: newCovered, pct: realPct });
+    } finally { submittingRef.current = false; if (alive.current) setPersisting(false); }
   }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist, loading]);
+
+  const persistResponse = async (pending: NonNullable<typeof pendingResponseRef.current>) => {
+    if (!alive.current || !user) return;
+    pendingResponseRef.current = pending;
+    const { response, messages: updatedMessages, nextIndex, topics, pct } = pending;
+    setError(null);
+    try {
+      const extracted = { ...sessionExtractedRef.current, ...response.extracted_insights,
+        completion_percentage: pct, final_summary: response.final_summary, covered_topics: topics, pending_response: pending };
+      const payload = {
+        user_id: profileUserId, workspace_id: column === "workspace_id" ? workspaceId : null,
+        section, messages: updatedMessages, extracted_data: extracted, question_count: nextIndex,
+        is_complete: false, completed_at: null, updated_at: new Date().toISOString(), covered_topics: topics,
+      };
+      // Persist the conversation before writing the business record; keep the exact response for retry.
+      await persistCoachingSession(sessionIdRef.current, sessionExistsRef.current, sessionScope, payload);
+      sessionExistsRef.current = true;
+      sessionExtractedRef.current = extracted;
+      if (!alive.current) return;
+      if (response.extracted_insights && Object.keys(response.extracted_insights).length) await saveInsights(section, response.extracted_insights);
+      if (!alive.current) return;
+      if (response.is_complete) {
+        const completionCtx = { column, value, profileUserId, workspaceId };
+        if (section === "story") await generateAndSaveFullStory(updatedMessages, checklist, completionCtx, fetchContext);
+        if (section === "persona") await completePersonaSection(updatedMessages, checklist, completionCtx, resolvedPersonaIdRef.current, fetchContext);
+        if (!alive.current) return;
+        await persistCoachingSession(sessionIdRef.current, true, sessionScope, { ...payload, extracted_data: { ...extracted, pending_response: null }, is_complete: true, completed_at: new Date().toISOString() });
+        if (!alive.current) return;
+        setFinalSummary(response.final_summary || ""); setCompletionPct(100); setCoveredTopics(checklist);
+        setShowConfetti(true); setPhase("complete");
+      } else {
+        await persistCoachingSession(sessionIdRef.current, true, sessionScope, { ...payload, extracted_data: { ...extracted, pending_response: null } });
+        if (!alive.current) return;
+        setCurrentQuestion(response); setCoveredTopics(topics); setCompletionPct(pct);
+      }
+      sessionExtractedRef.current = { ...extracted, pending_response: null };
+      pendingResponseRef.current = null;
+    } catch (e) {
+      if (!alive.current) return;
+      trackError(e, { where: "branding.coaching.persistResponse" });
+      setError("La sauvegarde n'a pas abouti. Tes réponses restent ici : réessaie avant de continuer.");
+    }
+  };
 
   // Ne PAS avaler l'erreur ici : elle doit remonter jusqu'à l'appelant
   // (askAI ci-dessus), qui met insightsPersisted=false et affiche le toast
@@ -790,6 +791,8 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
     } else if (sec === "persona") {
       const targetPersonaId = await savePersonaInsights(insights, ctx, resolvedPersonaIdRef.current);
       if (targetPersonaId) resolvedPersonaIdRef.current = targetPersonaId;
+    } else if (sec === "offers") {
+      await saveOfferInsights(insights, ctx, offerId);
     } else if (sec === "story") {
       await saveStoryInsights(insights, ctx);
     } else if (sec === "content_strategy") {
@@ -856,7 +859,8 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
             </p>
           )}
 
-          <Button size="lg" className="rounded-pill gap-2" onClick={handleStart} disabled={loading}>
+          {error && <p role="alert" className="text-sm text-destructive mb-4">{error}</p>}
+          <Button size="lg" className="rounded-pill gap-2" onClick={handleStart} disabled={loading || !sessionReady}>
             {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
             {hasExistingSession ? "On reprend →" : "C'est parti →"}
           </Button>
@@ -907,17 +911,14 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
               variant="ghost"
               className="rounded-pill text-muted-foreground mt-2"
               onClick={async () => {
-                if (user) {
-                  const { error } = await (supabase
-                    .from("branding_coaching_sessions") as any)
-                    .delete()
-                    .eq(column, value)
-                    .eq("section", section);
-                  if (error) {
-                    toast.error("Impossible de réinitialiser cette section, réessaie.");
-                    return;
-                  }
+                if (user && sessionExistsRef.current) {
+                  try { await archiveCoachingSession(sessionIdRef.current, sessionScope); }
+                  catch { toast.error("Impossible de recommencer cette section, réessaie."); return; }
                 }
+                sessionIdRef.current = crypto.randomUUID();
+                sessionExistsRef.current = false;
+                sessionExtractedRef.current = {};
+                pendingResponseRef.current = null;
                 setPhase("intro");
                 setMessages([]);
                 setCurrentQuestion(null);
@@ -934,6 +935,10 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
             </Button>
           </div>
 
+          {section === "content_strategy" && <p className="text-sm text-muted-foreground mt-4">
+            Le conseil de rythme est enregistré. Les fréquences de posts et stories restent celles de tes réglages.
+            <button className="underline ml-1" onClick={() => navigate("/instagram/profil/edito")}>Voir mes réglages</button>
+          </p>}
           <p className="text-xs text-muted-foreground mt-6">Tu pourras revenir creuser à tout moment.</p>
         </div>
       </div>
@@ -969,7 +974,7 @@ export default function BrandingCoachingFlow({ section, personaId, focus, onComp
       {/* Question */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 max-w-lg mx-auto w-full">
         <AnimatePresence mode="wait">
-          {loading ? (
+          {loading || persisting ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}

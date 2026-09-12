@@ -322,7 +322,7 @@ Quand tu extrais des informations de la réponse, utilise EXACTEMENT ces clés d
 ${section === "content_strategy" ? `- "content_pillars": tableau de strings ["pilier majeur", "pilier mineur 1", "pilier mineur 2", "pilier mineur 3"] — le premier est toujours le pilier majeur
 - "content_twist": string, le concept créatif / twist unique
 - "content_formats": string, les formats de contenu préférés séparés par des virgules
-- "content_frequency": string, le rythme choisi (ex: "2x/semaine posts, stories 3-4x/semaine")
+- "content_frequency": string, conseil de rythme à relire (ex: "2x/semaine posts, stories 3-4x/semaine"). Ce conseil est conservé dans recommended_rhythm ; il ne modifie pas les fréquences posts/stories appliquées. Ne prétends jamais avoir changé les réglages de publication.
 - "content_editorial_line": string, résumé de la ligne éditoriale` :
 section === "story" ? `- "story_origin": string, comment tout a commencé
 - "story_turning_point": string, le déclic
@@ -369,7 +369,8 @@ section === "tone_style" ? `- "voice_description": string, comment tu parles / t
 - "conviction_verbatims": string, la ou les phrases de clientes qui lui sont restées, dans les mots EXACTS rapportés — null si pas abordé
 - "conviction_unspoken": string, la vérité de son métier qu'elle n'ose pas dire publiquement — null si pas abordé
 - "visual_style": string, ton style visuel` :
-section === "offers" ? `- "offer_name": string, nom de l'offre
+section === "offers" ? `Travaille uniquement l'offre identifiée dans existing_data, jamais plusieurs offres à la fois. Les champs absents de tes propositions resteront inchangés.
+- "offer_name": string, nom de l'offre
 - "offer_price": string, prix et format de paiement
 - "offer_target": string, pour qui c'est fait
 - "offer_promise": string, la promesse / transformation

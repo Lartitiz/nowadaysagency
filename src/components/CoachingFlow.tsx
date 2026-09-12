@@ -1,6 +1,9 @@
+import { collectCoachingProposals, proposalEditKey } from "@/lib/coaching-proposals";
+import CoachingTarget from "@/components/branding/CoachingTarget";
+import { saveOfferInsights } from "@/lib/offer-coaching-persistence";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
+import { useWorkspaceReady, useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -13,6 +16,8 @@ import { useStreamingInvoke } from "@/hooks/use-streaming-invoke";
 interface CoachingFlowProps {
   module: string;
   recId?: string;
+  offerId?: string;
+  personaId?: string;
   conseil?: string;
   onComplete: () => void;
   onSkip: () => void;
@@ -41,7 +46,21 @@ const MAX_ADJUSTMENTS = 3;
 
 type Phase = "intro" | "questions" | "diagnostic" | "adjust" | "done";
 
-export default function CoachingFlow({ module, recId, conseil, onComplete, onSkip }: CoachingFlowProps) {
+export default function CoachingFlow(props: CoachingFlowProps) {
+  const { column, value } = useWorkspaceFilter();
+  const ready = useWorkspaceReady();
+  if (!ready) return <p className="p-6 text-sm">Chargement de l'espace…</p>;
+  const scope = `${column}:${value}:${props.module}:${props.recId || ""}`;
+
+  if (props.module === "offers" || props.module === "persona") {
+    return <CoachingTarget kind={props.module} id={props.module === "offers" ? props.offerId : props.personaId}>
+      {id => <CoachingFlowInner key={`${scope}:${id}`} {...props} {...(props.module === "offers" ? { offerId: id } : { personaId: id })} />}
+    </CoachingTarget>;
+  }
+  return <CoachingFlowInner key={scope} {...props} />;
+}
+
+function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onComplete, onSkip }: CoachingFlowProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     setTimeout(() => containerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -57,6 +76,9 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
   const [answers, setAnswers] = useState<string[]>(["", "", "", ""]);
   const [loading, setLoading] = useState(false);
   const [diagnostic, setDiagnostic] = useState<DiagnosticResult | null>(null);
+  const alive = useRef(true);
+  useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, number>>({});
   const [editedProposals, setEditedProposals] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
 
@@ -75,7 +97,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
     setLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("coaching-module", {
-        body: { phase: "questions", module, rec_id: recId },
+        body: { phase: "questions", module, rec_id: recId, offer_id: offerId, persona_id: personaId, workspace_id: column === "workspace_id" ? workspaceId : undefined },
       }, 120000);
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -113,7 +135,8 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         module,
         answers: answersPayload,
         rec_id: recId,
-        workspace_id: workspaceId,
+        workspace_id: column === "workspace_id" ? workspaceId : undefined,
+        offer_id: offerId, persona_id: personaId,
       });
 
       if (fullText) {
@@ -125,8 +148,9 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           setIterationCount(0);
           setPreviousDiagnostics([]);
           const edited: Record<string, string> = {};
-          (parsed.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
+          (parsed.proposals || []).forEach((p: Proposal, i: number) => { edited[proposalEditKey(p, i)] = p.value; });
           setEditedProposals(edited);
+          setSelectedVariants({});
         } catch {
           toast.error("Erreur de format dans la réponse IA. Réessaie.");
           setPhase("questions");
@@ -173,7 +197,8 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         adjustment_feedback: adjustmentFeedback,
         iteration_history: history,
         iteration: iterationCount + 1,
-        workspace_id: workspaceId,
+        workspace_id: column === "workspace_id" ? workspaceId : undefined,
+        offer_id: offerId, persona_id: personaId,
       });
 
       if (fullText) {
@@ -188,8 +213,9 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           setAdjustmentFeedback("");
 
           const edited: Record<string, string> = {};
-          (parsed.proposals || []).forEach((p: Proposal) => { edited[p.field] = p.value; });
+          (parsed.proposals || []).forEach((p: Proposal, i: number) => { edited[proposalEditKey(p, i)] = p.value; });
           setEditedProposals(edited);
+          setSelectedVariants({});
         } catch {
           toast.error("Erreur de format dans la réponse IA. Réessaie.");
         }
@@ -224,16 +250,16 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
     if (!user || !diagnostic) return;
     setSaving(true);
     try {
-      const updates: Record<string, string> = {};
-      diagnostic.proposals.forEach(p => {
-        updates[p.field] = editedProposals[p.field] || p.value;
-      });
+      const updates = collectCoachingProposals(diagnostic.proposals, editedProposals, selectedVariants);
 
-      if (module === "persona") {
-        const { data: personaRow } = await (supabase.from("persona") as any)
+      if (module === "offers") {
+        await saveOfferInsights(updates, { column, value }, offerId);
+      } else if (module === "persona") {
+        const { data: personaRow, error: personaError } = await (supabase.from("persona") as any)
           .select("id, portrait, portrait_prenom")
-          .eq(column, value)
-          .maybeSingle();
+          .eq(column, value).eq("id", personaId!)
+          .single();
+        if (personaError) throw personaError;
 
         const existingPortrait = (personaRow?.portrait as Record<string, any>) || {};
         const portraitUpdates: Record<string, any> = { ...existingPortrait };
@@ -298,14 +324,15 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         };
         const table = tableMap[module];
         if (table) {
-          const { data: existing } = await supabase
-            .from(table as any)
+          const { data: existing, error: readError } = await (supabase
+            .from(table as any) as any)
             .select("id")
             .eq(column, value)
             .maybeSingle();
 
+          if (readError) throw readError;
           if (existing) {
-            const { error } = await supabase.from(table as any).update(updates).eq(column, value);
+            const { error } = await supabase.from(table as any).update(updates).eq("id", existing.id).eq(column, value);
             if (error) throw error;
           } else {
             const { error } = await supabase.from(table as any).insert({ ...updates, user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined });
@@ -314,6 +341,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         }
       }
 
+      if (!alive.current) return;
       if (recId) {
         const { error: recError } = await supabase
           .from("audit_recommendations")
@@ -322,6 +350,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
         if (recError) throw recError;
       }
 
+      if (!alive.current) return;
       toast.success("✅ Mis à jour ! L'IA s'en souviendra pour tes prochains contenus.");
       setPhase("done");
       onComplete();
@@ -463,7 +492,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
               {iterationCount > 0 ? "Proposition ajustée" : "Voilà ce que je te propose"}
             </h3>
             <p className="text-sm text-foreground leading-relaxed">{diagnostic.diagnostic}</p>
-            
+
             {diagnostic.pourquoi && (
               <div className="text-sm text-muted-foreground italic leading-relaxed">
                 {diagnostic.pourquoi}
@@ -488,13 +517,16 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
           <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
             <h4 className="font-body font-bold text-sm text-foreground">Proposition de textes</h4>
             <p className="text-xs text-muted-foreground">Tu peux modifier directement avant de valider.</p>
-            
-            {diagnostic.proposals.map((p) => (
-              <div key={p.field}>
+
+            {diagnostic.proposals.map((p, i) => (
+              <div key={proposalEditKey(p, i)}>
                 <label className="text-xs font-semibold text-foreground mb-1.5 block">{p.label}</label>
+                {diagnostic.proposals.filter(other => other.field === p.field).length > 1 && <label className="block text-xs my-2">
+                  <input type="radio" name={`variant-${p.field}`} checked={selectedVariants[p.field] === i} onChange={() => setSelectedVariants(prev => ({ ...prev, [p.field]: i }))} /> Utiliser cette version
+                </label>}
                 <Textarea
-                  value={editedProposals[p.field] || p.value}
-                  onChange={(e) => setEditedProposals(prev => ({ ...prev, [p.field]: e.target.value }))}
+                  value={editedProposals[proposalEditKey(p, i)] ?? p.value}
+                  onChange={(e) => setEditedProposals(prev => ({ ...prev, [proposalEditKey(p, i)]: e.target.value }))}
                   className="min-h-[80px] text-sm"
                 />
               </div>
@@ -546,7 +578,7 @@ export default function CoachingFlow({ module, recId, conseil, onComplete, onSki
                 {diagnostic.proposals.map(p => (
                   <div key={p.field} className="text-xs text-muted-foreground">
                     <span className="font-semibold text-foreground">{p.label} :</span>{" "}
-                    {(editedProposals[p.field] || p.value).slice(0, 80)}…
+                    {(editedProposals[p.field] ?? p.value).slice(0, 80)}…
                   </div>
                 ))}
               </div>
