@@ -88,6 +88,20 @@ try {
       const conso = pr.consommes_mois != null ? `, consommés ${pr.consommes_mois} (${rythme})` : "";
       console.log(`   crédits Photoroom restants     : ${pr.restants}${pr.abonnement ? ` / ${pr.abonnement}` : ""}${conso}${pr.alerte ? `  🔴 ${pr.alerte}` : ""}`);
     }
+    // Erreurs JS remontées par le navigateur des clientes (#949). Catégories fermées,
+    // aucun message : on voit QUEL écran casse, pas pourquoi. ⚠️ comptes test inclus
+    // (l'edge ne filtre pas) : un run de visite peut en produire.
+    const ce = d.client_errors_24h;
+    if (ce) {
+      const parEcran = {};
+      for (const e of ce.items || []) {
+        const k = `${e.route}/${e.kind}`;
+        parEcran[k] = (parEcran[k] || 0) + 1;
+      }
+      const detail = Object.entries(parEcran).map(([k, n]) => `${k}×${n}`).join(", ");
+      console.log(`   erreurs JS clientes (24 h)     : ${ce.count}${ce.count ? `  🟡 ${detail}${ce.count > (ce.items || []).length ? " (20 dernières)" : ""}` : ""}`);
+      for (const e of ce.items || []) console.log(`      • ${e.route} — ${e.kind}${e.asset ? ` (${e.asset})` : ""} — ${e.created_at}`);
+    }
 
     // ── Facturation (incident Stripe 24-31/07) ────────────────────────────────
     // Absent si l'edge live n'est pas encore la version qui remonte le bloc.
