@@ -1,4 +1,4 @@
-import { CAROUSEL_CONTINUITY, CAROUSEL_SUBSTANCE, CAROUSEL_TITLES } from "./writing-contract.ts";
+import { CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_SUBSTANCE, CAROUSEL_TITLES, carouselStructureGuide } from "./writing-contract.ts";
 
 export const VISUAL_SCHEMA_CONTRACT = `SCHÉMAS : objet {type,...données}, jamais une chaîne descriptive ni un objet data intermédiaire. Zéro à deux schémas maximum, jamais consécutifs. Utilise seulement des valeurs établies et utiles à la slide ; null si les champs ne peuvent pas être remplis. Types et formes conservés :
 before_after:{before:{label,items},after:{label,items}} ; comparison:{left:{label,items},right:{label,items}} ; timeline:{steps:[{label,desc}]} ; checklist:{title,items:[{text,checked}]} ; stats:{items:[{number,label}]} ; matrix_2x2:{x_axis:{left,right},y_axis:{bottom,top},quadrants:[{position,label,emoji}]} ; pyramid:{levels:[{label,desc}]} ; equation:{parts:[{label}],result:{label},operator} ; flowchart:{start,branches:[{condition,result}]} ; scale:{left:{label},right:{label},marker:{position,label}} ; icon_grid:{items:[{emoji,label}]} ; story_arc:{steps:[{label,desc}]} ; quote_big:{quote,attribution?,context?} ; objection_response:{objection,response} ; process_visible:{stages:[{label,desc}]} (exactement trois stages, sinon timeline).
@@ -32,6 +32,20 @@ visual_anchor : détail visible dans la photo, utile à sa composition. photo_de
 
 Retourne un objet JSON avec carousel_type:"photo", chosen_angle:{title,description}, slides et caption.
 Chaque slide contient slide_number, role, photo_index, photo_description, overlay_text, overlay_position, overlay_style, template, kicker, detail, points, big_number, step_number, attribution, cta_label, visual_anchor, note. Utilise null pour les champs facultatifs inapplicables, pas de placeholders ni de chiffres illustratifs. Les rôles décrivent ce que font les slides ; aucune révélation, émotion ou action obligatoire.`;
+}
+
+export function textWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string): string {
+  return `Rédige un carrousel TEXTE avec des suggestions visuelles séparées.
+${brief({ ...body, slide_count: body.slide_count || 7 }, isLinkedIn, confirmed)}
+${body.chosen_angle ? `Angle choisi à conserver : ${JSON.stringify(body.chosen_angle)}.` : ""}
+${body.selected_hook ? `Accroche choisie par la personne : ${JSON.stringify(body.selected_hook)}. Conserve-la sur la première slide.` : ""}
+${body.content_structure ? `Structure choisie à conserver : ${body.content_structure}.` : carouselStructureGuide(body.carousel_type)}
+${CAROUSEL_FACTS}
+${VISUAL_SCHEMA_CONTRACT}
+Contrat : une idée principale par slide, title et body en prose adaptée au registre demandé ; body peut être vide sur la couverture. Les titres descriptifs et la numérotation d'étapes sont autorisés. Le champ role nomme la fonction réelle (présentation, caractéristique, usage, étape, argument, nuance, récit, etc.), sans imposer de bascule ni de révélation.
+Retourne un objet JSON avec carousel_type, chosen_angle:{title,description}, slides, caption, quality_check:{} et publishing_tip:"". N'invente aucun conseil de performance ou moment optimal pour publier.
+Chaque slide contient slide_number (entier depuis 1), role, title, body, visual_suggestion (composition, ambiance ou illustration dans ce champ technique), visual_schema (objet typé ou null), word_count (nombre réel de mots du texte). Aucun contenu éditorial supplémentaire dans les suggestions techniques.
+Caption : hook (entrée dans le sujet, pas de nouvelle anecdote), body (complément ou résumé fidèle), cta (vide si inutile), hashtags (liste de trois mots-clés pertinents maximum). Aucun minimum de longueur et aucune posture d'expert ajoutée au ton demandé.`;
 }
 
 export function mixWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string, textFirst: string): string {

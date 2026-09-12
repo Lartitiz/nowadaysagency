@@ -1,4 +1,4 @@
-import { photoWritingPrompt, mixWritingPrompt, NEWS_WRITING, VISUAL_SCHEMA_CONTRACT } from "./variant-writing.ts";
+import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -7,7 +7,7 @@ import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limit
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
-import { buildCarouselWritingSystem, carouselStructureGuide, CAROUSEL_FACTS as FACTS_AND_MOTIF_RULES, CAROUSEL_SUBSTANCE, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
+import { buildCarouselWritingSystem, CAROUSEL_SUBSTANCE, CAROUSEL_CONTINUITY, CAROUSEL_TITLES as SLIDE_TITLE_RULES, CAROUSEL_WRITING_VERSION } from "./writing-contract.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { validateInput, ValidationError, clampAiField } from "../_shared/input-validators.ts";
 import { carouselNeedsPolish } from "../_shared/correction-pass.ts";
@@ -980,7 +980,7 @@ async function handleHooksRequest(reqCtx: CarouselRequestContext): Promise<Respo
 }
 
 async function handleSlidesRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const userPrompt = buildSlidesPrompt(reqCtx.body);
+  const userPrompt = buildSlidesPrompt(reqCtx.body, reqCtx.isLinkedIn);
   return runGenerationAndRespond("slides", userPrompt, reqCtx);
 }
 
@@ -1705,91 +1705,8 @@ Retourne ce JSON exact :
 }`;
 }
 
-function buildSlidesPrompt(body: any): string {
-  const { carousel_type, subject, objective, selected_hook, slide_count, selected_offer, deepening_answers, chosen_angle, editorial_angle, content_structure } = body;
-
-  const structureGuide = getStructureGuide(carousel_type);
-
-  let deepeningCtx = "";
-  if (deepening_answers) {
-    const answers = Object.entries(deepening_answers)
-      .filter(([, v]) => v && (v as string).trim())
-      .map(([k, v]) => `- ${k}: ${v}`)
-      .join("\n");
-    if (answers) deepeningCtx = `\nRÉPONSES DE L'UTILISATRICE (intègre son vécu, ses mots, ses exemples dans les slides) :\n${answers}\n\nINTÉGRATION DES RÉPONSES :\n- Les réponses de l'utilisatrice sont du contenu AUTHENTIQUE. Utilise ses mots exacts.\n- Son vécu et ses expressions doivent apparaître naturellement dans les slides, pas être reformulés en jargon IA.\n- Si elle a donné une anecdote, elle peut devenir le hook ou l'exemple concret d'une slide.\n`;
-  }
-
-  let angleCtx = "";
-  if (chosen_angle) {
-    angleCtx = `\nANGLE ÉDITORIAL CHOISI : "${chosen_angle.title}" — ${chosen_angle.description}\nLe carrousel DOIT suivre cet angle.\n`;
-  }
-
-  // Build structure block: editorial angle overrides carousel_type structure
-  let structureBlock: string;
-  let extraRules = "";
-  if (editorial_angle && content_structure) {
-    structureBlock = `ANGLE ÉDITORIAL : ${editorial_angle}\n\nSTRUCTURE À SUIVRE (obligatoire, chaque étape = 1 slide) :\n${content_structure}\n\n${EDITORIAL_ANGLES_REFERENCE}`;
-    extraRules = "\n- Chaque slide DOIT correspondre à une étape de la structure. Le role de chaque slide dans le JSON doit correspondre au rôle défini dans la structure.";
-  } else {
-    structureBlock = structureGuide;
-  }
-
-  return `DEMANDE : Générer un carrousel Instagram complet, slide par slide.
-
-Type de carrousel : ${carousel_type}
-Sujet : ${subject}
-Objectif : ${objective}
-Hook choisi : "${selected_hook}"
-Nombre de slides : ${slide_count || 7}${slide_count ? " — choix explicite de l'utilisatrice : il PRIME sur les fourchettes indiquées dans les gabarits de type" : ""}
-${selected_offer ? `Offre à mentionner : ${selected_offer}` : "Pas d'offre à mentionner."}
-${deepeningCtx}${angleCtx}
-STRUCTURE RECOMMANDÉE POUR CE TYPE :
-${structureBlock}
-
-RÈGLES :
-- Slide 1 = hook choisi ci-dessus (max 12 mots)
-- Chaque slide : max 50 mots, 1 idée, mais en PHRASES COMPLÈTES. Pas de fragments. Pas de rafales "Phrase. Phrase. Phrase." Le body est de la prose fluide : 2-3 phrases qui développent l'idée.
-- Slide 2 développe le sujet, sans seconde accroche obligatoire
-- Dernière slide : fin du propos ; un CTA au maximum si pertinent
-- Headlines (title) : 4-9 mots, scène-first / JE (voir RÈGLES TITRES système). Pas de tête de chapitre.
-- Caption différente du hook slide 1
-- Hashtags : 3-8, mix large + niche${extraRules}
-
-MODULATION JE / TU / NOUS :
-- VOIX PAR DÉFAUT = "JE". L'auteur·ice raconte, partage, analyse. C'est SA réflexion, SON expérience, SA prise de position.
-- "TU" = interpellation ponctuelle (1-2 fois max dans tout le carrousel). Pour une question directe ou un CTA. JAMAIS comme voix narrative.
-- "NOUS" = pour les sujets de société, combats, valeurs. Fédérateur : "On a intériorisé", "On nous dit que".
-- VÉRIFICATION : si plus de 2 slides utilisent le "tu" comme sujet principal, RÉÉCRIS en "je" ou "nous".
-
-${CAROUSEL_SUBSTANCE}
-${CAROUSEL_CONTINUITY}
-
-${FACTS_AND_MOTIF_RULES}
-
-${VISUAL_SCHEMA_CONTRACT}
-
-Retourne ce JSON exact :
-{
-  "slides": [
-    {
-      "slide_number": 1,
-      "role": "hook — puis pour chaque slide suivante un rôle SÉMANTIQUE précis (contexte/mecanisme/croyance/bascule/prise_de_position/resultat/ouverture/cta…), JAMAIS \\"content\\"",
-      "title": "Le headline de la slide",
-      "body": "Le texte complémentaire (optionnel pour le hook)",
-      "visual_suggestion": "Description visuelle textuelle (ambiance, composition, couleurs)",
-      "visual_schema": null,
-      "word_count": 8
-    }
-  ],
-  "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1 ; JAMAIS un vécu 1ʳᵉ personne inventé type \"Ma première pièce…\" : anecdote SEULEMENT si fournie par l'utilisatrice)",
-    "body": "Le reste de la caption",
-    "cta": "Le CTA dans la caption",
-    "hashtags": ["hashtag1", "hashtag2", "hashtag3"]
-  },
-  "quality_check": {},
-  "publishing_tip": ""
-}`;
+function buildSlidesPrompt(body: any, isLinkedIn = false): string {
+  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { narrativeThread: body.narrative_thread }));
 }
 
 function buildSuggestTopicsPrompt(body: any): string {
@@ -1851,9 +1768,6 @@ Retourne ce JSON exact :
 }`;
 }
 
-function getStructureGuide(type: string): string {
-  return carouselStructureGuide(type);
-}
 
 function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLinkedIn: boolean = false, recentBriefsContext?: string, brandVocabBlock?: string): string {
   const { carousel_type, subject, objective, editorial_angle, content_structure } = body;
@@ -2002,191 +1916,8 @@ ${rules.map((r) => `- ${r}`).join("\n")}
 `;
 }
 
-function buildExpressFullPrompt(body: any, isLinkedIn: boolean = false): string {
-  const { subject, carousel_type, objective, slide_count, deepening_answers, selected_offer, editorial_angle, content_structure, confirmed_structure } = body;
-
-  // ── 0. STRUCTURE IMPOSÉE (si confirmée par l'utilisateur·ice) ──
-  const confirmedStructureBlock = buildConfirmedStructureBlock(confirmed_structure);
-
-  // ── 1. BLOC SUJET (priorité absolue, en tête de prompt) ──
-
-  const subjectBlock = `══════════════════════════════════════
-SUJET DU CARROUSEL (ta priorité n°1)
-══════════════════════════════════════
-
-"${subject || "non précisé"}"
-
-${CAROUSEL_SUBSTANCE}
-
-Le sujet n'est pas un thème vague : c'est le CŒUR du carrousel. Chaque slide doit y revenir. Si on peut remplacer le sujet par un autre et que le carrousel fonctionne encore, c'est raté.`;
-
-  // ── 2. BLOC RÉPONSES UTILISATRICE (juste après le sujet) ──
-
-  let deepeningBlock = "";
-  if (deepening_answers) {
-    const answers = Object.entries(deepening_answers)
-      .filter(([, v]) => v && (v as string).trim())
-      .map(([k, v]) => `- ${k}: ${v}`)
-      .join("\n");
-    if (answers) {
-      deepeningBlock = `
-══════════════════════════════════════
-RÉPONSES DE L'UTILISATRICE (matière première du carrousel)
-══════════════════════════════════════
-
-${answers}
-
-Ces réponses sont PLUS IMPORTANTES que n'importe quel template :
-- Son anecdote → devient le storytelling des slides 2-3. Utilise ses MOTS EXACTS, pas une reformulation.
-- Sa conviction → éclaire le sujet quand elle est pertinente ; aucun retournement de perspective imposé.
-- Son émotion → donne le TON de tout le carrousel.
-- Le carrousel raconte SON histoire à travers le framework, pas un framework illustré par un exemple générique.`;
-    }
-  }
-
-  // ── 3. BLOC STRUCTURE ÉDITORIALE ──
-
-  let structureBlock: string;
-  let extraRules = "";
-
-  if (editorial_angle && content_structure) {
-    structureBlock = `ANGLE ÉDITORIAL CHOISI : ${editorial_angle}
-
-STRUCTURE IMPOSÉE (chaque étape = 1 slide) :
-${content_structure}
-
-${EDITORIAL_ANGLES_REFERENCE}`;
-    extraRules = "\n- Chaque slide DOIT correspondre à une étape de la structure. Le role de chaque slide dans le JSON doit correspondre au rôle défini dans la structure.";
-
-  } else if (carousel_type && carousel_type !== "tips") {
-    structureBlock = getStructureGuide(carousel_type);
-
-  } else {
-    structureBlock = `PAS DE FORMAT IMPOSÉ. Analyse le sujet "${subject}" et choisis la structure la plus pertinente :
-
-${EDITORIAL_ANGLES_REFERENCE}
-
-Choisis l'angle qui répond le mieux à cette demande : explication, présentation, méthode, récit, analyse ou prise de position. Les recettes sont des possibilités, jamais une obligation de dramatiser.`;
-  }
-
-  // ── 4. BLOC LINKEDIN (conditionnel) ──
-
-  const linkedInBlock = isLinkedIn ? `
-══════════════════════════════════════
-ADAPTATION LINKEDIN
-══════════════════════════════════════
-
-Tu écris pour LinkedIn, pas Instagram. Ce qui change fondamentalement :
-- POSTURE : expert·e qui partage une analyse, pas coach qui accompagne.
-- DENSITÉ : développe les arguments, les détails et les nuances disponibles. Aucun chiffre, référence ou cas ajouté par obligation.
-- LONGUEUR : max 80 mots par slide (vs 50 Instagram). Les slides LinkedIn sont plus denses.
-- TON : professionnel et engagé. Vouvoiement par défaut (sauf si le profil de voix de l'utilisatrice indique le tutoiement).
-- CTA : invitation au débat professionnel ("Partagez si cette réflexion vous parle", "Votre avis ?", "Envoyez à un·e collègue qui..."). PAS de "Sauvegarde si...", PAS de "Dis-moi en commentaire".
-- CAPTION : 500-800 caractères, dense, positionnante. Le carrousel doit positionner l'auteur·ice comme référence sur le sujet.` : "";
-
-  // ── ASSEMBLAGE DU PROMPT ──
-
-  return `${confirmedStructureBlock}DEMANDE : Génère un carrousel ${isLinkedIn ? "LinkedIn PDF" : "Instagram"} COMPLET.
-
-${subjectBlock}
-${deepeningBlock}
-
-══════════════════════════════════════
-PARAMÈTRES
-══════════════════════════════════════
-
-Objectif : ${objective || "engagement"}
-Nombre de slides : ${slide_count || 7}${slide_count ? " — choix explicite de l'utilisatrice : il PRIME sur les fourchettes indiquées dans les gabarits de type" : ""}
-${selected_offer ? `Offre à mentionner naturellement : ${selected_offer}` : "Pas d'offre à mentionner."}
-
-══════════════════════════════════════
-STRUCTURE ÉDITORIALE
-══════════════════════════════════════
-
-${structureBlock}
-${linkedInBlock}
-
-══════════════════════════════════════
-MATIÈRE ET DÉVELOPPEMENT
-══════════════════════════════════════
-${CAROUSEL_SUBSTANCE}
-
-══════════════════════════════════════
-RÈGLES STRUCTURELLES (s'appliquent à tous les carrousels, quel que soit le style)
-══════════════════════════════════════
-
-STRUCTURE :
-- Slide 1 = entrée précise dans le sujet (max 12 mots), conforme au ton demandé.
-- Slide 2 développe le sujet sans fabriquer une seconde accroche.
-- Chaque slide : max ${isLinkedIn ? "80" : "50"} mots, 1 idée principale. Des PHRASES COMPLÈTES ET FLUIDES : 2-3 phrases qui développent l'idée, pas des fragments hachés ni des rafales de 3-4 mots.
-- Dernière slide : termine le propos ; un CTA au maximum si la demande le justifie.
-- Headlines (title) : 4-9 mots, scène-first / JE — voir RÈGLES TITRES système. Pas de "L'art de", "L'importance de", "Repenser", "Le piège de".
-
-NARRATION — MÉTHODE D'ÉCRITURE (la plus importante) :
-- N'écris PAS slide par slide comme si tu remplissais des cases. Écris D'ABORD, en interne (ne le montre pas), le carrousel comme UNE SEULE histoire courante qui se lit d'une traite, à voix haute, du début à la fin — PUIS découpe ce texte en slides. Chaque slide est un temps de ce récit, pas un item d'une liste.
-${CAROUSEL_CONTINUITY}
-- CONNEXION ENTRE SLIDES : le fil du propos suffit. Termine une idée quand elle aboutit, sans chute ou suspense ajouté.
-- RÔLE SÉMANTIQUE OBLIGATOIRE : le champ "role" de CHAQUE slide nomme précisément son temps dans le récit (ex : contexte, mecanisme, croyance, bascule, revelation, prise_de_position, resultat, ouverture — libre mais PRÉCIS). Le rôle générique "content" est INTERDIT : si tu ne sais pas nommer le rôle d'une slide dans l'histoire, c'est qu'elle n'y a pas sa place — réécris-la ou fusionne-la.
-- Vérifie que l'ordre aide à comprendre, sans imposer une dépendance artificielle entre deux détails.
-- Une analogie peut éclairer un mécanisme, si elle le rend plus compréhensible ; aucune obligation d'en ajouter.
-- La caption accompagne le carrousel sans inventer de contexte personnel. Elle peut résumer utilement le sujet ; aucune nouvelle couche imposée.
-
-VOIX ET TON :
-- Si le contexte contient une section VOIX PERSONNELLE ou TON & STYLE : c'est TA PRIORITÉ. Reproduis ce style. Réutilise les expressions signature. Respecte le registre (tu/vous, oral/soutenu, humour/sérieux).
-- Si le contexte ne contient PAS de profil de voix : ${isLinkedIn
-    ? "adopte un ton professionnel et engagé, vouvoiement, dense mais accessible."
-    : "adopte un ton direct et chaleureux, oral assumé mais pas surjoué. Voix narrative en JE par défaut (voir MODULATION ci-dessous)."
-  }
-- DANS TOUS LES CAS : le contenu doit sonner comme quelqu'un qui PARLE, pas qui rédige un article. Il doit pouvoir être lu à voix haute naturellement.
-
-MODULATION JE / TU / NOUS (Instagram uniquement, ne s'applique pas à LinkedIn) :
-${isLinkedIn ? "" : `La voix par défaut est "JE" (l'auteur·ice raconte, partage, analyse). Le "TU" et le "NOUS" s'utilisent selon le TYPE de sujet :
-- SUJETS PRATIQUES (tips, tutoriel, méthode, how-to) → "TU" direct pour le conseil : "Quand tu postes, pense à..."
-- SUJETS DE SOCIÉTÉ / COMBATS / VALEURS (normes, injustices, prises de position, body image, représentation, discriminations) → "NOUS" collectif et fédérateur : "On nous demande de nous formater", "On a intériorisé cette norme", "On mérite mieux que ça". JAMAIS de "TU" accusateur sur ces sujets ("Tu te formates" → culpabilisant). Le "nous" inclut l'auteur·ice dans le combat.
-- STORYTELLING PERSONNEL → "JE" raconte l'expérience, puis "TU" interpelle en fin de slide ou CTA : "Et toi, tu l'as vécu aussi ?"
-- ANALYSE / DÉCRYPTAGE → "JE" analyse et donne un point de vue, "ON" pour les constats partagés : "On voit de plus en plus que..."
-En cas de doute, privilégie le "JE" + "NOUS" plutôt que le "TU". Le "TU" direct est un outil d'interpellation ponctuel, pas la voix narrative du carrousel.`}
-
-ANTI-PATTERNS IA (si tu en détectes un dans ton output, RÉÉCRIS avant de retourner) :
-- "Dans un monde où...", "Il est important de...", "N'hésitez pas à...", "Voici X astuces pour..." → SUPPRIMER
-- Numérotation mécanique "Tip 1, Tip 2, Tip 3" → chaque tip a un TITRE PROPRE qui accroche
-- "Et là, tout a basculé." → BANNI, marqueur IA reconnaissable
-- Rafales de phrases de 3-4 mots en série → prose fluide
-- Reformuler la même idée 3 fois pour remplir → 1 formulation forte suffit
-- Conclusion qui résume tout → la fin apporte du NOUVEAU ou n'existe pas
-- Anaphore mécanique ("Avec X. Avec Y. Avec Z.") → UNE FOIS MAX par carrousel
-${deepeningBlock ? "- UTILISE les mots et exemples de l'utilisatrice dans les slides (anecdotes, vécu, arguments)" : ""}${extraRules}
-
-══════════════════════════════════════
-${VISUAL_SCHEMA_CONTRACT}
-
-Retourne ce JSON exact :
-{
-  "carousel_type": "le type choisi (tips/storytelling/mythe_realite/enquete/prise_de_position/etc.)",
-  "chosen_angle": {
-    "title": "Titre court de l'angle choisi (3-5 mots)",
-    "description": "Pourquoi cet angle est le plus pertinent pour ce sujet"
-  },
-  "slides": [
-    {
-      "slide_number": 1,
-      "role": "hook — puis pour chaque slide suivante un rôle SÉMANTIQUE précis (contexte/mecanisme/croyance/bascule/prise_de_position/resultat/ouverture/cta…), JAMAIS \\"content\\"",
-      "title": "Le headline de la slide",
-      "body": "Le texte complémentaire (optionnel pour le hook)",
-      "visual_suggestion": "Description visuelle textuelle (ambiance, composition, couleurs)",
-      "visual_schema": null,
-      "word_count": 8
-    }
-  ],
-  "caption": {
-    "hook": "Les 125 premiers caractères de la caption (accroche DIFFÉRENTE de slide 1, angle personnel ; JAMAIS un vécu 1ʳᵉ personne inventé : anecdote SEULEMENT si fournie par l'utilisatrice)",
-    "body": "Le reste de la caption (contexte, pourquoi ce sujet maintenant)",
-    "cta": "Le CTA dans la caption",
-    "hashtags": ["hashtag1", "hashtag2"]
-  },
-  "quality_check": {},
-  "publishing_tip": "Meilleur moment pour publier ce type de carrousel..."
-}`;
+function buildExpressFullPrompt(body: any, isLinkedIn = false): string {
+  return textWritingPrompt(body, isLinkedIn, buildConfirmedStructureBlock(body.confirmed_structure, { narrativeThread: body.narrative_thread }));
 }
 
 function buildPhotoCarouselPrompt(body: any, isLinkedIn = false): string {

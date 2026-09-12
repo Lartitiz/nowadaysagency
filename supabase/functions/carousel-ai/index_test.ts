@@ -159,7 +159,7 @@ for (const requested of ["linkedin", "instagram", undefined]) {
       resetDeps();
       const sb = makeFakeSupabase();
       const from = sb.from;
-      sb.from = (table: string) => {
+      sb.from = (table?: string) => {
         const b = from(table);
         if (table === "persona") {
           let chosen: any = null;
