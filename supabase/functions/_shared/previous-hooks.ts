@@ -18,6 +18,16 @@ const LOOKBACK_DAYS = 30;
 /** Assez pour couvrir une série ; au-delà l'instruction de correction devient illisible. */
 const MAX_HOOKS = 6;
 
+/** New events keep a normalized key apart from their 100-character preview. */
+export function matchesHookSubject(preview: { sujet?: string; subject_key?: string }, subject: string): boolean {
+  const key = subjectKey(subject);
+  if (typeof preview.subject_key === "string" && preview.subject_key) return preview.subject_key === key;
+  // Old events have only the display preview. Compare the same truncation;
+  // distinctions beyond its 100 characters cannot be reconstructed retroactively.
+  const legacySubject = subject.replace(/\s+/g, " ").trim().slice(0, 100);
+  return subjectKey(preview.sujet) === subjectKey(legacySubject);
+}
+
 /** Clé de rapprochement d'un sujet : tolère la casse, les espaces et la ponctuation de bord. */
 export function subjectKey(subject: string | undefined | null): string {
   return (subject || "")
@@ -37,13 +47,14 @@ export async function fetchPreviousHooks(
   userId: string,
   subject: string | undefined,
   limit = MAX_HOOKS,
+  workspaceId?: string | null,
 ): Promise<string[]> {
   const key = subjectKey(subject);
   if (!userId || key.length < 8) return [];
 
   try {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await getServiceClient()
+    let query = getServiceClient()
       .from("content_quality_events")
       .select("content_preview, created_at")
       .eq("user_id", userId)
@@ -52,13 +63,15 @@ export async function fetchPreviousHooks(
       // On filtre le sujet côté code (la clé est normalisée) : on ratisse donc
       // un peu large en base, borné pour rester léger.
       .limit(60);
+    query = workspaceId ? query.eq("workspace_id", workspaceId) : query.is("workspace_id", null);
+    const { data, error } = await query;
     if (error) throw error;
 
     const hooks: string[] = [];
     for (const row of data || []) {
-      const p = (row as { content_preview?: { sujet?: string; hook?: string } }).content_preview;
+      const p = (row as { content_preview?: { sujet?: string; subject_key?: string; hook?: string } }).content_preview;
       if (!p?.hook || typeof p.hook !== "string") continue;
-      if (subjectKey(p.sujet) !== key) continue;
+      if (!matchesHookSubject(p, subject!)) continue;
       hooks.push(p.hook);
       if (hooks.length >= limit) break;
     }
@@ -80,11 +93,12 @@ export async function fetchPreviousHooksByFormat(
   userId: string,
   format: string,
   limit = MAX_HOOKS,
+  workspaceId?: string | null,
 ): Promise<string[]> {
   if (!userId || !format) return [];
   try {
     const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
-    const { data, error } = await getServiceClient()
+    let query = getServiceClient()
       .from("content_quality_events")
       .select("content_preview, created_at")
       .eq("user_id", userId)
@@ -92,6 +106,8 @@ export async function fetchPreviousHooksByFormat(
       .gte("created_at", since)
       .order("created_at", { ascending: false })
       .limit(limit);
+    query = workspaceId ? query.eq("workspace_id", workspaceId) : query.is("workspace_id", null);
+    const { data, error } = await query;
     if (error) throw error;
     const hooks: string[] = [];
     for (const row of data || []) {

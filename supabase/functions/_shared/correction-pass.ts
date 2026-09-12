@@ -783,9 +783,9 @@ export async function applyCorrectionPassCarousel(
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       CAROUSEL_CORRECTION_PROMPT + "\n" + CONTENT_CLARITY_RULES,
-      extraInstructions
+      claritySourceBlock(options.sourceContext) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
-        : `Voici les textes du carrousel à corriger :\n\n${textBlock}`,
+        : `Voici les textes du carrousel à corriger :\n\n${textBlock}`),
       0.3,
       4096,
       undefined,

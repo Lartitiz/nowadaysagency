@@ -638,6 +638,62 @@ export interface RedacGateResult {
   violations: number | null;
 }
 
+interface CarouselCorrectionContext {
+  correction: CorrectionOptions;
+  inputText?: string;
+  brandGuardText?: string;
+  echo?: EchoContext;
+}
+
+/** Shared by the preliminary polish and the final gate. No extra model call. */
+export async function applyGuardedCarouselCorrection(content: string, opts: CarouselCorrectionContext): Promise<string> {
+  const source = opts.correction.sourceContext ?? opts.inputText;
+  const corrected = await applyCorrectionPassCarousel(content, { ...opts.correction, sourceContext: source });
+  if (!corrected || corrected === content) return content;
+  try {
+    const parse = (s: string) => JSON.parse(s.match(/\{[\s\S]*\}/)?.[0] || "null");
+    const originalDoc = parse(content), candidateDoc = parse(corrected);
+    if (!originalDoc || !candidateDoc) return content;
+    // Legacy nested carousels use the same textual fields as the flat response.
+    const original = originalDoc.carousel?.slides ? originalDoc.carousel : originalDoc;
+    const candidate = candidateDoc.carousel?.slides ? candidateDoc.carousel : candidateDoc;
+    const allowed = source === undefined ? undefined : numbersIn(source);
+    const before = analyzeCarouselRedac(original, allowed, opts.brandGuardText, opts.echo);
+    const after = analyzeCarouselRedac(candidate, allowed, opts.brandGuardText, opts.echo);
+    // Compare raw counts, not the capped score: a fifth invented number is
+    // still a regression even when the score already caps that penalty at 3.
+    const counts = (a: RedacAnalysis) => [a.reversals.length, a.overlongSlides.length,
+      a.overlongOverlays.length, Number(a.ctaDuplicated), a.moulded.length,
+      a.fabricatedNumbers.length, a.durationConflicts.length, a.brandCopyOverlap.length, a.hookEchoes.length];
+    const beforeCounts = counts(before);
+    const regression = counts(after).some((n, i) => n > beforeCounts[i]);
+    // Equal counts can still hide a new unsupported value (5 days → 9 days).
+    // Reuse the detector's ordinal exclusions and decimal normalization.
+    const unsupportedValue = (finding: string) => finding.split(" ")[0].replace(",", ".");
+    const originalUnsupported = new Set(before.fabricatedNumbers.map(unsupportedValue));
+    const newUnsupported = after.fabricatedNumbers.some(n => !originalUnsupported.has(unsupportedValue(n)));
+    const prose = (doc: any) => [
+      ...(Array.isArray(doc.slides) ? doc.slides.map(slideTexts) : []),
+      typeof doc.caption === "string" ? doc.caption : [doc.caption?.hook, doc.caption?.body, doc.caption?.cta].filter(Boolean).join(" "),
+    ].join("\n");
+    const originalText = prose(original), candidateText = prose(candidate);
+    const candidateNumbers = numbersIn(candidateText);
+    const lostNumber = allowed && [...numbersIn(originalText)].some(n => allowed.has(n) && !candidateNumbers.has(n));
+    // Protect sourced quotations; unrelated quotation marks in the brand
+    // profile do not force material into the output. This is not a fact checker.
+    const quotes = [...originalText.matchAll(/«\s*([^»]+?)\s*»|“([^”]+)”|"([^"\n]{6,})"/g)]
+      .map(m => (m[1] || m[2] || m[3]).trim());
+    const lostQuote = source && quotes.some(q => source.includes(q) && !candidateText.includes(q));
+    if (regression || newUnsupported || lostNumber || lostQuote) {
+      opts.correction.logger?.("[carousel-correction] original conservé : contrôle dégradé ou donnée source supprimée");
+      return content;
+    }
+    return corrected;
+  } catch {
+    return content;
+  }
+}
+
 /**
  * Gate complet sur le `content` (JSON fenced) d'un carrousel :
  * mesure → si violations, UNE re-passe LLM ciblée → re-mesure → hashtags
@@ -691,9 +747,11 @@ export async function runRedacGate(
   if (fixes) {
     try {
       opts.onStatus?.("correcting");
-      const corrected = await applyCorrectionPassCarousel(out, {
-        ...opts.correction,
-        extraInstructions: fixes,
+      const corrected = await applyGuardedCarouselCorrection(out, {
+        inputText: opts.inputText,
+        brandGuardText: opts.brandGuardText,
+        echo: opts.echo,
+        correction: { ...opts.correction, extraInstructions: fixes },
       });
       if (corrected && corrected !== out) {
         out = corrected;
