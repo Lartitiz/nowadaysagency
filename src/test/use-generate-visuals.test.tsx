@@ -99,6 +99,22 @@ describe("useGenerateVisuals — appel manuel (avant-plan)", () => {
     mocks.invokeWithHeartbeat.mockResolvedValue(okVisuals);
     mocks.dbInsert.mockResolvedValue({ error: null });
   });
+  it("préserve l’ouverture texte et la conclusion photo du storyboard mixte", async () => {
+    const params = makeParams({
+      carouselSubMode: "mix",
+      uploadedPhotos: [{ base64: "data:image/jpeg;base64,TEST", mimeType: "image/jpeg" }],
+      result: { raw: { carousel_type: "mix", slides: [
+        { slide_number: 1, slide_type: "text_only", role: "hook", title: "Ouverture", body: "Ce paragraphe doit rester." },
+        { slide_number: 2, slide_type: "photo_full", role: "conclusion", photo_index: 1, overlay_text: "Une fin en image." },
+      ] } },
+    });
+    const { result } = renderHook(() => useGenerateVisuals(params));
+    await act(() => result.current.handleGenerateVisuals());
+    expect(mocks.invokeWithHeartbeat.mock.calls[0][1].body.slides).toEqual([
+      expect.objectContaining({ slide_type: "text_only", title: "Ouverture", body: "Ce paragraphe doit rester." }),
+      expect.objectContaining({ slide_type: "photo_full", role: "conclusion", photo_index: 1, overlay_text: "Une fin en image." }),
+    ]);
+  });
 
   it("succès → slides normalisées posées, toast, compteur de crédits resynchronisé", async () => {
     const params = makeParams();

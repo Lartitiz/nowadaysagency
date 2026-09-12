@@ -48,7 +48,7 @@ describe("shared carousel geometry", () => {
   });
   it("never treats a cropped photo or a full-bleed background as clipped", () => {
     build(
-      '<div data-editor-id="bg" style="font-size:40px">fond</div><div data-editor-id="ph" data-editor-photo="true"></div>',
+      '<div data-editor-id="bg" data-pptx-shape="background"></div><div data-editor-id="ph" data-editor-photo="true"></div>',
       { bg: fullBleed, ph: fullBleed },
     );
     expect(findClippedIds(document)).toEqual([]);
@@ -68,6 +68,14 @@ describe("shared carousel geometry", () => {
     expect(hasClippedElement(document)).toBe(
       inspectSlide(document, 0).some((i) => i.kind === "overflow"),
     );
+  });
+  it("does not exempt overflowing text just because its box spans the canvas", () => {
+    build('<p data-editor-id="t" data-pptx-editable="body" style="font-size:40px">Texte</p>', { t: fullBleed });
+    expect(findClippedIds(document)).toEqual(["t"]);
+  });
+  it("does not measure a card container as an extra small text", () => {
+    build('<div data-editor-id="card" data-pptx-shape="card" style="font-size:16px"><p data-editor-id="t" data-pptx-editable="body" style="font-size:40px">Texte</p></div>', { card: inside, t: inside });
+    expect(inspectSlide(document, 0).some(i => i.elementId === "card" && i.kind === "size")).toBe(false);
   });
   it("ignores pagination and decorative elements that touch the edge", () => {
     build(

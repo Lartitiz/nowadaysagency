@@ -238,6 +238,12 @@ describe("carousel editor interaction", () => {
 });
 
 describe("carousel brand tokens", () => {
+  it("keeps an annotated paragraph with inline emphasis as one editable field", () => {
+    const html = prepareSlideHtml('<div><p data-pptx-editable="body" style="font-size:40px">Un <span>mot</span> important.</p></div>');
+    const texts = getEditorElements(html).filter(e => e.kind === "text");
+    expect(texts).toHaveLength(1);
+    expect(texts[0].text).toBe("Un mot important.");
+  });
   const branded = `<style>@import url('https://fonts.googleapis.com/css2?family=Fraunces');</style><div style="width:1080px;height:1350px;background:#0f2a2a;color:#f7efe2;font-family:Fraunces, serif"><h1 data-pptx-editable="title" style="font-size:80px;font-family:Fraunces, serif;color:#ffd166">Titre</h1><p data-pptx-editable="body" style="font-size:42px;font-family:Chivo, sans-serif;color:#f7efe2">Corps</p></div>`;
   it("reads the fonts, colors, background and font imports of the document", () => {
     const tokens = extractStyleTokens(branded);

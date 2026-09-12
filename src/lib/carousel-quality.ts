@@ -89,20 +89,18 @@ export function collectInspectables(doc: Document): Inspectable[] {
   const out: Inspectable[] = [];
   for (const el of doc.querySelectorAll<HTMLElement>("[data-editor-id]")) {
     if (isPhoto(el) || isDecorative(el) || !isVisible(el, view)) continue;
-    if (el.closest(PHOTO_SELECTOR) !== null && el.closest(PHOTO_SELECTOR) !== el)
-      continue;
+    if (el.parentElement?.closest('[data-slide-text],[data-pptx-editable]')) continue;
     const hasText = !!el.textContent?.trim();
-    const isShape =
-      !hasText &&
-      (el.hasAttribute("data-pptx-shape") ||
-        el.hasAttribute("data-editor-shape"));
+    const isShape = el.hasAttribute("data-pptx-shape") || el.hasAttribute("data-editor-shape");
     if (!hasText && !isShape) continue;
-    if (isFullBleed(el.getBoundingClientRect())) continue;
+    if (!isShape && !el.hasAttribute("data-pptx-editable") && !el.hasAttribute("data-slide-text") &&
+      !Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent?.trim())) continue;
+    if (isShape && isFullBleed(el.getBoundingClientRect())) continue;
     out.push({
       el,
       id: el.dataset.editorId!,
       role: roleOf(el),
-      kind: hasText ? "text" : "shape",
+      kind: isShape ? "shape" : "text",
     });
   }
   return out;
@@ -136,7 +134,7 @@ export function findClippedIds(doc: Document): string[] {
       Math.max(rect.right, box.right) > CANVAS_WIDTH + 2 ||
       Math.max(rect.bottom, box.bottom) > CANVAS_HEIGHT + 2;
     for (
-      let p: HTMLElement | null = item.el.parentElement;
+      let p: HTMLElement | null = item.el;
       p && p !== doc.body && !cut;
       p = p.parentElement
     ) {
@@ -309,7 +307,15 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
       }
     }
   }
-  return issues;
+  // A single visual verification covers the photo/effects of this slide.
+  // Keep measured defects element-specific, without a wall of identical advice.
+  let manualReported = false;
+  return issues.filter(issue => {
+    if (issue.kind !== "manual") return true;
+    if (manualReported) return false;
+    manualReported = true;
+    return true;
+  });
 }
 
 

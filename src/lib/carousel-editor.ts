@@ -47,9 +47,10 @@ function textNodes(doc: Document): HTMLElement[] {
           !el.hasAttribute("data-pptx-editable"))
       )
         return false;
-      if (el.parentElement?.closest("[data-slide-text]")) return false;
+      if (el.parentElement?.closest("[data-slide-text],[data-pptx-editable]")) return false;
       return (
         el.hasAttribute("data-slide-text") ||
+        el.hasAttribute("data-pptx-editable") ||
         !Array.from(el.children).some(
           (c) => c.textContent?.trim() && !c.matches(skip),
         )

@@ -37,36 +37,36 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : Libre Baskerville, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille : 64-84px pour le hook (slide 1), 48-58px pour les autres slides
+- Taille : 80-112px pour le hook (slide 1), 64-88px pour les autres slides selon la longueur
 - Couleur : #91014B ou #1A1A1A
 - Line-height : 1.25
 - Certains MOTS-CLÉS en couleur accent #FB3D80 et font-style: italic pour créer du contraste
 
 CORPS DE TEXTE :
 - Font : IBM Plex Sans, font-weight: 400
-- Taille : 34-40px
+- Taille : 38-48px
 - Couleur : #1A1A1A
 - Line-height : 1.6
-- Opacity: 0.85 pour le texte secondaire
+- Texte opaque, y compris secondaire : la hiérarchie vient de la taille et du placement
 
-BADGES "PILULES" (élément signature) :
+LABELS ÉDITORIAUX (optionnels, jamais une signature imposée) :
 - Display: inline-block
 - Background : #FB3D80
 - Color: white, font-family: IBM Plex Sans, font-weight: 600
-- Font-size: 22-26px, text-transform: uppercase, letter-spacing: 2px
+- Font-size: 32px minimum, casse naturelle, letter-spacing: 0.5px
 - Padding: 8px 24px
-- Border-radius: 100px (pilule)
+- Texte nu par défaut. Une seule pilule maximum sur tout le carrousel, si la marque le justifie.
 - Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
 
 EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
-- Un eyebrow = une ligne courte au-dessus du titre : font-family: IBM Plex Sans, font-size: 24-26px, font-weight: 600, text-transform: uppercase, letter-spacing: 3px, couleur #FB3D80
+- Un eyebrow = une ligne courte au-dessus du titre : font-family: IBM Plex Sans, font-size: 32px, font-weight: 500, couleur très contrastée issue de la charte
 - Deux formes possibles : texte nu OU badge pilule (voir ci-dessus).
 - Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
 - L'absence d'eyebrow est le cas NORMAL. Un eyebrow sur chaque slide = effet template généré par IA, c'est un défaut.
 - Gap eyebrow → titre : 16-20px.
 
-MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
-- 1 à 3 mots par titre reçoivent un traitement visuel. Trois techniques, à VARIER d'une slide à l'autre (l'italique seul sur tout le carrousel = raté ; utilise l'effet surligneur sur AU MOINS une slide) :
+MISE EN VALEUR DES MOTS-CLÉS (OPTIONNELLE, selon le sens) :
+- Un mot peut recevoir un traitement visuel s'il porte la bascule du propos. Un titre sans effet est parfaitement valide. Ne programme aucune alternance mécanique. Techniques disponibles :
   · Italique accentué : color: #FB3D80; font-style: italic
   · Effet surligneur : background: linear-gradient(transparent 55%, #FFE56166 55%); padding: 0 6px
   · Soulignement épais : border-bottom: 6px solid #FFE561
@@ -74,7 +74,7 @@ MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
 
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
-- Mais un carrousel ENTIER de slides nues = plat. Sur l'ensemble, au moins 2-3 slides portent un vrai moment de design : carte blanche, chiffre géant décoratif (120-200px en Libre Baskerville, opacity 0.12-0.2), emoji 48-64px posé comme élément graphique (pas en fin de ligne), ou encadré pointillé.
+- Le rythme vient des variations d'échelle, d'alignement, de largeur de colonne et de densité définies dans le plan global. Une rupture peut être purement typographique. Les cartes, emojis et cadres pointillés ne sont jamais nécessaires pour rendre une slide aboutie.
 - Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en Libre Baskerville, couleur #FB3D80, jamais noyés dans une phrase. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
@@ -95,19 +95,15 @@ BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Petites vagues/zigzags en SVG inline
 - Flèches → en #FB3D80
 - Soulignements colorés sous les mots-clés (border-bottom ou background linear-gradient)
-- Emojis comme éléments visuels (taille 48-64px)
+- Aucun emoji décoratif ajouté. Les emojis fournis dans le texte source restent inchangés.
 - JAMAIS de cercles/ronds comme décoration de fond
 
 ESPACEMENT VERTICAL :
 - Titre → corps : 32px de gap
 - Entre les blocs : 40px
 
-CENTRAGE VERTICAL (OBLIGATOIRE sur CHAQUE slide) :
-Le <div> principal de 1080×1350px DOIT TOUJOURS avoir ces styles :
-display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 80px;
-Le contenu doit être visuellement CENTRÉ au milieu de la slide.
-JAMAIS de contenu collé en bas ou en haut. Si tu vois du vide en haut ou en bas, c'est que le centrage manque.
-C'est la règle la plus importante du design system.
+COMPOSITION SUR UNE GRILLE ÉDITORIALE :
+Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Ne centre pas automatiquement le conteneur ou son texte et ne remplis pas artificiellement le bas de page.
 
 RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
 
@@ -131,7 +127,7 @@ HOOK (slide 1) — Design le plus fort, stoppe le scroll :
 
 - Optionnel : petit badge pilule de thème/catégorie en haut, AU-DESSUS du titre (jamais un numéro de slide).
 
-- Le titre est verticalement centré dans la slide (flex, justify-content:center), le badge en haut.
+- Le titre occupe une zone forte de la grille choisie par le plan, avec une grande échelle et une lecture immédiate.
 
 - Optionnel : motif décoratif subtil en fond (lignes, zigzag — pas de ronds).
 
@@ -140,7 +136,7 @@ CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Titre en Libre Baskerville (48-56px)
 - Corps en IBM Plex Sans avec un ton intime
 - Optionnel : bordure pointillée autour du bloc de texte
-- Optionnel : petit emoji en grand (48px) comme élément visuel
+- Utilise la typographie et l'espace pour donner un ton personnel.
 
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Fond : blanc
@@ -165,11 +161,11 @@ DARK BOX (pour les punchlines fortes) :
 
 CTA (dernière slide) — Douce, invitante :
 - Fond : #FFF4F8
-- Carte blanche centrée
+- Composition ouverte, alignée avec la grille, sans carte obligatoire
 - Texte du CTA en Libre Baskerville (44-52px), couleur #FB3D80
-- Badge pilule dessous avec "lien en bio" ou le CTA court
+- Un appel à l'action graphique uniquement si le texte source le demande, sans pastille obligatoire
 - Ambiance chaleureuse, pas commerciale
-- Optionnel : petits badges de compétences/thèmes dispersés autour de la carte principale
+- Aucun badge de compétence ou de thème inventé autour du CTA
 
 ═══ COHÉRENCE ENTRE LES SLIDES ═══
 - TOUTES les slides utilisent les MÊMES fonts (Libre Baskerville pour les titres, IBM Plex Sans pour le corps)
@@ -180,7 +176,7 @@ CTA (dernière slide) — Douce, invitante :
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
 ═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
-- ❌ Texte centré nu sur un fond de couleur uni (c'est un PowerPoint 2003, pas du design)
+- ❌ Centrage et même largeur de texte répétés sur toutes les slides
 - ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
 - ❌ Texte trop petit (<30px) ou trop gros (>84px sauf numéros décoratifs)
 - ❌ Pas de padding (texte qui touche les bords)
@@ -190,8 +186,7 @@ CTA (dernière slide) — Douce, invitante :
 - ❌ Plus de 3 couleurs de fond différentes dans tout le carrousel
 - ❌ Le même ornement répété sur toutes les slides (eyebrow partout, badge partout, carte partout) — effet template généré par IA
 - ❌ Barre/trait vertical accolé au flanc d'une carte ou d'un bloc de texte — LE tell « généré par IA » par excellence
-- ❌ Carrousel entier sans un seul moment de design (aucune carte, aucun chiffre mis en scène, aucune rupture) — le symptôme « lisible mais plat »
-- ❌ Titre dont aucun mot-clé n'est mis en valeur (italique accent, surligneur ou soulignement épais)
+- ❌ Décorations ajoutées pour remplir : cartes, pastilles, emojis, pointillés et traits flottants sans rôle éditorial
 
 ═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══
 
@@ -378,7 +373,7 @@ Retourne un JSON :
 IMPORTANT : le HTML de chaque slide doit inclure la balise @import au début
 - Varie le design selon le RÔLE de chaque slide (hook, context, tip, separator, cta, etc.)
 - Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente
-- Intègre les éléments décoratifs : badges pilules, barres latérales, soulignements, emojis
+- Suis le plan éditorial global : variations de composition et de densité, sans ornement automatique
 - Le résultat doit ressembler à du design Canva Pro, PAS à du HTML basique
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.
@@ -433,7 +428,7 @@ CONTENU DES SLIDES :
 
 Template demandé : editorial
 
-RAPPEL : Chaque slide doit avoir un design DIFFÉRENT adapté à son rôle (hook, context, tip, separator, cta). Utilise les éléments du design system : badges pilules, cartes blanches, barres latérales, soulignements colorés, emojis décoratifs. Pour les slides avec visual_schema, rends le schéma en HTML/CSS fidèle aux templates.
+RAPPEL : Chaque slide suit le plan de composition adapté à son rôle. La continuité vient de la grille, des polices et de la palette ; la variété vient des placements, de l'échelle et du rythme. Aucun ornement automatique. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.\`
 `;
@@ -491,36 +486,36 @@ PADDING : 80px sur les côtés, 60px en haut et en bas. JAMAIS de texte collé a
 
 TITRES (headlines) :
 - Font : Cormorant Garamond, font-weight: normal (JAMAIS bold), font-style: normal
-- Taille : 64-84px pour le hook (slide 1), 48-58px pour les autres slides
+- Taille : 80-112px pour le hook (slide 1), 64-88px pour les autres slides selon la longueur
 - Couleur : #3A2E24 ou #F4EDE3
 - Line-height : 1.25
 - Certains MOTS-CLÉS en couleur accent #E7C07B et font-style: italic pour créer du contraste
 
 CORPS DE TEXTE :
 - Font : Work Sans, font-weight: 400
-- Taille : 34-40px
+- Taille : 38-48px
 - Couleur : #F4EDE3
 - Line-height : 1.6
-- Opacity: 0.85 pour le texte secondaire
+- Texte opaque, y compris secondaire : la hiérarchie vient de la taille et du placement
 
-BADGES "PILULES" (élément signature) :
+LABELS ÉDITORIAUX (optionnels, jamais une signature imposée) :
 - Display: inline-block
 - Background : #E7C07B
 - Color: white, font-family: Work Sans, font-weight: 600
-- Font-size: 22-26px, text-transform: uppercase, letter-spacing: 2px
+- Font-size: 32px minimum, casse naturelle, letter-spacing: 0.5px
 - Padding: 8px 24px
-- Border-radius: 100px (pilule)
+- Texte nu par défaut. Une seule pilule maximum sur tout le carrousel, si la marque le justifie.
 - Utilise-les pour : catégorie, label de section, mot-clé. JAMAIS un numéro de slide ni un label "SLIDE".
 
 EYEBROWS (petit label au-dessus du titre — à DOSER, jamais systématique) :
-- Un eyebrow = une ligne courte au-dessus du titre : font-family: Work Sans, font-size: 24-26px, font-weight: 600, text-transform: uppercase, letter-spacing: 3px, couleur #E7C07B
+- Un eyebrow = une ligne courte au-dessus du titre : font-family: Work Sans, font-size: 32px, font-weight: 500, couleur très contrastée issue de la charte
 - Deux formes possibles : texte nu OU badge pilule (voir ci-dessus).
 - Sur 1-2 slides du carrousel MAXIMUM, là où un label éditorial apporte vraiment quelque chose ("LE PIÈGE", "CE QUE ÇA CHANGE"…) — jamais un numéro de slide.
 - L'absence d'eyebrow est le cas NORMAL. Un eyebrow sur chaque slide = effet template généré par IA, c'est un défaut.
 - Gap eyebrow → titre : 16-20px.
 
-MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
-- 1 à 3 mots par titre reçoivent un traitement visuel. Trois techniques, à VARIER d'une slide à l'autre (l'italique seul sur tout le carrousel = raté ; utilise l'effet surligneur sur AU MOINS une slide) :
+MISE EN VALEUR DES MOTS-CLÉS (OPTIONNELLE, selon le sens) :
+- Un mot peut recevoir un traitement visuel s'il porte la bascule du propos. Un titre sans effet est parfaitement valide. Ne programme aucune alternance mécanique. Techniques disponibles :
   · Italique accentué : color: #E7C07B; font-style: italic
   · Effet surligneur : background: linear-gradient(transparent 55%, #C94F2E66 55%); padding: 0 6px
   · Soulignement épais : border-bottom: 6px solid #C94F2E
@@ -528,7 +523,7 @@ MISE EN VALEUR DES MOTS-CLÉS (OBLIGATOIRE dans chaque titre) :
 
 DENSITÉ & RESPIRATION (à juger à l'échelle du CARROUSEL, pas de la slide) :
 - Une slide minimaliste (titre fort + texte nu, typographie impeccable, bien centrée) est LÉGITIME et souvent élégante — surtout pour une punchline, une citation, un moment de storytelling. Ne la surcharge pas pour la « designer ».
-- Mais un carrousel ENTIER de slides nues = plat. Sur l'ensemble, au moins 2-3 slides portent un vrai moment de design : carte blanche, chiffre géant décoratif (120-200px en Cormorant Garamond, opacity 0.12-0.2), emoji 48-64px posé comme élément graphique (pas en fin de ligne), ou encadré pointillé.
+- Le rythme vient des variations d'échelle, d'alignement, de largeur de colonne et de densité définies dans le plan global. Une rupture peut être purement typographique. Les cartes, emojis et cadres pointillés ne sont jamais nécessaires pour rendre une slide aboutie.
 - Les chiffres et données du contenu sont TOUJOURS mis en scène : très grande taille (72-120px) en Cormorant Garamond, couleur #E7C07B, jamais noyés dans une phrase. Pour ça, DUPLIQUE le chiffre dans un élément décoratif (carte, chiffre géant) — mais l'élément ancré data-slide-text garde le texte source COMPLET et inchangé (ne déplace jamais un morceau du body vers un élément décoratif).
 - Nombres à la française : décimale avec virgule collée ("3,5 ans" — jamais "3, 5 ans" ni "3.5").
 
@@ -549,19 +544,15 @@ BORDURES POINTILLÉES (pour les encadrés, citations, analogies) :
 - Petites vagues/zigzags en SVG inline
 - Flèches → en #E7C07B
 - Soulignements colorés sous les mots-clés (border-bottom ou background linear-gradient)
-- Emojis comme éléments visuels (taille 48-64px)
+- Aucun emoji décoratif ajouté. Les emojis fournis dans le texte source restent inchangés.
 - JAMAIS de cercles/ronds comme décoration de fond
 
 ESPACEMENT VERTICAL :
 - Titre → corps : 32px de gap
 - Entre les blocs : 40px
 
-CENTRAGE VERTICAL (OBLIGATOIRE sur CHAQUE slide) :
-Le <div> principal de 1080×1350px DOIT TOUJOURS avoir ces styles :
-display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px 80px;
-Le contenu doit être visuellement CENTRÉ au milieu de la slide.
-JAMAIS de contenu collé en bas ou en haut. Si tu vois du vide en haut ou en bas, c'est que le centrage manque.
-C'est la règle la plus importante du design system.
+COMPOSITION SUR UNE GRILLE ÉDITORIALE :
+Le plan global choisit la position et l'alignement. Utilise une grille à marges latérales de 80px, haute de 96px et basse de 110px. L'alignement gauche est le point de départ ; le centrage est réservé à une rupture courte. Varie la largeur et la hauteur des blocs avec intention. Un espace vide asymétrique est légitime. Ne centre pas automatiquement le conteneur ou son texte et ne remplis pas artificiellement le bas de page.
 
 RYTHME DU CARROUSEL (obligatoire dès 5 slides) :
 
@@ -585,7 +576,7 @@ HOOK (slide 1) — Design le plus fort, stoppe le scroll :
 
 - Optionnel : petit badge pilule de thème/catégorie en haut, AU-DESSUS du titre (jamais un numéro de slide).
 
-- Le titre est verticalement centré dans la slide (flex, justify-content:center), le badge en haut.
+- Le titre occupe une zone forte de la grille choisie par le plan, avec une grande échelle et une lecture immédiate.
 
 - Optionnel : motif décoratif subtil en fond (lignes, zigzag — pas de ronds).
 
@@ -594,7 +585,7 @@ CONTEXTE / STORYTELLING (slide 2) — Personnel, immersif :
 - Titre en Cormorant Garamond (48-56px)
 - Corps en Work Sans avec un ton intime
 - Optionnel : bordure pointillée autour du bloc de texte
-- Optionnel : petit emoji en grand (48px) comme élément visuel
+- Utilise la typographie et l'espace pour donner un ton personnel.
 
 TIPS / CONTENU PÉDAGOGIQUE (slides du milieu) — Clair, structuré :
 - Fond : #1C1A17 (les cartes posées dessus portent la clarté)
@@ -619,11 +610,11 @@ DARK BOX (pour les punchlines fortes) :
 
 CTA (dernière slide) — Douce, invitante :
 - Fond : #1C1A17
-- Carte blanche centrée
+- Composition ouverte, alignée avec la grille, sans carte obligatoire
 - Texte du CTA en Cormorant Garamond (44-52px), couleur #E7C07B
-- Badge pilule dessous avec "lien en bio" ou le CTA court
+- Un appel à l'action graphique uniquement si le texte source le demande, sans pastille obligatoire
 - Ambiance chaleureuse, pas commerciale
-- Optionnel : petits badges de compétences/thèmes dispersés autour de la carte principale
+- Aucun badge de compétence ou de thème inventé autour du CTA
 
 ═══ COHÉRENCE ENTRE LES SLIDES ═══
 - TOUTES les slides utilisent les MÊMES fonts (Cormorant Garamond pour les titres, Work Sans pour le corps)
@@ -634,7 +625,7 @@ CTA (dernière slide) — Douce, invitante :
 - Les éléments décoratifs (barres, soulignements) utilisent une palette cohérente
 
 ═══ ANTI-PATTERNS — CE QUE TU NE FAIS JAMAIS ═══
-- ❌ Texte centré nu sur un fond de couleur uni (c'est un PowerPoint 2003, pas du design)
+- ❌ Centrage et même largeur de texte répétés sur toutes les slides
 - ❌ Toutes les slides avec le même layout (il faut de la variété visuelle)
 - ❌ Texte trop petit (<30px) ou trop gros (>84px sauf numéros décoratifs)
 - ❌ Pas de padding (texte qui touche les bords)
@@ -645,8 +636,7 @@ CTA (dernière slide) — Douce, invitante :
 - ❌ Slide à fond BLANC ou clair plein alors que la charte est sombre — les fonds de slides restent dans la gamme sombre (les cartes/bandeaux clairs posés DESSUS restent autorisés)
 - ❌ Le même ornement répété sur toutes les slides (eyebrow partout, badge partout, carte partout) — effet template généré par IA
 - ❌ Barre/trait vertical accolé au flanc d'une carte ou d'un bloc de texte — LE tell « généré par IA » par excellence
-- ❌ Carrousel entier sans un seul moment de design (aucune carte, aucun chiffre mis en scène, aucune rupture) — le symptôme « lisible mais plat »
-- ❌ Titre dont aucun mot-clé n'est mis en valeur (italique accent, surligneur ou soulignement épais)
+- ❌ Décorations ajoutées pour remplir : cartes, pastilles, emojis, pointillés et traits flottants sans rôle éditorial
 
 ═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══
 
@@ -833,7 +823,7 @@ Retourne un JSON :
 IMPORTANT : le HTML de chaque slide doit inclure la balise @import au début
 - Varie le design selon le RÔLE de chaque slide (hook, context, tip, separator, cta, etc.)
 - Crée une continuité visuelle : mêmes fonts, même padding, palette cohérente
-- Intègre les éléments décoratifs : badges pilules, barres latérales, soulignements, emojis
+- Suis le plan éditorial global : variations de composition et de densité, sans ornement automatique
 - Le résultat doit ressembler à du design Canva Pro, PAS à du HTML basique
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.
@@ -892,7 +882,7 @@ Taille du texte : large
 
 SCHÉMAS VISUELS DEMANDÉS : la slide 3 porte un before_after (voir JSON).
 
-RAPPEL : Chaque slide doit avoir un design DIFFÉRENT adapté à son rôle (hook, context, tip, separator, cta). Utilise les éléments du design system : badges pilules, cartes blanches, barres latérales, soulignements colorés, emojis décoratifs. Pour les slides avec visual_schema, rends le schéma en HTML/CSS fidèle aux templates.
+RAPPEL : Chaque slide suit le plan de composition adapté à son rôle. La continuité vient de la grille, des polices et de la palette ; la variété vient des placements, de l'échelle et du rythme. Aucun ornement automatique. Les slides avec visual_schema conservent toutes les données et relations, avec des textes lisibles.
 
 Retourne UNIQUEMENT le JSON, pas de texte avant ou après.\`
 `;
@@ -957,11 +947,11 @@ SAFE ZONES Instagram (impératif) :
 
 TYPE "photo_integrated" — Photo intégrée dans un layout design
 - La photo est une balise <img src="{{PHOTO_N}}" style="object-fit:cover;border-radius:12px">
-- Layouts selon photo_layout (chaque layout a un élément distinctif OBLIGATOIRE) :
-  · "top_photo" : photo height 740px (≈55%), texte en bas (610px) sur fond #1C1A17. ÉLÉMENT DISTINCTIF : soulignement coloré #C94F2E (4px, width 80px) sous le titre (pas de badge numéro de slide).
-  · "left_photo" : 2 colonnes flex, photo 432px (40%) à gauche, texte 648px (60%) à droite. ÉLÉMENT DISTINCTIF : barre verticale #C94F2E (4px) entre photo et texte, titre en #3A2E24, body avec retrait à gauche de 16px.
-  · "right_photo" : symétrique de left_photo, photo à droite. ÉLÉMENT DISTINCTIF : barre verticale #C94F2E à gauche du texte + petit badge "→" décoratif avant le titre.
-  · "card_photo" : fond #1C1A17. Carte blanche centrée 920px × 1190px, ombre douce (0 8px 32px rgba(0,0,0,0.08)). Photo en haut de la carte (660px, border-radius haut), texte en bas (530px, padding 48px). ÉLÉMENT DISTINCTIF : filet horizontal #E7C07B (3px, width 60px) sous le titre.
+- Layouts selon photo_layout, sans décoration obligatoire :
+  · "top_photo" : photo de 650px en haut, texte en dessous sur fond #1C1A17, dimensionné selon la longueur. Le cadrage et l’échelle typographique portent le design.
+  · "left_photo" : photo 432px à gauche, texte dans une colonne à droite, avec une vraie gouttière et sans barre décorative.
+  · "right_photo" : photo à droite, texte à gauche, sans flèche ni badge ajoutés.
+  · "card_photo" : photo et texte dans une composition intégrée au fond de marque, carte uniquement si la charte ou la référence la demande.
   · "banner_photo" : photo 380px en bandeau horizontal en haut, texte en dessous (970px, padding 80px). ÉLÉMENT DISTINCTIF : titre LARGE (font-size 56-64px) sur 2 lignes max, body en 2 colonnes (column-count: 2, column-gap: 40px).
 
 RÈGLE DE RYTHME (impérative) :
@@ -969,8 +959,8 @@ RÈGLE DE RYTHME (impérative) :
 - Ne répète JAMAIS le même photo_layout sur 2 slides consécutives.
 
 TYPE "text_only" — Slide texte pure
-- Design system Nowadays classique (identique aux carrousels texte) : cartes blanches, badges pilules, barres latérales, soulignements colorés.
-- Fond #1C1A17 si la slide précédente est une photo (transition douce). Fond blanc sinon.
+- Grille éditoriale et plan global identiques aux carrousels texte. La typographie, les placements et les espaces donnent le rythme ; aucune carte, pastille, barre ou décoration automatique.
+- Fond #1C1A17, ou rupture dans la palette de marque si le plan le prévoit. Pas d’alternance blanche automatique.
 - Si visual_schema est fourni, rendre OBLIGATOIREMENT le schéma en HTML/CSS (voir la section SCHÉMAS VISUELS ci-dessous).
 
 ═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══
@@ -1280,11 +1270,11 @@ SAFE ZONES Instagram (impératif) :
 
 TYPE "photo_integrated" — Photo intégrée dans un layout design
 - La photo est une balise <img src="{{PHOTO_N}}" style="object-fit:cover;border-radius:20px">
-- Layouts selon photo_layout (chaque layout a un élément distinctif OBLIGATOIRE) :
-  · "top_photo" : photo height 740px (≈55%), texte en bas (610px) sur fond #FFF4F8. ÉLÉMENT DISTINCTIF : soulignement coloré #FFE561 (4px, width 80px) sous le titre (pas de badge numéro de slide).
-  · "left_photo" : 2 colonnes flex, photo 432px (40%) à gauche, texte 648px (60%) à droite. ÉLÉMENT DISTINCTIF : barre verticale #FFE561 (4px) entre photo et texte, titre en #91014B, body avec retrait à gauche de 16px.
-  · "right_photo" : symétrique de left_photo, photo à droite. ÉLÉMENT DISTINCTIF : barre verticale #FFE561 à gauche du texte + petit badge "→" décoratif avant le titre.
-  · "card_photo" : fond #FFF4F8. Carte blanche centrée 920px × 1190px, ombre douce (0 8px 32px rgba(0,0,0,0.08)). Photo en haut de la carte (660px, border-radius haut), texte en bas (530px, padding 48px). ÉLÉMENT DISTINCTIF : filet horizontal #FB3D80 (3px, width 60px) sous le titre.
+- Layouts selon photo_layout, sans décoration obligatoire :
+  · "top_photo" : photo de 650px en haut, texte en dessous sur fond #FFF4F8, dimensionné selon la longueur. Le cadrage et l’échelle typographique portent le design.
+  · "left_photo" : photo 432px à gauche, texte dans une colonne à droite, avec une vraie gouttière et sans barre décorative.
+  · "right_photo" : photo à droite, texte à gauche, sans flèche ni badge ajoutés.
+  · "card_photo" : photo et texte dans une composition intégrée au fond de marque, carte uniquement si la charte ou la référence la demande.
   · "banner_photo" : photo 380px en bandeau horizontal en haut, texte en dessous (970px, padding 80px). ÉLÉMENT DISTINCTIF : titre LARGE (font-size 56-64px) sur 2 lignes max, body en 2 colonnes (column-count: 2, column-gap: 40px).
 
 RÈGLE DE RYTHME (impérative) :
@@ -1292,8 +1282,8 @@ RÈGLE DE RYTHME (impérative) :
 - Ne répète JAMAIS le même photo_layout sur 2 slides consécutives.
 
 TYPE "text_only" — Slide texte pure
-- Design system Nowadays classique (identique aux carrousels texte) : cartes blanches, badges pilules, barres latérales, soulignements colorés.
-- Fond #FFF4F8 si la slide précédente est une photo (transition douce). Fond blanc sinon.
+- Grille éditoriale et plan global identiques aux carrousels texte. La typographie, les placements et les espaces donnent le rythme ; aucune carte, pastille, barre ou décoration automatique.
+- Fond #FFF4F8, ou rupture dans la palette de marque si le plan le prévoit. Pas d’alternance blanche automatique.
 - Si visual_schema est fourni, rendre OBLIGATOIREMENT le schéma en HTML/CSS (voir la section SCHÉMAS VISUELS ci-dessous).
 
 ═══ SCHÉMAS VISUELS — TEMPLATES HTML/CSS ═══
@@ -1554,35 +1544,35 @@ Retourne UNIQUEMENT le JSON.\`
 `;
 
 snapshot[`buildCoherencePlan — 8 slides, marque claire, séparateur explicite + schémas visuels 1`] = `
-"═══ PLAN DE COHÉRENCE DU CARROUSEL (IMPOSÉ — chaque slide le respecte à la lettre) ═══
-Ce plan garantit le rythme global (alternance des fonds, UNE seule rupture, techniques de mise en valeur variées) même quand les slides sont rendues par lots :
-- Slide 1 : fond #FFF4F8 (hook plein format, typographie géante) · mise en valeur des mots-clés : italique accentué (color primary + font-style italic)
-- Slide 2 : fond blanc #FFFFFF · mise en valeur des mots-clés : effet surligneur (linear-gradient accent)
-- Slide 3 : fond #FFF4F8 · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé) · mise en valeur des mots-clés : soulignement épais (border-bottom accent)
-- Slide 4 : fond blanc #FFFFFF · mise en valeur des mots-clés : italique accentué (color primary + font-style italic)
-- Slide 5 : SLIDE DE RUPTURE à fond plein (#FB3D80 ou dark box #1A1A1A, texte clair) · mise en valeur des mots-clés : effet surligneur (linear-gradient accent)
-- Slide 6 : fond blanc #FFFFFF · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé) · mise en valeur des mots-clés : soulignement épais (border-bottom accent)
-- Slide 7 : fond #FFF4F8 · mise en valeur des mots-clés : italique accentué (color primary + font-style italic)
-- Slide 8 : fond #FFF4F8 (CTA, carte blanche centrée) · mise en valeur des mots-clés : effet surligneur (linear-gradient accent)
-Utilise AU PLUS 3 familles de layout sur tout le carrousel : hook plein format, bloc texte centré (avec ou sans carte), schéma visuel. Les slides d'une même famille gardent exactement la même structure (padding, tailles, position du titre)."
+"PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
+Slide 1 : opening, alignement left, densité low
+Slide 2 : essay, alignement left, densité low
+Slide 3 : schema, alignement left, densité low
+Slide 4 : offset, alignement left, densité low
+Slide 5 : statement, alignement center, densité low, rupture avec fond de charte inversé
+Slide 6 : schema, alignement left, densité low
+Slide 7 : split, alignement left, densité low
+Slide 8 : closing, alignement left, densité low
+Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage automatique. Maximum 2 compositions centrées, 1 pastille et 2 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide."
 `;
 
 snapshot[`buildCoherencePlan — 5 slides sans schéma, marque sombre (moments de design auto, fonds gamme sombre) 1`] = `
-"═══ PLAN DE COHÉRENCE DU CARROUSEL (IMPOSÉ — chaque slide le respecte à la lettre) ═══
-Ce plan garantit le rythme global (alternance des fonds, UNE seule rupture, techniques de mise en valeur variées) même quand les slides sont rendues par lots :
-- Slide 1 : fond #1C1A17 (hook plein format, typographie géante) · mise en valeur des mots-clés : italique accentué (color primary + font-style italic)
-- Slide 2 : fond dans la gamme sombre de la charte, à peine distinct de #1C1A17 (JAMAIS blanc) · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé) · mise en valeur des mots-clés : effet surligneur (linear-gradient accent)
-- Slide 3 : SLIDE DE RUPTURE à fond plein (#E7C07B ou dark box #1A1A1A, texte clair) · mise en valeur des mots-clés : soulignement épais (border-bottom accent)
-- Slide 4 : fond dans la gamme sombre de la charte, à peine distinct de #1C1A17 (JAMAIS blanc) · MOMENT DE DESIGN (carte, chiffre géant décoratif ou encadré pointillé) · mise en valeur des mots-clés : italique accentué (color primary + font-style italic)
-- Slide 5 : fond #1C1A17 (CTA, carte blanche centrée) · mise en valeur des mots-clés : effet surligneur (linear-gradient accent)
-Utilise AU PLUS 3 familles de layout sur tout le carrousel : hook plein format, bloc texte centré (avec ou sans carte), schéma visuel. Les slides d'une même famille gardent exactement la même structure (padding, tailles, position du titre)."
+"PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
+Slide 1 : opening, alignement left, densité low
+Slide 2 : essay, alignement left, densité low
+Slide 3 : statement, alignement center, densité low, rupture avec fond de charte inversé
+Slide 4 : offset, alignement left, densité low
+Slide 5 : closing, alignement left, densité low
+Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage automatique. Maximum 1 compositions centrées, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+La marque est sombre : les fonds restent dans la gamme de #1C1A17, sans alternance blanche imposée."
 `;
 
 snapshot[`buildCoherencePlan — 3 slides (pas d'ajout automatique de moments de design sous 4 slides) 1`] = `
-"═══ PLAN DE COHÉRENCE DU CARROUSEL (IMPOSÉ — chaque slide le respecte à la lettre) ═══
-Ce plan garantit le rythme global (alternance des fonds, UNE seule rupture, techniques de mise en valeur variées) même quand les slides sont rendues par lots :
-- Slide 1 : fond #FFF4F8 (hook plein format, typographie géante) · mise en valeur des mots-clés : italique accentué (color primary + font-style italic)
-- Slide 2 : SLIDE DE RUPTURE à fond plein (#FB3D80 ou dark box #1A1A1A, texte clair) · mise en valeur des mots-clés : effet surligneur (linear-gradient accent)
-- Slide 3 : fond #FFF4F8 (CTA, carte blanche centrée) · mise en valeur des mots-clés : soulignement épais (border-bottom accent)
-Utilise AU PLUS 3 familles de layout sur tout le carrousel : hook plein format, bloc texte centré (avec ou sans carte), schéma visuel. Les slides d'une même famille gardent exactement la même structure (padding, tailles, position du titre)."
+"PLAN ÉDITORIAL GLOBAL : mêmes polices, palette et grille ; compositions adaptées au récit.
+Slide 1 : opening, alignement left, densité low
+Slide 2 : essay, alignement left, densité low
+Slide 3 : closing, alignement left, densité low
+Les références et interdits explicites de la marque restent prioritaires. Pas de pastille, carte, emoji ou surlignage automatique. Maximum 1 compositions centrées, 1 pastille et 1 slides à cartes. Le texte source reste intégral et inchangé. Aucun remplissage artificiel du bas de page. Les schémas conservent toutes leurs relations et données. Les photos gardent l'ordre et le type choisis.
+Fond principal : #FFF4F8. Les changements de fond suivent les ruptures éditoriales, pas la parité du numéro de slide."
 `;
