@@ -156,8 +156,11 @@ export function useCalendarSave({
         if (!data?.id) throw new Error("Publication non retrouvée dans le calendrier");
         id = data.id;
       }
-      publishedCalendarId.current = id;
-      saveFlowState({ publishedCalendarId: id });
+      // Track the completed publication, but never attach it to a newer editor.
+      if (activeScope.current === editorScope) {
+        publishedCalendarId.current = id;
+        saveFlowState({ publishedCalendarId: id });
+      }
       if (editingIdeaId) {
         const { error } = await supabase.from("saved_ideas").update({
           calendar_post_id: id, status: "planned", planned_date: date, updated_at: now.toISOString(),

@@ -519,6 +519,16 @@ describe('publication immédiate — suivi après succès réseau', () => {
     mocks.db.insertResponse = { data: { id: 'post-1' }, error: null };
     mocks.buildCalendarContent.mockReturnValue({ contentDraft: 'Brouillon', accroche: 'Lin', storyDetail: null });
   });
+  it("does not attach late publication tracking to a new content", async () => {
+    let finish!: (value: any) => void;
+    mocks.db.insertResponse = new Promise(resolve => { finish = resolve; });
+    const { result } = renderHook(() => useCalendarSave(makeParams()));
+    let pending!: Promise<boolean>;
+    act(() => { pending = result.current.recordImmediatePublication({ canal: "instagram", caption: "Old" }); });
+    act(() => result.current.resetPublishedTracking());
+    await act(async () => { finish({ data: { id: "old-post" }, error: null }); expect(await pending).toBe(true); });
+    expect(mocks.saveFlowState).not.toHaveBeenCalledWith({ publishedCalendarId: "old-post" });
+  });
   it('crée le post publié et le relie à son idée dans le bon espace', async () => {
     const { result } = renderHook(() => useCalendarSave(makeParams({ editingIdeaId: 'idea-1', workspaceId: 'atelier' })));
     await act(async () => { expect(await result.current.recordImmediatePublication({ canal: 'instagram', caption: 'Légende envoyée', postId: 'ig-1' })).toBe(true); });
