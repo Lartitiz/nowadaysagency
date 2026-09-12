@@ -103,8 +103,17 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   const tTextReady = Date.now();
   console.log(`⏲ 📝 TEXTE affiché après ${((tTextReady - tClickGen) / 1000).toFixed(1)}s`);
 
-  // ⏲ Jalon VISUELS : les slides rendues = iframes srcDoc dans la page.
-  await page.waitForFunction(() => document.querySelectorAll("iframe").length >= 3, { timeout: 300000 });
+  // ⏲ Jalon VISUELS : deux rendus possibles des slides prêtes.
+  //  - ancienne grille d'aperçus : une iframe srcDoc PAR slide (≥ 3) ;
+  //  - éditeur de carrousel (502b740d, 11/09) : UNE iframe pour la slide active
+  //    + une vignette numérotée par slide dans la barre « Slides du carrousel ».
+  // Attendre seulement « ≥ 3 iframes » a tenu la spec 10 min en échec le 12/09
+  // alors que le carrousel était bien généré et affiché.
+  await page.waitForFunction(() => {
+    if (document.querySelectorAll("iframe").length >= 3) return true;
+    const vignettes = document.querySelectorAll('[aria-label="Slides du carrousel"] > button').length;
+    return vignettes >= 3 && document.querySelectorAll("iframe").length >= 1;
+  }, { timeout: 300000 });
   const tVisualsReady = Date.now();
   console.log(`⏲ 🖼️  VISUELS affichés après ${((tVisualsReady - tClickGen) / 1000).toFixed(1)}s depuis le clic (+${((tVisualsReady - tTextReady) / 1000).toFixed(1)}s après le texte)`);
 
@@ -124,7 +133,10 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
     console.log("Export PPTX : validé en desktop uniquement — étape sautée sur ce projet.");
     return;
   }
-  const uiSlides = await page.locator("iframe").count(); // aperçus srcdoc rendus
+  // Nombre de slides affichées : vignettes de l'éditeur s'il est là, sinon
+  // les aperçus srcdoc de l'ancienne grille.
+  const vignettes = await page.locator('[aria-label="Slides du carrousel"] > button').count();
+  const uiSlides = vignettes || (await page.locator("iframe").count());
 
   // backgroundIsDecorative : l'export hybride « éditable » pose le texte en NATIF
   // par-dessus le fond → un fond APLAT (blanc/primaire de l'alternance) est légitime

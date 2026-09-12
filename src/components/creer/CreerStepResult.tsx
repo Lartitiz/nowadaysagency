@@ -1,3 +1,4 @@
+import { newsletterCopyText } from "@/lib/newsletter-copy";
 import { Loader2, Pencil, Copy, Download, RefreshCw, RotateCcw, Palette, ChevronDown, Lightbulb, Sparkles, ArrowUpRight, Send, MoreHorizontal } from "lucide-react";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import type { CarouselQuality } from "@/hooks/use-carousel-quality";
@@ -254,6 +255,9 @@ interface Props {
   onResultTextChange?: (text: string) => void;
   onPostPhotosChange?: (photos: PhotoItem[]) => void | Promise<void>;
   onSave?: () => void;
+  saveNotice?: string;
+  savingContent?: boolean;
+  canAutoPublish?: boolean;
   /** Ouvre la fenêtre « Publier ou programmer » (ou sauvegarde directe si fromCalendar). */
   onPublishOrSchedule?: () => void;
   /**
@@ -327,6 +331,9 @@ export default function CreerStepResult({
   onResultTextChange,
   onPostPhotosChange,
   onSave,
+  saveNotice,
+  savingContent,
+  canAutoPublish,
   onPublishOrSchedule,
   publishOrScheduleLabel,
   onReelMp4Change,
@@ -575,6 +582,7 @@ export default function CreerStepResult({
 
   // Texte propre à copier selon le format (déplacé tel quel dans le menu « Autres actions »).
   const handleCopyText = () => {
+    if (format === "newsletter") { onCopy(newsletterCopyText(result)); return; }
     if (format === "pinterest_photo" && result?.title) {
       const b = result.photo_brief;
       const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";
@@ -770,6 +778,15 @@ export default function CreerStepResult({
         </div>
       )}
 
+      {format === "newsletter" && (
+        <div className="space-y-2">
+          <Button onClick={handleCopyText} className="w-full gap-2 h-11" data-testid="copy-newsletter">
+            <Copy className="h-4 w-4" /> Copier ma newsletter
+          </Button>
+          <p className="text-xs text-muted-foreground text-center">Colle-la dans ton outil d’emailing pour l’envoyer. Aucun email n’est envoyé depuis cet écran.</p>
+        </div>
+      )}
+
       {/* Publier ou programmer : porte d'entrée unique vers publication immédiate,
           programmation auto et brouillon calendrier (fenêtre gérée par le parent).
           Pour un reel, n'apparaît qu'à la DERNIÈRE étape du parcours : proposer
@@ -782,13 +799,13 @@ export default function CreerStepResult({
           onClick={onPublishOrSchedule}
           variant={
             (isCarousel && !hasVisuals && onGenerateVisuals && !visualLoading) ||
-            (isStory && !!storyActions)
+            (isStory && !!storyActions) || format === "newsletter" || canAutoPublish === false
               ? "outline"
               : "default"
           }
           className="w-full gap-2 h-11 text-sm font-semibold"
         >
-          <Send className="h-4 w-4" /> {publishOrScheduleLabel || "Publier ou programmer"}
+          <Send className="h-4 w-4" /> {publishOrScheduleLabel || (format === "newsletter" || canAutoPublish === false ? "Ajouter au calendrier" : "Publier ou programmer")}
         </Button>
       )}
 
@@ -977,21 +994,24 @@ export default function CreerStepResult({
           cachée tout en bas du menu « Autres actions » — sur un contenu déjà
           terminé arrivé sans ?new=1 (brouillon restauré silencieusement),
           rien à l'écran ne disait comment démarrer un nouveau contenu. */}
+      {saveNotice && <p role="status" className="text-sm text-muted-foreground rounded-xl border border-border bg-muted/20 p-3">{saveNotice}</p>}
       <div className="flex flex-col sm:flex-row gap-2">
         {/* « Garder en idée » sorti du menu « Autres actions » : c'est la porte
             vers /idees (état « En cours »), elle doit se voir. */}
         {onSave && (
           <Button
             onClick={onSave}
+            disabled={savingContent}
             variant="outline"
             data-testid="save-as-idea"
             className="w-full sm:flex-1 gap-2 h-10 text-sm font-medium"
           >
-            <Lightbulb className="h-4 w-4" /> Garder en idée pour plus tard
+            <Lightbulb className="h-4 w-4" /> {savingContent ? "Enregistrement…" : "Enregistrer mon contenu"}
           </Button>
         )}
         <Button
           onClick={onReset}
+          disabled={savingContent}
           variant="outline"
           className="w-full sm:flex-1 gap-2 h-10 text-sm font-medium"
         >

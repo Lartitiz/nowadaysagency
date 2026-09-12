@@ -32,6 +32,7 @@ import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 
+import { consumeFreshStart } from "@/lib/creation-navigation";
 import BrandReviewGate from "@/components/branding/BrandReviewGate";
 import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { useLinkedInCarouselCaption } from "@/hooks/use-linkedin-carousel-caption";
@@ -146,6 +147,7 @@ function CreerWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const brandReturnRef = useRef({ path: location.pathname + location.search, state: location.state });
   const { session } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   // Fiche de marque en attente de validation → on renvoie vers elle (voir plus bas).
@@ -193,11 +195,7 @@ function CreerWorkspace() {
   // 2. OR there is a recent session in storage (survives HMR / tab refresh)
   const hasSomeContext = hasUrlParams || !!location.state;
 
-  if (isFreshStart && !clearedFreshStart.current) {
-    clearFlowState();
-    clearedFreshStart.current = true;
-  }
-  const candidateFlowState = isFreshStart ? null : loadFlowState();
+  const candidateFlowState = loadFlowState();
   const existingFlowState = candidateFlowState?.workspaceId && candidateFlowState.workspaceId !== workspaceId ? null : candidateFlowState;
   const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
 
@@ -206,13 +204,14 @@ function CreerWorkspace() {
   // qui arrive alors qu'un brouillon significatif existe : on demande au lieu de
   // silencieusement restaurer l'ancien contenu (et donc ignorer la demande).
   const [draftConflict] = useState(() => {
-    if (isFreshStart || aurianaDemoActive) return null;
+    if (aurianaDemoActive) return null;
     const d = existingFlowState;
-    if (!d || d.step === "idea") return null;
+    if (!d) return null;
     const hasDraftContent = !!(d.ideaText || d.result || d.editContent || d.selectedFormat);
     if (!hasDraftContent) return null;
     const newSubject = (paramSujet || locState.sujet || locState.subject || "").trim();
     const hasNewIntent = !!(
+      isFreshStart ||
       newSubject ||
       locState.fromRecycle ||
       locState.fromBrief ||
@@ -222,7 +221,7 @@ function CreerWorkspace() {
     );
     if (!hasNewIntent) return null;
     // Même sujet que le brouillon → pas de conflit, on reprend simplement.
-    if (newSubject && d.ideaText && newSubject.slice(0, 80) === d.ideaText.trim().slice(0, 80)) return null;
+    if (!isFreshStart && newSubject && d.ideaText && newSubject.slice(0, 80) === d.ideaText.trim().slice(0, 80)) return null;
     return {
       draft: {
         step: d.step,
@@ -231,6 +230,10 @@ function CreerWorkspace() {
         result: d.result ?? null,
         editContent: d.editContent || "",
         editingIdeaId: d.editingIdeaId ?? null,
+        visualSlides: d.visualSlides ?? [],
+        questions: d.questions ?? [],
+        answers: d.answers ?? {},
+        isLinkedInCarousel: d.isLinkedInCarousel ?? false,
       },
       newSubject,
     };
@@ -238,7 +241,7 @@ function CreerWorkspace() {
   const [conflictResolved, setConflictResolved] = useState(false);
   const conflictPending = !!draftConflict && !conflictResolved;
 
-  const shouldRestore = !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea"));
+  const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea"));
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
@@ -464,7 +467,7 @@ function CreerWorkspace() {
   // When arriving at /creer without params AND no persisted in-progress flow, clear state
   // This distinguishes "fresh sidebar click" from "page reload mid-flow"
   useEffect(() => {
-    if (!hasSomeContext && !shouldRestore) {
+    if (!hasSomeContext && !shouldRestore && !conflictPending) {
       clearFlowState();
       sessionStorage.removeItem(CREER_RESULT_KEY);
       setStep("idea");
@@ -481,10 +484,14 @@ function CreerWorkspace() {
 
   // Remove ?new=1 from URL after a fresh start so reloads don't wipe the flow
   useEffect(() => {
-    if (isFreshStart) {
-      setSearchParams({}, { replace: true });
+    if (isFreshStart && !conflictPending) {
+      if (!clearedFreshStart.current) {
+        clearFlowState();
+        clearedFreshStart.current = true;
+      }
+      setSearchParams(consumeFreshStart(searchParams), { replace: true });
     }
-  }, [isFreshStart, setSearchParams]);
+  }, [isFreshStart, conflictPending, searchParams, setSearchParams]);
 
   // Le canal demandé via l'URL (?canal=) est géré de façon déterministe à
   // l'initialisation (canalConflict ci-dessus) + pré-sélectionné dans
@@ -509,6 +516,8 @@ function CreerWorkspace() {
   // Post-generation states
   const [saving, setSaving] = useState(false);
   const [saveIdeaDialogOpen, setSaveIdeaDialogOpen] = useState(false);
+  const [ideaSaving, setIdeaSaving] = useState(false);
+  const [savedIdeaVersion, setSavedIdeaVersion] = useState<{ signature: string; complete: boolean } | null>(null);
   const [savedId, setSavedId] = useState<string | null>(ps?.savedId || null);
   // L'idée de départ (« Créer ce contenu » depuis /idees ou la fiche du
   // calendrier) : gardée tout le long pour relier le contenu à l'idée quand il
@@ -691,6 +700,7 @@ function CreerWorkspace() {
 
   // Auto-persist state on changes
   useEffect(() => {
+    if (conflictPending) return;
     // Only persist when we're past the idea step or have meaningful state
     if (step !== "idea" || ideaText) {
       saveFlowState({
@@ -719,7 +729,7 @@ function CreerWorkspace() {
         calendarPostId, calendarPostDate,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
+  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -752,7 +762,7 @@ function CreerWorkspace() {
   useEffect(() => {
     // Conflit brouillon vs nouvelle demande : on ne touche à rien tant que
     // l'utilisatrice n'a pas tranché (voir DraftConflictDialog).
-    if (conflictPending) return;
+    if (conflictPending || ((brandReviewChecking || brandReviewPending) && !flowShownRef.current)) return;
     if (justStrippedRef.current) {
       justStrippedRef.current = false;
       return;
@@ -901,13 +911,13 @@ function CreerWorkspace() {
     // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
     const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode"];
     if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
-      const cleaned = new URLSearchParams(searchParams);
+      const cleaned = consumeFreshStart(searchParams);
       ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
       justStrippedRef.current = true;
       setSearchParams(cleaned, { replace: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search, conflictPending]);
+  }, [location.search, conflictPending, brandReviewChecking, brandReviewPending]);
 
   // ── Library photos → preload as if uploaded (chemin /photos → /creer) ──
   // Capturé une seule fois au mount pour survivre au cleanup replaceState.
@@ -1703,6 +1713,7 @@ function CreerWorkspace() {
     setLaunchResults([]);
     setLaunchIndex(0);
     setSavedId(null);
+    setSavedIdeaVersion(null);
     setVisualSlides([]);
     setPinterestPinHtml(null);
     setCarouselSubMode(null);
@@ -2472,6 +2483,16 @@ function CreerWorkspace() {
   const effectiveHandleExportVisualPng = isDemoMode ? demoToast : handleExportVisualPng;
   const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
 
+  const ideaVersionSignature = useMemo(() => JSON.stringify([result?.raw, visualSlides]), [result?.raw, visualSlides]);
+  const ideaSaveNotice = ideaSaving ? "Enregistrement du texte et des visuels…"
+    : savedIdeaVersion?.signature === ideaVersionSignature
+      ? savedIdeaVersion.complete
+        ? "Cette version est enregistrée dans Mes idées → En cours."
+        : "Texte enregistré, mais visuels incomplets. Garde cet onglet ouvert et réessaie l’enregistrement."
+      : savedIdeaVersion
+        ? "Modifications à enregistrer pour mettre à jour ton contenu dans Mes idées."
+        : "Pour retrouver cette version plus tard, enregistre-la dans Mes idées → En cours.";
+
   /* Fiche de marque d'abord. Tant que la fiche captée à l'inscription attend
      sa relecture, la marque n'est pas encore écrite dans les tables lues par la
      génération : créer maintenant produirait un contenu générique. La prochaine
@@ -2493,7 +2514,7 @@ function CreerWorkspace() {
     return (
       <div className="min-h-screen bg-background">
         <AppHeader />
-        <BrandReviewGate />
+        <BrandReviewGate returnTo={brandReturnRef.current.path} returnState={brandReturnRef.current.state} />
       </div>
     );
   }
@@ -2595,7 +2616,15 @@ function CreerWorkspace() {
                 idea={ideaText}
                 objective={objective || undefined}
                 forcedChannel={forcedChannel}
+                onChannelChange={(channel) => {
+                  const next = new URLSearchParams(searchParams);
+                  if (channel) next.set("canal", channel);
+                  else next.delete("canal");
+                  justStrippedRef.current = true;
+                  setSearchParams(next, { replace: true });
+                }}
                 initialFormat={selectedFormat || undefined}
+                initialChannel={isLinkedInCarousel ? "linkedin" : undefined}
                 initialCarouselSubMode={carouselSubMode || undefined}
                 initialSlideLength={slideLength}
                 suggestedFormat={newsjackingSuggestedFormat || undefined}
@@ -2608,7 +2637,8 @@ function CreerWorkspace() {
                   else setIsLinkedInCarousel(false);
                   handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix, slideLength: slideLen });
                 }}
-                onSelectionChange={({ format, carouselSubMode: sub }) => {
+                onSelectionChange={({ channel, format, carouselSubMode: sub }) => {
+                  setIsLinkedInCarousel(channel === "linkedin" && format === "carousel");
                   // Persiste les choix en cours pour les restaurer au reload (avant « Suivant »).
                   setSelectedFormat((prev) => (prev === format ? prev : format));
                   setCarouselSubMode((prev) => (prev === sub ? prev : sub));
@@ -2804,6 +2834,9 @@ function CreerWorkspace() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
+                saveNotice={isDemoMode || carouselCloudEnabled ? undefined : ideaSaveNotice}
+                savingContent={ideaSaving}
+                canAutoPublish={!!publishChannel}
                 onReelMp4Change={setReelMp4Url}
                 onReelResultChange={(nextReel) => setResult((prev) => prev ? { ...prev, raw: nextReel } : prev)}
                 onPublishOrSchedule={effectiveHandleAddToCalendar}
@@ -2965,7 +2998,7 @@ function CreerWorkspace() {
                   // nouvelle génération). Les chemins de sauvegarde (calendrier/idées) le
                   // préfèrent à la version IA d'origine — sinon l'édition était perdue.
                   setResult((prev) => (prev ? { ...prev, raw: { ...(prev.raw || {}), edited_text: edited } } : prev));
-                  toast.success("Contenu sauvegardé !");
+                  toast.success("Modifications appliquées. Enregistre cette version pour la retrouver plus tard.");
                 }}
                 onBack={() => setStep("result")}
                 onCopy={() => {
@@ -3004,7 +3037,7 @@ function CreerWorkspace() {
         onDraft={(d) => handleConfirmCalendar({ date: d })}
         defaultDraftDate={paramCalendarDate || undefined}
         theme={ideaText}
-        canal={publishChannel || "instagram"}
+        canal={selectedFormat === "newsletter" ? "newsletter" : selectedFormat?.startsWith("pinterest") ? "pinterest" : isLinkedInCarousel ? "linkedin" : publishChannel || "instagram"}
       />
 
       {/* Sélecteur de fichier du bouton « Ajouter une image » de la fenêtre ci-dessus. */}
@@ -3122,6 +3155,11 @@ function CreerWorkspace() {
         visualSlides={selectedFormat === "carousel" && visualSlides.length > 0 ? visualSlides : undefined}
         onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
         editingIdeaId={editingIdeaId}
+        onSavingChange={setIdeaSaving}
+        onSaved={(id, complete) => {
+          setEditingIdeaId(id);
+          setSavedIdeaVersion({ signature: ideaVersionSignature, complete });
+        }}
       />
     </div>
   );

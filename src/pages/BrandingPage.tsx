@@ -5,7 +5,8 @@ import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
+import { creationReturnPath } from "@/lib/creation-navigation";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -187,6 +188,9 @@ export default function BrandingPage() {
   // validée, on enchaîne sur « générer mon 1er contenu ».
   const fromOnboarding = searchParams.get("from") === "onboarding";
   const nextTarget = searchParams.get("next");
+  const creationLocation = useLocation();
+  const returnToCreation = creationReturnPath(searchParams.get("returnTo"));
+  const creationReturnState = creationLocation.state?.creationReturnState;
   const [coachingActive, setCoachingActive] = useState(fromAudit && !!coachingModule);
 
   useEffect(() => {
@@ -384,8 +388,8 @@ export default function BrandingPage() {
       }
       if (attempts >= MAX_ATTEMPTS) {
         setAwaitingEnrichment(false);
-        const dest = await resolveFirstContentDestination({ column, value, userId: user.id });
-        if (!cancelled) navigate(dest, { replace: true });
+        const dest = returnToCreation || await resolveFirstContentDestination({ column, value, userId: user.id });
+        if (!cancelled) navigate(dest, { replace: true, state: creationReturnState });
         return;
       }
       timer = setTimeout(tick, 2000);
@@ -786,8 +790,8 @@ export default function BrandingPage() {
                   // 1er contenu ». Le cas import (fromOnboarding=false) reste sur
                   // l'accueil marque comme avant.
                   if (fromOnboarding && nextTarget === "creer") {
-                    const dest = await resolveFirstContentDestination({ column, value, userId: user?.id });
-                    navigate(dest, { replace: true });
+                    const dest = returnToCreation || await resolveFirstContentDestination({ column, value, userId: user?.id });
+                    navigate(dest, { replace: true, state: creationReturnState });
                     return;
                   }
                   await reloadCompletion();

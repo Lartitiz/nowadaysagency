@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import { IdCard, ArrowRight } from "lucide-react";
+import { creationReturnPath } from "@/lib/creation-navigation";
 
 /* ── Écran d'attente : la fiche de marque avant le premier contenu ─────────
    Tant que la fiche captée à l'inscription n'est pas validée, la marque n'est
@@ -8,8 +9,9 @@ import { IdCard, ArrowRight } from "lucide-react";
    « valider sa fiche » — et c'est ce que dit cet écran.
    ── */
 
-export default function BrandReviewGate() {
+export default function BrandReviewGate({ returnTo, returnState }: { returnTo?: string; returnState?: unknown }) {
   const navigate = useNavigate();
+  const destination = creationReturnPath(returnTo);
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-10">
@@ -26,13 +28,16 @@ export default function BrandReviewGate() {
           Sinon, j'écris à l'aveugle.
         </p>
         <button
-          onClick={() => navigate("/branding?from=onboarding&next=creer")}
+          onClick={() => navigate(
+            `/branding?from=onboarding&next=creer${destination ? `&returnTo=${encodeURIComponent(destination)}` : ""}`,
+            { state: { creationReturnState: returnState } },
+          )}
           className="inline-flex items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 py-3 text-sm font-semibold transition-all hover:scale-[1.02] hover:shadow-lg"
         >
           Valider ma fiche de marque <ArrowRight className="h-4 w-4" />
         </button>
         <p className="text-xs text-muted-foreground mt-4">
-          Tu pourras tout modifier ensuite depuis ton Branding.
+          Tu retrouveras ensuite ton contenu. Ta fiche restera modifiable dans Mon identité.
         </p>
       </div>
     </div>

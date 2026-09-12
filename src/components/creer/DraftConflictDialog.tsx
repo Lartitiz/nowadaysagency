@@ -26,6 +26,10 @@ export interface DraftSummary {
   result: any;
   editContent: string;
   editingIdeaId?: string | null;
+  visualSlides?: { slide_number: number; html: string }[];
+  questions?: { id: string; question: string }[];
+  answers?: Record<string, string>;
+  isLinkedInCarousel?: boolean;
 }
 
 interface Props {
@@ -46,14 +50,34 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
   const stepLabel = STEP_LABELS[draft.step] || draft.step;
 
   const saveDraftToIdeas = async () => {
-    if (!user) return;
-    const contentData = draft.result ?? (draft.editContent ? { texte: draft.editContent } : null);
+    if (!user) throw new Error("Reconnecte-toi pour enregistrer ton contenu.");
+    // A brief is resumed through the existing brief flow, with the same answers.
+    if (!draft.result && draft.questions?.length) {
+      const { error } = await supabase.from("content_briefs").insert({
+        user_id: user.id,
+        workspace_id: workspaceId && workspaceId !== user.id ? workspaceId : null,
+        subject: draftTitle,
+        format: draft.selectedFormat,
+        questions: draft.questions,
+        answers: draft.answers || {},
+      });
+      if (error) throw error;
+      return;
+    }
+    const raw = draft.result?.raw ?? draft.result;
+    const contentData = raw
+      ? { ...raw, ...(draft.visualSlides?.length ? { visual_html: draft.visualSlides } : {}) }
+      : (draft.editContent ? { content: draft.editContent } : null);
+    const canal = draft.isLinkedInCarousel || draft.selectedFormat === "linkedin" ? "linkedin"
+      : draft.selectedFormat === "newsletter" ? "newsletter"
+      : draft.selectedFormat?.startsWith("pinterest") ? "pinterest" : "instagram";
     const payload: any = {
       user_id: user.id,
       workspace_id: workspaceId && workspaceId !== user.id ? workspaceId : undefined,
       titre: `📝 ${draftTitle.slice(0, 120)}`,
       angle: "brouillon",
       format: draft.selectedFormat || "post",
+      canal,
       notes: "Brouillon mis de côté depuis l'espace Créer",
       content_draft:
         typeof contentData === "string" ? contentData : contentData ? JSON.stringify(contentData) : null,
@@ -80,11 +104,12 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
       }
     } catch (e) {
       console.error("Save draft to ideas failed:", e);
-      toast.error("Impossible d'enregistrer le brouillon — on continue quand même");
+      toast.error("Impossible d’enregistrer le contenu. Il est conservé ici : réessaie ou reprends-le.");
+      return;
     } finally {
       setBusy(false);
-      onStartNew();
     }
+    onStartNew();
   };
 
   return (
