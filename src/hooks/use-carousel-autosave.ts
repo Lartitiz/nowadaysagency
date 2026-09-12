@@ -101,6 +101,10 @@ export function useCarouselAutosave(options: Options) {
     const key = `${identity}:${copy}`;
     if (controller.current && controllerKey.current === key) return;
     const previous = controller.current;
+    const copying =
+      !!previous &&
+      scope.current?.document === identity &&
+      controllerKey.current !== key;
     if (previous) {
       previous.detach();
       void previous
@@ -110,7 +114,7 @@ export function useCarouselAutosave(options: Options) {
     }
     scope.current = { document: identity, key: currentScope };
     controllerKey.current = key;
-    const id = copy ? crypto.randomUUID() : o.ideaId || crypto.randomUUID();
+    const id = copying ? crypto.randomUUID() : o.ideaId || crypto.randomUUID();
     const scoped = (query: any) =>
       o.workspaceId !== o.userId
         ? o.isOwnSpace
@@ -175,8 +179,10 @@ export function useCarouselAutosave(options: Options) {
     };
     const c = new CarouselAutosaver(
       id,
-      !copy && !!o.ideaId,
-      o.raw,
+      !copying && !!o.ideaId,
+      !copying && previous?.id === o.ideaId && previous.meta && !previous.dirty
+        ? { ...o.raw, _carousel_cloud: previous.meta }
+        : o.raw,
       store,
       (meta) => {
         if (

@@ -113,6 +113,26 @@ const settle = () =>
     await vi.advanceTimersByTimeAsync(1250);
   });
 describe("carousel autosave lifecycle", () => {
+  it("does not keep copying when the user opens another existing idea", async () => {
+    const o = options();
+    const { result, rerender } = renderHook((p) => useCarouselAutosave(p), {
+      initialProps: o,
+    });
+    await settle();
+    act(() => result.current.saveCopy());
+    await settle();
+    const next = { ...raw("Next"), _carousel_document_id: "document-2" };
+    db.rows.set("idea-2", {
+      id: "idea-2",
+      updated_at: "old",
+      content_data: next,
+    });
+    rerender({ ...o, ideaId: "idea-2", raw: next });
+    await settle();
+    expect(result.current.status).toBe("saved");
+    expect(db.rows.size).toBe(3);
+    expect(o.onId).toHaveBeenLastCalledWith("idea-2");
+  });
   it("debounces edits and acknowledges only the saved version", async () => {
     const o = options();
     const { result, rerender } = renderHook((p) => useCarouselAutosave(p), {
