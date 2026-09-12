@@ -23,7 +23,7 @@ Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "test");
 
 const TEST_USER_ID = "test-user-1";
 // Exercise the actual three handlers; only external services are faked.
-for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}`, async () => {
+for (const variant of ["text", "mix", "photo"]) for (const news of [undefined, "ACTUALITÉ_TEST : annonce fournie sans résultat mesuré."]) Deno.test(`révision contextuelle branchée de bout en bout : ${variant}, actu=${!!news}`, async () => {
   resetDeps();
   const draft = { slides: [
     { slide_number: 1, slide_type: "text_only", title: "Les retours sur la maquette", body: "Une réponse commune permet de choisir entre les demandes." },
@@ -33,11 +33,12 @@ for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuell
   ], caption: { body: "Les retours arrivent par e-mail.", hashtags: [] } };
   _deps.callAnthropic = (async (options: any) => {
     const prompt = options.system + JSON.stringify(options.messages) + JSON.stringify(options.tool);
-    for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "MÉCANISME INVISIBLE", "CROYANCE SOUS-JACENTE", "AU MOINS 1 analogie", "30-50 mots MINIMUM", "le retournement FORMULÉ", "finale=dernière slide uniquement (question ouverte)"]) {
+    for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "MÉCANISME INVISIBLE", "CROYANCE SOUS-JACENTE", "AU MOINS 1 analogie", "30-50 mots MINIMUM", "le retournement FORMULÉ", "finale=dernière slide uniquement (question ouverte)", "Mieux vaut une généralisation honnête", "ce que ce mouvement révèle", "cf. DEPTH_LAYER_DUAL"]) {
       assert(!prompt.includes(contradiction), `Contradiction dans le prompt réellement envoyé : ${contradiction}`);
     }
     assert(prompt.includes("Une explication descriptive et une liste utile sont légitimes"));
     assert(prompt.includes("Retours par e-mail"));
+    if (news) { assert(prompt.includes("ACTUALITÉ_TEST")); assert(prompt.includes("sans désaccord, décalage ni quota d'opinions imposés")); }
     return JSON.stringify(draft);
   }) as any;
   const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
@@ -64,7 +65,7 @@ for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuell
     return Promise.resolve(new Response(JSON.stringify({ content, stop_reason: request.tool_choice ? "tool_use" : "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try {
-    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, slide_count: 4, deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, news_context: news, slide_count: 4, deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
     assertEquals(res.status, 200);
     const output = await res.json();
     assertEquals(typeof output.content, "string");
