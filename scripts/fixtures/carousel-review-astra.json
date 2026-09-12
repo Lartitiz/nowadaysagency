@@ -1,0 +1,201 @@
+[
+  {
+    "id": "normal-text",
+    "source": "RECETTE FICTIVE. Je suis graphiste. Les retours sur mes maquettes arrivent par e-mail. Quand plusieurs personnes répondent séparément, leurs demandes peuvent se contredire. Je demande au client de choisir entre ces demandes et j'attends sa réponse commune avant de modifier le fichier. Aucun délai ni résultat chiffré fourni. Ton personnel, précis et explicatif, sans slogan final. Le portrait joint est un fond illustratif choisi, pas une preuve du récit.",
+    "doc": {
+      "slides": [
+        {
+          "slide_number": 1,
+          "role": "presentation",
+          "title": "Deux retours sur la même maquette, qui se contredisent",
+          "body": "",
+          "visual_suggestion": "Portrait en fond, cadrage large, tons rosés poudrés. Titre en IBM Plex Mono sur fond clair, texte lisible dans le tiers bas.",
+          "visual_schema": null,
+          "word_count": 8
+        },
+        {
+          "slide_number": 2,
+          "role": "explication",
+          "title": "D'où vient la contradiction",
+          "body": "Les retours sur mes maquettes arrivent par e-mail. Quand plusieurs personnes du côté client répondent chacune de son côté, elles ne se lisent pas entre elles. Résultat : je reçois deux demandes qui vont dans des directions opposées sur le même élément.",
+          "visual_suggestion": "Plan d'écran ou de boîte mail floutée, lumière douce, ambiance bureau calme. Texte en Libre Baskerville.",
+          "visual_schema": null,
+          "word_count": 45
+        },
+        {
+          "slide_number": 3,
+          "role": "etape",
+          "title": "Je renvoie le choix au client",
+          "body": "Je ne tranche pas à sa place et je ne fais pas une version de chaque. Je reprends les deux demandes telles qu'elles me sont arrivées, et je demande au client laquelle il retient.",
+          "visual_suggestion": "Fond uni rosé, texte centré, pas de photo. Le schéma occupe la moitié basse.",
+          "visual_schema": {
+            "type": "process_visible",
+            "stages": [
+              {
+                "label": "Retours par e-mail",
+                "desc": "Plusieurs personnes répondent séparément"
+              },
+              {
+                "label": "Demandes contradictoires",
+                "desc": "Deux directions opposées sur le même point"
+              },
+              {
+                "label": "Question au client",
+                "desc": "Il choisit entre les deux demandes"
+              }
+            ]
+          },
+          "word_count": 34
+        },
+        {
+          "slide_number": 4,
+          "role": "nuance",
+          "title": "J'attends la réponse commune avant de modifier",
+          "body": "Tant que le client ne m'a pas donné une réponse commune, je laisse le fichier tel quel. Modifier sur la base d'un seul des deux e-mails, c'est prendre une décision qui ne m'appartient pas, et la refaire ensuite.",
+          "visual_suggestion": "Détail de plan de travail, matières naturelles, lumière chaude. Texte sur bandeau clair en bas.",
+          "visual_schema": null,
+          "word_count": 39
+        }
+      ],
+      "caption": {
+        "hook": "Quand deux personnes du côté client m'envoient des retours opposés sur la même maquette.",
+        "body": "Les retours arrivent par e-mail, chacun répond de son côté, et les demandes finissent par se contredire. Dans ce cas je ne choisis pas à leur place : je reformule les deux demandes, je demande au client laquelle il garde, et j'attends sa réponse commune avant de toucher au fichier.",
+        "cta": "",
+        "hashtags": [
+          "graphisme",
+          "relationclient",
+          "maquette"
+        ]
+      }
+    },
+    "prior_review": {
+      "version": "contextual-calibrated-v4",
+      "status": "reviewed",
+      "fields": 15,
+      "edits": 0,
+      "pass": 1,
+      "total_edits": 0
+    }
+  },
+  {
+    "id": "normal-photo",
+    "source": "RECETTE FICTIVE. Je suis graphiste. Les retours sur mes maquettes arrivent par e-mail. Quand plusieurs personnes répondent séparément, leurs demandes peuvent se contredire. Je demande au client de choisir entre ces demandes et j'attends sa réponse commune avant de modifier le fichier. Aucun délai ni résultat chiffré fourni. Ton personnel, précis et explicatif, sans slogan final. Le portrait joint est un fond illustratif choisi, pas une preuve du récit.",
+    "doc": {
+      "slides": [
+        {
+          "slide_number": 1,
+          "role": "Pose le sujet",
+          "photo_index": 1,
+          "photo_description": "Portrait en studio sur fond jaune vif, cadrage serré.",
+          "overlay_text": "Deux retours sur la même maquette, qui disent l'inverse",
+          "overlay_position": "bottom_left",
+          "overlay_style": "narratif",
+          "template": "couverture",
+          "kicker": "Méthode de graphiste",
+          "detail": "Comment je traite les retours contradictoires",
+          "visual_anchor": "Le fond jaune uni, qui laisse toute la place au texte en bas",
+          "note": "Portrait illustratif choisi comme fond, sans lien littéral avec la méthode."
+        },
+        {
+          "slide_number": 2,
+          "role": "Décrit la situation concrète",
+          "photo_index": 1,
+          "photo_description": "Même portrait, recadré légèrement plus large.",
+          "overlay_text": "Les retours sur mes maquettes arrivent par e-mail. Quand plusieurs personnes du côté client répondent chacune de leur côté, leurs demandes peuvent se contredire.",
+          "overlay_position": "bottom_center",
+          "overlay_style": "narratif",
+          "template": "profonde",
+          "kicker": null,
+          "detail": null,
+          "visual_anchor": "Le regard frontal, centré",
+          "note": null
+        },
+        {
+          "slide_number": 3,
+          "role": "Explique la décision que je renvoie",
+          "photo_index": 1,
+          "photo_description": "Même portrait, cadrage identique à la slide 1.",
+          "overlay_text": "Je ne tranche pas à leur place. Je leur demande de choisir entre les deux demandes, et je le demande à tout le monde en même temps.",
+          "overlay_position": "bottom_left",
+          "overlay_style": "narratif",
+          "template": "profonde",
+          "kicker": null,
+          "detail": null,
+          "visual_anchor": "La zone de fond jaune à gauche du visage",
+          "note": null
+        },
+        {
+          "slide_number": 4,
+          "role": "Termine sur la reprise du fichier",
+          "photo_index": 1,
+          "photo_description": "Même portrait, cadrage serré sur le visage.",
+          "overlay_text": "J'attends leur réponse commune avant de toucher au fichier. Une fois la décision prise ensemble, je reprends la maquette une seule fois.",
+          "overlay_position": "bottom_center",
+          "overlay_style": "narratif",
+          "template": "profonde",
+          "kicker": null,
+          "detail": null,
+          "visual_anchor": "Le haut du cadre, dégagé",
+          "note": null
+        }
+      ],
+      "caption": {
+        "hook": "Deux personnes répondent à mon e-mail, et elles demandent l'inverse l'une de l'autre.",
+        "body": "Ça arrive sur une maquette dès que les retours passent par mail et que chacun répond de son côté. Dans ce cas je ne choisis pas à leur place et je ne fais pas les deux versions : je renvoie la contradiction au client et je lui demande de trancher entre les deux demandes. Tant que je n'ai pas une réponse commune, je ne modifie pas le fichier. Ensuite je reprends la maquette, une fois, sur une décision claire.",
+        "cta": "",
+        "hashtags": [
+          "graphisme",
+          "relationclient",
+          "maquette"
+        ]
+      }
+    },
+    "prior_review": {
+      "version": "contextual-calibrated-v4",
+      "status": "reviewed",
+      "fields": 8,
+      "edits": 0,
+      "pass": 1,
+      "total_edits": 0
+    }
+  },
+  {
+    "id": "conclusions-plaquées",
+    "source": "Analyse de codes graphiques : kraft, typographie brute et couleurs terreuses peuvent servir à afficher la sincérité d'une marque. C'est un message de marque, pas la preuve d'une production responsable. Expliquer sobrement cette distinction, sans slogan.",
+    "doc": {
+      "slides": [
+        {
+          "title": "Les codes visuels de la sincérité",
+          "body": "Kraft, typo brute, couleurs terreuses : ces choix peuvent afficher la sincérité d'une marque. C'est un signal, pas un accident."
+        },
+        {
+          "title": "Ce que ces codes permettent d'affirmer",
+          "body": "Ces codes montrent comment la marque veut être perçue. Ils ne prouvent pas que sa production est responsable. Une matière discrète, une vérité qui s'impose."
+        }
+      ],
+      "caption": {
+        "body": "Les choix graphiques donnent des indices sur le message de la marque. Pour juger sa production, ces indices ne suffisent pas."
+      }
+    }
+  },
+  {
+    "id": "préserver-voix-et-contraste",
+    "source": "Récit personnel fourni : j'avais posé mes maquettes sur la table ; mon chat s'est assis dessus ; j'ai dit « Le directeur artistique a tranché. » Garder cette plaisanterie exactement, sans ajouter de morale. Autre point du carrousel : l'envoi du fichier et sa validation sont deux événements distincts. Le client doit envoyer son accord avant les modifications. Ton personnel naturel.",
+    "authoredText": "Le directeur artistique a tranché.",
+    "doc": {
+      "slides": [
+        {
+          "title": "Mon chat sur les maquettes",
+          "body": "J'avais posé mes maquettes sur la table. Mon chat s'est assis dessus. « Le directeur artistique a tranché. »"
+        },
+        {
+          "title": "Envoyer et valider sont deux étapes",
+          "body": "Une date d'envoi n'est pas une date de validation. J'attends l'accord du client avant de modifier le fichier."
+        }
+      ],
+      "caption": {
+        "body": "Les maquettes sont envoyées ; les modifications attendent l'accord du client."
+      }
+    }
+  }
+]
