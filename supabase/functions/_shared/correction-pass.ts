@@ -1,9 +1,11 @@
-import { CONTENT_CLARITY_RULES } from "./content-clarity.ts";
+import { CONTENT_CLARITY_RULES, claritySourceBlock } from "./content-clarity.ts";
 import { callAnthropicSimple, getModelForAction, type AnthropicModel } from "./anthropic.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
 
 export interface CorrectionOptions {
+  /** Faits source disponibles pour vérifier les précisions ajoutées au brouillon. */
+  sourceContext?: string;
   /** Skip correction si le contenu est plus court que ce nombre de caractères */
   skipIfShorterThan?: number;
   /**
@@ -713,9 +715,9 @@ export async function applyCorrectionPass(
     const corrected = await callAnthropicSimple(
       model ?? getModelForAction("content"),
       correctionPrompt + "\n" + CONTENT_CLARITY_RULES,
-      extraInstructions
+      claritySourceBlock(options.sourceContext) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
-        : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`,
+        : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`),
       0.3,
       4096,
       undefined,
