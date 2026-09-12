@@ -31,7 +31,15 @@ for (const variant of ["text", "mix", "photo"]) Deno.test(`révision contextuell
     { slide_number: 3, slide_type: "text_only", title: "Avant de reprendre le fichier", body: "Je te demande de choisir entre les demandes." },
     { slide_number: 4, slide_type: "text_only", title: "La réponse commune", body: "J'attends votre réponse avant de modifier la maquette." },
   ], caption: { body: "Les retours arrivent par e-mail.", hashtags: [] } };
-  _deps.callAnthropic = (async () => JSON.stringify(draft)) as any;
+  _deps.callAnthropic = (async (options: any) => {
+    const prompt = options.system + JSON.stringify(options.messages) + JSON.stringify(options.tool);
+    for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "MÉCANISME INVISIBLE", "CROYANCE SOUS-JACENTE", "AU MOINS 1 analogie", "30-50 mots MINIMUM", "le retournement FORMULÉ", "finale=dernière slide uniquement (question ouverte)"]) {
+      assert(!prompt.includes(contradiction), `Contradiction dans le prompt réellement envoyé : ${contradiction}`);
+    }
+    assert(prompt.includes("Une explication descriptive et une liste utile sont légitimes"));
+    assert(prompt.includes("Retours par e-mail"));
+    return JSON.stringify(draft);
+  }) as any;
   const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
   Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
   let reviews = 0;

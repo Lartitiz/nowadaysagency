@@ -69,6 +69,9 @@ verify_jwt = false
 [functions.carousel-ai]
 verify_jwt = false
 
+[functions.carousel-ai-candidate]
+verify_jwt = false
+
 [functions.audit-branding]
 verify_jwt = false
 
@@ -293,4 +296,3 @@ verify_jwt = false
 
 [functions.extract-offer-from-url]
 verify_jwt = false
-
