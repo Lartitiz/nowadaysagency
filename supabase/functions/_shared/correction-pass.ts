@@ -36,6 +36,15 @@ export interface CorrectionOptions {
   abortTimeoutMs?: number;
 }
 
+/** Remove only a complete outer transport wrapper, never quotes within the prose. */
+export function unwrapCorrectionOutput(raw: string): string {
+  const text = raw.trim();
+  const fenced = text.match(/^```[^\n]*\n([\s\S]*?)\n```$/);
+  if (fenced) return fenced[1].trim();
+  const quoted = text.match(/^"""\s*([\s\S]*?)\s*"""$/);
+  return quoted ? quoted[1].trim() : text;
+}
+
 /** Source fidelity is semantic work; use the configured content model within the existing timeout. */
 export function correctionModel(options: CorrectionOptions): AnthropicModel {
   return options.sourceContext?.trim() || options.authoredText?.trim()
@@ -736,7 +745,7 @@ export async function applyCorrectionPass(
   try {
     logger?.(`[correction-pass:${format}] STARTED, content length: ${content.length}`);
 
-    const corrected = await callAnthropicSimple(
+    const rawCorrected = await callAnthropicSimple(
       correctionModel(options),
       sourceFirstCorrectionPrompt(options, correctionPrompt),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
@@ -747,6 +756,7 @@ export async function applyCorrectionPass(
       undefined,
       abortTimeoutMs
     );
+    const corrected = unwrapCorrectionOutput(rawCorrected);
 
     if (!corrected || corrected.length < Math.min(skipIfShorterThan, content.length * 0.5)) {
       logger?.(`[correction-pass:${format}] FALLBACK (corrected too short: ${corrected?.length})`);
@@ -804,7 +814,7 @@ export async function applyCorrectionPassCarousel(
     logger?.(`[correction-pass:carousel-json] STARTED, text block length: ${textBlock.length}`);
 
     // Step 3: Send only text to correction
-    const correctedBlock = await callAnthropicSimple(
+    const rawCorrectedBlock = await callAnthropicSimple(
       correctionModel(options),
       sourceFirstCorrectionPrompt(options, CAROUSEL_CORRECTION_PROMPT),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
@@ -815,6 +825,7 @@ export async function applyCorrectionPassCarousel(
       undefined,
       abortTimeoutMs
     );
+    const correctedBlock = unwrapCorrectionOutput(rawCorrectedBlock);
 
     if (!correctedBlock || correctedBlock.length < 100) {
       logger?.(`[correction-pass:carousel-json] FALLBACK (corrected too short: ${correctedBlock?.length})`);
@@ -968,7 +979,7 @@ export async function applyCorrectionPassStories(
   }
   try {
     logger?.(`[correction-pass:stories] STARTED, text block length: ${textBlock.length}`);
-    const correctedBlock = await callAnthropicSimple(
+    const rawCorrectedBlock = await callAnthropicSimple(
       correctionModel(options),
       sourceFirstCorrectionPrompt(options, CORRECTION_PROMPTS.stories),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
@@ -979,6 +990,7 @@ export async function applyCorrectionPassStories(
       undefined,
       abortTimeoutMs,
     );
+    const correctedBlock = unwrapCorrectionOutput(rawCorrectedBlock);
     if (!correctedBlock || !/\[STORY 1 - /.test(correctedBlock)) {
       logger?.(`[correction-pass:stories] FALLBACK (réponse sans marqueurs: ${correctedBlock?.length})`);
       return unchanged;
@@ -1014,7 +1026,7 @@ export async function applyCorrectionPassReel(
 
     logger?.(`[correction-pass:reel-json] STARTED, text block length: ${textBlock.length}`);
 
-    const correctedBlock = await callAnthropicSimple(
+    const rawCorrectedBlock = await callAnthropicSimple(
       correctionModel(options),
       sourceFirstCorrectionPrompt(options, CORRECTION_PROMPTS.reel),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
@@ -1025,6 +1037,7 @@ export async function applyCorrectionPassReel(
       undefined,
       abortTimeoutMs,
     );
+    const correctedBlock = unwrapCorrectionOutput(rawCorrectedBlock);
 
     if (!correctedBlock || correctedBlock.length < 100 || !correctedBlock.includes("[SECTION 1")) {
       logger?.(`[correction-pass:reel-json] FALLBACK (corrected block invalid: ${correctedBlock?.length})`);
