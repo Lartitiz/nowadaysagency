@@ -420,7 +420,8 @@ export function useCalendarSave({
             warnSuffix: " (non-blocking)",
           });
         } catch (mediaErr) {
-          await supabase.from("calendar_posts").delete().eq("id", postId);
+          const { error: cleanupError } = await supabase.from("calendar_posts").delete().eq("id", postId);
+          if (cleanupError) console.error("Failed to remove incomplete carousel draft:", cleanupError);
           throw mediaErr;
         }
 
