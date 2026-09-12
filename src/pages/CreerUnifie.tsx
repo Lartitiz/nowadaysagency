@@ -2465,7 +2465,7 @@ export default function CreerUnifie() {
   const ideaSaveNotice = ideaSaving ? "Enregistrement du texte et des visuels…"
     : savedIdeaVersion?.signature === ideaVersionSignature
       ? savedIdeaVersion.complete
-        ? "Cette version est enregistrée dans Mes idées → En cours. "
+        ? "Cette version est enregistrée dans Mes idées → En cours."
         : "Texte enregistré, mais visuels incomplets. Garde cet onglet ouvert et réessaie l’enregistrement."
       : savedIdeaVersion
         ? "Modifications à enregistrer pour mettre à jour ton contenu dans Mes idées."
@@ -2812,7 +2812,7 @@ export default function CreerUnifie() {
                 onRegenerate={handleRegenerate}
                 onCopy={handleCopy}
                 onSave={effectiveHandleSave}
-                saveNotice={isDemoMode ? undefined : ideaSaveNotice}
+                saveNotice={isDemoMode || carouselCloudEnabled ? undefined : ideaSaveNotice}
                 savingContent={ideaSaving}
                 canAutoPublish={!!publishChannel}
                 onReelMp4Change={setReelMp4Url}
