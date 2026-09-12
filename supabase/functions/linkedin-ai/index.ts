@@ -45,31 +45,29 @@ async function correctJsonField(rawJson: string, field: string, abortTimeoutMs =
   }
 }
 
-// Crosspost-aware: correct versions.linkedin.full_text if present
+// Review both adaptations against the source, in parallel within the same timeout.
 async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS, inputText?: string): Promise<string> {
   try {
     const match = rawJson.match(/\{[\s\S]*\}/);
     if (!match) return rawJson;
     const parsed = JSON.parse(match[0]);
-    const liText = parsed?.versions?.linkedin?.full_text;
-    if (typeof liText !== "string" || liText.length < 200) return rawJson;
-    // Même garde anti-régression que correctJsonField ci-dessus.
-    const gate = await runTextRedacGate(liText, {
-      format: "linkedin",
-      correction: {
-        logger: (m) => console.log(`[linkedin-ai:crosspost] ${m}`),
-        // Édition mécanique à règles fermées → Haiku (cf. #364)
-        model: "claude-haiku-4-5",
-        abortTimeoutMs,
-        sourceContext: inputText,
-      },
-      allowedNumbers: numbersIn(inputText || ""),
-    });
-    if (!gate.repassed || gate.content === liText) return rawJson;
-    parsed.versions.linkedin.full_text = gate.content;
-    if (typeof parsed.versions.linkedin.character_count === "number") {
-      parsed.versions.linkedin.character_count = gate.content.length;
-    }
+    await Promise.all((["linkedin", "instagram"] as const).map(async (channel) => {
+      const version = parsed?.versions?.[channel];
+      const original = version?.full_text;
+      if (typeof original !== "string" || original.length < 200) return;
+      const gate = await runTextRedacGate(original, {
+        format: channel === "linkedin" ? "linkedin" : "instagram_caption",
+        correction: {
+          logger: (m) => console.log(`[linkedin-ai:crosspost:${channel}] ${m}`),
+          model: "claude-haiku-4-5", abortTimeoutMs, sourceContext: inputText,
+        },
+        allowedNumbers: numbersIn(inputText || ""),
+      });
+      if (gate.repassed && gate.content !== original) {
+        version.full_text = gate.content;
+        if (typeof version.character_count === "number") version.character_count = gate.content.length;
+      }
+    }));
     return JSON.stringify(parsed);
   } catch (e) {
     console.error(`[linkedin-ai] correctCrosspostJson failed:`, e);

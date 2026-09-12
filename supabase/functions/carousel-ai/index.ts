@@ -904,7 +904,7 @@ async function runGenerationAndRespond(
   // JSON-aware correction pass for carousels (conditionnelle : cf. mix/photo).
   if (type === "express_full" || type === "slides" || type === "hooks") {
     try {
-      if (carouselNeedsPolish(content)) {
+      if (carouselNeedsPolish(content) || authoredContentSource(body).trim()) {
         emitStatus("correcting");
         const corrected = await applyGuardedCarouselCorrection(content, {
           inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
@@ -1068,7 +1068,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   // Haiku, sa latence, et un round-trip de réécriture ; le redac-gate en aval
   // reste, lui, une re-passe mesurée qui rattrape les violations).
   try {
-    if (carouselNeedsPolish(content)) {
+    if (carouselNeedsPolish(content) || authoredContentSource(body).trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
@@ -1216,7 +1216,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // Les overlays photo sont courts par nature → le scan les épargne sauf
   // slogan manufacturé, d'où beaucoup de sauts légitimes en mode photo.
   try {
-    if (carouselNeedsPolish(content)) {
+    if (carouselNeedsPolish(content) || authoredContentSource(body).trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },

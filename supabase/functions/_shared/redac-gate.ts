@@ -1162,7 +1162,7 @@ export async function runTextRedacGate(
     if (pass > 1 && textRedacViolations(bestA) === 0) break;
     const corrected = await applyCorrectionPass(current, opts.format, {
       ...opts.correction,
-      extraInstructions: buildTextFixInstructions(currentA) || undefined,
+      extraInstructions: [opts.correction.extraInstructions, buildTextFixInstructions(currentA)].filter(Boolean).join("\n\n") || undefined,
     });
     if (!corrected || corrected === current) break;
     const a = analyze(corrected);

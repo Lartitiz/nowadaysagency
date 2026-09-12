@@ -1,3 +1,4 @@
+import { extractNewsletterTexts, reinjectNewsletterTexts } from "../_shared/correction-pass.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -1526,7 +1527,7 @@ export async function applyStoriesCorrectionPass(parsed: any, params: { body: an
     let bestA = before;
     let repassed = false;
     let reverted = false;
-    if (textRedacViolations(before) > 0) {
+    if (textRedacViolations(before) > 0 || authoredContentSource(body).trim()) {
       const out = await applyCorrectionPassStories(parsed.stories, {
         logger: (msg) => console.log(msg),
         authoredText: authoredContentSource(body),
@@ -2060,6 +2061,44 @@ Réponds UNIQUEMENT en JSON :
 
 // Newsletter : même pattern que LinkedIn — pas de streaming de texte,
 // mais heartbeat SSE + étapes réelles (writing → correcting).
+export async function applyNewsletterCorrectionPass(parsed: any, params: {
+  body: any; fullContext: string; context?: string | null; newsContext?: string | null;
+  brandGuardText?: string; previousHooks?: string[];
+}, emitStatus: StatusEmitter = () => {}): Promise<void> {
+  const { body, fullContext, context, newsContext, brandGuardText, previousHooks } = params;
+  if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
+    try {
+      emitStatus("correcting");
+      const nlAllowed = numbersIn([
+        typeof body.context === "string" ? body.context : "",
+        body.answers ? JSON.stringify(body.answers) : "",
+        typeof body.news_context === "string" ? body.news_context : "",
+        fullContext || "",
+      ].join("\n"));
+      // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
+      // (cf. échantillon live 18/08 : la passe Haiku introduisait des retournements).
+      const gate = await runTextRedacGate(extractNewsletterTexts(parsed), {
+        format: "newsletter",
+        correction: {
+          logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
+          sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n"),
+          authoredText: authoredContentSource(body),
+          // Édition mécanique à règles fermées → Haiku (cf. #364)
+          model: "claude-haiku-4-5",
+          abortTimeoutMs: CORRECTION_ABORT_MS,
+        },
+        allowedNumbers: nlAllowed,
+        brandGuardText,
+        echo: { previousHooks, subject: typeof context === "string" ? context : undefined },
+      });
+      Object.assign(parsed, reinjectNewsletterTexts(parsed, gate.content));
+    } catch (e) {
+      console.error("[creative-flow newsletter] correction pass failed:", e);
+    }
+  }
+
+}
+
 async function runNewsletterTwoStep(params: {
   model: AnthropicModel;
   systemPrompt: string;
@@ -2100,36 +2139,7 @@ async function runNewsletterTwoStep(params: {
     parsed.preview_text?.length,
   );
 
-  if (parsed.content && typeof parsed.content === "string" && parsed.content.length >= 200) {
-    try {
-      emitStatus("correcting");
-      const nlAllowed = numbersIn([
-        typeof body.context === "string" ? body.context : "",
-        body.answers ? JSON.stringify(body.answers) : "",
-        typeof body.news_context === "string" ? body.news_context : "",
-        fullContext || "",
-      ].join("\n"));
-      // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
-      // (cf. échantillon live 18/08 : la passe Haiku introduisait des retournements).
-      const gate = await runTextRedacGate(parsed.content, {
-        format: "newsletter",
-        correction: {
-          logger: (m) => console.log(`[creative-flow newsletter] ${m}`),
-          sourceContext: [newsContext, context, JSON.stringify(body.answers || []), JSON.stringify(body.followUpAnswers || [])].filter(Boolean).join("\n"),
-          authoredText: authoredContentSource(body),
-          // Édition mécanique à règles fermées → Haiku (cf. #364)
-          model: "claude-haiku-4-5",
-          abortTimeoutMs: CORRECTION_ABORT_MS,
-        },
-        allowedNumbers: nlAllowed,
-        brandGuardText,
-        echo: { previousHooks, subject: typeof context === "string" ? context : undefined },
-      });
-      parsed.content = gate.content;
-    } catch (e) {
-      console.error("[creative-flow newsletter] correction pass failed:", e);
-    }
-  }
+  await applyNewsletterCorrectionPass(parsed, params, emitStatus);
 
   // Nettoyage déterministe : un email part en texte brut, le markdown
   // résiduel (**gras**, *italique*) s'afficherait tel quel (audit 09/07).
@@ -3038,6 +3048,12 @@ Si un profil de voix est disponible, c'est TA voix pour ce contenu. Utilise SES 
       parsed.content.length >= 200
     ) {
       await applyLinkedInCorrectionPass(parsed, { body, fullContext, brandGuardText, echoSubject, previousHooks });
+    }
+
+    if (isNewsletter && step === "generate" && parsed && typeof parsed === "object") {
+      await applyNewsletterCorrectionPass(parsed, { body, fullContext, context, newsContext, brandGuardText, previousHooks });
+      Object.assign(parsed, stripMarkdownFromNewsletter(parsed));
+      if (typeof parsed.content === "string") parsed.word_count = parsed.content.split(/\s+/).filter(Boolean).length;
     }
 
     // ═══ PASSE QUALITÉ REEL (audit reels 12/07) ═══
