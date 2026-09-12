@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { readImportRows, importTarget, saveImportRow } from "@/lib/branding-import-persistence";
 
 /**
  * Écrit une valeur de « positionnement / proposition de valeur » dans la
@@ -23,26 +23,8 @@ export async function applyPositioningToProposition(
 ): Promise<void> {
   if (!value?.trim()) return;
 
-  const { data: existing } = await (supabase.from("brand_proposition") as any)
-    .select("id, version_final")
-    .eq(filterCol, filterVal)
-    .maybeSingle();
-
-  if (existing) {
-    const cur = existing.version_final;
-    const isEmpty = cur === null || cur === undefined || (typeof cur === "string" && cur.trim() === "");
-    if (isEmpty) {
-      const { error } = await (supabase.from("brand_proposition") as any)
-        .update({ version_final: value })
-        .eq("id", existing.id);
-      if (error) throw error;
-    }
-  } else {
-    const { error } = await (supabase.from("brand_proposition") as any).insert({
-      user_id: ownerUserId,
-      workspace_id: filterCol === "workspace_id" ? filterVal : null,
-      version_final: value,
-    });
-    if (error) throw error;
-  }
+  const scope = { column: filterCol, value: filterVal, userId: ownerUserId };
+  const existing = importTarget(await readImportRows("brand_proposition", scope));
+  if (existing?.version_final?.trim()) return;
+  await saveImportRow("brand_proposition", scope, existing?.id || null, { version_final: value });
 }

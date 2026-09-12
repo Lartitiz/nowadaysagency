@@ -1,6 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { useBrandProfile } from "@/hooks/use-profile";
+import { useQueryClient } from "@tanstack/react-query";
+import { readImportRows, saveImportRow, importTarget } from "@/lib/branding-import-persistence";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,8 +9,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Check, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import type { BrandingExtraction, ExtractedField } from "@/lib/branding-import-types";
+import type { BrandingExtraction } from "@/lib/branding-import-types";
 import { FIELD_META } from "@/lib/branding-import-types";
 
 interface Props {
@@ -34,7 +34,7 @@ interface FieldComparison {
 
 // Mapping from extraction field to DB table + column
 const FIELD_DB_MAP: Record<string, { table: string; column: string }> = {
-  positioning: { table: "brand_profile", column: "offer" },
+  positioning: { table: "brand_proposition", column: "version_final" },
   mission: { table: "brand_profile", column: "mission" },
   voice_description: { table: "brand_profile", column: "voice_description" },
   key_expressions: { table: "brand_profile", column: "key_expressions" },
@@ -54,7 +54,7 @@ const FIELD_DB_MAP: Record<string, { table: string; column: string }> = {
 
 export default function BrandingImportReview({ extraction, onDone, onCancel, workspaceId }: Props) {
   const { user } = useAuth();
-  const { data: hookBrandProfile } = useBrandProfile();
+  const queryClient = useQueryClient();
   const wsFilter = useWorkspaceFilter();
   // Respect an explicit workspaceId prop (client onboarding writes into a
   // specific workspace), otherwise fall back to the canonical scope helper —
@@ -65,23 +65,52 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
   const [saving, setSaving] = useState(false);
   const [comparisons, setComparisons] = useState<FieldComparison[]>([]);
 
+  const [loadError, setLoadError] = useState(false);
+  const [rows, setRows] = useState<Record<string, Record<string, any>[]>>({});
+  const [targets, setTargets] = useState<Record<string, Record<string, any> | null>>({});
+  const savedIds = useRef<Record<string, string>>({});
+  const [applied, setApplied] = useState<Set<string>>(new Set());
+  const scope = { column: filterCol, value: filterVal, userId: user?.id || "" };
+
   useEffect(() => {
-    if (user) loadExistingData();
-  }, [user]);
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
+    setComparisons([]);
+    setApplied(new Set());
+    savedIds.current = {};
+    if (!user?.id || !filterVal) return;
+    const loadScope = { column: filterCol, value: filterVal, userId: user.id };
+    (async () => {
+      try {
+        const tables = ["brand_profile", "persona", "brand_proposition", "brand_strategy", "storytelling"];
+        const results = await Promise.all(tables.map(table => readImportRows(table, loadScope)));
+        if (cancelled) return;
+        const loaded = Object.fromEntries(tables.map((table, i) => [table, results[i]]));
+        setRows(loaded);
+        setTargets(Object.fromEntries(tables.map(table => [table,
+          table === "persona" || table === "storytelling"
+            ? (loaded[table].find(row => row.is_primary) || loaded[table][0] || null)
+            : importTarget(loaded[table]),
+        ])));
+      } catch (e) {
+        if (cancelled) return;
+        setLoadError(true);
+        toast.error("Impossible de comparer les données. Aucune modification n’a été appliquée.");
+      } finally { if (!cancelled) setLoading(false); }
+    })();
+    return () => { cancelled = true; };
+  }, [user?.id, filterCol, filterVal, extraction]);
 
-  const loadExistingData = async () => {
-    if (!user) return;
-    try {
-      const brandRes = { data: hookBrandProfile || null };
-      const [personaRes, propRes, stratRes, storyRes] = await Promise.all([
-        (supabase.from("persona") as any).select("*").eq(filterCol, filterVal).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        (supabase.from("brand_proposition") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
-        (supabase.from("brand_strategy") as any).select("*").eq(filterCol, filterVal).maybeSingle(),
-        (supabase.from("storytelling") as any).select("*").eq(filterCol, filterVal).limit(1).maybeSingle(),
-      ]);
-
+  useEffect(() => {
+    if (loading || loadError) return;
+    const brandRes = { data: targets.brand_profile };
+    const personaRes = { data: targets.persona };
+    const propRes = { data: targets.brand_proposition };
+    const stratRes = { data: targets.brand_strategy };
+    const storyRes = { data: targets.storytelling };
       const existing: Record<string, string | null> = {
-        positioning: brandRes.data?.offer || null,
+        positioning: propRes.data?.version_final || propRes.data?.version_complete || propRes.data?.version_bio || propRes.data?.version_one_liner || null,
         mission: brandRes.data?.mission || null,
         voice_description: brandRes.data?.voice_description || null,
         key_expressions: brandRes.data?.key_expressions || null,
@@ -89,11 +118,11 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
         combat_cause: brandRes.data?.combat_cause || null,
         target_description: brandRes.data?.target_description || null,
         values: propRes.data?.step_2b_values || null,
-        unique_proposition: propRes.data?.version_final || null,
+        unique_proposition: propRes.data?.version_final || propRes.data?.version_complete || propRes.data?.version_bio || propRes.data?.version_one_liner || null,
         for_whom: propRes.data?.step_3_for_whom || null,
         target_frustrations: personaRes.data?.step_1_frustrations || null,
         target_desires: personaRes.data?.step_2_transformation || null,
-        story: storyRes.data?.imported_text || null,
+        story: storyRes.data?.step_7_polished || storyRes.data?.step_6_full_story || storyRes.data?.imported_text || storyRes.data?.step_1_raw || null,
         content_pillars: [stratRes.data?.pillar_major, stratRes.data?.pillar_minor_1, stratRes.data?.pillar_minor_2, stratRes.data?.pillar_minor_3].filter(Boolean).join(", ") || null,
         channels: Array.isArray(brandRes.data?.channels) ? brandRes.data.channels.join(", ") : null,
         offers: brandRes.data?.offer || null,
@@ -109,24 +138,21 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
 
         comps.push({
           key: key as keyof BrandingExtraction,
-          label: meta.label,
+          label: key === "offers" ? "Description générale des offres" : key === "positioning" ? "Positionnement proposé (référence IA)" : key === "unique_proposition" ? "Proposition unique (référence IA)" : meta.label,
           emoji: meta.emoji,
           section: meta.section,
           current,
           suggested,
-          choice: hasExisting ? "keep" : "replace",
+          choice: hasExisting || (key === "positioning" && !!extraction.unique_proposition?.value) ? "keep" : "replace",
           mergeText: current || "",
         });
       }
 
-      setComparisons(comps);
-    } catch (e) {
-      console.error("Error loading existing data:", e);
-      toast.error("Erreur lors du chargement de tes données existantes.");
-    } finally {
-      setLoading(false);
-    }
-  };
+      setComparisons(prev => comps.map(comp => {
+        const previous = prev.find(p => p.key === comp.key);
+        return previous?.current === comp.current ? previous : comp;
+      }));
+  }, [loading, loadError, targets, extraction]);
 
   const updateChoice = (idx: number, choice: FieldChoice) => {
     setComparisons(prev => prev.map((c, i) => i === idx ? { ...c, choice, mergeText: choice === "merge" ? (c.current || c.suggested || "") : c.mergeText } : c));
@@ -137,21 +163,17 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
   };
 
   const handleSave = async () => {
-    if (!user) return;
+    if (!user || saving || loadError || loading) return;
     setSaving(true);
 
     try {
-      const uid = user.id;
-      const insertBase: Record<string, string> = filterCol === "workspace_id"
-        ? { user_id: uid, workspace_id: filterVal }
-        : { user_id: uid };
       const updates: Record<string, Record<string, string>> = {};
 
       for (const comp of comparisons) {
-        if (comp.choice === "keep") continue;
+        if (comp.choice === "keep" || applied.has(comp.key)) continue;
 
         const finalValue = comp.choice === "replace" ? comp.suggested! : comp.mergeText;
-        if (!finalValue?.trim()) continue;
+        if (!finalValue?.trim()) throw new Error("Un texte sélectionné est vide.");
 
         const dbMapping = FIELD_DB_MAP[comp.key];
         if (!dbMapping) continue;
@@ -159,6 +181,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
         // Special handling for content_pillars (split into multiple columns)
         if (comp.key === "content_pillars") {
           const pillars = finalValue.split(/[,;\n]/).map(p => p.trim()).filter(Boolean);
+          if (pillars.length > 4) throw new Error("Quatre piliers maximum : regroupe ton texte avant de valider.");
           if (!updates["brand_strategy"]) updates["brand_strategy"] = {};
           if (pillars[0]) updates["brand_strategy"]["pillar_major"] = pillars[0];
           if (pillars[1]) updates["brand_strategy"]["pillar_minor_1"] = pillars[1];
@@ -175,23 +198,17 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
           continue;
         }
 
-        // Special handling for story
+        // Existing originals stay intact; the reviewed revision lives in step_7_polished.
         if (comp.key === "story") {
-          const { data: existingStory } = await (supabase.from("storytelling") as any).select("id").eq(filterCol, filterVal).limit(1).maybeSingle();
-          if (existingStory) {
-            const { error } = await (supabase.from("storytelling") as any).update({ imported_text: finalValue }).eq("id", existingStory.id);
-            if (error) throw error;
-          } else {
-            const { error } = await (supabase.from("storytelling") as any).insert({ ...insertBase, imported_text: finalValue, is_primary: true, completed: false });
-            if (error) throw error;
-          }
+          updates.storytelling = targets.storytelling
+            ? { step_7_polished: finalValue }
+            : { imported_text: finalValue, source: "audit" };
           continue;
         }
 
-        // Skip duplicate offers/positioning mapping
-        if (comp.key === "offers") continue; // positioning already maps to offer column
-
         if (!updates[dbMapping.table]) updates[dbMapping.table] = {};
+        const previousValue = updates[dbMapping.table][dbMapping.column];
+        if (previousValue && previousValue !== finalValue) throw new Error("Deux textes différents sont sélectionnés pour la même référence IA. Garde une seule proposition ou fusionne les textes toi-même.");
         updates[dbMapping.table][dbMapping.column] = finalValue;
       }
 
@@ -206,14 +223,17 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
           }
         }
 
-        const { data: existing } = await (supabase.from(table as any) as any).select("id").eq(filterCol, filterVal).maybeSingle();
-        if (existing) {
-          const { error } = await (supabase.from(table as any) as any).update(cleanFields).eq("id", existing.id);
-          if (error) throw error;
-        } else {
-          const { error } = await (supabase.from(table as any) as any).insert({ ...insertBase, ...cleanFields });
-          if (error) throw error;
-        }
+        const saved = await saveImportRow(table, scope, savedIds.current[table] || targets[table]?.id || null, {
+          ...cleanFields,
+          ...(!targets[table] && (table === "persona" || table === "storytelling") ? { is_primary: true } : {}),
+        });
+        // Keep the returned ID for a retry after a later table fails.
+        savedIds.current[table] = saved.id;
+        const savedKeys = comparisons.filter(c => FIELD_DB_MAP[c.key]?.table === table && c.choice !== "keep").map(c => c.key);
+        setApplied(prev => new Set([...prev, ...savedKeys]));
+      }
+      for (const key of ["brand-profile", "persona", "brand-proposition", "brand-strategy", "storytelling-primary", "storytelling-list"]) {
+        queryClient.invalidateQueries({ queryKey: [key] });
       }
 
       const changedCount = comparisons.filter(c => c.choice !== "keep").length;
@@ -221,7 +241,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
       onDone();
     } catch (e: any) {
       console.error("Save error:", e);
-      toast.error("Erreur lors de la sauvegarde. Réessaie.");
+      toast.error(e instanceof Error ? e.message : "L’import n’est pas terminé. Les champs déjà enregistrés sont indiqués ; réessaie pour les autres.");
     } finally {
       setSaving(false);
     }
@@ -248,6 +268,11 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
     );
   }
 
+  if (loadError) return <div role="alert" className="space-y-3">
+    <p>Les données existantes n’ont pas pu être chargées. Reviens à l’import pour réessayer.</p>
+    <Button onClick={onCancel}>Retour</Button>
+  </div>;
+
   if (comparisons.length === 0) {
     return (
       <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4">
@@ -268,6 +293,17 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
           L'audit a extrait des infos. Pour chaque champ, choisis ce que tu veux garder.
         </p>
       </div>
+
+      <p className="text-xs text-muted-foreground">Le positionnement et la proposition unique sont deux suggestions pour la même référence IA : choisis celle que tu veux utiliser. La description générale des offres est un texte séparé ; cet import ne modifie aucune fiche d’offre individuelle. Une histoire existante reçoit une version retravaillée ; son texte d’origine est conservé.</p>
+      {["persona", "storytelling"].map(table => (rows[table]?.length || 0) > 0 && <label key={table} className="block text-sm">
+        {table === "persona" ? "Public concerné" : "Histoire concernée"}
+        <select aria-label={table === "persona" ? "Public concerné" : "Histoire concernée"}
+          disabled={saving || applied.size > 0} value={targets[table]?.id || ""}
+          onChange={e => setTargets(prev => ({ ...prev, [table]: rows[table].find(row => row.id === e.target.value) || null }))}
+          className="block w-full rounded border border-border bg-background p-2">
+          {rows[table].map((row, i) => <option key={row.id} value={row.id}>{row.label || row.portrait_prenom || row.title || `Fiche ${i + 1}`}{row.is_primary ? " (principale)" : ""}</option>)}
+        </select>
+      </label>)}
 
       {/* Field comparisons by section */}
       {Object.entries(sections).map(([sectionName, fields]) => (
@@ -301,8 +337,10 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
                   </div>
                 </div>
 
+                {applied.has(comp.key) && <p className="text-xs text-success">Enregistré</p>}
                 {/* Choice radio */}
                 <RadioGroup
+                  disabled={saving || applied.has(comp.key)}
                   value={comp.choice}
                   onValueChange={(v) => updateChoice(idx, v as FieldChoice)}
                   className="space-y-2"
@@ -331,6 +369,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
                     {comp.choice === "merge" && (
                       <div className="mt-2.5">
                         <Textarea
+                          disabled={saving || applied.has(comp.key)}
                           value={comp.mergeText}
                           onChange={(e) => updateMergeText(idx, e.target.value)}
                           className="min-h-[80px] text-sm bg-accent/40 border-accent"
@@ -375,7 +414,7 @@ export default function BrandingImportReview({ extraction, onDone, onCancel, wor
           {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
           Appliquer mes choix ({changedCount} modification{changedCount > 1 ? "s" : ""})
         </Button>
-        <Button variant="outline" onClick={onCancel} className="gap-2">
+        <Button variant="outline" onClick={onCancel} disabled={saving} className="gap-2">
           <ArrowLeft className="h-4 w-4" />
           Annuler
         </Button>

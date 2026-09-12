@@ -14,7 +14,8 @@ const mocks = vi.hoisted(() => {
   const failTables = new Set<string>();
   const toast = { success: vi.fn(), error: vi.fn(), warning: vi.fn(), loading: vi.fn() };
   const from = vi.fn((table: string) => {
-    const result = () => ({ data: null, error: failTables.has(table) ? { message: "boom" } : null });
+    let isWrite = false;
+    const result = () => ({ data: isWrite ? [{ id: "saved" }] : null, error: failTables.has(table) ? { message: "boom" } : null });
     const builder: any = {
       select: () => builder,
       eq: () => builder,
@@ -22,9 +23,9 @@ const mocks = vi.hoisted(() => {
       limit: () => builder,
       maybeSingle: async () => result(),
       single: async () => result(),
-      insert: (_payload: any) => { writes.push({ table, op: "insert" }); return builder; },
-      update: (_payload: any) => { writes.push({ table, op: "update" }); return builder; },
-      upsert: (_payload: any) => { writes.push({ table, op: "upsert" }); return builder; },
+      insert: (_payload: any) => { isWrite = true; writes.push({ table, op: "insert" }); return builder; },
+      update: (_payload: any) => { isWrite = true; writes.push({ table, op: "update" }); return builder; },
+      upsert: (_payload: any) => { isWrite = true; writes.push({ table, op: "upsert" }); return builder; },
       then: (res: any) => Promise.resolve(result()).then(res),
     };
     return builder;
@@ -85,7 +86,7 @@ describe("BrandingReview — fiche en cartes", () => {
     // PR #735) : même bouton, même handler, dupliqué exprès pour la visibilité.
     fireEvent.click(screen.getAllByText("Je valide tout")[0]);
 
-    await waitFor(() => expect(screen.getByText("Ta marque est prête")).toBeTruthy());
+    await waitFor(() => expect(screen.getByText("Ta relecture est terminée")).toBeTruthy());
     expect(mocks.toast.success).toHaveBeenCalled();
     expect(mocks.toast.error).not.toHaveBeenCalled();
     // Les 7 sections vivent dans des tables différentes : toutes doivent être écrites.
@@ -103,7 +104,7 @@ describe("BrandingReview — fiche en cartes", () => {
     fireEvent.click(screen.getAllByText("Je valide tout")[0]);
 
     await waitFor(() => expect(mocks.toast.error).toHaveBeenCalled());
-    expect(screen.queryByText("Ta marque est prête")).toBeNull();
+    expect(screen.queryByText("Ta relecture est terminée")).toBeNull();
     expect(mocks.toast.success).not.toHaveBeenCalled();
     // On revient sur la carte qui n'a pas pu être enregistrée.
     expect(screen.getByText("Ta charte graphique")).toBeTruthy();

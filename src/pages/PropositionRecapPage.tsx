@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useBrandProposition, usePersona } from "@/hooks/use-branding";
@@ -10,10 +9,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import AppHeader from "@/components/AppHeader";
 import { PageLoader } from "@/components/ui/spinner";
 import SubPageHeader from "@/components/SubPageHeader";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { Copy, FileText, Loader2, RefreshCw, Pencil } from "lucide-react";
+import { saveImportRow, readImportRows, importTarget } from "@/lib/branding-import-persistence";
 import EditableText from "@/components/EditableText";
 
 interface RecapSummary {
@@ -36,59 +37,51 @@ export default function PropositionRecapPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [initialReference, setInitialReference] = useState("");
+  const [creating, setCreating] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const dataRef = useRef<any>(null);
+  const saveQueue = useRef<Promise<unknown>>(Promise.resolve());
   const recapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (propositionHookLoading) return;
-    if (propositionHookData) {
-      setData(propositionHookData);
-    }
+    dataRef.current = propositionHookData || null;
+    setData(propositionHookData || null);
     setLoading(false);
   }, [propositionHookLoading, propositionHookData]);
 
   const summary: RecapSummary | null = data?.recap_summary as any;
 
+  const persist = (fields: Record<string, unknown> | ((latest: any) => Record<string, unknown>)) => {
+    const id = data?.id;
+    const save = saveQueue.current.then(async () => {
+      if (!id || !user || dataRef.current?.id !== id) throw new Error("Proposition indisponible.");
+      const patch = typeof fields === "function" ? fields(dataRef.current) : fields;
+      const saved = await saveImportRow("brand_proposition", { column, value, userId: user.id }, id, patch);
+      if (dataRef.current?.id === id) { dataRef.current = saved; setData(saved); }
+      queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+    });
+    saveQueue.current = save.catch(() => {});
+    return save;
+  };
+
   const saveRecapField = async (path: string[], value: string) => {
-    if (!data || !summary) return;
-    const updated = JSON.parse(JSON.stringify(summary));
-    let obj = updated;
-    for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
-    obj[path[path.length - 1]] = value;
-    const { error } = await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
-    if (error) {
-      console.error("Erreur technique:", error);
-      toast.error("Erreur", { description: friendlyError(error) });
-      return;
-    }
-    setData({ ...data, recap_summary: updated });
-    queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+    await persist(latest => {
+      const updated = JSON.parse(JSON.stringify(latest.recap_summary));
+      let obj = updated;
+      for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
+      obj[path[path.length - 1]] = value;
+      return { recap_summary: updated };
+    });
   };
 
   const saveRecapArrayItem = async (arrayKey: string, index: number, value: string) => {
-    if (!data || !summary) return;
-    const updated = JSON.parse(JSON.stringify(summary));
-    updated[arrayKey][index] = value;
-    const { error } = await supabase.from("brand_proposition").update({ recap_summary: updated } as any).eq("id", data.id);
-    if (error) {
-      console.error("Erreur technique:", error);
-      toast.error("Erreur", { description: friendlyError(error) });
-      return;
-    }
-    setData({ ...data, recap_summary: updated });
-    queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+    await saveRecapField([arrayKey, String(index)], value);
   };
 
   const saveVersionField = async (field: string, value: string) => {
-    if (!data) return;
-    const { error } = await supabase.from("brand_proposition").update({ [field]: value } as any).eq("id", data.id);
-    if (error) {
-      console.error("Erreur technique:", error);
-      toast.error("Erreur", { description: friendlyError(error) });
-      return;
-    }
-    setData({ ...data, [field]: value });
-    queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+    await persist({ [field]: value });
   };
 
   const generateRecap = async () => {
@@ -108,10 +101,7 @@ export default function PropositionRecapPage() {
       if (error) throw new Error(error.message);
       const raw = fnData.content.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
       const parsed = JSON.parse(raw);
-      const { error: writeError } = await supabase.from("brand_proposition").update({ recap_summary: parsed } as any).eq("id", data.id);
-      if (writeError) throw writeError;
-      setData({ ...data, recap_summary: parsed });
-      queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+      await persist({ recap_summary: parsed });
       toast.success("Synthèse générée !");
     } catch (e: any) {
       console.error("Erreur technique:", e);
@@ -146,7 +136,7 @@ export default function PropositionRecapPage() {
     setExporting(false);
   };
 
-  if (loading) return (
+  if (loading || propositionHookLoading) return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <PageLoader label="Chargement…" />
@@ -159,8 +149,21 @@ export default function PropositionRecapPage() {
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Mon identité" parentTo="/branding" currentLabel="Ma proposition de valeur" />
         <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-6 text-center">
-          <p className="text-foreground text-base mb-4">💎 Complète d'abord ta proposition de valeur pour voir ta fiche récap.</p>
-          <Link to="/branding/proposition/recap"><Button className="rounded-pill">Commencer →</Button></Link>
+          <p className="text-foreground text-base mb-4">Écris la formulation de référence qui présente ton activité. Tu pourras ensuite créer ta synthèse.</p>
+          <Textarea aria-label="Ma formulation de référence" value={initialReference} onChange={e => setInitialReference(e.target.value)} />
+          <Button className="mt-3" disabled={!initialReference.trim() || creating} onClick={async () => {
+            if (!user) return;
+            setCreating(true);
+            try {
+              const existing = importTarget(await readImportRows("brand_proposition", { column, value, userId: user.id }));
+              if (existing) { dataRef.current = existing; setData(existing); throw new Error("Une proposition existe déjà. Relis-la avant de la modifier."); }
+              const saved = await saveImportRow("brand_proposition", { column, value, userId: user.id }, null, { version_final: initialReference });
+              dataRef.current = saved;
+              setData(saved);
+              queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
+            } catch (e) { toast.error(friendlyError(e)); }
+            finally { setCreating(false); }
+          }}>Enregistrer ma référence</Button>
         </div>
       </main>
     </div>
@@ -172,6 +175,11 @@ export default function PropositionRecapPage() {
     { emoji: "🌐", label: "Page d'accueil site web", field: "version_site_web" },
     { emoji: "🔥", label: "Accroche engagée", field: "version_engagee" },
     { emoji: "✨", label: "One-liner mémorable", field: "version_one_liner" },
+    { emoji: "🎤", label: "Networking", field: "version_networking" },
+    { emoji: "📄", label: "Version complète (ancienne version)", field: "version_complete" },
+    { emoji: "🎤", label: "Pitch (ancienne version)", field: "version_pitch" },
+    { emoji: "✨", label: "Version courte (ancienne version)", field: "version_short" },
+    { emoji: "❤️", label: "Version émotionnelle (ancienne version)", field: "version_emotional" },
   ];
   const versions = VERSION_FIELDS.filter(v => data[v.field]);
 
@@ -184,11 +192,11 @@ export default function PropositionRecapPage() {
         {/* Action bar */}
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <div className="flex items-center gap-3">
-            <Link to="/branding/proposition/recap">
+            <a href="#proposition-reference">
               <Button variant="outline" size="sm" className="rounded-pill text-xs">
                 <Pencil className="h-3 w-3 mr-1" /> Modifier
               </Button>
-            </Link>
+            </a>
             <Button variant="outline" size="sm" className="rounded-pill text-xs" onClick={generateRecap} disabled={generating}>
               {generating ? <Loader2 className="h-3 w-3 mr-1 animate-spin" /> : <RefreshCw className="h-3 w-3 mr-1" />}
               {summary ? "Regénérer" : "Générer la synthèse"}
@@ -199,6 +207,26 @@ export default function PropositionRecapPage() {
             Exporter PDF
           </Button>
         </div>
+
+        <section id="proposition-reference" className="rounded-2xl border border-border bg-card p-5 mb-6 space-y-3">
+          <h2 className="font-display text-lg">Formulation de référence pour l’IA</h2>
+          <p className="text-sm text-muted-foreground">
+            Cette formulation est prioritaire pour la création et le Coach. La synthèse ci-dessous et les variantes se modifient séparément.
+          </p>
+          <EditableText preserveDraftOnError value={data.version_final || ""} onSave={(v) => saveVersionField("version_final", v)}
+            placeholder="Écrire ma formulation de référence" />
+          {!data.version_final && <p className="text-xs text-muted-foreground">
+            Sans référence, la création utilise l’ancienne version complète, puis la bio ; le Coach utilise la version complète, puis la phrase courte. Choisis une variante ci-dessous pour leur donner la même référence.
+          </p>}
+          {versions.map(v => <div key={v.field} className="rounded-lg border border-border p-3 space-y-2">
+            <p className="text-sm whitespace-pre-line break-words">{data[v.field]}</p>
+            <Button variant="outline" size="sm" className="h-auto max-w-full whitespace-normal text-left"
+            disabled={data.version_final === data[v.field]}
+            onClick={async () => {
+              try { await saveVersionField("version_final", data[v.field]); toast.success("Formulation de référence enregistrée."); }
+              catch (e) { toast.error(friendlyError(e)); }
+            }}>Utiliser : {v.label}</Button></div>)}
+        </section>
 
         {!summary && (
           <div className="rounded-2xl bg-[hsl(var(--rose-pale))] border border-border p-8 text-center mb-6">
@@ -217,8 +245,8 @@ export default function PropositionRecapPage() {
 
             {data.version_bio && (
               <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 border-l-4" style={{ backgroundColor: "#FFF4F8", borderLeftColor: "#fb3d80" }}>
-                <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>En une phrase</p>
-                <EditableText
+                <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>Bio — variante</p>
+                <EditableText preserveDraftOnError
                   value={data.version_bio}
                   onSave={(v) => saveVersionField("version_bio", v)}
                   className="font-body text-lg italic leading-relaxed"
@@ -238,7 +266,7 @@ export default function PropositionRecapPage() {
             <div className="px-6 sm:px-8 mb-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="rounded-xl p-4" style={{ backgroundColor: "#F8F4FF" }}>
                 <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🎯 Pour qui</p>
-                <EditableText
+                <EditableText preserveDraftOnError
                   value={summary.for_whom}
                   onSave={(v) => saveRecapField(["for_whom"], v)}
                   className="font-body text-sm leading-relaxed mb-3"
@@ -255,7 +283,7 @@ export default function PropositionRecapPage() {
                   {summary.how.map((item, i) => (
                     <li key={i} className="font-body text-sm leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
                       <span style={{ color: "#8b5cf6" }} className="mt-0.5 shrink-0">•</span>
-                      <EditableText value={item} onSave={(v) => saveRecapArrayItem("how", i, v)} type="input" className="font-body text-sm" />
+                      <EditableText preserveDraftOnError value={item} onSave={(v) => saveRecapArrayItem("how", i, v)} type="input" className="font-body text-sm" />
                     </li>
                   ))}
                 </ul>
@@ -264,7 +292,7 @@ export default function PropositionRecapPage() {
 
             <div className="mx-6 sm:mx-8 mb-6 rounded-xl p-5 text-center" style={{ backgroundColor: "#FFF4F8" }}>
               <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wider mb-3" style={{ color: "#6B5E7B" }}>🔥 Ce qui me rend différente</p>
-              <EditableText
+              <EditableText preserveDraftOnError
                 value={summary.differentiator}
                 onSave={(v) => saveRecapField(["differentiator"], v)}
                 className="font-body text-base italic leading-relaxed"
@@ -282,7 +310,7 @@ export default function PropositionRecapPage() {
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <p className="font-mono-ui text-2xs font-semibold uppercase tracking-wide mb-1" style={{ color: "#6B5E7B" }}>{v.emoji} {v.label}</p>
-                          <EditableText
+                          <EditableText preserveDraftOnError
                             value={data[v.field]}
                             onSave={(val) => saveVersionField(v.field, val)}
                             className="font-body text-sm italic leading-relaxed"
@@ -318,7 +346,7 @@ function EditableListCard({ emoji, title, items, dotColor, onSaveItem }: { emoji
         {items.map((item, i) => (
           <li key={i} className="font-body text-sm leading-relaxed flex items-start gap-2" style={{ color: "#1a1a2e" }}>
             <span style={{ color: dotColor }} className="mt-0.5 shrink-0">•</span>
-            <EditableText value={item} onSave={(v) => onSaveItem(i, v)} type="input" className="font-body text-sm" />
+            <EditableText preserveDraftOnError value={item} onSave={(v) => onSaveItem(i, v)} type="input" className="font-body text-sm" />
           </li>
         ))}
       </ul>

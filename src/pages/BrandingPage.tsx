@@ -1,3 +1,5 @@
+import { fillOnlyEmpty } from "@/lib/fill-only-empty";
+import { readImportRows, importTarget, saveImportRow } from "@/lib/branding-import-persistence";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { motion } from "framer-motion";
@@ -116,6 +118,9 @@ export default function BrandingPage() {
   const [analysisSources, setAnalysisSources] = useState<{ website?: string; instagram?: string; linkedin?: string; hasDocuments?: boolean }>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [lastImportData, setLastImportData] = useState<{ website?: string; instagram?: string; linkedin?: string; files: File[] } | null>(null);
+  const importScopeRef = useRef(`${column}:${value}`);
+  importScopeRef.current = `${column}:${value}`;
+  const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   // Onboarding : la fiche « à valider » est produite par l'IA lourde (Opus,
   // ~30-90s). Tant qu'elle n'est pas arrivée, on affiche un écran d'attente
@@ -273,48 +278,40 @@ export default function BrandingPage() {
       }
 
       // Check for pending autofill review
-      const { data: pendingAutofill } = await (supabase.from("branding_autofill") as any)
-        .select("analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
+      const { data: pendingAutofill, error: pendingReadError } = await (supabase.from("branding_autofill") as any)
+        .select("id, analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
         .eq(column, value)
         .eq("autofill_status", "pending_review")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
 
+      if (importScopeRef.current !== `${column}:${value}`) return;
+      if (pendingReadError) { setLoadError(true); setLoading(false); return; }
       if (pendingAutofill?.analysis_result) {
-        // If most sections are already filled, auto-complete the pending review
-        // instead of forcing the user back into the review screen
-        const filledCount = (["storytelling", "persona", "proposition", "tone", "strategy", "offers"] as const)
-          .filter((k) => comp[k] > 0).length;
-        // fromOnboarding : ne JAMAIS auto-compléter la review — c'est justement
-        // l'étape « relis + valide » qu'on veut imposer après l'inscription.
-        if (filledCount >= 5 && !fromOnboarding) {
-          // Silently mark as completed — user already has their branding
-          const { error: markCompleteErr } = await (supabase.from("branding_autofill") as any)
-            .update({ autofill_status: "completed", autofill_pending_review: false })
-            .eq(column, value)
-            .eq("autofill_status", "pending_review");
-          if (markCompleteErr) console.error("branding_autofill mark-completed error:", markCompleteErr);
-          // La garde de /creer lit cette même fiche : sans invalidation, son
-          // cache garderait « fiche en attente » et bloquerait la création.
-          queryClient.invalidateQueries({ queryKey: ["pending-brand-review"] });
-          localStorage.setItem(`branding_skip_import_${value}`, "true");
-          setSkipImport(true);
-        } else {
-          setAnalysisResult(pendingAutofill.analysis_result as AnalysisResult);
-          setImportPhaseNew("reviewing");
-          setReanalyzeUrls({
-            website: pendingAutofill.website_url || "",
-            instagram: pendingAutofill.instagram_handle || "",
-            linkedin: pendingAutofill.linkedin_url || "",
-          });
-        }
+        // Pending review is independent from how much branding is already filled.
+        setPendingReviewId(pendingAutofill.id);
+        setAnalysisResult(pendingAutofill.analysis_result as AnalysisResult);
+        setImportPhaseNew("reviewing");
+        setReanalyzeUrls({
+          website: pendingAutofill.website_url || "",
+          instagram: pendingAutofill.instagram_handle || "",
+          linkedin: pendingAutofill.linkedin_url || "",
+        });
       }
 
       setLoading(false);
     };
     load();
   }, [user?.id, isDemoMode, column, value, retryKey, workspaceLoading]);
+
+  useEffect(() => {
+    setAnalysisResult(null);
+    setPendingReviewId(null);
+    setImportPhaseNew("form");
+    setImportExtraction(null);
+    setImportPhase("idle");
+  }, [column, value]);
 
   // Onboarding → attente de la fiche « à valider ». L'enrichment (Opus) tourne
   // en fire-and-forget depuis la fin du diagnostic ; on poll `branding_autofill`
@@ -332,7 +329,7 @@ export default function BrandingPage() {
     const tick = async () => {
       attempts += 1;
       const { data: pending } = await (supabase.from("branding_autofill") as any)
-        .select("analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
+        .select("id, analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
         .eq(column, value)
         .eq("autofill_status", "pending_review")
         .order("created_at", { ascending: false })
@@ -340,6 +337,7 @@ export default function BrandingPage() {
         .maybeSingle();
       if (cancelled) return;
       if (pending?.analysis_result) {
+        setPendingReviewId(pending.id);
         setAnalysisResult(pending.analysis_result as AnalysisResult);
         setImportPhaseNew("reviewing");
         setReanalyzeUrls({
@@ -409,16 +407,12 @@ export default function BrandingPage() {
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       };
 
-      const { data: existing } = await (supabase.from("brand_proposition") as any).select("id").eq(column, value).maybeSingle();
-      if (existing) {
-        const { error: writeError } = await supabase.from("brand_proposition").update(payload as any).eq("id", existing.id);
-        if (writeError) throw writeError;
-      } else {
-        const { error: writeError } = await supabase.from("brand_proposition").insert(payload as any);
-        if (writeError) throw writeError;
-      }
+      const scope = { column, value, userId: user.id };
+      const existing = importTarget(await readImportRows("brand_proposition", scope));
+      const fields = existing ? fillOnlyEmpty(payload, existing) : payload;
+      if (Object.keys(fields).length > 0) await saveImportRow("brand_proposition", scope, existing?.id || null, fields);
       queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
-      toast.success("✨ Tes 6 propositions de valeur sont prêtes !");
+      toast.success("Tes formulations sont disponibles. Les versions déjà rédigées ont été conservées.");
       navigate("/branding/proposition/recap");
     } catch (e: any) {
       console.error("[BrandingPage] Proposition generation error:", e);
@@ -555,6 +549,7 @@ export default function BrandingPage() {
       // Log completion
       logEvent("autofill_completed");
 
+      setPendingReviewId(result.id || null);
       setAnalysisResult(result.analysis);
       setImportAnalyzing(false);
       setImportPhaseNew("reviewing");
@@ -723,6 +718,14 @@ export default function BrandingPage() {
           {topView === "review" && analysisResult && (
             <motion.div key="review" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4 }}>
               <BrandingReview
+                key={`${value}:${pendingReviewId || "new"}`}
+                onProgress={async (sections) => {
+                  if (isDemoMode) return;
+                  if (!pendingReviewId || !user?.id) throw new Error("Import indisponible. Recharge la page.");
+                  await saveImportRow("branding_autofill", { column, value, userId: user.id }, pendingReviewId, {
+                    analysis_result: { ...analysisResult, reviewed_sections: sections },
+                  });
+                }}
                 analysis={analysisResult}
                 sourcesUsed={analysisResult.sources_used || []}
                 sourcesFailed={analysisResult.sources_failed || []}
@@ -731,13 +734,13 @@ export default function BrandingPage() {
                 // Parcours d'inscription : valider sa fiche EST l'étape en cours.
                 // On retire donc « finir plus tard » — la création attend la fiche.
                 mandatory={fromOnboarding}
-                onDone={async () => {
-                  if (user?.id && !isDemoMode) {
-                    const { error: completeErr } = await (supabase.from("branding_autofill") as any)
-                      .update({ autofill_status: "completed", autofill_pending_review: false })
-                      .eq(column, value)
-                      .eq("autofill_status", "pending_review");
-                    if (completeErr) {
+                onDone={async (complete = true) => {
+                  if (complete && user?.id && !isDemoMode) {
+                    try {
+                      if (!pendingReviewId) throw new Error("Import indisponible");
+                      await saveImportRow("branding_autofill", { column, value, userId: user.id }, pendingReviewId,
+                        { autofill_status: "completed", autofill_pending_review: false });
+                    } catch {
                       toast.error("Impossible d'enregistrer la validation de ta fiche. Réessaie.");
                       return;
                     }
@@ -753,7 +756,7 @@ export default function BrandingPage() {
                   // Onboarding : la marque validée, on enchaîne sur « générer mon
                   // 1er contenu ». Le cas import (fromOnboarding=false) reste sur
                   // l'accueil marque comme avant.
-                  if (fromOnboarding && nextTarget === "creer") {
+                  if (complete && fromOnboarding && nextTarget === "creer") {
                     const dest = returnToCreation || await resolveFirstContentDestination({ column, value, userId: user?.id });
                     navigate(dest, { replace: true, state: creationReturnState });
                     return;
@@ -817,41 +820,31 @@ export default function BrandingPage() {
                       const fVal = value;
                       if (!fVal) return;
                       try {
-                        if (sectionKey === "proposition") {
-                          // Source de vérité unique = brand_proposition.version_final (lu par la génération ET le Coach).
-                          // brand_profile.positioning n'est lu par aucune génération → on n'y écrit plus.
-                          const { error } = await (supabase.from("brand_proposition") as any).update({ version_final: suggestion }).eq(fCol, fVal);
-                          if (error) throw error;
-                        } else if (sectionKey === "persona") {
-                          const { data: p } = await (supabase.from("persona") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
-                          if (p) {
-                            const { error } = await (supabase.from("persona") as any).update({ step_2_transformation: suggestion }).eq("id", p.id);
-                            if (error) throw error;
-                          }
-                        } else if (sectionKey === "offers") {
-                          const { error } = await (supabase.from("brand_profile") as any).update({ offer: suggestion }).eq(fCol, fVal);
-                          if (error) throw error;
-                        } else if (sectionKey === "tone") {
-                          const { error } = await (supabase.from("brand_profile") as any).update({ voice_description: suggestion }).eq(fCol, fVal);
-                          if (error) throw error;
-                        } else if (sectionKey === "storytelling") {
-                          const { data: st } = await (supabase.from("storytelling") as any).select("id").eq(fCol, fVal).limit(1).maybeSingle();
-                          if (st) {
-                            const { error } = await (supabase.from("storytelling") as any).update({ imported_text: suggestion, source: "audit" }).eq("id", st.id);
-                            if (error) throw error;
-                          }
-                        } else if (sectionKey === "strategy") {
-                          const { error } = await (supabase.from("brand_profile") as any).update({ content_editorial_line: suggestion }).eq(fCol, fVal);
-                          if (error) throw error;
-                        }
+                        if (!user?.id) return;
+                        const scope = { column: fCol, value: fVal, userId: user.id };
+                        const mappings: Record<string, { table: string; field: string }> = {
+                          proposition: { table: "brand_proposition", field: "version_final" },
+                          persona: { table: "persona", field: "step_2_transformation" },
+                          offers: { table: "brand_profile", field: "offer" },
+                          tone: { table: "brand_profile", field: "voice_description" },
+                          storytelling: { table: "storytelling", field: "step_7_polished" },
+                          strategy: { table: "brand_profile", field: "content_editorial_line" },
+                        };
+                        const mapping = mappings[sectionKey];
+                        if (!mapping) throw new Error("Suggestion non prise en charge.");
+                        const rows = await readImportRows(mapping.table, scope);
+                        // General recommendations cannot choose among several personal stories/publics.
+                        const target = importTarget(rows);
+                        await saveImportRow(mapping.table, scope, target?.id || null, { [mapping.field]: suggestion });
                         setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
-                        toast.success("✅ Suggestion appliquée !");
+                        toast.success(sectionKey === "offers" ? "Description générale des offres mise à jour. Les fiches individuelles sont conservées." : "✅ Suggestion appliquée !");
                         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
                         queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
                         queryClient.invalidateQueries({ queryKey: ["persona"] });
-                        queryClient.invalidateQueries({ queryKey: ["storytelling"] });
-                      } catch {
-                        toast.error("Erreur lors de l'application");
+                        queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
+                        queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : "Erreur lors de l'application");
                       }
                     }}
                     onDismissSuggestion={(sectionKey: string) => {
