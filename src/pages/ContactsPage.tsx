@@ -373,6 +373,7 @@ function ContactsWorkspace({ userId, workspaceId, column, value }: { userId: str
                     toast.error("Message conservé dans l’historique, mais relance non enregistrée. Réessaie pour enregistrer la relance.");
                     return;
                   }
+                  dmReceipts.current.delete(receipt);
                   closeDm();
                   toast.success("✅ Message noté !");
                 } catch (error) {

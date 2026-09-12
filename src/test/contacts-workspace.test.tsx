@@ -336,3 +336,15 @@ it('conserve le reçu d’historique accepté après fermeture pour reprendre sa
   await waitFor(() => expect(m.success).toHaveBeenCalledWith('✅ Message noté !'));
   expect(m.query.mock.calls.filter(([q]) => q.op === 'insert')).toHaveLength(1);
 });
+
+it('deux messages réellement confirmés avec le même texte gardent chacun leur historique', async () => {
+  setupProspect(); m.invoke.mockResolvedValue({ data: { variant_a: 'Message fictif A', variant_b: 'Variante' }, error: null });
+  render(<ContactsPage />); await openGenerator(); await generate();
+  await userEvent.click(await screen.findByRole('button', { name: 'Message envoyé' }));
+  await waitFor(() => expect(m.success).toHaveBeenCalledTimes(1));
+  await userEvent.click(screen.getAllByRole('button', { name: 'DM' })[0]);
+  await screen.findByLabelText(/Copie-colle ici/); await generate();
+  await userEvent.click(await screen.findByRole('button', { name: 'Message envoyé' }));
+  await waitFor(() => expect(m.success).toHaveBeenCalledTimes(2));
+  expect(m.query.mock.calls.filter(([q]) => q.op === 'insert')).toHaveLength(2);
+});
