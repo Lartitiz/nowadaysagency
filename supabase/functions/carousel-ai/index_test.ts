@@ -43,16 +43,17 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     if (news) { assert(prompt.includes("ACTUALITÉ_TEST")); assert(prompt.includes("sans désaccord, décalage ni quota d'opinions imposés")); }
     return JSON.stringify(draft);
   }) as any;
-  const previousFetch = globalThis.fetch, key = Deno.env.get("ANTHROPIC_API_KEY");
-  Deno.env.set("ANTHROPIC_API_KEY", "test-no-network");
+  const previousFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "test-no-network");
   let reviews = 0;
   globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
     const request = init?.body ? JSON.parse(String(init.body)) : {};
     let text = "{}";
-    if (JSON.stringify(request.system).includes("révision éditoriale de ce carrousel")) {
-      assertEquals(request.model, "claude-opus-4-8");
+    if (String(request.instructions).includes("révision éditoriale de ce carrousel")) {
+      assertEquals(_url, "https://api.openai.com/v1/responses");
+      assertEquals(request.model, "gpt-6-astra");
       reviews++;
-      const message = request.messages[0].content;
+      const message = request.input[0].content;
       assert(message.includes("BRIEF ACTUEL PRIORITAIRE"));
       assert(message.includes("Attendre une réponse commune"));
       const fields = JSON.parse(message.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
@@ -61,10 +62,8 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
         return { field_id: f.field_id, decision: f.text.includes(before) ? "edit" : "keep", reason: "analyse du rôle du passage", edits: f.text.includes(before) ? [{ before, after: "" }] : [] };
       }) });
     }
-    const content = request.tool_choice?.name === "review_carousel_fields"
-      ? [{ type: "tool_use", id: "test", name: "review_carousel_fields", input: JSON.parse(text) }]
-      : [{ type: "text", text }];
-    return Promise.resolve(new Response(JSON.stringify({ content, stop_reason: request.tool_choice ? "tool_use" : "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
+    if (request.tool_choice?.name === "review_carousel_fields") return Promise.resolve(new Response(JSON.stringify({ model: "gpt-6-astra", status: "completed", output: [{ type: "function_call", name: "review_carousel_fields", arguments: text }], usage: { input_tokens: 1, output_tokens: 1 } })));
+    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try {
     const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, slide_count: 4, deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
@@ -77,10 +76,13 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     assertEquals(parsed.slides.length, 4);
     assertEquals(parsed.editorial_review.status, "reviewed");
     assertEquals(parsed.editorial_review.pass, 2);
+    assertEquals(parsed.editorial_review.model, "gpt-6-astra");
+    assertEquals(parsed.editorial_review.version, "contextual-astra-medium-v5");
+    assertEquals(parsed.editorial_review.total_usage.total_tokens, 4);
     assertEquals(reviews, 2);
   } finally {
     globalThis.fetch = previousFetch;
-    if (key === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", key);
+    if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
   }
 });
 const TEST_WORKSPACE_ID = "11111111-1111-1111-1111-111111111111";

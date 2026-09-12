@@ -1,5 +1,6 @@
 /** Editorial review contract. No layout, photo, link or structural field is editable. */
-export const CAROUSEL_REVIEW_VERSION = "contextual-calibrated-v4";
+export const CAROUSEL_REVIEW_VERSION = "contextual-astra-medium-v5";
+export const CAROUSEL_REVIEW_MODEL = "gpt-6-astra" as const;
 export const CAROUSEL_REVIEW_TOOL = {
   name: "review_carousel_fields",
   description: "Révision de chaque champ, avec retouches locales exactes ou conservation explicite.",

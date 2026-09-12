@@ -1,6 +1,7 @@
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "./content-clarity.ts";
-import { callAnthropic, callAnthropicSimple, getModelForAction, type AnthropicModel } from "./anthropic.ts";
-import { applyEditorialReview, carouselEditorialFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type AnthropicModel, type UsageSink } from "./anthropic.ts";
+import { callCarouselWriter } from "./carousel-model.ts";
+import { applyEditorialReview, carouselEditorialFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_MODEL, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
 
@@ -816,6 +817,7 @@ export async function applyCorrectionPassCarousel(
       const fields = carouselEditorialFields(parsed);
       if (!fields.length) return jsonContent;
       let report: { status: string; fields: number; edits: number; error?: string };
+      const reviewUsage: UsageSink = {};
       try {
         let baseline = "";
         if (options.reviewBaseline) {
@@ -825,11 +827,10 @@ export async function applyCorrectionPassCarousel(
               "\nVérifie les modifications déjà faites : elles doivent améliorer le texte sans slogan de remplacement, perte de sens ou voix aplatie. Corrige aussi un défaut résiduel ailleurs. Les extraits before doivent venir des CHAMPS ÉDITABLES actuels, jamais de cet ancien brouillon.\n";
           } catch { /* A missing baseline does not change the patch contract. */ }
         }
-        const raw = await callAnthropic({
-          // Live tests found content-tier review/selection too permissive.
-          // Keep the bounded exact-patch review with the existing stronger model;
-          // generation's normal/quality_max choice and other formats are unchanged.
-          model: "claude-opus-4-8", system: CAROUSEL_EDITORIAL_REVIEW_PROMPT,
+        const raw = await callCarouselWriter({
+          // Replace the existing bounded review, never add another model pass.
+          // Other formats and the legacy rollback correction remain unchanged.
+          model: CAROUSEL_REVIEW_MODEL, system: CAROUSEL_EDITORIAL_REVIEW_PROMPT,
           messages: [{ role: "user", content:
           claritySourceBlock(options.sourceContext, options.authoredText) +
           "\nALERTES À EXAMINER EN CONTEXTE :\n" + (extraInstructions || "Aucune alerte automatique ; effectuer la relecture de tous les champs.") +
@@ -837,11 +838,11 @@ export async function applyCorrectionPassCarousel(
             "\nUne information déclarée absente dans CE brief reste absente, même si la marque décrit ailleurs une boutique, un produit disponible ou une habitude. Ne transpose pas ces informations à cet objet.\n" : "") +
           baseline + "\nCHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n" + JSON.stringify(fields.map(({ id, text }) => ({ field_id: id, text }))),
           }],
-          temperature: 0.3, max_tokens: 8192, abortTimeoutMs,
+          max_tokens: 8192, abortTimeoutMs,
           tool: CAROUSEL_REVIEW_TOOL,
           // These strings include exact source excerpts, not freely generated prose.
           keepDashes: true,
-        });
+        }, reviewUsage);
         const review = applyEditorialReview(parsed, raw, options.authoredText);
         parsed = review.doc;
         report = { status: review.status, fields: review.fields, edits: review.edits, ...(review.error ? { error: review.error } : {}) };
@@ -852,7 +853,13 @@ export async function applyCorrectionPassCarousel(
       logger?.(`[carousel-editorial:${CAROUSEL_REVIEW_VERSION}] ${JSON.stringify(report)}`);
       const previous = parsed.editorial_review?.version === CAROUSEL_REVIEW_VERSION ? parsed.editorial_review : undefined;
       parsed.editorial_review = { version: CAROUSEL_REVIEW_VERSION, ...report, pass: options.reviewBaseline ? 2 : 1,
-        total_edits: (options.reviewBaseline ? Number(previous?.total_edits || 0) : 0) + report.edits };
+        total_edits: (options.reviewBaseline ? Number(previous?.total_edits || 0) : 0) + report.edits,
+        requested_model: CAROUSEL_REVIEW_MODEL, model: reviewUsage.model ?? null, effort: "medium",
+        // Diagnostic provider usage, separate from user credits and writer usage.
+        usage: reviewUsage,
+        total_usage: Object.fromEntries(["input_tokens", "output_tokens", "total_tokens"].map(key => [key,
+          (options.reviewBaseline ? Number(previous?.total_usage?.[key] || 0) : 0) + Number(reviewUsage[key as keyof UsageSink] || 0)])),
+      };
       return jsonContent.replace(jsonMatch[0], () => JSON.stringify(parsed));
     }
     const textBlock = extractCarouselTexts(parsed);
