@@ -150,7 +150,7 @@ Deno.test("runLinkedInTwoStep : formule moulée mesurée en code -> extraInstruc
   }
 });
 
-Deno.test("runLinkedInTwoStep : texte propre -> pas d'extraInstructions, prompt de correction inchangé", async () => {
+Deno.test("runLinkedInTwoStep : texte propre -> pas d'extraInstructions, mais clarté et faits source conservés", async () => {
   const generated = { content: "Le brief était clair dès le départ, alors on a foncé sans hésiter une seconde." };
   const corrected = { content: "Version corrigée d'un texte déjà propre.", accroche: "accroche", corrections_applied: [] };
   const { mock, capturedBodies } = installAnthropicBodyCapture([
@@ -158,10 +158,13 @@ Deno.test("runLinkedInTwoStep : texte propre -> pas d'extraInstructions, prompt 
     { status: 200, body: { content: [{ type: "text", text: JSON.stringify(corrected) }], stop_reason: "end_turn", usage: { input_tokens: 60, output_tokens: 40 } } },
   ]);
   try {
-    await runLinkedInTwoStep(LINKEDIN_BASE_PARAMS);
+    await runLinkedInTwoStep({ ...LINKEDIN_BASE_PARAMS, body: { ...LINKEDIN_BASE_PARAMS.body, context: "La réunion sert à valider le brief du projet." } });
     const correctionUserMsg = capturedBodies[1].messages[0].content as string;
     assertEquals(correctionUserMsg.includes("CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ"), false);
-    assertEquals(correctionUserMsg.startsWith('Voici le post LinkedIn à corriger :'), true);
+    assertEquals(correctionUserMsg.includes('Voici le post LinkedIn à corriger :'), true);
+    assertEquals(correctionUserMsg.includes("La réunion sert à valider le brief du projet."), true);
+    assertEquals(JSON.stringify(capturedBodies[1].system).includes("COMPRÉHENSION DU SUJET"), true);
+    assertEquals(mock.anthropicCallCount, 2);
   } finally {
     mock.restore();
   }
