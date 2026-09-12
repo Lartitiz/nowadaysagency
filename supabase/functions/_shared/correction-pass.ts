@@ -35,6 +35,35 @@ export interface CorrectionOptions {
   abortTimeoutMs?: number;
 }
 
+/** A focused source review avoids imposing a second, competing writing voice. */
+export function sourceFirstCorrectionPrompt(options: CorrectionOptions, fallback: string): string {
+  if (!options.sourceContext?.trim() && !options.authoredText?.trim()) return fallback + "\n" + CONTENT_CLARITY_RULES;
+  return `Tu relis le brouillon d'une personne en vérifiant sa fidélité aux sources.
+COMPRÉHENSION DU SUJET : les faits du brief actuel font autorité. Un métier, une valeur de marque ou un souhait de l'audience ne prouve rien sur ce produit précis.
+Supprime ou reformule uniquement les affirmations non étayées : fabrication ou conception par la personne, anecdotes vécues, témoignages, résultats, durées, disponibilité et rareté. N'invente aucun détail de remplacement. Une image ou une opinion peut rester si elle ne se présente pas comme un fait ou un vécu absent des sources.
+Préserve les bonnes phrases, la personne grammaticale, le registre, l'humour, les nuances, le scénario et la structure du brouillon. N'ajoute ni familiarité, ni aparté, ni punchline, ni question finale pour rendre le texte humain. Ne raccourcis pas mécaniquement.
+Corrige les défauts précis signalés et les effets préfabriqués ajoutés, notamment « X. Pas Y. » et « Ce n'est pas X, c'est Y ». Garde les négations factuelles et les citations explicitement fournies. Remplace une formule creuse par une formulation précise issue des sources, ou supprime-la sans ajouter de slogan.
+Respecte les contraintes du brief sur le ton, la longueur et la fin du contenu. N'ajoute pas de faits pour atteindre une longueur.
+Renvoie uniquement le texte corrigé. Si le texte comporte des marqueurs entre crochets, conserve TOUS les marqueurs exactement, dans le même ordre, avec chaque texte dans son champ. Ne fusionne ni ne supprime les champs. Ne produis ni commentaire, ni bilan, ni balise Markdown.`;
+}
+
+const NEWSLETTER_FIELDS = ["subject", "preview_text", "content", "accroche", "cta_suggestion"] as const;
+
+export function extractNewsletterTexts(newsletter: Record<string, unknown>): string {
+  return NEWSLETTER_FIELDS.filter((key) => typeof newsletter[key] === "string" && String(newsletter[key]).trim())
+    .map((key) => `[NEWSLETTER ${key}]\n${newsletter[key]}`).join("\n\n");
+}
+
+/** Reject a missing/duplicated/reordered marker rather than shift text into another field. */
+export function reinjectNewsletterTexts<T extends Record<string, unknown>>(newsletter: T, corrected: string): T {
+  const expected = NEWSLETTER_FIELDS.filter((key) => typeof newsletter[key] === "string" && String(newsletter[key]).trim());
+  const matches = [...corrected.matchAll(/\[NEWSLETTER (subject|preview_text|content|accroche|cta_suggestion)\]\s*([\s\S]*?)(?=\[NEWSLETTER |$)/g)];
+  if (matches.length !== expected.length || matches.some((match, i) => match[1] !== expected[i] || !match[2].trim())) return newsletter;
+  const result: Record<string, unknown> = { ...newsletter };
+  for (const match of matches) result[match[1]] = keepUnlessRealEdit(String(newsletter[match[1]]), match[2].trim());
+  return result as T;
+}
+
 // ── Scan déterministe « faut-il corriger ? » (audit photo 22/07) ──────────────
 // La passe de correction Haiku tournait sur CHAQUE carrousel, même déjà propre :
 // latence + coût + un round-trip de réécriture = un vecteur de mots collés en
@@ -699,7 +728,7 @@ export async function applyCorrectionPass(
 
     const corrected = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      correctionPrompt + "\n" + CONTENT_CLARITY_RULES,
+      sourceFirstCorrectionPrompt(options, correctionPrompt),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
         : `Voici le contenu à corriger :\n\n"""\n${content}\n"""`),
@@ -767,7 +796,7 @@ export async function applyCorrectionPassCarousel(
     // Step 3: Send only text to correction
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      CAROUSEL_CORRECTION_PROMPT + "\n" + CONTENT_CLARITY_RULES,
+      sourceFirstCorrectionPrompt(options, CAROUSEL_CORRECTION_PROMPT),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
         : `Voici les textes du carrousel à corriger :\n\n${textBlock}`),
@@ -931,7 +960,7 @@ export async function applyCorrectionPassStories(
     logger?.(`[correction-pass:stories] STARTED, text block length: ${textBlock.length}`);
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      CORRECTION_PROMPTS.stories + "\n" + CONTENT_CLARITY_RULES,
+      sourceFirstCorrectionPrompt(options, CORRECTION_PROMPTS.stories),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes de la séquence à corriger :\n\n${textBlock}`
         : `Voici les textes de la séquence à corriger :\n\n${textBlock}`),
@@ -977,7 +1006,7 @@ export async function applyCorrectionPassReel(
 
     const correctedBlock = await callAnthropicSimple(
       model ?? getModelForAction("content"),
-      CORRECTION_PROMPTS.reel + "\n" + CONTENT_CLARITY_RULES,
+      sourceFirstCorrectionPrompt(options, CORRECTION_PROMPTS.reel),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du reel à corriger :\n\n${textBlock}`
         : `Voici les textes du reel à corriger :\n\n${textBlock}`),

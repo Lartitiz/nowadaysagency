@@ -127,3 +127,35 @@ Deno.test("reinjectStoriesTexts : accepte une correction du texte complet entre 
     assertEquals(stories[0].visual.body_pill, candidate);
   }
 });
+
+import { extractNewsletterTexts, reinjectNewsletterTexts, sourceFirstCorrectionPrompt } from "./correction-pass.ts";
+
+Deno.test("newsletter : corrige objet, aperçu et corps sans déplacer ni perdre les métadonnées", () => {
+  const draft = { subject: "Mon objet fabriqué ici", preview_text: "Je l'ai dessiné hier.", content: "Voici l'objet présenté.", cta_suggestion: "Voir le produit", word_count: 4, campaign_id: "stable" };
+  const block = extractNewsletterTexts(draft);
+  const corrected = block.replace("Mon objet fabriqué ici", "Mon porte-savon").replace("Je l'ai dessiné hier.", "Trois rainures pour le séchage.");
+  const result = reinjectNewsletterTexts(draft, corrected);
+  assertEquals(result.subject, "Mon porte-savon");
+  assertEquals(result.preview_text, "Trois rainures pour le séchage.");
+  assertEquals(result.content, draft.content);
+  assertEquals(result.campaign_id, "stable");
+  assertEquals("accroche" in result, false);
+  assertEquals(draft.subject, "Mon objet fabriqué ici");
+});
+
+Deno.test("newsletter : marqueur absent, dupliqué ou désordonné → brouillon entier conservé", () => {
+  const draft = { subject: "Sujet", preview_text: "Aperçu", content: "Texte" };
+  for (const block of [
+    "[NEWSLETTER subject]\nAutre sujet\n[NEWSLETTER content]\nAutre texte",
+    "[NEWSLETTER subject]\nA\n[NEWSLETTER subject]\nB\n[NEWSLETTER content]\nC",
+    "[NEWSLETTER content]\nC\n[NEWSLETTER preview_text]\nB\n[NEWSLETTER subject]\nA",
+  ]) assertEquals(reinjectNewsletterTexts(draft, block), draft);
+});
+
+Deno.test("relecture sourcée : supprime les recettes concurrentes, conserve le mode sans source", () => {
+  assertEquals(sourceFirstCorrectionPrompt({}, "RECETTE HISTORIQUE").includes("RECETTE HISTORIQUE"), true);
+  const focused = sourceFirstCorrectionPrompt({ sourceContext: "18 euros" }, "RECETTE HISTORIQUE");
+  assertEquals(focused.includes("RECETTE HISTORIQUE"), false);
+  assertEquals(focused.includes("fabrication ou conception"), true);
+  assertEquals(focused.includes("le registre, l'humour, les nuances"), true);
+});

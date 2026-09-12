@@ -38,7 +38,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass } = await import("./index.ts");
+const { runDeepResearchWebSearch, runLinkedInTwoStep, correctPostStreamContent, applyStoriesCorrectionPass, applyNewsletterCorrectionPass } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -422,4 +422,34 @@ Deno.test("applyStoriesCorrectionPass : pas de stories -> no-op silencieux", asy
   } finally {
     mock.restore();
   }
+});
+
+Deno.test("stories : un brief explicite déclenche la vérification même sans tic mesuré", async () => {
+  const text = "Ce porte-savon en céramique blanche se pose au bord du lavabo pour laisser sécher le savon après utilisation. Ses rainures laissent un espace sous le savon, et le format trouve sa place près du robinet.";
+  const parsed: any = { stories: [{ text, visual: null, photo_id: "photo-stable" }] };
+  const { mock, capturedBodies } = installAnthropicBodyCapture([anthropicText(`[STORY 1 - TEXT] ${text}`)]);
+  try {
+    await applyStoriesCorrectionPass(parsed, { body: { context: "Porte-savon céramique blanche, trois rainures, 18 euros." }, fullContext: "" });
+    assertEquals(mock.anthropicCallCount, 1);
+    assertEquals(JSON.stringify(capturedBodies[0]).includes("fabrication ou conception"), true);
+    assertEquals(parsed.stories[0].text, text);
+    assertEquals(parsed.stories[0].photo_id, "photo-stable");
+  } finally { mock.restore(); }
+});
+
+Deno.test("newsletter : la même relecture reçoit et corrige aussi les champs courts visibles", async () => {
+  const content = "Ce porte-savon en céramique blanche se pose au bord du lavabo pour laisser sécher le savon après utilisation. Ses rainures laissent un espace sous le savon, et le format trouve sa place près du robinet. Il mesure onze centimètres de long.";
+  const parsed: any = { subject: "Je l'ai fabriqué", preview_text: "Je l'ai dessiné", content, campaign: "stable" };
+  const { mock, capturedBodies } = installAnthropicBodyCapture([anthropicText(`[NEWSLETTER subject]\nLe porte-savon\n\n[NEWSLETTER preview_text]\nLaisser sécher le savon\n\n[NEWSLETTER content]\n${content}`)]);
+  try {
+    await applyNewsletterCorrectionPass(parsed, { body: { context: "Porte-savon en céramique blanche, trois rainures, 11 cm." }, context: "Porte-savon en céramique blanche, trois rainures, 11 cm.", fullContext: "" });
+    assertEquals(mock.anthropicCallCount, 1);
+    const sent = JSON.stringify(capturedBodies[0]);
+    assertEquals(sent.includes("Je l'ai fabriqué"), true);
+    assertEquals(sent.includes("Je l'ai dessiné"), true);
+    assertEquals(parsed.subject, "Le porte-savon");
+    assertEquals(parsed.preview_text, "Laisser sécher le savon");
+    assertEquals(parsed.content, content);
+    assertEquals(parsed.campaign, "stable");
+  } finally { mock.restore(); }
 });
