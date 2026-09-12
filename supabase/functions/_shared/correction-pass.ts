@@ -21,9 +21,10 @@ export interface CorrectionOptions {
   /** Logger optionnel pour debug */
   logger?: (msg: string) => void;
   /**
-   * Modèle de la correction (défaut : le modèle "content", Sonnet). La correction
-   * est une édition mécanique à règles fermées : les appelants sensibles à la
-   * latence (carrousel qualité normale) passent Haiku, ~2x plus rapide.
+   * Modèle de correction sans source (défaut : modèle "content").
+   * Avec source, la vérification sémantique utilise le modèle "content" :
+   * les essais réels ont montré que Haiku gardait des faits non étayés.
+   * Le plafond abortTimeoutMs reste inchangé.
    */
   model?: AnthropicModel;
   /**
@@ -33,6 +34,13 @@ export interface CorrectionOptions {
    * principal, pour éviter la cascade principal+correction non bornée.
    */
   abortTimeoutMs?: number;
+}
+
+/** Source fidelity is semantic work; use the configured content model within the existing timeout. */
+export function correctionModel(options: CorrectionOptions): AnthropicModel {
+  return options.sourceContext?.trim() || options.authoredText?.trim()
+    ? getModelForAction("content")
+    : options.model ?? getModelForAction("content");
 }
 
 /** A focused source review avoids imposing a second, competing writing voice. */
@@ -56,6 +64,8 @@ export function extractNewsletterTexts(newsletter: Record<string, unknown>): str
 
 /** Reject a missing/duplicated/reordered marker rather than shift text into another field. */
 export function reinjectNewsletterTexts<T extends Record<string, unknown>>(newsletter: T, corrected: string): T {
+  // A model may wrap the annotated block despite the plain-text contract.
+  corrected = corrected.trim().replace(/^```[^\n]*\n/, "").replace(/\n```\s*$/, "");
   const expected = NEWSLETTER_FIELDS.filter((key) => typeof newsletter[key] === "string" && String(newsletter[key]).trim());
   const matches = [...corrected.matchAll(/\[NEWSLETTER (subject|preview_text|content|accroche|cta_suggestion)\]\s*([\s\S]*?)(?=\[NEWSLETTER |$)/g)];
   if (matches.length !== expected.length || matches.some((match, i) => match[1] !== expected[i] || !match[2].trim())) return newsletter;
@@ -705,7 +715,7 @@ export async function applyCorrectionPass(
   format: CorrectionFormat,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 200, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
+  const { skipIfShorterThan = 200, enabled = true, logger, extraInstructions, abortTimeoutMs } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:${format}] SKIPPED (disabled)`);
@@ -727,7 +737,7 @@ export async function applyCorrectionPass(
     logger?.(`[correction-pass:${format}] STARTED, content length: ${content.length}`);
 
     const corrected = await callAnthropicSimple(
-      model ?? getModelForAction("content"),
+      correctionModel(options),
       sourceFirstCorrectionPrompt(options, correctionPrompt),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici le contenu à corriger :\n\n"""\n${content}\n"""`
@@ -761,7 +771,7 @@ export async function applyCorrectionPassCarousel(
   jsonContent: string,
   options: CorrectionOptions = {}
 ): Promise<string> {
-  const { skipIfShorterThan = 300, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
+  const { skipIfShorterThan = 300, enabled = true, logger, extraInstructions, abortTimeoutMs } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:carousel-json] SKIPPED (disabled)`);
@@ -795,7 +805,7 @@ export async function applyCorrectionPassCarousel(
 
     // Step 3: Send only text to correction
     const correctedBlock = await callAnthropicSimple(
-      model ?? getModelForAction("content"),
+      correctionModel(options),
       sourceFirstCorrectionPrompt(options, CAROUSEL_CORRECTION_PROMPT),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du carrousel à corriger :\n\n${textBlock}`
@@ -948,7 +958,7 @@ export async function applyCorrectionPassStories(
   stories: any[],
   options: CorrectionOptions = {},
 ): Promise<{ stories: any[]; changed: number }> {
-  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
+  const { skipIfShorterThan = 150, enabled = true, logger, extraInstructions, abortTimeoutMs } = options;
   const unchanged = { stories, changed: 0 };
   if (!enabled || !Array.isArray(stories) || stories.length === 0) return unchanged;
   const textBlock = extractStoriesTexts(stories);
@@ -959,7 +969,7 @@ export async function applyCorrectionPassStories(
   try {
     logger?.(`[correction-pass:stories] STARTED, text block length: ${textBlock.length}`);
     const correctedBlock = await callAnthropicSimple(
-      model ?? getModelForAction("content"),
+      correctionModel(options),
       sourceFirstCorrectionPrompt(options, CORRECTION_PROMPTS.stories),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes de la séquence à corriger :\n\n${textBlock}`
@@ -987,7 +997,7 @@ export async function applyCorrectionPassReel(
   parsedReel: unknown,
   options: CorrectionOptions = {},
 ): Promise<unknown> {
-  const { skipIfShorterThan = 150, enabled = true, logger, model, extraInstructions, abortTimeoutMs } = options;
+  const { skipIfShorterThan = 150, enabled = true, logger, extraInstructions, abortTimeoutMs } = options;
 
   if (!enabled) {
     logger?.(`[correction-pass:reel-json] SKIPPED (disabled)`);
@@ -1005,7 +1015,7 @@ export async function applyCorrectionPassReel(
     logger?.(`[correction-pass:reel-json] STARTED, text block length: ${textBlock.length}`);
 
     const correctedBlock = await callAnthropicSimple(
-      model ?? getModelForAction("content"),
+      correctionModel(options),
       sourceFirstCorrectionPrompt(options, CORRECTION_PROMPTS.reel),
       claritySourceBlock(options.sourceContext, options.authoredText) + (extraInstructions
         ? `CORRECTIONS CIBLÉES À APPLIQUER EN PRIORITÉ (mesurées par code, non négociables) :\n${extraInstructions}\n\nVoici les textes du reel à corriger :\n\n${textBlock}`

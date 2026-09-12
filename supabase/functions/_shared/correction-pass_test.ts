@@ -159,3 +159,19 @@ Deno.test("relecture sourcée : supprime les recettes concurrentes, conserve le 
   assertEquals(focused.includes("fabrication ou conception"), true);
   assertEquals(focused.includes("le registre, l'humour, les nuances"), true);
 });
+
+import { correctionModel } from "./correction-pass.ts";
+import { getModelForAction } from "./anthropic.ts";
+
+Deno.test("relecture factuelle : modèle de contenu configuré, correction sans source inchangée", () => {
+  assertEquals(correctionModel({ model: "claude-haiku-4-5" }), "claude-haiku-4-5");
+  assertEquals(correctionModel({ model: "claude-haiku-4-5", sourceContext: "L'objet coûte 18 euros." }), getModelForAction("content"));
+  assertEquals(correctionModel({ model: "claude-haiku-4-5", authoredText: "Voici mes propres mots." }), getModelForAction("content"));
+});
+
+Deno.test("newsletter : une enveloppe Markdown ne fuit jamais dans le dernier champ", () => {
+  const draft = { subject: "Sujet", content: "Corps", cta_suggestion: "Voir le produit" };
+  const block = extractNewsletterTexts(draft);
+  assertEquals(reinjectNewsletterTexts(draft, "```text\n" + block + "\n```"), draft);
+  assertEquals(reinjectNewsletterTexts(draft, block.replace("Voir le produit", "Découvrir le porte-savon") + "\n```"), { ...draft, cta_suggestion: "Découvrir le porte-savon" });
+});
