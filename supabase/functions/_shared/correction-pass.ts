@@ -1,9 +1,14 @@
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "./content-clarity.ts";
-import { callAnthropicSimple, getModelForAction, type AnthropicModel } from "./anthropic.ts";
+import { callAnthropic, callAnthropicSimple, getModelForAction, type AnthropicModel } from "./anthropic.ts";
+import { applyEditorialReview, carouselEditorialFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
 
 export interface CorrectionOptions {
+  /** Contextual, exact-patch review; enabled only by the carousel generator. */
+  semanticReview?: boolean;
+  /** Original generated draft for the bounded verification; never factual evidence. */
+  reviewBaseline?: string;
   /** Phrases écrites par la personne pour ce contenu, à préserver (pas le branding général). */
   authoredText?: string;
   /** Faits source disponibles pour vérifier les précisions ajoutées au brouillon. */
@@ -805,6 +810,44 @@ export async function applyCorrectionPassCarousel(
     }
 
     // Step 2: Extract text fields into annotated block
+    if (options.semanticReview) {
+      const fields = carouselEditorialFields(parsed);
+      if (!fields.length) return jsonContent;
+      let report: { status: string; fields: number; edits: number; error?: string };
+      try {
+        let baseline = "";
+        if (options.reviewBaseline) {
+          try {
+            const draft = JSON.parse(options.reviewBaseline.match(/\{[\s\S]*\}/)?.[0] || "null");
+            baseline = "\nBROUILLON AVANT RELECTURE (comparaison uniquement, PAS une source factuelle) :\n" + JSON.stringify(carouselEditorialFields(draft).map(({ id, text }) => ({ id, text }))) +
+              "\nVérifie les modifications déjà faites : elles doivent améliorer le texte sans slogan de remplacement, perte de sens ou voix aplatie. Corrige aussi un défaut résiduel ailleurs. Les extraits before doivent venir des CHAMPS ÉDITABLES actuels, jamais de cet ancien brouillon.\n";
+          } catch { /* A missing baseline does not change the patch contract. */ }
+        }
+        const raw = await callAnthropic({
+          model: getModelForAction("content"), system: CAROUSEL_EDITORIAL_REVIEW_PROMPT,
+          messages: [{ role: "user", content:
+          claritySourceBlock(options.sourceContext, options.authoredText) +
+          "\nALERTES À EXAMINER EN CONTEXTE :\n" + (extraInstructions || "Aucune alerte automatique ; effectuer la relecture de tous les champs.") +
+          baseline + "\nCHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n" + JSON.stringify(fields.map(({ id, text }) => ({ id, text }))),
+          }],
+          temperature: 0.3, max_tokens: 8192, abortTimeoutMs,
+          tool: CAROUSEL_REVIEW_TOOL,
+          // These strings include exact source excerpts, not freely generated prose.
+          keepDashes: true,
+        });
+        const review = applyEditorialReview(parsed, raw, options.authoredText);
+        parsed = review.doc;
+        report = { status: review.status, fields: review.fields, edits: review.edits, ...(review.error ? { error: review.error } : {}) };
+      } catch {
+        // No opaque full-document rewrite fallback. Preserve recoverable text.
+        report = { status: "unavailable", fields: fields.length, edits: 0 };
+      }
+      logger?.(`[carousel-editorial:${CAROUSEL_REVIEW_VERSION}] ${JSON.stringify(report)}`);
+      const previous = parsed.editorial_review?.version === CAROUSEL_REVIEW_VERSION ? parsed.editorial_review : undefined;
+      parsed.editorial_review = { version: CAROUSEL_REVIEW_VERSION, ...report, pass: options.reviewBaseline ? 2 : 1,
+        total_edits: (options.reviewBaseline ? Number(previous?.total_edits || 0) : 0) + report.edits };
+      return jsonContent.replace(jsonMatch[0], () => JSON.stringify(parsed));
+    }
     const textBlock = extractCarouselTexts(parsed);
     if (!textBlock || textBlock.length < skipIfShorterThan) {
       logger?.(`[correction-pass:carousel-json] SKIPPED (text too short: ${textBlock?.length})`);

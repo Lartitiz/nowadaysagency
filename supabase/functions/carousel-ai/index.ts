@@ -617,6 +617,8 @@ export async function handleRequest(req: Request): Promise<Response> {
     // L'utilisatrice a-t-elle fourni de la VRAIE matière (réponses d'approfondissement) ?
     // À capturer AVANT le fallback branding ci-dessous, qui remplit le même champ.
     const hadUserDeepening = !!body.deepening_answers;
+    const currentAuthoredText = authoredContentSource(body);
+    const semanticReviewEnabled = Deno.env.get("CAROUSEL_SEMANTIC_REVIEW") !== "false";
 
     // Fallback: inject branding as deepening_answers if none provided
     if (!body.deepening_answers && (type === "express_full" || type === "slides" || type === "hooks")) {
@@ -683,7 +685,7 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
     }
 
     systemPrompt += currentContentContract([
-      body.subject, body.photo_description, authoredContentSource(body),
+      body.subject, body.photo_description, currentAuthoredText,
       typeof body.news_context === "string" ? body.news_context : "",
     ].filter(Boolean).join("\n"));
 
@@ -723,10 +725,10 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
     // et le redac-gate fait RESPECTER la forme tirée (re-test v3 : le modèle
     // désobéissait 4 fois sur 7 à la consigne seule) via captionEndingRule.
     let captionEndingRule: CaptionEndingRule | undefined;
-    if (type === "express_full" && !isLinkedIn) {
+    if (type === "express_full" && !isLinkedIn && !semanticReviewEnabled) {
       const CAPTION_ENDINGS: Array<{ requiresQuestion: boolean; instruction: string }> = [
         { requiresQuestion: true, instruction: `une QUESTION spécifique au cœur du carrousel (jamais générique, elle reprend un mot ou une image des slides)` },
-        { requiresQuestion: false, instruction: `une AFFIRMATION finale qui claque — AUCUNE question, AUCUN point d'interrogation dans le cta` },
+        { requiresQuestion: false, instruction: `une conclusion spécifique au sujet — AUCUNE question, AUCUN point d'interrogation dans le cta` },
         { requiresQuestion: false, instruction: `une INVITATION à raconter UN cas précis en commentaire, à l'impératif — SANS point d'interrogation` },
         { requiresQuestion: false, instruction: `une CONFIDENCE ou un aveu personnel qui clôt le propos — AUCUNE question` },
         { requiresQuestion: false, instruction: `une CHUTE SOBRE : la dernière idée se suffit, pas d'appel explicite à commenter — AUCUNE question` },
@@ -735,6 +737,8 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
       console.log(`[carousel-ai] chute caption tirée : ${captionEndingRule.requiresQuestion ? "question" : "non-question"} — ${captionEndingRule.instruction.slice(0, 60)}`);
       systemPrompt += `\n\n══ CHUTE DE CAPTION IMPOSÉE POUR CETTE GÉNÉRATION ══\nLa caption se termine par : ${captionEndingRule.instruction}.\nCette forme est NON NÉGOCIABLE pour cette génération (elle assure qu'un feed ne montre pas dix captions construites pareil). Si la forme imposée n'est pas une question, le champ "cta" de la caption ne contient AUCUN point d'interrogation.`;
     }
+
+    if (semanticReviewEnabled) systemPrompt += `\nCONTRAT ÉDITORIAL PRIORITAIRE POUR CE CARROUSEL :\nChaque passage doit servir le propos, la progression ou la voix : explication, distinction réelle, nuance, image éclairante, émotion située, humour. N'ajoute ni opposition de façade, ni révélation banale, ni transition emphatique, ni slogan de conclusion. Juge ces mécanismes en contexte quelle que soit leur formulation ou ponctuation. Une phrase peut être vraie et rester creuse. Une comparaison informative reste utile. Les titres, overlays et légendes suivent le même contrat. Une conviction, une confidence, un retournement ou une chute ne sont jamais obligatoires : ignore les recettes et quotas contraires dans les exemples. Respecte la demande actuelle et son ton ; termine quand l'idée aboutit, avec une action seulement si elle sert l'objectif.\n`;
 
     // Accroches déjà écrites par cette utilisatrice sur CE sujet. Le bloc
     // anti-sérialité ci-dessus est une CONSIGNE (probabiliste) ; ceci est la
@@ -748,6 +752,8 @@ CONSIGNE ANTI-SÉRIALITÉ (génération) : ces briefs récents sont là pour t'e
 
     const reqCtx: CarouselRequestContext = {
       body,
+      currentAuthoredText,
+      semanticReviewEnabled,
       userId,
       workspaceId: workspace_id,
       category,
@@ -827,6 +833,8 @@ if (import.meta.main) {
 
 interface CarouselRequestContext {
   body: any;
+  currentAuthoredText: string;
+  semanticReviewEnabled: boolean;
   userId: string;
   workspaceId: any;
   category: string;
@@ -856,7 +864,6 @@ interface CarouselRequestContext {
 async function handleAssignTemplatesRequest(body: any, corsHeaders: Record<string, string>): Promise<Response> {
   const enriched = await assignTemplatesToProvidedSlides(body.slides, {
     model: pickCorrectionModel(body),
-            authoredText: authoredContentSource(body),
     logger: (m) => console.log(m),
   });
   return new Response(JSON.stringify({ result: { slides: enriched } }), {
@@ -874,7 +881,7 @@ async function runGenerationAndRespond(
   userPrompt: string,
   reqCtx: CarouselRequestContext,
 ): Promise<Response> {
-  const { body, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus } = reqCtx;
+  const { body, currentAuthoredText, semanticReviewEnabled, userId, workspaceId, category, systemPrompt, gateInputText, brandGuardText, captionEndingRule, isLinkedIn, previousHooks, corsHeaders, emitStatus } = reqCtx;
 
   // L1 : Haiku pour les deepening_questions (tâche structurée et bornée).
   const modelForCall = type === "deepening_questions"
@@ -901,19 +908,20 @@ async function runGenerationAndRespond(
     ...(type === "deepening_questions" ? { abortTimeoutMs: 30000, tool: QUESTIONS_TOOL } : { abortTimeoutMs: 120_000 }),
   }, usage);
 
-  // JSON-aware correction pass for carousels (conditionnelle : cf. mix/photo).
+  const editorialBaseline = content;
+  // Contextual review for every generated carousel, legacy scan only on rollback.
   if (type === "express_full" || type === "slides" || type === "hooks") {
     try {
-      if (carouselNeedsPolish(content) || authoredContentSource(body).trim()) {
+      if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
         emitStatus("correcting");
         const corrected = await applyGuardedCarouselCorrection(content, {
           inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
-          correction: {
+          correction: { semanticReview: semanticReviewEnabled,
             enabled: true,
             skipIfShorterThan: 300,
             logger: (msg) => console.log(msg),
             model: pickCorrectionModel(body),
-            authoredText: authoredContentSource(body),
+            authoredText: currentAuthoredText,
             abortTimeoutMs: CORRECTION_ABORT_MS,
           },
         });
@@ -943,7 +951,7 @@ async function runGenerationAndRespond(
       echo: { previousHooks, subject: body.subject },
       brandGuardText,
       captionEnding: captionEndingRule,
-      correction: { authoredText: authoredContentSource(body), enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+      correction: { semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
     });
     content = gateExpress.content;
     await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
@@ -983,7 +991,7 @@ async function handleSuggestAnglesRequest(reqCtx: CarouselRequestContext): Promi
 
 // ── Mix carousel mode ──
 async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
+  const { body, currentAuthoredText, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const mixPrompt = hasNews
@@ -1063,21 +1071,19 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     if (mismatch) return mismatch;
   }
 
-  // JSON-aware correction pass for carousels (conditionnelle : seulement si
-  // un scan déterministe repère un tic corrigible — sinon on épargne l'appel
-  // Haiku, sa latence, et un round-trip de réécriture ; le redac-gate en aval
-  // reste, lui, une re-passe mesurée qui rattrape les violations).
+  const editorialBaseline = content;
+  // Contextual review includes photo overlays and every visible text field.
   try {
-    if (carouselNeedsPolish(content) || authoredContentSource(body).trim()) {
+    if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
-        correction: {
+        correction: { semanticReview: semanticReviewEnabled,
           enabled: true,
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
-            authoredText: authoredContentSource(body),
+            authoredText: currentAuthoredText,
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
       });
@@ -1120,7 +1126,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
-    correction: { authoredText: authoredContentSource(body), enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+    correction: { semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gateMix.content;
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
@@ -1132,7 +1138,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
 
 // ── Photo carousel mode ──
 async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promise<Response> {
-  const { body, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
+  const { body, currentAuthoredText, semanticReviewEnabled, userId, workspaceId, category, isLinkedIn, systemPrompt, gateInputText, brandGuardText, captionEndingRule, newsContext, previousHooks, corsHeaders, emitStatus } = reqCtx;
 
   const hasNews = typeof newsContext === "string" && newsContext.trim().length > 0;
   const photoPrompt = hasNews
@@ -1212,20 +1218,24 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     if (mismatch) return mismatch;
   }
 
-  // JSON-aware correction pass for carousels (conditionnelle : cf. mix).
-  // Les overlays photo sont courts par nature → le scan les épargne sauf
-  // slogan manufacturé, d'où beaucoup de sauts légitimes en mode photo.
+  // Template assignment can add points/attribution/CTA labels. In contextual
+  // mode these must exist BEFORE review, never appear unchecked afterwards.
+  if (semanticReviewEnabled) content = await assignPhotoTemplates(content, {
+    model: pickCorrectionModel(body), logger: (m) => console.log(m),
+  });
+  const editorialBaseline = content;
+  // Short photo overlays need the same contextual review as text slides.
   try {
-    if (carouselNeedsPolish(content) || authoredContentSource(body).trim()) {
+    if (semanticReviewEnabled || carouselNeedsPolish(content) || currentAuthoredText.trim()) {
       emitStatus("correcting");
       const corrected = await applyGuardedCarouselCorrection(content, {
         inputText: gateInputText, brandGuardText, echo: { previousHooks, subject: body.subject },
-        correction: {
+        correction: { semanticReview: semanticReviewEnabled,
           enabled: true,
           skipIfShorterThan: 300,
           logger: (msg) => console.log(msg),
           model: pickCorrectionModel(body),
-            authoredText: authoredContentSource(body),
+            authoredText: currentAuthoredText,
           abortTimeoutMs: CORRECTION_ABORT_MS,
         },
       });
@@ -1262,15 +1272,14 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     echo: { previousHooks, subject: body.subject },
     brandGuardText,
     captionEnding: captionEndingRule,
-    correction: { authoredText: authoredContentSource(body), enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
+    correction: { semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gatePhoto.content;
   // Relecture-gabarits (13/07) : sur les textes DÉFINITIFS (post gate),
   // pose le gabarit visuel de chaque slide. Décision prise sur le texte
   // réel, aucun quota de variété, anti-invention par code, fail-open.
-  content = await assignPhotoTemplates(content, {
+  if (!semanticReviewEnabled) content = await assignPhotoTemplates(content, {
     model: pickCorrectionModel(body),
-            authoredText: authoredContentSource(body),
     logger: (m) => console.log(m),
   });
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
@@ -1704,7 +1713,7 @@ ANTI-BROETRY (s'applique aux captions, pas aux slides) :
 Les captions de carrousels ne sont PAS des listes de phrases sur des lignes séparées. Ce sont des paragraphes fluides de 2-3 phrases. Le rythme vient du contraste entre phrases longues et phrases courtes, pas des sauts de ligne.
 
 VARIANCE DE CAPTION (anti-sérialité) :
-Ne construis PAS chaque caption sur le même gabarit « accroche d'une ligne → paragraphe → question finale ». Ce moule, répété sur tous les posts d'un compte, se voit immédiatement dans un feed. La question finale est une OPTION parmi d'autres, pas un réflexe : une caption peut se clore sur une affirmation qui claque, une invitation à raconter UN cas précis, une confidence, ou rien du tout après la dernière idée. Choisis la chute qui sert CE carrousel.
+Ne construis PAS chaque caption sur le même gabarit « accroche d'une ligne → paragraphe → question finale ». Ce moule, répété sur tous les posts d'un compte, se voit immédiatement dans un feed. La question finale est une OPTION parmi d'autres, pas un réflexe : une caption peut se clore sur une conclusion qui apporte quelque chose au propos, une invitation à raconter UN cas précis, une confidence, ou rien du tout après la dernière idée. Choisis la chute qui sert CE carrousel.
 
 ${CHAIN_OF_THOUGHT}
 
@@ -1799,7 +1808,7 @@ JAMAIS : "5 astuces pour...", "Comment booster votre...", "Les X erreurs à évi
 
 Si des réponses d'approfondissement sont fournies, elles sont PLUS IMPORTANTES que le template.
 - Son anecdote → slides 2-3 (storytelling du carrousel)
-- Sa conviction → punchline de la slide finale avant le CTA
+- Sa conviction → point de vue pertinent pour CE sujet, seulement si elle aide à comprendre ; aucune punchline imposée.
 - Le carrousel raconte SON histoire à travers le framework, pas un framework illustré par un exemple générique
 
 ${PREGEN_INJECTION_RULES}
@@ -2392,7 +2401,7 @@ ${answers}
 
 Ces réponses sont PLUS IMPORTANTES que n'importe quel template :
 - Son anecdote → devient le storytelling des slides 2-3. Utilise ses MOTS EXACTS, pas une reformulation.
-- Sa conviction → devient la punchline ou le retournement de perspective.
+- Sa conviction → éclaire le sujet quand elle est pertinente ; aucun retournement de perspective imposé.
 - Son émotion → donne le TON de tout le carrousel.
 - Le carrousel raconte SON histoire à travers le framework, pas un framework illustré par un exemple générique.`;
     }
@@ -3101,7 +3110,7 @@ RÈGLE ABSOLUE : le JSON retourné doit avoir EXACTEMENT ${slide_structure.lengt
 
 - ARC NARRATIF : situation → tension → développement → résolution → ouverture. Fil conducteur clair entre slides photo et texte.
 - Les slides text_only doivent avoir un body de 30-50 mots MINIMUM (phrases complètes, pas des fragments).
-- QUALITÉ VISUELLE des slides texte (CRUCIAL) : une slide text_only n'est PAS un mur de texte. Quand le contenu s'y prête, ajoute un "visual_schema" pour porter le message visuellement (comparaison avant/après, opposition deux colonnes, timeline, liste numérotée structurée, citation mise en avant, chiffre-clé géant). Vise au moins 1 slide texte sur 2 avec un visual_schema. Si la slide est juste du texte, alors le body doit être PERCUTANT (formule, prise de position, micro-récit) — pas un paragraphe descriptif.
+- QUALITÉ VISUELLE des slides texte (CRUCIAL) : une slide text_only n'est PAS un mur de texte. Quand le contenu s'y prête, ajoute un "visual_schema" pour porter le message visuellement (comparaison avant/après, opposition deux colonnes, timeline, liste numérotée structurée, citation mise en avant, chiffre-clé géant). Vise au moins 1 slide texte sur 2 avec un visual_schema. Si la slide est juste du texte, alors le body doit porter une idée compréhensible et située ; une explication, un récit ou une description précise sont légitimes. Aucune formule ni prise de position ajoutée par obligation.
 - Les overlay_text sur photo_full sont une VRAIE PHRASE COMPLÈTE (sujet + verbe conjugué) de 8-20 mots qui FAIT AVANCER le récit : ils complètent l'image, ils ne la décrivent pas. ANCRÉS dans CE moment précis (fait sensoriel, détail concret, parole captée), pas une formule chic transposable ("Quand la magie opère", "Un instant suspendu" → INTERDIT). Les fragments nominaux empilés façon légende de galerie ("Disparus en silence. Des gens. Pas des statistiques." → INTERDIT) : une slide photo porte une ÉTAPE du récit, pas un stamp.
 - Au moins 1 exemple concret OU 1 analogie du quotidien dans le carrousel.
 - Le sujet "${body.subject || ""}" est un BRIEF CRÉATIF : si c'est un concept (VS, avant/après, métaphore), il structure l'ensemble. Le titre apparaît (ou est amélioré) sur la slide 1.
@@ -3156,7 +3165,7 @@ ${deepeningCtx}${angleBlock}
 - Au moins UNE slide formule la CROYANCE retournée ("on croit X, en fait Y") OU porte le RETOURNEMENT de perspective (le moment "j'avais jamais vu ça comme ça"). Cette slide est le PIVOT du carrousel — pas le hook, pas le CTA, le milieu.
 - Les overlay_text des slides photo_full, lus à la suite, forment un récit continu (reprise, prolongement ou bascule d'une slide à l'autre) — pas une galerie de légendes interchangeables.
 - Le test de permutation échoue : déplacer une slide au hasard (photo ou texte) casserait visiblement le récit. Si ce n'est pas le cas, le chaînage est trop faible — réécris.
-- Aucun chiffre décliné sans annonce, aucun chiffre répété 3× sur la même slide, aucune métaphore de conclusion non posée en amont, CTA ancré dans le sujet (pas de "Échangeons / DM ouvert" nu), et AU PLUS UNE occurrence du retournement par négation ("Pas X. Y." et variantes) dans tout le carrousel.
+- Aucun chiffre décliné sans annonce, aucun chiffre répété 3× sur la même slide, aucune métaphore de conclusion non posée en amont, CTA ancré dans le sujet (pas de "Échangeons / DM ouvert" nu), et aucune opposition de façade ni conclusion interchangeable. Les contrastes qui expliquent une distinction réelle restent utiles ; juge le sens, pas la ponctuation.
 ${isLinkedIn ? `- Pour LinkedIn mix : la légende (caption) est OPTIONNELLE — concentre-toi à 100% sur la qualité des slides PDF. Si tu inclus une caption, ne la bâcle pas, sinon laisse-la vide (elle sera générée par un appel dédié).` : `- Le bloc "caption" complet (hook, body, cta, hashtags) est OBLIGATOIRE dans le JSON — ne JAMAIS l'omettre, ne JAMAIS le laisser vide.`}
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE — peut être vide) ═══
@@ -3393,7 +3402,7 @@ ${deepeningCtx}${angleBlock}
 - Le pont actu → métier est formulé en "ce que ça touche dans MON terrain", pas "ce que ça dit de TON business".
 - Les overlay_text des slides photo_full, lus à la suite, forment un récit continu (reprise, prolongement ou bascule d'une slide à l'autre) — pas une galerie de légendes interchangeables.
 - Test de permutation : si on échange deux slides au hasard et que le carrousel "marche encore" → raté, recommence.
-- Aucun chiffre décliné sans annonce ("Autrement dit…"), aucun chiffre répété 3× sur la même slide, aucune métaphore de conclusion non posée en amont, CTA ancré dans le sujet (pas de "Échangeons / DM ouvert" nu), et AU PLUS UNE occurrence du retournement par négation ("Pas X. Y." et variantes) dans tout le carrousel.
+- Aucun chiffre décliné sans annonce ("Autrement dit…"), aucun chiffre répété 3× sur la même slide, aucune métaphore de conclusion non posée en amont, CTA ancré dans le sujet (pas de "Échangeons / DM ouvert" nu), et aucune opposition de façade ni conclusion interchangeable. Les contrastes qui expliquent une distinction réelle restent utiles ; juge le sens, pas la ponctuation.
 
 ${isLinkedIn ? `═══ LÉGENDE LINKEDIN (OPTIONNELLE) ═══
 Caption gérée par appel dédié. Tu peux mettre {"hook":"","body":"","cta":"","hashtags":[]} ou l'omettre.` : `═══ LÉGENDE INSTAGRAM (OBLIGATOIRE) ═══
