@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef, useLayoutEffect } from "react";
 import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
 import { useAuth } from "@/contexts/AuthContext";
+import type { TablesInsert } from "@/integrations/supabase/types";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { toast } from "sonner";
@@ -75,6 +76,7 @@ const NETWORK_CATEGORIES = [
 const PROSPECT_STAGES = [
   { key: "to_contact", label: "À contacter", icon: Eye, color: "bg-success-bg text-success" },
   { key: "in_conversation", label: "En conversation", icon: MessageCircle, color: "bg-info-bg text-info" },
+  { key: "resource_sent", label: "Ressource envoyée", icon: Send, color: "bg-info-bg text-info" },
   { key: "offer_proposed", label: "Offre proposée", icon: Send, color: "bg-warning-bg text-warning" },
   { key: "converted", label: "Cliente", icon: CheckCircle2, color: "bg-success-bg text-success" },
 ];
@@ -105,6 +107,22 @@ export default function ContactsPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const ready = useWorkspaceReady();
+  // A fresh instance owns every form/dialog/request, including a return A → B → A.
+  if (!ready || !user || !value) return null;
+  return <ContactsWorkspace key={JSON.stringify([user.id, workspaceId, column, value])} userId={user.id} workspaceId={workspaceId} column={column as "workspace_id" | "user_id"} value={value} />;
+}
+
+function ContactsWorkspace({ userId, workspaceId, column, value }: { userId: string; workspaceId: string; column: "workspace_id" | "user_id"; value: string }) {
+  const active = useRef(false);
+  const writes = useRef(new Set<string>());
+  const dmRequest = useRef(0);
+  const dmReceipts = useRef(new Set<string>());
+  useLayoutEffect(() => {
+    active.current = true;
+    return () => { active.current = false; };
+  }, []);
+  const [loadError, setLoadError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [tab, setTab] = useState("network");
@@ -113,58 +131,110 @@ export default function ContactsPage() {
   const [dmContact, setDmContact] = useState<Contact | null>(null);
   const [dmInteractions, setDmInteractions] = useState<ContactInteraction[]>([]);
 
-  const loadContacts = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("contacts" as any)
-      .select("*")
-      .eq(column, value)
-      .order("created_at", { ascending: false });
-    if (data) setContacts(data as unknown as Contact[]);
-    setLoading(false);
-  }, [user?.id]);
-
-  useEffect(() => { loadContacts(); }, [loadContacts]);
+  const [reload, setReload] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
+    void (async () => {
+      try {
+        let query = supabase.from("contacts").select("*").eq(column, value);
+        if (column === "user_id") query = query.is("workspace_id", null);
+        const { data, error } = await query.order("created_at", { ascending: false });
+        if (cancelled) return;
+        if (error || !data) throw error || new Error("Lecture indisponible");
+        setContacts(data as Contact[]);
+      } catch {
+        if (!cancelled) { setContacts([]); setLoadError(true); }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [column, value, reload]);
 
   const networkContacts = useMemo(() => contacts.filter(c => c.contact_type === "network"), [contacts]);
   const prospectContacts = useMemo(() => contacts.filter(c => c.contact_type === "prospect"), [contacts]);
 
-  const updateContact = async (id: string, updates: Partial<Contact>) => {
+  const updateContact = async (id: string, updates: Partial<Contact>): Promise<boolean> => {
+    if (!active.current || writes.current.has(id)) return false;
     const prev = contacts.find(c => c.id === id);
-    const { error } = await supabase.from("contacts").update(updates as any).eq("id", id);
-    if (error) {
-      console.error("Erreur technique:", error);
-      toast.error("Erreur", { description: friendlyError(error) });
-      return;
-    }
-    setContacts(prev2 => prev2.map(c => c.id === id ? { ...c, ...updates } : c));
+    if (!prev) return false;
+    writes.current.add(id);
+    try {
+      let query = supabase.from("contacts").update(updates).eq("id", id).eq(column, value);
+      if (column === "user_id") query = query.is("workspace_id", null);
+      const { data, error } = await query.select("*").single();
+      if (!active.current) return false;
+      if (error || !data || data.id !== id) throw error || new Error("Modification non confirmée");
+      const saved = data as Contact;
+      setContacts(list => list.map(c => c.id === id ? saved : c));
+      setSelectedProspect(c => c?.id === id ? saved : c);
+      setDmContact(c => c?.id === id ? saved : c);
+      if (updates.prospect_stage === "converted" && prev.prospect_stage !== "converted") {
+        setShowConfetti(true);
+        toast("🎉 Bravo ! Nouvelle cliente !");
+        setTimeout(() => { if (active.current) setShowConfetti(false); }, 4000);
+      }
+      return true;
+    } catch (error) {
+      if (active.current) toast.error("Erreur", { description: friendlyError(error) });
+      return false;
+    } finally { writes.current.delete(id); }
+  };
 
-    if (updates.prospect_stage === "converted" && prev?.prospect_stage !== "converted") {
-      setShowConfetti(true);
-      toast("🎉 Bravo ! Nouvelle cliente !");
-      setTimeout(() => setShowConfetti(false), 4000);
-    }
+  const addContact = async (fields: Omit<TablesInsert<"contacts">, "user_id">): Promise<boolean> => {
+    if (!active.current || writes.current.has("add")) return false;
+    writes.current.add("add");
+    try {
+      const { data, error } = await supabase.from("contacts").insert({ ...fields, user_id: userId,
+        workspace_id: column === "workspace_id" ? workspaceId : null,
+      }).select("*").single();
+      if (!active.current) return false;
+      if (error || !data) throw error || new Error("Ajout non confirmé");
+      setContacts(prev => [data as Contact, ...prev]);
+      toast.success(fields.contact_type === "network" ? "👥 Contact ajouté !" : "🎯 Prospect ajouté !");
+      return true;
+    } catch (error) {
+      if (active.current) toast.error("Erreur", { description: friendlyError(error) });
+      return false;
+    } finally { writes.current.delete("add"); }
   };
 
   const deleteContact = async (id: string) => {
-    const { error } = await supabase.from("contacts").delete().eq("id", id);
-    if (error) {
-      console.error("Erreur technique:", error);
-      toast.error("Erreur", { description: friendlyError(error) });
-      return;
-    }
-    setContacts(prev => prev.filter(c => c.id !== id));
-    setSelectedProspect(null);
+    if (!active.current || writes.current.has(id)) return;
+    writes.current.add(id);
+    try {
+      let query = supabase.from("contacts").delete().eq("id", id).eq(column, value);
+      if (column === "user_id") query = query.is("workspace_id", null);
+      const { data, error } = await query.select("id").single();
+      if (!active.current) return;
+      if (error || data?.id !== id) throw error || new Error("Suppression non confirmée");
+      setContacts(prev => prev.filter(c => c.id !== id));
+      setSelectedProspect(null);
+    } catch (error) {
+      if (active.current) toast.error("Erreur", { description: friendlyError(error) });
+    } finally { writes.current.delete(id); }
   };
 
+  const closeDm = () => { dmRequest.current++; setDmContact(null); setDmInteractions([]); };
   const openDm = async (contact: Contact) => {
-    setDmContact(contact);
-    const { data } = await supabase
-      .from("contact_interactions")
-      .select("*")
-      .eq("contact_id", contact.id)
-      .order("created_at", { ascending: true });
-    setDmInteractions((data || []) as unknown as ContactInteraction[]);
+    if (!active.current) return;
+    const request = ++dmRequest.current;
+    setSelectedProspect(null);
+    setDmContact(null);
+    setDmInteractions([]);
+    try {
+      // contact_id keeps legacy history without workspace_id attached to its parent.
+      const { data, error } = await supabase.from("contact_interactions").select("*")
+        .eq("contact_id", contact.id).order("created_at", { ascending: true });
+      if (!active.current || request !== dmRequest.current) return;
+      if (error || !data) throw error || new Error("Historique indisponible");
+      setDmInteractions(data as ContactInteraction[]);
+      setDmContact(contact);
+    } catch (error) {
+      if (active.current && request === dmRequest.current) toast.error("Historique indisponible", { description: friendlyError(error) });
+    }
   };
 
   // Stats
@@ -173,6 +243,11 @@ export default function ContactsPage() {
   const pipelineValue = prospectContacts
     .filter(c => c.prospect_stage === "offer_proposed")
     .reduce((s, c) => s + (c.potential_value || 0), 0);
+
+  if (loadError) return <div className="p-8" role="alert">
+    <p>Impossible de charger les contacts de cet espace.</p>
+    <Button onClick={() => setReload(n => n + 1)}>Réessayer</Button>
+  </div>;
 
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
@@ -202,35 +277,16 @@ export default function ContactsPage() {
           <TabsContent value="network" className="mt-4">
             <NetworkTab
               contacts={networkContacts}
-              onAdd={async (c) => {
-                if (!user) return;
-                const { data, error } = await supabase.from("contacts").insert({
-                  user_id: user.id,
-                  workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-                  username: cleanPseudo(c.username),
-                  display_name: c.display_name || null,
-                  contact_type: "network",
-                  network_category: c.network_category || "pair",
-                  platform: "instagram",
-                } as any).select("*").single();
-                if (error) {
-                  console.error("Erreur technique:", error);
-                  toast.error("Erreur", { description: friendlyError(error) });
-                  return;
-                }
-                if (data) {
-                  setContacts(prev => [data as unknown as Contact, ...prev]);
-                  toast.success("👥 Contact ajouté !");
-                }
-              }}
+              onAdd={(c) => addContact({
+                username: cleanPseudo(c.username || ""), display_name: c.display_name || null,
+                contact_type: "network", network_category: c.network_category || "pair", platform: "instagram",
+              })}
               onInteract={async (id) => {
-                await updateContact(id, { last_interaction_at: new Date().toISOString() });
-                toast.success("✅ Fait !");
+                if (await updateContact(id, { last_interaction_at: new Date().toISOString() })) toast.success("✅ Fait !");
               }}
               onDelete={deleteContact}
               onPromoteToProspect={async (id) => {
-                await updateContact(id, { contact_type: "prospect" as any, prospect_stage: "to_contact" });
-                toast("🎯 Passé en prospect !");
+                if (await updateContact(id, { contact_type: "prospect", prospect_stage: "to_contact" })) toast("🎯 Passé en prospect !");
               }}
             />
           </TabsContent>
@@ -238,30 +294,11 @@ export default function ContactsPage() {
           <TabsContent value="prospects" className="mt-4">
               <ProspectsTab
                 contacts={prospectContacts}
-                onAdd={async (c) => {
-                  if (!user) return;
-                  const { data, error } = await supabase.from("contacts").insert({
-                    user_id: user.id,
-                    workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-                    username: cleanPseudo(c.username),
-                    display_name: c.display_name || null,
-                    activity: c.activity || null,
-                    contact_type: "prospect",
-                    prospect_stage: "to_contact",
-                    source: c.source || null,
-                    notes: c.notes || null,
-                    platform: "instagram",
-                  } as any).select("*").single();
-                  if (error) {
-                    console.error("Erreur technique:", error);
-                    toast.error("Erreur", { description: friendlyError(error) });
-                    return;
-                  }
-                  if (data) {
-                    setContacts(prev => [data as unknown as Contact, ...prev]);
-                    toast.success("🎯 Prospect ajouté !");
-                  }
-                }}
+                onAdd={(c) => addContact({
+                  username: cleanPseudo(c.username || ""), display_name: c.display_name || null,
+                  activity: c.activity || null, contact_type: "prospect", prospect_stage: "to_contact",
+                  source: c.source || null, notes: c.notes || null, platform: "instagram",
+                })}
                 onSelect={setSelectedProspect}
                 onUpdateStage={(id, stage) => updateContact(id, { prospect_stage: stage })}
                 onWriteDm={openDm}
@@ -274,50 +311,74 @@ export default function ContactsPage() {
       {/* Prospect detail dialog */}
       {selectedProspect && (
         <ProspectDetailDialog
-          prospect={selectedProspect as any}
+          key={selectedProspect.id}
+          prospect={{ ...selectedProspect, stage: selectedProspect.prospect_stage ?? undefined,
+            next_reminder_at: selectedProspect.next_followup_at, next_reminder_text: selectedProspect.next_followup_text }}
+          onWriteDm={() => openDm(selectedProspect)}
           open={!!selectedProspect}
           onOpenChange={(open) => { if (!open) setSelectedProspect(null); }}
-          onUpdate={(updates) => updateContact(selectedProspect.id, updates as any)}
+          onUpdate={(updates) => {
+            const { stage, next_reminder_at, next_reminder_text, ...fields } = updates;
+            return updateContact(selectedProspect.id, { ...fields,
+              ...(stage !== undefined ? { prospect_stage: stage } : {}),
+              ...(next_reminder_at !== undefined ? { next_followup_at: next_reminder_at } : {}),
+              ...(next_reminder_text !== undefined ? { next_followup_text: next_reminder_text } : {}),
+            });
+          }}
           onDelete={() => deleteContact(selectedProspect.id)}
         />
       )}
 
       {/* DM Generator */}
       {dmContact && (
-        <Dialog open={!!dmContact} onOpenChange={(open) => { if (!open) setDmContact(null); }}>
+        <Dialog open={!!dmContact} onOpenChange={(open) => { if (!open) closeDm(); }}>
           <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
             <DialogTitle className="sr-only">Générateur de message</DialogTitle>
             <DialogDescription className="sr-only">Générer un message direct pour ce contact</DialogDescription>
             <DmGenerator
-              prospect={dmContact as any}
-              interactions={dmInteractions as any}
-              onBack={() => setDmContact(null)}
+              key={dmContact.id}
+              prospect={dmContact}
+              onSaveContext={(updates) => updateContact(dmContact.id, updates)}
+              interactions={dmInteractions}
+              onBack={closeDm}
               onMessageSent={async (content, approach) => {
-                if (!user || !dmContact) return;
+                if (!active.current || !dmContact || writes.current.has("dm")) return;
+                writes.current.add("dm");
+                const request = dmRequest.current;
+                const isCurrentDm = () => active.current && request === dmRequest.current;
+                const receipt = JSON.stringify([dmContact.id, content]);
                 try {
-                  const { error } = await supabase.from("contact_interactions").insert({
-                    contact_id: dmContact.id,
-                    user_id: user.id,
-                    workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-                    interaction_type: "dm_sent",
-                    content,
-                    ai_generated: true,
-                  } as any);
-                  if (error) throw error;
-                } catch (e) {
-                  console.error("[Contacts] Failed to log interaction:", e);
-                }
-                const nextStage = dmContact.prospect_stage === "to_contact" ? "in_conversation" : dmContact.prospect_stage;
-                const reminderDate = new Date();
-                reminderDate.setDate(reminderDate.getDate() + 3);
-                updateContact(dmContact.id, {
-                  prospect_stage: nextStage,
-                  last_interaction_at: new Date().toISOString(),
-                  next_followup_at: reminderDate.toISOString(),
-                  next_followup_text: `Vérifier si @${dmContact.username} a répondu`,
-                });
-                setDmContact(null);
-                toast.success("✅ Message noté !");
+                  if (!dmReceipts.current.has(receipt)) {
+                    const { data, error } = await supabase.from("contact_interactions").insert({
+                      contact_id: dmContact.id, user_id: userId,
+                      workspace_id: column === "workspace_id" ? workspaceId : null,
+                      interaction_type: "dm_sent", content, ai_generated: true,
+                    }).select("id").single();
+                    if (error || !data) throw error || new Error("Historique non confirmé");
+                    if (!active.current) return;
+                    // Retain an accepted write even if its dialog was closed meanwhile.
+                    dmReceipts.current.add(receipt);
+                    if (!isCurrentDm()) return;
+                  }
+                  const nextStage = approach === "offer" ? "offer_proposed" : dmContact.prospect_stage === "to_contact" ? "in_conversation" : dmContact.prospect_stage;
+                  const reminderDate = new Date();
+                  reminderDate.setDate(reminderDate.getDate() + (approach === "resource" ? 5 : 3));
+                  const saved = await updateContact(dmContact.id, {
+                    prospect_stage: nextStage, last_interaction_at: new Date().toISOString(),
+                    next_followup_at: reminderDate.toISOString(),
+                    next_followup_text: `Vérifier si @${dmContact.username} a répondu`,
+                  });
+                  if (!isCurrentDm()) return;
+                  if (!saved) {
+                    toast.error("Message conservé dans l’historique, mais relance non enregistrée. Réessaie pour enregistrer la relance.");
+                    return;
+                  }
+                  dmReceipts.current.delete(receipt);
+                  closeDm();
+                  toast.success("✅ Message noté !");
+                } catch (error) {
+                  if (isCurrentDm()) toast.error("Le message n’a pas pu être noté", { description: friendlyError(error) });
+                } finally { writes.current.delete("dm"); }
               }}
             />
           </DialogContent>
@@ -332,7 +393,7 @@ export default function ContactsPage() {
 /* ═══════════════════════════════════════════════ */
 interface NetworkTabProps {
   contacts: Contact[];
-  onAdd: (c: Partial<Contact>) => void;
+  onAdd: (c: Partial<Contact>) => Promise<boolean>;
   onInteract: (id: string) => void;
   onDelete: (id: string) => void;
   onPromoteToProspect: (id: string) => void;
@@ -360,9 +421,9 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
     return list.sort((a, b) => daysSince(b.last_interaction_at) - daysSince(a.last_interaction_at));
   }, [contacts, filter]);
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newUsername.trim()) return;
-    onAdd({ username: newUsername, display_name: newName || null, network_category: newCategory });
+    if (!await onAdd({ username: newUsername, display_name: newName || null, network_category: newCategory })) return;
     setNewUsername("");
     setNewName("");
     setAdding(false);
@@ -504,7 +565,7 @@ function NetworkTab({ contacts, onAdd, onInteract, onDelete, onPromoteToProspect
 /* ═══════════════════════════════════════════════ */
 interface ProspectsTabProps {
   contacts: Contact[];
-  onAdd: (c: Partial<Contact>) => void;
+  onAdd: (c: Partial<Contact>) => Promise<boolean>;
   onSelect: (c: Contact) => void;
   onUpdateStage: (id: string, stage: string) => void;
   onWriteDm: (c: Contact) => void;
@@ -522,9 +583,9 @@ function ProspectsTab({ contacts, onAdd, onSelect, onUpdateStage, onWriteDm, pip
     return new Date(c.next_followup_at) <= new Date();
   });
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!newUsername.trim()) return;
-    onAdd({ username: newUsername, display_name: newName, activity: newActivity });
+    if (!await onAdd({ username: newUsername, display_name: newName, activity: newActivity })) return;
     setNewUsername("");
     setNewName("");
     setNewActivity("");

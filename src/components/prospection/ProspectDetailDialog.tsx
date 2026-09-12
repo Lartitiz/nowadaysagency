@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
+import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -25,14 +26,21 @@ interface Props {
   prospect: Prospect;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onUpdate: (updates: Partial<Prospect>) => void;
+  onUpdate: (updates: Partial<Prospect>) => void | Promise<boolean | void>;
+  onWriteDm?: () => void;
   onDelete: () => void;
 }
 
 function getUsername(p: Prospect) { return p.instagram_username || p.username || ""; }
 
-export default function ProspectDetailDialog({ prospect, open, onOpenChange, onUpdate, onDelete }: Props) {
+export default function ProspectDetailDialog({ prospect, open, onOpenChange, onUpdate, onDelete, onWriteDm }: Props) {
   const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  const active = useRef(false);
+  const adding = useRef(false);
+  useLayoutEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const isContact = !!onWriteDm;
+  const [historyError, setHistoryError] = useState(false);
   const [interactions, setInteractions] = useState<ProspectInteraction[]>([]);
   const [showDmGen, setShowDmGen] = useState(false);
   const [addingInteraction, setAddingInteraction] = useState(false);
@@ -42,54 +50,51 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
   const [editValue, setEditValue] = useState("");
 
   const loadInteractions = useCallback(async () => {
-    // Try contact_interactions first, fallback to prospect_interactions
-    const { data } = await supabase
-      .from("contact_interactions")
-      .select("*")
-      .eq("contact_id", prospect.id)
-      .order("created_at", { ascending: true });
-    if (data && data.length > 0) {
-      setInteractions(data as unknown as ProspectInteraction[]);
-    } else {
-      const { data: legacy } = await supabase
-        .from("prospect_interactions")
-        .select("*")
-        .eq("prospect_id", prospect.id)
-        .order("created_at", { ascending: true });
-      if (legacy) setInteractions(legacy as unknown as ProspectInteraction[]);
+    setHistoryError(false);
+    try {
+      const { data, error } = await supabase.from("contact_interactions").select("*")
+        .eq("contact_id", prospect.id).order("created_at", { ascending: true });
+      if (!active.current) return;
+      if (error || !data) throw error || new Error("Historique indisponible");
+      if (data.length > 0 || isContact) {
+        setInteractions(data as ProspectInteraction[]);
+      } else {
+        const { data: legacy, error: legacyError } = await supabase.from("prospect_interactions")
+          .select("*").eq("prospect_id", prospect.id).order("created_at", { ascending: true });
+        if (!active.current) return;
+        if (legacyError || !legacy) throw legacyError || new Error("Historique indisponible");
+        setInteractions(legacy as ProspectInteraction[]);
+      }
+    } catch {
+      if (active.current) setHistoryError(true);
     }
-  }, [prospect.id]);
+  }, [prospect.id, isContact]);
 
-  useEffect(() => { loadInteractions(); }, [loadInteractions]);
+  useEffect(() => { void loadInteractions(); }, [loadInteractions]);
 
   const addInteraction = async () => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from("contact_interactions")
-      .insert({
-        contact_id: prospect.id,
-        user_id: user.id,
-        interaction_type: newInteractionType,
-        content: newInteractionContent || null,
-      } as any)
-      .select("*")
-      .single();
-    if (error) {
-      console.error("Erreur technique:", error);
-      toast.error("Erreur", { description: friendlyError(error) });
-      return;
-    }
-    if (data) {
-      setInteractions(prev => [...prev, data as unknown as ProspectInteraction]);
+    if (!user || !active.current || adding.current) return;
+    adding.current = true;
+    try {
+      const { data, error } = await supabase.from("contact_interactions").insert({
+        contact_id: prospect.id, user_id: user.id,
+        workspace_id: column === "workspace_id" ? value : null,
+        interaction_type: newInteractionType, content: newInteractionContent || null,
+      }).select("*").single();
+      if (!active.current) return;
+      if (error || !data) throw error || new Error("Interaction non confirmée");
+      setInteractions(prev => [...prev, data as ProspectInteraction]);
       setAddingInteraction(false);
       setNewInteractionContent("");
-      onUpdate({ last_interaction_at: new Date().toISOString() } as any);
-    }
+      await onUpdate({ last_interaction_at: new Date().toISOString() });
+    } catch (error) {
+      if (active.current) toast.error("Erreur", { description: friendlyError(error) });
+    } finally { adding.current = false; }
   };
 
-  const saveField = (field: string) => {
-    onUpdate({ [field]: editValue || null });
-    setEditField(null);
+  const saveField = async (field: string) => {
+    const saved = await onUpdate({ [field]: editValue || null });
+    if (active.current && saved !== false) setEditField(null);
   };
 
   const interactionLabels: Record<string, string> = {
@@ -274,9 +279,9 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
                     className="text-sm h-8 w-32"
                     autoFocus
                   />
-                  <Button size="sm" className="h-8" onClick={() => {
-                    onUpdate({ conversion_amount: parseFloat(editValue) || null });
-                    setEditField(null);
+                  <Button size="sm" className="h-8" onClick={async () => {
+                    const saved = await onUpdate({ conversion_amount: parseFloat(editValue) || null });
+                    if (active.current && saved !== false) setEditField(null);
                   }}>Enregistrer</Button>
                 </div>
               ) : (
@@ -294,7 +299,8 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
         {/* Interaction history */}
         <div className="space-y-2 border-t pt-3">
           <h4 className="text-xs font-bold text-foreground">HISTORIQUE</h4>
-          {interactions.length === 0 && (
+          {historyError && <p role="alert">Historique indisponible. <button onClick={loadInteractions}>Réessayer</button></p>}
+          {!historyError && interactions.length === 0 && (
             <p className="text-xs text-muted-foreground italic">Pas encore d'interaction. La première viendra vite 🌱</p>
           )}
           {interactions.map(i => (
@@ -354,7 +360,7 @@ export default function ProspectDetailDialog({ prospect, open, onOpenChange, onU
 
         {/* Actions */}
         <div className="flex gap-2 border-t pt-3">
-          <Button size="sm" onClick={() => setShowDmGen(true)} className="flex-1">
+          <Button size="sm" onClick={() => onWriteDm ? onWriteDm() : setShowDmGen(true)} className="flex-1">
             💬 Écrire un DM
           </Button>
           <Button size="sm" variant="destructive" onClick={onDelete}>
