@@ -6,6 +6,8 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
 import { encryptToken, decryptConnTokens } from "../_shared/token-crypto.ts";
 
+import { CanvaApiError, checkCanvaResponse } from "./api-error.ts";
+
 const CANVA_API = "https://api.canva.com/rest/v1";
 // Le jeton d'accès Canva est court (~4 h). On rafraîchit s'il expire dans < 10 min.
 const REFRESH_THRESHOLD_MS = 10 * 60 * 1000;
@@ -85,7 +87,8 @@ async function pollImport(jobId: string, token: string, maxMs = CANVA_POLL_BUDGE
     const res = await fetch(`${CANVA_API}/url-imports/${jobId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const j = await res.json();
+    const j = await res.json().catch(() => ({}));
+    checkCanvaResponse(res, j);
     const status = j?.job?.status;
     if (status === "success") {
       const r = j?.job?.result;
@@ -233,7 +236,8 @@ Deno.serve(async (req) => {
     const designRes = await fetch(`${CANVA_API}/designs/${designId}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
-    const designJson = await designRes.json();
+    const designJson = await designRes.json().catch(() => ({}));
+    checkCanvaResponse(designRes, designJson);
     const editUrl = designJson?.design?.urls?.edit_url;
     if (!editUrl) {
       console.error("Canva get-design error:", designJson);
@@ -242,6 +246,7 @@ Deno.serve(async (req) => {
 
     return json({ success: true, designId, editUrl }, 200, corsHeaders);
   } catch (e: any) {
+    if (e instanceof CanvaApiError) return json({ error: e.code, message: e.message }, e.status, corsHeaders);
     if (e instanceof AuthError) {
       return json({ error: e.message }, e.status, corsHeaders);
     }

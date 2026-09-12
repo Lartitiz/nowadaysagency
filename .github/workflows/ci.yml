@@ -34,7 +34,7 @@ jobs:
           node-version: 20
 
       - name: Install dependencies (bun — aligné avec Lovable)
-        run: bun install
+        run: bun install --frozen-lockfile
 
       # Lint informatif au départ (dette legacy : ~1054 `as any`). À rendre bloquant
       # une fois la dette de typage résorbée (retirer `continue-on-error`).
@@ -81,3 +81,27 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  calendar-transactions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: calendar_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Atomic calendar transactions and access checks (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -h localhost -U postgres -d calendar_test -f supabase/tests/calendar-save.sql

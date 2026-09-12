@@ -16,6 +16,9 @@ const SESSION_KEYS = [
 
 // Préfixes sessionStorage scopés par user (à balayer)
 const SESSION_PREFIXES = [
+  "creer_flow_state",
+  "creer_flow_photos",
+  "creer_unifie_result",
   "onboarding_checked", // matche aussi l'ancienne clé fixe + "onboarding_checked:{id}" + ":demo"
 ];
 

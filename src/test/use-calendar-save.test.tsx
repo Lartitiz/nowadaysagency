@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   loadFlowState: vi.fn(() => null),
   saveFlowState: vi.fn(),
   buildCalendarContent: vi.fn(),
+  replayed: false,
   uploadPhotos: vi.fn(),
   uploadVisuals: vi.fn(),
   uploadPinterestVisual: vi.fn(),
@@ -29,6 +30,8 @@ const mocks = vi.hoisted(() => ({
     insertResponse: { data: { id: "post-1" }, error: null } as any,
     schedError: null as any,
     autoPublish: false,
+    updateError: null as any,
+    briefError: null as any,
   },
 }));
 
@@ -49,19 +52,26 @@ vi.mock("@/features/creer/upload-helpers", () => ({
 }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    rpc: async (_name: string, args: any) => {
+      const row = args.p_payload;
+      const error = (row.auto_publish && mocks.db.schedError) || mocks.db.briefError || (!args.p_create && mocks.db.updateError) || (args.p_create && mocks.db.insertResponse.error);
+      mocks.db.ops.push({ table: "calendar_posts", type: args.p_create ? "insert" : "update", row, eq: ["id", args.p_post_id], args });
+      if (error) return { data: null, error };
+      return { data: { id: args.p_post_id, replayed: mocks.replayed, scheduled: !!row.auto_publish, updated_at: "2026-09-12T09:00:00Z" }, error: null };
+    },
     from: (table: string) => ({
-      select: () => ({ eq: () => ({ single: async () => ({ data: { auto_publish: mocks.db.autoPublish }, error: null }) }) }),
+      select: () => ({ eq: () => ({ single: async () => ({ data: { auto_publish: mocks.db.autoPublish, updated_at: "2026-09-12T08:00:00Z" }, error: null }) }) }),
       insert: (row: any) => {
         mocks.db.ops.push({ table, type: "insert", row });
-        return { select: () => ({ single: async () => mocks.db.insertResponse }) };
+        return { select: () => ({ single: async () => row.auto_publish && mocks.db.schedError ? { data: null, error: mocks.db.schedError } : mocks.db.insertResponse }) };
       },
       update: (row: any) => ({
-        eq: async (col: string, val: any) => {
+        eq: (col: string, val: any) => {
           mocks.db.ops.push({ table, type: "update", row, eq: [col, val] });
           if (row.auto_publish !== undefined && mocks.db.schedError) {
             return { error: mocks.db.schedError };
           }
-          return { error: null };
+          return { error: table === "content_briefs" ? mocks.db.briefError : null, select: () => ({ single: async () => ({ data: mocks.db.updateError ? null : { id: val }, error: mocks.db.updateError }) }) };
         },
       }),
     }),
@@ -102,7 +112,7 @@ function makeParams(overrides: Record<string, any> = {}) {
 
 const inserts = () => mocks.db.ops.filter((o) => o.type === "insert");
 const updates = () => mocks.db.ops.filter((o) => o.type === "update");
-const schedUpdates = () => updates().filter((o) => o.row.auto_publish !== undefined);
+const schedUpdates = () => mocks.db.ops.filter((o) => o.row.auto_publish === true);
 
 describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
   it("quality errors block scheduling but still allow saving a draft", async () => {
@@ -117,9 +127,13 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
   });
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("post-1" as any);
+    mocks.replayed = false;
     mocks.db.ops = [];
     mocks.db.insertResponse = { data: { id: "post-1" }, error: null };
     mocks.db.schedError = null;
+    mocks.db.updateError = null;
+    mocks.db.briefError = null;
     mocks.buildCalendarContent.mockReturnValue({
       contentDraft: "DÉROULÉ SLIDE 1 : …",
       accroche: "Mon accroche",
@@ -179,7 +193,7 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/calendrier?date=2026-08-20&post=post-1");
   });
 
-  it("programmation Instagram SANS média → brouillon posé mais PAS programmé (warning)", async () => {
+  it("programmation Instagram SANS média → rien enregistré, éditeur conservé", async () => {
     const params = makeParams();
     const { result } = renderHook(() => useCalendarSave(params));
     let scheduled: boolean | undefined;
@@ -191,12 +205,11 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     });
 
     expect(scheduled).toBe(false);
-    // Le cron publie content_draft tel quel → c'est la légende publiable qui
-    // est insérée, pas le déroulé « SLIDE 1 : … » du brouillon éditorial.
-    expect(inserts()[0].row.content_draft).toBe("Ma légende publiable");
+    expect(inserts()).toHaveLength(0);
     expect(schedUpdates()).toHaveLength(0);
-    expect(mocks.toast.warning).toHaveBeenCalledTimes(1);
-    expect(mocks.toast.warning.mock.calls[0][0]).toContain("pas programmé");
+    expect(mocks.toast.error).toHaveBeenCalledWith(expect.stringContaining("Aucun visuel"));
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
   });
 
   it("programmation Instagram avec image publiable → media_urls posé puis auto_publish", async () => {
@@ -209,9 +222,10 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     });
 
     expect(scheduled).toBe(true);
-    const mediaUpdate = updates().find((o) => o.row.media_urls);
+    const mediaUpdate = inserts().find((o) => o.row.media_urls);
     expect(mediaUpdate?.row.media_urls).toEqual(["https://img.example/photo.jpg"]);
-    expect(mediaUpdate?.eq).toEqual(["id", "post-1"]);
+    expect(updates()).toHaveLength(0);
+    expect(mediaUpdate?.row.content_draft).toBe("Ma légende publiable");
     expect(schedUpdates()).toHaveLength(1);
     expect(schedUpdates()[0].row).toMatchObject({
       auto_publish: true,
@@ -255,12 +269,12 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     });
 
     expect(scheduled).toBe(true);
-    const mediaUpdates = updates().filter((o) => o.row.media_urls);
+    const mediaUpdates = inserts().filter((o) => o.row.media_urls);
     expect(mediaUpdates).toHaveLength(1);
     expect(mediaUpdates[0].row.media_urls).toEqual(["https://cdn.example/reel.mp4"]);
   });
 
-  it("échec de la pose d'auto-publication → warning, retourne false", async () => {
+  it("échec de programmation → erreur, aucune navigation ni sauvegarde secondaire", async () => {
     mocks.db.schedError = { message: "RLS" };
     const params = makeParams({ publishableImageUrl: "https://img.example/p.jpg" });
     const { result } = renderHook(() => useCalendarSave(params));
@@ -273,8 +287,10 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     });
 
     expect(scheduled).toBe(false);
-    expect(mocks.toast.warning).toHaveBeenCalledTimes(1);
-    expect(mocks.toast.warning.mock.calls[0][0]).toContain("programmation a échoué");
+    expect(mocks.toast.error).toHaveBeenCalled();
+    expect(updates()).toHaveLength(0);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
   });
 
   it("insert en erreur → toast d'erreur, false, pas de navigation", async () => {
@@ -291,6 +307,71 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.clearFlowState).not.toHaveBeenCalled();
   });
+
+  it.each(["post", "carousel"])("%s : aucun enregistrement si une photo échoue", async (selectedFormat) => {
+    mocks.uploadPhotos.mockRejectedValue(new Error("Photo indisponible"));
+    const { result } = renderHook(() => useCalendarSave(makeParams({
+      selectedFormat, photoMode: true, carouselSubMode: "photo", uploadedPhotos: [{ base64: "photo" }],
+    })));
+    await act(() => result.current.handleConfirmCalendar({ date: "2026-08-20" }));
+    expect(inserts()).toHaveLength(0);
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
+    expect(mocks.toast.success).not.toHaveBeenCalled();
+    expect(mocks.toast.error).toHaveBeenCalled();
+  });
+
+  it("un double-clic dans le même rendu ne crée qu'un post", async () => {
+    const { result } = renderHook(() => useCalendarSave(makeParams()));
+    await act(async () => {
+      await Promise.all([result.current.handleConfirmCalendar({ date: "2026-08-20" }), result.current.handleConfirmCalendar({ date: "2026-08-20" })]);
+    });
+    expect(inserts()).toHaveLength(1);
+  });
+  it("un résultat média incomplet bloque aussi une sauvegarde sans exception", async () => {
+    mocks.uploadPhotos.mockResolvedValue(["https://test/one.jpg"]);
+    const { result } = renderHook(() => useCalendarSave(makeParams({ photoMode: true, uploadedPhotos: [{ base64: "1" }, { base64: "2" }] })));
+    await act(() => result.current.handleConfirmCalendar({ date: "2026-08-20" }));
+    expect(inserts()).toHaveLength(0);
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
+  });
+
+  it("Pinterest sans rendu final conserve le contenu dans l’éditeur", async () => {
+    const { result } = renderHook(() => useCalendarSave(makeParams({ selectedFormat: "pinterest_visual", pinterestPinHtml: "<div>pin</div>" })));
+    await act(() => result.current.handleConfirmCalendar({ date: "2026-08-20" }));
+    expect(inserts()).toHaveLength(0);
+    expect(mocks.toast.error).toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
+  it("un échec libère le verrou pour permettre une vraie nouvelle tentative", async () => {
+    mocks.uploadPhotos.mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(["https://test/one.jpg"]);
+    const { result } = renderHook(() => useCalendarSave(makeParams({ photoMode: true, uploadedPhotos: [{ base64: "1" }] })));
+    await act(() => result.current.handleConfirmCalendar({ date: "2026-08-20" }));
+    await act(() => result.current.handleConfirmCalendar({ date: "2026-08-20" }));
+    expect(inserts()).toHaveLength(1);
+    expect(inserts()[0].row.media_urls).toEqual(["https://test/one.jpg"]);
+  });
+
+  it("un lien brief échoué refuse la transaction entière et préserve le brouillon", async () => {
+    mocks.db.briefError = new Error("brief unavailable");
+    const { result } = renderHook(() => useCalendarSave(makeParams({ currentBriefId: "brief" })));
+    await act(() => result.current.handleConfirmCalendar({ date: "2026-08-20" }));
+    expect(inserts()).toHaveLength(1);
+    expect(mocks.toast.error).toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
+  });
+
+  it("une première tentative déjà validée ne détruit pas les retouches locales", async () => {
+    mocks.replayed = true;
+    const { result } = renderHook(() => useCalendarSave(makeParams()));
+    await act(() => result.current.handleConfirmCalendar({ date: "2026-08-20" }));
+    expect(mocks.toast.info).toHaveBeenCalledWith(expect.stringContaining("première tentative"), expect.anything());
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
 });
 
 describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
@@ -305,9 +386,13 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
   });
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("post-1" as any);
+    mocks.replayed = false;
     mocks.db.ops = [];
     mocks.db.insertResponse = { data: { id: "post-1" }, error: null };
     mocks.db.schedError = null;
+    mocks.db.updateError = null;
+    mocks.db.briefError = null;
     mocks.buildCalendarContent.mockReturnValue({
       contentDraft: "DÉROULÉ SLIDE 1 : …",
       accroche: "Mon accroche",
@@ -330,7 +415,7 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     const params = makeParams({ calendarPostId: "cal-photo", photoMode: true, uploadedPhotos: [{ base64: "data:image/png;base64,new" }] });
     const { result } = renderHook(() => useCalendarSave(params));
     await act(() => result.current.handleSaveBackToCalendar());
-    expect(mocks.uploadPhotos).toHaveBeenCalledWith(expect.anything(), "u1", "cal-photo", params.uploadedPhotos);
+    expect(mocks.uploadPhotos).toHaveBeenCalledWith(expect.anything(), "u1", "cal-photo", params.uploadedPhotos, expect.any(Function));
     expect(updates().find(o => o.row.media_urls)?.row).toMatchObject({
       media_urls: ["https://img.example/retouched.png"],
       story_sequence_detail: { photo_urls: ["https://img.example/retouched.png"] },
@@ -371,7 +456,7 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     expect(mocks.navigate).toHaveBeenCalledWith("/calendrier?date=2026-08-22&post=cal-9");
   });
 
-  it("carrousel jamais persisté → persistCarousel appelé avant la sauvegarde", async () => {
+  it("carrousel jamais persisté → le calendrier conserve son document sans insert secondaire", async () => {
     const params = makeParams({
       calendarPostId: "cal-9",
       selectedFormat: "carousel",
@@ -380,10 +465,10 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     });
     const { result } = renderHook(() => useCalendarSave(params));
     await act(() => result.current.handleSaveBackToCalendar());
-    expect(params.persistCarousel).toHaveBeenCalledTimes(1);
+    expect(params.persistCarousel).not.toHaveBeenCalled();
   });
 
-  it("upload des visuels en échec → le texte reste sauvegardé, warning et navigation quand même", async () => {
+  it("upload des visuels en échec → aucune modification et éditeur conservé", async () => {
     mocks.uploadVisuals.mockRejectedValue(new Error("storage KO"));
     const params = makeParams({
       calendarPostId: "cal-9",
@@ -393,10 +478,11 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     const { result } = renderHook(() => useCalendarSave(params));
     await act(() => result.current.handleSaveBackToCalendar());
 
-    expect(mocks.toast.warning).toHaveBeenCalledTimes(1);
-    expect(mocks.toast.warning.mock.calls[0][0]).toContain("l'upload des visuels a échoué");
+    expect(updates()).toHaveLength(0);
+    expect(mocks.toast.error).toHaveBeenCalled();
     expect(mocks.toast.success).not.toHaveBeenCalled();
-    expect(mocks.navigate).toHaveBeenCalledWith("/calendrier?date=2026-08-22&post=cal-9");
+    expect(mocks.navigate).not.toHaveBeenCalled();
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
   });
   it("carrousel : un upload en échec conserve intégralement le post précédent", async () => {
     mocks.uploadVisuals.mockRejectedValue(new Error("storage KO"));
@@ -409,13 +495,27 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     expect(mocks.navigate).not.toHaveBeenCalled();
     expect(mocks.clearFlowState).not.toHaveBeenCalled();
   });
+  it("une ligne inaccessible ne produit ni succès ni effacement du brouillon", async () => {
+    mocks.db.updateError = new Error("No row returned");
+    const { result } = renderHook(() => useCalendarSave(makeParams({ calendarPostId: "missing" })));
+    await act(() => result.current.handleSaveBackToCalendar());
+    expect(mocks.toast.success).not.toHaveBeenCalled();
+    expect(mocks.toast.error).toHaveBeenCalled();
+    expect(mocks.clearFlowState).not.toHaveBeenCalled();
+    expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
 });
 
 describe('publication immédiate — suivi après succès réseau', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(crypto, "randomUUID").mockReturnValue("post-1" as any);
+    mocks.replayed = false;
     mocks.db.ops = [];
     mocks.db.schedError = null;
+    mocks.db.updateError = null;
+    mocks.db.briefError = null;
     mocks.db.insertResponse = { data: { id: 'post-1' }, error: null };
     mocks.buildCalendarContent.mockReturnValue({ contentDraft: 'Brouillon', accroche: 'Lin', storyDetail: null });
   });

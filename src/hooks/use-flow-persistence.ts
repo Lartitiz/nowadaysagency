@@ -5,6 +5,16 @@ const STORAGE_KEY = "creer_flow_state";
 const PHOTOS_KEY = "creer_flow_photos";
 
 interface FlowState {
+  schemaVersion?: 2;
+  ownerId?: string | null;
+  workspaceId?: string;
+  creationId?: string;
+  newsjackingContext?: string | null;
+  newsjackingSuggestedFormat?: string | null;
+  calendarPostId?: string | null;
+  calendarPostDate?: string | null;
+  calendarPostUpdatedAt?: string | null;
+  reelMp4Url?: string | null;
   step: string;
   ideaText: string;
   objective: string | null;
@@ -28,6 +38,7 @@ interface FlowState {
   /** Brief repris depuis « Mes idées » : conservé après un rechargement pour
    * mettre à jour le même brief au lieu d'en créer un second. */
   incomingBriefId?: string | null;
+  currentBriefId?: string | null;
   /** Ligne créée par une publication immédiate, afin que les actions calendrier
    * suivantes réutilisent ce suivi au lieu de dupliquer le contenu. */
   publishedCalendarId?: string | null;
@@ -41,7 +52,6 @@ interface FlowState {
   ts: number;
 }
 
-const MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 hours
 const BACKUP_PREFIX = STORAGE_KEY + "_backup";
 
 // User-scoping registry: set from AuthContext on session changes.
@@ -49,24 +59,56 @@ const BACKUP_PREFIX = STORAGE_KEY + "_backup";
 let currentFlowUserId: string | null = null;
 export function setFlowUserId(id: string | null) { currentFlowUserId = id; }
 function getFlowUserId(): string | null { return currentFlowUserId; }
-function backupKeyFor(userId: string) { return `${BACKUP_PREFIX}:${userId}`; }
+let currentFlowWorkspaceId: string | null = null;
+function scopeSuffix() { return currentFlowWorkspaceId ? `:${currentFlowWorkspaceId}` : ""; }
+function flowStorageKey() { return STORAGE_KEY + scopeSuffix(); }
+function photosStorageKey() { return PHOTOS_KEY + scopeSuffix(); }
+function backupKeyFor(userId: string) { return `${BACKUP_PREFIX}:${userId}${scopeSuffix()}`; }
+export function setFlowWorkspaceId(id: string | null) {
+  currentFlowWorkspaceId = id || null;
+  if (!id) return;
+  // Adopt the old single-workspace draft once, without copying it into every brand.
+  try {
+    if (sessionStorage.getItem(flowStorageKey())) return;
+    const owner = getFlowUserId();
+    const legacy = sessionStorage.getItem(STORAGE_KEY) || (owner ? localStorage.getItem(`${BACKUP_PREFIX}:${owner}`) : null);
+    if (!legacy) return;
+    const parsed = JSON.parse(legacy);
+    if ((parsed.workspaceId && parsed.workspaceId !== id) || (parsed.ownerId && parsed.ownerId !== owner)) return;
+    const migrated = JSON.stringify({ ...parsed, workspaceId: id, ownerId: owner });
+    sessionStorage.setItem(flowStorageKey(), migrated);
+    if (owner) localStorage.setItem(backupKeyFor(owner), migrated);
+    const photos = sessionStorage.getItem(PHOTOS_KEY) || (owner ? localStorage.getItem(`${PHOTOS_BACKUP_PREFIX}:${owner}`) : null);
+    if (photos) {
+      sessionStorage.setItem(photosStorageKey(), photos);
+      if (owner) localStorage.setItem(photosBackupKeyFor(owner), photos);
+    }
+    sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(PHOTOS_KEY);
+    if (owner) {
+      localStorage.removeItem(`${BACKUP_PREFIX}:${owner}`);
+      localStorage.removeItem(`${PHOTOS_BACKUP_PREFIX}:${owner}`);
+    }
+  } catch { /* The existing draft remains available if migration fails. */ }
+}
+
 
 export function saveFlowState(state: Partial<FlowState>) {
   try {
     const existing = loadFlowState();
-    const merged = { ...existing, ...state, ts: Date.now() };
+    const merged = { ...existing, ...state, schemaVersion: 2 as const, ownerId: getFlowUserId(), ts: Date.now() };
     // One HTML copy in browser storage. The source is restored through visualSlides.
     if (merged.result?.raw?.carousel_editor_version && merged.visualSlides?.length) {
       const { visual_html: _html, ...raw } = merged.result.raw;
       if (raw._carousel_cloud) raw._carousel_cloud = { ...raw._carousel_cloud, history: [] };
       merged.result = { ...merged.result, raw };
     }
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+    sessionStorage.setItem(flowStorageKey(), JSON.stringify(merged));
 
     const userId = getFlowUserId();
     // Backup to localStorage for tab-recycling / HMR protection — scoped per user.
     // Save on any step beyond "idea" so in-progress work survives reloads.
-    if (userId && state.step && state.step !== "idea") {
+    if (userId && merged.step && merged.step !== "idea") {
       try {
         localStorage.setItem(backupKeyFor(userId), JSON.stringify(merged));
       } catch { toast.warning("La copie de secours n’a pas pu être enregistrée. Enregistre ton carrousel dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" }); }
@@ -82,13 +124,10 @@ export function saveFlowState(state: Partial<FlowState>) {
 
 export function loadFlowState(): FlowState | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(flowStorageKey());
     if (raw) {
       const parsed = JSON.parse(raw) as FlowState;
-      if (!parsed.result?.raw?.carousel_editor_version && parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
-        clearFlowState();
-        return null;
-      }
+      if (parsed.ownerId && getFlowUserId() && parsed.ownerId !== getFlowUserId()) return null;
       return parsed;
     }
     // Fallback: try localStorage backup (survives tab recycling) — scoped per user.
@@ -97,12 +136,9 @@ export function loadFlowState(): FlowState | null {
     const backup = localStorage.getItem(backupKeyFor(userId));
     if (backup) {
       const parsed = JSON.parse(backup) as FlowState;
-      if (!parsed.result?.raw?.carousel_editor_version && parsed.ts && Date.now() - parsed.ts > MAX_AGE_MS) {
-        localStorage.removeItem(backupKeyFor(userId));
-        return null;
-      }
+      if (parsed.ownerId && parsed.ownerId !== userId) return null;
       // Re-hydrate sessionStorage from backup
-      sessionStorage.setItem(STORAGE_KEY, backup);
+      sessionStorage.setItem(flowStorageKey(), backup);
       return parsed;
     }
     return null;
@@ -113,7 +149,7 @@ export function loadFlowState(): FlowState | null {
 
 export function clearFlowState() {
   try {
-    sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(flowStorageKey());
     const userId = getFlowUserId();
     if (userId) {
       localStorage.removeItem(backupKeyFor(userId));
@@ -142,7 +178,7 @@ export function clearFlowState() {
 // ════════════════════════════════════════════════════════════════════════
 
 const PHOTOS_BACKUP_PREFIX = PHOTOS_KEY + "_backup";
-function photosBackupKeyFor(userId: string) { return `${PHOTOS_BACKUP_PREFIX}:${userId}`; }
+function photosBackupKeyFor(userId: string) { return `${PHOTOS_BACKUP_PREFIX}:${userId}${scopeSuffix()}`; }
 
 const MAX_PHOTOS = 100; // original assets plus replacements across a 20-slide editor
 
@@ -176,7 +212,9 @@ function idbOpen(): Promise<IDBDatabase> {
     req.onerror = () => reject(req.error);
   });
 }
+function photoRecordPrefix() { return `${getFlowUserId() || "anonymous"}:${currentFlowWorkspaceId || "legacy"}:`; }
 async function idbPut(key: string, value: any): Promise<void> {
+  key = photoRecordPrefix() + key;
   const db = await idbOpen();
   try {
     await new Promise<void>((resolve, reject) => {
@@ -189,43 +227,32 @@ async function idbPut(key: string, value: any): Promise<void> {
   } finally { db.close(); }
 }
 async function idbGet(key: string): Promise<any> {
+  const legacyKey = key;
+  key = photoRecordPrefix() + key;
   const db = await idbOpen();
   try {
     return await new Promise<any>((resolve, reject) => {
       const tx = db.transaction(IDB_STORE, "readonly");
       const r = tx.objectStore(IDB_STORE).get(key);
-      r.onsuccess = () => resolve(r.result);
+      r.onsuccess = () => {
+        if (r.result) resolve(r.result);
+        else { const legacy = tx.objectStore(IDB_STORE).get(legacyKey); legacy.onsuccess = () => resolve(legacy.result); legacy.onerror = () => reject(legacy.error); }
+      };
       r.onerror = () => reject(r.error);
     });
   } finally { db.close(); }
 }
-async function idbPrune(keepKeys: string[]): Promise<void> {
-  if (!idbAvailable()) return;
-  const keep = new Set(keepKeys);
-  const db = await idbOpen();
-  try {
-    await new Promise<void>((resolve, reject) => {
-      const tx = db.transaction(IDB_STORE, "readwrite");
-      const store = tx.objectStore(IDB_STORE);
-      const req = store.getAllKeys();
-      req.onsuccess = () => {
-        (req.result as IDBValidKey[]).forEach((k) => {
-          if (!keep.has(String(k))) store.delete(k);
-        });
-      };
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } finally { db.close(); }
-}
 async function idbClearAll(): Promise<void> {
+  const prefix = photoRecordPrefix();
   if (!idbAvailable()) return;
   try {
     const db = await idbOpen();
     try {
       await new Promise<void>((resolve, reject) => {
         const tx = db.transaction(IDB_STORE, "readwrite");
-        tx.objectStore(IDB_STORE).clear();
+        const store = tx.objectStore(IDB_STORE);
+        const req = store.getAllKeys();
+        req.onsuccess = () => req.result.forEach(k => { if (String(k).startsWith(prefix)) store.delete(k); });
         tx.oncomplete = () => resolve();
         tx.onerror = () => reject(tx.error);
       });
@@ -247,7 +274,6 @@ export async function savePhotos(photos: any[]): Promise<void> {
   try {
     const list = (photos || []).slice(0, MAX_PHOTOS);
     const manifest: PhotoManifestEntry[] = [];
-    const keepKeys: string[] = [];
     const writes: Promise<void>[] = [];
     for (const p of list) {
       const id = newPhotoId(p.id);
@@ -262,19 +288,18 @@ export async function savePhotos(photos: any[]): Promise<void> {
         local: !isLibraryOriginal,
       });
       if (!isLibraryOriginal && p.base64 && idbAvailable()) {
-        keepKeys.push(id);
         writes.push(idbPut(id, { base64: p.base64, mimeType: p.mimeType, name: p.name }));
       }
     }
-    const payload = JSON.stringify({ photos: manifest, ts: Date.now() });
+    const payload = JSON.stringify({ photos: manifest, ownerId: getFlowUserId(), ts: Date.now() });
     try {
-      sessionStorage.setItem(PHOTOS_KEY, payload);
+      sessionStorage.setItem(photosStorageKey(), payload);
       const userId = getFlowUserId();
       if (userId) localStorage.setItem(photosBackupKeyFor(userId), payload);
     } catch {}
     try {
       await Promise.all(writes);
-      await idbPrune(keepKeys);
+      // Keep other snapshots until explicit reset; older async writes must not prune newer photos.
     } catch (e) {
       console.warn("[use-flow-persistence] IDB photo write failed", e);
       if (!photoQuotaWarned) {
@@ -296,17 +321,17 @@ export async function savePhotos(photos: any[]): Promise<void> {
  */
 export function loadPhotos(): PhotoManifestEntry[] {
   try {
-    let raw = sessionStorage.getItem(PHOTOS_KEY);
+    let raw = sessionStorage.getItem(photosStorageKey());
     if (!raw) {
       const userId = getFlowUserId();
       if (userId) {
         const b = localStorage.getItem(photosBackupKeyFor(userId));
-        if (b) { sessionStorage.setItem(PHOTOS_KEY, b); raw = b; }
+        if (b) { sessionStorage.setItem(photosStorageKey(), b); raw = b; }
       }
     }
     if (!raw) return [];
     const parsed = JSON.parse(raw);
-    if (parsed?.ts && Date.now() - parsed.ts > MAX_AGE_MS) { clearPhotos(); return []; }
+    if (parsed.ownerId && parsed.ownerId !== getFlowUserId()) return [];
     const arr = Array.isArray(parsed?.photos) ? parsed.photos : [];
     // Rétro-compat : ancien format { base64, mimeType, context, name } sans `local`.
     return arr.map((e: any) =>
@@ -350,7 +375,9 @@ export async function loadPhotosLocal(): Promise<any[]> {
           continue;
         }
       } catch {}
-      // base64 local introuvable → photo perdue, on la saute (signalé en aval)
+      // Preserve the slot so an incomplete photo set cannot look complete.
+      out.push({ id: e.id, base64: "", preview: "", name: e.name, mimeType: e.mimeType, context: e.context || "", edited: e.edited, missingLocalPhoto: true });
+      toast.warning("Une photo du brouillon n’a pas pu être restaurée. Réimporte-la avant d’enregistrer.", { id: "missing-draft-photo" });
     } else {
       out.push({ id: e.id, base64: "", preview: "", name: e.name, mimeType: e.mimeType, context: e.context || "", userPhotoId: e.userPhotoId, edited: e.edited, needsLibraryFetch: true });
     }
@@ -359,7 +386,7 @@ export async function loadPhotosLocal(): Promise<any[]> {
 }
 
 export function clearPhotos() {
-  try { sessionStorage.removeItem(PHOTOS_KEY); } catch {}
+  try { sessionStorage.removeItem(photosStorageKey()); } catch {}
   try {
     const userId = getFlowUserId();
     if (userId) {

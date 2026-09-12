@@ -87,7 +87,7 @@ import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linked
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
-import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos, loadPhotosLocal } from "@/hooks/use-flow-persistence";
+import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos, loadPhotosLocal, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
@@ -133,6 +133,16 @@ type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_revi
 
 
 export default function CreerUnifie() {
+  const workspaceId = useWorkspaceId();
+  const ready = useWorkspaceReady();
+  const { user } = useAuth();
+  if (!ready) return null;
+  setFlowUserId(user?.id && user.id !== "demo-user" ? user.id : null);
+  setFlowWorkspaceId(workspaceId);
+  return <CreerWorkspace key={`${user?.id || "demo"}:${workspaceId}`} />;
+}
+
+function CreerWorkspace() {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -187,7 +197,8 @@ export default function CreerUnifie() {
     clearFlowState();
     clearedFreshStart.current = true;
   }
-  const existingFlowState = isFreshStart ? null : loadFlowState();
+  const candidateFlowState = isFreshStart ? null : loadFlowState();
+  const existingFlowState = candidateFlowState?.workspaceId && candidateFlowState.workspaceId !== workspaceId ? null : candidateFlowState;
   const aurianaDemoActive = locState?.demoScenario === "auriana-carousel" || existingFlowState?.demoScenario === "auriana-carousel";
 
   // ── Garde-fou « il y a déjà un contenu en cours » ──
@@ -232,6 +243,7 @@ export default function CreerUnifie() {
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
+  const [creationId, setCreationId] = useState(ps?.creationId || crypto.randomUUID());
   const autoOpenTransform = paramMode === "transform";
   // Mode « 1er contenu » (auto=1) figé pour TOUTE la session du parcours :
   // le paramètre d'URL est retiré une fois l'init consommée (voir plus bas),
@@ -320,9 +332,9 @@ export default function CreerUnifie() {
   const pendingReelAnswersRef = useRef<Record<string, string>>({});
   const [editContent, setEditContent] = useState(ps?.editContent || "");
   const [existingCalendarContent, setExistingCalendarContent] = useState<string | null>(null);
-  const [calendarPostId] = useState<string | null>(locState?.calendarPostId || null);
-  const [calendarPostDate] = useState<string | null>(locState?.postDate || null);
-  const fromCalendar = !!(locState?.fromCalendar && calendarPostId);
+  const [calendarPostId, setCalendarPostId] = useState<string | null>(locState?.calendarPostId || ps?.calendarPostId || null);
+  const [calendarPostDate, setCalendarPostDate] = useState<string | null>(locState?.postDate || ps?.calendarPostDate || null);
+  const fromCalendar = !!calendarPostId;
 
   // Photo states (carousel photo + post photo)
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(canalConflict ? null : (ps?.carouselSubMode ?? null));
@@ -379,7 +391,7 @@ export default function CreerUnifie() {
   const [inspirationImageBase64, setInspirationImageBase64] = useState<string | null>(null);
   const [inspirationImagePreview, setInspirationImagePreview] = useState<string | null>(ps?.inspirationImagePreview || null);
   const [photoBriefResult, setPhotoBriefResult] = useState<any>(null);
-  const [currentBriefId, setCurrentBriefId] = useState<string | null>(null);
+  const [currentBriefId, setCurrentBriefId] = useState<string | null>(ps?.currentBriefId || null);
   // Réponses pré-remplies quand on arrive depuis « Créer à partir de ce brief »
   // (boîte à idées) — affichées telles quelles sur l'étape questions.
   const [briefPrefillAnswers, setBriefPrefillAnswers] = useState<Record<string, string> | null>(null);
@@ -413,8 +425,8 @@ export default function CreerUnifie() {
   const [structureLoading, setStructureLoading] = useState(false);
   const [lastConfirmedStructure, setLastConfirmedStructure] = useState<SlideProposal[] | null>(null);
   const [lastNarrativeThread, setLastNarrativeThread] = useState<string | null>(null);
-  const [newsjackingContext, setNewsjackingContext] = useState<string | null>(null);
-  const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(null);
+  const [newsjackingContext, setNewsjackingContext] = useState<string | null>(ps?.newsjackingContext || null);
+  const [newsjackingSuggestedFormat, setNewsjackingSuggestedFormat] = useState<string | null>(ps?.newsjackingSuggestedFormat || null);
 
   // ═══ Régime « texte d'abord » (lot 1 casting) ═══
   // Newsjacking + carrousel mixte sans photos : le texte est rédigé d'abord, chaque
@@ -454,7 +466,7 @@ export default function CreerUnifie() {
   useEffect(() => {
     if (!hasSomeContext && !shouldRestore) {
       clearFlowState();
-      sessionStorage.removeItem("creer_unifie_result");
+      sessionStorage.removeItem(CREER_RESULT_KEY);
       setStep("idea");
       setSelectedFormat(null);
       setEditorialAngle(null);
@@ -524,7 +536,7 @@ export default function CreerUnifie() {
   
 
   // ── Persist generated result to sessionStorage ──
-  const CREER_RESULT_KEY = "creer_unifie_result";
+  const CREER_RESULT_KEY = `creer_unifie_result:${session?.user?.id || "demo"}:${workspaceId}:${creationId}`;
   const resultRestoredRef = useRef(false);
 
   useEffect(() => {
@@ -698,15 +710,16 @@ export default function CreerUnifie() {
         inspirationImagePreview: inspirationImagePreview || null,
         demoScenario: aurianaDemoActive ? "auriana-carousel" : undefined,
         editingIdeaId,
-        incomingBriefId,
+        incomingBriefId, currentBriefId,
         carouselSubMode,
         slideLength,
         photoDescription,
         isLinkedInCarousel,
-        autoFlow,
+        autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat,
+        calendarPostId, calendarPostDate,
       });
     }
-  }, [step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel]);
+  }, [step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -1671,6 +1684,12 @@ export default function CreerUnifie() {
   };
 
   const handleReset = () => {
+    setCurrentBriefId(null);
+    setIncomingBriefId(null);
+    setCreationId(crypto.randomUUID());
+    setCalendarPostId(null);
+    setCalendarPostDate(null);
+    setNewsjackingSuggestedFormat(null);
     resetGenerator();
     streamReset();
     setStep("idea");
@@ -1706,6 +1725,7 @@ export default function CreerUnifie() {
     // Sans ça, le suivi de la publication précédente restait en mémoire et
     // renvoyait « déjà enregistré » pour tout contenu créé ensuite.
     resetPublishedTracking();
+    setReelMp4Url(null);
     clearFlowState();
     
     sessionStorage.removeItem(CREER_RESULT_KEY);
@@ -1738,7 +1758,8 @@ export default function CreerUnifie() {
   // ── Post-generation handlers ──
 
   const persistCarousel = async () => {
-    if (!session?.user?.id || !result?.raw || saving) return;
+    if (!session?.user?.id || !result?.raw || saving) return null;
+    if (savedId) return savedId;
     const r = result.raw;
     if (selectedFormat === "carousel" && r?.slides) {
       setSaving(true);
@@ -1760,10 +1781,13 @@ export default function CreerUnifie() {
           quality_score: r.quality_check?.score || null,
         }).select("id").single();
         if (error) throw error;
-        if (data) setSavedId((data as any).id);
+        if (!data) throw new Error("Confirmation de sauvegarde indisponible");
+        setSavedId((data as any).id);
+        return (data as any).id as string;
       } catch (e: any) {
         console.warn("generated_carousels insert failed:", e?.message);
         toast.error("La sauvegarde du carrousel a échoué. Réessaie.");
+        return null;
       } finally {
         setSaving(false);
       }
@@ -1775,7 +1799,7 @@ export default function CreerUnifie() {
       if (await carouselSave.flush()) toast.success("Ton carrousel est enregistré dans Mes idées.");
       return;
     }
-    await persistCarousel();
+    if (selectedFormat === "carousel" && !(await persistCarousel())) return;
     // Ouvrir le dialog SaveToIdeasDialog (insertion réelle dans saved_ideas)
     setSaveIdeaDialogOpen(true);
   };
@@ -1783,10 +1807,6 @@ export default function CreerUnifie() {
   const handleAddToCalendar = async () => {
     if (!session?.user?.id || !result?.raw) return;
     if (carouselCloudEnabled && !(await carouselSave.flush())) return;
-    // Auto-save carousel if not already saved
-    if (selectedFormat === "carousel" && !savedId && result?.raw?.slides) {
-      await persistCarousel();
-    }
     // If coming from calendar, save directly back
     if (fromCalendar) {
       await handleSaveBackToCalendar();
@@ -1928,10 +1948,12 @@ export default function CreerUnifie() {
   const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
   // Reel monté : URL durable (bucket `calendar-media`) remontée par ReelResult.
   // Vaut `null` tant qu'aucune vidéo n'est rattachable — voir `archiveReelMp4`.
-  const [reelMp4Url, setReelMp4Url] = useState<string | null>(null);
+  const [reelMp4Url, setReelMp4Url] = useState<string | null>(ps?.reelMp4Url || null);
+  useEffect(() => { saveFlowState({ reelMp4Url }); }, [reelMp4Url]);
 
   // ── Sauvegarde dans le calendrier (nouveau post + mise à jour d'un post existant) ──
   const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage, resetPublishedTracking } = useCalendarSave({
+    creationId,
     session,
     result,
     selectedFormat,

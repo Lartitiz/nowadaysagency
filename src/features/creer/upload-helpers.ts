@@ -1,9 +1,7 @@
 // Helpers d'upload storage extraits de CreerUnifie.tsx (de-monolithisation).
-// Fonctions d'I/O (DOM + html2canvas + supabase storage) : la logique est
-// identique à l'origine, les dépendances (client supabase, userId, état) sont
-// désormais passées en paramètres au lieu d'être capturées par closure.
+// Un média requis absent ou un upload refusé bloque la sauvegarde. Les chemins
+// versionnés préservent les fichiers de la dernière version enregistrée.
 
-import { toast } from "sonner";
 
 type UploadedPhoto = { base64?: string };
 type VisualSlide = { html: string; slide_number: number | string };
@@ -14,14 +12,15 @@ export async function uploadPhotosToStorage(
   userId: string | undefined,
   postId: string,
   uploadedPhotos: UploadedPhoto[],
+  onUploaded?: (path: string) => void,
 ): Promise<string[]> {
   if (!userId || uploadedPhotos.length === 0) return [];
 
   const urls: string[] = [];
-  let failedCount = 0;
+  const version = crypto.randomUUID();
   for (let i = 0; i < uploadedPhotos.length; i++) {
     const photo = uploadedPhotos[i];
-    if (!photo.base64) continue;
+    if (!photo.base64) throw new Error(`La photo ${i + 1} est indisponible. Réimporte-la avant d’enregistrer.`);
 
     const raw = photo.base64.startsWith("data:")
       ? photo.base64
@@ -32,30 +31,21 @@ export async function uploadPhotosToStorage(
     const mime = blob.type || "image/jpeg";
     const ext = mime === "image/png" ? "png" : "jpg";
 
-    const path = `${userId}/${postId}/photos/photo-${i + 1}.${ext}`;
+    const path = `${userId}/${postId}/photos/${version}/photo-${i + 1}.${ext}`;
     const { error } = await supabase.storage
       .from("calendar-visuals")
-      .upload(path, blob, { contentType: mime, upsert: true });
+      .upload(path, blob, { contentType: mime, upsert: false });
 
     if (error) {
-      console.error(`Failed to upload photo ${i + 1}:`, error);
-      failedCount++;
-      continue;
+      throw new Error(`La photo ${i + 1} n’a pas pu être sauvegardée. Ton contenu reste dans l’éditeur.`);
     }
 
+    onUploaded?.(path);
     const { data: urlData } = supabase.storage
       .from("calendar-visuals")
       .getPublicUrl(path);
 
     urls.push(urlData.publicUrl);
-  }
-  // Sans ce toast, une photo qui échoue à l'upload disparaissait sans que
-  // rien ne le signale — le post se sauvegardait quand même avec le message
-  // « Contenu sauvegardé ! » alors qu'il manquait une photo.
-  if (failedCount > 0) {
-    toast.warning(
-      `${failedCount} photo${failedCount > 1 ? "s n'ont" : " n'a"} pas pu être envoyée${failedCount > 1 ? "s" : ""} au calendrier.`,
-    );
   }
   return urls;
 }
@@ -67,6 +57,7 @@ export async function uploadVisualsToStorage(
   postId: string,
   visualSlides: VisualSlide[],
   onProgress?: (done: number, total: number) => void,
+  onUploaded?: (path: string) => void,
 ): Promise<string[]> {
   if (!userId || visualSlides.length === 0) return [];
 
@@ -83,7 +74,8 @@ export async function uploadVisualsToStorage(
         .from("calendar-visuals")
         .upload(path, vs.blob, { contentType: "image/jpeg", upsert: false });
       if (error) throw new Error(`La slide ${vs.slide_number} n’a pas pu être sauvegardée. Réessaie avant de programmer le carrousel.`);
-        const { data: urlData } = supabase.storage
+        onUploaded?.(path);
+    const { data: urlData } = supabase.storage
           .from("calendar-visuals")
           .getPublicUrl(path);
         urls.push(urlData.publicUrl);
@@ -98,6 +90,7 @@ export async function uploadPinterestVisualToStorage(
   userId: string | undefined,
   postId: string,
   pinHtml: string,
+  onUploaded?: (path: string) => void,
 ): Promise<string[]> {
   if (!userId || !pinHtml) return [];
 
@@ -121,21 +114,20 @@ export async function uploadPinterestVisualToStorage(
       logging: false,
     });
 
-    const blob = await new Promise<Blob>((resolve) => {
-      canvas.toBlob((b) => resolve(b!), "image/png");
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("Le visuel Pinterest n’a pas pu être généré.")), "image/png");
     });
 
-    const path = `${userId}/${postId}/pinterest/pin-visual.png`;
+    const path = `${userId}/${postId}/pinterest/${crypto.randomUUID()}/pin-visual.png`;
     const { error } = await supabase.storage
       .from("calendar-visuals")
-      .upload(path, blob, { contentType: "image/png", upsert: true });
+      .upload(path, blob, { contentType: "image/png", upsert: false });
 
     if (error) {
-      console.error("Failed to upload pinterest visual:", error);
-      toast.warning("Le visuel n'a pas pu être généré. Tu pourras le régénérer depuis le calendrier.");
-      return [];
+      throw new Error("Le visuel Pinterest n’a pas pu être sauvegardé. Ton contenu reste dans l’éditeur.");
     }
 
+    onUploaded?.(path);
     const { data: urlData } = supabase.storage
       .from("calendar-visuals")
       .getPublicUrl(path);
