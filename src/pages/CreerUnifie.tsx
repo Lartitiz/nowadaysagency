@@ -1686,6 +1686,9 @@ export default function CreerUnifie() {
     setStructureProposal(null);
     setLastConfirmedStructure(null);
     setEditingIdeaId(null);
+    // Sans ça, le suivi de la publication précédente restait en mémoire et
+    // renvoyait « déjà enregistré » pour tout contenu créé ensuite.
+    resetPublishedTracking();
     clearFlowState();
     
     sessionStorage.removeItem(CREER_RESULT_KEY);
