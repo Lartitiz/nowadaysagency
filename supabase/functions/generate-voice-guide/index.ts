@@ -52,11 +52,11 @@ export function normalizeGuideArrays<T extends Record<string, unknown>>(guide: T
   return guide;
 }
 
-import { getUserContext, formatContextForAI, CONTEXT_PRESETS } from "../_shared/user-context.ts";
+import { getUserContext, formatContextForAI } from "../_shared/user-context.ts";
 import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { BASE_SYSTEM_RULES } from "../_shared/base-prompts.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
-import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { generationOwner } from "./owner.ts";
 
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -92,20 +92,10 @@ Deno.serve(async (req) => {
       // No body or invalid JSON — ignore
     }
 
-    // Check quota
-    const quota = await checkQuota(userId, "content");
-    if (!quota.allowed) {
-      return quotaDeniedResponse(quota, corsHeaders);
-    }
-
-    // Get user context
     const serviceClient = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-
-    const membership = await assertWorkspaceMembership(serviceClient, userId, workspace_id);
-    if (!membership.ok) {
-      console.warn("[workspace-guard] denied", { userId, workspaceId: workspace_id });
-      return workspaceDeniedResponse(corsHeaders);
-    }
+    const ownerId = await generationOwner(serviceClient, userId, workspace_id);
+    const quota = await checkQuota(userId, "content", workspace_id);
+    if (!quota.allowed) return quotaDeniedResponse(quota, corsHeaders);
 
     const ctx = await getUserContext(serviceClient, userId, workspace_id);
     const contextText = formatContextForAI(ctx, {
@@ -146,26 +136,10 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
       await callAnthropicToolSimple(model, systemPrompt, contextText, GUIDE_TOOL, 0.7, 4096, usage, 60_000),
     );
 
-    // Upsert into voice_guides
-    const { data: existing } = await serviceClient
-      .from("voice_guides")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-
-    // Écriture vérifiée : un échec ici = guide perdu au rechargement, donc
-    // erreur franche et PAS de logUsage (on ne facture pas un échec).
-    let writeError;
-    if (existing) {
-      ({ error: writeError } = await serviceClient
-        .from("voice_guides")
-        .update({ guide_data: guide, updated_at: new Date().toISOString() })
-        .eq("id", existing.id));
-    } else {
-      ({ error: writeError } = await serviceClient
-        .from("voice_guides")
-        .insert({ user_id: userId, guide_data: guide }));
-    }
+    // Append a version: old guides (including null-workspace rows) retain their
+    // IDs and contents. The authenticated client rechecks access at save time.
+    const { error: writeError } = await supabase.from("voice_guides")
+      .insert({ user_id: ownerId, workspace_id: workspace_id || null, guide_data: guide });
 
     if (writeError) {
       console.error("generate-voice-guide: échec écriture voice_guides:", writeError);
@@ -175,15 +149,15 @@ Réponds UNIQUEMENT avec le JSON, sans commentaire ni balise markdown.`;
       );
     }
 
-    await logUsage(userId, "content", "voice_guide", usage.total_tokens, usage.model);
+    await logUsage(userId, "content", "voice_guide", usage.total_tokens, usage.model, workspace_id);
 
-    return new Response(JSON.stringify({ guide, remaining: quota.remaining }), {
+    return new Response(JSON.stringify({ guide, saved: true, remaining: quota.remaining }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {
     console.error("generate-voice-guide error:", e);
-    return new Response(JSON.stringify({ error: "Erreur interne du serveur" }), {
-      status: 500,
+    return new Response(JSON.stringify({ error: e.status === 403 ? e.message : "Erreur interne du serveur" }), {
+      status: e.status === 403 ? 403 : 500,
       headers: { ...getCorsHeaders(req), "Content-Type": "application/json" },
     });
   }

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { loadGeneratedBranding } from "@/lib/branding-generated";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useIsOwnSpace, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -30,41 +30,60 @@ interface VoiceGuide {
 export default function VoiceGuidePage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
+  const ready = useWorkspaceReady();
+  if (!ready || !user) return <div className="flex justify-center py-20"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  return <VoiceGuideContent key={`${user.id}:${column}:${value}`} userId={user.id} workspaceId={column === "workspace_id" ? value : null} />;
+}
+
+function VoiceGuideContent({ userId, workspaceId }: { userId: string; workspaceId: string | null }) {
+  const isOwnSpace = useIsOwnSpace();
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const [guide, setGuide] = useState<VoiceGuide | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [exporting, setExporting] = useState(false);
   const guideRef = useRef<HTMLDivElement>(null);
 
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data } = await (supabase.from("voice_guides") as any)
-        .select("guide_data")
-        .eq(column, value)
-        .maybeSingle();
-      if (data?.guide_data) setGuide(normalizeVoiceGuide(data.guide_data));
-      setLoading(false);
-    };
-    load();
-  }, [user?.id]);
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(false);
+    loadGeneratedBranding("voice_guides", userId, workspaceId, isOwnSpace)
+      .then(data => {
+        if (!cancelled) setGuide(data && "guide_data" in data ? normalizeVoiceGuide(data.guide_data as unknown as VoiceGuide) : null);
+      })
+      .catch(error => {
+        if (!cancelled) {
+          setLoadError(true);
+          toast.error(friendlyError(error));
+        }
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [userId, workspaceId, isOwnSpace, retry]);
 
   const generate = async () => {
-    if (!user) return;
+    if (generating) return;
     setGenerating(true);
     try {
       const { data, error } = await invokeWithTimeout("generate-voice-guide", {
         body: { workspace_id: workspaceId },
       }, 90000);
       if (error) throw new Error(error.message || "Erreur");
+      if (data?.error || data?.saved !== true || !data?.guide) throw new Error(data?.error || "Le guide n'a pas pu être enregistré.");
+      if (!mounted.current) return;
       setGuide(normalizeVoiceGuide(data.guide));
       toast.success("✨ Guide de voix généré !");
-    } catch (e: any) {
-      console.error(e);
-      toast.error(friendlyError(e));
+    } catch (e) {
+      if (mounted.current) toast.error(friendlyError(e));
     } finally {
-      setGenerating(false);
+      if (mounted.current) setGenerating(false);
     }
   };
 
@@ -171,7 +190,12 @@ export default function VoiceGuidePage() {
           )}
         </div>
 
-        {!guide ? (
+        {loadError ? (
+          <div role="alert" className="text-center space-y-4">
+            <p>Impossible de charger ton guide de voix.</p>
+            <Button onClick={() => setRetry(n => n + 1)}>Réessayer</Button>
+          </div>
+        ) : !guide ? (
           <div className="rounded-2xl border border-dashed border-border bg-card p-12 text-center space-y-4">
             <div className="text-4xl">🎤</div>
             <h2 className="font-display text-lg font-bold text-foreground">Ton guide de voix personnalisé</h2>
