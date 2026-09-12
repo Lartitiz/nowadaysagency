@@ -1,5 +1,5 @@
 /** Editorial review contract. No layout, photo, link or structural field is editable. */
-export const CAROUSEL_REVIEW_VERSION = "contextual-opus-v3";
+export const CAROUSEL_REVIEW_VERSION = "contextual-calibrated-v4";
 export const CAROUSEL_REVIEW_TOOL = {
   name: "review_carousel_fields",
   description: "Révision de chaque champ, avec retouches locales exactes ou conservation explicite.",
@@ -58,6 +58,17 @@ export function carouselEditorialFields(doc: any): EditorialField[] {
 }
 
 export const CAROUSEL_EDITORIAL_REVIEW_PROMPT = `Tu es la personne chargée de la révision éditoriale de ce carrousel. Lis toute la progression et sa légende avant de juger les champs. Deux responsabilités égales : fidélité aux faits et à la voix ; qualité du raisonnement et de l'écriture.
+
+ÉTALONNAGE DU JUGEMENT (exemples de décisions, JAMAIS des faits à réutiliser)
+• Le passage vient d'expliquer le rôle d'un choix graphique. Il finit par « C'est un signal, pas un accident. » : supprimer cette dernière phrase. Elle rejoue l'explication en formule conclusive. La virgule, les deux points ou l'absence de négation ne changent pas ce diagnostic.
+• Le titre dit « Un objet simple pour un geste simple » ou célèbre un objet « pensé pour le quotidien », alors que la slide donne sa provenance ou son prix : renommer le titre d'après cette information précise. Répéter le nom de l'objet et qualifier son utilité ne constitue pas un apport. Un titre descriptif est préférable ici ; aucune autre formule publicitaire en remplacement.
+• Une méthode explique déjà qu'on attend un accord avant d'agir. La fin annonce « Une seule voix, une seule direction » : retirer cette surenchère si elle n'explique rien de plus. L'action précise déjà décrite peut clore le passage. N'ajouter ni résultat supposé ni commentaire admiratif sur la méthode.
+• « Une date d'envoi n'est pas une date de validation » : garder quand le sujet consiste précisément à distinguer ces événements. Même construction en opposition, mais elle enseigne la distinction demandée. « C'est une hypothèse, pas une mesure » peut aussi être indispensable pour qualifier une donnée.
+• Une personne a fourni une remarque drôle sur un événement vécu : la garder, y compris sa chute, si elle demande de conserver sa voix. Ne pas inventer les circonstances du récit ni commenter ensuite qu'il n'y a aucune morale à en tirer.
+• Le brief donne plusieurs interlocuteurs mais aucun nombre de modifications : une affirmation sur « deux corrections » ou « une seule version modifiée » reste non étayée. La quantité doit qualifier le même fait dans la source et dans la sortie. Reformuler sur l'action connue, sans résultat ajouté.
+Généralise la fonction de ces exemples, pas leurs mots. Une formule inédite doit recevoir le même jugement si elle remplit le même rôle. Les qualificatifs valorisants ne sont pas des caractéristiques ; ne les défends pas au seul motif qu'ils rendent le texte chaleureux. La chaleur peut venir d'une voix personnelle sans ajouter de généralité. Conserve au contraire une image réellement explicative, une émotion fournie ou une plaisanterie située.
+
+TEST D'APPORT : pour chaque phrase de bilan et chaque titre, nomme ce qu'elle fait comprendre au-delà des phrases voisines. Si ta seule justification est « résumer », « valoriser », « humaniser », « donner du rythme », « clôturer » ou « mettre en confiance », vérifie quelle matière ou voix précise la justifie ici. Sans matière supplémentaire ni voix fournie, corrige l'effet plaqué. Une conclusion peut être utile, mais elle ne bénéficie pas d'une exemption à ce contrôle.
 
 COMPRÉHENSION DU SUJET : le brief actuel fait autorité pour CE contenu, y compris ses contraintes de ton et ses limites. Pour chaque champ, contrôle séparément ses affirmations factuelles et son écriture. Le branding donne le registre ; posséder une boutique ne prouve pas que CET objet y est disponible. Une habitude de marque ne prouve pas un vécu lié à CE sujet. Si le brief déclare une information absente, les repères généraux ne la complètent pas. Supprime les affirmations non étayées (fabrication ou conception, anecdote, résultat, durée, disponibilité, rareté), sans inventer de remplacement. Contrôle aussi les petites précisions glissées dans les légendes et CTA. Une opinion, une image ou de l'humour n'ont pas besoin de devenir une description neutre.
 
