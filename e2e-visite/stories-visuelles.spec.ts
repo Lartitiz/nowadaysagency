@@ -20,7 +20,11 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SHOTS = path.join(__dirname, "shots/stories");
 fs.mkdirSync(SHOTS, { recursive: true });
 
-const IDEA = "Les coulisses de la préparation de mon prochain atelier storytelling";
+// Le sujet DOIT rester cohérent avec le profil de Camille (savonnière) : depuis les
+// gardes de fidélité aux faits (#961-#964, 12/09), un sujet absent du profil (l'ancien
+// « atelier storytelling ») fait refuser la séquence (`blocage_incoherence`, 0 story),
+// voire renvoyer un refus en prose → 502 « réponse IA illisible ». Constaté le 13/09.
+const IDEA = "Les coulisses de la fabrication de mon prochain savon";
 
 async function goToCreer(page: Page) {
   await page.goto("/creer", { waitUntil: "networkidle" });
