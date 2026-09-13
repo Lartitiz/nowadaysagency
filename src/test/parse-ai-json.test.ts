@@ -63,6 +63,10 @@ describe("parseAiJson", () => {
     const ambiguous = "{'phrase': 'c'est top'}";
     expect(() => parseAiJson(ambiguous, "test")).toThrow(AiParseError);
   });
+  it("répare des retours à la ligne bruts dans une chaîne (cas crosspost LinkedIn/Instagram)", () => {
+    const raw = '{"versions":{"linkedin":{"full_text":"Ligne 1\nLigne 2\tfin"}}}';
+    expect(parseAiJson<any>(raw).versions.linkedin.full_text).toBe("Ligne 1\nLigne 2\tfin");
+  });
 });
 
 describe("tryParseAiJson", () => {
