@@ -66,6 +66,32 @@ function repairSingleQuotedJson(input: string): string {
   return fixed;
 }
 
+
+/**
+ * Échappe les caractères de contrôle bruts (retour à la ligne, tabulation…)
+ * présents À L'INTÉRIEUR d'une chaîne JSON, sans toucher au formatage entre
+ * les jetons. Sans ça, JSON.parse échoue avec « Bad control character in
+ * string literal » alors que la réponse est parfaitement exploitable.
+ */
+function escapeControlCharsInStrings(input: string): string {
+  let out = "";
+  let inString = false;
+  let escaped = false;
+  for (const ch of input) {
+    if (escaped) { out += ch; escaped = false; continue; }
+    if (ch === "\\") { out += ch; escaped = true; continue; }
+    if (ch === '"') { inString = !inString; out += ch; continue; }
+    if (inString && ch < " ") {
+      out += ch === "\n" ? "\\n"
+        : ch === "\r" ? "\\r"
+        : ch === "\t" ? "\\t"
+        : "\\u" + ch.charCodeAt(0).toString(16).padStart(4, "0");
+      continue;
+    }
+    out += ch;
+  }
+  return out;
+}
 /** Tentative de parsing robuste (fences markdown, objet/array, réparations courantes). */
 function attemptParse(raw: string | object): unknown {
   if (typeof raw === "object" && raw !== null) return raw;
