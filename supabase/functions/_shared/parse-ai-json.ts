@@ -92,10 +92,23 @@ function attemptParse(raw: string | object): unknown {
     }
   }
 
+  // Retours à la ligne / tabulations BRUTS dans une chaîne : JSON.parse lève
+  // « Bad control character in string literal ». Très fréquent quand l'IA rend
+  // un texte long (post LinkedIn/Instagram) dans un champ JSON.
+  try {
+    const escaped = escapeControlCharsInStrings(cleaned);
+    const objC = escaped.match(/\{[\s\S]*\}/);
+    if (objC) return JSON.parse(objC[0]);
+    if (!looksLikeObject) {
+      const arrC = escaped.match(/\[[\s\S]*\]/);
+      if (arrC) return JSON.parse(arrC[0]);
+    }
+  } catch { /* on tente plus bas */ }
+
   // Dernier recours : virgules traînantes, quotes simples de délimitation
   // (jamais les apostrophes internes, cf. repairSingleQuotedJson)
   try {
-    const fixed = repairSingleQuotedJson(cleaned.replace(/,\s*([}\]])/g, "$1"));
+    const fixed = escapeControlCharsInStrings(repairSingleQuotedJson(cleaned.replace(/,\s*([}\]])/g, "$1")));
     const obj2 = fixed.match(/\{[\s\S]*\}/);
     if (obj2) return JSON.parse(obj2[0]);
     if (!looksLikeObject) {
