@@ -272,6 +272,14 @@ export function useCalendarSave({
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
     } catch (e: any) {
       void reportClientError("operation");
+      // Conflit de version : la version attendue en cache (et sa copie
+      // persistée) est périmée pour toujours. On l'invalide pour que la
+      // prochaine tentative relise la version réelle du post, au lieu de
+      // rejouer indéfiniment la même comparaison perdante.
+      if (String(e?.message || "").includes("calendar_version_conflict")) {
+        versionRead.current = null;
+        saveFlowState({ calendarPostUpdatedAt: null });
+      }
       if (activeScope.current === editorScope) toast.error(calendarSaveError(e));
     } finally {
       saveInFlight.current = false;

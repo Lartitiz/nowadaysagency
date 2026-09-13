@@ -17,9 +17,10 @@ const CORRECTION_TIMEOUT_MS = 30_000;
 // JSON-aware correction: extract a long-text field, run correction-pass, reinject.
 async function correctJsonField(rawJson: string, field: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS, inputText?: string): Promise<string> {
   try {
-    const match = rawJson.match(/\{[\s\S]*\}/);
-    if (!match) return rawJson;
-    const parsed = JSON.parse(match[0]);
+    // parsing tolérant (fences, retours à la ligne bruts dans les chaînes…) :
+    // un JSON.parse strict rejetait des réponses pourtant exploitables.
+    const parsed: any = tryParseAiJson(rawJson, "linkedin-ai:correction");
+    if (!parsed || typeof parsed !== "object") return rawJson;
     const original = parsed?.[field];
     if (typeof original !== "string" || original.length < 200) return rawJson;
     // runTextRedacGate = mesure → correction → RE-mesure → garde anti-régression
@@ -48,9 +49,10 @@ async function correctJsonField(rawJson: string, field: string, abortTimeoutMs =
 // Review both adaptations against the source, in parallel within the same timeout.
 async function correctCrosspostJson(rawJson: string, abortTimeoutMs = CORRECTION_TIMEOUT_MS, inputText?: string): Promise<string> {
   try {
-    const match = rawJson.match(/\{[\s\S]*\}/);
-    if (!match) return rawJson;
-    const parsed = JSON.parse(match[0]);
+    // parsing tolérant (fences, retours à la ligne bruts dans les chaînes…) :
+    // un JSON.parse strict rejetait des réponses pourtant exploitables.
+    const parsed: any = tryParseAiJson(rawJson, "linkedin-ai:correction");
+    if (!parsed || typeof parsed !== "object") return rawJson;
     await Promise.all((["linkedin", "instagram"] as const).map(async (channel) => {
       const version = parsed?.versions?.[channel];
       const original = version?.full_text;
