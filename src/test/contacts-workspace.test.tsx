@@ -28,6 +28,7 @@ vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: str
   return chain;
 } } }));
 import ContactsPage from '@/pages/ContactsPage';
+import DmGenerator from '@/components/prospection/DmGenerator';
 const contact = (id: string, type = 'network') => ({ id, user_id: 'user-test', workspace_id: id[0], username: `fiction_${id}`, display_name: `Contact ${id}`, contact_type: type, network_category: 'pair', prospect_stage: 'to_contact', created_at: '2026-01-01', last_interaction_at: null, notes: 'note conservée', target_offer: 'offre-A', next_followup_at: '2026-01-02', next_followup_text: 'Relance conservée' });
 const deferred = () => { let resolve!: (v: unknown) => void; let reject!: (e: unknown) => void; const promise = new Promise((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; };
 function setupRead(rows = [contact('A')]) {
@@ -347,4 +348,23 @@ it('deux messages réellement confirmés avec le même texte gardent chacun leur
   await userEvent.click(await screen.findByRole('button', { name: 'Message envoyé' }));
   await waitFor(() => expect(m.success).toHaveBeenCalledTimes(2));
   expect(m.query.mock.calls.filter(([q]) => q.op === 'insert')).toHaveLength(2);
+});
+
+it('transmet le nom Instagram requis par le contrat prospect-dm depuis Contacts', async () => {
+  setupProspect();
+  m.invoke.mockResolvedValue({ data: { variant_a: 'Message fixture', variant_b: 'Variante fixture' }, error: null });
+  render(<ContactsPage />); await openGenerator(); await generate();
+  expect(m.invoke).toHaveBeenCalledWith('prospect-dm', expect.objectContaining({ body: expect.objectContaining({
+    workspace_id: 'A',
+    prospect: expect.objectContaining({ instagram_username: 'fiction_A', username: 'fiction_A', id: 'A' }),
+    interactions_summary: expect.stringContaining('Historique conservé'),
+  }) }), 60000);
+});
+
+
+it('conserve le nom Instagram historique quand le générateur est utilisé hors Contacts', async () => {
+  m.invoke.mockResolvedValue({ data: { variant_a: 'Message fixture', variant_b: 'Variante fixture' }, error: null });
+  render(<DmGenerator prospect={{ id: 'legacy', instagram_username: 'legacy_name', username: 'fallback_name' }} interactions={[]} onBack={() => {}} onMessageSent={() => {}} />);
+  await generate();
+  expect(m.invoke.mock.calls[0][1].body.prospect).toMatchObject({ id: 'legacy', instagram_username: 'legacy_name', username: 'fallback_name' });
 });

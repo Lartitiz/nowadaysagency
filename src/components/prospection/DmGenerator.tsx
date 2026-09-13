@@ -191,6 +191,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
         body: {
           prospect: {
             ...prospect,
+            instagram_username: getUsername(prospect),
             noted_interest: notedInterest,
             probable_problem: prospectProblem,
             to_avoid: toAvoid,
