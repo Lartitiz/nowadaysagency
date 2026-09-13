@@ -25,12 +25,11 @@ test("mes-slides: parcours jusqu'à l'écran de saisie", async ({ page }, testIn
   await expect(tuile).toBeVisible({ timeout: 10000 });
   await page.screenshot({ path: testInfo.outputPath("01-picker-sous-modes.png"), fullPage: true });
   await tuile.click();
-  // Chip repliée + pas de sélecteur d'angle dans ce mode.
-  // NB : on vérifie l'ÉTAT replié (label + bouton « Changer », sélecteur disparu) et non
-  // le descriptif « Ton texte slide par slide… » : ce span est `hidden sm:inline`, donc
-  // absent en 390px by design — l'asserter faisait échouer le mobile à tort.
-  await expect(page.getByText("Quel type de carrousel ?")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /^changer$/i })).toBeVisible();
+  // Tuile sélectionnée + pas de sélecteur d'angle dans ce mode.
+  // NB : depuis #959 (`CarouselModePicker`), la grille des rendus RESTE affichée après le
+  // choix (plus de chip repliée ni de bouton « Changer ») : on lit l'état dans le DOM
+  // (`aria-pressed`) plutôt qu'un libellé, qui casse au premier renommage.
+  await expect(tuile).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByText(/angle éditorial/i)).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath("02-tuile-choisie.png"), fullPage: true });
   await page.getByRole("button", { name: /^suivant/i }).first().click();
