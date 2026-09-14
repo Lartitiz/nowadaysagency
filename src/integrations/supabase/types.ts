@@ -5819,8 +5819,6 @@ export type Database = {
           validated_bio_at: string | null
           verbatims: string
           website_url: string | null
-          notification_tips: boolean
-          notification_reminders: boolean
           weekly_ritual_day: number
           weekly_ritual_enabled: boolean
           weekly_time: string | null
@@ -5889,8 +5887,6 @@ export type Database = {
           validated_bio_at?: string | null
           verbatims?: string
           website_url?: string | null
-          notification_tips?: boolean
-          notification_reminders?: boolean
           weekly_ritual_day?: number
           weekly_ritual_enabled?: boolean
           weekly_time?: string | null
@@ -5959,8 +5955,6 @@ export type Database = {
           validated_bio_at?: string | null
           verbatims?: string
           website_url?: string | null
-          notification_tips?: boolean
-          notification_reminders?: boolean
           weekly_ritual_day?: number
           weekly_ritual_enabled?: boolean
           weekly_time?: string | null
