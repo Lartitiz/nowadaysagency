@@ -275,6 +275,7 @@ export default function InstagramBio() {
 
   // ── GENERATE BIO VERSIONS ──
   const handleGenerate = async () => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     if (!user) return;
     setGenerating(true);
     try {
@@ -353,6 +354,7 @@ export default function InstagramBio() {
 
   // ── VALIDATE BIO ──
   const handleValidate = async (bioText: string) => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     if (!user) return;
     try {
       // Écritures critiques d'abord (l'état "validé" en dépend) — toutes idempotentes,

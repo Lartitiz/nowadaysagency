@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,10 @@ import { Link } from "react-router-dom";
 import { MailMinus, MailCheck, Loader2 } from "lucide-react";
 
 export default function UnsubscribePage() {
+  const {user} = useAuth();
+  return <UnsubscribeContent key={`${user?.id || ""}:${user?.email || ""}`} />;
+}
+function UnsubscribeContent() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [isUnsubscribed, setIsUnsubscribed] = useState(false);
@@ -13,49 +17,48 @@ export default function UnsubscribePage() {
   const [unsubscribeError, setUnsubscribeError] = useState(false);
   const [resubscribeError, setResubscribeError] = useState(false);
 
+  const [loadError, setLoadError] = useState(false);
+  const [revision, retry] = useState(0);
+  const mounted = useRef(true);
+  const busy = useRef(false);
+  useEffect(() => {mounted.current = true; return () => {mounted.current = false;};}, []);
+  const readStatus = async () => {
+    const {data, error} = await supabase.from("email_unsubscribes").select("id").eq("user_id",user!.id);
+    if (error) throw error;
+    return (data || []).length > 0;
+  };
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
-    (async () => {
-      const { data } = await (supabase.from("email_unsubscribes") as any)
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setIsUnsubscribed(!!data);
-      setLoading(false);
-    })();
-  }, [user]);
-
-  const handleUnsubscribe = async () => {
-    if (!user) return;
-    setActing(true);
-    setUnsubscribeError(false);
-    const { error } = await (supabase.from("email_unsubscribes") as any).insert({
-      user_id: user.id,
-      email: user.email?.toLowerCase(),
-    });
-    // Code 23505 = contrainte d'unicité déjà en base : la personne est déjà désabonnée, donc succès malgré l'erreur
-    if (!error || error.code === "23505") {
-      setIsUnsubscribed(true);
-    } else {
-      setUnsubscribeError(true);
+    let alive = true;
+    if (!user) {setLoading(false); return;}
+    setLoading(true); setLoadError(false);
+    void readStatus().then(value => {if (alive) setIsUnsubscribed(value);})
+      .catch(() => {if (alive) setLoadError(true);})
+      .finally(() => {if (alive) setLoading(false);});
+    return () => {alive = false;};
+  }, [user?.id, revision]);
+  const changeStatus = async (unsubscribe: boolean) => {
+    if (!user?.email || busy.current || loadError || loading) return;
+    busy.current = true; setActing(true); setUnsubscribeError(false); setResubscribeError(false);
+    try {
+      const query = unsubscribe
+        ? supabase.from("email_unsubscribes").insert({user_id:user.id,email:user.email.toLowerCase()})
+        : supabase.from("email_unsubscribes").delete().eq("user_id",user.id);
+      const {error} = await query;
+      if (error && !(unsubscribe && error.code === "23505")) throw error;
+      // Re-read after both writes, including duplicate and zero-row responses.
+      const value = await readStatus();
+      if (value !== unsubscribe) throw new Error("Preference not confirmed");
+      if (mounted.current) setIsUnsubscribed(value);
+    } catch {
+      if (mounted.current) (unsubscribe ? setUnsubscribeError : setResubscribeError)(true);
+    } finally {
+      busy.current = false;
+      if (mounted.current) setActing(false);
     }
-    setActing(false);
   };
-
-  const handleResubscribe = async () => {
-    if (!user) return;
-    setActing(true);
-    setResubscribeError(false);
-    const { error } = await (supabase.from("email_unsubscribes") as any)
-      .delete()
-      .eq("user_id", user.id);
-    if (error) {
-      setResubscribeError(true);
-    } else {
-      setIsUnsubscribed(false);
-    }
-    setActing(false);
-  };
+  const handleUnsubscribe = () => changeStatus(true);
+  const handleResubscribe = () => changeStatus(false);
+  if (loadError) return <div role="alert">Impossible de vérifier ta désinscription. <Button onClick={() => retry(n => n + 1)}>Réessayer</Button></div>;
 
   if (!user) {
     return (

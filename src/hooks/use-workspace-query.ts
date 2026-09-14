@@ -84,24 +84,22 @@ export function useWorkspaceReady(): boolean {
  * It returns "" instead, which fails safe: reads come back empty and writes
  * are rejected (user_id columns are uuid, "" isn't a valid uuid).
  */
-export function useProfileUserId(): string {
+export function useProfileOwner() {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   let activeWorkspace: { id: string } | null = null;
-  let activeRole: string = "owner";
-
+  let workspaceLoading = false;
   try {
     const ws = useWorkspace();
     activeWorkspace = ws.activeWorkspace;
-    activeRole = ws.activeRole;
-  } catch {
-    // fallback
-  }
+    workspaceLoading = ws.loading;
+  } catch { /* provider absent: personal scope */ }
+  // Role is resolved AFTER activeWorkspace changes. Never use it to choose
+  // a profile: every real workspace resolves its owner, including viewers.
+  const needsOwner = !!activeWorkspace?.id && !!user?.id && !isDemoMode && !workspaceLoading;
 
-  const isManager = activeRole === "manager" && !!activeWorkspace?.id;
-
-  const { data: ownerUserId, isError } = useQuery({
-    queryKey: ["workspace-owner", activeWorkspace?.id],
+  const { data: ownerUserId, isError, isPending, refetch } = useQuery({
+    queryKey: ["workspace-owner", user?.id, activeWorkspace?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_members")
@@ -110,14 +108,14 @@ export function useProfileUserId(): string {
         .eq("role", "owner")
         .maybeSingle();
       if (error) throw error;
-      return data?.user_id as string | null;
+      return (data?.user_id as string | undefined) ?? null;
     },
-    enabled: isManager,
+    enabled: needsOwner,
     staleTime: 5 * 60 * 1000,
     retry: 2,
   });
 
-  const ownerLookupFailed = isManager && isError;
+  const ownerLookupFailed = needsOwner && isError;
 
   useEffect(() => {
     if (ownerLookupFailed) {
@@ -128,12 +126,14 @@ export function useProfileUserId(): string {
     }
   }, [ownerLookupFailed]);
 
-  if (ownerLookupFailed) return "";
-  if (isManager && ownerUserId) return ownerUserId;
-  // Le faux user "demo-user" posé par AuthContext n'est pas un uuid valide —
-  // sans ce garde-fou, tout hook qui filtre "profiles" par user_id ferait 400.
-  if (isDemoMode) return DEMO_FAKE_UUID;
-  return user?.id ?? "";
+  const loading = !!user?.id && (workspaceLoading || (!!activeWorkspace?.id && isPending));
+  const error = !!user?.id && !workspaceLoading && !!activeWorkspace?.id && (isError || (!isPending && !ownerUserId));
+  const userId = isDemoMode ? DEMO_FAKE_UUID : !user?.id || workspaceLoading ? "" : activeWorkspace?.id ? (!isError && ownerUserId ? ownerUserId : "") : user.id;
+  return {userId, loading: !isDemoMode && loading, error: !isDemoMode && error, reload: refetch};
+}
+
+export function useProfileUserId(): string {
+  return useProfileOwner().userId;
 }
 
 /**

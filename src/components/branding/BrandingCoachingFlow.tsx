@@ -338,6 +338,7 @@ function BrandingCoachingSession({ section, personaId, offerId, focus, onComplet
   const charterDataRef = useRef<any>(null);
 
   const askAI = useCallback(async (msgs: Message[]): Promise<AIResponse | null> => {
+    if (!isDemoMode && !profileUserId) {setError("Le profil est encore indisponible. Réessaie."); return null;}
     setLoading(true);
     setError(null);
     setLoadingPhrase(LOADING_PHRASES[Math.floor(Math.random() * LOADING_PHRASES.length)]);
@@ -434,7 +435,7 @@ function BrandingCoachingSession({ section, personaId, offerId, focus, onComplet
     } finally {
       setLoading(false);
     }
-  }, [user?.id, section, fetchContext]);
+  }, [user?.id, profileUserId, isDemoMode, section, fetchContext]);
 
   const lastCallMsgsRef = useRef<Message[]>([]);
   const lastRetryRef = useRef(0);
@@ -734,7 +735,7 @@ function BrandingCoachingSession({ section, personaId, offerId, focus, onComplet
   }, [answer, selectedOptions, currentQuestion, isDemoMode, demoQuestions, askAI, section, user?.id, completionPct, saveDemoAnswer, updateCoveredTopics, checklist, loading]);
 
   const persistResponse = async (pending: NonNullable<typeof pendingResponseRef.current>) => {
-    if (!alive.current || !user) return;
+    if (!alive.current || !user || !profileUserId) return;
     pendingResponseRef.current = pending;
     const { response, messages: updatedMessages, nextIndex, topics, pct } = pending;
     setError(null);
@@ -781,7 +782,7 @@ function BrandingCoachingSession({ section, personaId, offerId, focus, onComplet
   // d'échec. Un try/catch local qui se contente de console.error ferait
   // croire au caller que l'écriture a réussi alors qu'elle a échoué.
   const saveInsights = async (sec: string, insights: Record<string, any>) => {
-    if (!user) return;
+    if (!user || !profileUserId) throw new Error("Profil indisponible");
     const ctx = { column, value, profileUserId, workspaceId };
     if (sec === "charter") {
       const savedPayload = await saveCharterInsights(insights, ctx);

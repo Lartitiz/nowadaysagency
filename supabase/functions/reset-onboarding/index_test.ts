@@ -49,6 +49,7 @@ const originalFetch = globalThis.fetch;
 interface RestCall {
   url: string;
   method: string;
+  body?: unknown;
 }
 
 const MEMBERS = [
@@ -62,7 +63,7 @@ function installMockFetch(opts: { callerId: string; callerEmail: string }) {
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input instanceof Request ? input.url : input);
     const method = (init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
-    calls.push({ url, method });
+    calls.push({ url, method, body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined });
 
     if (url.includes("/auth/v1/user")) {
       return new Response(
@@ -173,4 +174,13 @@ Deno.test("reset-onboarding: un admin peut déclencher le reset brandingOnly mê
   } finally {
     restore();
   }
+});
+
+Deno.test("full reset clears plan channels so legacy fallback cannot restore old channels", async () => {
+  const {calls} = installMockFetch({callerId:OWNER_ID,callerEmail:"owner@example.invalid"});
+  try {
+    await call(resetReq({workspaceId:WORKSPACE_ID}));
+    const config = calls.find(c => c.method === "PATCH" && c.url.includes("/user_plan_config"));
+    assertEquals((config?.body as {channels?:unknown})?.channels, []);
+  } finally {restore();}
 });

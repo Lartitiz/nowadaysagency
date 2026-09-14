@@ -360,7 +360,8 @@ export default function WelcomePage() {
   const onboardingTime = (profileData as any)?.weekly_time || "";
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profileUserId) return;
+    let cancelled = false;
     const load = async () => {
       // Config - use user_id directly, not workspace filter, for auth check
       const { data: config } = await (supabase.from("user_plan_config") as any)
@@ -368,6 +369,7 @@ export default function WelcomePage() {
         .eq("user_id", user.id)
         .maybeSingle();
       
+      if (cancelled) return;
       // If welcome already seen, go to dashboard
       if (config?.welcome_seen) {
         navigate("/dashboard", { replace: true });
@@ -435,6 +437,7 @@ export default function WelcomePage() {
 
       // Diagnostic summary
       const diagData = (profileRes.data as any)?.diagnostic_data;
+      if (cancelled) return;
       if (diagData?.summary) {
         setDiagnosticSummary(diagData.summary);
       }
@@ -465,7 +468,8 @@ export default function WelcomePage() {
       setLoading(false);
     };
     load();
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    return () => {cancelled = true;};
+  }, [user?.id, profileUserId, column, value]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Polling : refetch le branding toutes les 5s pendant 60s pour attendre l'enrichissement Opus
   useEffect(() => {

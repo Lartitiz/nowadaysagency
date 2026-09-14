@@ -298,7 +298,7 @@ export function useGuideRecommendation(): UseGuideRecommendationResult {
         },
       };
     },
-    enabled: !!user || isDemoMode,
+    enabled: (!!user && !!profileUserId) || isDemoMode,
     staleTime: 3 * 60 * 1000,
   });
 

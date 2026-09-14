@@ -129,7 +129,7 @@ export default function BrandingAuditPage() {
 
   /* ─── Pre-fill from profile & load previous audit ─── */
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profileUserId) return;
     (async () => {
       const { data: profile } = await supabase
         .from("profiles")

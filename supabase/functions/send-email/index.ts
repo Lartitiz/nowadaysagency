@@ -1,5 +1,5 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import { emailPreferenceAllows } from "../_shared/email-preferences.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 const ADMIN_EMAIL = "laetitia@nowadaysagency.com";
@@ -17,7 +17,7 @@ const CAPPED_TRIGGER_EVENTS = new Set([
 // Nombre maximum de relances automatiques par personne sur 30 jours glissants.
 const MONTHLY_CAP = 2;
 
-serve(async (req) => {
+Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -73,12 +73,13 @@ serve(async (req) => {
     // Check if any recipient has unsubscribed
     for (let i = recipients.length - 1; i >= 0; i--) {
       const email = recipients[i];
-      const { data: unsub } = await supabase
+      const { data: unsub, error: unsubscribeError } = await supabase
         .from("email_unsubscribes")
         .select("id")
         .eq("email", email.toLowerCase())
         .maybeSingle();
 
+      if (unsubscribeError) throw unsubscribeError;
       if (unsub) {
         // Log as skipped, don't send — best-effort, l'exclusion du destinataire
         // a déjà eu lieu (recipients.splice ci-dessous) indépendamment de ce log.
@@ -107,12 +108,16 @@ serve(async (req) => {
     // on limite à 1 par 24h ET à 2 par 30 jours glissants, toutes séquences de ce
     // type confondues. Les événements transactionnels ne sont jamais plafonnés.
     if (sequence_id && user_id) {
-      const { data: thisSequence } = await supabase
+      const { data: thisSequence, error: sequenceError } = await supabase
         .from("email_sequences")
         .select("trigger_event")
         .eq("id", sequence_id)
         .maybeSingle();
 
+      if (sequenceError || !thisSequence) throw sequenceError || new Error("Email sequence unavailable");
+      if (!await emailPreferenceAllows(supabase, user_id, thisSequence.trigger_event)) {
+        return new Response(JSON.stringify({success: true, skipped: true, reason: "Préférence email désactivée"}), {headers: {...corsHeaders, "Content-Type": "application/json"}});
+      }
       if (thisSequence?.trigger_event && CAPPED_TRIGGER_EVENTS.has(thisSequence.trigger_event)) {
         const { data: cappedSequences } = await supabase
           .from("email_sequences")
@@ -213,7 +218,7 @@ serve(async (req) => {
     });
   } catch (e) {
     console.error("send-email error:", e);
-    return new Response(JSON.stringify({ error: e.message || "Internal server error" }), {
+    return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Internal server error" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

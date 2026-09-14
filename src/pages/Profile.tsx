@@ -452,10 +452,11 @@ export default function Profile() {
 }
 
 function ChannelSelector() {
-  const { channels, setChannels, loading } = useActiveChannels();
+  const { channels, setChannels, loading, error, saving, canEdit, reload } = useActiveChannels();
   const [showComingSoon, setShowComingSoon] = useState<string | null>(null);
 
-  if (loading) return null;
+  if (loading) return <p>Chargement des canaux…</p>;
+  if (error) return <div role="alert">{error} <button onClick={reload}>Réessayer</button></div>;
 
   const toggle = async (id: ChannelId) => {
     const isActive = channels.includes(id);
@@ -469,7 +470,7 @@ function ChannelSelector() {
       setShowComingSoon(id);
       setTimeout(() => setShowComingSoon(null), 3000);
     }
-    await setChannels(next as ChannelId[]);
+    if (!await setChannels(next as ChannelId[])) return;
     toast(isActive ? `${ch?.label} retiré` : `${ch?.label} ajouté ✅`);
   };
 
@@ -486,6 +487,7 @@ function ChannelSelector() {
             <button
               key={ch.id}
               onClick={() => toggle(ch.id)}
+              disabled={saving || !canEdit}
               className={`w-full flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-all ${
                 active
                   ? "border-primary bg-secondary"

@@ -74,6 +74,7 @@ export default function BrandingSuggestionsCard({
   };
 
   const handleApplyAll = async () => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     setIsApplying(true);
     let hasError = false;
 
