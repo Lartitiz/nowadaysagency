@@ -173,6 +173,7 @@ function AuditCoachingPanelInner({
   };
 
   const handleValidate = async () => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     if (!user || !diagnostic) return;
     setPhase("saving");
     try {

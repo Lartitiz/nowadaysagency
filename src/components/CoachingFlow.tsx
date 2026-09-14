@@ -247,6 +247,7 @@ function CoachingFlowInner({ module, offerId, personaId, recId, conseil, onCompl
   };
 
   const handleValidate = async () => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     if (!user || !diagnostic) return;
     setSaving(true);
     try {

@@ -157,6 +157,7 @@ export default function InstagramProfileCoaching({ open, onOpenChange, initialMo
   };
 
   const handleApplyBio = async (bioText: string) => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     if (!user) return;
     try {
       if (profileData) {

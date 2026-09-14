@@ -84,7 +84,7 @@ export function useWorkspaceReady(): boolean {
  * It returns "" instead, which fails safe: reads come back empty and writes
  * are rejected (user_id columns are uuid, "" isn't a valid uuid).
  */
-export function useProfileUserId(): string {
+export function useProfileOwner() {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   let activeWorkspace: { id: string } | null = null;
@@ -98,7 +98,7 @@ export function useProfileUserId(): string {
   // a profile: every real workspace resolves its owner, including viewers.
   const needsOwner = !!activeWorkspace?.id && !!user?.id && !isDemoMode && !workspaceLoading;
 
-  const { data: ownerUserId, isError } = useQuery({
+  const { data: ownerUserId, isError, isPending, refetch } = useQuery({
     queryKey: ["workspace-owner", user?.id, activeWorkspace?.id],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -126,10 +126,14 @@ export function useProfileUserId(): string {
     }
   }, [ownerLookupFailed]);
 
-  if (isDemoMode) return DEMO_FAKE_UUID;
-  if (!user?.id || workspaceLoading) return "";
-  if (activeWorkspace?.id) return !isError && ownerUserId ? ownerUserId : "";
-  return user.id;
+  const loading = !!user?.id && (workspaceLoading || (!!activeWorkspace?.id && isPending));
+  const error = !!user?.id && !workspaceLoading && !!activeWorkspace?.id && (isError || (!isPending && !ownerUserId));
+  const userId = isDemoMode ? DEMO_FAKE_UUID : !user?.id || workspaceLoading ? "" : activeWorkspace?.id ? (!isError && ownerUserId ? ownerUserId : "") : user.id;
+  return {userId, loading: !isDemoMode && loading, error: !isDemoMode && error, reload: refetch};
+}
+
+export function useProfileUserId(): string {
+  return useProfileOwner().userId;
 }
 
 /**

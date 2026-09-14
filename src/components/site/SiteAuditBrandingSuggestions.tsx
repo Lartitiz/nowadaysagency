@@ -53,6 +53,7 @@ export default function SiteAuditBrandingSuggestions({ prefill, workspaceFilter,
   if (suggestions.length === 0 || dismissed) return null;
 
   const handleApplyAll = async () => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     if (!userId) return;
     setIsApplying(true);
     const filterCol = workspaceFilter?.column || "user_id";

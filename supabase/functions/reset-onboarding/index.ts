@@ -81,6 +81,7 @@ const PROFILE_RESET = {
 };
 
 const PLAN_CONFIG_RESET = {
+  channels: [],
   onboarding_completed: false,
   onboarding_completed_at: null,
   welcome_seen: false,
@@ -165,7 +166,7 @@ Deno.serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const callerIsMember = (members || []).some((m) => m.user_id === callerUserId);
+      const callerIsMember = (members || []).some((m: {user_id: string}) => m.user_id === callerUserId);
       if (!callerIsMember && !isAdmin) {
         console.error(`[reset-onboarding] Forbidden: ${callerEmail} not a member of ${workspaceId}`);
         return new Response(JSON.stringify({ error: "Forbidden" }), {
@@ -180,7 +181,7 @@ Deno.serve(async (req) => {
         // (invite-to-workspace). Une membre simple d'un espace partagé ne
         // doit pas pouvoir effacer le branding de tout l'espace. (Le reset
         // complet ci-dessous a déjà sa propre garde owner-only, #844.)
-        const callerMemberBO = (members || []).find((m) => m.user_id === callerUserId);
+        const callerMemberBO = (members || []).find((m: {user_id: string; role: string}) => m.user_id === callerUserId);
         if (!isAdmin && !["owner", "manager"].includes(callerMemberBO?.role ?? "")) {
           console.error(
             `[reset-onboarding] Forbidden: ${callerEmail} role=${callerMemberBO?.role} on ${workspaceId} (owner/manager requis pour brandingOnly)`
@@ -222,7 +223,7 @@ Deno.serve(async (req) => {
       // manager ne peut PAS faire par RLS (auth.uid() ≠ ownerUserId). Sans ce
       // garde-fou, n'importe quel·le manager d'un espace pouvait forcer une
       // cliente à repasser par l'onboarding sans son accord.
-      const callerMember = (members || []).find((m) => m.user_id === callerUserId);
+      const callerMember = (members || []).find((m: {user_id: string; role: string}) => m.user_id === callerUserId);
       if (callerMember?.role !== "owner" && !isAdmin) {
         console.error(
           `[reset-onboarding] Forbidden: full reset requires owner role, ${callerEmail} is '${callerMember?.role ?? "non-membre"}' on ${workspaceId}`
@@ -233,7 +234,7 @@ Deno.serve(async (req) => {
         );
       }
 
-      const ownerUserId = (members || []).find((m) => m.role === "owner")?.user_id ?? null;
+      const ownerUserId = (members || []).find((m: {user_id: string; role: string}) => m.role === "owner")?.user_id ?? null;
       console.log(`[reset-onboarding] WORKSPACE-scoped reset of ${workspaceId} by ${callerEmail} (owner=${ownerUserId})`);
 
       // Phase 1 : branding de l'espace uniquement

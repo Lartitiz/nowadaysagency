@@ -213,7 +213,8 @@ export function useOnboarding() {
   // Also pre-fill answers from DB when profile exists but onboarding not completed
   const prefillDone = useRef(false);
   useEffect(() => {
-    if (isDemoMode || !user) return;
+    if (isDemoMode || !user || !profileUserId) return;
+    let cancelled = false;
 
     const check = async () => {
       const { data: profile } = await (supabase.from("profiles") as any)
@@ -225,6 +226,7 @@ export function useOnboarding() {
         profileUserId: profileUserId,
         planConfigUserId: user.id,
       });
+      if (cancelled) return;
       const done = status === "done";
 
       if (done) {
@@ -279,8 +281,9 @@ export function useOnboarding() {
       }
     };
     check();
+    return () => {cancelled = true;};
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, profileUserId, isDemoMode]);
 
   // Cet espace porte-t-il déjà une identité de marque écrite ?
   // Effet SÉPARÉ et calé sur `ownWorkspace.id` : l'espace arrive de façon
@@ -443,6 +446,7 @@ export function useOnboarding() {
 
   /* ── save all ── */
   const handleFinish = async () => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     if (isDemoMode) return;
     if (!user) return;
     setSaving(true);
@@ -632,6 +636,7 @@ export function useOnboarding() {
       navigate("/welcome", { replace: true });
       return;
     }
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
     // ── Écritures de COMPLETION : elles décident si toute l'app laisse passer ──
     // Tant qu'aucune des deux tables ne dit onboarding_completed=true,
     // ProtectedRoute renvoie vers /onboarding depuis n'importe quelle page.

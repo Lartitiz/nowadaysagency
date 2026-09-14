@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -24,7 +24,8 @@ import { enableMetaPixel, disableMetaPixel } from "@/lib/meta-pixel";
 import { enableSentryReplays, disableSentryReplays } from "@/lib/sentry";
 import { STRIPE_PLANS } from "@/lib/stripe-config";
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { useProfileUserId } from "@/hooks/use-workspace-query";
+import { useAccountPreferences } from "@/hooks/use-account-preferences";
+import { useProfileUserId, useProfileOwner } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { MODULE_FLAGS } from "@/config/feature-flags";
 import PurchaseHistory from "@/components/settings/PurchaseHistory";
@@ -43,6 +44,15 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function SettingsPage() {
+  const { user } = useAuth();
+  const { activeWorkspace } = useWorkspace();
+  const owner = useProfileOwner();
+  const ownerId = owner.userId;
+  if (owner.error) return <div role="alert">Impossible de trouver le propriétaire de cet espace. <Button onClick={() => {void owner.reload();}}>Réessayer</Button></div>;
+  return <SettingsContent key={`${user?.id || ""}:${activeWorkspace?.id || ""}:${ownerId}`} />;
+}
+
+function SettingsContent() {
   const { user, signOut, isAdmin } = useAuth();
   const { plan, isPaid, isBinome, refresh: refreshPlan } = useUserPlan();
   // Clé canonique des lignes `profiles` (propriétaire de l'espace actif, ≠ user.id
@@ -55,16 +65,17 @@ export default function SettingsPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Notification preferences (cosmétiques, locales)
-  const [notifTips, setNotifTips] = useState(() => localStorage.getItem("pref_notif_tips") !== "false");
-  const [notifReminders, setNotifReminders] = useState(() => localStorage.getItem("pref_notif_reminders") !== "false");
-
-  // Rendez-vous hebdo (persisté en base — lu par l'edge function email-trigger)
-  const [ritualEnabled, setRitualEnabled] = useState(true);
-  const [ritualDay, setRitualDay] = useState(1); // 1 = lundi … 7 = dimanche (ISO)
-  const [ritualLoaded, setRitualLoaded] = useState(false);
-  const [savingRitual, setSavingRitual] = useState(false);
-
+  const ritual = useAccountPreferences(profileUserId);
+  const notifications = useAccountPreferences(user?.id || "");
+  const ritualEnabled = ritual.data.weekly_ritual_enabled;
+  const ritualDay = ritual.data.weekly_ritual_day;
+  const ritualLoaded = ritual.loaded && ritual.canEdit;
+  const savingRitual = ritual.saving;
+  const saveRitual = (next: {enabled?: boolean; day?: number}) => ritual.save(
+    next.enabled !== undefined ? {weekly_ritual_enabled: next.enabled} : {weekly_ritual_day: next.day!}
+  );
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => {mounted.current = false;}; }, []);
   const [deleting, setDeleting] = useState(false);
   const [resettingOnboarding, setResettingOnboarding] = useState(false);
   
@@ -83,60 +94,6 @@ export default function SettingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeWorkspace?.id]);
 
-  // Charge les préférences du rituel une fois que profileUserId est résolu
-  // (la résolution du propriétaire d'espace est asynchrone).
-  useEffect(() => {
-    if (profileUserId) loadRitual();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [profileUserId]);
-
-  const loadRitual = async () => {
-    if (!profileUserId) return;
-    try {
-      const { data } = await supabase
-        .from("profiles")
-        .select("weekly_ritual_enabled, weekly_ritual_day")
-        .eq("user_id", profileUserId)
-        .maybeSingle();
-      if (data) {
-        setRitualEnabled((data as any).weekly_ritual_enabled !== false);
-        setRitualDay((data as any).weekly_ritual_day ?? 1);
-      }
-    } catch (e) {
-      // colonnes pas encore en base : on garde les valeurs par défaut (activé, lundi)
-      console.warn("[ritual] load skipped:", e);
-    } finally {
-      setRitualLoaded(true);
-    }
-  };
-
-  const saveRitual = async (next: { enabled?: boolean; day?: number }) => {
-    if (!profileUserId) return;
-    const enabled = next.enabled ?? ritualEnabled;
-    const day = next.day ?? ritualDay;
-    // Optimiste
-    if (next.enabled !== undefined) setRitualEnabled(next.enabled);
-    if (next.day !== undefined) setRitualDay(next.day);
-    setSavingRitual(true);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ weekly_ritual_enabled: enabled, weekly_ritual_day: day } as any)
-      .eq("user_id", profileUserId);
-    setSavingRitual(false);
-    if (error) {
-      console.error("[ritual] save error:", error);
-      toast.error("Erreur", { description: "Impossible d'enregistrer ta préférence. Réessaie." });
-      // Rollback
-      loadRitual();
-    } else {
-      toast.success(
-        next.enabled === false
-          ? "Rendez-vous hebdo désactivé"
-          : "Rendez-vous hebdo enregistré ✓"
-      );
-    }
-  };
-
   const loadSubscription = async () => {
     setLoadingSub(true);
     try {
@@ -145,12 +102,13 @@ export default function SettingsPage() {
         { body: { workspace_id: activeWorkspace?.id || null } },
         15000,
       );
-      if (!error && data) setSubInfo(data);
+      if (error) throw error;
+      if (mounted.current && data) setSubInfo(data);
     } catch (e) {
       console.error("Settings error:", e);
       toast.error("Erreur", { description: "Une erreur est survenue. Réessaie." });
     }
-    setLoadingSub(false);
+    if (mounted.current) setLoadingSub(false);
   };
 
   const handleChangePassword = async () => {
@@ -173,12 +131,6 @@ export default function SettingsPage() {
       setNewPassword("");
       setConfirmPassword("");
     }
-  };
-
-  const togglePref = (key: string, value: boolean, setter: (v: boolean) => void) => {
-    localStorage.setItem(key, String(value));
-    setter(value);
-    toast.success("Préférence enregistrée ✓");
   };
 
   const handleManageSubscription = async () => {
@@ -222,7 +174,7 @@ export default function SettingsPage() {
         console.error("[delete-account] Data error:", data.error);
         throw new Error(data.error);
       }
-      if (data?.success === false || (data?.errors && data.errors.length > 0)) {
+      if (data?.success !== true || (data?.errors && data.errors.length > 0)) {
         console.error("[delete-account] Deletion incomplete:", data?.errors);
         throw new Error(
           "La suppression n'a pas pu être finalisée entièrement. Contacte le support avant de réessayer."
@@ -230,6 +182,7 @@ export default function SettingsPage() {
       }
 
       console.log("[delete-account] Success, tables cleaned:", data?.tables_cleaned);
+      if (!mounted.current) return;
       await signOut();
       toast.success("Compte supprimé. À bientôt peut-être 💛");
       window.location.href = "/";
@@ -394,21 +347,23 @@ export default function SettingsPage() {
         </Section>
 
         {/* ─── Rendez-vous hebdo ─── */}
-        <Section icon={<CalendarHeart className="h-4 w-4" />} title="Mon rendez-vous hebdo">
+        <Section icon={<CalendarHeart className="h-4 w-4" />} title="Mes idées par email">
+          {ritual.error && <p role="alert">{ritual.error} <Button variant="link" onClick={ritual.reload}>Réessayer</Button></p>}
+          {!ritual.canEdit && <p className="text-sm text-muted-foreground">Ces préférences appartiennent au propriétaire du compte.</p>}
           <div className="space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
                 <div className="mt-0.5"><Mail className="h-4 w-4 text-muted-foreground" /></div>
                 <div>
                   <p className="text-sm font-medium text-foreground">Recevoir mes 5 idées de la semaine</p>
-                  <p className="text-xs text-muted-foreground">Un email doux, une fois par semaine : 5 idées de contenu à piocher pour rester visible en 10 min. Tu choisis le jour, tu peux couper quand tu veux.</p>
+                  <p className="text-xs text-muted-foreground">Un email par mois, lors de la première occurrence du jour choisi. Il reprend 5 idées du pool partagé de la semaine, également disponibles dans l’outil. Tu peux le désactiver quand tu veux.</p>
                 </div>
               </div>
               <Switch
                 checked={ritualEnabled}
                 disabled={!ritualLoaded || savingRitual}
                 onCheckedChange={(v) => saveRitual({ enabled: v })}
-                aria-label="Activer le rendez-vous hebdo"
+                aria-label="Activer les idées par email"
               />
             </div>
             {ritualEnabled && (
@@ -433,9 +388,12 @@ export default function SettingsPage() {
 
         {/* ─── Notification preferences ─── */}
         <Section icon={<Bell className="h-4 w-4" />} title="Préférences de notification">
+          <p className="text-xs text-muted-foreground mb-3">Ces choix concernent tes emails personnels, indépendamment de l’espace affiché. Ils ne réactivent pas une désinscription générale.</p>
+          {notifications.error && <p role="alert">{notifications.error} <Button variant="link" onClick={notifications.reload}>Réessayer</Button></p>}
+          <Link to="/unsubscribe" className="text-sm text-primary underline">Gérer ma désinscription générale des emails</Link>
           <div className="space-y-4">
-            <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Reçois des conseils com' personnalisés par email." checked={notifTips} onCheckedChange={(v) => togglePref("pref_notif_tips", v, setNotifTips)} />
-            <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Un petit rappel quand tu oublies tes routines." checked={notifReminders} onCheckedChange={(v) => togglePref("pref_notif_reminders", v, setNotifReminders)} />
+            <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Conseils de prise en main et informations sur ton utilisation." checked={notifications.data.notification_tips} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_tips: v}); }} />
+            <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Relances d’inactivité et rappels de brouillons oubliés." checked={notifications.data.notification_reminders} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_reminders: v}); }} />
           </div>
         </Section>
 
@@ -589,6 +547,8 @@ export default function SettingsPage() {
 
                       if (res.error) throw res.error;
                       if (res.data?.error) throw new Error(res.data.error);
+                      if (res.data?.success !== true || res.data?.errors?.length) throw new Error("Réinitialisation incomplète. Certaines données ont pu être effacées ; réessaie pour terminer.");
+                      if (!mounted.current) return;
 
                       // Clear all localStorage
                       localStorage.removeItem("lac_onboarding_step");
@@ -612,7 +572,7 @@ export default function SettingsPage() {
 
                       // Hard redirect to clear all React state
                       setTimeout(() => {
-                        window.location.href = "/onboarding";
+                        if (mounted.current) window.location.href = "/onboarding";
                       }, 500);
                     } catch (e: any) {
                       console.error("[reset-onboarding] Error:", e);
@@ -698,7 +658,7 @@ function Section({ icon, title, children }: { icon: React.ReactNode; title: stri
   );
 }
 
-function PrefRow({ icon, label, description, checked, onCheckedChange }: { icon: React.ReactNode; label: string; description: string; checked: boolean; onCheckedChange: (v: boolean) => void }) {
+function PrefRow({ icon, label, description, checked, onCheckedChange, disabled }: { icon: React.ReactNode; label: string; description: string; checked: boolean; onCheckedChange: (v: boolean) => void; disabled?: boolean }) {
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex items-start gap-3">
@@ -708,7 +668,7 @@ function PrefRow({ icon, label, description, checked, onCheckedChange }: { icon:
           <p className="text-xs text-muted-foreground">{description}</p>
         </div>
       </div>
-      <Switch checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} aria-label={label} />
     </div>
   );
 }

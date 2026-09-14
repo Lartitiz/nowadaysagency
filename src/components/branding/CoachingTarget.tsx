@@ -36,6 +36,7 @@ function TargetChoice({ kind, id, children, renderChoice = content => content }:
     return () => { active = false; };
   }, [kind, id, column, value, attempt]);
   const create = async () => {
+    if (!ownerId) {setError("Le profil est encore indisponible. Réessaie."); return;}
     setLoading(true); setError("");
     const { data, error } = await supabase.from(kind).insert({
       user_id: ownerId, workspace_id: column === "workspace_id" ? workspaceId : null,
