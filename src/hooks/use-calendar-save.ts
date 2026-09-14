@@ -246,6 +246,12 @@ export function useCalendarSave({
         if (readError) throw readError;
         if (current?.auto_publish) { toast.error(carouselQualityDisabledReason); return; }
       }
+      // Écrasement volontaire : on relit la version réelle du post UNIQUEMENT
+      // après confirmation explicite de l'utilisatrice.
+      if (overwriteConfirmed.current) {
+        versionRead.current = null;
+        saveFlowState({ calendarPostUpdatedAt: null });
+      }
       const expectedUpdatedAt = await readVersion(calendarPostId);
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
