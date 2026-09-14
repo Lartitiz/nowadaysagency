@@ -1,5 +1,6 @@
+import { savePreviewEdit } from "@/lib/content-preview-save";
 import { resumeIdea } from "@/lib/resume-idea";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -133,6 +134,12 @@ function formatDate(iso: string, pattern = "d MMM yyyy"): string {
 export default function IdeasPage() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
+  return <IdeasInWorkspace key={JSON.stringify([user?.id, column, value])} />;
+}
+
+function IdeasInWorkspace() {
+  const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -151,6 +158,10 @@ export default function IdeasPage() {
 
   // Fiche détail
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
+  const visit = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const closeDetail = () => { visit.current += 1; setSelectedIdea(null); };
   const [detailNotes, setDetailNotes] = useState("");
 
   useEffect(() => {
@@ -163,11 +174,9 @@ export default function IdeasPage() {
     setLoading(true);
     setLoadError(false);
     try {
-      const { data, error } = await supabase
-        .from("saved_ideas" as any)
-        .select("*")
-        .eq(column, value)
-        .order("created_at", { ascending: false });
+      let query = supabase.from("saved_ideas" as any).select("*").eq(column, value);
+      if (column === "user_id") query = query.is("workspace_id", null);
+      const { data, error } = await query.order("created_at", { ascending: false });
       if (error) throw error;
       if (data) setIdeas(data as unknown as SavedIdea[]);
     } catch (e) {
@@ -260,7 +269,7 @@ export default function IdeasPage() {
       return;
     }
     setIdeas((prev) => prev.filter((i) => i.id !== id));
-    if (selectedIdea?.id === id) setSelectedIdea(null);
+    if (selectedIdea?.id === id) closeDetail();
     toast.success("Idée supprimée");
   };
 
@@ -321,6 +330,7 @@ export default function IdeasPage() {
   };
 
   const openDetail = (idea: SavedIdea) => {
+    visit.current += 1;
     setSelectedIdea(idea);
     setDetailNotes(idea.notes || "");
   };
@@ -515,11 +525,11 @@ export default function IdeasPage() {
         <AddIdeaDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => { fetchIdeas(); changeTab("todo"); }} />
 
         {/* Fiche détail */}
-        <Dialog open={!!selectedIdea} onOpenChange={(open) => { if (!open) setSelectedIdea(null); }}>
+        <Dialog open={!!selectedIdea} onOpenChange={(open) => { if (!open) closeDetail(); }}>
           <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
             {selectedIdea && (() => {
               const state = getIdeaState(selectedIdea);
-              const hasContent = !!(selectedIdea.content_data || (selectedIdea.content_draft && selectedIdea.content_draft.trim()));
+              const hasContent = selectedIdea.content_data != null || selectedIdea.content_draft != null;
               const angle = selectedIdea.angle?.trim();
               const showAngle = !!angle && angle !== "libre" && angle !== "brouillon" && !/^(post|reel|story|carousel|newsletter|pinterest|linkedin)/i.test(angle);
               return (
@@ -554,23 +564,22 @@ export default function IdeasPage() {
                         <p className="font-mono-ui text-2xs uppercase tracking-wider font-semibold text-muted-foreground">Ton contenu</p>
                         <div className="rounded-xl bg-rose-pale p-3 max-h-[400px] overflow-y-auto min-w-0">
                           <ContentPreview
+                            key={`${selectedIdea.id}:${visit.current}`}
                             contentData={selectedIdea.content_data}
                             contentDraft={selectedIdea.content_draft}
                             contentType={selectedIdea.format === "reel" ? "reel" : selectedIdea.format === "story_serie" ? "stories" : undefined}
                             editable
-                            onContentChange={async (updatedData) => {
-                              const isJson = typeof updatedData === "object";
-                              const updatePayload = isJson
-                                ? { content_data: updatedData, updated_at: new Date().toISOString() }
-                                : { content_draft: updatedData, updated_at: new Date().toISOString() };
-                              const { error } = await supabase.from("saved_ideas").update(updatePayload as any).eq("id", selectedIdea.id);
-                              if (error) {
-                                toast.error("Erreur", { description: friendlyError(error) });
-                                return;
+                            onContentChange={async (edit) => {
+                              const id = selectedIdea.id;
+                              const startedVisit = visit.current;
+                              const receipt = await savePreviewEdit({ table: "saved_ideas", id, scope: { column, value }, format: selectedIdea.format }, edit);
+                              if (mounted.current) {
+                                setIdeas((prev) => prev.map((idea) => idea.id === id ? { ...idea, ...receipt.row } : idea));
+                                if (visit.current === startedVisit) {
+                                  setSelectedIdea((prev) => prev?.id === id ? { ...prev, ...receipt.row } : prev);
+                                }
                               }
-                              const patch = isJson ? { content_data: updatedData } : { content_draft: updatedData };
-                              setIdeas((prev) => prev.map((i) => i.id === selectedIdea.id ? { ...i, ...patch } : i));
-                              setSelectedIdea((prev) => prev ? { ...prev, ...patch } : null);
+                              return receipt;
                             }}
                           />
                         </div>

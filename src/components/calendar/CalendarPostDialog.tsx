@@ -1,3 +1,4 @@
+import { SavedContentPreview } from "@/components/SavedContentPreview";
 import { resumeCrosspost } from "@/lib/crosspost-content";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -31,7 +32,7 @@ import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linked
 import { toast } from "sonner";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
-import { ContentPreview, RevertToOriginalButton } from "@/components/ContentPreview";
+import { RevertToOriginalButton } from "@/components/ContentPreview";
 
 import { CalendarPostMetadata, FORMAT_OPTIONS_BY_CANAL } from "./CalendarPostMetadata";
 import { CalendarPostContent } from "./CalendarPostContent";
@@ -58,7 +59,13 @@ function isoToLocalInput(iso: string): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onAutoSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
+export function CalendarPostDialog(props: Props) {
+  const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  return <CalendarPostDialogSession key={JSON.stringify([user?.id, column, value, props.editingPost?.id, props.open])} {...props} />;
+}
+
+function CalendarPostDialogSession({ open, onOpenChange, editingPost, selectedDate, defaultCanal, onSave, onAutoSave, onDelete, onUnplan, onDateChange, prefillData }: Props) {
   const { user } = useAuth();
   const confirm = useConfirm();
   const navigate = useNavigate();
@@ -109,7 +116,12 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [showSecondary, setShowSecondary] = useState(false);
-  const [showContentViewer, setShowContentViewer] = useState(false);
+  const [showContentViewer, setContentViewerOpen] = useState(false);
+  const [savedPreviewContent, setSavedPreviewContent] = useState(editingPost?.story_sequence_detail);
+  const setShowContentViewer = setContentViewerOpen;
+  const previewMounted = useRef(true);
+  useEffect(() => { previewMounted.current = true; return () => { previewMounted.current = false; }; }, []);
+  useEffect(() => { setSavedPreviewContent(editingPost?.story_sequence_detail); }, [editingPost?.story_sequence_detail]);
   const [savedDraft, setSavedDraft] = useState<string | null>(null);
   const [seriesId, setSeriesId] = useState<string | null>(null);
   const [episodeNumber, setEpisodeNumber] = useState<number | null>(null);
@@ -538,7 +550,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (theme.trim() && onAutoSave) await onAutoSave(buildSaveData(), effectiveId);
     onOpenChange(false);
     setTimeout(() => {
-      const detail = editingPost?.story_sequence_detail as any;
+      const detail = savedPreviewContent as any;
       const resumeIdea = resumeCrosspost(detail, format) || (detail?.slides && detail?.visual_html?.length && /^carousel/.test(detail.type || "")
         ? { format: "carousel", raw: { ...detail, carousel_type: detail.type === "carousel_photo" ? "photo" : detail.type === "carousel_mix" ? "mix" : detail.carousel_type || "text" } } : undefined);
       if (resumeIdea?.raw._crosspost && contentDraft !== editingPost?.content_draft && contentDraft != null) resumeIdea.raw.edited_text = contentDraft;
@@ -599,7 +611,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
 
   // ── Render ──
 
-  const ssd = editingPost?.story_sequence_detail as any;
+  const ssd = savedPreviewContent as any;
   const syncStatus = (savedDraft || "") === (contentDraft || "") ? "synced" : "dirty";
 
   // Bloc édition : sujet + contenu + visuels (visibles) ; notes/brief/guide/commentaires repliés
@@ -1009,26 +1021,15 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
           <SheetDescription className="sr-only">Visualisation du contenu généré</SheetDescription>
         </SheetHeader>
         <div className="mt-4 space-y-4">
-          <ContentPreview
-            contentData={editingPost?.story_sequence_detail}
-            contentType={
-              (editingPost?.story_sequence_detail as any)?.type === "reel" ? "reel"
-              : (editingPost?.story_sequence_detail as any)?.type === "stories" ? "stories"
-              : (editingPost?.story_sequence_detail as any)?.type === "carousel" ? "carousel"
-              : (editingPost?.story_sequence_detail as any)?.type === "carousel_photo" ? "carousel_photo"
-              : (editingPost?.story_sequence_detail as any)?.type === "carousel_mix" ? "carousel_mix"
-              : undefined
-            }
-            editable={!/^carousel/.test((editingPost?.story_sequence_detail as any)?.type || "")}
-            onContentChange={async (updatedData) => {
-              if (!editingPost) return;
-              const { error } = await supabase.from("calendar_posts").update({ story_sequence_detail: updatedData, updated_at: new Date().toISOString() } as any).eq("id", editingPost.id);
-              if (error) {
-                console.error("Erreur technique:", error);
-                toast.error("Erreur", { description: friendlyError(error) });
-              }
+          {showContentViewer && editingPost && <SavedContentPreview
+            key={`${editingPost.id}:${showContentViewer}`}
+            target={{ table: "calendar_posts", id: editingPost.id, scope: { column, value } }}
+            editable={!/^carousel/.test((savedPreviewContent as any)?.type || "")}
+            onLoaded={(row) => { if (previewMounted.current) setSavedPreviewContent(row.story_sequence_detail); }}
+            onSaved={(receipt) => {
+              if (previewMounted.current) setSavedPreviewContent(receipt.row.story_sequence_detail);
             }}
-          />
+          />}
           {/^carousel/.test((editingPost?.story_sequence_detail as any)?.type || "") && <Button variant="outline" onClick={() => { setShowContentViewer(false); void handleOpenAtelier(); }}>Modifier dans l’éditeur de carrousel</Button>}
           {editingPost && (editingPost as any).original_content_data && (
             <RevertToOriginalButton onRevert={async () => {
