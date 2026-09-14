@@ -1967,7 +1967,10 @@ function CreerWorkspace() {
   const reelScope = `${workspaceId}:${creationId}:${reelSource}`;
   const activeReelScope = useRef(reelScope);
   activeReelScope.current = reelScope;
-  useEffect(() => () => { activeReelScope.current = "unmounted"; }, []);
+  useEffect(() => {
+    activeReelScope.current = reelScope;
+    return () => { activeReelScope.current = "unmounted"; };
+  }, [reelScope]);
   const [reelArtifact, setReelArtifact] = useState(() => ({
     scope: reelScope, url: ps?.reelSourceKey === reelSource ? ps?.reelMp4Url || null : null,
   }));
