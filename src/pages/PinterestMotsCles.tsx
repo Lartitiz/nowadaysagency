@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { usePinterestEditor, usePinterestUi } from "@/hooks/use-pinterest-editor";
+import PinterestSaveStatus from "@/components/pinterest/PinterestSaveStatus";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -14,68 +12,33 @@ import { Sparkles } from "lucide-react";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
 
 export default function PinterestMotsCles() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
-  const [kwId, setKwId] = useState<string | null>(null);
-  const [raw, setRaw] = useState("");
-  const [generated, setGenerated] = useState<{ produit: string[]; besoin: string[]; inspiration: string[]; anglais: string[] } | null>(null);
-  const [generating, setGenerating] = useState(false);
-  const [checklist, setChecklist] = useState({ titles: false, boardDesc: false, pinTitles: false, pinDesc: false, profileName: false, bio: false });
-
-  useEffect(() => {
-    if (!user) return;
-    (supabase.from("pinterest_keywords") as any).select("*").eq(column, value).maybeSingle().then(({ data }: any) => {
-      if (data) {
-        setKwId(data.id);
-        setRaw(data.keywords_raw || "");
-        if (data.keywords_product?.length || data.keywords_need?.length) {
-          setGenerated({ produit: data.keywords_product || [], besoin: data.keywords_need || [], inspiration: data.keywords_inspiration || [], anglais: data.keywords_english || [] });
-        }
-        setChecklist({ titles: data.checklist_titles || false, boardDesc: data.checklist_board_desc || false, pinTitles: data.checklist_pin_titles || false, pinDesc: data.checklist_pin_desc || false, profileName: data.checklist_profile_name || false, bio: data.checklist_bio || false });
-      }
-    });
-  }, [user?.id]);
+  const editor = usePinterestEditor("pinterest_keywords", { keywords_raw: "", keywords_product: [], keywords_need: [], keywords_inspiration: [], keywords_english: [], checklist_titles: false, checklist_board_desc: false, checklist_pin_titles: false, checklist_pin_desc: false, checklist_profile_name: false, checklist_bio: false });
+  const row = editor.rows[0];
+  const raw = row.keywords_raw || "";
+  const setRaw = (value: string) => editor.setRows([{ ...row, keywords_raw: value }]);
+  const generated = [row.keywords_product, row.keywords_need, row.keywords_inspiration, row.keywords_english].some(words => words?.length) ? { produit: row.keywords_product || [], besoin: row.keywords_need || [], inspiration: row.keywords_inspiration || [], anglais: row.keywords_english || [] } : null;
+  const setGenerated = (value: any) => editor.setRows(rows => [{ ...rows[0], keywords_product: value.produit || [], keywords_need: value.besoin || [], keywords_inspiration: value.inspiration || [], keywords_english: value.anglais || [] }]);
+  const [generating, setGenerating] = usePinterestUi(editor, `generating:${editor.key}`, false);
+  const checklist = { titles: !!row.checklist_titles, boardDesc: !!row.checklist_board_desc, pinTitles: !!row.checklist_pin_titles, pinDesc: !!row.checklist_pin_desc, profileName: !!row.checklist_profile_name, bio: !!row.checklist_bio };
+  const setChecklist = (fn: (value: typeof checklist) => typeof checklist) => {
+    const next = fn(checklist);
+    editor.setRows([{ ...row, checklist_titles: next.titles, checklist_board_desc: next.boardDesc, checklist_pin_titles: next.pinTitles, checklist_pin_desc: next.pinDesc, checklist_profile_name: next.profileName, checklist_bio: next.bio }]);
+  };
 
   const generateKeywords = async () => {
     setGenerating(true);
     try {
-      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "keywords", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "keywords", workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: any;
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
-      if (parsed) setGenerated(parsed);
-    } catch (e: any) { console.error("Erreur technique:", e); toast.error("Erreur", { description: friendlyError(e) }); }
+      if (editor.isCurrent() && parsed) setGenerated(parsed);
+    } catch (e: any) { console.error("Erreur technique:", e); if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGenerating(false); }
   };
 
-  const save = async () => {
-    if (!user) return;
-    const payload: any = {
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, keywords_raw: raw,
-      keywords_product: generated?.produit || [], keywords_need: generated?.besoin || [],
-      keywords_inspiration: generated?.inspiration || [], keywords_english: generated?.anglais || [],
-      checklist_titles: checklist.titles, checklist_board_desc: checklist.boardDesc,
-      checklist_pin_titles: checklist.pinTitles, checklist_pin_desc: checklist.pinDesc,
-      checklist_profile_name: checklist.profileName, checklist_bio: checklist.bio,
-      updated_at: new Date().toISOString(),
-    };
-    try {
-      if (kwId) {
-        const { error } = await supabase.from("pinterest_keywords").update(payload).eq("id", kwId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from("pinterest_keywords").insert(payload).select("id").single();
-        if (error) throw error;
-        if (data) setKwId(data.id);
-      }
-      toast.success("✅ Mots-clés sauvegardés !");
-    } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toast.error("Erreur", { description: friendlyError(e) });
-    }
-  };
+  const save = () => editor.save(undefined, "✅ Mots-clés sauvegardés !");
 
   const renderCategory = (label: string, emoji: string, words: string[]) => (
     <div className="rounded-xl border border-border p-4">
@@ -88,6 +51,8 @@ export default function PinterestMotsCles() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
+        <PinterestSaveStatus editor={editor} />
+        <fieldset disabled={editor.disabled || generating} className="min-w-0">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes mots-clés" useFromParam />
         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Tes mots-clés Pinterest</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Comment tes clientes décrivent tes produits ? Ces mots doivent être partout : titres, descriptions, tableaux.</p>
@@ -133,6 +98,7 @@ export default function PinterestMotsCles() {
         </section>
 
         <Button onClick={save} className="rounded-pill gap-2">💾 Enregistrer</Button>
+        </fieldset>
       </main>
     </div>
   );

@@ -1,8 +1,6 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { usePinterestEditor, usePinterestUi } from "@/hooks/use-pinterest-editor";
+import PinterestSaveStatus from "@/components/pinterest/PinterestSaveStatus";
 import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -17,105 +15,57 @@ import { ChevronDown } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
 
 export default function PinterestCompte() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
   const { data: propositionHookData } = useBrandProposition();
-  const [profileId, setProfileId] = useState<string | null>(null);
-  const [proAccountDone, setProAccountDone] = useState(false);
-  const [photoDone, setPhotoDone] = useState(false);
-  const [displayName, setDisplayName] = useState("");
-  const [nameDone, setNameDone] = useState(false);
-  const [bio, setBio] = useState("");
-  const [bioDone, setBioDone] = useState(false);
-  const [websiteUrl, setWebsiteUrl] = useState("");
-  const [urlDone, setUrlDone] = useState(false);
-  const [propValue, setPropValue] = useState<string | null>(null);
-  const [nameSuggestions, setNameSuggestions] = useState<string[]>([]);
-  const [bioSuggestions, setBioSuggestions] = useState<string[]>([]);
-  const [generatingName, setGeneratingName] = useState(false);
-  const [generatingBio, setGeneratingBio] = useState(false);
-  const [copied, setCopied] = useState<string | null>(null);
-
+  const editor = usePinterestEditor("pinterest_profile", { pro_account_done: false, photo_done: false, display_name: "", name_done: false, bio: "", bio_done: false, website_url: "", url_done: false });
+  const row = editor.rows[0];
+  const proAccountDone = row.pro_account_done ?? false;
+  const setProAccountDone = (value: boolean) => editor.setRows(rows => [{ ...rows[0], pro_account_done: value }]);
+  const photoDone = row.photo_done ?? false;
+  const setPhotoDone = (value: boolean) => editor.setRows(rows => [{ ...rows[0], photo_done: value }]);
+  const displayName = row.display_name ?? "";
+  const setDisplayName = (value: string) => editor.setRows(rows => [{ ...rows[0], display_name: value }]);
+  const nameDone = row.name_done ?? false;
+  const setNameDone = (value: boolean) => editor.setRows(rows => [{ ...rows[0], name_done: value }]);
+  const bio = row.bio ?? "";
+  const setBio = (value: string) => editor.setRows(rows => [{ ...rows[0], bio: value }]);
+  const bioDone = row.bio_done ?? false;
+  const setBioDone = (value: boolean) => editor.setRows(rows => [{ ...rows[0], bio_done: value }]);
+  const websiteUrl = row.website_url ?? "";
+  const setWebsiteUrl = (value: string) => editor.setRows(rows => [{ ...rows[0], website_url: value }]);
+  const urlDone = row.url_done ?? false;
+  const setUrlDone = (value: boolean) => editor.setRows(rows => [{ ...rows[0], url_done: value }]);
+  const propValue = (propositionHookData as any)?.version_short || (propositionHookData as any)?.version_final || null;
+  const [nameSuggestions, setNameSuggestions] = usePinterestUi<string[]>(editor, "names", []);
+  const [bioSuggestions, setBioSuggestions] = usePinterestUi<string[]>(editor, "bios", []);
+  const [generatingName, setGeneratingName] = usePinterestUi(editor, `generatingName:${editor.key}`, false);
+  const [generatingBio, setGeneratingBio] = usePinterestUi(editor, `generatingBio:${editor.key}`, false);
+  const [copied, setCopied] = usePinterestUi<string | null>(editor, "copied", null);
   const completedCount = [proAccountDone, photoDone, nameDone, bioDone, urlDone].filter(Boolean).length;
-
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data: ppData, error: ppErr } = await (supabase.from("pinterest_profile") as any).select("*").eq(column, value).maybeSingle();
-      const ppRes = { data: ppData };
-      const prop = propositionHookData as any;
-      if (ppRes.data) {
-        const d = ppRes.data;
-        setProfileId(d.id);
-        setProAccountDone(d.pro_account_done || false);
-        setPhotoDone(d.photo_done || false);
-        setDisplayName(d.display_name || "");
-        setNameDone(d.name_done || false);
-        setBio(d.bio || "");
-        setBioDone(d.bio_done || false);
-        setWebsiteUrl(d.website_url || "");
-        setUrlDone(d.url_done || false);
-      }
-      if (prop) setPropValue(prop.version_short || prop.version_final || null);
-    };
-    load();
-  }, [user?.id, propositionHookData]);
-
-  const save = async () => {
-    if (!user) return;
-    const payload = { 
-      user_id: user.id, 
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      pro_account_done: proAccountDone, 
-      photo_done: photoDone, 
-      display_name: displayName, 
-      name_done: nameDone, 
-      bio, 
-      bio_done: bioDone, 
-      website_url: websiteUrl, 
-      url_done: urlDone, 
-      updated_at: new Date().toISOString() 
-    };
-    try {
-      if (profileId) {
-        const { error } = await supabase.from("pinterest_profile").update(payload).eq("id", profileId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from("pinterest_profile").insert(payload).select("id").single();
-        if (error) throw error;
-        if (data) setProfileId(data.id);
-      }
-      toast.success("✅ Compte sauvegardé !");
-    } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toast.error("Erreur", { description: friendlyError(e) });
-    }
-  };
+  const save = () => editor.save(undefined, "✅ Compte sauvegardé !");
 
   const generateName = async () => {
     setGeneratingName(true);
     try {
-      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "name", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "name", workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setNameSuggestions(parsed);
-    } catch (e: any) { toast.error("Erreur", { description: friendlyError(e) }); }
+    } catch (e: any) { if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingName(false); }
   };
 
   const generateBio = async () => {
     setGeneratingBio(true);
     try {
-      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "bio", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "bio", workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: string[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setBioSuggestions(parsed);
-    } catch (e: any) { toast.error("Erreur", { description: friendlyError(e) }); }
+    } catch (e: any) { if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingBio(false); }
   };
 
@@ -132,6 +82,8 @@ export default function PinterestCompte() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
+        <PinterestSaveStatus editor={editor} />
+        <fieldset disabled={editor.disabled || generatingName || generatingBio} className="min-w-0">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mon profil" useFromParam />
 
         <h1 className="font-display text-2xl font-bold text-foreground">📌 Mon profil Pinterest</h1>
@@ -221,6 +173,7 @@ export default function PinterestCompte() {
         </div>
 
         <Button onClick={save} className="mt-8 rounded-pill gap-2">💾 Enregistrer mon profil</Button>
+        </fieldset>
       </main>
     </div>
   );

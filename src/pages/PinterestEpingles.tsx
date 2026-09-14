@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react";
 import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { usePinterestEditor, usePinterestUi } from "@/hooks/use-pinterest-editor";
+import PinterestSaveStatus from "@/components/pinterest/PinterestSaveStatus";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -21,72 +19,43 @@ interface Pin { id?: string; subject: string; board_id: string; link_url: string
 interface PinVariant { title: string; description: string; }
 
 export default function PinterestEpingles() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
-  const [boards, setBoards] = useState<BoardOption[]>([]);
-  const [pins, setPins] = useState<Pin[]>([]);
-  // Generator state
-  const [subject, setSubject] = useState("");
-  const [boardId, setBoardId] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
-  const [variants, setVariants] = useState<PinVariant[]>([]);
-  const [generating, setGenerating] = useState(false);
-
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const [bRes, pRes] = await Promise.all([
-        (supabase.from("pinterest_boards") as any).select("id, name").eq(column, value).order("sort_order"),
-        (supabase.from("pinterest_pins") as any).select("*").eq(column, value).order("created_at", { ascending: false }),
-      ]);
-      if (bRes.data) setBoards(bRes.data);
-      if (pRes.data) setPins(pRes.data.map((d: any) => ({ id: d.id, subject: d.subject || "", board_id: d.board_id || "", link_url: d.link_url || "", title: d.title || "", description: d.description || "", variant_type: d.variant_type || "seo" })));
-    };
-    load();
-  }, [user?.id]);
+  const editor = usePinterestEditor("pinterest_pins");
+  const boardEditor = usePinterestEditor("pinterest_boards");
+  const boards = boardEditor.rows as BoardOption[];
+  const pins = editor.confirmedRows as Pin[];
+  const [subject, setSubject] = usePinterestUi(editor, "subject", "");
+  const [boardId, setBoardId] = usePinterestUi(editor, "boardId", "");
+  const [linkUrl, setLinkUrl] = usePinterestUi(editor, "linkUrl", "");
+  const [variants, setVariants] = usePinterestUi<PinVariant[]>(editor, "variants", []);
+  const [generating, setGenerating] = usePinterestUi(editor, `generating:${editor.key}`, false);
 
   const generatePin = async () => {
     if (!subject.trim()) return;
     setGenerating(true);
     try {
       const boardName = boards.find(b => b.id === boardId)?.name || "";
-      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "pin", subject, board_name: boardName, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "pin", subject, board_name: boardName, workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
       const c = res.data?.content || "";
       let parsed: PinVariant[];
       try { parsed = JSON.parse(c); } catch { const m = c.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setVariants(parsed);
-    } catch (e: any) { console.error("Erreur technique:", e); toast.error("Erreur", { description: friendlyError(e) }); }
+    } catch (e: any) { console.error("Erreur technique:", e); if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGenerating(false); }
   };
 
   const savePin = async (variant: PinVariant, variantType: string) => {
-    if (!user) return;
-    try {
-      const { data, error } = await supabase.from("pinterest_pins").insert({
-        user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, subject, board_id: boardId || null, link_url: linkUrl,
-        title: variant.title, description: variant.description, variant_type: variantType,
-      }).select("*").single();
-      if (error) throw error;
-      if (data) setPins(prev => [{ id: data.id, subject: data.subject || "", board_id: data.board_id || "", link_url: data.link_url || "", title: data.title || "", description: data.description || "", variant_type: data.variant_type || "seo" }, ...prev]);
-      toast.success("✅ Épingle sauvegardée !");
-    } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toast.error("Erreur", { description: friendlyError(e) });
-    }
+    if (boardEditor.loading || boardEditor.error) return;
+    if (boardId && !boards.some(board => board.id === boardId)) { toast.error("Choisis un tableau de cet espace."); return; }
+    // Keep the stable ID after an uncertain response, so retry never adds a duplicate.
+    const receiptKey = JSON.stringify([subject, boardId, linkUrl, variant, variantType]);
+    const id = editor.ui[receiptKey] || crypto.randomUUID();
+    editor.ui[receiptKey] = id;
+    const row = { id, subject, board_id: boardId || null, link_url: linkUrl, title: variant.title, description: variant.description, variant_type: variantType };
+    const saved = await editor.save([row, ...editor.rows.filter(pin => pin.id !== id)], "✅ Épingle sauvegardée !");
+    if (saved) delete editor.ui[receiptKey];
   };
-
-  const deletePin = async (id: string) => {
-    const { error } = await supabase.from("pinterest_pins").delete().eq("id", id);
-    if (error) {
-      console.error("Erreur technique:", error);
-      toast.error("Erreur", { description: friendlyError(error) });
-      return;
-    }
-    setPins(prev => prev.filter(p => p.id !== id));
-    toast.success("Épingle supprimée");
-  };
+  const deletePin = (id: string) => editor.save(editor.rows.filter(pin => pin.id !== id), "Épingle supprimée");
 
   const copyText = (text: string) => { navigator.clipboard.writeText(text); toast.success("📋 Copié !"); };
 
@@ -97,6 +66,9 @@ export default function PinterestEpingles() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
+        <PinterestSaveStatus editor={editor} />
+        <PinterestSaveStatus editor={boardEditor} />
+        <fieldset disabled={editor.disabled || generating || boardEditor.loading || !!boardEditor.error} className="min-w-0">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes épingles" useFromParam />
         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Tes épingles</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Chaque épingle est une porte d'entrée vers ton site. On va les optimiser pour qu'elles travaillent pour toi.</p>
@@ -148,6 +120,8 @@ export default function PinterestEpingles() {
           )}
         </section>
 
+        {editor.dirty && <Button onClick={() => editor.save()} className="mb-6">Réessayer l’enregistrement</Button>}
+
         {/* Saved pins */}
         <section>
           <h3 className="font-body text-base font-bold mb-3">Mes épingles sauvegardées</h3>
@@ -174,6 +148,7 @@ export default function PinterestEpingles() {
             </>
           )}
         </section>
+        </fieldset>
       </main>
     </div>
   );
