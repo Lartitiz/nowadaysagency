@@ -88,20 +88,18 @@ export function useProfileUserId(): string {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   let activeWorkspace: { id: string } | null = null;
-  let activeRole: string = "owner";
-
+  let workspaceLoading = false;
   try {
     const ws = useWorkspace();
     activeWorkspace = ws.activeWorkspace;
-    activeRole = ws.activeRole;
-  } catch {
-    // fallback
-  }
-
-  const isManager = activeRole === "manager" && !!activeWorkspace?.id;
+    workspaceLoading = ws.loading;
+  } catch { /* provider absent: personal scope */ }
+  // Role is resolved AFTER activeWorkspace changes. Never use it to choose
+  // a profile: every real workspace resolves its owner, including viewers.
+  const needsOwner = !!activeWorkspace?.id && !!user?.id && !isDemoMode && !workspaceLoading;
 
   const { data: ownerUserId, isError } = useQuery({
-    queryKey: ["workspace-owner", activeWorkspace?.id],
+    queryKey: ["workspace-owner", user?.id, activeWorkspace?.id],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("workspace_members")
@@ -112,12 +110,12 @@ export function useProfileUserId(): string {
       if (error) throw error;
       return data?.user_id as string | null;
     },
-    enabled: isManager,
+    enabled: needsOwner,
     staleTime: 5 * 60 * 1000,
     retry: 2,
   });
 
-  const ownerLookupFailed = isManager && isError;
+  const ownerLookupFailed = needsOwner && isError;
 
   useEffect(() => {
     if (ownerLookupFailed) {
@@ -128,12 +126,10 @@ export function useProfileUserId(): string {
     }
   }, [ownerLookupFailed]);
 
-  if (ownerLookupFailed) return "";
-  if (isManager && ownerUserId) return ownerUserId;
-  // Le faux user "demo-user" posé par AuthContext n'est pas un uuid valide —
-  // sans ce garde-fou, tout hook qui filtre "profiles" par user_id ferait 400.
   if (isDemoMode) return DEMO_FAKE_UUID;
-  return user?.id ?? "";
+  if (!user?.id || workspaceLoading) return "";
+  if (activeWorkspace?.id) return !isError && ownerUserId ? ownerUserId : "";
+  return user.id;
 }
 
 /**
