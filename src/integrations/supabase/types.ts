@@ -4614,6 +4614,7 @@ export type Database = {
           person_type: string | null
           reco_received: boolean | null
           request_sent: boolean | null
+          sort_order: number | null
           user_id: string
           workspace_id: string | null
         }
@@ -4624,6 +4625,7 @@ export type Database = {
           person_type?: string | null
           reco_received?: boolean | null
           request_sent?: boolean | null
+          sort_order?: number | null
           user_id: string
           workspace_id?: string | null
         }
@@ -4634,6 +4636,7 @@ export type Database = {
           person_type?: string | null
           reco_received?: boolean | null
           request_sent?: boolean | null
+          sort_order?: number | null
           user_id?: string
           workspace_id?: string | null
         }
@@ -8412,6 +8415,16 @@ export type Database = {
         Returns: undefined
       }
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
+      linkedin_save_state: {
+        Args: {
+          p_expected?: Json
+          p_rows?: Json
+          p_table: string
+          p_week?: string
+          p_workspace_id?: string
+        }
+        Returns: Json
+      }
       redeem_promo_and_grant_plan: {
         Args: {
           p_display_plan: string
