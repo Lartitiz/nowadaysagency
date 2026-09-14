@@ -108,7 +108,7 @@ export function useProfileUserId(): string {
         .eq("role", "owner")
         .maybeSingle();
       if (error) throw error;
-      return data?.user_id as string | null;
+      return (data?.user_id as string | undefined) ?? null;
     },
     enabled: needsOwner,
     staleTime: 5 * 60 * 1000,
