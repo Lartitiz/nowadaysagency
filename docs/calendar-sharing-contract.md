@@ -1,6 +1,6 @@
 # Calendar sharing contract (14 September 2026)
 
-Deploy `20260914144500_calendar_share_contract.sql`, then the three `public-calendar*` edge functions, then the frontend. The write RPC is callable only by `service_role`; public callers present their token to the edge functions.
+Deploy `20260914124114_a3377741-e722-4a33-a69b-b7ca2776ca4f.sql`, then the three `public-calendar*` edge functions, then the frontend. The write RPC is callable only by `service_role`; public callers present their token to the edge functions.
 
 ## Scope and compatibility
 
