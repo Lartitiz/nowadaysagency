@@ -39,10 +39,10 @@ BEGIN
  INSERT INTO public.calendar_posts(user_id,canal,status) VALUES(gen_random_uuid(),'instagram','ready') RETURNING id INTO other_owner;
  IF NOT (SELECT legacy_owner_scope FROM public.calendar_shares WHERE share_token='legacy') OR (SELECT legacy_owner_scope FROM public.calendar_shares WHERE share_token='personal') THEN RAISE EXCEPTION 'legacy/new scope lost'; END IF;
  FOREACH receipt IN ARRAY ARRAY[other_channel,other_workspace,other_owner] LOOP
-   IF public.public_calendar_write('scoped',receipt,'comment','hello','Test')->>'error' <> 'post_not_found' THEN RAISE EXCEPTION 'R4 scope failure'; END IF;
-   IF public.public_calendar_write('scoped',receipt,'status','draft_ready')->>'error' <> 'post_not_found' THEN RAISE EXCEPTION 'R5 scope failure'; END IF;
+   IF public.public_calendar_write('scoped',receipt,'comment','hello','Test')->>'error' IS DISTINCT FROM  'post_not_found' THEN RAISE EXCEPTION 'R4 scope failure'; END IF;
+   IF public.public_calendar_write('scoped',receipt,'status','draft_ready')->>'error' IS DISTINCT FROM  'post_not_found' THEN RAISE EXCEPTION 'R5 scope failure'; END IF;
  END LOOP;
- IF public.public_calendar_write('personal',p,'comment','hello','Test')->>'error' <> 'post_not_found' THEN RAISE EXCEPTION 'personal crosses workspace'; END IF;
+ IF public.public_calendar_write('personal',p,'comment','hello','Test')->>'error' IS DISTINCT FROM  'post_not_found' THEN RAISE EXCEPTION 'personal crosses workspace'; END IF;
  IF public.public_calendar_write('personal',personal,'comment','hello','Test')->>'id' IS NULL THEN RAISE EXCEPTION 'personal blocked'; END IF;
  IF public.public_calendar_write('legacy',other_workspace,'comment','legacy permission','Test')->>'id' IS NULL THEN RAISE EXCEPTION 'legacy scope blocked'; END IF;
  BEGIN
@@ -57,18 +57,18 @@ BEGIN
  r:=public.public_calendar_write('scoped',p,'comment','hello','Test',receipt);
  IF r->>'id' IS NULL OR public.public_calendar_write('scoped',p,'comment','hello','Test',receipt)->>'id' <> r->>'id' THEN RAISE EXCEPTION 'replay failed'; END IF;
  IF (SELECT count(*) FROM public.calendar_comments WHERE request_id=receipt)<>1 THEN RAISE EXCEPTION 'duplicate'; END IF;
- IF public.public_calendar_write('scoped',p,'comment','changed','Test',receipt)->>'error'<>'request_conflict' THEN RAISE EXCEPTION 'payload mismatch'; END IF;
- IF public.public_calendar_write('scoped',p,'wording','flatten')->>'error'<>'structured_content_required' THEN RAISE EXCEPTION 'flatten allowed'; END IF;
- IF public.public_calendar_write('scoped',p,'wording','[{"title":"New","image":"changed.png","id":"same"}]')->>'error'<>'structured_content_required' THEN RAISE EXCEPTION 'media changed'; END IF;
+ IF public.public_calendar_write('scoped',p,'comment','changed','Test',receipt)->>'error' IS DISTINCT FROM 'request_conflict' THEN RAISE EXCEPTION 'payload mismatch'; END IF;
+ IF public.public_calendar_write('scoped',p,'wording','flatten')->>'error' IS DISTINCT FROM 'structured_content_required' THEN RAISE EXCEPTION 'flatten allowed'; END IF;
+ IF public.public_calendar_write('scoped',p,'wording','[{"title":"New","image":"changed.png","id":"same"}]')->>'error' IS DISTINCT FROM 'structured_content_required' THEN RAISE EXCEPTION 'media changed'; END IF;
  r:=public.public_calendar_write('scoped',p,'wording','[{"title":"New","image":"keep.png","id":"same"}]');
- IF r->>'success'<>'true' THEN RAISE EXCEPTION 'structured edit refused %',r; END IF;
+ IF r->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'structured edit refused %',r; END IF;
  IF (SELECT content_data FROM public.calendar_posts WHERE id=p)<>'{"slides":[1,2]}'::jsonb OR (SELECT media_urls FROM public.calendar_posts WHERE id=p)<>'["photo.png"]'::jsonb THEN RAISE EXCEPTION 'other content lost'; END IF;
- IF public.public_calendar_write('scoped',p,'wording','[{"title":"Another","image":"keep.png","id":"same"}]',NULL,NULL,t)->>'error'<>'conflict' THEN RAISE EXCEPTION 'stale edit allowed'; END IF;
+ IF public.public_calendar_write('scoped',p,'wording','[{"title":"Another","image":"keep.png","id":"same"}]',NULL,NULL,t)->>'error' IS DISTINCT FROM 'conflict' THEN RAISE EXCEPTION 'stale edit allowed'; END IF;
  -- A public projected draft omits crosspost provenance; editing restores it unchanged.
  UPDATE public.calendar_posts SET content_draft='{"caption":"Target","_crosspost":{"source_text":"secret","result":{"versions":{"linkedin":"private"}}}}' WHERE id=p;
  r:=public.public_calendar_write('scoped',p,'wording','{"caption":"Edited target"}');
- IF r->>'success'<>'true' OR (SELECT content_draft::jsonb->'_crosspost'->>'source_text' FROM public.calendar_posts WHERE id=p)<>'secret' THEN RAISE EXCEPTION 'private provenance lost'; END IF;
- IF public.public_calendar_write('scoped',p,'wording','{"caption":"Edited target"}',NULL,NULL,t)->>'success'<>'true' THEN RAISE EXCEPTION 'structured retry failed'; END IF;
+ IF r->>'success' IS DISTINCT FROM 'true' OR (SELECT content_draft::jsonb->'_crosspost'->>'source_text' FROM public.calendar_posts WHERE id=p)<>'secret' THEN RAISE EXCEPTION 'private provenance lost'; END IF;
+ IF public.public_calendar_write('scoped',p,'wording','{"caption":"Edited target"}',NULL,NULL,t)->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'structured retry failed'; END IF;
  -- Audit log failure must roll the edit back, not return a false success.
  CREATE FUNCTION public.reject_test_log() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW.content LIKE '[EDIT]%' THEN RAISE EXCEPTION 'synthetic log failure'; END IF; RETURN NEW; END $body$;
  CREATE TRIGGER reject_test_log BEFORE INSERT ON public.calendar_comments FOR EACH ROW EXECUTE FUNCTION public.reject_test_log();
@@ -81,14 +81,14 @@ BEGIN
  IF (SELECT status FROM public.calendar_posts WHERE id=p)<>'ready' THEN RAISE EXCEPTION 'non atomic edit'; END IF;
  DROP TRIGGER reject_test_log ON public.calendar_comments;
  UPDATE public.calendar_shares SET show_content_draft=false WHERE share_token='scoped';
- IF public.public_calendar_write('scoped',p,NULL,'text')->>'error'<>'invalid_field' THEN RAISE EXCEPTION 'null action bypassed permissions'; END IF;
- IF public.public_calendar_write('scoped',p,'wording','text')->>'error'<>'permission_denied' THEN RAISE EXCEPTION 'hidden wording editable'; END IF;
+ IF public.public_calendar_write('scoped',p,NULL,'text')->>'error' IS DISTINCT FROM 'invalid_field' THEN RAISE EXCEPTION 'null action bypassed permissions'; END IF;
+ IF public.public_calendar_write('scoped',p,'wording','text')->>'error' IS DISTINCT FROM 'permission_denied' THEN RAISE EXCEPTION 'hidden wording editable'; END IF;
  UPDATE public.calendar_shares SET guest_can_edit_status=false WHERE share_token='scoped';
- IF public.public_calendar_write('scoped',p,'status','draft_ready')->>'error'<>'permission_denied' THEN RAISE EXCEPTION 'status permission'; END IF;
+ IF public.public_calendar_write('scoped',p,'status','draft_ready')->>'error' IS DISTINCT FROM 'permission_denied' THEN RAISE EXCEPTION 'status permission'; END IF;
  UPDATE public.calendar_shares SET expires_at=now() WHERE share_token='scoped';
- IF public.public_calendar_write('scoped',p,'comment','hello','Test')->>'error'<>'expired' THEN RAISE EXCEPTION 'expiration'; END IF;
+ IF public.public_calendar_write('scoped',p,'comment','hello','Test')->>'error' IS DISTINCT FROM 'expired' THEN RAISE EXCEPTION 'expiration'; END IF;
  UPDATE public.calendar_shares SET is_active=false WHERE share_token='scoped';
- IF public.public_calendar_write('scoped',p,'comment','hello','Test')->>'error'<>'invalid_token' THEN RAISE EXCEPTION 'revocation'; END IF;
+ IF public.public_calendar_write('scoped',p,'comment','hello','Test')->>'error' IS DISTINCT FROM 'invalid_token' THEN RAISE EXCEPTION 'revocation'; END IF;
  IF has_function_privilege('anon','public.public_calendar_write(text,uuid,text,text,text,uuid,timestamptz)','EXECUTE') OR has_function_privilege('authenticated','public.public_calendar_write(text,uuid,text,text,text,uuid,timestamptz)','EXECUTE') THEN RAISE EXCEPTION 'RPC exposed'; END IF;
  IF NOT has_function_privilege('service_role','public.public_calendar_write(text,uuid,text,text,text,uuid,timestamptz)','EXECUTE') THEN RAISE EXCEPTION 'service missing'; END IF;
 END $$;
