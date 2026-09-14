@@ -32,4 +32,10 @@ describe("durable creation context", () => {
     clearFlowState();
     expect(loadFlowState()).toBeNull();
   });
+  it("does not purge an identified account's backup during unknown-session initialization", () => {
+    saveFlowState({step:"idea",ideaText:"Private initial draft"});
+    setFlowUserId(null); expect(loadFlowState()).toBeNull(); clearFlowState();
+    setFlowUserId("owner"); expect(loadFlowState()?.ideaText).toBe("Private initial draft");
+  });
+
 });

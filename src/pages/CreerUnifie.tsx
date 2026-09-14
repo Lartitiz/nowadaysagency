@@ -10,7 +10,7 @@ import { pickNonEmpty } from "@/features/creer/photo-source";
 import { findPublishableImageUrl, extractInstagramCaption, extractLinkedInText, instagramPublishDisabledReason, isInstagramPublishTarget, linkedInPublishDisabledReason, REASON_IMAGE_MANQUANTE, checkScheduleGuards, tokenExpiresBeforeSchedule } from "@/features/creer/publish-guards";
 import { startSocialConnect } from "@/lib/social-connect";
 import { UX_UPLOAD_LIMITS, uxSizeError } from "@/lib/upload-limits";
-import { useSearchParams, useLocation, useNavigate, Link } from "react-router-dom";
+import { useSearchParams, useLocation, useNavigate, useNavigationType, Link } from "react-router-dom";
 import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
@@ -90,7 +90,7 @@ import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linked
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
 import { supabase } from "@/integrations/supabase/client";
-import { loadFlowState, saveFlowState, clearFlowState, savePhotos, loadPhotos, loadPhotosLocal, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
+import { loadFlowState, saveFlowState as persistFlowState, clearFlowState, savePhotos as persistPhotos, loadPhotos, loadPhotosLocal, setFlowWorkspaceId, setFlowUserId } from "@/hooks/use-flow-persistence";
 import DraftConflictDialog from "@/components/creer/DraftConflictDialog";
 import { isAurianaDemoEmail, AURIANA_DEMO_SUBJECT, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 
@@ -137,7 +137,8 @@ type Step = "idea" | "format" | "questions" | "hook_selection" | "structure_revi
 
 export default function CreerUnifie() {
   const entryLocation = useLocation();
-  const entryKey = useCreationEntryKey(entryLocation.search, entryLocation.key);
+  const navigationType = useNavigationType();
+  const entryKey = useCreationEntryKey(entryLocation.search, entryLocation.key, navigationType, !!entryLocation.state);
   const workspaceId = useWorkspaceId();
   const ready = useWorkspaceReady();
   const { user } = useAuth();
@@ -211,7 +212,7 @@ function CreerWorkspace() {
     if (aurianaDemoActive) return null;
     const d = existingFlowState;
     if (!d) return null;
-    const hasDraftContent = !!(d.ideaText || d.result || d.editContent || d.selectedFormat);
+    const hasDraftContent = !!(d.ideaText || d.photoSubject || d.photoDescription || loadPhotos().length || d.result || d.editContent || d.selectedFormat);
     if (!hasDraftContent) return null;
     const newSubject = (paramSujet || locState.sujet || locState.subject || "").trim();
     const hasNewIntent = !!(
@@ -221,11 +222,16 @@ function CreerWorkspace() {
       locState.fromBrief ||
       locState.fromCalendar ||
       locState.context ||
+      locState.libraryPhotoIds?.length ||
+      locState.resumeIdea ||
+      paramIdeaId ||
+      paramAuto ||
       paramFormat
     );
     if (!hasNewIntent) return null;
     // Même sujet que le brouillon → pas de conflit, on reprend simplement.
-    if (!isFreshStart && newSubject && d.ideaText && newSubject.slice(0, 80) === d.ideaText.trim().slice(0, 80)) return null;
+    const hasSource = !!(paramIdeaId || locState.ideaId || locState.fromBrief || locState.fromCalendar || locState.fromRecycle || locState.resumeIdea || locState.libraryPhotoIds?.length);
+    if (!isFreshStart && !hasSource && newSubject && newSubject === d.ideaText?.trim()) return null;
     return {
       draft: {
         step: d.step,
@@ -238,6 +244,9 @@ function CreerWorkspace() {
         questions: d.questions ?? [],
         answers: d.answers ?? {},
         isLinkedInCarousel: d.isLinkedInCarousel ?? false,
+        photoCount: loadPhotos().length,
+        photoSubject: d.photoSubject, photoDescription: d.photoDescription,
+        forcedChannel: d.forcedChannel,
       },
       newSubject,
     };
@@ -245,12 +254,26 @@ function CreerWorkspace() {
   const [conflictResolved, setConflictResolved] = useState(false);
   const conflictPending = !!draftConflict && !conflictResolved;
 
-  const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && existingFlowState.step !== "idea"));
+  const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && !!existingFlowState.step));
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
   const ps = persistedState.current;
   const [creationId, setCreationId] = useState(ps?.creationId || crypto.randomUUID());
+  const activeVisit = useRef(false);
+  useEffect(() => { activeVisit.current = true; return () => { activeVisit.current = false; }; }, []);
+  const activeCreation = useRef(creationId);
+  activeCreation.current = creationId;
+  const isCurrentCreation = useCallback(() => activeVisit.current && activeCreation.current === creationId && !conflictPending, [creationId, conflictPending]);
+  // Old callbacks must not write through the global scope after A → B → A.
+  const saveFlowState = useCallback((state: Parameters<typeof persistFlowState>[0]) => {
+    if (isCurrentCreation()) persistFlowState(state);
+  }, [isCurrentCreation]);
+  const savePhotos = useCallback((photos: any[]) => {
+    if (isCurrentCreation()) return persistPhotos(photos);
+    return Promise.resolve();
+  }, [isCurrentCreation]);
+
   const autoOpenTransform = paramMode === "transform";
   // Mode « 1er contenu » (auto=1) figé pour TOUTE la session du parcours :
   // le paramètre d'URL est retiré une fois l'init consommée (voir plus bas),
@@ -266,8 +289,8 @@ function CreerWorkspace() {
   // (le sujet est conservé). CreerStepFormat pré-sélectionne ensuite ce canal.
   const FORCED_CANALS = ["instagram", "linkedin", "pinterest", "newsletter"] as const;
   type ForcedChannel = (typeof FORCED_CANALS)[number];
-  const forcedChannel: ForcedChannel | null =
-    (FORCED_CANALS as readonly string[]).includes(paramCanal || "") ? (paramCanal as ForcedChannel) : null;
+  const [forcedChannel] = useState<ForcedChannel | null>(() =>
+    (FORCED_CANALS as readonly string[]).includes(paramCanal || "") ? (paramCanal as ForcedChannel) : ps?.forcedChannel ?? null);
   const restoredCanal = deriveCanalFromState(ps);
   const canalConflict = !!forcedChannel && !!restoredCanal && restoredCanal !== forcedChannel;
   // Restore step — allow "result" and "edit" if their data is available
@@ -321,7 +344,7 @@ function CreerWorkspace() {
   })();
   const [step, setStep] = useState<Step>(safeStep);
   
-  const [ideaText, setIdeaText] = useState(ps?.ideaText || paramSujet || locState.sujet || locState.subject || "");
+  const [ideaText, setIdeaText] = useState(ps?.ideaText ?? (paramSujet || locState.sujet || locState.subject || ""));
   const [objective, setObjective] = useState<string | null>(
     ps?.objective || paramObjectif || locState.objectif || locState.objective || null
   );
@@ -385,6 +408,8 @@ function CreerWorkspace() {
     rawType: "photo" | "mix" | null;
   }>({ open: false, rawType: null });
   const [photoDescription, setPhotoDescription] = useState(ps?.photoDescription ?? "");
+  const [photoSubject, setPhotoSubject] = useState(ps?.photoSubject ?? ps?.ideaText ?? "");
+  const [photoEntry, setPhotoEntry] = useState(ps?.photoEntry ?? (shouldRestore && loadPhotos().length > 0));
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
   const [pinterestData, setPinterestData] = useState<{ link?: string; boardId?: string; boardName?: string } | null>(null);
@@ -604,9 +629,9 @@ function CreerWorkspace() {
     enabled: carouselCloudEnabled,
     userId: session?.user?.id || "", workspaceId, isOwnSpace, ideaId: editingIdeaId,
     raw: result?.raw, title: ideaText, channel: isLinkedInCarousel ? "linkedin" : "instagram",
-    onId: (id) => { setEditingIdeaId(id); saveFlowState({ editingIdeaId: id }); },
-    onSaved: (meta) => setResult((prev: any) => prev ? { ...prev, raw: { ...prev.raw, _carousel_cloud: meta } } : prev),
-    onRestore: (raw) => { setResult((prev: any) => prev ? { ...prev, raw } : prev); setVisualSlides(raw.visual_html || []); },
+    onId: (id) => { if (!isCurrentCreation()) return; setEditingIdeaId(id); saveFlowState({ editingIdeaId: id }); },
+    onSaved: (meta) => { if (isCurrentCreation()) setResult((prev: any) => prev ? { ...prev, raw: { ...prev.raw, _carousel_cloud: meta } } : prev); },
+    onRestore: (raw) => { if (!isCurrentCreation()) return; setResult((prev: any) => prev ? { ...prev, raw } : prev); setVisualSlides(raw.visual_html || []); },
   });
   const carouselQuality = useCarouselQuality(visualSlides, selectedFormat === "carousel" && step === "result" && !visualLoading && !generating);
 
@@ -705,9 +730,8 @@ function CreerWorkspace() {
   // Auto-persist state on changes
   useEffect(() => {
     if (conflictPending) return;
-    // Only persist when we're past the idea step or have meaningful state
-    if (step !== "idea" || ideaText) {
-      saveFlowState({
+    // Persist empty edits as well: an empty field must never revive old text.
+    saveFlowState({
         step,
         ideaText,
         objective,
@@ -727,13 +751,12 @@ function CreerWorkspace() {
         incomingBriefId, currentBriefId,
         carouselSubMode,
         slideLength,
-        photoDescription,
+        photoDescription, photoSubject, photoEntry, forcedChannel,
         isLinkedInCarousel,
         autoFlow, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat,
         calendarPostId, calendarPostDate,
-      });
-    }
-  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, photoDescription, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
+    });
+  }, [conflictPending, step, ideaText, objective, selectedFormat, editorialAngle, answers, editContent, result, visualSlides, savedId, questions, inspirationAnalysis, inspirationProposals, inspirationImagePreview, editingIdeaId, incomingBriefId, currentBriefId, carouselSubMode, slideLength, photoDescription, photoSubject, photoEntry, forcedChannel, isLinkedInCarousel, workspaceId, creationId, newsjackingContext, newsjackingSuggestedFormat, calendarPostId, calendarPostDate]);
 
   // Filet anti-perte : pendant le streaming, sauvegarder le texte déjà reçu
   // (throttle ~1,5 s). Sans ça, un reload/fermeture mi-génération repartait à
@@ -931,12 +954,14 @@ function CreerWorkspace() {
       : [],
   );
   const libraryLoadedRef = useRef(false);
+  const initialCreationId = useRef(creationId);
   useEffect(() => {
-    if (libraryLoadedRef.current) return;
+    if (conflictPending || creationId !== initialCreationId.current || libraryLoadedRef.current) return;
     const ids = libraryPhotoIdsRef.current;
     if (ids.length === 0) return;
     if (!workspaceId) return; // attend que le workspace soit prêt
     libraryLoadedRef.current = true;
+    let cancelled = false;
 
     (async () => {
       setIsLoadingLibraryPhotos(true);
@@ -970,6 +995,7 @@ function CreerWorkspace() {
             });
           }
         });
+        if (cancelled) return;
         if (items.length === 0) throw new Error("Impossible de charger la photo.");
         setUploadedPhotos(items);
         if (items.length > 0) savePhotos(items);
@@ -982,14 +1008,16 @@ function CreerWorkspace() {
           setIdeaText(candidate);
         }
       } catch (e: any) {
+        if (cancelled) return;
         toast.error(e?.message || "Impossible de charger la photo de la photothèque.");
         setStep("idea");
       } finally {
-        setIsLoadingLibraryPhotos(false);
+        if (!cancelled) setIsLoadingLibraryPhotos(false);
       }
     })();
+    return () => { cancelled = true; libraryLoadedRef.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId]);
+  }, [workspaceId, conflictPending, creationId]);
 
 
   // ── Rehydrate les photos après restauration du flux (recyclage d'onglet,
@@ -997,7 +1025,7 @@ function CreerWorkspace() {
   // téléchargés depuis le serveur. Voir use-flow-persistence (hybride). ──
   const photosRehydratedRef = useRef(false);
   useEffect(() => {
-    if (photosRehydratedRef.current) return;
+    if (conflictPending || creationId !== initialCreationId.current || photosRehydratedRef.current) return;
     if (!shouldRestore) return;
     // Le chemin "Partir de la photothèque" (locState.libraryPhotoIds) gère
     // déjà son propre chargement — ne pas le doubler.
@@ -1040,7 +1068,7 @@ function CreerWorkspace() {
           .map((p: any) => {
             if (!p.needsLibraryFetch) return p;
             const lib = p.userPhotoId ? byUserPhotoId[p.userPhotoId] : undefined;
-            if (!lib) return null; // refetch impossible → photo perdue
+            if (!lib) return { ...p, missingLocalPhoto: true }; // Keep the reference and slot on a failed refetch.
             return {
               ...p,
               base64: lib.base64,
@@ -1062,16 +1090,16 @@ function CreerWorkspace() {
         }
         setUploadedPhotos((prev) => (prev.length > 0 ? prev : merged));
         setGeneratedWithPhotos((prev) => (prev.length > 0 ? prev : merged));
-        if (merged.length < manifest.length) {
+        if (merged.length < manifest.length || merged.some((photo: any) => photo.missingLocalPhoto)) {
           toast.warning("Certaines photos n'ont pas pu être rechargées.");
         }
       } catch (e) {
         console.warn("[creer] rehydrate photos failed", e);
       }
     })();
-    return () => { cancelled = true; };
+    return () => { cancelled = true; photosRehydratedRef.current = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [workspaceId]);
+  }, [workspaceId, conflictPending, creationId]);
 
   // Show error
   useEffect(() => {
@@ -1180,9 +1208,7 @@ function CreerWorkspace() {
     setUploadedPhotos(photos);
     if (photos.length > 0) savePhotos(photos);
     setPhotoDescription(description);
-    if (subject && subject.trim()) {
-      setIdeaText(subject.trim());
-    }
+    setIdeaText(subject?.trim() ?? "");
     setSelectedFormat(null);
     setEditorialAngle(null);
     setCarouselSubMode(null);
@@ -1700,7 +1726,9 @@ function CreerWorkspace() {
   const handleReset = () => {
     setCurrentBriefId(null);
     setIncomingBriefId(null);
-    setCreationId(crypto.randomUUID());
+    const nextCreationId = crypto.randomUUID();
+    activeCreation.current = nextCreationId;
+    setCreationId(nextCreationId);
     setCalendarPostId(null);
     setCalendarPostDate(null);
     setNewsjackingSuggestedFormat(null);
@@ -1724,6 +1752,8 @@ function CreerWorkspace() {
     setIsLinkedInCarousel(false);
     setUploadedPhotos([]);
     setPhotoDescription("");
+    setPhotoSubject("");
+    setPhotoEntry(false);
     setPhotoMode(false);
     setIsLinkedInCarousel(false);
     setInspirationLoading(false);
@@ -1984,6 +2014,7 @@ function CreerWorkspace() {
 
   // ── Sauvegarde dans le calendrier (nouveau post + mise à jour d'un post existant) ──
   const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage, resetPublishedTracking } = useCalendarSave({
+    enabled: !conflictPending,
     creationId,
     session,
     result,
@@ -2575,6 +2606,7 @@ function CreerWorkspace() {
           }}
           onStartNew={() => {
             handleReset();
+            initialCreationId.current = activeCreation.current;
             persistedState.current = null;
             initDone.current = false;
             justStrippedRef.current = false;
@@ -2646,7 +2678,10 @@ function CreerWorkspace() {
             {step === "idea" && (
               <>
                 <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} initialPhotos={uploadedPhotos.length > 0 ? uploadedPhotos : undefined} initialPhotoDescription={photoDescription || undefined} initialPhotoSubject={ideaText || undefined} />
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                  onIdeaChange={setIdeaText} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
+                  onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={setPhotoSubject}
+                  photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry} />
               </>
             )}
 

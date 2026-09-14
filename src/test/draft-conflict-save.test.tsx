@@ -28,4 +28,34 @@ describe("protecting the current draft", () => {
     await waitFor(() => expect(onStartNew).toHaveBeenCalledTimes(1));
     expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({ canal: "linkedin", content_data: { slides: [{ title: "Bonjour" }], visual_html: draft.visualSlides } }));
   });
+  it("preserves the full initial text and channel instead of only its truncated title", async () => {
+    mocks.insert.mockResolvedValue({ error: null });
+    const initial = "  Premier texte complet\n" + "suite ".repeat(40);
+    const onStartNew = vi.fn();
+    render(<DraftConflictDialog open draft={{step:"idea",ideaText:initial,selectedFormat:null,result:null,editContent:"",forcedChannel:"newsletter"}} newSubject="Nouveau" onResume={vi.fn()} onStartNew={onStartNew}/>);
+    fireEvent.click(screen.getByText("Démarrer le nouveau contenu"));
+    await waitFor(() => expect(onStartNew).toHaveBeenCalled());
+    expect(mocks.insert).toHaveBeenCalledWith(expect.objectContaining({canal:"newsletter",content_data:{content:initial}}));
+  });
+  it("does not reset a new visit after an old save finishes", async () => {
+    let resolve: (value: any) => void;
+    mocks.insert.mockReturnValue(new Promise(r => {resolve=r;}));
+    const onStartNew=vi.fn();
+    const app=render(<DraftConflictDialog open draft={draft} newSubject="Nouveau" onResume={vi.fn()} onStartNew={onStartNew}/>);
+    fireEvent.click(screen.getByText("Démarrer le nouveau contenu")); app.unmount();
+    resolve!({error:null}); await Promise.resolve(); await Promise.resolve();
+    expect(onStartNew).not.toHaveBeenCalled(); expect(mocks.success).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {step:"format", photoCount:1},
+    {step:"idea", photoDescription:"Description avant import", photoSubject:"Sujet photo"},
+  ])("keeps unarchived photo inputs at $step instead of confirming a text-only save", async (photoDraft) => {
+    const onStartNew=vi.fn();
+    render(<DraftConflictDialog open draft={{...draft,result:null,editContent:"",...photoDraft}} newSubject="Nouveau" onResume={vi.fn()} onStartNew={onStartNew}/>);
+    fireEvent.click(screen.getByText("Démarrer le nouveau contenu"));
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    expect(mocks.insert).not.toHaveBeenCalled(); expect(onStartNew).not.toHaveBeenCalled();
+  });
+
 });

@@ -16,6 +16,12 @@ import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 interface Props {
   onNext: (idea: string) => void;
+  onIdeaChange?: (idea: string) => void;
+  onPhotosChange?: (photos: PhotoItem[]) => void;
+  onPhotoDescriptionChange?: (description: string) => void;
+  onPhotoSubjectChange?: (subject: string) => void;
+  onPhotoEntryChange?: (open: boolean) => void;
+  photoEntry?: boolean;
   onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
   onPhotosNext?: (photos: PhotoItem[], description: string, subject: string) => void;
@@ -38,15 +44,27 @@ const STARTER_IDEAS = [
   "Ce que j'aurais aimé savoir en débutant",
 ];
 
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject }: Props) {
-  const [idea, setIdea] = useState(initialIdea || "");
+export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry }: Props) {
+  const [fallbackIdea, setFallbackIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
-  const [showPhotosMode, setShowPhotosMode] = useState(!!(initialPhotos && initialPhotos.length > 0));
+  const [fallbackPhotoEntry, setFallbackPhotoEntry] = useState(!!(initialPhotos && initialPhotos.length > 0));
   const [showTransform, setShowTransform] = useState(!!autoOpenTransform);
-  const [localPhotos, setLocalPhotos] = useState<PhotoItem[]>(initialPhotos || []);
-  const [localDescription, setLocalDescription] = useState(initialPhotoDescription || "");
-  const [localPhotoSubject, setLocalPhotoSubject] = useState(initialPhotoSubject || "");
+  const [fallbackPhotos, setFallbackPhotos] = useState<PhotoItem[]>(initialPhotos || []);
+  const [fallbackDescription, setFallbackDescription] = useState(initialPhotoDescription || "");
+  const [fallbackPhotoSubject, setFallbackPhotoSubject] = useState(initialPhotoSubject || "");
+  // The creator owns the draft, including explicit empty values and async photos.
+  // Standalone callers can still use the historical initial-value API.
+  const idea = onIdeaChange ? initialIdea ?? "" : fallbackIdea;
+  const setIdea = onIdeaChange ?? setFallbackIdea;
+  const localPhotos = onPhotosChange ? initialPhotos ?? [] : fallbackPhotos;
+  const setLocalPhotos = onPhotosChange ?? setFallbackPhotos;
+  const localDescription = onPhotoDescriptionChange ? initialPhotoDescription ?? "" : fallbackDescription;
+  const setLocalDescription = onPhotoDescriptionChange ?? setFallbackDescription;
+  const localPhotoSubject = onPhotoSubjectChange ? initialPhotoSubject ?? "" : fallbackPhotoSubject;
+  const setLocalPhotoSubject = onPhotoSubjectChange ?? setFallbackPhotoSubject;
+  const showPhotosMode = onPhotoEntryChange ? !!photoEntry : fallbackPhotoEntry;
+  const setShowPhotosMode = onPhotoEntryChange ?? setFallbackPhotoEntry;
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
 
@@ -87,9 +105,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
 
   const exitPhotosMode = () => {
     setShowPhotosMode(false);
-    setLocalPhotos([]);
-    setLocalDescription("");
-    setLocalPhotoSubject("");
+    // Returning to the text entry is navigation, not a request to delete photos.
   };
 
   return (

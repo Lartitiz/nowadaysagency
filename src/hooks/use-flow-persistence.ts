@@ -46,6 +46,9 @@ interface FlowState {
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
   slideLength?: "auto" | "short" | "classic";
   photoDescription?: string;
+  photoSubject?: string;
+  photoEntry?: boolean;
+  forcedChannel?: "instagram" | "linkedin" | "pinterest" | "newsletter" | null;
   isLinkedInCarousel?: boolean;
   /** Mode « 1er contenu » (?auto=1) : l'URL est nettoyée après l'init, le mode
    *  survit ici pour que le récap « Ton premier contenu » tienne au reload. */
@@ -108,18 +111,14 @@ export function saveFlowState(state: Partial<FlowState>) {
 
     const userId = getFlowUserId();
     // Backup to localStorage for tab-recycling / HMR protection — scoped per user.
-    // Save on any step beyond "idea" so in-progress work survives reloads.
-    if (userId && merged.step && merged.step !== "idea") {
+    // Initial typing is work too; explicit reset alone removes the backup.
+    if (userId && merged.step) {
       try {
         localStorage.setItem(backupKeyFor(userId), JSON.stringify(merged));
-      } catch { toast.warning("La copie de secours n’a pas pu être enregistrée. Enregistre ton carrousel dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" }); }
-    }
-    // Returning to the "idea" step purges any stale backup for this user.
-    if (userId && state.step === "idea") {
-      try { localStorage.removeItem(backupKeyFor(userId)); } catch {}
+      } catch { toast.warning("La copie de secours n’a pas pu être enregistrée. Enregistre ton contenu dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" }); }
     }
   } catch {
-    if (state.result?.raw?.carousel_editor_version) toast.warning("Sauvegarde locale indisponible. Enregistre ton carrousel dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" });
+    if (state.step || state.ideaText !== undefined || state.result) toast.warning("Sauvegarde locale indisponible. Enregistre ton contenu dans Mes idées avant de fermer cet onglet.", { id: "carousel-storage-warning" });
   }
 }
 
@@ -128,8 +127,8 @@ export function loadFlowState(): FlowState | null {
     const raw = sessionStorage.getItem(flowStorageKey());
     if (raw) {
       const parsed = JSON.parse(raw) as FlowState;
-      if (parsed.ownerId && getFlowUserId() && parsed.ownerId !== getFlowUserId()) return null;
-      return parsed;
+      if (!parsed.ownerId || parsed.ownerId === getFlowUserId()) return parsed;
+      // Another account may have used this tab. Try this account's own backup.
     }
     // Fallback: try localStorage backup (survives tab recycling) — scoped per user.
     const userId = getFlowUserId();
@@ -154,13 +153,7 @@ export function clearFlowState() {
     const userId = getFlowUserId();
     if (userId) {
       localStorage.removeItem(backupKeyFor(userId));
-    } else {
-      // Safety net: sweep any scoped backup if user unknown.
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(BACKUP_PREFIX)) localStorage.removeItem(k);
-      }
-    }
+    } // An unknown session must never sweep other accounts' backups.
   } catch {}
   clearPhotos();
 }
@@ -190,6 +183,9 @@ export interface PhotoManifestEntry {
   context?: string;
   userPhotoId?: string;
   edited?: boolean;
+  stockSource?: string;
+  stockPhotographer?: string;
+  stockSourceUrl?: string;
   /** true → le base64 est dans IndexedDB sous la clé `id`. */
   local: boolean;
   /** Ancien format inline (rétro-compat) — base64 directement dans le manifeste. */
@@ -227,9 +223,9 @@ async function idbPut(key: string, value: any): Promise<void> {
     });
   } finally { db.close(); }
 }
-async function idbGet(key: string): Promise<any> {
+async function idbGet(key: string, prefix: string): Promise<any> {
   const legacyKey = key;
-  key = photoRecordPrefix() + key;
+  key = prefix + key;
   const db = await idbOpen();
   try {
     return await new Promise<any>((resolve, reject) => {
@@ -286,10 +282,11 @@ export async function savePhotos(photos: any[]): Promise<void> {
         context: p.context,
         userPhotoId: p.userPhotoId,
         edited: !!p.edited,
+        stockSource: p.stockSource, stockPhotographer: p.stockPhotographer, stockSourceUrl: p.stockSourceUrl,
         local: !isLibraryOriginal,
       });
       if (!isLibraryOriginal && p.base64 && idbAvailable()) {
-        writes.push(idbPut(id, { base64: p.base64, mimeType: p.mimeType, name: p.name }));
+        writes.push(idbPut(id, { base64: p.base64, mimeType: p.mimeType, name: p.name, originalBase64: p.originalBase64, originalMimeType: p.originalMimeType }));
       }
     }
     const payload = JSON.stringify({ photos: manifest, ownerId: getFlowUserId(), ts: Date.now() });
@@ -323,6 +320,10 @@ export async function savePhotos(photos: any[]): Promise<void> {
 export function loadPhotos(): PhotoManifestEntry[] {
   try {
     let raw = sessionStorage.getItem(photosStorageKey());
+    if (raw) {
+      const owner = JSON.parse(raw).ownerId;
+      if (owner && owner !== getFlowUserId()) raw = null;
+    }
     if (!raw) {
       const userId = getFlowUserId();
       if (userId) {
@@ -362,25 +363,26 @@ export function loadPhotos(): PhotoManifestEntry[] {
  */
 export async function loadPhotosLocal(): Promise<any[]> {
   const manifest = loadPhotos();
+  const prefix = photoRecordPrefix();
   const out: any[] = [];
   for (const e of manifest) {
     if (e._legacyBase64) {
-      out.push({ id: e.id, base64: e._legacyBase64, preview: e._legacyBase64, name: e.name, mimeType: e.mimeType, context: e.context || "", userPhotoId: e.userPhotoId, edited: e.edited });
+      out.push({ ...e, id: e.id, base64: e._legacyBase64, preview: e._legacyBase64, name: e.name, mimeType: e.mimeType, context: e.context || "", userPhotoId: e.userPhotoId, edited: e.edited });
       continue;
     }
     if (e.local) {
       try {
-        const rec = idbAvailable() ? await idbGet(e.id) : null;
+        const rec = idbAvailable() ? await idbGet(e.id, prefix) : null;
         if (rec?.base64) {
-          out.push({ id: e.id, base64: rec.base64, preview: rec.base64, name: e.name || rec.name, mimeType: e.mimeType || rec.mimeType, context: e.context || "", userPhotoId: e.userPhotoId, edited: e.edited });
+          out.push({ ...e, originalBase64: rec.originalBase64, originalMimeType: rec.originalMimeType, id: e.id, base64: rec.base64, preview: rec.base64, name: e.name || rec.name, mimeType: e.mimeType || rec.mimeType, context: e.context || "", userPhotoId: e.userPhotoId, edited: e.edited });
           continue;
         }
       } catch {}
       // Preserve the slot so an incomplete photo set cannot look complete.
-      out.push({ id: e.id, base64: "", preview: "", name: e.name, mimeType: e.mimeType, context: e.context || "", edited: e.edited, missingLocalPhoto: true });
+      out.push({ ...e, id: e.id, base64: "", preview: "", name: e.name, mimeType: e.mimeType, context: e.context || "", edited: e.edited, missingLocalPhoto: true });
       toast.warning("Une photo du brouillon n’a pas pu être restaurée. Réimporte-la avant d’enregistrer.", { id: "missing-draft-photo" });
     } else {
-      out.push({ id: e.id, base64: "", preview: "", name: e.name, mimeType: e.mimeType, context: e.context || "", userPhotoId: e.userPhotoId, edited: e.edited, needsLibraryFetch: true });
+      out.push({ ...e, id: e.id, base64: "", preview: "", name: e.name, mimeType: e.mimeType, context: e.context || "", userPhotoId: e.userPhotoId, edited: e.edited, needsLibraryFetch: true });
     }
   }
   return out;
@@ -392,11 +394,6 @@ export function clearPhotos() {
     const userId = getFlowUserId();
     if (userId) {
       localStorage.removeItem(photosBackupKeyFor(userId));
-    } else {
-      for (let i = localStorage.length - 1; i >= 0; i--) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith(PHOTOS_BACKUP_PREFIX)) localStorage.removeItem(k);
-      }
     }
   } catch {}
   void idbClearAll();

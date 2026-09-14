@@ -15,6 +15,7 @@ import {
 } from "@/features/creer/upload-helpers";
 
 interface UseCalendarSaveParams {
+  enabled?: boolean;
   creationId?: string;
   session: { user: { id?: string } } | null;
   result: any;
@@ -57,6 +58,7 @@ interface UseCalendarSaveParams {
  * Retourne `{ savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar }`.
  */
 export function useCalendarSave({
+  enabled = true,
   creationId: flowCreationId,
   session,
   result,
@@ -113,13 +115,14 @@ export function useCalendarSave({
     return promise;
   };
   useEffect(() => {
+    if (!enabled) return;
     activeScope.current = editorScope;
     saveFlowState({ creationId: creationId.current });
     if (calendarPostId) void readVersion(calendarPostId).catch(() => { versionRead.current = null; });
     return () => { activeScope.current = "unmounted"; };
     // Capture the version when opening this calendar document, not after editing it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editorScope]);
+  }, [editorScope, enabled]);
   const assertCurrentEditor = () => {
     if (activeScope.current !== editorScope) throw new Error("Le contenu ouvert a changé. Reviens au contenu d’origine pour terminer sa sauvegarde.");
   };
