@@ -38,7 +38,7 @@ BEGIN
    END LOOP;
    RETURN true;
  END IF;
- RETURN jsonb_typeof(old_value) = 'string' AND field_name = ANY(ARRAY['title','titre','body','texte','text','content','caption','legende','légende','hook','accroche','cta','subject','objet','preview','preheader','script','description']);
+ RETURN jsonb_typeof(old_value) = 'string' AND field_name = ANY(ARRAY['title','titre','body','texte','text','content','full_content','caption','legende','légende','hook','accroche','cta','subject','objet','preview','preheader','script','description']);
 END $$;
 
 -- Restore only the private provenance omitted by the public projection. The

@@ -69,6 +69,10 @@ BEGIN
  r:=public.public_calendar_write('scoped',p,'wording','{"caption":"Edited target"}');
  IF r->>'success' IS DISTINCT FROM 'true' OR (SELECT content_draft::jsonb->'_crosspost'->>'source_text' FROM public.calendar_posts WHERE id=p)<>'secret' THEN RAISE EXCEPTION 'private provenance lost'; END IF;
  IF public.public_calendar_write('scoped',p,'wording','{"caption":"Edited target"}',NULL,NULL,t)->>'success' IS DISTINCT FROM 'true' THEN RAISE EXCEPTION 'structured retry failed'; END IF;
+ -- Historical wrapper: full_content is target text, source/result stay private.
+ UPDATE public.calendar_posts SET content_draft='{"type":"crosspost","target_channel":"instagram","full_content":"Target","source_text":"Legacy source","result":{"versions":{"linkedin":"private"}}}' WHERE id=p;
+ r:=public.public_calendar_write('scoped',p,'wording','{"type":"crosspost","target_channel":"instagram","full_content":"Edited legacy target"}');
+ IF r->>'success' IS DISTINCT FROM 'true' OR (SELECT content_draft::jsonb->>'source_text' FROM public.calendar_posts WHERE id=p) IS DISTINCT FROM 'Legacy source' OR (SELECT content_draft::jsonb->>'full_content' FROM public.calendar_posts WHERE id=p) IS DISTINCT FROM 'Edited legacy target' THEN RAISE EXCEPTION 'legacy wrapper edit lost target or source'; END IF;
  -- Audit log failure must roll the edit back, not return a false success.
  CREATE FUNCTION public.reject_test_log() RETURNS trigger LANGUAGE plpgsql AS $body$ BEGIN IF NEW.content LIKE '[EDIT]%' THEN RAISE EXCEPTION 'synthetic log failure'; END IF; RETURN NEW; END $body$;
  CREATE TRIGGER reject_test_log BEFORE INSERT ON public.calendar_comments FOR EACH ROW EXECUTE FUNCTION public.reject_test_log();
