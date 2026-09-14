@@ -221,7 +221,7 @@ export default function SharedBrandingPage() {
                       <span className="text-xs font-medium text-muted-foreground">{offer.price_text}</span>
                     )}
                   </div>
-                  <Field label="Type" value={offer.offer_type} /><Field label="Pour qui" value={offer.target_ideal} />
+                  <Field label="Type" value={offer.offer_type === "paid" ? "Payante" : offer.offer_type === "free" ? "Gratuite" : offer.offer_type === "service" ? "Service" : offer.offer_type} /><Field label="Pour qui" value={offer.target_ideal} />
                   {offer.promise && <p className="text-sm text-foreground/70">{offer.promise}</p>}
                   {offer.sales_line && <p className="text-sm italic text-foreground/60">{offer.sales_line}</p>}
                 </div>
