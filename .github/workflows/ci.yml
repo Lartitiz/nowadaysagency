@@ -115,3 +115,21 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/settings-preferences.sql
+
+      - name: Branding share permissions and historical links (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/shared-branding-links.sql
+
+      - name: Launch replay, preserved history and calendar recovery (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/launch-calendar.sql
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: LinkedIn atomic persistence and workspace access (disposable PGlite database)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/linkedin-sql" --no-save --ignore-scripts @electric-sql/pglite@0.3.14
+          PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/linkedin-safe-persistence.mjs

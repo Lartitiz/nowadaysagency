@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useProfileUserId, useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileOwner, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
 import { calculateBrandingCompletion, fetchBrandingDataWithStatus } from "@/lib/branding-completion";
 import { toast } from "sonner";
@@ -29,7 +29,8 @@ export function useSynthesisFetch() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const ready = useWorkspaceReady();
-  const profileUserId = useProfileUserId();
+  const profileOwner = useProfileOwner();
+  const profileUserId = profileOwner.userId;
   const { data: profileHookData, isLoading: profileLoading, error: profileError } = useProfile();
   const { data: brandProfileHookData, isLoading: brandLoading, error: brandError } = useBrandProfile();
 
@@ -51,6 +52,7 @@ export function useSynthesisFetch() {
   const loadData = useCallback(async () => {
     const request = ++sequence.current;
     setData(null); setLoadError("");
+    if (profileOwner.error) { setLoadError("Impossible de retrouver le propriétaire de cet espace. Réessaie."); setLoading(false); return; }
     if (!user || !ready || !profileUserId || profileLoading || brandLoading) { setLoading(true); return; }
     setLoading(true);
     try {
@@ -97,9 +99,10 @@ export function useSynthesisFetch() {
     });
     } catch { if (request === sequence.current) setLoadError("Impossible de charger toute la synthèse. Réessaie."); }
     finally { if (request === sequence.current) setLoading(false); }
-  }, [user?.id, column, value, brandProfileHookData, profileHookData, profileLoading, brandLoading, profileError, brandError, ready, profileUserId, scope]);
+  }, [user?.id, column, value, brandProfileHookData, profileHookData, profileLoading, brandLoading, profileError, brandError, ready, profileUserId, profileOwner.error, scope]);
 
   const loadSummaries = useCallback(async () => {
+    if (profileOwner.error) { setLoadError("Impossible de retrouver le propriétaire de cet espace. Réessaie."); setLoading(false); return; }
     if (!user || !ready || !profileUserId) return;
     const request = ++summarySequence.current;
     setSummariesLoading(true);
@@ -115,7 +118,7 @@ export function useSynthesisFetch() {
     } finally {
       if (summarySequence.current === request) setSummariesLoading(false);
     }
-  }, [user?.id, column, value, ready, profileUserId]);
+  }, [user?.id, column, value, ready, profileUserId, profileOwner.error]);
 
   const regenerateSummaries = useCallback(async () => {
     const request = ++summarySequence.current;
@@ -315,7 +318,7 @@ export function useSynthesisFetch() {
     summaries: dataScope === scope ? summaries : null,
     summariesLoading,
     sheetRef,
-    loadData,
+    loadData: profileOwner.error ? profileOwner.reload : loadData,
     regenerateSummaries,
     handleCopy,
     handleShare,
