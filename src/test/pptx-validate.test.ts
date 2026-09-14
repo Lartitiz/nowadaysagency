@@ -43,6 +43,11 @@ const APLAT_BLANC = png(() => [255, 255, 255, 255]);
 // opaque — l'image qu'il devait assombrir a disparu.
 const VOILE_SANS_FOND = png((_x, y) => [28, 28, 32, Math.round(77 + (96 * y) / H)]);
 
+// 14/09 (perf-carousel) : dégradé d'ambiance #1A050D α 0,35→0,85, 0 % opaque,
+// posé sur la racine annotée `background` exportée en <p:bg> 1A050D. Mesuré sur
+// l'artefact réel : dominante (26,5,13,217), alpha 89→217, aucun pixel opaque.
+const VOILE_TEINTE_SOMBRE = png((_x, y) => [26, 5, 13, Math.round(89 + (128 * y) / H)]);
+
 // Texture papier de marque : crème, opaque, grain fin → 0 % d'encre mais matière
 // réelle. Grain INDÉPENDANT par canal, comme la vraie texture (mesurée le 17/07 :
 // moyenne 240,7, écart-type 2,1, 68 couleurs exactes, 96 % opaque). L'amplitude
@@ -135,13 +140,17 @@ const REL = (media: string) =>
 
 /** .pptx minimal AVEC rels : une slide par entrée, texte natif optionnel. */
 async function valideRels(
-  slides: { media: string; buf: Buffer; texte: boolean }[],
+  slides: { media: string; buf: Buffer; texte: boolean; bg?: string }[],
   opts: Parameters<typeof validatePptx>[1] = {},
 ) {
   const zip = new JSZip();
   slides.forEach((s, i) => {
     const n = i + 1;
-    zip.file(`ppt/slides/slide${n}.xml`, s.texte ? SLIDE_XML : SLIDE_SANS_TEXTE);
+    const xml = s.texte ? SLIDE_XML : SLIDE_SANS_TEXTE;
+    zip.file(
+      `ppt/slides/slide${n}.xml`,
+      s.bg ? xml.replace("<p:cSld>", `<p:cSld><p:bg><p:bgPr><a:solidFill><a:srgbClr val="${s.bg}"/></a:solidFill></p:bgPr></p:bg>`) : xml,
+    );
     zip.file(`ppt/slides/_rels/slide${n}.xml.rels`, REL(s.media));
     zip.file(`ppt/media/${s.media}`, s.buf);
   });
@@ -175,6 +184,22 @@ describe("validatePptx — fond aplat hybride légitime (texte natif par-dessus)
   it("export VISUEL (sans backgroundIsDecorative) : l'aplat reste flaggé même avec du texte (strict inchangé)", async () => {
     const r = await valideRels([{ media: "image-1-1.png", buf: APLAT_BLANC, texte: true }], { minSlides: 1 });
     expect(r.problems.some((p) => p.startsWith("fond raté") && p.includes("image-1-1.png"))).toBe(true);
+  });
+
+  it("laisse passer un voile TEINTÉ posé sur son propre fond natif <p:bg> (dégradé d'ambiance, 14/09)", async () => {
+    const r = await valideRels(
+      [{ media: "image-1-1.png", buf: VOILE_TEINTE_SOMBRE, texte: true, bg: "1A050D" }],
+      { minSlides: 1, backgroundIsDecorative: true },
+    );
+    expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(false);
+  });
+
+  it("le même voile sombre sur un fond natif CLAIR reste « voile sans fond » (#575)", async () => {
+    const r = await valideRels(
+      [{ media: "image-1-1.png", buf: VOILE_TEINTE_SOMBRE, texte: true, bg: "FFFFFF" }],
+      { minSlides: 1, backgroundIsDecorative: true },
+    );
+    expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(true);
   });
 
   it("ne masque PAS un VOILE #575 : texture disparue reste flaggée même en décoratif + texte", async () => {
