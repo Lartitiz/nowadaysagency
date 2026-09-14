@@ -279,6 +279,7 @@ export function useCalendarSave({
       } });
       assertCurrentEditor();
       versionRead.current = { id: calendarPostId, promise: Promise.resolve(receipt.updated_at) };
+      overwriteConfirmed.current = false;
       toast.success("Contenu sauvegardé dans ton calendrier !");
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
