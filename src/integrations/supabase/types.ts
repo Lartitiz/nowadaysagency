@@ -1105,6 +1105,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_resolved: boolean | null
+          request_id: string | null
           share_id: string
         }
         Insert: {
@@ -1115,6 +1116,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_resolved?: boolean | null
+          request_id?: string | null
           share_id: string
         }
         Update: {
@@ -1125,6 +1127,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_resolved?: boolean | null
+          request_id?: string | null
           share_id?: string
         }
         Relationships: [
@@ -1322,6 +1325,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           label: string | null
+          legacy_owner_scope: boolean
           share_token: string
           show_columns: Json
           show_content_draft: boolean | null
@@ -1339,6 +1343,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           label?: string | null
+          legacy_owner_scope?: boolean
           share_token?: string
           show_columns?: Json
           show_content_draft?: boolean | null
@@ -1356,6 +1361,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           label?: string | null
+          legacy_owner_scope?: boolean
           share_token?: string
           show_columns?: Json
           show_content_draft?: boolean | null
@@ -4142,8 +4148,11 @@ export type Database = {
           accroche: string | null
           added_to_calendar: boolean | null
           angle_suggestion: string | null
+          archived_at: string | null
           audience_phase: string | null
           audience_phase_emoji: string | null
+          calendar_post_id: string | null
+          calendar_snapshot: Json | null
           category: string | null
           chapter: number | null
           chapter_label: string | null
@@ -4172,8 +4181,11 @@ export type Database = {
           accroche?: string | null
           added_to_calendar?: boolean | null
           angle_suggestion?: string | null
+          archived_at?: string | null
           audience_phase?: string | null
           audience_phase_emoji?: string | null
+          calendar_post_id?: string | null
+          calendar_snapshot?: Json | null
           category?: string | null
           chapter?: number | null
           chapter_label?: string | null
@@ -4202,8 +4214,11 @@ export type Database = {
           accroche?: string | null
           added_to_calendar?: boolean | null
           angle_suggestion?: string | null
+          archived_at?: string | null
           audience_phase?: string | null
           audience_phase_emoji?: string | null
+          calendar_post_id?: string | null
+          calendar_snapshot?: Json | null
           category?: string | null
           chapter?: number | null
           chapter_label?: string | null
@@ -4229,6 +4244,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "launch_plan_contents_calendar_post_id_fkey"
+            columns: ["calendar_post_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_posts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "launch_plan_contents_launch_id_fkey"
             columns: ["launch_id"]
@@ -4614,6 +4636,7 @@ export type Database = {
           person_type: string | null
           reco_received: boolean | null
           request_sent: boolean | null
+          sort_order: number | null
           user_id: string
           workspace_id: string | null
         }
@@ -4624,6 +4647,7 @@ export type Database = {
           person_type?: string | null
           reco_received?: boolean | null
           request_sent?: boolean | null
+          sort_order?: number | null
           user_id: string
           workspace_id?: string | null
         }
@@ -4634,6 +4658,7 @@ export type Database = {
           person_type?: string | null
           reco_received?: boolean | null
           request_sent?: boolean | null
+          sort_order?: number | null
           user_id?: string
           workspace_id?: string | null
         }
@@ -5819,8 +5844,6 @@ export type Database = {
           validated_bio_at: string | null
           verbatims: string
           website_url: string | null
-          notification_tips: boolean
-          notification_reminders: boolean
           weekly_ritual_day: number
           weekly_ritual_enabled: boolean
           weekly_time: string | null
@@ -5889,8 +5912,6 @@ export type Database = {
           validated_bio_at?: string | null
           verbatims?: string
           website_url?: string | null
-          notification_tips?: boolean
-          notification_reminders?: boolean
           weekly_ritual_day?: number
           weekly_ritual_enabled?: boolean
           weekly_time?: string | null
@@ -5959,8 +5980,6 @@ export type Database = {
           validated_bio_at?: string | null
           verbatims?: string
           website_url?: string | null
-          notification_tips?: boolean
-          notification_reminders?: boolean
           weekly_ritual_day?: number
           weekly_ritual_enabled?: boolean
           weekly_time?: string | null
@@ -8378,6 +8397,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assert_launch_target: {
+        Args: { p_launch_id: string; p_workspace_id: string }
+        Returns: undefined
+      }
+      calendar_share_restore_private: {
+        Args: { new_value: Json; old_value: Json }
+        Returns: Json
+      }
+      calendar_share_text_preserved: {
+        Args: { field_name?: string; new_value: Json; old_value: Json }
+        Returns: boolean
+      }
       consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
       create_coaching_program_full: {
         Args: {
@@ -8418,6 +8449,28 @@ export type Database = {
         Returns: undefined
       }
       increment_promo_uses: { Args: { promo_id: string }; Returns: undefined }
+      linkedin_save_state: {
+        Args: {
+          p_expected?: Json
+          p_rows?: Json
+          p_table: string
+          p_week?: string
+          p_workspace_id?: string
+        }
+        Returns: Json
+      }
+      public_calendar_write: {
+        Args: {
+          p_action: string
+          p_author?: string
+          p_expected_updated_at?: string
+          p_post_id: string
+          p_request_id?: string
+          p_token: string
+          p_value: string
+        }
+        Returns: Json
+      }
       redeem_promo_and_grant_plan: {
         Args: {
           p_display_plan: string
@@ -8444,6 +8497,35 @@ export type Database = {
           p_idea_id?: string
           p_payload: Json
           p_post_id: string
+        }
+        Returns: Json
+      }
+      save_launch_plan: {
+        Args: {
+          p_expected_updated_at: string
+          p_launch_id: string
+          p_metadata: Json
+          p_slots: Json
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      save_pinterest_editor: {
+        Args: {
+          p_expected: Json
+          p_month: string
+          p_rows: Json
+          p_table: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      sync_launch_calendar: {
+        Args: {
+          p_launch_id: string
+          p_replace?: boolean
+          p_slot_ids: string[]
+          p_workspace_id: string
         }
         Returns: Json
       }
