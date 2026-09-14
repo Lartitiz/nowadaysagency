@@ -229,8 +229,14 @@ export function useCalendarSave({
     }
   };
 
+  // Conflit de version : un écrasement de la version la plus récente ne peut
+  // être fait QUE sur confirmation explicite (action du toast). Sans elle, la
+  // relecture de version ne se fait pas en douce et le blocage reste visible.
+  const overwriteConfirmed = useRef(false);
+
   // Save back to existing calendar post (when coming from calendar)
-  const handleSaveBackToCalendar = async () => {
+  const handleSaveBackToCalendar = async (options?: { force?: boolean }) => {
+    if (options?.force) overwriteConfirmed.current = true;
     if (!session?.user?.id || !calendarPostId || !result?.raw || saveInFlight.current) return;
     saveInFlight.current = true;
     setSavingToCalendar(true);
