@@ -129,11 +129,11 @@ describe("publishReelToInstagram", () => {
   it("envoie videoUrl + caption, timeout par défaut long (transcodage)", async () => {
     mocks.invokeWithTimeout.mockResolvedValue({ data: { postId: "reel-1", permalink: "https://ig/x" }, error: null });
 
-    const result = await publishReelToInstagram({ caption: "Mon reel", videoUrl: "https://x/reel.mp4", userId: "u1" });
+    const result = await publishReelToInstagram({ caption: "Mon reel", videoUrl: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`, userId: "u1" });
 
     expect(mocks.invokeWithTimeout).toHaveBeenCalledWith(
       "social-instagram-publish",
-      { body: { caption: "Mon reel", videoUrl: "https://x/reel.mp4", workspace_id: undefined } },
+      { body: { caption: "Mon reel", videoUrl: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`, workspace_id: undefined } },
       330000,
     );
     expect(result.postId).toBe("reel-1");
@@ -146,7 +146,7 @@ describe("publishReelToInstagram", () => {
     });
 
     await expect(
-      publishReelToInstagram({ caption: "", videoUrl: "https://x/reel.mp4" }),
+      publishReelToInstagram({ caption: "", videoUrl: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4` }),
     ).rejects.toThrow("Instagram a refusé la vidéo");
   });
 });

@@ -1,3 +1,5 @@
+import { reelCalendarCaption } from "../_shared/reel-caption.ts";
+import { isDurableReelUrl } from "../_shared/reel-publication.ts";
 // Publication programmée (Instagram image/carrousel + LinkedIn texte). Appelée toutes
 // les ~5 min par le cron (public.trigger_publish_due_posts) avec la clé service-role en
 // bearer, OU manuellement par un admin (pour tester). Publie les posts du calendrier dont
@@ -87,7 +89,7 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
   // Posts dus : auto-publication échue, en attente, sur un canal publiable (Instagram ou LinkedIn).
   const { data: due, error: dueErr } = await supabase
     .from("calendar_posts")
-    .select("id, workspace_id, user_id, canal, theme, content_draft, media_urls, scheduled_publish_at, story_sequence_detail")
+    .select("id, workspace_id, user_id, canal, theme, format, content_draft, media_urls, scheduled_publish_at, story_sequence_detail")
     .eq("auto_publish", true)
     .eq("publish_status", "scheduled")
     .in("canal", ["instagram", "linkedin"])
@@ -105,6 +107,7 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
   const resolveCaption = (post: any): string => {
     const draft = (post?.content_draft || "").trim();
     const detail = post?.story_sequence_detail;
+    if (detail?.type === "reel") return reelCalendarCaption(draft, detail);
     const cap = detail && typeof detail === "object" ? (detail as any).caption : null;
     let capText = typeof cap === "string"
       ? cap.trim()
@@ -175,7 +178,10 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
         // Un reel monté vit dans media_urls comme les images : sans ce tri il
         // partirait en `image_url` et Instagram refuserait le média.
         const isMp4 = (u: string) => /\.mp4(\?|$)/i.test(u);
-        const videoUrl = publicUrls.find(isMp4);
+        const videoUrl = publicUrls.find(isDurableReelUrl);
+        if ((post.format === "reel" || post.story_sequence_detail?.type === "reel" || publicUrls.some(isMp4)) && !videoUrl) {
+          throw new Error("Ce Reel doit contenir une vidéo MP4 archivée ; une couverture ne peut pas être publiée à sa place.");
+        }
         const imageUrls = publicUrls.filter((u: string) => !isMp4(u));
         if (videoUrl) {
           postId = await publishReelToInstagram(supabase, conn, resolveCaption(post), videoUrl);

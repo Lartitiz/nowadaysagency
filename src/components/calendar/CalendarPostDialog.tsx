@@ -1,3 +1,5 @@
+import { reelCalendarCaption } from "../../../supabase/functions/_shared/reel-caption";
+import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
 import { resumeCrosspost } from "@/lib/crosspost-content";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -288,12 +290,13 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
   const igValidImages = mediaUrls.filter(isPublicImageUrl);
   // Un reel monté est rangé dans media_urls comme les images : c'est lui qui
   // décide du média publié (media_type=REELS), pas un visuel de repli.
-  const igVideo = mediaUrls.find(isPublicVideoUrl) ?? null;
+  const igVideo = mediaUrls.find(isDurableReelUrl) ?? null;
   const instagramPublishDisabledReason = (() => {
     if (postCanal !== "instagram") return "Publication directe réservée aux posts Instagram.";
     // L'edge social-instagram-publish ne gère que le feed (pas media_type=STORIES) :
     // publier une story d'ici partirait en post feed.
     if (format === "story_serie") return "La publication directe des stories arrive bientôt : publie-la depuis l'app Instagram.";
+    if (format === "reel" && !igVideo) return REEL_VIDEO_REQUIRED;
     if (igVideo) return null;
     if (igValidImages.length === 0) return "Ajoute un visuel (image) ou monte ta vidéo pour publier.";
     if (igValidImages.length > 10) return "Instagram limite les carrousels à 10 images.";
@@ -343,9 +346,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
       // Instagram TRANSCODE la vidéo avant publication : ça peut prendre
       // plusieurs minutes, on le dit au lieu de laisser un spinner muet.
       if (igVideo) toast.info("Instagram prépare ta vidéo : ça peut prendre quelques minutes.");
-      const { permalink } = igVideo
+      const { permalink, postId } = igVideo
         ? await publishReelToInstagram({
-            caption: contentDraft || theme || "",
+            caption: reelCalendarCaption(contentDraft || "", editingPost?.story_sequence_detail),
             videoUrl: igVideo,
             workspaceId,
             userId: user.id,
@@ -356,7 +359,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
             workspaceId,
             userId: user.id,
           });
-      await markPostPublished(permalink ?? null);
+      await markPostPublished(postId || permalink || null);
       toast.success(
         igVideo ? "Reel publié sur Instagram ! 🎉" : igValidImages.length > 1 ? "Carrousel publié sur Instagram ! 🎉" : "Publié sur Instagram ! 🎉",
         { description: permalink ? "Ouvre ton profil Instagram pour le voir." : undefined },
@@ -438,6 +441,7 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     if (postCanal === "instagram") {
       // Même garde que la publication immédiate : le cron publie en feed, pas en story.
       if (format === "story_serie") { toast.error("La publication directe des stories arrive bientôt : publie-la depuis l'app Instagram."); return; }
+      if (format === "reel" && !igVideo) { toast.error(REEL_VIDEO_REQUIRED); return; }
       if (!igVideo && igValidImages.length === 0) { toast.error("Ajoute une image ou monte ta vidéo avant de programmer."); return; }
       if (!igVideo && igValidImages.length > 10) { toast.error("Instagram limite les carrousels à 10 images."); return; }
     } else if (postCanal === "linkedin") {

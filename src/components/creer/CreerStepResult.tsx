@@ -264,6 +264,7 @@ interface Props {
    * Remonte l'URL durable du reel monté : le parent la joint au contenu
    * (`media_urls`) pour que publication et programmation l'emportent.
    */
+  reelMp4Url?: string | null;
   onReelMp4Change?: (url: string | null) => void;
   /** Correction structurée d'un Reel (script, montage et sauvegarde). */
   onReelResultChange?: (result: any) => void;
@@ -336,6 +337,7 @@ export default function CreerStepResult({
   canAutoPublish,
   onPublishOrSchedule,
   publishOrScheduleLabel,
+  reelMp4Url,
   onReelMp4Change,
   onReelResultChange,
   onGenerateVisuals,
@@ -558,7 +560,7 @@ export default function CreerStepResult({
       case "carousel":
         return <CarouselResult result={result} visualSlides={visualSlides} onSlidesUpdate={onSlidesUpdate} onVisualSlidesUpdate={onVisualSlidesUpdate} onStaleChange={onCarouselStaleChange} />;
       case "reel":
-        return <ReelResult result={result} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} />;
+        return <ReelResult initialMp4Url={reelMp4Url} result={result} onStepChange={setReelStep} onMp4Change={onReelMp4Change} onResultChange={onReelResultChange} />;
       case "story":
         return <StoryResult result={result} onStoriesUpdate={onStoriesUpdate} photos={photos} onExportActionsChange={setStoryActions} />;
       case "post":

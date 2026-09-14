@@ -1,3 +1,4 @@
+import { reelSourceKey } from "@/lib/reel-publication";
 // build 2026-07-23c
 /**
  * ReelMontage — écran de montage d'un reel (Phase 1, beta).
@@ -151,6 +152,26 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
   const voiceUrls = voiceClips.map((c) => c?.url ?? null);
   const voiceDurations = voiceClips.map((c) => c?.duration ?? null);
 
+  // Changing any render input invalidates publication, while preserving takes,
+  // chosen clips and the old downloadable MP4. Late rendering responses are ignored.
+  const renderKey = JSON.stringify([reelSourceKey({ sections }), clips, voiceClips, voiceMode, montageMode, subtitleSettingsFromCharter(charter)]);
+  const activeRender = useRef({ key: renderKey, generation: 0, mounted: true });
+  if (activeRender.current.key !== renderKey) {
+    activeRender.current = { key: renderKey, generation: activeRender.current.generation + 1, mounted: true };
+  }
+  const renderBusy = useRef(false);
+  const mp4Callback = useRef(onMp4Ready);
+  mp4Callback.current = onMp4Ready;
+  useEffect(() => {
+    activeRender.current.mounted = true;
+    return () => { activeRender.current.mounted = false; activeRender.current.generation++; };
+  }, []);
+  useEffect(() => {
+    setArchived(false);
+    setPhase("idle");
+    mp4Callback.current?.(null);
+  }, [renderKey]);
+
   // Suggestion initiale : un clip par section. Uniquement en mode "cache" — le
   // mode "filme" n'utilise pas la banque libre, seulement les prises perso.
   const stockSearchStarted = useRef(false);
@@ -236,6 +257,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
   }
 
   async function handleAssemble() {
+    if (renderBusy.current) return;
+    const generation = activeRender.current.generation;
+    const isCurrent = () => activeRender.current.mounted && activeRender.current.generation === generation;
     const chosen = clips.map((c) => (c ? { url: c.url, seek: c.seek } : null));
     if (!chosen.some(Boolean)) {
       toast.error("Choisis au moins un clip avant d'assembler.");
@@ -269,6 +293,8 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
         return;
       }
     }
+    renderBusy.current = true;
+    setArchived(false);
     setPhase("rendering");
     setTick(0);
     setMp4Url(null);
@@ -292,7 +318,8 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       // charte (ou champs vides), le moteur retombe sur son style par défaut.
       plan.subtitle_settings = subtitleSettingsFromCharter(charter);
       const project = await submitReelRender(plan);
-      const url = await pollReelRender(project, { onTick: setTick });
+      const url = await pollReelRender(project, { onTick: (n) => { if (isCurrent()) setTick(n); } });
+      if (!isCurrent()) return;
       // Le rendu vit chez JSON2Video et y expire : on le recopie chez nous
       // AVANT d'annoncer que la vidéo est prête. Si l'archivage échoue, la
       // vidéo reste regardable et téléchargeable (on garde l'URL du rendu),
@@ -300,10 +327,12 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       setMp4Url(url);
       try {
         const durable = await archiveReelMp4(url);
+        if (!isCurrent()) return;
         setMp4Url(durable);
         setArchived(true);
         onMp4Ready?.(durable);
       } catch (e) {
+        if (!isCurrent()) return;
         console.error("[ReelMontage] archivage du MP4 échoué:", e);
         setArchived(false);
         onMp4Ready?.(null);
@@ -311,8 +340,11 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       setPhase("done");
       toast.success("Ton reel est monté !");
     } catch (e) {
+      if (!isCurrent()) return;
       setErrorMsg(e instanceof Error ? e.message : "Le montage a échoué.");
       setPhase("error");
+    } finally {
+      renderBusy.current = false;
     }
   }
 
@@ -605,7 +637,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
 
           {phase === "error" && <p className="text-xs text-destructive">{errorMsg}</p>}
 
-          {phase === "done" && mp4Url && (
+          {mp4Url && phase !== "rendering" && (
             <div className="space-y-2">
               <video src={mp4Url} controls playsInline className="w-full max-h-[420px] rounded-lg bg-black" />
               <div className="flex items-center gap-2 flex-wrap">
@@ -615,7 +647,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
                     Télécharger le MP4
                   </Button>
                 </a>
-                {archived ? (
+                {phase !== "done" ? (
+                  <span className="text-2xs text-warning">Ce MP4 correspond au montage précédent. Assemble de nouveau pour publier les modifications.</span>
+                ) : archived ? (
                   <span className="text-2xs text-muted-foreground">
                     Rangée dans ta bibliothèque — elle part avec ton contenu à la publication.
                   </span>

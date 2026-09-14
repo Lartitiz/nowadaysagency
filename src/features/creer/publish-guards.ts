@@ -1,3 +1,4 @@
+import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
 /**
  * Gardes de publication directe (Instagram / LinkedIn) — logique PURE extraite
  * de CreerUnifie (lot 4 de la dé-monolithisation, cf src/features/creer/).
@@ -31,6 +32,10 @@ export function findPublishableImageUrl(raw: RawResult, uploadedPhotoPreview?: s
 /** Texte à publier sur Instagram (inclut le champ caption, string ou objet). */
 export function extractInstagramCaption(raw: RawResult): string {
   const r: any = raw;
+  // Reel: the CTA and top-level hashtags complement caption.text.
+  if (r?.caption && typeof r.caption === "object" && typeof r.caption.text === "string" && (r?.sections || r?.script)) {
+    return [r.caption.text, r.caption.cta, Array.isArray(r.hashtags) ? r.hashtags.join(" ") : ""].filter(Boolean).join("\n\n");
+  }
   const direct =
     r?.edited_text ||
     r?.full_text ||
@@ -106,18 +111,20 @@ export function instagramPublishDisabledReason(args: {
   visualSlidesCount: number;
   publishableImageUrl: string | null;
   isLinkedInCarousel?: boolean;
+  reelMp4Url?: string | null;
 }): string | null {
   const { selectedFormat, isCarousel, visualSlidesCount, publishableImageUrl, isLinkedInCarousel } = args;
   if (!isInstagramPublishTarget({ selectedFormat, isLinkedInCarousel })) {
     return "Publication Instagram disponible uniquement pour les formats Instagram.";
   }
-  // L'edge social-instagram-publish ne gère que le feed (image simple + carrousel),
+  if (selectedFormat === "reel") return isDurableReelUrl(args.reelMp4Url) ? null : REEL_VIDEO_REQUIRED;
+  // L'edge social-instagram-publish gère le feed et les Reels,
   // pas media_type=STORIES : sans ce garde, une story partirait en post feed.
   if (selectedFormat === "story") {
     return "La publication directe des stories arrive bientôt — en attendant, télécharge le visuel et publie-le depuis l'app Instagram.";
   }
   if (isCarousel) {
-    return visualSlidesCount >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.";
+    return visualSlidesCount > 10 ? "Instagram limite les carrousels à 10 images." : visualSlidesCount >= 2 ? null : "Génère les visuels du carrousel pour pouvoir le publier.";
   }
   if (!publishableImageUrl) return REASON_IMAGE_MANQUANTE;
   return null;
