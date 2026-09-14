@@ -1,8 +1,11 @@
-import { useState } from "react";
-import { parseAIResponse } from "@/lib/parse-ai-response";
+import CrosspostSources from "@/components/crosspost/CrosspostSources";
+import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { crosspostText, crosspostEnvelope, CROSSPOST_TARGETS, type CrosspostResult } from '@/lib/crosspost-content';
+import { crosspostScope, archiveCrosspost, crosspostHistory, readCrosspost, persistCrosspost, createCrosspostSession, saveCrosspostCalendar, saveCrosspostIdea } from '@/lib/crosspost-persistence';
+import { generateCrosspost } from '@/lib/crosspost-generation';
+import { calendarSaveError } from '@/lib/calendar-persistence';
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -17,7 +20,7 @@ import { cn } from "@/lib/utils";
 import { AddToCalendarDialog } from "@/components/calendar/AddToCalendarDialog";
 import { SaveToIdeasDialog } from "@/components/SaveToIdeasDialog";
 import { toast } from "sonner";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useProfileUserId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 
 const SOURCE_TYPES = [
   // TODO: à réactiver quand le générateur newsletter sera prêt (aligné avec LinkedInCrosspost)
@@ -34,46 +37,58 @@ const TARGET_CHANNELS = [
   { id: "stories", label: "📱 Séquence Stories", desc: "Version intime, 5 stories" },
 ];
 
-interface CrosspostResult {
-  versions: Record<string, { full_text?: string; script?: string; sequence?: any[]; character_count?: number; angle_choisi: string; duration?: string }>;
-}
-
-function formatStoriesSequence(sequence: any[]): string {
-  if (!Array.isArray(sequence)) return String(sequence ?? "");
-  return sequence
-    .map((item, i) => {
-      if (typeof item === "string") return item;
-      if (item && typeof item === "object") {
-        const lines: string[] = [`Story ${i + 1}`];
-        for (const [k, v] of Object.entries(item)) {
-          if (v === null || v === undefined || v === "") continue;
-          const line = typeof v === "string" ? v : typeof v === "number" ? String(v) : null;
-          if (line) lines.push(`${line}`);
-        }
-        return lines.join("\n");
-      }
-      return String(item ?? "");
-    })
-    .filter(Boolean)
-    .join("\n\n");
-}
-
 export default function CrosspostFlow() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
-  const [sourceType, setSourceType] = useState("libre");
-  const [sourceContent, setSourceContent] = useState("");
-  const [targets, setTargets] = useState<Set<string>>(new Set(["linkedin", "instagram"]));
+  return <CrosspostWorkspace key={`${user?.id}:${workspaceId}`} />;
+}
+
+function CrosspostWorkspace() {
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const ownerId = useProfileUserId();
+  const ready = useWorkspaceReady();
+  const { activeRole, activeWorkspace } = useWorkspace();
+  const allowed = ready && !!user && !!ownerId && (!activeWorkspace || ['owner', 'manager', 'editor'].includes(activeRole));
+  const scope = crosspostScope(user?.id || '', workspaceId);
+  const [history, setHistory] = useState<ReturnType<typeof crosspostHistory>>([]);
+  const [draft] = useState(() => { try { return JSON.parse(sessionStorage.getItem(`${scope}:draft`) || 'null'); } catch { return null; } });
+  const [session, setSession] = useState(() => readCrosspost(scope));
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
+  const result = session?.result || null;
+  const [sourceType, setSourceType] = useState(draft?.sourceType || session?.source.source_type || 'libre');
+  const [sourceContent, setSourceContent] = useState(draft?.sourceContent ?? session?.source.source_text ?? '');
+  const [targets, setTargets] = useState<Set<string>>(new Set(draft?.targets || ['linkedin', 'instagram']));
   const [generating, setGenerating] = useState(false);
-  const [result, setResult] = useState<CrosspostResult | null>(null);
+  const busy = useRef(false);
+  const mounted = useRef(true);
   const [copied, setCopied] = useState<string | null>(null);
   const [files, setFiles] = useState<UploadedFile[]>([]);
-  const [inputMode, setInputMode] = useState<"text" | "files" | "both">("text");
+  const filesRef = useRef(files); filesRef.current = files;
+  useEffect(() => { mounted.current = true; return () => {
+    mounted.current = false;
+    filesRef.current.forEach(f => { if (f.preview) URL.revokeObjectURL(f.preview); });
+  }; }, []);
+  const [inputMode, setInputMode] = useState<'text' | 'files' | 'both'>(draft?.inputMode || 'text');
   const [showCalendarDialog, setShowCalendarDialog] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
-  const [activeVersionKey, setActiveVersionKey] = useState<string>("");
+  const [activeVersionKey, setActiveVersionKey] = useState(Object.keys(result?.versions || {})[0] || '');
   const [addingToCalendar, setAddingToCalendar] = useState(false);
-  const [planMode, setPlanMode] = useState<"one" | "all">("one");
+  const [planMode, setPlanMode] = useState<'one' | 'all'>('one');
+  useEffect(() => {
+    try { sessionStorage.setItem(`${scope}:draft`, JSON.stringify({ sourceType, sourceContent, targets: Array.from(targets), inputMode })); }
+    catch { /* Saving an operation reports persistence failure before any write. */ }
+  }, [scope, sourceType, sourceContent, targets, inputMode]);
+  const setResult = (next: CrosspostResult) => {
+    if (!session) return;
+    // An explicit correction is a new revision; keep the original and receipts.
+    const updated = createCrosspostSession(next, { ...session.source,
+      previous_revisions: [session] });
+    setSession(updated);
+    try { persistCrosspost(scope, updated); archiveCrosspost(scope, session); }
+    catch { toast.error('La reprise après fermeture n’est pas disponible. Garde cet onglet ouvert pour conserver ta correction.'); }
+  };
 
   const toggleTarget = (id: string) => {
     const next = new Set(targets);
@@ -86,67 +101,34 @@ export default function CrosspostFlow() {
     setTargets(next);
   };
 
-  const uploadFileToSupabase = async (file: File): Promise<string> => {
-    const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-    const path = `${user!.id}/crosspost-${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
-    const { error } = await supabase.storage.from("crosspost-uploads").upload(path, file, { contentType: file.type, upsert: false });
-    if (error) throw error;
-    const { data: signedData } = await supabase.storage.from("crosspost-uploads").createSignedUrl(path, 3600);
-    if (signedData?.signedUrl) return signedData.signedUrl;
-    throw new Error("Impossible de créer l'URL signée");
-  };
-
-  const canGenerate = () => {
-    if (targets.size === 0) return false;
-    if (inputMode === "text") return sourceContent.trim().length > 0 && sourceContent.length <= 10000;
-    if (inputMode === "files") return files.length > 0;
-    return sourceContent.length <= 10000 && (sourceContent.trim().length > 0 || files.length > 0);
-  };
+  const canGenerate = () => allowed && targets.size > 0 &&
+    (inputMode === 'files' ? files.length > 0 : sourceContent.length <= 10000 &&
+      (sourceContent.trim().length > 0 || (inputMode === 'both' && files.length > 0)));
 
   const generate = async () => {
-    if (!canGenerate()) return;
-    setGenerating(true);
-    setResult(null);
-    let fileUrls: { url: string; type: string; name: string }[] = [];
+    if (!canGenerate() || busy.current) return;
+    busy.current = true; setGenerating(true);
+    const requestId = crypto.randomUUID();
     try {
-      if (files.length > 0) {
-        for (const f of files) {
-          const url = await uploadFileToSupabase(f.file);
-          fileUrls.push({ url, type: f.type, name: f.name });
-        }
-      }
-      const { data: cpData, error: cpError } = await invokeWithTimeout("linkedin-ai", {
-        body: {
-    action: "crosspost",
-    sourceContent: sourceContent || "",
-    sourceType,
-    targetChannels: Array.from(targets),
-    fileUrls,
-    workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
-        },
-      // 145s : couvre le pire cas serveur (multimodal 90s + correction 30s = 120s) + marge.
-      }, 145000);
-      if (cpError || cpData?.error) {
-        if (handleQuotaError({ message: cpError?.message || cpData?.message, data: cpData })) {
+      sessionStorage.setItem(`${scope}:request`, requestId);
+      await generateCrosspost({ userId: user!.id, workspaceId: activeWorkspace?.id || null,
+        sourceType, text: sourceContent, mode: inputMode, files, targets: Array.from(targets) }, (next, source) => {
+        const previous = sessionRef.current;
+        const fresh = createCrosspostSession(next, { ...source, ...(previous ? { previous_revisions: [previous] } : {}) });
+        // Store against the originating space even if a response arrives after switching.
+        if (sessionStorage.getItem(`${scope}:request`) !== requestId) {
+          // A newer request owns this space. Retain the old paid result separately.
+          sessionStorage.setItem(`${scope}:late:${fresh.id}`, JSON.stringify(fresh));
           return;
         }
-      }
-      if (cpError) throw new Error(cpError.message);
-      let parsed: CrosspostResult = parseAIResponse(cpData?.content || "");
-      setResult(parsed);
-      setActiveVersionKey(Object.keys(parsed.versions || {})[0] || "");
+        if (mounted.current) setSession(fresh);
+        persistCrosspost(scope, fresh);
+        if (previous) { try { archiveCrosspost(scope, previous); } catch { /* previous result is also in fresh provenance */ } }
+        if (mounted.current) { setSession(fresh); setActiveVersionKey(Object.keys(next.versions).find(k => CROSSPOST_TARGETS.includes(k as any)) || ''); }
+      });
     } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toast.error(friendlyError(e));
-    } finally {
-      setGenerating(false);
-      if (fileUrls.length > 0) {
-        Promise.all(fileUrls.map(f => {
-          const path = f.url.split("/crosspost-uploads/")[1]?.split("?")[0];
-          if (path) return supabase.storage.from("crosspost-uploads").remove([path]);
-        })).catch(console.error);
-      }
-    }
+      if (mounted.current && !handleQuotaError({ message: e?.message, data: e?.data })) toast.error(friendlyError(e));
+    } finally { busy.current = false; if (mounted.current) setGenerating(false); }
   };
 
   const handleCopy = (text: string, key: string) => {
@@ -158,14 +140,7 @@ export default function CrosspostFlow() {
     });
   };
 
-  const getActiveVersion = () => result?.versions?.[activeVersionKey] || null;
-  const getActiveVersionText = () => {
-    const v = getActiveVersion();
-    if (!v) return "";
-    return v.full_text || v.script || (v.sequence ? formatStoriesSequence(v.sequence) : "") || "";
-  };
   const getActiveChannelLabel = () => TARGET_CHANNELS.find((c) => c.id === activeVersionKey)?.label || activeVersionKey;
-  const getActiveChannelCanal = () => activeVersionKey === "linkedin" ? "linkedin" : "instagram";
   const getActiveFormat = () => {
     if (activeVersionKey === "reel") return "reel";
     if (activeVersionKey === "stories") return "story_serie";
@@ -173,91 +148,39 @@ export default function CrosspostFlow() {
     return "post";
   };
 
-  const handleAddToCalendar = async (dateStr: string) => {
-    if (!user || addingToCalendar) return; // garde anti double-clic (évite les doublons)
-    setAddingToCalendar(true);
-    const text = getActiveVersionText();
-    const label = getActiveChannelLabel();
-    const version = getActiveVersion();
-    const insertData: any = {
-      user_id: user.id,
-      date: dateStr,
-      theme: `Crosspost ${label} : ${sourceType}`,
-      canal: getActiveChannelCanal(),
-      format: getActiveFormat(),
-      content_draft: text,
-      accroche: text.split("\n")[0]?.slice(0, 200) || "",
-      status: "drafting",
-      story_sequence_detail: {
-        type: "crosspost",
-        source_type: sourceType,
-        target_channel: activeVersionKey,
-        angle_choisi: version?.angle_choisi || "",
-        full_content: text,
-      },
-    };
-    if (workspaceId && workspaceId !== user.id) {
-      insertData.workspace_id = workspaceId;
-    }
+  const plan = async (date: string, keys: string[]) => {
+    if (!allowed || !session || busy.current) return;
+    busy.current = true; setAddingToCalendar(true);
+    let confirmed = 0;
     try {
-      const { error } = await supabase.from("calendar_posts").insert(insertData);
-      if (error) {
-        toast.error("Erreur lors de la planification");
-      } else {
-        setShowCalendarDialog(false);
-        toast.success("📅 Planifié dans ton calendrier !");
+      for (const key of keys) {
+        if (!mounted.current) return;
+        const receipt = await saveCrosspostCalendar(session, scope, key, date, ownerId, activeWorkspace?.id || null);
+        confirmed++;
+        if (mounted.current && receipt.replayed) toast.info(`Version déjà enregistrée au ${receipt.date}. Elle n’a pas été remplacée.`);
       }
-    } finally {
-      setAddingToCalendar(false);
-    }
+      if (mounted.current) { setShowCalendarDialog(false); toast.success(`${confirmed} contenu(s) enregistré(s) au calendrier.`); }
+    } catch (e) {
+      if (mounted.current) toast.error(`${confirmed ? `${confirmed} contenu(s) confirmé(s). ` : ''}${calendarSaveError(e)} Réessaie pour reprendre les versions restantes.`);
+    } finally { busy.current = false; if (mounted.current) setAddingToCalendar(false); }
   };
+  const handleAddToCalendar = (date: string) => plan(date, [activeVersionKey]);
+  const handleAddAllToCalendar = (date: string) => plan(date, Object.keys(result?.versions || {}).filter(k => CROSSPOST_TARGETS.includes(k as any)));
 
-  // Planifie TOUTES les versions générées d'un coup (1 post par réseau, texte déjà adapté par l'IA).
-  const handleAddAllToCalendar = async (dateStr: string) => {
-    if (!user || addingToCalendar || !result?.versions) return;
-    setAddingToCalendar(true);
-    try {
-      const rows = Object.entries(result.versions).map(([key, version]) => {
-        const text = version.full_text || version.script || (version.sequence ? formatStoriesSequence(version.sequence) : "") || "";
-        const canal = key === "linkedin" ? "linkedin" : "instagram";
-        const format = key === "reel" ? "reel" : key === "stories" ? "story_serie" : key === "instagram" ? "carousel" : "post";
-        const label = TARGET_CHANNELS.find((c) => c.id === key)?.label || key;
-        const row: any = {
-          user_id: user.id,
-          date: dateStr,
-          theme: `Crosspost ${label} : ${sourceType}`,
-          canal,
-          format,
-          content_draft: text,
-          accroche: text.split("\n")[0]?.slice(0, 200) || "",
-          status: "drafting",
-          story_sequence_detail: {
-            type: "crosspost",
-            source_type: sourceType,
-            target_channel: key,
-            angle_choisi: version?.angle_choisi || "",
-            full_content: text,
-          },
-        };
-        if (workspaceId && workspaceId !== user.id) row.workspace_id = workspaceId;
-        return row;
-      });
-      const { error } = await supabase.from("calendar_posts").insert(rows);
-      if (error) {
-        toast.error("Erreur lors de la planification");
-      } else {
-        setShowCalendarDialog(false);
-        toast.success(`📅 ${rows.length} contenus planifiés dans ton calendrier !`);
-      }
-    } finally {
-      setAddingToCalendar(false);
-    }
-  };
-
-  const versionCount = result?.versions ? Object.keys(result.versions).length : 0;
+  const versionCount = result?.versions ? Object.keys(result.versions).filter(k => CROSSPOST_TARGETS.includes(k as any)).length : 0;
 
   return (
     <>
+      {!allowed && <p className="text-sm text-muted-foreground mb-4">Enregistrement disponible après chargement de l’espace, avec un droit de modification.</p>}
+      <details className="text-sm mb-4" onToggle={() => setHistory(crosspostHistory(scope))}>
+        <summary className="cursor-pointer text-muted-foreground">Résultats conservés dans cet onglet</summary>
+        {history.filter(h => h.id !== session?.id).map((h, i) => <Button key={h.id} variant="outline" size="sm" className="mt-2 mr-2" disabled={generating || addingToCalendar} onClick={() => {
+          if (session) archiveCrosspost(scope, session);
+          persistCrosspost(scope, h); setSession(h);
+          setActiveVersionKey(Object.keys(h.result.versions).find(k => CROSSPOST_TARGETS.includes(k as any)) || '');
+        }}>Reprendre le résultat {i + 1} · {h.source.source_type}</Button>)}
+        {!history.some(h => h.id !== session?.id) && <p className="mt-2 text-muted-foreground">Aucun autre résultat conservé.</p>}
+      </details>
       {/* Input mode toggle */}
       <div className="mb-4">
         <p className="text-sm font-medium text-foreground mb-2">Ton contenu source :</p>
@@ -369,20 +292,20 @@ export default function CrosspostFlow() {
               <p className="text-sm font-medium text-foreground">
                 {versionCount} versions adaptées prêtes
               </p>
-              <Button size="sm" onClick={() => { setPlanMode("all"); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
+              <Button disabled={!allowed} size="sm" onClick={() => { setPlanMode("all"); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
                 <CalendarDays className="h-3.5 w-3.5" /> Tout planifier
               </Button>
             </div>
           )}
-          <Tabs defaultValue={Object.keys(result.versions)[0]} onValueChange={setActiveVersionKey}>
+          <Tabs value={activeVersionKey} onValueChange={setActiveVersionKey}>
             <TabsList>
-              {Object.keys(result.versions).map((key) => {
+              {Object.keys(result.versions).filter(k => CROSSPOST_TARGETS.includes(k as any)).map((key) => {
                 const label = TARGET_CHANNELS.find((c) => c.id === key)?.label || key;
                 return <TabsTrigger key={key} value={key}>{label}</TabsTrigger>;
               })}
             </TabsList>
-            {Object.entries(result.versions).map(([key, version]) => {
-              const text = version.full_text || version.script || (version.sequence ? formatStoriesSequence(version.sequence) : "") || "";
+            {Object.entries(result.versions).filter(([k]) => CROSSPOST_TARGETS.includes(k as any)).map(([key, version]) => {
+              const text = crosspostText(version);
               return (
                 <TabsContent key={key} value={key} className="space-y-3">
                   <div className="rounded-xl border border-border bg-card p-5">
@@ -392,7 +315,7 @@ export default function CrosspostFlow() {
                     )}
                     <p className="text-xs text-primary mt-1">💡 Angle choisi : {version.angle_choisi}</p>
                   </div>
-                  {(version.full_text || version.script) && (
+                  {(typeof version.full_text === "string" || typeof version.script === "string") && (
                     <RedFlagsChecker content={text} onFix={(fixed) => {
                       if (!result) return;
                       const updatedVersions = { ...result.versions };
@@ -407,10 +330,10 @@ export default function CrosspostFlow() {
                       {copied === key ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
                       {copied === key ? "Copié !" : "Copier"}
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setPlanMode("one"); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
+                    <Button disabled={!allowed} variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setPlanMode("one"); setShowCalendarDialog(true); }} className="rounded-full gap-1.5">
                       <CalendarDays className="h-3.5 w-3.5" /> Planifier
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">
+                    <Button disabled={!allowed} variant="outline" size="sm" onClick={() => { setActiveVersionKey(key); setShowIdeasDialog(true); }} className="rounded-full gap-1.5">
                       <Lightbulb className="h-3.5 w-3.5" /> Sauvegarder en idée
                     </Button>
                   </div>
@@ -418,6 +341,7 @@ export default function CrosspostFlow() {
               );
             })}
           </Tabs>
+          <CrosspostSources data={session ? crosspostEnvelope(session.result, activeVersionKey, session.source) : null} />
           <AiGeneratedMention />
           <BaseReminder variant="atelier" />
 
@@ -434,14 +358,13 @@ export default function CrosspostFlow() {
           <SaveToIdeasDialog
             open={showIdeasDialog}
             onOpenChange={setShowIdeasDialog}
-            contentType={activeVersionKey === "linkedin" ? "post_linkedin" : "post_instagram"}
-            subject={`Crosspost ${getActiveChannelLabel()} : ${sourceType}`}
-            contentData={{
-              type: "crosspost",
-              source_type: sourceType,
-              target_channel: activeVersionKey,
-              text: getActiveVersionText(),
-              angle_choisi: getActiveVersion()?.angle_choisi || "",
+            contentType={activeVersionKey === "linkedin" ? "post_linkedin" : activeVersionKey === "reel" ? "reel" : activeVersionKey === "stories" ? "story" : "post_instagram"}
+            subject={`Crosspost ${getActiveChannelLabel()} : ${session?.source.source_type || sourceType}`}
+            contentData={session ? crosspostEnvelope(session.result, activeVersionKey, session.source) : {}}
+            isSaveCurrent={() => mounted.current}
+            onSaveContent={async (fields) => {
+              if (!allowed || !session || !mounted.current) throw new Error('Cet espace n’est pas disponible pour enregistrer.');
+              return saveCrosspostIdea(session, scope, activeVersionKey, fields, ownerId, activeWorkspace?.id || null);
             }}
             sourceModule="crosspost"
             format={getActiveFormat()}

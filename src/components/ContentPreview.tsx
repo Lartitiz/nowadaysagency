@@ -1,3 +1,5 @@
+import { resumeCrosspost } from "@/lib/crosspost-content";
+import CrosspostSources from "@/components/crosspost/CrosspostSources";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, RotateCcw } from "lucide-react";
@@ -18,7 +20,9 @@ interface ContentPreviewProps {
 }
 
 export function ContentPreview({ contentData, contentType, contentDraft, compact = false, editable = false, onContentChange }: ContentPreviewProps) {
-  const data = parseData(contentData);
+  const parsedData = parseData(contentData);
+  const crosspost = resumeCrosspost(parsedData, contentType);
+  const data = crosspost?.raw || parsedData;
 
   if (!data && contentDraft) {
     const parsed = tryParseJSON(contentDraft);
@@ -33,7 +37,16 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
 
   if (!data) return null;
 
-  const detectedType = contentType || detectType(data);
+  if (crosspost && (crosspost.format === "post" || crosspost.format === "linkedin")) {
+    const key = crosspost.format === "linkedin" ? "full_text" : "content";
+    return <>
+      {editable && onContentChange
+        ? <EditableText value={data[key] || ""} onSave={(value) => onContentChange({ ...data, [key]: value })} />
+        : <p className="text-sm whitespace-pre-wrap">{data[key]}</p>}
+      <CrosspostSources data={data} /><AiGeneratedMention />
+    </>;
+  }
+  const detectedType = crosspost ? (crosspost.format === "story" ? "stories" : crosspost.format) : contentType || detectType(data);
 
   const preview = detectedType === "reel" ? <ReelPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
     : detectedType === "stories" ? <StoriesPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
@@ -41,7 +54,7 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
     : (detectedType === "post_instagram" || detectedType === "post_linkedin") ? <PostPreview data={data} editable={editable} onContentChange={onContentChange} />
     : <FallbackPreview data={data} editable={editable} onContentChange={onContentChange} />;
 
-  return <>{preview}<AiGeneratedMention /></>;
+  return <>{preview}{crosspost && <CrosspostSources data={data} />}<AiGeneratedMention /></>;
 }
 
 /* ─── Inline Editable Text ─── */
