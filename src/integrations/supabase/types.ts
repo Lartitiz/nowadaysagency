@@ -1105,6 +1105,7 @@ export type Database = {
           created_at: string | null
           id: string
           is_resolved: boolean | null
+          request_id: string | null
           share_id: string
         }
         Insert: {
@@ -1115,6 +1116,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_resolved?: boolean | null
+          request_id?: string | null
           share_id: string
         }
         Update: {
@@ -1125,6 +1127,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           is_resolved?: boolean | null
+          request_id?: string | null
           share_id?: string
         }
         Relationships: [
@@ -1322,6 +1325,7 @@ export type Database = {
           id: string
           is_active: boolean | null
           label: string | null
+          legacy_owner_scope: boolean
           share_token: string
           show_columns: Json
           show_content_draft: boolean | null
@@ -1339,6 +1343,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           label?: string | null
+          legacy_owner_scope?: boolean
           share_token?: string
           show_columns?: Json
           show_content_draft?: boolean | null
@@ -1356,6 +1361,7 @@ export type Database = {
           id?: string
           is_active?: boolean | null
           label?: string | null
+          legacy_owner_scope?: boolean
           share_token?: string
           show_columns?: Json
           show_content_draft?: boolean | null
@@ -8375,6 +8381,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      calendar_share_restore_private: {
+        Args: { new_value: Json; old_value: Json }
+        Returns: Json
+      }
+      calendar_share_text_preserved: {
+        Args: { field_name?: string; new_value: Json; old_value: Json }
+        Returns: boolean
+      }
       consume_bonus_credit: { Args: { p_user_id: string }; Returns: number }
       create_coaching_program_full: {
         Args: {
@@ -8422,6 +8436,18 @@ export type Database = {
           p_table: string
           p_week?: string
           p_workspace_id?: string
+        }
+        Returns: Json
+      }
+      public_calendar_write: {
+        Args: {
+          p_action: string
+          p_author?: string
+          p_expected_updated_at?: string
+          p_post_id: string
+          p_request_id?: string
+          p_token: string
+          p_value: string
         }
         Returns: Json
       }
