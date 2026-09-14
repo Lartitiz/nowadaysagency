@@ -1,9 +1,10 @@
+import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
+import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useBrandProposition } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -19,12 +20,14 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 
 const TOTAL_SECTIONS = 6;
 
-export default function LinkedInProfil() {
+export default function LinkedInProfil() { return <LinkedInScope page={LinkedInProfilForm} />; }
+
+function LinkedInProfilForm() {
   const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: propositionData } = useBrandProposition();
-  const [loading, setLoading] = useState(true);
+  const store = useLinkedInPersistence("linkedin_profile");
+  const loading = !store.rows;
   const [profileId, setProfileId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [titleDone, setTitleDone] = useState(false);
@@ -42,59 +45,48 @@ export default function LinkedInProfil() {
   const completedCount = [titleDone, urlDone, photoDone, bannerDone, featuredDone, creatorModeDone].filter(Boolean).length;
 
   useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data: lpData } = await (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle();
-      if (lpData) {
-        setProfileId(lpData.id);
-        setTitle(lpData.title || "");
-        setTitleDone(lpData.title_done || false);
-        setCustomUrl(lpData.custom_url || "");
-        setUrlDone(lpData.url_done || false);
-        setPhotoDone(lpData.photo_done || false);
-        setBannerDone(lpData.banner_done || false);
-        setFeaturedDone(lpData.featured_done || false);
-        setCreatorModeDone(lpData.creator_mode_done || false);
-      }
-      const prop = propositionData as any;
-      if (prop) {
-        setPropValue(prop.version_short || prop.version_final || null);
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user?.id, propositionData]);
+    if (!store.rows) return;
+    const lpData = store.rows[0];
+    if (lpData) {
+      setProfileId(lpData.id);
+      setTitle(lpData.title || "");
+      setTitleDone(lpData.title_done || false);
+      setCustomUrl(lpData.custom_url || "");
+      setUrlDone(lpData.url_done || false);
+      setPhotoDone(lpData.photo_done || false);
+      setBannerDone(lpData.banner_done || false);
+      setFeaturedDone(lpData.featured_done || false);
+      setCreatorModeDone(lpData.creator_mode_done || false);
+    }
+  }, [store.rows]);
+
+  useEffect(() => { const prop = propositionData as any; setPropValue(prop?.version_short || prop?.version_final || null); }, [propositionData]);
 
   const save = async () => {
     if (!user) return;
-    const payload = { 
-      user_id: user.id, 
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      title, 
-      title_done: titleDone, 
-      custom_url: customUrl, 
-      url_done: urlDone, 
-      photo_done: photoDone, 
-      banner_done: bannerDone, 
+    const payload = {
+      title,
+      title_done: titleDone,
+      custom_url: customUrl,
+      url_done: urlDone,
+      photo_done: photoDone,
+      banner_done: bannerDone,
       featured_done: featuredDone,
       creator_mode_done: creatorModeDone,
-      updated_at: new Date().toISOString() 
     };
-    if (profileId) {
-      const { error } = await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
-    } else {
-      const { data, error } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
-      if (data) setProfileId(data.id);
-    }
-    toast.success("✅ Profil sauvegardé !");
+    try {
+      const result = await store.save([{ id: profileId || crypto.randomUUID(), ...payload }]);
+      if (!result) return;
+      setProfileId(result[0].id);
+      toast.success("✅ Profil sauvegardé !");
+    } catch (e) { if (store.active.current) toast.error("Erreur de sauvegarde", { description: friendlyError(e) }); }
   };
 
   const generateTitle = async () => {
     setGenerating(true);
     try {
       const res = await invokeWithTimeout("linkedin-ai", { body: { action: "title", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
+      if (!store.active.current) return;
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
@@ -104,10 +96,11 @@ export default function LinkedInProfil() {
       try { parsed = JSON.parse(content); } catch { const m = content.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setTitleSuggestions(parsed);
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     } finally {
-      setGenerating(false);
+      if (store.active.current) setGenerating(false);
     }
   };
 
@@ -127,6 +120,7 @@ export default function LinkedInProfil() {
     </span>
   );
 
+  if (store.error) return <div role="alert">Impossible de charger le profil. <Button onClick={store.reload}>Réessayer</Button></div>;
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
@@ -151,7 +145,9 @@ export default function LinkedInProfil() {
           </div>
         </div>
 
-        <Accordion type="multiple" defaultValue={["title"]} className="space-y-4">
+        <fieldset disabled={store.busy} className="contents">
+          {store.saveError && <p role="alert" className="text-sm text-destructive mb-4">{store.saveError}</p>}
+          <Accordion type="multiple" defaultValue={["title"]} className="space-y-4">
           {/* Section 1: Title */}
           <AccordionItem value="title" className="rounded-xl border border-border bg-card px-5">
             <AccordionTrigger className="font-body text-base font-bold"><span className="flex-1 text-left">1. Ton titre</span>{sectionBadge(titleDone)}</AccordionTrigger>
@@ -305,6 +301,7 @@ export default function LinkedInProfil() {
         </Accordion>
 
         <Button onClick={save} className="mt-8 rounded-pill gap-2"><Save className="h-4 w-4" strokeWidth={1.75} aria-hidden="true" /> Enregistrer mon profil</Button>
+        </fieldset>
       </main>
     </div>
   );

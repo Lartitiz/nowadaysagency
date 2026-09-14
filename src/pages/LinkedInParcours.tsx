@@ -1,8 +1,9 @@
+import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
+import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -24,11 +25,13 @@ interface Experience {
   description_optimized: string;
 }
 
-export default function LinkedInParcours() {
+export default function LinkedInParcours() { return <LinkedInScope page={LinkedInParcoursForm} />; }
+
+function LinkedInParcoursForm() {
   const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
-  const [loading, setLoading] = useState(true);
+  const store = useLinkedInPersistence("linkedin_experiences");
+  const loading = !store.rows;
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
@@ -47,16 +50,11 @@ export default function LinkedInParcours() {
   const [mediaArticles, setMediaArticles] = useState(false);
   const [mediaPortfolio, setMediaPortfolio] = useState(false);
 
-  useEffect(() => {
-    if (!user) return;
-    (supabase.from("linkedin_experiences") as any).select("*").eq(column, value).order("sort_order").then(({ data }: any) => {
-      if (data && data.length > 0) setExperiences(data.map(d => ({ id: d.id, job_title: d.job_title || "", company: d.company || "", description_raw: d.description_raw || "", description_optimized: d.description_optimized || "" })));
-      setLoading(false);
-    });
-  }, [user?.id]);
+  const hydrate = (rows: any[]) => rows.slice().sort((a,b) => (a.sort_order ?? 0)-(b.sort_order ?? 0)).map(d => ({ id: d.id, job_title: d.job_title || "", company: d.company || "", description_raw: d.description_raw || "", description_optimized: d.description_optimized || "" }));
+  useEffect(() => { if (store.rows) setExperiences(hydrate(store.rows)); }, [store.rows]);
 
   const addExperience = () => {
-    setExperiences(prev => [...prev, { job_title: "", company: "", description_raw: "", description_optimized: "" }]);
+    setExperiences(prev => [...prev, { id: crypto.randomUUID(), job_title: "", company: "", description_raw: "", description_optimized: "" }]);
   };
 
   const updateExp = (idx: number, field: keyof Experience, value: string) => {
@@ -68,17 +66,13 @@ export default function LinkedInParcours() {
   };
 
   const removeExp = async (idx: number) => {
-    const exp = experiences[idx];
-    if (exp.id) {
-      const { error } = await supabase.from("linkedin_experiences").delete().eq("id", exp.id);
-      if (error) {
-        console.error("Erreur technique:", error);
-        toast.error("Erreur", { description: friendlyError(error) });
-        return;
-      }
-    }
-    setExperiences(prev => prev.filter((_, i) => i !== idx));
-    toast.success("Expérience supprimée");
+    try {
+      const next = experiences.filter((_, i) => i !== idx);
+      const result = await store.save(next.map((e,i) => ({ ...e, id: e.id!, sort_order: i })));
+      if (!result) return;
+      setExperiences(hydrate(result));
+      toast.success("Expérience supprimée");
+    } catch (e) { if (store.active.current) toast.error("Suppression non enregistrée", { description: friendlyError(e) }); }
   };
 
   const optimizeExp = async (idx: number) => {
@@ -89,42 +83,31 @@ export default function LinkedInParcours() {
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "optimize-experience", job_title: exp.job_title, company: exp.company, description: exp.description_raw, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 75000);
+      if (!store.active.current) return;
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
-      updateExp(idx, "description_optimized", content);
+      setExperiences(prev => prev.map(row => row.id === exp.id ? { ...row, description_optimized: content } : row));
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     } finally {
-      setGeneratingIdx(null);
+      if (store.active.current) setGeneratingIdx(null);
     }
   };
 
   const saveExperiences = async () => {
-    if (!user) return;
+    if (!user || generatingIdx !== null) return;
     try {
-      // Delete all then re-insert
-      const { error: delError } = await (supabase.from("linkedin_experiences") as any).delete().eq(column, value);
-      if (delError) throw delError;
-      if (experiences.length > 0) {
-        const { error: insError } = await supabase.from("linkedin_experiences").insert(
-          experiences.map((e, i) => ({
-            user_id: user.id,
-            workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-            job_title: e.job_title,
-            company: e.company,
-            description_raw: e.description_raw,
-            description_optimized: e.description_optimized,
-            sort_order: i
-          }))
-        );
-        if (insError) throw insError;
-      }
+      const result = await store.save(experiences.map((e,i) => ({ ...e, id: e.id!, sort_order: i })));
+      if (!result) return;
+      setExperiences(hydrate(result));
       toast.success("✅ Parcours sauvegardé !");
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     }
@@ -134,6 +117,7 @@ export default function LinkedInParcours() {
     setGeneratingSkills(true);
     try {
       const res = await invokeWithTimeout("linkedin-ai", { body: { action: "suggest-skills", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
+      if (!store.active.current) return;
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
@@ -143,10 +127,11 @@ export default function LinkedInParcours() {
       try { parsed = JSON.parse(content); } catch { const m = content.match(/\{[\s\S]*\}/); parsed = m ? JSON.parse(m[0]) : null; }
       if (parsed) setSkills(parsed);
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     } finally {
-      setGeneratingSkills(false);
+      if (store.active.current) setGeneratingSkills(false);
     }
   };
 
@@ -157,6 +142,7 @@ export default function LinkedInParcours() {
     toast.success("📋 Copié !");
   };
 
+  if (store.error) return <div role="alert">Impossible de charger le parcours. <Button onClick={store.reload}>Réessayer</Button></div>;
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
@@ -168,7 +154,9 @@ export default function LinkedInParcours() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ton parcours professionnel</h1>
         <p className="text-sm text-muted-foreground italic mb-8">Chaque expérience doit montrer ce que tu as apporté, pas juste ce que tu as fait.</p>
 
-        <Accordion type="multiple" defaultValue={["experiences"]} className="space-y-4">
+        <fieldset disabled={store.busy || generatingIdx !== null} className="contents">
+          {store.saveError && <p role="alert" className="text-sm text-destructive mb-4">{store.saveError}</p>}
+          <Accordion type="multiple" defaultValue={["experiences"]} className="space-y-4">
           {/* Experiences */}
           <AccordionItem value="experiences" className="rounded-xl border border-border bg-card px-5">
             <AccordionTrigger className="font-body text-base font-bold">💼 Tes expériences professionnelles</AccordionTrigger>
@@ -182,10 +170,10 @@ export default function LinkedInParcours() {
               </div>
 
               {experiences.map((exp, idx) => (
-                <div key={idx} className="rounded-xl border border-border p-4 space-y-3">
+                <div key={exp.id} className="rounded-xl border border-border p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-bold text-foreground">Expérience {idx + 1}</span>
-                    <Button variant="ghost" size="sm" onClick={() => removeExp(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
+                    <Button variant="ghost" size="sm" aria-label={`Supprimer l’expérience ${idx + 1}`} onClick={() => removeExp(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
                   </div>
                   <Input aria-label={`Intitulé du poste (expérience ${idx + 1})`} value={exp.job_title} onChange={e => updateExp(idx, "job_title", e.target.value)} placeholder="Intitulé du poste" />
                   <Input aria-label={`Entreprise (expérience ${idx + 1})`} value={exp.company} onChange={e => updateExp(idx, "company", e.target.value)} placeholder="Entreprise" />
@@ -296,6 +284,7 @@ export default function LinkedInParcours() {
             <Lightbulb className="h-4 w-4" /> Sauvegarder en idée
           </Button>
         </div>
+        </fieldset>
         <SaveToIdeasDialog
           open={showIdeasDialog}
           onOpenChange={setShowIdeasDialog}
