@@ -81,6 +81,7 @@ BEGIN
  IF (SELECT status FROM public.calendar_posts WHERE id=p)<>'ready' THEN RAISE EXCEPTION 'non atomic edit'; END IF;
  DROP TRIGGER reject_test_log ON public.calendar_comments;
  UPDATE public.calendar_shares SET show_content_draft=false WHERE share_token='scoped';
+ IF public.public_calendar_write('scoped',p,NULL,'text')->>'error'<>'invalid_field' THEN RAISE EXCEPTION 'null action bypassed permissions'; END IF;
  IF public.public_calendar_write('scoped',p,'wording','text')->>'error'<>'permission_denied' THEN RAISE EXCEPTION 'hidden wording editable'; END IF;
  UPDATE public.calendar_shares SET guest_can_edit_status=false WHERE share_token='scoped';
  IF public.public_calendar_write('scoped',p,'status','draft_ready')->>'error'<>'permission_denied' THEN RAISE EXCEPTION 'status permission'; END IF;

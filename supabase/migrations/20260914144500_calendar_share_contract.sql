@@ -78,7 +78,7 @@ BEGIN
       (s.workspace_id IS NULL AND (s.legacy_owner_scope OR workspace_id IS NULL)))
  AND (s.canal_filter IS NULL OR s.canal_filter='all' OR canal=s.canal_filter) FOR UPDATE;
  IF NOT FOUND THEN RETURN jsonb_build_object('error','post_not_found','status',404); END IF;
- IF p_action NOT IN ('comment','status','wording') OR p_value IS NULL THEN RETURN jsonb_build_object('error','invalid_field','status',400); END IF;
+ IF p_action IS NULL OR p_action NOT IN ('comment','status','wording') OR p_value IS NULL THEN RETURN jsonb_build_object('error','invalid_field','status',400); END IF;
  IF (p_action='status' AND s.guest_can_edit_status IS NOT TRUE) OR
     (p_action='wording' AND (s.guest_can_edit_wording IS NOT TRUE OR s.show_content_draft IS NOT TRUE)) THEN
    RETURN jsonb_build_object('error','permission_denied','status',403);
