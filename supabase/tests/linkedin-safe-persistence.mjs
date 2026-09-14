@@ -38,7 +38,7 @@ try {
  await db.exec(`INSERT INTO linkedin_experiences(id,user_id,workspace_id,job_title,description_raw,description_optimized) VALUES ('${id(1)}','${owner}','${A}','Initial','Original','Optimized'),('${id(2)}','${owner}',NULL,'Legacy','Legacy raw','Legacy opt'),('${id(3)}','${owner}','${B}','B','B raw','B opt');
  INSERT INTO linkedin_recommendations(id,user_id,workspace_id,person_name,request_sent,reco_received) VALUES ('${id(4)}','${owner}','${A}','Alice',true,true);`);
  const historical={};for(const t of tables) historical[t]=(await db.query(`SELECT to_jsonb(t) AS row FROM ${t} t ORDER BY id`)).rows;
- await db.exec(file('../migrations/20260914143000_linkedin_safe_persistence.sql'));
+ await db.exec(file('../migrations/20260914124011_3b4ca480-b998-48a6-aef8-fc3f79ad1c3d.sql'));
  for(const t of tables){const actual=(await db.query(`SELECT to_jsonb(t) ${t==='linkedin_recommendations'?"- 'sort_order'":''} AS row FROM ${t} t ORDER BY id`)).rows;assert.deepEqual(actual,historical[t]);}
  console.log('PASS migration preserves every historical field/ID');
  await identity(owner);

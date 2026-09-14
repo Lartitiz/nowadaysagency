@@ -24,7 +24,7 @@ ALTER TABLE launch_plan_contents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE calendar_posts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY fixture_posts ON calendar_posts USING((workspace_id IS NULL AND user_id=auth.uid()) OR EXISTS(SELECT 1 FROM workspace_members m WHERE m.workspace_id=calendar_posts.workspace_id AND m.user_id=auth.uid() AND m.role IN ('owner','manager')));
 \ir ../migrations/20260704134745_e4a6355c-efda-4949-8aa8-f2818bd401b9.sql
-\ir ../migrations/20260914153000_launch_calendar_recovery.sql
+\ir ../migrations/20260914124242_1ac59d7a-0dd2-4759-8dbb-5f970f9b640d.sql
 GRANT SELECT ON workspace_members TO authenticated;
 GRANT SELECT,INSERT,UPDATE,DELETE ON launches,launch_plan_contents,calendar_posts TO authenticated;
 INSERT INTO workspace_members VALUES ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','owner'),('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','manager'),('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333333','viewer');

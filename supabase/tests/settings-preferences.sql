@@ -18,7 +18,7 @@ GRANT INSERT,UPDATE ON public.user_plan_config TO authenticated;
 INSERT INTO public.profiles(user_id,canaux,bonus_credits) VALUES('00000000-0000-0000-0000-000000000001',ARRAY['linkedin'],17),('00000000-0000-0000-0000-000000000002',ARRAY['site'],23);
 INSERT INTO public.user_plan_config(user_id,workspace_id,channels) VALUES('00000000-0000-0000-0000-000000000001','aaaaaaaa-0000-0000-0000-000000000001','["linkedin"]');
 CREATE TEMP TABLE original AS SELECT to_jsonb(p) AS row FROM public.profiles p;
-\ir ../migrations/20260914160000_settings_preferences.sql
+\ir ../migrations/20260914124736_af23de31-5862-4e99-b49b-e74c8993e523.sql
 DO $$ BEGIN
   IF EXISTS(SELECT row FROM original EXCEPT SELECT to_jsonb(p)-'notification_tips'-'notification_reminders' FROM profiles p) THEN RAISE EXCEPTION 'history changed'; END IF;
 END $$;

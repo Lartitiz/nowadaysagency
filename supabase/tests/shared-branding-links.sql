@@ -41,7 +41,7 @@ DO $$ BEGIN
  UPDATE shared_branding_links SET is_active=true WHERE token='a';
 END $$;
 RESET ROLE;
-\ir ../migrations/20260914150000_shared_branding_links_scope.sql
+\ir ../migrations/20260914124141_f8e265d2-6b91-453c-af17-d8e34a37da97.sql
 DO $$ BEGIN
  IF EXISTS(SELECT * FROM before_links EXCEPT SELECT * FROM shared_branding_links) THEN RAISE EXCEPTION 'history modified'; END IF;
 END $$;
