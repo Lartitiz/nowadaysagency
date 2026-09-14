@@ -1,10 +1,11 @@
+import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
+import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
 import { useProfile } from "@/hooks/use-profile";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Sparkles, Copy, Check } from "lucide-react";
+import { Sparkles, Copy, Check, Trash2 } from "lucide-react";
 import { friendlyError } from "@/lib/error-messages";
 
 const PERSON_TYPES = [
@@ -32,12 +33,14 @@ interface Reco {
   reco_received: boolean;
 }
 
-export default function LinkedInRecommandations() {
+export default function LinkedInRecommandations() { return <LinkedInScope page={LinkedInRecommandationsForm} />; }
+
+function LinkedInRecommandationsForm() {
   const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
-  const [loading, setLoading] = useState(true);
+  const store = useLinkedInPersistence("linkedin_recommendations");
+  const loading = !store.rows;
   const [recos, setRecos] = useState<Reco[]>(
     Array.from({ length: 5 }, () => ({ person_name: "", person_type: "client", request_sent: false, reco_received: false }))
   );
@@ -54,19 +57,12 @@ export default function LinkedInRecommandations() {
 
   const prenom = (profileData as any)?.prenom || "";
 
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const recoRes = await (supabase.from("linkedin_recommendations") as any).select("*").eq(column, value).order("created_at");
-      if (recoRes.data && recoRes.data.length > 0) {
-        const loaded: Reco[] = recoRes.data.map((r: any) => ({ id: r.id, person_name: r.person_name || "", person_type: r.person_type || "client", request_sent: r.request_sent || false, reco_received: r.reco_received || false }));
-        while (loaded.length < 5) loaded.push({ person_name: "", person_type: "client", request_sent: false, reco_received: false });
-        setRecos(loaded);
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user?.id]);
+  const hydrate = (rows: any[]) => {
+    const loaded: Reco[] = rows.slice().sort((a,b) => (a.sort_order ?? Number.MAX_SAFE_INTEGER) - (b.sort_order ?? Number.MAX_SAFE_INTEGER) || (a.created_at || "").localeCompare(b.created_at || "") || a.id.localeCompare(b.id)).map(r => ({ id: r.id, person_name: r.person_name || "", person_type: r.person_type || "client", request_sent: !!r.request_sent, reco_received: !!r.reco_received }));
+    while (loaded.length < 5) loaded.push({ id: crypto.randomUUID(), person_name: "", person_type: "client", request_sent: false, reco_received: false });
+    return loaded;
+  };
+  useEffect(() => { if (store.rows) setRecos(hydrate(store.rows)); }, [store.rows]);
 
   const updateReco = (idx: number, field: keyof Reco, value: any) => {
     setRecos(prev => {
@@ -76,25 +72,24 @@ export default function LinkedInRecommandations() {
     });
   };
 
+  const patches = (list: Reco[]) => list.filter(r => r.person_name.trim() || r.request_sent || r.reco_received || store.snapshot.current?.some(saved => saved.id === r.id)).map((r, i) => ({ ...r, id: r.id!, sort_order: i }));
+
+  const removeReco = async (idx: number) => {
+    try {
+      const result = await store.save(patches(recos.filter((_, i) => i !== idx)));
+      if (result) setRecos(hydrate(result));
+    } catch (e) { if (store.active.current) toast.error("Suppression non enregistrée", { description: friendlyError(e) }); }
+  };
+
   const saveRecos = async () => {
     if (!user) return;
     try {
-      const { error: delError } = await (supabase.from("linkedin_recommendations") as any).delete().eq(column, value);
-      if (delError) throw delError;
-      const toInsert = recos.filter(r => r.person_name.trim()).map(r => ({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        person_name: r.person_name,
-        person_type: r.person_type,
-        request_sent: r.request_sent,
-        reco_received: r.reco_received,
-      }));
-      if (toInsert.length > 0) {
-        const { error: insError } = await supabase.from("linkedin_recommendations").insert(toInsert);
-        if (insError) throw insError;
-      }
+      const result = await store.save(patches(recos));
+      if (!result) return;
+      setRecos(hydrate(result));
       toast.success("✅ Recommandations sauvegardées !");
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     }
@@ -121,6 +116,7 @@ ${prenom || "[Ton prénom]"}`;
     setGeneratingMsg(true);
     try {
       const res = await invokeWithTimeout("linkedin-ai", { body: { action: "personalize-message", workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 75000);
+      if (!store.active.current) return;
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
@@ -130,9 +126,10 @@ ${prenom || "[Ton prénom]"}`;
       try { parsed = JSON.parse(content); } catch { const m = content.match(/\[[\s\S]*\]/); parsed = m ? JSON.parse(m[0]) : []; }
       setMessageVariants(parsed);
     } catch (e: any) {
+      if (!store.active.current) return;
       toast.error("Erreur", { description: friendlyError(e) });
     } finally {
-      setGeneratingMsg(false);
+      if (store.active.current) setGeneratingMsg(false);
     }
   };
 
@@ -142,21 +139,24 @@ ${prenom || "[Ton prénom]"}`;
       const res = await invokeWithTimeout("linkedin-ai", {
         body: { action: "draft-recommendation", person_name: draftName, collab_type: draftType, highlights: draftHighlights, workspace_id: workspaceId !== user?.id ? workspaceId : undefined },
       }, 75000);
+      if (!store.active.current) return;
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
       if (res.error) throw new Error(res.error.message);
       setDraftResult(res.data?.content || "");
     } catch (e: any) {
+      if (!store.active.current) return;
       toast.error("Erreur", { description: friendlyError(e) });
     } finally {
-      setGeneratingDraft(false);
+      if (store.active.current) setGeneratingDraft(false);
     }
   };
 
   const requestedCount = recos.filter(r => r.request_sent).length;
   const receivedCount = recos.filter(r => r.reco_received).length;
 
+  if (store.error) return <div role="alert">Impossible de charger les recommandations. <Button onClick={store.reload}>Réessayer</Button></div>;
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
@@ -168,6 +168,8 @@ ${prenom || "[Ton prénom]"}`;
         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Tes recommandations</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Les recommandations LinkedIn sont de vraies preuves sociales. Elles rassurent et renforcent ta crédibilité.</p>
 
+        <fieldset disabled={store.busy} className="contents">
+          {store.saveError && <p role="alert" className="text-sm text-destructive mb-4">{store.saveError}</p>}
         {/* Exercise */}
         <section className="space-y-4 mb-10">
           <p className="text-sm text-muted-foreground">Identifie 5 personnes à qui demander une recommandation.</p>
@@ -194,6 +196,7 @@ ${prenom || "[Ton prénom]"}`;
                   <Checkbox checked={r.reco_received} onCheckedChange={v => updateReco(idx, "reco_received", !!v)} />
                   <span className="text-xs">Reçue</span>
                 </div>
+                <Button variant="ghost" size="sm" aria-label={`Retirer la recommandation ${idx + 1}`} onClick={() => removeReco(idx)}><Trash2 className="h-4 w-4" /></Button>
               </div>
             ))}
           </div>
@@ -201,6 +204,7 @@ ${prenom || "[Ton prénom]"}`;
           <Button onClick={saveRecos} variant="outline" className="rounded-pill gap-2">💾 Enregistrer</Button>
         </section>
 
+        </fieldset>
         {/* Message template */}
         <section className="space-y-4 mb-10">
           <h2 className="font-display text-lg font-bold">Modèle de message</h2>

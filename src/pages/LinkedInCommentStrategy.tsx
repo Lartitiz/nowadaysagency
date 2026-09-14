@@ -1,7 +1,6 @@
+import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
+import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -15,60 +14,42 @@ interface CommentAccount {
   niche: string;
 }
 
-export default function LinkedInCommentStrategy() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
-  const [loading, setLoading] = useState(true);
+export default function LinkedInCommentStrategy() { return <LinkedInScope page={LinkedInCommentStrategyForm} />; }
+
+function LinkedInCommentStrategyForm() {
+  const store = useLinkedInPersistence("linkedin_comment_strategy");
+  const loading = !store.rows;
   const [strategyId, setStrategyId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<CommentAccount[]>([]);
   const [newName, setNewName] = useState("");
   const [newNiche, setNewNiche] = useState("");
 
   useEffect(() => {
-    if (!user) return;
-    (supabase
-      .from("linkedin_comment_strategy" as any)
-      .select("*")
-      .eq(column, value)
-      .maybeSingle() as any)
-      .then(({ data }: any) => {
-        if (data) {
-          setStrategyId(data.id);
-          setAccounts((data.accounts as unknown as CommentAccount[]) || []);
-        }
-        setLoading(false);
-      });
-  }, [user?.id]);
+    if (!store.rows) return;
+    const row = store.rows[0];
+    setStrategyId(row?.id || null);
+    setAccounts(Array.isArray(row?.accounts) ? row.accounts : []);
+  }, [store.rows]);
 
   const save = async (newAccounts: CommentAccount[]) => {
-    if (!user) return;
-    const payload = {
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      accounts: newAccounts as any,
-      updated_at: new Date().toISOString()
-    };
-    if (strategyId) {
-      const { error } = await supabase.from("linkedin_comment_strategy").update(payload).eq("id", strategyId);
-      if (error) throw error;
-    } else {
-      const { data, error } = await supabase.from("linkedin_comment_strategy").insert(payload).select("id").single();
-      if (error) throw error;
-      if (data) setStrategyId(data.id);
-    }
+    const result = await store.save([{ id: strategyId || crypto.randomUUID(), accounts: newAccounts }]);
+    if (!result) return false;
+    setStrategyId(result[0].id);
+    setAccounts(result[0].accounts);
+    return true;
   };
 
   const addAccount = async () => {
     if (!newName.trim()) return;
     const updated = [...accounts, { name: newName.trim(), niche: newNiche.trim() }];
-    setAccounts(updated);
-    setNewName("");
-    setNewNiche("");
+
     try {
-      await save(updated);
+      if (!await save(updated)) return;
+      setNewName("");
+      setNewNiche("");
       toast.success("Compte ajouté !");
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     }
@@ -76,15 +57,17 @@ export default function LinkedInCommentStrategy() {
 
   const removeAccount = async (idx: number) => {
     const updated = accounts.filter((_, i) => i !== idx);
-    setAccounts(updated);
+
     try {
       await save(updated);
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     }
   };
 
+  if (store.error) return <div role="alert">Impossible de charger la stratégie. <Button onClick={store.reload}>Réessayer</Button></div>;
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
@@ -101,10 +84,12 @@ export default function LinkedInCommentStrategy() {
           Commenter chez les autres = la stratégie la plus sous-estimée. 20-40 min/jour suffisent.
         </p>
 
+        <fieldset disabled={store.busy} className="contents">
+          {store.saveError && <p role="alert" className="text-sm text-destructive mb-4">{store.saveError}</p>}
         {/* Accounts list */}
         <div className="rounded-2xl border border-border bg-card p-6 mb-6">
           <h2 className="text-base font-bold text-foreground mb-4">Mes comptes à commenter régulièrement</h2>
-          
+
           {accounts.length === 0 && (
             <p className="text-sm text-muted-foreground italic mb-4">Aucun compte ajouté pour l'instant : ajoute ton premier compte juste en dessous 👇 (vise 10-15).</p>
           )}
@@ -130,6 +115,7 @@ export default function LinkedInCommentStrategy() {
           </div>
         </div>
 
+        </fieldset>
         {/* Tips */}
         <div className="rounded-xl bg-rose-pale p-5 text-sm space-y-2 mb-6">
           <p className="font-semibold">💡 Choisis 10-15 comptes dans ta niche :</p>

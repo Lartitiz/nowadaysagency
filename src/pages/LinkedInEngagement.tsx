@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
+import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import EngagementCoachingDialog from "@/components/engagement/EngagementCoachingDialog";
 import { toLocalDateStr } from "@/lib/utils";
@@ -38,7 +40,9 @@ interface StrategyAccount {
   url?: string;
 }
 
-export default function LinkedInEngagement() {
+export default function LinkedInEngagement() { return <LinkedInScope page={LinkedInEngagementForm} />; }
+
+function LinkedInEngagementForm() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -63,97 +67,67 @@ export default function LinkedInEngagement() {
     return toLocalDateStr(s);
   }, []);
 
+  const store = useLinkedInPersistence("engagement_weekly_linkedin", monday);
+  const [extraError, setExtraError] = useState(false);
+
   const targets = TARGETS[objective] || TARGETS[5];
   const totalDone = commentsDone + messagesDone;
   const totalTarget = targets.comments + targets.messages;
   const progressPct = totalTarget > 0 ? Math.round((totalDone / totalTarget) * 100) : 0;
 
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const [weekRes, histRes, stratRes] = await Promise.all([
-        (supabase.from("engagement_weekly_linkedin") as any).select("*").eq(column, value).eq("week_start", monday).maybeSingle(),
-        (supabase.from("engagement_weekly_linkedin") as any).select("*").eq(column, value).neq("week_start", monday).order("week_start", { ascending: false }).limit(10),
-        (supabase.from("linkedin_comment_strategy") as any).select("accounts").eq(column, value).maybeSingle(),
+  const hydrate = (row: any) => {
+    setWeeklyId(row?.id || null);
+    setObjective(row?.objective ?? 5);
+    setCommentsDone(row?.comments_done ?? 0);
+    setMessagesDone(row?.messages_done ?? 0);
+    setCommentedAccounts(new Set(Array.isArray(row?.commented_accounts) ? row.commented_accounts : []));
+  };
+  useEffect(() => { if (store.rows) hydrate(store.rows[0]); }, [store.rows]);
+  const loadExtras = useCallback(async () => {
+    setExtraError(false);
+    setLoading(true);
+    try {
+      let historyQuery = (supabase.from("engagement_weekly_linkedin") as any).select("*").eq(column, value);
+      let strategyQuery = (supabase.from("linkedin_comment_strategy") as any).select("accounts").eq(column, value);
+      if (column === "user_id") { historyQuery = historyQuery.is("workspace_id", null); strategyQuery = strategyQuery.is("workspace_id", null); }
+      const [histRes, stratRes] = await Promise.all([
+        historyQuery.neq("week_start", monday).order("week_start", { ascending: false }).limit(10),
+        strategyQuery.maybeSingle(),
       ]);
-      if (weekRes.data) {
-        setWeeklyId(weekRes.data.id);
-        setObjective(weekRes.data.objective ?? 5);
-        setCommentsDone(weekRes.data.comments_done ?? 0);
-        setMessagesDone(weekRes.data.messages_done ?? 0);
-        // Load commented accounts from weekly data
-        const saved = weekRes.data.commented_accounts;
-        if (Array.isArray(saved)) setCommentedAccounts(new Set(saved));
-      }
+      if (!store.active.current) return;
+      if (histRes.error || stratRes.error) throw histRes.error || stratRes.error;
       setHistory(histRes.data || []);
-      if (stratRes.data?.accounts) {
-        try {
-          const accs = typeof stratRes.data.accounts === "string" ? JSON.parse(stratRes.data.accounts) : stratRes.data.accounts;
-          if (Array.isArray(accs)) setStrategyAccounts(accs);
-        } catch { /* ignore */ }
-      }
-      setLoading(false);
-    };
-    load();
-  }, [user, monday]);
+      const accounts = stratRes.data?.accounts;
+      const parsed = typeof accounts === "string" ? JSON.parse(accounts) : accounts;
+      setStrategyAccounts(Array.isArray(parsed) ? parsed : []);
+    } catch { if (store.active.current) setExtraError(true); }
+    finally { if (store.active.current) setLoading(false); }
+  }, [column, value, monday, store.active]);
+  useEffect(() => { void loadExtras(); }, [loadExtras]);
 
-  const saveWeekly = async (newComments?: number, newMessages?: number, newCommentedAccounts?: Set<string>) => {
-    if (!user) return;
-    const c = newComments ?? commentsDone;
-    const m = newMessages ?? messagesDone;
-    const t = TARGETS[objective] || TARGETS[5];
-    const ca = newCommentedAccounts ?? commentedAccounts;
-    const payload: any = {
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, week_start: monday, objective,
-      comments_target: t.comments, comments_done: c,
-      messages_target: t.messages, messages_done: m,
-      total_done: c + m, commented_accounts: Array.from(ca), updated_at: new Date().toISOString(),
-    };
-    if (weeklyId) {
-      const { error } = await supabase.from("engagement_weekly_linkedin").update(payload).eq("id", weeklyId);
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
-    } else {
-      const { data, error } = await supabase.from("engagement_weekly_linkedin").insert(payload).select("id").single();
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
-      if (data) setWeeklyId(data.id);
-    }
-  };
-
-  const incrementComments = () => { const v = Math.min(commentsDone + 1, targets.comments); setCommentsDone(v); saveWeekly(v, messagesDone); };
-  const incrementMessages = () => { const v = Math.min(messagesDone + 1, targets.messages); setMessagesDone(v); saveWeekly(commentsDone, v); };
-
-  const toggleAccountCommented = (name: string) => {
-    setCommentedAccounts(prev => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name); else next.add(name);
-      saveWeekly(undefined, undefined, next);
-      return next;
-    });
-  };
-
-  const changeObjective = async (obj: number) => {
-    setObjective(obj);
-    setCommentsDone(0); setMessagesDone(0);
-    if (!user) return;
+  const saveWeekly = async (newComments = commentsDone, newMessages = messagesDone, accounts = commentedAccounts, obj = objective) => {
     const t = TARGETS[obj] || TARGETS[5];
-    const payload: any = {
-      user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : undefined, week_start: monday, objective: obj,
-      comments_target: t.comments, comments_done: 0,
-      messages_target: t.messages, messages_done: 0,
-      total_done: 0, commented_accounts: [], updated_at: new Date().toISOString(),
-    };
-    if (weeklyId) {
-      const { error } = await supabase.from("engagement_weekly_linkedin").update(payload).eq("id", weeklyId);
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
-    } else {
-      const { data, error } = await supabase.from("engagement_weekly_linkedin").insert(payload).select("id").single();
-      if (error) { toast.error("Erreur de sauvegarde"); return; }
-      if (data) setWeeklyId(data.id);
-    }
-    setCommentedAccounts(new Set());
+    try {
+      const result = await store.save([{
+        id: weeklyId || crypto.randomUUID(), objective: obj,
+        comments_target: t.comments, comments_done: newComments,
+        messages_target: t.messages, messages_done: newMessages,
+        total_done: newComments + newMessages, commented_accounts: Array.from(accounts),
+      }]);
+      if (result) hydrate(result[0]);
+    } catch { if (store.active.current) toast.error("Progression non enregistrée. Réessaie avant de quitter la page."); }
   };
+  const incrementComments = () => { void saveWeekly(Math.min(commentsDone + 1, targets.comments)); };
+  const incrementMessages = () => { void saveWeekly(commentsDone, Math.min(messagesDone + 1, targets.messages)); };
+  const toggleAccountCommented = (name: string) => {
+    const next = new Set(commentedAccounts);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    void saveWeekly(commentsDone, messagesDone, next);
+  };
+  const changeObjective = (obj: number) => { void saveWeekly(0, 0, new Set(), obj); };
 
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
+  if (store.error || extraError) return <div role="alert">Impossible de charger l’engagement. <Button onClick={() => { void store.reload(); void loadExtras(); }}>Réessayer</Button></div>;
+  if (loading || !store.rows) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,6 +149,8 @@ export default function LinkedInEngagement() {
         </div>
 
         <EngagementCoachingDialog open={coachingOpen} onOpenChange={setCoachingOpen} platform="linkedin" />
+        <fieldset disabled={store.busy} className="contents">
+          {store.saveError && <p role="alert" className="text-sm text-destructive mb-4">{store.saveError}</p>}
         {/* Guide – visible, not collapsed */}
         <div className="rounded-xl bg-rose-pale p-5 text-sm space-y-3 mb-8">
           <h3 className="font-semibold text-foreground">💡 5 règles pour commenter efficacement</h3>
@@ -314,6 +290,7 @@ export default function LinkedInEngagement() {
             </AccordionItem>
           </Accordion>
         )}
+        </fieldset>
       </main>
     </div>
   );
