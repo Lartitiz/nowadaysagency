@@ -84,6 +84,8 @@ BEGIN
  END;
  IF (SELECT status FROM public.calendar_posts WHERE id=p)<>'ready' THEN RAISE EXCEPTION 'non atomic edit'; END IF;
  DROP TRIGGER reject_test_log ON public.calendar_comments;
+ r:=public.public_calendar_write('scoped',p,'status','draft_ready');
+ IF r->>'success' IS DISTINCT FROM 'true' OR NOT EXISTS (SELECT FROM public.calendar_comments WHERE calendar_post_id=p AND content='[EDIT] Statut changé de "À valider" à "Validé"') THEN RAISE EXCEPTION 'before/after audit lost'; END IF;
  UPDATE public.calendar_shares SET show_content_draft=false WHERE share_token='scoped';
  IF public.public_calendar_write('scoped',p,NULL,'text')->>'error' IS DISTINCT FROM 'invalid_field' THEN RAISE EXCEPTION 'null action bypassed permissions'; END IF;
  IF public.public_calendar_write('scoped',p,'wording','text')->>'error' IS DISTINCT FROM 'permission_denied' THEN RAISE EXCEPTION 'hidden wording editable'; END IF;

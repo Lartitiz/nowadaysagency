@@ -68,7 +68,7 @@ CREATE FUNCTION public.public_calendar_write(p_token text, p_post_id uuid, p_act
  p_author text DEFAULT NULL, p_request_id uuid DEFAULT NULL, p_expected_updated_at timestamptz DEFAULT NULL)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE s public.calendar_shares; p public.calendar_posts; c public.calendar_comments;
- old_json jsonb; new_json jsonb; old_structured boolean := false; n integer;
+ old_json jsonb; new_json jsonb; old_status text; old_structured boolean := false; n integer;
 BEGIN
  SELECT * INTO s FROM public.calendar_shares WHERE share_token=p_token FOR UPDATE;
  IF NOT FOUND OR s.is_active IS NOT TRUE THEN RETURN jsonb_build_object('error','invalid_token','status',404); END IF;
@@ -105,6 +105,7 @@ BEGIN
  IF p_action='status' THEN
    IF p_value NOT IN ('idea','a_rediger','drafting','ready','draft_ready','published') THEN RETURN jsonb_build_object('error','invalid_status','status',400); END IF;
    IF p.status=p_value THEN RETURN jsonb_build_object('success',true,'updated_at',p.updated_at); END IF;
+   old_status:=p.status;
    UPDATE public.calendar_posts SET status=p_value, updated_at=clock_timestamp() WHERE id=p.id RETURNING * INTO p;
  ELSE
    IF length(p_value)>10000 THEN RETURN jsonb_build_object('error','content_too_long','status',400); END IF;
@@ -122,7 +123,7 @@ BEGIN
  END IF;
  INSERT INTO public.calendar_comments(calendar_post_id,share_id,author_name,author_role,content)
  VALUES(p.id,s.id,coalesce(nullif(p_author,''),s.guest_name,'Client·e'),'guest',
- CASE WHEN p_action='status' THEN '[EDIT] Statut changé en "'|| CASE p_value WHEN 'idea' THEN 'Pas commencé' WHEN 'a_rediger' THEN 'À rédiger' WHEN 'drafting' THEN 'En cours' WHEN 'ready' THEN 'À valider' WHEN 'draft_ready' THEN 'Validé' ELSE 'Posté' END ||'"' ELSE '[EDIT] Wording modifié' END);
+ CASE WHEN p_action='status' THEN '[EDIT] Statut changé de "'|| CASE old_status WHEN 'idea' THEN 'Pas commencé' WHEN 'a_rediger' THEN 'À rédiger' WHEN 'drafting' THEN 'En cours' WHEN 'ready' THEN 'À valider' WHEN 'draft_ready' THEN 'Validé' WHEN 'published' THEN 'Posté' ELSE coalesce(old_status,'') END ||'" à "'|| CASE p_value WHEN 'idea' THEN 'Pas commencé' WHEN 'a_rediger' THEN 'À rédiger' WHEN 'drafting' THEN 'En cours' WHEN 'ready' THEN 'À valider' WHEN 'draft_ready' THEN 'Validé' ELSE 'Posté' END ||'"' ELSE '[EDIT] Wording modifié' END);
  RETURN jsonb_build_object('success',true,'updated_at',p.updated_at);
 END $$;
 REVOKE ALL ON FUNCTION public.public_calendar_write(text,uuid,text,text,text,uuid,timestamptz) FROM PUBLIC, anon, authenticated;
