@@ -1,11 +1,11 @@
 import { resumeCrosspost } from "@/lib/crosspost-content";
 import CrosspostSources from "@/components/crosspost/CrosspostSources";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Copy, Check, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import AiGeneratedMention from "@/components/AiGeneratedMention";
-import EditableTextStandalone from "@/components/EditableText";
+import { contentEdit, previewContent, type SaveContentEdit, type ContentReceipt } from "@/lib/content-preview-save";
 import { formatSlideRole } from "@/lib/slide-roles";
 import { StoryExportButtons } from "@/components/exports/StoryExportButtons";
 import { useStoryExport } from "@/hooks/use-story-export";
@@ -16,36 +16,40 @@ interface ContentPreviewProps {
   contentDraft?: string | null;
   compact?: boolean;
   editable?: boolean;
-  onContentChange?: (updatedData: any) => void;
+  onContentChange?: SaveContentEdit;
 }
 
 export function ContentPreview({ contentData, contentType, contentDraft, compact = false, editable = false, onContentChange }: ContentPreviewProps) {
-  const parsedData = parseData(contentData);
-  const crosspost = resumeCrosspost(parsedData, contentType);
-  const data = crosspost?.raw || parsedData;
-
-  if (!data && contentDraft) {
-    const parsed = tryParseJSON(contentDraft);
-    if (parsed) {
-      return <ContentPreview contentData={parsed} contentType={contentType} compact={compact} editable={editable} onContentChange={onContentChange} />;
-    }
-    if (editable && onContentChange) {
-      return <EditableText value={contentDraft} onSave={(v) => onContentChange(v)} />;
-    }
-    return <p className="text-sm text-foreground whitespace-pre-wrap">{contentDraft}</p>;
+  const initial = useMemo(() => previewContent(contentData, contentDraft, contentType), [contentData, contentDraft, contentType]);
+  const [data, setData] = useState(initial);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { setData(initial); }, [initial]);
+  const persist = onContentChange;
+  onContentChange = persist ? async (edit) => {
+    const receipt = await persist(edit);
+    if (!receipt || receipt.saved !== true) throw new Error("Enregistrement non confirmé. Réessaie.");
+    if (mounted.current) setData(receipt.content);
+    return receipt;
+  } : undefined;
+  const crosspost = resumeCrosspost(data, contentType);
+  if (data == null) return null;
+  if (typeof data === "string") {
+    return editable && onContentChange
+      ? <EditableText value={data} onSave={(v) => onContentChange(contentEdit(data, [], v))} />
+      : <p className="text-sm text-foreground whitespace-pre-wrap">{data}</p>;
   }
-
-  if (!data) return null;
 
   if (crosspost && (crosspost.format === "post" || crosspost.format === "linkedin")) {
     const key = crosspost.format === "linkedin" ? "full_text" : "content";
     return <>
       {editable && onContentChange
-        ? <EditableText value={data[key] || ""} onSave={(value) => onContentChange({ ...data, [key]: value })} />
+        ? <EditableText value={data[key] || ""} onSave={(value) => onContentChange(contentEdit(data, [key], value))} />
         : <p className="text-sm whitespace-pre-wrap">{data[key]}</p>}
       <CrosspostSources data={data} /><AiGeneratedMention />
     </>;
   }
+  editable = editable && !!onContentChange;
   const detectedType = crosspost ? (crosspost.format === "story" ? "stories" : crosspost.format) : contentType || detectType(data);
 
   const preview = detectedType === "reel" ? <ReelPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
@@ -58,91 +62,80 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
 }
 
 /* ─── Inline Editable Text ─── */
-function EditableText({ value, onSave, className = "", placeholder = "" }: { value: string; onSave: (v: string) => void; className?: string; placeholder?: string }) {
+function EditableText({ value, onSave, className = "", placeholder = "" }: { value: string; onSave: (v: string) => Promise<ContentReceipt>; className?: string; placeholder?: string }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value);
-  const [saved, setSaved] = useState(false);
+  const [status, setStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [error, setError] = useState("");
+  const busy = useRef(false);
+  const cancelled = useRef(false);
+  const mounted = useRef(true);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
-  useEffect(() => { setDraft(value); }, [value]);
-
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  useEffect(() => { if (!editing) setDraft(value); }, [value, editing]);
   useEffect(() => {
     if (editing && textareaRef.current) {
       textareaRef.current.focus();
       autoResize(textareaRef.current);
     }
   }, [editing]);
-
-  const autoResize = (el: HTMLTextAreaElement) => {
-    el.style.height = "auto";
-    el.style.height = el.scrollHeight + "px";
+  useEffect(() => {
+    if (status !== "saved") return;
+    const timer = setTimeout(() => setStatus("idle"), 2000);
+    return () => clearTimeout(timer);
+  }, [status]);
+  const autoResize = (el: HTMLTextAreaElement) => { el.style.height = "auto"; el.style.height = el.scrollHeight + "px"; };
+  const handleSave = async () => {
+    if (busy.current || cancelled.current) return;
+    if (draft === value) { setEditing(false); return; }
+    busy.current = true;
+    setStatus("saving");
+    try {
+      const receipt = await onSave(draft);
+      if (!receipt || receipt.saved !== true) throw new Error("Enregistrement non confirmé. Réessaie.");
+      if (mounted.current) { setStatus("saved"); setEditing(false); }
+    } catch (e) {
+      if (mounted.current) { setStatus("error"); setError(e instanceof Error ? e.message : "Enregistrement impossible. Réessaie ; ta saisie est conservée."); }
+    } finally { busy.current = false; }
   };
-
-  const handleSave = useCallback(() => {
-    if (draft !== value) {
-      onSave(draft);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    }
-    setEditing(false);
-  }, [draft, value, onSave]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") { setDraft(value); setEditing(false); }
-  };
-
-  if (editing) {
-    return (
-      <div className="relative">
-        <textarea
-          ref={textareaRef}
-          value={draft}
-          onChange={(e) => { setDraft(e.target.value); autoResize(e.target); }}
-          onBlur={handleSave}
-          onKeyDown={handleKeyDown}
-          placeholder={placeholder}
-          className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring transition-colors ${className}`}
-        />
-        <button
-          onMouseDown={(e) => { e.preventDefault(); handleSave(); }}
-          className="absolute bottom-2 right-2 text-primary hover:text-primary/80 transition-colors"
-          aria-label="Valider"
-        >
-          <Check className="h-4 w-4" />
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <span className="relative inline">
-      <span
-        onClick={() => setEditing(true)}
-        className={`cursor-text rounded px-0.5 -mx-0.5 transition-colors hover:bg-[hsl(270,50%,97%)] ${className}`}
-      >
-        {value || <span className="italic text-muted-foreground">{placeholder || "Cliquer pour éditer"}</span>}
-      </span>
-      {saved && (
-        <span className="ml-2 text-xs text-primary animate-fade-in">✓ Modifié</span>
-      )}
-    </span>
+  if (editing) return (
+    <div className="relative">
+      <textarea ref={textareaRef} value={draft} readOnly={status === "saving"}
+        onChange={(e) => { setDraft(e.target.value); autoResize(e.target); }}
+        onBlur={() => { void handleSave(); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") {
+            e.preventDefault(); e.stopPropagation();
+            if (busy.current) return;
+            cancelled.current = true; setDraft(value); setEditing(false); setStatus("idle");
+          }
+        }}
+        placeholder={placeholder} aria-label={placeholder || "Modifier le contenu"} aria-busy={status === "saving"}
+        className={`w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground resize-none focus:outline-none focus:border-primary focus-visible:ring-2 focus-visible:ring-ring transition-colors ${className}`} />
+      <button disabled={status === "saving"} onMouseDown={(e) => e.preventDefault()} onClick={() => { void handleSave(); }}
+        className="text-xs text-primary hover:text-primary/80 transition-colors" aria-label={status === "error" ? "Réessayer" : "Valider"}>
+        {status === "error" ? "Réessayer" : <Check className="h-4 w-4" />}
+      </button>
+      {status === "saving" && <p role="status" className="text-xs text-muted-foreground">Enregistrement…</p>}
+      {status === "error" && <p role="alert" className="text-xs text-destructive">{error}</p>}
+    </div>
   );
+  return <span className="relative inline">
+    <span role="button" tabIndex={0} onClick={() => { cancelled.current = false; setStatus("idle"); setEditing(true); }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cancelled.current = false; setStatus("idle"); setEditing(true); } }}
+      className={`cursor-text rounded px-0.5 -mx-0.5 transition-colors hover:bg-[hsl(270,50%,97%)] ${className}`}>
+      {value || <span className="italic text-muted-foreground">{placeholder || "Cliquer pour éditer"}</span>}
+    </span>
+    {status === "saved" && <span role="status" className="ml-2 text-xs text-primary-text animate-fade-in">✓ Modifié</span>}
+  </span>;
 }
 
 /* ─── Reel Preview ─── */
-function ReelPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: (d: any) => void }) {
-  const [localData, setLocalData] = useState(data);
+function ReelPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: SaveContentEdit }) {
+  const localData = data;
 
-  useEffect(() => { setLocalData(data); }, [data]);
 
-  const updateField = useCallback((path: string[], value: string) => {
-    const updated = JSON.parse(JSON.stringify(localData));
-    let obj = updated;
-    for (let i = 0; i < path.length - 1; i++) obj = obj[path[i]];
-    obj[path[path.length - 1]] = value;
-    setLocalData(updated);
-    onContentChange?.(updated);
-  }, [localData, onContentChange]);
+  const updateField = (path: string[], value: any) => onContentChange!(contentEdit(localData, path, value));
 
   const handleCopyScript = () => {
     const text = localData.script?.map((s: any) =>
@@ -263,12 +256,7 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
               {localData.hashtags && (
                 <EditableText
                   value={localData.hashtags.join(" ")}
-                  onSave={(v) => {
-                    const updated = JSON.parse(JSON.stringify(localData));
-                    updated.hashtags = v.split(/\s+/).filter(Boolean);
-                    setLocalData(updated);
-                    onContentChange?.(updated);
-                  }}
+                  onSave={(v) => updateField(["hashtags"], v.split(/\s+/).filter(Boolean))}
                   className="text-xs text-muted-foreground"
                 />
               )}
@@ -298,33 +286,17 @@ function ReelPreview({ data, compact, editable, onContentChange }: { data: any; 
 }
 
 /* ─── Stories Preview ─── */
-function StoriesPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: (d: any) => void }) {
-  const [localData, setLocalData] = useState(data);
+function StoriesPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: SaveContentEdit }) {
+  const localData = data;
   const storiesKey = localData.stories ? "stories" : "sequence";
   const stories = localData[storiesKey] || [];
   // Exports (Canva / PNG / PPTX) reconstruits du JSON persisté — suivent les
   // éditions locales (les pills éditées partent dans l'export).
   const storyExport = useStoryExport(stories, localData.structure_type || "stories");
 
-  useEffect(() => { setLocalData(data); }, [data]);
 
-  const updateStoryField = useCallback((storyIdx: number, field: string, value: string) => {
-    const updated = JSON.parse(JSON.stringify(localData));
-    updated[storiesKey][storyIdx][field] = value;
-    setLocalData(updated);
-    onContentChange?.(updated);
-  }, [localData, storiesKey, onContentChange]);
-
-  const updateStickerField = useCallback((storyIdx: number, field: string, value: string) => {
-    const updated = JSON.parse(JSON.stringify(localData));
-    if (field === "options") {
-      updated[storiesKey][storyIdx].sticker.options = value.split(" / ").map((s: string) => s.trim()).filter(Boolean);
-    } else {
-      updated[storiesKey][storyIdx].sticker[field] = value;
-    }
-    setLocalData(updated);
-    onContentChange?.(updated);
-  }, [localData, storiesKey, onContentChange]);
+  const updateStoryField = (idx: number, field: string, value: string) => onContentChange!(contentEdit(localData, [storiesKey, String(idx), field], value));
+  const updateStickerField = (idx: number, field: string, value: string) => onContentChange!(contentEdit(localData, [storiesKey, String(idx), "sticker", field], field === "options" ? value.split(" / ").map(s => s.trim()).filter(Boolean) : value));
 
   if (compact) {
     return (
@@ -382,7 +354,7 @@ function StoriesPreview({ data, compact, editable, onContentChange }: { data: an
                   <div className="flex items-center gap-1">
                     <span className="text-xs">🎯</span>
                     <EditableText
-                      value={story.sticker.label || story.sticker.type || ""}
+                      value={story.sticker.label ?? story.sticker.type ?? ""}
                       onSave={(v) => updateStickerField(idx, "label", v)}
                       className="text-xs font-semibold text-primary"
                     />
@@ -419,30 +391,17 @@ function StoriesPreview({ data, compact, editable, onContentChange }: { data: an
 }
 
 /* ─── Carousel Preview ─── */
-function CarouselPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: (d: any) => void }) {
-  const [localData, setLocalData] = useState(data);
+function CarouselPreview({ data, compact, editable, onContentChange }: { data: any; compact: boolean; editable?: boolean; onContentChange?: SaveContentEdit }) {
+  const localData = data;
   const slides = localData.slides || [];
   const caption = localData.caption;
   const isPhoto = localData.type === "carousel_photo";
   const visualHtml = localData.visual_html;
   const visualUrls = localData.visual_urls;
 
-  useEffect(() => { setLocalData(data); }, [data]);
 
-  const updateSlideField = useCallback((idx: number, field: string, value: string) => {
-    const updated = JSON.parse(JSON.stringify(localData));
-    updated.slides[idx][field] = value;
-    setLocalData(updated);
-    onContentChange?.(updated);
-  }, [localData, onContentChange]);
-
-  const updateCaptionField = useCallback((field: string, value: string) => {
-    const updated = JSON.parse(JSON.stringify(localData));
-    if (!updated.caption) updated.caption = {};
-    updated.caption[field] = value;
-    setLocalData(updated);
-    onContentChange?.(updated);
-  }, [localData, onContentChange]);
+  const updateSlideField = (idx: number, field: string, value: string) => onContentChange!(contentEdit(localData, ["slides", String(idx), field], value));
+  const updateCaptionField = (field: string, value: string) => onContentChange!(contentEdit(localData, ["caption", field], value));
 
   if (compact) {
     return (
@@ -574,20 +533,16 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
 }
 
 /* ─── Post Preview ─── */
-function PostPreview({ data, editable, onContentChange }: { data: any; editable?: boolean; onContentChange?: (d: any) => void }) {
-  const text = typeof data === "string" ? data : data.content || data.contenu || data.text || "";
+function PostPreview({ data, editable, onContentChange }: { data: any; editable?: boolean; onContentChange?: SaveContentEdit }) {
+  const text = typeof data === "string" ? data : data.content ?? data.contenu ?? data.text ?? "";
   if (!text && !editable) return <FallbackPreview data={data} />;
 
   if (editable && onContentChange) {
-    const key = typeof data === "string" ? null : data.content ? "content" : data.contenu ? "contenu" : "text";
+    const key = typeof data === "string" ? null : data.content != null ? "content" : data.contenu != null ? "contenu" : "text";
     return (
       <EditableText
         value={text}
-        onSave={(v) => {
-          if (typeof data === "string") { onContentChange(v); return; }
-          const updated = { ...data, [key || "content"]: v };
-          onContentChange(updated);
-        }}
+        onSave={(v) => onContentChange(contentEdit(data, key ? [key] : [], v))}
         className="text-sm text-foreground"
       />
     );
@@ -597,16 +552,16 @@ function PostPreview({ data, editable, onContentChange }: { data: any; editable?
 }
 
 /* ─── Fallback: extract text values ─── */
-function FallbackPreview({ data, editable, onContentChange }: { data: any; editable?: boolean; onContentChange?: (d: any) => void }) {
+function FallbackPreview({ data, editable, onContentChange }: { data: any; editable?: boolean; onContentChange?: SaveContentEdit }) {
   if (typeof data === "string") {
     if (editable && onContentChange) {
-      return <EditableText value={data} onSave={(v) => onContentChange(v)} className="text-sm text-foreground" />;
+      return <EditableText value={data} onSave={(v) => onContentChange(contentEdit(data, [], v))} className="text-sm text-foreground" />;
     }
     return <p className="text-sm text-foreground whitespace-pre-wrap">{data}</p>;
   }
 
   const entries = Object.entries(data)
-    .filter(([_, val]) => typeof val === "string" && (val as string).length > 5) as [string, string][];
+    .filter(([_, val]) => typeof val === "string" && (editable || (val as string).length > 5)) as [string, string][];
 
   if (entries.length === 0) return null;
 
@@ -624,7 +579,7 @@ function FallbackPreview({ data, editable, onContentChange }: { data: any; edita
     editable && onContentChange ? (
       <EditableText
         value={val}
-        onSave={(v) => { onContentChange({ ...data, [key]: v }); }}
+        onSave={(v) => onContentChange(contentEdit(data, [key], v))}
         className="text-sm text-foreground leading-relaxed"
       />
     ) : (
@@ -640,7 +595,7 @@ function FallbackPreview({ data, editable, onContentChange }: { data: any; edita
           {editable && onContentChange ? (
             <EditableText
               value={titleEntry[1]}
-              onSave={(v) => { onContentChange({ ...data, [titleEntry[0]]: v }); }}
+              onSave={(v) => onContentChange(contentEdit(data, [titleEntry[0]], v))}
               className="text-base font-semibold text-foreground leading-snug"
             />
           ) : (
@@ -702,21 +657,6 @@ export function RevertToOriginalButton({ onRevert }: { onRevert: () => void }) {
 }
 
 /* ─── Helpers ─── */
-function parseData(contentData: any): any | null {
-  if (!contentData) return null;
-  if (typeof contentData === "object") return contentData;
-  return tryParseJSON(contentData);
-}
-
-function tryParseJSON(str: string): any | null {
-  try {
-    const parsed = JSON.parse(str);
-    return typeof parsed === "object" ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
 function detectType(data: any): string {
   if (data.script && Array.isArray(data.script)) return "reel";
   if (data.stories && Array.isArray(data.stories)) return "stories";

@@ -1,3 +1,4 @@
+import { reelLedgerFixture } from "../_shared/reel-publication-fixture.ts";
 import {
   assertEquals,
   assertStringIncludes,
@@ -40,6 +41,7 @@ function fakeSupabase(opts: {
   claimSucceeds?: boolean;
   getUserByIdResult?: { data: any; error: any };
 } = {}) {
+  const ledger = reelLedgerFixture();
   const dueRows = opts.dueRows ?? [DUE_POST];
   const connection = opts.connection === undefined ? LINKEDIN_CONNECTION : opts.connection;
   const claimSucceeds = opts.claimSucceeds ?? true;
@@ -140,6 +142,7 @@ function fakeSupabase(opts: {
 
   return {
     from(table: string) {
+      if (table === "reel_publication_receipts") return ledger.from();
       if (table === "calendar_posts") return calendarPostsBuilder();
       if (table === "social_connections") return socialConnectionsBuilder();
       throw new Error(`Table non mockée dans ce test: ${table}`);
@@ -293,4 +296,29 @@ Deno.test("un post déjà réclamé par un autre run (verrou optimiste perdu) es
   const sb = fakeSupabase({ claimSucceeds: false });
   const result = await processScheduledPosts(sb);
   assertEquals(result, { processed: 0, results: [] });
+});
+
+Deno.test("scheduled Reel rejects a cover or temporary MP4 before any Graph call", async () => {
+  Deno.env.set("SUPABASE_URL", "https://fake.local");
+  for (const media of [["https://cover.test/image.jpg"],["https://render.test/temp.mp4"],[]]) {
+    const db = fakeSupabase({dueRows:[{...DUE_POST,canal:"instagram",format:"reel",media_urls:media}],connection:{user_id:"user-1",platform_account_id:"ig",access_token:"token"},getUserByIdResult:{data:{user:null},error:null}});
+    let calls=0;
+    const result = await withMockedFetch(async()=>{calls++;throw new Error("unexpected external call");},()=>processScheduledPosts(db));
+    assertEquals(calls,0); assertEquals(result.results[0].ok,false);
+    assertStringIncludes(result.results[0].error,"MP4 archivée");
+  }
+});
+Deno.test("scheduled Reel uses durable MP4, complete caption and same receipt on replay", async () => {
+  Deno.env.set("SUPABASE_URL", "https://fake.local");
+  const video="https://fake.local/storage/v1/object/public/calendar-media/reels-montes/user-1/video.mp4";
+  const db=fakeSupabase({dueRows:[{...DUE_POST,canal:"instagram",format:"reel",content_draft:"[0-3] HOOK\nMon texte",story_sequence_detail:{type:"reel",script:[{section:"hook",timing:"0-3",texte_parle:"Mon texte"}],caption:{text:"Caption",cta:"CTA"},hashtags:["#tag"]},media_urls:[video,"https://cover.test/a.jpg"]}],connection:{user_id:"user-1",workspace_id:null,platform_account_id:"ig",access_token:"token"}});
+  const calls: URL[]=[];
+  await withMockedFetch(async(input:any,init:any)=>{
+    const req=new Request(input,init);const url=new URL(req.url);calls.push(url);
+    return new Response(JSON.stringify(url.pathname.endsWith("/media_publish")?{id:"reel-published"}:url.pathname.endsWith("/media")?{id:"container"}:{status_code:"FINISHED"}),{headers:{"content-type":"application/json"}});
+  },async()=>{assertEquals((await processScheduledPosts(db)).results[0].postId,"reel-published");assertEquals((await processScheduledPosts(db)).results[0].postId,"reel-published");});
+  assertEquals(calls.filter(u=>u.pathname.endsWith("/media_publish")).length,1);
+  const media=calls.find(u=>u.pathname.endsWith("/media"))!;
+  assertEquals(media.searchParams.get("media_type"),"REELS");assertEquals(media.searchParams.get("video_url"),video);
+  assertEquals(media.searchParams.get("caption"),"Caption\n\nCTA\n\n#tag");assertEquals(media.searchParams.has("image_url"),false);
 });

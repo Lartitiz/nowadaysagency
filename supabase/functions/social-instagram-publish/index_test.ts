@@ -7,7 +7,7 @@
 // deno-lint-ignore-file no-explicit-any
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 
-Deno.env.set("SUPABASE_URL", "http://fake.local");
+Deno.env.set("SUPABASE_URL", "https://fake.local");
 Deno.env.set("SUPABASE_ANON_KEY", "anon-key");
 Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "service-key");
 // Pas de TOKEN_ENCRYPTION_KEY : decryptConnTokens devient un no-op (jetons en clair), cf. token-crypto.ts.
@@ -47,6 +47,10 @@ function makeRouter(cfg: RouterConfig) {
       if (req.method === "PATCH") return jsonResponse(200, {});
     }
 
+    if (url.pathname.includes("/rest/v1/reel_publication_receipts")) {
+      if (req.method === "POST" || req.method === "DELETE") return new Response(null, { status: 204 });
+      if (req.method === "PATCH") return jsonResponse(200, { id: "receipt" });
+    }
     if (url.hostname === "graph.instagram.com") {
       if (req.method === "POST" && url.pathname.endsWith("/media_publish")) {
         const r = cfg.publish
@@ -107,6 +111,7 @@ function authedRequest(body: unknown, headers: Record<string, string> = {}): Req
 }
 
 const CONN = {
+  user_id: "u1", workspace_id: null,
   id: "conn-1",
   access_token: "ig-token",
   platform_account_id: "igacct-1",
@@ -235,7 +240,7 @@ Deno.test("social-instagram-publish — vidéo refusée par Instagram (status ER
   });
   globalThis.fetch = fetchFn;
 
-  const res = await handler(authedRequest({ videoUrl: "https://x/reel.mp4" }));
+  const res = await handler(authedRequest({ videoUrl: "https://fake.local/storage/v1/object/public/calendar-media/u1/reel.mp4" }));
   assertEquals(res.status, 400);
   const json = await res.json();
   assertStringIncludes(json.error, "Instagram a refusé la vidéo");
@@ -266,4 +271,19 @@ Deno.test("social-instagram-publish — OPTIONS (préflight CORS) → 200 sans t
   const res = await handler(new Request("http://edge.local/social-instagram-publish", { method: "OPTIONS" }));
   assertEquals(res.status, 200);
   assertEquals(calls.length, 0);
+});
+
+Deno.test("Reel API refuses cover/temporary video before any media call and keeps workspace filters", async()=>{
+ const handler=await loadHandler();
+ const {fetchFn,calls}=makeRouter({user:{id:"u1"},connection:CONN});globalThis.fetch=fetchFn;
+ for (const videoUrl of ["blob:video", "https://renderer.test/video.mp4", "https://fake.local/storage/v1/object/public/calendar-media/cover.jpg"]) {
+   const res=await handler(authedRequest({videoUrl,imageUrl:"https://cover.test/a.jpg"}));assertEquals(res.status,400);
+ }
+ assertEquals(calls.some(c=>c.url.includes("graph.instagram.com")),false);
+ const res=await handler(authedRequest({workspace_id:"ws-A",caption:"Caption",videoUrl:"https://fake.local/storage/v1/object/public/calendar-media/u1/reel.mp4"}));
+ assertEquals(res.status,200);assertEquals((await res.json()).postId,"post-0");
+ const query=new URL(calls.find(c=>c.url.includes("social_connections"))!.url);
+ assertEquals(query.searchParams.get("workspace_id"),"eq.ws-A");assertEquals(query.searchParams.get("user_id"),"eq.u1");
+ const media=new URL(calls.find(c=>c.url.includes("graph.instagram.com")&&c.url.includes("/media?") )!.url);
+ assertEquals(media.searchParams.get("media_type"),"REELS");assertEquals(media.searchParams.get("image_url"),null);
 });

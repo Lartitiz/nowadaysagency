@@ -1,3 +1,4 @@
+import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -59,13 +60,16 @@ export async function publishReelToInstagram(opts: {
   timeoutMs?: number;
 }): Promise<InstagramPublishResult> {
   const { caption, videoUrl, workspaceId, userId, timeoutMs = 330000 } = opts;
+  if (!isDurableReelUrl(videoUrl)) throw new Error(REEL_VIDEO_REQUIRED);
   const { data, error } = await invokeWithTimeout(
     "social-instagram-publish",
     { body: { caption, videoUrl, workspace_id: resolveWorkspaceParam(workspaceId, userId) } },
     timeoutMs,
   );
-  if (error) throw error;
+  if (error && !["NETWORK", "TIMEOUT", "UNKNOWN"].includes(error.code)) throw error;
+  if (error) throw new Error("La réponse de publication n’a pas pu être confirmée. Réessaie pour consulter le reçu ; aucun nouvel envoi ne sera fait si cette vidéo est déjà en cours de publication.");
   if ((data as any)?.error) throw new Error((data as any).error);
+  if (!(data as any)?.postId) throw new Error("La confirmation Instagram est incomplète. Vérifie le reçu avant de republier.");
   return {
     success: true,
     permalink: (data as any)?.permalink,

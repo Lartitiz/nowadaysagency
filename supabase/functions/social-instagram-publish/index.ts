@@ -1,3 +1,5 @@
+import { publishReelToInstagram } from "../_shared/instagram-graph.ts";
+import { isDurableReelUrl } from "../_shared/reel-publication.ts";
 // redeploy 2026-08-04
 // Publie sur le compte Instagram Business connecté :
 //  - une image simple (body.imageUrl),
@@ -98,6 +100,10 @@ Deno.serve(async (req) => {
     const videoUrl: string | null =
       typeof body?.videoUrl === "string" && /^https:\/\//.test(body.videoUrl) ? body.videoUrl : null;
 
+    if (body?.videoUrl !== undefined && !isDurableReelUrl(body.videoUrl)) {
+      return jsonError("Monte et enregistre la vidéo MP4 avant de publier ce Reel.", corsHeaders);
+    }
+
     // Liste d'images : imageUrls[] (carrousel) ou imageUrl (image simple).
     const rawList: unknown[] = Array.isArray(body?.imageUrls)
       ? body.imageUrls
@@ -128,28 +134,22 @@ Deno.serve(async (req) => {
     }
     await decryptConnTokens(conn);
 
+    if (videoUrl) {
+      let postId: string;
+      try { postId = await publishReelToInstagram(supabase, conn, caption, videoUrl); }
+      catch (e: any) { return jsonError(e?.message || "Publication Reel non confirmée.", corsHeaders); }
+      const permalink = conn.platform_account_name ? `https://www.instagram.com/${conn.platform_account_name}/` : null;
+      return new Response(JSON.stringify({ success: true, postId, permalink }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const token = await refreshTokenIfNeeded(supabase, conn);
     const igUserId = conn.platform_account_id;
 
     // 1. Préparer le container à publier (reel vidéo, image simple ou carrousel).
     let creationId: string;
     try {
-      if (videoUrl) {
-        creationId = await createContainer(igUserId, token, {
-          media_type: "REELS",
-          video_url: videoUrl,
-          ...(caption ? { caption } : {}),
-        });
-        // 5 min : c'est le transcodage Meta qu'on attend, pas le réseau.
-        const status = await pollStatus(creationId, token, 300000);
-        if (status !== "FINISHED") {
-          throw new Error(
-            status === "ERROR"
-              ? "Instagram a refusé la vidéo. Vérifie qu'elle est en MP4 vertical et dure entre 3 secondes et 15 minutes."
-              : `Instagram n'a pas fini de préparer la vidéo (statut : ${status}). Réessaie dans quelques minutes.`,
-          );
-        }
-      } else if (urls.length === 1) {
+      if (urls.length === 1) {
         creationId = await createContainer(igUserId, token, {
           image_url: urls[0],
           ...(caption ? { caption } : {}),

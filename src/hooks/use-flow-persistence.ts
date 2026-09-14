@@ -15,6 +15,7 @@ interface FlowState {
   calendarPostDate?: string | null;
   calendarPostUpdatedAt?: string | null;
   reelMp4Url?: string | null;
+  reelSourceKey?: string;
   step: string;
   ideaText: string;
   objective: string | null;

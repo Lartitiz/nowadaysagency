@@ -1,3 +1,4 @@
+import { isDurableReelUrl, REEL_VIDEO_REQUIRED } from "@/lib/reel-publication";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -90,7 +91,10 @@ export function useCalendarSave({
 
   const creationId = useRef(flowCreationId || loadFlowState()?.creationId || crypto.randomUUID());
   if (flowCreationId) creationId.current = flowCreationId;
-  const editorScope = `${session?.user?.id || ""}:${workspaceId}:${calendarPostId || "new"}:${creationId.current}`;
+  const scopeKey = `${session?.user?.id || ""}:${workspaceId}:${calendarPostId || "new"}:${creationId.current}`;
+  const visit = useRef({ key: scopeKey, generation: 0 });
+  if (visit.current.key !== scopeKey) visit.current = { key: scopeKey, generation: visit.current.generation + 1 };
+  const editorScope = `${scopeKey}:${visit.current.generation}`;
   const activeScope = useRef(editorScope);
   activeScope.current = editorScope;
   const versionRead = useRef<{ id: string; promise: Promise<string> } | null>(null);
@@ -121,10 +125,17 @@ export function useCalendarSave({
   };
 
   const publishedCalendarId = useRef<string | null>(loadFlowState()?.publishedCalendarId || null);
+  const publishedScope = useRef(editorScope);
+  if (publishedScope.current !== editorScope) {
+    publishedScope.current = editorScope;
+    publishedCalendarId.current = null;
+  }
 
   /** Called only after the social API confirms success. A tracking failure must
    * never be presented as a failed publication (which invites a public duplicate).
    */
+  const publicationCalendarId = publishedCalendarId.current || calendarPostId;
+  const publicationCreationId = creationId.current;
   const recordImmediatePublication = async ({ canal, caption, postId }: {
     canal: "instagram" | "linkedin"; caption: string; postId?: string;
   }): Promise<boolean> => {
@@ -141,12 +152,36 @@ export function useCalendarSave({
         auto_publish: false, scheduled_publish_at: null,
         updated_at: now.toISOString(),
         story_sequence_detail: { ...(storyDetail || {}), ...(visualSlides.length ? { visual_html: visualSlides } : {}) },
-        ...(publishableImageUrl ? { media_urls: [publishableImageUrl] } : {}),
+        ...(selectedFormat === "reel" ? { media_urls: isDurableReelUrl(reelMp4Url) ? [reelMp4Url] : [] } : publishableImageUrl ? { media_urls: [publishableImageUrl] } : {}),
       };
-      let id = publishedCalendarId.current || calendarPostId;
-      if (id) {
-        const { error } = await supabase.from("calendar_posts").update(payload).eq("id", id);
-        if (error) throw error;
+      let id = selectedFormat === "reel" || activeScope.current !== editorScope
+        ? publicationCalendarId : publishedCalendarId.current || calendarPostId;
+      if (selectedFormat === "reel" && !id) {
+        id = publicationCreationId;
+        const { error } = await supabase.from("calendar_posts").insert({
+          ...payload, id, user_id: session.user.id,
+          ...(workspaceId && workspaceId !== session.user.id ? { workspace_id: workspaceId } : {}),
+        });
+        if (error) {
+          // The response to the first insert may have been lost. Never overwrite
+          // a different calendar content with the same identity.
+          if (error.code !== "23505") throw error;
+          const { data: existing, error: readError } = await supabase.from("calendar_posts")
+            .select("published_post_id, user_id, workspace_id").eq("id", id).single();
+          if (readError || !postId || existing?.published_post_id !== postId || existing.user_id !== session.user.id
+            || (existing.workspace_id || null) !== (workspaceId !== session.user.id ? workspaceId : null)) {
+            throw readError || new Error("Publication non retrouvée dans le calendrier");
+          }
+        }
+      } else if (id) {
+        const update = supabase.from("calendar_posts").update(payload).eq("id", id);
+        if (selectedFormat === "reel") {
+          const { data, error } = await update.select("id").single();
+          if (error || data?.id !== id) throw error || new Error("Publication non retrouvée dans le calendrier");
+        } else {
+          const { error } = await update;
+          if (error) throw error;
+        }
       } else {
         const { data, error } = await supabase.from("calendar_posts").insert({
           ...payload, user_id: session.user.id,
@@ -256,7 +291,7 @@ export function useCalendarSave({
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
       const r = result?.raw;
       const storageUpdates = await uploadPostMedia(calendarPostId);
-      const attachedMedia = selectedFormat === "reel" && reelMp4Url ? [reelMp4Url]
+      const attachedMedia = selectedFormat === "reel" ? (isDurableReelUrl(reelMp4Url) ? [reelMp4Url] : [])
         : storageUpdates.visual_urls || storageUpdates.photo_urls;
       assertCurrentEditor();
       const receipt = await commitCalendarContent({ postId: calendarPostId, create: false,
@@ -268,7 +303,7 @@ export function useCalendarSave({
         objectif: objective || null,
         angle: editorialAngle || null,
         ...((storyDetail || Object.keys(storageUpdates).length) ? { story_sequence_detail: { ...(storyDetail || {}), ...storageUpdates } } : {}),
-        ...(attachedMedia?.length ? { media_urls: attachedMedia } : {}),
+        ...(selectedFormat === "reel" || attachedMedia?.length ? { media_urls: attachedMedia } : {}),
         ...(selectedFormat === "story" && r?.stories ? {
           stories_count: r.total_stories || r.stories?.length || null,
           stories_structure: r.structure_label || r.structure_type || null,
@@ -319,6 +354,8 @@ export function useCalendarSave({
    */
   const handleConfirmCalendar = async ({ date, scheduleAt }: { date: string; scheduleAt?: Date }): Promise<boolean> => {
     if (!session?.user?.id || !date || !result?.raw || saveInFlight.current) return false;
+    if (scheduleAt && selectedFormat === "reel" && !isDurableReelUrl(reelMp4Url)) { toast.error(REEL_VIDEO_REQUIRED); return false; }
+    if (scheduleAt && (!Number.isFinite(scheduleAt.getTime()) || scheduleAt.getTime() < Date.now() + 60000)) { toast.error("Choisis une date/heure dans le futur."); return false; }
     if (scheduleAt && carouselQualityDisabledReason) { toast.error(carouselQualityDisabledReason); return false; }
     // La publication immédiate a déjà créé sa ligne de suivi. Une sauvegarde ou
     // programmation consécutive doit ouvrir cette ligne, sans nouvel insert et
@@ -366,7 +403,7 @@ export function useCalendarSave({
       saveFlowState({ creationId: preparedPostId });
       const updates = await uploadPostMedia(preparedPostId);
       let attachedMedia: string[] | null = updates.visual_urls || updates.photo_urls || null;
-      if (selectedFormat === "reel" && reelMp4Url) attachedMedia = [reelMp4Url];
+      if (selectedFormat === "reel") attachedMedia = isDurableReelUrl(reelMp4Url) ? [reelMp4Url] : [];
       if (scheduleAt && canal === "instagram" && !attachedMedia && publishableImageUrl) attachedMedia = [publishableImageUrl];
       if (scheduleAt && !canAutoPublishSchedule({ canal, attachedMedia })) {
         throw new Error("Aucun visuel n’a pu être joint. Ton contenu reste dans l’éditeur : ajoute un média avant de programmer.");
