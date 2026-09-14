@@ -104,6 +104,13 @@ type SortDir = "asc" | "desc";
 const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
 const baseUrl = `https://${projectId}.supabase.co/functions/v1`;
 
+function readSession(key: string): string | null {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+function writeSession(key: string, value: string | null) {
+  try { if (value === null) sessionStorage.removeItem(key); else sessionStorage.setItem(key, value); } catch { /* In-memory retry remains available. */ }
+}
+
 function mapFormat(f: string | null): "post" | "carousel" | "reel" | "story" {
   if (f === "post_carrousel") return "carousel";
   if (f === "reel") return "reel";
@@ -191,14 +198,25 @@ export default function SharedCalendarPage() {
   // Editing wording
   const [editingWording, setEditingWording] = useState<string | null>(null);
   const [editWordingValue, setEditWordingValue] = useState("");
+  const wordingEditor = useRef({ id: editingWording, value: editWordingValue });
+  wordingEditor.current = { id: editingWording, value: editWordingValue };
 
   // Polling
+  const requestSequence = useRef(0);
+  const tokenVisit = useRef(0);
+  const tokenRef = useRef(token);
+  tokenRef.current = token;
+  const commentRequests = useRef(new Map<string, string>());
+  const busyComment = useRef(false);
+  const busyEdits = useRef(new Set<string>());
   const pollingRef = useRef<ReturnType<typeof setInterval>>();
 
   // ── Data fetching ──
 
   const fetchData = useCallback(async (opts?: { ws?: Date; ms?: Date; pm?: PeriodMode }) => {
     if (!token) return;
+    const sequence = ++requestSequence.current;
+    const current = () => sequence === requestSequence.current && tokenRef.current === token;
     const pm = opts?.pm ?? periodMode;
     const params = new URLSearchParams({ token });
 
@@ -218,14 +236,19 @@ export default function SharedCalendarPage() {
     const timeoutId = setTimeout(() => controller.abort(), 20000);
     try {
       const res = await fetch(`${baseUrl}/public-calendar?${params}`, { signal: controller.signal });
+      if (!current()) return;
       if (!res.ok) {
+        setPosts([]); setComments([]); setSelectedPost(null);
         setError(res.status === 404 ? "expired" : "error");
         return;
       }
       const data = await res.json();
+      if (!current()) return;
+      setError(null);
       setShare(data.share);
       setProfile(data.profile || {});
       setPosts(data.posts || []);
+      setSelectedPost(current => current ? (data.posts || []).find((p: Post) => p.id === current.id) || null : null);
       setComments(data.comments || []);
       setLastUpdated(data.last_updated || null);
 
@@ -234,15 +257,21 @@ export default function SharedCalendarPage() {
         localStorage.setItem(storageKey, data.share.guest_name);
       }
     } catch {
-      setError("error");
+      if (current()) setError("error");
     } finally {
       clearTimeout(timeoutId);
-      setLoading(false);
+      if (current()) setLoading(false);
     }
   }, [token, periodMode, weekStart, monthStart, guestName, storageKey]);
 
   useEffect(() => {
+    ++tokenVisit.current;
+    ++requestSequence.current;
+    setShare(null); setPosts([]); setComments([]); setSelectedPost(null); setError(null); setLoading(true);
+    setGuestName(localStorage.getItem(storageKey) || "");
+    setRevisionText(""); setRevisionMode(false); setEditingWording(null);
     fetchData();
+    return () => { ++tokenVisit.current; ++requestSequence.current; };
   }, [token]);
 
   // Polling every 60s
@@ -319,122 +348,105 @@ export default function SharedCalendarPage() {
 
   // ── To validate count ──
 
-  const toValidateCount = useMemo(() => posts.filter(p => p.status === "ready").length, [posts]);
+  const toValidateCount = useMemo(() => filteredPosts.filter(p => p.status === "ready").length, [filteredPosts]);
   const unresolvedTotal = useMemo(() => comments.filter(c => !c.is_resolved && !c.content.startsWith("[EDIT]")).length, [comments]);
 
   // ── Status edit ──
 
-  const editStatus = async (post: Post, newStatus: string) => {
-    const old = post.status;
-    // Optimistic
-    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: newStatus } : p));
-
+  const editStatus = async (post: Post, newStatus: string): Promise<boolean> => {
+    if (busyEdits.current.has(post.id)) return false;
+    const visit = tokenVisit.current;
+    busyEdits.current.add(post.id);
     try {
-      // fetch ne rejette PAS sur un 4xx/5xx : sans le check res.ok, une erreur
-      // serveur laissait le statut optimiste affiché alors que rien n'était sauvé.
       const res = await fetch(`${baseUrl}/public-calendar-edit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, post_id: post.id, field: "status", value: newStatus }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, post_id: post.id, field: "status", value: newStatus, expected_updated_at: post.updated_at, author_name: effectiveName }),
       });
-      if (!res.ok) throw new Error(String(res.status));
+      const result = await res.json();
+      if (!res.ok || result.success !== true) throw new Error("status_failed");
+      if (tokenRef.current === token && tokenVisit.current === visit) setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: newStatus, updated_at: result.updated_at } : p));
+      return true;
     } catch {
-      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: old } : p));
-      toast.error("Le changement de statut n'a pas été enregistré, réessaie");
-    }
+      if (tokenRef.current === token && tokenVisit.current === visit) toast.error("Le changement de statut n'a pas été enregistré, réessaie ou recharge en cas de conflit.");
+      return false;
+    } finally { busyEdits.current.delete(post.id); }
   };
 
   // ── Wording edit ──
 
   const saveWording = async (post: Post, newWording: string) => {
-    const old = post.content_draft;
-    setPosts(prev => prev.map(p => p.id === post.id ? { ...p, content_draft: newWording, wording: newWording } : p));
-    setEditingWording(null);
+    if (busyEdits.current.has(post.id)) return;
+    const visit = tokenVisit.current;
+    busyEdits.current.add(post.id);
 
     try {
       const res = await fetch(`${baseUrl}/public-calendar-edit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, post_id: post.id, field: "wording", value: newWording }),
+        body: JSON.stringify({ token, post_id: post.id, field: "wording", value: newWording, expected_updated_at: post.updated_at, author_name: effectiveName }),
       });
-      if (!res.ok) throw new Error(String(res.status));
-    } catch {
-      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, content_draft: old, wording: old } : p));
-      toast.error("Le texte n'a pas été enregistré, réessaie");
-    }
+      const result = await res.json();
+      if (!res.ok || result.success !== true) throw new Error(result.error || String(res.status));
+      if (tokenRef.current !== token || tokenVisit.current !== visit) return;
+      setPosts(prev => prev.map(p => p.id === post.id ? { ...p, content_draft: newWording, wording: newWording, updated_at: result.updated_at } : p));
+      if (wordingEditor.current.id === post.id && wordingEditor.current.value === newWording) setEditingWording(null);
+    } catch (error) {
+      toast.error(error instanceof Error && error.message === "structured_content_required"
+        ? "Conserve la structure et les médias du contenu : modifie uniquement ses textes. Ta saisie est conservée."
+        : "Le texte n'a pas été enregistré. Ta saisie est conservée ; recharge en cas de conflit.");
+    } finally { busyEdits.current.delete(post.id); }
   };
 
   // ── Validate all ──
 
   const validateAll = async () => {
-    const toValidate = posts.filter(p => p.status === "ready");
-    // Optimistic
-    setPosts(prev => prev.map(p => p.status === "ready" ? { ...p, status: "draft_ready" } : p));
-
-    let failed = 0;
+    const visit = tokenVisit.current;
+    const toValidate = filteredPosts.filter(p => p.status === "ready");
     for (const post of toValidate) {
-      try {
-        const res = await fetch(`${baseUrl}/public-calendar-edit`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ token, post_id: post.id, field: "status", value: "draft_ready" }),
-        });
-        if (!res.ok) throw new Error(String(res.status));
-      } catch {
-        failed++;
-        setPosts(prev => prev.map(p => p.id === post.id ? { ...p, status: "ready" } : p));
-      }
+      if (tokenRef.current !== token || tokenVisit.current !== visit) return;
+      await editStatus(post, "draft_ready");
     }
-    if (failed > 0) toast.error(`${failed} post${failed > 1 ? "s" : ""} n'${failed > 1 ? "ont" : "a"} pas pu être validé${failed > 1 ? "s" : ""}, réessaie`);
   };
 
   // ── Comments ──
 
-  const sendComment = async (postId: string, content: string) => {
-    if (!content.trim() || !token) return;
+  const sendComment = async (postId: string, content: string): Promise<boolean> => {
+    if (!content.trim() || !token || busyComment.current) return false;
+    const visit = tokenVisit.current;
+    busyComment.current = true;
     setSending(true);
-
-    const optimistic: Comment = {
-      id: `temp-${Date.now()}`,
-      calendar_post_id: postId,
-      share_id: "",
-      author_name: effectiveName || "Invité·e",
-      author_role: "guest",
-      content: content.trim(),
-      is_resolved: false,
-      created_at: new Date().toISOString(),
-    };
-    setComments(prev => [...prev, optimistic]);
-
+    const key = JSON.stringify([token, postId, effectiveName, content.trim()]);
+    const requestId = commentRequests.current.get(key) || readSession(`calendar-request:${key}`) || crypto.randomUUID();
+    writeSession(`calendar-request:${key}`, requestId);
+    commentRequests.current.set(key, requestId);
     try {
       const res = await fetch(`${baseUrl}/public-calendar-comment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          token,
-          calendar_post_id: postId,
-          author_name: effectiveName || "Invité·e",
-          content: content.trim(),
-        }),
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, calendar_post_id: postId, author_name: effectiveName || "Invité·e", content: content.trim(), request_id: requestId }),
       });
-      if (res.ok) {
-        const real = await res.json();
-        setComments(prev => prev.map(c => c.id === optimistic.id ? real : c));
-      }
-    } catch { /* keep optimistic */ }
-    setSending(false);
+      const real = await res.json();
+      if (!res.ok || !real?.id || real.error) throw new Error("comment_failed");
+      if (tokenRef.current !== token || tokenVisit.current !== visit) return false;
+      commentRequests.current.delete(key);
+      writeSession(`calendar-request:${key}`, null);
+      if (tokenRef.current === token) setComments(prev => [...prev.filter(c => c.id !== real.id), real]);
+      return true;
+    } catch {
+      toast.error("Le commentaire n'a pas été enregistré. Ton texte est conservé, réessaie.");
+      return false;
+    } finally { busyComment.current = false; setSending(false); }
   };
 
   const handleValidatePost = () => {
-    if (!selectedPost) return;
-    sendComment(selectedPost.id, "[VALIDATION] Ce post est validé ✅");
+    if (selectedPost) void sendComment(selectedPost.id, "[VALIDATION] Ce post est validé ✅");
   };
-
-  const handleRevisionSubmit = () => {
+  const handleRevisionSubmit = async () => {
     if (!revisionText.trim() || !selectedPost) return;
-    sendComment(selectedPost.id, `[REVISION] ${revisionText.trim()}`);
-    setRevisionMode(false);
-    setRevisionText("");
+    const submitted = revisionText;
+    if (await sendComment(selectedPost.id, `[REVISION] ${submitted.trim()}`)) {
+      setRevisionText(current => current === submitted ? "" : current);
+      setRevisionMode(false);
+    }
   };
 
   // ── Scroll to first unresolved ──
@@ -457,8 +469,9 @@ export default function SharedCalendarPage() {
         <div className="mb-6 text-2xl font-semibold" style={{ fontFamily: "'Instrument Serif', serif" }}>Nowadays</div>
         <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
         <h1 className="text-lg font-semibold text-gray-800 mb-2" style={{ fontFamily: "'Instrument Serif', serif" }}>
-          Ce lien a expiré ou n'existe plus.
+          {error === "expired" ? "Ce lien a expiré ou n’existe plus." : "Le calendrier n’a pas pu être chargé."}
         </h1>
+        <Button onClick={() => fetchData()} variant="outline">Réessayer</Button>
         <p className="text-sm text-gray-500 max-w-xs">Contacte la personne qui te l'a envoyé pour obtenir un nouveau lien.</p>
       </div>
     );
@@ -582,7 +595,7 @@ export default function SharedCalendarPage() {
         </div>
 
         {/* Comment input */}
-        {hasName && <CommentInput onSend={(text) => sendComment(selectedPost.id, text)} sending={sending} />}
+        {hasName && <CommentInput key={`${token}:${selectedPost.id}`} draftKey={`calendar-draft:${token}:${selectedPost.id}`} onSend={(text) => sendComment(selectedPost.id, text)} sending={sending} />}
 
         {/* Name prompt */}
         {!hasName && (
@@ -755,6 +768,8 @@ export default function SharedCalendarPage() {
               {showColumns.includes("phase") && (
                 <div className="px-3 py-2.5 text-2xs uppercase font-semibold text-gray-400 tracking-wider">Phase</div>
               )}
+              {showColumns.includes("description") && <div className="px-3 py-2.5 text-xs">Description</div>}
+              {showColumns.includes("notes") && <div className="px-3 py-2.5 text-xs">Notes</div>}
               <div className="px-3 py-2.5 text-2xs uppercase font-semibold text-gray-400 tracking-wider">Actions</div>
             </div>
 
@@ -866,6 +881,8 @@ export default function SharedCalendarPage() {
                       {post.phase || "-"}
                     </div>
                   )}
+                  {showColumns.includes("description") && <div className="px-3 py-2.5 text-xs">{post.objectif || "—"}</div>}
+                  {showColumns.includes("notes") && <div className="px-3 py-2.5 text-xs">{post.notes || "—"}</div>}
                   <div className="px-3 py-2.5 flex items-center gap-1.5">
                     <button
                       onClick={() => { setSelectedPost(post); setRevisionMode(false); setRevisionText(""); }}
@@ -989,13 +1006,14 @@ function TableHeader({ label, sortKey, currentKey, sortDir, onSort }: {
   );
 }
 
-function CommentInput({ onSend, sending }: { onSend: (text: string) => void; sending: boolean }) {
-  const [text, setText] = useState("");
+function CommentInput({ onSend, sending, draftKey }: { onSend: (text: string) => Promise<boolean>; sending: boolean; draftKey: string }) {
+  const [text, setText] = useState(() => readSession(draftKey) || "");
+  useEffect(() => { writeSession(draftKey, text || null); }, [draftKey, text]);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!text.trim() || sending) return;
-    onSend(text.trim());
-    setText("");
+    const submitted = text;
+    if (await onSend(submitted.trim())) setText(current => current === submitted ? "" : current);
   };
 
   return (
@@ -1101,6 +1119,8 @@ function buildGridCols(showColumns: string[], hasActions: boolean): string {
   if (showColumns.includes("canal")) cols.push("90px");
   if (showColumns.includes("format")) cols.push("90px");
   if (showColumns.includes("phase")) cols.push("minmax(80px, 1fr)");
+  if (showColumns.includes("description")) cols.push("minmax(120px, 1fr)");
+  if (showColumns.includes("notes")) cols.push("minmax(120px, 1fr)");
   cols.push("80px"); // actions
   return cols.join(" ");
 }
