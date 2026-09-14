@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export function launchSaveError(error: any): string {
   const message = String(error?.message || "");
   if (message.includes("launch_legacy_review_required")) return "Certains anciens contenus ne peuvent pas être reliés avec certitude à ce plan. Rien n’a été modifié : vérifie les contenus de ce lancement dans le calendrier avant de renvoyer.";
+  if (message.includes("launch_replay_conflict")) return "Cette tentative correspond à une autre version déjà enregistrée. Ta proposition reste ici ; vérifie la version du plan avant de reprendre.";
   if (message.includes("launch_version_conflict")) return "Le lancement a changé depuis son ouverture. Ta proposition est conservée ici ; recharge le plan avant de remplacer sa dernière version.";
   if (message.includes("forbidden") || error?.code === "42501") return "Tu n’as pas les droits pour modifier ce lancement dans cet espace.";
   return "L’enregistrement n’a pas pu être confirmé. Ta proposition reste disponible : réessaie sans la régénérer.";

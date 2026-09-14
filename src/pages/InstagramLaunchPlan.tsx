@@ -297,7 +297,8 @@ function InstagramLaunchPlanScreen() {
     if ((data as any)?.launch_id !== launch.id) throw new Error("launch_missing_receipt");
     setProposal(null);
     setReloadKey(k => k + 1);
-    toast.success("Plan de lancement enregistré. Les versions précédentes sont conservées.");
+    if ((data as any).replayed) toast.info("Cette proposition avait déjà été enregistrée. Le plan a été rechargé sans créer de nouvelle version.");
+    else toast.success("Plan de lancement enregistré. Les versions précédentes sont conservées.");
   };
 
   // ── Slot manipulation ──

@@ -120,7 +120,20 @@ BEGIN
   SELECT array_agg((v->>'id')::uuid) INTO ids FROM jsonb_array_elements(p_slots) v;
   IF cardinality(ids)<>(SELECT count(DISTINCT id) FROM unnest(ids) id) THEN RAISE EXCEPTION 'launch_invalid_selection'; END IF;
   SELECT count(*) INTO n FROM public.launch_plan_contents WHERE id=ANY(ids) AND launch_id=l.id;
-  IF n=cardinality(ids) THEN RETURN jsonb_build_object('launch_id',l.id,'replayed',true); END IF;
+  IF n=cardinality(ids) THEN
+    -- IDs identify one immutable attempted proposal, not permission to acknowledge
+    -- a different payload. Later edits/another revision also require review.
+    IF (l.template_type,l.extra_weekly_hours,l.phases) IS DISTINCT FROM
+      (p_metadata->>'template_type',(p_metadata->>'extra_weekly_hours')::int,p_metadata->'phases') OR EXISTS (
+      SELECT 1 FROM jsonb_array_elements(p_slots) value
+      JOIN public.launch_plan_contents x ON x.id=(value->>'id')::uuid
+      WHERE x.archived_at IS NOT NULL OR x.workspace_id IS DISTINCT FROM l.workspace_id OR
+        (x.phase,x.content_date,x.format,x.content_type,x.content_type_emoji,x.category,x.objective,x.angle_suggestion,x.sort_order)
+        IS DISTINCT FROM (value->>'phase',(value->>'date')::date,value->>'format',value->>'content_type',value->>'content_type_emoji',
+          value->>'category',value->>'objective',value->>'angle_suggestion',coalesce((value->>'sort_order')::int,0))
+    ) THEN RAISE EXCEPTION 'launch_replay_conflict'; END IF;
+    RETURN jsonb_build_object('launch_id',l.id,'replayed',true);
+  END IF;
   IF n>0 OR p_expected_updated_at IS NULL OR l.updated_at IS DISTINCT FROM p_expected_updated_at THEN RAISE EXCEPTION 'launch_version_conflict'; END IF;
   UPDATE public.launch_plan_contents SET archived_at=clock_timestamp() WHERE launch_id=l.id AND archived_at IS NULL;
   FOR r IN SELECT value FROM jsonb_array_elements(p_slots) LOOP

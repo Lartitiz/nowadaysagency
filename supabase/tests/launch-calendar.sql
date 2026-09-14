@@ -75,8 +75,15 @@ BEGIN
  PERFORM set_config('test.fail','no',true);
  r:=save_launch_plan(l,w,rev,'[{"id":"66666666-6666-4666-8666-666666666666","phase":"vente","date":"2040-01-07"}]','{"template_type":"classique","extra_weekly_hours":0,"phases":[{"name":"vente"}]}');
  IF (SELECT count(*) FROM launch_plan_contents WHERE archived_at IS NOT NULL)<>2 OR before_rows IS DISTINCT FROM (SELECT jsonb_agg(to_jsonb(p) ORDER BY id) FROM calendar_posts p) THEN RAISE EXCEPTION 'FAIL regeneration history'; END IF;
- r:=save_launch_plan(l,w,rev,'[{"id":"66666666-6666-4666-8666-666666666666","phase":"vente","date":"2040-01-07"}]','{}');
+ r:=save_launch_plan(l,w,rev,'[{"id":"66666666-6666-4666-8666-666666666666","phase":"vente","date":"2040-01-07"}]','{"template_type":"classique","extra_weekly_hours":0,"phases":[{"name":"vente"}]}');
  IF r->>'replayed'<>'true' OR (SELECT count(*) FROM launch_plan_contents)<>3 THEN RAISE EXCEPTION 'FAIL generation replay'; END IF;
+ failed:=false;
+ BEGIN PERFORM save_launch_plan(l,w,rev,'[{"id":"66666666-6666-4666-8666-666666666666","phase":"vente","date":"2040-01-09","objective":"Different proposal"}]','{"template_type":"classique","extra_weekly_hours":0,"phases":[{"name":"vente"}]}'); EXCEPTION WHEN OTHERS THEN failed:=SQLERRM='launch_replay_conflict'; END;
+ IF NOT failed OR (SELECT content_date FROM launch_plan_contents WHERE id='66666666-6666-4666-8666-666666666666')<>'2040-01-07' THEN RAISE EXCEPTION 'FAIL same IDs different proposal accepted'; END IF;
+ failed:=false;
+ BEGIN PERFORM save_launch_plan(l,w,rev,'[{"id":"66666666-6666-4666-8666-666666666666","phase":"vente","date":"2040-01-07"}]','{"template_type":"different","extra_weekly_hours":10,"phases":[]}'); EXCEPTION WHEN OTHERS THEN failed:=SQLERRM='launch_replay_conflict'; END;
+ IF NOT failed THEN RAISE EXCEPTION 'FAIL same IDs different metadata accepted'; END IF;
+
 END $$;
 SELECT set_config('test.uid','33333333-3333-4333-8333-333333333333',true);
 DO $$ DECLARE failed boolean:=false; BEGIN
