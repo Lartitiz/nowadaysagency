@@ -45,6 +45,14 @@ BEGIN
  IF public.public_calendar_write('personal',p,'comment','hello','Test')->>'error' <> 'post_not_found' THEN RAISE EXCEPTION 'personal crosses workspace'; END IF;
  IF public.public_calendar_write('personal',personal,'comment','hello','Test')->>'id' IS NULL THEN RAISE EXCEPTION 'personal blocked'; END IF;
  IF public.public_calendar_write('legacy',other_workspace,'comment','legacy permission','Test')->>'id' IS NULL THEN RAISE EXCEPTION 'legacy scope blocked'; END IF;
+ BEGIN
+  INSERT INTO public.calendar_shares(user_id,share_token,legacy_owner_scope) VALUES(u,'forged-legacy',true);
+  RAISE EXCEPTION 'new link forged historical scope';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ BEGIN
+  UPDATE public.calendar_shares SET legacy_owner_scope=true WHERE share_token='personal';
+  RAISE EXCEPTION 'personal scope widened';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  receipt:=gen_random_uuid();
  r:=public.public_calendar_write('scoped',p,'comment','hello','Test',receipt);
  IF r->>'id' IS NULL OR public.public_calendar_write('scoped',p,'comment','hello','Test',receipt)->>'id' <> r->>'id' THEN RAISE EXCEPTION 'replay failed'; END IF;

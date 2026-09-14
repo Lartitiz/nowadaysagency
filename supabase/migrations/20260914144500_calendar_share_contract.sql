@@ -1,6 +1,20 @@
 -- Existing unscoped links retain their historical owner-wide scope. New ones are personal.
 ALTER TABLE public.calendar_shares ADD COLUMN legacy_owner_scope boolean NOT NULL DEFAULT false;
 UPDATE public.calendar_shares SET legacy_owner_scope = true WHERE workspace_id IS NULL;
+-- The compatibility marker is migration provenance, not a client-controlled permission.
+CREATE FUNCTION public.preserve_calendar_share_legacy_scope() RETURNS trigger
+LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+ IF TG_OP='INSERT' THEN
+  IF NEW.legacy_owner_scope THEN RAISE EXCEPTION 'legacy_scope_is_migration_only' USING ERRCODE='42501'; END IF;
+ ELSIF NEW.legacy_owner_scope IS DISTINCT FROM OLD.legacy_owner_scope THEN
+  RAISE EXCEPTION 'legacy_scope_is_immutable' USING ERRCODE='42501';
+ END IF;
+ RETURN NEW;
+END $$;
+CREATE TRIGGER preserve_calendar_share_legacy_scope BEFORE INSERT OR UPDATE OF legacy_owner_scope ON public.calendar_shares
+ FOR EACH ROW EXECUTE FUNCTION public.preserve_calendar_share_legacy_scope();
+REVOKE ALL ON FUNCTION public.preserve_calendar_share_legacy_scope() FROM PUBLIC,anon,authenticated;
 ALTER TABLE public.calendar_comments ADD COLUMN request_id uuid;
 CREATE UNIQUE INDEX calendar_comments_share_request ON public.calendar_comments(share_id, request_id) WHERE request_id IS NOT NULL;
 
@@ -121,3 +135,6 @@ WITH CHECK (EXISTS (SELECT 1 FROM public.calendar_shares s JOIN public.calendar_
  AND ((s.workspace_id IS NOT NULL AND p.workspace_id=s.workspace_id) OR
  (s.workspace_id IS NULL AND (s.legacy_owner_scope OR p.workspace_id IS NULL)))
  AND (s.canal_filter IS NULL OR s.canal_filter='all' OR p.canal=s.canal_filter)));
+
+REVOKE ALL ON FUNCTION public.calendar_share_text_preserved(jsonb,jsonb,text) FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.calendar_share_restore_private(jsonb,jsonb) FROM PUBLIC,anon,authenticated;
