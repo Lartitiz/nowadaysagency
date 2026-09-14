@@ -129,11 +129,23 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
   const coherenceRefusal = page
     .getByText(/ne semble(?:nt)? pas correspondre à ton idée/i)
     .first();
-  await Promise.race([
-    result.waitFor({ state: "visible", timeout: 780_000 }),
-    validationError.waitFor({ state: "visible", timeout: 780_000 }),
-    coherenceRefusal.waitFor({ state: "visible", timeout: 780_000 }),
-  ]);
+  // 4e issue : `empty_carousel` (carousel-ai, 200 structuré) — l'IA a rendu 0
+  // slide sans motif photo. Le produit l'affiche proprement avec « Réessayer »
+  // (aucun crédit) ; sans ce concurrent, 13 min de timeout pour rien (14/09).
+  // UN seul réessai, comme une utilisatrice : deux vides d'affilée = rouge net.
+  const emptyCarousel = page.getByText(/renvoyé un carrousel vide/i).first();
+  for (let attempt = 1; ; attempt++) {
+    await Promise.race([
+      result.waitFor({ state: "visible", timeout: 780_000 }),
+      validationError.waitFor({ state: "visible", timeout: 780_000 }),
+      coherenceRefusal.waitFor({ state: "visible", timeout: 780_000 }),
+      emptyCarousel.waitFor({ state: "visible", timeout: 780_000 }),
+    ]);
+    if (!(await emptyCarousel.isVisible().catch(() => false))) break;
+    if (attempt >= 2) throw new Error("carousel-ai a renvoyé un carrousel VIDE deux fois de suite (empty_carousel)");
+    console.log("🔁 carrousel vide (empty_carousel) — 1 réessai, comme une utilisatrice");
+    await page.getByRole("button", { name: /réessayer/i }).first().click();
+  }
   if (await coherenceRefusal.isVisible().catch(() => false)) {
     await page.screenshot({ path: path.join(SHOTS, "mix-REFUS-coherence.png"), fullPage: true });
     const raison = (await coherenceRefusal.textContent().catch(() => "")) ?? "";
