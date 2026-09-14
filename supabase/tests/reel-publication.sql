@@ -11,7 +11,7 @@ INSERT INTO auth.users VALUES ('11111111-1111-4111-8111-111111111111');
 CREATE TABLE reel_fixture_history(id integer, content text);
 INSERT INTO reel_fixture_history VALUES (1,'untouched');
 COMMIT;
-\ir ../migrations/20260914170000_reel_publication_receipts.sql
+\ir ../migrations/20260914165625_c054ba91-060e-4721-823a-ce184f035b67.sql
 DO $$ BEGIN
   IF (SELECT content FROM reel_fixture_history WHERE id=1) IS DISTINCT FROM 'untouched' THEN RAISE EXCEPTION 'history changed'; END IF;
   IF has_table_privilege('authenticated','reel_publication_receipts','SELECT,INSERT,UPDATE,DELETE') OR has_table_privilege('anon','reel_publication_receipts','SELECT,INSERT,UPDATE,DELETE') THEN RAISE EXCEPTION 'client access'; END IF;
