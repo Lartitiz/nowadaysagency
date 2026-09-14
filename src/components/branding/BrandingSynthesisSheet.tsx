@@ -290,7 +290,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         ) : (
           <>
             <h3 className="font-body text-base font-bold text-foreground flex items-center gap-2 uppercase tracking-wide mb-4"><span>👤</span> Ma cible</h3>
-            <EmptySection message="Tu n'as pas encore défini ta cible." linkLabel="Définir ma cible →" link="/branding/section?section=persona" />
+            <EmptySection message={data.personas.length > 1 ? "Choisis plus haut le public à afficher dans cette fiche." : "Tu n'as pas encore défini ta cible."} linkLabel="Gérer mes publics →" link="/branding/section?section=persona" />
           </>
         )}
 
@@ -386,7 +386,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             )}
           </div>
         ) : (
-          <EmptySection message="Tu n'as pas encore écrit ton histoire." linkLabel="Écrire mon histoire →" link="/branding/section?section=story" />
+          <EmptySection message={data.stories.length > 1 ? "Choisis plus haut l’histoire principale à afficher dans cette fiche." : "Aucune histoire principale à afficher pour le moment."} linkLabel="Gérer mes histoires →" link="/branding/section?section=story" />
         )}
 
         {/* ═══ MES OFFRES ═══ */}
