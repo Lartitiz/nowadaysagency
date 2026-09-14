@@ -272,3 +272,18 @@ Deno.test("social-instagram-publish — OPTIONS (préflight CORS) → 200 sans t
   assertEquals(res.status, 200);
   assertEquals(calls.length, 0);
 });
+
+Deno.test("Reel API refuses cover/temporary video before any media call and keeps workspace filters", async()=>{
+ const handler=await loadHandler();
+ const {fetchFn,calls}=makeRouter({user:{id:"u1"},connection:CONN});globalThis.fetch=fetchFn;
+ for (const videoUrl of ["blob:video", "https://renderer.test/video.mp4", "https://fake.local/storage/v1/object/public/calendar-media/cover.jpg"]) {
+   const res=await handler(authedRequest({videoUrl,imageUrl:"https://cover.test/a.jpg"}));assertEquals(res.status,400);
+ }
+ assertEquals(calls.some(c=>c.url.includes("graph.instagram.com")),false);
+ const res=await handler(authedRequest({workspace_id:"ws-A",caption:"Caption",videoUrl:"https://fake.local/storage/v1/object/public/calendar-media/u1/reel.mp4"}));
+ assertEquals(res.status,200);assertEquals((await res.json()).postId,"post-0");
+ const query=new URL(calls.find(c=>c.url.includes("social_connections"))!.url);
+ assertEquals(query.searchParams.get("workspace_id"),"eq.ws-A");assertEquals(query.searchParams.get("user_id"),"eq.u1");
+ const media=new URL(calls.find(c=>c.url.includes("graph.instagram.com")&&c.url.includes("/media?") )!.url);
+ assertEquals(media.searchParams.get("media_type"),"REELS");assertEquals(media.searchParams.get("image_url"),null);
+});

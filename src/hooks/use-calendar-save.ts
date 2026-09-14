@@ -154,7 +154,8 @@ export function useCalendarSave({
         story_sequence_detail: { ...(storyDetail || {}), ...(visualSlides.length ? { visual_html: visualSlides } : {}) },
         ...(selectedFormat === "reel" ? { media_urls: isDurableReelUrl(reelMp4Url) ? [reelMp4Url] : [] } : publishableImageUrl ? { media_urls: [publishableImageUrl] } : {}),
       };
-      let id = publicationCalendarId;
+      let id = selectedFormat === "reel" || activeScope.current !== editorScope
+        ? publicationCalendarId : publishedCalendarId.current || calendarPostId;
       if (selectedFormat === "reel" && !id) {
         id = publicationCreationId;
         const { error } = await supabase.from("calendar_posts").insert({
@@ -173,8 +174,14 @@ export function useCalendarSave({
           }
         }
       } else if (id) {
-        const { error } = await supabase.from("calendar_posts").update(payload).eq("id", id);
-        if (error) throw error;
+        const update = supabase.from("calendar_posts").update(payload).eq("id", id);
+        if (selectedFormat === "reel") {
+          const { data, error } = await update.select("id").single();
+          if (error || data?.id !== id) throw error || new Error("Publication non retrouvée dans le calendrier");
+        } else {
+          const { error } = await update;
+          if (error) throw error;
+        }
       } else {
         const { data, error } = await supabase.from("calendar_posts").insert({
           ...payload, user_id: session.user.id,

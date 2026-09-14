@@ -1,3 +1,4 @@
+import { reelCalendarCaption } from "../../supabase/functions/_shared/reel-caption";
 import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import ts from 'typescript';
@@ -55,4 +56,11 @@ describe('A3 corrected creator publication behavior',()=>{
   expect(reelSourceKey({...raw,caption:{text:'edited'}})).toBe(reelSourceKey(raw));
   for(const field of ['texte_parle','texte_overlay','timing']) expect(reelSourceKey({...raw,sections:[{...raw.sections[0],[field]:'changed'}]})).not.toBe(reelSourceKey(raw));
  });
+});
+
+it('calendar caption preserves explicit edits and replaces only an exact historical script',()=>{
+ const detail={type:'reel',script:[{section:'hook',timing:'0-3',texte_parle:'Script'}],caption:{text:'Caption',cta:'CTA'},hashtags:['#tag']};
+ expect(reelCalendarCaption('[0-3] HOOK\nScript',detail)).toBe('Caption\n\nCTA\n\n#tag');
+ expect(reelCalendarCaption('My edited caption',detail)).toBe('My edited caption');
+ expect(reelCalendarCaption('',detail)).toBe('Caption\n\nCTA\n\n#tag');
 });
