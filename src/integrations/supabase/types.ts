@@ -6281,6 +6281,42 @@ export type Database = {
           },
         ]
       }
+      reel_publication_receipts: {
+        Row: {
+          account_id: string
+          caption: string
+          created_at: string
+          id: string
+          post_id: string | null
+          state: string
+          user_id: string
+          video_url: string
+          workspace_id: string | null
+        }
+        Insert: {
+          account_id: string
+          caption: string
+          created_at?: string
+          id: string
+          post_id?: string | null
+          state?: string
+          user_id: string
+          video_url: string
+          workspace_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          caption?: string
+          created_at?: string
+          id?: string
+          post_id?: string | null
+          state?: string
+          user_id?: string
+          video_url?: string
+          workspace_id?: string | null
+        }
+        Relationships: []
+      }
       reels_metrics: {
         Row: {
           ai_insight: string | null
