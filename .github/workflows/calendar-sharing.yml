@@ -1,0 +1,32 @@
+name: Calendar sharing contract
+on:
+  pull_request:
+    paths:
+      - 'supabase/migrations/20260914144500_calendar_share_contract.sql'
+      - 'supabase/tests/calendar-share.sql'
+      - '.github/workflows/calendar-sharing.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/migrations/20260914144500_calendar_share_contract.sql'
+      - 'supabase/tests/calendar-share.sql'
+jobs:
+  sharing-sql:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: calendar_share_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scope, historical data, permissions and atomic recovery
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_share_test -f supabase/tests/calendar-share.sql
