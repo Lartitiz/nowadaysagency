@@ -48,7 +48,10 @@ export async function sharedBrandingAccess(req: Request, sb: any, now = new Date
     if (current.data.user_id !== link.user_id || current.data.workspace_id !== link.workspace_id) return unavailable();
     if (current.data.expires_at && (!Number.isFinite(Date.parse(current.data.expires_at)) || Date.parse(current.data.expires_at) <= now.getTime())) return json({ error: "Ce lien a expiré" }, 410);
     // Cosmetic counter; failures must not erase successfully loaded branding.
-    try { await sb.from("shared_branding_links").update({ views_count: (link.views_count || 0) + 1 }).eq("id", link.id); } catch { /* best effort */ }
+    try {
+      const { error: countError } = await sb.from("shared_branding_links").update({ views_count: (link.views_count || 0) + 1 }).eq("id", link.id);
+      if (countError) console.warn("shared-branding-access: compteur de vues non actualisé");
+    } catch { console.warn("shared-branding-access: compteur de vues indisponible"); }
     return json({
       title: link.title,
       link: { created_at: link.created_at, expires_at: current.data.expires_at },
