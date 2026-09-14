@@ -318,7 +318,7 @@ export function useSynthesisFetch() {
     summaries: dataScope === scope ? summaries : null,
     summariesLoading,
     sheetRef,
-    loadData: profileOwner.error ? profileOwner.reload : loadData,
+    loadData: profileOwner.error ? async () => { await profileOwner.reload(); } : loadData,
     regenerateSummaries,
     handleCopy,
     handleShare,

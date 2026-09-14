@@ -131,5 +131,5 @@ jobs:
           node-version: 20
       - name: LinkedIn atomic persistence and workspace access (disposable PGlite database)
         run: |
-          npm install --prefix "$RUNNER_TEMP/linkedin-sql" --no-save --ignore-scripts @electric-sql/pglite@0.3.14
+          npm install --prefix "$RUNNER_TEMP/linkedin-sql" --no-save --ignore-scripts @electric-sql/pglite@0.5.8
           PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/linkedin-safe-persistence.mjs
