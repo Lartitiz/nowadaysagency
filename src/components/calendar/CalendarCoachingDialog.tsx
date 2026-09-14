@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import CoachingShell from "@/components/coaching/CoachingShell";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,14 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { toast } from "sonner";
 import { toLocalDateStr } from "@/lib/utils";
 import { friendlyError } from "@/lib/error-messages";
 import { normalizeObjectif } from "@/lib/chat-plan";
-import { dropAlreadyPlanned, duplicateMessage } from "@/lib/calendar-duplicates";
+import { planningDayDate, planningChannel, planningFormat } from "@/lib/weekly-planning";
+import { usePlanningVisit } from "@/hooks/use-planning-visit";
+import { plannedKey } from "@/lib/calendar-duplicates";
 
 interface PlanningItem {
   day: string;
@@ -31,6 +33,8 @@ interface CoachingResult {
 }
 
 interface CalendarCoachingDialogProps {
+  weekStartDate?: string;
+  defaultCanal?: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPostAdded?: () => void;
@@ -45,14 +49,6 @@ const FORMAT_ICONS: Record<string, string> = {
   newsletter: "✉️",
 };
 
-const FORMAT_ROUTES: Record<string, string> = {
-  post: "/creer",
-  carousel: "/creer?format=carousel",
-  reel: "/creer?format=reel",
-  story: "/creer?format=story",
-  newsletter: "/creer",
-};
-
 const OBJ_LABELS: Record<string, string> = {
   inspirer: "🌟 Inspirer",
   eduquer: "📚 Éduquer",
@@ -60,25 +56,29 @@ const OBJ_LABELS: Record<string, string> = {
   lien: "💬 Lien",
 };
 
-const DAY_DATES: Record<string, number> = {
-  Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5, Samedi: 6, Dimanche: 0,
-};
-
 const WEEK_DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
-function getNextDayDate(dayName: string): string {
-  const target = DAY_DATES[dayName];
-  if (target === undefined) return toLocalDateStr(new Date());
-  const now = new Date();
-  const current = now.getDay();
-  let diff = target - current;
-  if (diff <= 0) diff += 7;
-  const date = new Date(now);
-  date.setDate(now.getDate() + diff);
-  return toLocalDateStr(date);
+export default function CalendarCoachingDialog(props: CalendarCoachingDialogProps) {
+  const { user } = useAuth();
+  const workspaceId = useWorkspaceId();
+  const [defaultWeek] = useState(() => {
+    const date = new Date(); date.setDate(date.getDate() - ((date.getDay() + 6) % 7)); return toLocalDateStr(date);
+  });
+  const ready = useWorkspaceReady();
+  const week = props.weekStartDate || defaultWeek;
+  if (!ready || !user) return null;
+  return <CalendarCoachingSession key={`${user?.id}:${workspaceId}:${week}:${props.defaultCanal}`} {...props} weekStartDate={week} />;
 }
 
-export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded, existingPosts }: CalendarCoachingDialogProps) {
+function CalendarCoachingSession({ open, onOpenChange, onPostAdded, existingPosts, weekStartDate, defaultCanal = "all" }: CalendarCoachingDialogProps) {
+  const visit = usePlanningVisit();
+  const openRef = useRef(open); openRef.current = open;
+  const epoch = useRef(0);
+  const prepared = useRef(new Map<number, any>());
+  const receipts = useRef(new Map<number, any>());
+  const pending = useRef(new Set<number>());
+  const batchRunning = useRef(false);
+  const [busyItems, setBusyItems] = useState<Set<number>>(new Set());
   const { user } = useAuth();
   const navigate = useNavigate();
   const workspaceId = useWorkspaceId();
@@ -95,39 +95,20 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
   const [dayOverrides, setDayOverrides] = useState<Record<number, string>>({});
   const [addingAll, setAddingAll] = useState(false);
 
-  // Reset when opening
+  // Parent refreshes after each successful insert: keep the current proposals and
+  // receipts, even when the calendar returns a newly allocated existingPosts array.
+  const initialized = useRef(false);
   useEffect(() => {
-    if (open) {
-      const has = existingPosts && existingPosts.length > 0;
-      setStep(has ? 0 : 1);
-      setMode(has ? "complete" : "full");
-      setPostsPerWeek(null);
-      setContextWeek("");
-      setMixOrFocus(null);
-      setLoading(false);
-      setResult(null);
-      setAddedItems(new Set());
-      setDayOverrides({});
-      setAddingAll(false);
+    if (open && !initialized.current) {
+      initialized.current = true;
+      const has = !!existingPosts?.length;
+      setStep(has ? 0 : 1); setMode(has ? "complete" : "full");
     }
   }, [open, existingPosts]);
 
-  const reset = () => {
-    const has = existingPosts && existingPosts.length > 0;
-    setStep(has ? 0 : 1);
-    setMode(has ? "complete" : "full");
-    setPostsPerWeek(null);
-    setContextWeek("");
-    setMixOrFocus(null);
-    setLoading(false);
-    setResult(null);
-    setAddedItems(new Set());
-    setDayOverrides({});
-    setAddingAll(false);
-  };
-
   const handleGenerate = async () => {
-    if (!user || !postsPerWeek || !mixOrFocus) return;
+    if (!user || !postsPerWeek || !mixOrFocus || loading) return;
+    const request = ++epoch.current;
     setLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("calendar-coaching", {
@@ -136,18 +117,23 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
           context_week: contextWeek,
           mix_or_focus: mixOrFocus,
           mode,
+          week_start: weekStartDate,
+          canal: defaultCanal,
           existing_posts: mode === "complete" ? existingPosts : undefined,
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
         },
       }, 120000);
+      if (!visit.current || request !== epoch.current) return;
       if (error) throw error;
       if (data?.error) throw new Error(data.message || data.error);
+      if (!Array.isArray(data?.planning)) throw new Error("Le planning reçu est incomplet.");
       setResult(data);
     } catch (e: any) {
+      if (!visit.current || request !== epoch.current) return;
       if (e?.isTimeout) { toast.error("Le coaching prend plus de temps que prévu. Réessaie."); }
       else toast.error(friendlyError(e));
     } finally {
-      setLoading(false);
+      if (visit.current && request === epoch.current) setLoading(false);
     }
   };
 
@@ -155,55 +141,64 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
   const dayOf = (item: PlanningItem, index: number) => dayOverrides[index] || item.day;
 
   const handleAddToCalendar = async (item: PlanningItem, index: number): Promise<boolean> => {
-    if (!user) return false;
+    if (!user || !visit.current || pending.current.has(index)) return false;
+    if (receipts.current.has(index)) return true;
+    pending.current.add(index); setBusyItems(new Set(pending.current));
     const day = dayOf(item, index);
     try {
-      const date = getNextDayDate(day);
-      // Déjà prévu ce jour-là ? On coche la carte au lieu d'empiler un 2ᵉ exemplaire.
-      const { duplicates } = await dropAlreadyPlanned(
-        [{ date, theme: item.subject, canal: "instagram" }],
-        { userId: user.id, workspaceId },
-      );
-      if (duplicates.length > 0) {
-        setAddedItems((prev) => new Set(prev).add(index));
-        toast(duplicateMessage(1, 1));
-        return true;
+      if (!prepared.current.has(index)) {
+        const canal = planningChannel(item.format, defaultCanal);
+        prepared.current.set(index, {
+          id: crypto.randomUUID(), user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : null,
+          date: planningDayDate(day, weekStartDate!), theme: item.subject,
+          format: planningFormat(item.format, canal), canal, status: "a_rediger",
+          objectif: normalizeObjectif(item.objective), accroche: item.hook_idea, notes: `Pilier : ${item.pillar}`,
+        });
       }
-      const { error: insertError } = await supabase.from("calendar_posts").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        date,
-        theme: item.subject,
-        format: item.format === "carousel" ? "post_carrousel" : item.format === "story" || item.format === "story_serie" ? "story_serie" : item.format,
-        canal: "instagram",
-        status: "a_rediger",
-        objectif: normalizeObjectif(item.objective),
-        accroche: item.hook_idea,
-        notes: `Pilier : ${item.pillar}`,
-      } as any);
-      if (insertError) throw insertError;
+      const row = prepared.current.get(index);
+      const read = supabase.from("calendar_posts").select("id,date,canal,theme").eq("date", row.date).eq("canal", row.canal);
+      const scoped = row.workspace_id ? read.eq("workspace_id", row.workspace_id) : read.eq("user_id", user.id).is("workspace_id", null);
+      const { data: existing, error: readError } = await scoped;
+      if (readError) throw readError;
+      if (!visit.current) return false;
+      // Exact confirmed receipts only; a read error must never masquerade as no duplicate.
+      let receipt: { id: string; date: string; canal: string; theme: string; fresh?: boolean } | undefined = existing?.find(p => p.id === row.id);
+      const duplicate = existing?.find(p => plannedKey(p) === plannedKey(row));
+      if (!receipt && duplicate) {
+        toast.info("Ce sujet est déjà prévu ce jour-là. Ouvre-le dans le calendrier pour le reprendre.");
+        receipt = duplicate;
+      }
+      if (!receipt) {
+        const { data, error } = await supabase.from("calendar_posts").insert(row).select("id,date,canal,theme").single();
+        if (error || !data?.id) throw error || new Error("missing receipt");
+        receipt = { ...data, fresh: true };
+      }
+      if (!visit.current) return false;
+      receipts.current.set(index, receipt);
       setAddedItems(prev => new Set(prev).add(index));
       toast.success(`📅 "${item.subject}" ajouté au ${day.toLowerCase()}`);
       onPostAdded?.();
       return true;
-    } catch (e: any) {
-      toast.error("Erreur lors de l'ajout");
-      return false;
-    }
+    } catch { if (visit.current) toast.error("Ajout non confirmé. Réessaie : la même proposition sera reprise sans doublon."); return false; }
+    finally { pending.current.delete(index); if (visit.current) setBusyItems(new Set(pending.current)); }
   };
 
   /** Poser toute la semaine d'un coup : les cartes déjà ajoutées sont ignorées. */
   const handleAddAll = async () => {
-    if (!result) return;
+    if (!result || batchRunning.current) return;
+    batchRunning.current = true;
     const pending = result.planning
       .map((item, i) => ({ item, i }))
       .filter(({ i }) => !addedItems.has(i));
-    if (pending.length === 0) return;
+    if (pending.length === 0) { batchRunning.current = false; return; }
     setAddingAll(true);
     let ok = 0;
     for (const { item, i } of pending) {
+      if (!visit.current) break;
       if (await handleAddToCalendar(item, i)) ok++;
     }
+    batchRunning.current = false;
+    if (!visit.current) return;
     setAddingAll(false);
     if (ok === pending.length) toast.success(`📅 Ta semaine est posée : ${ok} contenu${ok > 1 ? "s" : ""}`);
     else if (ok > 0) toast.warning(`${ok} sur ${pending.length} ajoutés. Réessaie pour le reste.`);
@@ -221,18 +216,26 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
       const ok = await handleAddToCalendar(item, index);
       if (!ok) return;
     }
-    const route = FORMAT_ROUTES[item.format] || "/creer";
+    if (!visit.current || !openRef.current) return;
+    const receipt = receipts.current.get(index);
+    if (!receipt?.id) return;
     onOpenChange(false);
-    const formatParam = item.format === "newsletter" ? "&format=newsletter" : "";
-    navigate(`${route}?subject=${encodeURIComponent(item.subject)}&objective=${encodeURIComponent(normalizeObjectif(item.objective) || item.objective)}${formatParam}`);
+    if (receipt.fresh) {
+      const format = receipt.canal === "newsletter" ? "newsletter" : receipt.canal === "linkedin" ? (item.format === "carousel" ? "carousel" : "linkedin") : receipt.canal === "pinterest" ? "pinterest" : item.format === "story_serie" ? "story" : item.format;
+      const params = new URLSearchParams({ subject: item.subject, objective: normalizeObjectif(item.objective) || item.objective, format, canal: receipt.canal, calendar_date: receipt.date });
+      navigate(`/creer?${params}`, { state: { fromCalendar: true, calendarPostId: receipt.id, postDate: receipt.date, format } });
+    } else {
+      // Existing contents use the calendar's full loader, never a new blank result.
+      navigate(`/calendrier?post=${receipt.id}&date=${receipt.date}&canal=${receipt.canal}`);
+    }
   };
 
 
   return (
     <CoachingShell
       open={open}
-      onOpenChange={(v) => { if (!v) reset(); onOpenChange(v); }}
-      title="Planifier ma semaine"
+      onOpenChange={onOpenChange}
+      title={`Planifier ma semaine du ${weekStartDate}`}
       description="Coaching pour planifier ta semaine de contenu"
       emoji="📅"
     >
@@ -365,6 +368,12 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
         {/* Results */}
         {result && (
           <div className="space-y-5 animate-fade-in">
+            <Button variant="outline" disabled={addingAll || busyItems.size > 0} onClick={() => {
+              epoch.current++; prepared.current.clear(); receipts.current.clear();
+              setResult(null); setAddedItems(new Set()); setDayOverrides({}); setPostsPerWeek(null);
+              setMixOrFocus(null); setContextWeek(""); setMode(existingPosts?.length ? "complete" : "full");
+              setStep(existingPosts?.length ? 0 : 1);
+            }}>Préparer une autre proposition</Button>
             {/* Week theme + tip */}
             <div className="rounded-xl border border-primary/20 bg-[hsl(var(--rose-pale))] p-4 space-y-2">
               <p className="text-sm font-semibold text-foreground">🎯 {result.week_theme}</p>
@@ -424,7 +433,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
                                 <button
                                   key={d}
                                   type="button"
-                                  onClick={() => setDayOverrides((prev) => ({ ...prev, [i]: d }))}
+                                  disabled={prepared.current.has(i)} onClick={() => setDayOverrides((prev) => ({ ...prev, [i]: d }))}
                                   className={`w-full text-left text-xs px-2 py-1.5 rounded hover:bg-muted/60 transition-colors ${
                                     d === day ? "font-semibold text-primary" : "text-foreground"
                                   }`}
@@ -449,7 +458,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
                         size="sm"
                         variant="outline"
                         className="text-xs gap-1 flex-1"
-                        disabled={isAdded || loading || addingAll}
+                        disabled={isAdded || loading || addingAll || busyItems.has(i)}
                         onClick={() => handleAddToCalendar(item, i)}
                       >
                         {isAdded ? "✅ Posé" : <><CalendarPlus className="h-3 w-3" /> Ajouter à ma semaine</>}
@@ -458,7 +467,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
                         size="sm"
                         variant={isAdded ? "default" : "secondary"}
                         className="text-xs gap-1 flex-1"
-                        disabled={addingAll}
+                        disabled={addingAll || busyItems.has(i)}
                         onClick={() => handleCreateContent(item, i)}
                       >
                         <Sparkles className="h-3 w-3" /> Créer ce contenu
@@ -484,7 +493,7 @@ export default function CalendarCoachingDialog({ open, onOpenChange, onPostAdded
                   ✅ {addedItems.size} contenu{addedItems.size > 1 ? "s" : ""} posé{addedItems.size > 1 ? "s" : ""} cette semaine
                 </p>
                 <div className="flex gap-2">
-                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => { reset(); onOpenChange(false); }}>
+                  <Button size="sm" variant="ghost" className="text-xs" onClick={() => onOpenChange(false)}>
                     Fermer
                   </Button>
                   <Button

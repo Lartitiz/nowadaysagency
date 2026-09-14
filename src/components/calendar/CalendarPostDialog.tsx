@@ -1,3 +1,4 @@
+import { resumeCrosspost } from "@/lib/crosspost-content";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -538,8 +539,9 @@ export function CalendarPostDialog({ open, onOpenChange, editingPost, selectedDa
     onOpenChange(false);
     setTimeout(() => {
       const detail = editingPost?.story_sequence_detail as any;
-      const resumeIdea = detail?.slides && detail?.visual_html?.length && /^carousel/.test(detail.type || "")
-        ? { format: "carousel", raw: { ...detail, carousel_type: detail.type === "carousel_photo" ? "photo" : detail.type === "carousel_mix" ? "mix" : detail.carousel_type || "text" } } : undefined;
+      const resumeIdea = resumeCrosspost(detail, format) || (detail?.slides && detail?.visual_html?.length && /^carousel/.test(detail.type || "")
+        ? { format: "carousel", raw: { ...detail, carousel_type: detail.type === "carousel_photo" ? "photo" : detail.type === "carousel_mix" ? "mix" : detail.carousel_type || "text" } } : undefined);
+      if (resumeIdea?.raw._crosspost && contentDraft !== editingPost?.content_draft && contentDraft != null) resumeIdea.raw.edited_text = contentDraft;
       navigate("/creer?canal=" + (postCanal || "instagram"), {
         state: { resumeIdea, fromCalendar: true, calendarPostId: editingPost?.id, theme, objectif, angle, format, notes, postDate: selectedDate, existingContent: contentDraft, existingAccroche: accroche, launchId: editingPost?.launch_id, contentType: editingPost?.content_type, contentTypeEmoji: editingPost?.content_type_emoji, category: editingPost?.category, objective: editingPost?.objective, angleSuggestion: editingPost?.angle_suggestion, chapter: (editingPost as any)?.chapter, chapterLabel: (editingPost as any)?.chapter_label, audiencePhase: (editingPost as any)?.audience_phase },
       });

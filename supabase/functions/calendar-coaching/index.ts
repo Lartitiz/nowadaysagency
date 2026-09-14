@@ -1,3 +1,4 @@
+import { calendarWeek } from "../_shared/calendar-week.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -55,7 +56,10 @@ serve(async (req) => {
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
 
-    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, workspace_id: bodyWorkspaceId } = await req.json();
+    const { posts_per_week, context_week, mix_or_focus, mode, existing_posts, week_start, canal = "all", workspace_id: bodyWorkspaceId } = await req.json();
+
+    const week = calendarWeek(week_start);
+    if (!["all", "instagram", "linkedin", "newsletter", "pinterest"].includes(canal)) throw new Error("invalid_calendar_channel");
 
     const sbGuard = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -91,10 +95,10 @@ serve(async (req) => {
       getUserContext(supabase, user.id, workspaceId),
       supabase
         .from("calendar_posts")
-        .select("theme, format, date, objectif")
+        .select("theme, format, date, objectif, canal")
         .eq(col, val)
-        .gte("date", new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
-        .lte("date", new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10))
+        .gte("date", week.from)
+        .lte("date", week.to)
         .order("date", { ascending: true }),
       supabase
         .from("calendar_posts")
@@ -105,7 +109,9 @@ serve(async (req) => {
         .limit(10),
     ]);
 
-    const weekPosts = weekPostsRes.data || [];
+    if (weekPostsRes.error) throw weekPostsRes.error;
+    if (recentPostsRes.error) throw recentPostsRes.error;
+    const weekPosts = (weekPostsRes.data || []).filter((p: any) => canal === "all" || p.canal === canal);
     const recentPosts = recentPostsRes.data || [];
     const brandingContext = formatContextForAI(ctx, { includeEditorial: true, includeProfile: true });
 
@@ -114,8 +120,8 @@ serve(async (req) => {
       : "Aucun post planifié cette semaine.";
 
     let completeModeBlock = "";
-    if (mode === "complete" && existing_posts?.length > 0) {
-      const existingStr = existing_posts.map((p: any) =>
+    if (mode === "complete" && weekPosts.length > 0) {
+      const existingStr = weekPosts.map((p: any) =>
         `- ${p.date} : "${p.theme}" (${p.format || "post"}, ${p.canal}, objectif: ${p.objectif || "non défini"})`
       ).join("\n");
       completeModeBlock = `
@@ -242,7 +248,7 @@ Retourne UNIQUEMENT un JSON valide :
     const parsed: any = await callAnthropicToolSimple(
       getModelForAction("coaching"),
       systemPrompt,
-      `Planifie ${posts_per_week} posts pour ma semaine. Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
+      `Planifie ${posts_per_week} posts pour la semaine du ${week.from} au ${week.to}. Canal choisi : ${canal}. Respecte ce canal et ses formats ; pour newsletter, utilise uniquement le format newsletter. Pour LinkedIn, utilise post ou carousel. Pour Pinterest, utilise pinterest. Si tous les canaux sont choisis, newsletter reste sur son propre canal.  Contexte : ${context_week || "semaine normale"}. Approche : ${mix_or_focus}.\n\nRappel : chaque sujet doit avoir un angle Nowadays précis, être hyper-spécifique à mon métier, et l'accroche doit être une VRAIE première ligne de post (max 20 mots, ton oral, percutante).`,
       PLANNING_TOOL,
       0.9,
       4096,

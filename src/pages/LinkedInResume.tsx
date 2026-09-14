@@ -1,3 +1,5 @@
+import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
+import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect, useId } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -70,7 +72,9 @@ function ScoreBadge({ score }: { score: number }) {
 }
 
 /* ─── Main ─── */
-export default function LinkedInResume() {
+export default function LinkedInResume() { return <LinkedInScope page={LinkedInResumeForm} />; }
+
+function LinkedInResumeForm() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
@@ -80,7 +84,8 @@ export default function LinkedInResume() {
   type FlowMode = null | "existing" | "scratch" | "saved";
   const [mode, setMode] = useState<FlowMode>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
-  const [loadingInit, setLoadingInit] = useState(true);
+  const store = useLinkedInPersistence("linkedin_profile");
+  const loadingInit = !store.rows;
 
   // Existing resume flow
   const [existingText, setExistingText] = useState("");
@@ -114,32 +119,28 @@ export default function LinkedInResume() {
 
   // Load existing data
   useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const { data: lpData } = await (supabase.from("linkedin_profile") as any).select("*").eq(column, value).maybeSingle();
-      if (lpData) {
-        setProfileId(lpData.id);
-        const final = lpData.summary_final || "";
-        const story = lpData.summary_storytelling || "";
-        const pro = lpData.summary_pro || "";
-        setSummaryStory(story);
-        setSummaryPro(pro);
-        if (final) {
-          setSavedResume(final);
-          setSavedDate(lpData.updated_at || lpData.created_at || null);
-          setMode("saved");
-        }
-        const rawAnalysis = (lpData as any).resume_analysis;
-        if (rawAnalysis) {
-          setAnalysis(typeof rawAnalysis === "string" ? parseAnalysis(rawAnalysis) : rawAnalysis);
-        }
+    if (!store.rows) return;
+    const lpData = store.rows[0];
+    if (lpData) {
+      setProfileId(lpData.id);
+      const final = lpData.summary_final || "";
+      const story = lpData.summary_storytelling || "";
+      const pro = lpData.summary_pro || "";
+      setSummaryStory(story);
+      setSummaryPro(pro);
+      if (final) {
+        setSavedResume(final);
+        setSavedDate(lpData.updated_at || lpData.created_at || null);
+        setMode("saved");
       }
-      const prop = propositionHookData as any;
-      if (prop?.version_final) setPropValue(prop.version_final);
-      setLoadingInit(false);
-    };
-    load();
-  }, [user?.id, propositionHookData]);
+      const rawAnalysis = (lpData as any).resume_analysis;
+      if (rawAnalysis) {
+        setAnalysis(typeof rawAnalysis === "string" ? parseAnalysis(rawAnalysis) : rawAnalysis);
+      }
+    }
+  }, [store.rows]);
+
+  useEffect(() => { setPropValue((propositionHookData as any)?.version_final || null); }, [propositionHookData]);
 
   // Analyze existing resume
   const analyzeResume = async () => {
@@ -148,8 +149,9 @@ export default function LinkedInResume() {
     try {
       const textToAnalyze = existingText.trim() || savedResume.trim();
       const res = await invokeWithTimeout("linkedin-ai", {
-        body: { action: "analyze-resume", existing_resume: textToAnalyze },
+        body: { action: "analyze-resume", existing_resume: textToAnalyze, workspace_id: column === "workspace_id" ? value : undefined },
       }, 75000);
+      if (!store.active.current) return;
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
@@ -159,27 +161,14 @@ export default function LinkedInResume() {
       if (!parsed) throw new Error("Format de réponse invalide");
       setAnalysis(parsed);
 
-      // Save to DB
-      const dbPayload = {
-        user_id: user?.id ?? "",
-        workspace_id: workspaceId !== (user?.id ?? "") ? workspaceId : undefined,
-        summary_final: textToAnalyze,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (profileId) {
-        const { error: writeError } = await supabase.from("linkedin_profile").update(dbPayload).eq("id", profileId);
-        if (writeError) throw writeError;
-      } else {
-        const { data, error: writeError } = await supabase.from("linkedin_profile").insert(dbPayload).select("id").single();
-        if (writeError) throw writeError;
-        if (data) setProfileId(data.id);
-      }
+      const result = await store.save([{ id: profileId || crypto.randomUUID(), summary_final: textToAnalyze }]);
+      if (result) setProfileId(result[0].id);
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     } finally {
-      setAnalyzing(false);
+      if (store.active.current) setAnalyzing(false);
     }
   };
 
@@ -188,8 +177,9 @@ export default function LinkedInResume() {
     setGenerating(true);
     try {
       const res = await invokeWithTimeout("linkedin-ai", {
-        body: { action: "summary", passion, parcours, offre, cta },
+        body: { action: "summary", passion, parcours, offre, cta, workspace_id: column === "workspace_id" ? value : undefined },
       }, 90000);
+      if (!store.active.current) return;
       if (res.error?.isRateLimit || res.data?.error === "limit_reached") {
         if (handleQuotaError({ message: res.error?.message || res.data?.message, data: res.data })) return;
       }
@@ -215,10 +205,11 @@ export default function LinkedInResume() {
         if (parsed.pro) setSummaryPro(parsed.pro);
       }
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     } finally {
-      setGenerating(false);
+      if (store.active.current) setGenerating(false);
     }
   };
 
@@ -227,36 +218,31 @@ export default function LinkedInResume() {
     if (!user) return;
     try {
       const payload = {
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         summary_storytelling: summaryStory,
         summary_pro: summaryPro,
         summary_final: text,
-        updated_at: new Date().toISOString(),
       };
-      if (profileId) {
-        const { error } = await supabase.from("linkedin_profile").update(payload).eq("id", profileId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from("linkedin_profile").insert(payload).select("id").single();
-        if (error) throw error;
-        if (data) setProfileId(data.id);
-      }
+      const result = await store.save([{ id: profileId || crypto.randomUUID(), ...payload }]);
+      if (!result) return;
+      setProfileId(result[0].id);
       // Save to bio history
-      const { error: bioError } = await (supabase.from("bio_versions") as any).insert({
+      const { data: bioReceipt, error: bioError } = await (supabase.from("bio_versions") as any).insert({
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : null,
         platform: "linkedin",
         bio_text: text,
         source: "generated",
-      });
-      if (bioError) throw bioError;
+      }).select("id").single();
+      if (!store.active.current) return;
+      const historySaved = !bioError && !!bioReceipt?.id;
+      if (!historySaved) toast.error("Résumé enregistré, mais ajout à l’historique non confirmé.");
 
       setSavedResume(text);
       setSavedDate(new Date().toISOString());
       setMode("saved");
-      toast.success("✅ Résumé enregistré !");
+      if (historySaved) toast.success("✅ Résumé enregistré !");
     } catch (e: any) {
+      if (!store.active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     }
@@ -269,6 +255,7 @@ export default function LinkedInResume() {
     toast.success("📋 Copié !");
   };
 
+  if (store.error) return <div role="alert">Impossible de charger le résumé. <Button onClick={store.reload}>Réessayer</Button></div>;
   if (loadingInit) {
     return (
       <div className="min-h-screen bg-background">
@@ -289,6 +276,8 @@ export default function LinkedInResume() {
         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ton résumé LinkedIn (À propos)</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Ton titre attire. Ton résumé donne envie de te contacter. Pas besoin de lister ton CV : raconte.</p>
 
+        <fieldset disabled={store.busy} className="contents">
+          {store.saveError && <p role="alert" className="text-sm text-destructive mb-4">{store.saveError}</p>}
         {/* ─── STATE: Saved resume exists ─── */}
         {mode === "saved" && savedResume && (
           <div className="space-y-6">
@@ -534,6 +523,7 @@ export default function LinkedInResume() {
         onOpenChange={setHistoryOpen}
         onReuse={(text) => { setExistingText(text); setMode("existing"); }}
       />
+        </fieldset>
       </main>
     </div>
   );

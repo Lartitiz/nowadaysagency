@@ -1,89 +1,45 @@
-import { useState, useEffect, useMemo } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useMemo } from "react";
+import { usePinterestEditor } from "@/hooks/use-pinterest-editor";
+import PinterestSaveStatus from "@/components/pinterest/PinterestSaveStatus";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
-import { friendlyError } from "@/lib/error-messages";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
 
 export default function PinterestRoutine() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
-  const [routineId, setRoutineId] = useState<string | null>(null);
-  const [rhythm, setRhythm] = useState("2h_monthly");
-  const [pinsDone, setPinsDone] = useState(0);
-  const [recycledDone, setRecycledDone] = useState(false);
-  const [linksChecked, setLinksChecked] = useState(false);
-  const [statsChecked, setStatsChecked] = useState(false);
-  const [topPinsNoted, setTopPinsNoted] = useState(false);
-  const [keywordsAdjusted, setKeywordsAdjusted] = useState(false);
-
-  const pinsTarget = rhythm === "2h_biweekly" ? 10 : 5;
   const currentMonth = useMemo(() => {
     const now = new Date();
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
   }, []);
   const monthLabel = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
 
-  useEffect(() => {
-    if (!user) return;
-    (supabase.from("pinterest_routine") as any).select("*").eq(column, value).eq("current_month", currentMonth).maybeSingle().then(({ data }: any) => {
-      if (data) {
-        setRoutineId(data.id);
-        setRhythm(data.rhythm || "2h_monthly");
-        setPinsDone(data.pins_done || 0);
-        setRecycledDone(data.recycled_done || false);
-        setLinksChecked(data.links_checked || false);
-        setStatsChecked(data.stats_checked || false);
-        setTopPinsNoted(data.top_pins_noted || false);
-        setKeywordsAdjusted(data.keywords_adjusted || false);
-      }
-    });
-  }, [user, currentMonth]);
-
-  const save = async (overrides?: Partial<{ rhythm: string; pins_done: number; recycled_done: boolean; links_checked: boolean; stats_checked: boolean; top_pins_noted: boolean; keywords_adjusted: boolean }>) => {
-    if (!user) return;
-    const r = overrides?.rhythm ?? rhythm;
-    const target = r === "2h_biweekly" ? 10 : 5;
-    const payload: any = {
-      user_id: user.id, rhythm: r, current_month: currentMonth, pins_target: target,
-      pins_done: overrides?.pins_done ?? pinsDone,
-      recycled_done: overrides?.recycled_done ?? recycledDone,
-      links_checked: overrides?.links_checked ?? linksChecked,
-      stats_checked: overrides?.stats_checked ?? statsChecked,
-      top_pins_noted: overrides?.top_pins_noted ?? topPinsNoted,
-      keywords_adjusted: overrides?.keywords_adjusted ?? keywordsAdjusted,
-      updated_at: new Date().toISOString(),
-    };
-    try {
-      if (routineId) {
-        const { error } = await supabase.from("pinterest_routine").update(payload).eq("id", routineId);
-        if (error) throw error;
-      } else {
-        const { data, error } = await supabase.from("pinterest_routine").insert(payload).select("id").single();
-        if (error) throw error;
-        if (data) setRoutineId(data.id);
-      }
-    } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toast.error("Erreur", { description: friendlyError(e) });
-    }
+  const editor = usePinterestEditor("pinterest_routine", { rhythm: "2h_monthly", pins_done: 0, pins_target: 5, current_month: currentMonth, recycled_done: false, links_checked: false, stats_checked: false, top_pins_noted: false, keywords_adjusted: false }, currentMonth);
+  const row = editor.rows[0];
+  const rhythm = row.rhythm ?? "2h_monthly";
+  const pinsDone = row.pins_done ?? 0;
+  const recycledDone = row.recycled_done ?? false;
+  const linksChecked = row.links_checked ?? false;
+  const statsChecked = row.stats_checked ?? false;
+  const topPinsNoted = row.top_pins_noted ?? false;
+  const keywordsAdjusted = row.keywords_adjusted ?? false;
+  const pinsTarget = rhythm === "2h_biweekly" ? 10 : 5;
+  const save = (overrides: Record<string, any> = {}) => {
+    const next = { ...row, ...overrides };
+    next.pins_target = next.rhythm === "2h_biweekly" ? 10 : 5;
+    return editor.save([next], "");
   };
-
-  const changeRhythm = (r: string) => { setRhythm(r); setPinsDone(0); save({ rhythm: r, pins_done: 0 }); };
-  const incrementPins = () => { const v = Math.min(pinsDone + 1, pinsTarget); setPinsDone(v); save({ pins_done: v }); };
+  const changeRhythm = (rhythm: string) => save({ rhythm });
+  const incrementPins = () => save({ pins_done: Math.min(pinsDone + 1, pinsTarget) });
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
+        <PinterestSaveStatus editor={editor} />
+        <fieldset disabled={editor.disabled} className="min-w-0">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Ma routine Pinterest" useFromParam />
         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Ta routine Pinterest</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Pinterest ne demande pas d'être là tous les jours. Un bon rythme : 2h par mois. C'est tout.</p>
@@ -126,17 +82,19 @@ export default function PinterestRoutine() {
 
           <div className="space-y-2 pt-2 border-t border-border">
             <p className="text-sm font-semibold">RECYCLAGE</p>
-            <div className="flex items-center gap-2"><Checkbox checked={recycledDone} onCheckedChange={v => { setRecycledDone(!!v); save({ recycled_done: !!v }); }} /><span className="text-sm">J'ai recyclé des photos/posts Instagram en épingles</span></div>
-            <div className="flex items-center gap-2"><Checkbox checked={linksChecked} onCheckedChange={v => { setLinksChecked(!!v); save({ links_checked: !!v }); }} /><span className="text-sm">J'ai ajouté les liens vers mon site sur chaque épingle</span></div>
+            <div className="flex items-center gap-2"><Checkbox checked={recycledDone} onCheckedChange={v => { save({ recycled_done: !!v }); }} /><span className="text-sm">J'ai recyclé des photos/posts Instagram en épingles</span></div>
+            <div className="flex items-center gap-2"><Checkbox checked={linksChecked} onCheckedChange={v => { save({ links_checked: !!v }); }} /><span className="text-sm">J'ai ajouté les liens vers mon site sur chaque épingle</span></div>
           </div>
 
           <div className="space-y-2 pt-2 border-t border-border">
             <p className="text-sm font-semibold">OPTIMISATION</p>
-            <div className="flex items-center gap-2"><Checkbox checked={statsChecked} onCheckedChange={v => { setStatsChecked(!!v); save({ stats_checked: !!v }); }} /><span className="text-sm">J'ai vérifié mes statistiques Pinterest</span></div>
-            <div className="flex items-center gap-2"><Checkbox checked={topPinsNoted} onCheckedChange={v => { setTopPinsNoted(!!v); save({ top_pins_noted: !!v }); }} /><span className="text-sm">J'ai noté les épingles qui marchent le mieux</span></div>
-            <div className="flex items-center gap-2"><Checkbox checked={keywordsAdjusted} onCheckedChange={v => { setKeywordsAdjusted(!!v); save({ keywords_adjusted: !!v }); }} /><span className="text-sm">J'ai ajusté mes mots-clés si besoin</span></div>
+            <div className="flex items-center gap-2"><Checkbox checked={statsChecked} onCheckedChange={v => { save({ stats_checked: !!v }); }} /><span className="text-sm">J'ai vérifié mes statistiques Pinterest</span></div>
+            <div className="flex items-center gap-2"><Checkbox checked={topPinsNoted} onCheckedChange={v => { save({ top_pins_noted: !!v }); }} /><span className="text-sm">J'ai noté les épingles qui marchent le mieux</span></div>
+            <div className="flex items-center gap-2"><Checkbox checked={keywordsAdjusted} onCheckedChange={v => { save({ keywords_adjusted: !!v }); }} /><span className="text-sm">J'ai ajusté mes mots-clés si besoin</span></div>
           </div>
         </section>
+
+        {editor.dirty && <Button onClick={() => save()} className="mb-6">Réessayer l’enregistrement</Button>}
 
         {/* Tips */}
         <Collapsible>
@@ -149,6 +107,7 @@ export default function PinterestRoutine() {
             <p>• Épingle le même contenu dans plusieurs tableaux pertinents</p>
           </CollapsibleContent>
         </Collapsible>
+        </fieldset>
       </main>
     </div>
   );

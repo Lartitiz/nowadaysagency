@@ -32,6 +32,8 @@ interface Props {
   onUploadVisuals?: (ideaId: string, onProgress?: (done: number, total: number) => void) => Promise<string[]>;
   editingIdeaId?: string | null;
   onSavingChange?: (saving: boolean) => void;
+  isSaveCurrent?: () => boolean;
+  onSaveContent?: (fields: Record<string, any>) => Promise<string>;
   onSaved?: (id: string, complete: boolean) => void;
 }
 
@@ -50,6 +52,8 @@ export function SaveToIdeasDialog({
   editingIdeaId,
   onSavingChange,
   onSaved,
+  onSaveContent,
+  isSaveCurrent,
 }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -110,7 +114,9 @@ export function SaveToIdeasDialog({
       let targetId: string | null = null;
       let isUpdate = false;
 
-      if (editingIdeaId) {
+      if (onSaveContent) {
+        targetId = await onSaveContent(baseFields);
+      } else if (editingIdeaId) {
         isUpdate = true;
         // On range le contenu SUR l'idée de départ sans lui voler son identité :
         // le titre et l'angle notés par l'utilisatrice restent, seuls le contenu,
@@ -144,6 +150,7 @@ export function SaveToIdeasDialog({
         targetId = newIdea?.id ?? null;
       }
 
+      if (isSaveCurrent && !isSaveCurrent()) return;
       if (!targetId) throw new Error("L’enregistrement n’a pas été confirmé.");
       // Close once the text is safe; the result keeps a visible progress status.
       onOpenChange(false);
@@ -155,6 +162,7 @@ export function SaveToIdeasDialog({
       setSelectedTags([]);
       setNote("");
     } catch (error) {
+      if (isSaveCurrent && !isSaveCurrent()) return;
       console.error("Save content failed:", error);
       toast.error("L’enregistrement a échoué. Ton contenu reste ouvert : réessaie avant de fermer.");
     } finally {

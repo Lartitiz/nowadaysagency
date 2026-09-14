@@ -1,10 +1,8 @@
-import { useState, useEffect } from "react";
 import EmptyState from "@/components/EmptyState";
 import { MESSAGES } from "@/lib/messages";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { usePinterestEditor, usePinterestUi } from "@/hooks/use-pinterest-editor";
+import PinterestSaveStatus from "@/components/pinterest/PinterestSaveStatus";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -27,79 +25,34 @@ const BOARD_TYPES = [
 interface Board { id?: string; name: string; description: string; board_type: string; }
 
 export default function PinterestTableaux() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
-  const [boards, setBoards] = useState<Board[]>([]);
-  const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
-  const [copied, setCopied] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    (supabase.from("pinterest_boards") as any).select("*").eq(column, value).order("sort_order").then(({ data }: any) => {
-      if (data && data.length > 0) setBoards(data.map(d => ({ id: d.id, name: d.name || "", description: d.description || "", board_type: d.board_type || "autre" })));
-    });
-  }, [user?.id]);
-
-  const addBoard = () => setBoards(prev => [...prev, { name: "", description: "", board_type: "autre" }]);
-
-  const updateBoard = (idx: number, field: keyof Board, value: string) => {
-    setBoards(prev => { const next = [...prev]; next[idx] = { ...next[idx], [field]: value }; return next; });
-  };
-
-  const removeBoard = async (idx: number) => {
-    const b = boards[idx];
-    if (b.id) {
-      const { error } = await supabase.from("pinterest_boards").delete().eq("id", b.id);
-      if (error) {
-        console.error("Erreur technique:", error);
-        toast.error("Erreur", { description: friendlyError(error) });
-        return;
-      }
-    }
-    setBoards(prev => prev.filter((_, i) => i !== idx));
-    toast.success("Tableau supprimé");
-  };
+  const editor = usePinterestEditor("pinterest_boards");
+  const boards = editor.rows as (Board & { id: string })[];
+  const [generatingIdx, setGeneratingIdx] = usePinterestUi<number | null>(editor, `generating:${editor.key}`, null);
+  const [copied, setCopied] = usePinterestUi<number | null>(editor, "copied", null);
+  const addBoard = () => editor.setRows(rows => [...rows, { id: crypto.randomUUID(), name: "", description: "", board_type: "autre", sort_order: rows.length }]);
+  const updateBoard = (idx: number, field: keyof Board, value: string) => editor.setRows(rows => rows.map((row, i) => i === idx ? { ...row, [field]: value } : row));
+  const removeBoard = (idx: number) => editor.setRows(rows => rows.filter((_, i) => i !== idx));
 
   const optimizeDescription = async (idx: number) => {
     const b = boards[idx];
     if (!b.name.trim()) return;
     setGeneratingIdx(idx);
     try {
-      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type, workspace_id: workspaceId !== user?.id ? workspaceId : undefined } }, 60000);
+      const res = await invokeWithTimeout("pinterest-ai", { body: { action: "board-description", board_name: b.name, board_type: b.board_type, workspace_id: editor.workspaceId || undefined } }, 60000);
       if (res.error) throw new Error(res.error.message);
-      updateBoard(idx, "description", res.data?.content || "");
-    } catch (e: any) { console.error("Erreur technique:", e); toast.error("Erreur", { description: friendlyError(e) }); }
+      if (editor.isCurrent()) editor.setRows(rows => rows.map(row => row.id === b.id && row.description === b.description && row.name === b.name && row.board_type === b.board_type ? { ...row, description: res.data?.content || "" } : row));
+    } catch (e: any) { console.error("Erreur technique:", e); if (editor.isCurrent()) toast.error("Erreur", { description: friendlyError(e) }); }
     finally { setGeneratingIdx(null); }
   };
 
-  const saveAll = async () => {
-    if (!user) return;
-    try {
-      const { error: delError } = await (supabase.from("pinterest_boards") as any).delete().eq(column, value);
-      if (delError) throw delError;
-      if (boards.length > 0) {
-        const { error: insError } = await supabase.from("pinterest_boards").insert(boards.filter(b => b.name.trim()).map((b, i) => ({
-          user_id: user.id,
-          workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-          name: b.name,
-          description: b.description,
-          board_type: b.board_type,
-          sort_order: i
-        })));
-        if (insError) throw insError;
-      }
-      toast.success("✅ Tableaux sauvegardés !");
-    } catch (e: any) {
-      console.error("Erreur technique:", e);
-      toast.error("Erreur", { description: friendlyError(e) });
-    }
-  };
+  const saveAll = () => editor.save(boards.map((board, sort_order) => ({ ...board, sort_order })), "✅ Tableaux sauvegardés !");
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
+        <PinterestSaveStatus editor={editor} />
+        <fieldset disabled={editor.disabled || generatingIdx !== null} className="min-w-0">
         <SubPageHeader parentTo="/pinterest" parentLabel="Pinterest" currentLabel="Mes tableaux" useFromParam />
         <h1 className="font-display text-2xl font-bold text-foreground mb-1">Tes tableaux Pinterest</h1>
         <p className="text-sm text-muted-foreground italic mb-6">Crée 3 à 5 tableaux en lien avec ton univers. Chaque tableau est une porte d'entrée vers ta marque.</p>
@@ -121,18 +74,18 @@ export default function PinterestTableaux() {
 
         <div className="space-y-4">
           {boards.map((b, idx) => (
-            <div key={idx} className="rounded-xl border border-border p-4 space-y-3">
+            <div key={b.id} className="rounded-xl border border-border p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-bold text-foreground">Tableau {idx + 1}</span>
                 <Button variant="ghost" size="sm" aria-label={`Supprimer le tableau ${idx + 1}`} title="Supprimer ce tableau" onClick={() => removeBoard(idx)}><Trash2 className="h-4 w-4 text-muted-foreground" /></Button>
               </div>
               <Input aria-label={`Nom du tableau ${idx + 1}`} value={b.name} onChange={e => updateBoard(idx, "name", e.target.value)} placeholder="Ex : le thème de ton tableau" />
-              <Select value={b.board_type} onValueChange={v => updateBoard(idx, "board_type", v)}>
+              <Select value={b.board_type || "autre"} onValueChange={v => updateBoard(idx, "board_type", v)}>
                 <SelectTrigger className="w-full" aria-label={`Type du tableau ${idx + 1}`}><SelectValue /></SelectTrigger>
                 <SelectContent>{BOARD_TYPES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}</SelectContent>
               </Select>
-              <Textarea aria-label={`Description du tableau ${idx + 1}`} value={b.description} onChange={e => updateBoard(idx, "description", e.target.value)} placeholder="Description avec mots-clés pour le SEO Pinterest..." className="min-h-[80px]" />
-              <div className="flex gap-2">
+              <Textarea aria-label={`Description du tableau ${idx + 1}`} value={b.description || ""} onChange={e => updateBoard(idx, "description", e.target.value)} placeholder="Description avec mots-clés pour le SEO Pinterest..." className="min-h-[80px]" />
+              <div className="flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" onClick={() => optimizeDescription(idx)} disabled={generatingIdx === idx} className="rounded-pill gap-2">
                   <Sparkles className="h-4 w-4" />{generatingIdx === idx ? "Optimisation..." : "✨ Optimiser la description SEO"}
                 </Button>
@@ -146,10 +99,11 @@ export default function PinterestTableaux() {
           ))}
         </div>
 
-        <div className="flex gap-3 mt-6">
+        <div className="flex flex-wrap gap-3 mt-6">
           <Button variant="outline" onClick={addBoard} className="gap-2 rounded-pill"><Plus className="h-4 w-4" /> Ajouter un tableau</Button>
           <Button onClick={saveAll} className="rounded-pill gap-2">💾 Enregistrer</Button>
         </div>
+        </fieldset>
       </main>
     </div>
   );

@@ -1,3 +1,4 @@
+import { isCrosspost } from "./crosspost-content";
 // Ce qu'une idée emporte quand on la POSE au calendrier (« Poser au calendrier »
 // depuis /idees, glisser-déposer ou planification mobile depuis le panneau).
 //
@@ -117,7 +118,7 @@ export function buildCalendarPostFromIdea(idea: IdeaForCalendar): CalendarPostFr
   const plainDraft = isPlainText(idea.content_draft) ? idea.content_draft.trim() : null;
 
   // 1. Charge utile de « Remettre en idée » : on restitue tel quel.
-  if (data && (data.story_sequence_detail || data.carousel || data.media_urls || data.accroche || data.content)) {
+  if (data && !isCrosspost(data) && (data.story_sequence_detail || data.carousel || data.media_urls || data.accroche || data.content)) {
     const detail = data.story_sequence_detail ?? (data.carousel ? { type: "carousel", ...data.carousel } : null);
     const stories = Array.isArray(detail?.stories) ? detail.stories : null;
     const draft = plainDraft || (typeof data.content === "string" && data.content.trim() ? data.content.trim() : null);
@@ -140,13 +141,15 @@ export function buildCalendarPostFromIdea(idea: IdeaForCalendar): CalendarPostFr
     const { contentDraft, accroche, storyDetail } = buildCalendarContent(creerFormat, data);
     const draft = (contentDraft || "").trim() || plainDraft;
     if (draft || storyDetail) {
-      const stories = creerFormat === "story" ? (data.stories || data.sequences) : null;
+      const stories = creerFormat === "story" ? (isCrosspost(data) ? storyDetail?.stories : data.stories || data.sequences) : null;
       return {
         ...base,
         status: "drafting",
         content_draft: draft || null,
         accroche: (accroche || "").trim() || null,
         story_sequence_detail: storyDetail ?? null,
+        ...(isCrosspost(data) && Array.isArray(storyDetail?.media_urls) ? { media_urls: storyDetail.media_urls }
+          : isCrosspost(data) && Array.isArray(storyDetail?.visual_urls) ? { media_urls: storyDetail.visual_urls } : {}),
         stories_count: Array.isArray(stories) ? (data.total_stories || stories.length) : null,
         stories_structure: Array.isArray(stories) ? (data.structure_label || data.structure_type || null) : null,
         stories_objective: Array.isArray(stories) ? (idea.objectif || null) : null,
