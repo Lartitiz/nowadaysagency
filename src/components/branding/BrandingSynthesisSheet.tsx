@@ -6,6 +6,7 @@ import { ExternalLink, Pencil } from "lucide-react";
 import { parseStringList, safeParseJson } from "@/lib/branding-utils";
 
 import { useSynthesisFetch } from "./SynthesisFetchLogic";
+import BrandingShareDialog from "./BrandingShareDialog";
 import SynthesisActions from "./SynthesisActions";
 import SynthesisLoadingState from "./SynthesisLoadingState";
 
@@ -115,10 +116,12 @@ function SummaryHookAndPoints({ hook, points }: { hook?: string | null; points?:
 export default function BrandingSynthesisSheet({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const {
+    loadError, shareOpen, setShareOpen, column, value, profileUserId, scope, selectPersona, selectStory,
     data, loading, exporting, sharing, summaries, summariesLoading, sheetRef,
     loadData, regenerateSummaries, handleCopy, handleShare, handleExportPdf,
   } = useSynthesisFetch();
 
+  if (loadError) return <div role="alert" className="space-y-3"><p>{loadError}</p><Button onClick={loadData}>Réessayer</Button><Button variant="ghost" onClick={onClose}>Retour</Button></div>;
   if (loading) return <SynthesisLoadingState />;
   if (!data) return null;
 
@@ -144,6 +147,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
 
   return (
     <div className="space-y-4 max-w-full overflow-x-hidden">
+      <BrandingShareDialog key={scope} open={shareOpen} onOpenChange={setShareOpen} column={column} value={value} ownerId={profileUserId} />
       <SynthesisActions
         onClose={onClose}
         onCopy={handleCopy}
@@ -166,7 +170,7 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
             {userActivity && <p className="text-base sm:text-lg text-foreground/60 mt-2 font-body">{userActivity}</p>}
             <div className="w-10 h-0.5 bg-primary mx-auto mt-6 mb-6 rounded-full" />
             <p className="font-body text-sm uppercase tracking-[0.2em] text-primary/80 font-semibold">Ma stratégie de communication</p>
-            <p className="text-xs text-muted-foreground mt-2">Généré le {today}</p>
+            <p className="text-xs text-muted-foreground mt-2">Consulté le {today}</p>
             <div className="mt-8 bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/50">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-sm font-medium text-foreground">Complétion branding</span>
@@ -228,6 +232,12 @@ export default function BrandingSynthesisSheet({ onClose }: { onClose: () => voi
         )}
 
         {/* ═══ MA CIBLE ═══ */}
+        {data.personas.length > 1 && <label className="block mt-8 text-sm">Public affiché dans cette fiche (le lien partage tous les publics)
+          <select className="block border rounded p-2 w-full" value={persona?.id || ""} onChange={e => selectPersona(e.target.value)}><option value="">Choisir un public</option>{data.personas.map(p => <option key={p.id} value={p.id}>{p.label || p.portrait_prenom || "Public sans nom"}</option>)}</select>
+        </label>}
+        {data.stories.length > 1 && <label className="block mt-4 text-sm">Histoire affichée (le lien partage toutes les histoires principales)
+          <select className="block border rounded p-2 w-full" value={storytelling?.id || ""} onChange={e => selectStory(e.target.value)}><option value="">Choisir une histoire</option>{data.stories.map(s => <option key={s.id} value={s.id}>{s.title || "Histoire sans titre"}</option>)}</select>
+        </label>}
         <SectionSep emoji="👤" title="Ma cible" />
         {portrait ? (
           <SectionCard emoji="👤" title="Ma cible">

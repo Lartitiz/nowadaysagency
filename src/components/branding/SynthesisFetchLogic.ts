@@ -2,14 +2,16 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileUserId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useProfile, useBrandProfile } from "@/hooks/use-profile";
-import { calculateBrandingCompletion, fetchBrandingData } from "@/lib/branding-completion";
+import { calculateBrandingCompletion, fetchBrandingDataWithStatus } from "@/lib/branding-completion";
 import { toast } from "sonner";
 
 export interface SynthesisData {
   brand: any;
   persona: any;
+  personas: any[];
+  stories: any[];
   storytelling: any;
   proposition: any;
   strategy: any;
@@ -26,40 +28,62 @@ export interface SynthesisData {
 export function useSynthesisFetch() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
+  const ready = useWorkspaceReady();
   const profileUserId = useProfileUserId();
-  const { data: profileHookData } = useProfile();
-  const { data: brandProfileHookData } = useBrandProfile();
+  const { data: profileHookData, isLoading: profileLoading, error: profileError } = useProfile();
+  const { data: brandProfileHookData, isLoading: brandLoading, error: brandError } = useBrandProfile();
 
   const [data, setData] = useState<SynthesisData | null>(null);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
-  const [sharing, setSharing] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const sequence = useRef(0);
+  const scope = `${user?.id}:${column}:${value}`;
+  const summarySequence = useRef(0);
+  const activeScope = useRef(scope);
+  if (activeScope.current !== scope) { activeScope.current = scope; sequence.current++; summarySequence.current++; }
+  const [dataScope, setDataScope] = useState("");
   const [summaries, setSummaries] = useState<any>(null);
   const [summariesLoading, setSummariesLoading] = useState(false);
   const sheetRef = useRef<HTMLDivElement>(null);
 
   const loadData = useCallback(async () => {
-    if (!user) return;
+    const request = ++sequence.current;
+    setData(null); setLoadError("");
+    if (!user || !ready || !profileUserId || profileLoading || brandLoading) { setLoading(true); return; }
     setLoading(true);
+    try {
+    if (profileError || brandError) throw profileError || brandError;
+    const scoped = (table: string) => {
+      const q = (supabase.from(table as any) as any).select("*").eq(column, value);
+      return column === "user_id" ? q.is("workspace_id", null) : q;
+    };
 
     const [personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes, brandingRaw] = await Promise.all([
-      (supabase.from("persona") as any).select("*").eq(column, value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      (supabase.from("storytelling") as any).select("*").eq(column, value).eq("is_primary", true).maybeSingle(),
-      (supabase.from("brand_proposition") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("brand_strategy") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("offers") as any).select("*").eq(column, value).order("created_at"),
-      (supabase.from("user_plan_config") as any).select("*").eq(column, value).maybeSingle(),
-      (supabase.from("branding_audits") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-      fetchBrandingData({ column, value }),
+      scoped("persona").order("created_at"),
+      scoped("storytelling").eq("is_primary", true).order("created_at"),
+      scoped("brand_proposition").maybeSingle(),
+      scoped("brand_strategy").maybeSingle(),
+      scoped("offers").order("created_at"),
+      scoped("user_plan_config").maybeSingle(),
+      scoped("branding_audits").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      fetchBrandingDataWithStatus({ column, value }),
     ]);
 
-    const completion = calculateBrandingCompletion(brandingRaw);
+    if (brandingRaw.error) throw brandingRaw.error;
+    if ([personaRes, storyRes, propRes, stratRes, offersRes, configRes, auditRes].some(r => r.error)) throw Error("Lecture incomplète");
+    if (request !== sequence.current) return;
+    const completion = calculateBrandingCompletion(brandingRaw.data);
+    const primary = personaRes.data.filter((p: any) => p.is_primary);
+    setDataScope(scope);
 
     setData({
       brand: brandProfileHookData,
-      persona: personaRes.data,
-      storytelling: storyRes.data,
+      persona: primary.length === 1 ? primary[0] : personaRes.data.length === 1 ? personaRes.data[0] : null,
+      personas: personaRes.data,
+      stories: storyRes.data,
+      storytelling: storyRes.data.length === 1 ? storyRes.data[0] : null,
       proposition: propRes.data,
       strategy: stratRes.data,
       offers: offersRes.data || [],
@@ -71,49 +95,48 @@ export function useSynthesisFetch() {
       userName: (profileHookData as any)?.first_name || (profileHookData as any)?.prenom || null,
       userActivity: (profileHookData as any)?.activity || (profileHookData as any)?.activite || null,
     });
-    setLoading(false);
-  }, [user, column, value, brandProfileHookData, profileHookData]);
+    } catch { if (request === sequence.current) setLoadError("Impossible de charger toute la synthèse. Réessaie."); }
+    finally { if (request === sequence.current) setLoading(false); }
+  }, [user?.id, column, value, brandProfileHookData, profileHookData, profileLoading, brandLoading, profileError, brandError, ready, profileUserId, scope]);
 
   const loadSummaries = useCallback(async () => {
-    if (!user) return;
+    if (!user || !ready || !profileUserId) return;
+    const request = ++summarySequence.current;
     setSummariesLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("generate-branding-summary", {
-        body: { force: false },
+        body: { force: false, workspace_id: column === "workspace_id" ? value : undefined },
       }, 90000);
-      if (!error && data) {
+      if (!error && data && summarySequence.current === request) {
         setSummaries(data.summaries);
       }
     } catch (e) {
       console.error("Failed to load branding summaries:", e);
     } finally {
-      setSummariesLoading(false);
+      if (summarySequence.current === request) setSummariesLoading(false);
     }
-  }, [user]);
+  }, [user?.id, column, value, ready, profileUserId]);
 
   const regenerateSummaries = useCallback(async () => {
+    const request = ++summarySequence.current;
     setSummariesLoading(true);
     try {
       const { data, error } = await invokeWithTimeout("generate-branding-summary", {
-        body: { force: true },
+        body: { force: true, workspace_id: column === "workspace_id" ? value : undefined },
       }, 90000);
-      if (!error && data) {
+      if (!error && data && summarySequence.current === request) {
         setSummaries(data.summaries);
         toast.success("Résumés régénérés !");
       }
     } catch {
       toast.error("Erreur lors de la régénération");
     } finally {
-      setSummariesLoading(false);
+      if (summarySequence.current === request) setSummariesLoading(false);
     }
-  }, []);
+  }, [column, value]);
 
-  useEffect(() => {
-    loadData();
-    loadSummaries();
-    // Re-run when the active workspace changes (column/value), not just on
-    // login — otherwise switching client workspace kept showing stale data.
-  }, [user?.id, column, value]);
+  useEffect(() => { loadData(); return () => { sequence.current++; }; }, [loadData]);
+  useEffect(() => { setSummaries(null); setShareOpen(false); loadSummaries(); return () => { summarySequence.current++; }; }, [loadSummaries]);
 
   const handleCopy = useCallback(() => {
     if (!sheetRef.current) return;
@@ -121,40 +144,9 @@ export function useSynthesisFetch() {
     toast.success("Fiche copiée !");
   }, []);
 
-  const handleShare = useCallback(async () => {
-    if (!user) return;
-    setSharing(true);
-    try {
-      const { data: existing } = await (supabase
-        .from("shared_branding_links") as any)
-        .select("token")
-        .eq(column, value)
-        .eq("is_active", true)
-        .gte("expires_at", new Date().toISOString())
-        .limit(1) as any;
-
-      let token: string;
-      if (existing && existing.length > 0) {
-        token = existing[0].token;
-      } else {
-        const { data: newLink, error } = await supabase
-          .from("shared_branding_links")
-          .insert({ user_id: profileUserId, workspace_id: workspaceId !== profileUserId ? workspaceId : undefined } as any)
-          .select("token")
-          .single() as any;
-        if (error) throw error;
-        token = newLink.token;
-      }
-      const url = `${window.location.origin}/share/branding/${token}`;
-      await navigator.clipboard.writeText(url);
-      toast.success("Lien copié ! Valide 30 jours.");
-    } catch (e) {
-      console.error("Share error:", e);
-      toast.error("Erreur lors de la création du lien");
-    } finally {
-      setSharing(false);
-    }
-  }, [user, column, value, profileUserId, workspaceId]);
+  const handleShare = useCallback(() => setShareOpen(true), []);
+  const selectPersona = (id: string) => setData(current => current ? { ...current, persona: current.personas.find(p => p.id === id) || null } : current);
+  const selectStory = (id: string) => setData(current => current ? { ...current, storytelling: current.stories.find(s => s.id === id) || null } : current);
 
   const handleExportPdf = useCallback(async () => {
     if (!data) return;
@@ -314,11 +306,13 @@ export function useSynthesisFetch() {
   }, [data]);
 
   return {
-    data,
-    loading,
+    data: dataScope === scope ? data : null,
+    loading: loading || (dataScope !== scope && !loadError),
+    loadError,
+    shareOpen, setShareOpen, column, value, profileUserId, scope, selectPersona, selectStory,
     exporting,
-    sharing,
-    summaries,
+    sharing: false,
+    summaries: dataScope === scope ? summaries : null,
     summariesLoading,
     sheetRef,
     loadData,
