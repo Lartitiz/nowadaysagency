@@ -29,7 +29,7 @@ INSERT INTO pinterest_pins(id,user_id,workspace_id,board_id,title,description,li
 -- Unknown future / media columns must survive RPC updates untouched.
 ALTER TABLE pinterest_pins ADD COLUMN media jsonb DEFAULT '{"url":"preserved"}';
 CREATE TEMP TABLE before_migration AS SELECT to_jsonb(b) row FROM pinterest_boards b;
-\ir ../migrations/20260914110000_pinterest_persistence.sql
+\ir ../migrations/20260914123926_cb3d4d57-0b5c-4767-801b-74306805f65b.sql
 DO $$ BEGIN IF EXISTS(SELECT row FROM before_migration EXCEPT SELECT to_jsonb(b) FROM pinterest_boards b) THEN RAISE EXCEPTION 'Migration changed historical rows'; END IF; END $$;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','10000000-0000-0000-0000-000000000001',true);

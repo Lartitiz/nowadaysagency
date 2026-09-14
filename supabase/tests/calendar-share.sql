@@ -23,7 +23,7 @@ CREATE POLICY "Owner can insert comments" ON public.calendar_comments FOR INSERT
  EXISTS (SELECT 1 FROM public.calendar_shares cs WHERE cs.id=share_id AND cs.user_id=auth.uid()));
 CREATE POLICY "Owner can select comments" ON public.calendar_comments FOR SELECT TO authenticated USING (
  EXISTS (SELECT 1 FROM public.calendar_shares cs WHERE cs.id=share_id AND cs.user_id=auth.uid()));
-\ir ../migrations/20260914144500_calendar_share_contract.sql
+\ir ../migrations/20260914124114_a3377741-e722-4a33-a69b-b7ca2776ca4f.sql
 DO $$
 DECLARE u uuid:='10000000-0000-0000-0000-000000000001'; w uuid:='20000000-0000-0000-0000-000000000001';
  p uuid; other_channel uuid; other_workspace uuid; personal uuid; other_owner uuid;

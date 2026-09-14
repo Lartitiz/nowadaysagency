@@ -33,6 +33,8 @@ CREATE POLICY tenant_immovable ON calendar_posts AS RESTRICTIVE FOR ALL TO authe
 CREATE POLICY tenant_immovable ON saved_ideas AS RESTRICTIVE FOR ALL TO authenticated WITH CHECK(workspace_id IS NULL OR user_has_workspace_access(workspace_id));
 CREATE SCHEMA storage;
 CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean);
+-- Production creates this private bucket through Lovable's native storage tool.
+INSERT INTO storage.buckets(id,name,public) VALUES ('crosspost-sources','crosspost-sources',false);
 CREATE TABLE storage.objects(id uuid DEFAULT gen_random_uuid(),bucket_id text,name text);
 ALTER TABLE storage.objects ENABLE ROW LEVEL SECURITY;
 GRANT USAGE ON SCHEMA storage TO authenticated;
@@ -51,7 +53,7 @@ IF (SELECT user_id FROM calendar_posts LIMIT 1) <> auth.uid() THEN RAISE EXCEPTI
 END $$;
 RESET ROLE;
 CREATE TEMP TABLE history AS SELECT * FROM calendar_posts;
-\ir ../migrations/20260914154500_crosspost_persistence.sql
+\ir ../migrations/20260914124713_0f976596-d53a-4a2e-8cad-ba9d9c6b6e0d.sql
 DO $$ BEGIN
 IF EXISTS((SELECT * FROM history) EXCEPT (SELECT * FROM calendar_posts)) THEN RAISE EXCEPTION 'history changed'; END IF;
 END $$;
@@ -105,6 +107,6 @@ IF crosspost_source_access('workspace/not-a-uuid/a.pdf',true) OR crosspost_sourc
 END $$;
 RESET ROLE;
 DO $$ BEGIN
-IF has_function_privilege('anon','save_calendar_content(uuid,jsonb,boolean,uuid,uuid,timestamptz)','EXECUTE') OR (SELECT public FROM storage.buckets WHERE id='crosspost-sources') THEN RAISE EXCEPTION 'public access'; END IF;
+IF has_function_privilege('anon','save_calendar_content(uuid,jsonb,boolean,uuid,uuid,timestamptz)','EXECUTE') OR (SELECT public FROM storage.buckets WHERE id='crosspost-sources') IS DISTINCT FROM false THEN RAISE EXCEPTION 'public access'; END IF;
 END $$;
 ROLLBACK;

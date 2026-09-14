@@ -2,13 +2,13 @@ name: Calendar sharing contract
 on:
   pull_request:
     paths:
-      - 'supabase/migrations/20260914144500_calendar_share_contract.sql'
+      - 'supabase/migrations/20260914124114_a3377741-e722-4a33-a69b-b7ca2776ca4f.sql'
       - 'supabase/tests/calendar-share.sql'
       - '.github/workflows/calendar-sharing.yml'
   push:
     branches: [main]
     paths:
-      - 'supabase/migrations/20260914144500_calendar_share_contract.sql'
+      - 'supabase/migrations/20260914124114_a3377741-e722-4a33-a69b-b7ca2776ca4f.sql'
       - 'supabase/tests/calendar-share.sql'
 jobs:
   sharing-sql:
