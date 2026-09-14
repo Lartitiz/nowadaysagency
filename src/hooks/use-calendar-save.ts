@@ -229,8 +229,14 @@ export function useCalendarSave({
     }
   };
 
+  // Conflit de version : un écrasement de la version la plus récente ne peut
+  // être fait QUE sur confirmation explicite (action du toast). Sans elle, la
+  // relecture de version ne se fait pas en douce et le blocage reste visible.
+  const overwriteConfirmed = useRef(false);
+
   // Save back to existing calendar post (when coming from calendar)
-  const handleSaveBackToCalendar = async () => {
+  const handleSaveBackToCalendar = async (options?: { force?: boolean }) => {
+    if (options?.force) overwriteConfirmed.current = true;
     if (!session?.user?.id || !calendarPostId || !result?.raw || saveInFlight.current) return;
     saveInFlight.current = true;
     setSavingToCalendar(true);
@@ -239,6 +245,12 @@ export function useCalendarSave({
         const { data: current, error: readError } = await supabase.from("calendar_posts").select("auto_publish").eq("id", calendarPostId).single();
         if (readError) throw readError;
         if (current?.auto_publish) { toast.error(carouselQualityDisabledReason); return; }
+      }
+      // Écrasement volontaire : on relit la version réelle du post UNIQUEMENT
+      // après confirmation explicite de l'utilisatrice.
+      if (overwriteConfirmed.current) {
+        versionRead.current = null;
+        saveFlowState({ calendarPostUpdatedAt: null });
       }
       const expectedUpdatedAt = await readVersion(calendarPostId);
       const { contentDraft, accroche, storyDetail } = extractContentForCalendar();
@@ -267,20 +279,31 @@ export function useCalendarSave({
       } });
       assertCurrentEditor();
       versionRead.current = { id: calendarPostId, promise: Promise.resolve(receipt.updated_at) };
+      overwriteConfirmed.current = false;
       toast.success("Contenu sauvegardé dans ton calendrier !");
       clearFlowState();
       navigate(`/calendrier?date=${calendarPostDate || ""}&post=${calendarPostId}`);
     } catch (e: any) {
       void reportClientError("operation");
-      // Conflit de version : la version attendue en cache (et sa copie
-      // persistée) est périmée pour toujours. On l'invalide pour que la
-      // prochaine tentative relise la version réelle du post, au lieu de
-      // rejouer indéfiniment la même comparaison perdante.
-      if (String(e?.message || "").includes("calendar_version_conflict")) {
-        versionRead.current = null;
-        saveFlowState({ calendarPostUpdatedAt: null });
+      // Conflit de version : le calendrier contient une version PLUS RÉCENTE.
+      // On ne relit pas la version en douce (un 2ᵉ clic écraserait le travail
+      // de l'autre onglet sans le dire) : on bloque et on propose un choix
+      // explicite — ouvrir la dernière version, ou écraser en connaissance de cause.
+      const isConflict = String(e?.message || "").includes("calendar_version_conflict");
+      if (activeScope.current === editorScope) {
+        if (isConflict) {
+          overwriteConfirmed.current = false;
+          toast.error(calendarSaveError(e), {
+            duration: 12000,
+            action: {
+              label: "Écraser avec ma version",
+              onClick: () => { void handleSaveBackToCalendar({ force: true }); },
+            },
+          });
+        } else {
+          toast.error(calendarSaveError(e));
+        }
       }
-      if (activeScope.current === editorScope) toast.error(calendarSaveError(e));
     } finally {
       saveInFlight.current = false;
       setSavingToCalendar(false);
