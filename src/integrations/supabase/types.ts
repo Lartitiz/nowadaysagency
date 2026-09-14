@@ -5824,6 +5824,8 @@ export type Database = {
           main_blocker: string | null
           main_goal: string | null
           mission: string
+          notification_reminders: boolean
+          notification_tips: boolean
           offre: string
           onboarding_completed: boolean
           onboarding_completed_at: string | null
@@ -5892,6 +5894,8 @@ export type Database = {
           main_blocker?: string | null
           main_goal?: string | null
           mission?: string
+          notification_reminders?: boolean
+          notification_tips?: boolean
           offre?: string
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
@@ -5960,6 +5964,8 @@ export type Database = {
           main_blocker?: string | null
           main_goal?: string | null
           mission?: string
+          notification_reminders?: boolean
+          notification_tips?: boolean
           offre?: string
           onboarding_completed?: boolean
           onboarding_completed_at?: string | null
@@ -8495,6 +8501,10 @@ export type Database = {
       }
       reserve_subscription_checkout: {
         Args: { p_params: Json; p_user_id: string }
+        Returns: Json
+      }
+      save_active_channels: {
+        Args: { p_channels: string[]; p_owner_id: string }
         Returns: Json
       }
       save_calendar_content: {
