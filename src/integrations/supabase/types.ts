@@ -4148,8 +4148,11 @@ export type Database = {
           accroche: string | null
           added_to_calendar: boolean | null
           angle_suggestion: string | null
+          archived_at: string | null
           audience_phase: string | null
           audience_phase_emoji: string | null
+          calendar_post_id: string | null
+          calendar_snapshot: Json | null
           category: string | null
           chapter: number | null
           chapter_label: string | null
@@ -4178,8 +4181,11 @@ export type Database = {
           accroche?: string | null
           added_to_calendar?: boolean | null
           angle_suggestion?: string | null
+          archived_at?: string | null
           audience_phase?: string | null
           audience_phase_emoji?: string | null
+          calendar_post_id?: string | null
+          calendar_snapshot?: Json | null
           category?: string | null
           chapter?: number | null
           chapter_label?: string | null
@@ -4208,8 +4214,11 @@ export type Database = {
           accroche?: string | null
           added_to_calendar?: boolean | null
           angle_suggestion?: string | null
+          archived_at?: string | null
           audience_phase?: string | null
           audience_phase_emoji?: string | null
+          calendar_post_id?: string | null
+          calendar_snapshot?: Json | null
           category?: string | null
           chapter?: number | null
           chapter_label?: string | null
@@ -4235,6 +4244,13 @@ export type Database = {
           workspace_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "launch_plan_contents_calendar_post_id_fkey"
+            columns: ["calendar_post_id"]
+            isOneToOne: false
+            referencedRelation: "calendar_posts"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "launch_plan_contents_launch_id_fkey"
             columns: ["launch_id"]
@@ -8381,6 +8397,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assert_launch_target: {
+        Args: { p_launch_id: string; p_workspace_id: string }
+        Returns: undefined
+      }
       calendar_share_restore_private: {
         Args: { new_value: Json; old_value: Json }
         Returns: Json
@@ -8480,12 +8500,31 @@ export type Database = {
         }
         Returns: Json
       }
+      save_launch_plan: {
+        Args: {
+          p_expected_updated_at: string
+          p_launch_id: string
+          p_metadata: Json
+          p_slots: Json
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       save_pinterest_editor: {
         Args: {
           p_expected: Json
           p_month: string
           p_rows: Json
           p_table: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      sync_launch_calendar: {
+        Args: {
+          p_launch_id: string
+          p_replace?: boolean
+          p_slot_ids: string[]
           p_workspace_id: string
         }
         Returns: Json
