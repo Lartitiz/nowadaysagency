@@ -1,3 +1,4 @@
+import { isDurableReelUrl, reelSourceKey } from "@/lib/reel-publication";
 import { useCreationEntryKey } from "@/hooks/use-creation-entry-key";
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -84,7 +85,7 @@ import { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
-import { publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
+import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
@@ -1962,8 +1963,21 @@ function CreerWorkspace() {
   const publishableImageUrl = findPublishableImageUrl(result?.raw || result, uploadedPhotos?.[0]?.preview);
   // Reel monté : URL durable (bucket `calendar-media`) remontée par ReelResult.
   // Vaut `null` tant qu'aucune vidéo n'est rattachable — voir `archiveReelMp4`.
-  const [reelMp4Url, setReelMp4Url] = useState<string | null>(ps?.reelMp4Url || null);
-  useEffect(() => { saveFlowState({ reelMp4Url }); }, [reelMp4Url]);
+  const reelSource = reelSourceKey(result?.raw || result);
+  const reelScope = `${workspaceId}:${creationId}:${reelSource}`;
+  const activeReelScope = useRef(reelScope);
+  activeReelScope.current = reelScope;
+  useEffect(() => () => { activeReelScope.current = "unmounted"; }, []);
+  const [reelArtifact, setReelArtifact] = useState(() => ({
+    scope: reelScope, url: ps?.reelSourceKey === reelSource ? ps?.reelMp4Url || null : null,
+  }));
+  const reelMp4Url = reelArtifact.scope === reelScope && isDurableReelUrl(reelArtifact.url) ? reelArtifact.url : null;
+  const setReelMp4Url = useCallback((url: string | null) => {
+    if (activeReelScope.current === reelScope) setReelArtifact({ scope: reelScope, url });
+  }, [reelScope]);
+  useEffect(() => { saveFlowState({ reelMp4Url, reelSourceKey: reelSource }); }, [reelMp4Url, reelSource]);
+  const instagramInFlight = useRef<{ scope: string } | null>(null);
+  useEffect(() => { setPublishingInstagram(false); }, [reelScope]);
 
   // ── Sauvegarde dans le calendrier (nouveau post + mise à jour d'un post existant) ──
   const { savingToCalendar, handleConfirmCalendar, handleSaveBackToCalendar, recordImmediatePublication, uploadVisualsToStorage, resetPublishedTracking } = useCalendarSave({
@@ -2042,6 +2056,7 @@ function CreerWorkspace() {
       visualSlidesCount: visualSlides.length,
       publishableImageUrl,
       isLinkedInCarousel,
+      reelMp4Url,
     }) ||
     // Visuels périmés : ne pas publier une version qui ne reflète plus les éditions.
     (isCarouselPublish && carouselVisualsStale
@@ -2049,6 +2064,9 @@ function CreerWorkspace() {
       : undefined) || (isCarouselPublish ? (visualLoading || generating ? "Les visuels sont en cours de préparation." : carouselQuality.disabledReason) : undefined);
 
   const handlePublishInstagram = async () => {
+    if (instagramInFlight.current?.scope === reelScope) return;
+    const publishScope = reelScope;
+    const publicationOperation = { scope: publishScope };
     if (!session?.user) {
       toast.error("Tu dois être connecté.");
       return;
@@ -2060,11 +2078,16 @@ function CreerWorkspace() {
     if (carouselCloudEnabled && !(await carouselSave.flush())) return;
     const caption: string = extractInstagramCaption(result?.raw || result);
 
+    instagramInFlight.current = publicationOperation;
     setPublishingInstagram(true);
     try {
       let permalink: string | undefined;
       let publishedPostId: string | undefined;
-      if (isCarouselPublish) {
+      if (selectedFormat === "reel") {
+        const res = await publishReelToInstagram({ caption, videoUrl: reelMp4Url!, workspaceId, userId: session.user.id });
+        permalink = res.permalink;
+        publishedPostId = res.postId;
+      } else if (isCarouselPublish) {
         const { getIncludeLogoPref } = await import("@/lib/export-logo");
         const logoUrl = getIncludeLogoPref() ? (charterData as any)?.logo_url : null;
         toast.info("Préparation du carrousel… (rendu des visuels en images)");
@@ -2088,6 +2111,7 @@ function CreerWorkspace() {
         publishedPostId = res.postId;
       }
       await recordImmediatePublication({ canal: "instagram", caption, postId: publishedPostId || permalink });
+      if (activeReelScope.current !== publishScope) return;
       toast.success(
         permalink
           ? "Publié sur Instagram ! Ouvre ton profil pour le voir."
@@ -2095,6 +2119,7 @@ function CreerWorkspace() {
         permalink ? { action: { label: "Voir sur Instagram", onClick: () => window.open(permalink, "_blank") } } : undefined,
       );
     } catch (e: any) {
+      if (activeReelScope.current !== publishScope) return;
       const msg = e?.message || "Échec de la publication Instagram.";
       if (msg.toLowerCase().includes("aucun compte instagram")) {
         toast.error(msg, { action: { label: "Connecter", onClick: () => versConnexions(navigate) } });
@@ -2102,7 +2127,8 @@ function CreerWorkspace() {
         toast.error(msg);
       }
     } finally {
-      setPublishingInstagram(false);
+      if (instagramInFlight.current === publicationOperation) instagramInFlight.current = null;
+      if (activeReelScope.current === publishScope) setPublishingInstagram(false);
     }
   };
 
@@ -2161,7 +2187,7 @@ function CreerWorkspace() {
   const handlePublishNowFromDialog = async () => {
     if (publishChannel === "linkedin") await handlePublishLinkedIn();
     else await handlePublishInstagram();
-    setPublishDialogOpen(false);
+    if (activeReelScope.current === reelScope) setPublishDialogOpen(false);
   };
 
   // Connexion OAuth déclenchée DEPUIS la fenêtre de publication : avant, un
@@ -2848,6 +2874,7 @@ function CreerWorkspace() {
                 saveNotice={isDemoMode || carouselCloudEnabled ? undefined : ideaSaveNotice}
                 savingContent={ideaSaving}
                 canAutoPublish={!!publishChannel}
+                reelMp4Url={reelMp4Url}
                 onReelMp4Change={setReelMp4Url}
                 onReelResultChange={(nextReel) => setResult((prev) => prev ? { ...prev, raw: nextReel } : prev)}
                 onPublishOrSchedule={effectiveHandleAddToCalendar}

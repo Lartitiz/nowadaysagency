@@ -1,3 +1,5 @@
+import { reelLedgerFixture } from "./reel-publication-fixture.ts";
+Deno.env.set("SUPABASE_URL", "https://fake.local");
 // Tests de _shared/instagram-graph.ts (publication + rafraîchissement de jeton Instagram),
 // sans réseau réel : `fetch` est intercepté pour simuler l'API Graph Instagram.
 //
@@ -54,11 +56,12 @@ function makeRouter(cfg: RouterConfig) {
 }
 
 function fakeSupabase() {
+  const ledger = reelLedgerFixture();
   const updates: { table: string; data: any; eqCol: string; eqVal: any }[] = [];
   return {
     updates,
     client: {
-      from: (table: string) => ({
+      from: (table: string) => table === "reel_publication_receipts" ? ledger.from() : ({
         update: (data: any) => ({
           eq: (col: string, val: any) => {
             updates.push({ table, data, eqCol: col, eqVal: val });
@@ -70,7 +73,7 @@ function fakeSupabase() {
   };
 }
 
-const BASE_CONN = { id: "conn-1", access_token: "tok", platform_account_id: "igacct-1" };
+const BASE_CONN = { user_id: "u1", workspace_id: null, id: "conn-1", access_token: "tok", platform_account_id: "igacct-1" };
 
 // ── publishImagesToInstagram ──────────────────────────────────────────────
 
@@ -154,13 +157,13 @@ Deno.test("publishReelToInstagram — succès : bon payload vidéo, bon id renvo
   globalThis.fetch = fetchFn;
   const { client } = fakeSupabase();
 
-  const id = await publishReelToInstagram(client, BASE_CONN, "Mon reel", "https://x/reel.mp4");
+  const id = await publishReelToInstagram(client, BASE_CONN, "Mon reel", "https://fake.local/storage/v1/object/public/calendar-media/u1/reel.mp4");
   assertEquals(id, "post-0");
 
   const createCall = calls.find((c) => c.url.includes("/media") && !c.url.includes("media_publish"));
   const createUrl = new URL(createCall!.url);
   assertEquals(createUrl.searchParams.get("media_type"), "REELS");
-  assertEquals(createUrl.searchParams.get("video_url"), "https://x/reel.mp4");
+  assertEquals(createUrl.searchParams.get("video_url"), "https://fake.local/storage/v1/object/public/calendar-media/u1/reel.mp4");
 });
 
 Deno.test("publishReelToInstagram — vidéo refusée (status ERROR) → erreur propre", async () => {
@@ -169,7 +172,7 @@ Deno.test("publishReelToInstagram — vidéo refusée (status ERROR) → erreur 
   const { client } = fakeSupabase();
 
   await assertRejects(
-    () => publishReelToInstagram(client, BASE_CONN, "", "https://x/reel.mp4"),
+    () => publishReelToInstagram(client, BASE_CONN, "", "https://fake.local/storage/v1/object/public/calendar-media/u1/reel.mp4"),
     Error,
     "Instagram a refusé la vidéo",
   );

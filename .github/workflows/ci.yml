@@ -133,3 +133,8 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/linkedin-sql" --no-save --ignore-scripts @electric-sql/pglite@0.5.8
           PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/linkedin-safe-persistence.mjs
+
+      - name: Reel publication receipts (disposable PostgreSQL database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/reel-publication.sql

@@ -369,7 +369,7 @@ describe("ReelResult — le MP4 joint au contenu", () => {
   it("remonte l'URL durable au parent, et la retire quand le script change", () => {
     const onMp4Change = vi.fn();
     const { rerender } = render(<ReelResult result={captionResult} onMp4Change={onMp4Change} />);
-    expect(onMp4Change).toHaveBeenLastCalledWith(null);
+    expect(onMp4Change).not.toHaveBeenCalled(); // mounting must not erase a restored MP4
 
     const autre = {
       ...captionResult,

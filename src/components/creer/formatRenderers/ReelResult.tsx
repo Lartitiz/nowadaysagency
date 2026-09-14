@@ -1,3 +1,4 @@
+import { reelSourceKey } from "@/lib/reel-publication";
 /**
  * ReelResult — le résultat d'un script de Reel, en PARCOURS de 4 étapes.
  *
@@ -45,6 +46,7 @@ interface StepDef {
 
 interface Props {
   result: any;
+  initialMp4Url?: string | null;
   /**
    * Remonte l'avancée du parcours au parent (CreerStepResult), qui s'en sert
    * pour n'afficher « Publier ou programmer » qu'à la dernière étape et pour
@@ -69,7 +71,7 @@ function correctedSection(section: any) {
   };
 }
 
-export default function ReelResult({ result, onStepChange, onMp4Change, onResultChange }: Props) {
+export default function ReelResult({ result, initialMp4Url, onStepChange, onMp4Change, onResultChange }: Props) {
   // `format_label` est le libellé LISIBLE produit par la génération (« Face cam
   // confession ») ; `format_type` est la clé technique (`face_cam_confession`).
   // On affichait la clé — même bug que #688 ailleurs dans l'app.
@@ -157,8 +159,8 @@ export default function ReelResult({ result, onStepChange, onMp4Change, onResult
   const [montageVisited, setMontageVisited] = useState(false);
   const [montagePhase, setMontagePhase] = useState<"idle" | "rendering" | "done" | "error">("idle");
   // URL durable du montage — `null` tant qu'aucune vidéo n'est rattachable.
-  const [mp4Url, setMp4Url] = useState<string | null>(null);
-  const montageDone = montagePhase === "done";
+  const [mp4Url, setMp4Url] = useState<string | null>(initialMp4Url || null);
+  const montageDone = montagePhase === "done" || !!mp4Url;
   useEffect(() => {
     if (stepKey === "montage") setMontageVisited(true);
   }, [stepKey]);
@@ -170,20 +172,18 @@ export default function ReelResult({ result, onStepChange, onMp4Change, onResult
   // On se cale sur le texte du script (et pas sur l'objet `result`, dont
   // l'identité peut changer à chaque rendu du parent, ce qui bloquerait tout
   // le monde à l'étape 1).
-  const prevScript = useRef(fullText);
+  const sourceKey = reelSourceKey(result);
+  const prevScript = useRef(sourceKey);
   useEffect(() => {
-    if (prevScript.current === fullText) return;
-    prevScript.current = fullText;
+    if (prevScript.current === sourceKey) return;
+    prevScript.current = sourceKey;
     setStepKey("script");
     setCheckedText(fullText);
-    setMontageVisited(false);
+    // Keep takes and selected clips available after editing the script.
     setMontagePhase("idle");
     setMp4Url(null);
-  }, [fullText]);
-
-  useEffect(() => {
-    onMp4Change?.(mp4Url);
-  }, [onMp4Change, mp4Url]);
+    onMp4Change?.(null);
+  }, [sourceKey, fullText, onMp4Change]);
 
   useEffect(() => {
     onStepChange?.({ key: stepKey, step: currentIndex + 1, isLast, montageDone });
@@ -274,7 +274,7 @@ export default function ReelResult({ result, onStepChange, onMp4Change, onResult
             sections={sections}
             subject={result?.subject || result?.pillar}
             onPhaseChange={setMontagePhase}
-            onMp4Ready={setMp4Url}
+            onMp4Ready={(url) => { setMp4Url(url); onMp4Change?.(url); }}
           />
         </div>
       )}

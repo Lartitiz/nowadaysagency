@@ -1,3 +1,4 @@
+import { publishReelOnce } from "./reel-publication.ts";
 // Cœur de publication Instagram (Graph API v21, "Instagram Business Login").
 // Publie 1 image (post simple) ou 2-10 images (carrousel) à partir d'une connexion
 // social_connections. Réutilisé par la publication programmée (social-publish-scheduled).
@@ -85,22 +86,16 @@ export async function publishReelToInstagram(
   caption: string,
   videoUrl: string,
 ): Promise<string> {
-  const token = await refreshTokenIfNeeded(supabase, conn);
-  const igUserId = conn.platform_account_id;
-  const creationId = await createContainer(igUserId, token, {
-    media_type: "REELS",
-    video_url: videoUrl,
-    ...(caption ? { caption } : {}),
-  });
-  const status = await pollStatus(creationId, token, 300000);
-  if (status !== "FINISHED") {
-    throw new Error(
-      status === "ERROR"
-        ? "Instagram a refusé la vidéo (format ou durée)."
-        : `Instagram n'a pas fini de préparer la vidéo (statut : ${status}).`,
-    );
-  }
-  return await publishContainer(igUserId, token, creationId);
+  let token: string;
+  return publishReelOnce(supabase, conn, caption, videoUrl, async () => {
+    token = await refreshTokenIfNeeded(supabase, conn);
+    const creationId = await createContainer(conn.platform_account_id, token, {
+      media_type: "REELS", video_url: videoUrl, ...(caption ? { caption } : {}),
+    });
+    const status = await pollStatus(creationId, token, 300000);
+    if (status !== "FINISHED") throw new Error(status === "ERROR" ? "Instagram a refusé la vidéo (format ou durée)." : `Instagram n'a pas pu préparer la vidéo (statut : ${status}).`);
+    return creationId;
+  }, (creationId) => publishContainer(conn.platform_account_id, token!, creationId));
 }
 
 export async function publishImagesToInstagram(

@@ -30,6 +30,7 @@ const mocks = vi.hoisted(() => ({
     insertResponse: { data: { id: "post-1" }, error: null } as any,
     schedError: null as any,
     autoPublish: false,
+    selectedRow: null as any,
     updateError: null as any,
     briefError: null as any,
   },
@@ -60,10 +61,10 @@ vi.mock("@/integrations/supabase/client", () => ({
       return { data: { id: args.p_post_id, replayed: mocks.replayed, scheduled: !!row.auto_publish, updated_at: "2026-09-12T09:00:00Z" }, error: null };
     },
     from: (table: string) => ({
-      select: () => ({ eq: () => ({ single: async () => ({ data: { auto_publish: mocks.db.autoPublish, updated_at: "2026-09-12T08:00:00Z" }, error: null }) }) }),
+      select: () => ({ eq: () => ({ single: async () => ({ data: mocks.db.selectedRow || { auto_publish: mocks.db.autoPublish, updated_at: "2026-09-12T08:00:00Z" }, error: null }) }) }),
       insert: (row: any) => {
         mocks.db.ops.push({ table, type: "insert", row });
-        return { select: () => ({ single: async () => row.auto_publish && mocks.db.schedError ? { data: null, error: mocks.db.schedError } : mocks.db.insertResponse }) };
+        return { then: (resolve: any) => Promise.resolve(mocks.db.insertResponse).then(resolve), select: () => ({ single: async () => row.auto_publish && mocks.db.schedError ? { data: null, error: mocks.db.schedError } : mocks.db.insertResponse }) };
       },
       update: (row: any) => ({
         eq: (col: string, val: any) => {
@@ -82,6 +83,7 @@ import { useCalendarSave } from "@/hooks/use-calendar-save";
 
 function makeParams(overrides: Record<string, any> = {}) {
   return {
+    creationId: undefined as string | undefined,
     session: { user: { id: "u1" } },
     result: { raw: { content: "Ma légende publiable" } },
     selectedFormat: "post",
@@ -126,6 +128,7 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     expect(inserts()).toHaveLength(1);
   });
   beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-08-01T00:00:00Z").getTime());
     vi.clearAllMocks();
     vi.spyOn(crypto, "randomUUID").mockReturnValue("post-1" as any);
     mocks.replayed = false;
@@ -256,7 +259,7 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
   it("reel monté → la vidéo devient le média du post (avant tout visuel de repli)", async () => {
     const params = makeParams({
       selectedFormat: "reel",
-      reelMp4Url: "https://cdn.example/reel.mp4",
+      reelMp4Url: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`,
       publishableImageUrl: "https://img.example/fallback.jpg",
     });
     const { result } = renderHook(() => useCalendarSave(params));
@@ -271,7 +274,7 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     expect(scheduled).toBe(true);
     const mediaUpdates = inserts().filter((o) => o.row.media_urls);
     expect(mediaUpdates).toHaveLength(1);
-    expect(mediaUpdates[0].row.media_urls).toEqual(["https://cdn.example/reel.mp4"]);
+    expect(mediaUpdates[0].row.media_urls).toEqual([`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`]);
   });
 
   it("échec de programmation → erreur, aucune navigation ni sauvegarde secondaire", async () => {
@@ -385,6 +388,7 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     mocks.db.autoPublish = false;
   });
   beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-08-01T00:00:00Z").getTime());
     vi.clearAllMocks();
     vi.spyOn(crypto, "randomUUID").mockReturnValue("post-1" as any);
     mocks.replayed = false;
@@ -426,12 +430,12 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
     const params = makeParams({
       calendarPostId: "cal-reel",
       selectedFormat: "reel",
-      reelMp4Url: "https://cdn.example/reel-durable.mp4",
+      reelMp4Url: `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`,
     });
     const { result } = renderHook(() => useCalendarSave(params));
     await act(() => result.current.handleSaveBackToCalendar());
     expect(updates().find((o) => o.row.media_urls)?.row.media_urls).toEqual([
-      "https://cdn.example/reel-durable.mp4",
+      `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`,
     ]);
   });
 
@@ -509,6 +513,7 @@ describe("useCalendarSave — handleSaveBackToCalendar (post existant)", () => {
 
 describe('publication immédiate — suivi après succès réseau', () => {
   beforeEach(() => {
+    vi.spyOn(Date, "now").mockReturnValue(new Date("2026-08-01T00:00:00Z").getTime());
     vi.clearAllMocks();
     vi.spyOn(crypto, "randomUUID").mockReturnValue("post-1" as any);
     mocks.replayed = false;
@@ -573,4 +578,43 @@ describe('publication immédiate — suivi après succès réseau', () => {
     expect(mocks.toast.warning).toHaveBeenCalledWith(expect.stringContaining('Ne le republie pas'));
     expect(mocks.toast.error).not.toHaveBeenCalled();
   });
+});
+
+describe('A3 Reel media and tracking', () => {
+  const video = `${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/calendar-media/reels-montes/u1/reel.mp4`;
+  beforeEach(() => {
+    vi.clearAllMocks(); mocks.db.selectedRow=null; mocks.db.ops=[]; mocks.db.insertResponse={data:{id:'saved'},error:null}; mocks.db.schedError=null; mocks.db.briefError=null;
+    mocks.loadFlowState.mockReturnValue(null);
+  });
+  it.each([null, 'blob:video', 'https://render.test/video.mp4'])('programming never falls back to a cover: %s', async reelMp4Url => {
+    const {result}=renderHook(()=>useCalendarSave(makeParams({selectedFormat:'reel',reelMp4Url,publishableImageUrl:'https://cover.test/image.jpg'})));
+    await act(async()=>{expect(await result.current.handleConfirmCalendar({date:'2030-01-01',scheduleAt:new Date('2030-01-01')})).toBe(false);});
+    expect(inserts()).toHaveLength(0);
+  });
+  it('immediate tracking contains the MP4 and stable creation ID, never the cover', async()=>{
+    const {result}=renderHook(()=>useCalendarSave(makeParams({creationId:'creation-reel',selectedFormat:'reel',reelMp4Url:video,publishableImageUrl:'https://cover.test/image.jpg'})));
+    await act(async()=>{expect(await result.current.recordImmediatePublication({canal:'instagram',caption:'caption',postId:'ig-reel'})).toBe(true);});
+    expect(inserts()[0].row).toMatchObject({id:'creation-reel',format:'reel',media_urls:[video],content_draft:'caption',published_post_id:'ig-reel'});
+  });
+  it('lost calendar insert response reuses matching receipt and refuses a different row', async()=>{
+    const params=makeParams({creationId:'reel-creation',selectedFormat:'reel',reelMp4Url:video});
+    mocks.db.insertResponse={data:null,error:{code:'23505'}};
+    mocks.db.selectedRow={published_post_id:'ig-1',user_id:'u1',workspace_id:null};
+    const {result}=renderHook(()=>useCalendarSave(params));
+    await act(async()=>{expect(await result.current.recordImmediatePublication({canal:'instagram',caption:'c',postId:'ig-1'})).toBe(true);});
+    mocks.db.selectedRow={published_post_id:'other',user_id:'u1',workspace_id:null};
+    await act(async()=>{expect(await result.current.recordImmediatePublication({canal:'instagram',caption:'c',postId:'ig-2'})).toBe(false);});
+    expect(mocks.toast.warning).toHaveBeenCalledWith(expect.stringContaining('Ne le republie pas'));
+  });
+  it('late receipt for A never adopts the calendar identity of B or a later visit A', async()=>{
+    const a=makeParams({creationId:'A',selectedFormat:'reel',reelMp4Url:video});
+    const {result,rerender}=renderHook((params)=>useCalendarSave(params),{initialProps:a});
+    const old=result.current.recordImmediatePublication;
+    rerender({...a,creationId:'B',workspaceId:'B'});rerender(a);
+    mocks.saveFlowState.mockClear();
+    await act(async()=>{expect(await old({canal:'instagram',caption:'old-A',postId:'ig-A'})).toBe(true);});
+    expect(inserts()[0].row.id).toBe('A');
+    expect(mocks.saveFlowState).not.toHaveBeenCalledWith(expect.objectContaining({publishedCalendarId:expect.anything()}));
+  });
+
 });
