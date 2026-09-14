@@ -1,4 +1,6 @@
-import { useState, useEffect } from "react";
+import { usePlanningVisit } from "@/hooks/use-planning-visit";
+import { useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
@@ -64,6 +66,7 @@ interface LaunchIdea {
 
 interface LaunchData {
   id?: string;
+  updated_at?: string;
   name: string;
   promise: string;
   objections: string;
@@ -118,12 +121,24 @@ function DateField({ label, value, onChange }: { label: string; value: string | 
 
 export default function InstagramLaunch() {
   const { user } = useAuth();
+  const scope = useWorkspaceId();
+  const ready = useWorkspaceReady();
+  if (!ready || !user) return null;
+  return <InstagramLaunchScreen key={`${user.id}:${scope}`} />;
+}
+
+function InstagramLaunchScreen() {
+  const visit = usePlanningVisit();
+  const loadSequence = useRef(0);
+  const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
   const [launch, setLaunch] = useState<LaunchData>({ ...EMPTY_LAUNCH });
+  const inFlight = useRef(false);
+  const newLaunchId = useRef(crypto.randomUUID());
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState(false);
@@ -135,14 +150,16 @@ export default function InstagramLaunch() {
 
   useEffect(() => {
     if (!user) return;
+    const loadRequest = ++loadSequence.current;
     setLoaded(false);
     setLoadError(false);
     (supabase.from("launches") as any)
       .select("*")
-      .eq(column, value)
+      .eq(column as "workspace_id" | "user_id", value)
       .order("created_at", { ascending: false })
       .limit(1)
       .then(({ data, error }: { data: any[] | null; error: any }) => {
+        if (!visit.current || loadSequence.current !== loadRequest) return;
         if (error) {
           console.error("Erreur chargement lancement:", error);
           setLoadError(true);
@@ -153,6 +170,7 @@ export default function InstagramLaunch() {
           const r = data[0];
           setLaunch({
             id: r.id,
+            updated_at: r.updated_at,
             name: r.name,
             promise: r.promise ?? "",
             objections: r.objections ?? "",
@@ -206,6 +224,7 @@ export default function InstagramLaunch() {
           },
         },
       }, 90000);
+      if (!visit.current) return;
       if (res.error) throw new Error(res.error.message);
       const content = res.data?.content || "";
       let parsed: LaunchIdea[];
@@ -234,10 +253,8 @@ export default function InstagramLaunch() {
   // Écrit le lancement en base et LÈVE si Supabase renvoie { error }
   // (supabase-js ne lève jamais tout seul — règle maison).
   const persist = async (status?: string) => {
-    if (!user) throw new Error("Non connectée");
+    if (!user || !profileUserId || !loaded || loadError || !visit.current) throw new Error("Attends le chargement complet de cet espace avant d’enregistrer.");
     const payload = {
-      user_id: profileUserId,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
       name: launch.name,
       promise: launch.promise,
       objections: launch.objections,
@@ -250,43 +267,58 @@ export default function InstagramLaunch() {
       status: status ?? launch.status,
     };
     if (launch.id) {
-      const { error } = await supabase.from("launches").update(payload).eq("id", launch.id);
-      if (error) throw new Error(error.message);
-      if (status) setLaunch((prev) => ({ ...prev, status }));
+      const { data, error } = await supabase.from("launches").update(payload).eq("id", launch.id).eq(column as "workspace_id" | "user_id", value).eq("updated_at", launch.updated_at!).select("id,updated_at").single();
+      if (error || !data) throw error || new Error("Sauvegarde non confirmée");
+      if (!visit.current) return;
+      setLaunch((prev) => ({ ...prev, updated_at: data.updated_at, ...(status ? { status } : {}) }));
     } else {
-      const { data, error } = await supabase.from("launches").insert(payload).select().single();
+      let { data, error } = await supabase.from("launches").insert({ ...payload, id: newLaunchId.current, user_id: profileUserId, workspace_id: workspaceId !== user.id ? workspaceId : null }).select().single();
+      if (error?.code === "23505") {
+        const existing = await supabase.from("launches").select("*").eq("id", newLaunchId.current).eq(column as "workspace_id" | "user_id", value).single();
+        if (!visit.current) return;
+        data = existing.data; error = existing.error;
+        if (data) toast.info("La première tentative avait été enregistrée. Tes nouvelles saisies restent ici ; enregistre-les à nouveau si tu les as modifiées.");
+      }
       if (error) throw new Error(error.message);
-      if (data) setLaunch((prev) => ({ ...prev, id: data.id, status: payload.status }));
+      if (!visit.current) return;
+      if (!data) throw new Error("Sauvegarde non confirmée");
+      if (data) setLaunch((prev) => ({ ...prev, id: data.id, updated_at: data.updated_at, status: data.status }));
     }
   };
 
   const save = async () => {
-    if (!user) return;
+    if (!user || inFlight.current) return;
+    inFlight.current = true;
     setSaving(true);
     try {
       await persist();
+      if (!visit.current) return;
       toast.success("Lancement sauvegardé !");
     } catch (e: any) {
       console.error("Erreur sauvegarde lancement:", e);
       toast.error(friendlyError(e));
     } finally {
-      setSaving(false);
+      inFlight.current = false;
+      if (visit.current) setSaving(false);
     }
   };
 
   // Étape finale : sauvegarde en "active" puis passe au choix du modèle
   // (ou directement au plan si un modèle a déjà été choisi).
   const launchAndGo = async () => {
-    if (!user) return;
+    if (!user || inFlight.current) return;
+    inFlight.current = true;
     setSaving(true);
     try {
       await persist("active");
+      if (!visit.current) return;
       navigate(launch.launch_model ? "/instagram/lancement/plan" : "/instagram/lancement/recommandation");
     } catch (e: any) {
       console.error("Erreur sauvegarde lancement:", e);
       toast.error(friendlyError(e));
     } finally {
-      setSaving(false);
+      inFlight.current = false;
+      if (visit.current) setSaving(false);
     }
   };
 
