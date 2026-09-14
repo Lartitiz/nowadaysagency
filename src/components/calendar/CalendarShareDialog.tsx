@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ const generateShareToken = (): string => {
 interface Share {
   id: string;
   share_token: string;
+  legacy_owner_scope?: boolean;
   label: string | null;
   guest_name: string | null;
   canal_filter: string;
@@ -103,6 +104,8 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const profileUserId = useProfileUserId();
+  const loadVersion = useRef(0);
+  const [loadError, setLoadError] = useState(false);
   const [tab, setTab] = useState<"list" | "create">("list");
   const [shares, setShares] = useState<Share[]>([]);
   const [loading, setLoading] = useState(false);
@@ -131,86 +134,55 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   };
 
   const fetchShares = async () => {
-    if (!user) return;
-    setLoading(true);
-    const { data } = await (supabase.from("calendar_shares") as any)
-      .select("*")
-      .eq("user_id", profileUserId)
-      .order("created_at", { ascending: false });
-
-    if (data) {
-      const shareIds = data.map((s: any) => s.id);
-      if (shareIds.length > 0) {
-        // Fetch comments (unresolved + edits)
-        const { data: comments } = await (supabase.from("calendar_comments") as any)
-          .select("share_id, content, is_resolved, author_name, created_at")
-          .in("share_id", shareIds)
-          .order("created_at", { ascending: false });
-
-        const unresolvedCounts: Record<string, number> = {};
-        const editCounts: Record<string, number> = {};
-        const editLogs: Record<string, EditLog[]> = {};
-
-        (comments || []).forEach((c: any) => {
-          if (!c.is_resolved && !c.content.startsWith("[EDIT]")) {
-            unresolvedCounts[c.share_id] = (unresolvedCounts[c.share_id] || 0) + 1;
-          }
-          if (c.content.startsWith("[EDIT]")) {
-            editCounts[c.share_id] = (editCounts[c.share_id] || 0) + 1;
-            if (!editLogs[c.share_id]) editLogs[c.share_id] = [];
-            if (editLogs[c.share_id].length < 5) {
-              editLogs[c.share_id].push({
-                author_name: c.author_name,
-                content: c.content,
-                created_at: c.created_at,
-              });
-            }
-          }
-        });
-
-        // Fetch "ready" post counts per share's user+workspace
-        // We need to count posts with status "ready" for each share
-        for (const s of data) {
-          s.unresolved_count = unresolvedCounts[s.id] || 0;
-          s.edit_count = editCounts[s.id] || 0;
-          s.edit_logs = editLogs[s.id] || [];
-          s.show_columns = s.show_columns || COLUMN_OPTIONS.filter(c => c.default).map(c => c.id);
-        }
-
-        // Get to_validate counts (posts with status "ready")
-        let postsQuery = (supabase.from("calendar_posts") as any)
-          .select("id, status")
-          .eq("user_id", profileUserId)
-          .eq("status", "ready");
-        if (workspaceId) postsQuery = postsQuery.eq("workspace_id", workspaceId);
-        const { data: readyPosts } = await postsQuery;
-        const readyCount = (readyPosts || []).length;
-        data.forEach((s: any) => { s.to_validate_count = readyCount; });
+    const version = ++loadVersion.current;
+    if (!user || !profileUserId) { setShares([]); setLoading(false); return; }
+    setLoading(true); setLoadError(false);
+    try {
+      let query = (supabase.from("calendar_shares") as any).select("*").eq("user_id", profileUserId);
+      query = workspaceId ? query.or(`workspace_id.eq.${workspaceId},and(workspace_id.is.null,legacy_owner_scope.eq.true)`) : query.is("workspace_id", null);
+      const { data, error } = await query.order("created_at", { ascending: false });
+      if (error) throw error;
+      const loaded = data || [];
+      for (const share of loaded) {
+        let postsQuery = (supabase.from("calendar_posts") as any).select("id, status").eq("user_id", share.user_id);
+        if (share.workspace_id) postsQuery = postsQuery.eq("workspace_id", share.workspace_id);
+        else if (!share.legacy_owner_scope) postsQuery = postsQuery.is("workspace_id", null);
+        if (share.canal_filter && share.canal_filter !== "all") postsQuery = postsQuery.eq("canal", share.canal_filter);
+        const { data: posts, error: postsError } = await postsQuery;
+        if (postsError) throw postsError;
+        const ids = new Set((posts || []).map((p: any) => p.id));
+        const { data: comments, error: commentsError } = await (supabase.from("calendar_comments") as any)
+          .select("calendar_post_id, content, is_resolved, author_name, created_at")
+          .eq("share_id", share.id).order("created_at", { ascending: false });
+        if (commentsError) throw commentsError;
+        const scoped = (comments || []).filter((c: any) => ids.has(c.calendar_post_id));
+        share.unresolved_count = scoped.filter((c: any) => !c.is_resolved && !c.content.startsWith("[EDIT]")).length;
+        const edits = scoped.filter((c: any) => c.content.startsWith("[EDIT]"));
+        share.edit_count = edits.length; share.edit_logs = edits.slice(0, 5);
+        share.to_validate_count = (posts || []).filter((p: any) => p.status === "ready").length;
       }
-      setShares(data);
-    }
-    setLoading(false);
+      if (loadVersion.current === version) setShares(loaded);
+    } catch {
+      if (loadVersion.current === version) { setLoadError(true); setShares([]); }
+    } finally { if (loadVersion.current === version) setLoading(false); }
   };
-
   useEffect(() => {
-    if (open) {
-      fetchShares();
-      setTab("list");
-      setCreatedToken(null);
-    }
-  }, [open, user]);
+    setShares([]); setCreatedToken(null); setTab("list"); setExpandedShare(null);
+    if (open) void fetchShares();
+    return () => { ++loadVersion.current; };
+  }, [open, user?.id, profileUserId, workspaceId]);
 
   const getShareUrl = (token: string) => `${window.location.origin}/calendrier/partage/${token}`;
 
-  const copyLink = (token: string) => {
-    navigator.clipboard.writeText(getShareUrl(token));
-    toast.success("Lien copié !");
+  const copyLink = async (token: string) => {
+    try { await navigator.clipboard.writeText(getShareUrl(token)); toast.success("Lien copié !"); }
+    catch { toast.error("Le lien n’a pas pu être copié."); }
   };
 
   const toggleActive = async (share: Share) => {
     const { error } = await (supabase.from("calendar_shares") as any)
       .update({ is_active: !share.is_active })
-      .eq("id", share.id);
+      .eq("id", share.id).select("id").single();
     if (error) {
       toast.error("Erreur lors de la mise à jour du lien", { description: friendlyError(error) });
       return;
@@ -219,7 +191,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   };
 
   const deleteShare = async (id: string) => {
-    const { error } = await (supabase.from("calendar_shares") as any).delete().eq("id", id);
+    const { error } = await (supabase.from("calendar_shares") as any).delete().eq("id", id).select("id").single();
     if (error) {
       toast.error("Erreur lors de la suppression du lien", { description: friendlyError(error) });
       return;
@@ -230,7 +202,8 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   };
 
   const handleCreate = async () => {
-    if (!user) return;
+    if (!user || !profileUserId) return;
+    const version = loadVersion.current;
     setCreating(true);
     const expiresAt = expiryDays
       ? new Date(Date.now() + expiryDays * 86400000).toISOString()
@@ -245,7 +218,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
         canal_filter: canal,
         show_content_draft: showDraft,
         guest_can_edit_status: guestCanEditStatus,
-        guest_can_edit_wording: guestCanEditWording,
+        guest_can_edit_wording: showDraft && guestCanEditWording,
         view_mode: viewMode,
         show_columns: showColumns,
         expires_at: expiresAt,
@@ -253,7 +226,8 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
       .select()
       .single();
 
-    if (error) {
+    if (version !== loadVersion.current) { setCreating(false); return; }
+    if (error || !data?.share_token) {
       console.error("calendar_shares insert error:", error);
       toast.error("Erreur lors de la création", { description: friendlyError(error) });
     } else {
@@ -267,7 +241,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
   // ── Excel Export ──
 
   const handleExportExcel = async () => {
-    if (!user) return;
+    if (!user || !profileUserId) return;
     setExporting(true);
 
     try {
@@ -276,8 +250,10 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
         .eq("user_id", profileUserId)
         .order("date");
       if (workspaceId) postsQuery = postsQuery.eq("workspace_id", workspaceId);
+      else postsQuery = postsQuery.is("workspace_id", null);
 
-      const { data: posts } = await postsQuery;
+      const { data: posts, error: postsError } = await postsQuery;
+      if (postsError) throw postsError;
       if (!posts || posts.length === 0) {
         toast("Aucun post à exporter");
         setExporting(false);
@@ -351,6 +327,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
           <DialogDescription className="sr-only">Gérer les liens de partage du calendrier éditorial</DialogDescription>
         </DialogHeader>
 
+        <p className="text-xs text-muted-foreground">Chaque lien valide permet de commenter. Les colonnes règlent la présentation ; thème, date, statut, canal, format et phase restent accessibles. Description et notes ne sont partagées que si cochées. Le partage du brouillon inclut le texte et ses médias.</p>
         {/* Tabs */}
         <div className="flex rounded-full border border-border overflow-hidden mb-4">
           <button
@@ -382,7 +359,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
               📊 Exporter en Excel
             </Button>
 
-            {loading ? (
+            {loadError ? (<div role="alert">Impossible de charger les liens. <Button onClick={fetchShares}>Réessayer</Button></div>) : loading ? (
               <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
             ) : shares.length === 0 ? (
               <div className="text-center py-8">
@@ -404,6 +381,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                         </p>
                         <p className="text-2xs text-muted-foreground">
                           Créé {formatDistanceToNow(new Date(share.created_at), { addSuffix: true, locale: fr })}
+                          {share.legacy_owner_scope && " · Ancien lien : tous les espaces du propriétaire"}
                           {share.canal_filter !== "all" && ` · ${share.canal_filter}`}
                           {share.guest_name && ` · ${share.guest_name}`}
                         </p>
@@ -529,7 +507,7 @@ export function CalendarShareDialog({ open, onOpenChange }: Props) {
                     Le/la client·e pourra éditer le wording
                   </p>
                 </div>
-                <Switch checked={guestCanEditWording} onCheckedChange={setGuestCanEditWording} />
+                <Switch checked={guestCanEditWording && showDraft} disabled={!showDraft} onCheckedChange={setGuestCanEditWording} />
               </div>
             </div>
 

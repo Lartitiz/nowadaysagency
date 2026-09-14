@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
@@ -34,34 +34,40 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [showResolved, setShowResolved] = useState(false);
-  const [fallbackShareId, setFallbackShareId] = useState<string | null>(null);
+  const [replyShareId, setReplyShareId] = useState("");
+  const [availableShares, setAvailableShares] = useState<Array<{id: string; label: string | null}>>([]);
+  const [loadError, setLoadError] = useState(false);
+  const visit = useRef(0);
+  const receipt = useRef<{key: string; id: string} | null>(null);
+  const busy = useRef(false);
 
   useEffect(() => {
-    if (!postId) return;
+    const version = ++visit.current;
+    setComments([]); setAvailableShares([]); setReplyShareId(""); setReply(""); setLoadError(false);
+    if (!postId || !user) return;
     setLoading(true);
-    (supabase.from("calendar_comments") as any)
-      .select("*")
-      .eq("calendar_post_id", postId)
-      .order("created_at", { ascending: true })
-      .then(({ data }: any) => {
-        setComments(data || []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, [postId]);
-
-  // share_id de repli : permet au proprio d'écrire même sur un post sans commentaire,
-  // dès qu'un lien de partage actif existe (sinon le fil ne pouvait jamais démarrer).
-  useEffect(() => {
-    if (!user) return;
-    (supabase.from("calendar_shares") as any)
-      .select("id")
-      .eq(workspaceColumn, workspaceValue)
-      .eq("is_active", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .then(({ data }: any) => setFallbackShareId(data?.[0]?.id ?? null));
-  }, [user, workspaceColumn, workspaceValue]);
+    void (async () => {
+      try {
+        const { data: post, error: postError } = await supabase.from("calendar_posts")
+          .select("user_id, workspace_id, canal").eq("id", postId).single();
+        if (postError || !post) throw postError || new Error("missing_post");
+        const { data: links, error: linksError } = await (supabase.from("calendar_shares") as any)
+          .select("id, label, workspace_id, legacy_owner_scope, canal_filter, is_active, expires_at").eq("user_id", post.user_id);
+        if (linksError) throw linksError;
+        const allowed = (links || []).filter((s: any) => s.is_active && (!s.expires_at || Date.parse(s.expires_at)>Date.now())
+          && (s.workspace_id ? s.workspace_id === post.workspace_id : s.legacy_owner_scope || !post.workspace_id)
+          && (!s.canal_filter || s.canal_filter === "all" || s.canal_filter === post.canal));
+        const { data, error } = await (supabase.from("calendar_comments") as any)
+          .select("*").eq("calendar_post_id", postId).order("created_at", { ascending: true });
+        if (error) throw error;
+        if (version !== visit.current) return;
+        setComments(data || []); setAvailableShares(allowed);
+        setReplyShareId(allowed.length === 1 ? allowed[0].id : "");
+      } catch { if (version === visit.current) setLoadError(true); }
+      finally { if (version === visit.current) setLoading(false); }
+    })();
+    return () => { ++visit.current; };
+  }, [postId, user?.id, workspaceColumn, workspaceValue]);
 
   if (!postId) return null;
 
@@ -69,12 +75,12 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
   const resolvedComments = comments.filter(c => c.is_resolved);
 
   // On masque seulement s'il n'y a ni commentaire ni lien de partage où rattacher une note.
-  if (comments.length === 0 && !loading && !fallbackShareId) return null;
+  if (comments.length === 0 && !loading && !loadError && availableShares.length === 0) return null;
 
   const toggleResolved = async (commentId: string, current: boolean) => {
     const { error } = await (supabase.from("calendar_comments") as any)
       .update({ is_resolved: !current })
-      .eq("id", commentId);
+      .eq("id", commentId).select("id").single();
     if (error) {
       toast.error("Erreur lors de la mise à jour du commentaire");
       return;
@@ -83,35 +89,33 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
   };
 
   const handleReply = async () => {
-    if (!reply.trim() || !user) return;
-    setSending(true);
-
-    // share du fil existant, sinon lien de partage actif du proprio
-    const shareForPost = comments[0]?.share_id || fallbackShareId;
-    if (!shareForPost) { setSending(false); return; }
-
-    const { data, error } = await (supabase.from("calendar_comments") as any)
-      .insert({
-        calendar_post_id: postId,
-        share_id: shareForPost,
-        author_name: ownerName || "Moi",
-        author_role: "owner",
-        content: reply.trim(),
-      })
-      .select()
-      .single();
-
-    if (error) {
-      toast.error("Erreur lors de l'envoi du commentaire");
-      setSending(false);
-      return;
-    }
-
-    if (data) {
-      setComments(prev => [...prev, data]);
-      setReply("");
-    }
-    setSending(false);
+    if (!reply.trim() || !user || !replyShareId || busy.current) return;
+    const version = visit.current;
+    const submitted = reply;
+    const key = JSON.stringify([postId, replyShareId, submitted.trim()]);
+    if (receipt.current?.key !== key) receipt.current = { key, id: crypto.randomUUID() };
+    const id = receipt.current.id;
+    busy.current = true; setSending(true);
+    try {
+      const { data, error } = await (supabase.from("calendar_comments") as any).insert({
+        id, calendar_post_id: postId, share_id: replyShareId, author_name: ownerName || "Moi",
+        author_role: "owner", content: submitted.trim(),
+      }).select().single();
+      let saved = data;
+      if (error) {
+        // A lost response may hide a committed insert. Reuse its ID, never create another reply.
+        const result = await (supabase.from("calendar_comments") as any).select("*").eq("id", id).maybeSingle();
+        if (result.error || !result.data) throw error;
+        saved = result.data;
+      }
+      if (!saved?.id) throw new Error("missing_receipt");
+      receipt.current = null;
+      if (version === visit.current) {
+        setComments(prev => [...prev.filter(c => c.id !== saved.id), saved]);
+        setReply(current => current === submitted ? "" : current);
+      }
+    } catch { toast.error("Le commentaire n'a pas été enregistré. Ta réponse est conservée."); }
+    finally { busy.current = false; setSending(false); }
   };
 
   const getInitial = (name: string) => (name || "?").charAt(0).toUpperCase();
@@ -125,13 +129,14 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
         </span>
       </div>
 
+      {loadError && <p role="alert">Impossible de charger les échanges. Ferme puis rouvre ce contenu pour réessayer.</p>}
       {loading ? (
         <div className="flex justify-center py-4"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
       ) : (
         <div className="space-y-3">
           {/* Unresolved */}
           {unresolvedComments.map(c => (
-            <CommentBubble key={c.id} comment={c} onToggleResolved={toggleResolved} getInitial={getInitial} />
+            <CommentBubble key={c.id} linkLabel={availableShares.find(s => s.id === c.share_id)?.label || `Lien ${c.share_id.slice(0, 8)}`} comment={c} onToggleResolved={toggleResolved} getInitial={getInitial} />
           ))}
 
           {/* Resolved - collapsed */}
@@ -142,12 +147,19 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-2 mt-2">
                 {resolvedComments.map(c => (
-                  <CommentBubble key={c.id} comment={c} onToggleResolved={toggleResolved} getInitial={getInitial} resolved />
+                  <CommentBubble key={c.id} linkLabel={availableShares.find(s => s.id === c.share_id)?.label || `Lien ${c.share_id.slice(0, 8)}`} comment={c} onToggleResolved={toggleResolved} getInitial={getInitial} resolved />
                 ))}
               </CollapsibleContent>
             </Collapsible>
           )}
 
+          {/* Explicit destination; never choose the first of several links. */}
+          {availableShares.length > 0 && <label className="block text-xs">Lien destinataire
+            <select aria-label="Lien destinataire" value={replyShareId} onChange={e => setReplyShareId(e.target.value)} className="block w-full border rounded p-2">
+              <option value="">Choisir le lien pour cette réponse</option>
+              {availableShares.map(s => <option key={s.id} value={s.id}>{s.label || `Lien ${s.id.slice(0, 8)}`}</option>)}
+            </select>
+          </label>}
           {/* Reply input */}
           <div className="flex gap-2 mt-2">
             <Input
@@ -157,7 +169,7 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
               onKeyDown={e => e.key === "Enter" && handleReply()}
               className="text-sm"
             />
-            <Button size="sm" onClick={handleReply} disabled={!reply.trim() || sending} className="rounded-full shrink-0">
+            <Button size="sm" onClick={handleReply} disabled={!reply.trim() || !replyShareId || sending} className="rounded-full shrink-0">
               {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Répondre"}
             </Button>
           </div>
@@ -167,7 +179,8 @@ export function PostCommentsSection({ postId, ownerName }: Props) {
   );
 }
 
-function CommentBubble({ comment, onToggleResolved, getInitial, resolved }: {
+function CommentBubble({ comment, onToggleResolved, getInitial, resolved, linkLabel }: {
+  linkLabel: string;
   comment: Comment;
   onToggleResolved: (id: string, current: boolean) => void;
   getInitial: (name: string) => string;
@@ -182,7 +195,7 @@ function CommentBubble({ comment, onToggleResolved, getInitial, resolved }: {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-xs font-medium text-foreground">{comment.author_name}</span>
+          <span className="text-xs font-medium text-foreground">{comment.author_name} · {linkLabel}</span>
           <span className={`text-2xs px-1.5 py-0.5 rounded-full ${isOwner ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
             {isOwner ? "Moi" : "Client·e"}
           </span>
