@@ -8441,6 +8441,16 @@ export type Database = {
         }
         Returns: Json
       }
+      save_pinterest_editor: {
+        Args: {
+          p_expected: Json
+          p_month: string
+          p_rows: Json
+          p_table: string
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
       trigger_email_event: { Args: { _event: string }; Returns: undefined }
       trigger_publish_due_posts: { Args: never; Returns: undefined }
       trigger_stats_monthly_snapshot: { Args: never; Returns: undefined }
