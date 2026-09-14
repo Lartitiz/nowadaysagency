@@ -8420,6 +8420,14 @@ export type Database = {
         }
         Returns: string
       }
+      crosspost_can_write: {
+        Args: { personal_owner: string; ws: string }
+        Returns: boolean
+      }
+      crosspost_source_access: {
+        Args: { object_name: string; writing: boolean }
+        Returns: boolean
+      }
       delete_workspace_with_cleanup: {
         Args: { _workspace_id: string }
         Returns: undefined
