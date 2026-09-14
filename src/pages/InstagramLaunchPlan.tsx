@@ -1,4 +1,6 @@
-import { useState, useEffect, useMemo } from "react";
+import { usePlanningVisit } from "@/hooks/use-planning-visit";
+import { useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
@@ -13,7 +15,8 @@ import { Badge } from "@/components/ui/badge";
 import { InputWithVoice as Input } from "@/components/ui/input-with-voice";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { dropAlreadyPlanned, duplicateMessage } from "@/lib/calendar-duplicates";
+import { syncLaunchCalendar, launchSaveError } from "@/lib/launch-persistence";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { friendlyError } from "@/lib/error-messages";
 import { format, addDays } from "date-fns";
@@ -41,6 +44,16 @@ interface PhaseConfig {
 }
 
 export default function InstagramLaunchPlan() {
+  const { user } = useAuth();
+  const scope = useWorkspaceId();
+  const ready = useWorkspaceReady();
+  if (!ready || !user) return null;
+  return <InstagramLaunchPlanScreen key={`${user.id}:${scope}`} />;
+}
+
+function InstagramLaunchPlanScreen() {
+  const visit = usePlanningVisit();
+  const loadSequence = useRef(0);
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -74,18 +87,25 @@ export default function InstagramLaunchPlan() {
   const [saving, setSaving] = useState(false);
   const [showIdeasDialog, setShowIdeasDialog] = useState(false);
 
+  const inFlight = useRef(false);
+  const [selection, setSelection] = useState<Set<string>>(new Set());
+  const [proposal, setProposal] = useState<{ slots: LaunchSlot[]; metadata: any; version: string } | null>(null);
+
   // Load launch
   useEffect(() => {
     if (!user) return;
+    const loadRequest = ++loadSequence.current;
     (async () => {
       setLoaded(false);
       setLoadError(false);
+      setSlots([]); setSelection(new Set()); setCurrentStep(0);
       const { data: launches, error: launchesError } = await (supabase.from("launches") as any)
         .select("*")
         .eq(column, value)
         .order("created_at", { ascending: false })
         .limit(1);
 
+      if (!visit.current || loadSequence.current !== loadRequest) return;
       if (launchesError) {
         console.error("Erreur chargement lancement:", launchesError);
         setLoadError(true);
@@ -95,6 +115,14 @@ export default function InstagramLaunchPlan() {
       if (!launches?.length) { navigate("/instagram/lancement"); return; }
       const l = launches[0];
       setLaunch(l);
+      if (!l.plan_generated && l.launch_model) {
+        const template = LAUNCH_TEMPLATES.find(t => t.id === l.launch_model);
+        if (template) selectTemplate(template, l);
+      }
+      if (l.extra_weekly_hours != null) {
+        const t = TIME_OPTIONS.find(t => t.hours === l.extra_weekly_hours) ?? FALLBACK_TIME_OPTIONS.find(t => t.hours === l.extra_weekly_hours);
+        if (t) setExtraTime(t.id);
+      }
 
       // If plan already generated, load slots
       if (l.plan_generated) {
@@ -102,7 +130,9 @@ export default function InstagramLaunchPlan() {
           .from("launch_plan_contents")
           .select("*")
           .eq("launch_id", l.id)
+          .is("archived_at" as any, null)
           .order("sort_order", { ascending: true });
+        if (!visit.current || loadSequence.current !== loadRequest) return;
         if (existingError) {
           console.error("Erreur chargement plan:", existingError);
           setLoadError(true);
@@ -122,10 +152,16 @@ export default function InstagramLaunchPlan() {
             angle_suggestion: e.angle_suggestion || "",
           }));
           setSlots(loadedSlots);
+          setSelection(new Set(loadedSlots.map(s => s.id)));
           // Rebuild phases from launch data
-          if (l.phases && Array.isArray(l.phases)) {
-            setPhaseConfigs(l.phases as unknown as PhaseConfig[]);
+          const phases: PhaseConfig[] = Array.isArray(l.phases) ? [...l.phases] : [];
+          for (const name of new Set(loadedSlots.map(slot => slot.phase))) {
+            if (!phases.some(phase => phase.name === name)) {
+              const dates = loadedSlots.filter(slot => slot.phase === name).map(slot => slot.date).sort();
+              phases.push({ name, label: name || "Plan", emoji: "📋", start_date: dates[0], end_date: dates[dates.length - 1] });
+            }
           }
+          setPhaseConfigs(phases);
           if (l.template_type) {
             const t = LAUNCH_TEMPLATES.find((t) => t.id === l.template_type);
             if (t) setSelectedTemplate(t);
@@ -149,12 +185,12 @@ export default function InstagramLaunchPlan() {
 
   // ── Step 1: Template selection ──
 
-  const selectTemplate = (t: LaunchTemplate) => {
+  const selectTemplate = (t: LaunchTemplate, sourceLaunch = launch) => {
     setSelectedTemplate(t);
     // Auto-fill phase dates based on sale_start or today
     // For classique/gros, phases go backwards from sale date
     // Simple approach: stack phases forward from a start
-    const startDate = launch?.teasing_start ? new Date(launch.teasing_start) : addDays(new Date(), 7);
+    const startDate = sourceLaunch?.teasing_start ? new Date(sourceLaunch.teasing_start) : addDays(new Date(), 7);
     let c = new Date(startDate);
 
     const configs: PhaseConfig[] = t.phases.map((p) => {
@@ -185,7 +221,11 @@ export default function InstagramLaunchPlan() {
   // ── Step 3: Generate ──
 
   const generatePlan = async () => {
-    if (!user || !launch) return;
+    if (!user || !launch || inFlight.current) return;
+    if (!phaseConfigs.length || phaseConfigs.some(p => !p.start_date || !p.end_date || p.start_date > p.end_date)) {
+      toast.error("Vérifie les dates de chaque phase avant de générer le plan."); return;
+    }
+    inFlight.current = true;
     setGenerating(true);
     try {
       const editoData = editorialLineData as any;
@@ -204,13 +244,14 @@ export default function InstagramLaunchPlan() {
           phases: phaseConfigs,
           template_type: selectedTemplate?.id || "classique",
           extra_weekly_hours: extraHours,
-          editorial_time: editorialTime || 3,
+          editorial_time: editorialTime ?? 3,
           preferred_formats: editoData?.preferred_formats || [],
           rhythm: editoData?.posts_frequency || "3 posts/semaine",
           workspace_id: workspaceId,
         },
       }, 120000);
 
+      if (!visit.current) return;
       if (res.error) throw new Error(res.error.message);
 
       const parsed: LaunchPlan = res.data;
@@ -229,162 +270,88 @@ export default function InstagramLaunchPlan() {
 
       setPlan(parsed);
 
-      // Persistance : on INSÈRE le nouveau plan avant de supprimer l'ancien,
-      // pour ne jamais détruire l'existant si l'écriture échoue.
-      const rows = allSlots.map((s, i) => ({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        launch_id: launch.id,
-        phase: s.phase,
-        content_date: s.date,
-        format: s.format,
-        content_type: s.content_type,
-        content_type_emoji: s.content_type_emoji,
-        category: s.category,
-        objective: s.objective,
-        angle_suggestion: s.angle_suggestion,
-        sort_order: i,
-      }));
-      if (!rows.length) throw new Error("L'IA n'a renvoyé aucun contenu : réessaie.");
-
-      const { data: inserted, error: insertError } = await supabase.from("launch_plan_contents").insert(rows).select();
-      if (insertError) throw new Error(insertError.message);
-
-      setSlots((inserted || []).map((r: any) => ({
-        id: r.id,
-        date: r.content_date,
-        phase: r.phase,
-        format: r.format,
-        content_type: r.content_type,
-        content_type_emoji: r.content_type_emoji,
-        category: r.category,
-        objective: r.objective || "",
-        angle_suggestion: r.angle_suggestion || "",
-      })));
-
-      // Supprime l'ancien plan (tout sauf les lignes fraîchement insérées)
-      const newIds = (inserted || []).map((r: any) => r.id);
-      const { error: cleanError } = await supabase
-        .from("launch_plan_contents")
-        .delete()
-        .eq("launch_id", launch.id)
-        .not("id", "in", `(${newIds.join(",")})`);
-      if (cleanError) {
-        console.error("Erreur nettoyage ancien plan:", cleanError);
-        toast.warning("L'ancien plan n'a pas pu être entièrement remplacé : des doublons peuvent subsister.");
-      }
-
-      // Update launch
-      const { error: metaError } = await supabase.from("launches").update({
-        template_type: selectedTemplate?.id,
-        extra_weekly_hours: extraHours,
-        phases: JSON.parse(JSON.stringify(phaseConfigs)),
-        plan_generated: true,
-      }).eq("id", launch.id);
-      if (metaError) throw new Error(metaError.message);
-
-      setCurrentStep(3);
-      toast.success("Plan de lancement généré ! 🚀");
+      if (!allSlots.length) throw new Error("L’IA n’a renvoyé aucun contenu.");
+      const next = { slots: allSlots, version: launch.updated_at, metadata: {
+        template_type: selectedTemplate?.id, extra_weekly_hours: extraHours, phases: phaseConfigs,
+      } };
+      setProposal(next);
+      await persistProposal(next);
     } catch (e: any) {
       console.error("Erreur technique:", e);
-      toast.error(friendlyError(e));
+      if (visit.current) toast.error(launchSaveError(e));
     } finally {
-      setGenerating(false);
+      inFlight.current = false;
+      if (visit.current) setGenerating(false);
     }
+  };
+
+  const persistProposal = async (next: NonNullable<typeof proposal>) => {
+    if (!launch || !visit.current) return;
+    const { data, error } = await supabase.rpc("save_launch_plan" as any, {
+      p_launch_id: launch.id, p_workspace_id: launch.workspace_id ?? null,
+      p_expected_updated_at: next.version,
+      p_slots: next.slots.map((slot, sort_order) => ({ ...slot, sort_order })), p_metadata: next.metadata,
+    });
+    if (!visit.current) return;
+    if (error) throw error;
+    if ((data as any)?.launch_id !== launch.id) throw new Error("launch_missing_receipt");
+    setProposal(null);
+    setReloadKey(k => k + 1);
+    if ((data as any).replayed) toast.info("Cette proposition avait déjà été enregistrée. Le plan a été rechargé sans créer de nouvelle version.");
+    else toast.success("Plan de lancement enregistré. Les versions précédentes sont conservées.");
   };
 
   // ── Slot manipulation ──
 
-  // Optimiste avec rollback : si l'écriture échoue, on restaure l'état local
-  // et on prévient (sinon l'UI ment et diverge de la base).
-  const deleteSlot = async (slotId: string) => {
-    const previous = slots;
-    setSlots((prev) => prev.filter((s) => s.id !== slotId));
-    const { error } = await supabase.from("launch_plan_contents").delete().eq("id", slotId);
-    if (error) {
-      console.error("Erreur suppression slot:", error);
-      setSlots(previous);
-      toast.error("La suppression n'a pas été enregistrée. Réessaie.");
-    }
+  const changeSlot = async (slotId: string, date?: string) => {
+    if (inFlight.current || !launch) return;
+    inFlight.current = true;
+    setSaving(true);
+    try {
+      const patch = date ? { content_date: date } : { archived_at: new Date().toISOString() };
+      const { data, error } = await supabase.from("launch_plan_contents").update(patch as any)
+        .eq("id", slotId).eq("launch_id", launch.id).eq("content_date", slots.find(slot => slot.id === slotId)!.date).is("archived_at" as any, null).select("id").single();
+      if (!visit.current) return;
+      if (error || !data) throw error || new Error("missing receipt");
+      setSlots(previous => date ? previous.map(s => s.id === slotId ? { ...s, date } : s) : previous.filter(s => s.id !== slotId));
+    } catch (error) { if (visit.current) toast.error(launchSaveError(error)); }
+    finally { inFlight.current = false; if (visit.current) setSaving(false); }
   };
-
-  const updateSlotDate = async (slotId: string, newDate: string) => {
-    const previous = slots;
-    setSlots((prev) => prev.map((s) => (s.id === slotId ? { ...s, date: newDate } : s)));
-    const { error } = await supabase.from("launch_plan_contents").update({ content_date: newDate }).eq("id", slotId);
-    if (error) {
-      console.error("Erreur déplacement slot:", error);
-      setSlots(previous);
-      toast.error("Le changement de date n'a pas été enregistré. Réessaie.");
-    }
-  };
+  const deleteSlot = (id: string) => changeSlot(id);
+  const updateSlotDate = (id: string, date: string) => changeSlot(id, date);
 
   // ── Send to calendar ──
 
   const sendToCalendar = async () => {
-    if (!user || !launch) return;
-
-    // Déjà envoyé : renvoyer = remplacer, on demande confirmation (pas de doublons silencieux)
-    if (launch.plan_sent_to_calendar) {
-      const ok = await confirm({
-        title: "Renvoyer le plan au calendrier ?",
-        description: "Ce plan a déjà été envoyé. Renvoyer remplacera les emplacements de ce lancement dans ton calendrier, y compris ceux que tu aurais modifiés.",
-        confirmText: "Renvoyer et remplacer",
-        cancelText: "Annuler",
-      });
-      if (!ok) return;
-    }
-
+    if (!user || !launch || inFlight.current) return;
+    const ids = slots.filter(s => selection.has(s.id)).map(s => s.id);
+    if (!ids.length) return;
+    inFlight.current = true;
     setSaving(true);
+    const confirmReplacement = () => confirm({
+      title: "Renvoyer le plan au calendrier ?",
+      description: "Les emplacements sélectionnés encore intacts seront actualisés. Les contenus modifiés, rédigés, programmés ou publiés et les anciennes versions seront conservés.",
+      confirmText: "Renvoyer et remplacer", cancelText: "Annuler",
+    });
     try {
-      // Remplace les emplacements déjà envoyés pour ce lancement
-      const { error: cleanError } = await supabase.from("calendar_posts").delete().eq("launch_id", launch.id);
-      if (cleanError) throw new Error(cleanError.message);
-
-      const calendarRows = slots.map((s) => ({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        date: s.date,
-        canal: "instagram",
-        theme: `🚀 ${launch.name}`,
-        status: "idea",
-        format: s.format || null,
-        notes: s.objective,
-        angle: s.angle_suggestion || null,
-        objectif: s.category === "vente" ? "vente" : s.category === "visibilite" ? "visibilite" : "confiance",
-        content_type: s.content_type,
-        content_type_emoji: s.content_type_emoji,
-        category: s.category,
-        objective: s.objective,
-        angle_suggestion: s.angle_suggestion,
-        launch_id: launch.id,
-      }));
-
-      // Renvoyer le plan deux fois ne doit pas dupliquer tout le calendrier.
-      const { fresh, duplicates } = await dropAlreadyPlanned(calendarRows, {
-        userId: user.id,
-        workspaceId,
-      });
-      if (fresh.length > 0) {
-        const { error: insertError } = await supabase.from("calendar_posts").insert(fresh);
-        if (insertError) throw new Error(insertError.message);
+      let replace = false;
+      if (launch.plan_sent_to_calendar) {
+        replace = await confirmReplacement();
+        if (!replace || !visit.current) return;
       }
-      if (duplicates.length > 0) toast(duplicateMessage(duplicates.length, calendarRows.length));
-
-      const { error: launchError } = await supabase.from("launches").update({ plan_sent_to_calendar: true }).eq("id", launch.id);
-      if (launchError) throw new Error(launchError.message);
-      const { error: contentsError } = await supabase.from("launch_plan_contents").update({ sent_to_calendar: true }).eq("launch_id", launch.id);
-      if (contentsError) throw new Error(contentsError.message);
-
-      setLaunch((prev: any) => (prev ? { ...prev, plan_sent_to_calendar: true } : prev));
-      toast.success(`${slots.length} emplacements ajoutés au calendrier ! 🚀`);
-      navigate("/calendrier?canal=instagram");
-    } catch (e: any) {
-      console.error("Erreur envoi calendrier:", e);
-      toast.error(friendlyError(e));
-    } finally {
-      setSaving(false);
-    }
+      let receipt;
+      try { receipt = await syncLaunchCalendar(launch.id, launch.workspace_id ?? null, ids, replace); }
+      catch (error: any) {
+        if (!String(error?.message).includes("launch_replace_confirmation_required")) throw error;
+        if (!visit.current || !await confirmReplacement() || !visit.current) return;
+        receipt = await syncLaunchCalendar(launch.id, launch.workspace_id ?? null, ids, true);
+      }
+      if (!visit.current) return;
+      setLaunch((prev: any) => ({ ...prev, plan_sent_to_calendar: ids.length === slots.length }));
+      toast.success(`${receipt.inserted} ajoutés · ${receipt.refreshed} emplacements actualisés · ${receipt.preserved} contenus conservés.`);
+      navigate(`/calendrier?canal=instagram&date=${receipt.items[0].date}`);
+    } catch (error) { if (visit.current) toast.error(launchSaveError(error)); }
+    finally { inFlight.current = false; if (visit.current) setSaving(false); }
   };
 
   // « Sauvegarder sans envoyer » : le plan est déjà écrit à la génération,
@@ -394,7 +361,8 @@ export default function InstagramLaunchPlan() {
     const { count, error } = await supabase
       .from("launch_plan_contents")
       .select("id", { count: "exact", head: true })
-      .eq("launch_id", launch.id);
+      .eq("launch_id", launch.id).is("archived_at" as any, null);
+    if (!visit.current) return;
     if (error || !count) {
       console.error("Erreur vérification plan:", error);
       toast.error("Le plan ne semble pas enregistré. Regénère-le ou réessaie.");
@@ -629,10 +597,16 @@ export default function InstagramLaunchPlan() {
             <p className="text-muted-foreground">
               L'IA va générer un plan de <strong>{selectedTemplate?.contentRange}</strong> adapté à ton temps et à ta stratégie.
             </p>
-            <Button onClick={generatePlan} disabled={generating} size="lg" className="rounded-full gap-2">
+            <Button onClick={generatePlan} disabled={generating || !!proposal} size="lg" className="rounded-full gap-2">
               {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />}
               {generating ? "Génération en cours..." : "✨ Générer mon plan de lancement"}
             </Button>
+            {proposal && <div className="space-y-2"><p>Ta proposition est conservée. Réessaie son enregistrement sans la régénérer.</p><Button disabled={generating} onClick={async () => {
+              if (inFlight.current) return;
+              inFlight.current = true; setGenerating(true);
+              try { await persistProposal(proposal); } catch (error) { if (visit.current) toast.error(launchSaveError(error)); }
+              finally { inFlight.current = false; if (visit.current) setGenerating(false); }
+            }}>Réessayer l’enregistrement</Button></div>}
             {generating && (
               <div className="flex items-center gap-3 justify-center animate-fade-in pt-4">
                 <div className="flex gap-1">
@@ -697,7 +671,9 @@ export default function InstagramLaunchPlan() {
                       </div>
                       <div className="space-y-3 pl-4 border-l-2 border-border ml-4">
                         {phaseSlots.map((slot) => (
-                          <SlotCard key={slot.id} slot={slot} onDelete={() => deleteSlot(slot.id)} onDateChange={(d) => updateSlotDate(slot.id, d)} />
+                          <SlotCard key={slot.id} slot={slot} disabled={saving} selected={selection.has(slot.id)} onSelect={(checked) => setSelection(prev => {
+                            const next = new Set(prev); if (checked) next.add(slot.id); else next.delete(slot.id); return next;
+                          })} onDelete={() => deleteSlot(slot.id)} onDateChange={(d) => updateSlotDate(slot.id, d)} />
                         ))}
                       </div>
                     </div>
@@ -761,9 +737,9 @@ export default function InstagramLaunchPlan() {
                   {stats.total} contenus · Mix : 👀 Visibilité {stats.visibilite}% | 🤝 Confiance {stats.confiance}% | 💰 Vente {stats.vente}%
                 </p>
                 <div className="flex flex-wrap gap-3 pt-2">
-                  <Button onClick={sendToCalendar} disabled={saving} className="rounded-full gap-2">
+                  <Button onClick={sendToCalendar} disabled={saving || !slots.some(s => selection.has(s.id))} className="rounded-full gap-2">
                     <CalendarPlus className="h-4 w-4" />
-                    {saving ? "Envoi en cours..." : launch?.plan_sent_to_calendar ? "📅 Renvoyer dans mon calendrier" : "📅 Envoyer tout dans mon calendrier"}
+                    {saving ? "Envoi en cours..." : launch?.plan_sent_to_calendar ? "📅 Renvoyer dans mon calendrier" : `📅 Envoyer la sélection (${slots.filter(s => selection.has(s.id)).length})`}
                   </Button>
                   <Button variant="outline" onClick={verifySaved} className="rounded-full gap-2">
                     <Save className="h-4 w-4" /> Sauvegarder sans envoyer
@@ -812,20 +788,22 @@ function DatePicker({ label, value, onChange }: { label: string; value: string; 
   );
 }
 
-function SlotCard({ slot, onDelete, onDateChange }: { slot: LaunchSlot; onDelete: () => void; onDateChange: (d: string) => void }) {
+function SlotCard({ slot, onDelete, onDateChange, selected, onSelect, disabled }: { slot: LaunchSlot; onDelete: () => void; onDateChange: (d: string) => void; selected: boolean; onSelect: (value: boolean) => void; disabled: boolean }) {
   const cat = CATEGORY_COLORS[slot.category];
   const contentType = CONTENT_TYPES.find((c) => c.id === slot.content_type);
   const formatLabel = FORMAT_OPTIONS.find((f) => f.id === slot.format)?.label || slot.format;
 
   return (
     <div className={cn("rounded-xl border p-4 ml-4 space-y-2", cat?.bg || "bg-card")}>
+      <label className="flex gap-2 items-center text-xs"><Checkbox checked={selected} disabled={disabled} onCheckedChange={value => onSelect(value === true)} />Inclure dans l’envoi</label>
+      <DatePicker label="Date prévue" value={slot.date} onChange={onDateChange} />
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-muted-foreground">📅 {formatDate(slot.date)}</span>
           <Badge variant="secondary" className="text-xs">{formatLabel}</Badge>
           {cat && <Badge className={cn("text-2xs", cat.bg, cat.text)}>{cat.label}</Badge>}
         </div>
-        <Button variant="ghost" size="icon" onClick={onDelete} className="h-7 w-7 text-destructive shrink-0" aria-label="Supprimer ce contenu">
+        <Button variant="ghost" size="icon" onClick={onDelete} disabled={disabled} className="h-7 w-7 text-destructive shrink-0" aria-label="Supprimer ce contenu">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>
       </div>

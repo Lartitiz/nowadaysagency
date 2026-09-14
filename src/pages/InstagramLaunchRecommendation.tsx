@@ -1,8 +1,10 @@
-import { useState, useEffect } from "react";
+import { usePlanningVisit } from "@/hooks/use-planning-visit";
+import { useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { useRef, useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useEditorialLine } from "@/hooks/use-branding";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -25,6 +27,16 @@ import {
 
 export default function InstagramLaunchRecommendation() {
   const { user } = useAuth();
+  const scope = useWorkspaceId();
+  const ready = useWorkspaceReady();
+  if (!ready || !user) return null;
+  return <InstagramLaunchRecommendationScreen key={`${user.id}:${scope}`} />;
+}
+
+function InstagramLaunchRecommendationScreen() {
+  const visit = usePlanningVisit();
+  const loadSequence = useRef(0);
+  const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const navigate = useNavigate();
   const { data: editorialLineData } = useEditorialLine();
@@ -44,12 +56,14 @@ export default function InstagramLaunchRecommendation() {
 
   useEffect(() => {
     if (!user) return;
+    const loadRequest = ++loadSequence.current;
     (async () => {
       const { data: launchesData, error } = await (supabase.from("launches") as any)
         .select("*")
-        .eq(column, value)
+        .eq(column as "workspace_id" | "user_id", value)
         .order("created_at", { ascending: false })
         .limit(1);
+      if (!visit.current || loadSequence.current !== loadRequest) return;
       if (error) {
         console.error("Erreur chargement lancement:", error);
         toast.error("Impossible de charger ton lancement. Réessaie depuis la page précédente.");
@@ -89,21 +103,27 @@ export default function InstagramLaunchRecommendation() {
   const recommendedTemplate = recommended ? LAUNCH_TEMPLATES.find((t) => t.id === recommended) : null;
   const otherTemplates = LAUNCH_TEMPLATES.filter((t) => t.id !== recommended);
 
+  const inFlight = useRef(false);
+  const [saving, setSaving] = useState(false);
   const chooseModel = async (modelId: string) => {
-    if (!launch) return;
+    if (!launch || inFlight.current) return;
+    inFlight.current = true; setSaving(true);
     const extraHours = extraTime
       ? TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? FALLBACK_TIME_OPTIONS.find((t) => t.id === extraTime)?.hours ?? 0
       : 0;
 
-    const { error } = await supabase.from("launches").update({
+    const { data, error } = await supabase.from("launches").update({
       launch_model: modelId,
       offer_type: offerType,
       price_range: priceRange,
       audience_size: audienceSize,
       recurrence,
       extra_weekly_hours: extraHours,
-    }).eq("id", launch.id);
-    if (error) {
+    }).eq("id", launch.id).eq(column as "workspace_id" | "user_id", value).eq("updated_at", launch.updated_at).select("id").single();
+    inFlight.current = false;
+    if (!visit.current) return;
+    setSaving(false);
+    if (error || !data) {
       console.error("Erreur sélection modèle:", error);
       toast.error("Le modèle n'a pas pu être enregistré. Réessaie.");
       return;
@@ -213,7 +233,7 @@ export default function InstagramLaunchRecommendation() {
                     <span>📊 {recommendedTemplate.contentRange}</span>
                     <span>⏱️ {recommendedTemplate.duration}</span>
                   </div>
-                  <Button onClick={() => chooseModel(recommendedTemplate.id)} className="rounded-full gap-2 mt-2">
+                  <Button disabled={saving} onClick={() => chooseModel(recommendedTemplate.id)} className="rounded-full gap-2 mt-2">
                     📅 Choisir ce plan <ArrowRight className="h-4 w-4" />
                   </Button>
                 </CardContent>
@@ -232,7 +252,7 @@ export default function InstagramLaunchRecommendation() {
                     </div>
                     <p className="text-xs text-muted-foreground">{t.duration} · {t.contentRange}</p>
                     <p className="text-xs text-muted-foreground">{t.description}</p>
-                    <Button variant="outline" size="sm" onClick={() => chooseModel(t.id)} className="rounded-full text-xs">
+                    <Button variant="outline" size="sm" disabled={saving} onClick={() => chooseModel(t.id)} className="rounded-full text-xs">
                       Choisir
                     </Button>
                   </CardContent>

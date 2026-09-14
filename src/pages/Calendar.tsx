@@ -1131,6 +1131,8 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       />
 
       <CalendarCoachingDialog
+        weekStartDate={toLocalDateStr(weekStart)}
+        defaultCanal={canalFilter}
         open={coachingOpen}
         onOpenChange={setCoachingOpen}
         onPostAdded={fetchPosts}

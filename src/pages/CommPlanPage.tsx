@@ -1,7 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { usePlanningVisit } from "@/hooks/use-planning-visit";
+import { useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import PlanSetup from "@/components/plan/PlanSetup";
@@ -21,9 +23,24 @@ import { toast } from "sonner";
 
 export default function CommPlanPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
+  const scope = useWorkspaceId();
+  const ready = useWorkspaceReady();
+  if (!ready || !user) return null;
+  return <CommPlanPageScreen key={`${user.id}:${scope}`} embedded={embedded} />;
+}
+
+function CommPlanPageScreen({ embedded = false }: { embedded?: boolean }) {
+  const visit = usePlanningVisit();
+  const loadSequence = useRef(0);
+  const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const ownerId = useProfileUserId();
   const { isDemoMode } = useDemoContext();
+  const [loadError, setLoadError] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [configId, setConfigId] = useState<string | null>(null);
+  const inFlight = useRef(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [config, setConfig] = useState<PlanConfig | null>(null);
@@ -84,7 +101,10 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
       return;
     }
     if (!user?.id) return;
+    const loadRequest = ++loadSequence.current;
     (async () => {
+      setLoading(true); setLoadError(false);
+      try {
       // Fetch config, overrides, coach exercises, and visibility in parallel
       const [configRes, overridesRes, exercisesRes, visibilityRes] = await Promise.all([
         (supabase.from("user_plan_config" as any).select("*").eq(column, value).maybeSingle() as any),
@@ -93,6 +113,17 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
         (supabase.from("plan_step_visibility" as any).select("step_id, hidden").eq("workspace_id", workspaceId) as any),
       ]);
 
+      if (!visit.current || loadSequence.current !== loadRequest) return;
+      for (const result of [configRes, overridesRes, exercisesRes, visibilityRes]) if (result.error) throw result.error;
+      // The owner's pre-workspace onboarding row remains account-scoped. Read it
+      // without adopting/moving it, and never use the manager's account as fallback.
+      if (!configRes.data && ownerId === user.id) {
+        const legacy = await supabase.from("user_plan_config").select("*").eq("user_id", ownerId).is("workspace_id", null).maybeSingle();
+        if (!visit.current || loadSequence.current !== loadRequest) return;
+        if (legacy.error) throw legacy.error;
+        configRes.data = legacy.data;
+      }
+      setConfigId(configRes.data?.id ?? null);
       const fetchedOverrides: PlanStepOverride[] = (overridesRes.data || []).map((o: any) => ({
         step_id: o.step_id,
         status: o.manual_status,
@@ -117,16 +148,19 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
         setConfig(cfg);
         // Build full plan (no hidden filtering) for coach manager
         const full = await computePlan({ column, value }, cfg, fetchedOverrides, fetchedExercises);
+        if (!visit.current || loadSequence.current !== loadRequest) return;
         setFullPlan(full);
         // Build filtered plan for display
         const planData = await computePlan({ column, value }, cfg, fetchedOverrides, fetchedExercises, fetchedVisibility);
+        if (!visit.current || loadSequence.current !== loadRequest) return;
         setPlan(planData);
       } else {
         setShowSetup(true);
       }
-      setLoading(false);
+      } catch (error) { if (visit.current && loadSequence.current === loadRequest) setLoadError(true); }
+      finally { if (visit.current && loadSequence.current === loadRequest) setLoading(false); }
     })();
-  }, [user?.id, isDemoMode]);
+  }, [user?.id, isDemoMode, column, value, workspaceId, ownerId, reloadKey]);
 
   const [showWelcome, setShowWelcome] = useState(false);
 
@@ -144,73 +178,67 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
   ) => {
     if (!config) return;
     const full = await computePlan({ column, value }, config, ov, ex);
+    if (!visit.current) return;
     setFullPlan(full);
     const filtered = await computePlan({ column, value }, config, ov, ex, vis);
-    setPlan(filtered);
+    if (visit.current) setPlan(filtered);
   }, [config, column, value, overrides, coachExercises, hiddenSteps]);
 
   const handleSaveConfig = useCallback(async (cfg: PlanConfig) => {
-    if (!user) return;
-    setSaving(true);
+    if (!user || !ownerId || loading || loadError || inFlight.current) return;
+    inFlight.current = true; setSaving(true);
     try {
-      const payload = {
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : null,
-        weekly_time: cfg.weekly_time,
-        channels: cfg.channels,
-        main_goal: cfg.main_goal,
-      };
-
-      // Toujours utiliser upsert pour éviter les conflits avec la row créée par l'onboarding
-      const { error } = await (supabase.from("user_plan_config") as any)
-        .upsert(payload, { onConflict: "user_id" });
-      if (error) {
-        console.error("Plan config save error:", error);
-        toast.error("Erreur de sauvegarde");
-        return;
+      const fields = { weekly_time: cfg.weekly_time, channels: cfg.channels, main_goal: cfg.main_goal };
+      // This table also stores account onboarding and remains unique by owner.
+      // Never move another workspace's row to the currently viewed workspace.
+      let id = configId;
+      if (!id) {
+        const { data: existing, error } = await supabase.from("user_plan_config").select("id,workspace_id").eq("user_id", ownerId).maybeSingle();
+        if (error) throw error;
+        if (!visit.current) return;
+        if (existing && !(existing.workspace_id === null && ownerId === user.id) && existing.workspace_id !== (workspaceId !== user.id ? workspaceId : null)) throw new Error("Cette configuration appartient à un autre espace. Elle a été conservée ; ouvre cet espace pour la modifier.");
+        id = existing?.id ?? null;
       }
-
-      setConfig(cfg);
-      const full = await computePlan({ column, value }, cfg, overrides, coachExercises);
-      setFullPlan(full);
-      const planData = await computePlan({ column, value }, cfg, overrides, coachExercises, hiddenSteps);
-      setPlan(planData);
-      setShowSetup(false);
-    } finally {
-      setSaving(false);
-    }
-  }, [user, config, overrides, coachExercises, hiddenSteps]);
+      const query = id ? supabase.from("user_plan_config").update(fields).eq("id", id)
+        : supabase.from("user_plan_config").insert({ ...fields, user_id: ownerId, workspace_id: workspaceId !== user.id ? workspaceId : null });
+      const { data, error } = await query.select("id").single();
+      if (error || !data) throw error || new Error("La sauvegarde n’a pas pu être confirmée.");
+      if (!visit.current) return;
+      setConfigId(data.id); setConfig(cfg); setShowSetup(false); setReloadKey(k => k + 1);
+    } catch (error: any) { if (visit.current) toast.error(error instanceof Error ? error.message : "La configuration n’a pas pu être enregistrée."); }
+    finally { inFlight.current = false; if (visit.current) setSaving(false); }
+  }, [user, ownerId, loading, loadError, configId, column, value, workspaceId]);
 
   const handleToggleStep = useCallback(async (stepId: string, newStatus: 'done' | 'undone') => {
-    if (!user || !plan || !config) return;
-    const wsId = workspaceId !== user.id ? workspaceId : null;
-
-    // Check if it's a coach exercise toggle
-    if (stepId.startsWith("coach_")) {
-      const exerciseId = stepId.replace("coach_", "");
-      const dbStatus = newStatus === "done" ? "done" : "todo";
-      await (supabase.from("coach_exercises" as any).update({ status: dbStatus, updated_at: new Date().toISOString() }).eq("id", exerciseId) as any);
-      const newExercises = coachExercises.map(e => e.id === exerciseId ? { ...e, status: dbStatus } : e);
-      setCoachExercises(newExercises);
-      toast.success(newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", { duration: 2000 });
-      await recompute(overrides, newExercises, hiddenSteps);
-      return;
-    }
-
-    // Standard step override
-    const newOverrides = [...overrides.filter(o => o.step_id !== stepId), { step_id: stepId, status: newStatus }];
-    setOverrides(newOverrides);
-    toast.success(newStatus === "done" ? "✅ Étape cochée !" : "Étape décochée", { duration: 2000 });
-    await recompute(newOverrides, coachExercises, hiddenSteps);
-
-    // Persist
-    await (supabase.from("user_plan_overrides" as any).upsert({
-      user_id: user.id,
-      workspace_id: wsId,
-      step_id: stepId,
-      manual_status: newStatus,
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "user_id,workspace_id,step_id" }) as any);
+    if (!user || !plan || !config || inFlight.current) return;
+    inFlight.current = true;
+    try {
+      if (stepId.startsWith("coach_")) {
+        const id = stepId.replace("coach_", "");
+        const status = newStatus === "done" ? "done" : "todo";
+        const { data, error } = await supabase.from("coach_exercises").update({ status, updated_at: new Date().toISOString() }).eq("id", id).eq("workspace_id", workspaceId).select("id").single();
+        if (error || !data) throw error || new Error("missing receipt");
+        if (!visit.current) return;
+        const next = coachExercises.map(e => e.id === id ? { ...e, status } : e);
+        setCoachExercises(next); await recompute(overrides, next, hiddenSteps);
+      } else {
+        const read = supabase.from("user_plan_overrides").select("id").eq("user_id", user.id).eq("step_id", stepId);
+        const scope = workspaceId !== user.id ? read.eq("workspace_id", workspaceId) : read.is("workspace_id", null);
+        const { data: existing, error: readError } = await scope.order("updated_at", { ascending: false }).limit(1).maybeSingle();
+        if (readError) throw readError;
+        if (!visit.current) return;
+        const fields = { manual_status: newStatus, updated_at: new Date().toISOString() };
+        const query = existing ? supabase.from("user_plan_overrides").update(fields).eq("id", existing.id)
+          : supabase.from("user_plan_overrides").insert({ ...fields, user_id: user.id, workspace_id: workspaceId !== user.id ? workspaceId : null, step_id: stepId });
+        const { data, error } = await query.select("id").single();
+        if (error || !data) throw error || new Error("missing receipt");
+        if (!visit.current) return;
+        const next = [...overrides.filter(o => o.step_id !== stepId), { step_id: stepId, status: newStatus }];
+        setOverrides(next); await recompute(next, coachExercises, hiddenSteps);
+      }
+      if (visit.current) toast.success(newStatus === "done" ? "Étape cochée !" : "Étape décochée");
+    } catch { if (visit.current) toast.error("L’étape n’a pas pu être enregistrée. Réessaie."); }
+    finally { inFlight.current = false; }
   }, [user, plan, config, overrides, coachExercises, hiddenSteps, column, value, workspaceId, recompute]);
 
   const handleExercisesChange = useCallback(async (newExercises: CoachExercise[]) => {
@@ -223,8 +251,10 @@ export default function CommPlanPage({ embedded = false }: { embedded?: boolean 
     await recompute(overrides, coachExercises, newVis);
   }, [overrides, coachExercises, recompute]);
 
+  if (loadError) return <div className="p-6"><p>Impossible de charger ta stratégie. Tes réglages ont été conservés.</p><Button onClick={() => setReloadKey(k => k + 1)}>Réessayer</Button></div>;
+
   if (embedded) {
-    return (
+  return (
       <div className="max-w-[700px]">
         {showWelcome && !loading && plan && (
           <div className="animate-fade-in text-center space-y-4 mb-8 py-6">
