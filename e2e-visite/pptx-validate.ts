@@ -59,6 +59,8 @@ interface RasterStats {
   colors: number;
   /** Fraction de pixels pleinement opaques (alpha > 250). */
   opaqueRatio: number;
+  /** Couleur dominante (non transparente), canaux 0-255 quantifiés par pas de 8. */
+  dominant: [number, number, number];
 }
 
 export interface PptxReport {
@@ -162,7 +164,7 @@ async function inkRatio(buf: Buffer): Promise<number | RasterStats> {
     }
   }
   if (!seen) return -1;
-  return { ink: ink / seen, colors: exact.size, opaqueRatio: opaque / seen };
+  return { ink: ink / seen, colors: exact.size, opaqueRatio: opaque / seen, dominant: [dr, dg, db] };
 }
 
 export async function validatePptx(
@@ -206,6 +208,13 @@ export async function validatePptx(
    * orphelin de #575 dont l'image avait réellement disparu.
    */
   const overImageMedia = new Set<string>();
+  /**
+   * Fond natif UNI (<p:bg> solidFill) de chaque slide qui référence le média.
+   * Sert à reconnaître un voile teinté posé sur SON PROPRE fond : la racine
+   * annotée `data-pptx-shape="background"` part en <p:bg>, le dégradé
+   * semi-transparent qui l'habillait reste dans le raster (14/09).
+   */
+  const mediaNativeBg = new Map<string, [number, number, number][]>();
   /** Piles d'images par slide, pour le test « photo occultée » (géométrie EMU). */
   const slidePicStacks: { n: string; pics: { media: string; fullSlide: boolean }[] }[] = [];
   const presXml = zip.files["ppt/presentation.xml"]
@@ -222,11 +231,16 @@ export async function validatePptx(
     const slideXml = await zip.files[s].async("string");
     const hasText = [...slideXml.matchAll(/<a:t>([^<]*)<\/a:t>/g)].some((mt) => mt[1].trim().length > 0);
     const relXml = await relFile.async("string");
+    const bgHex = slideXml.match(/<p:bg>[\s\S]*?<a:solidFill><a:srgbClr val="([0-9A-Fa-f]{6})"/)?.[1];
     const ridToMedia = new Map<string, string>();
     for (const rm of relXml.matchAll(/Id="(rId\d+)"[^>]*Target="[^"]*\/media\/([^"]+)"/g)) {
       ridToMedia.set(rm[1], rm[2]);
       const base = rm[2];
       mediaSlideHasText.set(base, (mediaSlideHasText.get(base) ?? false) || hasText);
+      if (bgHex) {
+        const rgb: [number, number, number] = [0, 2, 4].map((i) => parseInt(bgHex.slice(i, i + 2), 16)) as [number, number, number];
+        mediaNativeBg.set(base, [...(mediaNativeBg.get(base) ?? []), rgb]);
+      }
     }
     const pics: { media: string; fullSlide: boolean }[] = [];
     // Parcours du spTree DANS L'ORDRE DE PEINTURE, images ET formes mêlées :
@@ -298,7 +312,19 @@ export async function validatePptx(
       if (opaqueRatio <= VEIL_MAX_OPAQUE_RATIO) {
         // Exemption : un voile posé PAR-DESSUS une autre image de la même slide
         // assombrit la photo NATIVE dessous (carrousel photo hybride) — légitime.
-        if (!overImageMedia.has(m.split("/").pop() ?? m)) {
+        // 2e exemption (14/09) : voile TEINTÉ de la couleur même du fond natif de
+        // TOUTES ses slides (écart ≤ INK_DELTA par canal). C'est le dégradé
+        // d'ambiance posé sur la racine annotée `data-pptx-shape="background"` :
+        // la racine part en <p:bg>, le dégradé reste en raster, le rendu est
+        // fidèle (mesuré : voile #1A050D α 0,35→0,85 sur <p:bg> 1A050D, texte
+        // FFECF0 lisible). Le bug #575 se composait sur un fond natif CLAIR,
+        // étranger au voile sombre → reste flaggé.
+        const base = m.split("/").pop() ?? m;
+        const natives = mediaNativeBg.get(base) ?? [];
+        const tintedOnOwnBg =
+          natives.length > 0 &&
+          natives.every((c) => c.every((v, i) => Math.abs(v - stats.dominant[i]) <= INK_DELTA));
+        if (!overImageMedia.has(base) && !tintedOnOwnBg) {
           problems.push(
             `voile sans fond : ${m} — couche 100 % semi-transparente (${b.length} o), l'image qu'elle assombrit a disparu de l'export`,
           );

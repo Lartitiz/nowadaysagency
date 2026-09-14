@@ -51,9 +51,24 @@ export async function exportAndCheckPptx(
   // premier niveau (ceux-ci = Canva / Publier ou programmer / Autres actions) :
   // « PowerPoint : éditable » vit dans « Autres actions » → sous-menu « Télécharger ».
   // html2canvas × N slides peut être long → 240 s pour l'événement download.
-  await page.getByTestId("more-actions").click();
+  //
+  // Le sous-menu « Télécharger » n'existe qu'une fois les visuels DESSINÉS
+  // (`hasVisuals`, CreerStepResult) ; avant, le menu n'offre que « Télécharger
+  // PPTX » (texte brut). Or l'écran résultat s'affiche dès le TEXTE prêt et les
+  // visuels se dessinent ensuite en arrière-plan (« Pas besoin d'attendre ici »)
+  // — le 14/09, photo + mixte ont ouvert le menu en plein « Création du layout »
+  // et échoué en 8 s. On rouvre donc le menu jusqu'à ce que le sous-menu
+  // apparaisse (plafond 180 s : au-delà, c'est bien les visuels qui manquent).
   const dlSub = page.getByRole("menuitem", { name: "Télécharger", exact: true }).first();
-  await expect(dlSub).toBeVisible({ timeout: 8000 });
+  const deadline = Date.now() + 180_000;
+  for (;;) {
+    await page.getByTestId("more-actions").click();
+    if (await dlSub.waitFor({ state: "visible", timeout: 3000 }).then(() => true, () => false)) break;
+    if (Date.now() > deadline) break;
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(5000);
+  }
+  await expect(dlSub).toBeVisible({ timeout: 1000 });
   await dlSub.hover(); // Radix : le survol du sous-déclencheur ouvre le sous-menu
   // Le séparateur du libellé a déjà bougé une fois (« — » → « : », #701 charte
   // lot 3) : on n'accroche QUE les deux mots stables, jamais la ponctuation —
