@@ -1,3 +1,4 @@
+import { isCrosspost, resumeCrosspost, crosspostText } from "@/lib/crosspost-content";
 // Logique pure extraite de CreerUnifie.tsx (monolithe) : construit le brouillon
 // de contenu calendrier à partir du résultat de génération (`result.raw`) et du
 // format choisi. Aucune dépendance à l'état React -> testable, behavior-preserving.
@@ -43,6 +44,17 @@ export function stripCoachingHint(text: string): string {
 }
 
 export function buildCalendarContent(selectedFormat: string | null, raw: any): CalendarContent {
+  if (isCrosspost(raw)) {
+    const resumed = resumeCrosspost(raw, selectedFormat)!;
+    const { _crosspost, ...editable } = resumed.raw;
+    // Avoid re-entering the adapter for an old wrapper; preserve it in provenance.
+    if (editable.type === "crosspost") delete editable.type;
+    const built = buildCalendarContent(resumed.format, editable);
+    const onlyText = !raw._crosspost && !raw.version?.slides && !Array.isArray(raw.version?.script)
+      && !raw.version?.stories && !raw.version?.sequence && !raw.version?.story_sequence;
+    return { ...built, contentDraft: onlyText ? crosspostText(raw.version || raw) : built.contentDraft,
+      storyDetail: { ...editable, ...(built.storyDetail || {}), _crosspost } };
+  }
   const r = raw;
   if (!r) return { contentDraft: "", accroche: "", storyDetail: null as any };
   let contentDraft = "";

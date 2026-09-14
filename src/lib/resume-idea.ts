@@ -1,3 +1,4 @@
+import { resumeCrosspost } from "./crosspost-content";
 import { ideaFormatToCreerFormat, type IdeaForCalendar } from './idea-to-calendar';
 
 /** Restore saved output without calling the generation endpoints. */
@@ -21,6 +22,11 @@ export function resumeIdea(idea: IdeaForCalendar) {
     raw = { content: idea.content_draft, edited_text: idea.content_draft };
   }
   if (!raw) return null;
+  const crosspost = resumeCrosspost(raw, idea.format);
+  if (crosspost) {
+    if (crosspost.format === 'carousel' && idea.updated_at !== undefined) crosspost.raw._carousel_base_updated_at = idea.updated_at;
+    return crosspost;
+  }
   if (format === 'carousel' && idea.updated_at !== undefined) raw = { ...raw, _carousel_base_updated_at: idea.updated_at };
   return { format, raw };
 }
