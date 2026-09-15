@@ -40,26 +40,39 @@ const DEFAULT_OPTIONS: ContextOptions = {
  * If workspaceId is provided, queries filter by workspace_id instead of user_id.
  */
 export async function getUserContext(supabase: any, userId: string, workspaceId?: string, channel?: string) {
-  // Fail-closed workspace membership guard: if caller is not a member of the
-  // requested workspace, silently degrade to user_id scope (no data leak).
+  // A denied or unreadable workspace must never become a personal generation.
   const guard = await assertWorkspaceMembership(supabase, userId, workspaceId);
-  const effectiveWorkspaceId = guard.ok && workspaceId ? workspaceId : undefined;
+  if (!guard.ok) throw new Error("Impossible de lire l’identité IA : accès à cet espace indisponible.");
+  const effectiveWorkspaceId = workspaceId || undefined;
 
   const col = effectiveWorkspaceId ? "workspace_id" : "user_id";
   const val = effectiveWorkspaceId || userId;
 
-  // Resolve the owner's user_id for tables without workspace_id (profiles, voice_profile)
+  // Personal history is only workspace_id NULL, never a union of all spaces.
+  const scoped = (table: string, fields: string) => {
+    const query = supabase.from(table).select(fields).eq(col, val);
+    return effectiveWorkspaceId ? query : query.is("workspace_id", null);
+  };
+  const read = async (query: any) => {
+    const result = await query;
+    // Keep database diagnostics and private values out of errors returned by callers.
+    if (result.error) throw new Error("Impossible de charger l’identité IA. Réessaie dans un instant.");
+    return result;
+  };
+
+  // Only profiles lacks workspace_id; resolve its owner before any branding read.
   let profileUserId = userId;
   if (effectiveWorkspaceId) {
-    const { data: ownerRow } = await supabase
+    const { data: ownerRow, error: ownerError } = await supabase
       .from("workspace_members")
       .select("user_id")
       .eq("workspace_id", effectiveWorkspaceId)
       .eq("role", "owner")
       .maybeSingle();
-    if (ownerRow?.user_id) {
-      profileUserId = ownerRow.user_id;
+    if (ownerError || !ownerRow?.user_id) {
+      throw new Error("Impossible de charger le propriétaire de l’identité IA. Réessaie dans un instant.");
     }
+    profileUserId = ownerRow.user_id;
   }
 
   // Build persona query: channel-specific → primary → any
@@ -67,32 +80,23 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
   const fetchPersona = async () => {
     // 1. Try channel-specific persona
     if (channel) {
-      const { data: channelPersona } = await supabase
-        .from("persona")
-        .select(personaSelect)
-        .eq(col, val)
+      const { data: channelPersona } = await read(scoped("persona", personaSelect)
         .contains("channels", [channel])
         .limit(1)
-        .maybeSingle();
+        .maybeSingle());
       if (channelPersona) return channelPersona;
     }
     // 2. Fallback to primary persona
-    const { data: primaryPersona } = await supabase
-      .from("persona")
-      .select(personaSelect)
-      .eq(col, val)
+    const { data: primaryPersona } = await read(scoped("persona", personaSelect)
       .eq("is_primary", true)
       .limit(1)
-      .maybeSingle();
+      .maybeSingle());
     if (primaryPersona) return primaryPersona;
     // 3. Fallback to any persona
-    const { data: anyPersona } = await supabase
-      .from("persona")
-      .select(personaSelect)
-      .eq(col, val)
+    const { data: anyPersona } = await read(scoped("persona", personaSelect)
       .order("created_at", { ascending: false })
       .limit(1)
-      .maybeSingle();
+      .maybeSingle());
     return anyPersona;
   };
 
@@ -103,20 +107,20 @@ export async function getUserContext(supabase: any, userId: string, workspaceId?
     // Plusieurs lignes storytelling possibles (contrainte unique retirée volontairement) :
     // on prend la primaire, sinon la plus récente — MÊME critère que chat-guide pour que
     // Coach et génération lisent la même histoire.
-    supabase.from("storytelling").select("step_7_polished, step_6_full_story, imported_text").eq(col, val).order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    read(scoped("storytelling", "step_7_polished, step_6_full_story, imported_text").order("is_primary", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }).limit(1).maybeSingle()),
     fetchPersona(),
-    supabase.from("brand_profile").select("voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, conviction_pairs, conviction_shift, conviction_verbatims, conviction_unspoken, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, target_description, target_problem, target_beliefs, channels, mission, offer").eq(col, val).maybeSingle(),
+    read(scoped("brand_profile", "voice_description, combat_cause, combat_fights, combat_alternative, combat_refusals, conviction_pairs, conviction_shift, conviction_verbatims, conviction_unspoken, tone_register, tone_level, tone_style, tone_humor, tone_engagement, key_expressions, things_to_avoid, target_verbatims, target_description, target_problem, target_beliefs, channels, mission, offer").maybeSingle()),
     // brand_proposition n'a pas de contrainte unique → tri + limit(1) pour éviter un crash
     // maybeSingle (PGRST116) si plusieurs lignes, et rester déterministe.
-    supabase.from("brand_proposition").select("version_final, version_complete, version_bio, version_one_liner").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("brand_strategy").select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").eq(col, val).maybeSingle(),
-    supabase.from("instagram_editorial_line").select("main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", profileUserId).maybeSingle(),
-    supabase.from("offers").select("*").eq(col, val).order("created_at", { ascending: true }),
-    supabase.from("instagram_audit").select("score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-    supabase.from("voice_profile").select("voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").eq("user_id", profileUserId).maybeSingle(),
-    supabase.from("brand_charter").select("color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, font_accent, photo_style, mood_keywords, visual_donts, icon_style, border_radius, ai_generated_brief, moodboard_description").eq(col, val).maybeSingle(),
-    supabase.from("branding_mirror_results").select("coherence_score, summary, alignments, gaps, quick_wins").eq(col, val).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+    read(scoped("brand_proposition", "version_final, version_complete, version_bio, version_one_liner").order("created_at", { ascending: false }).limit(1).maybeSingle()),
+    read(scoped("brand_strategy", "pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3, creative_concept, facet_1, facet_2, facet_3").maybeSingle()),
+    read(scoped("instagram_editorial_line", "main_objective, objective_details, posts_frequency, stories_frequency, time_available, pillars, preferred_formats, do_more, stop_doing, free_notes").order("created_at", { ascending: false }).limit(1).maybeSingle()),
+    read(supabase.from("profiles").select("prenom, activite, type_activite, cible, probleme_principal, piliers, tons, mission, offre, croyances_limitantes, verbatims, expressions_cles, ce_quon_evite, style_communication, validated_bio, instagram_display_name, instagram_username, instagram_bio, instagram_followers, instagram_frequency, differentiation_text, bio_cta_type, bio_cta_text").eq("user_id", profileUserId).maybeSingle()),
+    read(scoped("offers", "*").order("created_at", { ascending: true })),
+    read(scoped("instagram_audit", "score_global, score_bio, score_feed, score_edito, score_stories, score_epingles, resume, combo_gagnant").order("created_at", { ascending: false }).limit(1).maybeSingle()),
+    read(scoped("voice_profile", "voice_summary, signature_expressions, banned_expressions, tone_patterns, structure_patterns, formatting_habits, sample_texts").maybeSingle()),
+    read(scoped("brand_charter", "color_primary, color_secondary, color_accent, color_background, color_text, font_title, font_body, font_accent, photo_style, mood_keywords, visual_donts, icon_style, border_radius, ai_generated_brief, moodboard_description").maybeSingle()),
+    read(scoped("branding_mirror_results", "coherence_score, summary, alignments, gaps, quick_wins").order("created_at", { ascending: false }).limit(1).maybeSingle()),
   ]);
 
   return {
