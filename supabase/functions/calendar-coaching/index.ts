@@ -51,7 +51,12 @@ serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     );
     const { data: { user }, error: authErr } = await supabase.auth.getUser();
-    if (authErr || !user) throw new Error("Non authentifié·e");
+    if (authErr || !user) {
+      // 401 (et non 500) : le client peut alors rafraîchir la session et rejouer.
+      return new Response(JSON.stringify({ error: "Non authentifié·e" }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);
