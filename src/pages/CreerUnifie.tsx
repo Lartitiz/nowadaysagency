@@ -15,6 +15,8 @@ import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import PublishOrScheduleDialog from "@/components/creer/PublishOrScheduleDialog";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import {
@@ -173,7 +175,7 @@ function CreerWorkspace() {
   const { remainingWithBonus, loading: planLoading, plan, usage, refresh: refreshPlan } = useUserPlan();
 
   // URL params
-  const paramFormat = searchParams.get("format");
+  const paramFormat = searchParams.get("mode") === "transform" ? null : searchParams.get("format");
   const paramSujet = searchParams.get("sujet") || searchParams.get("subject") || "";
   const paramObjectif = searchParams.get("objectif") || searchParams.get("objective") || "";
   const paramMode = searchParams.get("mode");
@@ -274,7 +276,17 @@ function CreerWorkspace() {
     return Promise.resolve();
   }, [isCurrentCreation]);
 
-  const autoOpenTransform = paramMode === "transform";
+  const [transformOpen, setTransformOpen] = useState(paramMode === "transform");
+  useEffect(() => {
+    if (paramMode === "transform") setTransformOpen(true);
+  }, [paramMode, location.key]);
+  const closeTransform = () => {
+    setTransformOpen(false);
+    const cleaned = new URLSearchParams(searchParams);
+    cleaned.delete("mode");
+    cleaned.delete("format");
+    setSearchParams(cleaned, { replace: true });
+  };
   // Mode « 1er contenu » (auto=1) figé pour TOUTE la session du parcours :
   // le paramètre d'URL est retiré une fois l'init consommée (voir plus bas),
   // donc paramAuto retombe à false — le mode doit survivre en state + dans la
@@ -2603,6 +2615,12 @@ function CreerWorkspace() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
+      <Sheet open={transformOpen} onOpenChange={(open) => { if (!open) closeTransform(); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="mb-4"><SheetTitle>Transformer un contenu existant</SheetTitle></SheetHeader>
+          <CreerTransformTab />
+        </SheetContent>
+      </Sheet>
 
       {conflictPending && draftConflict && (
         <DraftConflictDialog
@@ -2688,7 +2706,7 @@ function CreerWorkspace() {
             {step === "idea" && (
               <>
                 <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
                   onIdeaChange={setIdeaText} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={setPhotoSubject}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry} />
