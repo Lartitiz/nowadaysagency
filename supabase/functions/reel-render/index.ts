@@ -131,7 +131,7 @@ serve(async (req) => {
     }
 
     // Rangé sous l'id de la créatrice : même bucket public que ses rushes.
-    const path = `reels-montes/${userId}/${crypto.randomUUID()}.mp4`;
+    const path = `${userId}/reels-montes/${crypto.randomUUID()}.mp4`;
     const { error: upErr } = await supabase.storage
       .from("calendar-media")
       .upload(path, bytes, { contentType: "video/mp4", upsert: false });
