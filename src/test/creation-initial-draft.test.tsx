@@ -3,14 +3,29 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import CreerUnifie from '@/pages/CreerUnifie';
+import ProductionApp from '@/App';
 import { loadFlowState, saveFlowState, setFlowUserId, setFlowWorkspaceId, savePhotos, loadPhotos, clearFlowState } from '@/hooks/use-flow-persistence';
 const mocks = vi.hoisted(() => ({ user: 'owner', workspace: 'A', ready: true, brandChecking: false, photoRead: vi.fn(), photoDecode: vi.fn(), generate: vi.fn(), cloud: null as any, connect: vi.fn(), publishProps: null as any, saveProps: null as any, resultProps: null as any }));
+// Keep the production BrowserRouter/AnimatedRoutes and creation page real.
+vi.mock('@/contexts/WorkspaceContext', () => ({ WorkspaceProvider: ({children}: any) => children }));
+vi.mock('@/contexts/SessionContext', () => ({ SessionProvider: ({children}: any) => children }));
+vi.mock('@/components/SelectionMenuProvider', () => ({ default: ({children}: any) => children }));
+vi.mock('@/components/ProtectedRoute', () => ({ default: ({children}: any) => children }));
+vi.mock('@/components/demo/DemoBanner', () => ({ default: () => null }));
+vi.mock('@/components/session/SessionOverlay', () => ({ default: () => null }));
+vi.mock('@/components/admin/AiDebugShortcut', () => ({ default: () => null }));
+vi.mock('@/components/UpdateBanner', () => ({ default: () => null }));
+vi.mock('@/components/feedback/BetaFeedbackWidget', () => ({ default: () => null }));
+vi.mock('@/components/AppSidebar', () => ({ default: () => {
+  const navigate = useNavigate();
+  return <><button onClick={() => navigate('/creer?sujet=Nouvelle%20intention')}>Production nouvelle intention</button><button onClick={() => navigate('/creer?canal=pinterest')}>Production Pinterest</button><button onClick={() => navigate(-1)}>Production précédent</button></>;
+} }));
 vi.mock('@/lib/social-connect', () => ({ startSocialConnect: (...args: any[]) => mocks.connect(...args) }));
 vi.mock('@/components/creer/PublishOrScheduleDialog', () => ({ default: (p: any) => { mocks.publishProps=p; return null; } }));
 vi.mock('@/components/SaveToIdeasDialog', () => ({ SaveToIdeasDialog: (p: any) => { mocks.saveProps=p; return null; } }));
-vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: mocks.user }, session: { user: { id: mocks.user } } }) }));
+vi.mock('@/contexts/AuthContext', () => ({ AuthProvider: ({children}: any) => children, useAuth: () => ({ user: { id: mocks.user }, session: { user: { id: mocks.user } } }) }));
 vi.mock('@/hooks/use-workspace-query', () => ({ useWorkspaceId: () => mocks.workspace, useWorkspaceReady: () => mocks.ready, useIsOwnSpace: () => true, useWorkspaceFilter: () => ({ column: 'workspace_id', value: mocks.workspace }) }));
-vi.mock('@/contexts/DemoContext', () => ({ useDemoContext: () => ({ isDemoMode: false }) }));
+vi.mock('@/contexts/DemoContext', () => ({ DemoProvider: ({children}: any) => children, useDemoContext: () => ({ isDemoMode: false }) }));
 vi.mock('@/hooks/use-pending-brand-review', () => ({ usePendingBrandReview: () => ({ checking: mocks.brandChecking, pending: false }) }));
 vi.mock('@/hooks/use-branding', () => ({ useBrandCharter: () => ({ data: null }) }));
 vi.mock('@/hooks/use-activity-examples', () => ({ useActivityExamples: () => ({ activityText: '' }) }));
@@ -56,8 +71,8 @@ vi.mock('@/components/creer/PhotoUploadZone', () => ({ PhotoUploadZone: (p: any)
 function App() { const nav = useNavigate(); return <><button onClick={() => nav('/ailleurs')}>Quitter</button><button onClick={() => nav('/creer')}>Créer</button><button onClick={() => nav('/creer?new=1')}>Nouveau explicite</button><button onClick={() => nav('/creer?sujet=Autre%20sujet')}>Autre intention</button><button onClick={() => nav('/creer?canal=pinterest')}>Canal Pinterest</button><button onClick={() => nav('/creer?mode=transform')}>Transformer</button><button onClick={() => nav(-1)}>Historique précédent</button><Routes><Route path="/creer" element={<CreerUnifie/>}/><Route path="/ailleurs" element={<p>Ailleurs</p>}/></Routes></>; }
 function mount(url: any = '/creer') { return render(<StrictMode><MemoryRouter initialEntries={[url]}><App/></MemoryRouter></StrictMode>); }
 function type(text: string) { fireEvent.change(screen.getByRole('textbox'), { target: { value: text } }); }
-beforeEach(() => { cleanup(); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; mocks.brandChecking=false; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
-afterEach(cleanup);
+beforeEach(() => { cleanup(); vi.spyOn(window, 'scrollTo').mockImplementation(() => {}); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; mocks.brandChecking=false; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
+afterEach(() => { cleanup(); vi.restoreAllMocks(); window.history.replaceState(null, '', '/'); });
 describe('initial creation draft through real React components', () => {
   it('keeps the first words on leave, return and reload before continuing', async () => {
     const app=mount(); type('  Mes premiers mots\nencore bruts  ');
@@ -289,4 +304,31 @@ it('opens transform on the already-mounted result and preserves the current crea
  saveFlowState({step:'result',ideaText:'Post QA',selectedFormat:'post',result:{type:'post',raw:{content:'Post gardé'}},editingIdeaId:'saved-post',creationId:'post-id'});
  mount();await screen.findByTestId('result');fireEvent.click(screen.getByText('Transformer'));
  await screen.findByText('Choix Recycler et Crosspost');expect(loadFlowState()).toMatchObject({creationId:'post-id',editingIdeaId:'saved-post',step:'result'});
+});
+
+it('preserves saved output through production Routes when consuming resume params with REPLACE', async()=>{
+ const raw={subject:'Objet',content:'Original',edited_text:'Retouche sauvegardée'};
+ window.history.replaceState({usr:{ideaId:'saved-news',resumeIdea:{format:'newsletter',raw}},key:'resume-news',idx:0},'', '/creer?sujet=Newsletter&format=newsletter&canal=newsletter&idea_id=saved-news');
+ render(<ProductionApp/>);
+ await screen.findByTestId('result');
+ await waitFor(()=>expect(window.location.search).toBe('?canal=newsletter'));
+ expect(loadFlowState()).toMatchObject({step:'result',ideaText:'Newsletter',editingIdeaId:'saved-news',result:{raw}});
+ // A genuine PUSH must still enter the conflict gate, and POP must return safely.
+ fireEvent.click(screen.getByText('Production nouvelle intention'));
+ await screen.findByRole('dialog');
+ expect(loadFlowState()?.result?.raw).toEqual(raw);
+ fireEvent.click(screen.getByText('Production précédent'));
+ await waitFor(()=>expect(screen.queryByRole('dialog')).toBeNull());
+ expect(screen.getByTestId('result')).toHaveTextContent('Retouche sauvegardée');
+ expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-news',result:{raw}});
+});
+
+it('keeps real PUSH and POP channel navigation through production Routes', async()=>{
+ window.history.replaceState({usr:null,key:'channel-linkedin',idx:0},'', '/creer?canal=linkedin');
+ render(<ProductionApp/>); await screen.findByRole('textbox'); type('Sujet conservé');
+ fireEvent.click(screen.getByText('Production Pinterest'));
+ await waitFor(()=>expect(loadFlowState()?.forcedChannel).toBe('pinterest'));
+ fireEvent.click(screen.getByText('Production précédent'));
+ await waitFor(()=>expect(loadFlowState()?.forcedChannel).toBe('linkedin'));
+ expect(screen.getByRole('textbox')).toHaveValue('Sujet conservé');
 });
