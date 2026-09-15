@@ -64,3 +64,16 @@ export function useLinkedInPersistence(table: Table, week?: string) {
   };
   return { rows, error, reload, save, busy, saveError, active, snapshot };
 }
+
+/**
+ * Copies loaded rows into the screen's local state and reports when that is done.
+ * Keep the screen loading until it returns true: between `rows` arriving and a plain
+ * hydration effect running, the form is interactive with its blank initial state, and a
+ * click on "Enregistrer" there would overwrite the loaded rows with that blank state.
+ */
+export function useHydratedRows(rows: Row[] | null, hydrate: (rows: Row[]) => void) {
+  const [hydrated, setHydrated] = useState<Row[] | null>(null);
+  // `hydrate` is a fresh closure each render: rerun only when a new server snapshot arrives.
+  useEffect(() => { if (rows) { hydrate(rows); setHydrated(rows); } }, [rows]); // eslint-disable-line react-hooks/exhaustive-deps
+  return rows !== null && hydrated === rows;
+}

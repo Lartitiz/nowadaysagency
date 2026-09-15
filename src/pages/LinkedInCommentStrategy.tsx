@@ -1,6 +1,6 @@
 import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
-import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
-import { useState, useEffect } from "react";
+import { useHydratedRows, useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
+import { useState } from "react";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Button } from "@/components/ui/button";
@@ -18,18 +18,16 @@ export default function LinkedInCommentStrategy() { return <LinkedInScope page={
 
 function LinkedInCommentStrategyForm() {
   const store = useLinkedInPersistence("linkedin_comment_strategy");
-  const loading = !store.rows;
   const [strategyId, setStrategyId] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<CommentAccount[]>([]);
   const [newName, setNewName] = useState("");
   const [newNiche, setNewNiche] = useState("");
 
-  useEffect(() => {
-    if (!store.rows) return;
-    const row = store.rows[0];
+  const loading = !useHydratedRows(store.rows, rows => {
+    const row = rows[0];
     setStrategyId(row?.id || null);
     setAccounts(Array.isArray(row?.accounts) ? row.accounts : []);
-  }, [store.rows]);
+  });
 
   const save = async (newAccounts: CommentAccount[]) => {
     const result = await store.save([{ id: strategyId || crypto.randomUUID(), accounts: newAccounts }]);

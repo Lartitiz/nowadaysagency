@@ -1,6 +1,6 @@
 import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
-import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
-import { useState, useEffect } from "react";
+import { useHydratedRows, useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
@@ -40,7 +40,6 @@ function LinkedInRecommandationsForm() {
   const workspaceId = useWorkspaceId();
   const { data: profileData } = useProfile();
   const store = useLinkedInPersistence("linkedin_recommendations");
-  const loading = !store.rows;
   const [recos, setRecos] = useState<Reco[]>(
     Array.from({ length: 5 }, () => ({ person_name: "", person_type: "client", request_sent: false, reco_received: false }))
   );
@@ -62,7 +61,7 @@ function LinkedInRecommandationsForm() {
     while (loaded.length < 5) loaded.push({ id: crypto.randomUUID(), person_name: "", person_type: "client", request_sent: false, reco_received: false });
     return loaded;
   };
-  useEffect(() => { if (store.rows) setRecos(hydrate(store.rows)); }, [store.rows]);
+  const loading = !useHydratedRows(store.rows, rows => setRecos(hydrate(rows)));
 
   const updateReco = (idx: number, field: keyof Reco, value: any) => {
     setRecos(prev => {
