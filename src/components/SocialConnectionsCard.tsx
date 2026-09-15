@@ -230,11 +230,11 @@ export default function SocialConnectionsCard() {
                       Connexion expirée — reconnecte-toi pour relancer les publications automatiques.
                     </p>
                   ) : isConnected ? (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3 text-success" />
+                    <p className="text-xs text-muted-foreground break-words">
+                      <CheckCircle2 className="inline-block h-3 w-3 mr-1 text-success" />
                       Connecté{conn?.accountName ? ` : ${p.atHandle ? "@" : ""}${conn.accountName}` : ""}
                       {conn?.expiresAt && (
-                        <span className={tokenExpiresSoon ? "ml-1 text-warning font-medium" : "ml-1"}>
+                        <span className={tokenExpiresSoon ? "block text-warning font-medium" : "block"}>
                           · expire le {new Date(conn.expiresAt).toLocaleDateString("fr-FR")}
                           {tokenExpiresSoon ? " : reconnecte-toi d'ici là" : ""}
                         </span>
