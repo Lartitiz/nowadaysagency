@@ -99,6 +99,7 @@ END $$;
 SET LOCAL ROLE authenticated;
 SELECT set_config('test.uid','11111111-1111-4111-8111-111111111111',true);
 SELECT public.set_photo_library_visibility('aaaaaaaa-0000-4000-8000-000000000001', true);
+RESET ROLE;
 DO $$ BEGIN
   IF (SELECT removed_from_library_at IS NULL FROM user_photos WHERE id='aaaaaaaa-0000-4000-8000-000000000001') THEN
     RAISE EXCEPTION 'photo still visible';
@@ -107,6 +108,10 @@ DO $$ BEGIN
      OR EXISTS(SELECT * FROM before_workflows EXCEPT SELECT * FROM photo_workflows) THEN
     RAISE EXCEPTION 'existing content changed';
   END IF;
+END $$;
+
+SET LOCAL ROLE authenticated;
+DO $$ BEGIN
   BEGIN
     DELETE FROM user_photos WHERE id='aaaaaaaa-0000-4000-8000-000000000001';
     IF FOUND THEN RAISE EXCEPTION 'direct physical delete allowed'; END IF;
