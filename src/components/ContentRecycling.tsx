@@ -11,7 +11,7 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { Checkbox } from "@/components/ui/checkbox";
 import { useSpeechRecognition } from "@/hooks/use-speech-recognition";
 import BaseReminder from "@/components/BaseReminder";
-import RedFlagsChecker from "@/components/RedFlagsChecker";
+import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Mic, MicOff, Sparkles, Loader2, Copy, RefreshCw, Upload, X, Plus, CalendarDays, Lightbulb } from "lucide-react";
 import { toast } from "sonner";
@@ -212,7 +212,7 @@ export default function ContentRecycling() {
         if (k === "carrousel" && rawCarousel && typeof rawCarousel === "object" && Array.isArray(rawCarousel.slides)) {
           const slides = rawCarousel.slides as Array<{ slide_number: number; title: string; body: string }>;
           const caption = rawCarousel.caption || { hook: "", body: "", cta: "" };
-          structure = { slides, caption };
+          structure = { ...rawCarousel, slides, caption };
           const slidesText = slides
             .map((s) => `Slide ${s.slide_number} · ${s.title}\n${s.body}`)
             .join("\n\n");
@@ -475,7 +475,23 @@ export default function ContentRecycling() {
 
               <RedFlagsChecker
                 content={results[activeTab]}
-                onFix={(fixed) => { setResults(prev => ({ ...prev, [activeTab]: fixed })); if (activeTab === "carrousel") setCarouselStructure(null); }}
+                onFix={(fixed) => {
+                  setResults(prev => ({ ...prev, [activeTab]: fixed }));
+                  if (activeTab === "carrousel") setCarouselStructure(current => current && ({
+                    ...current,
+                    slides: current.slides.map(slide => ({
+                      ...slide,
+                      ...(typeof slide.title === "string" ? { title: fixRedFlags(slide.title) } : {}),
+                      ...(typeof slide.body === "string" ? { body: fixRedFlags(slide.body) } : {}),
+                    })),
+                    caption: {
+                      ...current.caption,
+                      ...(typeof current.caption.hook === "string" ? { hook: fixRedFlags(current.caption.hook) } : {}),
+                      ...(typeof current.caption.body === "string" ? { body: fixRedFlags(current.caption.body) } : {}),
+                      ...(typeof current.caption.cta === "string" ? { cta: fixRedFlags(current.caption.cta) } : {}),
+                    },
+                  }));
+                }}
               />
 
               <div className="flex flex-wrap gap-2">
@@ -507,7 +523,7 @@ export default function ContentRecycling() {
                 onOpenChange={setShowIdeasDialog}
                 contentType={getContentType(activeTab)}
                 subject={getTopicFor(activeTab)}
-                contentData={{ type: "recycling", format: activeTab, text: activeText }}
+                contentData={{ ...(activeTab === "carrousel" && carouselStructure ? carouselStructure : {}), type: "recycling", format: activeTab, text: activeText }}
                 sourceModule="recycling"
                 format={getCalendarFormat(activeTab)}
               />

@@ -1,0 +1,65 @@
+import React from 'react';
+import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { MemoryRouter } from 'react-router-dom';
+import ContentRecycling from '@/components/ContentRecycling';
+import { resumeIdea } from '@/lib/resume-idea';
+const m=vi.hoisted(()=>({saved:null as any,calendar:null as any,response:null as any,raw:{slides:[{id:'s1',slide_number:1,title:'Première',body:'Un'},{id:'s2',slide_number:2,title:'Deuxième',body:'Deux'}],caption:{hook:'Légende',body:'Séparée',cta:'Fin'}}}));
+vi.mock('@/contexts/AuthContext',()=>({useAuth:()=>({user:{id:'qa'}})}));
+vi.mock('@/hooks/use-workspace-query',()=>({useWorkspaceId:()=> 'qa-space'}));
+vi.mock('@/hooks/use-speech-recognition',()=>({useSpeechRecognition:()=>({isListening:false,isSupported:false,toggle:()=>{}})}));
+vi.mock('@/components/ui/textarea-with-voice',()=>({TextareaWithVoice:(p:any)=><textarea {...p}/>}));
+vi.mock('@/components/BaseReminder',()=>({default:()=>null}));
+vi.mock('@/components/AiLoadingIndicator',()=>({default:()=>null}));
+vi.mock('@/components/calendar/AddToCalendarDialog',()=>({AddToCalendarDialog:(p:any)=>p.open?<button onClick={()=>p.onConfirm('2026-09-30')}>Confirmer calendrier QA</button>:null}));
+vi.mock('@/lib/posthog',()=>({posthog:{capture:()=>{}}}));
+vi.mock('@/lib/invoke-with-timeout',()=>({invokeWithTimeout:async()=>({data:m.response??{results:{carrousel:m.raw}},error:null})}));
+vi.mock('@/integrations/supabase/client',()=>({supabase:{from:(table:string)=>{const q:any={insert:(v:any)=>{if(table==='saved_ideas')m.saved=v;if(table==='calendar_posts')m.calendar=v;return q},select:()=>q,single:async()=>({data:{id:'saved'},error:null}),then:(resolve:any)=>Promise.resolve({data:null,error:null}).then(resolve)};return q}}}));
+beforeEach(()=>{m.saved=null;m.calendar=null;m.response=null;});
+afterEach(cleanup);
+it('keeps structured recycled carousel through the real SaveToIdeasDialog and resume adapter',async()=>{
+ render(<MemoryRouter initialEntries={['/creer?format=carrousel']}><ContentRecycling/></MemoryRouter>);
+ fireEvent.change(screen.getByRole('textbox'),{target:{value:'Document QA'}});
+ fireEvent.click(screen.getByRole('button',{name:'Recycler'}));
+ fireEvent.click(await screen.findByRole('button',{name:'Sauvegarder en idée'}));
+ fireEvent.click(screen.getByRole('button',{name:'Enregistrer dans Mes idées'}));
+ await waitFor(()=>expect(m.saved).toBeTruthy());
+ const resumed=resumeIdea(m.saved);
+ expect(resumed?.raw.slides).toEqual(m.raw.slides);
+ expect(resumed?.raw.caption).toEqual(m.raw.caption);
+});
+
+it('preserves corrected fields, explicit empty text, order and caption on saved carousel resume',async()=>{
+ m.raw={slides:[{id:'s2',slide_number:1,title:'N’hésitez pas',body:'Dans un monde où'},{id:'s1',slide_number:2,title:'Deuxième',body:''}],caption:{hook:'En outre',body:'Séparée',cta:''}};
+ const original=JSON.stringify(m.raw);
+ render(<MemoryRouter initialEntries={['/creer?format=carrousel']}><ContentRecycling/></MemoryRouter>);
+ fireEvent.change(screen.getByRole('textbox'),{target:{value:'Document QA'}});
+ fireEvent.click(screen.getByRole('button',{name:'Recycler'}));
+ const fix=await screen.findByRole('button',{name:/Corriger/}); fireEvent.click(fix);
+ fireEvent.click(screen.getByRole('button',{name:'Sauvegarder en idée'}));
+ fireEvent.click(screen.getByRole('button',{name:'Enregistrer dans Mes idées'}));
+ await waitFor(()=>expect(m.saved.content_data.slides[0].body).toBe(''));
+ const resumed=resumeIdea(m.saved);
+ expect(resumed?.raw.slides.map((s:any)=>s.id)).toEqual(['s2','s1']);
+ expect(resumed?.raw.slides[1].body).toBe('');
+ expect(resumed?.raw.caption).toEqual({hook:'Et',body:'Séparée',cta:''});
+ expect(m.saved.content_data.text).not.toContain('Dans un monde où');
+ expect(JSON.stringify(m.raw)).toBe(original);
+ fireEvent.click(screen.getByRole('button',{name:'Planifier'}));
+ fireEvent.click(screen.getByRole('button',{name:'Confirmer calendrier QA'}));
+ await waitFor(()=>expect(m.calendar).toBeTruthy());
+ expect(m.calendar.story_sequence_detail.slides).toEqual(resumed?.raw.slides);
+ expect(m.calendar.story_sequence_detail.caption).toEqual(resumed?.raw.caption);
+});
+
+it.each(['linkedin','newsletter','reel','stories','carrousel'])('keeps the current text-only %s save contract',async format=>{
+ m.response={results:{[format]:'En outre : texte QA'}};
+ render(<MemoryRouter initialEntries={['/creer?format='+format]}><ContentRecycling/></MemoryRouter>);
+ fireEvent.change(screen.getByRole('textbox'),{target:{value:'Document QA'}});
+ fireEvent.click(screen.getByRole('button',{name:'Recycler'}));
+ fireEvent.click(await screen.findByRole('button',{name:/Corriger/}));
+ fireEvent.click(screen.getByRole('button',{name:'Sauvegarder en idée'}));
+ fireEvent.click(screen.getByRole('button',{name:'Enregistrer dans Mes idées'}));
+ await waitFor(()=>expect(m.saved).toBeTruthy());
+ expect(m.saved.content_data).toEqual({type:'recycling',format,text:'Et : texte QA'});
+});
