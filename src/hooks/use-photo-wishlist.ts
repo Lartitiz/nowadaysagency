@@ -42,10 +42,8 @@ export function usePhotoWishlist() {
         .order("created_at", { ascending: true })
         .limit(100);
       if (error) {
-        // Dégradation douce si la migration n'est pas encore passée en prod :
-        // la page photos reste utilisable, le panneau s'affiche vide.
         console.warn("[photo-wishlist] select error:", error.message);
-        return [];
+        throw new Error(error.message);
       }
       return (data ?? []) as PhotoWishlistRow[];
     },
@@ -57,19 +55,23 @@ export function usePhotoWishlistMutations() {
   const workspaceId = useWorkspaceId();
   const queryClient = useQueryClient();
 
-  const invalidate = () =>
-    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
+  const invalidate = (targetWorkspaceId = workspaceId) =>
+    queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, targetWorkspaceId] });
 
-  async function addMany(labels: string[], source: PhotoWishlistRow["source"]): Promise<void> {
-    if (!user?.id || !workspaceId) throw new Error("Espace de travail introuvable");
+  async function addMany(
+    labels: string[],
+    source: PhotoWishlistRow["source"],
+    targetWorkspaceId = workspaceId,
+  ): Promise<void> {
+    if (!user?.id || !targetWorkspaceId) throw new Error("Espace de travail introuvable");
     const rows = labels
       .map((l) => l.trim())
       .filter(Boolean)
-      .map((label) => ({ workspace_id: workspaceId, user_id: user.id, label, source }));
+      .map((label) => ({ workspace_id: targetWorkspaceId, user_id: user.id, label, source }));
     if (!rows.length) return;
     const { error } = await supabase.from("photo_wishlist").insert(rows);
     if (error) throw new Error(error.message);
-    await invalidate();
+    await invalidate(targetWorkspaceId);
   }
 
   async function setDone(item: PhotoWishlistRow, done: boolean): Promise<void> {

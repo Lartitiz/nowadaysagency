@@ -7,9 +7,10 @@
  */
 
 import { useState } from "react";
-import { Camera, Check, ChevronDown, ChevronUp, Loader2, Plus, Trash2 } from "lucide-react";
+import { Camera, Check, ChevronDown, ChevronUp, Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   usePhotoWishlist,
@@ -25,12 +26,14 @@ interface PhotoWishlistPanelProps {
 }
 
 export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelProps) {
-  const { data: items = [], isLoading } = usePhotoWishlist();
+  const { data, isLoading, isError, isFetching, refetch } = usePhotoWishlist();
   const { addMany, setDone, remove } = usePhotoWishlistMutations();
   const [newLabel, setNewLabel] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const items = data ?? [];
+  const initialLoading = isLoading && data === undefined;
 
   const open = items.filter((i) => i.status === "open");
   const done = items
@@ -87,12 +90,17 @@ export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelPr
         <Camera className="h-4 w-4 shrink-0 text-warning" />
         <span className="text-sm font-medium text-foreground">Photos à prendre</span>
         <span className="text-xs text-muted-foreground">
-          {isLoading
+          {initialLoading
             ? "…"
+            : isError && data === undefined
+              ? "liste indisponible"
             : open.length === 0
               ? "rien pour l'instant"
               : `${open.length} en attente`}
         </span>
+        {isError && data !== undefined && (
+          <span className="text-xs text-destructive">actualisation impossible</span>
+        )}
         <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
       </button>
     );
@@ -119,11 +127,32 @@ export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelPr
         Les photos que tes contenus réclament et qui n'existent pas encore.
       </p>
 
-      {isLoading ? (
+      {isError && (
+        <div
+          role="alert"
+          className="mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2"
+        >
+          <p className="min-w-0 flex-1 text-xs text-destructive">
+            Impossible de charger la liste pour le moment.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={isFetching}
+            onClick={() => void refetch()}
+          >
+            <RefreshCw className={cn("mr-1.5 h-3.5 w-3.5", isFetching && "animate-spin")} />
+            Réessayer
+          </Button>
+        </div>
+      )}
+
+      {initialLoading ? (
         <div className="flex justify-center py-4">
           <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
         </div>
-      ) : open.length === 0 && done.length === 0 ? (
+      ) : isError && data === undefined ? null : open.length === 0 && done.length === 0 ? (
         <p className="text-xs text-muted-foreground italic mb-3">
           Rien pour l'instant : les demandes s'accumuleront ici au fil de tes créations.
         </p>
