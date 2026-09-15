@@ -57,6 +57,12 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   }
   const r = raw;
   if (!r) return { contentDraft: "", accroche: "", storyDetail: null as any };
+  const reelSections = Array.isArray(r.sections) ? r.sections
+    : Array.isArray(r.script) ? r.script
+    : Array.isArray(r.script?.sections) ? r.script.sections : [];
+  const storySequence = [r.stories, r.sequences, r.slides].find(Array.isArray);
+  const stories = storySequence || [];
+  const storyText = (story: any) => String(story.text ?? story.texte ?? story.content ?? "");
   let contentDraft = "";
   let accroche = "";
 
@@ -66,7 +72,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
     // slide_number IA fantaisiste ne doit jamais fuir dans le calendrier.
     contentDraft = (r.slides || []).map((s: any, i: number) => s.overlay_text ? `SLIDE ${i + 1}: ${s.overlay_text}` : `SLIDE ${i + 1}: (photo seule)`).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
     const storyDetail: any = { type: "carousel_photo", slides: r.slides, caption: r.caption, quality_check: r.quality_check, ...(r.carousel_editor_version ? { carousel_editor_version: r.carousel_editor_version, visual_html: r.visual_html } : {}) };
-    if (r.edited_text?.trim()) contentDraft = r.edited_text;
+    if (typeof r.edited_text === "string") contentDraft = r.edited_text;
     return { contentDraft, accroche, storyDetail };
   }
 
@@ -79,7 +85,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       return `SLIDE ${i + 1} [📝]: ${s.title || ""} — ${s.body || ""}`;
     }).join("\n") + "\n\n" + [r.caption?.hook, r.caption?.body, r.caption?.cta].filter(Boolean).join("\n");
     const storyDetail: any = { type: "carousel_mix", slides: r.slides, caption: r.caption, quality_check: r.quality_check, ...(r.carousel_editor_version ? { carousel_editor_version: r.carousel_editor_version, visual_html: r.visual_html } : {}) };
-    if (r.edited_text?.trim()) contentDraft = r.edited_text;
+    if (typeof r.edited_text === "string") contentDraft = r.edited_text;
     return { contentDraft, accroche, storyDetail };
   }
 
@@ -92,19 +98,18 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
     accroche = (r.hook || r.full_text?.split(/[.\n]/)[0] || "").trim().slice(0, 200);
     contentDraft = r.full_text || [r.hook, r.body, r.cta].filter(Boolean).join("\n\n");
   } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
-    const reelSections = r.sections || r.script || [];
     accroche = reelSections[0]?.texte_parle || r.accroche || "";
-    contentDraft = reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
-  } else if (selectedFormat === "story" && r?.stories) {
-    accroche = r.stories?.[0]?.text || "";
+    contentDraft = typeof r.script === "string" && !reelSections.length ? r.script : reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
+  } else if (selectedFormat === "story" && storySequence) {
+    accroche = storyText(stories[0] || {});
     const sequenceTime = r.publication_time
-      || r.stories.find((story: any) => story?.timing)?.timing
+      || stories.find((story: any) => story?.timing)?.timing
       || null;
     const sequenceHeader = sequenceTime
       ? `SÉQUENCE À PUBLIER À LA SUITE (${sequenceTime})\n\n`
       : "";
-    contentDraft = sequenceHeader + r.stories
-      .map((s: any) => `STORY ${s.number || ""}\n${s.format_label || s.format || ""}\n${s.text || ""}${s.sticker ? `\n🎯 ${s.sticker.label || s.sticker.type || ""}` : ""}`)
+    contentDraft = sequenceHeader + stories
+      .map((s: any) => `STORY ${s.number || ""}\n${s.format_label || s.format || ""}\n${storyText(s)}${s.sticker ? `\n🎯 ${s.sticker.label || s.sticker.type || ""}` : ""}`)
       .join("\n\n───\n\n");
   } else if (selectedFormat === "pinterest_visual" && (r?.title || r?.description)) {
     accroche = r.title || "";
@@ -144,6 +149,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
     };
   } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
     storyDetail = {
+      ...r,
       type: "reel",
       format_type: r.format_type,
       format_label: r.format_label,
@@ -155,15 +161,16 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       alt_text: r.alt_text,
       amplification_stories: r.amplification_stories,
     };
-  } else if (selectedFormat === "story" && (r?.stories || r?.sequences)) {
+  } else if (selectedFormat === "story" && storySequence) {
     storyDetail = {
+      ...r,
       type: "stories",
-      stories: r.stories || r.sequences,
+      stories,
       structure_type: r.structure_type,
       structure_label: r.structure_label,
       narrative_angle: r.narrative_angle || null,
       publication_time: r.publication_time
-        || (Array.isArray(r.stories) ? r.stories.find((story: any) => story?.timing)?.timing : null)
+        || stories.find((story: any) => story?.timing)?.timing
         || null,
       stickers_used: r.stickers_used,
       garde_fou_alerte: r.garde_fou_alerte,
@@ -172,7 +179,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   }
 
   // Si l'utilisatrice a édité le texte (étape "edit"), il prime sur la version IA.
-  if (r.edited_text?.trim()) contentDraft = r.edited_text;
+  if (typeof r.edited_text === "string") contentDraft = r.edited_text;
 
   return { contentDraft: stripCoachingHint(contentDraft), accroche, storyDetail };
 }

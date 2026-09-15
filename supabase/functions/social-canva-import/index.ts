@@ -1,3 +1,4 @@
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 // Importe un fichier (PPTX d'un carrousel) dans le Canva connecté de l'utilisateur
 // et renvoie l'URL d'édition du design créé.
 // Flux : refresh token si besoin -> POST /url-imports -> polling du job ->
@@ -131,6 +132,8 @@ Deno.serve(async (req) => {
 
     // Lecture de la connexion Canva (service-role, jamais exposée au client).
     const supabase = getServiceClient();
+    const membership = await assertWorkspaceMembership(supabase, userId, workspaceId);
+    if (!membership.ok) return workspaceDeniedResponse(corsHeaders);
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || userId;
     let q = supabase

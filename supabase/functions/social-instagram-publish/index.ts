@@ -1,3 +1,5 @@
+import { workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { assertWorkspacePublication } from "../_shared/social-workspace-guard.ts";
 import { publishReelToInstagram } from "../_shared/instagram-graph.ts";
 import { isDurableReelUrl } from "../_shared/reel-publication.ts";
 // redeploy 2026-08-04
@@ -118,6 +120,8 @@ Deno.serve(async (req) => {
     }
 
     const supabase = getServiceClient();
+    const membership = await assertWorkspacePublication(supabase, userId, workspaceId);
+    if (!membership.ok) return workspaceDeniedResponse(corsHeaders);
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || userId;
     let q = supabase

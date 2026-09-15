@@ -37,6 +37,8 @@ const LINKEDIN_CONNECTION = {
  */
 function fakeSupabase(opts: {
   dueRows?: any[];
+  membership?: "member" | "removed" | "error";
+  memberRole?: string | null;
   connection?: any | null;
   claimSucceeds?: boolean;
   getUserByIdResult?: { data: any; error: any };
@@ -48,6 +50,7 @@ function fakeSupabase(opts: {
 
   const updateCalls: any[] = [];
   const emailCallCount = { n: 0 };
+  let connectionReads = 0;
 
   function calendarPostsBuilder() {
     const state: { filters: Record<string, unknown>; update?: any; select?: string } = { filters: {} };
@@ -144,7 +147,14 @@ function fakeSupabase(opts: {
     from(table: string) {
       if (table === "reel_publication_receipts") return ledger.from();
       if (table === "calendar_posts") return calendarPostsBuilder();
-      if (table === "social_connections") return socialConnectionsBuilder();
+      if (table === "workspace_members") {
+        const filters: Record<string,unknown> = {};
+        const q: any = {select:()=>q,eq:(k:string,v:unknown)=>{filters[k]=v;return q},maybeSingle:()=>{
+          assertEquals(filters,{workspace_id:"r4-space",user_id:"user-1"});
+          return Promise.resolve(opts.membership === "error" ? {data:null,error:{message:"PRIVATE R4 diagnostic"}} : {data:opts.membership === "removed"?null:{role:opts.memberRole === undefined ? "editor" : opts.memberRole},error:null});
+        }};return q;
+      }
+      if (table === "social_connections") {connectionReads++; return socialConnectionsBuilder();}
       throw new Error(`Table non mockée dans ce test: ${table}`);
     },
     auth: {
@@ -155,6 +165,7 @@ function fakeSupabase(opts: {
         },
       },
     },
+    get _connectionReads() {return connectionReads;},
     _updateCalls: updateCalls,
     _emailCallCount: emailCallCount,
   };
@@ -321,4 +332,32 @@ Deno.test("scheduled Reel uses durable MP4, complete caption and same receipt on
   const media=calls.find(u=>u.pathname.endsWith("/media"))!;
   assertEquals(media.searchParams.get("media_type"),"REELS");assertEquals(media.searchParams.get("video_url"),video);
   assertEquals(media.searchParams.get("caption"),"Caption\n\nCTA\n\n#tag");assertEquals(media.searchParams.has("image_url"),false);
+});
+
+for (const membership of ["removed", "error"] as const) Deno.test(`scheduler: ${membership} member never reads old connection or calls provider`, async () => {
+ const sb=fakeSupabase({membership,dueRows:[{...DUE_POST,workspace_id:"r4-space"}]});
+ let network=0;
+ const result=await withMockedFetch(async()=>{network++;return new Response(JSON.stringify({message:"R4 rejected"}),{status:400})},()=>processScheduledPosts(sb));
+ assertEquals(result.results[0].ok,false);
+ assertEquals({connections:sb._connectionReads,network,notifications:sb._emailCallCount.n},{connections:0,network:0,notifications:0});
+ const failed=sb._updateCalls.find(c=>c.filters.id===DUE_POST.id&&c.update.publish_status==="failed");
+ assertEquals(!!failed,true);
+ assertEquals(JSON.stringify(failed).includes("PRIVATE R4"),false);
+});
+Deno.test("scheduler: valid member keeps exact scoped publication",async()=>{
+ const sb=fakeSupabase({membership:"member",dueRows:[{...DUE_POST,workspace_id:"r4-space"}]});
+ const result=await withMockedFetch(async()=>new Response(JSON.stringify({id:"urn:li:share:r4"}),{status:201,headers:{"Content-Type":"application/json"}}),()=>processScheduledPosts(sb));
+ assertEquals(result.results[0].ok,true);assertEquals(sb._connectionReads,1);
+});
+
+for(const memberRole of ["viewer",null])Deno.test(`scheduler: ${memberRole} role never publishes an old scheduled post`,async()=>{
+ const sb=fakeSupabase({membership:"member",memberRole,dueRows:[{...DUE_POST,workspace_id:"r4-space"}]});
+ let calls=0;
+ const result=await withMockedFetch(async()=>{calls++;return new Response("{}",{status:400})},()=>processScheduledPosts(sb));
+ assertEquals(result.results[0].ok,false);assertEquals(sb._connectionReads,0);assertEquals(calls,0);assertEquals(sb._emailCallCount.n,0);
+});
+for(const memberRole of ["owner","manager"])Deno.test(`scheduler: ${memberRole} keeps scheduled publication`,async()=>{
+ const sb=fakeSupabase({memberRole,dueRows:[{...DUE_POST,workspace_id:"r4-space"}]});
+ const result=await withMockedFetch(async()=>new Response(JSON.stringify({id:"urn:li:share:r4"}),{status:201,headers:{"Content-Type":"application/json"}}),()=>processScheduledPosts(sb));
+ assertEquals(result.results[0].ok,true);
 });

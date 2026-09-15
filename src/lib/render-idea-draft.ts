@@ -17,6 +17,7 @@ export function renderIdeaDraft(raw: string | null | undefined, formatHint?: str
     return raw;
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return raw;
+  if (typeof parsed.edited_text === "string") return parsed.edited_text;
 
   const detected =
     parsed.carousel_type || parsed.slides ? "carousel"

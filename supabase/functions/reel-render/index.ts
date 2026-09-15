@@ -1,3 +1,4 @@
+import { isAllowedReelRenderUrl } from "./archive-url.ts";
 /**
  * reel-render
  *
@@ -60,14 +61,7 @@ const StatusSchema = z.object({
 // distant dans NOTRE bucket, il ne doit pas devenir un proxy universel.
 const ArchiveSchema = z.object({
   action: z.literal("archive"),
-  url: z.string().url().refine((u) => {
-    try {
-      const h = new URL(u).hostname;
-      return h === "json2video.com" || h.endsWith(".json2video.com");
-    } catch {
-      return false;
-    }
-  }, "URL de rendu inattendue."),
+  url: z.string().url().refine(isAllowedReelRenderUrl, "URL de rendu inattendue."),
 });
 
 const BodySchema = z.discriminatedUnion("action", [SubmitSchema, StatusSchema, ArchiveSchema]);
@@ -99,7 +93,7 @@ serve(async (req) => {
   if (body.action === "archive") {
     let src: Response;
     try {
-      src = await fetch(body.url);
+      src = await fetch(body.url, { redirect: "error", signal: AbortSignal.timeout(30_000) });
     } catch (e) {
       console.error("[reel-render] archive download error", e);
       return json({ error: "Impossible de récupérer la vidéo montée." }, 502);
@@ -119,6 +113,10 @@ serve(async (req) => {
       );
     }
 
+    const contentType = (src.headers.get("content-type") || "").split(";")[0].toLowerCase();
+    if (!["video/mp4", "application/octet-stream"].includes(contentType)) {
+      return json({ error: "Le fichier reçu n’est pas une vidéo MP4." }, 502);
+    }
     const declared = Number(src.headers.get("content-length") || 0);
     if (declared > MAX_MP4_BYTES) {
       return json({ error: "La vidéo montée dépasse la taille autorisée (150 Mo)." }, 413);
@@ -126,6 +124,10 @@ serve(async (req) => {
     const bytes = new Uint8Array(await src.arrayBuffer());
     if (bytes.byteLength > MAX_MP4_BYTES) {
       return json({ error: "La vidéo montée dépasse la taille autorisée (150 Mo)." }, 413);
+    }
+
+    if (bytes.length < 12 || String.fromCharCode(...bytes.slice(4, 8)) !== "ftyp") {
+      return json({ error: "Le fichier reçu n’est pas une vidéo MP4 valide." }, 502);
     }
 
     // Rangé sous l'id de la créatrice : même bucket public que ses rushes.

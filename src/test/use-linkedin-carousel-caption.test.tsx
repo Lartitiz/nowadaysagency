@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 
@@ -188,5 +189,18 @@ describe("useLinkedInCarouselCaption — auto-déclenchement et garde anti-doubl
       result.current.regenerateCaption();
     });
     await waitFor(() => expect(mocks.invokeWithTimeout).toHaveBeenCalledTimes(2));
+  });
+  it("ne régénère pas automatiquement une réponse courte avec le vrai state parent", async () => {
+    mocks.invokeWithTimeout.mockResolvedValueOnce({data:{content:{hook:'H',body:'Réponse courte',cta:'',hashtags:[]}},error:null})
+      .mockImplementation(() => new Promise(() => {}));
+    const props=makeProps();
+    const {result}=renderHook(()=>{
+      const [content,setContent]=useState(props.result);
+      const hook=useLinkedInCarouselCaption({...props,result:content,setResult:setContent});
+      return {hook,content};
+    });
+    await waitFor(()=>expect(result.current.content.raw.caption.body).toBe('Réponse courte'));
+    await act(async()=>{});
+    expect(mocks.invokeWithTimeout).toHaveBeenCalledTimes(1);
   });
 });

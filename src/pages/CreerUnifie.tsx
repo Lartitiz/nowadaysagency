@@ -15,6 +15,8 @@ import { versConnexions, memoriseRetour } from "@/lib/retour-apres-detour";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { posthog } from "@/lib/posthog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import CreerTransformTab from "@/components/creer/CreerTransformTab";
 import PublishOrScheduleDialog from "@/components/creer/PublishOrScheduleDialog";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import {
@@ -85,7 +87,7 @@ import { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
-import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
+import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram, resolveWorkspaceParam } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
@@ -173,7 +175,7 @@ function CreerWorkspace() {
   const { remainingWithBonus, loading: planLoading, plan, usage, refresh: refreshPlan } = useUserPlan();
 
   // URL params
-  const paramFormat = searchParams.get("format");
+  const paramFormat = searchParams.get("mode") === "transform" ? null : searchParams.get("format");
   const paramSujet = searchParams.get("sujet") || searchParams.get("subject") || "";
   const paramObjectif = searchParams.get("objectif") || searchParams.get("objective") || "";
   const paramMode = searchParams.get("mode");
@@ -274,7 +276,17 @@ function CreerWorkspace() {
     return Promise.resolve();
   }, [isCurrentCreation]);
 
-  const autoOpenTransform = paramMode === "transform";
+  const [transformOpen, setTransformOpen] = useState(paramMode === "transform");
+  useEffect(() => {
+    if (paramMode === "transform") setTransformOpen(true);
+  }, [paramMode, location.key]);
+  const closeTransform = () => {
+    setTransformOpen(false);
+    const cleaned = new URLSearchParams(searchParams);
+    cleaned.delete("mode");
+    cleaned.delete("format");
+    setSearchParams(cleaned, { replace: true });
+  };
   // Mode « 1er contenu » (auto=1) figé pour TOUTE la session du parcours :
   // le paramètre d'URL est retiré une fois l'init consommée (voir plus bas),
   // donc paramAuto retombe à false — le mode doit survivre en state + dans la
@@ -551,7 +563,11 @@ function CreerWorkspace() {
   // L'idée de départ (« Créer ce contenu » depuis /idees ou la fiche du
   // calendrier) : gardée tout le long pour relier le contenu à l'idée quand il
   // est posé au calendrier (l'idée passe alors en « Créée »).
-  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? ps?.editingIdeaId ?? null);
+  // Recover historical broken resumes without letting a blank page overwrite
+  // the old saved content when a different subject is entered.
+  const orphanedEmptyDraft = ps?.step === "idea" && !ps?.ideaText?.trim() && !ps?.result && !ps?.editContent &&
+    !ps?.photoSubject && !ps?.photoDescription && loadPhotos().length === 0;
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? (orphanedEmptyDraft ? null : ps?.editingIdeaId) ?? null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   // Visual states (carousel only)
@@ -799,8 +815,9 @@ function CreerWorkspace() {
       initDone.current = true;
       return;
     }
-    // Prevent re-running on subsequent location.search changes after first init
-    if (initDone.current && !hasUrlParams) return;
+    // This entry is consumed once. Background brand refetches and remaining
+    // channel params must never replay it after location.state was cleared.
+    if (initDone.current) return;
     initDone.current = true;
 
     const subject = paramSujet || locState.sujet || locState.subject || "";
@@ -846,7 +863,7 @@ function CreerWorkspace() {
       setEditingIdeaId(locState.ideaId || paramIdeaId || null);
       setEditorialAngle(locState.angle || paramAngle || null);
       setIsLinkedInCarousel(format === "carousel" && paramCanal === "linkedin");
-      setCarouselSubMode(raw.carousel_type === "photo" || raw.carousel_type === "mix" ? raw.carousel_type : null);
+      setCarouselSubMode(raw.user_slides === true ? "user_slides" : ["text", "photo", "mix", "pure_photo", "user_slides"].includes(raw.carousel_type) ? raw.carousel_type : null);
       setVisualSlides(stripFontImportLeakFromSlides(Array.isArray(raw.visual_html) ? raw.visual_html : []));
       setPinterestPinHtml(raw.pin_html || null);
       setPhotoBriefOverlayHtml(raw.overlay_html || null);
@@ -936,7 +953,7 @@ function CreerWorkspace() {
     // ils ne déclenchent pas d'auto-avancée destructrice.
     // Exception : en ?mode=transform, ?format pré-coche le sous-mode Recycler
     // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
-    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode"];
+    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "idea_id"];
     if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
       const cleaned = consumeFreshStart(searchParams);
       ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
@@ -1618,7 +1635,7 @@ function CreerWorkspace() {
     let text = "";
 
     // Si une édition manuelle a déjà été sauvegardée, on la rouvre telle quelle.
-    if (r?.edited_text?.trim()) {
+    if (typeof r?.edited_text === "string") {
       setEditContent(r.edited_text);
       setStep("edit");
       return;
@@ -1683,6 +1700,8 @@ function CreerWorkspace() {
     } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
       text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}\n\n📷 BRIEF PHOTO :\n• Sujet : ${r?.photo_brief?.what || ""}\n• Cadrage : ${r?.photo_brief?.framing || ""}\n• Lumière : ${r?.photo_brief?.lighting || ""}\n• Accessoires : ${(r?.photo_brief?.props || []).join(", ")}\n• Couleurs : ${r?.photo_brief?.colors || ""}\n• Ambiance : ${r?.photo_brief?.mood || ""}`;
 
+    } else if (selectedFormat === "newsletter") {
+      text = r.body ?? r.content ?? r.text ?? "";
     } else if (r?.content) {
       text = r.content;
     } else if (r?.post) {
@@ -2237,10 +2256,13 @@ function CreerWorkspace() {
     if (!publishChannel) return;
     setConnectingPublishChannel(true);
     const depuis = `${location.pathname}${location.search}${location.search ? "&" : "?"}reopenPublish=1`;
-    const { error } = await startSocialConnect(publishChannel, workspaceId, {
+    const connectionOptions = {
       quoi: "ton contenu prêt à publier",
       depuis,
-    });
+      isCurrent: () => activeReelScope.current === reelScope,
+    };
+    const { error } = await startSocialConnect(publishChannel, resolveWorkspaceParam(workspaceId, session?.user?.id), connectionOptions);
+    if (!connectionOptions.isCurrent()) return;
     if (error) {
       toast.error(error);
       setConnectingPublishChannel(false);
@@ -2593,6 +2615,12 @@ function CreerWorkspace() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
+      <Sheet open={transformOpen} onOpenChange={(open) => { if (!open) closeTransform(); }}>
+        <SheetContent side="right" className="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader className="mb-4"><SheetTitle>Transformer un contenu existant</SheetTitle></SheetHeader>
+          <CreerTransformTab />
+        </SheetContent>
+      </Sheet>
 
       {conflictPending && draftConflict && (
         <DraftConflictDialog
@@ -2678,7 +2706,7 @@ function CreerWorkspace() {
             {step === "idea" && (
               <>
                 <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} autoOpenTransform={autoOpenTransform} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
                   onIdeaChange={setIdeaText} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={setPhotoSubject}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry} />
@@ -2968,11 +2996,12 @@ function CreerWorkspace() {
                     : undefined
                 }
                 onStoriesUpdate={selectedFormat === "story" ? (stories) => {
-                  if (result?.raw) {
-                    if (result.raw.stories) result.raw.stories = stories;
-                    else if (result.raw.sequences) result.raw.sequences = stories;
-                    else if (result.raw.slides) result.raw.slides = stories;
-                  }
+                  setResult((prev) => {
+                    if (!prev?.raw) return prev;
+                    const key = Array.isArray(prev.raw.stories) ? "stories"
+                      : Array.isArray(prev.raw.sequences) ? "sequences" : "slides";
+                    return { ...prev, raw: { ...prev.raw, [key]: stories } };
+                  });
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
                 channel={isLinkedInCarousel ? "linkedin" : "instagram"}
@@ -3077,8 +3106,8 @@ function CreerWorkspace() {
                   toast.success("Modifications appliquées. Enregistre cette version pour la retrouver plus tard.");
                 }}
                 onBack={() => setStep("result")}
-                onCopy={() => {
-                  navigator.clipboard.writeText(editContent);
+                onCopy={(text) => {
+                  navigator.clipboard.writeText(text);
                   toast.success("Copié !");
                 }}
               />
@@ -3235,6 +3264,7 @@ function CreerWorkspace() {
         editingIdeaId={editingIdeaId}
         onSavingChange={setIdeaSaving}
         onSaved={(id, complete) => {
+          if (!isCurrentCreation()) return;
           setEditingIdeaId(id);
           setSavedIdeaVersion({ signature: ideaVersionSignature, complete });
         }}

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback, useLayoutEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,54 +22,103 @@ const TYPE_CONFIG = {
   service: { label: "🎤 Services ponctuels", emoji: "🎤", icon: Mic, color: "text-warning", badge: "bg-warning-bg text-warning" },
 };
 
+function OffersLoading() {
+  return (
+    <div role="status" aria-label="Chargement des offres" className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex gap-1">
+        <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
+        <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
+        <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
+      </div>
+    </div>
+  );
+}
+
 export default function OffersPage() {
   const { user } = useAuth();
-  const navigate = useNavigate();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const ready = useWorkspaceReady();
+
+  if (!isDemoMode && (!ready || !user?.id || !value)) return <OffersLoading />;
+
+  // Remonter tout le contenu (y compris coaching et actions) à chaque contexte.
+  // Une réponse de l’ancien espace ne peut plus remplacer la liste courante.
+  return <ScopedOffersPage key={`${user?.id}:${isDemoMode}:${column}:${value}`}
+    userId={user?.id} isDemoMode={isDemoMode} demoData={demoData}
+    column={column} value={value} workspaceId={workspaceId} />;
+}
+
+function ScopedOffersPage({ userId, isDemoMode, demoData, column, value, workspaceId }: {
+  userId?: string; isDemoMode: boolean; demoData: unknown; column: string; value: string; workspaceId: string;
+}) {
+  const navigate = useNavigate();
   const [offers, setOffers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("liste");
+  const mounted = useRef(true);
+  const readVersion = useRef(0);
+  const creating = useRef(false);
 
-  useEffect(() => {
+  const reloadOffers = useCallback(async () => {
+    if (!mounted.current) return;
+    const version = ++readVersion.current;
+    setLoading(true);
+    setLoadError(false);
     if (isDemoMode && demoData) {
       setOffers((demoData as any).offers.map((o: any, i: number) => ({
-        id: `demo-offer-${i}`,
-        offer_type: "paid",
-        name: o.name,
-        price_text: o.price,
-        description: o.description,
+        id: `demo-offer-${i}`, offer_type: "paid", name: o.name,
+        price_text: o.price, description: o.description,
         promise: "Accompagnement sur-mesure pour développer ta marque",
-        target_ideal: "Entrepreneures créatives",
-        completed: true,
-        completion_pct: 100,
+        target_ideal: "Entrepreneures créatives", completed: true, completion_pct: 100,
       })));
       setLoading(false);
       return;
     }
-    if (!user) return;
-    (supabase
-      .from("offers") as any)
-      .select("*")
-      .eq(column, value)
-      .order("created_at", { ascending: true })
-      .then(({ data }) => {
-        setOffers(data || []);
-        setLoading(false);
-      });
-  }, [user?.id, isDemoMode]);
+    try {
+      let query = (supabase.from("offers") as any).select("*").eq(column, value);
+      if (column === "user_id") query = query.is("workspace_id", null);
+      const { data, error } = await query.order("created_at", { ascending: true });
+      if (!mounted.current || version !== readVersion.current) return;
+      if (error) throw error;
+      setOffers(data || []);
+    } catch {
+      if (!mounted.current || version !== readVersion.current) return;
+      setOffers([]);
+      setLoadError(true);
+    } finally {
+      if (mounted.current && version === readVersion.current) setLoading(false);
+    }
+  }, [column, value, isDemoMode, demoData]);
+
+  useLayoutEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
+
+  useEffect(() => {
+    void reloadOffers();
+    return () => { readVersion.current++; };
+  }, [reloadOffers]);
 
   const createOffer = async (type: string) => {
-    if (!user) return;
-    const { data, error } = await supabase
-      .from("offers")
-      .insert({ user_id: user.id, offer_type: type, name: "", workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any)
-      .select()
-      .single();
-    if (error) { toast.error("Erreur lors de la création"); return; }
-    navigate(`/branding/offres/${data.id}`);
+    if (!userId || !mounted.current || creating.current || loading || loadError) return;
+    creating.current = true;
+    try {
+      const { data, error } = await supabase.from("offers")
+        .insert({ user_id: userId, offer_type: type, name: "", workspace_id: workspaceId !== userId ? workspaceId : null } as any)
+        .select().single();
+      if (!mounted.current) return;
+      if (error || !data) { toast.error("Erreur lors de la création"); return; }
+      navigate(`/branding/offres/${data.id}`);
+    } catch {
+      if (mounted.current) toast.error("Erreur lors de la création");
+    } finally {
+      creating.current = false;
+    }
   };
 
   const grouped = {
@@ -78,23 +127,17 @@ export default function OffersPage() {
     service: offers.filter((o) => o.offer_type === "service"),
   };
 
-  const reloadOffers = async () => {
-    if (!user) return;
-    const { data } = await (supabase.from("offers") as any).select("*").eq(column, value).order("created_at", { ascending: true });
-    setOffers(data || []);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="flex gap-1">
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} />
-          <div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} />
-        </div>
-      </div>
-    );
-  }
+  if (loading) return <OffersLoading />;
+  if (loadError) return (
+    <div className="min-h-screen bg-background">
+      <AppHeader />
+      <main className="mx-auto max-w-[900px] px-6 py-8">
+        <Link to="/branding">Retour au branding</Link>
+        <div role="alert" className="my-6">Impossible de charger tes offres. Vérifie ta connexion et réessaie.</div>
+        <Button onClick={() => void reloadOffers()}>Réessayer</Button>
+      </main>
+    </div>
+  );
 
   return (
     <div className="min-h-screen bg-background">

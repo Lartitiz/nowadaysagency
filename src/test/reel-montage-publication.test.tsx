@@ -1,9 +1,9 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { beforeEach, it, expect, vi } from 'vitest';
 import ReelMontage from '@/components/creer/ReelMontage';
-const mocks=vi.hoisted(()=>({submit:vi.fn(),poll:vi.fn(),archive:vi.fn()}));
+const mocks=vi.hoisted(()=>({submit:vi.fn(),poll:vi.fn(),archive:vi.fn(),suggest:vi.fn(),search:vi.fn()}));
 vi.mock('@/hooks/use-branding',()=>({useBrandCharter:()=>({data:null})}));
-vi.mock('@/lib/stock-videos',()=>({suggestStockKeywords:vi.fn(),searchStockVideos:vi.fn()}));
+vi.mock('@/lib/stock-videos',()=>({suggestStockKeywords:mocks.suggest,searchStockVideos:mocks.search}));
 vi.mock('@/lib/reel-user-videos',()=>({listReelVideos:async()=>[{url:'https://clips.test/take.mp4',name:'Ma prise'}],loadVideoDuration:async()=>5,uploadReelVideo:vi.fn()}));
 vi.mock('@/lib/reel-render',async()=>({...await vi.importActual('@/lib/reel-plan'),submitReelRender:mocks.submit,pollReelRender:mocks.poll,archiveReelMp4:mocks.archive}));
 const sections=[{section:'hook',texte_parle:'Mon texte',texte_overlay:'Overlay',timing:'0-3 sec'}];
@@ -41,4 +41,58 @@ it.each(['edit','unmount'])('late MP4 cannot attach after %s',async change=>{
  await waitFor(()=>expect(mocks.archive).toHaveBeenCalled());
  if(change==='edit') rerender(<ReelMontage sections={[{...sections[0],texte_parle:'New'}]} onMp4Ready={onMp4Ready}/>);else unmount();
  await act(async()=>{finish(video);});expect(onMp4Ready).not.toHaveBeenCalledWith(video);
+});
+
+it('keeps the previous download when a second render fails', async () => {
+ const {onMp4Ready}=await setup();
+ fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await waitFor(()=>expect(onMp4Ready).toHaveBeenLastCalledWith(video));
+ mocks.submit.mockRejectedValueOnce(new Error('R2 simulated renderer failure'));
+ fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await screen.findByText('R2 simulated renderer failure');
+ expect(screen.getByRole('link')).toHaveAttribute('href',video);
+ expect(screen.getByText(/Ma vidéo · Ma prise/)).toBeTruthy();
+ expect(onMp4Ready).toHaveBeenLastCalledWith(null);
+});
+it('finishes the initial stock search after changing mode and returning without a paid retry',async()=>{
+ let finish!:(value:unknown)=>void;
+ mocks.suggest.mockImplementation(()=>new Promise(r=>finish=r));
+ mocks.search.mockResolvedValue([{id:22,url:'https://clips.test/stock.mp4',thumbnail:'https://clips.test/thumb.jpg',duration:5}]);
+ render(<ReelMontage sections={sections}/>);
+ fireEvent.click(screen.getByRole('button',{name:/Je ne me montre pas/}));
+ await waitFor(()=>expect(mocks.suggest).toHaveBeenCalledOnce());
+ fireEvent.click(screen.getByRole('button',{name:'Changer'}));
+ fireEvent.click(screen.getByRole('button',{name:/Je me filme/}));
+ fireEvent.click(screen.getByRole('button',{name:'Changer'}));
+ fireEvent.click(screen.getByRole('button',{name:/Je ne me montre pas/}));
+ await act(async()=>finish({keywords:['atelier'],primary:'atelier'}));
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Clip sélectionné'})).toBeTruthy());
+ expect(mocks.suggest).toHaveBeenCalledOnce();
+});
+it('retries only archiving the completed render without submitting or polling again',async()=>{
+ mocks.archive.mockRejectedValueOnce(new Error('archive unavailable'));
+ const {onMp4Ready}=await setup();fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await screen.findByText(/Pas rangée dans ta bibliothèque/);
+ fireEvent.click(screen.getByRole('button',{name:'Ranger cette vidéo'}));
+ await waitFor(()=>expect(onMp4Ready).toHaveBeenLastCalledWith(video));
+ expect(mocks.archive).toHaveBeenCalledTimes(2);expect(mocks.submit).toHaveBeenCalledOnce();expect(mocks.poll).toHaveBeenCalledOnce();
+});
+it.each(['edit','unmount'])('late archive retry is ignored after %s',async change=>{
+ mocks.archive.mockRejectedValueOnce(new Error('archive unavailable'));
+ const {onMp4Ready,rerender,unmount}=await setup();fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await screen.findByText(/Pas rangée dans ta bibliothèque/);
+ let finish!:(url:string)=>void;mocks.archive.mockImplementation(()=>new Promise(r=>finish=r));
+ fireEvent.click(screen.getByRole('button',{name:'Ranger cette vidéo'}));
+ if(change==='edit')rerender(<ReelMontage sections={[{...sections[0],texte_parle:'Changed'}]} onMp4Ready={onMp4Ready}/>);else unmount();
+ await act(async()=>finish(video));expect(onMp4Ready).not.toHaveBeenCalledWith(video);
+});
+it('offers a separate tab if CORS blocks download and keeps the montage visible',async()=>{
+ const {onMp4Ready}=await setup();fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await waitFor(()=>expect(onMp4Ready).toHaveBeenLastCalledWith(video));
+ vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new TypeError('CORS')));
+ fireEvent.click(screen.getByRole('link',{name:'Télécharger le MP4'}));
+ const fallback=await screen.findByRole('link',{name:'Ouvrir le MP4 dans un nouvel onglet'});
+ expect(fallback).toHaveAttribute('target','_blank');expect(fallback).toHaveAttribute('rel','noopener noreferrer');
+ expect(screen.getByText(/Ma vidéo · Ma prise/)).toBeTruthy();
+ vi.unstubAllGlobals();
 });

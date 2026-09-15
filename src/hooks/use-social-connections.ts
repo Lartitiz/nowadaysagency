@@ -9,8 +9,9 @@ type ConnectionData = {
   connected: Record<string, boolean>;
   expiresAt: Record<string, string | null>;
   needsProperty: Record<string, boolean>;
+  accountNames: Record<string, string | null>;
 };
-const EMPTY: ConnectionData = { connected: {}, expiresAt: {}, needsProperty: {} };
+const EMPTY: ConnectionData = { connected: {}, expiresAt: {}, needsProperty: {}, accountNames: {} };
 
 /** OAuth connections belong to one account/workspace visit and its latest request.
  * An unavailable status is not proof that a connection is missing. Token expiry
@@ -46,16 +47,18 @@ export function useSocialConnections() {
       const connected: ConnectionData["connected"] = {};
       const needsProperty: ConnectionData["needsProperty"] = {};
       const expiresAt: ConnectionData["expiresAt"] = {};
+      const accountNames: ConnectionData["accountNames"] = {};
       for (const c of data.connections) {
         if (!c || typeof c.platform !== "string" || typeof c.connected !== "boolean") {
           throw new Error("Invalid social status");
         }
         connected[c.platform] = c.connected;
+        accountNames[c.platform] = typeof c.accountName === "string" ? c.accountName : null;
         needsProperty[c.platform] = c.needsProperty === true;
         expiresAt[c.platform] = typeof c.expiresAt === "string" && Number.isFinite(Date.parse(c.expiresAt))
           ? c.expiresAt : null;
       }
-      const result = { connected, expiresAt, needsProperty };
+      const result = { connected, expiresAt, needsProperty, accountNames };
       setState({ scope, loading: false, data: result });
       return result;
     } catch {
@@ -76,9 +79,9 @@ export function useSocialConnections() {
   const current = state?.scope === scope && userId && ready ? state : null;
   const known = !!current?.data;
   const loading = !!userId && (!ready || (current?.loading ?? true));
-  const { connected, expiresAt, needsProperty } = current?.data ?? EMPTY;
+  const { connected, expiresAt, needsProperty, accountNames } = current?.data ?? EMPTY;
   const isConnected = useCallback((platform: SocialPlatform) => connected[platform] === true, [connected]);
   const getTokenExpiry = useCallback((platform: SocialPlatform) => expiresAt[platform] || null, [expiresAt]);
 
-  return { connected, needsProperty, loading, known, isConnected, getTokenExpiry, refresh: load };
+  return { connected, needsProperty, accountNames, loading, known, isConnected, getTokenExpiry, refresh: load };
 }

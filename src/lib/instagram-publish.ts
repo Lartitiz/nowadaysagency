@@ -104,8 +104,16 @@ export async function publishToInstagram(opts: {
     },
     timeoutMs,
   );
-  if (error) throw error;
+  if (error) {
+    if (["NETWORK", "TIMEOUT", "UNKNOWN"].includes(error.code)) {
+      throw new Error("La réponse de publication Instagram n’a pas pu être confirmée. Vérifie le réseau avant toute nouvelle tentative pour éviter un doublon.");
+    }
+    throw error;
+  }
   if ((data as any)?.error) throw new Error((data as any).error);
+  if (typeof data?.postId !== "string" || !data.postId.trim() || data.success === false) {
+    throw new Error("La confirmation Instagram est incomplète. Vérifie le réseau avant toute nouvelle tentative.");
+  }
   return {
     success: true,
     permalink: (data as any)?.permalink,

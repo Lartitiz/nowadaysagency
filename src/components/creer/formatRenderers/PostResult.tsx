@@ -38,10 +38,10 @@ export default function PostResult({ result, content, photos, onTextChange, onPh
   // Filet : le conseil d'incarnation vit dans personal_tip, jamais dans le texte.
   const postText = stripCoachingHint(content ?? result?.edited_text ?? result?.content ?? result?.post ?? result?.text ?? "");
   const personalTip = result?.personal_tip;
-  const accroche = result?.accroche || result?.hook || "";
+  const accroche = typeof result?.edited_text === "string" ? "" : result?.accroche || result?.hook || "";
   const format = result?.format || result?.content_type;
   const objective = result?.objective || result?.objectif;
-  const hashtags = Array.isArray(result?.hashtags) ? result.hashtags : undefined;
+  const hashtags = typeof result?.edited_text === "string" ? undefined : Array.isArray(result?.hashtags) ? result.hashtags : undefined;
 
   const [checkedText, setCheckedText] = useState(postText);
   useEffect(() => setCheckedText(postText), [postText]);

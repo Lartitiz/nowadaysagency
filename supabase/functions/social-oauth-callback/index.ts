@@ -1,3 +1,4 @@
+import { assertWorkspaceMembership } from "../_shared/workspace-guard.ts";
 // Public callback: receives ?code & ?state from Instagram, exchanges for a long-lived token,
 // stores the connection (service-role), and redirects the browser back to the app.
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -50,6 +51,9 @@ Deno.serve(async (req) => {
   if (!code || !payload) return errorRedirect(origin, "Lien d'autorisation invalide ou expiré.");
 
   try {
+    const supabase = getServiceClient();
+    const membership = await assertWorkspaceMembership(supabase, payload.user_id, payload.workspace_id);
+    if (!membership.ok) return errorRedirect(origin, "Tu n’as plus accès à cet espace. Reviens à tes connexions.");
     const redirectUri = `${supabaseUrl}/functions/v1/social-oauth-callback`;
 
     // Échange code -> jeton + lecture du compte, branché par plateforme.
@@ -348,8 +352,11 @@ Deno.serve(async (req) => {
       accountName = String(meJson.username || "");
     }
 
+    // Membership can be revoked while the provider exchange is in flight.
+    const membershipAfterExchange = await assertWorkspaceMembership(supabase, payload.user_id, payload.workspace_id);
+    if (!membershipAfterExchange.ok) return errorRedirect(origin, "Tu n’as plus accès à cet espace. Reviens à tes connexions.");
+
     // Upsert connection (service-role)
-    const supabase = getServiceClient();
     const row = {
       user_id: payload.user_id,
       workspace_id: payload.workspace_id,

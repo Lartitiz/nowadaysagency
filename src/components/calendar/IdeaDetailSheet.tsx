@@ -1,3 +1,6 @@
+import { planSavedIdea } from '@/lib/idea-calendar-persistence';
+import { calendarSaveError } from '@/lib/calendar-persistence';
+import { resumeIdea } from '@/lib/resume-idea';
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -103,19 +106,21 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   // Persistance silencieuse (update par id, l'idée existe toujours).
   const persistIdea = async () => {
     if (!idea || !user) return;
-    const { error } = await supabase.from("saved_ideas").update({
+    const { data, error } = await supabase.from("saved_ideas").update({
       titre: title.trim(),
       format: ideaFormat,
       objectif: objective,
       notes: notes || null,
-      content_draft: contentDraft || null,
-      canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
-    }).eq("id", idea.id);
-    if (error) {
-      console.error("Erreur technique:", error);
+      content_draft: contentDraft,
+      canal: ideaFormat === idea.format ? idea.canal || "instagram" : ideaFormat === "linkedin" ? "linkedin" : "instagram",
+    }).eq("id", idea.id).select("*").single();
+    if (error || !data) {
+      const failure = error || new Error("Idée inaccessible. Réessaie après avoir rouvert le calendrier.");
+      console.error("Erreur technique:", failure);
       toast.error("Erreur", { description: friendlyError(error) });
-      throw error;
+      throw failure;
     }
+    return data;
   };
 
   // Auto-save (debounce) : sauve dès qu'un champ change, sans bouton (toast.error uniquement en cas d'échec).
@@ -140,34 +145,12 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
   const handlePlan = async () => {
     if (!idea || !planDate || !user) return;
     const dateStr = format(planDate, "yyyy-MM-dd");
-    const { data: newPost, error: insertError } = await supabase.from("calendar_posts").insert({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      date: dateStr,
-      theme: title.trim(),
-      status: "idea",
-      canal: ideaFormat === "linkedin" ? "linkedin" : "instagram",
-      objectif: objective,
-      format: ideaFormat,
-      notes: notes || null,
-      content_draft: contentDraft || idea.content_draft || null,
-      series_id: (idea as any).series_id ?? null,
-      episode_number: (idea as any).episode_number ?? null,
-    } as any).select("id").single();
-    if (insertError) {
-      console.error("Erreur technique:", insertError);
-      toast.error("Erreur", { description: friendlyError(insertError) });
-      return;
-    }
-    if (newPost) {
-      const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr }).eq("id", idea.id);
-      if (updateError) {
-        console.error("Erreur technique:", updateError);
-        toast.error("Erreur", { description: friendlyError(updateError) });
-        return;
-      }
-    }
-    toast.success(`Planifié le ${format(planDate, "d MMMM", { locale: fr })}`);
+    try {
+      const saved = await persistIdea();
+      if (!saved) return;
+      const receipt = await planSavedIdea(saved, dateStr);
+      toast.success(`${receipt.replayed ? "Déjà prévue" : "Prévue"} au calendrier le ${format(new Date(receipt.date + "T12:00:00"), "d MMMM", { locale: fr })}`);
+    } catch (error) { toast.error(calendarSaveError(error)); return; }
     onOpenChange(false);
     onPlanned();
   };
@@ -188,24 +171,22 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
 
   const handleGenerate = async () => {
     if (!idea) return;
-    await persistIdea(); // sauvegarde silencieuse avant de quitter (l'auto-save gère le reste)
-    const route = FORMAT_ROUTES[ideaFormat] || "/creer";
-    navigate(route, {
-      state: {
-        fromIdeas: true,
-        ideaId: idea.id,
-        theme: title.trim(),
-        objectif: objective,
-        format: ideaFormat,
-        notes,
-      },
+    let saved;
+    try { saved = await persistIdea(); }
+    catch { return; }
+    if (!saved) return;
+    const resumed = resumeIdea(saved);
+    if (resumed && contentDraft !== renderIdeaDraft(idea.content_draft, idea.format)) resumed.raw.edited_text = contentDraft;
+    const params = new URLSearchParams({ sujet: title.trim(), format: ideaFormat, canal: saved.canal || "instagram", objectif: objective, idea_id: idea.id });
+    navigate(`/creer?${params}`, {
+      state: { resumeIdea: resumed, fromIdeas: true, ideaId: idea.id, theme: title.trim(), objectif: objective, format: ideaFormat, notes },
     });
     onOpenChange(false);
   };
 
   const handleTransform = async (targetFormat: string) => {
     if (!idea) return;
-    await persistIdea();
+    try { await persistIdea(); } catch { return; }
     const route = FORMAT_ROUTES[targetFormat] || "/creer";
     navigate(route, {
       state: {
@@ -361,7 +342,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       )}
 
       {/* Script (reel) */}
-      {(idea as any)?.content_data?.script && (
+      {Array.isArray((idea as any)?.content_data?.script) && (
         <div>
           <label className="text-xs font-semibold mb-1.5 block text-foreground">
             🎬 Script

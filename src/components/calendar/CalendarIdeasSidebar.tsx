@@ -18,10 +18,15 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Link } from "react-router-dom";
 import { getIdeaState } from "@/lib/idea-state";
-import { buildCalendarPostFromIdea } from "@/lib/idea-to-calendar";
+import { planSavedIdea } from "@/lib/idea-calendar-persistence";
+import { calendarSaveError } from "@/lib/calendar-persistence";
 
 export interface SavedIdea {
   id: string;
+  updated_at?: string | null;
+  angle?: string | null;
+  series_id?: string | null;
+  episode_number?: number | null;
   titre: string;
   format: string | null;
   objectif: string | null;
@@ -82,7 +87,7 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
     }
     if (!user) return;
     const { data } = await (supabase.from("saved_ideas") as any)
-      .select("id, titre, format, objectif, notes, status, canal, content_draft, content_data, source_module, planned_date, calendar_post_id")
+      .select("id, titre, format, objectif, notes, status, canal, content_draft, content_data, source_module, planned_date, calendar_post_id, updated_at, angle, series_id, episode_number")
       .eq(column, value)
       .order("created_at", { ascending: false });
     if (data) setIdeas(data as SavedIdea[]);
@@ -142,30 +147,13 @@ export function CalendarIdeasSidebar({ onIdeaPlanned, onIdeaClick, isMobile, onC
   const handleMobilePlan = async () => {
     if (!planDialogIdea || !planDate || !user) return;
     const dateStr = format(planDate, "yyyy-MM-dd");
-    const { data: newPost, error: insertError } = await supabase.from("calendar_posts").insert({
-      user_id: user.id,
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      date: dateStr,
-      ...buildCalendarPostFromIdea(planDialogIdea as any),
-    } as any).select("id").single();
-    if (insertError) {
-      console.error("Erreur technique:", insertError);
-      toast.error("Erreur", { description: friendlyError(insertError) });
-      return;
-    }
-
-    if (newPost) {
-      const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: dateStr, status: "planned" }).eq("id", planDialogIdea.id);
-      if (updateError) {
-        console.error("Erreur technique:", updateError);
-        toast.error("Erreur", { description: friendlyError(updateError) });
-        return;
-      }
-    }
+    let receipt;
+    try { receipt = await planSavedIdea(planDialogIdea, dateStr); }
+    catch (error) { toast.error(calendarSaveError(error)); return; }
     setPlanDialogIdea(null);
     fetchIdeas();
     onIdeaPlanned();
-    toast.success(`Idée planifiée le ${format(planDate, "d MMMM", { locale: fr })}`);
+    toast.success(`${receipt.replayed ? "Déjà prévue" : "Prévue"} au calendrier le ${format(new Date(receipt.date + "T12:00:00"), "d MMMM", { locale: fr })}`);
   };
 
   const handleIdeaClick = (idea: SavedIdea) => {

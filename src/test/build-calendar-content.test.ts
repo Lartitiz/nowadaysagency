@@ -119,3 +119,27 @@ describe("buildCalendarContent", () => {
     expect(res.contentDraft).toContain("Sujet : Sujet");
   });
 });
+
+it('R2 preserves a historical Reel string script and rich preparation', () => {
+ const raw={script:'R2 script ancien\nDeuxième phrase',caption:{text:'Légende distincte'},plan_tournage:[{id:'take-1',action:'Filmer'}],reel_mp4_url:'https://example.test/durable.mp4'};
+ const result=buildCalendarContent('reel',raw);
+ expect(result.contentDraft).toBe(raw.script);
+ expect(result.storyDetail).toMatchObject(raw);
+});
+it('R2 accepts a nested Reel script and retains its shooting plan',()=>{
+ const raw={script:{sections:[{texte_parle:'R2 phrase',timing:'0-3'}]},plan_tournage:[{id:'take-1'}],caption:{text:'Caption'}};
+ const result=buildCalendarContent('reel',raw);
+ expect(result.contentDraft).toContain('R2 phrase');
+ expect(result.storyDetail.plan_tournage).toEqual(raw.plan_tournage);
+});
+it.each(['sequences','slides'])('R2 carries historical stories from %s with rich text and order',key=>{
+ const raw={[key]:[{id:'story-a',texte:'R2 texte ancien',sticker:{type:'poll'}},{id:'story-b',content:'R2 second',face_cam:true}],personal_tip:'Conseil conservé'};
+ const result=buildCalendarContent('story',raw);
+ expect(result.contentDraft).toContain('R2 texte ancien');expect(result.contentDraft).toContain('R2 second');
+ expect(result.storyDetail.stories).toEqual(raw[key]);expect(result.storyDetail.personal_tip).toBe(raw.personal_tip);
+});
+
+it('R2 preserves an explicitly empty story sequence and its metadata',()=>{
+ const result=buildCalendarContent('story',{stories:[],structure_type:'qa',personal_tip:'Retained'});
+ expect(result.contentDraft).toBe('');expect(result.storyDetail).toMatchObject({stories:[],structure_type:'qa',personal_tip:'Retained'});
+});

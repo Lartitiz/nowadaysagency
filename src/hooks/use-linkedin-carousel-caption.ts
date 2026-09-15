@@ -42,12 +42,17 @@ export function useLinkedInCarouselCaption({
 }: UseLinkedInCarouselCaptionParams) {
   const [captionLoading, setCaptionLoading] = useState(false);
   const captionAutoTriggeredRef = useRef<any>(null);
+  const captionInFlight = useRef(false);
 
   const generateLinkedInCarouselCaption = useCallback(async () => {
     const r: any = (result as any)?.raw;
     if (!r) return;
     if (!isLinkedInCarousel) return;
     if (carouselSubMode !== "mix" && carouselSubMode !== "photo" && carouselSubMode !== "pure_photo") return;
+
+    if (captionInFlight.current) return;
+    captionInFlight.current = true;
+    captionAutoTriggeredRef.current = r;
 
     // Construire un résumé compact des slides (overlay_text + title + body), max ~1500 char
     const slidesArr: any[] = Array.isArray(r.slides) ? r.slides : [];
@@ -112,12 +117,16 @@ export function useLinkedInCarouselCaption({
           cta: parsed.cta || "",
           hashtags: Array.isArray(parsed.hashtags) ? parsed.hashtags : [],
         };
+        // The returned caption belongs to this attempt, even if it is short.
+        // Do not treat that new object as another billable generation request.
+        captionAutoTriggeredRef.current = nextRaw;
         return { ...prev, raw: nextRaw };
       });
     } catch (e: any) {
       console.error("[linkedin-caption-for-carousel] failed:", e);
       toast.error(e?.message || "Impossible de générer la légende LinkedIn");
     } finally {
+      captionInFlight.current = false;
       setCaptionLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

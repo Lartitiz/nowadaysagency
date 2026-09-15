@@ -139,6 +139,11 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
   // La vidéo est-elle bien rangée CHEZ NOUS (donc rattachable au contenu) ?
   const [archived, setArchived] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string>("");
+  const [archiving, setArchiving] = useState(false);
+  const [downloadFailed, setDownloadFailed] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const completedRender = useRef<{ generation: number; url: string } | null>(null);
+  const archiveBusy = useRef(false);
 
   useEffect(() => {
     onPhaseChange?.(phase);
@@ -185,7 +190,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
   useEffect(() => {
     if (montageMode !== "cache" || stockSearchStarted.current) return;
     stockSearchStarted.current = true;
-    let cancelled = false;
+    // This one-time search belongs to the mounted editor, not the mode tab.
+    // Leaving and returning must not discard a paid keyword response.
+    const cancelled = () => !activeRender.current.mounted;
     (async () => {
       let kws: string[] = [];
       try {
@@ -197,13 +204,10 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       } catch {
         kws = spoken.map(() => subject || "");
       }
-      if (cancelled) return;
+      if (cancelled()) return;
       setKeywords(kws);
-      await Promise.all(kws.map((kw, i) => runSearch(i, kw, { cancelledRef: () => cancelled })));
+      await Promise.all(kws.map((kw, i) => runSearch(i, kw, { cancelledRef: cancelled })));
     })();
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [montageMode]);
 
@@ -264,7 +268,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
   }
 
   async function handleAssemble() {
-    if (renderBusy.current) return;
+    if (renderBusy.current || archiveBusy.current) return;
     const generation = activeRender.current.generation;
     const isCurrent = () => activeRender.current.mounted && activeRender.current.generation === generation;
     const chosen = clips.map((c) => (c ? { url: c.url, seek: c.seek } : null));
@@ -304,7 +308,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
     setArchived(false);
     setPhase("rendering");
     setTick(0);
-    setMp4Url(null);
+    // Retain the last download until a new render succeeds, including on failure.
     onMp4Ready?.(null);
     setErrorMsg("");
     try {
@@ -332,6 +336,8 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       // vidéo reste regardable et téléchargeable (on garde l'URL du rendu),
       // mais elle n'est pas rattachable — et on le dit.
       setMp4Url(url);
+      completedRender.current = { generation, url };
+      setDownloadFailed(false);
       try {
         const durable = await archiveReelMp4(url);
         if (!isCurrent()) return;
@@ -352,6 +358,56 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       setPhase("error");
     } finally {
       renderBusy.current = false;
+    }
+  }
+
+  async function handleArchiveRetry() {
+    const completed = completedRender.current;
+    if (!completed || archived || phase !== "done" || archiveBusy.current || renderBusy.current ||
+      completed.generation !== activeRender.current.generation) return;
+    const isCurrent = () => activeRender.current.mounted &&
+      completed.generation === activeRender.current.generation;
+    archiveBusy.current = true;
+    setArchiving(true);
+    try {
+      const durable = await archiveReelMp4(completed.url);
+      if (!isCurrent()) return;
+      setMp4Url(durable);
+      setArchived(true);
+      setDownloadFailed(false);
+      onMp4Ready?.(durable);
+      toast.success("Ta vidéo est rangée dans ta bibliothèque.");
+    } catch (error) {
+      if (isCurrent()) toast.error(error instanceof Error ? error.message : "La vidéo n’a pas pu être rangée. Réessaie.");
+    } finally {
+      archiveBusy.current = false;
+      if (activeRender.current.mounted) setArchiving(false);
+    }
+  }
+
+  async function handleDownload() {
+    if (!mp4Url || downloading) return;
+    setDownloading(true);
+    setDownloadFailed(false);
+    try {
+      const response = await fetch(mp4Url);
+      if (!response.ok) throw new Error("download failed");
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = "mon-reel.mp4";
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch {
+      if (activeRender.current.mounted) {
+        setDownloadFailed(true);
+        toast.error("Le navigateur bloque le téléchargement direct. Ouvre le MP4 dans un nouvel onglet pour l’enregistrer ; ton montage reste ici.");
+      }
+    } finally {
+      if (activeRender.current.mounted) setDownloading(false);
     }
   }
 
@@ -393,7 +449,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
                 <EyeOff className="h-3.5 w-3.5" /> Je ne me montre pas
               </span>
               <span className="block text-2xs text-muted-foreground mt-1">
-                Clips libres de droit + ta voix (enregistrée ou générée) posée par-dessus.
+                Tes vidéos ou des clips libres de droit, avec ta voix enregistrée ou sans voix.
               </span>
             </button>
           </div>
@@ -460,6 +516,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
               {voiceMode === "recorded" && (
                 <ReelVoiceRecorder
                   texts={spoken.map((s) => s.texte_parle as string)}
+                  initialClips={voiceClips}
                   onVoicesChange={setVoiceClips}
                 />
               )}
@@ -620,7 +677,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
             <span className="text-2xs text-muted-foreground">
               {ready} clip{ready > 1 ? "s" : ""} sur {spoken.length} prêt{ready > 1 ? "s" : ""}
             </span>
-            <Button size="sm" onClick={handleAssemble} disabled={phase === "rendering" || ready === 0}>
+            <Button size="sm" onClick={handleAssemble} disabled={phase === "rendering" || archiving || ready === 0}>
               {phase === "rendering" ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
@@ -648,12 +705,18 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
             <div className="space-y-2">
               <video src={mp4Url} controls playsInline className="w-full max-h-[420px] rounded-lg bg-black" />
               <div className="flex items-center gap-2 flex-wrap">
-                <a href={mp4Url} download className="inline-flex">
+                <a href={mp4Url} download target="_blank" rel="noopener noreferrer" className="inline-flex" onClick={(event) => { event.preventDefault(); void handleDownload(); }}>
                   <Button variant="outline" size="sm">
                     <Download className="h-4 w-4 mr-1.5" />
-                    Télécharger le MP4
+                    {downloading ? "Téléchargement…" : "Télécharger le MP4"}
                   </Button>
                 </a>
+                {downloadFailed && <a href={mp4Url} target="_blank" rel="noopener noreferrer" className="text-xs underline">Ouvrir le MP4 dans un nouvel onglet</a>}
+                {phase === "done" && !archived && completedRender.current?.generation === activeRender.current.generation && (
+                  <Button variant="outline" size="sm" disabled={archiving} onClick={handleArchiveRetry}>
+                    {archiving ? "Enregistrement…" : "Ranger cette vidéo"}
+                  </Button>
+                )}
                 {phase !== "done" ? (
                   <span className="text-2xs text-warning">Ce MP4 correspond au montage précédent. Assemble de nouveau pour publier les modifications.</span>
                 ) : archived ? (

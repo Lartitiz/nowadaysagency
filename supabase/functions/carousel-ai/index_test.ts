@@ -133,18 +133,19 @@ Deno.test("Mes slides never uses new writer, preserves authored text", async () 
 });
 
 /**
- * Faux client Supabase générique et permissif : répond gracieusement à N'IMPORTE
- * QUELLE table/requête pour que les requêtes de contexte (branding, persona,
- * briefs récents…) qui tournent AVANT le dispatch du handler ne plantent jamais.
+ * Client fictif : un propriétaire explicite pour TEST_WORKSPACE_ID et des tables
+ * de marque vides. Un contexte autorisé vide reste un scénario de génération valide.
+ * Les cas refusés/échoués sont testés séparément, sans repli personnel implicite.
  * Pas de fichier partagé — chaque *_test.ts du repo est autonome par convention.
  */
 function makeFakeSupabase() {
   // deno-lint-ignore no-explicit-any
-  function builder(): any {
+  function builder(table?: string): any {
     // deno-lint-ignore no-explicit-any
     const b: any = {};
     b.select = () => b;
-    b.eq = () => b;
+    const filters: Record<string, unknown> = {};
+    b.eq = (column: string, value: unknown) => { filters[column] = value; return b; };
     b.neq = () => b;
     b.gte = () => b;
     b.lte = () => b;
@@ -154,7 +155,11 @@ function makeFakeSupabase() {
     b.in = () => b;
     b.is = () => b;
     b.single = () => Promise.resolve({ data: null, error: null });
-    b.maybeSingle = () => Promise.resolve({ data: null, error: null });
+    b.maybeSingle = () => {
+      const owner = { workspace_id: TEST_WORKSPACE_ID, user_id: TEST_USER_ID, role: "owner" };
+      const matchesOwner = table === "workspace_members" && Object.entries(filters).every(([key, value]) => owner[key as keyof typeof owner] === value);
+      return Promise.resolve({ data: matchesOwner ? owner : null, error: null });
+    };
     b.insert = () => Promise.resolve({ data: null, error: null });
     b.update = () => b;
     b.delete = () => b;
@@ -162,7 +167,7 @@ function makeFakeSupabase() {
     return b;
   }
   return {
-    from: (_table?: string) => builder(),
+    from: (table?: string) => builder(table),
     rpc: () => Promise.resolve({ data: null, error: null }),
     auth: { getUser: () => Promise.resolve({ data: { user: { id: TEST_USER_ID } }, error: null }) },
   };
@@ -467,4 +472,38 @@ Deno.test("structure_proposal : rappel anti-refus présent avec photos, absent s
   assertEquals(capturedSystems.length, 2);
   assert(capturedSystems[0].includes(REMINDER_MARKER), "avec photos : rappel attendu dans le system");
   assert(!capturedSystems[1].includes(REMINDER_MARKER), "sans photos : pas de rappel (aucune photo à juger)");
+});
+
+// R4: exercise the actual handler after context failure, including usage boundaries.
+for (const failedTable of ["workspace_members", "brand_profile"]) Deno.test(`context ${failedTable} failure stops carousel writer and billing`, async () => {
+  resetDeps();
+  const sb = makeFakeSupabase(), from = sb.from;
+  sb.from = (table?: string) => {
+    const b = from(table);
+    if (table === failedTable) {
+      b.maybeSingle = () => Promise.resolve({data: null, error: {message: "PRIVATE R4 diagnostic"}});
+    }
+    return b;
+  };
+  _deps.runPipeline = (async () => ({ok: true, userId: TEST_USER_ID, supabase: sb, corsHeaders: {}, quota: null})) as any;
+  let writer = 0, usage = 0;
+  _deps.callAnthropic = (async () => {writer++; return "{}";}) as any;
+  _deps.logUsage = (async () => {usage++;}) as any;
+  const response = await handleRequest(makeHooksRequest());
+  assertEquals(response.status, 500);
+  const body = await response.text();
+  assert(!body.includes("PRIVATE R4"));
+  assertEquals(writer, 0);
+  assertEquals(usage, 0);
+});
+Deno.test("inaccessible workspace never becomes a personal carousel generation", async () => {
+  resetDeps();
+  let writer = 0, usage = 0;
+  _deps.callAnthropic = (async () => {writer++; return "{}";}) as any;
+  _deps.logUsage = (async () => {usage++;}) as any;
+  const response = await handleRequest(makeHooksRequest({workspace_id: "22222222-2222-2222-2222-222222222222"}));
+  assertEquals(response.status, 500);
+  await response.text();
+  assertEquals(writer, 0);
+  assertEquals(usage, 0);
 });
