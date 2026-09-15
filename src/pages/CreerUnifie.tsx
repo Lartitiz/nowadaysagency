@@ -85,7 +85,7 @@ import { useCarouselAutosave } from "@/hooks/use-carousel-autosave";
 import { useCarouselQuality } from "@/hooks/use-carousel-quality";
 import CarouselSaveStatus from "@/components/creer/CarouselSaveStatus";
 import { useOpenInCanva } from "@/hooks/use-open-in-canva";
-import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram } from "@/lib/instagram-publish";
+import { publishReelToInstagram, publishImageToInstagram, publishRenderedCarouselToInstagram, resolveWorkspaceParam } from "@/lib/instagram-publish";
 import { publishTextToLinkedIn, isLinkedInNotConnectedError } from "@/lib/linkedin-publish";
 import { useBrandCharter } from "@/hooks/use-branding";
 import { useActivityExamples } from "@/hooks/use-activity-examples";
@@ -551,7 +551,11 @@ function CreerWorkspace() {
   // L'idée de départ (« Créer ce contenu » depuis /idees ou la fiche du
   // calendrier) : gardée tout le long pour relier le contenu à l'idée quand il
   // est posé au calendrier (l'idée passe alors en « Créée »).
-  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? ps?.editingIdeaId ?? null);
+  // Recover historical broken resumes without letting a blank page overwrite
+  // the old saved content when a different subject is entered.
+  const orphanedEmptyDraft = ps?.step === "idea" && !ps?.ideaText?.trim() && !ps?.result && !ps?.editContent &&
+    !ps?.photoSubject && !ps?.photoDescription && loadPhotos().length === 0;
+  const [editingIdeaId, setEditingIdeaId] = useState<string | null>(paramIdeaId ?? (typeof locState.ideaId === "string" ? locState.ideaId : null) ?? (orphanedEmptyDraft ? null : ps?.editingIdeaId) ?? null);
   const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 
   // Visual states (carousel only)
@@ -799,8 +803,9 @@ function CreerWorkspace() {
       initDone.current = true;
       return;
     }
-    // Prevent re-running on subsequent location.search changes after first init
-    if (initDone.current && !hasUrlParams) return;
+    // This entry is consumed once. Background brand refetches and remaining
+    // channel params must never replay it after location.state was cleared.
+    if (initDone.current) return;
     initDone.current = true;
 
     const subject = paramSujet || locState.sujet || locState.subject || "";
@@ -846,7 +851,7 @@ function CreerWorkspace() {
       setEditingIdeaId(locState.ideaId || paramIdeaId || null);
       setEditorialAngle(locState.angle || paramAngle || null);
       setIsLinkedInCarousel(format === "carousel" && paramCanal === "linkedin");
-      setCarouselSubMode(raw.carousel_type === "photo" || raw.carousel_type === "mix" ? raw.carousel_type : null);
+      setCarouselSubMode(raw.user_slides === true ? "user_slides" : ["text", "photo", "mix", "pure_photo", "user_slides"].includes(raw.carousel_type) ? raw.carousel_type : null);
       setVisualSlides(stripFontImportLeakFromSlides(Array.isArray(raw.visual_html) ? raw.visual_html : []));
       setPinterestPinHtml(raw.pin_html || null);
       setPhotoBriefOverlayHtml(raw.overlay_html || null);
@@ -936,7 +941,7 @@ function CreerWorkspace() {
     // ils ne déclenchent pas d'auto-avancée destructrice.
     // Exception : en ?mode=transform, ?format pré-coche le sous-mode Recycler
     // (CreerTransformTab le lit dans l'URL) — on ne touche à rien sur ce chemin.
-    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode"];
+    const ONE_SHOT_PARAMS = ["sujet", "subject", "format", "objectif", "objective", "auto", "angle", "carouselSubMode", "idea_id"];
     if (paramMode !== "transform" && ONE_SHOT_PARAMS.some((k) => searchParams.has(k))) {
       const cleaned = consumeFreshStart(searchParams);
       ONE_SHOT_PARAMS.forEach((k) => cleaned.delete(k));
@@ -2239,10 +2244,13 @@ function CreerWorkspace() {
     if (!publishChannel) return;
     setConnectingPublishChannel(true);
     const depuis = `${location.pathname}${location.search}${location.search ? "&" : "?"}reopenPublish=1`;
-    const { error } = await startSocialConnect(publishChannel, workspaceId, {
+    const connectionOptions = {
       quoi: "ton contenu prêt à publier",
       depuis,
-    });
+      isCurrent: () => activeReelScope.current === reelScope,
+    };
+    const { error } = await startSocialConnect(publishChannel, resolveWorkspaceParam(workspaceId, session?.user?.id), connectionOptions);
+    if (!connectionOptions.isCurrent()) return;
     if (error) {
       toast.error(error);
       setConnectingPublishChannel(false);
@@ -3238,6 +3246,7 @@ function CreerWorkspace() {
         editingIdeaId={editingIdeaId}
         onSavingChange={setIdeaSaving}
         onSaved={(id, complete) => {
+          if (!isCurrentCreation()) return;
           setEditingIdeaId(id);
           setSavedIdeaVersion({ signature: ideaVersionSignature, complete });
         }}
