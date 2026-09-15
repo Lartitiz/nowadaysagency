@@ -1,7 +1,7 @@
 import BrandLogo from "@/components/BrandLogo";
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut, X, Plus, Trash2, Image, BarChart3, IdCard, MessageCircle, Sparkles, Lightbulb } from "lucide-react";
+import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -11,19 +11,11 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useAccountSwitcher } from "@/hooks/use-account-switcher";
 import { useMobileNav } from "@/contexts/MobileNavContext";
 import { useSession } from "@/contexts/SessionContext";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import AiCreditsCounter from "@/components/AiCreditsCounter";
+import NotificationBell from "@/components/NotificationBell";
+import { WorkspaceSwitcher } from "@/components/AppHeader";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { loadFlowState, loadPhotos, clearFlowState } from "@/hooks/use-flow-persistence";
 import { toast } from "sonner";
 
 interface NavItem {
@@ -63,7 +55,7 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
       { label: "Instagram", path: "/instagram", icon: <Instagram size={16} /> },
       { label: "LinkedIn", path: "/linkedin", icon: <Briefcase size={16} /> },
       { label: "Pinterest", path: "/pinterest", icon: <Pin size={16} /> },
-      { label: "Site web", path: "/site", icon: <Globe size={16} /> },
+      { label: "Améliorer mon site", path: "/site", icon: <Globe size={16} /> },
       { label: "SEO", path: "/seo", icon: <Search size={16} /> },
     ],
   },
@@ -76,35 +68,24 @@ const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   },
 ];
 
-// Barre du bas mobile : accès rapide aux 3 destinations les plus utilisées,
-// en complément (pas en concurrence) du tiroir ci-dessus qui couvre tout le
-// reste. Mêmes entrées que l'ancienne barre de AppHeader.
-const MOBILE_NAV: { to: string; label: string; icon: typeof Home; matchExact: boolean }[] = [
-  { to: "/dashboard", label: "Assistant", icon: MessageCircle, matchExact: true },
-  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/idees", label: "Idées", icon: Lightbulb, matchExact: false },
+// Créer ouvre l’accueil ; la création explicite reste dans son moteur,
+// qui arbitre le brouillon existant avant tout nouveau départ.
+const MOBILE_NAV = [
+  { to: "/dashboard", label: "Créer", icon: Sparkles, matchExact: true },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
-
-const MENU_SEEN_KEY = "lac_menu_discovered";
 
 export default function AppSidebar() {
   const location = useLocation();
   const { user, isAdmin, signOut } = useAuth();
-  const { plan } = useUserPlan();
+  const { plan, usage, bonusCredits, loading: planLoading } = useUserPlan();
   const { activateDemo } = useDemoContext();
   const navigate = useNavigate();
-  const planLabel = plan === "binome" ? "Binôme ✨" : plan === "outil" ? "Outil · 39€/mois" : "Gratuit";
   const isBinome = plan === "binome";
 
   const { pending: brandReviewPending } = usePendingBrandReview();
   const { isActive: sessionActive } = useSession();
   const { open, setOpen } = useMobileNav();
-  // Le libellé "Menu" à côté de la pastille disparaît une fois le menu ouvert
-  // au moins une fois : guidant à l'arrivée, discret ensuite.
-  const [menuDiscovered, setMenuDiscovered] = useState(
-    () => typeof localStorage !== "undefined" && localStorage.getItem(MENU_SEEN_KEY) === "true",
-  );
   const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   // Modules désactivés (feature-flags) : mêmes règles que ProtectedRoute, sinon la
   // sidebar affiche des liens morts (clic → redirection dashboard) aux non-admins.
@@ -123,69 +104,8 @@ export default function AppSidebar() {
         : section.items,
     }))
     .filter((section) => section.items.length > 0);
-  // Garde anti-perte : "Nouveau contenu" (fresh start) efface le flux + les
-  // photos en cours. Si un travail est en cours, on confirme avant de vider.
-  const [freshStartTarget, setFreshStartTarget] = useState<string | null>(null);
-  const freshStartPhotoCount = useRef(0);
-  const handleFreshStartNav = useCallback(
-    (e: React.MouseEvent, targetPath: string) => {
-      const fs = loadFlowState();
-      const photos = loadPhotos();
-      const hasWork = (!!fs && !!fs.step && fs.step !== "idea") || photos.length > 0;
-      if (hasWork) {
-        e.preventDefault();
-        freshStartPhotoCount.current = photos.length;
-        setFreshStartTarget(targetPath);
-        return;
-      }
-      setOpen(false);
-    },
-    [setOpen],
-  );
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wsPopoverRef = useRef(false);
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const clearCloseTimer = useCallback(() => {
-    if (closeTimer.current) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-  }, []);
-
-  const startCloseTimer = useCallback(() => {
-    clearCloseTimer();
-    closeTimer.current = setTimeout(() => {
-      if (!wsPopoverRef.current) setOpen(false);
-    }, 350);
-  }, [clearCloseTimer, setOpen]);
-
-  const handleMouseEnterTrigger = useCallback(() => {
-    clearCloseTimer();
-    setOpen(true);
-  }, [clearCloseTimer, setOpen]);
-
-  const handleMouseLeaveTrigger = useCallback(() => {
-    startCloseTimer();
-  }, [startCloseTimer]);
-
-  const handleMouseEnterPanel = useCallback(() => {
-    clearCloseTimer();
-  }, [clearCloseTimer]);
-
-  const handleMouseLeavePanel = useCallback(() => {
-    startCloseTimer();
-  }, [startCloseTimer]);
-
-  useEffect(() => {
-    return () => clearCloseTimer();
-  }, [clearCloseTimer]);
-
-  useEffect(() => {
-    if (!open || menuDiscovered) return;
-    setMenuDiscovered(true);
-    try { localStorage.setItem(MENU_SEEN_KEY, "true"); } catch { /* mode privé */ }
-  }, [open, menuDiscovered]);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
 
   // Tous les chemins de navigation, pour la règle "le plus précis l'emporte".
   const navPaths = visibleSections
@@ -212,16 +132,7 @@ export default function AppSidebar() {
     setOpenSubs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
-  // Barre du bas : même règle « Ma fiche d'abord » que le tiroir ci-dessus,
-  // et même entrée Accompagnement en plus pour les binômes.
-  const quickNavBase = isBinome
-    ? [...MOBILE_NAV, { to: "/accompagnement", label: "Accom.", icon: HeartHandshake, matchExact: false }]
-    : MOBILE_NAV;
-  const quickNav = brandReviewPending
-    ? quickNavBase.map((i) => (i.to === "/creer"
-        ? { to: "/branding?from=onboarding&next=creer", label: "Ma fiche", icon: IdCard, matchExact: false }
-        : i))
-    : quickNavBase;
+  const quickNav = MOBILE_NAV;
   const isQuickNavActive = (item: { to: string; matchExact: boolean }) => {
     const base = item.to.split("?")[0];
     return item.matchExact ? location.pathname === base : location.pathname.startsWith(base);
@@ -237,105 +148,44 @@ export default function AppSidebar() {
 
   return (
     <>
-      {/* ÉCHELLE DE SUPERPOSITION — ne pas remonter ce bloc.
-          Il était en z-[299..400], soit AU-DESSUS de toutes les fenêtres
-          modales (les surfaces Radix — dialogue, popover, select, menu,
-          infobulle — sont toutes en z-50). Résultat : sur mobile, le bouton
-          menu recouvrait le titre de chaque dialogue (« ☰hanger le décor »).
-          Le menu est du mobilier de page, pas une couche modale :
-            40      en-têtes collants et barre du bas
-            41      déclencheurs du menu (bande desktop, hamburger mobile)
-            42      voile du menu — au-dessus des en-têtes, qu'il doit assombrir
-            43      panneau du menu
-            50      surfaces modales (Radix) — passent donc AU-DESSUS du menu
-            60+     bandeau de mise à jour, session en pause, visite guidée
-          Si un chevauchement réapparaît, corriger la couche fautive dans cette
-          échelle plutôt que de surenchérir. */}
-      {/* Desktop: Hover trigger zone — invisible 48px strip on left */}
-      <div
-        className="fixed top-0 left-0 h-full w-12 z-[41] hidden lg:flex lg:flex-col lg:items-center"
-        onMouseEnter={handleMouseEnterTrigger}
-        onMouseLeave={handleMouseLeaveTrigger}
-        style={{ pointerEvents: open ? "none" : "auto" }}
-      >
-        {/* Pastille "N" — la seule trace du menu sur grand écran.
-            C'était un <div> muet : rien ne disait que c'était un menu, le mot
-            "Menu" n'arrivait qu'après 800 ms de survol (donc jamais si on ne
-            soupçonne pas déjà qu'il y a quelque chose là), et le clavier ne
-            pouvait pas l'atteindre du tout. C'est un vrai bouton, et le mot
-            "Menu" reste affiché tant que le menu n'a jamais été ouvert. */}
-        <Tooltip delayDuration={400}>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              aria-label="Ouvrir le menu"
-              aria-expanded={open}
-              onClick={() => setOpen(true)}
-              onFocus={handleMouseEnterTrigger}
-              className="absolute top-[14px] left-[14px] flex items-center gap-1.5 cursor-pointer select-none group rounded-[10px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-              style={{ pointerEvents: "auto" }}
-            >
-              <span className="w-8 h-8 rounded-[9px] bg-bordeaux flex items-center justify-center shadow-none transition-transform duration-200 group-hover:scale-105">
-                <span className="text-white font-bold text-sm leading-none">N</span>
-              </span>
-              {!menuDiscovered && (
-                <span className="text-xs font-medium text-foreground/70 group-hover:text-foreground transition-colors">
-                  Menu
-                </span>
-              )}
-              <ChevronRight
-                size={12}
-                className={`text-muted-foreground transition-all duration-200 group-hover:opacity-90 ${menuDiscovered ? "opacity-40" : "opacity-70"}`}
-              />
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="right" className="text-xs">
-            Menu
-          </TooltipContent>
-        </Tooltip>
-      </div>
-
-      {/* Backdrop. Sur desktop (lg+) le menu s'ouvre au SURVOL : le backdrop
-          reste purement décoratif (pointer-events-none) pour ne jamais bloquer
-          ni consommer un clic sur la page — la fermeture est déjà gérée par la
-          sortie de survol (startCloseTimer). Constaté en audit (09-10/07) : un
-          backdrop cliquable par-dessus /creer interceptait les boutons
-          d'édition. Sur mobile (ouverture au tap), il garde le tap-pour-fermer. */}
-      {open && (
-        <div
-          className="fixed inset-0 z-[42] bg-black/[0.08] backdrop-blur-[2px] lg:pointer-events-none"
-          onMouseEnter={startCloseTimer}
-          onClick={() => setOpen(false)}
-        />
+      {!sessionActive && (
+        <header className="sticky top-0 z-40 hidden lg:block border-b border-border bg-card">
+          <div className="mx-auto flex min-h-20 max-w-6xl items-center justify-between gap-4 px-6">
+            <div className="flex min-w-0 items-center gap-3">
+              <Link to="/dashboard" aria-label="Accueil"><BrandLogo className="h-8" /></Link>
+              {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
+            </div>
+            <nav aria-label="Navigation principale" className="flex shrink-0 items-center gap-2">
+              {quickNav.map(item => (
+                <Link key={item.to} to={item.to} aria-current={isQuickNavActive(item) || (item.to === "/dashboard" && location.pathname.startsWith("/creer")) ? "page" : undefined}
+                  className={`rounded-xl px-4 py-3 text-sm font-semibold transition-colors ${isQuickNavActive(item) || (item.to === "/dashboard" && location.pathname.startsWith("/creer")) ? "bg-[hsl(var(--bento-dark))] text-white" : "text-bordeaux hover:bg-rose-pale"}`}>
+                  {item.label}
+                </Link>
+              ))}
+              <button ref={menuTrigger} type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} className="flex items-center gap-2 rounded-xl border border-border px-4 py-3 text-sm font-semibold text-bordeaux hover:bg-rose-pale">
+                Mon espace <ChevronDown size={16} />
+              </button>
+            </nav>
+            <div className="flex shrink-0 items-center gap-2">
+              {planLoading ? <span role="status" className="text-xs text-muted-foreground">Crédits…</span> : <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />}
+              <NotificationBell />
+              <button type="button" aria-label="Mon compte" onClick={() => { setOpen(true); setWsPopoverOpen(true); }} className="h-9 w-9 shrink-0 rounded-full border border-border bg-rose-pale text-sm font-semibold text-bordeaux">{initial}</button>
+            </div>
+          </div>
+        </header>
       )}
 
-      {/* Sidebar panel */}
-      <div
-        ref={panelRef}
-        className={`fixed top-0 left-0 h-full w-[260px] z-[43] bg-card border-r border-border flex-col overflow-y-auto ${
-          open ? "flex" : "hidden lg:flex"
-        }`}
-        style={{
-          transform: open ? "translateX(0)" : "translateX(-100%)",
-          transition: "transform 0.35s cubic-bezier(0.16, 1, 0.3, 1)",
-        }}
-        onMouseEnter={handleMouseEnterPanel}
-        onMouseLeave={handleMouseLeavePanel}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <BrandLogo className="h-7" />
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="right" aria-describedby={undefined} className="flex w-[min(340px,100vw)] flex-col overflow-y-auto p-0 gap-0"
+          onOpenAutoFocus={() => { previousFocus.current = document.activeElement as HTMLElement; }}
+          onCloseAutoFocus={(event) => {
+            // Plusieurs déclencheurs (en-tête, mobile) partagent le tiroir.
+            // Revenir à celui utilisé, tant qu’il est encore dans la page.
+            if (previousFocus.current?.isConnected) { event.preventDefault(); previousFocus.current.focus(); }
+          }}>
+          <div className="border-b border-border px-5 py-5">
+            <SheetTitle className="font-display text-2xl text-bordeaux">Mon espace</SheetTitle>
           </div>
-          {/* Close button — visible on mobile */}
-          <button
-            onClick={() => setOpen(false)}
-            className="flex lg:hidden items-center justify-center w-7 h-7 rounded-md hover:bg-rose-pale transition-colors"
-            aria-label="Fermer le menu"
-          >
-            <X size={16} className="text-muted-foreground" />
-          </button>
-        </div>
 
         {/* Nav */}
         <nav className="flex-1 py-2 px-2 space-y-1">
@@ -394,11 +244,7 @@ export default function AppSidebar() {
                   ) : (
                     <Link
                       to={item.path + (item.freshStart ? "?new=1" : "")}
-                      onClick={(e) =>
-                        item.freshStart
-                          ? handleFreshStartNav(e, item.path + "?new=1")
-                          : setOpen(false)
-                      }
+                      onClick={() => setOpen(false)}
                       className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
                         isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
                       }`}
@@ -464,7 +310,7 @@ export default function AppSidebar() {
           </Link>
         </div>
 
-        <Popover open={wsPopoverOpen} onOpenChange={(v) => { setWsPopoverOpen(v); wsPopoverRef.current = v; }}>
+        <Popover open={wsPopoverOpen} onOpenChange={setWsPopoverOpen}>
           <PopoverTrigger asChild>
             <button className="w-full border-t border-border px-4 py-3 flex items-center gap-2.5 hover:bg-muted/50 transition-colors cursor-pointer text-left">
               <div className="w-8 h-8 rounded-lg bg-bordeaux flex items-center justify-center text-white font-semibold text-sm shrink-0">
@@ -586,7 +432,8 @@ export default function AppSidebar() {
             </div>
           </PopoverContent>
         </Popover>
-      </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Mobile bottom tab bar (<md only) — accès rapide, en plus du tiroir
           ci-dessus qui reste la seule porte vers tout le reste. Masquée
@@ -595,13 +442,14 @@ export default function AppSidebar() {
           dans AppHeader. */}
       {!sessionActive && (
         <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card shadow-[0_-2px_10px_rgba(0,0,0,0.05)] md:hidden">
-          <div className="flex items-center justify-around h-14">
+          <div className="flex items-center justify-around min-h-14 pb-[env(safe-area-inset-bottom)]">
             {quickNav.map((item) => {
-              const active = isQuickNavActive(item);
+              const active = isQuickNavActive(item) || (item.to === "/dashboard" && location.pathname.startsWith("/creer"));
               return (
                 <Link
                   key={item.to}
                   to={item.to}
+                  aria-current={active ? "page" : undefined}
                   className={`flex flex-col items-center gap-0.5 py-1 px-2 text-2xs font-semibold transition-colors ${
                     active ? "text-primary" : "text-muted-foreground"
                   }`}
@@ -611,65 +459,13 @@ export default function AppSidebar() {
                 </Link>
               );
             })}
+            <button type="button" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)} className="flex flex-col items-center gap-0.5 py-1 px-2 text-2xs font-semibold text-muted-foreground">
+              <Users className="h-5 w-5" />Mon espace
+            </button>
           </div>
         </nav>
       )}
 
-      <AlertDialog
-        open={freshStartTarget !== null}
-        onOpenChange={(o) => { if (!o) setFreshStartTarget(null); }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Repartir de zéro ?</AlertDialogTitle>
-            <AlertDialogDescription>
-              {freshStartPhotoCount.current > 0 ? (
-                <>
-                  Tu as un contenu en cours avec{" "}
-                  <strong>
-                    {freshStartPhotoCount.current} photo
-                    {freshStartPhotoCount.current > 1 ? "s" : ""}
-                  </strong>
-                  . « Nouveau contenu » efface le travail en cours et retire les
-                  photos. Cette action est irréversible.
-                </>
-              ) : (
-                <>
-                  Tu as un contenu en cours. « Nouveau contenu » efface le
-                  travail en cours et repart d'une page blanche. Cette action est
-                  irréversible.
-                </>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col sm:flex-row gap-2">
-            <AlertDialogCancel
-              onClick={() => {
-                // "Garder mon contenu" : revenir au flux en cours (sans ?new=1,
-                // donc sans effacer), pour le reprendre là où il en était.
-                const resumePath = freshStartTarget?.split("?")[0] || "/creer";
-                setFreshStartTarget(null);
-                setOpen(false);
-                navigate(resumePath);
-              }}
-            >
-              Garder mon contenu
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                const target = freshStartTarget || "/creer?new=1";
-                // The user has explicitly confirmed discarding this draft.
-                clearFlowState();
-                setFreshStartTarget(null);
-                setOpen(false);
-                navigate(target);
-              }}
-            >
-              Repartir de zéro
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

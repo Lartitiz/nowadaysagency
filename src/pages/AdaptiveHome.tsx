@@ -5,10 +5,6 @@ import {
   ArrowRight,
   ChevronDown,
   Clock,
-  Instagram,
-  Linkedin,
-  Mail,
-  Pin,
   Lightbulb,
   MessageCircle,
   Rocket,
@@ -31,7 +27,7 @@ import { Progress } from "@/components/ui/progress";
 import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
 import { weeklyIdeas } from "@/lib/weekly-ideas";
 import RecycleDialog from "@/components/dashboard/RecycleDialog";
-import { saveFlowState, clearFlowState } from "@/hooks/use-flow-persistence";
+import { saveFlowState, clearFlowState, loadFlowState, loadPhotos } from "@/hooks/use-flow-persistence";
 import ClientOnboarding from "@/components/client/ClientOnboarding";
 import { useStorytellingList, usePersona } from "@/hooks/use-branding";
 import { useBrandProfile } from "@/hooks/use-profile";
@@ -39,7 +35,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import { useUserPlan } from "@/hooks/use-user-plan";
+import HomeCreatePanel from "@/components/dashboard/HomeCreatePanel";
 import { toLocalDateStr } from "@/lib/utils";
 import { getSignedPhotoUrls } from "@/lib/photo-storage";
 import { trackPorte } from "@/lib/dashboard-portes";
@@ -225,18 +221,10 @@ function PilotPill({
 
 /* ── Tour steps ── */
 const TOUR_STEPS = [
-  { target: "card-next-step", title: "Ta prochaine étape", text: "Chaque jour, l'outil te recommande l'action qui aura le plus d'impact. Pas besoin de réfléchir par où commencer : c'est ici.", position: "bottom" as const },
+  { target: "card-next-step", title: "Créer ton contenu", text: "Choisis ton canal pour commencer avec une idée, un texte ou tes photos. Ton brouillon reste accessible sur l’accueil.", position: "bottom" as const },
   { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "top" as const },
   { target: "card-missions", title: "Tes premiers pas", text: "Quelques petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
   { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
-];
-
-/* ── Channel pills → raccourcis création par canal ── */
-const CHANNEL_PILLS = [
-  { label: "Instagram", icon: Instagram, canal: "instagram" },
-  { label: "LinkedIn", icon: Linkedin, canal: "linkedin" },
-  { label: "Newsletter", icon: Mail, canal: "newsletter" },
-  { label: "Pinterest", icon: Pin, canal: "pinterest" },
 ];
 
 /* ── Porte « Programmer » ── */
@@ -317,8 +305,7 @@ export default function AdaptiveHome() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeWorkspace, activeRole } = useWorkspace();
-  const { isBinome } = useUserPlan();
-  const { recommendation, profileSummary, isLoading } = useGuideRecommendation();
+  const { profileSummary, isLoading } = useGuideRecommendation();
   const isMobile = useIsMobile();
   // Au doigt, chaque ligne de rappel coûte ~30 px devant le hero : on en montre
   // 2 (le lien « voir les N autres » emmène au calendrier), 5 au large.
@@ -363,7 +350,7 @@ export default function AdaptiveHome() {
 
   // Photos : compteur de la pill « Mes photos » (accès direct à la bibliothèque).
   // La bibliothèque est toujours cloisonnée par workspace_id (cf. useUserPhotos).
-  const { data: photoCount = 0 } = useQuery<number>({
+  const { data: photoCount = 0, isError: photoCountError, isLoading: photoCountLoading } = useQuery<number>({
     queryKey: ["adaptive-home-photos-count", user?.id, workspaceId],
     queryFn: async () => {
       if (!user) return 0;
@@ -526,34 +513,13 @@ export default function AdaptiveHome() {
   const clientHasData = !isClientWorkspace || skippedOnboarding ? true :
     (Array.isArray(storytellingList) ? storytellingList.length : 0) + (personaData ? 1 : 0) > 0 || !!brandProfileData;
 
-  // ── Hero : « adapter tôt, stabiliser après » ──
-  // Tant que l'onboarding n'est pas terminé, le hero suit la recommandation
-  // (ex. « Termine ton diagnostic » → /onboarding) pour guider la mise en route.
-  // Une fois lancée, l'action centrale reste stablement « Créer un contenu » :
-  // on ne laisse jamais le bouton principal du dashboard bouger d'un jour à l'autre.
-  const cleanText = (s: string) => s.replace(/&nbsp;/g, " ");
-  const launched = profileSummary.onboardingComplete;
-  const hero = launched
-    ? {
-        eyebrow: "✨ On crée quoi aujourd'hui ?",
-        title: "Créer mon prochain contenu",
-        ctaLabel: "Créer un contenu",
-        // ?new=1 sinon un brouillon terminé restauré silencieusement atterrit
-        // direct sur l'étape résultat, sans aucun champ pour repartir de zéro.
-        route: "/creer?new=1",
-        showChannels: true,
-      }
-    : {
-        eyebrow: "👉 Ta prochaine étape",
-        title: cleanText(recommendation.title),
-        ctaLabel: cleanText(recommendation.ctaLabel).replace(/\s*→\s*$/, ""),
-        route: recommendation.ctaRoute,
-        showChannels: false,
-      };
+  const draft = loadFlowState();
+  const draftInSpace = draft && (!draft.workspaceId || draft.workspaceId === (workspaceId ?? user?.id));
+  const hasLocalDraft = draftInSpace && !!(draft.ideaText || draft.photoSubject || draft.photoDescription || draft.result || draft.editContent || draft.selectedFormat || loadPhotos().length);
 
   if (isClientWorkspace && !clientHasData) {
     return (
-      <div className="min-h-screen bg-rose-pale">
+      <div className="min-h-screen bg-[#fcf8f9]">
         <AppHeader />
         <ClientOnboarding
           workspaceName={activeWorkspace?.name || "Client"}
@@ -573,7 +539,7 @@ export default function AdaptiveHome() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-rose-pale">
+      <div className="min-h-screen bg-[#fcf8f9]">
         <AppHeader />
         <main className="max-w-[720px] mx-auto px-4 py-12">
           <div className="space-y-4 animate-pulse">
@@ -587,20 +553,14 @@ export default function AdaptiveHome() {
   }
 
   return (
-    <div className="min-h-screen bg-rose-pale">
+    <div className="min-h-screen bg-[#fcf8f9]">
       <AppHeader />
-      {/* Rythme resserré au doigt (py-5/gap-5) : au large on garde l'air
-          d'origine. Cumulé aux 2 lignes de rappel, ça ramène le CTA du hero
-          AU-DESSUS de la barre d'onglets sur un 390×844 (regard du 17/08).
-          Colonne flex (et non `space-y`) : au doigt on remonte le hero avec
-          `order-*`, et `gap` suit l'ordre visuel là où `space-y` suivrait
-          l'ordre du DOM. Au large (sm:) tout revient à l'ordre d'écriture. */}
-      <main className="max-w-[720px] mx-auto px-4 py-5 sm:py-8 flex flex-col gap-5 sm:gap-7">
+      <main className="max-w-[1000px] mx-auto px-4 pt-6 pb-24 sm:pt-8 flex flex-col gap-5 sm:gap-6">
 
         {/* Erreur de chargement visible (pattern /profil) : sans ce bandeau, un
             réseau qui tombe affiche un dashboard « normal » à zéro, sans indice. */}
-        {(ideasError || postsError) && (
-          <div className="order-first sm:order-none rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
+        {(ideasError || postsError || photoCountError) && (
+          <div className="order-first rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 flex items-center justify-between gap-3">
             <p className="text-sm text-foreground">
               Impossible de charger certaines de tes données — ce que tu vois peut être incomplet.
             </p>
@@ -615,22 +575,36 @@ export default function AdaptiveHome() {
           </div>
         )}
 
-        {/* Bandeau premiers pas — owner uniquement : les missions guident le
-            setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
-            pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
-        {activeRole === "owner" && (
-          <OnboardingBanner
-            onNavigate={handleNavigate}
-            heroOwnsNextStep={!launched}
-            className="order-3 sm:order-none"
-          />
-        )}
+        <div className="">
+          <HomeCreatePanel incompleteBrand={profileSummary.brandingTotal < 50} onCreate={(path) => { porte("creer"); navigate(path); }} />
+        </div>
+
+        <section className="flex flex-col sm:flex-row sm:items-center gap-5 rounded-3xl border border-border bg-[#f9e8ef] p-6 sm:p-7" aria-labelledby="home-photos-title">
+          <div className="flex shrink-0 items-center gap-2" aria-hidden="true">
+            {photoThumbs.length > 0 ? photoThumbs.slice(0, 2).map((url, index) => <img key={url} src={url} alt="" className={`h-24 w-20 object-cover rounded-xl bborder-white shadow-sm ${index ? "rotate-6" : "-rotate-6"}`} />) : <ImageIcon className="h-14 w-14 text-bordeaux/60" strokeWidth={1} />}
+          </div>
+          <div className="flex-1">
+            <h2 id="home-photos-title" className="font-display text-2xl sm:text-3xl text-bordeaux">Donne vie à tes photos</h2>
+            <p className="mt-2 text-sm text-muted-foreground">Tes produits, tes réalisations, tes portraits : améliore tes photos ou crée de nouveaux visuels.</p>
+          </div>
+          <Button variant="outline" className="shrink-0 rounded-xl bg-white text-bordeaux" onClick={() => { porte("photos"); navigate("/photos"); }}>Choisir une photo <ArrowRight className="ml-2 h-4 w-4" /></Button>
+        </section>
+
+        <div className="flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-bordeaux">
+          <button data-tour="card-ideas" type="button" onClick={() => navigate("/idees")} className="inline-flex items-center gap-2 underline underline-offset-4"><Lightbulb size={16} />Accéder à mes idées{!ideasError && ideaCount > 0 ? ` (${ideaCount})` : ""}</button>
+          <button type="button" onClick={() => navigate("/photos")} className="inline-flex items-center gap-2 underline underline-offset-4"><ImageIcon size={16} />Ouvrir ma bibliothèque{!photoCountLoading && !photoCountError && photoCount > 0 ? ` (${photoCount})` : ""}</button>
+        </div>
+
+        {hasLocalDraft && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">
+          <div className="min-w-0"><p className="text-sm font-semibold text-bordeaux">Ton contenu en cours</p><p className="max-w-[500px] truncate text-sm text-muted-foreground">{draft.ideaText || draft.photoSubject || "Ton brouillon est conservé sur cet appareil."}</p></div>
+          <button type="button" onClick={() => navigate("/creer")} className="inline-flex items-center gap-2 text-sm font-semibold text-bordeaux">Reprendre <ArrowRight size={16} /></button>
+        </div>}
 
         {/* Rappel des brouillons oubliés — la case « premier contenu » et le
             calendrier savent déjà qu'un contenu existe ; ce qu'ils ne disaient
             jamais, c'est qu'il est resté sans suite. Discret (pas de couleur
             d'alerte, c'est un oubli, pas une erreur). Au large il reste au-dessus
-            du hero ; au doigt il passe juste dessous (order-4) pour ne plus
+            du hero ; au doigt il passe juste dessous () pour ne plus
             repousser « Créer un contenu » hors du premier écran.
             Chaque ligne mène directement au post concerné (?date=&post=), au
             lieu de renvoyer vers un calendrier générique qu'il fallait fouiller
@@ -638,7 +612,7 @@ export default function AdaptiveHome() {
             Aperçu court (2 lignes) : au doigt, 5 lignes + le bandeau premiers pas
             repoussaient le CTA du hero SOUS la barre d'onglets (regard du 17/08). */}
         {forgottenDrafts.length > 0 && (
-          <div className="order-4 sm:order-none w-full rounded-xl border border-border bg-card px-4 py-3">
+          <div className="w-full rounded-xl border border-border bg-card px-4 py-3">
             <div className="flex items-center gap-3">
               <Bell className="h-4 w-4 text-primary shrink-0" aria-hidden="true" />
               <span className="min-w-0 flex-1">
@@ -712,119 +686,19 @@ export default function AdaptiveHome() {
           </div>
         )}
 
-        {/* Greeting + pastille coach — sans sous-titre : chaque ligne doit
-            gagner sa place pour que la page tienne dans une fenêtre */}
-        <div className="order-1 sm:order-none flex items-center justify-between gap-4">
-          <h1 className="font-display text-3xl sm:text-4xl text-foreground leading-tight">
-            Salut {profileSummary.firstName} !
-          </h1>
+        {/* Bandeau premiers pas — owner uniquement : les missions guident le
+            setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
+            pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
+        {activeRole === "owner" && (
+          <OnboardingBanner
+            onNavigate={handleNavigate}
+            heroOwnsNextStep={false}
+            className=""
+          />
+        )}
 
-          <button
-            data-tour="card-assistant"
-            aria-label="Parler à ma coach de com'"
-            onClick={() => handleNavigate("/dashboard/guide")}
-            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-card border border-border text-sm font-medium text-foreground hover:border-primary/40 hover:text-primary transition-colors"
-          >
-            <MessageCircle className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden sm:inline">Parler à ma coach</span>
-          </button>
-        </div>
-
-        {/* Hero — bordeaux foncé : seule tache sombre de la page, impossible à
-            rater sur le fond grège (le rose pâle d'avant se fondait dedans).
-            Au doigt il monte juste sous le bonjour (order-2) : c'est le CTA
-            principal de l'app, il doit être cliquable sans scroller (regard du
-            22/08 sur un 390×844 — le bandeau premiers pas + le rappel des
-            brouillons le poussaient sous la ligne de flottaison). */}
-        <div
-          data-tour="card-next-step"
-          className="order-2 sm:order-none group rounded-[18px_28px_14px_24px] bg-[hsl(var(--bento-dark))] p-6 sm:p-7 shadow-[var(--shadow-bento)] hover:shadow-[var(--shadow-bento-hover)] transition-shadow duration-[300ms] ease-out cursor-pointer"
-          onClick={() => { if (hero.route.startsWith("/creer")) porte("creer"); handleNavigate(hero.route); }}
-        >
-          <p className="font-mono-ui text-2xs text-rose-soft/90 uppercase tracking-[0.14em] font-semibold mb-3">
-            {hero.eyebrow}
-          </p>
-
-          <h2 className="font-display text-[26px] sm:text-[28px] leading-[1.15] text-white">
-            {hero.title}
-          </h2>
-
-          {/* L'explication ne s'affiche que pendant la mise en route : une fois
-              lancée, « Créer un contenu » se passe de justification — chaque
-              ligne du hero repousse le reste sous la ligne de flottaison. */}
-          {!launched && (
-            <p className="text-base text-white/70 mt-3 leading-relaxed line-clamp-2">
-              {cleanText(recommendation.explanation)}
-            </p>
-          )}
-
-          {/* Pills canaux + CTA sur une même ligne (le CTA à droite) */}
-          <div className="flex flex-wrap items-center gap-2 mt-5">
-            {hero.showChannels &&
-              CHANNEL_PILLS.map(({ label, icon: Icon, canal }) => (
-                <button
-                  key={label}
-                  type="button"
-                  aria-label={`Créer un contenu ${label}`}
-                  onClick={(e) => { e.stopPropagation(); porte("creer"); navigate(`/creer?canal=${canal}&new=1`); }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-transparent border border-white/25 text-xs text-white/80 hover:bg-white hover:text-bordeaux hover:border-white transition-colors"
-                >
-                  <Icon className="h-3 w-3" />
-                  {label}
-                </button>
-              ))}
-
-            <Button
-              className="w-full sm:w-auto sm:ml-auto h-11 px-6 rounded-full bg-white hover:bg-rose-pale text-bordeaux text-base font-semibold shadow-sm hover:shadow-md transition-all"
-              onClick={(e) => { e.stopPropagation(); if (hero.route.startsWith("/creer")) porte("creer"); handleNavigate(hero.route); }}
-            >
-              {hero.ctaLabel}
-              <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
-            </Button>
-          </div>
-
-          {/* Une idée n'est pas une rubrique à part : c'est une façon d'entrer
-              dans la création. Le rendez-vous hebdo (même rotation que
-              l'e-mail, weekly-ideas.ts) vit donc DANS la porte Créer. */}
-          {launched && (
-            <div className="mt-5 pt-4 border-t border-white/15" onClick={(e) => e.stopPropagation()}>
-              <p className="font-mono-ui text-2xs uppercase tracking-[0.14em] font-semibold text-accent mb-1">
-                Ou pars d'une idée de la semaine
-              </p>
-              {weeklyIdeas().slice(0, 2).map((idea) => (
-                <button
-                  key={idea}
-                  type="button"
-                  onClick={() => { porte("creer"); navigate(`/creer?sujet=${encodeURIComponent(idea)}`); }}
-                  className="group/idea flex w-full items-center gap-2 py-1.5 text-left"
-                >
-                  <span className="flex-1 text-sm text-white/90 group-hover/idea:text-white transition-colors">{idea}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0 text-accent/80 transition-transform group-hover/idea:translate-x-0.5" />
-                </button>
-              ))}
-            </div>
-          )}
-
-          {isAurianaDemoEmail(user?.email) && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                clearFlowState();
-                saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() });
-                navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } });
-              }}
-              className="mt-3 ml-3 inline-flex items-center gap-2 text-xs font-medium px-3 py-1.5 bg-transparent border border-white/25 text-white/70 rounded-lg hover:border-white/60 hover:text-white transition-all"
-            >
-              🎬 Lancer la démo carrousel
-            </button>
-          )}
-        </div>
-
-        {/* Les deux autres portes — Programmer (la vraie promesse : ça part
-            tout seul) et Mes photos (le différenciant). La grille complète du
-            calendrier reste sur /calendrier : ici on ne dit que ce qui déclenche
-            une décision (prochain départ, rien ensuite, contenus sans date). */}
-        <div className="order-5 sm:order-none grid sm:grid-cols-2 gap-4">
+        {/* Repères secondaires : calendrier et idées hebdomadaires. */}
+        <div className="grid sm:grid-cols-2 gap-4">
 
           {/* Porte 2 — Programmer */}
           <section
@@ -873,80 +747,17 @@ export default function AdaptiveHome() {
             </button>
           </section>
 
-          {/* Porte 3 — Mes photos */}
-          <section
-            className="min-w-0 rounded-[16px_12px_20px_14px] bg-card border border-secondary p-5 cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={() => { porte("photos"); navigate("/photos"); }}
-          >
-            <SectionLabel>Mes photos</SectionLabel>
-            {photoThumbs.length > 0 ? (
-              <div className="flex items-center gap-2 mb-2.5">
-                {photoThumbs.map((url, i) => (
-                  <img
-                    key={i}
-                    src={url}
-                    alt=""
-                    loading="lazy"
-                    className="h-14 w-14 rounded-lg object-cover border border-secondary"
-                  />
-                ))}
-                {photoCount > photoThumbs.length && (
-                  <span className="h-14 w-14 rounded-lg bg-rose-pale border border-secondary flex items-center justify-center font-mono-ui text-2xs font-semibold text-bordeaux">
-                    +{photoCount - photoThumbs.length}
-                  </span>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-center gap-2.5 rounded-xl bg-rose-pale px-3 py-2.5 mb-2.5">
-                <ImageIcon className="h-4 w-4 shrink-0 text-primary" strokeWidth={1.75} />
-                <p className="text-sm text-muted-foreground">
-                  Ta bibliothèque est vide : ajoute tes premières photos.
-                </p>
-              </div>
-            )}
-            <p className="text-sm text-muted-foreground mb-3">
-              {photoCount > 0
-                ? `${photoCount} photo${photoCount > 1 ? "s" : ""} dans ta bibliothèque.`
-                : "Elles nourrissent tes posts, carrousels et stories."}
-            </p>
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
-              Mettre mes photos aux couleurs de ma marque
-              <ArrowRight className="h-4 w-4" />
-            </span>
+          <section className="min-w-0 rounded-2xl border border-secondary bg-card p-5">
+            <SectionLabel>Une idée pour commencer</SectionLabel>
+            {weeklyIdeas().slice(0, 2).map(idea => <button key={idea} type="button" onClick={() => { porte("creer"); navigate(`/creer?sujet=${encodeURIComponent(idea)}`); }} className="flex w-full items-center gap-2 py-2 text-left text-sm text-bordeaux"><span className="flex-1">{idea}</span><ArrowRight size={16} className="shrink-0" /></button>)}
           </section>
         </div>
 
-        {/* Raccourcis restants — ce qui n'est pas une porte mais sert au quotidien */}
-        <div className="order-6 sm:order-none flex flex-wrap gap-2">
-          <PilotPill
-            dataTour="card-ideas"
-            icon={Lightbulb}
-            label="Mes idées"
-            count={ideaCount}
-            onClick={() => navigate("/idees")}
-          />
-          <PilotPill
-            icon={RecycleIcon}
-            label="Recycler un post qui a marché"
-            onClick={() => setRecycleOpen(true)}
-          />
+        <div className="flex flex-wrap gap-3">
+          <PilotPill icon={RecycleIcon} label="Recycler un post qui a marché" onClick={() => setRecycleOpen(true)} />
+          <PilotPill dataTour="card-assistant" icon={MessageCircle} label="Parler à ma coach IA" onClick={() => handleNavigate("/dashboard/guide")} />
+          {isAurianaDemoEmail(user?.email) && <button type="button" onClick={() => { clearFlowState(); saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() }); navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } }); }} className="text-sm text-bordeaux underline">Lancer la démo carrousel</button>}
         </div>
-
-        {/* Le coaching n'est plus un pavé permanent : une ligne discrète suffit
-            (décision maquettes 07/08). Les Binôme ont déjà leur accompagnement. */}
-        {!isBinome && (
-          <p className="order-7 sm:order-none text-center text-sm text-muted-foreground pt-1">
-            Envie d'être accompagnée ?{" "}
-            <a
-              href="https://calendly.com/laetitia-mattioli/appel-decouverte"
-              target="_blank"
-              rel="noreferrer"
-              className="font-semibold text-primary-text hover:text-bordeaux underline underline-offset-2 transition-colors"
-            >
-              Réserver un appel découverte
-            </a>
-          </p>
-        )}
 
         {/* Recyclage intelligent : les meilleurs posts passés, prêts à ré-angler */}
         <RecycleDialog open={recycleOpen} onOpenChange={setRecycleOpen} />
