@@ -12,12 +12,12 @@ import {
   Camera,
   ChevronDown,
   Download,
+  EyeOff,
   Loader2,
   Package,
   RefreshCw,
   Shirt,
   Sparkles,
-  Trash2,
   Wand2,
 } from "lucide-react";
 import {
@@ -434,8 +434,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
         )}
 
         {/* Actions de service : détachées par un filet, jamais en concurrence
-            avec l'action principale. « Supprimer » manquait ici — la corbeille
-            de la vignette est en opacity-0/hover, donc hors d'atteinte au doigt. */}
+            avec l'action principale. Le retrait reste accessible au doigt et
+            ne promet jamais une destruction physique du fichier. */}
         <div className="flex items-center gap-4 border-t border-border pt-3 min-w-0">
           <button
             type="button"
@@ -459,8 +459,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               }}
               className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-destructive"
             >
-              <Trash2 className="h-3.5 w-3.5" />
-              Supprimer
+              <EyeOff className="h-3.5 w-3.5" />
+              Retirer de la bibliothèque
             </button>
           )}
         </div>
