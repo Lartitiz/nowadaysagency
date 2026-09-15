@@ -1,3 +1,5 @@
+import { planSavedIdea, moveCalendarPost } from '@/lib/idea-calendar-persistence';
+import { calendarSaveError } from '@/lib/calendar-persistence';
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { toLocalDateStr } from "@/lib/utils";
@@ -45,7 +47,7 @@ import { ImportContentDialog } from "@/components/calendar/ImportContentDialog";
 import { MarronnierBanner } from "@/components/calendar/MarronnierBanner";
 import { SeasonalPhotoDialog } from "@/components/calendar/SeasonalPhotoDialog";
 import type { MarronnierOccurrence } from "@/lib/marronniers";
-import { buildCalendarPostFromIdea } from "@/lib/idea-to-calendar";
+
 import { lazy, Suspense } from "react";
 import type { DragStartEvent, DragEndEvent } from "@dnd-kit/core";
 const CalendarDndWrapper = lazy(() => import("@/components/calendar/CalendarDndWrapper"));
@@ -672,27 +674,23 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     const originalPost = posts.find((p) => p.id === postId);
     const originalDate = originalPost?.date ?? null;
     setPosts((prev) => prev.map((p) => (p.id === postId ? { ...p, date: newDate } : p)));
-    const { error } = await supabase.from("calendar_posts")
-      .update({ date: newDate, updated_at: new Date().toISOString() })
-      .eq("id", postId);
-    if (error) { toast.error("Erreur"); fetchPosts(); }
-    else {
+    if (!originalDate) return false;
+    try {
+      await moveCalendarPost(postId, newDate, originalDate);
+      setIdeasRefreshKey(k => k + 1);
       const formatted = new Date(newDate + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
       toast(`Déplacé au ${formatted}`, {
         action: originalDate && originalDate !== newDate ? {
           label: "Annuler",
           onClick: async () => {
-            const { error: rollbackError } = await supabase.from("calendar_posts")
-              .update({ date: originalDate, updated_at: new Date().toISOString() })
-              .eq("id", postId);
-            if (rollbackError) {
-              toast.error("Oups, ça n'a pas été enregistré", { description: "Réessaie dans un instant." });
-            }
+            try { await moveCalendarPost(postId, originalDate, newDate); setIdeasRefreshKey(k => k + 1); }
+            catch (error) { toast.error(calendarSaveError(error)); }
             fetchPosts();
           },
         } : undefined,
       });
-    }
+      return true;
+    } catch (error) { toast.error(calendarSaveError(error)); fetchPosts(); return false; }
   };
 
   /** Build idea insert payload from a calendar post, snapshotting carousel slides + visuals into content_data */
@@ -843,28 +841,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       const idea = data.idea;
       // L'idée emporte tout son contenu (stories, slides, accroche…), pas
       // seulement le texte brut — cf. src/lib/idea-to-calendar.ts.
-      const { data: newPost, error: insertError } = await supabase.from("calendar_posts").insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        date: newDate,
-        ...buildCalendarPostFromIdea(idea),
-      } as any).select("id").single();
-      if (insertError) {
-        console.error("Erreur technique:", insertError);
-        toast.error("Erreur", { description: friendlyError(insertError) });
-        return;
-      }
-      if (newPost) {
-        const { error: updateError } = await supabase.from("saved_ideas").update({ calendar_post_id: newPost.id, planned_date: newDate, status: "planned" }).eq("id", idea.id);
-        if (updateError) {
-          console.error("Erreur technique:", updateError);
-          toast.error("Erreur", { description: friendlyError(updateError) });
-          return;
-        }
-      }
+      let receipt;
+      try { receipt = await planSavedIdea(idea, newDate); }
+      catch (error) { toast.error(calendarSaveError(error)); return; }
       fetchPosts();
       setIdeasRefreshKey(k => k + 1);
-      toast.success(`"${idea.titre}" planifié !`);
+      toast.success(`"${idea.titre}" ${receipt.replayed ? "déjà prévu" : "prévu"} au calendrier le ${receipt.date}`);
     } else {
       const postId = active.id as string;
       const currentPost = posts.find(p => p.id === postId);
@@ -1106,10 +1088,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           onAutoSave={handleAutoSave}
           onDelete={handleDelete}
           onUnplan={editingPost ? handleUnplan : undefined}
-          onDateChange={(postId, newDate) => {
-            handleMovePost(postId, newDate);
+          onDateChange={async (postId, newDate) => {
+            if (!await handleMovePost(postId, newDate)) return;
             setSelectedDate(newDate);
-            if (editingPost) setEditingPost({ ...editingPost, date: newDate });
+            setEditingPost(current => current?.id === postId ? { ...current, date: newDate } : current);
           }}
           prefillData={prefillData}
         />

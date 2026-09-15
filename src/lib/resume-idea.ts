@@ -22,6 +22,7 @@ export function resumeIdea(idea: IdeaForCalendar) {
     raw = { content: idea.content_draft, edited_text: idea.content_draft };
   }
   if (!raw) return null;
+  if (idea.content_draft === "") raw = { ...raw, edited_text: "" };
   const crosspost = resumeCrosspost(raw, idea.format);
   if (crosspost) {
     if (crosspost.format === 'carousel' && idea.updated_at !== undefined) crosspost.raw._carousel_base_updated_at = idea.updated_at;

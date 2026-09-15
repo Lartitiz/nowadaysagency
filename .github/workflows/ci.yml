@@ -149,3 +149,8 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/photo-library-removal.sql
+
+      - name: Idea/calendar transfers keep source links and dates atomic (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/idea-calendar-transfers.sql
