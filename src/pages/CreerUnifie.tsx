@@ -1,3 +1,5 @@
+import { pinterestCurrentText } from "@/lib/pinterest-current-text";
+import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
 import { isDurableReelUrl, reelSourceKey } from "@/lib/reel-publication";
 import { useCreationEntryKey } from "@/hooks/use-creation-entry-key";
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
@@ -2465,10 +2467,11 @@ function CreerWorkspace() {
     try {
       toast.info("Export PPTX éditable en cours...");
       const { exportPinterestEditablePptx } = await import("@/lib/export-pinterest-editable-pptx");
+      const currentSeo = pinterestCurrentText(result?.raw);
       await exportPinterestEditablePptx(
         pinData,
-        result?.raw?.title || "",
-        result?.raw?.description || "",
+        currentSeo.title,
+        currentSeo.description,
         ideaText || "epingle-pinterest",
         charterData
       );
@@ -2573,7 +2576,7 @@ function CreerWorkspace() {
   const effectiveHandleExportVisualPng = isDemoMode ? demoToast : handleExportVisualPng;
   const effectiveHandleExportHybridPptx = isDemoMode ? demoToast : handleExportHybridPptx;
 
-  const ideaVersionSignature = useMemo(() => JSON.stringify([result?.raw, visualSlides]), [result?.raw, visualSlides]);
+  const ideaVersionSignature = useMemo(() => JSON.stringify([result?.raw, visualSlides, uploadedPhotos]), [result?.raw, visualSlides, uploadedPhotos]);
   const ideaSaveNotice = ideaSaving ? "Enregistrement du texte et des visuels…"
     : savedIdeaVersion?.signature === ideaVersionSignature
       ? savedIdeaVersion.complete
@@ -3256,6 +3259,10 @@ function CreerWorkspace() {
         contentType={mapFormatToContentType(selectedFormat)}
         subject={ideaText}
         contentData={result?.raw}
+        onPrepareContent={selectedFormat === "post" && uploadedPhotos.length > 0
+          ? raw => prepareIdeaPhotos(supabase, session?.user?.id, editingIdeaId, uploadedPhotos, raw)
+          : undefined}
+        isSaveCurrent={isCurrentCreation}
         sourceModule="creer"
         format={selectedFormat || undefined}
         objectif={objective || undefined}
@@ -3263,10 +3270,13 @@ function CreerWorkspace() {
         onUploadVisuals={selectedFormat === "carousel" ? uploadVisualsToStorage : undefined}
         editingIdeaId={editingIdeaId}
         onSavingChange={setIdeaSaving}
-        onSaved={(id, complete) => {
+        onSaved={(id, complete, preparedContent) => {
           if (!isCurrentCreation()) return;
           setEditingIdeaId(id);
-          setSavedIdeaVersion({ signature: ideaVersionSignature, complete });
+          if (preparedContent) setResult((prev: any) => prev ? { ...prev, raw: preparedContent } : prev);
+          setSavedIdeaVersion({ signature: preparedContent
+            ? JSON.stringify([preparedContent, visualSlides, uploadedPhotos])
+            : ideaVersionSignature, complete });
         }}
       />
     </div>

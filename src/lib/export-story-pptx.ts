@@ -1,3 +1,4 @@
+import { exportFileName } from "./export-file-name";
 // Export PPTX des stories (1080×1920) — 100 % natif, zéro rasterisation.
 //
 // Contrairement au PPTX hybride des carrousels (HTML généré par l'IA → extraction
@@ -345,6 +346,5 @@ export async function exportStoryPptx(
   if (opts.returnBlob) {
     return (await pptx.write({ outputType: "blob" })) as Blob;
   }
-  const safe = (opts.fileName || "stories").replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
-  await pptx.writeFile({ fileName: `stories-${safe}.pptx` });
+  await pptx.writeFile({ fileName: exportFileName(`stories-${opts.fileName || "stories"}`, "pptx") });
 }

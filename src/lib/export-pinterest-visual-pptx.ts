@@ -1,9 +1,8 @@
+import { exportFileName } from "./export-file-name";
 import { waitForExportImages } from "./export-image-readiness";
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas";
-import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
-
-const PIN_W = 1000;
+import { renderPinterestVisualToBlob } from "./export-carousel-png";
 
 /**
  * @deprecated Plus utilisé dans l'UI depuis l'unification "Télécharger".
@@ -46,7 +45,7 @@ export async function exportPinterestVisualPptx(
     document.body.removeChild(container);
   }
 
-  await pptx.writeFile({ fileName: fileName + ".pptx" });
+  await pptx.writeFile({ fileName: exportFileName(fileName, "pptx") });
 }
 
 export async function exportPinterestVisualPng(
@@ -54,41 +53,14 @@ export async function exportPinterestVisualPng(
   fileName = "epingle-pinterest",
   logoUrl?: string | null,
 ) {
-  const logoBase64 = await fetchLogoAsBase64(logoUrl);
-  const logoOverlayHtml = logoBase64 ? buildLogoOverlayHtml(logoBase64, PIN_W) : "";
-
-  const container = document.createElement("div");
-  container.style.cssText =
-    "position:fixed;top:-9999px;left:-9999px;width:1000px;height:1500px;overflow:hidden;z-index:-1;";
-  document.body.appendChild(container);
-
+  const blob = await renderPinterestVisualToBlob(pinHtml, logoUrl);
+  const url = URL.createObjectURL(blob);
   try {
-    container.innerHTML = pinHtml + logoOverlayHtml;
-    await document.fonts.ready;
-    await waitForExportImages(container);
-    await new Promise((r) => setTimeout(r, 300));
-
-    const canvas = await html2canvas(container, {
-      width: 1000,
-      height: 1500,
-      scale: 1,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: null,
-      logging: false,
-    });
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("toBlob failed"))), "image/png");
-    });
-
-    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = fileName + ".png";
+    a.download = exportFileName(fileName, "png");
     a.click();
-    URL.revokeObjectURL(url);
   } finally {
-    document.body.removeChild(container);
+    URL.revokeObjectURL(url);
   }
 }

@@ -92,47 +92,22 @@ export async function uploadPinterestVisualToStorage(
 ): Promise<string[]> {
   if (!userId || !pinHtml) return [];
 
-  const container = document.createElement("div");
-  container.style.cssText = "position:fixed;top:-9999px;left:-9999px;width:1000px;height:1500px;overflow:hidden;z-index:-1;";
-  document.body.appendChild(container);
+  const { renderPinterestVisualToBlob } = await import("@/lib/export-carousel-png");
+  const blob = await renderPinterestVisualToBlob(pinHtml);
 
-  const urls: string[] = [];
-  try {
-    container.innerHTML = pinHtml;
-    await document.fonts.ready;
-    await new Promise(r => setTimeout(r, 400));
+  const path = `${userId}/${postId}/pinterest/${crypto.randomUUID()}/pin-visual.png`;
+  const { error } = await supabase.storage
+    .from("calendar-visuals")
+    .upload(path, blob, { contentType: "image/png", upsert: false });
 
-    const canvas = await (await import("html2canvas")).default(container, {
-      width: 1000,
-      height: 1500,
-      scale: 1,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: null,
-      logging: false,
-    });
-
-    const blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("Le visuel Pinterest n’a pas pu être généré.")), "image/png");
-    });
-
-    const path = `${userId}/${postId}/pinterest/${crypto.randomUUID()}/pin-visual.png`;
-    const { error } = await supabase.storage
-      .from("calendar-visuals")
-      .upload(path, blob, { contentType: "image/png", upsert: false });
-
-    if (error) {
-      throw new Error("Le visuel Pinterest n’a pas pu être sauvegardé. Ton contenu reste dans l’éditeur.");
-    }
-
-    onUploaded?.(path);
-    const { data: urlData } = supabase.storage
-      .from("calendar-visuals")
-      .getPublicUrl(path);
-
-    urls.push(urlData.publicUrl);
-  } finally {
-    document.body.removeChild(container);
+  if (error) {
+    throw new Error("Le visuel Pinterest n’a pas pu être sauvegardé. Ton contenu reste dans l’éditeur.");
   }
-  return urls;
+
+  onUploaded?.(path);
+  const { data: urlData } = supabase.storage
+    .from("calendar-visuals")
+    .getPublicUrl(path);
+
+  return [urlData.publicUrl];
 }

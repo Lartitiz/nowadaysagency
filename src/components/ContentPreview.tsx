@@ -51,11 +51,14 @@ export function ContentPreview({ contentData, contentType, contentDraft, compact
   }
   editable = editable && !!onContentChange;
   const detectedType = crosspost ? (crosspost.format === "story" ? "stories" : crosspost.format) : contentType || detectType(data);
+  const isTextPost = detectedType === "post" && (
+    data.format === "caption_photo" || ["content", "contenu", "text"].some((key) => typeof data[key] === "string")
+  );
 
   const preview = detectedType === "reel" ? <ReelPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
     : detectedType === "stories" ? <StoriesPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
     : (detectedType === "carousel" || detectedType === "carousel_photo" || detectedType === "carousel_mix") ? <CarouselPreview data={data} compact={compact} editable={editable} onContentChange={onContentChange} />
-    : (detectedType === "post_instagram" || detectedType === "post_linkedin") ? <PostPreview data={data} editable={editable} onContentChange={onContentChange} />
+    : (isTextPost || detectedType === "caption_photo" || detectedType === "post_instagram" || detectedType === "post_linkedin") ? <PostPreview data={data} editable={editable} onContentChange={onContentChange} />
     : <FallbackPreview data={data} editable={editable} onContentChange={onContentChange} />;
 
   return <>{preview}{crosspost && <CrosspostSources data={data} />}<AiGeneratedMention /></>;
@@ -534,16 +537,18 @@ function CarouselPreview({ data, compact, editable, onContentChange }: { data: a
 
 /* ─── Post Preview ─── */
 function PostPreview({ data, editable, onContentChange }: { data: any; editable?: boolean; onContentChange?: SaveContentEdit }) {
-  const text = typeof data === "string" ? data : data.content ?? data.contenu ?? data.text ?? "";
-  if (!text && !editable) return <FallbackPreview data={data} />;
+  // An empty edited string is still the current text. Never fall back to the
+  // generated content or expose raw metadata when the user deliberately cleared it.
+  const key = typeof data === "string" ? null : ["edited_text", "content", "contenu", "text"].find((field) => typeof data[field] === "string");
+  const text = typeof data === "string" ? data : key ? data[key] : "";
+  if (key === undefined && !editable) return <FallbackPreview data={data} />;
 
   if (editable && onContentChange) {
-    const key = typeof data === "string" ? null : data.content != null ? "content" : data.contenu != null ? "contenu" : "text";
     return (
       <EditableText
         value={text}
-        onSave={(v) => onContentChange(contentEdit(data, key ? [key] : [], v))}
-        className="text-sm text-foreground"
+        onSave={(v) => onContentChange(contentEdit(data, typeof data === "string" ? [] : [key ?? "text"], v))}
+        className="text-sm text-foreground whitespace-pre-wrap"
       />
     );
   }

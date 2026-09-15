@@ -1,3 +1,4 @@
+import { exportFileName } from "./export-file-name";
 import { ExportImageError, waitForExportImages } from "./export-image-readiness";
 import { promoteMixedText, charterFontUrl } from "./pptx-mixed-text";
 import PptxGenJS from "pptxgenjs";
@@ -995,7 +996,7 @@ function addBlockToSlide(
   );
   const h = Math.min(
     PPTX_H_IN - y,
-    pxToInches(block.rect.h, PX_PER_IN) + safetyMargin,
+    pxToInches(block.rect.h, PX_PER_IN) + (block.style.verticalAlign ? 0 : safetyMargin),
   );
 
   const isTitleish = block.kind === "title" || block.kind === "overlay";
@@ -1065,7 +1066,7 @@ function addBlockToSlide(
     italic: block.style.fontStyle === "italic",
     color,
     align: block.style.textAlign,
-    valign: "top",
+    valign: block.style.verticalAlign || "top",
     wrap: !isSingleLine,
     margin: 0,
     // « Réduire le texte en cas de débordement » : si malgré les slacks le texte
@@ -1725,5 +1726,5 @@ export async function exportCarouselHybridPptx(
   if (opts?.returnBlob) {
     return (await pptx.write({ outputType: "blob" })) as Blob;
   }
-  await pptx.writeFile({ fileName: fileName + ".pptx" });
+  await pptx.writeFile({ fileName: exportFileName(fileName, "pptx") });
 }
