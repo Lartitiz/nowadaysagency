@@ -230,7 +230,7 @@ export default function AppSidebar() {
   const firstName = user?.user_metadata?.first_name || user?.user_metadata?.prenom || user?.email?.split("@")[0] || "Utilisateur";
   const initial = firstName.charAt(0).toUpperCase();
 
-  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace } = useWorkspace();
+  const { activeWorkspace, workspaces, isMultiWorkspace, switchWorkspace, switchingWorkspaceId } = useWorkspace();
   const { savedAccounts, switchToAccount, removeAccount } = useAccountSwitcher();
   const [wsPopoverOpen, setWsPopoverOpen] = useState(false);
   const [switching, setSwitching] = useState(false);
@@ -538,10 +538,17 @@ export default function AppSidebar() {
                   {workspaces.map((ws) => (
                     <button
                       key={ws.id}
-                      onClick={async () => { await switchWorkspace(ws.id); setWsPopoverOpen(false); setOpen(false); }}
+                      disabled={switchingWorkspaceId !== null}
+                      aria-busy={switchingWorkspaceId === ws.id}
+                      onClick={async () => {
+                        const ok = await switchWorkspace(ws.id);
+                        if (!ok) return;
+                        setWsPopoverOpen(false);
+                        setOpen(false);
+                      }}
                       className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-md text-left transition-colors ${
                         ws.id === activeWorkspace?.id ? "bg-muted" : "hover:bg-muted/50"
-                      }`}
+                      } disabled:cursor-wait disabled:opacity-60`}
                     >
                       <div className="w-7 h-7 rounded-md bg-accent flex items-center justify-center text-accent-foreground font-semibold text-xs shrink-0">
                         {ws.name.charAt(0).toUpperCase()}

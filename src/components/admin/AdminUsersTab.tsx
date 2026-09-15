@@ -174,7 +174,8 @@ export default function AdminUsersTab() {
           .limit(1);
 
         if (sharedWs && sharedWs.length > 0) {
-          await switchWorkspace(sharedWs[0].workspace_id);
+          const ok = await switchWorkspace(sharedWs[0].workspace_id);
+          if (!ok) return;
           navigate("/dashboard");
           return;
         }
@@ -215,7 +216,8 @@ export default function AdminUsersTab() {
         return;
       }
 
-      await switchWorkspace(ws.id);
+      const ok = await switchWorkspace(ws.id);
+      if (!ok) return;
       navigate("/dashboard");
       toast.success("Espace créé et ouvert");
     } catch (e: any) {
