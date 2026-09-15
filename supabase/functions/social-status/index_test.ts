@@ -67,6 +67,12 @@ function installMockFetch(opts: {
         headers: { "content-type": "application/json" },
       });
     }
+    if (url.includes("/rest/v1/workspace_members")) {
+      const q = new URL(url).searchParams;
+      assertEquals(q.get("workspace_id"), "eq.ws-9");
+      assertEquals(q.get("user_id"), "eq.user-42");
+      return new Response(JSON.stringify([{ role: "owner" }]), {status:200,headers:{"content-type":"application/json"}});
+    }
     if (url.includes("/rest/v1/social_connections")) {
       calls.push({ url, method });
       if (opts.restStatus && opts.restStatus >= 400) {

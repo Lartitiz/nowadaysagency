@@ -1,3 +1,4 @@
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 // Returns the list of social connections for the current user/workspace WITHOUT exposing tokens.
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
@@ -12,6 +13,8 @@ Deno.serve(async (req) => {
     const workspaceId: string | null = body?.workspace_id ?? null;
 
     const supabase = getServiceClient();
+    const membership = await assertWorkspaceMembership(supabase, userId, workspaceId);
+    if (!membership.ok) return workspaceDeniedResponse(corsHeaders);
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || userId;
     let q = supabase

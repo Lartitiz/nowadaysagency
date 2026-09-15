@@ -19,6 +19,7 @@ const USER_ID = "user-42";
 
 Deno.env.set("SUPABASE_URL", SUPABASE_URL);
 Deno.env.set("SUPABASE_ANON_KEY", "anon-key-test");
+Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "service-role-test");
 Deno.env.set("OAUTH_STATE_SECRET", STATE_SECRET);
 Deno.env.set("ALLOWED_ORIGIN", "https://nowadays-assistant.fr");
 Deno.env.set("INSTAGRAM_APP_ID", "ig-app-id");
@@ -95,6 +96,12 @@ function withMockedAuthFetch<T>(fn: () => Promise<T>): Promise<T> {
         status: 401,
         headers: { "content-type": "application/json" },
       });
+    }
+    if (url.includes("/rest/v1/workspace_members")) {
+      const q = new URL(url).searchParams;
+      assertEquals(q.get("workspace_id"), "eq.ws-9");
+      assertEquals(q.get("user_id"), "eq.user-42");
+      return new Response(JSON.stringify([{ role: "owner" }]), {status:200,headers:{"content-type":"application/json"}});
     }
     throw new Error(`Unmocked fetch in social-oauth-start test: ${url}`);
   }) as typeof fetch;

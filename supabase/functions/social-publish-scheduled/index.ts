@@ -1,3 +1,4 @@
+import { assertWorkspacePublication } from "../_shared/social-workspace-guard.ts";
 import { reelCalendarCaption } from "../_shared/reel-caption.ts";
 import { isDurableReelUrl } from "../_shared/reel-publication.ts";
 // Publication programmée (Instagram image/carrousel + LinkedIn texte). Appelée toutes
@@ -138,7 +139,13 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
     if (claimError) console.error(`social-publish-scheduled: échec verrou post ${post.id}:`, claimError);
     if (!claimed) continue;
 
+    let accessDenied = false;
     try {
+      const membership = await assertWorkspacePublication(supabase, post.user_id, post.workspace_id);
+      if (!membership.ok) {
+        accessDenied = true;
+        throw new Error("Publication arrêtée : accès à cet espace indisponible.");
+      }
       const platform = post.canal === "linkedin" ? "linkedin" : "instagram";
 
       // Connexion du workspace/owner du post pour la bonne plateforme.
@@ -216,7 +223,8 @@ export async function processScheduledPosts(supabase: any): Promise<{ processed:
         })
         .eq("id", post.id);
       if (failedError) console.error(`social-publish-scheduled: échec marquage 'failed' pour ${post.id}:`, failedError);
-      await notifyPublishFailure(supabase, post, errMsg);
+      // A removed member must not receive private post details by email either.
+      if (!accessDenied) await notifyPublishFailure(supabase, post, errMsg);
       results.push({ id: post.id, ok: false, error: errMsg });
     }
   }
