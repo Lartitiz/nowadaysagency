@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 
 interface Props {
   result: any;
+  onTextChange?: (text: string) => void;
   photos?: { preview: string; base64?: string; name?: string }[];
 }
 
@@ -32,12 +33,13 @@ function stripHookPrefix(body: string, hook: string): string {
   return j >= h.length ? body.slice(i).replace(/^\s+/, "") : body;
 }
 
-export default function LinkedInResult({ result, photos }: Props) {
-  const hook = result?.hook || result?.accroche || "";
-  const rawBody = result?.body || result?.content || result?.text || "";
-  const cta = result?.cta || result?.call_to_action || "";
-  const hashtags = result?.hashtags || [];
-  const characterCount = result?.character_count || result?.char_count;
+export default function LinkedInResult({ result, photos, onTextChange }: Props) {
+  const hasEditedText = typeof result?.edited_text === "string";
+  const hook = hasEditedText ? "" : result?.hook || result?.accroche || "";
+  const rawBody = hasEditedText ? result.edited_text : result?.body || result?.content || result?.full_text || result?.text || "";
+  const cta = hasEditedText ? "" : result?.cta || result?.call_to_action || "";
+  const hashtags = hasEditedText ? [] : result?.hashtags || [];
+  const characterCount = hasEditedText ? result.edited_text.length : result?.character_count || result?.char_count;
   const checklist = result?.checklist || result?.quality_checklist || [];
   const hookAlternatives = result?.hook_alternatives || result?.alternatives || [];
 
@@ -162,7 +164,7 @@ export default function LinkedInResult({ result, photos }: Props) {
         </Accordion>
       )}
 
-      <RedFlagsChecker content={checkedText} onFix={setCheckedText} />
+      <RedFlagsChecker content={checkedText} onFix={(text) => { setCheckedText(text); onTextChange?.(text); }} />
 
       <AiGeneratedMention />
     </div>

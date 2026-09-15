@@ -5,7 +5,7 @@ import { useRef } from "react";
 export function useCreationEntryKey(search: string, navigationKey: string, navigationType?: string, hasState = false): string {
   const entry = useRef("initial");
   const params = new URLSearchParams(search);
-  const hasIntent = hasState || ["sujet", "subject", "format", "canal", "auto", "idea_id"].some(key => params.has(key));
+  const hasIntent = params.get("mode") !== "transform" && (hasState || ["sujet", "subject", "format", "canal", "auto", "idea_id"].some(key => params.has(key)));
   // A new in-app request must run the same conflict gate as a full page load.
   // REPLACE is also used to consume startup params; it must not remount work.
   if (params.get("new") === "1" || ((navigationType === "PUSH" || navigationType === "POP") && hasIntent)) entry.current = navigationKey;

@@ -34,7 +34,7 @@ vi.mock('@/hooks/use-format-next', () => ({ useFormatNext: () => ({ handleFormat
 vi.mock('@/components/AppHeader', () => ({ default: () => null }));
 vi.mock('@/components/SubPageHeader', () => ({ default: () => null }));
 vi.mock('@/components/dashboard/ContentCoachingDialog', () => ({ default: () => null }));
-vi.mock('@/components/creer/CreerTransformTab', () => ({ default: () => null }));
+vi.mock('@/components/creer/CreerTransformTab', () => ({ default: () => <p>Choix Recycler et Crosspost</p> }));
 vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div><p>Format : {p.forcedChannel}</p><button onClick={p.onBack}>Retour idée</button></div> }));
 vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => { mocks.resultProps=p; return <div><pre data-testid="result">{JSON.stringify(p.result)}</pre><button onClick={p.onReset}>Réinitialiser</button><button onClick={p.onEdit}>Éditer le résultat</button></div>; } }));
 vi.mock('@/lib/posthog', () => ({ posthog: { capture: vi.fn() } }));
@@ -53,7 +53,7 @@ vi.mock('@/components/creer/PhotoUploadZone', () => ({ PhotoUploadZone: (p: any)
   <button onClick={() => p.onPhotosChange([])}>Retirer photos</button>
   <input aria-label="Description photo" value={p.initialDescription} onChange={e => p.onDescriptionChange(e.target.value)}/>
 </div> }));
-function App() { const nav = useNavigate(); return <><button onClick={() => nav('/ailleurs')}>Quitter</button><button onClick={() => nav('/creer')}>Créer</button><button onClick={() => nav('/creer?new=1')}>Nouveau explicite</button><button onClick={() => nav('/creer?sujet=Autre%20sujet')}>Autre intention</button><button onClick={() => nav('/creer?canal=pinterest')}>Canal Pinterest</button><button onClick={() => nav(-1)}>Historique précédent</button><Routes><Route path="/creer" element={<CreerUnifie/>}/><Route path="/ailleurs" element={<p>Ailleurs</p>}/></Routes></>; }
+function App() { const nav = useNavigate(); return <><button onClick={() => nav('/ailleurs')}>Quitter</button><button onClick={() => nav('/creer')}>Créer</button><button onClick={() => nav('/creer?new=1')}>Nouveau explicite</button><button onClick={() => nav('/creer?sujet=Autre%20sujet')}>Autre intention</button><button onClick={() => nav('/creer?canal=pinterest')}>Canal Pinterest</button><button onClick={() => nav('/creer?mode=transform')}>Transformer</button><button onClick={() => nav(-1)}>Historique précédent</button><Routes><Route path="/creer" element={<CreerUnifie/>}/><Route path="/ailleurs" element={<p>Ailleurs</p>}/></Routes></>; }
 function mount(url: any = '/creer') { return render(<StrictMode><MemoryRouter initialEntries={[url]}><App/></MemoryRouter></StrictMode>); }
 function type(text: string) { fireEvent.change(screen.getByRole('textbox'), { target: { value: text } }); }
 beforeEach(() => { cleanup(); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; mocks.brandChecking=false; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
@@ -276,4 +276,17 @@ it.each(['text','photo','mix','pure_photo','user_slides'])('preserves saved caro
   if(mode==='user_slides') expect(mocks.resultProps.onChangeAngle).toBeUndefined();
   app.unmount(); sessionStorage.clear(); mount();await screen.findByTestId('result');
   expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-carousel',carouselSubMode:mode,result:{raw}});
+});
+
+it.each(['/creer?mode=transform','/creer?mode=transform&format=stories'])('opens the transform sheet at %s without replacing the current result or its identity', async url=>{
+ const raw={script:[{text:'Reel conservé'}]};saveFlowState({step:'result',ideaText:'Reel QA',selectedFormat:'reel',result:{type:'reel',raw},editingIdeaId:'saved-reel',creationId:'reel-id'});
+ mount(url);await screen.findByText('Choix Recycler et Crosspost');
+ expect(loadFlowState()).toMatchObject({step:'result',selectedFormat:'reel',editingIdeaId:'saved-reel',creationId:'reel-id',result:{raw}});
+ fireEvent.click(screen.getByRole('button',{name:'Close'}));
+ expect(screen.getByTestId('result')).toHaveTextContent('Reel conservé');expect(loadFlowState()?.editingIdeaId).toBe('saved-reel');
+});
+it('opens transform on the already-mounted result and preserves the current creation',async()=>{
+ saveFlowState({step:'result',ideaText:'Post QA',selectedFormat:'post',result:{type:'post',raw:{content:'Post gardé'}},editingIdeaId:'saved-post',creationId:'post-id'});
+ mount();await screen.findByTestId('result');fireEvent.click(screen.getByText('Transformer'));
+ await screen.findByText('Choix Recycler et Crosspost');expect(loadFlowState()).toMatchObject({creationId:'post-id',editingIdeaId:'saved-post',step:'result'});
 });
