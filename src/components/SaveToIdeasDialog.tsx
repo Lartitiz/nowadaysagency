@@ -34,7 +34,8 @@ interface Props {
   onSavingChange?: (saving: boolean) => void;
   isSaveCurrent?: () => boolean;
   onSaveContent?: (fields: Record<string, any>) => Promise<string>;
-  onSaved?: (id: string, complete: boolean) => void;
+  onPrepareContent?: (content: any) => Promise<{ contentData: any; rollback?: () => Promise<void> }>;
+  onSaved?: (id: string, complete: boolean, preparedContent?: any) => void;
 }
 
 export function SaveToIdeasDialog({
@@ -53,6 +54,7 @@ export function SaveToIdeasDialog({
   onSavingChange,
   onSaved,
   onSaveContent,
+  onPrepareContent,
   isSaveCurrent,
 }: Props) {
   const { user } = useAuth();
@@ -62,6 +64,8 @@ export function SaveToIdeasDialog({
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
+  const scopeRef = useRef("");
+  scopeRef.current = `${user?.id || ""}:${workspaceId || ""}`;
 
   const toggleTag = (tag: string) => {
     setSelectedTags((prev) =>
@@ -80,10 +84,25 @@ export function SaveToIdeasDialog({
   const handleSave = async () => {
     if (savingRef.current) return;
     if (!user) { toast.error("Reconnecte-toi pour enregistrer ton contenu."); return; }
+    const scope = scopeRef.current;
+    const isCurrent = () => scopeRef.current === scope && (!isSaveCurrent || isSaveCurrent());
+    if (!isCurrent()) return;
+    let prepared: { contentData: any; rollback?: () => Promise<void> } | undefined;
+    let writeStarted = false;
+    const rollbackPrepared = async () => {
+      const rollback = prepared?.rollback;
+      if (prepared) prepared.rollback = undefined;
+      if (rollback) {
+        try { await rollback(); } catch (error) { console.warn("Temporary idea media cleanup failed:", error); }
+      }
+    };
     savingRef.current = true;
     setSaving(true);
     onSavingChange?.(true);
     try {
+      prepared = onPrepareContent ? await onPrepareContent(contentData) : undefined;
+      if (!isCurrent()) { await rollbackPrepared(); return; }
+      const currentContent = prepared ? prepared.contentData : contentData;
       const contentEmoji =
         contentType === "newsletter" ? "📧" :
         contentType === "story" ? "📱" :
@@ -106,14 +125,15 @@ export function SaveToIdeasDialog({
         canal: canalValue,
         objectif: objectif || null,
         notes: note || null,
-        content_draft: typeof contentData === "string" ? contentData : JSON.stringify(contentData),
-        content_data: visualSlides?.length && typeof contentData === "object" ? { ...contentData, visual_html: visualSlides } : contentData,
+        content_draft: typeof currentContent === "string" ? currentContent : JSON.stringify(currentContent),
+        content_data: visualSlides?.length && typeof currentContent === "object" ? { ...currentContent, visual_html: visualSlides } : currentContent,
         personal_elements: personalElements || null,
       };
 
       let targetId: string | null = null;
       let isUpdate = false;
 
+      writeStarted = true;
       if (onSaveContent) {
         targetId = await onSaveContent(baseFields);
       } else if (editingIdeaId) {
@@ -150,19 +170,24 @@ export function SaveToIdeasDialog({
         targetId = newIdea?.id ?? null;
       }
 
-      if (isSaveCurrent && !isSaveCurrent()) return;
+      if (!isCurrent()) return;
       if (!targetId) throw new Error("L’enregistrement n’a pas été confirmé.");
       // Close once the text is safe; the result keeps a visible progress status.
       onOpenChange(false);
       // Do not claim a complete save before the visuals have also been attached.
       const complete = visualSlides?.length && onUploadVisuals
         ? await attachVisualsInBackground(targetId) : true;
-      onSaved?.(targetId, complete);
+      if (prepared) onSaved?.(targetId, complete, currentContent);
+      else onSaved?.(targetId, complete);
       if (complete) toast.success(isUpdate ? "Contenu mis à jour dans Mes idées → En cours." : "Contenu enregistré dans Mes idées → En cours.");
       setSelectedTags([]);
       setNote("");
     } catch (error) {
-      if (isSaveCurrent && !isSaveCurrent()) return;
+      // A transport failure can arrive after commit: keep media unless SQL
+      // explicitly rejected the write, or no write was attempted.
+      const code = (error as { code?: string })?.code || "";
+      if (!writeStarted || /^(22|23|42)/.test(code)) await rollbackPrepared();
+      if (!isCurrent()) return;
       console.error("Save content failed:", error);
       toast.error("L’enregistrement a échoué. Ton contenu reste ouvert : réessaie avant de fermer.");
     } finally {

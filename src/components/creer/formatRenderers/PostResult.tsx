@@ -56,8 +56,13 @@ export default function PostResult({ result, content, photos, onTextChange, onPh
     typeof result?.image_url === "string" && result.image_url.startsWith("https://")
       ? result.image_url
       : null;
-  const previewPhotos =
-    photos && photos.length > 0 ? photos : resultImage ? [{ preview: resultImage }] : undefined;
+  const savedPhotos = Array.isArray(result?.photo_urls)
+    ? result.photo_urls.filter((url: unknown): url is string => typeof url === "string" && url.startsWith("https://"))
+    : [];
+  const savedPreview = savedPhotos.length && (!resultImage || savedPhotos[0] === resultImage)
+    ? savedPhotos.map((preview: string) => ({ preview }))
+    : resultImage ? [{ preview: resultImage }] : undefined;
+  const previewPhotos = photos && photos.length > 0 ? photos : savedPreview;
 
   // Légende complète telle qu'elle sera publiée (accroche incluse une seule fois).
   const caption = accroche && !checkedText.startsWith(accroche)
@@ -79,7 +84,7 @@ export default function PostResult({ result, content, photos, onTextChange, onPh
 
       {/* Aperçu réaliste « comme dans le feed » */}
       <FeedPreview variant="instagram" text={caption} hashtags={hashtags} photos={previewPhotos} />
-      {onPhotosChange && previewPhotos?.[0] && <PostPhotoEditor photo={previewPhotos[0]} onChange={photo => onPhotosChange([photo, ...((photos?.slice(1) || []) as PhotoItem[])])} />}
+      {onPhotosChange && previewPhotos?.[0] && <PostPhotoEditor photo={previewPhotos[0]} onChange={photo => onPhotosChange([photo, ...((previewPhotos?.slice(1) || []) as PhotoItem[])])} />}
 
       {personalTip && (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
