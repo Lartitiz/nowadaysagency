@@ -24,6 +24,8 @@ import { blobToWav, uploadVoiceClip, type VoiceClip } from "@/lib/reel-voice";
 interface Props {
   /** Textes parlés, dans l'ordre des sections. */
   texts: string[];
+  /** Takes retained by the montage while this recorder is hidden/unmounted. */
+  initialClips?: (VoiceClip | null)[];
   onVoicesChange: (clips: (VoiceClip | null)[]) => void;
 }
 
@@ -32,11 +34,11 @@ type SectionState = "todo" | "recording" | "uploading" | "done";
 /** Nombre de barres du vu-mètre. Purement visuel. */
 const METER_BARS = 12;
 
-export default function ReelVoiceRecorder({ texts, onVoicesChange }: Props) {
+export default function ReelVoiceRecorder({ texts, initialClips, onVoicesChange }: Props) {
   const [current, setCurrent] = useState(0);
-  const [states, setStates] = useState<SectionState[]>(() => texts.map(() => "todo"));
-  const [clips, setClips] = useState<(VoiceClip | null)[]>(() => texts.map(() => null));
-  const [previews, setPreviews] = useState<(string | null)[]>(() => texts.map(() => null));
+  const [states, setStates] = useState<SectionState[]>(() => texts.map((_, i) => initialClips?.[i] ? "done" : "todo"));
+  const [clips, setClips] = useState<(VoiceClip | null)[]>(() => texts.map((_, i) => initialClips?.[i] ?? null));
+  const [previews, setPreviews] = useState<(string | null)[]>(() => texts.map((_, i) => initialClips?.[i]?.url ?? null));
   const [elapsed, setElapsed] = useState(0);
   /** Niveau du micro pendant la prise, 0 → 1. Preuve visible qu'on est entendue. */
   const [level, setLevel] = useState(0);
@@ -60,7 +62,7 @@ export default function ReelVoiceRecorder({ texts, onVoicesChange }: Props) {
       recorderRef.current?.stream.getTracks().forEach((t) => t.stop());
       void audioCtxRef.current?.close();
       playerRef.current?.pause();
-      previewsRef.current.forEach((u) => u && URL.revokeObjectURL(u));
+      previewsRef.current.forEach((u) => u?.startsWith("blob:") && URL.revokeObjectURL(u));
     };
   }, []);
 
@@ -145,7 +147,7 @@ export default function ReelVoiceRecorder({ texts, onVoicesChange }: Props) {
       const objectUrl = URL.createObjectURL(wav);
       setPreviews((p) => {
         const old = p[i];
-        if (old) URL.revokeObjectURL(old);
+        if (old?.startsWith("blob:")) URL.revokeObjectURL(old);
         const next = setAt(p, i, objectUrl);
         previewsRef.current = next;
         return next;
@@ -317,7 +319,7 @@ export default function ReelVoiceRecorder({ texts, onVoicesChange }: Props) {
 
       <p className="text-2xs text-muted-foreground">
         {doneCount}/{texts.length} phrase{doneCount > 1 ? "s" : ""} enregistrée{doneCount > 1 ? "s" : ""}
-        {doneCount < texts.length && " : les phrases manquantes seront lues par la voix générée."}
+        {doneCount < texts.length && " : enregistre les phrases manquantes, ou choisis « Sans voix » pour un montage muet."}
       </p>
     </div>
   );
