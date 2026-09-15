@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Copy, ImageOff, RefreshCw } from "lucide-react";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
+import { pinterestCurrentText } from "@/lib/pinterest-current-text";
 import { stripFontImportLeak } from "@/lib/strip-font-import-leak";
 
 interface Props {
@@ -17,8 +18,7 @@ export default function PinterestVisualResult({ result, pinHtml, onRetry }: Prop
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
 
-  const title = result?.raw?.title || "";
-  const description = result?.raw?.description || "";
+  const { title, description, copy: currentCopy } = pinterestCurrentText(result?.raw);
   const html = stripFontImportLeak(pinHtml || result?.raw?.pin_html || "");
 
   useEffect(() => {
@@ -42,7 +42,7 @@ export default function PinterestVisualResult({ result, pinHtml, onRetry }: Prop
   };
 
   const copyAll = () => {
-    copy(`${title}\n\n${description}`, "Titre + description copiés !");
+    copy(currentCopy, "Titre + description copiés !");
   };
 
   return (
