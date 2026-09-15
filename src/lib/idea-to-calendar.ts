@@ -40,6 +40,7 @@ export interface CalendarPostFromIdea {
   stories_structure: string | null;
   stories_objective: string | null;
   media_urls: string[] | null;
+  stories_timing: unknown | null;
   series_id: string | null;
   episode_number: number | null;
 }
@@ -110,28 +111,31 @@ export function buildCalendarPostFromIdea(idea: IdeaForCalendar): CalendarPostFr
     stories_structure: null,
     stories_objective: null,
     media_urls: null,
+    stories_timing: null,
     series_id: idea.series_id ?? null,
     episode_number: idea.episode_number ?? null,
   };
 
-  const data = parseData(idea.content_data);
-  const plainDraft = isPlainText(idea.content_draft) ? idea.content_draft.trim() : null;
+  const data = parseData(idea.content_data) ?? parseData(idea.content_draft);
+  const plainDraft = idea.content_draft === "" ? "" : isPlainText(idea.content_draft) ? idea.content_draft : null;
 
   // 1. Charge utile de « Remettre en idée » : on restitue tel quel.
-  if (data && !isCrosspost(data) && (data.story_sequence_detail || data.carousel || data.media_urls || data.accroche || data.content)) {
+  if (data && !isCrosspost(data) && (data.story_sequence_detail || data.carousel)) {
     const detail = data.story_sequence_detail ?? (data.carousel ? { type: "carousel", ...data.carousel } : null);
     const stories = Array.isArray(detail?.stories) ? detail.stories : null;
-    const draft = plainDraft || (typeof data.content === "string" && data.content.trim() ? data.content.trim() : null);
+    const { story_sequence_detail, carousel, content, accroche, stories_count, stories_structure, stories_objective, stories_timing, media_urls, ...metadata } = data;
+    const draft = plainDraft ?? (typeof data.content === "string" && data.content.trim() ? data.content.trim() : null);
     return {
       ...base,
       status: draft || detail ? "drafting" : "idea",
       content_draft: draft,
       accroche: typeof data.accroche === "string" && data.accroche.trim() ? data.accroche.trim() : null,
-      story_sequence_detail: detail,
+      story_sequence_detail: { ...structuredClone(metadata), ...structuredClone(detail) },
+      stories_timing: data.stories_timing ?? null,
       stories_count: stories ? (data.stories_count ?? stories.length) : null,
       stories_structure: stories ? (data.stories_structure ?? detail.structure_label ?? detail.structure_type ?? null) : null,
       stories_objective: stories ? (data.stories_objective ?? idea.objectif ?? null) : null,
-      media_urls: Array.isArray(data.media_urls) && data.media_urls.length > 0 ? data.media_urls : null,
+      media_urls: [data.media_urls, detail?.media_urls, detail?.visual_urls, detail?.photo_urls].find(urls => Array.isArray(urls) && urls.length) ?? null,
     };
   }
 
@@ -139,17 +143,17 @@ export function buildCalendarPostFromIdea(idea: IdeaForCalendar): CalendarPostFr
   const creerFormat = ideaFormatToCreerFormat(idea.format);
   if (data && creerFormat) {
     const { contentDraft, accroche, storyDetail } = buildCalendarContent(creerFormat, data);
-    const draft = (contentDraft || "").trim() || plainDraft;
-    if (draft || storyDetail) {
+    const draft = typeof data.edited_text === "string" ? data.edited_text : plainDraft ?? ((contentDraft || "").trim() || null);
+    if (draft !== null || storyDetail) {
       const stories = creerFormat === "story" ? (isCrosspost(data) ? storyDetail?.stories : data.stories || data.sequences) : null;
       return {
         ...base,
         status: "drafting",
-        content_draft: draft || null,
+        content_draft: draft,
         accroche: (accroche || "").trim() || null,
-        story_sequence_detail: storyDetail ?? null,
-        ...(isCrosspost(data) && Array.isArray(storyDetail?.media_urls) ? { media_urls: storyDetail.media_urls }
-          : isCrosspost(data) && Array.isArray(storyDetail?.visual_urls) ? { media_urls: storyDetail.visual_urls } : {}),
+        story_sequence_detail: { ...structuredClone(data), ...(storyDetail ? structuredClone(storyDetail) : {}) },
+        media_urls: [storyDetail?.media_urls, storyDetail?.visual_urls, data.media_urls, data.visual_urls, data.photo_urls].find(urls => Array.isArray(urls) && urls.length) ?? null,
+        stories_timing: data.stories_timing ?? null,
         stories_count: Array.isArray(stories) ? (data.total_stories || stories.length) : null,
         stories_structure: Array.isArray(stories) ? (data.structure_label || data.structure_type || null) : null,
         stories_objective: Array.isArray(stories) ? (idea.objectif || null) : null,

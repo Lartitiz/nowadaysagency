@@ -1,3 +1,5 @@
+import { planSavedIdea } from '@/lib/idea-calendar-persistence';
+import { calendarSaveError } from '@/lib/calendar-persistence';
 import { savePreviewEdit } from "@/lib/content-preview-save";
 import { resumeIdea } from "@/lib/resume-idea";
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -21,7 +23,7 @@ import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { friendlyError } from "@/lib/error-messages";
 import { calendarPlacementLabel, getIdeaState, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
-import { buildCalendarPostFromIdea } from "@/lib/idea-to-calendar";
+
 
 /* ─── Types ─── */
 interface SavedIdea {
@@ -85,6 +87,7 @@ function getIdeaPreview(idea: SavedIdea): { title?: string; text?: string } {
     try { data = JSON.parse(data); } catch { data = null; }
   }
   if (data && typeof data === "object") {
+    if (typeof data.edited_text === "string") return { text: cleanSlideMarkers(data.edited_text) };
     const title = typeof data.chosen_angle?.title === "string" && data.chosen_angle.title.trim()
       ? data.chosen_angle.title.trim()
       : undefined;
@@ -278,23 +281,13 @@ function IdeasInWorkspace() {
   const handlePlan = async (idea: SavedIdea, date: Date) => {
     if (!user) return;
     const dateStr = fnsFormat(date, "yyyy-MM-dd");
-    const { data: calPost, error } = await supabase
-      .from("calendar_posts")
-      .insert({
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-        date: dateStr,
-        ...buildCalendarPostFromIdea(idea),
-      } as any)
-      .select("id")
-      .single();
-    if (error) { toast.error("Erreur", { description: friendlyError(error) }); return; }
-    const patch = { status: "planned", planned_date: dateStr, calendar_post_id: calPost.id };
-    const { error: updateError } = await supabase.from("saved_ideas").update(patch as any).eq("id", idea.id);
-    if (updateError) { toast.error("Erreur", { description: friendlyError(updateError) }); return; }
+    let calPost;
+    try { calPost = await planSavedIdea(idea, dateStr); }
+    catch (error) { toast.error(calendarSaveError(error)); return; }
+    const patch = { status: "planned", planned_date: calPost.date, calendar_post_id: calPost.id };
     setIdeas((prev) => prev.map((i) => i.id === idea.id ? { ...i, ...patch } : i));
     setSelectedIdea((prev) => prev && prev.id === idea.id ? { ...prev, ...patch } : prev);
-    toast.success(`Posée au calendrier le ${fnsFormat(date, "d MMMM", { locale: fr })}`);
+    toast.success(`${calPost.replayed ? "Déjà posée" : "Posée"} au calendrier le ${fnsFormat(new Date(calPost.date + "T12:00:00"), "d MMMM", { locale: fr })}`);
   };
 
   /** Ouvre Créer avec l'idée en point de départ. Créer garde `idea_id` et
