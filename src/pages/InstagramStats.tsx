@@ -563,7 +563,7 @@ function InstagramStatsScope() {
       const existing = allStats.find(s => s.month_date === target) || {};
       const customData: any = { ...((existing as any).custom_data || {}), li_stats: snapshot };
       const payload: any = {
-        ...existing, custom_data: customData, user_id: user.id,
+        custom_data: customData, user_id: existing.user_id || user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : undefined,
         month_date: target, updated_at: new Date().toISOString(),
       };
