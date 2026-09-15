@@ -1,10 +1,10 @@
 -- Run only against an EMPTY disposable database. No customer fixtures.
 \set ON_ERROR_STOP on
 BEGIN;
-CREATE ROLE authenticated;
-CREATE ROLE anon;
-CREATE SCHEMA auth;
-CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
+DO $$ BEGIN CREATE ROLE authenticated; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE anon; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$
   SELECT nullif(current_setting('test.uid', true), '')::uuid
 $$;
 GRANT USAGE ON SCHEMA auth TO authenticated, anon;

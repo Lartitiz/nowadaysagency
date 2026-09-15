@@ -1,12 +1,26 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { downloadVisualUrls, fetchVisualFiles } from "@/lib/download-visual-urls";
 
+const zipState = vi.hoisted(() => ({ names: [] as string[] }));
+vi.mock("jszip", () => ({
+  default: class {
+    file(name: string) {
+      zipState.names.push(name);
+      return this;
+    }
+    async generateAsync() {
+      return new Blob(["zip"], { type: "application/zip" });
+    }
+  },
+}));
+
 const fetchMock = vi.fn();
 const clickMock = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
 
 beforeEach(() => {
   fetchMock.mockReset();
   clickMock.mockClear();
+  zipState.names = [];
   vi.stubGlobal("fetch", fetchMock);
   vi.stubGlobal("URL", {
     ...URL,
@@ -34,6 +48,7 @@ describe("téléchargement des visuels calendrier", () => {
     const count = await downloadVisualUrls(urls, "Mon carrousel");
     expect(count).toBe(7);
     expect(fetchMock.mock.calls.map(([url]) => url)).toEqual(urls);
+    expect(zipState.names).toEqual(urls.map((_, index) => `slide-${index + 1}.jpg`));
     expect(clickMock).toHaveBeenCalledTimes(1);
     expect((clickMock.mock.contexts[0] as HTMLAnchorElement).download).toBe("visuels-Mon-carrousel.zip");
   });
