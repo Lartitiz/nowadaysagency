@@ -224,6 +224,7 @@ export interface EditableBlock {
     fontWeight: number;
     fontStyle: string;
     textAlign: "left" | "center" | "right";
+    verticalAlign?: "middle";
     textTransform: string;
     lineHeight: number;
     letterSpacingPx: number;
@@ -236,6 +237,18 @@ function parseAlign(v: string): "left" | "center" | "right" {
   if (v === "start") return "left";
   if (v === "end") return "right";
   return "left";
+}
+
+/** Direct text in a flex box is positioned by the flex axes, not text-align. */
+function flexTextAlignment(el: HTMLElement, cs: CSSStyleDeclaration) {
+  if (!['flex', 'inline-flex'].includes(cs.display) || el.children.length > 0) return {};
+  const column = cs.flexDirection.startsWith('column');
+  const horizontal = column ? cs.alignItems : cs.justifyContent;
+  const vertical = column ? cs.justifyContent : cs.alignItems;
+  return {
+    ...(horizontal === 'center' ? { textAlign: 'center' as const } : {}),
+    ...(vertical === 'center' ? { verticalAlign: 'middle' as const } : {}),
+  };
 }
 
 /**
@@ -337,6 +350,7 @@ export function extractEditableBlocks(
         fontWeight: weight,
         fontStyle: cs.fontStyle || "normal",
         textAlign: parseAlign(cs.textAlign || "left"),
+        ...flexTextAlignment(el, cs),
         textTransform: cs.textTransform || "none",
         lineHeight: parseFloat(cs.lineHeight) || fontSizePx * 1.25,
         letterSpacingPx: parseFloat(cs.letterSpacing) || 0,
@@ -399,6 +413,7 @@ export function extractAnnotatedBlocks(doc: Document): EditableBlock[] {
         fontWeight: frameWeight,
         fontStyle: cs.fontStyle || "normal",
         textAlign: parseAlign(cs.textAlign || "left"),
+        ...flexTextAlignment(el, cs),
         textTransform: cs.textTransform || "none",
         lineHeight: parseFloat(cs.lineHeight) || fontSizePx * 1.25,
         letterSpacingPx: parseFloat(cs.letterSpacing) || 0,
