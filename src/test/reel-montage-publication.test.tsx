@@ -69,3 +69,30 @@ it('finishes the initial stock search after changing mode and returning without 
  await waitFor(()=>expect(screen.getByRole('button',{name:'Clip sélectionné'})).toBeTruthy());
  expect(mocks.suggest).toHaveBeenCalledOnce();
 });
+it('retries only archiving the completed render without submitting or polling again',async()=>{
+ mocks.archive.mockRejectedValueOnce(new Error('archive unavailable'));
+ const {onMp4Ready}=await setup();fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await screen.findByText(/Pas rangée dans ta bibliothèque/);
+ fireEvent.click(screen.getByRole('button',{name:'Ranger cette vidéo'}));
+ await waitFor(()=>expect(onMp4Ready).toHaveBeenLastCalledWith(video));
+ expect(mocks.archive).toHaveBeenCalledTimes(2);expect(mocks.submit).toHaveBeenCalledOnce();expect(mocks.poll).toHaveBeenCalledOnce();
+});
+it.each(['edit','unmount'])('late archive retry is ignored after %s',async change=>{
+ mocks.archive.mockRejectedValueOnce(new Error('archive unavailable'));
+ const {onMp4Ready,rerender,unmount}=await setup();fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await screen.findByText(/Pas rangée dans ta bibliothèque/);
+ let finish!:(url:string)=>void;mocks.archive.mockImplementation(()=>new Promise(r=>finish=r));
+ fireEvent.click(screen.getByRole('button',{name:'Ranger cette vidéo'}));
+ if(change==='edit')rerender(<ReelMontage sections={[{...sections[0],texte_parle:'Changed'}]} onMp4Ready={onMp4Ready}/>);else unmount();
+ await act(async()=>finish(video));expect(onMp4Ready).not.toHaveBeenCalledWith(video);
+});
+it('offers a separate tab if CORS blocks download and keeps the montage visible',async()=>{
+ const {onMp4Ready}=await setup();fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ await waitFor(()=>expect(onMp4Ready).toHaveBeenLastCalledWith(video));
+ vi.stubGlobal('fetch',vi.fn().mockRejectedValue(new TypeError('CORS')));
+ fireEvent.click(screen.getByRole('link',{name:'Télécharger le MP4'}));
+ const fallback=await screen.findByRole('link',{name:'Ouvrir le MP4 dans un nouvel onglet'});
+ expect(fallback).toHaveAttribute('target','_blank');expect(fallback).toHaveAttribute('rel','noopener noreferrer');
+ expect(screen.getByText(/Ma vidéo · Ma prise/)).toBeTruthy();
+ vi.unstubAllGlobals();
+});

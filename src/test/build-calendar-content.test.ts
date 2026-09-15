@@ -138,3 +138,8 @@ it.each(['sequences','slides'])('R2 carries historical stories from %s with rich
  expect(result.contentDraft).toContain('R2 texte ancien');expect(result.contentDraft).toContain('R2 second');
  expect(result.storyDetail.stories).toEqual(raw[key]);expect(result.storyDetail.personal_tip).toBe(raw.personal_tip);
 });
+
+it('R2 preserves an explicitly empty story sequence and its metadata',()=>{
+ const result=buildCalendarContent('story',{stories:[],structure_type:'qa',personal_tip:'Retained'});
+ expect(result.contentDraft).toBe('');expect(result.storyDetail).toMatchObject({stories:[],structure_type:'qa',personal_tip:'Retained'});
+});
