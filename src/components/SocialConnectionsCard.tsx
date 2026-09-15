@@ -1,24 +1,16 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useMemo, useRef, useLayoutEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Instagram, Linkedin, Loader2, CheckCircle2, ExternalLink, Palette, RefreshCw, AlertCircle, BarChart3, LineChart } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useNavigate } from "react-router-dom";
 import { lireRetour, oublieRetour } from "@/lib/retour-apres-detour";
 import { startSocialConnect } from "@/lib/social-connect";
+import { useSocialConnections } from "@/hooks/use-social-connections";
 
 type Platform = "instagram" | "linkedin" | "linkedin_analytics" | "canva" | "pinterest" | "google";
-
-type Connection = {
-  platform: Platform;
-  connected: boolean;
-  accountName?: string | null;
-  expiresAt?: string | null;
-  /** Google Analytics : connexion sans propriété GA4 encore choisie. */
-  needsProperty?: boolean;
-};
 
 function PinterestIcon(props: any) {
   return (
@@ -94,44 +86,27 @@ const PLATFORMS: PlatformMeta[] = [
 ];
 
 export default function SocialConnectionsCard() {
-  const { session } = useAuth();
+  const { user } = useAuth();
   const workspaceId = useWorkspaceId();
+  const ready = useWorkspaceReady();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [errored, setErrored] = useState(false);
-  const [connecting, setConnecting] = useState<string | null>(null);
-  const [disconnecting, setDisconnecting] = useState<string | null>(null);
-  const [connections, setConnections] = useState<Record<string, Connection>>({});
+  const social = useSocialConnections();
+  const { loading, known, refresh: reload } = social;
+  const errored = !loading && !known;
+  const scope = useMemo(() => ({ userId: user?.id, workspaceId, ready }), [user?.id, workspaceId, ready]);
+  const activeScope = useRef<typeof scope | null>(null);
+  const [action, setAction] = useState<{ scope: typeof scope; platform: Platform; kind: "connect" | "disconnect" } | null>(null);
+  const currentAction = action?.scope === scope ? action : null;
+  const connecting = currentAction?.kind === "connect" ? currentAction.platform : null;
+  const disconnecting = currentAction?.kind === "disconnect" ? currentAction.platform : null;
+  const wsParam = workspaceId && user && workspaceId !== user.id ? workspaceId : undefined;
 
-  const wsParam =
-    workspaceId && session?.user && workspaceId !== session.user.id ? workspaceId : undefined;
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setErrored(false);
-    try {
-      const { data, error } = await supabase.functions.invoke("social-status", {
-        body: { workspace_id: wsParam },
-      });
-      if (error) throw error;
-      const map: Record<string, Connection> = {};
-      ((data as any)?.connections || []).forEach((c: Connection) => {
-        map[c.platform] = c;
-      });
-      setConnections(map);
-    } catch (e: any) {
-      // Ne PAS afficher « Non connecté » sur une simple erreur réseau / cold start :
-      // ce serait un faux négatif anxiogène (« mes comptes sont déconnectés ?! »).
-      // On bascule sur un état d'erreur explicite avec « Réessayer ».
-      console.error(e);
-      setErrored(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [wsParam]);
+  useLayoutEffect(() => {
+    activeScope.current = scope;
+    return () => { activeScope.current = null; };
+  }, [scope]);
 
   useEffect(() => {
-    reload();
     // Toast au retour OAuth
     const params = new URLSearchParams(window.location.search);
     const connected = params.get("connected");
@@ -143,6 +118,14 @@ export default function SocialConnectionsCard() {
       connected === "pinterest" ||
       connected === "google"
     ) {
+      // The callback URL is a return hint, not a receipt of the current status.
+      if (!known) return;
+      if (!social.isConnected(connected)) {
+        toast.error("La connexion n’a pas été confirmée. Tu peux réessayer sans perdre ton contenu.");
+        params.delete("connected");
+        window.history.replaceState(window.history.state, "", window.location.pathname + (params.size ? `?${params}` : ""));
+        return;
+      }
       // Si on est arrivée ici DEPUIS un travail en cours (atelier, calendrier,
       // hub), on y retourne au lieu de la laisser plantée dans les paramètres.
       const retour = lireRetour();
@@ -157,7 +140,7 @@ export default function SocialConnectionsCard() {
       );
       params.delete("connected");
       const qs = params.toString();
-      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      window.history.replaceState(window.history.state, "", window.location.pathname + (qs ? `?${qs}` : ""));
       if (retour) {
         oublieRetour();
         navigate(retour.chemin);
@@ -167,33 +150,37 @@ export default function SocialConnectionsCard() {
       params.delete("connected");
       params.delete("message");
       const qs = params.toString();
-      window.history.replaceState({}, "", window.location.pathname + (qs ? `?${qs}` : ""));
+      window.history.replaceState(window.history.state, "", window.location.pathname + (qs ? `?${qs}` : ""));
     }
-  }, [reload, navigate]);
+  }, [known, social.isConnected, navigate]);
 
   const handleConnect = async (platform: Platform) => {
-    setConnecting(platform);
-    const { error } = await startSocialConnect(platform, wsParam);
+    if (!ready || !user || activeScope.current !== scope || currentAction) return;
+    setAction({ scope, platform, kind: "connect" });
+    const { error } = await startSocialConnect(platform, wsParam, { isCurrent: () => activeScope.current === scope });
+    if (activeScope.current !== scope) return;
     if (error) {
       toast.error(error);
-      setConnecting(null);
+      setAction(null);
     }
   };
 
-  const handleDisconnect = async (platform: string) => {
-    setDisconnecting(platform);
+  const handleDisconnect = async (platform: Platform) => {
+    if (!ready || !user || !known || activeScope.current !== scope || currentAction) return;
+    setAction({ scope, platform, kind: "disconnect" });
     try {
       const { data, error } = await supabase.functions.invoke("social-disconnect", {
         body: { platform, workspace_id: wsParam },
       });
+      if (activeScope.current !== scope) return;
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
       toast.success("Déconnecté.");
       await reload();
     } catch (e: any) {
-      toast.error(e?.message || "Échec de la déconnexion.");
+      if (activeScope.current === scope) toast.error(e?.message || "Échec de la déconnexion.");
     } finally {
-      setDisconnecting(null);
+      if (activeScope.current === scope) setAction(null);
     }
   };
 
@@ -214,7 +201,7 @@ export default function SocialConnectionsCard() {
       </div>
       <div className="rounded-xl border border-border bg-card divide-y">
         {PLATFORMS.map((p) => {
-          const conn = connections[p.key];
+          const conn = { connected: social.isConnected(p.key), accountName: social.accountNames[p.key], expiresAt: social.getTokenExpiry(p.key) };
           const isConnected = !statusUnknown && conn?.connected;
           // Jeton expiré ou en fin de vie (< 7 jours) → la connexion existe encore en
           // base mais les publications automatiques vont échouer : inciter à reconnecter.
@@ -266,7 +253,7 @@ export default function SocialConnectionsCard() {
                 <Button
                   size="sm"
                   onClick={() => handleConnect(p.key)}
-                  disabled={connecting === p.key}
+                  disabled={!!currentAction}
                   className="gap-1.5"
                 >
                   {connecting === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
@@ -277,7 +264,7 @@ export default function SocialConnectionsCard() {
                   variant="outline"
                   size="sm"
                   onClick={() => handleDisconnect(p.key)}
-                  disabled={disconnecting === p.key}
+                  disabled={!!currentAction}
                 >
                   {disconnecting === p.key ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Déconnecter"}
                 </Button>
@@ -285,7 +272,7 @@ export default function SocialConnectionsCard() {
                 <Button
                   size="sm"
                   onClick={() => handleConnect(p.key)}
-                  disabled={connecting === p.key}
+                  disabled={!!currentAction}
                   className="gap-1.5"
                 >
                   {connecting === p.key ? (
