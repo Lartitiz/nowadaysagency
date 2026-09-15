@@ -19,7 +19,7 @@ export default function NewsletterResult({ result }: Props) {
   // vit dans personal_tip, jamais dans le corps.
   const { subject, preview: previewText, body } = newsletterFields(result);
   const personalTip = result?.personal_tip;
-  const wordCount = result?.word_count;
+  const wordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
   const ctaSuggestion = stripInlineMarkdown(result?.cta_suggestion || "");
 
 
@@ -96,7 +96,7 @@ export default function NewsletterResult({ result }: Props) {
 
       {/* Meta */}
       <div className="flex items-center gap-3 text-xs text-muted-foreground">
-        {wordCount && <span>{wordCount} mots</span>}
+        <span>{wordCount} {wordCount === 1 ? "mot" : "mots"}</span>
       </div>
 
       {/* Copy all */}
