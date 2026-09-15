@@ -147,6 +147,24 @@ describe("useCalendarSave — handleConfirmCalendar (nouveau post)", () => {
     mocks.uploadPinterestVisual.mockResolvedValue([]);
   });
 
+  it("suspends initialization and retained save handlers while a draft conflict is pending", async () => {
+    const {result,rerender}=renderHook(({enabled}) => useCalendarSave({...makeParams({calendarPostId:"existing"}),enabled}),{initialProps:{enabled:false}});
+    expect(mocks.saveFlowState).not.toHaveBeenCalled();
+    await act(async () => {
+      expect(await result.current.handleConfirmCalendar({date:"2026-09-20"})).toBe(false);
+      await result.current.handleSaveBackToCalendar({force:true});
+    });
+    expect(mocks.db.ops).toHaveLength(0); expect(mocks.clearFlowState).not.toHaveBeenCalled();
+    rerender({enabled:true}); const old=result.current;
+    rerender({enabled:false}); mocks.saveFlowState.mockClear();
+    await act(async () => {
+      expect(await old.handleConfirmCalendar({date:"2026-09-20"})).toBe(false);
+      await old.handleSaveBackToCalendar({force:true});
+    });
+    expect(mocks.saveFlowState).not.toHaveBeenCalled(); expect(mocks.clearFlowState).not.toHaveBeenCalled();
+    expect(mocks.db.ops).toHaveLength(0); expect(mocks.navigate).not.toHaveBeenCalled();
+  });
+
   it("gardes : pas de session ou pas de date → false, rien en base", async () => {
     const p1 = makeParams({ session: null });
     const { result: r1 } = renderHook(() => useCalendarSave(p1));

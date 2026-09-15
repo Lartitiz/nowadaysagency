@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
 
 const STEP_LABELS: Record<string, string> = {
+  idea: "première idée",
   format: "choix du format",
   questions: "questions de cadrage",
   structure_review: "structure",
@@ -30,6 +31,10 @@ export interface DraftSummary {
   questions?: { id: string; question: string }[];
   answers?: Record<string, string>;
   isLinkedInCarousel?: boolean;
+  photoCount?: number;
+  photoSubject?: string;
+  photoDescription?: string;
+  forcedChannel?: string | null;
 }
 
 interface Props {
@@ -45,11 +50,17 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
   const workspaceId = useWorkspaceId();
   const [saveFirst, setSaveFirst] = useState(true);
   const [busy, setBusy] = useState(false);
+  const active = useRef(false);
+  useEffect(() => { active.current = true; return () => { active.current = false; }; }, []);
+  const unsavedPhotoDraft = !draft.result && !draft.editContent && ((draft.photoCount ?? 0) > 0 || !!draft.photoSubject || !!draft.photoDescription);
 
   const draftTitle = draft.ideaText?.trim() || "Contenu sans titre";
   const stepLabel = STEP_LABELS[draft.step] || draft.step;
 
   const saveDraftToIdeas = async () => {
+    // The existing idea-saving path does not archive initial photo bytes.
+    // Never announce that those photos are saved and then delete their draft.
+    if (unsavedPhotoDraft) throw new Error("Reprends ce brouillon pour conserver ses photos, ou décoche l’enregistrement pour l’abandonner explicitement.");
     if (!user) throw new Error("Reconnecte-toi pour enregistrer ton contenu.");
     // A brief is resumed through the existing brief flow, with the same answers.
     if (!draft.result && draft.questions?.length) {
@@ -67,10 +78,10 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
     const raw = draft.result?.raw ?? draft.result;
     const contentData = raw
       ? { ...raw, ...(draft.visualSlides?.length ? { visual_html: draft.visualSlides } : {}) }
-      : (draft.editContent ? { content: draft.editContent } : null);
-    const canal = draft.isLinkedInCarousel || draft.selectedFormat === "linkedin" ? "linkedin"
+      : (draft.editContent ? { content: draft.editContent } : draft.ideaText ? { content: draft.ideaText } : null);
+    const canal = draft.forcedChannel || (draft.isLinkedInCarousel || draft.selectedFormat === "linkedin" ? "linkedin"
       : draft.selectedFormat === "newsletter" ? "newsletter"
-      : draft.selectedFormat?.startsWith("pinterest") ? "pinterest" : "instagram";
+      : draft.selectedFormat?.startsWith("pinterest") ? "pinterest" : "instagram");
     const payload: any = {
       user_id: user.id,
       workspace_id: workspaceId && workspaceId !== user.id ? workspaceId : undefined,
@@ -100,16 +111,17 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
     try {
       if (saveFirst) {
         await saveDraftToIdeas();
+        if (!active.current) return;
         toast.success("Brouillon enregistré dans ta boîte à idées");
       }
     } catch (e) {
       console.error("Save draft to ideas failed:", e);
-      toast.error("Impossible d’enregistrer le contenu. Il est conservé ici : réessaie ou reprends-le.");
+      if (active.current) toast.error(unsavedPhotoDraft ? (e as Error).message : "Impossible d’enregistrer le contenu. Il est conservé ici : réessaie ou reprends-le.");
       return;
     } finally {
-      setBusy(false);
+      if (active.current) setBusy(false);
     }
-    onStartNew();
+    if (active.current) onStartNew();
   };
 
   return (
@@ -149,6 +161,7 @@ export default function DraftConflictDialog({ open, draft, newSubject, onResume,
           </label>
         </div>
 
+        {unsavedPhotoDraft && saveFirst && <p className="text-sm text-muted-foreground">Pour conserver ce départ photo, reprends ce brouillon et termine sa préparation avant de l’enregistrer.</p>}
         <div className="flex flex-col gap-2 pt-2">
           <Button className="rounded-full" onClick={handleStartNew} disabled={busy}>
             {busy && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
