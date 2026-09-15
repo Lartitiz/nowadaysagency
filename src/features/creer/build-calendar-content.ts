@@ -60,7 +60,8 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   const reelSections = Array.isArray(r.sections) ? r.sections
     : Array.isArray(r.script) ? r.script
     : Array.isArray(r.script?.sections) ? r.script.sections : [];
-  const stories = [r.stories, r.sequences, r.slides].find(Array.isArray) || [];
+  const storySequence = [r.stories, r.sequences, r.slides].find(Array.isArray);
+  const stories = storySequence || [];
   const storyText = (story: any) => String(story.text ?? story.texte ?? story.content ?? "");
   let contentDraft = "";
   let accroche = "";
@@ -99,8 +100,8 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
   } else if (selectedFormat === "reel" && (r?.sections || r?.script)) {
     accroche = reelSections[0]?.texte_parle || r.accroche || "";
     contentDraft = typeof r.script === "string" && !reelSections.length ? r.script : reelSections.map((s: any) => `[${s.timing || ""}] ${(s.label || s.section || "").toUpperCase()}\n${s.texte_parle || ""}${s.texte_overlay ? `\n📝 ${s.texte_overlay}` : ""}${s.format_visuel ? `\n📹 ${s.format_visuel}` : ""}`).join("\n\n");
-  } else if (selectedFormat === "story" && stories.length) {
-    accroche = storyText(stories[0]);
+  } else if (selectedFormat === "story" && storySequence) {
+    accroche = storyText(stories[0] || {});
     const sequenceTime = r.publication_time
       || stories.find((story: any) => story?.timing)?.timing
       || null;
@@ -160,7 +161,7 @@ export function buildCalendarContent(selectedFormat: string | null, raw: any): C
       alt_text: r.alt_text,
       amplification_stories: r.amplification_stories,
     };
-  } else if (selectedFormat === "story" && stories.length) {
+  } else if (selectedFormat === "story" && storySequence) {
     storyDetail = {
       ...r,
       type: "stories",
