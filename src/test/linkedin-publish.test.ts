@@ -74,7 +74,7 @@ describe("publishTextToLinkedIn — appel edge + réponse", () => {
     });
 
     await expect(publishTextToLinkedIn({ text: "x" })).rejects.toMatchObject({
-      message: "Le service est momentanément indisponible. Réessaie dans quelques instants.",
+      message: expect.stringContaining("Vérifie le réseau avant toute nouvelle tentative"),
     });
   });
 
@@ -108,4 +108,9 @@ describe("isLinkedInNotConnectedError", () => {
     expect(isLinkedInNotConnectedError("Publication LinkedIn échouée.")).toBe(false);
     expect(isLinkedInNotConnectedError(undefined)).toBe(false);
   });
+});
+
+it.each([null, {}, { success: true }, { postId: "" }, { postId: 42 }, { postId: "p", success: false }])("refuses incomplete publication receipt %j", async (data) => {
+  mocks.invokeWithTimeout.mockResolvedValue({ data, error: null });
+  await expect(publishTextToLinkedIn({ text: "QA" })).rejects.toThrow(/confirmation/i);
 });
