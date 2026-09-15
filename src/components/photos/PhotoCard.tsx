@@ -8,7 +8,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Loader2, AlertTriangle, RefreshCw, Trash2, Image as ImageIcon } from "lucide-react";
+import { Loader2, AlertTriangle, RefreshCw, EyeOff, Image as ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { getSignedPhotoUrl, type UserPhotoRow } from "@/lib/photo-storage";
@@ -158,12 +158,13 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
               size="sm"
               variant="ghost"
               className="h-7 text-xs text-muted-foreground"
+              aria-label={`Retirer ${photo.name ?? "la photo"} de la bibliothèque`}
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete(photo);
               }}
             >
-              <Trash2 className="h-3 w-3" />
+              <EyeOff className="h-3 w-3" />
             </Button>
           </div>
         </div>
@@ -172,7 +173,7 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
       {/* Hover actions for ready photos.
           La vignette était un <div onClick> : ni atteignable au clavier, ni
           annoncée aux lecteurs d'écran (audit UX 14/08). C'est maintenant un
-          vrai <button> en surcouche — pas de bouton imbriqué, la corbeille
+          vrai <button> en surcouche — pas de bouton imbriqué, le retrait
           passe simplement au-dessus (z-20). */}
       {isReady && (
         <>
@@ -190,9 +191,9 @@ export function PhotoCard({ photo, onOpen, onDelete, onRetry, retrying }: PhotoC
               onDelete(photo);
             }}
             className="absolute top-2 right-2 z-20 h-7 w-7 rounded-full bg-background/90 text-destructive flex items-center justify-center opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity shadow-sm"
-            aria-label={`Supprimer ${photo.name ?? "la photo"}`}
+            aria-label={`Retirer ${photo.name ?? "la photo"} de la bibliothèque`}
           >
-            <Trash2 className="h-3.5 w-3.5" />
+            <EyeOff className="h-3.5 w-3.5" />
           </button>
           {(photo.description || photo.name) && (
             <div className="absolute bottom-0 left-0 right-0 z-10 px-3 py-2 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">

@@ -555,8 +555,8 @@ export default function PhotosPage() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Retirer
+            <AlertDialogAction onClick={confirmDelete}>
+              Retirer de la bibliothèque
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
