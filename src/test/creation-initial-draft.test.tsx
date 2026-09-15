@@ -4,7 +4,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import CreerUnifie from '@/pages/CreerUnifie';
 import { loadFlowState, saveFlowState, setFlowUserId, setFlowWorkspaceId, savePhotos, loadPhotos, clearFlowState } from '@/hooks/use-flow-persistence';
-const mocks = vi.hoisted(() => ({ user: 'owner', workspace: 'A', ready: true, photoRead: vi.fn(), photoDecode: vi.fn(), generate: vi.fn(), cloud: null as any }));
+const mocks = vi.hoisted(() => ({ user: 'owner', workspace: 'A', ready: true, photoRead: vi.fn(), photoDecode: vi.fn(), generate: vi.fn(), cloud: null as any, resultProps: null as any }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: mocks.user }, session: { user: { id: mocks.user } } }) }));
 vi.mock('@/hooks/use-workspace-query', () => ({ useWorkspaceId: () => mocks.workspace, useWorkspaceReady: () => mocks.ready, useIsOwnSpace: () => true, useWorkspaceFilter: () => ({ column: 'workspace_id', value: mocks.workspace }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemoContext: () => ({ isDemoMode: false }) }));
@@ -33,7 +33,7 @@ vi.mock('@/components/SubPageHeader', () => ({ default: () => null }));
 vi.mock('@/components/dashboard/ContentCoachingDialog', () => ({ default: () => null }));
 vi.mock('@/components/creer/CreerTransformTab', () => ({ default: () => null }));
 vi.mock('@/components/creer/CreerStepFormat', () => ({ default: (p: any) => <div><p>Format : {p.forcedChannel}</p><button onClick={p.onBack}>Retour idée</button></div> }));
-vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => <div><pre data-testid="result">{JSON.stringify(p.result)}</pre><button onClick={p.onReset}>Réinitialiser</button></div> }));
+vi.mock('@/components/creer/CreerStepResult', () => ({ default: (p: any) => { mocks.resultProps=p; return <div><pre data-testid="result">{JSON.stringify(p.result)}</pre><button onClick={p.onReset}>Réinitialiser</button><button onClick={p.onEdit}>Éditer le résultat</button></div>; } }));
 vi.mock('@/lib/posthog', () => ({ posthog: { capture: vi.fn() } }));
 vi.mock('@/lib/photo-storage', () => ({ userPhotoToBase64: (...args: any[]) => mocks.photoDecode(...args) }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { from: (table: string) => {
@@ -186,4 +186,32 @@ describe('initial creation draft through real React components', () => {
     expect(loadFlowState()?.forcedChannel).toBe('linkedin');
   });
 
+});
+
+
+it('reopens a deliberately empty saved result without restoring the original', async () => {
+  saveFlowState({step:'result',ideaText:'R1 vide',result:{type:'post',raw:{content:'Original à ne pas restaurer',edited_text:''}},selectedFormat:'post',creationId:'r1-empty'});
+  mount(); await screen.findByTestId('result');
+  fireEvent.click(screen.getByText('Éditer le résultat'));
+  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue(''));
+});
+it('opens only the editable newsletter body, preserving its separate metadata', async () => {
+  saveFlowState({step:'result',ideaText:'R1 newsletter',result:{type:'newsletter',raw:{subject:'Objet distinct',preview_text:'Aperçu distinct',body:'Corps éditable',personal_tip:'Conseil privé'}},selectedFormat:'newsletter',creationId:'r1-newsletter'});
+  mount(); await screen.findByTestId('result');
+  fireEvent.click(screen.getByText('Éditer le résultat'));
+  await waitFor(() => expect(screen.getByRole('textbox')).toHaveValue('Corps éditable'));
+});
+
+
+it.each(['stories','sequences','slides'])('persists story updates immutably for the %s alias', async alias => {
+  const original=[{id:'s1',text:'Ancien',sticker:{type:'poll',options:['A','B']}}];
+  const updated=[{...original[0],text:'Retouche R2'}];
+  const raw={ [alias]:original, custom:{keep:true}, caption:'Distincte' };
+  saveFlowState({step:'result',ideaText:'R1 raccord R2',result:{type:'story',raw},selectedFormat:'story',creationId:'r1-story'});
+  const app=mount(); await screen.findByTestId('result');
+  act(() => mocks.resultProps.onStoriesUpdate(updated));
+  await waitFor(() => expect(loadFlowState()?.result?.raw?.[alias]).toEqual(updated));
+  expect(raw[alias]).toEqual(original);
+  app.unmount(); sessionStorage.clear(); mount(); await screen.findByTestId('result');
+  expect(mocks.resultProps.result).toMatchObject({[alias]:updated,custom:{keep:true},caption:'Distincte'});
 });

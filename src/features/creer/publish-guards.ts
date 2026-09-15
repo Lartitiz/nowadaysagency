@@ -32,6 +32,7 @@ export function findPublishableImageUrl(raw: RawResult, uploadedPhotoPreview?: s
 /** Texte à publier sur Instagram (inclut le champ caption, string ou objet). */
 export function extractInstagramCaption(raw: RawResult): string {
   const r: any = raw;
+  if (typeof r?.edited_text === "string" && !(r?.sections || r?.script)) return r.edited_text;
   // Reel: the CTA and top-level hashtags complement caption.text.
   if (r?.caption && typeof r.caption === "object" && typeof r.caption.text === "string" && (r?.sections || r?.script)) {
     return [r.caption.text, r.caption.cta, Array.isArray(r.hashtags) ? r.hashtags.join(" ") : ""].filter(Boolean).join("\n\n");
@@ -69,6 +70,7 @@ export function extractInstagramCaption(raw: RawResult): string {
 /** Texte à publier sur LinkedIn (chaîne historique, sans le champ caption). */
 export function extractLinkedInText(raw: RawResult): string {
   const r: any = raw;
+  if (typeof r?.edited_text === "string") return r.edited_text;
   return (
     r?.edited_text ||
     r?.full_text ||
