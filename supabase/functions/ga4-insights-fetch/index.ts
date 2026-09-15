@@ -86,7 +86,7 @@ Deno.serve(async (req) => {
     // Backfill : body.month = "YYYY-MM-01" → agrégats de ce MOIS CALENDAIRE.
     const month: string | null = typeof body?.month === "string" ? body.month : null;
     if (month) {
-      if (!/^\d{4}-\d{2}-01$/.test(month)) {
+      if (!/^\d{4}-(0[1-9]|1[0-2])-01$/.test(month)) {
         return jsonError("Mois invalide (format attendu : YYYY-MM-01).", corsHeaders, 400);
       }
       const [y, mo] = month.split("-").map(Number);
@@ -98,7 +98,7 @@ Deno.serve(async (req) => {
       }
       const metrics = await fetchGa4Month(propertyId, month, auth);
       return new Response(
-        JSON.stringify({ success: true, propertyId, month, metrics }),
+        JSON.stringify({ success: true, propertyId, month, workspaceId, metrics, observation: metrics.observation }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
     const currentMonth = currentMonthKey(new Date());
     const metrics = await fetchGa4Month(propertyId, currentMonth, auth);
     return new Response(
-      JSON.stringify({ success: true, propertyId, month: currentMonth, metrics }),
+      JSON.stringify({ success: true, propertyId, month: currentMonth, workspaceId, metrics, observation: metrics.observation }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } },
     );
   } catch (e: any) {

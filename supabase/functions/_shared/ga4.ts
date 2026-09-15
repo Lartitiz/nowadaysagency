@@ -7,7 +7,7 @@
 // GOOGLE_SA_CLIENT_EMAIL + GOOGLE_SA_PRIVATE_KEY), on l'échange contre un
 // access_token OAuth, puis on interroge une seule propriété GA4.
 //
-// Robustesse : les métriques absentes valent 0, on renvoie toujours des entiers.
+// Un rapport échoué/absent reste null ; zéro exige une réponse GA4 valide.
 // Le module reste sans dépendance externe (WebCrypto natif Deno).
 
 const TOKEN_ENDPOINT = "https://oauth2.googleapis.com/token";
@@ -16,12 +16,13 @@ const GA4_ADMIN_API = "https://analyticsadmin.googleapis.com/v1beta";
 const SCOPE = "https://www.googleapis.com/auth/analytics.readonly";
 
 export interface Ga4MonthMetrics {
-  ga4Users: number;
-  websiteVisitors: number;
-  trafficSearch: number;
-  trafficSocial: number;
-  trafficPinterest: number;
-  trafficInstagram: number;
+  ga4Users: number | null;
+  websiteVisitors: number | null;
+  trafficSearch: number | null;
+  trafficSocial: number | null;
+  trafficPinterest: number | null;
+  trafficInstagram: number | null;
+  observation: { fetchedAt: string; startDate: string; endDate: string; timeZone: string | null; periodState: "partial" | "complete"; reportState: "partial" | "complete"; unavailable: string[] };
 }
 
 // Une propriété GA4 accessible, aplatie depuis les accountSummaries.
@@ -187,7 +188,12 @@ export async function resolveGoogleUserToken(
     .eq(filterCol, filterVal);
   if (workspaceId) cq = cq.eq("user_id", userId);
   else cq = cq.is("workspace_id", null);
-  const { data: conn } = await cq.maybeSingle();
+  if (workspaceId) {
+    const { data: member, error } = await supabase.from("workspace_members").select("role").eq("workspace_id", workspaceId).eq("user_id", userId).maybeSingle();
+    if (error || !member) throw new Error("Accès à cet espace refusé.");
+  }
+  const { data: conn, error: connError } = await cq.maybeSingle();
+  if (connError) throw connError;
   if (!conn) return { conn: null, accessToken: null };
 
   await helpers.decryptConnTokens(conn);
@@ -283,94 +289,80 @@ function monthBounds(monthISO: string): { startDate: string; endDate: string } {
   return { startDate: fmt(start), endDate: fmt(end) };
 }
 
-function toInt(v: unknown): number {
-  const n = Math.round(Number(v));
-  return Number.isFinite(n) && n > 0 ? n : 0;
+// Require valid headers, complete rows and unrestricted data before deriving zeros.
+// https://developers.google.com/analytics/devguides/reporting/data/v1/rest/v1beta/RunReportResponse
+function reportRows(report: any, dimension: string | null, metric: string): any[] {
+  if (report?.metricHeaders?.[0]?.name !== metric ||
+      (dimension && report?.dimensionHeaders?.[0]?.name !== dimension)) throw new Error("Rapport GA4 incomplet");
+  const rows = report.rows ?? [];
+  if (!Array.isArray(rows) || (report.rowCount ?? rows.length) !== rows.length ||
+      report.metadata?.subjectToThresholding || report.metadata?.dataLossFromOtherRow ||
+      report.metadata?.samplingMetadatas?.length || report.metadata?.schemaRestrictionResponse?.activeMetricRestrictions?.length) {
+    throw new Error("Rapport GA4 incomplet ou restreint");
+  }
+  for (const row of rows) {
+    const raw = row?.metricValues?.[0]?.value;
+    if (typeof raw !== "string" || !/^\d+$/.test(raw) || !Number.isSafeInteger(Number(raw)) ||
+        (dimension && typeof row?.dimensionValues?.[0]?.value !== "string")) throw new Error("Mesure GA4 absente");
+  }
+  return rows;
 }
 
-// Récupère les métriques « site web » d'un MOIS CALENDAIRE pour une propriété GA4.
-// `auth` choisit la source du jeton : compte de service (défaut, Phase 1) ou jeton
-// utilisateur déjà résolu (Phase 2). Le reste (rapports A/B/C) est identique.
 export async function fetchGa4Month(
-  propertyId: string,
-  monthISO: string,
-  auth: Ga4Auth = { mode: "service" },
+  propertyId: string, monthISO: string, auth: Ga4Auth = { mode: "service" },
 ): Promise<Ga4MonthMetrics> {
+  if (!/^\d{4}-(0[1-9]|1[0-2])-01$/.test(monthISO)) throw new Error("Mois invalide");
   const token = auth.mode === "user" ? auth.accessToken : await getAccessToken();
   const { startDate, endDate } = monthBounds(monthISO);
-  const dateRanges = [{ startDate, endDate }];
-
-  const out: Ga4MonthMetrics = {
-    ga4Users: 0,
-    websiteVisitors: 0,
-    trafficSearch: 0,
-    trafficSocial: 0,
-    trafficPinterest: 0,
-    trafficInstagram: 0,
+  const fetchedAt = new Date().toISOString();
+  const observation: Ga4MonthMetrics["observation"] = {
+    fetchedAt, startDate, endDate, timeZone: null, periodState: "partial", reportState: "complete", unavailable: [],
   };
-
-  // ── Rapport A : totalUsers du mois (sans dimension) ──
-  try {
-    const a = await runReport(propertyId, {
-      dateRanges,
-      metrics: [{ name: "totalUsers" }],
-    }, token);
-    const val = toInt(a?.rows?.[0]?.metricValues?.[0]?.value);
-    out.ga4Users = val;
-    out.websiteVisitors = val; // même valeur : visiteurs = utilisateurs GA4
-  } catch (e) {
-    console.warn("GA4 rapport A (totalUsers) échoué:", (e as Error).message);
-  }
-
-  // ── Rapport B : sessions par canal par défaut ──
-  try {
-    const b = await runReport(propertyId, {
-      dateRanges,
-      dimensions: [{ name: "sessionDefaultChannelGroup" }],
-      metrics: [{ name: "sessions" }],
-    }, token);
-    for (const row of (b?.rows || []) as any[]) {
-      const channel = String(row?.dimensionValues?.[0]?.value || "").toLowerCase();
-      const sessions = toInt(row?.metricValues?.[0]?.value);
-      if (!sessions) continue;
-      // Défensif sur les variantes de libellés ("Organic Search", "Paid Search",
-      // "Organic Social", "Paid Social", et variantes régionales).
-      if (channel.includes("search")) {
-        out.trafficSearch += sessions;
-      } else if (channel.includes("social")) {
-        out.trafficSocial += sessions;
+  const out: Ga4MonthMetrics = { ga4Users: null, websiteVisitors: null, trafficSearch: null,
+    trafficSocial: null, trafficPinterest: null, trafficInstagram: null, observation };
+  const reports = [
+    { dimension: null, metric: "totalUsers", fields: ["ga4Users", "websiteVisitors"] },
+    { dimension: "sessionDefaultChannelGroup", metric: "sessions", fields: ["trafficSearch", "trafficSocial"] },
+    { dimension: "sessionSource", metric: "sessions", fields: ["trafficPinterest", "trafficInstagram"] },
+  ] as const;
+  for (const spec of reports) {
+    try {
+      const report = await runReport(propertyId, {
+        dateRanges: [{ startDate, endDate }], metrics: [{ name: spec.metric }],
+        ...(spec.dimension ? { dimensions: [{ name: spec.dimension }] } : {}), limit: 250000,
+      }, token);
+      const rows = reportRows(report, spec.dimension, spec.metric);
+      const zone = report.metadata?.timeZone;
+      if (typeof zone !== "string" || !zone) throw new Error("Fuseau GA4 absent");
+      if (observation.timeZone && observation.timeZone !== zone) throw new Error("Fuseaux GA4 incohérents");
+      const parts = new Intl.DateTimeFormat("en-CA", { timeZone: zone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date(fetchedAt));
+      const date = ["year", "month", "day"].map(k => parts.find(p => p.type === k)!.value).join("-");
+      if (startDate > date) throw new Error("Mois dans le futur");
+      observation.timeZone = zone;
+      observation.endDate = date < endDate ? date : endDate;
+      observation.periodState = date > endDate ? "complete" : "partial";
+      let first = 0, second = 0;
+      if (!spec.dimension) {
+        if (rows.length > 1) throw new Error("Total GA4 ambigu");
+        first = second = rows.length ? Number(rows[0].metricValues[0].value) : 0;
+      } else for (const row of rows) {
+        const label = row.dimensionValues[0].value.toLowerCase();
+        const value = Number(row.metricValues[0].value);
+        if (spec.dimension === "sessionDefaultChannelGroup") {
+          if (label.includes("search")) first += value;
+          else if (label.includes("social")) second += value;
+        } else {
+          if (label.includes("pinterest")) first += value;
+          else if (label.includes("instagram") || label === "ig") second += value;
+        }
       }
+      out[spec.fields[0]] = first; out[spec.fields[1]] = second;
+    } catch (e) {
+      console.warn("GA4 rapport indisponible:", spec.metric, spec.dimension, (e as Error).message);
+      observation.unavailable.push(...spec.fields);
+      observation.reportState = "partial";
     }
-  } catch (e) {
-    console.warn("GA4 rapport B (canaux) échoué:", (e as Error).message);
   }
-
-  // ── Rapport C : sessions par source (Pinterest / Instagram) ──
-  try {
-    const c = await runReport(propertyId, {
-      dateRanges,
-      dimensions: [{ name: "sessionSource" }],
-      metrics: [{ name: "sessions" }],
-    }, token);
-    for (const row of (c?.rows || []) as any[]) {
-      const source = String(row?.dimensionValues?.[0]?.value || "").toLowerCase();
-      const sessions = toInt(row?.metricValues?.[0]?.value);
-      if (!sessions) continue;
-      if (source.includes("pinterest")) {
-        out.trafficPinterest += sessions;
-      } else if (
-        // "instagram" couvre déjà "l.instagram.com" ; "ig" seul est l'abréviation
-        // fréquente de la source Instagram (on évite includes("ig") qui matcherait
-        // "digital", "signal"…).
-        source.includes("instagram") ||
-        source === "ig"
-      ) {
-        out.trafficInstagram += sessions;
-      }
-    }
-  } catch (e) {
-    console.warn("GA4 rapport C (sources) échoué:", (e as Error).message);
-  }
-
+  if (observation.unavailable.length === 6) throw new Error("Aucun rapport GA4 exploitable. Réessaie plus tard.");
   return out;
 }

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { Upload, Check, AlertTriangle, Loader2, FileSpreadsheet, X } from "lucide-react";
+import {readStatsMonth,saveStatsPatch} from "@/lib/stats-persistence";
 import { friendlyError } from "@/lib/error-messages";
 
 
@@ -373,17 +374,11 @@ export default function ExcelImportDialog({ open, onOpenChange, userId, onImport
     try {
       let count = 0;
       for (const row of previewRows) {
-        // Upsert manuel : il n'existe pas de contrainte unique (user_id, month_date)
-        // en base, donc l'upsert onConflict échouait silencieusement (42P10).
-        let q = (supabase.from("monthly_stats" as any) as any)
-          .select("id").eq("month_date", row.monthDate).eq(column, value);
-        if (column === "workspace_id") q = q.eq("user_id", userId);
-        else q = q.is("workspace_id", null);
-        const { data: existing } = await q.limit(1).maybeSingle();
-        const { error } = existing?.id
-          ? await (supabase.from("monthly_stats" as any) as any).update(row.payload).eq("id", existing.id)
-          : await (supabase.from("monthly_stats" as any) as any).insert(row.payload);
-        if (!error) count++;
+        const workspaceId = column === "workspace_id" ? value : null;
+        const existing = await readStatsMonth(userId, workspaceId, row.monthDate);
+        const { user_id, workspace_id, month_date, ...patch } = row.payload;
+        await saveStatsPatch(workspaceId, row.monthDate, existing, patch, 'import');
+        count++;
       }
 
       // Save mapping for reuse
