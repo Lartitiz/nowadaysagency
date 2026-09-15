@@ -4852,6 +4852,7 @@ export type Database = {
           launch_name: string | null
           launch_signups: number | null
           launch_story_views: number | null
+          metric_provenance: Json
           month_date: string
           newsletter_subscribers: number | null
           objective: string | null
@@ -4904,6 +4905,7 @@ export type Database = {
           launch_name?: string | null
           launch_signups?: number | null
           launch_story_views?: number | null
+          metric_provenance?: Json
           month_date: string
           newsletter_subscribers?: number | null
           objective?: string | null
@@ -4956,6 +4958,7 @@ export type Database = {
           launch_name?: string | null
           launch_signups?: number | null
           launch_story_views?: number | null
+          metric_provenance?: Json
           month_date?: string
           newsletter_subscribers?: number | null
           objective?: string | null
@@ -8560,6 +8563,18 @@ export type Database = {
           p_launch_id: string
           p_metadata: Json
           p_slots: Json
+          p_workspace_id: string
+        }
+        Returns: Json
+      }
+      save_monthly_stats: {
+        Args: {
+          p_expected: Json
+          p_month: string
+          p_observation?: Json
+          p_patch: Json
+          p_source: string
+          p_user_id?: string
           p_workspace_id: string
         }
         Returns: Json
