@@ -9,7 +9,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Loader2, Plus, Wand2 } from "lucide-react";
+import { AlertCircle, Loader2, Plus, RefreshCw, Wand2 } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import {
@@ -75,7 +75,15 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 export default function PhotosPage() {
-  const { data: photos = [], isLoading } = useUserPhotos();
+  const {
+    data: photoData,
+    isLoading,
+    isError,
+    isFetching,
+    refetch,
+  } = useUserPhotos();
+  const photos = useMemo(() => photoData ?? [], [photoData]);
+  const hasPhotoData = photoData !== undefined;
   const { retry, isRetrying } = useRetryPhotoRetouch();
   const { mutate: uploadLibrary, progress, pendingUploads } = useUploadLibraryPhotos();
   const { activeWorkspace, loading: wsLoading } = useWorkspace();
@@ -323,9 +331,53 @@ export default function PhotosPage() {
           }}
         />
 
-        {isLoading ? (
+        {isError && hasPhotoData && (
+          <div
+            role="alert"
+            className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-destructive/25 bg-destructive/5 px-4 py-3"
+          >
+            <AlertCircle className="h-4 w-4 shrink-0 text-destructive" />
+            <p className="min-w-0 flex-1 text-sm text-foreground">
+              Impossible d'actualiser la bibliothèque. Les photos déjà chargées restent affichées.
+            </p>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", isFetching && "animate-spin")} />
+              Réessayer
+            </Button>
+          </div>
+        )}
+
+        {!wsReady || (isLoading && !hasPhotoData) ? (
           <div className="flex justify-center py-20">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : isError && !hasPhotoData ? (
+          <div
+            role="alert"
+            className="mx-auto max-w-xl rounded-2xl border border-destructive/25 bg-card p-8 text-center"
+          >
+            <AlertCircle className="mx-auto mb-3 h-8 w-8 text-destructive" />
+            <h2 className="font-display text-xl text-foreground">
+              Impossible de charger ta bibliothèque
+            </h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
+              Tes photos n'ont pas disparu. Vérifie ta connexion, puis réessaie.
+            </p>
+            <Button
+              type="button"
+              className="mt-5"
+              disabled={isFetching}
+              onClick={() => void refetch()}
+            >
+              <RefreshCw className={cn("mr-2 h-4 w-4", isFetching && "animate-spin")} />
+              Réessayer
+            </Button>
           </div>
         ) : photos.length === 0 && visiblePendingUploads.length === 0 ? (
           <PhotoShootEmptyState
