@@ -1,3 +1,4 @@
+import { exportFileName } from "@/lib/export-file-name";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Sparkles, ChevronDown, ChevronLeft, ChevronRight, Copy, Maximize2, ExternalLink } from "lucide-react";
 import { useState, useCallback, useEffect } from "react";
@@ -105,7 +106,7 @@ export function CalendarPostPreview({
           const zipBlob = await zip.generateAsync({ type: "blob" });
           const a = document.createElement("a");
           a.href = URL.createObjectURL(zipBlob);
-          a.download = sanitize(`visuels-${theme || "carrousel"}.zip`);
+          a.download = exportFileName(`visuels-${theme || "carrousel"}`, "zip");
           a.click();
           URL.revokeObjectURL(a.href);
         } catch {

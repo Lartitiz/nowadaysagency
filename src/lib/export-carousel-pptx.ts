@@ -1,3 +1,4 @@
+import { exportFileName } from "./export-file-name";
 import PptxGenJS from "pptxgenjs";
 import { mapFontToPptx, normalizeHex, fitFontToBox } from "./pptx-font-mapping";
 
@@ -290,7 +291,7 @@ export async function exportCarouselPptx(
     }
   }
 
-  await pptx.writeFile({ fileName: `${fileName}.pptx` });
+  await pptx.writeFile({ fileName: exportFileName(fileName, "pptx") });
 }
 
 // ═══ SLIDE BUILDERS ═══

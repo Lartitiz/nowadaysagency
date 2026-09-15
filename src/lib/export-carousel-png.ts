@@ -1,3 +1,4 @@
+import { exportFileName } from "./export-file-name";
 import { ExportImageError, waitForExportImages } from "./export-image-readiness";
 import html2canvas from "html2canvas-pro";
 import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
@@ -21,9 +22,6 @@ interface SlideDims {
 
 const CAROUSEL_DIMS: SlideDims = { w: SLIDE_W, h: SLIDE_H };
 const STORY_DIMS: SlideDims = { w: STORY_W, h: STORY_H };
-
-const sanitize = (s: string) =>
-  s.replace(/[^a-zA-Z0-9àâéèêëïîôùûüç\-_.]/g, "-");
 
 /**
  * Monte un iframe srcdoc isolé, identique au preview, avec les mêmes
@@ -418,7 +416,7 @@ export async function exportCarouselPng(
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = sanitize(`visuels-${fileName}.zip`);
+    a.download = exportFileName(`visuels-${fileName}`, "zip");
     a.click();
     URL.revokeObjectURL(url);
   } catch {
@@ -510,7 +508,7 @@ export async function exportStoryPng(frames: StoryFrame[], fileName = "stories")
     const url = URL.createObjectURL(zipBlob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = sanitize(`stories-${fileName}.zip`);
+    a.download = exportFileName(`stories-${fileName}`, "zip");
     a.click();
     URL.revokeObjectURL(url);
   } catch {

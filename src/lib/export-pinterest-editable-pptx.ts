@@ -1,3 +1,4 @@
+import { exportFileName } from "./export-file-name";
 import PptxGenJS from "pptxgenjs";
 import { fitFontToBox } from "./pptx-font-mapping";
 
@@ -544,5 +545,5 @@ export async function exportPinterestEditablePptx(
   // Notes with SEO data
   slide.addNotes(`📌 Titre Pinterest : ${title}\n\n📝 Description :\n${description}`);
 
-  await pptx.writeFile({ fileName: fileName + ".pptx" });
+  await pptx.writeFile({ fileName: exportFileName(fileName, "pptx") });
 }

@@ -1,3 +1,4 @@
+import { exportFileName } from "./export-file-name";
 import { ExportImageError, waitForExportImages } from "./export-image-readiness";
 import { promoteMixedText, charterFontUrl } from "./pptx-mixed-text";
 import PptxGenJS from "pptxgenjs";
@@ -1725,5 +1726,5 @@ export async function exportCarouselHybridPptx(
   if (opts?.returnBlob) {
     return (await pptx.write({ outputType: "blob" })) as Blob;
   }
-  await pptx.writeFile({ fileName: fileName + ".pptx" });
+  await pptx.writeFile({ fileName: exportFileName(fileName, "pptx") });
 }

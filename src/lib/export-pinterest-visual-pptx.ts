@@ -1,3 +1,4 @@
+import { exportFileName } from "./export-file-name";
 import { waitForExportImages } from "./export-image-readiness";
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas";
@@ -46,7 +47,7 @@ export async function exportPinterestVisualPptx(
     document.body.removeChild(container);
   }
 
-  await pptx.writeFile({ fileName: fileName + ".pptx" });
+  await pptx.writeFile({ fileName: exportFileName(fileName, "pptx") });
 }
 
 export async function exportPinterestVisualPng(
@@ -85,7 +86,7 @@ export async function exportPinterestVisualPng(
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = fileName + ".png";
+    a.download = exportFileName(fileName, "png");
     a.click();
     URL.revokeObjectURL(url);
   } finally {
