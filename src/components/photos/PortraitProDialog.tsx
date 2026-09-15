@@ -35,7 +35,7 @@ import {
 } from "@/hooks/use-user-photos";
 import { usePortraitAmbiances, type PortraitAmbiance } from "@/hooks/use-portrait-ambiances";
 import {
-  deletePhotoCompletely,
+  discardPhotoAttempt,
   downloadPhoto,
   getSignedPhotoUrl,
   type UserPhotoRow,
@@ -175,10 +175,10 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
     if (!result) return;
     setIsDeleting(true);
     try {
-      await deletePhotoCompletely(result);
+      await discardPhotoAttempt(result);
       setResult(null);
       setResultUrl(null);
-      toast.success("Essai supprimé.");
+      toast.success("Essai retiré.");
     } catch (e: any) {
       toast.error(e?.message || "Suppression impossible");
     } finally {
@@ -208,8 +208,8 @@ export function PortraitProDialog({ photo, open, onOpenChange }: PortraitProDial
         if (!v && result && !keptRef.current) {
           // Fermeture sans avoir cliqué "Garder" ni "Supprimer cet essai" : on ne laisse pas
           // un essai non validé dans la bibliothèque.
-          deletePhotoCompletely(result).catch(() => {
-            toast.error("Un essai n'a pas pu être nettoyé, vérifie ta bibliothèque.");
+          discardPhotoAttempt(result).catch(() => {
+            toast.error("Un essai n'a pas pu être retiré, vérifie ta bibliothèque.");
           });
         }
         onOpenChange(v);

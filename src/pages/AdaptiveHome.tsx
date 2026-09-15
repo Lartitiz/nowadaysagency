@@ -370,7 +370,8 @@ export default function AdaptiveHome() {
       const { count, error } = await supabase
         .from("user_photos")
         .select("*", { count: "exact", head: true })
-        .eq("workspace_id", workspaceId ?? user.id);
+        .eq("workspace_id", workspaceId ?? user.id)
+        .is("removed_from_library_at", null);
       if (error) throw error;
       return count ?? 0;
     },
@@ -412,6 +413,7 @@ export default function AdaptiveHome() {
         .from("user_photos")
         .select("storage_path, status")
         .eq("workspace_id", workspaceId ?? user!.id)
+        .is("removed_from_library_at", null)
         .eq("status", "ready")
         .order("created_at", { ascending: false })
         .limit(3);

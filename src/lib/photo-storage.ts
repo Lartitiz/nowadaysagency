@@ -36,6 +36,8 @@ export interface UserPhotoRow {
   height: number | null;
   file_size_bytes: number | null;
   error_message: string | null;
+  /** Date de retrait de la bibliothèque. Le média reste disponible aux contenus qui le référencent. */
+  removed_from_library_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -191,8 +193,11 @@ export async function uploadPhotoOriginal({
     });
 
   if (upload.error) {
-    // eslint-disable-next-line nowadays/require-supabase-error-check -- nettoyage best-effort après échec d'upload déjà géré (throw juste après)
-    await supabase.from("user_photos").delete().eq("id", photoId);
+    // Conserver une ligne récupérable plutôt qu'effacer une trace que le
+    // stockage ou la base auraient pu traiter partiellement.
+    await discardPhotoAttempt(photoId).catch((cleanupError) => {
+      console.error("[uploadPhotoOriginal] impossible de retirer l'essai incomplet", cleanupError);
+    });
     const raw = upload.error.message || "";
     if (raw.toLowerCase().includes("row-level security")) {
       throw new Error("Le stockage a refusé l'envoi de la photo. Recharge la page puis réessaie.");
@@ -384,17 +389,44 @@ export async function downloadPhoto(path: string, filename: string): Promise<voi
   setTimeout(() => URL.revokeObjectURL(objectUrl), 2_000);
 }
 
-/**
- * Deletes the user_photos row + both storage objects.
- */
-export async function deletePhotoCompletely(photo: Pick<UserPhotoRow, "id" | "storage_path" | "original_storage_path">): Promise<void> {
-  // Photos bibliothèque : storage_path === original_storage_path → dédup
-  const paths = Array.from(
-    new Set([photo.storage_path, photo.original_storage_path].filter(Boolean)),
-  ) as string[];
-  if (paths.length > 0) {
-    await supabase.storage.from(USER_PHOTOS_BUCKET).remove(paths);
-  }
-  const { error } = await supabase.from("user_photos").delete().eq("id", photo.id);
+type PhotoIdentity = string | Pick<UserPhotoRow, "id">;
+
+async function setPhotoLibraryVisibility(photo: PhotoIdentity, removed: boolean): Promise<void> {
+  const photoId = typeof photo === "string" ? photo : photo.id;
+  const { error } = await supabase.rpc("set_photo_library_visibility", {
+    p_photo_id: photoId,
+    p_removed: removed,
+  });
   if (error) throw new Error(error.message);
+}
+
+/**
+ * Retire une photo de la bibliothèque sans toucher à la ligne ni aux objets
+ * Storage. Les calendriers, préparations et créations déjà enregistrés gardent
+ * donc leur média. L'opération est atomique, réversible et contrôlée côté SQL.
+ */
+export async function removePhotoFromLibrary(photo: PhotoIdentity): Promise<void> {
+  await setPhotoLibraryVisibility(photo, true);
+}
+
+/** Restauration technique d'un retrait logique (support/reprise de panne). */
+export async function restorePhotoToLibrary(photo: PhotoIdentity): Promise<void> {
+  await setPhotoLibraryVisibility(photo, false);
+}
+
+/**
+ * Un essai non gardé suit le même contrat récupérable. La destruction physique
+ * n'est volontairement plus exposée au navigateur : elle nécessite un nettoyage
+ * serveur séparé, après vérification de toutes les références.
+ */
+export async function discardPhotoAttempt(photo: PhotoIdentity): Promise<void> {
+  await removePhotoFromLibrary(photo);
+}
+
+/**
+ * @deprecated Compatibilité des anciens consommateurs. "Supprimer" signifie
+ * désormais retirer de la bibliothèque, jamais effacer implicitement le média.
+ */
+export async function deletePhotoCompletely(photo: PhotoIdentity): Promise<void> {
+  await removePhotoFromLibrary(photo);
 }
