@@ -8515,6 +8515,19 @@ export type Database = {
         }
         Returns: Json
       }
+      move_calendar_post: {
+        Args: { p_date: string; p_expected_date: string; p_post_id: string }
+        Returns: Json
+      }
+      plan_saved_idea: {
+        Args: {
+          p_date: string
+          p_expected_updated_at: string
+          p_idea_id: string
+          p_payload: Json
+        }
+        Returns: Json
+      }
       public_calendar_write: {
         Args: {
           p_action: string
@@ -8582,10 +8595,6 @@ export type Database = {
         }
         Returns: Json
       }
-      set_photo_library_visibility: {
-        Args: { p_photo_id: string; p_removed?: boolean }
-        Returns: Json
-      }
       save_pinterest_editor: {
         Args: {
           p_expected: Json
@@ -8594,6 +8603,10 @@ export type Database = {
           p_table: string
           p_workspace_id: string
         }
+        Returns: Json
+      }
+      set_photo_library_visibility: {
+        Args: { p_photo_id: string; p_removed?: boolean }
         Returns: Json
       }
       sync_launch_calendar: {
