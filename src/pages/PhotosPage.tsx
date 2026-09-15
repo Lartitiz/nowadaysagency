@@ -30,7 +30,7 @@ import {
   useUploadLibraryPhotos,
   type UserPhotoRow,
 } from "@/hooks/use-user-photos";
-import { deletePhotoCompletely } from "@/lib/photo-storage";
+import { removePhotoFromLibrary } from "@/lib/photo-storage";
 import { PhotoCard } from "@/components/photos/PhotoCard";
 import { PhotoUploadingCard } from "@/components/photos/PhotoUploadingCard";
 import { PhotoRetouchDialog } from "@/components/photos/PhotoRetouchDialog";
@@ -256,8 +256,8 @@ export default function PhotosPage() {
   async function confirmDelete() {
     if (!photoToDelete) return;
     try {
-      await deletePhotoCompletely(photoToDelete);
-      toast.success("Photo supprimée");
+      await removePhotoFromLibrary(photoToDelete);
+      toast.success("Photo retirée de la bibliothèque");
     } catch (e: any) {
       toast.error(e?.message || "Suppression impossible");
     } finally {
@@ -547,15 +547,16 @@ export default function PhotosPage() {
       <AlertDialog open={!!photoToDelete} onOpenChange={(v) => !v && setPhotoToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Supprimer cette photo ?</AlertDialogTitle>
+            <AlertDialogTitle>Retirer cette photo ?</AlertDialogTitle>
             <AlertDialogDescription>
-              La photo sera supprimée définitivement de ta bibliothèque.
+              Elle ne sera plus proposée dans ta bibliothèque. Les contenus et brouillons qui
+              l'utilisent déjà garderont leur visuel.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annuler</AlertDialogCancel>
             <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-              Supprimer
+              Retirer
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

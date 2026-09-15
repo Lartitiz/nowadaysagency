@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { getIdeaState, formatLabel, sourceLabel } from "@/lib/idea-state";
+import { calendarPlacementLabel, getIdeaState, formatLabel, sourceLabel } from "@/lib/idea-state";
 
 describe("getIdeaState — trois états lisibles", () => {
   it("une idée du diagnostic, sans contenu, est « à faire »", () => {
@@ -55,5 +55,11 @@ describe("libellés", () => {
     expect(sourceLabel(null, "actu")).toBe("actu repérée");
     expect(sourceLabel("creer")).toBeNull();
     expect(sourceLabel(null)).toBeNull();
+  });
+
+  it("ne promet pas une programmation automatique quand seule la date calendrier est connue", () => {
+    const label = calendarPlacementLabel("17 sept.");
+    expect(label).toBe("prévu au calendrier le 17 sept.");
+    expect(label).not.toContain("programm");
   });
 });

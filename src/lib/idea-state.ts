@@ -52,6 +52,11 @@ export const IDEA_STATE_LABELS: Record<IdeaState, { singular: string; plural: st
   created: { singular: "créée", plural: "créées", tab: "Créées" },
 };
 
+/** Une date de calendrier ne prouve pas qu'une publication automatique est activée. */
+export function calendarPlacementLabel(formattedDate: string): string {
+  return `prévu au calendrier le ${formattedDate}`;
+}
+
 /** Libellé lisible d'un format technique (`story_serie` → « Série de stories »). */
 export function formatLabel(format: string | null | undefined): string {
   switch ((format || "").toLowerCase()) {

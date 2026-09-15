@@ -11,7 +11,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { redescribePhoto } from "@/lib/photo-redescribe";
 import type { UserPhotoRow } from "@/lib/photo-storage";
-import { uploadPhotoOriginal, USER_PHOTOS_BUCKET } from "@/lib/photo-storage";
+import { discardPhotoAttempt, uploadPhotoOriginal, USER_PHOTOS_BUCKET } from "@/lib/photo-storage";
 import { derivedPhotoDescription, derivedPhotoName } from "@/lib/photo-naming";
 import { convertHeicIfNeeded } from "@/lib/heic";
 
@@ -74,6 +74,7 @@ export function useUserPhotos(limit = 200) {
           .from("user_photos")
           .select("*")
           .eq("workspace_id", workspaceId)
+          .is("removed_from_library_at", null)
           .order("created_at", { ascending: false })
           .order("id", { ascending: false })
           .range(offset, offset + pageSize - 1);
@@ -578,9 +579,11 @@ export function useGeneratePhotoVariant() {
       queryClient.invalidateQueries({ queryKey: [...QUERY_KEY, workspaceId] });
 
       const cleanup = async () => {
-        // eslint-disable-next-line nowadays/require-supabase-error-check -- nettoyage best-effort après échec déjà géré (throw juste après) ; un échec du nettoyage ne doit pas masquer l'erreur d'origine
-        await supabase.from("user_photos").delete().eq("id", newId);
-        await supabase.storage.from(USER_PHOTOS_BUCKET).remove([originalPath]).catch(() => {});
+        // Retrait logique : une reprise peut examiner/retenter l'essai incomplet,
+        // et aucune suppression Storage ne peut précéder sa trace en base.
+        await discardPhotoAttempt(newId).catch((cleanupError) => {
+          console.error("[useGeneratePhotoVariant] impossible de retirer l'essai incomplet", cleanupError);
+        });
       };
 
       // 2. Copie serveur du fichier source (pas de re-upload client).
@@ -588,8 +591,7 @@ export function useGeneratePhotoVariant() {
         .from(USER_PHOTOS_BUCKET)
         .copy(srcPath, originalPath);
       if (copyErr && !/exist|dupl/i.test(copyErr.message)) {
-        // eslint-disable-next-line nowadays/require-supabase-error-check -- nettoyage best-effort avant le throw suivant, même raison que cleanup() ci-dessus
-        await supabase.from("user_photos").delete().eq("id", newId);
+        await cleanup();
         throw new Error(copyErr.message);
       }
 

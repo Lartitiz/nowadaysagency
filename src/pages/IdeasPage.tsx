@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { friendlyError } from "@/lib/error-messages";
-import { getIdeaState, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
+import { calendarPlacementLabel, getIdeaState, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
 import { buildCalendarPostFromIdea } from "@/lib/idea-to-calendar";
 
@@ -485,7 +485,7 @@ function IdeasInWorkspace() {
                       <p className="text-xs text-muted-foreground mt-1">
                         {metaLine(idea)}
                         {state === "created" && idea.planned_date && (
-                          <> · <span className="text-[#2E7D32]">programmée le {formatDate(idea.planned_date, "d MMM")}</span></>
+                          <> · <span className="text-[#2E7D32]">{calendarPlacementLabel(formatDate(idea.planned_date, "d MMM"))}</span></>
                         )}
                         {state === "in_progress" && idea.updated_at && (
                           <> · reprise le {formatDate(idea.updated_at, "d MMM")}</>

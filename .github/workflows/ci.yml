@@ -141,3 +141,11 @@ jobs:
 
       - name: Stats provenance, conflicts and access (disposable PGlite database)
         run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/stats-provenance.mjs
+
+      - name: Photo library removal contract (disposable PGlite database)
+        run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/photo-library-removal.mjs
+
+      - name: Photo library removal is recoverable and role-scoped (disposable database)
+        env:
+          PGPASSWORD: postgres
+        run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/photo-library-removal.sql
