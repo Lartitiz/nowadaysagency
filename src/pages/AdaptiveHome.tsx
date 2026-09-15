@@ -515,7 +515,8 @@ export default function AdaptiveHome() {
 
   const draft = loadFlowState();
   const draftInSpace = draft && (!draft.workspaceId || draft.workspaceId === (workspaceId ?? user?.id));
-  const hasLocalDraft = draftInSpace && !!(draft.ideaText || draft.photoSubject || draft.photoDescription || draft.result || draft.editContent || draft.selectedFormat || loadPhotos().length);
+  const currentDraft = draftInSpace ? draft : null;
+  const hasLocalDraft = !!(currentDraft?.ideaText || currentDraft?.photoSubject || currentDraft?.photoDescription || currentDraft?.result || currentDraft?.editContent || currentDraft?.selectedFormat || loadPhotos().length);
 
   if (isClientWorkspace && !clientHasData) {
     return (
@@ -596,7 +597,7 @@ export default function AdaptiveHome() {
         </div>
 
         {hasLocalDraft && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">
-          <div className="min-w-0"><p className="text-sm font-semibold text-bordeaux">Ton contenu en cours</p><p className="max-w-[500px] truncate text-sm text-muted-foreground">{draft.ideaText || draft.photoSubject || "Ton brouillon est conservé sur cet appareil."}</p></div>
+          <div className="min-w-0"><p className="text-sm font-semibold text-bordeaux">Ton contenu en cours</p><p className="max-w-[500px] truncate text-sm text-muted-foreground">{currentDraft?.ideaText || currentDraft?.photoSubject || "Ton brouillon est conservé sur cet appareil."}</p></div>
           <button type="button" onClick={() => navigate("/creer")} className="inline-flex items-center gap-2 text-sm font-semibold text-bordeaux">Reprendre <ArrowRight size={16} /></button>
         </div>}
 

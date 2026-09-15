@@ -260,7 +260,7 @@ function CreerWorkspace() {
   const [conflictResolved, setConflictResolved] = useState(false);
   const conflictPending = !!draftConflict && !conflictResolved;
 
-  const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && !!existingFlowState.step));
+  const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || loadPhotos().length > 0 || (existingFlowState !== null && !!existingFlowState.step));
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
