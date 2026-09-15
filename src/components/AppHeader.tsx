@@ -119,7 +119,15 @@ export default function AppHeader() {
 }
 
 function AppHeaderInner() {
-  const { activeWorkspace, ownWorkspace, workspaces, isMultiWorkspace, switchWorkspace, activeRole } = useWorkspace();
+  const {
+    activeWorkspace,
+    ownWorkspace,
+    workspaces,
+    isMultiWorkspace,
+    switchWorkspace,
+    switchingWorkspaceId,
+    activeRole,
+  } = useWorkspace();
   const { user, signOut, isAdmin } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -224,7 +232,7 @@ function AppHeaderInner() {
               <BrandLogo className="h-6" />
               <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
             </Link>
-            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
+            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
           </div>
 
           <div className="flex items-center gap-2">
@@ -281,7 +289,7 @@ function AppHeaderInner() {
               <BrandLogo className="h-6" />
               <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
             </Link>
-            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
+            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
           </div>
 
           <div className="flex items-center gap-1.5">
@@ -343,7 +351,7 @@ function AppHeaderInner() {
                 <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-md">beta</span>
               )}
             </Link>
-            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} navigate={navigate} />}
+            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
@@ -380,17 +388,19 @@ function AppHeaderInner() {
               👁️ Tu es dans l'espace de {activeWorkspace.name}
             </span>
             <button
-              onClick={() => {
+              disabled={switchingWorkspaceId !== null}
+              onClick={async () => {
                 // ⚠️ PAS `workspaces[0]` (arbitraire) : on revient à l'espace dont
                 // on est owner. Sinon « revenir » pouvait basculer vers un AUTRE
                 // espace client et laisser bloqué·e hors de chez soi.
                 const ownerWs = ownWorkspace ?? workspaces[0];
                 if (ownerWs) {
-                  switchWorkspace(ownerWs.id);
+                  const ok = await switchWorkspace(ownerWs.id);
+                  if (!ok) return;
                   navigate("/dashboard");
                 }
               }}
-              className="text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+              className="text-xs font-medium text-primary hover:text-primary/80 transition-colors disabled:cursor-wait disabled:opacity-60"
             >
               Revenir à mon espace
             </button>
@@ -555,15 +565,17 @@ function AvatarMenu({ initial, firstName, planLabel, planBadge, totalUsed, total
 }
 
 /* ─── Workspace switcher (only shown when multi-workspace) ─── */
-function WorkspaceSwitcher({
+export function WorkspaceSwitcher({
   activeWorkspace,
   workspaces,
   switchWorkspace,
+  switchingWorkspaceId,
   navigate,
 }: {
   activeWorkspace: { id: string; name: string } | null;
   workspaces: { id: string; name: string }[];
   switchWorkspace: (id: string) => Promise<boolean>;
+  switchingWorkspaceId: string | null;
   navigate: (path: string) => void;
 }) {
   const displayName = activeWorkspace?.name
@@ -577,7 +589,7 @@ function WorkspaceSwitcher({
       <DropdownMenuTrigger asChild>
         {/* min-w-0 sur le bouton ET le span : sans ça le nom refuse de se tronquer
             et la barre du haut mobile déborde de l'écran (viewport élargi à ~457px) */}
-        <button className="flex items-center gap-1 min-w-0 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-secondary focus:outline-none">
+        <button disabled={switchingWorkspaceId !== null} className="flex items-center gap-1 min-w-0 text-sm text-muted-foreground hover:text-foreground transition-colors px-2 py-1 rounded-md hover:bg-secondary focus:outline-none disabled:cursor-wait disabled:opacity-60">
           <span className="font-medium truncate min-w-0 max-w-[120px]">{displayName}</span>
           <ChevronDown className="h-3.5 w-3.5 shrink-0" />
         </button>
@@ -586,6 +598,8 @@ function WorkspaceSwitcher({
         {workspaces.map((ws) => (
           <DropdownMenuItem
             key={ws.id}
+            disabled={switchingWorkspaceId !== null}
+            aria-busy={switchingWorkspaceId === ws.id}
             onClick={async () => {
               if (ws.id !== activeWorkspace?.id) {
                 // Ne naviguer que si le switch a réussi : sinon on enverrait

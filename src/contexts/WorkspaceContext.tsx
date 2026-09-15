@@ -1,5 +1,5 @@
 import { setFlowWorkspaceId } from "@/hooks/use-flow-persistence";
-import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -14,6 +14,11 @@ export interface Workspace {
   avatar_url: string | null;
   plan: string;
 }
+
+export type WorkspaceRole = "owner" | "manager" | "editor" | "viewer";
+
+const isWorkspaceRole = (role: unknown): role is WorkspaceRole =>
+  role === "owner" || role === "manager" || role === "editor" || role === "viewer";
 
 // UUID nul : format valide (les colonnes workspace_id/user_id sont typées uuid,
 // un id du genre "demo-workspace" ferait 400 "invalid input syntax for type uuid"
@@ -39,9 +44,12 @@ export interface WorkspaceContextType {
    *  qui est arbitraire (un·e admin est membre d'espaces clients). */
   ownWorkspace: Workspace | null;
   workspaces: Workspace[];
-  activeRole: "owner" | "manager" | "editor" | "viewer";
+  /** Null tant que les droits du contexte demandé ne sont pas confirmés. */
+  activeRole: WorkspaceRole | null;
   /** Résout à true si le changement d'espace a réussi — les appelants ne doivent naviguer que dans ce cas. */
   switchWorkspace: (workspaceId: string) => Promise<boolean>;
+  /** Espace en cours de vérification. L'espace actif reste le dernier contexte cohérent jusqu'au succès. */
+  switchingWorkspaceId: string | null;
   isMultiWorkspace: boolean;
   loading: boolean;
 }
@@ -58,12 +66,19 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   // Draft helpers are also read by the home page before opening /creer.
   setFlowWorkspaceId(activeWorkspace?.id || null);
   const [ownWorkspace, setOwnWorkspace] = useState<Workspace | null>(null);
-  const [activeRole, setActiveRole] = useState<"owner" | "manager" | "editor" | "viewer">("owner");
+  const [activeRole, setActiveRole] = useState<WorkspaceRole>("owner");
   const [loading, setLoading] = useState(true);
+  const [switchingWorkspaceId, setSwitchingWorkspaceId] = useState<string | null>(null);
+  // Une même génération couvre le chargement initial et les changements : toute
+  // réponse d'une génération précédente est ignorée, y compris A → B → C → A.
+  const contextRequestId = useRef(0);
   const queryClient = useQueryClient();
 
   // Fetch workspaces
   useEffect(() => {
+    const requestId = ++contextRequestId.current;
+    setSwitchingWorkspaceId(null);
+
     // Mode démo : espace fictif, aucun appel réseau. Sans ce court-circuit,
     // `user` (basculé sur le faux "demo-user" par AuthContext) fait échouer
     // silencieusement le fetch ci-dessous — l'espace réel précédemment chargé
@@ -87,7 +102,14 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Un changement de compte ne doit jamais laisser visibles l'espace ou le
+    // rôle du compte précédent pendant la nouvelle lecture (ni après son échec).
+    setWorkspaces([]);
+    setActiveWorkspace(null);
+    setOwnWorkspace(null);
+
     let cancelled = false;
+    const isStale = () => cancelled || requestId !== contextRequestId.current;
 
     const fetchMemberships = () =>
       supabase
@@ -109,7 +131,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
 
       const { data, error } = await fetchMemberships();
 
-      if (cancelled) return;
+      if (isStale()) return;
 
       if (error || !data) {
         console.error("Failed to load workspaces:", {
@@ -124,7 +146,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         // montage). Si ça échoue encore, on arrête de boucler et on prévient.
         if (!isRetry) {
           await new Promise((r) => setTimeout(r, 1000));
-          if (cancelled) return;
+          if (isStale()) return;
           return load(true);
         }
 
@@ -150,12 +172,12 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
           "[workspace] Aucun espace owner pour cet utilisateur — auto-réparation via ensure_owner_workspace…",
         );
         const { error: healErr } = await supabase.rpc("ensure_owner_workspace" as any);
-        if (cancelled) return;
+        if (isStale()) return;
         if (healErr) {
           console.error("[workspace] auto-réparation échouée:", healErr);
         } else {
           const retry = await fetchMemberships();
-          if (cancelled) return;
+          if (isStale()) return;
           if (!retry.error && retry.data) loaded = buildLoaded(retry.data);
         }
       }
@@ -173,7 +195,7 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       if (selected) {
         const { _role, ...ws } = selected;
         setActiveWorkspace(ws);
-        setActiveRole(_role as any);
+        setActiveRole(isWorkspaceRole(_role) ? _role : "viewer");
         localStorage.setItem(LS_KEY, ws.id);
       } else {
         setActiveWorkspace(null);
@@ -183,61 +205,118 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [user?.id, isDemoMode]);
 
   const switchWorkspace = useCallback(
     async (workspaceId: string) => {
+      const requestId = ++contextRequestId.current;
+
       // Mode démo : un seul espace fictif, jamais d'appel réseau.
       if (isDemoMode) return workspaceId === DEMO_WORKSPACE.id;
 
-      let found = workspaces.find((w) => w.id === workspaceId);
+      if (!user?.id) {
+        toast.error("Connecte-toi pour changer d'espace.");
+        return false;
+      }
 
-      if (!found && user?.id) {
-        const { data: memberCheck } = await supabase
+      // Revenir au dernier contexte confirmé annule aussi une demande plus
+      // ancienne encore en vol, sans refaire une lecture réseau inutile.
+      if (workspaceId === activeWorkspace?.id) {
+        setSwitchingWorkspaceId(null);
+        setLoading(false);
+        return true;
+      }
+
+      setSwitchingWorkspaceId(workspaceId);
+      setLoading(true);
+
+      let found = workspaces.find((w) => w.id === workspaceId);
+      let role: WorkspaceRole | null = null;
+
+      if (!found) {
+        const { data: memberCheck, error: memberError } = await supabase
           .from("workspace_members")
           .select("role, workspaces:workspace_id(id, name, slug, avatar_url, plan)")
           .eq("workspace_id", workspaceId)
           .eq("user_id", user.id)
           .maybeSingle();
 
-        if (!memberCheck) {
-          toast.error("Tu n'as pas accès à cet espace.");
+        if (requestId !== contextRequestId.current) return false;
+
+        if (memberError || !memberCheck || !isWorkspaceRole(memberCheck.role)) {
+          setSwitchingWorkspaceId(null);
+          setLoading(false);
+          if (memberError) {
+            console.error("Failed to verify workspace membership:", memberError);
+            toast.error("Impossible de vérifier tes droits sur cet espace.", {
+              description: "Vérifie ta connexion et réessaie.",
+            });
+          } else {
+            toast.error("Tu n'as pas accès à cet espace.");
+          }
           return false;
         }
 
         const ws = memberCheck.workspaces as any;
-        if (ws) {
-          found = ws as Workspace;
-          setActiveRole(memberCheck.role as any);
-          setWorkspaces(prev => {
-            if (prev.some(w => w.id === workspaceId)) return prev;
-            return [...prev, found!];
-          });
+        if (!ws) {
+          setSwitchingWorkspaceId(null);
+          setLoading(false);
+          toast.error("Tu n'as pas accès à cet espace.");
+          return false;
         }
-      }
 
-      if (!found) {
-        toast.error("Espace introuvable.");
-        return false;
-      }
-
-      setActiveWorkspace(found);
-      localStorage.setItem(LS_KEY, workspaceId);
-      queryClient.invalidateQueries();
-
-      if (user?.id) {
-        const { data: roleData } = await supabase
+        found = ws as Workspace;
+        role = memberCheck.role;
+      } else {
+        const { data: roleData, error: roleError } = await supabase
           .from("workspace_members")
           .select("role")
           .eq("workspace_id", workspaceId)
           .eq("user_id", user.id)
           .maybeSingle();
-        if (roleData?.role) setActiveRole(roleData.role as any);
+
+        if (requestId !== contextRequestId.current) return false;
+
+        if (roleError || !roleData || !isWorkspaceRole(roleData.role)) {
+          setSwitchingWorkspaceId(null);
+          setLoading(false);
+          if (roleError) console.error("Failed to load workspace role:", roleError);
+          toast.error("Impossible de vérifier tes droits sur cet espace.", {
+            description: "L'espace actuel reste ouvert. Vérifie ta connexion et réessaie.",
+          });
+          return false;
+        }
+
+        role = roleData.role;
       }
+
+      if (!found) {
+        setSwitchingWorkspaceId(null);
+        setLoading(false);
+        toast.error("Espace introuvable.");
+        return false;
+      }
+
+      if (requestId !== contextRequestId.current || !role) return false;
+
+      // Publier le contexte complet seulement quand espace ET rôle sont
+      // confirmés. React groupe ces mises à jour dans le même rendu.
+      setActiveWorkspace(found);
+      setActiveRole(role);
+      setWorkspaces((previous) => {
+        if (previous.some((workspace) => workspace.id === workspaceId)) return previous;
+        return [...previous, found!];
+      });
+      localStorage.setItem(LS_KEY, workspaceId);
+      queryClient.invalidateQueries();
+      setSwitchingWorkspaceId(null);
+      setLoading(false);
       return true;
     },
-    [workspaces, user?.id, queryClient, isDemoMode],
+    [activeWorkspace?.id, workspaces, user?.id, queryClient, isDemoMode],
   );
 
   return (
@@ -246,8 +325,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
         activeWorkspace,
         ownWorkspace,
         workspaces,
-        activeRole,
+        // Aucun consommateur ne doit hériter des droits du dernier espace
+        // pendant que le prochain rôle est encore inconnu.
+        activeRole: loading ? null : activeRole,
         switchWorkspace,
+        switchingWorkspaceId,
         isMultiWorkspace: workspaces.length > 1,
         loading,
       }}
