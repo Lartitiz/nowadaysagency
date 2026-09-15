@@ -5,6 +5,8 @@ import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voi
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Sparkles, Copy, Loader2, MoreHorizontal, CheckCircle2 } from "lucide-react";
 import type { CalendarPost } from "@/lib/calendar-constants";
+import { downloadVisualUrls } from "@/lib/download-visual-urls";
+import { toast } from "sonner";
 
 interface Props {
   editingPost: CalendarPost | null;
@@ -39,12 +41,26 @@ export function CalendarPostContent({
 }: Props) {
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
+  const [isDownloadingVisuals, setIsDownloadingVisuals] = useState(false);
 
   if (!editingPost || !theme.trim()) return null;
 
   const hasContent = !!(contentDraft || editingPost.generated_content_id);
   const isPublished = status === "published";
   const isReady = status === "ready" || status === "draft_ready";
+
+  const handleDownloadVisuals = async () => {
+    if (isDownloadingVisuals || mediaUrls.length === 0) return;
+    setIsDownloadingVisuals(true);
+    try {
+      const count = await downloadVisualUrls(mediaUrls, theme || "carrousel");
+      toast.success(count === 1 ? "Visuel téléchargé" : `${count} visuels téléchargés dans une archive`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Les visuels n'ont pas pu être téléchargés.");
+    } finally {
+      setIsDownloadingVisuals(false);
+    }
+  };
 
   // Plus de troncature : on affiche tout, scroll naturel via max-h
   const contentEditableJsx = (
@@ -86,14 +102,17 @@ export function CalendarPostContent({
             : "Voir les slides"}
         </Button>
         {hasVisuals && (
-          <a
-            href={mediaUrls[0]}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleDownloadVisuals}
+            disabled={isDownloadingVisuals}
             className="inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           >
-            📥 Télécharger les visuels
-          </a>
+            {isDownloadingVisuals ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "📥"}
+            {mediaUrls.length === 1 ? "Télécharger le visuel" : `Télécharger les ${mediaUrls.length} visuels`}
+          </Button>
         )}
         {isCarousel && (
           <Button
