@@ -185,7 +185,9 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
   useEffect(() => {
     if (montageMode !== "cache" || stockSearchStarted.current) return;
     stockSearchStarted.current = true;
-    let cancelled = false;
+    // This one-time search belongs to the mounted editor, not the mode tab.
+    // Leaving and returning must not discard a paid keyword response.
+    const cancelled = () => !activeRender.current.mounted;
     (async () => {
       let kws: string[] = [];
       try {
@@ -197,13 +199,10 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
       } catch {
         kws = spoken.map(() => subject || "");
       }
-      if (cancelled) return;
+      if (cancelled()) return;
       setKeywords(kws);
-      await Promise.all(kws.map((kw, i) => runSearch(i, kw, { cancelledRef: () => cancelled })));
+      await Promise.all(kws.map((kw, i) => runSearch(i, kw, { cancelledRef: cancelled })));
     })();
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [montageMode]);
 
@@ -304,7 +303,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
     setArchived(false);
     setPhase("rendering");
     setTick(0);
-    setMp4Url(null);
+    // Retain the last download until a new render succeeds, including on failure.
     onMp4Ready?.(null);
     setErrorMsg("");
     try {
@@ -393,7 +392,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
                 <EyeOff className="h-3.5 w-3.5" /> Je ne me montre pas
               </span>
               <span className="block text-2xs text-muted-foreground mt-1">
-                Clips libres de droit + ta voix (enregistrée ou générée) posée par-dessus.
+                Tes vidéos ou des clips libres de droit, avec ta voix enregistrée ou sans voix.
               </span>
             </button>
           </div>
@@ -460,6 +459,7 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
               {voiceMode === "recorded" && (
                 <ReelVoiceRecorder
                   texts={spoken.map((s) => s.texte_parle as string)}
+                  initialClips={voiceClips}
                   onVoicesChange={setVoiceClips}
                 />
               )}
