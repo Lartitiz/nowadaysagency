@@ -31,7 +31,7 @@ try {
  INSERT INTO monthly_stats(user_id,workspace_id,month_date,ga4_users,reach,custom_data) VALUES('${owner}','${A}','${month}',12,50,'{"instagram":"keep","linkedin":"keep"}');
  INSERT INTO monthly_stats(user_id,workspace_id,month_date,ga4_users) VALUES('${owner}',NULL,'2026-08-01',99);`);
  const before=(await db.query('SELECT to_jsonb(m) AS row FROM monthly_stats m ORDER BY id')).rows;
- await db.exec(readFile('../migrations/20260914193000_stats_provenance.sql'));
+ await db.exec(readFile('../migrations/20260915084408_a8ebf14f-d89f-45cf-8760-12f9cf1f6eef.sql'));
  assert.deepEqual((await db.query("SELECT to_jsonb(m)-'metric_provenance' AS row FROM monthly_stats m ORDER BY id")).rows,before);pass('migration preserves historical values, IDs and tenant assignments');
  await identity(owner);let row=await read();assert.deepEqual(row.metric_provenance,{});pass('no fabricated historical provenance');
  row=await save(row,{ga4_users:0});assert.equal(row.ga4_users,0);assert.equal(row.metric_provenance.ga4_users.unit,'users');assert.equal(row.reach,50);assert.deepEqual(row.custom_data,{instagram:'keep',linkedin:'keep'});pass('observed zero saved, other channels untouched');
