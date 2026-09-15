@@ -1618,7 +1618,7 @@ function CreerWorkspace() {
     let text = "";
 
     // Si une édition manuelle a déjà été sauvegardée, on la rouvre telle quelle.
-    if (r?.edited_text?.trim()) {
+    if (typeof r?.edited_text === "string") {
       setEditContent(r.edited_text);
       setStep("edit");
       return;
@@ -1683,6 +1683,8 @@ function CreerWorkspace() {
     } else if (selectedFormat === "pinterest_photo" && (r?.title || r?.photo_brief)) {
       text = `📌 TITRE :\n${r.title || ""}\n\n📝 DESCRIPTION :\n${r.description || ""}\n\n📷 BRIEF PHOTO :\n• Sujet : ${r?.photo_brief?.what || ""}\n• Cadrage : ${r?.photo_brief?.framing || ""}\n• Lumière : ${r?.photo_brief?.lighting || ""}\n• Accessoires : ${(r?.photo_brief?.props || []).join(", ")}\n• Couleurs : ${r?.photo_brief?.colors || ""}\n• Ambiance : ${r?.photo_brief?.mood || ""}`;
 
+    } else if (selectedFormat === "newsletter") {
+      text = r.body ?? r.content ?? r.text ?? "";
     } else if (r?.content) {
       text = r.content;
     } else if (r?.post) {
@@ -2968,11 +2970,12 @@ function CreerWorkspace() {
                     : undefined
                 }
                 onStoriesUpdate={selectedFormat === "story" ? (stories) => {
-                  if (result?.raw) {
-                    if (result.raw.stories) result.raw.stories = stories;
-                    else if (result.raw.sequences) result.raw.sequences = stories;
-                    else if (result.raw.slides) result.raw.slides = stories;
-                  }
+                  setResult((prev) => {
+                    if (!prev?.raw) return prev;
+                    const key = Array.isArray(prev.raw.stories) ? "stories"
+                      : Array.isArray(prev.raw.sequences) ? "sequences" : "slides";
+                    return { ...prev, raw: { ...prev.raw, [key]: stories } };
+                  });
                 } : undefined}
                 photoBriefOverlayHtml={photoBriefOverlayHtml}
                 channel={isLinkedInCarousel ? "linkedin" : "instagram"}
@@ -3077,8 +3080,8 @@ function CreerWorkspace() {
                   toast.success("Modifications appliquées. Enregistre cette version pour la retrouver plus tard.");
                 }}
                 onBack={() => setStep("result")}
-                onCopy={() => {
-                  navigator.clipboard.writeText(editContent);
+                onCopy={(text) => {
+                  navigator.clipboard.writeText(text);
                   toast.success("Copié !");
                 }}
               />

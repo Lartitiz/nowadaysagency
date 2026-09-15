@@ -585,6 +585,7 @@ export default function CreerStepResult({
   // Texte propre à copier selon le format (déplacé tel quel dans le menu « Autres actions »).
   const handleCopyText = () => {
     if (format === "newsletter") { onCopy(newsletterCopyText(result)); return; }
+    if (typeof result?.edited_text === "string" && format !== "reel") { onCopy(result.edited_text); return; }
     if (format === "pinterest_photo" && result?.title) {
       const b = result.photo_brief;
       const briefText = b ? `\n\n📷 BRIEF PHOTO :\n• Sujet : ${b.what}\n• Cadrage : ${b.framing}\n• Lumière : ${b.lighting}\n• Accessoires : ${(b.props || []).join(", ")}\n• Ambiance : ${b.mood}` : "";

@@ -35,3 +35,15 @@ describe("CreerStepEdit — retouche avec contexte", () => {
     }, 90000);
   });
 });
+
+
+it("copie la saisie courante même avant Sauver, y compris une saisie vidée", () => {
+  const onCopy = vi.fn();
+  render(<CreerStepEdit content="Ancien texte" format="post" onSave={vi.fn()} onBack={vi.fn()} onCopy={onCopy} />);
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "Retouche non sauvegardée" } });
+  fireEvent.click(screen.getByRole("button", { name: "Copier" }));
+  expect(onCopy).toHaveBeenLastCalledWith("Retouche non sauvegardée");
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "" } });
+  fireEvent.click(screen.getByRole("button", { name: "Copier" }));
+  expect(onCopy).toHaveBeenLastCalledWith("");
+});

@@ -14,7 +14,7 @@ interface Props {
   workspaceId?: string;
   onSave: (editedContent: string) => void;
   onBack: () => void;
-  onCopy: () => void;
+  onCopy: (text: string) => void;
   onCalendar?: () => void;
 }
 
@@ -129,7 +129,7 @@ export default function CreerStepEdit({ content, format, subject, newsContext, w
           <ArrowLeft className="h-3.5 w-3.5" /> Retour
         </Button>
         <div className="flex-1" />
-        <Button variant="outline" size="sm" onClick={onCopy} className="gap-1.5">
+        <Button variant="outline" size="sm" onClick={() => onCopy(editedContent)} className="gap-1.5">
           <Copy className="h-3.5 w-3.5" /> Copier
         </Button>
         <Button variant="outline" size="sm" onClick={() => onSave(editedContent)} className="gap-1.5">

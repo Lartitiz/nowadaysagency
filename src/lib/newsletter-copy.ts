@@ -5,7 +5,7 @@ export function newsletterFields(result: any) {
   return {
     subject: stripInlineMarkdown(result?.subject || ""),
     preview: stripInlineMarkdown(result?.preview_text || ""),
-    body: stripCoachingHint(stripInlineMarkdown(result?.edited_text || result?.body || result?.content || result?.text || "")),
+    body: stripCoachingHint(stripInlineMarkdown(result?.edited_text ?? result?.body ?? result?.content ?? result?.text ?? "")),
   };
 }
 
