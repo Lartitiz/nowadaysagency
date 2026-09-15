@@ -16,9 +16,8 @@ BEGIN
   IF idea.calendar_post_id IS NOT NULL THEN
     SELECT * INTO post FROM public.calendar_posts WHERE id=idea.calendar_post_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'calendar_not_found'; END IF;
-    -- Require write access even for a replay; never turn a viewer request into success.
-    UPDATE public.saved_ideas SET calendar_post_id=idea.calendar_post_id WHERE id=idea.id;
-    IF NOT FOUND THEN RAISE EXCEPTION 'calendar_idea_not_found'; END IF;
+    -- The SELECT FOR UPDATE above already requires UPDATE privilege and RLS.
+    -- A replay must not fire the source updated_at trigger.
     RETURN jsonb_build_object('id',post.id,'date',post.date,'replayed',true,'updated_at',post.updated_at);
   END IF;
   IF idea.updated_at IS DISTINCT FROM p_expected_updated_at THEN RAISE EXCEPTION 'calendar_version_conflict'; END IF;

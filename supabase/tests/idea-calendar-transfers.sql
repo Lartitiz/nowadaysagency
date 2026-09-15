@@ -1,9 +1,10 @@
 -- Integration fixture. Run only in an EMPTY disposable PostgreSQL database.
 \set ON_ERROR_STOP on
 BEGIN;
-CREATE ROLE anon; CREATE ROLE authenticated;
-CREATE SCHEMA auth;
-CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('test.uid',true),'')::uuid $$;
+DO $$ BEGIN CREATE ROLE anon; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE authenticated; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('test.uid',true),'')::uuid $$;
 GRANT USAGE ON SCHEMA auth TO authenticated,anon;
 CREATE TABLE public.calendar_posts (
  id uuid PRIMARY KEY, user_id uuid NOT NULL, workspace_id uuid, date date NOT NULL, theme text NOT NULL,
@@ -49,13 +50,15 @@ INSERT INTO saved_ideas(id,user_id,workspace_id,series_id,episode_number) VALUES
 CREATE FUNCTION reject_test_link() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
  IF current_setting('test.fail_link',true)='true' THEN RAISE EXCEPTION 'injected_link_failure'; END IF; RETURN NEW;
 END $$;
+CREATE FUNCTION touch_test_source() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN NEW.updated_at:=clock_timestamp(); RETURN NEW; END $$;
+CREATE TRIGGER test_touch_source BEFORE UPDATE ON saved_ideas FOR EACH ROW EXECUTE FUNCTION touch_test_source();
 CREATE TRIGGER test_link_failure BEFORE UPDATE ON saved_ideas FOR EACH ROW EXECUTE FUNCTION reject_test_link();
 SET ROLE authenticated;
 SELECT set_config('test.uid','11111111-1111-4111-8111-111111111111',false);
 DO $$
 DECLARE idea_id uuid := '55555555-5555-4555-8555-555555555555'; version timestamptz;
  payload jsonb := '{"theme":"R3","canal":"instagram","status":"idea","content_draft":"<p>Texte riche</p>","story_sequence_detail":{"slides":[{"id":"s2"},{"id":"s1"}],"_crosspost":{"source":"private"},"variants":["v1"]},"media_urls":["https://example.test/2.png","https://example.test/1.png"],"stories_timing":{"time":"08:30"},"auto_publish":true,"scheduled_publish_at":"2040-01-01T12:00:00Z"}';
- receipt jsonb; again jsonb; post_id uuid; rejected boolean; timestamp_before timestamptz;
+ source_before jsonb; receipt jsonb; again jsonb; post_id uuid; rejected boolean; timestamp_before timestamptz;
 BEGIN
  SELECT updated_at INTO version FROM saved_ideas WHERE id=idea_id;
  PERFORM set_config('test.fail_link','true',false);
@@ -73,7 +76,9 @@ BEGIN
  IF (SELECT story_sequence_detail FROM calendar_posts WHERE id=post_id) IS DISTINCT FROM payload->'story_sequence_detail' THEN RAISE EXCEPTION 'FAIL rich content'; END IF;
  IF (SELECT stories_timing FROM calendar_posts WHERE id=post_id) IS DISTINCT FROM payload->'stories_timing' THEN RAISE EXCEPTION 'FAIL timing'; END IF;
  UPDATE calendar_posts SET content_draft='Edited independently' WHERE id=post_id;
+ SELECT to_jsonb(saved_ideas) INTO source_before FROM saved_ideas WHERE id=idea_id;
  again:=plan_saved_idea(idea_id,'2027-03-28',payload,version);
+ IF (SELECT to_jsonb(saved_ideas) FROM saved_ideas WHERE id=idea_id) IS DISTINCT FROM source_before THEN RAISE EXCEPTION 'FAIL source changed by replay'; END IF;
  IF again->>'id'<>receipt->>'id' OR again->>'date'<>'2026-10-25' OR again->>'replayed'<>'true' OR (SELECT count(*) FROM calendar_posts)<>1 OR (SELECT content_draft FROM calendar_posts WHERE id=post_id)<>'Edited independently' THEN RAISE EXCEPTION 'FAIL replay'; END IF;
  UPDATE calendar_posts SET auto_publish=true,publish_status='scheduled',scheduled_publish_at='2040-01-01T12:00:00Z' WHERE id=post_id;
  SELECT scheduled_publish_at INTO timestamp_before FROM calendar_posts WHERE id=post_id;
