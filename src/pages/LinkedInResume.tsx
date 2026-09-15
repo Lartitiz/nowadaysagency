@@ -1,5 +1,5 @@
 import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
-import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
+import { useHydratedRows, useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect, useId } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,7 +85,6 @@ function LinkedInResumeForm() {
   const [mode, setMode] = useState<FlowMode>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const store = useLinkedInPersistence("linkedin_profile");
-  const loadingInit = !store.rows;
 
   // Existing resume flow
   const [existingText, setExistingText] = useState("");
@@ -118,9 +117,8 @@ function LinkedInResumeForm() {
   const micOffre = useSpeechRecognition((t) => setOffre((p) => p + " " + t));
 
   // Load existing data
-  useEffect(() => {
-    if (!store.rows) return;
-    const lpData = store.rows[0];
+  const loadingInit = !useHydratedRows(store.rows, rows => {
+    const lpData = rows[0];
     if (lpData) {
       setProfileId(lpData.id);
       const final = lpData.summary_final || "";
@@ -138,7 +136,7 @@ function LinkedInResumeForm() {
         setAnalysis(typeof rawAnalysis === "string" ? parseAnalysis(rawAnalysis) : rawAnalysis);
       }
     }
-  }, [store.rows]);
+  });
 
   useEffect(() => { setPropValue((propositionHookData as any)?.version_final || null); }, [propositionHookData]);
 

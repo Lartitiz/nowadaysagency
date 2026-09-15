@@ -1,5 +1,5 @@
 import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
-import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
+import { useHydratedRows, useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import EngagementCoachingDialog from "@/components/engagement/EngagementCoachingDialog";
@@ -82,7 +82,7 @@ function LinkedInEngagementForm() {
     setMessagesDone(row?.messages_done ?? 0);
     setCommentedAccounts(new Set(Array.isArray(row?.commented_accounts) ? row.commented_accounts : []));
   };
-  useEffect(() => { if (store.rows) hydrate(store.rows[0]); }, [store.rows]);
+  const hydrated = useHydratedRows(store.rows, rows => hydrate(rows[0]));
   const loadExtras = useCallback(async () => {
     setExtraError(false);
     setLoading(true);
@@ -127,7 +127,7 @@ function LinkedInEngagementForm() {
   const changeObjective = (obj: number) => { void saveWeekly(0, 0, new Set(), obj); };
 
   if (store.error || extraError) return <div role="alert">Impossible de charger l’engagement. <Button onClick={() => { void store.reload(); void loadExtras(); }}>Réessayer</Button></div>;
-  if (loading || !store.rows) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
+  if (loading || !hydrated) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
     <div className="min-h-screen bg-background">

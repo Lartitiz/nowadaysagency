@@ -150,3 +150,13 @@ it('conserve une recommandation historique sans nom et ne la retire que par acti
  fireEvent.click(screen.getByRole('button',{name:/Enregistrer/}));await waitFor(()=>expect(m.success).toHaveBeenCalled());expect(m.rows['linkedin_recommendations:A'][0]).toMatchObject({id:'reco-A',request_sent:true,reco_received:true});
  fireEvent.click(screen.getByRole('button',{name:'Retirer la recommandation 1'}));await waitFor(()=>expect(m.rows['linkedin_recommendations:A']).toEqual([]));
 });
+
+// Clicks at the exact moment the button enters the DOM, like a user tapping on first paint.
+const clickOnFirstAppearance = (name: RegExp) => new Promise<void>(resolve => {
+  const observer = new MutationObserver(() => { const button = screen.queryByRole('button', { name }); if (button) { observer.disconnect(); fireEvent.click(button); resolve(); } });
+  observer.observe(document.body, { childList: true, subtree: true });
+});
+it.each([['recommandations',LinkedInRecommandations,/Enregistrer/,'reco-A'],['parcours',LinkedInParcours,/Enregistrer mon parcours/,'exp-A']] as const)('%s : un clic dès le premier affichage n’enregistre pas le formulaire vide',async(_label,Page,save,id)=>{
+ const clicked=clickOnFirstAppearance(save);render(<Page/>);await clicked;
+ await waitFor(()=>expect(m.writes).toHaveLength(1));expect(m.writes[0].p_rows.map((r:any)=>r.id)).toEqual([id]);
+});

@@ -1,6 +1,6 @@
 import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
-import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
-import { useState, useEffect } from "react";
+import { useHydratedRows, useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
+import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { useWorkspaceId } from "@/hooks/use-workspace-query";
@@ -31,7 +31,6 @@ function LinkedInParcoursForm() {
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
   const store = useLinkedInPersistence("linkedin_experiences");
-  const loading = !store.rows;
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [generatingIdx, setGeneratingIdx] = useState<number | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
@@ -51,7 +50,7 @@ function LinkedInParcoursForm() {
   const [mediaPortfolio, setMediaPortfolio] = useState(false);
 
   const hydrate = (rows: any[]) => rows.slice().sort((a,b) => (a.sort_order ?? 0)-(b.sort_order ?? 0)).map(d => ({ id: d.id, job_title: d.job_title || "", company: d.company || "", description_raw: d.description_raw || "", description_optimized: d.description_optimized || "" }));
-  useEffect(() => { if (store.rows) setExperiences(hydrate(store.rows)); }, [store.rows]);
+  const loading = !useHydratedRows(store.rows, rows => setExperiences(hydrate(rows)));
 
   const addExperience = () => {
     setExperiences(prev => [...prev, { id: crypto.randomUUID(), job_title: "", company: "", description_raw: "", description_optimized: "" }]);

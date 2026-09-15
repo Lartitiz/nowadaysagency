@@ -1,5 +1,5 @@
 import { LinkedInScope } from "@/components/linkedin/LinkedInScope";
-import { useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
+import { useHydratedRows, useLinkedInPersistence } from "@/components/linkedin/useLinkedInPersistence";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,7 +27,6 @@ function LinkedInProfilForm() {
   const workspaceId = useWorkspaceId();
   const { data: propositionData } = useBrandProposition();
   const store = useLinkedInPersistence("linkedin_profile");
-  const loading = !store.rows;
   const [profileId, setProfileId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [titleDone, setTitleDone] = useState(false);
@@ -44,9 +43,8 @@ function LinkedInProfilForm() {
 
   const completedCount = [titleDone, urlDone, photoDone, bannerDone, featuredDone, creatorModeDone].filter(Boolean).length;
 
-  useEffect(() => {
-    if (!store.rows) return;
-    const lpData = store.rows[0];
+  const loading = !useHydratedRows(store.rows, rows => {
+    const lpData = rows[0];
     if (lpData) {
       setProfileId(lpData.id);
       setTitle(lpData.title || "");
@@ -58,7 +56,7 @@ function LinkedInProfilForm() {
       setFeaturedDone(lpData.featured_done || false);
       setCreatorModeDone(lpData.creator_mode_done || false);
     }
-  }, [store.rows]);
+  });
 
   useEffect(() => { const prop = propositionData as any; setPropValue(prop?.version_short || prop?.version_final || null); }, [propositionData]);
 
