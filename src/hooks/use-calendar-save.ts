@@ -98,7 +98,7 @@ export function useCalendarSave({
   if (visit.current.key !== scopeKey) visit.current = { key: scopeKey, generation: visit.current.generation + 1 };
   const editorScope = `${scopeKey}:${visit.current.generation}`;
   const activeScope = useRef(editorScope);
-  activeScope.current = editorScope;
+  activeScope.current = enabled ? editorScope : "disabled";
   const versionRead = useRef<{ id: string; promise: Promise<string> } | null>(null);
   const readVersion = (id: string): Promise<string> => {
     if (versionRead.current?.id === id) return versionRead.current.promise;
@@ -116,7 +116,7 @@ export function useCalendarSave({
   };
   useEffect(() => {
     if (!enabled) return;
-    activeScope.current = editorScope;
+    activeScope.current = enabled ? editorScope : "disabled";
     saveFlowState({ creationId: creationId.current });
     if (calendarPostId) void readVersion(calendarPostId).catch(() => { versionRead.current = null; });
     return () => { activeScope.current = "unmounted"; };
@@ -124,7 +124,7 @@ export function useCalendarSave({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editorScope, enabled]);
   const assertCurrentEditor = () => {
-    if (activeScope.current !== editorScope) throw new Error("Le contenu ouvert a changé. Reviens au contenu d’origine pour terminer sa sauvegarde.");
+    if (!enabled || activeScope.current !== editorScope) throw new Error("Le contenu ouvert a changé. Reviens au contenu d’origine pour terminer sa sauvegarde.");
   };
 
   const publishedCalendarId = useRef<string | null>(loadFlowState()?.publishedCalendarId || null);
@@ -274,6 +274,7 @@ export function useCalendarSave({
 
   // Save back to existing calendar post (when coming from calendar)
   const handleSaveBackToCalendar = async (options?: { force?: boolean }) => {
+    if (!enabled || activeScope.current !== editorScope) return;
     if (options?.force) overwriteConfirmed.current = true;
     if (!session?.user?.id || !calendarPostId || !result?.raw || saveInFlight.current) return;
     saveInFlight.current = true;
@@ -356,7 +357,7 @@ export function useCalendarSave({
    * Renvoie true si la programmation a bien été posée.
    */
   const handleConfirmCalendar = async ({ date, scheduleAt }: { date: string; scheduleAt?: Date }): Promise<boolean> => {
-    if (!session?.user?.id || !date || !result?.raw || saveInFlight.current) return false;
+    if (!enabled || activeScope.current !== editorScope || !session?.user?.id || !date || !result?.raw || saveInFlight.current) return false;
     if (scheduleAt && selectedFormat === "reel" && !isDurableReelUrl(reelMp4Url)) { toast.error(REEL_VIDEO_REQUIRED); return false; }
     if (scheduleAt && (!Number.isFinite(scheduleAt.getTime()) || scheduleAt.getTime() < Date.now() + 60000)) { toast.error("Choisis une date/heure dans le futur."); return false; }
     if (scheduleAt && carouselQualityDisabledReason) { toast.error(carouselQualityDisabledReason); return false; }

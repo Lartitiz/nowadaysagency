@@ -8,7 +8,7 @@ Correction préparée depuis `1c2421dbfb70d19a768d2a9eb305f6b85099927a` le 14 se
 - Le même stockage hybride reste utilisé : manifeste photo léger dans sessionStorage/localStorage par compte et espace ; octets locaux dans IndexedDB ; références de photothèque relues côté serveur. Aucun deuxième autosave ni nouveau schéma serveur.
 - Sujet texte et sujet photo restent distincts. Le retour au texte conserve les photos et leur description ; retirer explicitement les photos persiste une liste vide. Les références momentanément indisponibles restent présentes, avec avertissement.
 - Le canal demandé est conservé au retour sans paramètres. Les identifiants d’idée, brief, création, calendrier et les résultats structurés existants continuent de voyager avec le brouillon.
-- Une nouvelle intention sur la route déjà montée passe par le dialogue de conflit. Le dialogue ne modifie pas l’identité du brouillon avant le choix. Les sauvegardes auxiliaires restent suspendues pendant ce choix.
+- Une nouvelle intention sur la route déjà montée passe par le dialogue de conflit. Le dialogue ne modifie pas l’identité du brouillon avant le choix. Les sauvegardes auxiliaires et leurs commandes, même conservées par un ancien callback, restent suspendues pendant ce choix. Le suivi d’un succès social déjà obtenu garde son contrat de reçu A3.
 - « Reprendre » revient au même brouillon. Une nouvelle création explicitement choisie et le reset interne effacent l’ancien flux et ses identifiants. Les reçus de publication et médias Reel existants ne sont pas réimplémentés.
 - Les callbacks de la visite précédente et les chargements photo tardifs ne peuvent pas réécrire la visite courante après A → B → A ou reset. Les effets photo se réarment correctement sous StrictMode.
 
