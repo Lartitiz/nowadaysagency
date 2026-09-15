@@ -15,36 +15,56 @@ CREATE TABLE public.calendar_posts (
  publish_error text, published_post_id text, created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE TABLE public.content_briefs(id uuid PRIMARY KEY,user_id uuid,calendar_post_id uuid REFERENCES calendar_posts(id));
-CREATE TABLE public.saved_ideas(id uuid PRIMARY KEY,user_id uuid,workspace_id uuid,series_id uuid,episode_number int,calendar_post_id uuid REFERENCES calendar_posts(id),status text,planned_date date,updated_at timestamptz DEFAULT now());
+CREATE TABLE public.saved_ideas(id uuid PRIMARY KEY,user_id uuid,workspace_id uuid,series_id uuid,episode_number int,source_module text,calendar_post_id uuid REFERENCES calendar_posts(id),status text,planned_date date,updated_at timestamptz DEFAULT now());
 ALTER TABLE calendar_posts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE content_briefs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE saved_ideas ENABLE ROW LEVEL SECURITY;
-CREATE POLICY own_posts ON calendar_posts TO authenticated USING(user_id=auth.uid()) WITH CHECK(user_id=auth.uid());
 CREATE POLICY own_briefs ON content_briefs TO authenticated USING(user_id=auth.uid()) WITH CHECK(user_id=auth.uid());
-CREATE POLICY own_ideas ON saved_ideas TO authenticated USING(user_id=auth.uid()) WITH CHECK(user_id=auth.uid());
 GRANT SELECT,INSERT,UPDATE,DELETE,TRUNCATE,TRIGGER,REFERENCES ON calendar_posts,content_briefs,saved_ideas TO authenticated,anon;
-\ir ../migrations/20260912110000_atomic_calendar_save.sql
+CREATE TABLE workspace_members(workspace_id uuid,user_id uuid,role text,PRIMARY KEY(workspace_id,user_id));
+GRANT SELECT ON workspace_members TO authenticated;
+CREATE SCHEMA IF NOT EXISTS storage;
+CREATE TABLE IF NOT EXISTS storage.objects(bucket_id text,name text);
+-- Production policy definitions observed by R0 on 2026-09-15.
+CREATE OR REPLACE FUNCTION public.user_has_workspace_access(ws_id uuid)
+ RETURNS boolean
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.workspace_members
+    WHERE workspace_id = ws_id AND user_id = auth.uid()
+  );
+END;
+$function$
+;
+CREATE POLICY "Users can delete own calendar posts" ON calendar_posts FOR DELETE TO authenticated USING ((auth.uid() = user_id));
+CREATE POLICY "Users can insert own calendar posts" ON calendar_posts FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Users can update own calendar posts" ON calendar_posts FOR UPDATE TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Users can view own calendar posts" ON calendar_posts FOR SELECT TO authenticated USING ((auth.uid() = user_id));
+CREATE POLICY "tenant_immovable" ON calendar_posts AS RESTRICTIVE FOR ALL TO authenticated WITH CHECK (((workspace_id IS NULL) OR user_has_workspace_access(workspace_id)));
+CREATE POLICY "workspace_delete_calendar_posts" ON calendar_posts FOR DELETE TO authenticated USING (user_has_workspace_access(workspace_id));
+CREATE POLICY "workspace_insert_calendar_posts" ON calendar_posts FOR INSERT TO authenticated WITH CHECK (user_has_workspace_access(workspace_id));
+CREATE POLICY "workspace_select_calendar_posts" ON calendar_posts FOR SELECT TO authenticated USING (user_has_workspace_access(workspace_id));
+CREATE POLICY "workspace_update_calendar_posts" ON calendar_posts FOR UPDATE TO authenticated USING (user_has_workspace_access(workspace_id));
+CREATE POLICY "Users can delete own ideas" ON saved_ideas FOR DELETE TO authenticated USING ((auth.uid() = user_id));
+CREATE POLICY "Users can insert own ideas" ON saved_ideas FOR INSERT TO authenticated WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Users can update own ideas" ON saved_ideas FOR UPDATE TO authenticated USING ((auth.uid() = user_id)) WITH CHECK ((auth.uid() = user_id));
+CREATE POLICY "Users can view own ideas" ON saved_ideas FOR SELECT TO authenticated USING ((auth.uid() = user_id));
+CREATE POLICY "tenant_immovable" ON saved_ideas AS RESTRICTIVE FOR ALL TO authenticated WITH CHECK (((workspace_id IS NULL) OR user_has_workspace_access(workspace_id)));
+CREATE POLICY "workspace_delete_saved_ideas" ON saved_ideas FOR DELETE TO authenticated USING (user_has_workspace_access(workspace_id));
+CREATE POLICY "workspace_insert_saved_ideas" ON saved_ideas FOR INSERT TO authenticated WITH CHECK (user_has_workspace_access(workspace_id));
+CREATE POLICY "workspace_select_saved_ideas" ON saved_ideas FOR SELECT TO authenticated USING (user_has_workspace_access(workspace_id));
+CREATE POLICY "workspace_update_saved_ideas" ON saved_ideas FOR UPDATE TO authenticated USING (user_has_workspace_access(workspace_id));
+\ir ../migrations/20260914124713_0f976596-d53a-4a2e-8cad-ba9d9c6b6e0d.sql
 \ir ../migrations/20260915160000_idea_calendar_transfers.sql
-
-CREATE TABLE test_members(user_id uuid PRIMARY KEY, role text);
-GRANT SELECT ON test_members TO authenticated;
-INSERT INTO test_members VALUES
- ('11111111-1111-4111-8111-111111111111','owner'),
- ('22222222-2222-4222-8222-222222222222','manager'),
- ('33333333-3333-4333-8333-333333333333','editor'),
- ('44444444-4444-4444-8444-444444444444','viewer');
-DROP POLICY own_posts ON calendar_posts;
-DROP POLICY own_ideas ON saved_ideas;
-CREATE POLICY read_posts ON calendar_posts FOR SELECT TO authenticated USING(
- (workspace_id IS NULL AND user_id=auth.uid()) OR (workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND EXISTS(SELECT 1 FROM test_members WHERE user_id=auth.uid())));
-CREATE POLICY write_posts ON calendar_posts FOR ALL TO authenticated USING(
- (workspace_id IS NULL AND user_id=auth.uid()) OR (workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND EXISTS(SELECT 1 FROM test_members WHERE user_id=auth.uid() AND role<>'viewer')))
- WITH CHECK((workspace_id IS NULL AND user_id=auth.uid()) OR (workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND EXISTS(SELECT 1 FROM test_members WHERE user_id=auth.uid() AND role<>'viewer')));
-CREATE POLICY read_ideas ON saved_ideas FOR SELECT TO authenticated USING(
- (workspace_id IS NULL AND user_id=auth.uid()) OR (workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND EXISTS(SELECT 1 FROM test_members WHERE user_id=auth.uid())));
-CREATE POLICY write_ideas ON saved_ideas FOR ALL TO authenticated USING(
- (workspace_id IS NULL AND user_id=auth.uid()) OR (workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND EXISTS(SELECT 1 FROM test_members WHERE user_id=auth.uid() AND role<>'viewer')))
- WITH CHECK((workspace_id IS NULL AND user_id=auth.uid()) OR (workspace_id='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa' AND EXISTS(SELECT 1 FROM test_members WHERE user_id=auth.uid() AND role<>'viewer')));
+INSERT INTO workspace_members VALUES
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','owner'),
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','manager'),
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','33333333-3333-4333-8333-333333333333','editor'),
+ ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','44444444-4444-4444-8444-444444444444','viewer');
 INSERT INTO saved_ideas(id,user_id,workspace_id,series_id,episode_number) VALUES
  ('55555555-5555-4555-8555-555555555555','11111111-1111-4111-8111-111111111111','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',2);
 CREATE FUNCTION reject_test_link() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
@@ -121,5 +141,75 @@ RESET ROLE;
 DO $$ BEGIN
  IF has_function_privilege('anon','plan_saved_idea(uuid,date,jsonb,timestamptz)','EXECUTE') OR has_function_privilege('anon','move_calendar_post(uuid,date,date)','EXECUTE') THEN RAISE EXCEPTION 'FAIL anon grants'; END IF;
  IF EXISTS(SELECT 1 FROM pg_proc WHERE proname IN ('plan_saved_idea','move_calendar_post') AND prosecdef) THEN RAISE EXCEPTION 'FAIL definer'; END IF;
+END $$;
+
+-- Direct writes must obey the same contract, including a viewer/revoked member
+-- who authored a historical row and can still read it through an own-row policy.
+INSERT INTO calendar_posts(id,user_id,workspace_id,date,theme,canal,status) VALUES
+ ('77777777-7777-4777-8777-777777777777','44444444-4444-4444-8444-444444444444','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Historical viewer','instagram','drafting'),
+ ('88888888-8888-4888-8888-888888888888','88888888-8888-4888-8888-888888888888','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Historical revoked','instagram','drafting');
+INSERT INTO saved_ideas(id,user_id,workspace_id) VALUES
+ ('77777777-7777-4777-8777-777777777777','44444444-4444-4444-8444-444444444444','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+ ('88888888-8888-4888-8888-888888888888','88888888-8888-4888-8888-888888888888','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+CREATE TEMP TABLE r3_history_posts AS SELECT * FROM calendar_posts;
+CREATE TEMP TABLE r3_history_ideas AS SELECT * FROM saved_ideas;
+\ir ../migrations/20260915161000_calendar_idea_write_roles.sql
+DO $$ BEGIN
+ IF EXISTS(SELECT * FROM r3_history_posts EXCEPT SELECT * FROM calendar_posts) OR EXISTS(SELECT * FROM calendar_posts EXCEPT SELECT * FROM r3_history_posts)
+ OR EXISTS(SELECT * FROM r3_history_ideas EXCEPT SELECT * FROM saved_ideas) OR EXISTS(SELECT * FROM saved_ideas EXCEPT SELECT * FROM r3_history_ideas) THEN RAISE EXCEPTION 'FAIL migration changed historical rows'; END IF;
+END $$;
+-- Writers retain direct insertion, editing and removal in their own workspace.
+SET ROLE authenticated;
+DO $$ DECLARE u uuid; target uuid; affected int; BEGIN
+ FOREACH u IN ARRAY ARRAY['11111111-1111-4111-8111-111111111111'::uuid,'22222222-2222-4222-8222-222222222222'::uuid,'33333333-3333-4333-8333-333333333333'::uuid] LOOP
+  PERFORM set_config('test.uid',u::text,false); target:=gen_random_uuid();
+  INSERT INTO calendar_posts(id,user_id,workspace_id,date,theme,canal,status) VALUES(target,u,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Writer','instagram','drafting');
+  UPDATE calendar_posts SET theme='Writer edited' WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 THEN RAISE EXCEPTION 'FAIL writer calendar update'; END IF;
+  DELETE FROM calendar_posts WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 THEN RAISE EXCEPTION 'FAIL writer calendar delete'; END IF;
+  INSERT INTO saved_ideas(id,user_id,workspace_id) VALUES(target,u,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  UPDATE saved_ideas SET status='edited' WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 THEN RAISE EXCEPTION 'FAIL writer idea update'; END IF;
+  DELETE FROM saved_ideas WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 THEN RAISE EXCEPTION 'FAIL writer idea delete'; END IF;
+ END LOOP;
+END $$;
+RESET ROLE;
+SET ROLE authenticated;
+DO $$ DECLARE u uuid; target uuid; affected int; rejected boolean; BEGIN
+ FOREACH u IN ARRAY ARRAY['44444444-4444-4444-8444-444444444444'::uuid,'88888888-8888-4888-8888-888888888888'::uuid] LOOP
+  target:=CASE WHEN u='44444444-4444-4444-8444-444444444444' THEN '77777777-7777-4777-8777-777777777777'::uuid ELSE u END;
+  PERFORM set_config('test.uid',u::text,false);
+  IF NOT EXISTS(SELECT 1 FROM calendar_posts WHERE id=target) OR NOT EXISTS(SELECT 1 FROM saved_ideas WHERE id=target) THEN RAISE EXCEPTION 'FAIL historical reads changed'; END IF;
+  UPDATE calendar_posts SET theme='Forbidden' WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>0 THEN RAISE EXCEPTION 'FAIL direct viewer/revoked calendar update'; END IF;
+  UPDATE saved_ideas SET status='Forbidden' WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>0 THEN RAISE EXCEPTION 'FAIL direct viewer/revoked idea update'; END IF;
+  DELETE FROM calendar_posts WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>0 THEN RAISE EXCEPTION 'FAIL direct viewer/revoked calendar delete'; END IF;
+  DELETE FROM saved_ideas WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>0 THEN RAISE EXCEPTION 'FAIL direct viewer/revoked idea delete'; END IF;
+  rejected:=false;
+  BEGIN INSERT INTO calendar_posts(id,user_id,workspace_id,date,theme,canal,status) VALUES(gen_random_uuid(),u,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Forbidden','instagram','drafting'); EXCEPTION WHEN insufficient_privilege THEN rejected:=true; END;
+  IF NOT rejected THEN RAISE EXCEPTION 'FAIL direct viewer/revoked calendar insert'; END IF;
+  rejected:=false;
+  BEGIN INSERT INTO saved_ideas(id,user_id,workspace_id) VALUES(gen_random_uuid(),u,'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'); EXCEPTION WHEN insufficient_privilege THEN rejected:=true; END;
+  IF NOT rejected THEN RAISE EXCEPTION 'FAIL direct viewer/revoked idea insert'; END IF;
+  -- The same account retains its personal, workspace-NULL document rights.
+  target:=gen_random_uuid();
+  INSERT INTO calendar_posts(id,user_id,date,theme,canal,status) VALUES(target,u,'2026-10-25','Personal','instagram','drafting');
+  UPDATE calendar_posts SET theme='Personal edited' WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 THEN RAISE EXCEPTION 'FAIL personal calendar update'; END IF;
+  DELETE FROM calendar_posts WHERE id=target;
+  INSERT INTO saved_ideas(id,user_id) VALUES(target,u);
+  UPDATE saved_ideas SET status='edited' WHERE id=target; GET DIAGNOSTICS affected=ROW_COUNT;
+  IF affected<>1 THEN RAISE EXCEPTION 'FAIL personal idea update'; END IF;
+  DELETE FROM saved_ideas WHERE id=target;
+ END LOOP;
+END $$;
+RESET ROLE;
+DO $$ BEGIN
+ IF EXISTS(SELECT * FROM r3_history_posts EXCEPT SELECT * FROM calendar_posts) OR EXISTS(SELECT * FROM r3_history_ideas EXCEPT SELECT * FROM saved_ideas) THEN RAISE EXCEPTION 'FAIL historical rows changed'; END IF;
 END $$;
 ROLLBACK;
