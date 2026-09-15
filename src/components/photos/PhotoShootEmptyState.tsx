@@ -32,6 +32,20 @@ interface ShootIdea {
   icon: string;
 }
 
+interface WorkspaceShootState {
+  ideas: ShootIdea[] | null;
+  fromFallback: boolean;
+  saving: boolean;
+  saved: boolean;
+}
+
+const EMPTY_SHOOT_STATE: WorkspaceShootState = {
+  ideas: null,
+  fromFallback: false,
+  saving: false,
+  saved: false,
+};
+
 const ICON_MAP: Record<string, typeof Camera> = {
   portrait: User,
   mains: Hand,
@@ -66,54 +80,92 @@ interface PhotoShootEmptyStateProps {
 export function PhotoShootEmptyState({ onAddPhotos, uploadDisabled, onImport }: PhotoShootEmptyStateProps) {
   const workspaceId = useWorkspaceId();
   const { addMany } = usePhotoWishlistMutations();
-  const [ideas, setIdeas] = useState<ShootIdea[] | null>(null);
-  const [fromFallback, setFromFallback] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const requested = useRef(false);
+  const [statesByWorkspace, setStatesByWorkspace] = useState<Record<string, WorkspaceShootState>>({});
+  const initializedWorkspaces = useRef(new Set<string>());
+  const requestsByWorkspace = useRef(new Map<string, Promise<Pick<WorkspaceShootState, "ideas" | "fromFallback">>>());
+
+  const currentState = workspaceId
+    ? (statesByWorkspace[workspaceId] ?? EMPTY_SHOOT_STATE)
+    : EMPTY_SHOOT_STATE;
+  const { ideas, fromFallback, saving, saved } = currentState;
 
   useEffect(() => {
-    if (!workspaceId || requested.current) return;
-    requested.current = true;
-    let cancelled = false;
-    invokeWithTimeout(
-      "photo-describe",
-      { body: { mode: "shoot_ideas", workspace_id: workspaceId } },
-      45_000,
-    )
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        const list = (data as { ideas?: ShootIdea[] } | null)?.ideas;
-        if (error || !list?.length) {
-          if (error) console.warn("[shoot_ideas]", error.message);
-          setFromFallback(true);
-          setIdeas(FALLBACK_IDEAS);
-        } else {
-          setIdeas(list);
-        }
-      })
-      .catch((e) => {
-        if (cancelled) return;
-        console.warn("[shoot_ideas]", e);
-        setFromFallback(true);
-        setIdeas(FALLBACK_IDEAS);
-      });
-    return () => {
-      cancelled = true;
-    };
+    if (!workspaceId || initializedWorkspaces.current.has(workspaceId)) return;
+    initializedWorkspaces.current.add(workspaceId);
+
+    setStatesByWorkspace((previous) => ({
+      ...previous,
+      [workspaceId]: EMPTY_SHOOT_STATE,
+    }));
+
+    let request = requestsByWorkspace.current.get(workspaceId);
+    if (!request) {
+      request = invokeWithTimeout(
+        "photo-describe",
+        { body: { mode: "shoot_ideas", workspace_id: workspaceId } },
+        45_000,
+      )
+        .then(({ data, error }) => {
+          const list = (data as { ideas?: ShootIdea[] } | null)?.ideas;
+          if (error || !list?.length) {
+            if (error) console.warn("[shoot_ideas]", error.message);
+            return { ideas: FALLBACK_IDEAS, fromFallback: true };
+          }
+          return { ideas: list, fromFallback: false };
+        })
+        .catch((error) => {
+          console.warn("[shoot_ideas]", error);
+          return { ideas: FALLBACK_IDEAS, fromFallback: true };
+        });
+      requestsByWorkspace.current.set(workspaceId, request);
+    }
+
+    // La réponse met uniquement à jour l'entrée de l'espace qui l'a demandée.
+    // Elle peut donc arriver après A → B (ou après le nettoyage d'effet de
+    // StrictMode) sans remplacer la liste actuellement affichée.
+    void request.then((result) => {
+      requestsByWorkspace.current.delete(workspaceId);
+      setStatesByWorkspace((previous) => ({
+        ...previous,
+        [workspaceId]: {
+          ...(previous[workspaceId] ?? EMPTY_SHOOT_STATE),
+          ...result,
+        },
+      }));
+    });
   }, [workspaceId]);
 
   async function handleKeepList() {
-    if (!ideas?.length || saved) return;
-    setSaving(true);
+    if (!workspaceId || !ideas?.length || saved) return;
+    const targetWorkspaceId = workspaceId;
+    const labels = ideas.map((idea) => idea.label);
+    setStatesByWorkspace((previous) => ({
+      ...previous,
+      [targetWorkspaceId]: {
+        ...(previous[targetWorkspaceId] ?? EMPTY_SHOOT_STATE),
+        saving: true,
+      },
+    }));
     try {
-      await addMany(ideas.map((i) => i.label), "seance");
-      setSaved(true);
+      await addMany(labels, "seance", targetWorkspaceId);
+      setStatesByWorkspace((previous) => ({
+        ...previous,
+        [targetWorkspaceId]: {
+          ...(previous[targetWorkspaceId] ?? EMPTY_SHOOT_STATE),
+          saving: false,
+          saved: true,
+        },
+      }));
       toast.success("Liste ajoutée à « Photos à prendre »");
     } catch (e: any) {
+      setStatesByWorkspace((previous) => ({
+        ...previous,
+        [targetWorkspaceId]: {
+          ...(previous[targetWorkspaceId] ?? EMPTY_SHOOT_STATE),
+          saving: false,
+        },
+      }));
       toast.error(e?.message || "Impossible d'enregistrer la liste");
-    } finally {
-      setSaving(false);
     }
   }
 
