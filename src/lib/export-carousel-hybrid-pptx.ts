@@ -1,3 +1,4 @@
+import { ExportImageError, waitForExportImages } from "./export-image-readiness";
 import { promoteMixedText, charterFontUrl } from "./pptx-mixed-text";
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas-pro";
@@ -351,22 +352,7 @@ async function waitReady(iframe: HTMLIFrameElement): Promise<void> {
   } catch {
     /* noop */
   }
-  const imgs = Array.from(doc.querySelectorAll("img"));
-  if (imgs.length > 0) {
-    await Promise.race([
-      Promise.all(
-        imgs.map(
-          (img) =>
-            new Promise<void>((res) => {
-              if (img.complete && img.naturalWidth > 0) return res();
-              img.addEventListener("load", () => res(), { once: true });
-              img.addEventListener("error", () => res(), { once: true });
-            }),
-        ),
-      ),
-      new Promise((r) => setTimeout(r, 5000)),
-    ]);
-  }
+  await waitForExportImages(doc.body);
   // 2 frames pour laisser le layout se stabiliser. ⚠️ requestAnimationFrame est
   // MIS EN PAUSE par le navigateur quand l'onglet est en arrière-plan (ce qui
   // arrive dès qu'on ouvre l'onglet Canva). Sans garde-fou, cette attente ne se
@@ -1705,6 +1691,7 @@ export async function exportCarouselHybridPptx(
         }
       }
     } catch (e) {
+      if (e instanceof ExportImageError) throw e;
       console.error("[hybrid] slide capture failed", e);
       slide.background = { color: normalizeHex(charter?.color_background, "FFFFFF") };
     } finally {

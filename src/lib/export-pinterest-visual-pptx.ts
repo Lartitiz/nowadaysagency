@@ -1,3 +1,4 @@
+import { waitForExportImages } from "./export-image-readiness";
 import PptxGenJS from "pptxgenjs";
 import html2canvas from "html2canvas";
 import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
@@ -25,6 +26,7 @@ export async function exportPinterestVisualPptx(
   try {
     container.innerHTML = pinHtml;
     await document.fonts.ready;
+    await waitForExportImages(container);
     await new Promise((r) => setTimeout(r, 300));
 
     const canvas = await html2canvas(container, {
@@ -63,6 +65,7 @@ export async function exportPinterestVisualPng(
   try {
     container.innerHTML = pinHtml + logoOverlayHtml;
     await document.fonts.ready;
+    await waitForExportImages(container);
     await new Promise((r) => setTimeout(r, 300));
 
     const canvas = await html2canvas(container, {
