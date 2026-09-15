@@ -226,7 +226,7 @@ function AnimatedRoutes() {
       {/* {showCoach && <Suspense fallback={null}><CoachChat /></Suspense>} */}
       <div id="main-content" key={location.pathname} className="animate-page-fade">
           <Suspense fallback={<SuspenseFallback />}>
-            <Routes location={location}>
+            <Routes>
               <Route path="/" element={<LandingPage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/connexion" element={<LoginPage />} />
