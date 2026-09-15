@@ -332,3 +332,16 @@ it('keeps real PUSH and POP channel navigation through production Routes', async
  await waitFor(()=>expect(loadFlowState()?.forcedChannel).toBe('linkedin'));
  expect(screen.getByRole('textbox')).toHaveValue('Sujet conservé');
 });
+
+it('protects photos saved without a flow record when entering a new creation', async () => {
+  await savePhotos([{id:'p',userPhotoId:'library-1',name:'Photo sans texte'}]);
+  expect(loadFlowState()).toBeNull();
+  const view = mount('/creer?canal=instagram&new=1');
+  expect(screen.getByRole('dialog')).toBeVisible();
+  expect(loadPhotos()).toHaveLength(1);
+  expect(mocks.generate).not.toHaveBeenCalled();
+  view.unmount();
+  mount('/creer');
+  await waitFor(() => expect(screen.getByTestId('photos')).toHaveTextContent('Photo sans texte'));
+  expect(loadPhotos()).toMatchObject([{userPhotoId:'library-1'}]);
+});

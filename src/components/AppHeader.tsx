@@ -3,14 +3,13 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Home, ClipboardList, Sparkles, CalendarDays, Users, User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake, HeartHandshake, Search, ChevronDown, Check, Plus, Compass, MessageCircle, Wrench, IdCard, Menu, Lightbulb } from "lucide-react";
+import {   Sparkles, CalendarDays,  User, Palette, CreditCard, Settings, HelpCircle, LogOut, Film, GraduationCap, Handshake,  Search, ChevronDown, Check, Plus,   Wrench,  Menu } from "lucide-react";
 import { useMobileNav } from "@/contexts/MobileNavContext";
 import { isMobileNavAvailable } from "@/lib/app-shell-visibility";
 
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import { useUserPlan } from "@/hooks/use-user-plan";
-import { usePendingBrandReview } from "@/hooks/use-pending-brand-review";
 import { Progress } from "@/components/ui/progress";
 import NotificationBell from "@/components/NotificationBell";
 import AiCreditsCounter from "@/components/AiCreditsCounter";
@@ -28,13 +27,9 @@ import QuotaWallModal from "@/components/QuotaWallModal";
 /* ─── Unified nav items ─── */
 
 const NAV_ITEMS = [
-  { to: "/dashboard", label: "Mon Assistant", icon: MessageCircle, matchExact: true, matchPaths: ["/dashboard", "/dashboard/guide"] },
-  { to: "/creer", label: "Créer", icon: Sparkles, matchExact: false },
-  { to: "/idees", label: "Mes idées", icon: Lightbulb, matchExact: false },
+  { to: "/dashboard", label: "Créer", icon: Sparkles, matchExact: true },
   { to: "/calendrier", label: "Calendrier", icon: CalendarDays, matchExact: false },
 ];
-
-const ACCOMPAGNEMENT_ITEM = { to: "/accompagnement", label: "Accompagnement", icon: HeartHandshake, matchExact: false };
 
 const BREADCRUMB_LABELS: Record<string, string> = {
   "/branding": "Mon identité de marque",
@@ -48,7 +43,7 @@ const BREADCRUMB_LABELS: Record<string, string> = {
   "/instagram": "Instagram",
   "/linkedin": "LinkedIn",
   "/pinterest": "Pinterest",
-  "/site": "Site web",
+  "/site": "Améliorer mon site",
   "/newsletter": "Newsletter",
   "/engagement": "Engagement",
   "/prospection": "Prospection",
@@ -93,7 +88,7 @@ function Breadcrumb() {
     <div className="border-b border-border bg-card/50 px-4 py-2">
       <nav className="mx-auto max-w-6xl flex items-center gap-1.5 text-xs text-muted-foreground">
         <Link to="/dashboard" className="hover:text-foreground transition-colors">
-          Mon Assistant
+          Créer
         </Link>
         <span className="text-border">›</span>
         {sectionLabel ? (
@@ -132,7 +127,6 @@ function AppHeaderInner() {
   const location = useLocation();
   const navigate = useNavigate();
   const { plan, usage, bonusCredits, isBinome, isPaid } = useUserPlan();
-  const { pending: brandReviewPending } = usePendingBrandReview();
   const { isDemoMode, demoData, demoPlan, activateDemo } = useDemoContext();
   const handleDemoClick = () => { activateDemo(); navigate("/dashboard"); };
   const [searchParams] = useSearchParams();
@@ -190,15 +184,7 @@ function AppHeaderInner() {
     });
   }, [user?.id, isDemoMode, demoData, demoPlan]);
 
-  /* Fiche de marque d'abord : tant qu'elle attend d'être relue, proposer
-     « Créer » est une fausse piste — la page renvoie de toute façon sur la
-     fiche. On remplace donc l'entrée par « Ma fiche », qui EST la prochaine
-     action. Elle redevient « Créer » dès la fiche validée. */
-  const brandFicheItem = { to: "/branding?from=onboarding&next=creer", label: "Ma fiche", icon: IdCard, matchExact: false };
-  const swapCreer = (items: typeof NAV_ITEMS) =>
-    brandReviewPending ? items.map((i) => (i.to === "/creer" ? brandFicheItem : i)) : items;
-
-  const desktopNav = swapCreer(isBinome ? [...NAV_ITEMS, ACCOMPAGNEMENT_ITEM] : NAV_ITEMS);
+  const desktopNav = NAV_ITEMS;
   const { setOpen: setMobileNavOpen } = useMobileNav();
 
   // `to` peut porter une query (« Ma fiche » → /branding?from=onboarding…) :
@@ -224,61 +210,7 @@ function AppHeaderInner() {
       >
         Aller au contenu principal
       </a>
-      {/* ─── Desktop header (lg+) : logo + icons+text nav + bell+avatar ─── */}
-      <header className="sticky top-0 z-40 border-b border-border bg-card hidden">
-        <div className="mx-auto flex h-14 max-w-[1100px] items-center justify-between px-6">
-          <div className="flex items-center gap-2 shrink-0">
-            <Link to="/dashboard" className="flex items-center gap-2 shrink-0">
-              <BrandLogo className="h-6" />
-              <span className="font-mono-ui text-2xs font-semibold bg-primary text-primary-foreground px-2 py-0.5 rounded-md">beta</span>
-            </Link>
-            {isMultiWorkspace && <WorkspaceSwitcher activeWorkspace={activeWorkspace} workspaces={workspaces} switchWorkspace={switchWorkspace} switchingWorkspaceId={switchingWorkspaceId} navigate={navigate} />}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <nav className="flex items-center gap-1 rounded-pill bg-rose-pale p-1 flex-nowrap overflow-x-auto scrollbar-hide min-w-0">
-              {desktopNav.map((item) => (
-                <Link
-                  key={item.to}
-                  to={item.to}
-                  data-tour={`nav-${item.to.split("?")[0].replace(/\//g, "") || "dashboard"}`}
-                  className={`flex items-center gap-1.5 rounded-pill px-2.5 py-1.5 text-sm font-semibold transition-all duration-200 whitespace-nowrap shrink-0 ${
-                    isActive(item)
-                      ? "bg-card text-primary shadow-[0_2px_8px_hsl(338_96%_61%/0.1)]"
-                      : "text-muted-foreground hover:bg-secondary"
-                  }`}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" />
-                  <span className="hidden xl:inline">{item.label}</span>
-                </Link>
-              ))}
-            </nav>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <AiCreditsCounter plan={plan} usage={usage} bonusCredits={bonusCredits} />
-            <NotificationBell />
-            <AvatarMenu
-              initial={initial}
-              firstName={firstName}
-              planLabel={planLabel}
-              planBadge={planBadge}
-              totalUsed={totalUsed}
-              totalLimit={totalLimit}
-              totalPercent={totalPercent}
-              signOut={signOut}
-              navigate={navigate}
-              isAdmin={isAdmin}
-              hasCoaching={hasCoaching || isBinome}
-              isBinome={isBinome}
-              coachingMonth={coachingMonth}
-              coachingPhase={coachingPhase}
-              onDemoClick={handleDemoClick}
-            />
-          </div>
-        </div>
-      </header>
-
+      {/* La navigation bureau est montée une seule fois par AppSidebar. */}
       {/* ─── Tablet header (md–lg) : hamburger + logo + icon-only nav + bell+avatar ─── */}
       <header className="sticky top-0 z-40 border-b border-border bg-card hidden md:block lg:hidden">
         {/* le bloc gauche doit pouvoir rétrécir (garde-fou partagé avec la barre mobile) */}

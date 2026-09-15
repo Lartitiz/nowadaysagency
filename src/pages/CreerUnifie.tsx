@@ -214,8 +214,10 @@ function CreerWorkspace() {
   // silencieusement restaurer l'ancien contenu (et donc ignorer la demande).
   const [draftConflict] = useState(() => {
     if (aurianaDemoActive) return null;
-    const d = existingFlowState;
-    if (!d) return null;
+    // Les photos ont leur propre sauvegarde : une sélection peut exister
+    // sans fiche de flux (ancien brouillon ou sauvegarde partielle).
+    if (!existingFlowState && loadPhotos().length === 0) return null;
+    const d = { ...existingFlowState, step: existingFlowState?.step ?? "idea" };
     const hasDraftContent = !!(d.ideaText || d.photoSubject || d.photoDescription || loadPhotos().length || d.result || d.editContent || d.selectedFormat);
     if (!hasDraftContent) return null;
     const newSubject = (paramSujet || locState.sujet || locState.subject || "").trim();
@@ -258,7 +260,7 @@ function CreerWorkspace() {
   const [conflictResolved, setConflictResolved] = useState(false);
   const conflictPending = !!draftConflict && !conflictResolved;
 
-  const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || (existingFlowState !== null && !!existingFlowState.step));
+  const shouldRestore = !isFreshStart && !draftConflict && (hasSomeContext || aurianaDemoActive || loadPhotos().length > 0 || (existingFlowState !== null && !!existingFlowState.step));
   const persistedState = useRef(shouldRestore ? (existingFlowState || null) : null);
 
   // Core state — restore from sessionStorage if available
