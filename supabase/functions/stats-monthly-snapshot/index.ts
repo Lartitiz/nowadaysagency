@@ -1,3 +1,4 @@
+import {planGa4Update, type Ga4Report} from "../_shared/ga4-stats-contract.ts";
 // Snapshot mensuel automatique des stats Instagram.
 //
 // Problème résolu : « Remplir depuis Instagram » lit une fenêtre GLISSANTE de
@@ -156,7 +157,7 @@ Deno.serve(async (req) => {
 
     // ─── Google Analytics (Phase 1 compte de service + Phase 2 OAuth per-user) ───
     // On fige les colonnes « site web » du mois écoulé pour les espaces connectés
-    // à GA4. Ne remplit QUE les champs vides. Chaque connexion est isolée.
+    // à GA4. Rafraîchit les observations de même propriété ; protège les autres sources.
     const ga4Results: { scope: string; status: string }[] = [];
     const ga4EnvProperty = Deno.env.get("GA4_PROPERTY_ID") || "";
     const saConfigured = !!Deno.env.get("GOOGLE_SA_CLIENT_EMAIL")
@@ -195,7 +196,7 @@ Deno.serve(async (req) => {
             }
             if (!propertyId) { ga4Results.push({ scope, status: "no_property" }); continue; }
 
-            const cacheKey = `${auth.mode}:${propertyId}`;
+            const cacheKey = `${conn.user_id}:${scope}:${auth.mode}:${propertyId}`;
             let ga4Metrics = metricsCache.get(cacheKey);
             if (!ga4Metrics) {
               ga4Metrics = await fetchGa4Month(propertyId, monthDate, auth);
@@ -204,39 +205,19 @@ Deno.serve(async (req) => {
             let gq = supabase.from("monthly_stats").select("*").eq("month_date", monthDate);
             if (conn.workspace_id) gq = gq.eq("workspace_id", conn.workspace_id);
             else gq = gq.eq("user_id", conn.user_id).is("workspace_id", null);
-            const { data: gExisting } = await gq.limit(1).maybeSingle();
-
-            const gcur = (gExisting || {}) as Record<string, unknown>;
-            const gpatch: Record<string, unknown> = {};
-            const setIfEmpty = (col: string, val: number) => {
-              if (typeof val === "number" && val > 0 && gcur[col] == null) gpatch[col] = val;
-            };
-            setIfEmpty("website_visitors", ga4Metrics.websiteVisitors);
-            setIfEmpty("ga4_users", ga4Metrics.ga4Users);
-            setIfEmpty("traffic_search", ga4Metrics.trafficSearch);
-            setIfEmpty("traffic_social", ga4Metrics.trafficSocial);
-            setIfEmpty("traffic_pinterest", ga4Metrics.trafficPinterest);
-            setIfEmpty("traffic_instagram", ga4Metrics.trafficInstagram);
-
-            if (!Object.keys(gpatch).length) { ga4Results.push({ scope, status: "already_filled" }); continue; }
-
-            if (gExisting?.id) {
-              const { error: upErr } = await supabase.from("monthly_stats")
-                .update({ ...gpatch, updated_at: new Date().toISOString() })
-                .eq("id", gExisting.id);
-              if (upErr) throw upErr;
-              ga4Results.push({ scope, status: "updated" });
-            } else {
-              const { error: insErr } = await supabase.from("monthly_stats").insert({
-                ...gpatch,
-                user_id: conn.user_id,
-                workspace_id: conn.workspace_id ?? null,
-                month_date: monthDate,
-                updated_at: new Date().toISOString(),
-              });
-              if (insErr) throw insErr;
-              ga4Results.push({ scope, status: "created" });
-            }
+            const { data: gExisting, error: readError } = await gq.maybeSingle();
+            if (readError) throw readError;
+            const report = {success:true,propertyId,month:monthDate,workspaceId:conn.workspace_id??null,
+              metrics:ga4Metrics,observation:ga4Metrics.observation} as unknown as Ga4Report;
+            const {patch,conflicts} = planGa4Update(gExisting,report);
+            if (!Object.keys(patch).length) {ga4Results.push({scope,status:conflicts.length?'protected_values':'unavailable'});continue;}
+            const {data: receipt,error: writeError} = await supabase.rpc('save_monthly_stats',{
+              p_workspace_id:conn.workspace_id??null,p_month:monthDate,p_expected:gExisting,p_patch:patch,
+              p_source:'ga4',p_observation:{...ga4Metrics.observation,propertyId},p_user_id:conn.user_id,
+            });
+            if(writeError) throw writeError;
+            if(!receipt?.id) throw new Error('No GA4 snapshot saved');
+            ga4Results.push({scope,status:ga4Metrics.observation.reportState==='partial'?'partial':conflicts.length?'updated_with_protected_values':'updated'});
           } catch (e) {
             console.error("stats-monthly-snapshot: GA4 scope en échec", scope, e);
             ga4Results.push({ scope, status: "error" });
