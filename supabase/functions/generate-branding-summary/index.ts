@@ -34,8 +34,12 @@ serve(async (req) => {
   }
 
   try {
+    // 401 (et non 500) : le client peut alors rafraîchir la session et rejouer.
+    const unauthorized = () => new Response(JSON.stringify({ error: "Non authentifié" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Non authentifié");
+    if (!authHeader) return unauthorized();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -44,7 +48,7 @@ serve(async (req) => {
     );
 
     const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error("Non authentifié");
+    if (authError || !user) return unauthorized();
 
     const rateCheck = checkRateLimit(user.id);
     if (!rateCheck.allowed) return rateLimitResponse(rateCheck.retryAfterMs!, corsHeaders);

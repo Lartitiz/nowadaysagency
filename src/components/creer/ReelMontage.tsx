@@ -166,7 +166,14 @@ export default function ReelMontage({ sections, subject, onPhaseChange, onMp4Rea
     activeRender.current.mounted = true;
     return () => { activeRender.current.mounted = false; activeRender.current.generation++; };
   }, []);
+  // Au tout premier rendu, ne RIEN invalider : à la reprise d'un reel déjà
+  // monté, ouvrir l'onglet « Montage » monte ce composant et effaçait le MP4
+  // durable restauré. On n'invalide que sur un VRAI changement d'entrées.
+  const seenRenderKey = useRef<string | null>(null);
   useEffect(() => {
+    if (seenRenderKey.current === null) { seenRenderKey.current = renderKey; return; }
+    if (seenRenderKey.current === renderKey) return;
+    seenRenderKey.current = renderKey;
     setArchived(false);
     setPhase("idle");
     mp4Callback.current?.(null);
