@@ -99,7 +99,7 @@ describe("publishToInstagram — appel edge + réponse", () => {
 
     await expect(
       publishToInstagram({ caption: "", imageUrls: ["https://x/a.jpg"] }),
-    ).rejects.toMatchObject({ message: "Le service est momentanément indisponible. Réessaie dans quelques instants." });
+    ).rejects.toMatchObject({ message: expect.stringContaining("Vérifie le réseau avant toute nouvelle tentative") });
   });
 
   it("erreur applicative dans le corps (ex: compte non connecté) → Error avec le message serveur", async () => {
@@ -223,4 +223,9 @@ describe("isNotConnectedError", () => {
     expect(isNotConnectedError("Publication échouée.")).toBe(false);
     expect(isNotConnectedError(undefined)).toBe(false);
   });
+});
+
+it.each([null, {}, { success: true }, { postId: "" }, { postId: 42 }, { postId: "p", success: false }])("refuses incomplete publication receipt %j", async (data) => {
+  mocks.invokeWithTimeout.mockResolvedValue({ data, error: null });
+  await expect(publishToInstagram({ caption: "QA", imageUrls: ["https://x/a.jpg"] })).rejects.toThrow(/confirmation/i);
 });

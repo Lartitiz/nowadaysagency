@@ -14,9 +14,9 @@ import { memoriseRetour } from "@/lib/retour-apres-detour";
 export async function startSocialConnect(
   platform: "instagram" | "linkedin" | "linkedin_analytics" | "canva" | "pinterest" | "google",
   workspaceId: string | undefined,
-  opts?: { quoi?: string; depuis?: string },
+  opts?: { quoi?: string; depuis?: string; isCurrent?: () => boolean },
 ): Promise<{ error?: string }> {
-  memoriseRetour(opts?.depuis, opts?.quoi);
+  const depuis = opts?.depuis ?? `${window.location.pathname}${window.location.search}`;
   try {
     const { data, error } = await supabase.functions.invoke("social-oauth-start", {
       body: {
@@ -25,9 +25,11 @@ export async function startSocialConnect(
         return_to: window.location.origin,
       },
     });
+    if (opts?.isCurrent && !opts.isCurrent()) return {};
     if (error) throw error;
     const url = (data as any)?.url;
     if (!url) throw new Error("URL d'autorisation manquante.");
+    memoriseRetour(depuis, opts?.quoi);
     window.location.assign(url);
     return {};
   } catch (e: any) {

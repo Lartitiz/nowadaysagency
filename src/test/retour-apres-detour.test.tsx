@@ -24,10 +24,10 @@ vi.mock("@/integrations/supabase/client", () => ({
 vi.mock("@/contexts/AuthContext", () => ({
   useAuth: () => ({ user: { id: "u1" }, session: { user: { id: "u1" } } }),
 }));
-vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "u1" }));
+vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "u1", useWorkspaceReady: () => true }));
 vi.mock("@/hooks/use-social-connections", () => ({
   useSocialConnections: () => ({
-    known: mocks.social.known,
+    known: mocks.social.known, loading: false, accountNames: {}, getTokenExpiry: () => null,
     isConnected: (p: string) => !!mocks.social.connectedMap[p],
     refresh: mocks.social.refresh,
   }),
@@ -105,6 +105,7 @@ describe("retour : une fois le compte connecté", () => {
     memoriseRetour("/creer");
     // Retour d'OAuth : l'edge renvoie sur la page des connexions avec ?connected=
     allerSur(`${CHEMIN_CONNEXIONS}?connected=canva`);
+    mocks.social.connectedMap = { canva: true };
 
     render(<SocialConnectionsCard />);
 
@@ -121,6 +122,7 @@ describe("retour : une fois le compte connecté", () => {
   it("sans mémo, on reste sur les connexions (venue exprès des paramètres)", async () => {
     oublieRetour();
     allerSur(`${CHEMIN_CONNEXIONS}?connected=instagram`);
+    mocks.social.connectedMap = { instagram: true };
 
     render(<SocialConnectionsCard />);
 
