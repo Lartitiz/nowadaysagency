@@ -4,11 +4,14 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import CreerUnifie from '@/pages/CreerUnifie';
 import { loadFlowState, saveFlowState, setFlowUserId, setFlowWorkspaceId, savePhotos, loadPhotos, clearFlowState } from '@/hooks/use-flow-persistence';
-const mocks = vi.hoisted(() => ({ user: 'owner', workspace: 'A', ready: true, photoRead: vi.fn(), photoDecode: vi.fn(), generate: vi.fn(), cloud: null as any, resultProps: null as any }));
+const mocks = vi.hoisted(() => ({ user: 'owner', workspace: 'A', ready: true, brandChecking: false, photoRead: vi.fn(), photoDecode: vi.fn(), generate: vi.fn(), cloud: null as any, connect: vi.fn(), publishProps: null as any, saveProps: null as any, resultProps: null as any }));
+vi.mock('@/lib/social-connect', () => ({ startSocialConnect: (...args: any[]) => mocks.connect(...args) }));
+vi.mock('@/components/creer/PublishOrScheduleDialog', () => ({ default: (p: any) => { mocks.publishProps=p; return null; } }));
+vi.mock('@/components/SaveToIdeasDialog', () => ({ SaveToIdeasDialog: (p: any) => { mocks.saveProps=p; return null; } }));
 vi.mock('@/contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: mocks.user }, session: { user: { id: mocks.user } } }) }));
 vi.mock('@/hooks/use-workspace-query', () => ({ useWorkspaceId: () => mocks.workspace, useWorkspaceReady: () => mocks.ready, useIsOwnSpace: () => true, useWorkspaceFilter: () => ({ column: 'workspace_id', value: mocks.workspace }) }));
 vi.mock('@/contexts/DemoContext', () => ({ useDemoContext: () => ({ isDemoMode: false }) }));
-vi.mock('@/hooks/use-pending-brand-review', () => ({ usePendingBrandReview: () => ({ checking: false, pending: false }) }));
+vi.mock('@/hooks/use-pending-brand-review', () => ({ usePendingBrandReview: () => ({ checking: mocks.brandChecking, pending: false }) }));
 vi.mock('@/hooks/use-branding', () => ({ useBrandCharter: () => ({ data: null }) }));
 vi.mock('@/hooks/use-activity-examples', () => ({ useActivityExamples: () => ({ activityText: '' }) }));
 vi.mock('@/hooks/use-user-plan', () => ({ useUserPlan: () => ({ remainingWithBonus: () => 20, plan: 'free', usage: {}, refresh: () => {} }) }));
@@ -53,7 +56,7 @@ vi.mock('@/components/creer/PhotoUploadZone', () => ({ PhotoUploadZone: (p: any)
 function App() { const nav = useNavigate(); return <><button onClick={() => nav('/ailleurs')}>Quitter</button><button onClick={() => nav('/creer')}>Créer</button><button onClick={() => nav('/creer?new=1')}>Nouveau explicite</button><button onClick={() => nav('/creer?sujet=Autre%20sujet')}>Autre intention</button><button onClick={() => nav('/creer?canal=pinterest')}>Canal Pinterest</button><button onClick={() => nav(-1)}>Historique précédent</button><Routes><Route path="/creer" element={<CreerUnifie/>}/><Route path="/ailleurs" element={<p>Ailleurs</p>}/></Routes></>; }
 function mount(url: any = '/creer') { return render(<StrictMode><MemoryRouter initialEntries={[url]}><App/></MemoryRouter></StrictMode>); }
 function type(text: string) { fireEvent.change(screen.getByRole('textbox'), { target: { value: text } }); }
-beforeEach(() => { cleanup(); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
+beforeEach(() => { cleanup(); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; mocks.brandChecking=false; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
 afterEach(cleanup);
 describe('initial creation draft through real React components', () => {
   it('keeps the first words on leave, return and reload before continuing', async () => {
@@ -214,4 +217,63 @@ it.each(['stories','sequences','slides'])('persists story updates immutably for 
   expect(raw[alias]).toEqual(original);
   app.unmount(); sessionStorage.clear(); mount(); await screen.findByTestId('result');
   expect(mocks.resultProps.result).toMatchObject({[alias]:updated,custom:{keep:true},caption:'Distincte'});
+});
+
+
+it('does not replay a saved result entry when the brand query refetches after URL cleanup', async () => {
+  const raw={subject:'Objet',content:'Original',edited_text:'Newsletter sauvée'};
+  const entry={pathname:'/creer',search:'?sujet=Newsletter&format=newsletter&angle=newsletter&canal=newsletter&idea_id=saved-newsletter',state:{ideaId:'saved-newsletter',resumeIdea:{format:'newsletter',raw}}};
+  saveFlowState({step:'result',ideaText:'Newsletter',selectedFormat:'newsletter',result:{type:'newsletter',raw},editingIdeaId:'saved-newsletter'});
+  const app=mount(entry);
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByText('Démarrer le nouveau contenu'));
+  await screen.findByTestId('result');
+  mocks.brandChecking=true;
+  app.rerender(<StrictMode><MemoryRouter initialEntries={[entry]}><App/></MemoryRouter></StrictMode>);
+  mocks.brandChecking=false;
+  app.rerender(<StrictMode><MemoryRouter initialEntries={[entry]}><App/></MemoryRouter></StrictMode>);
+  expect(screen.getByTestId('result')).toHaveTextContent('Newsletter sauvée');
+  expect(loadFlowState()).toMatchObject({step:'result',editingIdeaId:'saved-newsletter',result:{raw}});
+});
+
+it('detaches a historical empty first-step draft from its old saved idea before typing a new subject', () => {
+  saveFlowState({step:'idea',ideaText:'',selectedFormat:'newsletter',result:null,editingIdeaId:'old-newsletter',creationId:'broken-resume'});
+  mount(); type('Nouveau Reel');
+  expect(loadFlowState()?.editingIdeaId).toBeNull();
+});
+
+it.each(['owner','A'])('normalizes OAuth scope %s and rejects a late response after leaving creation', async workspace => {
+  mocks.workspace=workspace; setFlowWorkspaceId(workspace);
+  saveFlowState({step:'result',ideaText:'LinkedIn',selectedFormat:'linkedin',result:{type:'linkedin',raw:{content:'À publier'}}});
+  mount(); await screen.findByTestId('result');
+  let resolve!: (x: any) => void;
+  mocks.connect.mockImplementation(() => new Promise(r => { resolve=r; }));
+  let pending: Promise<void>;
+  act(() => { pending=mocks.publishProps.onConnectChannel(); });
+  expect(mocks.connect).toHaveBeenCalledTimes(1);
+  const [platform,scope,opts]=mocks.connect.mock.calls[0];
+  expect(platform).toBe('linkedin'); expect(scope).toBe(workspace==='owner'?undefined:'A');
+  expect(opts.isCurrent()).toBe(true);
+  fireEvent.click(screen.getByText('Quitter'));
+  expect(opts.isCurrent()).toBe(false);
+  await act(async () => { resolve({error:'Ancienne visite'}); await pending; });
+  expect(screen.getByText('Ailleurs')).toBeVisible();
+});
+it('ignores a late save callback after a new creation and keeps the new save detached', async () => {
+  saveFlowState({step:'result',ideaText:'Ancien',selectedFormat:'post',result:{type:'post',raw:{content:'Ancien'}},editingIdeaId:'old'});
+  mount(); await screen.findByTestId('result'); const oldSaved=mocks.saveProps.onSaved;
+  fireEvent.click(screen.getByText('Réinitialiser'));fireEvent.click(screen.getByRole('button',{name:'Repartir de zéro'}));
+  type('Nouveau'); act(() => oldSaved('old',true));
+  expect(mocks.saveProps.editingIdeaId).toBeNull();expect(loadFlowState()?.editingIdeaId).toBeNull();
+});
+
+it.each(['text','photo','mix','pure_photo','user_slides'])('preserves saved carousel mode %s, IDs and a separate caption on resume and reload', async mode => {
+  const raw={carousel_type:mode==='user_slides'?'text':mode,user_slides:mode==='user_slides',slides:[{id:'slide-b',title:'Deuxième placée avant'},{id:'slide-a',title:'Première placée après'}],caption:{body:'Légende distincte'},visual_html:[]};
+  const entry={pathname:'/creer',search:'?format=carousel&canal=instagram&idea_id=saved-carousel',state:{ideaId:'saved-carousel',resumeIdea:{format:'carousel',raw}}};
+  const app=mount(entry); await screen.findByTestId('result');
+  expect(loadFlowState()?.carouselSubMode).toBe(mode);
+  expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-carousel',result:{raw}});
+  if(mode==='user_slides') expect(mocks.resultProps.onChangeAngle).toBeUndefined();
+  app.unmount(); sessionStorage.clear(); mount();await screen.findByTestId('result');
+  expect(loadFlowState()).toMatchObject({editingIdeaId:'saved-carousel',carouselSubMode:mode,result:{raw}});
 });

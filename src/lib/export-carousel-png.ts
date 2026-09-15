@@ -1,3 +1,4 @@
+import { ExportImageError, waitForExportImages } from "./export-image-readiness";
 import html2canvas from "html2canvas-pro";
 import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
 
@@ -70,52 +71,8 @@ ${fontLinks}
   return iframe;
 }
 
-/** Extrait toutes les URLs `url(...)` (data: ou http) depuis un HTML brut. */
-function extractBackgroundUrls(html: string): string[] {
-  const urls: string[] = [];
-  const re = /url\(\s*(['"]?)(data:[^'")]+|https?:[^'")]+)\1\s*\)/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html)) !== null) {
-    urls.push(m[2]);
-  }
-  return Array.from(new Set(urls));
-}
-
-/** Précharge + decode une URL image (timeout 8s). */
-async function preloadImage(url: string, timeoutMs = 8000): Promise<void> {
-  return new Promise<void>((resolve) => {
-    const img = new Image();
-    let done = false;
-    const finish = () => {
-      if (done) return;
-      done = true;
-      resolve();
-    };
-    const t = setTimeout(() => {
-      console.warn("[exportCarouselPng] image preload timeout", url.slice(0, 80));
-      finish();
-    }, timeoutMs);
-    img.crossOrigin = "anonymous";
-    img.onload = async () => {
-      try {
-        if (typeof img.decode === "function") await img.decode();
-      } catch {
-        /* noop */
-      }
-      clearTimeout(t);
-      finish();
-    };
-    img.onerror = () => {
-      clearTimeout(t);
-      finish();
-    };
-    img.src = url;
-  });
-}
-
 async function waitForIframeReady(
   iframe: HTMLIFrameElement,
-  rawHtml: string,
   timeoutMs = 8000,
 ): Promise<void> {
   const doc = iframe.contentDocument;
@@ -154,45 +111,7 @@ async function waitForIframeReady(
     /* noop */
   }
 
-  // <img> tags : attendre complete + naturalWidth, puis decode()
-  const imgs = Array.from(doc.querySelectorAll("img"));
-  if (imgs.length > 0) {
-    await Promise.race([
-      Promise.all(
-        imgs.map(
-          (img) =>
-            new Promise<void>((res) => {
-              let started = false;
-              const finish = async () => {
-                if (started) return;
-                started = true;
-                try {
-                  if (typeof img.decode === "function") await img.decode();
-                } catch {
-                  /* noop */
-                }
-                res();
-              };
-              if (img.complete && img.naturalWidth > 0) {
-                void finish();
-              } else {
-                img.addEventListener("load", () => void finish(), { once: true });
-                img.addEventListener("error", () => void finish(), { once: true });
-              }
-            }),
-        ),
-      ),
-      new Promise((r) => setTimeout(r, timeoutMs)),
-    ]);
-  }
-
-  // background-image url(...) : précharger + decode toutes les URLs trouvées
-  // dans le HTML brut. C'est l'étape qui manquait et qui causait les "photos
-  // mal cadrées / compressées" pour les carrousels photo.
-  const bgUrls = extractBackgroundUrls(rawHtml);
-  if (bgUrls.length > 0) {
-    await Promise.all(bgUrls.map((u) => preloadImage(u, timeoutMs)));
-  }
+  await waitForExportImages(doc.body, timeoutMs);
 
   // Deux RAF + petit buffer pour laisser le layout se stabiliser.
   // ⚠️ Course avec un timeout : sur un onglet non visible (fenêtre recouverte,
@@ -345,7 +264,7 @@ async function captureSlide(
 ): Promise<Blob> {
   const iframe = await mountSlideIframe(html, logoOverlayHtml, dims);
   try {
-    await waitForIframeReady(iframe, html);
+    await waitForIframeReady(iframe);
 
     // html2canvas ne prend pas en charge `box-decoration-break: clone` : une
     // pastille Instagram multiligne devient alors un grand rectangle. On
@@ -388,6 +307,7 @@ async function captureSlideWithRetry(
   try {
     return await captureSlide(html, true, logoOverlayHtml, output, dims);
   } catch (e) {
+    if (e instanceof ExportImageError) throw e;
     console.warn("[exportCarouselPng] capture failed (CORS), retry", e);
   }
   // 2e essai : même sortie mais on tolère le taint (images sans CORS)
