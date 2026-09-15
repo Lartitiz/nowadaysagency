@@ -51,3 +51,48 @@ export async function waitForExportImages(root: HTMLElement, timeoutMs = 8000): 
   }
   await Promise.all([...urls].map(url => decodeImage(url, timeoutMs)));
 }
+
+/** Make images self-contained for the Pinterest SVG renderer. Mutates only its export iframe. */
+export async function embedExportImages(root: HTMLElement): Promise<void> {
+  const doc = root.ownerDocument;
+  const resources = new Map<string, Promise<string>>();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const embed = (source: string): Promise<string> => {
+    if (source.startsWith("data:")) return Promise.resolve(source);
+    const url = new URL(source, doc.baseURI).href;
+    if (!resources.has(url)) resources.set(url, (async () => {
+      const response = await fetch(url, { signal: controller.signal, credentials: "omit" });
+      if (!response.ok) throw new ExportImageError();
+      const blob = await response.blob();
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new ExportImageError());
+        reader.readAsDataURL(blob);
+      });
+    })());
+    return resources.get(url)!;
+  };
+  try {
+    await Promise.all(Array.from(root.querySelectorAll("img")).map(async (img) => {
+      const source = img.currentSrc || img.getAttribute("src");
+      if (!source) return;
+      img.src = await embed(source);
+      img.removeAttribute("srcset");
+    }));
+    await Promise.all([root, ...root.querySelectorAll<HTMLElement>("*")].map(async (element) => {
+      let background = doc.defaultView?.getComputedStyle(element).backgroundImage || "";
+      const matches = Array.from(background.matchAll(/url\((?:"([^"]*)"|'([^']*)'|([^)]*))\)/g));
+      for (const match of matches) {
+        const source = (match[1] ?? match[2] ?? match[3]).trim();
+        if (source) background = background.replace(match[0], `url("${await embed(source)}")`);
+      }
+      if (matches.length) element.style.backgroundImage = background;
+    }));
+  } catch {
+    throw new ExportImageError();
+  } finally {
+    clearTimeout(timeout);
+  }
+}

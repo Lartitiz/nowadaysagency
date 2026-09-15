@@ -1,5 +1,6 @@
+import { embedExportFonts } from "./export-font-embedding";
 import { exportFileName } from "./export-file-name";
-import { ExportImageError, waitForExportImages } from "./export-image-readiness";
+import { ExportImageError, embedExportImages, waitForExportImages } from "./export-image-readiness";
 import html2canvas from "html2canvas-pro";
 import { fetchLogoAsBase64, buildLogoOverlayHtml } from "./export-logo";
 
@@ -244,6 +245,7 @@ interface SlideOutput {
   quality?: number;
   /** Matérialise les pastilles multilignes avant capture (stories uniquement). */
   materializeStoryPills?: boolean;
+  foreignObjectRendering?: boolean;
 }
 
 // Sortie par défaut : PNG retina (scale 2) pour téléchargement / Canva.
@@ -273,6 +275,8 @@ async function captureSlide(
     }
 
     const target = iframe.contentDocument!.body;
+    const fontCss = output.foreignObjectRendering ? await embedExportFonts(iframe.contentDocument!) : "";
+    if (output.foreignObjectRendering) await embedExportImages(target);
     const canvas = await html2canvas(target, {
       width: dims.w,
       height: dims.h,
@@ -285,10 +289,17 @@ async function captureSlide(
       backgroundColor: output.mime === "image/jpeg" ? "#ffffff" : null,
       logging: false,
       imageTimeout: 8000,
+      foreignObjectRendering: output.foreignObjectRendering,
+      onclone: (doc) => {
+        if (!fontCss) return;
+        const style = doc.createElement("style");
+        style.textContent = fontCss;
+        doc.body.appendChild(style);
+      },
     });
 
-    return await new Promise<Blob>((resolve) => {
-      canvas.toBlob((b) => resolve(b!), output.mime, output.quality);
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => b ? resolve(b) : reject(new Error("Le visuel n’a pas pu être généré.")), output.mime, output.quality);
     });
   } finally {
     iframe.remove();
@@ -321,6 +332,15 @@ async function captureSlideWithRetry(
     console.error("[exportCarouselPng] capture failed all retries", e);
     return null;
   }
+}
+
+/** Pinterest uses the same isolated HTML/font context as its preview. */
+export async function renderPinterestVisualToBlob(html: string, logoUrl?: string | null): Promise<Blob> {
+  const logo = await fetchLogoAsBase64(logoUrl);
+  const overlay = logo ? buildLogoOverlayHtml(logo, 1000) : "";
+  const blob = await captureSlideWithRetry(html, overlay, { scale: 1, mime: "image/png", foreignObjectRendering: true }, { w: 1000, h: 1500 });
+  if (!blob) throw new Error("Le visuel Pinterest n’a pas pu être généré.");
+  return blob;
 }
 
 /**

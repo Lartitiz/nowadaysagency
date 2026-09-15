@@ -1,3 +1,4 @@
+import { pinterestCurrentText } from "@/lib/pinterest-current-text";
 import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
 import { isDurableReelUrl, reelSourceKey } from "@/lib/reel-publication";
 import { useCreationEntryKey } from "@/hooks/use-creation-entry-key";
@@ -2466,10 +2467,11 @@ function CreerWorkspace() {
     try {
       toast.info("Export PPTX éditable en cours...");
       const { exportPinterestEditablePptx } = await import("@/lib/export-pinterest-editable-pptx");
+      const currentSeo = pinterestCurrentText(result?.raw);
       await exportPinterestEditablePptx(
         pinData,
-        result?.raw?.title || "",
-        result?.raw?.description || "",
+        currentSeo.title,
+        currentSeo.description,
         ideaText || "epingle-pinterest",
         charterData
       );
