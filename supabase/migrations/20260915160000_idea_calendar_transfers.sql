@@ -13,10 +13,16 @@ BEGIN
   IF p_date IS NULL OR jsonb_typeof(p_payload) IS DISTINCT FROM 'object' THEN RAISE EXCEPTION 'calendar_invalid_payload'; END IF;
   SELECT * INTO idea FROM public.saved_ideas WHERE id=p_idea_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'calendar_idea_not_found'; END IF;
+  IF public.crosspost_can_write(idea.workspace_id,idea.user_id) IS NOT TRUE THEN
+    RAISE EXCEPTION 'calendar_access_denied' USING ERRCODE='42501';
+  END IF;
   IF idea.calendar_post_id IS NOT NULL THEN
     SELECT * INTO post FROM public.calendar_posts WHERE id=idea.calendar_post_id;
     IF NOT FOUND THEN RAISE EXCEPTION 'calendar_not_found'; END IF;
-    -- The SELECT FOR UPDATE above already requires UPDATE privilege and RLS.
+    IF post.workspace_id IS DISTINCT FROM idea.workspace_id OR public.crosspost_can_write(post.workspace_id,post.user_id) IS NOT TRUE THEN
+      RAISE EXCEPTION 'calendar_scope_mismatch' USING ERRCODE='42501';
+    END IF;
+    -- Explicit role/scope guard also protects installations with permissive legacy RLS.
     -- A replay must not fire the source updated_at trigger.
     RETURN jsonb_build_object('id',post.id,'date',post.date,'replayed',true,'updated_at',post.updated_at);
   END IF;
@@ -46,6 +52,9 @@ BEGIN
   IF p_date IS NULL THEN RAISE EXCEPTION 'calendar_invalid_payload'; END IF;
   SELECT * INTO post FROM public.calendar_posts WHERE id=p_post_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'calendar_not_found'; END IF;
+  IF public.crosspost_can_write(post.workspace_id,post.user_id) IS NOT TRUE THEN
+    RAISE EXCEPTION 'calendar_access_denied' USING ERRCODE='42501';
+  END IF;
   IF post.date IS DISTINCT FROM p_expected_date THEN RAISE EXCEPTION 'calendar_version_conflict'; END IF;
   UPDATE public.calendar_posts SET date=p_date,updated_at=clock_timestamp() WHERE id=p_post_id RETURNING * INTO post;
   IF NOT FOUND THEN RAISE EXCEPTION 'calendar_not_found'; END IF;
