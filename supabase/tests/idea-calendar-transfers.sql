@@ -60,7 +60,6 @@ CREATE POLICY "workspace_select_saved_ideas" ON saved_ideas FOR SELECT TO authen
 CREATE POLICY "workspace_update_saved_ideas" ON saved_ideas FOR UPDATE TO authenticated USING (user_has_workspace_access(workspace_id));
 \ir ../migrations/20260914124713_0f976596-d53a-4a2e-8cad-ba9d9c6b6e0d.sql
 \ir ../migrations/20260915160000_idea_calendar_transfers.sql
-\ir ../migrations/20260915161000_calendar_idea_write_roles.sql
 INSERT INTO workspace_members VALUES
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','11111111-1111-4111-8111-111111111111','owner'),
  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','22222222-2222-4222-8222-222222222222','manager'),
@@ -144,6 +143,21 @@ DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM pg_proc WHERE proname IN ('plan_saved_idea','move_calendar_post') AND prosecdef) THEN RAISE EXCEPTION 'FAIL definer'; END IF;
 END $$;
 
+-- Direct writes must obey the same contract, including a viewer/revoked member
+-- who authored a historical row and can still read it through an own-row policy.
+INSERT INTO calendar_posts(id,user_id,workspace_id,date,theme,canal,status) VALUES
+ ('77777777-7777-4777-8777-777777777777','44444444-4444-4444-8444-444444444444','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Historical viewer','instagram','drafting'),
+ ('88888888-8888-4888-8888-888888888888','88888888-8888-4888-8888-888888888888','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Historical revoked','instagram','drafting');
+INSERT INTO saved_ideas(id,user_id,workspace_id) VALUES
+ ('77777777-7777-4777-8777-777777777777','44444444-4444-4444-8444-444444444444','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
+ ('88888888-8888-4888-8888-888888888888','88888888-8888-4888-8888-888888888888','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+CREATE TEMP TABLE r3_history_posts AS SELECT * FROM calendar_posts;
+CREATE TEMP TABLE r3_history_ideas AS SELECT * FROM saved_ideas;
+\ir ../migrations/20260915161000_calendar_idea_write_roles.sql
+DO $$ BEGIN
+ IF EXISTS(SELECT * FROM r3_history_posts EXCEPT SELECT * FROM calendar_posts) OR EXISTS(SELECT * FROM calendar_posts EXCEPT SELECT * FROM r3_history_posts)
+ OR EXISTS(SELECT * FROM r3_history_ideas EXCEPT SELECT * FROM saved_ideas) OR EXISTS(SELECT * FROM saved_ideas EXCEPT SELECT * FROM r3_history_ideas) THEN RAISE EXCEPTION 'FAIL migration changed historical rows'; END IF;
+END $$;
 -- Writers retain direct insertion, editing and removal in their own workspace.
 SET ROLE authenticated;
 DO $$ DECLARE u uuid; target uuid; affected int; BEGIN
@@ -162,16 +176,6 @@ DO $$ DECLARE u uuid; target uuid; affected int; BEGIN
  END LOOP;
 END $$;
 RESET ROLE;
--- Direct writes must obey the same contract, including a viewer/revoked member
--- who authored a historical row and can still read it through an own-row policy.
-INSERT INTO calendar_posts(id,user_id,workspace_id,date,theme,canal,status) VALUES
- ('77777777-7777-4777-8777-777777777777','44444444-4444-4444-8444-444444444444','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Historical viewer','instagram','drafting'),
- ('88888888-8888-4888-8888-888888888888','88888888-8888-4888-8888-888888888888','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa','2026-10-25','Historical revoked','instagram','drafting');
-INSERT INTO saved_ideas(id,user_id,workspace_id) VALUES
- ('77777777-7777-4777-8777-777777777777','44444444-4444-4444-8444-444444444444','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'),
- ('88888888-8888-4888-8888-888888888888','88888888-8888-4888-8888-888888888888','aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
-CREATE TEMP TABLE r3_history_posts AS SELECT * FROM calendar_posts;
-CREATE TEMP TABLE r3_history_ideas AS SELECT * FROM saved_ideas;
 SET ROLE authenticated;
 DO $$ DECLARE u uuid; target uuid; affected int; rejected boolean; BEGIN
  FOREACH u IN ARRAY ARRAY['44444444-4444-4444-8444-444444444444'::uuid,'88888888-8888-4888-8888-888888888888'::uuid] LOOP
