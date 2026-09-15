@@ -8,6 +8,6 @@ export function useCreationEntryKey(search: string, navigationKey: string, navig
   const hasIntent = hasState || ["sujet", "subject", "format", "canal", "auto", "idea_id"].some(key => params.has(key));
   // A new in-app request must run the same conflict gate as a full page load.
   // REPLACE is also used to consume startup params; it must not remount work.
-  if (params.get("new") === "1" || (navigationType === "PUSH" && hasIntent)) entry.current = navigationKey;
+  if (params.get("new") === "1" || ((navigationType === "PUSH" || navigationType === "POP") && hasIntent)) entry.current = navigationKey;
   return entry.current;
 }
