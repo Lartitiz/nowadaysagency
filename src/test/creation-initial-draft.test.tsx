@@ -50,7 +50,7 @@ vi.mock('@/components/creer/PhotoUploadZone', () => ({ PhotoUploadZone: (p: any)
   <button onClick={() => p.onPhotosChange([])}>Retirer photos</button>
   <input aria-label="Description photo" value={p.initialDescription} onChange={e => p.onDescriptionChange(e.target.value)}/>
 </div> }));
-function App() { const nav = useNavigate(); return <><button onClick={() => nav('/ailleurs')}>Quitter</button><button onClick={() => nav('/creer')}>Créer</button><button onClick={() => nav('/creer?new=1')}>Nouveau explicite</button><button onClick={() => nav('/creer?sujet=Autre%20sujet')}>Autre intention</button><Routes><Route path="/creer" element={<CreerUnifie/>}/><Route path="/ailleurs" element={<p>Ailleurs</p>}/></Routes></>; }
+function App() { const nav = useNavigate(); return <><button onClick={() => nav('/ailleurs')}>Quitter</button><button onClick={() => nav('/creer')}>Créer</button><button onClick={() => nav('/creer?new=1')}>Nouveau explicite</button><button onClick={() => nav('/creer?sujet=Autre%20sujet')}>Autre intention</button><button onClick={() => nav('/creer?canal=pinterest')}>Canal Pinterest</button><button onClick={() => nav(-1)}>Historique précédent</button><Routes><Route path="/creer" element={<CreerUnifie/>}/><Route path="/ailleurs" element={<p>Ailleurs</p>}/></Routes></>; }
 function mount(url: any = '/creer') { return render(<StrictMode><MemoryRouter initialEntries={[url]}><App/></MemoryRouter></StrictMode>); }
 function type(text: string) { fireEvent.change(screen.getByRole('textbox'), { target: { value: text } }); }
 beforeEach(() => { cleanup(); vi.clearAllMocks(); sessionStorage.clear(); localStorage.clear(); mocks.user='owner'; mocks.workspace='A'; mocks.ready=true; setFlowUserId('owner'); setFlowWorkspaceId('A'); mocks.photoRead.mockResolvedValue({data:[{id:'library-1',name:'Portrait'}],error:null}); mocks.photoDecode.mockResolvedValue({base64:'data:image/png;base64,AA==',name:'Portrait',mimeType:'image/png'}); });
@@ -177,6 +177,13 @@ describe('initial creation draft through real React components', () => {
     mount(); type('Première intention'); const before=loadFlowState();
     fireEvent.click(screen.getByText('Autre intention')); expect(screen.getByRole('dialog')).toBeVisible();
     expect(loadFlowState()).toEqual(before);
+  });
+
+  it('restores the requested channel when using browser history between channel entries', async () => {
+    mount('/creer?canal=linkedin'); type('Sujet conservé');
+    fireEvent.click(screen.getByText('Canal Pinterest')); expect(loadFlowState()?.forcedChannel).toBe('pinterest');
+    fireEvent.click(screen.getByText('Historique précédent')); expect(screen.getByRole('textbox')).toHaveValue('Sujet conservé');
+    expect(loadFlowState()?.forcedChannel).toBe('linkedin');
   });
 
 });
