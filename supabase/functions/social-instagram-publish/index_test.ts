@@ -42,6 +42,12 @@ function makeRouter(cfg: RouterConfig) {
       return jsonResponse(200, cfg.user);
     }
 
+    if (url.pathname.includes("/rest/v1/workspace_members")) {
+      assertEquals(url.searchParams.get("workspace_id"), "eq.ws-A");
+      assertEquals(url.searchParams.get("user_id"), "eq.u1");
+      return jsonResponse(200, [{role:"owner"}]);
+    }
+
     if (url.pathname.includes("/rest/v1/social_connections")) {
       if (req.method === "GET") return jsonResponse(200, cfg.connection ?? null);
       if (req.method === "PATCH") return jsonResponse(200, {});

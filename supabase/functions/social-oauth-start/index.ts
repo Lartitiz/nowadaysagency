@@ -1,6 +1,7 @@
+import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 // Build the Instagram Business Login authorization URL for the current user.
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { authenticateRequest, AuthError } from "../_shared/auth.ts";
+import { authenticateRequest, AuthError, getServiceClient } from "../_shared/auth.ts";
 import { signState, generateCodeVerifier, codeChallengeS256 } from "../_shared/oauth-state.ts";
 
 // instagram_business_manage_insights = lire les stats du compte + des posts (reach,
@@ -57,6 +58,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    const membership = await assertWorkspaceMembership(getServiceClient(), userId, workspaceId);
+    if (!membership.ok) return workspaceDeniedResponse(corsHeaders);
 
     const appId =
       platform === "canva"

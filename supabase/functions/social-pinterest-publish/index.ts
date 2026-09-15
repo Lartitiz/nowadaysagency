@@ -1,3 +1,5 @@
+import { workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
+import { assertWorkspacePublication } from "../_shared/social-workspace-guard.ts";
 // Publie une épingle (image simple ou carrousel) sur un tableau Pinterest du compte connecté.
 // Body attendu : { board_id, image_url | image_urls[], title?, description?, link?, alt_text?, workspace_id? }
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -35,6 +37,8 @@ Deno.serve(async (req) => {
     if (imageUrls.length === 0) return jsonError("Au moins une image publique est requise.", corsHeaders);
 
     const supabase = getServiceClient();
+    const membership = await assertWorkspacePublication(supabase, userId, workspaceId);
+    if (!membership.ok) return workspaceDeniedResponse(corsHeaders);
     const filterCol = workspaceId ? "workspace_id" : "user_id";
     const filterVal = workspaceId || userId;
     let q = supabase
