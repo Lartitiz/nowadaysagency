@@ -1,9 +1,10 @@
 -- Integration fixture. Run only in an EMPTY disposable PostgreSQL database.
 \set ON_ERROR_STOP on
 BEGIN;
-CREATE ROLE anon; CREATE ROLE authenticated;
-CREATE SCHEMA auth;
-CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('test.uid',true),'')::uuid $$;
+DO $$ BEGIN CREATE ROLE anon; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+DO $$ BEGIN CREATE ROLE authenticated; EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+CREATE SCHEMA IF NOT EXISTS auth;
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('test.uid',true),'')::uuid $$;
 GRANT USAGE ON SCHEMA auth TO authenticated,anon;
 CREATE TABLE public.calendar_posts (
  id uuid PRIMARY KEY, user_id uuid NOT NULL, workspace_id uuid, date date NOT NULL, theme text NOT NULL,
