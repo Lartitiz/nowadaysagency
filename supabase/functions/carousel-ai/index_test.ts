@@ -176,6 +176,8 @@ function makeFakeSupabase() {
 /** Réinitialise TOUS les champs de `_deps` avant chaque test (état de module partagé). */
 function resetDeps() {
   _deps.callCarouselWriter = ((options: any, sink: any) => _deps.callAnthropic(options, sink)) as any;
+  // Juge du fil neutralisé par défaut (aucun réseau) ; les tests du fil le remplacent.
+  _deps.reviewThread = (async () => []) as any;
   _deps.runPipeline = (async () => ({
     ok: true,
     userId: TEST_USER_ID,
@@ -540,4 +542,96 @@ for (const repair of ['success', 'short', 'failure']) Deno.test(`texte incomplet
     assertEquals(parsed.structure_warnings.length===0,repair==='success');
     assertEquals(parsed.slides[1].body,full.slides[1].body);
   } finally { globalThis.fetch=oldFetch; if(key===undefined)Deno.env.delete('OPENAI_API_KEY');else Deno.env.set('OPENAI_API_KEY',key); }
+});
+
+// ── Fil du carrousel (16/09/2026) ──
+// Le juge nomme des défauts → le rédacteur reçoit le brouillon + « DÉFAUTS DE
+// FIL » → la réparation n'est gardée que si le juge en voit MOINS ensuite.
+for (const outcome of ["better", "same", "vision"]) Deno.test(`fil : défauts nommés → réparation ${outcome}`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch, key = Deno.env.get("OPENAI_API_KEY");
+  Deno.env.set("OPENAI_API_KEY", "synthetic-no-network");
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    const req = JSON.parse(String(init?.body || "{}"));
+    if (req.tool_choice?.name === "review_carousel_fields") {
+      const fields = JSON.parse(req.input[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
+      const text = JSON.stringify({ reviews: fields.map((f: any) => ({ field_id: f.field_id, decision: "keep", reason: "Texte situé et utile", edits: [] })) });
+      return Promise.resolve(new Response(JSON.stringify({ model: "gpt-6-astra", status: "completed", output: [{ type: "function_call", name: "review_carousel_fields", arguments: text }], usage: { input_tokens: 1, output_tokens: 1 } })));
+    }
+    return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
+  }) as typeof fetch;
+  const slide = (n: number, title: string, body: string, role = "argument") => ({ slide_number: n, slide_type: "text_only", title, body, role });
+  const draft = { fil: { arrivee: "Relire ses mots de soutien", etapes: ["a", "b", "c", "d", "e"] }, slides: [
+    slide(1, "Un soutien sans responsabilité", "", "hook"),
+    slide(2, "La formule laisse une question ouverte", "Le soutien affiché ne dit pas ce qui est pris en charge."),
+    slide(3, "Le soutien laisse une question ouverte", "Se dire proche ne précise ni ce qu'on reconnaît, ni ce qu'on assume."),
+    slide(4, "Note de lecture", "La source ne permet pas d'affirmer qu'aucune mesure n'a été annoncée.", "nuance"),
+    slide(5, "Relire ses mots de soutien", "Avant de publier un soutien, vérifie ce qu'il dit de ta propre implication.", "conclusion"),
+  ], caption: { body: "Une légende fidèle au sujet.", hashtags: [] } };
+  const repaired = { ...draft, slides: [draft.slides[0], slide(2, "La formule laisse une question ouverte", "Le soutien affiché ne dit pas ce qui est pris en charge, et la source ne permet pas d'affirmer qu'aucune mesure n'a été annoncée."), draft.slides[4]] };
+  let judged = 0, writes = 0, repairPrompt = "";
+  _deps.reviewThread = (async (doc: any) => {
+    judged++;
+    if (judged === 1) { assertEquals(doc.slides.length, 5); return ["Les slides 2 et 3 disent la même idée.", "La slide 4 (« Note de lecture ») est une rubrique posée à part."]; }
+    // « same » : autant de défauts après qu'avant → la réparation n'a pas fait mieux, brouillon conservé.
+    return outcome === "better" ? [] : ["Les slides 2 et 3 disent la même idée.", "La slide 4 (« Note de lecture ») est une rubrique posée à part."];
+  }) as any;
+  _deps.callCarouselWriter = (async (opts: any, sink: any) => {
+    writes++; Object.assign(sink, { model: opts.model, input_tokens: 10, output_tokens: 20, total_tokens: 30 });
+    if (writes === 2) { repairPrompt = String(opts.messages[0].content); return JSON.stringify(outcome === "same" ? draft : repaired); }
+    return JSON.stringify(draft);
+  }) as any;
+  let logged: any[] = [];
+  _deps.logUsage = (async (...args: any[]) => { logged = args; }) as any;
+  try {
+    const request = outcome === "vision"
+      ? { type: "express_full", carousel_type: "mix", subject: "Hidalgo aux côtés des familles", photos: [{ base64: "aGVsbG8=", mimeType: "image/jpeg" }], deepening_answers: { faits: "Refus de responsabilité pénale sur France Inter." } }
+      : { type: "express_full", carousel_type: "text", subject: "Hidalgo aux côtés des familles", deepening_answers: { faits: "Refus de responsabilité pénale sur France Inter." } };
+    const res = await handleRequest(makeHooksRequest(request));
+    assertEquals(res.status, 200);
+    const out = await res.json(), parsed = JSON.parse(out.content.match(/\{[\s\S]*\}/)[0]);
+    if (outcome === "vision") {
+      // En vision, pas de réparation (les photos ne sont pas renvoyées) : mesure + avertissement.
+      assertEquals(writes, 1); assertEquals(judged, 1);
+      assertEquals(parsed.slides.length, 5);
+      assertEquals(parsed.structure_warnings.length, 2);
+      return;
+    }
+    assertEquals(writes, 2); assertEquals(judged, 2);
+    assert(repairPrompt.includes("BROUILLON À COMPLÉTER"), "brouillon renvoyé");
+    assert(repairPrompt.includes("DÉFAUTS DE FIL"), "défauts de fil transmis");
+    assert(repairPrompt.includes("Note de lecture"), "défaut nommé transmis");
+    assert(repairPrompt.includes("Le nombre de slides peut baisser"), "sans nombre exact, fusion permise");
+    assert(!repairPrompt.includes("DÉFAUTS STRUCTURELS"), "aucun défaut structurel inventé");
+    assertEquals(logged[3], 60, "tokens de la réparation comptés");
+    if (outcome === "better") {
+      assertEquals(parsed.slides.length, 3);
+      assertEquals(parsed.structure_warnings, []);
+    } else {
+      assertEquals(parsed.slides.length, 5, "réparation sans progrès refusée");
+      assertEquals(parsed.structure_warnings.length, 2);
+    }
+  } finally { globalThis.fetch = oldFetch; if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key); }
+});
+
+Deno.test("fil : « Mes slides » (texte de la personne) et structure confirmée ne sont jamais rejugés", async () => {
+  resetDeps();
+  let judged = 0;
+  _deps.reviewThread = (async () => { judged++; return ["Les slides 2 et 3 disent la même idée."]; }) as any;
+  const slides = Array.from({ length: 4 }, (_, i) => ({ slide_number: i + 1, title: `Slide ${i + 1}`, body: "Texte écrit par la personne.", role: i === 3 ? "conclusion" : "argument" }));
+  _deps.callCarouselWriter = (async (opts: any, sink: any) => { Object.assign(sink, { model: opts.model, total_tokens: 30 }); return JSON.stringify({ slides, caption: { body: "Légende." } }); }) as any;
+  _deps.callAnthropic = _deps.callCarouselWriter;
+  const oldFetch = globalThis.fetch;
+  globalThis.fetch = (() => Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })))) as typeof fetch;
+  try {
+    for (const body of [
+      { type: "slides", carousel_type: "text", subject: "Sujet", user_slides: slides.map(s => ({ title: s.title, body: s.body })) },
+      { type: "express_full", carousel_type: "text", subject: "Sujet", confirmed_structure: slides.map(s => ({ slide_number: s.slide_number, role: s.role, title_suggestion: s.title, strategic_note: "" })) },
+    ]) {
+      const res = await handleRequest(makeHooksRequest(body));
+      assertEquals(res.status, 200);
+      await res.text();
+    }
+    assertEquals(judged, 0);
+  } finally { globalThis.fetch = oldFetch; }
 });
