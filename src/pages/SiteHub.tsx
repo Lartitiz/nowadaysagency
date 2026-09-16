@@ -1,139 +1,32 @@
-import { useState, useEffect } from "react";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
-import AppHeader from "@/components/AppHeader";
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
-import { toast } from "sonner";
+import { FilePenLine, PencilLine, ScanEye, UserRound, Quote, PanelsTopLeft } from "lucide-react";
+import { PresenceLayout, PresenceScope, PresenceCard, PresenceChoices, PresenceLink } from "@/components/hub/PresenceLayout";
+import SiteContext from "@/components/hub/SiteContext";
 
-const CMS_OPTIONS = [
-  { value: "squarespace", label: "Squarespace" },
-  { value: "wordpress", label: "WordPress" },
-  { value: "shopify", label: "Shopify" },
-  { value: "wix", label: "Wix" },
-  { value: "autre", label: "Autre" },
-  { value: "none", label: "Je n'ai pas encore de site" },
-];
+export default function SiteHub() { return <PresenceScope page={SiteSpace} />; }
 
-const CARDS = [
-  { emoji: "🔍", title: "Auditer ma conversion", desc: "Diagnostique ton site et découvre ce qui empêche tes visiteuses de passer à l'action.", to: "/site/audit" },
-  { emoji: "🏠", title: "Rédiger ma page d'accueil / vente", desc: "Rédige les textes de ta page section par section. Page d'accueil, page de vente ou page de services.", to: "/site/accueil" },
-  { emoji: "🔧", title: "Optimiser ma page existante", desc: "Tu as déjà une page de vente ? Colle ton URL, l'IA l'analyse et te propose des améliorations section par section.", to: "/site/optimiser" },
-  { emoji: "🎁", title: "Rédiger ma page de capture", desc: "Récolte des emails avec un lead magnet. Structure minimale et efficace.", to: "/site/capture" },
-  { emoji: "👋", title: "Rédiger ma page À propos", desc: "Raconte ton histoire pour créer du lien.", to: "/site/a-propos" },
-  { emoji: "💬", title: "Récolter mes témoignages", desc: "Récolte et structure des témoignages qui convertissent.", to: "/site/temoignages" },
-  { emoji: "🎨", title: "Piocher des inspirations visuelles", desc: "Des templates de sections à copier-coller, personnalisés avec ton branding.", to: "/site/inspirations" },
-  { emoji: "💚", title: "Rédiger mes pages produits", desc: "Des fiches produits qui donnent envie d'acheter.", to: "/site/produits", tag: "Bientôt", disabled: true },
-  { emoji: "⚙️", title: "Autres optimisations", desc: "SEO, vitesse, accessibilité, mentions légales.", to: "/site/optimisations", tag: "Bientôt", disabled: true },
-];
-
-export default function SiteHub() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const workspaceId = useWorkspaceId();
-  const [cms, setCms] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [homepageStep, setHomepageStep] = useState(0);
-  const [lastAuditScore, setLastAuditScore] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const [wpRes, hpRes, auditRes] = await Promise.all([
-        (supabase.from("website_profile") as any).select("cms").eq(column, value).maybeSingle(),
-        (supabase.from("website_homepage") as any).select("current_step, completed").eq(column, value).maybeSingle(),
-        (supabase.from("website_audit" as any).select("score_global").eq(column, value).order("created_at", { ascending: false }).limit(1).maybeSingle()),
-      ]);
-      if (wpRes.data) setCms(wpRes.data.cms);
-      if (hpRes.data) setHomepageStep(hpRes.data.completed ? 10 : (hpRes.data.current_step || 1));
-      if ((auditRes as any).data?.score_global != null) setLastAuditScore((auditRes as any).data.score_global);
-      setLoading(false);
-    };
-    load();
-  }, [user?.id]);
-
-  const saveCms = async (value: string) => {
-    if (!user) return;
-    setCms(value);
-    const { error } = await supabase.from("website_profile").upsert({ 
-      user_id: user.id, 
-      workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      cms: value 
-    } as any, { onConflict: "user_id,workspace_id" });
-    if (error) toast.error("Erreur de sauvegarde");
-  };
-
-  if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
-
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
-        <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-          <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
-        </Link>
-        <div className="mb-8">
-          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">🌐 Mon Site Web</h1>
-          <p className="mt-1 text-base text-muted-foreground">Analyse ton site, améliore ton SEO, retravaille tes pages : l'objectif c'est que Google te trouve avant tes concurrentes.</p>
-        </div>
-
-        {/* CMS selector */}
-        {!cms && (
-          <div className="rounded-2xl border border-primary bg-rose-pale p-6 mb-8">
-            <p className="font-body text-base font-bold text-foreground mb-4">Quel outil utilises-tu pour ton site ?</p>
-            <div className="flex flex-wrap gap-2">
-              {CMS_OPTIONS.map((opt) => (
-                <button key={opt.value} onClick={() => saveCms(opt.value)} className="font-mono-ui text-xs font-semibold px-4 py-2 rounded-pill border-2 border-border bg-card hover:border-primary hover:bg-rose-pale transition-colors">
-                  {opt.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {cms && (
-          <div className="text-xs text-muted-foreground mb-6 flex items-center gap-2">
-            <span>🔧 Outil : <strong>{CMS_OPTIONS.find(o => o.value === cms)?.label}</strong></span>
-            <button onClick={() => setCms(null)} className="underline text-primary text-xs">Changer</button>
-          </div>
-        )}
-        {lastAuditScore !== null && lastAuditScore < 60 && (
-          <div className="rounded-2xl border border-primary bg-rose-pale p-5 mb-6 flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <div className="flex-1">
-              <p className="text-sm font-medium text-foreground">
-                Ton dernier audit montre un score de <strong>{lastAuditScore}/100</strong>. Quelques ajustements peuvent faire une vraie différence.
-              </p>
-            </div>
-            <Link to="/site/audit" className="shrink-0 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
-              Voir mes recommandations →
-            </Link>
-          </div>
-        )}
-
-        {/* Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CARDS.map((card) => {
-            const label: string | null = null;
-            const inner = (
-              <div className={`group relative rounded-2xl border bg-card p-6 transition-all ${card.disabled ? "opacity-70 cursor-default" : "hover:border-primary hover:shadow-md cursor-pointer"}`}>
-                {label && <span className="absolute top-4 right-4 font-mono-ui text-2xs font-semibold text-muted-foreground bg-rose-pale px-2 py-0.5 rounded-pill">{label}</span>}
-                <span className="text-2xl mb-3 block">{card.emoji}</span>
-                <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                {/* Seules les 2 cartes « Bientôt » portent un tag : sans cette
-                    garde, les 7 autres affichaient une pastille rose VIDE
-                    (regard du 17/08). */}
-                {card.tag && (
-                  <span className={`mt-3 inline-block font-mono-ui text-2xs font-semibold px-2.5 py-0.5 rounded-pill ${card.disabled ? "bg-secondary text-muted-foreground" : "text-primary-text bg-rose-pale"}`}>{card.tag}</span>
-                )}
-              </div>
-            );
-            if (card.disabled) return <div key={card.to}>{inner}</div>;
-            return <Link key={card.to} to={card.to}>{inner}</Link>;
-          })}
-        </div>
-      </main>
+function SiteSpace() {
+  return <PresenceLayout label="Améliorer mon site" title="Des pages qui expliquent ton offre." description="Rédige ou améliore tes textes, puis intègre-les dans ton outil de site web.">
+    <p className="mb-6 rounded-xl border border-border bg-rose-pale/40 px-5 py-4 text-sm text-foreground">Textes et audit : ton site reste dans ton outil habituel.</p>
+    <div className="grid gap-4 sm:grid-cols-2">
+      <PresenceChoices title="Rédiger une page" description="Choisis la page que tu veux préparer ou reprendre." icon={FilePenLine}>
+        <PresenceLink to="/site/accueil">Accueil, services ou page de vente</PresenceLink>
+        <PresenceLink to="/site/capture">Page de capture · recueillir des emails</PresenceLink>
+      </PresenceChoices>
+      <PresenceCard title="Améliorer une page" description="Revoir le texte d’une page existante, section par section." icon={PencilLine} to="/site/optimiser" />
+      <PresenceCard title="Auditer une page" description="Identifier les informations et les appels à l’action à clarifier." icon={ScanEye} to="/site/audit" />
+      <PresenceCard title="Ma page À propos" description="Présenter ton parcours et ta façon de travailler." icon={UserRound} to="/site/a-propos" />
     </div>
-  );
+    <details className="mt-6 border-y border-border py-4">
+      <summary className="cursor-pointer text-sm font-medium text-foreground">Témoignages et inspirations visuelles</summary>
+      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <PresenceCard title="Mes témoignages" description="Préparer une demande et mettre en forme les retours reçus." icon={Quote} to="/site/temoignages" />
+        <PresenceCard title="Inspirations de sections" description="Explorer des compositions à reprendre sur ton site." icon={PanelsTopLeft} to="/site/inspirations" />
+      </div>
+    </details>
+    <SiteContext />
+    <details className="border-t border-border py-4">
+      <summary className="cursor-pointer text-sm text-muted-foreground">Fonctionnalités à venir</summary>
+      <p className="mt-3 text-sm text-muted-foreground">Fiches produits et autres optimisations : ces outils ne sont pas encore disponibles.</p>
+    </details>
+  </PresenceLayout>;
 }

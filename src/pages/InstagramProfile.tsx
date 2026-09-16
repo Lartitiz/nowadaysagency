@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileOwner } from "@/hooks/use-workspace-query";
+import { PresenceScope } from "@/components/hub/PresenceLayout";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
 import { Link } from "react-router-dom";
@@ -53,10 +54,15 @@ function scoreBadge(score: number | null) {
   return { label: "Pas fait", color: "bg-muted text-muted-foreground" };
 }
 
-export default function InstagramProfile() {
+export default function InstagramProfile() { return <PresenceScope page={InstagramProfileOverview} />; }
+
+function InstagramProfileOverview() {
   const { user } = useAuth();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
+  const owner = useProfileOwner();
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [audit, setAudit] = useState<AuditData | null>(null);
   const [loading, setLoading] = useState(true);
   const [validations, setValidations] = useState<ValidationStatus[]>([]);
@@ -84,33 +90,36 @@ export default function InstagramProfile() {
       setLoading(false);
       return;
     }
-    if (!user) return;
+    if (!user || owner.loading || owner.error || !owner.userId) return;
+    let current = true;
+    setLoading(true); setError(false);
     const fetchData = async () => {
-      const [{ data: auditData }, { data: valData }, { data: profileData }] = await Promise.all([
-        (supabase
-          .from("instagram_audit") as any)
+      try {
+        let query = supabase.from("instagram_audit")
           .select("score_global, score_nom, score_bio, score_stories, score_epingles, score_feed, score_edito, resume")
-          .eq(column, value)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle(),
-        (supabase
-          .from("audit_validations" as any) as any)
-          .select("section, status")
-          .eq("user_id", user.id),
-        (supabase
-          .from("profiles") as any)
-          .select("instagram_display_name, instagram_bio, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_pillars")
-          .eq(column, value)
-          .maybeSingle(),
-      ]);
-      if (auditData) setAudit(auditData as AuditData);
-      if (valData) setValidations(valData as unknown as ValidationStatus[]);
-      if (profileData) setSnippets(profileData as unknown as ProfileSnippets);
-      setLoading(false);
+          .eq(column as "workspace_id" | "user_id", value);
+        if (column === "user_id") query = query.is("workspace_id", null);
+        // profiles has no workspace_id. Its owner must be resolved, never replaced by the manager.
+        // Validation marks are account-scoped, unlike audits. Keep that distinction in the UI.
+        const [auditResult, validationResult, profileResult] = await Promise.all([
+          query.order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          supabase.from("audit_validations").select("section, status").eq("user_id", user.id),
+          supabase.from("profiles").select("instagram_display_name, instagram_bio, instagram_highlights, instagram_highlights_count, instagram_pinned_posts, instagram_feed_description, instagram_pillars").eq("user_id", owner.userId).maybeSingle(),
+        ]);
+        if (!current) return;
+        if (auditResult.error || validationResult.error || profileResult.error) throw new Error("Lecture du profil indisponible");
+        setAudit(auditResult.data as AuditData | null);
+        setValidations(validationResult.data || []);
+        setSnippets((profileResult.data ?? {}) as unknown as ProfileSnippets);
+      } catch {
+        if (current) setError(true);
+      } finally {
+        if (current) setLoading(false);
+      }
     };
-    fetchData();
-  }, [user?.id, isDemoMode]);
+    void fetchData();
+    return () => { current = false; };
+  }, [user?.id, isDemoMode, demoData, column, value, owner.userId, owner.loading, owner.error, retry]);
 
   const getScore = (key: string): number | null => {
     if (!audit) return null;
@@ -137,7 +146,13 @@ export default function InstagramProfile() {
   const isOptimised = (key: string): boolean => getValidationStatus(key) === "validated";
   const optimisedCount = SECTIONS.filter(s => isOptimised(s.key)).length;
 
-  if (loading) {
+  if (!isDemoMode && (error || owner.error)) return <div className="min-h-screen bg-background"><AppHeader /><main id="main-content" className="mx-auto max-w-3xl p-6">
+    <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Mon profil" />
+    <p role="alert">Impossible de charger ton profil. Tes informations n’ont pas été modifiées.</p>
+    <Button className="mt-4" onClick={() => { if (owner.error) void owner.reload(); setRetry(n => n + 1); }}>Réessayer</Button>
+  </main></div>;
+
+  if (loading || (!isDemoMode && owner.loading)) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="flex gap-1">
@@ -152,10 +167,10 @@ export default function InstagramProfile() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
+      <main id="main-content" className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
         <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Mon profil" />
 
-        <h1 className="font-display text-3xl font-bold text-foreground">👤 Mon profil Instagram</h1>
+        <h1 className="font-display text-3xl font-bold text-foreground">Mon profil Instagram</h1>
         <p className="mt-2 text-sm text-muted-foreground mb-6">
           Optimise chaque élément de ton profil. Chaque case cochée, c'est un profil qui donne plus envie de te suivre.
         </p>
@@ -163,7 +178,7 @@ export default function InstagramProfile() {
         {/* Progression — indicateur unifié (même cadre que LinkedIn & Pinterest) */}
         <div className="mb-8">
           <div className="flex items-center justify-between text-sm text-muted-foreground mb-1.5">
-            <span>Progression du profil</span>
+            <span>Mes validations personnelles</span>
             <span><strong className="text-foreground">{optimisedCount}</strong> / {SECTIONS.length} optimisés</span>
           </div>
           <div className="h-2 rounded-pill bg-muted overflow-hidden">
@@ -171,6 +186,7 @@ export default function InstagramProfile() {
           </div>
         </div>
 
+        <p className="mb-5 text-xs text-muted-foreground">Ces validations sont liées à ton compte. Les scores d’audit concernent l’espace sélectionné.</p>
         {/* Cartes des éléments du profil */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {SECTIONS.map(s => {

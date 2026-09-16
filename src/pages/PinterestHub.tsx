@@ -1,95 +1,20 @@
-import { useState, useEffect } from "react";
-import { toLocalDateStr } from "@/lib/utils";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
-import AppHeader from "@/components/AppHeader";
-import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { UserRound, PanelsTopLeft, Search, Pin } from "lucide-react";
+import { PresenceLayout, PresenceScope, PresenceCreate, PresenceCard, PresenceLink } from "@/components/hub/PresenceLayout";
 
-const CARDS = [
-  { emoji: "👤", title: "Compléter mon profil", desc: "Passe en pro, photo, nom, bio, URL.", to: "/pinterest/compte" },
-  { emoji: "🎨", title: "Organiser mes tableaux", desc: "Crée et optimise tes tableaux.", to: "/pinterest/tableaux" },
-  { emoji: "🔎", title: "Trouver mes mots-clés", desc: "Les bons mots-clés SEO pour être trouvée.", to: "/pinterest/mots-cles", tag: "IA" },
-  { emoji: "📌", title: "Créer mes épingles", desc: "Des épingles optimisées, titre + description.", to: "/pinterest/epingles", tag: "IA" },
-  { emoji: "⏰", title: "Suivre ma routine", desc: "Ton rythme et ta checklist mensuelle.", to: "/pinterest/routine" },
-  { emoji: "💡", title: "Trouver des idées", desc: "Idées de contenu Pinterest.", to: "/creer?canal=pinterest", tag: "IA" },
-  { emoji: "📅", title: "Planifier mes épingles", desc: "Ton calendrier Pinterest.", to: "/calendrier?canal=pinterest" },
-];
+export default function PinterestHub() { return <PresenceScope page={PinterestSpace} />; }
 
-export default function PinterestHub() {
-  const { user } = useAuth();
-  const { column, value } = useWorkspaceFilter();
-  const [progress, setProgress] = useState({ profileSteps: 0, boardsCount: 0, pinsCount: 0, ideasCount: 0, calendarCount: 0 });
-
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const now = new Date();
-      const monthStart = toLocalDateStr(new Date(now.getFullYear(), now.getMonth(), 1));
-      const monthEnd = toLocalDateStr(new Date(now.getFullYear(), now.getMonth() + 1, 0));
-      const [profRes, boardRes, pinRes, ideasRes, calRes] = await Promise.all([
-        (supabase.from("pinterest_profile") as any).select("pro_account_done, photo_done, name_done, bio_done, url_done").eq(column, value).maybeSingle(),
-        (supabase.from("pinterest_boards") as any).select("id", { count: "exact", head: true }).eq(column, value),
-        (supabase.from("pinterest_pins") as any).select("id", { count: "exact", head: true }).eq(column, value),
-        (supabase.from("saved_ideas") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "pinterest"),
-        (supabase.from("calendar_posts") as any).select("id", { count: "exact", head: true }).eq(column, value).eq("canal", "pinterest").gte("date", monthStart).lte("date", monthEnd),
-      ]);
-      const pp = profRes.data;
-      setProgress({
-        profileSteps: pp ? [pp.pro_account_done, pp.photo_done, pp.name_done, pp.bio_done, pp.url_done].filter(Boolean).length : 0,
-        boardsCount: boardRes.count || 0,
-        pinsCount: pinRes.count || 0,
-        ideasCount: ideasRes.count || 0,
-        calendarCount: calRes.count || 0,
-      });
-    };
-    load();
-  }, [user?.id]);
-
-  const getLabel = (i: number): string | null => {
-    switch (i) {
-      case 0: return `${progress.profileSteps}/5 éléments`;
-      case 1: return `${progress.boardsCount} tableau${progress.boardsCount !== 1 ? "x" : ""}`;
-      case 2: return null;
-      case 3: return `${progress.pinsCount} épingle${progress.pinsCount !== 1 ? "s" : ""}`;
-      case 4: return null;
-      case 5: return `${progress.ideasCount} idée${progress.ideasCount !== 1 ? "s" : ""}`;
-      case 6: return `${progress.calendarCount} post${progress.calendarCount !== 1 ? "s" : ""} ce mois`;
-      default: return null;
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-background">
-      <AppHeader />
-      <main className="mx-auto max-w-5xl px-6 py-8 max-md:px-4">
-        <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline mb-6">
-          <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
-        </Link>
-        <div className="mb-8">
-          <h1 className="font-display text-3xl sm:text-3xl font-bold text-foreground">📌 Mon Pinterest</h1>
-          <p className="mt-1 text-base text-muted-foreground">Crée des épingles, planifie tes tableaux, génère du trafic : Pinterest c'est le moteur de recherche visuel que tout le monde oublie.</p>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {CARDS.map((card, idx) => {
-            const label = getLabel(idx);
-            return (
-              <Link key={card.to} to={card.to} className="group relative rounded-2xl border border-border bg-card p-6 hover:border-primary hover:shadow-md transition-all">
-                
-                <span className="text-2xl mb-3 block">{card.emoji}</span>
-                <h3 className="font-display text-lg font-bold text-foreground group-hover:text-primary transition-colors">{card.title}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">{card.desc}</p>
-                {/* Même garde que /site : 4 des 7 cartes n'ont pas de tag et
-                    affichaient une pastille rose VIDE (regard du 17/08). */}
-                {card.tag && (
-                  <span className="mt-3 inline-block font-mono-ui text-2xs font-semibold text-primary-text bg-rose-pale px-2.5 py-0.5 rounded-pill">{card.tag}</span>
-                )}
-              </Link>
-            );
-          })}
-        </div>
-      </main>
+function PinterestSpace() {
+  return <PresenceLayout label="Pinterest" title="Des idées qui mènent vers toi." description="Organise tes tableaux et prépare des épingles utiles, avec le bon lien.">
+    <PresenceCreate channel="pinterest" label="Créer pour Pinterest" description="Prépare un visuel et le texte de ta prochaine épingle." />
+    <div className="grid gap-4 sm:grid-cols-2">
+      <PresenceCard title="Mon profil" description="Nom, description, photo et lien vers ton site." icon={UserRound} to="/pinterest/compte" />
+      <PresenceCard title="Mes tableaux" description="Des thèmes clairs pour organiser tes épingles." icon={PanelsTopLeft} to="/pinterest/tableaux" />
+      <PresenceCard title="Mes mots-clés" description="Les mots à réutiliser dans tes tableaux et tes épingles." icon={Search} to="/pinterest/mots-cles" />
+      <PresenceCard title="Mes épingles" description="Retrouve tes titres, descriptions, tableaux et liens enregistrés." icon={Pin} to="/pinterest/epingles" />
     </div>
-  );
+    <nav aria-label="Organisation Pinterest" className="my-6 flex flex-wrap gap-x-6 gap-y-1">
+      <PresenceLink to="/pinterest/routine">Ma routine Pinterest</PresenceLink>
+      <PresenceLink to="/calendrier?canal=pinterest">Mon calendrier</PresenceLink>
+    </nav>
+  </PresenceLayout>;
 }
