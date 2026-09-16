@@ -1,4 +1,6 @@
 import CarouselModePicker from "./CarouselModePicker";
+import CarouselFormatPreview from "./CarouselFormatPreview";
+import ContentFormatPreview from "./ContentFormatPreview";
 import { recommendContentFormat } from "@/lib/format-recommendation";
 import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
@@ -559,7 +561,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
                 onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "text" }); }}
                 className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
               >
-                <span className="text-2xl block mb-1">🎠</span>
+                <CarouselFormatPreview mode="text" />
                 <span className="text-xs font-semibold text-foreground">Texte design</span>
                 <p className="text-2xs text-muted-foreground mt-0.5">Texte mis en page aux couleurs de ta marque</p>
               </button>
@@ -568,7 +570,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
               onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "mix" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
-              <span className="text-2xl block mb-1">✨</span>
+              <CarouselFormatPreview mode="mix" />
               <span className="text-xs font-semibold text-foreground">Photos + slides design</span>
               <p className="text-2xs text-muted-foreground mt-0.5">Alternance de photos et de slides texte</p>
             </button>
@@ -576,7 +578,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
               onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "photo" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
-              <span className="text-2xl block mb-1">📸</span>
+              <CarouselFormatPreview mode="photo" />
               <span className="text-xs font-semibold text-foreground">Tes photos en fond</span>
               <p className="text-2xs text-muted-foreground mt-0.5">Photos plein écran + texte court par-dessus</p>
             </button>
@@ -584,7 +586,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
               onClick={() => { setLinkedinSubMode("carousel"); handleFormatSelect("carousel", { keepCarouselSubMode: "pure_photo" }); }}
               className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
             >
-              <span className="text-2xl block mb-1">🖼️</span>
+              <CarouselFormatPreview mode="pure_photo" />
               <span className="text-xs font-semibold text-foreground">Photos brutes</span>
               <p className="text-2xs text-muted-foreground mt-0.5">Tes photos au bon format, l'IA écrit juste le post</p>
             </button>
@@ -647,8 +649,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
                         : "border-border bg-card hover:border-primary/40"
                     }`}
                   >
-                    <span className="text-2xl block mb-1">{spec.emoji}</span>
-                    <span className="text-xs font-semibold text-foreground">{spec.label}</span>
+                    <ContentFormatPreview format={id} />
+                    <span className="text-sm font-semibold text-foreground">{spec.label}</span>
+                    <p className="mt-1 text-xs text-muted-foreground">{id === "carousel" ? "Plusieurs slides à faire défiler" : id === "reel" ? "Une vidéo verticale, avec ton script" : id === "story" ? "Une séquence de visuels verticaux" : "Une photo et sa légende"}</p>
                     {spec.comingSoon && (
                       <Badge variant="secondary" className="absolute top-1 right-1 text-2xs">Bientôt</Badge>
                     )}

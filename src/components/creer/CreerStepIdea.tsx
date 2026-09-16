@@ -3,7 +3,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
-import { ArrowRight, Sparkles, HelpCircle, Newspaper, Camera, ArrowLeft, Repeat, CalendarRange } from "lucide-react";
+import { ArrowRight, Camera, ArrowLeft, CalendarRange } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import ContentCoachingDialog from "@/components/dashboard/ContentCoachingDialog";
 // Gros panneau (recherche d'actu) chargé à la demande — pas dans le chunk initial.
@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 interface Props {
+  channel?: "instagram" | "linkedin" | "pinterest" | "newsletter" | null;
   onNext: (idea: string) => void;
   onIdeaChange?: (idea: string) => void;
   onPhotosChange?: (photos: PhotoItem[]) => void;
@@ -44,7 +45,7 @@ const STARTER_IDEAS = [
   "Ce que j'aurais aimé savoir en débutant",
 ];
 
-export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry }: Props) {
+export default function CreerStepIdea({ channel, onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry }: Props) {
   const [fallbackIdea, setFallbackIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
@@ -110,145 +111,75 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <div>
-        <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" /> Qu'est-ce que tu veux partager ?
-        </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          L'IA transforme ton idée en contenu prêt à publier.
-        </p>
-      </div>
-
       {!showNewsjacking && !showPhotosMode && (
         <>
-          {/* Subject textarea — primary path */}
-          <div className="space-y-2">
-            <Textarea
-              value={idea}
-              onChange={(e) => setIdea(e.target.value)}
-              placeholder={UNIVERSAL_PLACEHOLDER}
-              rows={4}
-              className="resize-none"
-            />
-            <p className="text-xs text-muted-foreground">
-              Pas besoin d'être précise : un mot-clé, une phrase, une envie.
-            </p>
-
-            {/* Départs prêts : 1 clic pour remplir et démarrer une première création */}
-            <div className="pt-1">
-              <p className="text-2xs uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">
-                {personalIdeas.length > 0 ? "💡 Tes idées, tirées de ton diagnostic" : "Pas d'inspiration ? Pioche un départ"}
-              </p>
-              <div className="flex flex-wrap gap-1.5">
-                {starterChips.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setIdea(s)}
-                    className="text-xs rounded-pill border border-border bg-muted/40 hover:border-primary/50 hover:bg-secondary px-3 py-1.5 text-foreground transition-colors"
-                  >
-                    {s}
+          <header>
+            {channel && <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">{{ instagram: "Instagram", linkedin: "LinkedIn", pinterest: "Pinterest", newsletter: "Newsletter" }[channel]}</p>}
+            <h1 className="font-display text-4xl sm:text-5xl text-primary leading-tight">De quoi veux-tu parler&nbsp;?</h1>
+            <p className="mt-3 text-sm sm:text-base text-muted-foreground">Une idée suffit. Tu peux aussi commencer avec tes photos.</p>
+          </header>
+          <div className="grid gap-8 md:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] md:gap-10">
+            <div className="min-w-0">
+              <div className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-7">
+                <label htmlFor="creation-idea" className="block text-sm font-semibold text-primary">Ton idée</label>
+                <Textarea
+                  id="creation-idea"
+                  value={idea}
+                  onChange={(e) => setIdea(e.target.value)}
+                  placeholder="Une nouveauté, les coulisses, une question de tes clientes…"
+                  rows={6}
+                  className="resize-y min-h-40 text-base"
+                />
+                {onPhotosNext && (
+                  <button type="button" onClick={() => setShowPhotosMode(true)} className="inline-flex items-center gap-2 text-sm text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
+                    <Camera size={17} aria-hidden="true" /> Partir de photos{localPhotos.length > 0 ? ` (${localPhotos.length})` : ""}
+                  </button>
+                )}
+                <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
+                  <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">Quelques mots suffisent pour commencer.</p>
+                  <Button onClick={() => onNext(idea.trim())} disabled={!idea.trim()} className="gap-2" size="lg">
+                    Continuer <ArrowRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <details className="mt-5 text-sm">
+                <summary className="w-fit cursor-pointer text-primary underline underline-offset-4 rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
+                  {personalIdeas.length > 0 ? "Retrouver mes idées du diagnostic" : "Essayer avec un exemple"}
+                </summary>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {starterChips.map((s) => (
+                    <button key={s} type="button" onClick={() => setIdea(s)} className="rounded-xl border border-border bg-card px-3 py-2 text-left text-xs hover:border-primary/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            </div>
+            <aside aria-label="Autres points de départ" className="min-w-0">
+              <p className="mb-3 text-xs uppercase tracking-widest text-muted-foreground">Un autre point de départ</p>
+              <div className="divide-y divide-border border-y border-border">
+                {[
+                  { label: "J’ai déjà du contenu", description: "Recycler, adapter ou s’inspirer d’un texte, d’un post ou d’un document.", action: () => setShowTransform(true) },
+                  { label: "J’ai besoin d’une idée", description: "Quelques échanges pour trouver quoi partager.", action: () => setCoachOpen(true) },
+                  { label: "Réagir à une actualité", description: "Relier une actu à ton activité.", action: () => setShowNewsjacking(true) },
+                ].map(({ label, description, action }) => (
+                  <button key={label} type="button" onClick={action} className="group flex w-full items-center gap-4 py-5 text-left text-primary hover:bg-rose-pale/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2">
+                    <span className="min-w-0 flex-1"><span className="block text-base font-semibold">{label}</span><span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{description}</span></span>
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border bg-card group-hover:border-primary/40"><ArrowRight size={17} aria-hidden="true" /></span>
                   </button>
                 ))}
               </div>
-            </div>
-
-          </div>
-
-          {/* Primary CTA */}
-          <Button
-            onClick={() => onNext(idea.trim())}
-            disabled={!idea.trim()}
-            className="w-full gap-2"
-            size="lg"
-          >
-            Suivant <ArrowRight className="h-4 w-4" />
-          </Button>
-          {!idea.trim() && (
-            <p className="text-xs text-muted-foreground text-center -mt-1">
-              Écris ton idée (ou pioche un départ ci-dessus) pour continuer.
-            </p>
-          )}
-          {/* Alternative entry points — clearly visually separated */}
-          <div className="pt-2">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="h-px bg-foreground/20 flex-1" />
-              <p className="text-xs uppercase tracking-wider text-foreground font-semibold">
-                ou pars d'autre chose
-              </p>
-              <div className="h-px bg-foreground/20 flex-1" />
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {onPhotosNext && (
-                <button
-                  type="button"
-                  onClick={() => setShowPhotosMode(true)}
-                  className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <Camera className="h-4 w-4 text-primary" />
-                    <span className="text-sm font-semibold text-foreground">Partir de photos</span>
-                  </div>
-                  <p className="text-2xs text-muted-foreground">J'ai des photos, on construit autour.</p>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowNewsjacking(true)}
-                className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Newspaper className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">Surfer sur l'actu</span>
-                </div>
-                <p className="text-2xs text-muted-foreground">Réagir à une news fraîche.</p>
+              <button type="button" onClick={() => navigate("/calendrier?coaching=1")} className="mt-6 flex items-center gap-2 rounded-sm text-sm text-primary underline underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4">
+                <CalendarRange size={17} aria-hidden="true" /> Préparer ma semaine
               </button>
-              <button
-                type="button"
-                onClick={() => setShowTransform(true)}
-                className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <Repeat className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">Transformer un contenu</span>
-                </div>
-                <p className="text-2xs text-muted-foreground">Recycler un post existant.</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setCoachOpen(true)}
-                className="text-left rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-muted/30 p-3 transition-all group"
-              >
-                <div className="flex items-center gap-2 mb-1">
-                  <HelpCircle className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">Pas d'idée ?</span>
-                </div>
-                <p className="text-2xs text-muted-foreground">Laisse-toi guider par la coach.</p>
-              </button>
-
-            </div>
-            {/* Banner: Planifier ma semaine */}
-            <button
-              type="button"
-              onClick={() => navigate("/calendrier?coaching=1")}
-              className="w-full mt-2 rounded-xl bg-rose-soft p-3 flex items-center gap-3 text-left transition-all hover:opacity-90"
-            >
-              <CalendarRange className="h-5 w-5 text-bordeaux shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-bordeaux">Plutôt envie de voir plus loin ?</p>
-                <p className="text-xs text-bordeaux">L'IA te propose 5 idées pour toute ta semaine.</p>
-              </div>
-              <span className="bg-card text-bordeaux rounded-lg px-3 py-1.5 text-xs font-medium whitespace-nowrap hover:bg-card/80">
-                Ma semaine →
-              </span>
-            </button>
+            </aside>
           </div>
         </>
       )}
 
       {/* Photos-first mode */}
       {showPhotosMode && (
-        <div className="space-y-4 animate-fade-in">
+        <div className="max-w-2xl mx-auto space-y-4 animate-fade-in">
           <button
             type="button"
             onClick={exitPhotosMode}
@@ -262,7 +193,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               <Camera className="h-4 w-4 text-primary" /> Pars de tes photos
             </h3>
             <p className="text-sm text-muted-foreground mt-1">
-              Uploade tes photos, dis-nous de quoi tu veux parler. On choisira ensuite le format ensemble.
+              Ajoute tes photos, puis choisis le format. Le sujet est optionnel.
             </p>
           </div>
 
@@ -277,10 +208,11 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           />
 
           <div className="space-y-2">
-          <label className="text-sm font-medium text-foreground">
+          <label htmlFor="creation-photo-subject" className="text-sm font-medium text-foreground">
             De quoi veux-tu parler ? <span className="font-normal text-muted-foreground">(optionnel)</span>
           </label>
             <Textarea
+              id="creation-photo-subject"
               value={localPhotoSubject}
               onChange={(e) => setLocalPhotoSubject(e.target.value)}
               placeholder={UNIVERSAL_PLACEHOLDER}
@@ -288,7 +220,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
               className="resize-none"
             />
             <p className="text-2xs text-muted-foreground">
-              Pas d'idée précise ? Laisse vide : on te posera 2-3 questions à partir de tes photos pour faire émerger ton angle.
+              Tu peux laisser ce champ vide : tes photos serviront de point de départ.
             </p>
           </div>
 
@@ -310,7 +242,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
       {/* Newsjacking panel */}
       {showNewsjacking && (
         <Suspense fallback={<div className="py-12 flex justify-center"><Spinner className="h-8 w-8" /></div>}>
-        <NewsjackingPanel
+        <div className="max-w-2xl mx-auto"><NewsjackingPanel
           onSelect={(data) => {
             setShowNewsjacking(false);
             toast("📡 Actu chargée", {
@@ -322,7 +254,7 @@ export default function CreerStepIdea({ onNext, onCoachingSelect, onNewsjackingS
           }}
           onClose={() => setShowNewsjacking(false)}
           workspaceId={workspaceId}
-        />
+        /></div>
         </Suspense>
       )}
 

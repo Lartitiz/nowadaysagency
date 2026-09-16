@@ -680,6 +680,13 @@ export default function CreerStepResult({
       )}
 
       {/* 1. Contenu (slides, caption, visuels, etc.) */}
+      {!isCarousel && onEdit && result && (
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={onEdit} className="gap-2">
+            <Pencil className="h-4 w-4" /> Éditer le texte
+          </Button>
+        </div>
+      )}
       {renderResult()}
 
       {/* Nudge personnalisation : les visuels utilisent une palette par défaut
@@ -700,7 +707,7 @@ export default function CreerStepResult({
 
       {/* The in-app document is ready to publish; Canva is an optional handoff. */}
       {isCarousel && hasVisuals && onOpenInCanva && (
-        <Button variant="outline" onClick={onOpenInCanva} disabled={openingCanva}>{openingCanva ? "Ouverture…" : "Continuer dans Canva (optionnel)"}</Button>
+        <Button variant="outline" className="max-w-full h-auto min-h-11 whitespace-normal px-4" onClick={onOpenInCanva} disabled={openingCanva}>{openingCanva ? "Ouverture…" : "Continuer dans Canva (optionnel)"}</Button>
       )}
 
       {/* HÉROS stories : mêmes visuels prêts à publier que le carrousel — le
@@ -882,11 +889,6 @@ export default function CreerStepResult({
           <DropdownMenuSeparator />
 
           {/* ── Affiner ── */}
-          {!isCarousel && onEdit && result && (
-            <DropdownMenuItem onClick={onEdit} className="gap-2">
-              <Pencil className="h-4 w-4" /> Éditer le texte
-            </DropdownMenuItem>
-          )}
           {isCarousel && hasVisuals && onGenerateVisuals && (
             <DropdownMenuItem onClick={onGenerateVisuals} disabled={visualLoading} className="gap-2">
               {visualLoading ? (

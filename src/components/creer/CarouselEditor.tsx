@@ -429,6 +429,36 @@ export default function CarouselEditor({
   if (!slide) return null;
   return (
     <section aria-label="Éditeur de carrousel" className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="font-display text-3xl text-primary">Personnaliser mon carrousel</h2>
+          <p className="text-xs text-muted-foreground">
+            Clique sur un élément ou choisis-le dans la liste. Tes retouches ne
+            consomment aucun crédit IA.
+          </p>
+        </div>
+        <div className="flex gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!history.current.past.length}
+            onClick={() => undo()}
+            aria-label="Annuler la modification"
+          >
+            <Undo2 size={15} />
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!history.current.future.length}
+            onClick={() => undo(true)}
+            aria-label="Rétablir la modification"
+          >
+            <Redo2 size={15} />
+          </Button>
+        </div>
+      </div>
+      <div className="grid gap-3 md:grid-cols-2">
       {cloudTools}
       {quality && quality.status !== "idle" && (
         <div
@@ -519,34 +549,6 @@ export default function CarouselEditor({
 
         </div>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="font-semibold text-lg">Modifier mon carrousel</h2>
-          <p className="text-xs text-muted-foreground">
-            Clique sur un élément ou choisis-le dans la liste. Tes retouches ne
-            consomment aucun crédit IA.
-          </p>
-        </div>
-        <div className="flex gap-1">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!history.current.past.length}
-            onClick={() => undo()}
-            aria-label="Annuler la modification"
-          >
-            <Undo2 size={15} />
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!history.current.future.length}
-            onClick={() => undo(true)}
-            aria-label="Rétablir la modification"
-          >
-            <Redo2 size={15} />
-          </Button>
-        </div>
       </div>
       <div
         className="flex gap-2 overflow-x-auto pb-2"
@@ -642,8 +644,8 @@ export default function CarouselEditor({
           Supprimer
         </Button>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_240px]">
-        <div className="min-w-0 max-w-[540px] w-full mx-auto">
+      <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_320px]">
+        <div className="min-w-0 max-w-[540px] w-full mx-auto md:sticky md:top-28">
           <SlideCanvas
             slide={slide}
             selected={selected}
@@ -657,7 +659,8 @@ export default function CarouselEditor({
             le déplacer, une photo pour la recadrer.
           </p>
         </div>
-        <div className="min-w-0 space-y-4 rounded-xl border bg-muted/20 p-3">
+        <div className="min-w-0 space-y-4 rounded-xl border bg-card p-4">
+          <h3 className="text-sm font-semibold">Texte, photos et mise en page</h3>
           <label className="block text-xs font-medium">
             Élément à modifier
             <select
