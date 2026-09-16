@@ -39,6 +39,8 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
       assert(!prompt.includes(contradiction), `Contradiction dans le prompt réellement envoyé : ${contradiction}`);
     }
     assert(prompt.includes("Une explication descriptive et une liste utile sont légitimes"));
+    assert(prompt.includes("Construis d'abord le propos entier"));
+    assert(prompt.includes("ce qu'elle reprend de la précédente"));
     assert(prompt.includes("Retours par e-mail"));
     if (news) { assert(prompt.includes("ACTUALITÉ_TEST")); assert(prompt.includes("sans désaccord, décalage ni quota d'opinions imposés")); }
     return JSON.stringify(draft);
@@ -56,6 +58,12 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
       const message = request.input[0].content;
       assert(message.includes("BRIEF ACTUEL PRIORITAIRE"));
       assert(message.includes("Attendre une réponse commune"));
+      assert(message.includes("FIL CONFIRMÉ À PRÉSERVER : FIL_VALIDÉ"));
+      assert(message.includes("STRUCTURE CHOISIE À PRÉSERVER : PLAN_VALIDÉ"));
+      assert(request.instructions.includes("RELECTURE DE L'ENSEMBLE AVANT LES CHAMPS"));
+      const sequence = JSON.parse(message.split("SÉQUENCE DES SLIDES (repères de lecture uniquement, non modifiables) :\n")[1].split("\nCHAMPS ÉDITABLES")[0]);
+      assertEquals(sequence.length, 4);
+      assertEquals(sequence[1].field_ids, ["slides.1.title", "slides.1.body"]);
       const fields = JSON.parse(message.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
       text = JSON.stringify({ reviews: fields.map((f: any) => {
         const before = " C'est un signal, pas un accident.";
@@ -66,7 +74,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try {
-    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, slide_count: 4, deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, slide_count: 4, narrative_thread: "FIL_VALIDÉ", content_structure: "PLAN_VALIDÉ", deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
     assertEquals(res.status, 200);
     const output = await res.json();
     assertEquals(output.writer, { version: "opus5-astra-medium-v1", model: qualityMax ? "gpt-6-astra" : "claude-opus-5", effort: "medium" });
@@ -77,7 +85,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     assertEquals(parsed.editorial_review.status, "reviewed");
     assertEquals(parsed.editorial_review.pass, 2);
     assertEquals(parsed.editorial_review.model, "gpt-6-astra");
-    assertEquals(parsed.editorial_review.version, "contextual-astra-medium-v5");
+    assertEquals(parsed.editorial_review.version, "connected-sequence-astra-medium-v6");
     assertEquals(parsed.editorial_review.total_usage.total_tokens, 4);
     assertEquals(reviews, 2);
   } finally {
@@ -619,8 +627,12 @@ Deno.test("fil : « Mes slides » (texte de la personne) et structure confirmée
   let judged = 0;
   _deps.reviewThread = (async () => { judged++; return ["Les slides 2 et 3 disent la même idée."]; }) as any;
   const slides = Array.from({ length: 4 }, (_, i) => ({ slide_number: i + 1, title: `Slide ${i + 1}`, body: "Texte écrit par la personne.", role: i === 3 ? "conclusion" : "argument" }));
-  _deps.callCarouselWriter = (async (opts: any, sink: any) => { Object.assign(sink, { model: opts.model, total_tokens: 30 }); return JSON.stringify({ slides, caption: { body: "Légende." } }); }) as any;
-  _deps.callAnthropic = _deps.callCarouselWriter;
+  const mockGenerate = async (opts: { model: unknown }, sink: any = {}) => {
+    Object.assign(sink, { model: opts.model, total_tokens: 30 });
+    return JSON.stringify({ slides, caption: { body: "Légende." } });
+  };
+  _deps.callCarouselWriter = mockGenerate;
+  _deps.callAnthropic = mockGenerate;
   const oldFetch = globalThis.fetch;
   globalThis.fetch = (() => Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text: "{}" }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })))) as typeof fetch;
   try {

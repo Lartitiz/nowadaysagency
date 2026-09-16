@@ -629,6 +629,8 @@ export async function handleRequest(req: Request): Promise<Response> {
     const hadUserDeepening = !!body.deepening_answers;
     const currentAuthoredText = authoredContentSource(body);
     const currentBrief = [body.subject, body.subject_details, body.photo_description, body.editorial_angle, body.objective,
+      body.narrative_thread ? `FIL CONFIRMÉ À PRÉSERVER : ${body.narrative_thread}` : "",
+      body.content_structure ? `STRUCTURE CHOISIE À PRÉSERVER : ${body.content_structure}` : "",
       currentAuthoredText, typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
     const semanticReviewEnabled = Deno.env.get("CAROUSEL_SEMANTIC_REVIEW") !== "false";
 
@@ -1523,9 +1525,9 @@ Tu es une stratège éditoriale spécialisée en carrousels Instagram et LinkedI
 MISSION : Propose une structure narrative optimale pour un carrousel. Tu ne génères PAS le contenu des slides — uniquement leur architecture.
 
 RÈGLES :
-- Chaque slide a un rôle narratif clair (hook, problème, mythe, exemple, solution, transformation, CTA…)
-- Justifie chaque choix de position en 1 phrase max
-- Propose des titres scène-first en 4-9 mots (voir RÈGLES TITRES ci-dessous), en français
+- Chaque slide a une fonction précise adaptée au sujet (présentation, explication, étape, argument, exemple, nuance…). Aucun problème, transformation, bascule ou CTA obligatoire.
+- Justifie chaque position par son lien avec ce qui précède et son apport à l'ensemble, en 1 phrase max.
+- Propose des titres spécifiques en français (voir RÈGLES TITRES ci-dessous), sans scène inventée.
 - Sois concise et actionnable, pas théorique
 ${!photos?.length && carousel_type !== "mix" ? carouselLengthPrompt(body) : `- Le nombre de slides cible est ${slide_count || 7} en mode MIX ; en mode PHOTO il s'adapte au nombre de photos (voir MODE PHOTO ci-dessous).`}
 ${photoInstruction}
@@ -1547,7 +1549,7 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
       "role": "hook",
       "title_suggestion": "titre court proposé",
       "strategic_note": "pourquoi cette slide à cette position",
-      "story_beat": "Ce que CETTE slide FAIT VIVRE dans le récit, en 1 phrase. Une INTENTION NARRATIVE — pas une description de la photo. Exemples : « ici on installe le doute », « ici la bascule : le client rappelle », « ici on paie le prix de la décision ». JAMAIS « on voit un chantier », « la photo montre… »."${hasPhotos ? `,
+      "story_beat": "Ce que cette slide fait comprendre ou raconte avec la matière fournie, et comment elle poursuit la précédente, en 1 phrase. Une étape du propos, sans émotion, événement ou bascule inventés ; une description de photo seule ne suffit pas."${hasPhotos ? `,
       "photo_index": 1,
       "slide_type": "photo_full",
       "visual_anchor": "OBLIGATOIRE pour toute slide avec photo_index. 3-8 mots qui pointent UN détail concret VISIBLE dans CETTE photo, mobilisable par le pass d'écriture comme matière première (ex : « la poussière sur les bottes », « les deux tasses encore pleines »). C'est UN détail précis, JAMAIS un résumé de l'image. Ne l'omets que si la photo est vraiment sans aucun détail saisissable."` : ""}
