@@ -26,14 +26,14 @@ export default function StatsOverview({ kpis, isSingleMonth }: StatsOverviewProp
         label={isSingleMonth ? "Engagement" : "Engagement moy."}
         value={fmtPct(kpis.avgEngagement)}
         change={kpis.changeEngagement}
-        help="Comptes engagés ÷ portée : LA mesure de référence (celle d'Instagram Insights). Repères : 1-3 % correct, 3-6 % solide, au-delà excellent. Moyenne pondérée sur la période."
+        help="Comptes engagés ÷ portée. Le taux est indisponible si la portée ou les comptes engagés manquent. Les interactions ne sont pas des comptes uniques."
       />
       <DashboardCard
         icon="📈"
         label={isSingleMonth ? "Croissance nette" : "Croissance cumulée"}
         value={netGrowthValue}
         change={kpis.changeNetGrowth}
-        help="Followers gagnés − followers perdus sur la période."
+        help="Abonnés gagnés − abonnés perdus. Les deux valeurs sont nécessaires pour chaque mois."
       />
     </div>
   );

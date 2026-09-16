@@ -1,3 +1,5 @@
+import { auditScopedQuery, readAuditProfile, persistWebsiteAudit } from "@/lib/audit-profile-persistence";
+import { AuditWorkspaceScope, useAuditVisit } from "@/components/audit/AuditWorkspaceScope";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -110,6 +112,7 @@ type Step = "input" | "loading" | "auto-results" | "questionnaire" | "old-result
 
 const SiteAuditPage = () => {
   const { user } = useAuth();
+  const { ownerUserId, active } = useAuditVisit();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
   const [searchParams] = useSearchParams();
@@ -147,50 +150,30 @@ const SiteAuditPage = () => {
   const [pbpAnswers, setPbpAnswers] = useState<Record<string, Record<string, AnswerValue>>>({});
   const [saving, setSaving] = useState(false);
 
-  // Load existing audit (latest)
+  const [loadError, setLoadError] = useState(false);
+  const loadRequest = useRef(0);
   const loadAudit = useCallback(async () => {
     if (!user) return;
-    setLoading(true);
+    const request = ++loadRequest.current;
+    setLoading(true); setLoadError(false);
     try {
-      const { data } = await (supabase.from("website_audit") as any)
-        .select("*")
-        .eq(column, value)
-        .eq("is_latest", true)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (data) {
-        setExisting(data);
-        if (data.site_url) setSiteUrl(data.site_url);
-        if (data.audit_mode === "auto" && data.raw_result) {
-          setAutoResult(data.raw_result as AutoAuditResult);
-        }
-        if (data.audit_mode === "global" && data.answers && typeof data.answers === "object") {
-          setAnswers(data.answers as Record<string, AnswerValue>);
-        }
-        if (data.audit_mode === "page_by_page" && data.answers && typeof data.answers === "object") {
-          setPbpAnswers(data.answers as Record<string, Record<string, AnswerValue>>);
-        }
-      } else {
-        setExisting(null);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [user, column, value]);
-
-  useEffect(() => { loadAudit(); }, [loadAudit]);
-
-  // Premier audit : l'URL du site est déjà dans le profil (onboarding/branding) →
-  // on la pré-remplit au lieu de la faire retaper. Jamais par-dessus une saisie
-  // ni par-dessus l'URL d'un audit précédent.
-  useEffect(() => {
-    if (!user) return;
-    (supabase.from("profiles") as any).select("website_url").eq(column, value).maybeSingle()
-      .then(({ data }: any) => {
-        if (data?.website_url) setSiteUrl((cur) => cur || data.website_url);
-      });
-  }, [user?.id, column, value]);
+      const [audit, profile] = await Promise.all([
+        auditScopedQuery("website_audit", "*", column, value).eq("is_latest", true).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        readAuditProfile(ownerUserId, "website_url"),
+      ]);
+      if (!active.current || request !== loadRequest.current) return;
+      if (audit.error) throw audit.error;
+      const data = audit.data;
+      setExisting(data || null);
+      const url = data?.site_url || profile?.website_url;
+      if (url) setSiteUrl(cur => cur || url);
+      if (data?.audit_mode === "auto" && data.raw_result) setAutoResult(data.raw_result as AutoAuditResult);
+      if (data?.audit_mode === "global" && data.answers && typeof data.answers === "object") setAnswers(data.answers);
+      if (data?.audit_mode === "page_by_page" && data.answers && typeof data.answers === "object") setPbpAnswers(data.answers);
+    } catch { if (active.current && request === loadRequest.current) setLoadError(true); }
+    finally { if (active.current && request === loadRequest.current) setLoading(false); }
+  }, [user?.id, column, value, ownerUserId, active]);
+  useEffect(() => { void loadAudit(); return () => { loadRequest.current++; }; }, [loadAudit]);
 
   // Check if URL param wants screenshot mode
   useEffect(() => {
@@ -220,7 +203,7 @@ const SiteAuditPage = () => {
   // ── Auto audit launch ──
   const launchAutoAudit = async () => {
     if (!siteUrl.trim()) { toast.error("Entre l'URL de ton site"); return; }
-    if (!user) return;
+    if (!user || !active.current || loading || loadError) return;
 
     setAnalyzing(true);
     setQuotaExhausted(null);
@@ -242,6 +225,7 @@ const SiteAuditPage = () => {
         },
       }, 120000);
 
+      if (!active.current) return;
       if (error) throw new Error(error.message);
       if (data?.error === "site_inaccessible") {
         toast.error(data.message || "Site inaccessible", { duration: 8000 });
@@ -264,15 +248,8 @@ const SiteAuditPage = () => {
       const result = data as AutoAuditResult;
       setAutoResult(result);
 
-      // Save to DB — mark old audits as not latest, always insert new.
-      // Demarque across ALL modes (not just "auto") so a single row stays is_latest=true;
-      // loadAudit reads the latest regardless of mode.
-      const { error: demarkError } = await (supabase.from("website_audit") as any)
-        .update({ is_latest: false })
-        .eq(column, value)
-        .eq("is_latest", true);
-      if (demarkError) throw demarkError;
-
+      // Persist the new audit before updating historical markers. An insertion
+      // failure must never hide the previously saved audit.
       const payload: Record<string, unknown> = {
         user_id: user.id,
         workspace_id: workspaceId !== user.id ? workspaceId : null,
@@ -288,12 +265,14 @@ const SiteAuditPage = () => {
         is_latest: true,
       };
 
-      const { data: inserted, error: insertError } = await (supabase.from("website_audit") as any).insert(payload).select("id").single();
-      if (insertError) throw insertError;
-      if (inserted) setExisting({ ...payload, id: inserted.id, created_at: new Date().toISOString() } as any);
+      const saved = await persistWebsiteAudit(payload, column, value, () => active.current);
+      if (!active.current) return;
+      if (saved.markerError) toast("Audit enregistré. Le classement des anciens audits sera à vérifier.");
+      setExisting({ ...payload, ...saved.receipt } as AuditData);
 
       setStep("auto-results");
     } catch (e: any) {
+      if (!active.current) return;
       console.error("[audit-site-auto] Error:", e);
       const errStr = e?.message || String(e);
       if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
@@ -354,19 +333,23 @@ const SiteAuditPage = () => {
         reader.onload = () => resolve((reader.result as string).split(",")[1]);
         reader.readAsDataURL(screenshotFile);
       });
+      if (!active.current) return;
       const { data, error } = await invokeWithTimeout("website-ai", {
         body: { action: "audit-screenshot", image_base64: base64, image_type: screenshotFile.type === "image/png" ? "png" : "jpg", site_url: screenshotUrl || undefined, page_type: screenshotPageType, workspace_id: workspaceId },
       }, 120000);
+      if (!active.current) return;
       if (error) throw new Error(error.message);
       const raw = data?.content || data;
       let parsed;
       try { const str = typeof raw === "string" ? raw : JSON.stringify(raw); parsed = typeof raw === "object" && raw.first_impression ? raw : JSON.parse(str.replace(/```json\s*/g, "").replace(/```\s*/g, "").trim()); } catch { throw new Error("Format de réponse inattendu"); }
       setScreenshotResult(parsed);
-    } catch (err) { toast.error(friendlyError(err)); } finally { setScreenshotLoading(false); }
+    } catch (err) { if (active.current) toast.error(friendlyError(err)); } finally { setScreenshotLoading(false); }
   };
 
   const hasOldAudit = existing && (existing.audit_mode === "global" || existing.audit_mode === "page_by_page") && existing.completed;
   const hasAutoAudit = existing && existing.audit_mode === "auto" && existing.completed && autoResult;
+
+  if (loadError) return <div><AppHeader /><main id="main-content" className="mx-auto max-w-3xl p-6"><p role="alert">Impossible de charger l’audit de cet espace.</p><Button onClick={() => void loadAudit()} className="mt-4">Réessayer</Button></main></div>;
 
   if (loading) {
     return (
@@ -715,4 +698,4 @@ const SiteAuditPage = () => {
   );
 };
 
-export default SiteAuditPage;
+export default function ScopedSiteAuditPage() { return <AuditWorkspaceScope page={SiteAuditPage} />; }

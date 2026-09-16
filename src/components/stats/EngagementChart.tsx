@@ -23,7 +23,7 @@ export default function EngagementChart({ data }: EngagementChartProps) {
           formatter={(val: any) => (val == null ? "–" : `${Number(val).toFixed(2)}%`)}
           contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
         />
-        <Line type="monotone" dataKey="engagement" stroke="hsl(var(--primary))" name="Taux d'engagement" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+        <Line type="monotone" dataKey="engagement" stroke="hsl(var(--primary))" name="Taux d'engagement" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
       </LineChart>
     </ResponsiveContainer>
   );

@@ -1,3 +1,5 @@
+import { auditScopedQuery, readAuditProfile } from "@/lib/audit-profile-persistence";
+import { AuditWorkspaceScope, useAuditVisit } from "@/components/audit/AuditWorkspaceScope";
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -83,8 +85,11 @@ function ScoreCircle({ score }: { score: number }) {
 }
 
 /* ─── Main ─── */
-export default function SalesPageOptimizer() {
+export default function SalesPageOptimizer() { return <AuditWorkspaceScope page={SalesPageOptimizerForm} />; }
+
+function SalesPageOptimizerForm() {
   const { user } = useAuth();
+  const { ownerUserId, active } = useAuditVisit();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
 
@@ -100,43 +105,34 @@ export default function SalesPageOptimizer() {
   const [editTexts, setEditTexts] = useState<Record<string, string>>({});
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Check for recent optimization
+  const [loadError, setLoadError] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
-      const { data } = await (supabase.from("sales_page_optimizations") as any)
-        .select("site_url, created_at, raw_result, score_global")
-        .eq(column, value)
-        .gt("created_at", sevenDaysAgo)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (data?.raw_result) {
-        setRecentUrl(data.site_url);
-        setRecentDate(data.created_at);
-        setRecentResult(data.raw_result as OptResult);
-      }
-
-      // Pré-remplissage de l'URL : page de vente d'une offre (atelier offre) en
-      // priorité, sinon le site du profil. Jamais par-dessus une saisie.
-      const { data: offer } = await (supabase.from("offers") as any)
-        .select("url_sales_page")
-        .eq(column, value)
-        .not("url_sales_page", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      const { data: prof } = await (supabase.from("profiles") as any)
-        .select("website_url").eq(column, value).maybeSingle();
-      const prefill = (offer as any)?.url_sales_page || (prof as any)?.website_url;
-      if (prefill) setSiteUrl((cur) => cur || prefill);
-    };
-    load();
-  }, [user?.id]);
+    let current = true;
+    setLoadingHistory(true); setLoadError(false);
+    (async () => {
+      try {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString();
+        const [history, offer, profile] = await Promise.all([
+          auditScopedQuery("sales_page_optimizations", "site_url, created_at, raw_result, score_global", column, value).gt("created_at", sevenDaysAgo).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          auditScopedQuery("offers", "url_sales_page", column, value).not("url_sales_page", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          readAuditProfile(ownerUserId, "website_url"),
+        ]);
+        if (!current) return;
+        if (history.error || offer.error) throw new Error("Lecture indisponible");
+        if (history.data?.raw_result) { setRecentUrl(history.data.site_url); setRecentDate(history.data.created_at); setRecentResult(history.data.raw_result); }
+        const prefill = offer.data?.url_sales_page || profile?.website_url;
+        if (prefill) setSiteUrl(cur => cur || prefill);
+      } catch { if (current) setLoadError(true); }
+      finally { if (current) setLoadingHistory(false); }
+    })();
+    return () => { current = false; };
+  }, [user?.id, column, value, ownerUserId, retry]);
 
   const handleAnalyze = async () => {
-    if (!siteUrl.trim() || !user) return;
+    if (!siteUrl.trim() || !user || !active.current || loadError || loadingHistory) return;
     setStep("loading");
     try {
       const { data, error } = await invokeWithTimeout("optimize-sales-page", {
@@ -146,6 +142,7 @@ export default function SalesPageOptimizer() {
           workspace_id: workspaceId !== user.id ? workspaceId : null,
         },
       }, 120000);
+      if (!active.current) return;
       if (error || !data?.success) throw new Error(data?.error || error?.message || "Erreur");
       setResult(data.result);
       setStep("results");
@@ -166,6 +163,7 @@ export default function SalesPageOptimizer() {
         console.warn("[SalesPageOptimizer] persistance de l'analyse échouée:", saveErr);
       }
     } catch (e: any) {
+      if (!active.current) return;
       toast.error(friendlyError(e));
       setStep("input");
     }
@@ -191,6 +189,9 @@ export default function SalesPageOptimizer() {
   };
 
   const displayResult = result;
+  if (loadingHistory) return <p role="status" className="p-8">Chargement de ta page…</p>;
+  if (loadError) return <div><AppHeader /><main id="main-content" className="mx-auto max-w-3xl p-6"><p role="alert">Impossible de charger les pages de cet espace.</p><Button onClick={() => setRetry(n => n + 1)} className="mt-4">Réessayer</Button></main></div>;
+
 
   return (
     <div className="min-h-screen bg-background">

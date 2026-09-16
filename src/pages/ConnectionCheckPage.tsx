@@ -200,16 +200,17 @@ export default function ConnectionCheckPage() {
   const oks = checks.filter(c => c.status === "ok");
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] [--bordeaux:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
       <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4">
         <div className="mb-6">
-          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Mes réseaux connectés</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Connecte Instagram et LinkedIn pour publier directement depuis l'app, et vérifie que tout fonctionne bien.</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Mes connexions</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Relie les comptes utiles à cet espace : publication, statistiques et création. La connexion LinkedIn pour publier est distincte de celle des statistiques.</p>
         </div>
 
         <SocialConnectionsCard />
 
+        <details className="mt-6 border-t border-border pt-5"><summary className="cursor-pointer font-medium text-primary">Vérifier le fonctionnement de mon espace</summary><div className="mt-5">
         <div className="flex items-center justify-between mb-6">
           <p className="text-xs text-muted-foreground">
             {lastRun ? `Dernière vérification : ${lastRun.toLocaleTimeString("fr-FR")}` : "Aucune vérification lancée"}
@@ -283,6 +284,7 @@ export default function ConnectionCheckPage() {
             )}
           </>
         )}
+        </div></details>
       </main>
     </div>
   );

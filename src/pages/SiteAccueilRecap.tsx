@@ -1,3 +1,5 @@
+import { PresenceScope } from "@/components/hub/PresenceLayout";
+import { auditScopedQuery } from "@/lib/audit-profile-persistence";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,29 +12,36 @@ import { toast } from "sonner";
 
 interface FaqItem { question: string; reponse: string }
 
-export default function SiteAccueilRecap() {
+export default function SiteAccueilRecap() { return <PresenceScope page={SiteAccueilRecapView} />; }
+
+function SiteAccueilRecapView() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const [data, setData] = useState<any>(null);
   const [cms, setCms] = useState("");
   const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      const [hpRes, wpRes] = await Promise.all([
-        (supabase.from("website_homepage") as any).select("*").eq(column, value).maybeSingle(),
-        (supabase.from("website_profile") as any).select("cms").eq(column, value).maybeSingle(),
-      ]);
-      if (hpRes.data) {
-        const faq = Array.isArray(hpRes.data.faq) ? hpRes.data.faq : [];
-        setData({ ...hpRes.data, faq });
-      }
-      if (wpRes.data) setCms(wpRes.data.cms || "");
-      setLoaded(true);
-    };
-    load();
-  }, [user?.id]);
+    let current = true;
+    setLoaded(false); setLoadError(false);
+    (async () => {
+      try {
+        const [hp, wp] = await Promise.all([
+          auditScopedQuery("website_homepage", "*", column, value).maybeSingle(),
+          auditScopedQuery("website_profile", "cms", column, value).maybeSingle(),
+        ]);
+        if (!current) return;
+        if (hp.error || wp.error) throw new Error("Lecture indisponible");
+        setData(hp.data ? { ...hp.data, faq: Array.isArray(hp.data.faq) ? hp.data.faq : [] } : null);
+        setCms(wp.data?.cms || "");
+      } catch { if (current) setLoadError(true); }
+      finally { if (current) setLoaded(true); }
+    })();
+    return () => { current = false; };
+  }, [user?.id, column, value, retry]);
 
   const copyText = async (text: string) => {
     try { await navigator.clipboard.writeText(text); toast.success("Copié !"); }
@@ -40,7 +49,7 @@ export default function SiteAccueilRecap() {
   };
 
   const copyAll = () => {
-    if (!data) return;
+    if (!loaded || !data) return;
     const sections = [
       `🎯 HOOK\n${data.hook_title}\n${data.hook_subtitle}`,
       `😩 LE PROBLÈME\n${data.problem_block || ""}`,
@@ -54,6 +63,8 @@ export default function SiteAccueilRecap() {
   };
 
   const cmsLabel = { squarespace: "Squarespace", wordpress: "WordPress", shopify: "Shopify", wix: "Wix", autre: "ton outil", none: "ton site" }[cms] || "ton site";
+
+  if (loadError) return <div><AppHeader /><main id="main-content" className="mx-auto max-w-3xl p-6"><p role="alert">Impossible de charger ta page. Tes textes n’ont pas été modifiés.</p><Button onClick={() => setRetry(n => n + 1)} className="mt-4">Réessayer</Button></main></div>;
 
   // Pas encore de page rédigée : état vide avec CTA vers l'éditeur (sinon spinner infini).
   if (loaded && !data) {

@@ -1,3 +1,5 @@
+import { instagramKPIs, monthsInRange } from "@/lib/stats-reading";
+import StatsReading from "@/components/stats/StatsReading";
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { Link, useNavigate } from "react-router-dom";
@@ -30,11 +32,11 @@ import { SkeletonCard } from "@/components/ui/skeleton-card";
 
 import {
   MONTHS_FR, monthKey, monthLabel, monthLabelShort,
-  pctChange, fmt, fmtPct, fmtEur, safeDivPct, safeDiv,
+  fmt, fmtPct, fmtEur, safeDivPct, safeDiv,
 } from "@/lib/stats-helpers";
 
 import {
-  type StatsRow, type StatsConfig, type PeriodPreset, type DashboardKPIs,
+  type StatsRow, type StatsConfig, type PeriodPreset,
   getPeriodRange, BUSINESS_PRESETS, ALL_TRAFFIC_SOURCES, WEBSITE_PLATFORMS,
 } from "@/components/stats/stats-types";
 
@@ -74,6 +76,10 @@ function InstagramStatsScope() {
   const countryNames = useMemo(() => new Intl.DisplayNames(["fr"], { type: "region" }), []);
 
   /* ── State ── */
+  const [statsTab, setStatsTab] = useState("overview");
+  const [statsLoaded, setStatsLoaded] = useState(false);
+  const [statsError, setStatsError] = useState(false);
+  const [configError, setConfigError] = useState(false);
   const [allStats, setAllStats] = useState<StatsRow[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(currentMonthDate);
   const [formData, setFormData] = useState<StatsRow>({});
@@ -138,19 +144,22 @@ function InstagramStatsScope() {
   // (onboarding ou « connecte ton compte » alors que tout existe côté workspace).
   const loadConfig = useCallback(async () => {
     if (!user || !workspaceReady) return;
+    setConfigError(false);
     try {
-      const { data, error } = await (supabase.from("stats_config" as any) as any)
-        .select("*").eq(column, value)
-        .order("created_at", { ascending: false }).limit(1).maybeSingle();
+      let configQuery = (supabase.from("stats_config" as any) as any).select("*").eq(column, value);
+      if (column === "user_id") configQuery = configQuery.is("workspace_id", null);
+      const { data, error } = await configQuery.order("created_at", { ascending: false }).limit(1).maybeSingle();
       if (error) throw error;
       let cfg = (data as any as StatsConfig) || null;
       // Reprise des configs d'avant les espaces : sauvées sans workspace_id, elles
       // étaient invisibles au filtre workspace → l'onboarding revenait à chaque
       // visite. On rattache la plus récente à l'espace propre, une fois pour toutes.
       if (!cfg && column === "workspace_id" && isOwnSpace) {
-        const { data: legacy } = await (supabase.from("stats_config" as any) as any)
+        const { data: legacy, error: legacyError } = await (supabase.from("stats_config" as any) as any)
           .select("*").eq("user_id", user.id).is("workspace_id", null)
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        if (!mounted.current) return;
+        if (legacyError) throw legacyError;
         if (legacy) {
           cfg = legacy as any as StatsConfig;
           const { error: adoptErr } = await (supabase.from("stats_config" as any) as any)
@@ -162,27 +171,35 @@ function InstagramStatsScope() {
       if (cfg) {
         setConfig(cfg); setDraftConfig(cfg);
       } else {
-        setShowOnboarding(true);
+        setShowOnboarding(false);
       }
     } catch (e) {
+      if (!mounted.current) return;
+      setConfigError(true);
       console.error("Erreur chargement config stats:", e);
       toast.error("Impossible de charger ta configuration", { description: "Réessaie dans un instant." });
     } finally {
-      setConfigLoaded(true);
+      if (mounted.current) setConfigLoaded(true);
     }
   }, [user?.id, column, value, isOwnSpace, workspaceReady]);
 
   const loadStats = useCallback(async () => {
     if (!user || !workspaceReady) return;
+    setStatsError(false);
+    try {
     // Reprise des stats d'avant les espaces et des imports Excel orphelins
     // (workspace_id null → invisibles au filtre workspace) : on les rattache à
     // l'espace propre, sauf si le mois existe déjà côté workspace (pas de doublon).
     if (column === "workspace_id" && isOwnSpace) {
-      const { data: legacy } = await (supabase.from("monthly_stats" as any) as any)
+      const { data: legacy, error: legacyError } = await (supabase.from("monthly_stats" as any) as any)
         .select("id, month_date").eq("user_id", user.id).is("workspace_id", null);
+      if (!mounted.current) return;
+      if (legacyError) throw legacyError;
       if (legacy?.length) {
-        const { data: wsRows } = await (supabase.from("monthly_stats" as any) as any)
+        const { data: wsRows, error: wsError } = await (supabase.from("monthly_stats" as any) as any)
           .select("month_date").eq("workspace_id", value);
+        if (!mounted.current) return;
+        if (wsError) throw wsError;
         const taken = new Set((wsRows || []).map((r: any) => r.month_date));
         const toAdopt = (legacy as any[]).filter(r => !taken.has(r.month_date)).map(r => r.id);
         if (toAdopt.length) {
@@ -196,11 +213,13 @@ function InstagramStatsScope() {
     if (column === "user_id") query = query.is("workspace_id", null);
     const { data, error } = await query.order("month_date", { ascending: false });
     if (!mounted.current) return;
-    if (error) { toast.error("Impossible de charger les statistiques"); return; }
+    if (error) throw error;
     const rows = (data || []) as StatsRow[];
     setAllStats(rows);
     if (rows.length >= 2) { setCompareA(rows[0].month_date); setCompareB(rows[1].month_date); }
     else if (rows.length === 1) { setCompareA(rows[0].month_date); }
+    } catch { if (mounted.current) setStatsError(true); }
+    finally { if (mounted.current) setStatsLoaded(true); }
   }, [user?.id, column, value, isOwnSpace, workspaceReady]);
 
   useEffect(() => { loadConfig(); loadStats(); }, [loadConfig, loadStats]);
@@ -252,89 +271,32 @@ function InstagramStatsScope() {
 
   const isSingleMonth = periodRange.from === periodRange.to;
 
-  const dashboardKPIs = useMemo<DashboardKPIs | null>(() => {
-    if (periodStats.length === 0) return null;
-    const last = periodStats[periodStats.length - 1];
-    const followers = last.followers;
-    // Moyenne sur les mois RENSEIGNÉS : diviser par tous les mois comptait les
-    // mois vides comme des zéros et sous-estimait la portée moyenne.
-    const reachMonths = periodStats.filter(r => r.reach != null && r.reach > 0);
-    const avgReach = reachMonths.length
-      ? reachMonths.reduce((s, r) => s + (r.reach || 0), 0) / reachMonths.length
-      : 0;
-
-    // Weighted engagement rate by reach: Σ(accounts_engaged) / Σ(reach).
-    // Fallback to interactions if accounts_engaged isn't filled in (legacy data).
-    const totalReach = periodStats.reduce((s, r) => s + (r.reach || 0), 0);
-    const totalEngaged = periodStats.reduce(
-      (s, r) => s + (r.accounts_engaged ?? r.interactions ?? 0),
-      0,
-    );
-    const avgEngagement = totalReach > 0 ? (totalEngaged / totalReach) * 100 : 0;
-
-    // Net growth: somme des followers_gained − followers_lost sur la période.
-    // null si AUCUN mois n'a de donnée : un « 0 (-100 %) » fabriqué à partir de
-    // champs vides faisait croire à un effondrement.
-    const hasGrowthData = periodStats.some(r => r.followers_gained != null || r.followers_lost != null);
-    const totalGained = periodStats.reduce((s, r) => s + (r.followers_gained || 0), 0);
-    const totalLost = periodStats.reduce((s, r) => s + (r.followers_lost || 0), 0);
-    const netGrowth = hasGrowthData ? totalGained - totalLost : null;
-
-    const periodMonths = periodStats.length;
-    const prevStats = allStats
-      .filter(s => s.month_date < periodRange.from)
-      .sort((a, b) => b.month_date.localeCompare(a.month_date))
-      .slice(0, periodMonths).reverse();
-
-    const prevFollowers = prevStats.length > 0 ? prevStats[prevStats.length - 1]?.followers : null;
-    const prevReachMonths = prevStats.filter(r => r.reach != null && r.reach > 0);
-    const prevAvgReach = prevReachMonths.length
-      ? prevReachMonths.reduce((s, r) => s + (r.reach || 0), 0) / prevReachMonths.length
-      : null;
-
-    const prevTotalReach = prevStats.reduce((s, r) => s + (r.reach || 0), 0);
-    const prevTotalEngaged = prevStats.reduce((s, r) => s + (r.accounts_engaged ?? r.interactions ?? 0), 0);
-    const prevAvgEngagement = prevStats.length > 0 && prevTotalReach > 0
-      ? (prevTotalEngaged / prevTotalReach) * 100
-      : null;
-
-    const prevNetGrowth = prevStats.some(r => r.followers_gained != null || r.followers_lost != null)
-      ? prevStats.reduce((s, r) => s + (r.followers_gained || 0) - (r.followers_lost || 0), 0)
-      : null;
-
-    return {
-      followers, avgReach: Math.round(avgReach), avgEngagement, netGrowth,
-      changeFollowers: pctChange(followers, prevFollowers),
-      changeReach: pctChange(avgReach, prevAvgReach),
-      changeEngagement: pctChange(avgEngagement, prevAvgEngagement),
-      changeNetGrowth: pctChange(netGrowth, prevNetGrowth),
-      followersGained: isSingleMonth ? last.followers_gained : null,
-    };
-  }, [periodStats, allStats, periodRange, isSingleMonth]);
+  const dashboardKPIs = useMemo(() => instagramKPIs(allStats, periodRange.from, periodRange.to, currentMonthDate), [allStats, periodRange, currentMonthDate]);
 
   const activeConfig = config || draftConfig;
 
   // « Non renseigné » ≠ « zéro » : un mois sans donnée reste null (Recharts saute
   // le point) au lieu de tracer une fausse chute à 0 dans les courbes.
   const chartData = useMemo(() => {
+    const chartRows = monthsInRange(periodRange.from, periodRange.to).map(month => periodStats.find(r => r.month_date === month) || { month_date: month } as StatsRow);
     // Compteur d'abonnés RECONSTITUÉ pour les mois sans relevé : Meta ne fournit
     // pas l'historique du compteur (le backfill ne peut pas le remplir), donc la
     // courbe ne montrait que les mois relevés à la main/au clic. On remonte
     // depuis le relevé suivant : abonnés(m) ≈ abonnés(m+1) − gagnés(m+1)
     // (+ perdus(m+1) si saisis) — marqué « estimé » au tooltip.
-    const followersDisplay: (number | null)[] = periodStats.map(s => s.followers ?? null);
-    const followersIsEst: boolean[] = periodStats.map(() => false);
-    for (let i = periodStats.length - 2; i >= 0; i--) {
+    const followersDisplay: (number | null)[] = chartRows.map(s => s.followers ?? null);
+    const followersIsEst: boolean[] = chartRows.map(() => false);
+    for (let i = chartRows.length - 2; i >= 0; i--) {
       if (followersDisplay[i] != null) continue;
       const next = followersDisplay[i + 1];
-      const nextGained = periodStats[i + 1]?.followers_gained;
-      if (next != null && nextGained != null) {
-        followersDisplay[i] = Math.max(0, next - nextGained + (periodStats[i + 1]?.followers_lost ?? 0));
+      const nextGained = chartRows[i + 1]?.followers_gained;
+      if (next != null && nextGained != null && chartRows[i + 1]?.followers_lost != null) {
+        followersDisplay[i] = Math.max(0, next - nextGained + (chartRows[i + 1]?.followers_lost ?? 0));
         followersIsEst[i] = true;
       }
     }
-    return periodStats.map((s, idx) => {
-      const engaged = s.accounts_engaged ?? s.interactions ?? null;
+    return chartRows.map((s, idx) => {
+      const engaged = s.accounts_engaged ?? null;
       const eng = engaged != null && s.reach && s.reach > 0 ? (engaged / s.reach) * 100 : null;
       const gained = s.followers_gained ?? null;
       // Pertes : saisies si présentes ; sinon ESTIMÉES par gagnés − Δabonnés
@@ -367,7 +329,7 @@ function InstagramStatsScope() {
         gained,
         lost,
         lostEstimated,
-        net: gained != null || lost != null ? (gained ?? 0) + (lost ?? 0) : null,
+        net: gained != null && lost != null ? gained + lost : null,
         ...(activeConfig.traffic_sources || ["search", "social", "pinterest", "instagram"]).reduce((acc, src) => {
           if (s.website_data && typeof s.website_data === "object" && s.website_data.sources) {
             acc[`traffic_${src}`] = s.website_data.sources[src] ?? (s as any)[`traffic_${src}`] ?? null;
@@ -378,7 +340,7 @@ function InstagramStatsScope() {
         }, {} as Record<string, number | null>),
       };
     });
-  }, [periodStats, config]);
+  }, [periodStats, activeConfig, periodRange]);
 
   const monthOptions = useMemo(() => {
     const options: { value: string; label: string }[] = [];
@@ -514,7 +476,7 @@ function InstagramStatsScope() {
       setSelectedMonth(target);
       await loadStats();
       toast.success(`✅ Stats Instagram récupérées — ${monthLabel(target)}`, {
-        description: `Rempli automatiquement : ${filled.join(", ")}. Complète le reste à la main dans « Saisir mes stats » si besoin.`,
+        description: `Rempli automatiquement : ${filled.join(", ")}. Complète le reste à la main dans « Mes données » si besoin.`,
       });
       // Honnêteté : le back signale quand une partie des appels Meta a échoué.
       // Sans ce message, l'utilisatrice croit ses stats complètes.
@@ -935,15 +897,18 @@ function InstagramStatsScope() {
     );
   };
 
+  if (!configLoaded || !statsLoaded) return <div><AppHeader /><main className="p-8" role="status">Chargement des statistiques…</main></div>;
+  if (configError || statsError) return <div><AppHeader /><main className="mx-auto max-w-3xl p-8"><p role="alert">Impossible de charger les statistiques de cet espace. Tes données sont conservées.</p><Button className="mt-4" onClick={() => { void loadConfig(); void loadStats(); }}>Réessayer</Button></main></div>;
+
   /* ── ONBOARDING ── */
   if (showOnboarding && !config) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background [--primary:330_50%_20%] [--bordeaux:330_50%_20%] dark:[--primary:338_72%_83%]">
         <AppHeader />
         {/* pb mobile : le bouton feedback flottant (fixed bottom) recouvrait le
             CTA « Suivant » pleine largeur en bas d'écran à 390px. */}
         <main className="mx-auto max-w-2xl px-6 py-8 max-md:px-4 max-md:pb-28 space-y-6">
-          <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Mes stats" />
+          <SubPageHeader parentTo="/dashboard" parentLabel="Accueil" currentLabel="Statistiques" />
           <div className="rounded-xl border border-border bg-card p-6 space-y-6">
             <div className="text-center space-y-2">
               <h1 className="font-display text-2xl font-bold flex items-center justify-center gap-2"><TrendingUp className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.75} /> Configurons tes stats</h1>
@@ -1084,16 +1049,16 @@ function InstagramStatsScope() {
 
   /* ── Main render ── */
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] [--bordeaux:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
       <main className="mx-auto max-w-4xl px-6 py-8 max-md:px-4 max-md:pb-28 space-y-6">
-        <SubPageHeader parentTo="/instagram" parentLabel="Instagram" currentLabel="Mes stats" />
+        <SubPageHeader parentTo="/dashboard" parentLabel="Accueil" currentLabel="Statistiques" />
 
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2"><TrendingUp className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.75} /> Mes stats</h1>
+            <h1 className="font-display text-2xl font-bold text-foreground flex items-center gap-2"><TrendingUp className="h-5 w-5 shrink-0 text-primary" strokeWidth={1.75} /> Mes statistiques</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Remplis tes stats chaque mois pour suivre ta progression.
+              Comprends ce qui fonctionne, puis prépare ton prochain contenu.
             </p>
           </div>
           <Button variant="ghost" size="sm" className="gap-1.5" onClick={() => handleConfigClick(1)}>
@@ -1101,6 +1066,16 @@ function InstagramStatsScope() {
           </Button>
         </div>
 
+        {/* ─── Tabs ─── */}
+        <Tabs value={statsTab} onValueChange={setStatsTab} className="space-y-5">
+          <TabsList className="w-full grid grid-cols-2 sm:grid-cols-4 h-auto gap-1">
+            <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4 shrink-0" strokeWidth={1.75} />Mon bilan</TabsTrigger>
+            <TabsTrigger value="input" className="gap-1.5"><PenLine className="h-4 w-4 shrink-0" strokeWidth={1.75} />Mes données</TabsTrigger>
+            <TabsTrigger value="ai" className="gap-1.5"><Brain className="h-4 w-4 shrink-0" strokeWidth={1.75} />Mon analyse</TabsTrigger>
+            <TabsTrigger value="sources" className="gap-1.5"><Settings className="h-4 w-4" />Mes sources</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="overview" className="space-y-6">
         {/* ─── Period selector ─── */}
         <StatsPeriodSelector
           periodPreset={periodPreset}
@@ -1110,16 +1085,130 @@ function InstagramStatsScope() {
           monthOptions={monthOptions}
         />
 
-        {/* ─── KPI cards ─── */}
-        {!configLoaded ? (
-          <div className="grid grid-cols-2 gap-4">
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
-            <SkeletonCard variant="medium" />
-          </div>
-        ) : dashboardKPIs && <StatsOverview kpis={dashboardKPIs} isSingleMonth={isSingleMonth} />}
+            <StatsReading rows={periodStats} from={periodRange.from} to={periodRange.to} currentMonth={currentMonthDate} onData={() => setStatsTab("input")} />
+            <details className="rounded-xl border border-border bg-card p-5"><summary className="cursor-pointer font-medium text-primary">Tous les graphiques et comparaisons</summary><div className="space-y-6 pt-5">
+            <p className="text-sm text-muted-foreground">Instagram · Moyennes calculées sur les mois renseignés. « — » signifie indisponible. Les évolutions comparent la période précédente de même durée, uniquement pour les mois terminés.</p>
+            {dashboardKPIs && <StatsOverview kpis={dashboardKPIs} isSingleMonth={isSingleMonth} />}
+            <StatsCharts chartData={chartData} isSingleMonth={isSingleMonth} activeConfig={activeConfig} periodStats={periodStats} allStats={allStats} compareA={compareA} compareB={compareB} setCompareA={setCompareA} setCompareB={setCompareB} />
+            </div></details>
+            <details className="rounded-xl border border-border bg-card p-5"><summary className="cursor-pointer font-medium text-primary">Derniers relevés, audience et contenus</summary><div className="space-y-6 pt-5">
+            <p className="text-sm text-muted-foreground">Ces instantanés ont leur propre date et leur propre fenêtre de mesure. Ils ne représentent pas nécessairement la période sélectionnée au-dessus.</p>
 
+            {/* Mes stats LinkedIn : dernier instantané récupéré (custom_data.li_stats). */}
+            {liStats && (typeof liStats.followers === "number" || Object.keys(liStats.postAnalytics30d || {}).length > 0) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
+                <h3 className="font-body text-sm font-bold text-foreground">
+                  <Linkedin className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Mes stats LinkedIn
+                  <span className="font-normal text-muted-foreground text-xs"> : 30 derniers jours, au {liStats.fetchedAt ? new Date(liStats.fetchedAt).toLocaleDateString("fr-FR") : "—"}</span>
+                </h3>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {[
+                    { label: "Abonnés", value: liStats.followers },
+                    { label: "Abonnés gagnés", value: liStats.followersGained30d },
+                    { label: "Impressions", value: liStats.postAnalytics30d?.impressions },
+                    { label: "Membres touchés", value: liStats.postAnalytics30d?.membersReached },
+                    { label: "Réactions", value: liStats.postAnalytics30d?.reactions },
+                    { label: "Commentaires", value: liStats.postAnalytics30d?.comments },
+                    { label: "Reposts", value: liStats.postAnalytics30d?.reshares },
+                    { label: "Clics sur lien", value: liStats.postAnalytics30d?.linkClicks },
+                  ].filter(k => typeof k.value === "number").map((k) => (
+                    <div key={k.label} className="rounded-lg bg-muted/40 px-3 py-2">
+                      <p className="text-lg font-bold text-foreground">{fmt(k.value as number)}</p>
+                      <p className="text-xs text-muted-foreground">{k.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+            {/* Audience et top/flop vivent DANS la vue d'ensemble : empilés avant
+                les onglets, ils repoussaient la saisie et les graphiques sous
+                plusieurs écrans de scroll (surtout en mobile). */}
+            {audience && (audience.age?.length || audience.gender?.length || audience.cities?.length || audience.countries?.length) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
+                <h3 className="font-body text-sm font-bold text-foreground">
+                  <Users className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Ton audience <span className="font-normal text-muted-foreground text-xs"> : qui te suit sur Instagram</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                  {renderAudienceGroup("Âge", audience.age, 4)}
+                  {renderAudienceGroup("Genre", audience.gender, 3)}
+                  {renderAudienceGroup("Villes", audience.cities, 5)}
+                  {renderAudienceGroup("Pays", audience.countries, 5)}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Sers-t'en pour choisir tes sujets et ton ton. Données Instagram, calculées sur les abonnés identifiés (peut être &lt; ton total), à ±48 h.
+                </p>
+              </div>
+            ) : null}
+
+            {livePosts && (livePosts.top.length || livePosts.flop.length) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
+                <h3 className="font-body text-sm font-bold text-foreground">
+                  <Trophy className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Tes posts récents <span className="font-normal text-muted-foreground text-xs"> : par taux d'engagement, 30 derniers jours</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
+                  {renderPostGroup("Ce qui a le mieux marché", livePosts.top, true)}
+                  {/* On masque le « flop » s'il recoupe le « top » (cas < 4 posts mesurés). */}
+                  {renderPostGroup(
+                    "Ce qui a le moins marché",
+                    livePosts.flop.filter(f => !livePosts.top.some(t => t.id === f.id)),
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Le taux d'engagement = interactions ÷ portée (ou vues pour les Reels). Inspire-toi de ce qui marche pour tes prochains contenus.
+                </p>
+              </div>
+            ) : null}
+
+            {/* ─── Ce qui marche pour toi : formats / jours / créneaux sur ~50 posts ─── */}
+            {(igConnected || contentInsights) ? (
+              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <h3 className="font-body text-sm font-bold text-foreground">
+                    <Microscope className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Ce qui marche pour toi{" "}
+                    <span className="font-normal text-muted-foreground text-xs">
+                      — formats, jours et créneaux{contentInsights ? `, sur tes ${contentInsights.sampleSize} derniers posts` : ""}
+                    </span>
+                  </h3>
+                  {igConnected && (
+                    <Button onClick={analyzeContent} disabled={analyzingContent || fetchingLive} variant="outline" size="sm" className="gap-1.5 shrink-0">
+                      {analyzingContent
+                        ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse en cours…</>
+                        : <><Sparkles className="h-3.5 w-3.5" />{contentInsights ? "Actualiser" : "Analyser mes 50 derniers posts"}</>}
+                    </Button>
+                  )}
+                </div>
+                {contentInsights ? (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
+                      {renderBucketGroup("Par format", contentInsights.byFormat)}
+                      {renderBucketGroup("Par jour de publication", contentInsights.byWeekday)}
+                      {renderBucketGroup("Par créneau (heure de Paris)", contentInsights.bySlot)}
+                    </div>
+                    {contentInsights.reading && (
+                      <div className="rounded-lg bg-muted/40 px-4 py-3 space-y-1.5">
+                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> La lecture du coach</p>
+                        <AiGeneratedMention />
+                        <p className="text-sm text-foreground leading-relaxed">{contentInsights.reading}</p>
+                      </div>
+                    )}
+                    <p className="text-xs text-muted-foreground">
+                      Taux d'engagement moyen par segment{contentInsights.fetchedAt ? ` — analyse du ${new Date(contentInsights.fetchedAt).toLocaleDateString("fr-FR")}` : ""}. Indicatif : un segment avec peu de posts pèse peu, regarde le nombre entre parenthèses.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Lance l'analyse pour voir quels formats, quels jours et quels créneaux te réussissent le mieux — calculé sur tes vrais posts, pas des moyennes génériques.
+                  </p>
+                )}
+              </div>
+            ) : null}
+
+            </div></details>
+          </TabsContent>
+
+          <TabsContent value="sources" className="space-y-4">
+            <h2 className="font-display text-xl">D’où viennent mes chiffres ?</h2>
+            <p className="text-sm text-muted-foreground">Chaque connexion est indépendante. Tu peux aussi saisir tes chiffres ou importer un tableau dans Mes données.</p>
         {/* ─── Remplissage auto depuis l'API Instagram ─── */}
         {/* Rien tant que social-status n'a pas répondu : « Connecte ton compte »
             flashait à tort pendant la vérification. */}
@@ -1241,133 +1330,7 @@ function InstagramStatsScope() {
           </div>
         )}
 
-        {/* ─── Tabs ─── */}
-        <Tabs defaultValue="overview" className="space-y-5">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="overview" className="gap-1.5"><BarChart3 className="h-4 w-4 shrink-0" strokeWidth={1.75} />Vue d'ensemble</TabsTrigger>
-            <TabsTrigger value="input" className="gap-1.5"><PenLine className="h-4 w-4 shrink-0" strokeWidth={1.75} />Saisir mes stats</TabsTrigger>
-            <TabsTrigger value="ai" className="gap-1.5"><Brain className="h-4 w-4 shrink-0" strokeWidth={1.75} />Mon analyse</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview" className="space-y-8">
-            {/* Mes stats LinkedIn : dernier instantané récupéré (custom_data.li_stats). */}
-            {liStats && (typeof liStats.followers === "number" || Object.keys(liStats.postAnalytics30d || {}).length > 0) ? (
-              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-                <h3 className="font-body text-sm font-bold text-foreground">
-                  <Linkedin className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Mes stats LinkedIn
-                  <span className="font-normal text-muted-foreground text-xs"> : 30 derniers jours, au {liStats.fetchedAt ? new Date(liStats.fetchedAt).toLocaleDateString("fr-FR") : "—"}</span>
-                </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  {[
-                    { label: "Abonnés", value: liStats.followers },
-                    { label: "Abonnés gagnés", value: liStats.followersGained30d },
-                    { label: "Impressions", value: liStats.postAnalytics30d?.impressions },
-                    { label: "Membres touchés", value: liStats.postAnalytics30d?.membersReached },
-                    { label: "Réactions", value: liStats.postAnalytics30d?.reactions },
-                    { label: "Commentaires", value: liStats.postAnalytics30d?.comments },
-                    { label: "Reposts", value: liStats.postAnalytics30d?.reshares },
-                    { label: "Clics sur lien", value: liStats.postAnalytics30d?.linkClicks },
-                  ].filter(k => typeof k.value === "number").map((k) => (
-                    <div key={k.label} className="rounded-lg bg-muted/40 px-3 py-2">
-                      <p className="text-lg font-bold text-foreground">{fmt(k.value as number)}</p>
-                      <p className="text-xs text-muted-foreground">{k.label}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-            {/* Audience et top/flop vivent DANS la vue d'ensemble : empilés avant
-                les onglets, ils repoussaient la saisie et les graphiques sous
-                plusieurs écrans de scroll (surtout en mobile). */}
-            {audience && (audience.age?.length || audience.gender?.length || audience.cities?.length || audience.countries?.length) ? (
-              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-3">
-                <h3 className="font-body text-sm font-bold text-foreground">
-                  <Users className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Ton audience <span className="font-normal text-muted-foreground text-xs"> : qui te suit sur Instagram</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                  {renderAudienceGroup("Âge", audience.age, 4)}
-                  {renderAudienceGroup("Genre", audience.gender, 3)}
-                  {renderAudienceGroup("Villes", audience.cities, 5)}
-                  {renderAudienceGroup("Pays", audience.countries, 5)}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Sers-t'en pour choisir tes sujets et ton ton. Données Instagram, calculées sur les abonnés identifiés (peut être &lt; ton total), à ±48 h.
-                </p>
-              </div>
-            ) : null}
-
-            {livePosts && (livePosts.top.length || livePosts.flop.length) ? (
-              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
-                <h3 className="font-body text-sm font-bold text-foreground">
-                  <Trophy className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Tes posts récents <span className="font-normal text-muted-foreground text-xs"> : par taux d'engagement, 30 derniers jours</span>
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
-                  {renderPostGroup("Ce qui a le mieux marché", livePosts.top, true)}
-                  {/* On masque le « flop » s'il recoupe le « top » (cas < 4 posts mesurés). */}
-                  {renderPostGroup(
-                    "Ce qui a le moins marché",
-                    livePosts.flop.filter(f => !livePosts.top.some(t => t.id === f.id)),
-                  )}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Le taux d'engagement = interactions ÷ portée (ou vues pour les Reels). Inspire-toi de ce qui marche pour tes prochains contenus.
-                </p>
-              </div>
-            ) : null}
-
-            {/* ─── Ce qui marche pour toi : formats / jours / créneaux sur ~50 posts ─── */}
-            {(igConnected || contentInsights) ? (
-              <div className="rounded-xl border border-border bg-card p-4 sm:p-5 space-y-4">
-                <div className="flex items-center justify-between flex-wrap gap-2">
-                  <h3 className="font-body text-sm font-bold text-foreground">
-                    <Microscope className="inline-block h-4 w-4 mr-1.5 align-[-2px] text-primary" strokeWidth={1.75} />Ce qui marche pour toi{" "}
-                    <span className="font-normal text-muted-foreground text-xs">
-                      — formats, jours et créneaux{contentInsights ? `, sur tes ${contentInsights.sampleSize} derniers posts` : ""}
-                    </span>
-                  </h3>
-                  {igConnected && (
-                    <Button onClick={analyzeContent} disabled={analyzingContent || fetchingLive} variant="outline" size="sm" className="gap-1.5 shrink-0">
-                      {analyzingContent
-                        ? <><RefreshCw className="h-3.5 w-3.5 animate-spin" />Analyse en cours…</>
-                        : <><Sparkles className="h-3.5 w-3.5" />{contentInsights ? "Actualiser" : "Analyser mes 50 derniers posts"}</>}
-                    </Button>
-                  )}
-                </div>
-                {contentInsights ? (
-                  <>
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-4">
-                      {renderBucketGroup("Par format", contentInsights.byFormat)}
-                      {renderBucketGroup("Par jour de publication", contentInsights.byWeekday)}
-                      {renderBucketGroup("Par créneau (heure de Paris)", contentInsights.bySlot)}
-                    </div>
-                    {contentInsights.reading && (
-                      <div className="rounded-lg bg-muted/40 px-4 py-3 space-y-1.5">
-                        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide flex items-center gap-1.5"><Brain className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> La lecture du coach</p>
-                        <AiGeneratedMention />
-                        <p className="text-sm text-foreground leading-relaxed">{contentInsights.reading}</p>
-                      </div>
-                    )}
-                    <p className="text-xs text-muted-foreground">
-                      Taux d'engagement moyen par segment{contentInsights.fetchedAt ? ` — analyse du ${new Date(contentInsights.fetchedAt).toLocaleDateString("fr-FR")}` : ""}. Indicatif : un segment avec peu de posts pèse peu, regarde le nombre entre parenthèses.
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">
-                    Lance l'analyse pour voir quels formats, quels jours et quels créneaux te réussissent le mieux — calculé sur tes vrais posts, pas des moyennes génériques.
-                  </p>
-                )}
-              </div>
-            ) : null}
-
-            <StatsCharts
-              chartData={chartData} isSingleMonth={isSingleMonth}
-              activeConfig={activeConfig} periodStats={periodStats}
-              allStats={allStats}
-              compareA={compareA} compareB={compareB}
-              setCompareA={setCompareA} setCompareB={setCompareB}
-            />
           </TabsContent>
-
           <TabsContent value="input">
             <fieldset disabled={ga4Busy}>
             <StatsForm
@@ -1384,7 +1347,8 @@ function InstagramStatsScope() {
           </TabsContent>
 
           <TabsContent value="ai" className="space-y-5">
-            <div className="text-center py-4">
+            <div className="text-center py-4 space-y-3">
+              <label className="block text-sm">Mois à analyser <select className="ml-2 rounded-lg border bg-background p-2 max-w-full" aria-label="Mois à analyser" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}>{monthOptions.map(o=><option key={o.value} value={o.value}>{o.label}</option>)}</select></label>
               <Button onClick={handleAnalyze} disabled={isGenerating || allStats.length === 0} size="lg" className="gap-2">
                 <Sparkles className="h-4 w-4" />
                 {isGenerating ? "Analyse en cours..." : "Analyser mes stats avec l'IA"}
@@ -1393,7 +1357,7 @@ function InstagramStatsScope() {
                 <p className="text-sm text-muted-foreground mt-3">Saisis au moins 1 mois de stats pour lancer l'analyse.</p>
               ) : (
                 <p className="text-sm text-muted-foreground mt-3">
-                  Analyse {monthLabel(selectedMonth)} (le mois sélectionné dans « Saisir mes stats »), comparé à tes mois précédents.
+                  Analyse {monthLabel(selectedMonth)} (le mois sélectionné dans « Mes données »), comparé à tes mois précédents.
                 </p>
               )}
             </div>

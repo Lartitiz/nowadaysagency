@@ -19,8 +19,8 @@ export type PeriodPreset = "this_month" | "last_month" | "3_months" | "6_months"
 
 export type DashboardKPIs = {
   followers: number | null;
-  avgReach: number;
-  avgEngagement: number;
+  avgReach: number | null;
+  avgEngagement: number | null;
   netGrowth: number | null;
   changeFollowers: { val: number; dir: "up" | "down" | "flat" } | null;
   changeReach: { val: number; dir: "up" | "down" | "flat" } | null;

@@ -68,7 +68,7 @@ export default function StatsCharts({
                 <ReferenceLine y={0} stroke="hsl(var(--border))" />
                 <Bar dataKey="gained" stackId="g" fill="hsl(var(--success))" name="Gagnés" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="lost" stackId="g" fill="hsl(var(--primary))" name="Perdus" radius={[0, 0, 4, 4]} />
-                <Line type="monotone" dataKey="net" stroke="hsl(var(--info))" name="Net" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
+                <Line type="monotone" dataKey="net" stroke="hsl(var(--info))" name="Net" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </ChartCard>
@@ -86,10 +86,10 @@ export default function StatsCharts({
                 <Tooltip contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }} />
                 <Legend />
                 <Bar yAxisId="right" dataKey="posts_count" fill="hsl(var(--rose-medium))" name="Posts publiés (éch. droite)" radius={[4, 4, 0, 0]} barSize={18} />
-                <Line yAxisId="left" type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée totale" strokeWidth={2.5} dot={{ r: 3 }} connectNulls />
-                <Line yAxisId="left" type="monotone" dataKey="reach_organic" stroke="hsl(var(--bordeaux))" name="Portée organique (est.)" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3 }} connectNulls />
-                <Line yAxisId="left" type="monotone" dataKey="profile_visits" stroke="hsl(var(--info))" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} connectNulls />
-                <Line yAxisId="left" type="monotone" dataKey="website_clicks" stroke="hsl(var(--warning))" name="Clics site" strokeWidth={2} dot={{ r: 3 }} connectNulls />
+                <Line yAxisId="left" type="monotone" dataKey="reach" stroke="hsl(var(--primary))" name="Portée totale" strokeWidth={2.5} dot={{ r: 3 }} connectNulls={false} />
+                <Line yAxisId="left" type="monotone" dataKey="reach_organic" stroke="hsl(var(--bordeaux))" name="Portée organique (est.)" strokeWidth={2} strokeDasharray="5 4" dot={{ r: 3 }} connectNulls={false} />
+                <Line yAxisId="left" type="monotone" dataKey="profile_visits" stroke="hsl(var(--info))" name="Visites profil" strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
+                <Line yAxisId="left" type="monotone" dataKey="website_clicks" stroke="hsl(var(--warning))" name="Clics site" strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
               </ComposedChart>
             </ResponsiveContainer>
           </ChartCard>

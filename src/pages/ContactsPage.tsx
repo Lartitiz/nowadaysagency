@@ -252,12 +252,13 @@ function ContactsWorkspace({ userId, workspaceId, column, value }: { userId: str
   if (loading) return <div className="flex min-h-screen items-center justify-center bg-background"><div className="flex gap-1"><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.16s" }} /><div className="h-3 w-3 rounded-full bg-primary animate-bounce-dot" style={{ animationDelay: "0.32s" }} /></div></div>;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] [--bordeaux:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
       {showConfetti && <Confetti />}
-      <main className="mx-auto max-w-3xl px-6 py-8 max-md:px-4 space-y-6">
+      <main id="main-content" className="mx-auto max-w-4xl px-6 py-8 pb-28 max-md:px-4 space-y-6">
         <SubPageHeader parentTo="/dashboard" parentLabel="Accueil" currentLabel="Mes contacts" />
 
+        <header><h1 className="font-display text-3xl text-foreground">Garde le fil de tes échanges.</h1><p className="mt-2 text-sm text-muted-foreground">Ton réseau et tes prospects Instagram, avec leur historique et la prochaine action à prévoir. Les messages préparés ici restent à envoyer par toi.</p></header>
         {/* Stats bar */}
         <div className="rounded-xl border border-border bg-card p-4">
           <div className="flex flex-wrap gap-4 text-sm">
