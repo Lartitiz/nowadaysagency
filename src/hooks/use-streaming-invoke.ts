@@ -1,3 +1,4 @@
+import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -71,7 +72,7 @@ export function useStreamingInvoke(): UseStreamingInvokeReturn {
             "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             "Accept": "text/event-stream",
           },
-          body: JSON.stringify(body),
+          body: JSON.stringify(withIdeaBrief(functionName, body)),
           signal: controller.signal,
         });
         return resp;

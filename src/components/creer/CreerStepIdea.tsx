@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
 
 interface Props {
+  initialFormat?: string | null;
   channel?: "instagram" | "linkedin" | "pinterest" | "newsletter" | null;
   onNext: (idea: string) => void;
   onIdeaChange?: (idea: string) => void;
@@ -23,7 +24,7 @@ interface Props {
   onPhotoSubjectChange?: (subject: string) => void;
   onPhotoEntryChange?: (open: boolean) => void;
   photoEntry?: boolean;
-  onCoachingSelect?: (data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }) => void;
+  onCoachingSelect?: (data: { subject: string; format: string; objective: string; canal?: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo"; editorialAngle?: string }) => void;
   onNewsjackingSelect?: (data: { subject: string; context: string; format?: string; vehicule?: string }) => void;
   onPhotosNext?: (photos: PhotoItem[], description: string, subject: string) => void;
   workspaceId?: string;
@@ -45,7 +46,7 @@ const STARTER_IDEAS = [
   "Ce que j'aurais aimé savoir en débutant",
 ];
 
-export default function CreerStepIdea({ channel, onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry }: Props) {
+export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachingSelect, onNewsjackingSelect, onPhotosNext, workspaceId, initialIdea, autoOpenTransform, initialPhotos, initialPhotoDescription, initialPhotoSubject, onIdeaChange, onPhotosChange, onPhotoDescriptionChange, onPhotoSubjectChange, onPhotoEntryChange, photoEntry }: Props) {
   const [fallbackIdea, setFallbackIdea] = useState(initialIdea || "");
   const [coachOpen, setCoachOpen] = useState(false);
   const [showNewsjacking, setShowNewsjacking] = useState(false);
@@ -160,7 +161,7 @@ export default function CreerStepIdea({ channel, onNext, onCoachingSelect, onNew
               <div className="divide-y divide-border border-y border-border">
                 {[
                   { label: "J’ai déjà du contenu", description: "Recycler, adapter ou s’inspirer d’un texte, d’un post ou d’un document.", action: () => setShowTransform(true) },
-                  { label: "J’ai besoin d’une idée", description: "Quelques échanges pour trouver quoi partager.", action: () => setCoachOpen(true) },
+                  { label: "J’ai besoin d’une idée", description: "Des idées proposées directement, avec leur analyse.", action: () => setCoachOpen(true) },
                   { label: "Réagir à une actualité", description: "Relier une actu à ton activité.", action: () => setShowNewsjacking(true) },
                 ].map(({ label, description, action }) => (
                   <button key={label} type="button" onClick={action} className="group flex w-full items-center gap-4 py-5 text-left text-primary hover:bg-rose-pale/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-2">
@@ -259,7 +260,7 @@ export default function CreerStepIdea({ channel, onNext, onCoachingSelect, onNew
       )}
 
       {/* Coaching dialog */}
-      <ContentCoachingDialog open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} onNewsjackingRedirect={() => setShowNewsjacking(true)} />
+      <ContentCoachingDialog initialFormat={initialFormat} initialChannel={channel} open={coachOpen} onOpenChange={setCoachOpen} onSelect={onCoachingSelect} onNewsjackingRedirect={() => setShowNewsjacking(true)} />
 
       {/* Transform sheet : panneau latéral pour recycler / crossposter / s'inspirer */}
       <Sheet open={showTransform} onOpenChange={setShowTransform}>

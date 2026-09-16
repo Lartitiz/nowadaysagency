@@ -1,3 +1,4 @@
+import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
 
 export type InvokeErrorCode = "TIMEOUT" | "RATE_LIMIT" | "AUTH" | "FORBIDDEN" | "SERVER_ERROR" | "GENERATION_ERROR" | "NETWORK" | "UNKNOWN";
@@ -19,6 +20,7 @@ export async function invokeWithTimeout(
   options: { body?: any; headers?: Record<string, string>; method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE" } = {},
   timeoutMs = 90000,
 ): Promise<{ data: any; error: InvokeError | null }> {
+  options = { ...options, body: withIdeaBrief(functionName, options.body) };
   const controller = new AbortController();
   const networkMessage = options.body?.photo_mode === true || Array.isArray(options.body?.photos)
     ? "Génération longue interrompue. Réessaie avec moins de photos (3-5 max) ou vérifie ta connexion."

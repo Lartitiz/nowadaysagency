@@ -307,7 +307,7 @@ function CreerWorkspace() {
   // (le sujet est conservé). CreerStepFormat pré-sélectionne ensuite ce canal.
   const FORCED_CANALS = ["instagram", "linkedin", "pinterest", "newsletter"] as const;
   type ForcedChannel = (typeof FORCED_CANALS)[number];
-  const [forcedChannel] = useState<ForcedChannel | null>(() =>
+  const [forcedChannel, setForcedChannel] = useState<ForcedChannel | null>(() =>
     (FORCED_CANALS as readonly string[]).includes(paramCanal || "") ? (paramCanal as ForcedChannel) : ps?.forcedChannel ?? null);
   const restoredCanal = deriveCanalFromState(ps);
   const canalConflict = !!forcedChannel && !!restoredCanal && restoredCanal !== forcedChannel;
@@ -1155,8 +1155,10 @@ function CreerWorkspace() {
 
   // ── Step handlers ──
 
-  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides"; editorialAngle?: string }) => {
+  const handleCoachingSelect = useCallback((data: { subject: string; format: string; objective: string; canal?: string; carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides"; editorialAngle?: string }) => {
     setAnswers({});
+    if (data.canal && (FORCED_CANALS as readonly string[]).includes(data.canal)) setForcedChannel(data.canal as ForcedChannel);
+    setIsLinkedInCarousel(data.canal === "linkedin" && data.format === "carousel");
     // L'angle choisi dans le coach d'idées VOYAGE jusqu'à la génération :
     // c'est lui qu'on a jugé « waouh », le perdre ici ruinait tout l'amont.
     setEditorialAngle(data.editorialAngle ?? null);
@@ -2743,7 +2745,7 @@ function CreerWorkspace() {
                     <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={!history.canRedo || !isCurrentCreation()} onClick={() => history.travel(true)} aria-label="Rétablir la modification du sujet" aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y" title="Rétablir (⌘⇧Z / Ctrl+⇧Z / Ctrl+Y)"><Redo2 className="h-3.5 w-3.5" /> Rétablir</Button>
                   </div>;
                 })()}
-                <CreerStepIdea channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                <CreerStepIdea initialFormat={selectedFormat} channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
                   onIdeaChange={(value) => { if (isCurrentCreation()) ideaHistory.change(value, true); }} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={(value) => { if (isCurrentCreation()) photoSubjectHistory.change(value, true); }}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry} />

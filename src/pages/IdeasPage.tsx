@@ -535,7 +535,7 @@ function IdeasInWorkspace() {
 
                   <div className="flex-1 overflow-y-auto px-6 pb-6 space-y-6 min-w-0">
                     {showAngle && (
-                      <p className="text-sm text-muted-foreground">Angle : {angle}</p>
+                      <p className="text-sm text-muted-foreground whitespace-pre-line break-words">{angle}</p>
                     )}
 
                     {(selectedIdea.accroche_short || selectedIdea.accroche_long) && (
