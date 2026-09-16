@@ -181,7 +181,7 @@ function IdeasInWorkspace({ onIdeaPlanned, onIdeaClick, isMobile, onCollapse, re
   });
 
   return (
-    <div ref={dropRef} className={cn("flex flex-col h-full transition-colors rounded-xl", isOverSidebar && "bg-primary/10 ring-2 ring-primary/30 ring-inset")}>
+    <div ref={dropRef} className={cn("flex min-h-0 flex-col h-full transition-colors rounded-xl", isOverSidebar && "bg-primary/10 ring-2 ring-primary/30 ring-inset")}>
       {isOverSidebar && (
         <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-primary bg-primary/5 rounded-lg py-2 mb-2 border border-dashed border-primary/40">
           <Undo2 className="h-3.5 w-3.5" /> Remettre en idée
