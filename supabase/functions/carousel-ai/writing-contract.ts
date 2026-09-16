@@ -1,5 +1,5 @@
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "subject-first-calibrated-v4.1";
+export const CAROUSEL_WRITING_VERSION = "fil-v5";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
@@ -35,11 +35,14 @@ Un titre permet de saisir le sujet ou l'idée précise de sa slide. Il peut nomm
 `;
 
 export const CAROUSEL_CONTINUITY = `
-PROGRESSION ET VOIX
-Lis les textes dans leur ordre réel, photos et texte mêlés : le sujet, les personnes et le passage d'une idée à l'autre doivent être clairs. Les étapes d'une méthode suivent leur ordre ; une analyse relie ses arguments ; une présentation regroupe ses caractéristiques utilement. Deux détails peuvent être permutables sans être mauvais. Préserve le fil choisi et les structures confirmées.
-Chaque slide apporte sa contribution, sans redire l'idée précédente avec plus de gravité. Un lien de sens suffit : ne fabrique pas une transition, un suspense ni une chute à chaque frontière de slide. Une idée aboutie peut s'arrêter. La dernière slide peut finir l'explication ; une action ou une question n'est ajoutée que si elle sert la demande, une seule au maximum.
+FIL DU CARROUSEL
+Avant d'écrire les slides, fixe le fil : ce que la personne qui lit comprend à la fin qu'elle ne comprenait pas au début, et les étapes qui y mènent. Ce fil peut être un raisonnement, une explication, une méthode, une comparaison ou un récit fourni ; il suit la matière, sans arc dramatique imposé. Quand le format prévoit un champ fil, écris-y ce plan avant les slides, puis exécute-le slide par slide.
+Chaque slide part de quelque chose que la précédente a posé (un fait, une question laissée ouverte, un mot) et apporte une chose nouvelle qui fait avancer la compréhension. Un lien de sens suffit : ne fabrique ni transition emphatique, ni suspense, ni chute à chaque frontière de slide.
+Test avant de livrer : si deux slides peuvent être inversées sans changer le raisonnement, ou si une slide redit l'idée précédente avec d'autres mots, fusionne-les ou supprime l'une. Le nombre de slides suit la matière, jamais l'inverse ; les étapes d'une méthode ou les éléments d'une liste annoncée gardent leur ordre propre.
+Une précaution, une distinction ou une nuance se place dans la slide où elle sert le raisonnement ; elle ne devient pas une slide-rubrique à part (note, avertissement, précision de méthode). Le sujet ou le cas de départ reste présent jusqu'à la dernière slide : un point général s'y rattache explicitement, on ne bascule pas vers une fiche générique. Le lien avec l'activité de la personne se construit au fil des slides quand il existe, jamais sous forme de rubrique finale annoncée par son titre.
+La conclusion découle du chemin parcouru. Une action ou une question n'est ajoutée que si elle sert la demande, une seule au maximum.
 Préserve le registre, le je/tu/vous, l'humour, les hésitations et les bonnes phrases de la personne. Ne rends pas tout neutre ou télégraphique. Ne plaque ni oralité ni confession. Les contrastes utiles restent des contrastes, même avec une virgule ou une négation.
-Avant de livrer, examine aussi les titres et fins de paragraphes : une opposition de façade, une révélation banale ou un slogan interchangeable ne devient pas pertinent parce qu'il contient le nom du produit. Si la phrase répète seulement l'explication avec emphase, enlève-la et arrête le passage. Une phrase courte, une image éclairante ou une blague située peut rester.
+Examine aussi les titres et fins de paragraphes : une opposition de façade, une révélation banale ou un slogan interchangeable ne devient pas pertinent parce qu'il contient le nom du produit. Si la phrase répète seulement l'explication avec emphase, enlève-la et arrête le passage. Une phrase courte, une image éclairante ou une blague située peut rester.
 `;
 
 export function buildCarouselWritingSystem(brandingContext: string, isLinkedIn: boolean, identity: string, clarity: string): string {

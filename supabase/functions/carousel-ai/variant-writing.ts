@@ -31,7 +31,7 @@ Gabarits conservés : couverture (première slide), profonde (prose, défaut), e
 La finale peut terminer une explication ou proposer une action pertinente ; ce gabarit n'impose pas de question. cta_label:null si aucune invitation. kicker et detail sont facultatifs, ils servent la lecture sans doubler le texte. Une slide sans texte n'a pas de template.
 visual_anchor : détail visible dans la photo, utile à sa composition. photo_description et note restent des indications techniques ; aucune prose nouvelle ne doit être cachée dans ces champs.
 
-Retourne un objet JSON avec carousel_type:"photo", chosen_angle:{title,description}, slides et caption.
+Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente), puis carousel_type:"photo", chosen_angle:{title,description}, slides et caption.
 Chaque slide contient slide_number, role, photo_index, photo_description, overlay_text, overlay_position, overlay_style, template, kicker, detail, points, big_number, step_number, attribution, cta_label, visual_anchor, note. Utilise null pour les champs facultatifs inapplicables, pas de placeholders ni de chiffres illustratifs. Les rôles décrivent ce que font les slides ; aucune révélation, émotion ou action obligatoire.`;
 }
 
@@ -45,7 +45,7 @@ ${body.content_structure ? `Structure choisie à conserver : ${body.content_stru
 ${CAROUSEL_FACTS}
 ${VISUAL_SCHEMA_CONTRACT}
 Contrat : une idée principale par slide, title et body en prose adaptée au registre demandé ; body peut être vide sur la couverture. Les titres descriptifs et la numérotation d'étapes sont autorisés. Le champ role nomme la fonction réelle (présentation, caractéristique, usage, étape, argument, nuance, récit, etc.), sans imposer de bascule ni de révélation.
-Retourne un objet JSON avec carousel_type, chosen_angle:{title,description}, slides, caption, quality_check:{} et publishing_tip:"". N'invente aucun conseil de performance ou moment optimal pour publier.
+Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente), puis carousel_type, chosen_angle:{title,description}, slides, caption, quality_check:{} et publishing_tip:"". N'invente aucun conseil de performance ou moment optimal pour publier.
 Chaque slide contient slide_number (entier depuis 1), role, title, body, visual_suggestion (composition, ambiance ou illustration dans ce champ technique), visual_schema (objet typé ou null), word_count (nombre réel de mots du texte). Aucun contenu éditorial supplémentaire dans les suggestions techniques.
 Caption : hook (entrée dans le sujet, pas de nouvelle anecdote), body (complément ou résumé fidèle), cta (vide si inutile), hashtags (liste de trois mots-clés pertinents maximum). Aucun minimum de longueur et aucune posture d'expert ajoutée au ton demandé.`;
 }
@@ -61,11 +61,11 @@ Les photos sont numérotées depuis 1. Respecte les photo_index et layouts confi
 body : maximum ${isLinkedIn ? 80 : 50} mots, sans minimum ; conserve les détails et nuances utiles. Un titre n'est pas nécessairement une mini-accroche. Un schéma n'est utile que s'il explique un processus, une comparaison ou des données disponibles : 0 à 2 maximum, jamais consécutifs. visual_schema:null à défaut ; si présent, un objet typé, jamais une description sous forme de chaîne.
 ${VISUAL_SCHEMA_CONTRACT}
 ${textFirst}
-Retourne un objet JSON avec carousel_type:"mix", chosen_angle:{title,description}, slides et caption.
+Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente), puis carousel_type:"mix", chosen_angle:{title,description}, slides et caption.
 Chaque slide : slide_number, slide_type, photo_index, role, puis les champs propres au type. photo_full : overlay_text, overlay_position, overlay_style. photo_integrated : photo_layout,title,body. text_only : title,body,visual_schema. Pour les slides photo : visual_anchor et note, ainsi que photo_directive/photo_query_en/library_photo_index/news_entity quand le mode texte-d'abord le demande. Aucun placeholder ni auto-note de qualité.
 `;
 }
 
 export const NEWS_WRITING = `
-ACTUALITÉ : conserve le fait déclencheur et sa source comme point d'entrée visible. Situe les faits nécessaires avant le point de vue. La réaction personnelle et le lien métier suivent l'angle choisi, sans désaccord, décalage ni quota d'opinions imposés. Ne transforme pas le branding en souvenir de lecture ou en expérience client. Si une information manque, ne fabrique pas de généralisation qui ressemble à un fait. Les photos choisies sont un support illustratif, pas une preuve de l'événement. Préserve la nuance et la position exprimées par la personne.
+ACTUALITÉ : conserve le fait déclencheur et sa source comme point d'entrée visible. Situe les faits nécessaires avant le point de vue. Le cas d'actualité reste le sujet jusqu'à la dernière slide : la réaction personnelle et ce que la personne en tire pour son activité s'articulent au fil de l'analyse, en repartant chaque fois du cas, jamais dans une rubrique finale annoncée par son titre. Une réserve sur ce que la source permet d'affirmer tient dans la phrase où elle sert ; elle ne fait pas une slide à part. La réaction personnelle et le lien métier suivent l'angle choisi, sans désaccord, décalage ni quota d'opinions imposés. Ne transforme pas le branding en souvenir de lecture ou en expérience client. Si une information manque, ne fabrique pas de généralisation qui ressemble à un fait. Les photos choisies sont un support illustratif, pas une preuve de l'événement. Préserve la nuance et la position exprimées par la personne.
 `;
