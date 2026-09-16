@@ -99,13 +99,14 @@ function autoWidth(ws: any, rows: Record<string, any>[]) {
   ws["!cols"] = keys.map(k => ({ wch: Math.min(40, Math.max(k.length, ...rows.map(r => String(r[k] || "").length))) }));
 }
 
-function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatchOpen, onImportOpen, seriesNameById }: {
+function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatchOpen, onImportOpen, seriesNameById, contentsUnavailable }: {
   filteredPosts: CalendarPost[];
   canalFilter: string;
   onCoachingOpen: () => void;
   onQuickBatchOpen: () => void;
   onImportOpen: () => void;
   seriesNameById: Record<string, string>;
+  contentsUnavailable: boolean;
 }) {
   const postToRow = makePostToRow(seriesNameById);
   const [shareOpen, setShareOpen] = useState(false);
@@ -163,7 +164,7 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuItem onClick={onCoachingOpen} className="sm:hidden cursor-pointer gap-2">
+            <DropdownMenuItem disabled={contentsUnavailable} onClick={onCoachingOpen} className="sm:hidden cursor-pointer gap-2">
               <Sparkles className="h-4 w-4" /> Préparer ma semaine
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShareOpen(true)} className="cursor-pointer gap-2">
@@ -173,15 +174,15 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
               <FileInput className="h-4 w-4" /> Importer un contenu
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={exportXLSX} className="cursor-pointer gap-2">
+            <DropdownMenuItem disabled={contentsUnavailable} onClick={exportXLSX} className="cursor-pointer gap-2">
               <Download className="h-4 w-4" /> Exporter en Excel
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={exportCSV} className="cursor-pointer gap-2">
+            <DropdownMenuItem disabled={contentsUnavailable} onClick={exportCSV} className="cursor-pointer gap-2">
               <Download className="h-4 w-4" /> Exporter en CSV
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" onClick={onCoachingOpen} className="hidden sm:inline-flex shrink-0 gap-1.5 rounded-full" size="sm">
+        <Button disabled={contentsUnavailable} variant="outline" onClick={onCoachingOpen} className="hidden sm:inline-flex shrink-0 gap-1.5 rounded-full" size="sm">
           <Sparkles className="h-3.5 w-3.5" /> Préparer ma semaine
         </Button>
       </div>
@@ -982,7 +983,7 @@ function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
   const body = (
     <div className="flex flex-col [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]">
       <div className="order-1">
-        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
+        <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} contentsUnavailable={postsLoading || postsError} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
       </div>
 
       {/* Sur mobile, accès aux idées à placer même dans le hub Calendrier. */}
