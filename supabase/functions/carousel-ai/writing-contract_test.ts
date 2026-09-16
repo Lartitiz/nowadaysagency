@@ -52,3 +52,12 @@ for (const linkedIn of [false, true]) Deno.test(`texte : choix conservés, canal
   for (const x of ["scène-first", "UNE SEULE histoire", "chaque slide est un temps de ce récit", "positionner l'auteur", "500-800 caractères"]) assert(!p.includes(x), x);
   assertEquals(p.includes("Légende optionnelle"), linkedIn);
 });
+
+Deno.test("fil : le contrat exige un plan avant les slides, le test d'inversion et aucune rubrique à part", () => {
+  const prompt = buildCarouselWritingSystem("VOIX", false, "IDENTITÉ", "CLARTÉ");
+  for (const rule of ["FIL DU CARROUSEL", "champ fil", "inversées sans changer le raisonnement", "fusionne-les", "slide-rubrique", "cas de départ reste présent", "rubrique finale annoncée", "Le nombre de slides suit la matière"]) assert(prompt.includes(rule), rule);
+  for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "chaque slide est un temps de ce récit", "UNE SEULE histoire", "suspense obligatoire"]) assert(!prompt.includes(contradiction), contradiction);
+  for (const p of [textWritingPrompt({ subject: "S" }, false, ""), photoWritingPrompt({ subject: "S" }, false, ""), mixWritingPrompt({ subject: "S" }, false, "", "")]) assert(p.includes("fil:{arrivee,etapes} en première clé"), "plan fil demandé dans chaque format");
+  assert(NEWS_WRITING.includes("reste le sujet jusqu'à la dernière slide"));
+  assert(NEWS_WRITING.includes("ne fait pas une slide à part"));
+});

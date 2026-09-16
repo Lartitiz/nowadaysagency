@@ -1,4 +1,5 @@
-import { carouselLengthPrompt, carouselStructureIssues } from "../_shared/carousel-length.ts";
+import { carouselLength, carouselLengthPrompt, carouselStructureIssues } from "../_shared/carousel-length.ts";
+import { reviewCarouselThread, threadRepairInstruction, threadReviewSkipped } from "../_shared/carousel-thread.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
@@ -38,6 +39,7 @@ export const _deps = {
   logUsage,
   callAnthropic,
   callCarouselWriter,
+  reviewThread: reviewCarouselThread,
 };
 
 // ── Sortie structurée pour les deepening_questions ──
@@ -242,6 +244,12 @@ RÈGLES ABSOLUES :
 - Si UNE photo parmi plusieurs te semble vraiment inutilisable, écarte-la ou répète les autres (l'écart individuel est prévu) : une photo problématique ne justifie JAMAIS un refus global.
 Si l'utilisatrice a décrit ses photos, sa description fait foi sur ce qu'elles montrent et pourquoi elle les a choisies. Si tu hésites, génère.`;
 
+const FIL_FIELD = {
+  type: "object",
+  description: "Plan du fil, écrit AVANT les slides : arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente.",
+  properties: { arrivee: { type: "string" }, etapes: { type: "array", items: { type: "string" } } },
+};
+
 const MIX_CAROUSEL_TOOL = {
   name: "livrer_carrousel_mixte",
   description:
@@ -250,6 +258,7 @@ const MIX_CAROUSEL_TOOL = {
     type: "object",
     properties: {
       photo_mismatch: PHOTO_MISMATCH_FIELD,
+      fil: FIL_FIELD,
       carousel_type: { type: "string" },
       chosen_angle: {
         type: "object",
@@ -305,6 +314,7 @@ const PHOTO_CAROUSEL_TOOL = {
     type: "object",
     properties: {
       photo_mismatch: PHOTO_MISMATCH_FIELD,
+      fil: FIL_FIELD,
       carousel_type: { type: "string" },
       chosen_angle: {
         type: "object",
@@ -878,6 +888,67 @@ async function handleAssignTemplatesRequest(body: any, corsHeaders: Record<strin
 }
 
 // ── Queue commune de génération ──
+// ── Fil du carrousel (16/09/2026) ──
+// Relecture du carrousel ENTIER par un juge court (_shared/carousel-thread.ts),
+// puis réparation par le rédacteur quand des défauts sont nommés : slides qui
+// se répètent, permutables, rubriques posées à part, sortie du cas de départ.
+// `inspect` = checks structurels déterministes (texte). Sans `regenerate`
+// (chemins vision : renvoyer les photos coûterait un 2e appel plein tarif), on
+// mesure et on avertit seulement — les défauts restent visibles dans
+// structure_warnings. Une réparation n'est gardée que si elle fait mieux.
+async function repairCarouselThread(content: string, opts: {
+  body: any;
+  label: string;
+  emitStatus: StatusEmitter;
+  usage: UsageSink;
+  inspect?: (content: string) => string[];
+  regenerate?: (draft: string, defects: string, sink: UsageSink) => Promise<string>;
+  judgeThread?: boolean;
+}): Promise<{ content: string; warnings: string[]; threadWarnings: string[] }> {
+  const { body, label, emitStatus, usage } = opts;
+  const inspect = opts.inspect || (() => []);
+  const length = carouselLength(body);
+  const judge = async (value: string): Promise<string[]> => {
+    if (opts.judgeThread === false) return [];
+    const doc = tryParseAiJson<any>(value, "carousel-ai:thread");
+    if (threadReviewSkipped(doc, body)) return [];
+    return _deps.reviewThread(doc, { listPromised: !!length.items, logger: (m: string) => console.log(m) });
+  };
+  let issues = inspect(content);
+  let thread = await judge(content);
+  if ((issues.length || thread.length) && opts.regenerate) {
+    emitStatus("correcting");
+    const repairSink: UsageSink = {};
+    const defects = [
+      issues.length ? `DÉFAUTS STRUCTURELS :\n${issues.join("\n")}\nCorrige ces défauts et renvoie le JSON complet. Préserve les faits, la voix et les formulations déjà relues. Aucun fait nouveau ni suppression d'un élément promis.` : "",
+      threadRepairInstruction(thread, length.exact),
+    ].filter(Boolean).join("\n\n");
+    try {
+      const repaired = await opts.regenerate(content, defects, repairSink);
+      const remaining = inspect(repaired);
+      const remainingThread = thread.length ? await judge(repaired) : [];
+      const accepted = countCarouselSlides(repaired) > 0 && remaining.length === 0 && (thread.length === 0 || remainingThread.length < thread.length);
+      console.log(JSON.stringify({ type: "carousel_thread_repair", label, before: { structure: issues.length, thread: thread.length }, after: { structure: remaining.length, thread: remainingThread.length }, accepted }));
+      if (accepted) { content = repaired; issues = remaining; thread = remainingThread; }
+    } catch (e) { console.error(`carousel-ai(${label}): réparation échouée, brouillon conservé`, e); }
+    finally {
+      for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) usage[key] = (usage[key] || 0) + (repairSink[key] || 0);
+    }
+  } else if (thread.length) {
+    console.log(JSON.stringify({ type: "carousel_thread_warning_only", label, thread: thread.length }));
+  }
+  return { content, warnings: [...issues, ...thread], threadWarnings: thread };
+}
+
+// Même affichage que le texte (bandeau « à compléter avant de publier ») pour
+// les chemins mix et photo, sans toucher au JSON quand il n'y a rien à signaler.
+function withStructureWarnings(content: string, warnings: string[]): string {
+  if (!warnings.length) return content;
+  const parsed: any = tryParseAiJson(content, "carousel-ai:thread-warnings");
+  if (!parsed?.slides) return content;
+  return JSON.stringify({ ...parsed, structure_warnings: warnings });
+}
+
 // Partagée par hooks / slides / express_full (texte standard) / suggest_topics /
 // suggest_angles / deepening_questions (variante texte) : un seul appel IA,
 // passe de correction JSON conditionnelle, quality-gate rédactionnel + cap des
@@ -912,26 +983,23 @@ async function runGenerationAndRespond(
     ? await _deps.callCarouselWriter({ ...writingOptions, model: pickCarouselModel(body) }, usage)
     : await _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage);
 
+  let threadWarnings: string[] = [];
   if (type === "express_full" || type === "slides") {
     const inspect = (value: string) => carouselStructureIssues(tryParseAiJson(value, "carousel-ai:structure"), body);
-    let issues = inspect(content);
-    if (issues.length) {
-      emitStatus("correcting");
-      const repairUsage: UsageSink = {};
-      try {
-        const repaired = await _deps.callCarouselWriter({
-          ...writingOptions, model: pickCarouselModel(body),
-          messages: [{ role: "user", content: userPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + content + "\n\nDÉFAUTS STRUCTURELS :\n" + issues.join("\n") + "\nCorrige ces défauts et renvoie le JSON complet. Préserve les faits, la voix et les formulations déjà relues. Aucun fait nouveau ni suppression d'un élément." }],
-        }, repairUsage);
-        const remaining = inspect(repaired);
-        if (countCarouselSlides(repaired) > 0 && remaining.length === 0) { content = repaired; issues = remaining; }
-      } catch (e) { console.error("carousel-ai: structural repair failed, draft preserved", e); }
-      finally {
-        for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) usage[key] = (usage[key] || 0) + (repairUsage[key] || 0);
-      }
-    }
+    const repaired = await repairCarouselThread(content, {
+      body, label: type, emitStatus, usage, inspect,
+      // Le fil n'est jugé que sur une rédaction neuve : « Mes slides » (type
+      // "slides", texte écrit par la personne) garde son ordre et ses idées.
+      judgeThread: type === "express_full",
+      regenerate: (draft, defects, sink) => _deps.callCarouselWriter({
+        ...writingOptions, model: pickCarouselModel(body),
+        messages: [{ role: "user", content: userPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
+      }, sink),
+    });
+    content = repaired.content;
+    threadWarnings = repaired.threadWarnings;
     const parsed: any = tryParseAiJson(content, "carousel-ai:structure-result");
-    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: issues });
+    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: repaired.warnings });
   }
 
   const editorialBaseline = content;
@@ -985,7 +1053,7 @@ async function runGenerationAndRespond(
 
   if (type === "express_full" || type === "slides") {
     const parsed: any = tryParseAiJson(content, "carousel-ai:final-structure");
-    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: carouselStructureIssues(parsed, body) });
+    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: [...carouselStructureIssues(parsed, body), ...threadWarnings] });
   }
 
   // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
@@ -1032,6 +1100,9 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     : buildMixCarouselPrompt(body, isLinkedIn);
   let content: string;
   let doGenerate: (sink: UsageSink) => Promise<string>;
+  // Réparation du fil : seulement hors vision (le brouillon + les défauts sont
+  // renvoyés au même prompt texte ; en vision on avertit sans re-payer les photos).
+  let doRepair: ((draft: string, defects: string, sink: UsageSink) => Promise<string>) | undefined;
   const mixUsage: UsageSink = {};
   emitStatus("writing");
 
@@ -1090,6 +1161,15 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
       tool: MIX_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
+    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+      model: pickCarouselModel(body),
+      system: systemPrompt,
+      messages: [{ role: "user", content: textPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: MIX_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
+    }, sink);
   }
 
   content = await doGenerate(mixUsage);
@@ -1103,6 +1183,8 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const mismatch = carouselMismatchResponse(content, body, mixUsage, "mix", corsHeaders);
     if (mismatch) return mismatch;
   }
+  const threadMix = await repairCarouselThread(content, { body, label: "mix", emitStatus, usage: mixUsage, regenerate: doRepair });
+  content = threadMix.content;
 
   const editorialBaseline = content;
   // Contextual review includes photo overlays and every visible text field.
@@ -1162,6 +1244,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     correction: { currentBrief, semanticReview: semanticReviewEnabled, reviewBaseline: editorialBaseline, authoredText: currentAuthoredText, enabled: true, skipIfShorterThan: 300, logger: (m) => console.log(m), model: pickCorrectionModel(body), abortTimeoutMs: CORRECTION_ABORT_MS },
   });
   content = gateMix.content;
+  content = withStructureWarnings(content, threadMix.warnings);
   await _deps.logUsage(userId, category, "carousel_mix", mixUsage.total_tokens, mixUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_mix", gateMix, mixUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
@@ -1181,6 +1264,8 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     : buildPhotoCarouselPrompt(body, isLinkedIn);
   let content: string;
   let doGenerate: (sink: UsageSink) => Promise<string>;
+  // Réparation du fil : seulement hors vision (cf. handleMixCarouselRequest).
+  let doRepair: ((draft: string, defects: string, sink: UsageSink) => Promise<string>) | undefined;
   const photoUsage: UsageSink = {};
   emitStatus("writing");
 
@@ -1240,6 +1325,15 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
       tool: PHOTO_CAROUSEL_TOOL,
       abortTimeoutMs: 120_000,
     }, sink);
+    doRepair = (draft, defects, sink) => _deps.callCarouselWriter({
+      model: pickCarouselModel(body),
+      system: systemPrompt,
+      messages: [{ role: "user", content: textPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + draft + "\n\n" + defects }],
+      max_tokens: 8192,
+      temperature: 0.85,
+      tool: PHOTO_CAROUSEL_TOOL,
+      abortTimeoutMs: 120_000,
+    }, sink);
   }
 
   content = await doGenerate(photoUsage);
@@ -1252,6 +1346,8 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     const mismatch = carouselMismatchResponse(content, body, photoUsage, "photo", corsHeaders);
     if (mismatch) return mismatch;
   }
+  const threadPhoto = await repairCarouselThread(content, { body, label: "photo", emitStatus, usage: photoUsage, regenerate: doRepair });
+  content = threadPhoto.content;
 
   // Template assignment can add points/attribution/CTA labels. In contextual
   // mode these must exist BEFORE review, never appear unchecked afterwards.
@@ -1317,6 +1413,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     model: pickCorrectionModel(body),
     logger: (m) => console.log(m),
   });
+  content = withStructureWarnings(content, threadPhoto.warnings);
   await _deps.logUsage(userId, category, "carousel_photo", photoUsage.total_tokens, photoUsage.model, workspaceId);
   await logContentQuality(userId, "carousel_photo", gatePhoto, photoUsage.model, workspaceId, body.subject);
   return new Response(JSON.stringify({ content, writing_version: CAROUSEL_WRITING_VERSION,
