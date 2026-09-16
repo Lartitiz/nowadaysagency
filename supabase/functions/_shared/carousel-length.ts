@@ -35,6 +35,8 @@ export function carouselStructureIssues(parsed: any, body: any): string[] {
     }
     if (missing.length) issues.push(`Éléments de la liste non repérés : ${missing.join(", ")}. Numérote et explique chaque élément.`);
   }
+  const last = slides.at(-1);
+  if (slides.length > 1 && ![last?.title, last?.body].filter(Boolean).join(" " ).trim()) issues.push("La dernière slide est vide : complète la conclusion.");
   if (slides.length > 1 && !/conclu|final|synth|closing|cta|fin\b/i.test(String(slides.at(-1)?.role || ""))) issues.push("La dernière slide doit conclure le propos (role:conclusion).");
   return issues;
 }

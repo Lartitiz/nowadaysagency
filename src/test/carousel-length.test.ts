@@ -34,6 +34,10 @@ describe("carousel length and completeness", () => {
     const slides = [complete.slides[0], { body: "1. Première erreur\n2. Deuxième erreur\n3. Troisième erreur" }, { body: "4. Quatrième erreur\n5. Cinquième erreur\n6. Sixième erreur\n7. Septième erreur\n8. Huitième erreur" }, complete.slides.at(-1)];
     expect(carouselStructureIssues({ slides }, { subject: "8 erreurs", slide_count: 4 })).toEqual([]);
   });
+  it("does not accept a blank closing slide as a conclusion", () => {
+    const blank = { slides: [...complete.slides.slice(0, -1), {role:"conclusion",title:"",body:""}] };
+    expect(carouselStructureIssues(blank, {subject:"8 erreurs"})).toContain("La dernière slide est vide : complète la conclusion.");
+  });
   it("reports wrong exact length and absent conclusion without manufacturing copy", () => {
     const issues = carouselStructureIssues({ slides: complete.slides.slice(0, 7) }, { subject: "8 erreurs", slide_count: 10 });
     expect(issues[0]).toContain("exactement 10");
