@@ -14,7 +14,7 @@ const STEPS: StepDef[] = [
   { key: "idea", label: "Idée", verb: "Dis-moi ton idée" },
   { key: "format", label: "Format", verb: "Canal et format" },
   { key: "brief", label: "Précisions", verb: "Précise ton contenu" },
-  { key: "result", label: "Résultat", verb: "Ton contenu prêt" },
+  { key: "result", label: "Contenu", verb: "Relis et personnalise ton contenu" },
 ];
 
 interface Props {
@@ -36,16 +36,15 @@ export default function CreerStepper({ current, onStepClick, rightSlot, verbOver
   const currentStep = STEPS[currentIndex] ?? STEPS[0];
 
   return (
-    <div className="mb-5 space-y-2">
-      {/* Dots row */}
-      <div className="flex items-center gap-1.5">
+    <nav aria-label="Étapes de création" className="mb-8 space-y-3">
+      <div className="flex items-start gap-1 sm:gap-3 sm:max-w-xl">
         {STEPS.map((s, i) => {
           const isPast = i < currentIndex;
           const isCurrent = i === currentIndex;
           const clickable = isPast && !!onStepClick;
 
           return (
-            <div key={s.key} className="flex items-center gap-1.5 flex-1 last:flex-none">
+            <div key={s.key} className="flex items-center gap-1 sm:gap-3 flex-1 last:flex-none">
               <button
                 type="button"
                 onClick={clickable ? () => onStepClick!(s.key) : undefined}
@@ -53,18 +52,21 @@ export default function CreerStepper({ current, onStepClick, rightSlot, verbOver
                 aria-current={isCurrent ? "step" : undefined}
                 aria-label={`Étape ${i + 1} sur ${STEPS.length} — ${s.label}`}
                 className={cn(
-                  "flex items-center justify-center h-6 w-6 rounded-full text-2xs font-bold shrink-0 transition-all",
-                  isPast && "bg-primary/40 text-primary-foreground hover:bg-primary/60 cursor-pointer",
-                  isCurrent && "bg-primary text-primary-foreground shadow-sm scale-110",
-                  !isPast && !isCurrent && "bg-muted text-muted-foreground",
+                  "flex flex-col sm:flex-row items-center gap-1.5 rounded-md text-[11px] sm:text-sm shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4",
+                  isPast && "text-primary hover:underline cursor-pointer",
+                  isCurrent && "text-primary font-semibold",
+                  !isPast && !isCurrent && "text-muted-foreground",
                 )}
               >
-                {isPast ? <Check className="h-3 w-3" /> : i + 1}
+                <span className={cn("flex h-7 w-7 items-center justify-center rounded-full border text-xs", isCurrent ? "bg-primary border-primary text-primary-foreground" : "border-border")}>
+                  {isPast ? <Check className="h-3 w-3" /> : i + 1}
+                </span>
+                <span>{s.label}</span>
               </button>
               {i < STEPS.length - 1 && (
                 <div
                   className={cn(
-                    "h-0.5 rounded-full flex-1 transition-colors",
+                    "h-px rounded-full flex-1 min-w-2 transition-colors",
                     isPast ? "bg-primary/40" : "bg-muted",
                   )}
                 />
@@ -83,6 +85,6 @@ export default function CreerStepper({ current, onStepClick, rightSlot, verbOver
         </p>
         {rightSlot && <div className="shrink-0">{rightSlot}</div>}
       </div>
-    </div>
+    </nav>
   );
 }

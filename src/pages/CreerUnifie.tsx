@@ -2660,7 +2660,7 @@ function CreerWorkspace() {
 
 
 
-      <div className="max-w-2xl mx-auto px-4 py-6 pb-24">
+      <div className={`${step === "idea" || (step === "result" && selectedFormat === "carousel") ? "max-w-6xl" : step === "format" ? "max-w-3xl" : "max-w-2xl"} mx-auto px-4 sm:px-6 py-6 sm:py-10 pb-24 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]`}>
         {/* Sub-page header */}
         {paramFrom && (
           <SubPageHeader
@@ -2711,7 +2711,7 @@ function CreerWorkspace() {
             {step === "idea" && (
               <>
                 <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
-                <CreerStepIdea onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
+                <CreerStepIdea channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
                   onIdeaChange={setIdeaText} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
                   onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={setPhotoSubject}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry} />

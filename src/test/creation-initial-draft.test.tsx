@@ -110,7 +110,7 @@ describe('initial creation draft through real React components', () => {
     expect(screen.getByRole('textbox')).toHaveValue('Avant init'); expect(loadFlowState()?.creationId).toBe('original');
   });
   it('keeps the requested channel, next/back and refresh without regenerating', async () => {
-    const app=mount('/creer?canal=linkedin'); type('LinkedIn initial'); fireEvent.click(screen.getByText('Suivant'));
+    const app=mount('/creer?canal=linkedin'); type('LinkedIn initial'); fireEvent.click(screen.getByText('Continuer'));
     await screen.findByText('Format : linkedin');
     fireEvent.click(screen.getByText('Retour idée')); expect(screen.getByRole('textbox')).toHaveValue('LinkedIn initial');
     type(''); app.unmount(); mount(); expect(screen.getByRole('textbox')).toHaveValue('');

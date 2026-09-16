@@ -216,6 +216,10 @@ export default function CreerStepQuestions({
 
   return (
     <div className="space-y-5 animate-fade-in">
+      <div>
+        <h2 className="font-display text-3xl text-primary">Quelques précisions</h2>
+        <p className="mt-2 text-sm text-muted-foreground">Ajoute ce qui compte pour toi. Tu peux aussi passer ces questions et retravailler le texte ensuite.</p>
+      </div>
       {previousBriefsCount && previousBriefsCount > 0 ? (
         <div className="rounded-lg bg-primary/5 border border-primary/20 p-3">
           <p className="text-xs text-primary font-medium">
@@ -235,8 +239,9 @@ export default function CreerStepQuestions({
 
       {/* Question */}
       <div className="space-y-3">
-        <p className="text-sm font-semibold text-foreground">{q.question}</p>
+        <label htmlFor={`creation-question-${q.id}`} className="block text-sm font-semibold text-foreground">{q.question}</label>
         <Textarea
+          id={`creation-question-${q.id}`}
           value={answers[q.id] || ""}
           onChange={(e) => setAnswers((prev) => ({ ...prev, [q.id]: e.target.value }))}
           placeholder={q.placeholder || "Ta réponse…"}
