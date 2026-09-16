@@ -450,7 +450,7 @@ export default function CarouselEditor({
   };
   if (!slide) return null;
   return (
-    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="space-y-4" onKeyDown={onHistoryKey}>
+    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-4" onKeyDown={onHistoryKey}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-display text-3xl text-primary">Personnaliser mon carrousel</h2>
@@ -490,11 +490,11 @@ export default function CarouselEditor({
       {cloudTools}
       {quality && quality.status !== "idle" && (
         <div
-          className="rounded-xl border p-3 space-y-2 text-sm"
+          className="min-w-0 rounded-xl border p-3 space-y-2 text-sm"
           aria-label="Contrôle qualité"
         >
-          <div className="flex items-center justify-between gap-2">
-            <p role="status">
+          <div className="flex items-start justify-between gap-2">
+            <p role="status" className="min-w-0 flex-1">
               {quality.status === "checking"
                 ? "Contrôle de toutes les slides…"
                 : quality.status === "error"
@@ -718,7 +718,7 @@ export default function CarouselEditor({
           )}
           <fieldset
             disabled={slide.locked}
-            className="space-y-3 disabled:opacity-50"
+            className="min-w-0 space-y-3 disabled:opacity-50"
           >
             {element?.kind === "text" && (
               <>

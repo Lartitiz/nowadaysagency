@@ -507,3 +507,37 @@ Deno.test("inaccessible workspace never becomes a personal carousel generation",
   assertEquals(writer, 0);
   assertEquals(usage, 0);
 });
+
+for (const repair of ['success', 'short', 'failure']) Deno.test(`texte incomplet : réparation bornée ${repair}, reçu conservé`, async () => {
+  resetDeps();
+  const oldFetch = globalThis.fetch, key = Deno.env.get('OPENAI_API_KEY');
+  Deno.env.set('OPENAI_API_KEY', 'synthetic-no-network');
+  let reviews = 0, writes = 0, logged: any[] = [];
+  globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+    const req = JSON.parse(String(init?.body || '{}'));
+    if (req.tool_choice?.name === 'review_carousel_fields') {
+      reviews++;
+      const fields = JSON.parse(req.input[0].content.split("CHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n")[1]);
+      const text = JSON.stringify({reviews: fields.map((f: any) => ({field_id:f.field_id,decision:'keep',reason:'Texte situé et utile',edits:[]}))});
+      return Promise.resolve(new Response(JSON.stringify({model:'gpt-6-astra',status:'completed',output:[{type:'function_call',name:'review_carousel_fields',arguments:text}],usage:{input_tokens:1,output_tokens:1}})));
+    }
+    return Promise.resolve(new Response(JSON.stringify({content:[{type:'text',text:'{}'}],stop_reason:'end_turn',usage:{input_tokens:1,output_tokens:1}})));
+  }) as typeof fetch;
+  const full = {slides:[{slide_number:1,title:'8 erreurs à expliquer',body:'',role:'hook'}, ...Array.from({length:8},(_,i)=>({slide_number:i+2,title:`${i+1}. Une erreur précise`,body:'Une explication située qui aide à choisir le prochain geste.',role:'erreur'})),{slide_number:10,title:'Choisis ton prochain geste',body:'Relis un contenu pour vérifier son objectif.',role:'conclusion'}],caption:{body:'Une légende fidèle au sujet.'}};
+  const short = { ...full, slides: full.slides.slice(0,7) };
+  _deps.callCarouselWriter = (async (opts: any, sink: any) => {
+    writes++; Object.assign(sink,{model:opts.model,input_tokens:10,output_tokens:20,total_tokens:30});
+    if (writes===2) { assert(opts.messages[0].content.includes('DÉFAUTS STRUCTURELS')); if(repair==='failure') throw Error('synthetic failure'); }
+    return JSON.stringify(writes===2 && repair==='success' ? full : short);
+  }) as any;
+  _deps.logUsage = (async (...args: any[])=>{logged=args;}) as any;
+  try {
+    const res = await handleRequest(makeHooksRequest({type:'express_full',carousel_type:'text',subject:'8 erreurs de communication',slide_count:10,deepening_answers:{faits:'Développe chaque erreur distinctement.'}}));
+    assertEquals(res.status,200);
+    const out = await res.json(), parsed=JSON.parse(out.content);
+    assertEquals(writes,2); assertEquals(logged[3],60); assert(reviews>0);
+    assertEquals(parsed.slides.length,repair==='success'?10:7);
+    assertEquals(parsed.structure_warnings.length===0,repair==='success');
+    assertEquals(parsed.slides[1].body,full.slides[1].body);
+  } finally { globalThis.fetch=oldFetch; if(key===undefined)Deno.env.delete('OPENAI_API_KEY');else Deno.env.set('OPENAI_API_KEY',key); }
+});

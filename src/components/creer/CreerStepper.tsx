@@ -19,6 +19,7 @@ const STEPS: StepDef[] = [
 
 interface Props {
   current: StepperKey;
+  contentAvailable?: boolean;
   /** Optional callback when user clicks a past step (jump back). If undefined, past steps aren't clickable. */
   onStepClick?: (key: StepperKey) => void;
   /** Optional right-aligned slot (e.g. credits counter) */
@@ -31,7 +32,7 @@ interface Props {
  * Visual stepper for the /creer flow.
  * Pure presentation component — does not own routing/state.
  */
-export default function CreerStepper({ current, onStepClick, rightSlot, verbOverride }: Props) {
+export default function CreerStepper({ current, contentAvailable = false, onStepClick, rightSlot, verbOverride }: Props) {
   const currentIndex = STEPS.findIndex((s) => s.key === current);
   const currentStep = STEPS[currentIndex] ?? STEPS[0];
 
@@ -41,7 +42,8 @@ export default function CreerStepper({ current, onStepClick, rightSlot, verbOver
         {STEPS.map((s, i) => {
           const isPast = i < currentIndex;
           const isCurrent = i === currentIndex;
-          const clickable = isPast && !!onStepClick;
+          const isAvailable = isPast || (s.key === "result" && contentAvailable && !isCurrent);
+          const clickable = isAvailable && !!onStepClick;
 
           return (
             <div key={s.key} className="flex items-center gap-1 sm:gap-3 flex-1 last:flex-none">
@@ -53,7 +55,7 @@ export default function CreerStepper({ current, onStepClick, rightSlot, verbOver
                 aria-label={`Étape ${i + 1} sur ${STEPS.length} — ${s.label}`}
                 className={cn(
                   "flex flex-col sm:flex-row items-center gap-1.5 rounded-md text-[11px] sm:text-sm shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary focus-visible:outline-offset-4",
-                  isPast && "text-primary hover:underline cursor-pointer",
+                  isAvailable && !isCurrent && "text-primary hover:underline cursor-pointer",
                   isCurrent && "text-primary font-semibold",
                   !isPast && !isCurrent && "text-muted-foreground",
                 )}

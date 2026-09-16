@@ -90,13 +90,13 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
   let tx = 80, ty = type === "opening" ? 185 : type === "closing" ? 280 : 170;
   let tw = 920, bx = 80, bw = 840, by = 0;
   let fs = type === "opening" ? 108 : type === "statement" ? 100 : 80;
-  const bs = body.trim().split(/\s+/).length <= 45 ? 50 : 40;
+  let bs = body.trim().split(/\s+/).length <= 45 ? 50 : 40;
   if (type === "offset") { tx = 80; tw = 830; bx = 245; bw = 755; ty = 160; }
   if (type === "split" && title.length < 85 && body.length < 260) { tw = 420; bx = 560; bw = 440; fs = 76; by = 390; ty = 190; }
   if (type === "split" && tw !== 420) { tw = 880; bx = 160; bw = 840; }
   while (fs > 64 && lines(title, tw, fs) > 4) fs -= 4;
-  const th = title ? Math.ceil(lines(title, tw, fs) * fs * 1.2) : 0;
-  const bh = body ? Math.ceil(lines(body, bw, bs) * bs * 1.5) : 0;
+  let th = title ? Math.ceil(lines(title, tw, fs) * fs * 1.2) : 0;
+  let bh = body ? Math.ceil(lines(body, bw, bs) * bs * 1.5) : 0;
   if (!by) by = ty + th + (title && body ? 64 : 0);
   if (type === "opening") by = Math.max(by, 735);
   if (type === "statement") {
@@ -104,7 +104,23 @@ export function composeEditorialSlide(slide: Slide, beat: DesignBeat, ch: Charte
     by = ty + th + 64;
     bw = tw;
   }
-  if (Math.max(ty + th, by + bh) > 1220 || lines(title, tw, fs) > 6) return null;
+  // A long explanation gets a wider stacked layout before the model fallback.
+  // Recompute every box together: reducing a font without moving the body overlaps it.
+  if (Math.max(ty + th, by + bh) > 1220 || lines(title, tw, fs) > 6) {
+    tx = bx = 80; tw = bw = 920; ty = 140;
+    fs = Math.min(fs, 80);
+    bs = Math.min(bs, 44);
+    const measure = () => {
+      th = title ? Math.ceil(lines(title, tw, fs) * fs * 1.2) : 0;
+      bh = body ? Math.ceil(lines(body, bw, bs) * bs * 1.5) : 0;
+      by = ty + th + (title && body ? 56 : 0);
+    };
+    measure();
+    while (by + bh > 1220 && (fs > 64 || bs > 40)) {
+      fs = Math.max(64, fs - 4); bs = Math.max(40, bs - 2); measure();
+    }
+    if (Math.max(ty + th, by + bh) > 1220 || lines(title, tw, fs) > 6) return null;
+  }
   const align = beat.alignment;
   const textBlock = (field: "title" | "body", text: string, x: number, y: number, w: number, size: number, family: string, c: string, lineHeight: number) => text ? `<${field === "title" ? "h1" : "p"} data-slide-text="${field}" data-pptx-editable="${field}" style="position:absolute;left:${x}px;top:${y}px;width:${w}px;margin:0;font-family:'${family}';font-size:${size}px;font-weight:400;line-height:${lineHeight};color:${c};white-space:pre-wrap;overflow-wrap:anywhere;text-align:${align};">${escape(text)}</${field === "title" ? "h1" : "p"}>` : "";
   const imports = `<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=${encodeURIComponent(titleFont)}:wght@400&family=${encodeURIComponent(bodyFont)}:wght@400;500;600&display=swap">`;
