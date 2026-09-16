@@ -1,11 +1,8 @@
 import { lazy, Suspense } from "react";
 import { Navigate, useSearchParams } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarDays, ClipboardList } from "lucide-react";
 
 const CalendarPage = lazy(() => import("./Calendar"));
-const CommPlanPage = lazy(() => import("./CommPlanPage"));
 
 const LOADER = (
   <div className="flex items-center justify-center py-20">
@@ -17,18 +14,14 @@ const LOADER = (
   </div>
 );
 
-const TAB_MAP: Record<string, string> = {
-  calendrier: "calendrier",
-  strategie: "strategie",
-};
-
 export default function OrganizationHub() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const rawTab = searchParams.get("tab") || "calendrier";
-  const activeTab = TAB_MAP[rawTab] || "calendrier";
+  const [searchParams] = useSearchParams();
+  const rawTab = searchParams.get("tab");
 
   // « Mes idées » a sa propre page depuis la refonte : les anciens liens
   // /calendrier?tab=idees (raccourcis, favoris, e-mails) y sont renvoyés.
+  // L'onglet « Ma stratégie » a été supprimé : tout paramètre de tab
+  // retombe sur le calendrier.
   if (rawTab === "idees") {
     const next = new URLSearchParams(searchParams);
     next.delete("tab");
@@ -36,50 +29,13 @@ export default function OrganizationHub() {
     return <Navigate to={`/idees${qs ? `?${qs}` : ""}`} replace />;
   }
 
-  const handleTabChange = (tab: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (tab === "calendrier") {
-      next.delete("tab");
-    } else {
-      next.set("tab", tab);
-    }
-    setSearchParams(next, { replace: true });
-  };
-
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main id="main-content" className="mx-auto max-w-[1600px] px-6 py-8 max-md:px-4 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]">
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList className="mb-6 bg-card border border-border rounded-full p-1 h-auto gap-1 max-w-full overflow-x-auto scrollbar-hide">
-            <TabsTrigger
-              value="calendrier"
-              className="rounded-full px-4 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5"
-            >
-              <CalendarDays className="h-4 w-4" />
-              Calendrier
-            </TabsTrigger>
-            <TabsTrigger
-              value="strategie"
-              className="rounded-full px-4 py-2 text-sm font-medium data-[state=active]:bg-primary data-[state=active]:text-primary-foreground gap-1.5"
-            >
-              <ClipboardList className="h-4 w-4" />
-              Ma stratégie
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="calendrier" className="mt-0">
-            <Suspense fallback={LOADER}>
-              <CalendarPage embedded />
-            </Suspense>
-          </TabsContent>
-
-          <TabsContent value="strategie" className="mt-0">
-            <Suspense fallback={LOADER}>
-              <CommPlanPage embedded />
-            </Suspense>
-          </TabsContent>
-        </Tabs>
+        <Suspense fallback={LOADER}>
+          <CalendarPage embedded />
+        </Suspense>
       </main>
     </div>
   );

@@ -253,8 +253,8 @@ function AnimatedRoutes() {
                 <Route path="/branding/charter" element={<ProtectedRoute><BrandCharterPage /></ProtectedRoute>} />
               </Route>
               <Route path="/intake" element={<IntakePage />} />
-              <Route path="/plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
-              <Route path="/mon-plan" element={<RedirectWithParams to="/calendrier" mergeParams={{ tab: "strategie" }} />} />
+              <Route path="/plan" element={<Navigate to="/calendrier" replace />} />
+              <Route path="/mon-plan" element={<Navigate to="/calendrier" replace />} />
               <Route path="/pricing" element={<PricingPage />} />
               <Route path="/studio" element={<Navigate to="/binome" replace />} />
               <Route path="/services" element={<ServicesPage />} />
