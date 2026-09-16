@@ -16,7 +16,7 @@ vi.mock("@/hooks/use-account-switcher", () => ({ useAccountSwitcher: () => ({ sa
 vi.mock("@/components/AiCreditsCounter", () => ({ default: () => <span>Crédits</span> }));
 vi.mock("@/components/NotificationBell", () => ({ default: () => <button>Notifications</button> }));
 function Path() { return <output data-testid="path">{useLocation().pathname}{useLocation().search}</output>; }
-function mount() { return render(<MemoryRouter initialEntries={["/dashboard"]}><MobileNavProvider><AppSidebar /><Path /></MobileNavProvider></MemoryRouter>); }
+function mount(path = "/dashboard") { return render(<MemoryRouter initialEntries={[path]}><MobileNavProvider><AppSidebar /><Path /></MobileNavProvider></MemoryRouter>); }
 function openMenu() { fireEvent.click(screen.getAllByRole("button", { name: "Mon espace" })[0]); return within(screen.getByRole("dialog", { name: "Mon espace" })); }
 beforeEach(() => { state.admin = false; state.pending = false; state.session = false; localStorage.clear(); sessionStorage.clear(); setFlowUserId("qa"); setFlowWorkspaceId("A"); });
 afterEach(cleanup);
@@ -44,10 +44,22 @@ it("conserve le retour vers la relecture d’une fiche importée", () => {
 it("conserve les outils admin sans les ajouter aux comptes ordinaires", () => {
   state.admin = true; mount(); const menu = openMenu();
   expect(menu.getByRole("link", { name: "Pinterest" })).toBeVisible();
+  fireEvent.click(menu.getByText("Administration"));
   expect(menu.getByRole("link", { name: /Mes client/ })).toBeVisible();
 });
 it("ne superpose pas la navigation à une session guidée", () => {
   state.session = true; mount();
   expect(screen.queryByRole("navigation", { name: "Navigation principale" })).not.toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Mon espace" })).not.toBeInTheDocument();
+});
+
+it("distingue identité et offres, statistiques et réseau, dans les deux groupes", () => {
+  const view = mount("/branding/offres"); let menu = openMenu();
+  expect(menu.getByRole("region", { name: "Mon travail" })).toBeVisible();
+  expect(menu.getByRole("region", { name: "Ma présence en ligne" })).toBeVisible();
+  expect(menu.getByRole("link", { name: "Mes offres" })).toHaveAttribute("aria-current", "page");
+  expect(menu.getByRole("link", { name: "Mon identité" })).not.toHaveAttribute("aria-current");
+  view.unmount(); mount("/instagram/stats"); menu = openMenu();
+  expect(menu.getByRole("link", { name: "Mes statistiques" })).toHaveAttribute("aria-current", "page");
+  expect(menu.getByRole("link", { name: "Instagram" })).not.toHaveAttribute("aria-current");
 });

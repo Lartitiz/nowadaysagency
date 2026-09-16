@@ -87,7 +87,7 @@ function OnboardingBanner({ onNavigate, heroOwnsNextStep, className = "" }: { on
       data-tour="card-missions"
       className={`rounded-2xl border border-border/70 bg-rose-pale/70 p-3 sm:p-4 ${className}`}
     >
-      <button onClick={toggle} className="w-full flex items-center gap-3">
+      <button onClick={toggle} aria-expanded={!collapsed} className="w-full flex items-center gap-3">
         <Rocket className="h-4 w-4 text-bordeaux/80 shrink-0" />
         <span className="font-body text-sm font-bold text-foreground shrink-0">
           Tes premiers pas
@@ -580,23 +580,23 @@ export default function AdaptiveHome() {
           <HomeCreatePanel incompleteBrand={profileSummary.brandingTotal < 50} onCreate={(path) => { porte("creer"); navigate(path); }} />
         </div>
 
-        <section className="flex flex-col sm:flex-row sm:items-center gap-5 rounded-3xl border border-border bg-[#f9e8ef] p-6 sm:p-7" aria-labelledby="home-photos-title">
-          <div className="flex shrink-0 items-center gap-2" aria-hidden="true">
-            {photoThumbs.length > 0 ? photoThumbs.slice(0, 2).map((url, index) => <img key={url} src={url} alt="" className={`h-24 w-20 object-cover rounded-xl bborder-white shadow-sm ${index ? "rotate-6" : "-rotate-6"}`} />) : <ImageIcon className="h-14 w-14 text-bordeaux/60" strokeWidth={1} />}
+        <section className="grid grid-cols-[64px_minmax(0,1fr)] items-center sm:flex gap-x-4 gap-y-5 sm:gap-5 rounded-2xl border border-border bg-[#f9e8ef] p-6 sm:p-8" aria-labelledby="home-photos-title">
+          <div className="flex shrink-0 items-center -space-x-6 sm:space-x-2" aria-hidden="true">
+            {photoThumbs.length > 0 ? photoThumbs.slice(0, 2).map((url, index) => <img key={url} src={url} alt="" className={`h-20 w-14 sm:h-24 sm:w-20 object-cover rounded-sm border-4 border-white shadow-sm ${index ? "rotate-6" : "-rotate-6"}`} />) : <ImageIcon className="h-14 w-14 text-bordeaux/60" strokeWidth={1} />}
           </div>
           <div className="flex-1">
-            <h2 id="home-photos-title" className="font-display text-2xl sm:text-3xl text-bordeaux">Donne vie à tes photos</h2>
+            <h2 id="home-photos-title" className="!font-display !font-normal text-3xl sm:text-[34px] text-bordeaux">Donne vie à tes photos</h2>
             <p className="mt-2 text-sm text-muted-foreground">Tes produits, tes réalisations, tes portraits : améliore tes photos ou crée de nouveaux visuels.</p>
           </div>
-          <Button variant="outline" className="shrink-0 rounded-xl bg-white text-bordeaux" onClick={() => { porte("photos"); navigate("/photos"); }}>Choisir une photo <ArrowRight className="ml-2 h-4 w-4" /></Button>
+          <button type="button" className="col-span-2 inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-[hsl(var(--bento-dark))] px-5 py-3 text-sm font-medium text-white hover:bg-bordeaux focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bordeaux" onClick={() => { porte("photos"); navigate("/photos"); }}>Choisir une photo <ArrowRight className="h-4 w-4" aria-hidden="true" /></button>
         </section>
 
         <div className="flex flex-wrap items-center gap-x-7 gap-y-3 text-sm text-bordeaux">
           <button data-tour="card-ideas" type="button" onClick={() => navigate("/idees")} className="inline-flex items-center gap-2 underline underline-offset-4"><Lightbulb size={16} />Accéder à mes idées{!ideasError && ideaCount > 0 ? ` (${ideaCount})` : ""}</button>
-          <button type="button" onClick={() => navigate("/photos")} className="inline-flex items-center gap-2 underline underline-offset-4"><ImageIcon size={16} />Ouvrir ma bibliothèque{!photoCountLoading && !photoCountError && photoCount > 0 ? ` (${photoCount})` : ""}</button>
+          <button type="button" onClick={() => navigate("/photos")} className="inline-flex items-center gap-2 underline underline-offset-4"><ImageIcon size={16} />Ouvrir ma bibliothèque photo{!photoCountLoading && !photoCountError && photoCount > 0 ? ` (${photoCount})` : ""}</button>
         </div>
 
-        {hasLocalDraft && <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card px-5 py-4">
+        {hasLocalDraft && <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border py-4">
           <div className="min-w-0"><p className="text-sm font-semibold text-bordeaux">Ton contenu en cours</p><p className="max-w-[500px] truncate text-sm text-muted-foreground">{currentDraft?.ideaText || currentDraft?.photoSubject || "Ton brouillon est conservé sur cet appareil."}</p></div>
           <button type="button" onClick={() => navigate("/creer")} className="inline-flex items-center gap-2 text-sm font-semibold text-bordeaux">Reprendre <ArrowRight size={16} /></button>
         </div>}
@@ -687,26 +687,40 @@ export default function AdaptiveHome() {
           </div>
         )}
 
+        {nextPost && !upcomingLoading && (
+          <button type="button" onClick={() => { porte("programmer"); navigate(`/calendrier?date=${nextPost.date}`); }} className="flex w-full items-center gap-3 border-t border-border py-4 text-left">
+            <Send size={18} className="shrink-0 text-bordeaux" aria-hidden="true" />
+            <span className="min-w-0 flex-1"><span className="block text-xs text-muted-foreground">{nextAuto ? "Prochaine publication programmée" : "Prochain contenu au calendrier"} · {shortDate(nextPost.date)}</span><span className="block truncate text-sm font-medium text-bordeaux">{nextPost.theme || "Voir mon contenu"}</span></span>
+            <ArrowRight size={16} className="shrink-0 text-bordeaux" aria-hidden="true" />
+          </button>
+        )}
+
+        {/* Les aides restent disponibles, sans concurrencer les deux portes.
+            Ouvert pendant la visite guidée pour conserver ses ancres. */}
+        <details className="group border-t border-border pt-4" open={(!tourDone && activeRole === "owner" && isRecentAccount) || undefined}>
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm text-bordeaux [&::-webkit-details-marker]:hidden">
+            Idées, conseils et premiers pas
+            <ChevronDown size={16} className="transition-transform group-open:rotate-180" />
+          </summary>
+          <div className="mt-4 space-y-5">
         {/* Bandeau premiers pas — owner uniquement : les missions guident le
             setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
             pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
         {activeRole === "owner" && (
           <OnboardingBanner
             onNavigate={handleNavigate}
-            heroOwnsNextStep={false}
+            heroOwnsNextStep={true}
             className=""
           />
         )}
 
-        {/* Repères secondaires : calendrier et idées hebdomadaires. */}
+
         <div className="grid sm:grid-cols-2 gap-4">
 
           {/* Porte 2 — Programmer */}
-          <section
-            className="min-w-0 rounded-[14px_22px_12px_18px] bg-card border border-secondary p-5 cursor-pointer hover:border-primary/40 transition-colors"
-            onClick={() => { porte("programmer"); navigate("/calendrier"); }}
-          >
-            <SectionLabel>Programmer</SectionLabel>
+          <section className="min-w-0 rounded-2xl bg-card border border-secondary p-5">
+            <SectionLabel>Mon calendrier</SectionLabel>
+            <button type="button" onClick={() => { porte("programmer"); navigate("/calendrier"); }} className="mb-3 text-sm text-bordeaux underline underline-offset-4">Ouvrir le calendrier</button>
             {upcomingLoading ? (
               <div className="h-16 rounded-xl bg-muted animate-pulse" />
             ) : nextPost ? (
@@ -759,6 +773,9 @@ export default function AdaptiveHome() {
           <PilotPill dataTour="card-assistant" icon={MessageCircle} label="Parler à ma coach IA" onClick={() => handleNavigate("/dashboard/guide")} />
           {isAurianaDemoEmail(user?.email) && <button type="button" onClick={() => { clearFlowState(); saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() }); navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } }); }} className="text-sm text-bordeaux underline">Lancer la démo carrousel</button>}
         </div>
+
+          </div>
+        </details>
 
         {/* Recyclage intelligent : les meilleurs posts passés, prêts à ré-angler */}
         <RecycleDialog open={recycleOpen} onOpenChange={setRecycleOpen} />
