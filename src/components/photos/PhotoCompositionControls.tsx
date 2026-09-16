@@ -15,10 +15,11 @@ export function PhotoCompositionControls({ recipe, onChange, disabled = false }:
     <input id={`${id}-${key}`} className="w-full accent-primary min-h-8" type="range" min={min} max={max} step={step} value={value} onChange={e => update(Number(e.target.value))} />
   </div>;
   return <fieldset disabled={disabled} className="space-y-4 disabled:opacity-60">
-    <div className="space-y-1"><label htmlFor={`${id}-format`} className="text-sm">Format</label>
-      <select id={`${id}-format`} className="w-full min-h-10 rounded-md border bg-background px-2 text-sm" value={recipe.format} onChange={e => {
-        const format = e.target.value as PhotoFormat; change({ format, width: PHOTO_FORMATS[format].width, height: PHOTO_FORMATS[format].height });
-      }}>{Object.entries(PHOTO_FORMATS).map(([key, value]) => <option key={key} value={key}>{value.label}</option>)}</select>
+    <div><p className="mb-2 text-sm font-medium">Format du visuel</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Format du visuel">{Object.entries(PHOTO_FORMATS).map(([key, value]) => <button key={key} type="button" aria-pressed={recipe.format === key} onClick={() => change({ format: key as PhotoFormat, width: value.width, height: value.height })} className={`flex min-h-24 flex-col items-center justify-center gap-2 rounded-lg border p-2 text-center text-xs ${recipe.format === key ? "border-primary bg-primary/5 text-primary" : "bg-background"}`}>
+        <span aria-hidden="true" className="block rounded-sm border border-current bg-muted/40" style={{ width: value.width > value.height ? 46 : 30, height: value.width > value.height ? 46 * value.height / value.width : 30 * value.height / value.width }} />
+        <span>{value.label}</span>
+      </button>)}</div>
     </div>
     {recipe.format === "banner" && <div className="grid grid-cols-2 gap-2">
       <label className="text-sm">Largeur (px)<Input type="number" min={320} max={2400} value={recipe.width} onChange={e => change({ width: Number(e.target.value) })} /></label>

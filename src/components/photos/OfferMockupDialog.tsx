@@ -1,5 +1,5 @@
 /**
- * OfferMockupDialog — « Mettre mon ebook en image » (segment offres immatérielles :
+ * OfferMockupDialog — « Présenter mon offre numérique » (segment offres immatérielles :
  * ebook, formation, guide… rien à photographier).
  *
  * Compositing DÉTERMINISTE (src/lib/offer-mockup) : la capture est incrustée
@@ -204,7 +204,7 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            Mettre mon ebook en image
+            Présenter mon offre numérique
           </DialogTitle>
           <DialogDescription>
             Transforme ton ebook, ta formation ou ton guide en visuel pro — sans rien

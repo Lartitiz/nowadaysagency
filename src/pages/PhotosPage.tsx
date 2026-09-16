@@ -9,9 +9,12 @@
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { AlertCircle, Loader2, Plus, RefreshCw, Wand2 } from "lucide-react";
+import { AlertCircle, Loader2, Plus, RefreshCw, Wand2, Search } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { PhotoPreparationsPanel } from "@/components/photos/PhotoPreparationsPanel";
+import type { PhotoWorkflowRow } from "@/lib/photo-workflows";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,7 +41,6 @@ import {
   CreateVisualDialog,
   type CreateVisualChoice,
 } from "@/components/photos/CreateVisualDialog";
-import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
 import { PhotoDetailDialog } from "@/components/photos/PhotoDetailDialog";
 import { PackshotDialog } from "@/components/photos/PackshotDialog";
 import { MiseEnSceneDialog } from "@/components/photos/MiseEnSceneDialog";
@@ -60,9 +62,6 @@ const MAX_TAG_CHIPS = 8;
 // Rattrapage describe (photos ready sans description ET sans kind) : borné
 // pour ne pas flamber les crédits IA (vision, 1 crédit/photo).
 const DESCRIBE_CATCHUP_MAX = 5;
-// Sous ce seuil, filtrer ne sert à rien : on affichait jusqu'à 15 pastilles
-// pour 4 photos (audit UX 14/08). La grille entière tient sous les yeux.
-const MIN_PHOTOS_FOR_FILTERS = 12;
 
 // Types de photo (classés par l'IA, cf. edge photo-describe) → libellés de filtre
 const KIND_LABELS: Record<string, string> = {
@@ -75,13 +74,19 @@ const KIND_LABELS: Record<string, string> = {
 };
 
 export default function PhotosPage() {
+  const { activeWorkspace } = useWorkspace();
+  return <PhotosLibrary key={activeWorkspace?.id || "loading"} />;
+}
+
+function PhotosLibrary() {
+  const [photoLimit, setPhotoLimit] = useState(200);
   const {
     data: photoData,
     isLoading,
     isError,
     isFetching,
     refetch,
-  } = useUserPhotos();
+  } = useUserPhotos(photoLimit);
   const photos = useMemo(() => photoData ?? [], [photoData]);
   const hasPhotoData = photoData !== undefined;
   const { retry, isRetrying } = useRetryPhotoRetouch();
@@ -95,7 +100,15 @@ export default function PhotosPage() {
   // en arrière-plan après l'upload, sinon `photo.kind` reste figé sur l'instantané
   // pris au clic d'ouverture — même si Realtime a bien rafraîchi `photos` derrière,
   // Portrait pro n'apparaît jamais sans fermer/rouvrir OU recharger la page.
-  const [collectionPickerOpen, setCollectionPickerOpen] = useState(false);
+  const [view, setView] = useState<"photos" | "preparations" | "wishlist">("photos");
+  const [search, setSearch] = useState("");
+  const [selecting, setSelecting] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const selectedPhotos = photos.filter(p => selectedIds.includes(p.id) && p.status === "ready");
+  const [resumeWorkflow, setResumeWorkflow] = useState<PhotoWorkflowRow | null>(null);
+  function togglePhoto(photo: UserPhotoRow) {
+    setSelectedIds(ids => ids.includes(photo.id) ? ids.filter(id => id !== photo.id) : ids.length < 12 ? [...ids, photo.id] : ids);
+  }
   const [preparation, setPreparation] = useState<{ photos: UserPhotoRow[]; mode: "single" | "collection" | "kit" } | null>(null);
   const [detailPhotoId, setDetailPhotoId] = useState<string | null>(null);
   const detailPhoto = detailPhotoId ? (photos.find((p) => p.id === detailPhotoId) ?? null) : null;
@@ -183,8 +196,9 @@ export default function PhotosPage() {
     () =>
       photos
         .filter((p) => (kindFilter ? p.kind === kindFilter : true))
-        .filter((p) => (tagFilter ? (p.tags ?? []).includes(tagFilter) : true)),
-    [photos, tagFilter, kindFilter],
+        .filter((p) => (tagFilter ? (p.tags ?? []).includes(tagFilter) : true))
+        .filter(p => `${p.name || ""} ${p.description || ""} ${(p.tags || []).join(" ")}`.toLocaleLowerCase("fr").includes(search.trim().toLocaleLowerCase("fr"))),
+    [photos, tagFilter, kindFilter, search],
   );
 
   // Cartes optimistes encore utiles : dès que la vraie ligne est dans la
@@ -222,6 +236,7 @@ export default function PhotosPage() {
       toast.info(`Maximum ${MAX_BATCH} photos à la fois — les premières ont été prises.`);
     }
     if (!files.length) return;
+    setView("photos");
 
     try {
       const { uploaded, failed } = await uploadLibrary(files);
@@ -266,21 +281,19 @@ export default function PhotosPage() {
   }
 
   const uploading = !!progress;
-  const showFilters = photos.length >= MIN_PHOTOS_FOR_FILTERS;
+
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main className="container max-w-6xl mx-auto px-4 py-8">
+      <main id="main-content" className="container max-w-7xl mx-auto px-4 py-8 sm:py-10">
         {/* Titre pleine largeur puis rangée d'actions : les 4 boutons côte à
             côte écrasaient la colonne du titre (h1 cassé sur 2 lignes). */}
         <header className="mb-8 space-y-4">
           <div>
-            <h1 className="font-display text-3xl text-foreground mb-1">Mes photos</h1>
+            <h1 className="font-display text-4xl text-foreground mb-2">Ma bibliothèque</h1>
             <p className="text-sm text-muted-foreground max-w-xl">
-              {photos.length > 0 ? `${photos.length} photo${photos.length > 1 ? "s" : ""}. ` : ""}
-              L'IA les décrit une fois, puis te les propose au bon moment dans tes stories et tes
-              posts.
+              Retrouve tes photos, prépare leurs versions et utilise-les dans tes contenus.
             </p>
           </div>
           {/* Deux boutons seulement (audit UX 14/08) : « remplir » et
@@ -300,9 +313,9 @@ export default function PhotosPage() {
               )}
             </Button>
             <Button variant="outline" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
-              <Wand2 className="h-4 w-4 mr-2" /> Créer un visuel
+              <Wand2 className="h-4 w-4 mr-2" /> Composer un visuel
             </Button>
-            <Button variant="outline" disabled={!wsReady} onClick={() => setCollectionPickerOpen(true)}>Préparer une collection</Button>
+
           </div>
           {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
               plutôt qu'un bouton frère qui doublerait le poids de « Ajouter ». */}
@@ -331,6 +344,13 @@ export default function PhotosPage() {
           }}
         />
 
+        <div className="mb-7 grid grid-cols-3 gap-1 border-b sm:flex" role="group" aria-label="Vues de la bibliothèque">
+          {([["photos", "Mes photos"], ["preparations", "Mes préparations"], ["wishlist", "Photos à prendre"]] as const).map(([key, label]) =>
+            <button key={key} type="button" aria-pressed={view === key} onClick={() => setView(key)} className={cn("min-w-0 border-b-2 px-1 py-3 text-xs sm:px-3 sm:text-sm", view === key ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground hover:text-foreground")}>{label}</button>)}
+        </div>
+        {view === "preparations" && wsReady && <PhotoPreparationsPanel workspaceId={activeWorkspace!.id} onResume={setResumeWorkflow} />}
+        {view === "wishlist" && wsReady && <div className="max-w-3xl"><PhotoWishlistPanel /></div>}
+        {view === "photos" && <>
         {isError && hasPhotoData && (
           <div
             role="alert"
@@ -388,89 +408,47 @@ export default function PhotosPage() {
         ) : (
           <div className="space-y-6">
             <div className="min-w-0 w-full">
-              {showFilters && presentKinds.length > 1 && (
-                <div className="flex flex-wrap items-center gap-1.5 mb-2">
-                  {presentKinds.map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => setKindFilter(kindFilter === k ? null : k)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs border transition-colors",
-                        kindFilter === k
-                          ? "bg-primary text-primary-foreground border-primary font-medium"
-                          : "bg-background text-foreground border-border hover:border-primary/40",
-                      )}
-                    >
-                      {KIND_LABELS[k]}
-                    </button>
-                  ))}
-                </div>
-              )}
-              {showFilters && topTags.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mb-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setTagFilter(null);
-                      setKindFilter(null);
-                    }}
-                    className={cn(
-                      "px-3 py-1 rounded-full text-xs font-medium transition-colors",
-                      tagFilter === null && kindFilter === null
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground hover:bg-secondary/70",
-                    )}
-                  >
-                    Toutes · {photos.length}
-                  </button>
-                  {topTags.map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => setTagFilter(tagFilter === tag ? null : tag)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs transition-colors",
-                        tagFilter === tag
-                          ? "bg-primary text-primary-foreground font-medium"
-                          : "bg-secondary text-secondary-foreground hover:bg-secondary/70",
-                      )}
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-              )}
-
+              <div className="mb-5 flex flex-wrap items-center gap-3">
+                <div className="relative min-w-0 flex-1 basis-60"><Search aria-hidden="true" className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input aria-label="Rechercher une photo" value={search} onChange={e => setSearch(e.target.value)} placeholder="Un nom, un sujet, un mot-clé…" className="pl-9" /></div>
+                <select aria-label="Filtrer les photos par type" className="min-h-10 max-w-full rounded-md border bg-background px-3 text-sm" value={kindFilter || ""} onChange={e => setKindFilter(e.target.value || null)}><option value="">Tous les types</option>{presentKinds.map(k => <option key={k} value={k}>{KIND_LABELS[k]}</option>)}</select>
+                <Button variant="outline" aria-pressed={selecting} onClick={() => { setSelecting(v => !v); setSelectedIds([]); }}>{selecting ? "Annuler la sélection" : "Sélectionner"}</Button>
+              </div>
+              {topTags.length > 0 && <details className="mb-4"><summary className="cursor-pointer text-sm text-muted-foreground">Filtrer par mot-clé{tagFilter ? ` · ${tagFilter}` : ""}</summary><div className="mt-3 flex flex-wrap gap-2">{topTags.map(tag => <button key={tag} type="button" aria-pressed={tagFilter === tag} onClick={() => setTagFilter(tagFilter === tag ? null : tag)} className={cn("rounded-full border px-3 py-1 text-xs", tagFilter === tag ? "bg-primary text-primary-foreground" : "bg-card")}>{tag}</button>)}</div></details>}
+              <div className="mb-4 flex flex-wrap items-center gap-3 text-sm text-muted-foreground"><span>{filteredPhotos.length} photo{filteredPhotos.length !== 1 ? "s" : ""}</span>{(search || kindFilter || tagFilter) && <button type="button" className="text-primary underline underline-offset-4" onClick={() => { setSearch(""); setKindFilter(null); setTagFilter(null); }}>Effacer les filtres</button>}{selecting && <span>Choisis jusqu’à 12 photos à harmoniser.</span>}</div>
+              {selecting && selectedPhotos.length > 0 && <div className="sticky top-3 z-20 mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-background p-4 shadow-sm">
+                <span className="text-sm">{selectedPhotos.length} photo{selectedPhotos.length > 1 ? "s" : ""} sélectionnée{selectedPhotos.length > 1 ? "s" : ""}{selectedPhotos.some(p => !filteredPhotos.includes(p)) ? " · dont certaines masquées par les filtres" : ""}</span>
+                <Button onClick={() => { setPreparation({ photos: selectedPhotos, mode: selectedPhotos.length > 1 ? "collection" : "single" }); }}>{selectedPhotos.length > 1 ? "Harmoniser ces photos" : "Préparer cette photo"}</Button>
+              </div>}
               {filteredPhotos.length === 0 && visiblePendingUploads.length === 0 ? (
                 <p className="text-sm text-muted-foreground py-8 text-center">
-                  Aucune photo avec ce tag.
+                  Aucune photo ne correspond à ta recherche.
                 </p>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-6">
                   {visiblePendingUploads.map((u) => (
                     <PhotoUploadingCard key={u.localId} upload={u} />
                   ))}
                   {filteredPhotos.map((p) => (
+                    <article key={p.id} className="min-w-0 space-y-2">
                     <PhotoCard
-                      key={p.id}
                       photo={p}
-                      onOpen={(photo) => setDetailPhotoId(photo.id)}
+                      onOpen={(photo) => selecting ? togglePhoto(photo) : setDetailPhotoId(photo.id)}
                       onDelete={setPhotoToDelete}
                       onRetry={handleRetry}
                       retrying={isRetrying === p.id}
                     />
+                    {selecting && p.status === "ready" ? <label className="flex items-start gap-2 text-sm"><input type="checkbox" className="mt-1 accent-primary" checked={selectedIds.includes(p.id)} disabled={!selectedIds.includes(p.id) && selectedPhotos.length >= 12} onChange={() => togglePhoto(p)} /><span className="line-clamp-2">{p.name || "Photo"}</span></label> : <p className="line-clamp-2 text-sm font-medium">{p.name || "Photo"}</p>}
+                    <p className="text-xs text-muted-foreground">{p.status === "ready" ? p.original_storage_path && p.original_storage_path !== p.storage_path ? "Version retouchée · originale conservée" : "Photo enregistrée" : p.status === "failed" ? "À reprendre" : "En cours"}</p>
+                    </article>
                   ))}
                 </div>
               )}
             </div>
 
-            {/* « Photos à prendre » passe SOUS la grille et replié : en colonne
-                de droite, il était plus long que la galerie elle-même (15 lignes
-                pour 4 photos) et volait la place aux photos. */}
-            <PhotoWishlistPanel collapsible />
+            {photos.length >= photoLimit && <Button variant="outline" disabled={isFetching} onClick={() => setPhotoLimit(n => n + 200)}>Afficher les photos plus anciennes</Button>}
           </div>
         )}
+        </>}
       </main>
 
       <CreateVisualDialog
@@ -488,8 +466,7 @@ export default function PhotosPage() {
         maxSelectable={MAX_BATCH}
         onImportFiles={handleFilesSelected}
       />
-      <PhotoLibraryPickerDialog open={collectionPickerOpen} onOpenChange={setCollectionPickerOpen} maxSelectable={12}
-        onConfirm={photos => { setCollectionPickerOpen(false); if (photos.length) setPreparation({ photos, mode: "collection" }); }} />
+      {resumeWorkflow && <Suspense fallback={<p role="status">Ouverture de la préparation…</p>}><PhotoPreparationDialog open sources={[]} resumeWorkflow={resumeWorkflow} onOpenChange={open => { if (!open) setResumeWorkflow(null); }} /></Suspense>}
       {preparation && <Suspense fallback={<p role="status">Ouverture de la préparation…</p>}><PhotoPreparationDialog open
         sources={preparation.photos.map(p => ({ id: p.id, photoId: p.id, name: p.name || "Photo" }))} mode={preparation.mode}
         onOpenChange={open => { if (!open) setPreparation(null); }} /></Suspense>}

@@ -84,7 +84,7 @@ test.describe("sonde de réaction (< 2 s)", () => {
       .filter({ has: page.locator("img") })
       .first()
       .click();
-    const retoucherBtn = page.getByRole("button", { name: /^Retoucher$/ });
+    const retoucherBtn = page.getByRole("button", { name: /^Préparer \/ modifier$/ });
     await expect(
       retoucherBtn,
       "Cliquer une photo doit ouvrir son détail sous 2 s",

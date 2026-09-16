@@ -115,7 +115,7 @@ test("modifier le fond, temps réel coupé : la grille se met à jour sans reloa
     .filter({ has: page.locator('img[alt*="cover-test" i]') })
     .first()
     .click();
-  await page.getByRole("button", { name: /^Retoucher$/ }).click();
+  await page.getByRole("button", { name: /^Préparer \/ modifier$/ }).click();
   await page.getByRole("button", { name: /Changer le décor/i }).click();
   await expect(page.getByRole("heading", { name: /Changer le décor/i })).toBeVisible({
     timeout: 10_000,
