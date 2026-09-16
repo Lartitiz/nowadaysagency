@@ -3,31 +3,20 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  ChevronDown,
-  Clock,
   Lightbulb,
-  MessageCircle,
-  Rocket,
-  Recycle as RecycleIcon,
   Send,
   Image as ImageIcon,
   Bell,
-  type LucideIcon,
 } from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
-import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
 
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 
-import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
-import { weeklyIdeas } from "@/lib/weekly-ideas";
-import RecycleDialog from "@/components/dashboard/RecycleDialog";
-import { saveFlowState, clearFlowState, loadFlowState, loadPhotos } from "@/hooks/use-flow-persistence";
+import { loadFlowState, loadPhotos } from "@/hooks/use-flow-persistence";
 import ClientOnboarding from "@/components/client/ClientOnboarding";
 import { useStorytellingList, usePersona } from "@/hooks/use-branding";
 import { useBrandProfile } from "@/hooks/use-profile";
@@ -41,190 +30,11 @@ import { getSignedPhotoUrls } from "@/lib/photo-storage";
 import { trackPorte } from "@/lib/dashboard-portes";
 import { useIsMobile } from "@/hooks/use-mobile";
 
-/* ── Collapsible missions ── */
-const COLLAPSED_KEY = "lac_missions_collapsed";
-const FIRST_SEEN_KEY = "lac_missions_first_seen";
-
-/**
- * `heroOwnsNextStep` : quand le hero affiche déjà « 👉 Ta prochaine étape », le
- * bandeau ne doit PAS en annoncer une seconde. Constaté le 01/08 : le bandeau
- * disait « Crée ton premier contenu » et le hero, 150 px plus bas, « Fais ton
- * diagnostic » — deux réponses à la même question. Une seule voix à la fois :
- * ici le bandeau retombe sur sa barre de progression (et son dépliage).
- */
-function OnboardingBanner({ onNavigate, heroOwnsNextStep, className = "" }: { onNavigate: (route: string) => void; heroOwnsNextStep: boolean; className?: string }) {
-  const { missions, completedCount, allDone, nextMission, dismissed, isLoading } = useOnboardingMissions();
-
-  const [collapsed, setCollapsed] = useState(() => {
-    const stored = localStorage.getItem(COLLAPSED_KEY);
-    // Replié par défaut : le bandeau ne doit jamais repousser « Créer un contenu »
-    // sous la ligne de flottaison. Replié, il reste guidant via la prochaine étape.
-    if (stored === null) return true;
-    return stored === "true";
-  });
-
-  useEffect(() => {
-    if (!localStorage.getItem(FIRST_SEEN_KEY)) {
-      localStorage.setItem(FIRST_SEEN_KEY, "true");
-    }
-  }, []);
-
-  const toggle = () => {
-    const next = !collapsed;
-    setCollapsed(next);
-    localStorage.setItem(COLLAPSED_KEY, String(next));
-  };
-
-  if (dismissed || isLoading) return null;
-  if (allDone) return null;
-
-  const total = missions.length;
-  const remaining = total - completedCount;
-  const counterLabel = remaining === 1 ? `${completedCount}/${total} — plus qu'une !` : `${completedCount}/${total}`;
-
-  return (
-    <div
-      data-tour="card-missions"
-      className={`rounded-2xl border border-border/70 bg-rose-pale/70 p-3 sm:p-4 ${className}`}
-    >
-      <button onClick={toggle} aria-expanded={!collapsed} className="w-full flex items-center gap-3">
-        <Rocket className="h-4 w-4 text-bordeaux/80 shrink-0" />
-        <span className="font-body text-sm font-bold text-foreground shrink-0">
-          Tes premiers pas
-        </span>
-        <Progress value={(completedCount / total) * 100} className="h-1.5 flex-1" />
-        <span className="text-xs font-medium text-foreground/80 shrink-0">
-          {counterLabel}
-        </span>
-        <ChevronDown
-          className={`h-4 w-4 text-foreground/60 transition-transform shrink-0 ${collapsed ? "" : "rotate-180"}`}
-        />
-      </button>
-
-      {/* Replié : une seule action guidée (la prochaine étape) au lieu d'un mur de 6 cartes */}
-      {collapsed && nextMission && !heroOwnsNextStep && (
-        <button
-          onClick={() => onNavigate(nextMission.route)}
-          className="mt-3 w-full text-left rounded-xl border border-primary/40 bg-card p-3 flex items-center gap-3 hover:border-primary transition-colors"
-        >
-          <span className="text-lg shrink-0">{nextMission.emoji}</span>
-          <div className="flex-1 min-w-0">
-            <p className="font-mono-ui text-2xs uppercase tracking-[0.14em] text-foreground/70 font-semibold">
-              Prochaine étape
-            </p>
-            <p className="text-sm font-semibold text-foreground truncate">{nextMission.title}</p>
-          </div>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-            <Clock className="h-3 w-3" />
-            {nextMission.time}
-          </span>
-          <span className="text-xs font-medium text-primary shrink-0 hidden sm:inline">Commencer →</span>
-        </button>
-      )}
-
-      {!collapsed && (
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {missions.map((mission) => (
-            <MissionRow
-              key={mission.id}
-              mission={mission}
-              isNext={nextMission?.id === mission.id}
-              onClick={() => onNavigate(mission.route)}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MissionRow({ mission, isNext, onClick }: { mission: OnboardingMission; isNext: boolean; onClick: () => void }) {
-  const isCompleted = mission.completed;
-
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left rounded-xl border p-3 flex items-start gap-3 transition-all ${
-        isCompleted
-          ? "border-success/30 bg-success-bg/50 opacity-70"
-          : isNext
-            ? "border-primary bg-primary/5"
-            : "border-border bg-card hover:border-primary/30"
-      }`}
-    >
-      <span className="text-lg mt-0.5">{isCompleted ? "✅" : mission.emoji}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-foreground">{mission.title}</p>
-        <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">{mission.description}</p>
-        <span className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-          <Clock className="h-3 w-3" />
-          {mission.time}
-        </span>
-      </div>
-      {isNext && !isCompleted && (
-        <span className="text-xs font-medium text-primary animate-pulse shrink-0 mt-1">
-          Commencer →
-        </span>
-      )}
-    </button>
-  );
-}
-
-/* ── Section label ── */
-function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
-  return (
-    <p className="mb-3 flex items-baseline gap-2">
-      <span className="font-mono-ui text-2xs uppercase tracking-[0.18em] text-foreground/70 font-semibold">
-        {children}
-      </span>
-      {hint && (
-        <span className="text-2xs text-muted-foreground font-body normal-case tracking-normal">
-          {hint}
-        </span>
-      )}
-    </p>
-  );
-}
-
-/* ── Raccourci « Piloter » : pill compacte — la version ligne éditoriale
-      (titre + description) repoussait le dashboard à deux écrans ── */
-function PilotPill({
-  icon: Icon,
-  label,
-  count,
-  onClick,
-  dataTour,
-}: {
-  icon: LucideIcon;
-  label: string;
-  count?: number;
-  onClick: () => void;
-  dataTour?: string;
-}) {
-  return (
-    <button
-      data-tour={dataTour}
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-card border border-border text-sm text-foreground hover:border-bordeaux/40 hover:text-bordeaux transition-colors"
-    >
-      <Icon className="h-4 w-4 text-bordeaux/70 shrink-0" strokeWidth={1.75} />
-      {label}
-      {count != null && count > 0 && (
-        <span className="font-mono-ui text-2xs font-semibold text-bordeaux bg-rose-soft rounded-full px-1.5 py-px">
-          {count}
-        </span>
-      )}
-    </button>
-  );
-}
 
 /* ── Tour steps ── */
 const TOUR_STEPS = [
   { target: "card-next-step", title: "Créer ton contenu", text: "Choisis ton canal pour commencer avec une idée, un texte ou tes photos. Ton brouillon reste accessible sur l’accueil.", position: "bottom" as const },
   { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "top" as const },
-  { target: "card-missions", title: "Tes premiers pas", text: "Quelques petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
-  { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
 ];
 
 /* ── Porte « Programmer » ── */
@@ -312,7 +122,6 @@ export default function AdaptiveHome() {
   const FORGOTTEN_PREVIEW = isMobile ? 2 : 5;
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
-  const [recycleOpen, setRecycleOpen] = useState(false);
 
   // Le flag « tour vu » vit en localStorage (par navigateur) : sur un nouvel
   // appareil il est vide. On ne remontre donc le tour qu'aux comptes récents —
@@ -695,90 +504,6 @@ export default function AdaptiveHome() {
           </button>
         )}
 
-        {/* Les aides restent disponibles, sans concurrencer les deux portes.
-            Ouvert pendant la visite guidée pour conserver ses ancres. */}
-        <details className="group border-t border-border pt-4" open={(!tourDone && activeRole === "owner" && isRecentAccount) || undefined}>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm text-bordeaux [&::-webkit-details-marker]:hidden">
-            Idées, conseils et premiers pas
-            <ChevronDown size={16} className="transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="mt-4 space-y-5">
-        {/* Bandeau premiers pas — owner uniquement : les missions guident le
-            setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
-            pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
-        {activeRole === "owner" && (
-          <OnboardingBanner
-            onNavigate={handleNavigate}
-            heroOwnsNextStep={true}
-            className=""
-          />
-        )}
-
-
-        <div className="grid sm:grid-cols-2 gap-4">
-
-          {/* Porte 2 — Programmer */}
-          <section className="min-w-0 rounded-2xl bg-card border border-secondary p-5">
-            <SectionLabel>Mon calendrier</SectionLabel>
-            <button type="button" onClick={() => { porte("programmer"); navigate("/calendrier"); }} className="mb-3 text-sm text-bordeaux underline underline-offset-4">Ouvrir le calendrier</button>
-            {upcomingLoading ? (
-              <div className="h-16 rounded-xl bg-muted animate-pulse" />
-            ) : nextPost ? (
-              <>
-                <div className="flex items-start gap-2.5 rounded-xl bg-rose-pale px-3 py-2.5 mb-2.5">
-                  <Send className="h-4 w-4 shrink-0 text-primary mt-0.5" strokeWidth={1.75} />
-                  <div className="min-w-0">
-                    <p className="font-body font-bold text-sm text-foreground">
-                      {shortDate(nextPost.date)}
-                      {nextAuto && ` · ${hourLabel(nextPost.scheduled_publish_at!)}`}
-                      {nextPost.canal && CANAL_LABELS[nextPost.canal] && ` · ${CANAL_LABELS[nextPost.canal]}`}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {nextPost.theme || nextPost.format || "Contenu prévu"}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${nextAuto ? "text-bordeaux font-semibold" : "text-muted-foreground"}`}>
-                      {nextAuto ? "partira tout seul" : "prévu au calendrier : à publier toi-même"}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {upcomingPosts.length > 1
-                    ? `Puis ${upcomingPosts.length - 1} autre${upcomingPosts.length > 2 ? "s" : ""} à venir.`
-                    : "Ensuite : rien de prévu."}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground mb-3">
-                Rien de prévu pour l'instant. Choisis un contenu prêt, puis programme sa publication ou garde-le comme rappel dans ton calendrier.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); porte("programmer"); navigate("/calendrier?import=1"); }}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-bordeaux transition-colors"
-            >
-              Programmer un contenu prêt
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </section>
-
-          <section className="min-w-0 rounded-2xl border border-secondary bg-card p-5">
-            <SectionLabel>Une idée pour commencer</SectionLabel>
-            {weeklyIdeas().slice(0, 2).map(idea => <button key={idea} type="button" onClick={() => { porte("creer"); navigate(`/creer?sujet=${encodeURIComponent(idea)}`); }} className="flex w-full items-center gap-2 py-2 text-left text-sm text-bordeaux"><span className="flex-1">{idea}</span><ArrowRight size={16} className="shrink-0" /></button>)}
-          </section>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <PilotPill icon={RecycleIcon} label="Recycler un post qui a marché" onClick={() => setRecycleOpen(true)} />
-          <PilotPill dataTour="card-assistant" icon={MessageCircle} label="Parler à ma coach IA" onClick={() => handleNavigate("/dashboard/guide")} />
-          {isAurianaDemoEmail(user?.email) && <button type="button" onClick={() => { clearFlowState(); saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() }); navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } }); }} className="text-sm text-bordeaux underline">Lancer la démo carrousel</button>}
-        </div>
-
-          </div>
-        </details>
-
-        {/* Recyclage intelligent : les meilleurs posts passés, prêts à ré-angler */}
-        <RecycleDialog open={recycleOpen} onOpenChange={setRecycleOpen} />
 
         {/* Guidage 1re visite : UNIQUEMENT le coachmark GuidedTour. L'overlay
             4 slides « ton espace est prêt » a été retiré (validé Laetitia 04/07) :
