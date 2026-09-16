@@ -85,9 +85,9 @@ export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelPr
         type="button"
         onClick={() => setExpanded(true)}
         aria-expanded={false}
-        className="flex w-full items-center gap-2 rounded-2xl border border-warning/25 bg-warning-bg px-4 py-3 text-left transition-colors hover:border-warning/50"
+        className="flex w-full items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-left transition-colors hover:border-primary/40"
       >
-        <Camera className="h-4 w-4 shrink-0 text-warning" />
+        <Camera className="h-4 w-4 shrink-0 text-primary" />
         <span className="text-sm font-medium text-foreground">Photos à prendre</span>
         <span className="text-xs text-muted-foreground">
           {initialLoading
@@ -107,9 +107,9 @@ export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelPr
   }
 
   return (
-    <div className="rounded-2xl border border-warning/25 bg-warning-bg p-4">
+    <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4">
       <div className="flex items-center gap-2 mb-1">
-        <Camera className="h-4 w-4 text-warning" />
+        <Camera className="h-4 w-4 text-primary" />
         <h2 className="text-sm font-semibold text-foreground">Photos à prendre</h2>
         {collapsible && (
           <button
@@ -167,14 +167,14 @@ export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelPr
                 className="mt-0.5 h-4 w-4 shrink-0 rounded border border-warning/50 hover:bg-warning/20 transition-colors flex items-center justify-center"
                 aria-label={`Marquer « ${item.label} » comme prise`}
               >
-                {busyId === item.id && <Loader2 className="h-3 w-3 animate-spin text-warning" />}
+                {busyId === item.id && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
               </button>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-foreground leading-snug line-clamp-2" title={item.label}>
                   {item.label}
                 </p>
                 {item.requested_count > 1 && (
-                  <p className="text-2xs text-warning">
+                  <p className="text-2xs text-primary">
                     demandée {item.requested_count} fois
                   </p>
                 )}
@@ -230,7 +230,7 @@ export function PhotoWishlistPanel({ collapsible = false }: PhotoWishlistPanelPr
           type="button"
           onClick={handleAdd}
           disabled={adding || !newLabel.trim()}
-          className="h-8 w-8 shrink-0 rounded-md border border-warning/40 text-warning hover:bg-warning/15 transition-colors flex items-center justify-center disabled:opacity-40"
+          className="h-8 w-8 shrink-0 rounded-md border border-warning/40 text-primary hover:bg-warning/15 transition-colors flex items-center justify-center disabled:opacity-40"
           aria-label="Ajouter à la liste"
         >
           {adding ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-4 w-4" />}

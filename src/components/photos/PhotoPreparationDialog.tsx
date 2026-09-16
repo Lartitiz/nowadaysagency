@@ -24,6 +24,7 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   sources: PhotoPreparationInput[];
   mode?: "single" | "collection" | "kit";
+  resumeWorkflow?: PhotoWorkflowRow;
   /** Applies the active rendition to an in-progress post, keeping its caption in the parent. */
   onApply?: (dataUrl: string) => void | Promise<void>;
 }
@@ -45,7 +46,7 @@ export default function PhotoPreparationDialog(props: Props) {
     {props.open && <PhotoPreparationSession {...props} closeRequest={closeRequest} />}
   </Dialog>;
 }
-function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, onOpenChange, closeRequest }: Props & { closeRequest: { current: () => void } }) {
+function PhotoPreparationSession({ sources: inputs, mode = "single", resumeWorkflow, onApply, onOpenChange, closeRequest }: Props & { closeRequest: { current: () => void } }) {
   const { user } = useAuth(); const { activeWorkspace, loading: workspaceLoading } = useWorkspace();
   const { isDemoMode } = useDemoContext(); const workspaceId = activeWorkspace?.id || "";
   const scope = `${user?.id || ""}:${workspaceId}`;
@@ -54,12 +55,13 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
   const [sources, setSources] = useState<WorkflowSource[]>([]);
   const [outputs, setOutputs] = useState<PreparedPhotoOutput[]>(() => makeOutputs(inputs.length, mode));
   const [active, setActive] = useState(0); const [busy, setBusy] = useState("");
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadError, setLoadError] = useState(""); const [loaded, setLoaded] = useState(false);
   const [rendered, setRendered] = useState<{ data: string; recipe: PhotoRecipe; imageUrl: string } | null>(null); const [previewError, setPreviewError] = useState("");
   const [lowResolution, setLowResolution] = useState(false); const [showOriginal, setShowOriginal] = useState(false);
   const [creatorId, setCreatorId] = useState(user?.id || "");
   const [workflowId, setWorkflowId] = useState<string>(() => crypto.randomUUID());
-  const [name, setName] = useState(mode === "collection" ? "Ma collection" : inputs[0]?.name || "Ma préparation photo");
+  const [name, setName] = useState(mode === "collection" ? "Mes photos harmonisées" : inputs[0]?.name || "Ma préparation photo");
   const [directions, setDirections] = useState<PhotoWorkflowRow[]>([]); const [preparations, setPreparations] = useState<PhotoWorkflowRow[]>([]);
   const [directionName, setDirectionName] = useState(""); const [savedAt, setSavedAt] = useState("");
   const [fields, setFields] = useState({ product: "", facts: "", message: "", cta: "" });
@@ -72,7 +74,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
   const currentImageUrl = current?.recipe.crop ? source?.dataUrl : source?.cutoutUrl || source?.dataUrl;
 
   const recipe = current?.recipe;
-  const preview = rendered?.recipe === recipe && rendered?.imageUrl === currentImageUrl ? rendered.data : "";
+  const preview = rendered && rendered.recipe === recipe && rendered.imageUrl === currentImageUrl ? rendered.data : "";
 
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
   useEffect(() => {
@@ -83,11 +85,16 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
     let cancelled = false;
     async function load() {
       try {
-        const loadedSources = await Promise.all(inputs.map(async input => input.dataUrl
+        setLoadError(""); setLoaded(false);
+        if (resumeWorkflow) {
+          if (resumeWorkflow.workspace_id !== workspaceId) throw new Error("Cette préparation appartient à un autre espace.");
+          await restore(resumeWorkflow, () => !cancelled);
+        }
+        const loadedSources = resumeWorkflow ? null : await Promise.all(inputs.map(async input => input.dataUrl
           ? { id: input.id, name: input.name, dataUrl: input.dataUrl, photoId: input.photoId }
           : readWorkflowSource(input.photoId || input.id, workspaceId)));
         if (cancelled) return;
-        setSources(loadedSources); setLoaded(true);
+        if (loadedSources) setSources(loadedSources); setLoaded(true);
         if (canStore) {
           const lists = await Promise.allSettled([listPhotoWorkflows(workspaceId, "direction"), listPhotoWorkflows(workspaceId, "preparation")]);
           if (cancelled) return;
@@ -101,7 +108,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
     return () => { cancelled = true; };
     // Inputs are snapshotted for this dialog session, not reloaded on every parent render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeValid]);
+  }, [scopeValid, loadAttempt]);
 
   useEffect(() => {
     let cancelled = false; setRendered(null); setPreviewError("");
@@ -183,7 +190,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
     queryClient.invalidateQueries({ queryKey: ["calendar-posts"] });
     toast.success(calendar ? "Les brouillons sont dans ton calendrier. Aucune publication automatique." : "Les copies validées sont dans Mes photos.");
   }
-  async function restore(row: PhotoWorkflowRow) {
+  async function restore(row: PhotoWorkflowRow, isCurrent = () => alive.current) {
     if (changed.current && !window.confirm("Remplacer la préparation ouverte par celle enregistrée ? Les changements non enregistrés seront perdus.")) return;
     const parsed = parsePreparation(row.data);
     const restored = await Promise.all(parsed.sources.map(async r => {
@@ -198,6 +205,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
       supabase.from("calendar_posts").select("id").eq("workspace_id", workspaceId).in("id", postIds),
     ]);
     if (photos.error || posts.error) throw new Error("Impossible de vérifier les enregistrements précédents. Réessaie.");
+    if (!isCurrent()) return;
     setSources(restored); setOutputs(parsed.outputs.map(o => ({ ...o,
       savedPhoto: photos.data.some(p => p.id === o.photoId), savedPost: posts.data.some(p => p.id === o.postId) })));
     setFields({ product: String(parsed.fields.product || ""), facts: String(parsed.fields.facts || ""),
@@ -219,12 +227,12 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
   };
   closeRequest.current = close;
   if (!scopeValid) return <DialogContent><DialogHeader><DialogTitle>Préparer mes photos</DialogTitle><DialogDescription>L’espace a changé ou est en cours de chargement. Rouvre la photo dans le bon espace.</DialogDescription></DialogHeader><Button onClick={() => onOpenChange(false)}>Fermer</Button></DialogContent>;
-  return <DialogContent className="sm:max-w-5xl max-h-[92dvh] overflow-y-auto" onEscapeKeyDown={e => { e.preventDefault(); close(); }} onInteractOutside={e => e.preventDefault()}>
-    <DialogHeader><DialogTitle>{isKit ? "Une photo, plusieurs contenus" : mode === "collection" ? "Harmoniser ma collection" : "Adapter ma photo"}</DialogTitle>
+  return <DialogContent className="sm:max-w-6xl max-h-[92dvh] overflow-y-auto grid-cols-[minmax(0,1fr)] [&>*]:min-w-0 [--primary:330_50%_20%] dark:[--primary:338_72%_83%]" onEscapeKeyDown={e => { e.preventDefault(); close(); }} onInteractOutside={e => e.preventDefault()}>
+    <DialogHeader><DialogTitle>{isKit ? "Une photo, plusieurs contenus" : sources.length > 1 || mode === "collection" ? "Harmoniser mes photos" : "Adapter ma photo"}</DialogTitle>
       <DialogDescription>Cadre, lumière et texte : prépare tes visuels en conservant tes sources.</DialogDescription></DialogHeader>
-    {loadError ? <p role="alert" className="text-sm text-destructive">{loadError}</p> : !loaded ? <p role="status" className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Chargement des sources…</p> : current && source && <>
+    {loadError ? <div role="alert" className="space-y-3"><p className="text-sm text-destructive">{loadError}</p><Button variant="outline" onClick={() => setLoadAttempt(n => n + 1)}>Réessayer le chargement</Button></div> : !loaded ? <p role="status" className="flex items-center gap-2"><Loader2 className="h-4 w-4 animate-spin" /> Chargement des sources…</p> : current && source && <>
       <div className="flex flex-wrap items-end gap-2">
-        <label className="flex-1 min-w-0 text-xs">Nom de la préparation<Input value={name} disabled={!!busy} maxLength={120} onChange={e => { setName(e.target.value); changed.current = true; }} /></label>
+        <label className="w-full sm:flex-1 min-w-0 text-xs">Nom de la préparation<Input value={name} disabled={!!busy} maxLength={120} onChange={e => { setName(e.target.value); changed.current = true; }} /></label>
         {preparations.length > 0 && <label className="text-xs">Reprendre une préparation<select className="block min-h-10 max-w-[230px] rounded border bg-background px-2" aria-label="Reprendre une préparation" value="" disabled={!!busy} onChange={e => {
           const row = preparations.find(p => p.id === e.target.value); if (row) void run("Reprise…", () => restore(row));
         }}><option value="">Choisir…</option>{preparations.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>}
@@ -234,8 +242,8 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
           className={`shrink-0 min-h-10 rounded-lg border px-3 text-sm ${i === active ? "border-primary bg-primary/10" : "bg-background"} ${!o.enabled ? "opacity-50" : ""}`}>
           {o.approved && <Check className="inline h-3 w-3 mr-1" />}{o.label}{o.savedPhoto ? " · enregistré" : ""}</button>)}
       </div>
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)]">
-        <div className="min-w-0 space-y-3">
+      <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_minmax(260px,0.8fr)]">
+        <div className="min-w-0 space-y-3 md:sticky md:top-0">
           <div className="rounded-xl border bg-muted/30 p-3 min-h-[200px] flex justify-center items-center">
             {showOriginal ? <div className="relative max-h-[48vh] max-w-full"><img src={source.dataUrl} alt={`Source : ${source.name}`} className="max-h-[48vh] max-w-full object-contain" />
               {current.recipe.crop && <div aria-label="Zone du détail" className="absolute border-2 border-primary bg-primary/15 pointer-events-none" style={{ left: `${current.recipe.crop.x * 100}%`, top: `${current.recipe.crop.y * 100}%`, width: `${current.recipe.crop.width * 100}%`, height: `${current.recipe.crop.height * 100}%` }} />}</div>
@@ -249,13 +257,13 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
               setOutputs(rows => rows.map((o, i) => i === last.index ? last.output : o)); setActive(last.index); setHistory(h => h.slice(0, -1)); changed.current = true;
             }}><Undo2 className="h-3 w-3 mr-1" /> Annuler le dernier réglage</Button>
           </div>
-          {lowResolution && !current.recipe.crop && <p className="text-xs text-muted-foreground">La source est petite pour ce format : vérifie la netteté du produit.</p>}
+          {lowResolution && !current.recipe.crop && <p className="text-xs text-muted-foreground">La source est petite pour ce format : vérifie la netteté de la photo.</p>}
           <p className="text-xs text-muted-foreground">{current.recipe.crop ? "Le détail provient uniquement de la zone choisie." : "Toute la photo est conservée, même si cela ajoute des marges. Une partie de produit absente reste absente."}</p>
           <div className="rounded-lg border p-3 space-y-2">
             <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={current.enabled} disabled={!!busy || current.savedPhoto} onChange={e => editOutput({ enabled: e.target.checked })} /> Garder ce visuel dans la préparation</label>
             <label className="flex gap-2 items-start text-sm"><input className="mt-1" type="checkbox" checked={current.approved} disabled={!!busy || !preview || !!previewError || !current.enabled || current.savedPhoto} onChange={e => {
               const approved = e.target.checked; changed.current = true; setOutputs(rows => rows.map((o, i) => i === active ? { ...o, approved } : o));
-            }} /> J’ai vérifié le produit, le cadrage et le texte de ce visuel</label>
+            }} /> J’ai vérifié la photo, le cadrage et le texte de ce visuel</label>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" disabled={!preview || !!busy} onClick={() => {
@@ -263,6 +271,10 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
             }}><Download className="h-4 w-4 mr-2" /> Télécharger ce visuel</Button>
             {onApply && <Button disabled={!preview || !current.approved || !!busy} onClick={() => void run("Application…", async () => { await onApply(preview); changed.current = false; onOpenChange(false); })}>Utiliser dans mon contenu</Button>}
           </div>
+          {current.savedPhoto && !["cover", "banner"].includes(current.recipe.format) && <Button className="w-full whitespace-normal h-auto min-h-10" disabled={!!busy} onClick={() => {
+            if (changed.current && !window.confirm("Ouvrir la création avec cette copie enregistrée ? Les changements non enregistrés de la préparation seront perdus.")) return;
+            onOpenChange(false); navigate("/creer", { state: { libraryPhotoIds: [current.photoId] } });
+          }}>Créer un contenu avec cette version</Button>}
           {current.savedPhoto && <p className="text-xs text-muted-foreground">Cette copie est enregistrée. Pour la modifier, crée une nouvelle variante ; les brouillons existants resteront intacts.</p>}
           {current.savedPhoto && <Button variant="outline" size="sm" disabled={!!busy || outputs.length >= 40} onClick={() => {
             const copy = { ...current, id: crypto.randomUUID(), photoId: crypto.randomUUID(), postId: crypto.randomUUID(),
@@ -272,7 +284,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
         </div>
         <div className="min-w-0 space-y-4">
           <PhotoCompositionControls recipe={current.recipe} disabled={!!busy || !!current.savedPhoto} onChange={recipe => editOutput({ recipe })} />
-          {mode === "collection" && <Button variant="outline" className="w-full whitespace-normal h-auto min-h-10" disabled={!!busy} onClick={() => {
+          {sources.length > 1 && !isKit && <Button variant="outline" className="w-full whitespace-normal h-auto min-h-10" disabled={!!busy} onClick={() => {
             setOutputs(rows => rows.map(o => o.savedPhoto ? o : { ...o, approved: false, photoId: crypto.randomUUID(),
               recipe: { ...o.recipe, format: current.recipe.format, width: current.recipe.width, height: current.recipe.height, direction: current.recipe.direction } }));
             changed.current = true;
@@ -291,12 +303,12 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
             })}>Détourer cette photo · 1 crédit</Button>}
           </details>}
           <details className="rounded-lg border p-3"><summary className="cursor-pointer text-sm font-medium">Ma direction visuelle</summary>
-            <p className="text-xs text-muted-foreground my-2">Retrouve le fond, les marges et la place du texte pour une collection ou une occasion.</p>
+            <p className="text-xs text-muted-foreground my-2">Retrouve le fond, les marges et la place du texte pour une série de photos ou une occasion.</p>
             {directions.length > 0 && <select aria-label="Direction enregistrée" className="w-full min-h-10 rounded border bg-background px-2 text-sm mb-2" value="" disabled={!!busy || current.savedPhoto} onChange={e => {
               const d = directions.find(d => d.id === e.target.value); if (d) editOutput({ recipe: { ...current.recipe, direction: cleanDirection(d.data) } });
             }}><option value="">Réutiliser une direction…</option>{directions.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select>}
             <label className="text-xs">Décor souhaité pour les mises en scène (facultatif)<Textarea value={current.recipe.direction.scenePrompt} disabled={!!busy || current.savedPhoto} maxLength={400} placeholder="Une ambiance sobre, sans accessoire ni emballage ajouté…" onChange={e => editOutput({ recipe: { ...current.recipe, direction: { ...current.recipe.direction, scenePrompt: e.target.value } } })} /></label>
-            <label className="text-xs">Nom de la direction<Input value={directionName} maxLength={120} disabled={!!busy} onChange={e => setDirectionName(e.target.value)} placeholder="Ma collection de septembre" /></label>
+            <label className="text-xs">Nom de la direction<Input value={directionName} maxLength={120} disabled={!!busy} onChange={e => setDirectionName(e.target.value)} placeholder="Mes visuels de septembre" /></label>
             <Button className="mt-2 w-full" size="sm" variant="outline" disabled={!!busy || !canStore || !directionName.trim()} onClick={() => void run("Enregistrement…", async () => {
               await savePhotoWorkflow({ id: crypto.randomUUID(), user_id: user!.id, workspace_id: workspaceId, kind: "direction",
                 name: directionName.trim(), data: { ...current.recipe.direction } });
@@ -305,12 +317,12 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
           </details>
         </div>
       </div>
-      {!isKit && sources.length === 1 && !outputs.some(o => o.savedPhoto) && <Button variant="outline" disabled={!!busy} onClick={startKit}>Préparer plusieurs formats et leurs textes</Button>}
+      {!isKit && sources.length === 1 && !outputs.some(o => o.savedPhoto) && <Button variant="outline" className="h-auto min-h-10 whitespace-normal" disabled={!!busy} onClick={startKit}>Préparer plusieurs formats et leurs textes</Button>}
       {isKit && <div className="rounded-xl border p-4 space-y-3">
         <p className="text-sm font-medium">Le message et les informations confirmées</p>
-        <p className="text-xs text-muted-foreground">Renseigne ce que tu sais du produit. Une matière, un prix ou une disponibilité inconnus restent absents. Les textes proposés reprennent tes mots. Si le message est long, seul le nom du produit apparaît sur le visuel ; le texte complet reste dans la légende.</p>
+        <p className="text-xs text-muted-foreground">Renseigne ce que tu souhaites présenter : ton activité, une réalisation, un service ou un produit. Les informations inconnues restent absentes. Les textes proposés reprennent tes mots. Si le message est long, seul le nom apparaît sur le visuel ; le texte complet reste dans la légende.</p>
         <div className="grid gap-3 sm:grid-cols-2">
-          <label className="text-sm">Nom du produit<Input value={fields.product} maxLength={120} disabled={!!busy} onChange={e => { const value = e.target.value; setFields(f => ({ ...f, product: value })); changed.current = true; }} /></label>
+          <label className="text-sm">Ce que je présente<Input value={fields.product} maxLength={120} disabled={!!busy} onChange={e => { const value = e.target.value; setFields(f => ({ ...f, product: value })); changed.current = true; }} /></label>
           <label className="text-sm">Message à partager<Input value={fields.message} maxLength={400} disabled={!!busy} onChange={e => { const value = e.target.value; setFields(f => ({ ...f, message: value })); changed.current = true; }} /></label>
           <label className="text-sm">Informations confirmées, une par ligne<Textarea value={fields.facts} maxLength={2000} disabled={!!busy} onChange={e => { const value = e.target.value; setFields(f => ({ ...f, facts: value })); changed.current = true; }} /></label>
           <label className="text-sm">Invitation à agir, si tu en souhaites une<Textarea value={fields.cta} maxLength={300} disabled={!!busy} onChange={e => { const value = e.target.value; setFields(f => ({ ...f, cta: value })); changed.current = true; }} /></label>
@@ -329,7 +341,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", onApply, on
             const date = e.target.value; setOutputs(rows => rows.map((o, i) => i === active ? { ...o, date } : o)); changed.current = true;
           }} /></label>}
       </div>}
-      <div className="flex flex-wrap gap-2 border-t pt-4">
+      <div className="flex flex-wrap gap-2 border-t pt-4 [&>button]:max-w-full [&>button]:whitespace-normal [&>button]:h-auto [&>button]:min-h-10">
         <Button variant="outline" disabled={!!busy || !canStore} onClick={() => void run("Enregistrement…", async () => { await persist(); toast.success("Préparation enregistrée, tu peux la reprendre plus tard."); })}><FolderOpen className="h-4 w-4 mr-2" /> Enregistrer la préparation</Button>
         <Button disabled={!!busy || !canStore} onClick={() => void run("Enregistrement des copies…", () => saveOutputs(false))}>Enregistrer les copies validées</Button>
         {isKit && <Button disabled={!!busy || !canStore} onClick={() => void run("Création des brouillons…", () => saveOutputs(true))}>Enregistrer dans le calendrier</Button>}

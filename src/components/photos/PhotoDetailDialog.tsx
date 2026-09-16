@@ -16,7 +16,6 @@ import {
   Loader2,
   Package,
   RefreshCw,
-  Shirt,
   Sparkles,
   Wand2,
 } from "lucide-react";
@@ -109,6 +108,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
 
   useEffect(() => {
     if (!photo || !open) return;
+    setAfterUrl(null); setBeforeUrl(null);
     setView("after");
     setRetouchOpen(false);
     setMeta({ description: photo.description, tags: photo.tags ?? [] });
@@ -197,8 +197,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
     retouchOptions.push({
       key: "packshot",
       icon: Package,
-      title: "Fond blanc pour ma boutique",
-      hint: "Pour Etsy, ta boutique, les marketplaces.",
+      title: "Une photo pour mon e-commerce",
+      hint: "Un fond blanc pour ta boutique en ligne ou une marketplace.",
       fits: isProductPhoto,
       run: () => onPackshot(photo),
     });
@@ -206,7 +206,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
   if (onMiseEnScene) {
     retouchOptions.push({
       key: "mise-en-scene",
-      icon: Shirt,
+      icon: Package,
       title: "Mon produit porté ou en situation",
       hint: "L'ambiance vient de ta charte de marque.",
       fits: isProductPhoto,
@@ -241,7 +241,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
         <div className="flex items-center justify-between gap-2">
           <span className="flex items-center gap-2 text-sm font-medium text-foreground min-w-0">
             <Icon className="h-4 w-4 shrink-0 text-primary" />
-            <span className="truncate">{o.title}</span>
+            <span>{o.title}</span>
           </span>
           <span className="shrink-0 rounded-full bg-primary/10 px-2.5 py-0.5 text-2xs text-primary">
             {o.free ? "Sans crédit IA" : "1 crédit"}
@@ -259,19 +259,17 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           fiche dépassait 900 px de haut : le titre, « Changer le décor »,
           « Télécharger » et « Supprimer » sortaient de l'écran, inatteignables
           (constaté par la visite du 12/09 en 1440×900). */}
-      <DialogContent className="sm:max-w-[720px] max-h-[90dvh] overflow-y-auto">
+      <DialogContent className="sm:max-w-5xl max-h-[90dvh] overflow-y-auto [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
         {/* min-w-0 : sans lui, un nom long (fichier brut, suffixes) fixe la
             largeur minimale de la grille du dialogue — le truncate ne joue
             jamais et le dialogue déborde de l'écran en mobile. */}
         <DialogHeader className="min-w-0">
           <DialogTitle className="truncate">{photo.name ?? "Photo"}</DialogTitle>
-          {photo.background_prompt && (
-            <DialogDescription className="line-clamp-2">
-              {photo.background_prompt}
-            </DialogDescription>
-          )}
+          <DialogDescription className="line-clamp-2">{photo.background_prompt || "Choisis comment utiliser ou préparer cette photo."}</DialogDescription>
         </DialogHeader>
 
+        <div className="grid items-start gap-6 md:grid-cols-2">
+          <div className="min-w-0 space-y-3 md:sticky md:top-0">
         {/* Before/After toggle — seulement pour les photos retouchées */}
         {hasRetouch && (
           <div className="flex items-center gap-1 rounded-full bg-muted p-1 self-start text-xs">
@@ -306,7 +304,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           {url ? (
             <img loading="lazy"
               src={url}
-              alt={`${photo.name ?? "Photo"} (${view === "after" ? "retouchée" : "originale"})`}
+              alt={`${photo.name ?? "Photo"} (${hasRetouch && view === "after" ? "retouchée" : "originale"})`}
               className="max-h-[60vh] w-full object-contain"
             />
           ) : (
@@ -316,49 +314,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           )}
         </div>
 
-        {/* Description + tags IA (matière du matching photo ↔ contenu) */}
-        {photo.status === "ready" && (
-          <div className="rounded-xl bg-muted/50 px-3 py-2.5 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0">
-                {meta?.description ? (
-                  <p className="text-xs text-foreground leading-snug">{meta.description}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground italic">
-                    Pas encore de description IA.
-                  </p>
-                )}
-                {!!meta?.tags?.length && (
-                  <div className="flex flex-wrap gap-1 mt-1.5">
-                    {meta.tags.map((t) => (
-                      <span
-                        key={t}
-                        className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-2xs"
-                      >
-                        {t}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={handleDescribe}
-                disabled={describing}
-                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label="Régénérer la description"
-                title="Régénérer la description"
-              >
-                {describing ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="h-3.5 w-3.5" />
-                )}
-              </button>
-            </div>
           </div>
-        )}
-
+          <div className="min-w-0 space-y-5">
         {/* Une action principale, une porte pour tout le reste.
             min-w-0 OBLIGATOIRE sur la rangée : DialogContent est une grille, et
             un enfant de grille a min-width:auto — sans ça, la rangée ne peut pas
@@ -367,7 +324,7 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
             640 px on EMPILE : côte à côte, « Créer un contenu » se rognait en
             « Créer un co… » et « Retoucher » en « R… ». */}
         {photo.status === "ready" && (
-          <div className="flex flex-col sm:flex-row gap-2 min-w-0">
+          <div className="flex flex-col gap-2 min-w-0">
             <Button
               className="w-full sm:flex-[2] min-w-0"
               onClick={() => {
@@ -381,12 +338,12 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
             {retouchOptions.length > 0 && (
               <Button
                 variant="outline"
-                className="w-full sm:flex-1 min-w-0"
+                className="w-full min-w-0"
                 aria-expanded={retouchOpen}
                 onClick={() => setRetouchOpen((s) => !s)}
               >
                 <Wand2 className="h-4 w-4 mr-2 shrink-0" />
-                <span className="truncate">Retoucher</span>
+                <span>Préparer / modifier</span>
                 <ChevronDown
                   className={cn(
                     "h-4 w-4 ml-1.5 shrink-0 transition-transform",
@@ -433,10 +390,55 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
           </div>
         )}
 
+            <details className="rounded-xl border p-3"><summary className="cursor-pointer text-sm font-medium">Description et mots-clés</summary>
+        {/* Description + tags IA (matière du matching photo ↔ contenu) */}
+        {photo.status === "ready" && (
+          <div className="rounded-xl bg-muted/50 px-3 py-2.5 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                {meta?.description ? (
+                  <p className="text-xs text-foreground leading-snug">{meta.description}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Pas encore de description IA.
+                  </p>
+                )}
+                {!!meta?.tags?.length && (
+                  <div className="flex flex-wrap gap-1 mt-1.5">
+                    {meta.tags.map((t) => (
+                      <span
+                        key={t}
+                        className="px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground text-2xs"
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={handleDescribe}
+                disabled={describing}
+                className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Régénérer la description"
+                title="Régénérer la description"
+              >
+                {describing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-3.5 w-3.5" />
+                )}
+              </button>
+            </div>
+          </div>
+        )}
+
+            </details>
         {/* Actions de service : détachées par un filet, jamais en concurrence
             avec l'action principale. Le retrait reste accessible au doigt et
             ne promet jamais une destruction physique du fichier. */}
-        <div className="flex items-center gap-4 border-t border-border pt-3 min-w-0">
+        <div className="flex flex-wrap items-center gap-4 border-t border-border pt-3 min-w-0">
           <button
             type="button"
             onClick={handleDownload}
@@ -463,6 +465,8 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               Retirer de la bibliothèque
             </button>
           )}
+        </div>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

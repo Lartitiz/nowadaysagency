@@ -203,11 +203,11 @@ export function PackshotDialog({ photo, open, onOpenChange }: PackshotDialogProp
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Package className="h-4 w-4 text-primary" />
-            Fond blanc pour ma boutique
+            Une photo pour mon e-commerce
           </DialogTitle>
           <DialogDescription>
             L'IA détoure ton produit et le pose sur un fond blanc pur, prêt pour ta
-            boutique ou les marketplaces (Etsy, Amazon…).
+            boutique en ligne ou les marketplaces (Etsy, Amazon…).
           </DialogDescription>
         </DialogHeader>
 

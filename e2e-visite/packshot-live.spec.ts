@@ -1,7 +1,7 @@
 /**
  * Packshot e-commerce (PR #401) — re-test live après déploiement
  *
- * Parcours : /photos → détail d'une photo prête → « Retoucher » → « Fond blanc pour ma boutique »
+ * Parcours : /photos → détail d'une photo prête → « Retoucher » → « Une photo pour mon e-commerce »
  * → « Générer le packshot » (1 crédit, appel Photoroom réel) → aperçu
  * → « Ajouter à ma bibliothèque » → nouvelle photo taguée packshot.
  *
@@ -42,8 +42,8 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
   // Détail → porte « Retoucher » → l'outil. Audit UX 14/08 : les 4 outils de
   // retouche ne sont plus 4 boutons frères, ils vivent dans un seul menu. Pour
   // une photo qui n'est pas classée « produit », l'outil est sous le repli.
-  await page.getByRole("button", { name: /^Retoucher$/ }).click();
-  const packshotBtn = page.getByRole("button", { name: /Fond blanc pour ma boutique/i });
+  await page.getByRole("button", { name: /^Préparer \/ modifier$/ }).click();
+  const packshotBtn = page.getByRole("button", { name: /Une photo pour mon e-commerce/i });
   if (!(await packshotBtn.isVisible({ timeout: 2_000 }).catch(() => false))) {
     await page.getByText(/outils (prévus pour des photos de produit|produit)…/i).first().click();
   }
@@ -51,7 +51,7 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
   await packshotBtn.click();
 
   // Dialog packshot : source chargée puis génération
-  await expect(page.getByRole("heading", { name: /Fond blanc pour ma boutique/i })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Une photo pour mon e-commerce/i })).toBeVisible();
   const generate = page.getByRole("button", { name: /Générer le packshot/i });
   await expect(generate).toBeEnabled({ timeout: 20_000 });
   await page.screenshot({ path: path.join(SHOTS, "packshot-1-dialog.png") });

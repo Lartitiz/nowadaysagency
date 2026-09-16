@@ -41,7 +41,7 @@ const CHOICES: {
   {
     key: "offer-mockup",
     icon: BookOpen,
-    title: "Mettre mon ebook en image",
+    title: "Présenter mon offre numérique",
     hint: "Ta couverture posée sur un livre, un carnet ou un écran.",
   },
 ];
@@ -53,7 +53,7 @@ export function CreateVisualDialog({ open, onOpenChange, onChoose }: CreateVisua
         <DialogHeader>
           <DialogTitle>Créer un visuel</DialogTitle>
           <DialogDescription>
-            Fabriquer une image quand tu n'as pas de photo à montrer.
+            Assemble tes photos ou présente une couverture sur un support.
           </DialogDescription>
         </DialogHeader>
 
