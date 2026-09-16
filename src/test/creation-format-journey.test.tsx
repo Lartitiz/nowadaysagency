@@ -47,3 +47,12 @@ describe("format selection journey", () => {
     expect(screen.getByRole("button", { name: /Personnaliser ma façon/ })).toBeInTheDocument();
   });
 });
+
+it("offers and forwards an explicit ten-slide carousel", () => {
+  const onNext=vi.fn(),onSelectionChange=vi.fn();
+  render(<CreerStepFormat {...base} forcedChannel="instagram" initialFormat="carousel" initialCarouselSubMode="text" onNext={onNext} onSelectionChange={onSelectionChange}/>);
+  fireEvent.click(screen.getByRole('button',{name:'Détaillé · 10 slides'}));
+  expect(onSelectionChange).toHaveBeenLastCalledWith(expect.objectContaining({slideLength:'long'}));
+  fireEvent.click(screen.getByRole('button',{name:/Suivant/}));
+  expect(onNext.mock.calls.at(-1)?.at(-1)).toBe('long');
+});

@@ -44,7 +44,7 @@ interface FlowState {
    * suivantes réutilisent ce suivi au lieu de dupliquer le contenu. */
   publishedCalendarId?: string | null;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null;
-  slideLength?: "auto" | "short" | "classic";
+  slideLength?: "auto" | "short" | "classic" | "long";
   photoDescription?: string;
   photoSubject?: string;
   photoEntry?: boolean;

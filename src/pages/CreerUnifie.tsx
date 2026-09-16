@@ -391,8 +391,8 @@ function CreerWorkspace() {
   const [carouselSubMode, setCarouselSubMode] = useState<"text" | "photo" | "mix" | "pure_photo" | "user_slides" | null>(canalConflict ? null : (ps?.carouselSubMode ?? null));
   // Longueur choisie via les puces « Longueur » (CreerStepFormat).
   // "auto" = aucun slide_count envoyé, l'edge applique ses cibles adaptatives.
-  const [slideLength, setSlideLength] = useState<"auto" | "short" | "classic">(ps?.slideLength ?? "auto");
-  const slideCountChoice = slideLength === "short" ? 4 : slideLength === "classic" ? 7 : undefined;
+  const [slideLength, setSlideLength] = useState<"auto" | "short" | "classic" | "long">(ps?.slideLength ?? "auto");
+  const slideCountChoice = slideLength === "short" ? 4 : slideLength === "classic" ? 7 : slideLength === "long" ? 10 : undefined;
   // Init à [] : le base64 n'est plus stocké inline (cf use-flow-persistence
   // hybride). Les photos sont rehydratées en asynchrone par l'effet plus bas
   // (IndexedDB pour les dépôts, refetch serveur pour la photothèque).
@@ -666,7 +666,7 @@ function CreerWorkspace() {
   // (initialisées à [] à chaque mount) alors que le flux les sauvegarde. Sans
   // ça, restaurer l'étape "questions" afficherait un écran vide.
   useEffect(() => {
-    if (safeStep === "questions" && (ps?.questions?.length ?? 0) > 0 && questions.length === 0) {
+    if ((ps?.questions?.length ?? 0) > 0 && questions.length === 0) {
       setQuestions(ps!.questions as any);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2692,7 +2692,8 @@ function CreerWorkspace() {
             })();
             if (!stepperKey) return null;
             const handleStepClick = (key: StepperKey) => {
-              // Allow jumping back only — never forward
+              // An existing result stays reachable while revisiting the brief.
+              if (key === "result" && result && result.type === selectedFormat && !generating && !streaming) { setStep("result"); return; }
               if (key === "idea") setStep("idea");
               else if (key === "format" && step !== "idea") setStep("format");
               // « Mes slides » : le « brief », c'est l'écran de saisie du texte.
@@ -2707,12 +2708,20 @@ function CreerWorkspace() {
             return (
               <CreerStepper
                 current={stepperKey}
+                contentAvailable={!!result && result.type === selectedFormat && !generating && !streaming}
                 onStepClick={handleStepClick}
                 rightSlot={credits}
                 verbOverride={autoFlow && stepperKey === "brief" ? "Ton premier contenu" : undefined}
               />
             );
           })()}
+
+            {step === "result" && result?.raw?.structure_warnings?.length > 0 && !generating && (
+              <div role="alert" className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-4 text-sm text-foreground">
+                <p className="font-medium">Ce carrousel est à compléter avant de le publier.</p>
+                <ul className="mt-2 list-disc pl-5">{result.raw.structure_warnings.map((message: string, i: number) => <li key={i}>{message}</li>)}</ul>
+              </div>
+            )}
 
             {/* Steps */}
             {step === "idea" && (
@@ -2768,7 +2777,8 @@ function CreerWorkspace() {
                   else setIsLinkedInCarousel(false);
                   handleFormatNext(fmt, angle, { carouselSubMode: sub, photos, photoDescription: desc, photoMode: pm, linkedinCarousel: !!linkedinCar, photoDump, textFirstMix, slideLength: slideLen });
                 }}
-                onSelectionChange={({ channel, format, carouselSubMode: sub }) => {
+                onSelectionChange={({ channel, format, carouselSubMode: sub, slideLength: length }) => {
+                  setSlideLength(length);
                   setIsLinkedInCarousel(channel === "linkedin" && format === "carousel");
                   // Persiste les choix en cours pour les restaurer au reload (avant « Suivant »).
                   setSelectedFormat((prev) => (prev === format ? prev : format));

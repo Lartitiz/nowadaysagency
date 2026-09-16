@@ -378,3 +378,19 @@ it('protects photos saved without a flow record when entering a new creation', a
   await waitFor(() => expect(screen.getByTestId('photos')).toHaveTextContent('Photo sans texte'));
   expect(loadPhotos()).toMatchObject([{userPhotoId:'library-1'}]);
 });
+
+it('reopens the same generated carousel after precisions and a reload, including designs and caption', async () => {
+  const raw = { slides: [{slide_number:1,title:'Couverture',body:''},{slide_number:2,title:'Erreur 1',body:'Une explication à garder'}], caption:{body:'Ma légende'}, _crosspost:{source:'privée'} };
+  const visualSlides = [{slide_number:1,html:'<div>Design original</div>'}];
+  saveFlowState({step:'result',ideaText:'8 erreurs',selectedFormat:'carousel',carouselSubMode:'text',slideLength:'long',questions:[{id:'q1',question:'Quelle erreur veux-tu expliquer ?'}],answers:{q1:'Réponse existante'},result:{type:'carousel',raw},visualSlides,creationId:'same-creation',editingIdeaId:'same-idea'});
+  const app = mount(); await screen.findByTestId('result');
+  fireEvent.click(screen.getByRole('button',{name:/Étape 3.*Précisions/}));
+  await waitFor(() => expect(screen.queryByTestId('result')).not.toBeInTheDocument());
+  expect(await screen.findByText('Quelle erreur veux-tu expliquer ?')).toBeInTheDocument();
+  await waitFor(() => expect(loadFlowState()).toMatchObject({step:'questions',result:{raw},visualSlides,answers:{q1:'Réponse existante'},slideLength:'long'}));
+  app.unmount(); mount();
+  fireEvent.click(screen.getByRole('button',{name:/Étape 4.*Contenu/}));
+  await screen.findByTestId('result');
+  expect(loadFlowState()).toMatchObject({step:'result',result:{raw},visualSlides,creationId:'same-creation',editingIdeaId:'same-idea'});
+  expect(mocks.generate).not.toHaveBeenCalled();
+});

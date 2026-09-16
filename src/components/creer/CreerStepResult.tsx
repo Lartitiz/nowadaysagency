@@ -540,7 +540,7 @@ export default function CreerStepResult({
 
   const renderResult = () => {
     if (format === "carousel" && visualSlides?.length && onCarouselDocumentChange) {
-      return <fieldset disabled={visualLoading} className={visualLoading ? "pointer-events-none opacity-60" : ""} aria-busy={visualLoading}>
+      return <fieldset disabled={visualLoading} className={`min-w-0 w-full ${visualLoading ? "pointer-events-none opacity-60" : ""}`} aria-busy={visualLoading}>
         {visualLoading && <p role="status" className="mb-3 text-sm">Régénération en cours. Les retouches seront disponibles dès que les nouveaux visuels seront prêts.</p>}
         <CarouselEditor result={result} visualSlides={visualSlides} onChange={onCarouselDocumentChange} photos={photos} onAddPhoto={onAddPhoto} onStaleChange={onCarouselStaleChange} cloudTools={carouselCloudTools} quality={carouselQuality} />
       </fieldset>;

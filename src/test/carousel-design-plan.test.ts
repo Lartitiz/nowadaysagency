@@ -55,3 +55,13 @@ describe("carousel art direction", () => {
     expect(result.html).toContain("Un verbatim seul.");
   });
 });
+
+it("fits a developed explanation in a wide layout and keeps every word", () => {
+  const slide = { title: "Une longue explication mérite une vraie place dans le carrousel", body: "Quand plusieurs demandes arrivent en même temps, commence par vérifier leur ordre et leur objectif. Les détails permettent de comprendre ce qui bloque. Choisis ensuite un geste concret pour avancer, puis explique pourquoi il convient à cette situation, sans effacer les nuances du sujet." };
+  const beat = { ...buildCarouselDesignPlan([slide]).sequence[0], layout: "closing" as const };
+  const composed = composeEditorialSlide(slide, beat, charter);
+  expect(composed).not.toBeNull();
+  expect(composed!.html).toContain(slide.body);
+  expect(composed!.html).toContain("top:140px");
+  expect(composed!.html).toContain("width:920px");
+});

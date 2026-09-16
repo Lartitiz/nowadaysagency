@@ -1,3 +1,4 @@
+import { carouselLengthPrompt, carouselStructureIssues } from "../_shared/carousel-length.ts";
 import { photoWritingPrompt, mixWritingPrompt, textWritingPrompt, NEWS_WRITING } from "./variant-writing.ts";
 import { callCarouselWriter, pickCarouselWriter, CAROUSEL_WRITER_VERSION } from "./writer.ts";
 import { authoredContentSource, currentContentContract } from "../_shared/editorial-voice.ts";
@@ -909,6 +910,28 @@ async function runGenerationAndRespond(
     ? await _deps.callCarouselWriter({ ...writingOptions, model: pickCarouselModel(body) }, usage)
     : await _deps.callAnthropic({ ...writingOptions, model: getModelForAction(type === "deepening_questions" ? "questions" : "carousel") }, usage);
 
+  if (type === "express_full" || type === "slides") {
+    const inspect = (value: string) => carouselStructureIssues(tryParseAiJson(value, "carousel-ai:structure"), body);
+    let issues = inspect(content);
+    if (issues.length) {
+      emitStatus("correcting");
+      const repairUsage: UsageSink = {};
+      try {
+        const repaired = await _deps.callCarouselWriter({
+          ...writingOptions, model: pickCarouselModel(body),
+          messages: [{ role: "user", content: userPrompt + "\n\nBROUILLON À COMPLÉTER :\n" + content + "\n\nDÉFAUTS STRUCTURELS :\n" + issues.join("\n") + "\nCorrige ces défauts et renvoie le JSON complet. Préserve les faits, la voix et les formulations déjà relues. Aucun fait nouveau ni suppression d'un élément." }],
+        }, repairUsage);
+        const remaining = inspect(repaired);
+        if (countCarouselSlides(repaired) > 0 && remaining.length === 0) { content = repaired; issues = remaining; }
+      } catch (e) { console.error("carousel-ai: structural repair failed, draft preserved", e); }
+      finally {
+        for (const key of ["input_tokens", "output_tokens", "total_tokens"] as const) usage[key] = (usage[key] || 0) + (repairUsage[key] || 0);
+      }
+    }
+    const parsed: any = tryParseAiJson(content, "carousel-ai:structure-result");
+    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: issues });
+  }
+
   const editorialBaseline = content;
   // Contextual review for every generated carousel, legacy scan only on rollback.
   if (type === "express_full" || type === "slides" || type === "hooks") {
@@ -956,6 +979,11 @@ async function runGenerationAndRespond(
     });
     content = gateExpress.content;
     await logContentQuality(userId, `carousel_${type}`, gateExpress, usage.model, workspaceId, body.subject);
+  }
+
+  if (type === "express_full" || type === "slides") {
+    const parsed: any = tryParseAiJson(content, "carousel-ai:final-structure");
+    if (parsed?.slides) content = JSON.stringify({ ...parsed, structure_warnings: carouselStructureIssues(parsed, body) });
   }
 
   // deepening_questions (variante texte) est gratuit — arbitrage 10/07/2026 :
@@ -1402,7 +1430,7 @@ RÈGLES :
 - Justifie chaque choix de position en 1 phrase max
 - Propose des titres scène-first en 4-9 mots (voir RÈGLES TITRES ci-dessous), en français
 - Sois concise et actionnable, pas théorique
-- Le nombre de slides cible est ${slide_count || 7} en mode TEXTE/MIX ; en mode PHOTO il s'adapte au nombre de photos (voir MODE PHOTO ci-dessous) — n'impose pas 7+ slides s'il n'y en a que 1-2.
+${!photos?.length && carousel_type !== "mix" ? carouselLengthPrompt(body) : `- Le nombre de slides cible est ${slide_count || 7} en mode MIX ; en mode PHOTO il s'adapte au nombre de photos (voir MODE PHOTO ci-dessous).`}
 ${photoInstruction}
 
 ${SLIDE_TITLE_RULES}
