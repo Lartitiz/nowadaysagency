@@ -29,6 +29,12 @@ describe("direct coach journey", () => {
     rerender(view({ open: false })); rerender(view());
     await screen.findByText("Idée 1"); expect(mocks.invoke).toHaveBeenCalledTimes(1);
   });
+  it("keeps the same selection when the creator returns on a different channel", async () => {
+    const { rerender, view, onSelect } = setup(); await screen.findByText("Idée 1");
+    rerender(view({ open: false, initialChannel: "newsletter" })); rerender(view({ initialChannel: "newsletter" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Créer" })[0]);
+    expect(mocks.invoke).toHaveBeenCalledTimes(1); expect(onSelect.mock.calls[0][0].canal).toBe("newsletter");
+  });
   it("retains previous ideas after a failed new batch and sends semantic history", async () => {
     setup(); await screen.findByText("Idée 1"); mocks.invoke.mockResolvedValueOnce({ error: { message: "Indisponible" } });
     fireEvent.click(screen.getByText("D'autres idées")); await screen.findByText("Indisponible");

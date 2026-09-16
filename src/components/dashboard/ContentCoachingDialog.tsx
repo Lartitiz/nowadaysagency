@@ -32,21 +32,24 @@ export default function ContentCoachingDialog(props: Props) {
   const { user } = useAuth();
   const workspace = useWorkspaceId();
   const ready = useWorkspaceReady();
-  // Remount local fields on every account/workspace/channel transition. Results
+  // Remount local fields on every account/workspace transition. Results
   // live in a scoped query cache; switching A → B → A never accepts B's callback.
   if (!user || !ready) return null;
-  return <ScopedCoach key={`${user.id}:${workspace}:${props.initialChannel || "auto"}`} {...props} userId={user.id} workspace={workspace} />;
+  return <ScopedCoach key={`${user.id}:${workspace}`} {...props} userId={user.id} workspace={workspace} />;
 }
 
 function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialFormat, userId, workspace }: Props & { userId: string; workspace: string }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const queryKey = ["direct-content-ideas-v2", userId, workspace, initialChannel || "auto"];
+  const queryKey = ["direct-content-ideas-v2", userId, workspace];
   const storageKey = queryKey.join(":");
   const cached = queryClient.getQueryData<Selection>(queryKey) || (() => {
     try { const entry = JSON.parse(sessionStorage.getItem(storageKey) || "null"); return entry?.expires > Date.now() && Array.isArray(entry.data?.cards) ? entry.data as Selection : undefined; } catch { return undefined; }
   })();
   const [preferences, setPreferences] = useState<Preferences>(cached?.preferences || { objectif: "auto", sujet: "", canal: initialChannel || "auto", format: normalizeFormat(initialFormat) || "auto", activity: "", carouselSubMode: "text" });
+  useEffect(() => {
+    if (open && initialChannel) setPreferences(p => { ...p, canal: initialChannel, format: normalizeFormat(initialFormat) || (p.canal === initialChannel ? p.format : "auto") });
+  }, [open, initialChannel, initialFormat]);
   const [refining, setRefining] = useState<string | null>(null);
   const [precision, setPrecision] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
@@ -169,6 +172,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
           {refining === card.id && <div className="space-y-2 border-t pt-3"><label className="block text-sm">Une précision à ajouter ? (facultatif)<Textarea value={precision} onChange={e => setPrecision(e.target.value)} maxLength={1000} rows={2} placeholder="Par exemple : montrer ce que cela change dans la pratique." /></label><Button variant="outline" disabled={loading} onClick={() => generate(card)}>Approfondir cette idée</Button></div>}
         </article>)}</div>
         <Button variant="outline" disabled={loading} onClick={() => generate()} className="w-full gap-2"><RefreshCw className="h-4 w-4" /> D'autres idées</Button>
+        <p className="text-xs text-muted-foreground">Une nouvelle sélection ou un approfondissement utilise 1 crédit. Rouvrir ces idées et les garder ne consomme pas de crédit.</p>
       </>}
     </div>
   </CoachingShell>;
