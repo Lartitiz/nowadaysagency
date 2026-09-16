@@ -1,7 +1,7 @@
 import BrandLogo from "@/components/BrandLogo";
 import { useState, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
+import { ChevronDown, Check, Home, PenLine, CalendarDays, Palette, ClipboardList, Instagram, Briefcase, Globe, Search, Pin, Users, Brain, Settings, Film, GraduationCap, Wrench, CreditCard, HeartHandshake, LogOut,  Plus, Trash2, Image, BarChart3, IdCard,  Sparkles, Lightbulb } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { isRouteVisible } from "@/config/feature-flags";
 import { useUserPlan } from "@/hooks/use-user-plan";
@@ -22,48 +22,30 @@ interface NavItem {
   label: string;
   path: string;
   icon?: React.ReactNode;
-  children?: { label: string; path: string }[];
-  freshStart?: boolean;
+  description?: string;
 }
 
-// Navigation à plat : une entrée = une destination. Le calendrier regroupe ses
-// onglets (Calendrier · Idées · Stratégie) dans un seul écran ; chaque réseau
-// ouvre son hub, qui sert de carte du réseau (pas de sous-liste dans le menu).
+// Les destinations métier restent à plat, regroupées par intention. Les flags
+// des hubs sont conservés ; ils ne modifient pas les canaux du créateur.
 const NAV_SECTIONS: { label: string; items: NavItem[] }[] = [
   {
-    label: "CRÉER ET PLANIFIER",
+    label: "Mon travail",
     items: [
-      { label: "Créer un contenu", path: "/creer", icon: <PenLine size={16} />, freshStart: true },
-      { label: "Mes idées", path: "/idees", icon: <Lightbulb size={16} /> },
-      { label: "Mon calendrier", path: "/calendrier", icon: <CalendarDays size={16} /> },
-      // La page /instagram/stats agrège déjà Instagram + site (GA4) + CA ("Suivre
-      // mes stats") ; on l'expose ici en porte directe, sans passer par le hub Insta.
-      { label: "Mes statistiques", path: "/instagram/stats", icon: <BarChart3 size={16} /> },
-      { label: "Mes photos", path: "/photos", icon: <Image size={16} /> },
+      { label: "Mes idées", path: "/idees", description: "Idées et contenus enregistrés", icon: <Lightbulb size={18} /> },
+      { label: "Mes photos", path: "/photos", description: "Bibliothèque et retouches", icon: <Image size={18} /> },
+      { label: "Mes statistiques", path: "/instagram/stats", description: "Comprendre ce qui fonctionne", icon: <BarChart3 size={18} /> },
+      { label: "Mon identité", path: "/branding", description: "Mon activité, ma voix et mon style", icon: <Palette size={18} /> },
+      { label: "Mes offres", path: "/branding/offres", description: "Produits et services", icon: <ClipboardList size={18} /> },
     ],
   },
   {
-    label: "MA MARQUE",
+    label: "Ma présence en ligne",
     items: [
-      { label: "Mon identité", path: "/branding", icon: <Palette size={16} /> },
-      { label: "Mes offres", path: "/branding/offres", icon: <ClipboardList size={16} /> },
-    ],
-  },
-  {
-    label: "MES RÉSEAUX",
-    items: [
-      { label: "Instagram", path: "/instagram", icon: <Instagram size={16} /> },
-      { label: "LinkedIn", path: "/linkedin", icon: <Briefcase size={16} /> },
-      { label: "Pinterest", path: "/pinterest", icon: <Pin size={16} /> },
-      { label: "Améliorer mon site", path: "/site", icon: <Globe size={16} /> },
-      { label: "SEO", path: "/seo", icon: <Search size={16} /> },
-    ],
-  },
-  {
-    label: "RESSOURCES",
-    items: [
-      { label: "Contacts", path: "/contacts", icon: <Users size={16} /> },
-      { label: "Coach IA", path: "/dashboard/guide", icon: <Brain size={16} /> },
+      { label: "Instagram", path: "/instagram", description: "Profil, stratégie et engagement", icon: <Instagram size={18} /> },
+      { label: "LinkedIn", path: "/linkedin", description: "Profil et stratégie", icon: <Briefcase size={18} /> },
+      { label: "Pinterest", path: "/pinterest", description: "Profil, tableaux et visibilité", icon: <Pin size={18} /> },
+      { label: "Améliorer mon site", path: "/site", description: "Textes et audit de mon site", icon: <Globe size={18} /> },
+      { label: "SEO", path: "/seo", description: "Outil dédié au référencement", icon: <Search size={18} /> },
     ],
   },
 ];
@@ -86,23 +68,10 @@ export default function AppSidebar() {
   const { pending: brandReviewPending } = usePendingBrandReview();
   const { isActive: sessionActive } = useSession();
   const { open, setOpen } = useMobileNav();
-  const [openSubs, setOpenSubs] = useState<Record<string, boolean>>({});
   // Modules désactivés (feature-flags) : mêmes règles que ProtectedRoute, sinon la
   // sidebar affiche des liens morts (clic → redirection dashboard) aux non-admins.
-  /* Fiche de marque d'abord : tant qu'elle attend d'être relue, « Créer un
-     contenu » est une fausse piste (la page renvoie sur la fiche de toute
-     façon). On remplace l'entrée par « Valider ma fiche », qui EST la
-     prochaine action. Elle redevient « Créer un contenu » une fois validée. */
   const visibleSections = NAV_SECTIONS
     .map((section) => ({ ...section, items: section.items.filter((i) => isRouteVisible(i.path, isAdmin)) }))
-    .map((section) => ({
-      ...section,
-      items: brandReviewPending
-        ? section.items.map((i) => (i.path === "/creer"
-          ? ({ label: "Valider ma fiche", path: "/branding?from=onboarding&next=creer", icon: <IdCard size={16} /> } as NavItem)
-          : i))
-        : section.items,
-    }))
     .filter((section) => section.items.length > 0);
   const menuTrigger = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
@@ -110,7 +79,7 @@ export default function AppSidebar() {
   // Tous les chemins de navigation, pour la règle "le plus précis l'emporte".
   const navPaths = visibleSections
     .flatMap((s) => s.items)
-    .flatMap((i) => [i.path, ...(i.children?.map((c) => c.path) ?? [])])
+    .map((i) => i.path)
     .filter((p) => !p.includes("?"));
 
   const isActive = (path: string) => {
@@ -126,10 +95,6 @@ export default function AppSidebar() {
       (p) => p !== path && p.length > path.length && (location.pathname === p || location.pathname.startsWith(p + "/")),
     );
     return !moreSpecific;
-  };
-
-  const toggleSub = (key: string) => {
-    setOpenSubs((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const quickNav = MOBILE_NAV;
@@ -176,7 +141,7 @@ export default function AppSidebar() {
       )}
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="right" aria-describedby={undefined} className="flex w-[min(340px,100vw)] flex-col overflow-y-auto p-0 gap-0"
+        <SheetContent side="right" aria-describedby={undefined} className="flex w-[min(390px,100vw)] flex-col overflow-y-auto p-0 gap-0 lg:top-[88px] lg:bottom-auto lg:right-6 lg:h-auto lg:max-h-[calc(100dvh-112px)] lg:w-[660px] lg:max-w-[660px] lg:rounded-2xl lg:border xl:right-[max(24px,calc((100vw-1152px)/2))]"
           onOpenAutoFocus={() => { previousFocus.current = document.activeElement as HTMLElement; }}
           onCloseAutoFocus={(event) => {
             // Plusieurs déclencheurs (en-tête, mobile) partagent le tiroir.
@@ -187,82 +152,36 @@ export default function AppSidebar() {
             <SheetTitle className="font-display text-2xl text-bordeaux">Mon espace</SheetTitle>
           </div>
 
-        {/* Nav */}
-        <nav className="flex-1 py-2 px-2 space-y-1">
-          {/* Accueil */}
-          <Link
-            to="/dashboard"
-            onClick={() => setOpen(false)}
-            className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
-              isActive("/dashboard") ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
-            }`}
-          >
-            <Home size={16} />
-            Accueil
-          </Link>
-
-          {visibleSections.map((section) => (
-            <div key={section.label} className="pt-3">
-              <div className="font-mono-ui text-2xs text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
-                {section.label}
-              </div>
-              {section.items.map((item) => (
-                <div key={item.path}>
-                  {item.children ? (
-                    <>
-                      <button
-                        onClick={() => toggleSub(item.path)}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
-                          isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
-                        }`}
-                      >
-                        {item.icon}
-                        <span className="flex-1 text-left">{item.label}</span>
-                        <ChevronRight
-                          size={14}
-                          className="text-muted-foreground transition-transform duration-200"
-                          style={{ transform: openSubs[item.path] ? "rotate(90deg)" : "rotate(0deg)" }}
-                        />
-                      </button>
-                      {openSubs[item.path] && (
-                        <div className="ml-[34px] space-y-0.5 py-0.5">
-                          {item.children.map((child) => (
-                            <Link
-                              key={child.path}
-                              to={child.path}
-                              onClick={() => setOpen(false)}
-                              className={`block px-2.5 py-1.5 rounded-md text-sm transition-colors ${
-                                isActive(child.path) ? "text-primary font-semibold" : "text-muted-foreground hover:text-foreground"
-                              }`}
-                            >
-                              {child.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <Link
-                      to={item.path + (item.freshStart ? "?new=1" : "")}
-                      onClick={() => setOpen(false)}
-                      className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body transition-colors ${
-                        isActive(item.path) ? "bg-rose-pale text-primary font-semibold" : "text-foreground hover:bg-rose-pale"
-                      }`}
-                    >
-                      {item.icon}
-                      {item.label}
-                    </Link>
-                  )}
-                </div>
-              ))}
-            </div>
-          ))}
+        <nav aria-label="Outils de mon espace" className="px-4 pb-3 sm:px-5">
+          <div className="flex flex-wrap gap-x-5 gap-y-2 border-b border-border py-3 text-sm text-bordeaux">
+            <Link to="/dashboard" onClick={() => setOpen(false)} className="inline-flex items-center gap-2 py-1 hover:underline"><Home size={16} />Accueil</Link>
+            <Link to="/calendrier" onClick={() => setOpen(false)} className="inline-flex items-center gap-2 py-1 hover:underline"><CalendarDays size={16} />Calendrier</Link>
+            <Link to={brandReviewPending ? "/branding?from=onboarding&next=creer" : "/creer?new=1"} onClick={() => setOpen(false)} className="inline-flex items-center gap-2 py-1 font-semibold hover:underline">
+              {brandReviewPending ? <IdCard size={16} /> : <PenLine size={16} />}{brandReviewPending ? "Valider ma fiche" : "Créer un contenu"}
+            </Link>
+          </div>
+          <div className="grid gap-4 py-4 lg:grid-cols-2 lg:gap-6">
+            {visibleSections.map((section) => (
+              <section key={section.label} aria-label={section.label}>
+                <h2 className="px-2 pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{section.label}</h2>
+                {section.items.map((item) => (
+                  <Link key={item.path} to={item.path} aria-label={item.label} aria-current={isActive(item.path) ? "page" : undefined} onClick={() => setOpen(false)}
+                    className={`flex items-start gap-3 rounded-lg px-2 py-2.5 transition-colors ${isActive(item.path) ? "bg-rose-pale text-bordeaux" : "text-foreground hover:bg-rose-pale"}`}>
+                    <span className="mt-0.5 shrink-0 text-bordeaux" aria-hidden="true">{item.icon}</span>
+                    <span className="min-w-0"><span className="block text-sm font-semibold">{item.label}</span><span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.description}</span></span>
+                  </Link>
+                ))}
+              </section>
+            ))}
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-2 border-t border-border pt-3 text-sm text-muted-foreground">
+            <Link to="/dashboard/guide" onClick={() => setOpen(false)} className="inline-flex items-center gap-2 py-1 hover:text-bordeaux"><Brain size={16} />Coach IA</Link>
+            <Link to="/contacts" onClick={() => setOpen(false)} className="inline-flex items-center gap-2 py-1 hover:text-bordeaux"><Users size={16} />Contacts</Link>
+          </div>
 
           {isAdmin && (
-            <div className="pt-3">
-              <div className="font-mono-ui text-2xs text-muted-foreground uppercase tracking-wider px-3 pb-1.5">
-                ADMIN
-              </div>
+            <details className="mt-3 border-t border-border pt-3">
+              <summary className="cursor-pointer text-sm text-muted-foreground">Administration</summary>
               <button
                 onClick={() => { activateDemo(); navigate("/dashboard"); setOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors text-left"
@@ -282,12 +201,12 @@ export default function AppSidebar() {
                 <Wrench size={16} />
                 🛠️ Outils admin
               </Link>
-            </div>
+            </details>
           )}
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-border px-2 py-2 space-y-0.5">
+        <div className="flex flex-wrap gap-x-2 border-t border-border px-4 py-2">
           <Link
             to="/parametres"
             onClick={() => setOpen(false)}
@@ -323,7 +242,7 @@ export default function AppSidebar() {
               <ChevronDown size={14} className="text-muted-foreground shrink-0" />
             </button>
           </PopoverTrigger>
-          <PopoverContent side="top" align="start" className="w-72 p-1.5 z-50">
+          <PopoverContent side="top" align="start" className="w-72 max-h-[min(480px,70dvh)] overflow-y-auto p-1.5 z-50">
             {/* Current account */}
             <div className="text-2xs font-medium text-muted-foreground px-2 py-1.5 uppercase tracking-wider">Compte actif</div>
             <div className="flex items-center gap-2.5 px-2 py-2 rounded-md bg-muted">

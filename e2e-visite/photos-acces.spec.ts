@@ -11,7 +11,7 @@
  * 2. Menu : #1019 a remplacé le panneau de gauche permanent par un TIROIR
  *    « Mon espace » (Sheet), ouvert depuis l'en-tête en desktop et depuis la
  *    barre du bas en mobile. L'entrée « Mes photos » vit dans le 1er groupe
- *    « CRÉER ET PLANIFIER » du tiroir — toujours une seule fois, toujours /photos.
+ *    « Mon travail » du menu — toujours une seule fois, toujours /photos.
  */
 
 import { test, expect } from "@playwright/test";

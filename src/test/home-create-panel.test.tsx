@@ -25,7 +25,7 @@ describe("Accueil : commencer sans perdre le contexte", () => {
     render(panel());
     fireEvent.click(screen.getByRole("button", { name: /LinkedIn/ }));
     expect(create).toHaveBeenCalledWith("/creer?canal=linkedin&new=1");
-    expect(screen.queryByRole("button", { name: /Pinterest/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Pinterest/ })).toBeVisible();
   });
   it("conserve la création Pinterest indépendamment du hub spécialisé masqué", () => {
     state.channels = ["pinterest"];
@@ -46,29 +46,29 @@ describe("Accueil : commencer sans perdre le contexte", () => {
     expect(screen.queryByRole("button", { name: /Instagram/ })).not.toBeInTheDocument();
     expect(create).not.toHaveBeenCalled();
   });
-  it("efface les anciens choix pendant le chargement du nouvel espace", () => {
+  it("garde les quatre capacités accessibles sans préférences ou si leur lecture échoue", () => {
+    state.channels = ["site"]; state.error = "lecture impossible";
     const view = render(panel());
+    for (const canal of ["Instagram", "LinkedIn", "Newsletter", "Pinterest"]) {
+      expect(screen.getByRole("button", { name: new RegExp(canal) })).toBeVisible();
+    }
     state.loading = true; state.channels = [];
     view.rerender(panel());
-    expect(screen.getByRole("status")).toHaveTextContent("Chargement de tes canaux");
-    expect(screen.queryByRole("button")).not.toBeInTheDocument();
-    state.loading = false; state.channels = ["newsletter"];
+    fireEvent.click(screen.getByRole("button", { name: /Newsletter/ }));
+    expect(create).toHaveBeenCalledWith("/creer?canal=newsletter&new=1");
+  });
+  it("attend la vérification de la fiche du nouvel espace avant de créer", () => {
+    const view = render(panel());
+    state.checking = true;
     view.rerender(panel());
-    expect(screen.getByRole("button", { name: /Newsletter/ })).toBeVisible();
-    expect(screen.queryByRole("button", { name: /Instagram/ })).not.toBeInTheDocument();
-  });
-  it("propose de réessayer une erreur au lieu de la présenter comme un compte vide", () => {
-    state.error = "lecture impossible"; state.channels = [];
-    render(panel());
-    expect(screen.getByRole("alert")).toHaveTextContent("n’ont pas pu être chargés");
-    expect(screen.queryByRole("button", { name: /Commencer/ })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Réessayer" }));
-    expect(state.reload).toHaveBeenCalledOnce();
-  });
-  it("permet de commencer sans canal choisi, y compris une activité orientée site", () => {
-    state.channels = ["site"];
-    render(panel());
-    fireEvent.click(screen.getByRole("button", { name: /Commencer un contenu/ }));
-    expect(create).toHaveBeenCalledWith("/creer?new=1");
+    expect(screen.getByRole("status")).toHaveTextContent("Chargement de ton espace");
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    state.checking = false; state.pending = true;
+    view.rerender(panel());
+    expect(screen.getByRole("link", { name: /Relire ma fiche/ })).toBeVisible();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    state.pending = false;
+    view.rerender(panel());
+    expect(screen.getAllByRole("button")).toHaveLength(4);
   });
 });
