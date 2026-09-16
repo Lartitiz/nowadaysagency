@@ -34,7 +34,7 @@ export function AddPostMenu({ dateStr, onAddIdea, onImport, children }: Props) {
           <button
             type="button"
             aria-label={`Ajouter un contenu pour le ${new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", { day: "numeric", month: "long" })}`}
-            className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
+            className="p-1 opacity-60 sm:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100 transition-opacity text-muted-foreground hover:text-primary"
           >
             <Plus className="h-3.5 w-3.5" />
           </button>

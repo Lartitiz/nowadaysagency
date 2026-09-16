@@ -24,6 +24,7 @@ import { fr } from "date-fns/locale";
 import { CalendarIcon, Sparkles, Trash2, RefreshCw, Newspaper, Check, Loader2, ChevronDown } from "lucide-react";
 import type { SavedIdea } from "./CalendarIdeasSidebar";
 import { renderIdeaDraft } from "@/lib/render-idea-draft";
+import { ContentPreview } from "@/components/ContentPreview";
 
 
 const FORMAT_OPTIONS = [
@@ -111,7 +112,9 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       format: ideaFormat,
       objectif: objective,
       notes: notes || null,
-      content_draft: contentDraft,
+      // Ne pas transformer un contenu structuré (ou absent) en texte vide
+      // lorsqu'on modifie uniquement son titre, son format ou ses notes.
+      ...(contentDraft !== renderIdeaDraft(idea.content_draft, idea.format) ? { content_draft: contentDraft } : {}),
       canal: ideaFormat === idea.format ? idea.canal || "instagram" : ideaFormat === "linkedin" ? "linkedin" : "instagram",
     }).eq("id", idea.id).select("*").single();
     if (error || !data) {
@@ -326,6 +329,12 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
       </div>
 
       {/* Generated content */}
+      {!idea?.content_draft && idea?.content_data && (
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold">Contenu enregistré</h3>
+          <ContentPreview contentData={idea.content_data} contentType={idea.format === "reel" ? "reel" : idea.format === "story_serie" ? "stories" : undefined} compact />
+        </section>
+      )}
       {(idea?.content_draft || contentDraft) && (
         <div>
           <label htmlFor="idea-content-draft" className="text-xs font-semibold mb-1.5 block text-foreground flex items-center gap-1.5">
@@ -421,7 +430,7 @@ export function IdeaDetailSheet({ idea, open, onOpenChange, onUpdated, onPlanned
         </span>
         <div className="ml-auto flex items-center gap-2">
           <Button onClick={handleGenerate} disabled={!title.trim()} className="rounded-pill gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90">
-            <Sparkles className="h-4 w-4" /> Générer le contenu
+            <Sparkles className="h-4 w-4" /> {idea && resumeIdea(idea) ? "Ouvrir l’éditeur" : "Créer ce contenu"}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

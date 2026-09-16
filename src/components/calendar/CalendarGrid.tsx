@@ -157,6 +157,8 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
   const [moveDialogPost, setMoveDialogPost] = useState<CalendarPost | null>(null);
   const [moveDate, setMoveDate] = useState<Date | undefined>();
   const [expandedDays, setExpandedDays] = useState<Set<string>>(new Set());
+  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const activeDay = calendarDays.some(d => d.inMonth && toLocalDateStr(d.date) === selectedDay) ? selectedDay : null;
 
   const addIdeaHandler = onAddIdea || onCreatePost;
 
@@ -187,8 +189,27 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
     // indication. L'état vide partagé guide vers la création OU vers le contenu voisin.
     return (
       <>
+        <div className="rounded-2xl border border-border bg-card p-2 mb-4" aria-label="Vue du mois">
+          <div className="grid grid-cols-7 text-center text-xs text-muted-foreground" aria-hidden="true">
+            {["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"].map(day => <span key={day} className="py-2">{day}</span>)}
+          </div>
+          <div className="grid grid-cols-7 gap-y-1">
+            {calendarDays.map(({ date, inMonth }) => {
+              const dateStr = toLocalDateStr(date);
+              const count = (postsByDate[dateStr] || []).length;
+              return <button key={dateStr} disabled={!inMonth} onClick={() => setSelectedDay(dateStr)}
+                aria-label={`${date.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}, ${count} contenu${count > 1 ? "s" : ""}`}
+                aria-pressed={activeDay === dateStr} aria-current={dateStr === todayStr ? "date" : undefined}
+                className={cn("min-h-11 rounded-xl flex flex-col items-center justify-center gap-1 text-sm transition-colors", !inMonth && "opacity-30", activeDay === dateStr ? "bg-primary text-primary-foreground" : dateStr === todayStr ? "bg-rose-pale text-primary-text font-bold" : "hover:bg-muted")}>
+                <span>{date.getDate()}</span>
+                <span aria-hidden="true" className={cn("h-1 w-1 rounded-full", count ? "bg-current" : "bg-transparent")} />
+              </button>;
+            })}
+          </div>
+        </div>
+        {activeDay && <button onClick={() => setSelectedDay(null)} className="text-xs text-primary hover:underline mb-3">Voir tous les contenus du mois</button>}
         <div className="space-y-2">
-          {!monthHasPosts && (
+          {!monthHasPosts && !activeDay && (
             <CalendarEmptyPeriod
               periodLabel="ce mois-ci"
               isMobile={isMobile}
@@ -201,7 +222,7 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
              const dateStr = toLocalDateStr(d.date);
             const dayPosts = postsByDate[dateStr] || [];
             const isToday = dateStr === todayStr;
-            if (dayPosts.length === 0 && !isToday) return null;
+            if (activeDay ? dateStr !== activeDay : dayPosts.length === 0 && !isToday) return null;
             return (
               <div key={dateStr} className={`rounded-xl border p-3 ${isToday ? "bg-rose-pale border-primary/30" : "border-border"}`}>
                 <div className="flex items-center justify-between mb-2">
@@ -213,8 +234,8 @@ export function CalendarGrid({ calendarDays, postsByDate, todayStr, isMobile, on
                   <AddPostMenu dateStr={dateStr} onAddIdea={addIdeaHandler} onImport={onImport} />
                 </div>
                 <div>
-                  {isToday && dayPosts.length === 0 && (
-                    <p className="text-xs text-muted-foreground">Rien de prévu aujourd'hui : touche ＋ pour ajouter un contenu.</p>
+                  {dayPosts.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Rien de prévu {isToday ? "aujourd’hui" : "ce jour-là"}. Touche ＋ pour ajouter un contenu.</p>
                   )}
                   {(expandedDays.has(dateStr) ? dayPosts : dayPosts.slice(0, 1)).map((p) => (
                     <MobilePostCard key={p.id} post={p} onSelect={onEditPost} onMove={handleMobileMove} seriesNameById={seriesNameById} />
