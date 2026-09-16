@@ -8,7 +8,7 @@ Deno.test("direct subjectless entry researches internally and formulates 4 devel
     model: "claude-opus-4-8", apiKey: "not-a-secret", call: async (o, u) => { calls.push(o); if (u) u.total_tokens = 20; return calls.length === 1 ? JSON.stringify({ candidates: [idea], research_queries: ["Pourquoi la forme d'une anse change sa prise en main ?"] }) : JSON.stringify({ ideas: [1, 2, 3, 4].map(i => ({ ...idea, subject: `Idée ${i}` })) }); },
     research: async (q) => { researches++; assertEquals(q.length, 1); return { sources: [], status: "unavailable" }; },
   });
-  assertEquals(calls.length, 2); assertEquals(researches, 1); assertEquals(result.ideas.length, 4); assertEquals(result.usage.total_tokens, 40);
+  assertEquals(calls.length, 2); assert(calls[0].max_tokens >= 3000); assert(calls[1].max_tokens >= 8000); assertEquals(researches, 1); assertEquals(result.ideas.length, 4); assertEquals(result.usage.total_tokens, 40);
   assert(calls[1].system.includes("retire les affirmations")); assert(calls[0].system.includes("Temps de travail"));
 });
 Deno.test("deepen preserves one selected thesis and rejects incomplete outputs without a paid retry cascade", async () => {
