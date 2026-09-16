@@ -115,7 +115,11 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     // 1) Idée → un jour du mois affiché, choisi hors des bords (cf. safeDayCell)
     const dayCell = await safeDayCell(page);
     await dragTo(page, ideaCard, dayCell);
-    await expect(page.getByText(/planifié !/i).first()).toBeVisible({ timeout: 10_000 });
+    // 🔑 15/09 (#1018, `19d9f77f`) — la planification passe par la RPC atomique
+    // `plan_saved_idea`, qui rend un reçu : le toast est devenu
+    // `"<titre>" prévu au calendrier le <date>` (ou « déjà prévu » au rejeu).
+    // On vise la partie stable de la phrase, pas l'ancien « planifié ! ».
+    await expect(page.getByText(/pr[ée]vu au calendrier/i).first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: path.join(SHOTS, "02-planifie.png") });
 
     // Le post apparaît dans la grille (hors panneau) et l'idée est marquée planifiée

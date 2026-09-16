@@ -61,15 +61,15 @@ test.afterEach(async ({ page }) => {
     const card = page.locator(".grid .group.relative").filter({ has: fixtures }).first();
     await card.hover().catch(() => {});
     await card
-      .getByRole("button", { name: "Supprimer" })
+      .getByRole("button", { name: /Retirer .+ de la bibliothèque/i })
       .click()
       .catch(() => {});
     await page
-      .getByRole("button", { name: "Supprimer" })
+      .getByRole("button", { name: "Retirer de la bibliothèque" })
       .last()
       .click()
       .catch(() => {});
-    // On attend que le COMPTE baisse, pas le toast : « Photo supprimée » reste
+    // On attend que le COMPTE baisse, pas le toast : « Photo retirée de la bibliothèque » reste
     // affiché d'une itération à l'autre et ferait tourner la boucle à vide.
     await expect(fixtures)
       .toHaveCount(restant - 1, { timeout: 20_000 })
