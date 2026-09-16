@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import { getActivityExamples, type ActivityProfile } from "@/lib/activity-examples";
-import { useWorkspaceFilter } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useProfileOwner } from "@/hooks/use-workspace-query";
 
 /**
  * Returns dynamic examples adapted to the user's activity.
@@ -13,22 +13,26 @@ export function useActivityExamples(): ActivityProfile & { activityText: string 
   const { user } = useAuth();
   const { isDemoMode, demoActivity } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
-  const [activity, setActivity] = useState<string | null>(null);
+  const owner = useProfileOwner();
+  const key = `${user?.id}:${column}:${value}:${owner.userId}`;
+  const [activity, setActivity] = useState<{ key: string; text: string } | null>(null);
 
   useEffect(() => {
-    if (isDemoMode) return;
-    if (!user) return;
-    (supabase
-      .from("profiles") as any)
-      .select("activite, type_activite")
-      .eq(column, value)
-      .maybeSingle()
-      .then(({ data }: { data: { type_activite?: string; activite?: string } | null }) => {
-        setActivity(data?.type_activite || data?.activite || null);
-      });
-  }, [user?.id, isDemoMode, column, value]);
+    if (isDemoMode || !user || owner.loading || owner.error || !owner.userId) return;
+    let current = true;
+    setActivity(null);
+    // profiles is account-scoped. Examples are optional: an unavailable read uses
+    // neutral examples, never a former workspace's activity or the manager's own.
+    Promise.resolve(supabase.from("profiles").select("activite, type_activite")
+      .eq("user_id", owner.userId).maybeSingle())
+      .then(({ data, error }) => {
+        if (current) setActivity({ key, text: error ? "" : data?.type_activite || data?.activite || "" });
+      }).catch(() => { if (current) setActivity({ key, text: "" }); });
+    return () => { current = false; };
+  }, [user?.id, isDemoMode, owner.userId, owner.loading, owner.error, key]);
 
-  const activityText = isDemoMode ? (demoActivity || "") : (activity || "");
+  const activityText = isDemoMode ? (demoActivity || "")
+    : !owner.loading && !owner.error && activity?.key === key ? activity.text : "";
   const examples = getActivityExamples(activityText);
 
   return { ...examples, activityText };
