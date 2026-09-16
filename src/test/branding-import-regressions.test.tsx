@@ -29,6 +29,7 @@ const m = vi.hoisted(() => {
       return { data: single ? rows[0] || null : structuredClone(rows), error: null };
     };
     const q: any = {
+      is: (k: string, v: any) => { filters.push([k, v]); return q; },
       select: () => q, eq: (k: string, v: any) => { filters.push([k, v]); return q; },
       order: (k: string, opts: any) => { orders.push([k, opts.ascending]); return q; },
       limit: (n: number) => { limit = n; return q; },
@@ -314,5 +315,17 @@ describe("Shared positioning import helper", () => {
     m.readsFail.add("brand_proposition");
     await expect(applyPositioningToProposition("workspace_id", "w1", "u1", "Proposition")).rejects.toBeTruthy();
     expect(m.writes).toEqual([]);
+  });
+});
+
+
+describe("personal import scope", () => {
+  it("reads and writes only legacy rows without a workspace", async () => {
+    m.db.brand_profile = [row("space", { offer: "Workspace" }), row("personal", { workspace_id: null, offer: "Personal" })];
+    const scope = { column: "user_id", value: "u1", userId: "u1" };
+    expect((await readImportRows("brand_profile", scope)).map(r => r.id)).toEqual(["personal"]);
+    await expect(saveImportRow("brand_profile", scope, "space", { offer: "Wrong" })).rejects.toThrow("Aucune fiche");
+    expect(m.db.brand_profile[0].offer).toBe("Workspace");
+    expect(await saveImportRow("brand_profile", scope, "personal", { offer: "Updated" })).toMatchObject({ id: "personal", offer: "Updated" });
   });
 });

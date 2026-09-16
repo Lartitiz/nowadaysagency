@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
     const builder: any = {
       select: () => builder,
       eq: () => builder,
+      is: () => builder,
       order: () => builder,
       limit: () => builder,
       maybeSingle: async () => result(),

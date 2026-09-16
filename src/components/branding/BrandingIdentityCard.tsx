@@ -1,518 +1,124 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { ChevronDown, Pencil, Sparkles, ArrowRight, RefreshCw, Check, X } from "lucide-react";
+import { useSearchParams, Link } from "react-router-dom";
+import { ArrowRight, ChevronDown, FileText, Palette, PenLine, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { BrandingCompletion } from "@/lib/branding-completion";
-
-export interface SectionSummary {
-  storytelling?: { firstLine: string };
-  persona?: { prenom: string; age: string; job: string };
-  proposition?: { phrase: string };
-  tone?: { keywords: string[] };
-  strategy?: { pillars: string[] };
-  offers?: { count: number; mainName: string };
-  charter?: { summary: string };
-}
-
-interface SectionConfig {
-  key: keyof Omit<BrandingCompletion, "total">;
-  icon: string;
-  title: string;
-  why?: string;
-  editRoute: string;
-}
-
-const SECTIONS: SectionConfig[] = [
-  { key: "storytelling", icon: "📖", title: "Mon histoire", why: "C'est ce qui te rend unique. Les gens achètent une personne avant un produit.", editRoute: "/branding/section?section=story" },
-  { key: "persona", icon: "👩‍💻", title: "Mon·a client·e idéal·e", why: "Plus tu connais ta cible, plus tes contenus la touchent. C'est la base de tout.", editRoute: "/branding/section?section=persona" },
-  { key: "proposition", icon: "❤️", title: "Ma proposition de valeur", why: "La phrase qu'on retient de toi. Celle qui fait cliquer.", editRoute: "/branding/proposition/recap" },
-  { key: "tone", icon: "🎨", title: "Ma voix & mes combats", why: "Ta façon de parler, c'est ta signature. Ce qui fait qu'on te reconnaît dans un feed.", editRoute: "/branding/section?section=tone_style" },
-  { key: "strategy", icon: "🍒", title: "Ma ligne éditoriale", why: "Tes sujets de contenu. Pour ne plus jamais te demander « je poste quoi ? »", editRoute: "/branding/section?section=content_strategy" },
-  { key: "offers", icon: "🎁", title: "Mes offres", why: "Si c'est pas clair pour toi, c'est pas clair pour ta cible.", editRoute: "/branding/offres" },
-  { key: "charter", icon: "🎨", title: "Ma charte graphique", why: "Tes visuels sont ta première impression. Ils doivent parler avant toi.", editRoute: "/branding/charter" },
-];
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { identityPresentation, type IdentityOverview } from "@/lib/identity-overview";
 
 interface Props {
-  completion: BrandingCompletion;
-  summaries: SectionSummary;
+  data: IdentityOverview;
+  onImport: () => void;
   onReanalyze?: () => void;
-  profileName?: string;
-  profileActivity?: string;
-  onImport?: () => void;
-  onShowSynthesis?: () => void;
-  onRunMirror?: () => void;
-  lastAuditScore?: number;
-  canShowMirror?: boolean;
-  auditSuggestions?: Record<string, string>;
-  onApplySuggestion?: (sectionKey: string, suggestion: string) => Promise<void>;
-  onDismissSuggestion?: (sectionKey: string) => void;
+  onShowSynthesis: () => void;
+  pendingReview?: boolean;
+  onReview: () => void;
+  auditSuggestions: Record<string, string>;
+  onApplySuggestion: (section: string, suggestion: string) => Promise<void>;
+  onDismissSuggestion: (section: string) => void;
+}
+const AREAS = [
+  { key: "about", title: "Me présenter", detail: "Activité et public", icon: UserRound },
+  { key: "writing", title: "Ma façon d’écrire", detail: "Ton et expressions", icon: PenLine },
+  { key: "visual", title: "Mon univers visuel", detail: "Couleurs et images", icon: Palette },
+];
+const section = (name: string) => `/branding/section?section=${name}&tab=fiche`;
+function DetailLink({ to, title, children }: { to: string; title: string; children: React.ReactNode }) {
+  return <Link to={to} className="flex items-center justify-between gap-4 border-b border-border py-4 last:border-0 hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+    <span className="min-w-0"><strong className="block text-sm font-medium">{title}</strong><span className="mt-1 block text-sm text-muted-foreground">{children}</span></span><ArrowRight className="h-4 w-4 shrink-0" aria-hidden="true" />
+  </Link>;
+}
+function Fact({ title, children }: { title: string; children: React.ReactNode }) {
+  return <div><dt className="mb-2 text-sm font-medium text-muted-foreground">{title}</dt><dd className="whitespace-pre-wrap break-words text-base leading-relaxed">{children}</dd></div>;
+}
+function More({ title, children }: { title: string; children: React.ReactNode }) {
+  return <details className="group mt-6"><summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-3 text-sm font-medium [&::-webkit-details-marker]:hidden">{title}<ChevronDown className="h-4 w-4 shrink-0 group-open:rotate-180" aria-hidden="true" /></summary><div className="border-t border-border">{children}</div></details>;
 }
 
-/* ─── Shared sub-components ─── */
-
-function TagChip({ label }: { label: string }) {
-  return (
-    <span className="inline-block rounded-full px-2.5 py-0.5 text-xs font-medium bg-[hsl(338_96%_61%/0.12)] text-[hsl(330_100%_28%)]">
-      {label}
-    </span>
-  );
-}
-
-function StatusDot({ score }: { score: number }) {
-  const color =
-    score === 100
-      ? "bg-[hsl(var(--success))]"
-      : score > 0
-        ? "bg-[hsl(var(--warning))]"
-        : "bg-muted-foreground/30";
-  return <span className={`inline-block h-2 w-2 rounded-full shrink-0 ${color}`} />;
-}
-
-function getSummaryLine(key: string, summaries: SectionSummary): string {
-  switch (key) {
-    case "storytelling":
-      return summaries.storytelling?.firstLine || "En cours de rédaction…";
-    case "persona": {
-      const p = summaries.persona;
-      if (!p?.prenom) return "Pas encore défini·e";
-      return [p.prenom, p.age, p.job].filter(Boolean).join(", ");
-    }
-    case "proposition":
-      return summaries.proposition?.phrase || "Pas encore formulée";
-    case "tone": {
-      const kw = summaries.tone?.keywords;
-      return kw && kw.length > 0 ? kw.join(" · ") : "Pas encore défini";
-    }
-    case "strategy": {
-      const pil = summaries.strategy?.pillars;
-      return pil && pil.length > 0 ? pil.join(" · ") : "Pas encore définie";
-    }
-    case "offers": {
-      const o = summaries.offers;
-      if (!o || o.count === 0) return "Pas encore d'offre";
-      return o.count === 1 ? o.mainName : `${o.count} offres · ${o.mainName}`;
-    }
-    case "charter":
-      return summaries.charter?.summary || "Pas encore créée";
-    default:
-      return "";
-  }
-}
-
-/* ─── Suggestion Banner ─── */
-
-function SuggestionBanner({ sectionKey, suggestion, onApply, onDismiss }: { sectionKey: string; suggestion: string; onApply?: (key: string, text: string) => Promise<void>; onDismiss?: (key: string) => void }) {
-  const [applying, setApplying] = useState(false);
-  return (
-    <div className="mt-3 rounded-xl border border-primary/20 bg-primary/5 p-4 space-y-2" onClick={(e) => e.stopPropagation()}>
-      <p className="text-2xs font-semibold text-primary uppercase tracking-wider">💡 Suggestion de l'audit</p>
-      <p className="text-sm text-foreground leading-relaxed italic">"{suggestion}"</p>
-      <div className="flex gap-2 pt-1">
-        {onApply && (
-          <Button
-            size="sm"
-            variant="default"
-            className="text-xs gap-1.5 rounded-full"
-            disabled={applying}
-            onClick={async (e) => {
-              e.stopPropagation();
-              setApplying(true);
-              try { await onApply(sectionKey, suggestion); } finally { setApplying(false); }
-            }}
-          >
-            <Check className="h-3.5 w-3.5" /> Accepter
-          </Button>
-        )}
-        {onDismiss && (
-          <Button
-            size="sm"
-            variant="ghost"
-            className="text-xs gap-1.5 text-muted-foreground"
-            onClick={(e) => { e.stopPropagation(); onDismiss(sectionKey); }}
-          >
-            <X className="h-3 w-3" /> Ignorer
-          </Button>
-        )}
-      </div>
+export default function BrandingIdentityCard({ data, onImport, onReanalyze, onShowSynthesis, pendingReview, onReview, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
+  const [applying, setApplying] = useState<string | null>(null);
+  const [params, setParams] = useSearchParams();
+  const area = AREAS.some(a => a.key === params.get("rubrique")) ? params.get("rubrique") : "about";
+  const basics = identityPresentation(data);
+  const writing = data.brandProfile;
+  const charter = data.charter;
+  const hasBasics = !!(basics.activity || basics.audience || basics.difference || data.publics.length);
+  const selectArea = (key: string) => { const next = new URLSearchParams(params); next.set("rubrique", key); setParams(next); };
+  return <div>
+    <div className="mb-8 flex flex-wrap items-center justify-between gap-3">
+      <p className="text-sm text-muted-foreground">Mon espace <span aria-hidden="true">/</span> Mon activité</p>
+      <DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" className="gap-2">Autres actions <ChevronDown className="h-4 w-4" /></Button></DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={onImport}>Importer mes informations</DropdownMenuItem>
+          {onReanalyze && <DropdownMenuItem onSelect={onReanalyze}>Actualiser depuis mes sources</DropdownMenuItem>}
+          <DropdownMenuItem onSelect={onShowSynthesis}>Résumer mon activité</DropdownMenuItem>
+          <DropdownMenuItem asChild><Link to="/branding/audit">Vérifier ma communication</Link></DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   MODE SYNTHÈSE (completion.total >= 50)
-   ═══════════════════════════════════════════ */
-
-const GRID_SECTIONS = SECTIONS.filter(s => s.key !== "proposition");
-
-function QuickActions({ onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, completion }: Pick<Props, "onImport" | "onShowSynthesis" | "onRunMirror" | "lastAuditScore" | "canShowMirror" | "completion">) {
-  const navigate = useNavigate();
-  const actions = [
-    onImport && { emoji: "📄", label: "Importer un document", desc: "Mets à jour ton branding avec tes notes, un brief, un texte…", onClick: onImport },
-    onImport && { emoji: "🌐", label: "Analyser mon site web", desc: "Scanne ton site pour compléter les champs manquants de ton branding.", onClick: onImport },
-    { emoji: "🔍", label: "Auditer mon branding", desc: "L'IA analyse ta cohérence et te donne un score.", onClick: () => navigate("/branding/audit"), badge: lastAuditScore !== undefined ? `Dernier : ${lastAuditScore}/100` : undefined },
-    completion.total >= 10 && onShowSynthesis && { emoji: "📋", label: "Ma fiche de synthèse", desc: "Tout ton branding résumé sur une page.", onClick: onShowSynthesis },
-    // Branding Mirror archivé temporairement
-    // canShowMirror && onRunMirror && { emoji: "🪞", label: "Mon Branding Mirror", desc: "Regarde ta cohérence entre ce que tu dis et ce que tu fais.", onClick: onRunMirror },
-  ].filter(Boolean) as { emoji: string; label: string; desc: string; onClick: () => void; badge?: string }[];
-
-  if (actions.length === 0) return null;
-
-  return (
-    // Mobile : grille 2 colonnes — en `flex flex-wrap`, les libellés longs
-    // (« Importer un document », « Analyser mon site web ») ne tiennent pas à
-    // deux par rangée en 390 px et laissent la moitié droite vide, ce qui rend
-    // le bloc bancal. Au-delà de `sm`, on garde le flex d'origine : les 4
-    // boutons tiennent sur une seule rangée à leur largeur naturelle.
-    <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-      {actions.map((a) => (
-        <button
-          key={a.label}
-          onClick={a.onClick}
-          className="group flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2.5 text-left transition-all hover:border-primary/30 hover:shadow-sm"
-        >
-          <span className="text-lg shrink-0">{a.emoji}</span>
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-foreground group-hover:text-primary transition-colors leading-tight">{a.label}</p>
-            {a.badge && (
-              <span className="text-2xs font-medium text-primary">{a.badge}</span>
-            )}
+    <div className="grid gap-7 md:grid-cols-[220px_minmax(0,1fr)] md:gap-10">
+      <nav aria-label="Rubriques de mon activité" className="flex flex-col gap-1 md:sticky md:top-24 md:self-start">
+        {AREAS.map(({ key, title, detail, icon: Icon }) => <button key={key} type="button" onClick={() => selectArea(key)} aria-current={area === key ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-xl px-4 py-3 text-left transition-colors ${area === key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-muted"}`}>
+          <Icon className="h-5 w-5 shrink-0" aria-hidden="true" /><span><span className="block text-sm font-semibold">{title}</span><span className="mt-0.5 block text-xs text-muted-foreground">{detail}</span></span>
+        </button>)}
+        <Link to="/branding/offres" className="mt-3 flex items-center justify-between border-t border-border px-4 py-4 text-sm font-medium hover:text-primary">Mes offres <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+      </nav>
+      <section className="min-w-0" aria-labelledby="identity-area-title">
+        <header className="mb-6"><h1 id="identity-area-title" className="font-display text-3xl sm:text-4xl">{AREAS.find(a => a.key === area)?.title}</h1>
+          <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{area === "about" ? "Les informations de base pour parler de mon activité." : area === "writing" ? "Le ton et les mots que je veux retrouver dans mes contenus." : "Les couleurs et les images qui rendent mes contenus reconnaissables."}</p>
+        </header>
+        {pendingReview && <div className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4"><p className="text-sm">Des propositions importées sont à relire.</p><Button variant="outline" onClick={onReview}>Les ouvrir</Button></div>}
+        {area === "about" && <>
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+            {hasBasics ? <dl className="space-y-6">
+              <Fact title="Ce que je fais">{basics.activity || "À préciser quand tu le souhaites."}</Fact>
+              <Fact title="À qui je m’adresse">{basics.needsPublicChoice ? `${data.publics.length} publics enregistrés. Ouvre leurs fiches pour les consulter ou choisir le principal.` : basics.audience || "À préciser quand tu le souhaites."}
+                {data.publics.length > 0 && <Link to={section("persona")} className="mt-2 block text-sm text-primary underline underline-offset-4">Voir mes publics ({data.publics.length})</Link>}
+              </Fact>
+              <Fact title="Ce qui me distingue">{basics.difference || "À préciser quand tu le souhaites."}</Fact>
+            </dl> : <div><h2 className="font-display text-2xl">Quelques mots pour commencer.</h2><p className="mt-3 text-sm leading-relaxed text-muted-foreground">Ce que tu fais, pour qui, et ce qui rend ton approche particulière. Tu pourras préciser la suite quand tu en auras besoin.</p></div>}
+            <Button asChild className="mt-7 h-auto min-h-10 whitespace-normal"><Link to="/branding/proposition/recap">{hasBasics ? "Modifier ma présentation" : "Décrire mon activité"}<ArrowRight className="ml-2 h-4 w-4 shrink-0" /></Link></Button>
           </div>
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function SynthesisView({ completion, summaries, onReanalyze, profileName, profileActivity, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
-  const navigate = useNavigate();
-  const proposition = summaries.proposition?.phrase;
-  const hasProposition = !!proposition && completion.proposition > 0;
-
-  // Même seuil que StatusDot (< 100 = pastille orange/grise) : sinon le bandeau
-  // annonce « 1 section à compléter » quand la grille montre 2 pastilles non vertes.
-  const incompleteSections = SECTIONS.filter(s => completion[s.key] < 100);
-  const firstIncomplete = incompleteSections[0];
-
-  return (
-    <div className="space-y-5">
-      {/* Hero */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl text-foreground">
-            {profileName || "Ta fiche d'identité com'"}
-          </h1>
-          {profileActivity && (
-            <p className="font-mono-ui text-sm text-muted-foreground mt-0.5">{profileActivity}</p>
-          )}
-        </div>
-        {onReanalyze && (
-          <button
-            onClick={onReanalyze}
-            className="font-mono-ui text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 shrink-0 mt-1"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Réanalyser
-          </button>
-        )}
-      </div>
-
-      <QuickActions onImport={onImport} onShowSynthesis={onShowSynthesis} onRunMirror={onRunMirror} lastAuditScore={lastAuditScore} canShowMirror={canShowMirror} completion={completion} />
-
-      {/* Proposition de valeur — vedette */}
-      {hasProposition ? (
-        <div className="rounded-2xl border border-primary/10 bg-[hsl(var(--rose-pale))] p-5 sm:p-6">
-          <p className="font-mono-ui text-2xs uppercase tracking-wider text-muted-foreground mb-2">Ma proposition de valeur</p>
-          <p className="font-body text-base sm:text-lg text-foreground leading-relaxed">
-            {proposition}
-          </p>
-          <button
-            onClick={() => navigate("/branding/proposition/recap")}
-            className="font-mono-ui text-xs text-primary-text hover:underline mt-3 inline-flex items-center gap-1"
-          >
-            Modifier <ArrowRight className="h-3 w-3" />
-          </button>
-        </div>
-      ) : (
-        <div className="rounded-2xl border-2 border-dashed border-primary/20 p-5 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-sm font-medium text-foreground">❤️ Pas encore de proposition de valeur</p>
-            <p className="text-sm text-muted-foreground mt-0.5">Dis ce que tu fais, pour qui, et pourquoi.</p>
+          <More title="Mes publics, mes histoires et les autres détails">
+            <DetailLink to={section("persona")} title="Mes publics">Préciser mes publics et leurs canaux.</DetailLink>
+            <DetailLink to={section("story")} title="Mes histoires">Mon parcours et mes expériences{data.storytellingList?.length ? ` · ${data.storytellingList.length} fiche(s)` : ""}.</DetailLink>
+            <DetailLink to={section("tone_style")} title="Mes convictions">Ce que je défends et ce que je refuse.</DetailLink>
+            <DetailLink to="/branding/proposition/recap" title="Mes formulations">Ma référence, ma bio et mes autres versions.</DetailLink>
+            <DetailLink to={section("content_strategy")} title="Mes sujets et mes séries">Mes thèmes et mes rendez-vous de contenu.</DetailLink>
+          </More>
+        </>}
+        {area === "writing" && <>
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7"><dl className="space-y-6">
+            <Fact title="Mon ton">{writing?.voice_description || [writing?.tone_register, writing?.tone_style, writing?.tone_humor].filter(Boolean).join(" · ") || "Décris la façon dont tu aimes t’exprimer."}</Fact>
+            <Fact title="Mes expressions">{writing?.key_expressions || "Tu pourras ajouter tes expressions habituelles."}</Fact>
+            <Fact title="Ce que je veux éviter">{writing?.things_to_avoid || "Des mots ou des tournures qui ne te ressemblent pas."}</Fact>
+          </dl><Button asChild className="mt-7 h-auto min-h-10 whitespace-normal"><Link to={section("tone_style")}>Modifier mes préférences</Link></Button></div>
+          <More title="Mes textes et mon guide d’écriture">
+            <DetailLink to={section("tone_style")} title="Mes habitudes d’écriture">Mes expressions, les mots de mon public et mes préférences.</DetailLink>
+            <DetailLink to="/branding/voice-guide" title="Mon guide d’écriture">Consulter ou actualiser le document qui rassemble mes repères.</DetailLink>
+          </More>
+        </>}
+        {area === "visual" && <>
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-7">
+            <h2 className="text-sm font-medium">Mes couleurs</h2>
+            <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">{[["Principale", charter?.color_primary], ["Secondaire", charter?.color_secondary], ["Accent", charter?.color_accent], ["Fond", charter?.color_background]].map(([label, color]) => <div key={label}>
+              <div className="h-16 rounded-xl border border-border bg-muted" style={color ? { backgroundColor: color } : undefined} aria-hidden="true" />
+              <p className="mt-2 text-xs font-medium">{label}</p><p className="mt-1 break-all text-xs text-muted-foreground">{color || "À choisir"}</p>
+            </div>)}</div>
+            <h2 className="mt-7 text-sm font-medium">Mes typographies</h2><dl className="mt-4 grid grid-cols-2 gap-4"><div><dt className="text-xs text-muted-foreground">Titres</dt><dd className="mt-2 break-words">{charter?.font_title || "À choisir"}</dd></div><div><dt className="text-xs text-muted-foreground">Textes</dt><dd className="mt-2 break-words">{charter?.font_body || "À choisir"}</dd></div></dl>
+            <Button asChild className="mt-7 h-auto min-h-10 whitespace-normal"><Link to="/branding/charter">Personnaliser mon univers</Link></Button>
           </div>
-          <Button size="sm" className="text-xs gap-1.5 shrink-0" onClick={() => navigate("/branding/proposition/recap")}>
-            Définir ma proposition <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
-        </div>
-      )}
-
-      {/* Séparateur */}
-      <div className="flex items-center gap-3 mt-8 mb-4">
-        <div className="h-px flex-1 bg-border/50" />
-        <p className="text-xs font-mono-ui text-muted-foreground uppercase tracking-wider shrink-0">
-          Tes sections
-        </p>
-        <div className="h-px flex-1 bg-border/50" />
-      </div>
-
-      {/* Grille sections */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {GRID_SECTIONS.map(section => {
-          const score = completion[section.key];
-          const hasTags = section.key === "tone" || section.key === "strategy";
-          const tags = section.key === "tone" ? summaries.tone?.keywords : section.key === "strategy" ? summaries.strategy?.pillars : [];
-
-          const hasSuggestion = !!(auditSuggestions?.[section.key]);
-
-          return (
-            <div
-              key={section.key}
-              className={`group rounded-2xl p-4 text-left transition-all ${
-                score === 100
-                  ? "border border-border/50 bg-muted/30 opacity-80 hover:opacity-100 hover:bg-muted/50"
-                  : "border border-border bg-card hover:border-primary/20 hover:shadow-sm"
-              } ${hasSuggestion ? "col-span-1 sm:col-span-2" : ""}`}
-            >
-              <button
-                onClick={() => navigate(section.editRoute)}
-                className="w-full text-left"
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg">{section.icon}</span>
-                  <p className="font-body font-semibold text-sm text-foreground flex-1">{section.title}</p>
-                  <StatusDot score={score} />
-                  <Pencil className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                </div>
-                {hasTags && tags && tags.length > 0 && score > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
-                  </div>
-                ) : (
-                  <p className="font-mono-ui text-xs text-muted-foreground line-clamp-2">
-                    {getSummaryLine(section.key, summaries)}
-                  </p>
-                )}
-              </button>
-              {hasSuggestion && (
-                <SuggestionBanner
-                  sectionKey={section.key}
-                  suggestion={auditSuggestions![section.key]}
-                  onApply={onApplySuggestion}
-                  onDismiss={onDismissSuggestion}
-                />
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Bandeau sections incomplètes */}
-      {incompleteSections.length > 0 && (
-        <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex items-center justify-between gap-4 flex-wrap">
-          <div>
-            <p className="text-sm font-medium text-foreground">
-              Il te reste {incompleteSections.length} section{incompleteSections.length > 1 ? "s" : ""} à compléter.
-            </p>
-            <p className="text-sm text-muted-foreground mt-0.5">On continue ?</p>
-          </div>
-          {firstIncomplete && (
-            <Button size="sm" className="gap-1.5 text-xs" onClick={() => navigate(firstIncomplete.editRoute)}>
-              Continuer <ArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          )}
-        </div>
-      )}
+          <More title="Mes logos, références et modèles"><DetailLink to="/branding/charter" title="Mes fichiers et réglages visuels">Logos, inspirations, modèles, fonds et placement du logo.</DetailLink></More>
+        </>}
+        {Object.keys(auditSuggestions).length > 0 && <More title="Les suggestions de mon dernier diagnostic">
+          {Object.entries(auditSuggestions).map(([key, text]) => <div key={key} className="border-b border-border py-4">
+            <h2 className="mb-2 text-sm font-medium">{{ proposition: "Ma présentation", persona: "Mon public", tone: "Mon ton", offers: "La description générale de mes offres", storytelling: "Mon histoire", strategy: "Mes sujets" }[key] || key}</h2>
+            <p className="whitespace-pre-wrap text-sm leading-relaxed">{text}</p>
+            <div className="mt-3 flex flex-wrap gap-2"><Button variant="outline" size="sm" disabled={!!applying} onClick={async () => { setApplying(key); try { await onApplySuggestion(key, text); } finally { setApplying(null); } }}>{applying === key ? "Enregistrement…" : "Appliquer cette suggestion"}</Button><Button variant="ghost" size="sm" disabled={!!applying} onClick={() => onDismissSuggestion(key)}>Ignorer</Button></div>
+          </div>)}
+        </More>}
+        <p className="mt-8 text-sm text-muted-foreground"><Link className="inline-flex items-center gap-2 underline underline-offset-4 hover:text-foreground" to="/creer"><FileText className="h-4 w-4" /> Passer à la création</Link></p>
+      </section>
     </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   MODE CONSTRUCTION (completion.total < 50)
-   ═══════════════════════════════════════════ */
-
-function CompletionBadge({ score }: { score: number }) {
-  if (score === 100) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--success-bg))] px-2 py-0.5 text-2xs font-medium text-[hsl(var(--success))]">
-        Complet
-      </span>
-    );
-  }
-  if (score > 0) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[hsl(var(--warning-bg))] px-2 py-0.5 text-2xs font-medium text-[hsl(var(--warning))]">
-        En cours
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-2xs font-medium text-muted-foreground">
-      À faire
-    </span>
-  );
-}
-
-function SectionDetail({ section, summaries, score }: { section: SectionConfig; summaries: SectionSummary; score: number }) {
-  if (score === 0) {
-    return <p className="text-sm text-muted-foreground italic">Cette section n'a pas encore été remplie.</p>;
-  }
-  switch (section.key) {
-    case "storytelling":
-      return <p className="text-sm text-foreground leading-relaxed line-clamp-4">{summaries.storytelling?.firstLine || ""}</p>;
-    case "persona": {
-      const p = summaries.persona;
-      return (
-        <div className="space-y-1">
-          {p?.prenom && <p className="text-sm text-foreground"><span className="font-medium">Prénom :</span> {p.prenom}</p>}
-          {p?.job && <p className="text-sm text-foreground"><span className="font-medium">Activité :</span> {p.job}</p>}
-        </div>
-      );
-    }
-    case "proposition":
-      return <p className="text-sm text-foreground leading-relaxed italic">"{summaries.proposition?.phrase}"</p>;
-    case "tone":
-      return <div className="flex flex-wrap gap-1.5">{(summaries.tone?.keywords || []).map((k, i) => <TagChip key={i} label={k} />)}</div>;
-    case "strategy":
-      return <div className="flex flex-wrap gap-1.5">{(summaries.strategy?.pillars || []).map((p, i) => <TagChip key={i} label={p} />)}</div>;
-    case "offers": {
-      const o = summaries.offers;
-      if (!o || o.count === 0) return <p className="text-sm text-muted-foreground italic">Aucune offre ajoutée.</p>;
-      return (
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">
-            {o.count} offre{o.count > 1 ? "s" : ""}
-          </p>
-          {o.mainName && <p className="text-xs text-muted-foreground">{o.mainName}</p>}
-        </div>
-      );
-    }
-    case "charter":
-      return <p className="text-sm text-foreground">{summaries.charter?.summary || ""}</p>;
-    default:
-      return null;
-  }
-}
-
-function ConstructionView({ completion, summaries, onReanalyze, onImport, onShowSynthesis, onRunMirror, lastAuditScore, canShowMirror, auditSuggestions, onApplySuggestion, onDismissSuggestion }: Props) {
-  const navigate = useNavigate();
-  const [openSection, setOpenSection] = useState<string | null>(null);
-
-  const filledCount = SECTIONS.filter(s => completion[s.key] >= 50).length;
-  const firstIncomplete = SECTIONS.find(s => completion[s.key] < 50);
-
-  return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="font-display text-3xl text-foreground">Construis ton identité</h1>
-          <p className="font-mono-ui text-sm text-muted-foreground mt-1">
-            Remplis chaque section pour que l'IA te connaisse vraiment.
-          </p>
-        </div>
-        {onReanalyze && (
-          <button
-            onClick={onReanalyze}
-            className="font-mono-ui text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1.5 shrink-0 mt-1"
-          >
-            <RefreshCw className="h-3.5 w-3.5" /> Réanalyser
-          </button>
-        )}
-      </div>
-
-      <QuickActions onImport={onImport} onShowSynthesis={onShowSynthesis} onRunMirror={onRunMirror} lastAuditScore={lastAuditScore} canShowMirror={canShowMirror} completion={completion} />
-
-      {/* Progress banner */}
-      <div className="rounded-2xl border border-primary/20 bg-primary/5 p-5 flex items-center justify-between gap-4 flex-wrap">
-        <div>
-          <p className="text-sm font-medium text-foreground">{filledCount}/7 sections complétées</p>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {filledCount === 7 ? "🎉 Ton branding est prêt !" : "On continue ?"}
-          </p>
-        </div>
-        {firstIncomplete && (
-          <Button size="sm" className="gap-1.5 text-xs" onClick={() => navigate(firstIncomplete.editRoute)}>
-            {filledCount === 0 ? "Commencer" : "Continuer"} <ArrowRight className="h-3.5 w-3.5" />
-          </Button>
-        )}
-      </div>
-
-      {/* Accordion sections */}
-      <div className="space-y-3">
-        {SECTIONS.map(section => {
-          const score = completion[section.key];
-          const isOpen = openSection === section.key;
-          const hasTags = section.key === "tone" || section.key === "strategy";
-          const tags = section.key === "tone" ? summaries.tone?.keywords : section.key === "strategy" ? summaries.strategy?.pillars : [];
-
-          return (
-            <div key={section.key} className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-              <button
-                onClick={() => setOpenSection(prev => prev === section.key ? null : section.key)}
-                className="w-full flex items-center gap-3 px-5 py-4 text-left hover:bg-muted/30 transition-colors"
-              >
-                <span className="text-xl shrink-0">{section.icon}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-body font-semibold text-base text-foreground">{section.title}</p>
-                  {score === 0 && section.why ? (
-                    <p className="text-xs text-muted-foreground italic mt-1">{section.why}</p>
-                  ) : hasTags && tags && tags.length > 0 && score > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {tags.slice(0, 4).map((t, i) => <TagChip key={i} label={t} />)}
-                    </div>
-                  ) : (
-                    <p className="font-mono-ui text-xs text-muted-foreground truncate mt-0.5">
-                      {getSummaryLine(section.key, summaries)}
-                    </p>
-                  )}
-                </div>
-                <CompletionBadge score={score} />
-                <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.25 }}>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                </motion.div>
-              </button>
-
-              <AnimatePresence initial={false}>
-                {isOpen && (
-                  <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: "auto", opacity: 1 }}
-                    exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="overflow-hidden"
-                  >
-                    <div className="px-5 pb-5 pt-1 border-t border-border/50">
-                      <SectionDetail section={section} summaries={summaries} score={score} />
-                      {auditSuggestions?.[section.key] && (
-                        <SuggestionBanner
-                          sectionKey={section.key}
-                          suggestion={auditSuggestions[section.key]}
-                          onApply={onApplySuggestion}
-                          onDismiss={onDismissSuggestion}
-                        />
-                      )}
-                      <div className="flex items-center gap-2 mt-4">
-                        <Button size="sm" className="text-xs gap-1.5" onClick={() => navigate(section.editRoute)}>
-                          {score > 0 ? <><Pencil className="h-3.5 w-3.5" /> Modifier</> : <><Sparkles className="h-3.5 w-3.5" /> Commencer</>}
-                        </Button>
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════
-   EXPORT — Switch entre les 2 modes
-   ═══════════════════════════════════════════ */
-
-export default function BrandingIdentityCard(props: Props) {
-  if (props.completion.total >= 50) {
-    return <SynthesisView {...props} />;
-  }
-  return <ConstructionView {...props} />;
+  </div>;
 }

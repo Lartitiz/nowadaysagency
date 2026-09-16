@@ -469,7 +469,7 @@ export default function BrandingSectionPage() {
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[700px] px-6 py-8 max-md:px-4">
-        <SubPageHeader breadcrumbs={[{ label: "Mon identité", to: "/branding" }]} currentLabel={config.title} />
+        <SubPageHeader breadcrumbs={[{ label: section === "tone_style" ? "Ma façon d’écrire" : "Me présenter", to: section === "tone_style" ? "/branding?rubrique=writing" : "/branding?rubrique=about" }]} currentLabel={config.title} />
 
         <button
           onClick={() => navigate(-1)}

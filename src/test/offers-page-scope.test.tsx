@@ -34,7 +34,7 @@ describe("OffersPage conserve le scope visible", () => {
   expect(state.requests[0].filters).toEqual([["workspace_id","A"]]);
  });
  it("retire immédiatement les offres et le coaching de A lors du passage vers B", async () => {
-  const view=render(ui()); await answer(0,[offer("Offre A")]); fireEvent.click(screen.getByRole("button",{name:"Coaching offres"}));
+  const view=render(ui()); await answer(0,[offer("Offre A")]); fireEvent.click(screen.getByRole("button",{name:"Besoin d’aide pour formuler mes offres"}));
   state.scope="B"; view.rerender(ui());
   expect(screen.queryByText(/Offre A/)).not.toBeInTheDocument(); expect(screen.queryByText("Coaching actif")).not.toBeInTheDocument();
   await waitFor(() => expect(state.requests).toHaveLength(2)); await answer(1,[offer("Offre B")]); expect(screen.getByText(/Offre B/)).toBeInTheDocument();
@@ -52,12 +52,14 @@ describe("OffersPage conserve le scope visible", () => {
  });
  it("ne navigue pas dans une offre A dont la création se termine après passage vers B", async () => {
   const view=render(ui()); await answer(0); fireEvent.click(screen.getByRole("button",{name:/Créer ma première offre/}));
+  fireEvent.click(screen.getByRole("button",{name:/Offre payante/}));
   expect(state.inserts[0].payload.workspace_id).toBe("A"); state.scope="B"; view.rerender(ui());
   await act(async () => state.inserts[0].resolve({data:{id:"created-A"},error:null})); expect(state.navigate).not.toHaveBeenCalled();
  });
  it("crée dans B après une vraie liste vide, puis ouvre seulement le nouvel identifiant B", async () => {
   const view=render(ui()); await answer(0,[offer("Offre A")]); state.scope="B"; view.rerender(ui()); await answer(1);
   fireEvent.click(screen.getByRole("button",{name:/Créer ma première offre/}));
+  fireEvent.click(screen.getByRole("button",{name:/Offre payante/}));
   expect(state.inserts[0].payload).toMatchObject({user_id:"owner",workspace_id:"B"});
   await act(async () => state.inserts[0].resolve({data:{id:"created-B"},error:null}));
   expect(state.navigate).toHaveBeenCalledWith("/branding/offres/created-B");

@@ -1,27 +1,25 @@
-import { fillOnlyEmpty } from "@/lib/fill-only-empty";
 import { readImportRows, importTarget, saveImportRow } from "@/lib/branding-import-persistence";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useLayoutEffect } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { motion } from "framer-motion";
-import { useMergedProfile, useBrandProfile } from "@/hooks/use-profile";
 import { useAuth } from "@/contexts/AuthContext";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Link, useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { creationReturnPath } from "@/lib/creation-navigation";
 import AppHeader from "@/components/AppHeader";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Eye, Pencil, Sparkles, ClipboardList, RefreshCw, LayoutGrid, CheckCircle2, AlertTriangle, Zap, Download, Lightbulb } from "lucide-react";
+import { ArrowLeft, Eye, RefreshCw, CheckCircle2, AlertTriangle, Zap, Download, Lightbulb } from "lucide-react";
 import { useBrandingMirror } from "@/hooks/use-branding-mirror";
 import { exportMirrorPDF } from "@/lib/mirror-pdf-export";
 import AiLoadingIndicator from "@/components/AiLoadingIndicator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { fetchBrandingData, fetchBrandingDataWithStatus, calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
+import { calculateBrandingCompletion, type BrandingCompletion } from "@/lib/branding-completion";
 import { resolveFirstContentDestination } from "@/lib/first-content-destination";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
-import { usePersona, useBrandProposition, useStorytelling } from "@/hooks/use-branding";
+import { loadIdentityOverview, type IdentityOverview } from "@/lib/identity-overview";
 import { useQueryClient } from "@tanstack/react-query";
 import BrandingSynthesisSheet from "@/components/branding/BrandingSynthesisSheet";
 import BrandingIdentityCard from "@/components/branding/BrandingIdentityCard";
@@ -36,33 +34,11 @@ import BrandingReview, { type AnalysisResult } from "@/components/branding/Brand
 import CoachingFlow from "@/components/CoachingFlow";
 import type { BrandingExtraction } from "@/lib/branding-import-types";
 import { extractTextFromFile } from "@/lib/file-extractors";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import { DEMO_AUTOFILL_RESULT } from "@/lib/demo-autofill-data";
 import { toast } from "sonner";
-import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { posthog } from "@/lib/posthog";
-
-const RECOMMENDATIONS: Record<string, { low: string; mid: string; high: string; done: string }> = {
-  storytelling: { low: "Commence par raconter ton moment déclic. 5 minutes suffisent.", mid: "Ton histoire prend forme ! Il te manque le texte final poli.", high: "Presque terminé. Laisse l'IA t'aider à peaufiner ton récit.", done: "Ton histoire est prête. Tu peux en faire un post ou un carousel." },
-  persona: { low: "Décris les frustrations de ta cliente idéale pour démarrer.", mid: "Bon début ! Creuse sa transformation rêvée pour compléter.", high: "Il te manque les détails esthétiques et ses premières actions.", done: "Ta cliente idéale est définie. Utilise-la dans tes contenus." },
-  proposition: { low: "Commence par répondre : qu'est-ce que tu fais, pour qui, et pourquoi ?", mid: "Tu as les bases. Il te manque ta phrase de positionnement finale.", high: "Presque ! Finalise ta version courte et ton one-liner.", done: "Ta proposition de valeur est claire. Parfait pour ta bio et tes pitchs." },
-  tone: { low: "Définis comment tu parles : plutôt tutoiement ou vouvoiement ? Direct ou doux ?", mid: "Ton registre est posé. Ajoute tes combats et ce que tu refuses.", high: "Il te manque tes expressions clés et ce qu'on évite.", done: "Ta voix est définie. L'IA l'utilisera dans tous tes contenus." },
-  strategy: { low: "Choisis tes 3 grands sujets de contenu pour commencer.", mid: "Tes piliers sont là. Ajoute ton concept créatif.", high: "Presque ! Affine tes facettes cachées pour te démarquer.", done: "Ta stratégie est solide. Lance-toi dans la création !" },
-  offers: { low: "Ajoute ta première offre : son nom et ce qu'elle apporte.", mid: "Ton offre est là ! Détaille sa promesse et son prix.", high: "Presque ! Ajoute la cible idéale et les objections.", done: "Tes offres sont prêtes. L'IA les intégrera dans tes contenus." },
-  charter: { low: "Commence par uploader ton logo ou choisir tes couleurs.", mid: "Ta charte prend forme ! Ajoute tes typos et ton style visuel.", high: "Presque ! Il te manque ton style photo ou tes mots-clés visuels.", done: "Ta charte graphique est complète. Ton identité visuelle est posée." },
-};
-
-function getRecommendation(scoreKey: string, pValue: number): string {
-  const rec = RECOMMENDATIONS[scoreKey];
-  if (!rec) return "";
-  if (pValue === 100) return rec.done;
-  if (pValue >= 50) return rec.high;
-  if (pValue > 0) return rec.mid;
-  return rec.low;
-}
 
 // Map completion keys to analysis section keys
 const COMPLETION_TO_SECTION: Record<string, string> = {
@@ -75,69 +51,54 @@ const COMPLETION_TO_SECTION: Record<string, string> = {
 
 export default function BrandingPage() {
   const { user } = useAuth();
+  const { isDemoMode } = useDemoContext();
+  const { column, value } = useWorkspaceFilter();
+  const ready = useWorkspaceReady();
+  if (!isDemoMode && (!ready || !user?.id || !value)) return <div role="status" className="p-8">Chargement de mon activité…</div>;
+  return <ScopedBrandingPage key={`${user?.id}:${isDemoMode}:${column}:${value}`} />;
+}
+
+function ScopedBrandingPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { isDemoMode, demoData } = useDemoContext();
   const { column, value } = useWorkspaceFilter();
   const { loading: workspaceLoading } = useWorkspace();
   const workspaceId = useWorkspaceId();
-  const { profile: hookProfile, brandProfile: hookBrandProfile } = useMergedProfile();
-  const { data: personaHook } = usePersona();
-  const { data: propositionHook } = useBrandProposition();
-  const { data: storytellingHook } = useStorytelling();
   const queryClient = useQueryClient();
   const [completion, setCompletion] = useState<BrandingCompletion>({ storytelling: 0, persona: 0, proposition: 0, tone: 0, strategy: 0, offers: 0, charter: 0, total: 0 });
   const [loading, setLoading] = useState(true);
-  // Le squelette de chargement ne s'affiche QU'AU 1er chargement. `value`
-  // (filtre workspace) passe de user.id → workspace.id juste après le montage,
-  // ce qui re-déclenche `load()` ; sans ce garde-fou, on rebascule sur le
-  // squelette, ce qui INTERROMPT l'animation d'entrée framer-motion de la vue
-  // déjà montée → écran « blanc »/figé (finding QA T6). Les rechargements
-  // suivants se font silencieusement, sans flash de squelette.
-  const hasLoadedRef = useRef(false);
+  const mounted = useRef(true);
+  useLayoutEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+  const [overview, setOverview] = useState<IdentityOverview | null>(null);
+  const [reviewDeferred, setReviewDeferred] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
-  const [primaryStoryId, setPrimaryStoryId] = useState<string | null>(null);
   const [showSynthesis, setShowSynthesis] = useState(false);
   const [importPhase, setImportPhase] = useState<'idle' | 'reviewing'>('idle');
   const [importExtraction, setImportExtraction] = useState<BrandingExtraction | null>(null);
-  const [showImportBlock, setShowImportBlock] = useState(false);
-  const [skipImport, setSkipImport] = useState(() => {
-    try { return localStorage.getItem(`branding_skip_import_${workspaceId}`) === "true"; } catch { return false; }
-  });
-  useEffect(() => {
-    try {
-      setSkipImport(localStorage.getItem(`branding_skip_import_${workspaceId}`) === "true");
-    } catch { /* silent */ }
-  }, [workspaceId]);
   const [importAnalyzing, setImportAnalyzing] = useState(false);
   const [forceImport, setForceImport] = useState(false);
-  const [lastAudit, setLastAudit] = useState<any>(null);
+  const hiddenSuggestions = useRef(new Set<string>());
   const [auditSuggestions, setAuditSuggestions] = useState<Record<string, string>>({});
   const [importPhaseNew, setImportPhaseNew] = useState<"form" | "analyzing" | "error" | "reviewing">("form");
   const [analysisSources, setAnalysisSources] = useState<{ website?: string; instagram?: string; linkedin?: string; hasDocuments?: boolean }>({});
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [lastImportData, setLastImportData] = useState<{ website?: string; instagram?: string; linkedin?: string; files: File[] } | null>(null);
-  const importScopeRef = useRef(`${column}:${value}`);
-  importScopeRef.current = `${column}:${value}`;
   const [pendingReviewId, setPendingReviewId] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   // Onboarding : la fiche « à valider » est produite par l'IA lourde (Opus,
   // ~30-90s). Tant qu'elle n'est pas arrivée, on affiche un écran d'attente
   // plutôt que de retomber sur l'accueil marque vide.
   const [awaitingEnrichment, setAwaitingEnrichment] = useState(false);
-  const [hasEnoughData, setHasEnoughData] = useState(false);
-  const [hasProposition, setHasProposition] = useState(false);
-  const [generatingProp, setGeneratingProp] = useState(false);
-  const { mirrorOpen, setMirrorOpen, mirrorLoading, mirrorData, runMirror, refreshMirror } = useBrandingMirror();
+  const { mirrorOpen, setMirrorOpen, mirrorLoading, mirrorData, refreshMirror } = useBrandingMirror();
   // Reanalyze mode
   const [reanalyzeMode, setReanalyzeMode] = useState(false);
   const [reanalyzeUrls, setReanalyzeUrls] = useState<{ website?: string; instagram?: string; linkedin?: string }>({});
   // Pre-filled sections detection
   const [preFilledSections, setPreFilledSections] = useState<Set<string>>(new Set());
-  const [sectionSummaries, setSectionSummaries] = useState<any>({});
 
-  const canShowMirror = completion.tone > 0 && !!lastAudit;
 
   // Analytics logging helper — PostHog, PAS ai_usage : ai_usage est la table de
   // FACTURATION (checkQuota compte toutes ses lignes du mois dans le quota),
@@ -163,155 +124,61 @@ export default function BrandingPage() {
   const [coachingActive, setCoachingActive] = useState(fromAudit && !!coachingModule);
 
   useEffect(() => {
-    if (isDemoMode && demoData) {
-      setCompletion({ storytelling: 100, persona: 100, proposition: 100, tone: 80, strategy: 70, offers: 100, charter: 0, total: (demoData as any).branding.completion });
-      setPrimaryStoryId("demo-story");
-      setHasEnoughData(true);
-      setHasProposition(true);
-      setLastAudit({ id: "demo-audit", created_at: new Date().toISOString(), score_global: (demoData as any).audit.score, points_forts: (demoData as any).audit.points_forts, points_faibles: (demoData as any).audit.points_faibles });
-      setLoading(false);
-      return;
-    }
-    if (!user) return;
-    // On attend que l'espace actif soit résolu avant de charger : `value` (filtre
-    // workspace) vaut d'abord `user.id` puis bascule sur l'id d'espace une fois
-    // résolu. Sans cette garde, on chargeait DEUX fois (mauvais filtre puis bon),
-    // le 2ᵉ chargement interrompant l'animation d'entrée → vue figée/blanche.
-    if (workspaceLoading) return;
+    let cancelled = false;
     const load = async () => {
-      if (!hasLoadedRef.current) { setLoading(true); hasLoadedRef.current = true; }
+      setLoading(true);
       setLoadError(false);
-      const { data, error: loadErr } = await fetchBrandingDataWithStatus({ column, value });
-      if (loadErr) {
-        // Échec de chargement : on affiche un état d'erreur explicite au lieu de
-        // retomber en silence sur l'écran d'onboarding vide « Dis-moi où te trouver ».
-        console.error("Branding load error:", loadErr);
-        setLoadError(true);
-        setLoading(false);
-        return;
-      }
-      const comp = calculateBrandingCompletion(data);
-      setCompletion(comp);
-
-      // Detect pre-filled sections
-      const filled = new Set<string>();
-      if (comp.storytelling > 0) filled.add("story");
-      if (comp.persona > 0) filled.add("persona");
-      if (comp.proposition > 0) filled.add("value_proposition");
-      if (comp.tone > 0) filled.add("tone_style");
-      if (comp.strategy > 0) filled.add("content_strategy");
-      if (comp.offers > 0) filled.add("offers");
-      // Charter is never pre-locked — AI-detected colors should be reviewable
-      setPreFilledSections(filled);
-
-      const enough = !!(data.persona?.step_1_frustrations && data.storytellingList && data.storytellingList.length > 0);
-      setHasEnoughData(enough);
-      setHasProposition(!!(data.proposition?.version_pitch_naturel));
-
-      if (data.storytellingList && data.storytellingList.length > 0) {
-        const primary = data.storytellingList.find((s: any) => s.is_primary);
-        setPrimaryStoryId(primary?.id || data.storytellingList[0].id);
-      }
-
-      // Build section summaries for identity card
-      const [personaFullRes, storyFullRes, stratFullRes, toneFullRes, offersFullRes] = await Promise.all([
-        (supabase.from("persona") as any).select("portrait_prenom, description, pitch_short").eq(column, value).order("is_primary", { ascending: false }).order("created_at", { ascending: false }).limit(1).maybeSingle(),
-        data.storytellingList && data.storytellingList.length > 0
-          ? (() => {
-              const primary = data.storytellingList.find((s: any) => s.is_primary);
-              const withContent = data.storytellingList.find((s: any) => s.step_7_polished || s.imported_text);
-              const target = primary || withContent || data.storytellingList[0];
-              return (supabase.from("storytelling") as any).select("step_7_polished, step_6_full_story, imported_text, pitch_short, step_1_raw").eq("id", target.id).maybeSingle();
-            })()
-          : Promise.resolve({ data: null }),
-        (supabase.from("brand_strategy") as any).select("pillar_major, pillar_minor_1, pillar_minor_2, pillar_minor_3").eq(column, value).maybeSingle(),
-        (supabase.from("brand_profile") as any).select("tone_register, tone_level, tone_style, tone_humor, tone_engagement").eq(column, value).maybeSingle(),
-        (supabase.from("offers") as any).select("name").eq(column, value).order("created_at", { ascending: true }),
-      ]);
-
-      const storyText = storyFullRes.data?.step_7_polished || storyFullRes.data?.step_6_full_story || storyFullRes.data?.imported_text || storyFullRes.data?.pitch_short || storyFullRes.data?.step_1_raw || "";
-      const toneKw = toneFullRes.data ? [toneFullRes.data.tone_register, toneFullRes.data.tone_style, toneFullRes.data.tone_humor, toneFullRes.data.tone_level].filter(Boolean) : [];
-      const pillars = stratFullRes.data ? [stratFullRes.data.pillar_major, stratFullRes.data.pillar_minor_1, stratFullRes.data.pillar_minor_2, stratFullRes.data.pillar_minor_3].filter(Boolean) : [];
-      const charterParts: string[] = [];
-      if (data.charter?.color_primary) charterParts.push("Couleurs");
-      if (data.charter?.font_title) charterParts.push("Typos");
-      if (data.charter?.logo_url) charterParts.push("Logo");
-      const offersData = offersFullRes.data || [];
-
-      setSectionSummaries({
-        storytelling: { firstLine: storyText.split(/[.\n]/)[0]?.trim() || "" },
-        persona: { prenom: personaFullRes.data?.portrait_prenom || personaFullRes.data?.description?.split(",")[0]?.trim() || "", age: "", job: personaFullRes.data?.portrait_prenom ? (personaFullRes.data?.description?.split(",")[0]?.trim() || "") : (personaFullRes.data?.pitch_short || "") },
-        proposition: { phrase: data.proposition?.version_pitch_naturel || data.proposition?.version_final || "" },
-        tone: { keywords: toneKw },
-        strategy: { pillars },
-        offers: { count: offersData.length, mainName: offersData[0]?.name || "" },
-        charter: { summary: charterParts.length > 0 ? charterParts.join(" · ") : "" },
-      });
-
-      const { data: auditData } = await (supabase.from("branding_audits") as any)
-        .select("id, created_at, score_global, points_forts, points_faibles, audit_detail")
-        .eq(column, value)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      if (auditData && auditData.length > 0) {
-        setLastAudit(auditData[0]);
-        // Extract improvement suggestions from audit_detail
-        if (auditData[0]?.audit_detail) {
-          const detail = auditData[0].audit_detail;
-          const suggestions: Record<string, string> = {};
-          const AUDIT_TO_SECTION: Record<string, string> = {
-            positionnement: "proposition",
-            cible: "persona",
-            ton_voix: "tone",
-            offres: "offers",
-            storytelling: "storytelling",
-            contenu: "strategy",
+      try {
+        if (isDemoMode && demoData) {
+          const d = demoData as any;
+          const publicRow = { id: "demo-public", description: d.persona.metier };
+          const data: IdentityOverview = {
+            storytellingList: [{ id: "demo-story", step_7_polished: d.branding.story }],
+            publics: [publicRow], persona: publicRow,
+            proposition: { version_final: d.branding.positioning, step_2a_process: d.branding.unique_proposition },
+            brandProfile: { voice_description: d.branding.tone.description }, strategy: null,
+            offersList: d.offers, charter: null,
           };
-          for (const [auditKey, pillar] of Object.entries(detail)) {
-            const sectionKey = AUDIT_TO_SECTION[auditKey];
-            if (sectionKey && (pillar as any)?.suggestion_amelioration) {
-              suggestions[sectionKey] = (pillar as any).suggestion_amelioration;
-            }
-          }
-          setAuditSuggestions(suggestions);
+          setOverview(data); setCompletion(calculateBrandingCompletion(data));
+          return;
         }
+        const scoped = (table: string, fields: string) => {
+          let q = (supabase.from(table as any) as any).select(fields).eq(column, value);
+          if (column === "user_id") q = q.is("workspace_id", null);
+          return q;
+        };
+        const [data, audit, pending] = await Promise.all([
+          loadIdentityOverview(column, value),
+          scoped("branding_audits", "id, created_at, score_global, audit_detail").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+          scoped("branding_autofill", "id, analysis_result, website_url, instagram_handle, linkedin_url").eq("autofill_status", "pending_review").order("created_at", { ascending: false }).limit(1).maybeSingle(),
+        ]);
+        if (cancelled) return;
+        if (audit.error || pending.error) throw audit.error || pending.error;
+        setOverview(data);
+        const comp = calculateBrandingCompletion(data);
+        setCompletion(comp);
+        setPreFilledSections(new Set(Object.entries(COMPLETION_TO_SECTION).filter(([key]) => comp[key as keyof BrandingCompletion] > 0).map(([, section]) => section)));
+        const auditToSection: Record<string, string> = { positionnement: "proposition", cible: "persona", ton_voix: "tone", offres: "offers", storytelling: "storytelling", contenu: "strategy" };
+        const suggestions: Record<string, string> = {};
+        for (const [key, pillar] of Object.entries(audit.data?.audit_detail || {})) {
+          if (auditToSection[key] && !hiddenSuggestions.current.has(auditToSection[key]) && (pillar as any)?.suggestion_amelioration) suggestions[auditToSection[key]] = (pillar as any).suggestion_amelioration;
+        }
+        setAuditSuggestions(suggestions);
+        if (pending.data?.analysis_result) {
+          setPendingReviewId(pending.data.id);
+          setAnalysisResult(pending.data.analysis_result);
+          setImportPhaseNew("reviewing");
+          setReanalyzeUrls({ website: pending.data.website_url || "", instagram: pending.data.instagram_handle || "", linkedin: pending.data.linkedin_url || "" });
+        }
+      } catch {
+        if (!cancelled) setLoadError(true);
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      // Check for pending autofill review
-      const { data: pendingAutofill, error: pendingReadError } = await (supabase.from("branding_autofill") as any)
-        .select("id, analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
-        .eq(column, value)
-        .eq("autofill_status", "pending_review")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (importScopeRef.current !== `${column}:${value}`) return;
-      if (pendingReadError) { setLoadError(true); setLoading(false); return; }
-      if (pendingAutofill?.analysis_result) {
-        // Pending review is independent from how much branding is already filled.
-        setPendingReviewId(pendingAutofill.id);
-        setAnalysisResult(pendingAutofill.analysis_result as AnalysisResult);
-        setImportPhaseNew("reviewing");
-        setReanalyzeUrls({
-          website: pendingAutofill.website_url || "",
-          instagram: pendingAutofill.instagram_handle || "",
-          linkedin: pendingAutofill.linkedin_url || "",
-        });
-      }
-
-      setLoading(false);
     };
-    load();
-  }, [user?.id, isDemoMode, column, value, retryKey, workspaceLoading]);
-
-  useEffect(() => {
-    setAnalysisResult(null);
-    setPendingReviewId(null);
-    setImportPhaseNew("form");
-    setImportExtraction(null);
-    setImportPhase("idle");
-  }, [column, value]);
+    void load();
+    return () => { cancelled = true; };
+  }, [isDemoMode, demoData, column, value, retryKey]);
 
   // Onboarding → attente de la fiche « à valider ». L'enrichment (Opus) tourne
   // en fire-and-forget depuis la fin du diagnostic ; on poll `branding_autofill`
@@ -328,10 +195,11 @@ export default function BrandingPage() {
     setAwaitingEnrichment(true);
     const tick = async () => {
       attempts += 1;
-      const { data: pending } = await (supabase.from("branding_autofill") as any)
+      let pendingQuery = (supabase.from("branding_autofill") as any)
         .select("id, analysis_result, sources_used, sources_failed, website_url, instagram_handle, linkedin_url")
-        .eq(column, value)
-        .eq("autofill_status", "pending_review")
+        .eq(column, value);
+      if (column === "user_id") pendingQuery = pendingQuery.is("workspace_id", null);
+      const { data: pending } = await pendingQuery.eq("autofill_status", "pending_review")
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -360,82 +228,8 @@ export default function BrandingPage() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [fromOnboarding, isDemoMode, user?.id, workspaceLoading, column, value, analysisResult, navigate]);
 
-  const generateProposition = async () => {
-    if (!user) return;
-    setGeneratingProp(true);
-    try {
-      const storyRes = { data: storytellingHook || null };
-      const personaRes = { data: personaHook || null };
-      const profileRes = { data: hookBrandProfile || null };
-      const profiles = { data: hookProfile || null };
-
-      if (!profiles.data) {
-        toast.error("Complète ton profil d'abord : va dans Onboarding pour renseigner tes infos.");
-        setGeneratingProp(false);
-        return;
-      }
-
-      const syntheticData = {
-        step_1_what: profiles.data?.activite || "",
-        step_2a_process: storyRes.data?.step_3_action || "",
-        step_2b_values: profileRes.data?.combat_cause || "",
-        step_2c_feedback: personaRes.data?.step_2_transformation || "",
-        step_2d_refuse: profileRes.data?.combat_refusals || "",
-        step_3_for_whom: personaRes.data?.step_1_frustrations || "",
-      };
-
-      const { data: fn, error } = await invokeWithTimeout("proposition-ai", {
-        body: { type: "generate-versions", proposition_data: syntheticData, persona: personaRes.data, storytelling: storyRes.data, tone: profileRes.data, profile: profiles.data },
-      }, 90000);
-      if (error) throw new Error(error.message);
-
-      const raw = fn?.content || fn?.response || (typeof fn === "string" ? fn : JSON.stringify(fn));
-      const cleaned = typeof raw === "string" ? raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim() : raw;
-      const parsed = typeof cleaned === "string" ? JSON.parse(cleaned) : cleaned;
-
-      const payload = {
-        ...syntheticData,
-        version_pitch_naturel: parsed.pitch_naturel || "",
-        version_bio: parsed.bio || "",
-        version_networking: parsed.networking || "",
-        version_site_web: parsed.site_web || "",
-        version_engagee: parsed.engagee || "",
-        version_one_liner: parsed.one_liner || "",
-        completed: true,
-        current_step: 4,
-        user_id: user.id,
-        workspace_id: workspaceId !== user.id ? workspaceId : undefined,
-      };
-
-      const scope = { column, value, userId: user.id };
-      const existing = importTarget(await readImportRows("brand_proposition", scope));
-      const fields = existing ? fillOnlyEmpty(payload, existing) : payload;
-      if (Object.keys(fields).length > 0) await saveImportRow("brand_proposition", scope, existing?.id || null, fields);
-      queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
-      toast.success("Tes formulations sont disponibles. Les versions déjà rédigées ont été conservées.");
-      navigate("/branding/proposition/recap");
-    } catch (e: any) {
-      console.error("[BrandingPage] Proposition generation error:", e);
-      const { friendlyError } = await import("@/lib/error-messages");
-      toast.error(friendlyError(e));
-    } finally {
-      setGeneratingProp(false);
-    }
-  };
-
   const reloadCompletion = async () => {
-    if (!user) return;
-    const data = await fetchBrandingData({ column, value });
-    setCompletion(calculateBrandingCompletion(data));
-    if (data.storytellingList && data.storytellingList.length > 0) {
-      const primary = data.storytellingList.find((s: any) => s.is_primary);
-      setPrimaryStoryId(primary?.id || data.storytellingList[0].id);
-    }
-  };
-
-  const handleImportResult = (extraction: BrandingExtraction) => {
-    setImportExtraction(extraction);
-    setImportPhase('reviewing');
+    if (mounted.current) setRetryKey(key => key + 1);
   };
 
   const handleImportDone = async () => {
@@ -445,14 +239,16 @@ export default function BrandingPage() {
   };
 
   const handleStartAnalysis = async (data: { website?: string; instagram?: string; linkedin?: string; files: File[] }) => {
+    if (!mounted.current) return;
     // Demo mode: simulate analysis
     if (isDemoMode) {
       setLastImportData(data);
       setImportAnalyzing(true);
       setAnalysisSources({ website: data.website, instagram: data.instagram, linkedin: data.linkedin, hasDocuments: data.files.length > 0 });
-      setTimeout(() => setImportPhaseNew("analyzing"), 500);
+      setTimeout(() => { if (mounted.current) setImportPhaseNew("analyzing"); }, 500);
       // Simulate 3-second delay
       setTimeout(() => {
+        if (!mounted.current) return;
         setAnalysisResult(DEMO_AUTOFILL_RESULT);
         setImportAnalyzing(false);
         setImportPhaseNew("reviewing");
@@ -521,6 +317,7 @@ export default function BrandingPage() {
       // Bascule sur l'écran d'analyse UNIQUEMENT quand l'appel réel démarre
       // (après les validations). Évite qu'un minuteur parasite ré-écrase l'état
       // "error" quand l'analyse échoue en moins d'une seconde (spinner infini).
+      if (!mounted.current) return;
       setImportPhaseNew("analyzing");
 
       const { data: result, error } = await invokeWithTimeout("analyze-brand", {
@@ -535,6 +332,7 @@ export default function BrandingPage() {
         },
       }, 120000);
 
+      if (!mounted.current) return;
       if (error) {
         throw new Error(error.message);
       }
@@ -546,6 +344,8 @@ export default function BrandingPage() {
         if (statusError) throw statusError;
       }
 
+      if (!mounted.current) return;
+      setReviewDeferred(false);
       // Log completion
       logEvent("autofill_completed");
 
@@ -554,6 +354,7 @@ export default function BrandingPage() {
       setImportAnalyzing(false);
       setImportPhaseNew("reviewing");
     } catch (e: any) {
+      if (!mounted.current) return;
       console.error("Analysis error:", e);
       const errorMsg = e?.message || "Erreur inconnue";
       const userMsg = errorMsg.includes("Aucune source")
@@ -589,7 +390,6 @@ export default function BrandingPage() {
       setImportPhaseNew("form");
       return;
     }
-    setSkipImport(true);
     localStorage.setItem(`branding_skip_import_${workspaceId}`, "true");
     logEvent("autofill_abandoned");
   };
@@ -600,35 +400,26 @@ export default function BrandingPage() {
     setAnalysisResult(null);
   };
 
-  const globalMessage =
-    completion.total > 80
-      ? "Ton branding est solide. L'IA te connaît bien."
-      : completion.total >= 50
-        ? "Tu avances bien ! Quelques sections à compléter."
-        : "Continue à remplir pour débloquer tout le potentiel de l'outil.";
-
-  const filledSections = (["storytelling", "persona", "proposition", "tone", "strategy", "offers", "charter"] as const)
-    .filter((k) => completion[k] > 0).length;
-  const showNewImport = (filledSections < 2 && !skipImport && !isDemoMode && !coachingActive) || reanalyzeMode;
-  const showNewImportDemo = isDemoMode && filledSections < 2 && !skipImport && !coachingActive;
+  // Import is an explicit action; an incomplete identity never replaces this page with onboarding.
+  const showNewImport = reanalyzeMode || forceImport;
 
   // Determine which top-level view to show: "loading" | "error" | "awaiting" | "import" | "review" | "identity"
   const topView: "loading" | "error" | "awaiting" | "import" | "review" | "identity" = loading
     ? "loading"
     : loadError
       ? "error"
-      : (importPhaseNew === "reviewing" && analysisResult)
+      : (importPhaseNew === "reviewing" && analysisResult && !reviewDeferred)
         ? "review"
         : awaitingEnrichment
           ? "awaiting"
-          : (showNewImport || showNewImportDemo || forceImport)
+          : showNewImport
             ? "import"
             : "identity";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
+      <main className="mx-auto max-w-[1120px] px-6 py-8 max-md:px-4">
         {/* ⚠️ PAS d'AnimatePresence ici. La sortie animée du squelette de
             chargement ne se terminait jamais (onExitComplete jamais émis sous la
             charge de re-renders du live) → AnimatePresence churnait et REMONTAIT
@@ -670,7 +461,7 @@ export default function BrandingPage() {
               <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4 mt-8">
                 <h2 className="text-xl font-semibold">Impossible de charger ton identité de marque</h2>
                 <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                  Une erreur réseau est survenue. Tes données n'ont pas été perdues — elles sont bien enregistrées. Réessaie dans un instant.
+                  Les informations ne sont pas disponibles pour le moment. Réessaie avant de les modifier.
                 </p>
                 <Button onClick={() => setRetryKey((k) => k + 1)}>Réessayer</Button>
               </div>
@@ -747,10 +538,11 @@ export default function BrandingPage() {
                     // Idem : la garde de /creer doit relire la vérité tout de suite.
                     queryClient.invalidateQueries({ queryKey: ["pending-brand-review"] });
                   }
-                  setImportPhaseNew("form");
-                  setAnalysisResult(null);
-                  setSkipImport(true);
-                  setReanalyzeMode(false);
+                  if (!mounted.current) return;
+                  setReviewDeferred(!complete);
+                  setImportPhaseNew(complete ? "form" : "reviewing");
+                  if (complete) { setAnalysisResult(null); setPendingReviewId(null); }
+                                setReanalyzeMode(false);
                   setForceImport(false);
                   localStorage.setItem(`branding_skip_import_${workspaceId}`, "true");
                   // Onboarding : la marque validée, on enchaîne sur « générer mon
@@ -758,6 +550,7 @@ export default function BrandingPage() {
                   // l'accueil marque comme avant.
                   if (complete && fromOnboarding && nextTarget === "creer") {
                     const dest = returnToCreation || await resolveFirstContentDestination({ column, value, userId: user?.id });
+                    if (!mounted.current) return;
                     navigate(dest, { replace: true, state: creationReturnState });
                     return;
                   }
@@ -768,14 +561,15 @@ export default function BrandingPage() {
           )}
 
           {/* === IDENTITY === */}
-          {topView === "identity" && (
+          {topView === "identity" && overview && (
             <motion.div key="identity" initial={false} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
               <Link to="/dashboard" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
                 <ArrowLeft className="h-4 w-4" /> Retour à l'accueil
               </Link>
 
-              {!coachingActive && <AuditRecommendationBanner />}
 
+
+              {!coachingActive && <AuditRecommendationBanner />}
               {coachingActive && coachingModule && (
                 <div className="mb-6">
                   <CoachingFlow
@@ -800,20 +594,12 @@ export default function BrandingPage() {
               ) : (
                 <>
                   <BrandingIdentityCard
-                    completion={completion}
-                    summaries={sectionSummaries}
+                    data={overview}
                     onReanalyze={!isDemoMode && completion.total > 0 ? handleStartReanalyze : undefined}
-                    profileName={hookProfile?.prenom || ""}
-                    profileActivity={hookProfile?.activite || ""}
-                    onImport={() => {
-                      setForceImport(true);
-                      setImportPhaseNew("form");
-                      setImportAnalyzing(false);
-                    }}
+                    onImport={() => { setForceImport(true); setImportPhaseNew("form"); setImportAnalyzing(false); }}
                     onShowSynthesis={() => setShowSynthesis(true)}
-                    onRunMirror={runMirror}
-                    lastAuditScore={lastAudit?.score_global}
-                    canShowMirror={canShowMirror}
+                    pendingReview={!!analysisResult && reviewDeferred}
+                    onReview={() => { setReviewDeferred(false); setImportPhaseNew("reviewing"); }}
                     auditSuggestions={auditSuggestions}
                     onApplySuggestion={async (sectionKey: string, suggestion: string) => {
                       const fCol = column;
@@ -833,21 +619,27 @@ export default function BrandingPage() {
                         const mapping = mappings[sectionKey];
                         if (!mapping) throw new Error("Suggestion non prise en charge.");
                         const rows = await readImportRows(mapping.table, scope);
+                        if (!mounted.current) return;
                         // General recommendations cannot choose among several personal stories/publics.
                         const target = importTarget(rows);
                         await saveImportRow(mapping.table, scope, target?.id || null, { [mapping.field]: suggestion });
-                        setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
+                        if (!mounted.current) return;
+                      hiddenSuggestions.current.add(sectionKey);
+                      setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
                         toast.success(sectionKey === "offers" ? "Description générale des offres mise à jour. Les fiches individuelles sont conservées." : "✅ Suggestion appliquée !");
                         queryClient.invalidateQueries({ queryKey: ["brand-profile"] });
                         queryClient.invalidateQueries({ queryKey: ["brand-proposition"] });
                         queryClient.invalidateQueries({ queryKey: ["persona"] });
                         queryClient.invalidateQueries({ queryKey: ["storytelling-primary"] });
                         queryClient.invalidateQueries({ queryKey: ["storytelling-list"] });
+                        await reloadCompletion();
                       } catch (e) {
-                        toast.error(e instanceof Error ? e.message : "Erreur lors de l'application");
+                        if (mounted.current) toast.error(e instanceof Error ? e.message : "Erreur lors de l'application");
                       }
                     }}
                     onDismissSuggestion={(sectionKey: string) => {
+                      if (!mounted.current) return;
+                      hiddenSuggestions.current.add(sectionKey);
                       setAuditSuggestions(prev => { const next = { ...prev }; delete next[sectionKey]; return next; });
                       toast("Suggestion ignorée");
                     }}
