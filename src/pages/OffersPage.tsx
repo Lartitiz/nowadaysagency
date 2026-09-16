@@ -4,22 +4,21 @@ import { Link, useNavigate } from "react-router-dom";
 import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, Plus, Eye, Sparkles, Gift, Gem, Mic, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, Plus, Sparkles, Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useDemoContext } from "@/contexts/DemoContext";
 
 import CoachingFlow from "@/components/CoachingFlow";
-import EmptyState from "@/components/EmptyState";
 import OffersSynthesisView from "@/components/branding/OffersSynthesisView";
 
 const TYPE_CONFIG = {
-  paid: { label: "💎 Offres payantes", emoji: "💎", icon: Gem, color: "text-violet-600", badge: "bg-violet-50 text-violet-700" },
-  free: { label: "🎁 Ressources gratuites (lead magnets)", emoji: "🎁", icon: Gift, color: "text-success", badge: "bg-success-bg text-success" },
-  service: { label: "🎤 Services ponctuels", emoji: "🎤", icon: Mic, color: "text-warning", badge: "bg-warning-bg text-warning" },
+  paid: { label: "Offre payante", detail: "Produit, programme ou prestation." },
+  free: { label: "Ressource gratuite", detail: "Guide, atelier gratuit ou contenu à télécharger." },
+  service: { label: "Service ponctuel", detail: "Intervention ou prestation à la demande." },
 };
 
 function OffersLoading() {
@@ -58,6 +57,10 @@ function ScopedOffersPage({ userId, isDemoMode, demoData, column, value, workspa
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [coachingOpen, setCoachingOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [typeFilter, setTypeFilter] = useState("all");
+  const [addOpen, setAddOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
   const [activeTab, setActiveTab] = useState("liste");
   const mounted = useRef(true);
   const readVersion = useRef(0);
@@ -107,6 +110,7 @@ function ScopedOffersPage({ userId, isDemoMode, demoData, column, value, workspa
   const createOffer = async (type: string) => {
     if (!userId || !mounted.current || creating.current || loading || loadError) return;
     creating.current = true;
+    setIsCreating(true);
     try {
       const { data, error } = await supabase.from("offers")
         .insert({ user_id: userId, offer_type: type, name: "", workspace_id: workspaceId !== userId ? workspaceId : null } as any)
@@ -118,21 +122,19 @@ function ScopedOffersPage({ userId, isDemoMode, demoData, column, value, workspa
       if (mounted.current) toast.error("Erreur lors de la création");
     } finally {
       creating.current = false;
+      if (mounted.current) setIsCreating(false);
     }
   };
 
-  const grouped = {
-    paid: offers.filter((o) => o.offer_type === "paid"),
-    free: offers.filter((o) => o.offer_type === "free"),
-    service: offers.filter((o) => o.offer_type === "service"),
-  };
+  const visibleOffers = offers.filter(o => (typeFilter === "all" || o.offer_type === typeFilter) &&
+    [o.name, o.promise, o.description_short, o.description, o.price_text].filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(search.trim().toLocaleLowerCase("fr")));
 
   if (loading) return <OffersLoading />;
   if (loadError) return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main className="mx-auto max-w-[900px] px-6 py-8">
-        <Link to="/branding">Retour au branding</Link>
+      <main className="mx-auto max-w-[1120px] px-6 py-8">
+        <Link to="/branding">Mon activité</Link>
         <div role="alert" className="my-6">Impossible de charger tes offres. Vérifie ta connexion et réessaie.</div>
         <Button onClick={() => void reloadOffers()}>Réessayer</Button>
       </main>
@@ -140,111 +142,36 @@ function ScopedOffersPage({ userId, isDemoMode, demoData, column, value, workspa
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
+      <main className="mx-auto max-w-[1120px] px-6 py-8 max-md:px-4">
         <Link to="/branding" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
-          Retour au branding
+          Mon activité
         </Link>
 
-        <div className="flex items-center justify-between mb-2 flex-wrap gap-3">
-          <h1 className="font-display text-3xl font-bold text-foreground">🎁 Mes offres</h1>
-          <Button onClick={() => setCoachingOpen(true)} variant="outline" className="gap-2 rounded-full text-sm">
-            <Sparkles className="h-4 w-4" />
-            Coaching offres
-          </Button>
+        <div className="mb-7 flex flex-wrap items-start justify-between gap-4">
+          <div><h1 className="font-display text-3xl sm:text-4xl">Mes offres</h1><p className="mt-3 text-sm text-muted-foreground">Mes produits, services et ressources, prêts à présenter dans mes contenus.</p></div>
+          <Button onClick={() => setAddOpen(true)} className="gap-2"><Plus className="h-4 w-4" /> Ajouter une offre</Button>
         </div>
-        <p className="text-base text-muted-foreground mb-8">
-          Formule tes offres de manière désirable. L'IA te coache à chaque étape pour que tes offres parlent à ta cliente idéale.
-        </p>
-
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="w-full mb-6">
-            <TabsTrigger value="liste" className="flex-1 gap-2">📋 Mes offres</TabsTrigger>
-            <TabsTrigger value="synthese" className="flex-1 gap-2">✨ Synthèse</TabsTrigger>
-          </TabsList>
-
+          <TabsList className="mb-6"><TabsTrigger value="liste">Mes fiches ({offers.length})</TabsTrigger><TabsTrigger value="synthese">Vue d’ensemble</TabsTrigger></TabsList>
           <TabsContent value="liste">
-            {offers.length === 0 ? (
-              <EmptyState
-                icon="🎁"
-                title="Tu n'as pas encore d'offres"
-                body="C'est le moment de les formuler ! L'IA t'accompagne pour rendre chaque offre désirable et claire."
-                cta="✨ Créer ma première offre"
-                onAction={() => createOffer("paid")}
-              />
-            ) : (
-              (["paid", "free", "service"] as const).map((type) => {
-                const config = TYPE_CONFIG[type];
-                const items = grouped[type];
-                return (
-                  <div key={type} className="mb-8">
-                    <h2 className="font-body text-base font-bold text-foreground mb-3">{config.label}</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {items.map((offer) => {
-                        const pct = offer.completion_pct || 0;
-                        const isComplete = offer.completed || pct === 100;
-                        return (
-                          <div
-                            key={offer.id}
-                            className="rounded-2xl border-2 bg-card p-4 transition-all border-border hover:border-primary/30 hover:shadow-md cursor-pointer flex flex-col justify-between"
-                            style={{ maxHeight: 200 }}
-                            onClick={() => navigate(`/branding/offres/${offer.id}`)}
-                          >
-                            <div>
-                              <div className="flex items-center justify-between mb-1.5">
-                                <h3 className="font-body text-sm font-bold text-foreground truncate flex-1">
-                                  {config.emoji} {offer.name || "Sans nom"}
-                                </h3>
-                                {isComplete && <span className="text-xs ml-2 shrink-0">✅</span>}
-                              </div>
-                              {offer.price_text && (
-                                <p className="text-xs font-semibold text-primary mb-1">{offer.price_text}</p>
-                              )}
-                              {(offer.description_short || offer.promise) && (
-                                <p className="text-xs text-muted-foreground mb-2 line-clamp-2">
-                                  {(() => { const t = offer.description_short || offer.promise || ""; return t.length > 80 ? t.slice(0, 80) + "…" : t; })()}
-                                </p>
-                              )}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <Progress value={pct} className="h-1.5 flex-1" />
-                                <span className={`font-mono-ui text-2xs font-semibold ${isComplete ? "text-success" : "text-muted-foreground"}`}>
-                                  {isComplete ? "100%" : `${pct}%`}
-                                </span>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant={isComplete ? "outline" : "default"}
-                                className="rounded-full text-xs w-full"
-                                onClick={(e) => { e.stopPropagation(); navigate(isComplete ? `/branding/offres/${offer.id}?tab=synthese` : `/branding/offres/${offer.id}`); }}
-                              >
-                                {isComplete ? (
-                                  <><Eye className="h-3.5 w-3.5 mr-1" />Voir la fiche</>
-                                ) : pct > 0 ? (
-                                  <>Continuer →</>
-                                ) : (
-                                  <><Sparkles className="h-3.5 w-3.5 mr-1" />Commencer</>
-                                )}
-                              </Button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      <div
-                        className="rounded-2xl border-2 border-dashed border-border bg-card/50 p-5 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary/30 transition-all min-h-[140px]"
-                        onClick={() => createOffer(type)}
-                      >
-                        <Plus className="h-6 w-6 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground font-medium">Ajouter</span>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
-            )}
+            {offers.length > 0 && <div className="mb-5 flex flex-wrap items-center gap-3">
+              <div className="relative min-w-0 flex-1 basis-64"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" aria-hidden="true" /><Input aria-label="Rechercher une offre" placeholder="Rechercher une offre…" className="pl-9" value={search} onChange={e => setSearch(e.target.value)} /></div>
+              <select aria-label="Type d’offre" className="h-10 max-w-full rounded-md border border-input bg-background px-3 text-sm" value={typeFilter} onChange={e => setTypeFilter(e.target.value)}><option value="all">Tous les types</option>{Object.entries(TYPE_CONFIG).map(([key, config]) => <option key={key} value={key}>{config.label}</option>)}</select>
+            </div>}
+            {offers.length === 0 ? <div className="rounded-2xl border border-border bg-card p-6 sm:p-8"><h2 className="font-display text-2xl">Présenter ce que je propose</h2><p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">Une fiche par produit, service ou ressource. Tu peux commencer par son nom et préciser les détails ensuite.</p><Button className="mt-5" onClick={() => setAddOpen(true)}>Créer ma première offre</Button></div>
+              : visibleOffers.length === 0 ? <div className="rounded-xl border border-border p-6 text-center"><p>Aucune offre ne correspond à cette recherche.</p><Button variant="link" onClick={() => { setSearch(""); setTypeFilter("all"); }}>Effacer les filtres</Button></div>
+              : <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card">{visibleOffers.map(offer => {
+                const complete = offer.completed || offer.completion_pct === 100;
+                const config = TYPE_CONFIG[offer.offer_type as keyof typeof TYPE_CONFIG];
+                return <li key={offer.id} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+                  <div className="min-w-0"><p className="mb-2 text-xs text-muted-foreground">{config?.label || "Offre"} · {complete ? "Fiche complétée" : "En cours"}</p><h2 className="break-words text-lg font-medium">{offer.name || "Offre sans nom"}</h2>{(offer.description_short || offer.promise || offer.description) && <p className="mt-2 line-clamp-2 break-words text-sm leading-relaxed text-muted-foreground">{offer.description_short || offer.promise || offer.description}</p>}{offer.price_text && <p className="mt-2 break-words text-sm font-medium">{offer.price_text}</p>}</div>
+                  <Button variant="outline" asChild className="shrink-0 self-start sm:self-auto"><Link to={`/branding/offres/${offer.id}${complete ? "?tab=synthese" : ""}`} aria-label={`${complete ? "Voir" : "Continuer"} ${offer.name || "l’offre sans nom"}`}>{complete ? "Voir la fiche" : "Continuer"}<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+                </li>;
+              })}</ul>}
+            <Button onClick={() => setCoachingOpen(true)} variant="ghost" className="mt-6 h-auto whitespace-normal gap-2 text-left"><Sparkles className="h-4 w-4 shrink-0" /> Besoin d’aide pour formuler mes offres</Button>
           </TabsContent>
 
           <TabsContent value="synthese">
@@ -257,32 +184,8 @@ function ScopedOffersPage({ userId, isDemoMode, demoData, column, value, workspa
         </Tabs>
       </main>
 
-      {/* Coaching panel (slide-in) */}
-      {coachingOpen && (
-        <div className="fixed inset-0 z-50 flex overflow-y-auto">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setCoachingOpen(false)} />
-          <div className="relative ml-auto w-full max-w-lg bg-background h-full overflow-y-auto shadow-xl animate-fade-in">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="font-display text-lg font-bold text-foreground flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" /> Coaching offres
-                </h2>
-                <Button variant="ghost" size="sm" onClick={() => setCoachingOpen(false)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              <CoachingFlow
-                module="offers"
-                onComplete={async () => {
-                  setCoachingOpen(false);
-                  await reloadOffers();
-                }}
-                onSkip={() => setCoachingOpen(false)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}><DialogContent className="max-h-[90dvh] overflow-y-auto"><DialogHeader><DialogTitle>Ajouter une offre</DialogTitle><DialogDescription>Choisis ce que tu veux présenter. Tu pourras ensuite remplir sa fiche.</DialogDescription></DialogHeader><div className="space-y-3">{Object.entries(TYPE_CONFIG).map(([key, config]) => <Button key={key} variant="outline" disabled={isCreating} className="h-auto w-full justify-between gap-3 whitespace-normal p-4 text-left" onClick={() => void createOffer(key)}><span><span className="block font-medium">{config.label}</span><span className="mt-1 block text-xs font-normal text-muted-foreground">{config.detail}</span></span><ArrowRight className="h-4 w-4 shrink-0" /></Button>)}</div>{isCreating && <p role="status" className="text-sm text-muted-foreground">Création de la fiche…</p>}</DialogContent></Dialog>
+      <Dialog open={coachingOpen} onOpenChange={setCoachingOpen}><DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg"><DialogHeader><DialogTitle>M’aider à formuler mes offres</DialogTitle><DialogDescription>Préciser ce que je propose, pour qui et avec quel bénéfice.</DialogDescription></DialogHeader><CoachingFlow module="offers" onComplete={async () => { setCoachingOpen(false); await reloadOffers(); }} onSkip={() => setCoachingOpen(false)} /></DialogContent></Dialog>
     </div>
   );
 }

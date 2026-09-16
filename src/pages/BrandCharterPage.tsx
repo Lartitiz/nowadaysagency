@@ -869,7 +869,7 @@ export default function BrandCharterPage() {
                 };
                 reload();
               }}
-              onBack={() => navigate("/branding")}
+              onBack={() => navigate("/branding?rubrique=visual")}
             />
           </TabsContent>
 

@@ -171,7 +171,7 @@ function VoiceGuideContent({ userId, workspaceId }: { userId: string; workspaceI
     <div className="min-h-screen bg-background">
       <AppHeader />
       <main className="mx-auto max-w-[800px] px-6 py-8 max-md:px-4">
-        <SubPageHeader parentLabel="Ton style" parentTo="/branding/style" currentLabel="Guide de voix" />
+        <SubPageHeader parentLabel="Ma façon d’écrire" parentTo="/branding?rubrique=writing" currentLabel="Guide de voix" />
 
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">🎤 Mon guide de voix</h1>
