@@ -5,7 +5,8 @@ import { resumeIdea } from "@/lib/resume-idea";
 import { useState, useEffect, useMemo, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useWorkspaceFilter, useWorkspaceId, useWorkspaceReady } from "@/hooks/use-workspace-query";
+import { readIdeaList } from "@/lib/idea-list-read";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -145,6 +146,7 @@ function IdeasInWorkspace() {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
+  const workspaceReady = useWorkspaceReady();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [ideas, setIdeas] = useState<SavedIdea[]>([]);
@@ -171,26 +173,31 @@ function IdeasInWorkspace() {
   const [detailNotes, setDetailNotes] = useState("");
 
   useEffect(() => {
-    if (!user || !value) return;
+    if (!user || !value || !workspaceReady) return;
     fetchIdeas();
-  }, [user?.id, column, value]);
+  }, [user?.id, column, value, workspaceReady]);
 
   const fetchIdeas = async () => {
-    if (!user || !mounted.current) return;
+    if (!user || !value || !workspaceReady || !mounted.current) return;
     const started = ++fetchRequest.current;
     setLoading(true);
     setLoadError(false);
-    let ideasQuery = (supabase.from("saved_ideas") as any).select("*").eq(column, value);
-    let briefsQuery = (supabase.from("content_briefs") as any)
-      .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
-      .eq(column, value).is("calendar_post_id", null);
-    if (column === "user_id") {
-      ideasQuery = ideasQuery.is("workspace_id", null);
-      briefsQuery = briefsQuery.is("workspace_id", null);
-    }
+    const isCurrent = () => mounted.current && started === fetchRequest.current;
+    const readIdeas = () => {
+      let query = (supabase.from("saved_ideas") as any).select("*").eq(column, value);
+      if (column === "user_id") query = query.is("workspace_id", null);
+      return query.order("created_at", { ascending: false });
+    };
+    const readBriefs = () => {
+      let query = (supabase.from("content_briefs") as any)
+        .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
+        .eq(column, value).is("calendar_post_id", null);
+      if (column === "user_id") query = query.is("workspace_id", null);
+      return query.order("created_at", { ascending: false });
+    };
     const results = await Promise.allSettled([
-      ideasQuery.order("created_at", { ascending: false }),
-      briefsQuery.order("created_at", { ascending: false }),
+      readIdeaList<SavedIdea>(readIdeas, isCurrent),
+      readIdeaList<SavedBrief>(readBriefs, isCurrent),
     ]);
     if (!mounted.current || started !== fetchRequest.current) return;
     const [ideaResult, briefResult] = results;
