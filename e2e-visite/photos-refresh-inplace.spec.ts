@@ -71,8 +71,8 @@ test("grille /photos : upload → carte optimiste + vraie vignette SANS reload",
     .filter({ has: page.locator('img[alt*="cover-test" i]') })
     .first();
   await card.hover();
-  await card.getByRole("button", { name: "Supprimer" }).click();
-  await page.getByRole("button", { name: "Supprimer" }).last().click();
-  await expect(page.getByText("Photo supprimée")).toBeVisible({ timeout: 15_000 });
+  await card.getByRole("button", { name: /Retirer .+ de la bibliothèque/i }).click();
+  await page.getByRole("button", { name: "Retirer de la bibliothèque" }).last().click();
+  await expect(page.getByText("Photo retirée de la bibliothèque")).toBeVisible({ timeout: 15_000 });
   console.log("Grille /photos : upload reflété en place (optimiste + vignette), nettoyé");
 });

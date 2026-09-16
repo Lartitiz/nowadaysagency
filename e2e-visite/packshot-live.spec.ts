@@ -86,8 +86,8 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
     .filter({ has: page.locator('img[alt*="packshot" i]') })
     .first();
   await createdCard.hover();
-  await createdCard.getByRole("button", { name: "Supprimer" }).click();
-  await page.getByRole("button", { name: "Supprimer" }).last().click();
-  await expect(page.getByText("Photo supprimée")).toBeVisible({ timeout: 15_000 });
+  await createdCard.getByRole("button", { name: /Retirer .+ de la bibliothèque/i }).click();
+  await page.getByRole("button", { name: "Retirer de la bibliothèque" }).last().click();
+  await expect(page.getByText("Photo retirée de la bibliothèque")).toBeVisible({ timeout: 15_000 });
   console.log("Packshot généré, ajouté, vérifié puis nettoyé");
 });
