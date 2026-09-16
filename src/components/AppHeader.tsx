@@ -76,11 +76,6 @@ function Breadcrumb() {
   if (!matchedPath) return null;
 
   let label = BREADCRUMB_LABELS[matchedPath];
-  // /plan redirige vers /calendrier?tab=strategie : sans ça, le fil
-  // d'Ariane affiche « Calendrier » sur la stratégie.
-  if (matchedPath === "/calendrier" && searchParams.get("tab") === "strategie") {
-    label = "Ma stratégie";
-  }
   const section = searchParams.get("section");
   const sectionLabel = section ? SECTION_LABELS[section] : null;
 
