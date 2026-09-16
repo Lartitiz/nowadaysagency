@@ -43,7 +43,7 @@ function deduceChannel(format: string): ChannelId {
 
 // Longueur du carrousel : "auto" = l'IA adapte (aucun slide_count envoyé),
 // "short"/"classic" = choix explicite transmis à l'edge via slide_count.
-export type SlideLength = "auto" | "short" | "classic";
+export type SlideLength = "auto" | "short" | "classic" | "long";
 
 // Formats supporting a single attached photo (vision-anchored generation via creative-flow / future single-photo flows).
 // Excludes carousel (handled separately, multi-photo) and pinterest_* (own flow).
@@ -91,7 +91,7 @@ interface Props {
   // Remonte les sélections EN COURS (format + sous-mode carrousel) au parent pour
   // qu'elles soient persistées, même avant le clic « Suivant ». Sans ça, un reload
   // sur l'étape format repart à zéro (le parent ignorait le format/sous-mode choisi).
-  onSelectionChange?: (sel: { channel: ChannelId | null; format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null }) => void;
+  onSelectionChange?: (sel: { channel: ChannelId | null; format: string | null; carouselSubMode: "text" | "photo" | "mix" | "pure_photo" | "user_slides" | null; slideLength: SlideLength }) => void;
   onBack: () => void;
 }
 
@@ -146,8 +146,8 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
   const onSelectionChangeRef = useRef(onSelectionChange);
   onSelectionChangeRef.current = onSelectionChange;
   useEffect(() => {
-    onSelectionChangeRef.current?.({ channel: selectedChannel, format: selectedFormat, carouselSubMode });
-  }, [selectedChannel, selectedFormat, carouselSubMode]);
+    onSelectionChangeRef.current?.({ channel: selectedChannel, format: selectedFormat, carouselSubMode, slideLength });
+  }, [selectedChannel, selectedFormat, carouselSubMode, slideLength]);
   // Quitter le sous-mode mixte annule la fourche texte-d'abord (elle ne concerne
   // que le mixte hors newsjacking).
   useEffect(() => {
@@ -767,8 +767,9 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
             <span className="text-xs text-muted-foreground">Longueur :</span>
             {([
               { id: "auto" as const, label: "Auto : l'IA adapte" },
-              { id: "short" as const, label: "Court · 4-5 slides" },
-              { id: "classic" as const, label: "Classique · 6-8 slides" },
+              { id: "short" as const, label: "Court · 4 slides" },
+              { id: "classic" as const, label: "Classique · 7 slides" },
+              { id: "long" as const, label: "Détaillé · 10 slides" },
             ]).map((opt) => (
               <button
                 key={opt.id}

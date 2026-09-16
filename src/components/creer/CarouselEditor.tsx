@@ -19,6 +19,7 @@ import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import RedFlagsChecker, { fixRedFlags } from "@/components/RedFlagsChecker";
 import { toast } from "sonner";
 import { hasClippedElement } from "@/lib/carousel-quality";
+import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import {
   addTextElement,
   captionFromText,
@@ -70,18 +71,20 @@ function SlideCanvas({
   selected,
   onSelect,
   onMove,
+  onHistoryKey,
 }: {
   slide: EditorSlide;
   selected: string | null;
   onSelect: (id: string) => void;
   onMove: (id: string, styles: Record<string, string>) => void;
+  onHistoryKey: (event: KeyboardEvent) => void;
 }) {
   const host = useRef<HTMLDivElement>(null),
     frame = useRef<HTMLIFrameElement>(null);
   const [width, setWidth] = useState(0),
     [overflow, setOverflow] = useState(false);
-  const latest = useRef({ selected, onSelect, onMove, locked: slide.locked });
-  latest.current = { selected, onSelect, onMove, locked: slide.locked };
+  const latest = useRef({ selected, onSelect, onMove, onHistoryKey, locked: slide.locked });
+  latest.current = { selected, onSelect, onMove, onHistoryKey, locked: slide.locked };
   useEffect(() => {
     const measure = () => setWidth(host.current?.clientWidth || 0);
     measure();
@@ -103,6 +106,8 @@ function SlideCanvas({
   const bind = () => {
     const doc = frame.current?.contentDocument;
     if (!doc) return;
+    // Keyboard events inside the sandboxed preview do not bubble to React.
+    doc.addEventListener("keydown", (event) => latest.current.onHistoryKey(event));
     highlight();
     let drag: {
       id: string;
@@ -115,6 +120,7 @@ function SlideCanvas({
     } | null = null;
     doc.addEventListener("click", (e) => {
       e.preventDefault();
+      doc.defaultView?.focus();
       const el = (e.target as HTMLElement).closest<HTMLElement>(
         "[data-editor-id]",
       );
@@ -125,6 +131,9 @@ function SlideCanvas({
         "[data-editor-id]",
       );
       if (!el || latest.current.locked) return;
+      // preventDefault below disables native pointer focus; explicitly focus
+      // the preview so subsequent ⌘Z/Ctrl+Z reaches its keydown listener.
+      doc.defaultView?.focus();
       latest.current.onSelect(el.dataset.editorId!);
       const photo =
         el.tagName === "IMG" ||
@@ -241,6 +250,7 @@ export default function CarouselEditor({
   quality,
 }: Props) {
   const raw = result?.raw || result;
+  const editorRoot = useRef<HTMLElement>(null);
   const [document, setDocument] = useState<CarouselDocument>(() =>
     readCarouselDocument(raw, visualSlides),
   );
@@ -301,7 +311,19 @@ export default function CarouselEditor({
     h.key = "";
     emit(next);
     setActive((i) => Math.min(i, next.slides.length - 1));
-    setSelected(null);
+    // Keep the selected text field (and its keyboard focus) when its stable
+    // element ID still exists after undo; otherwise return focus to the editor.
+    const kept = selected && getEditorElements(next.slides[Math.min(active, next.slides.length - 1)]?.html || "").some(e => e.id === selected);
+    setSelected(kept ? selected : null);
+    return { kept };
+  };
+  const onHistoryKey = (event: KeyboardEvent | React.KeyboardEvent<HTMLElement>) => {
+    const action = editHistoryShortcut("nativeEvent" in event ? event.nativeEvent : event);
+    if (!action) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const moved = undo(action === "redo");
+    if (moved && ((selected && !moved.kept) || (event.target as Node)?.ownerDocument !== editorRoot.current?.ownerDocument)) editorRoot.current?.focus();
   };
   const slide = document.slides[Math.min(active, document.slides.length - 1)];
   const elements = useMemo(
@@ -428,7 +450,7 @@ export default function CarouselEditor({
   };
   if (!slide) return null;
   return (
-    <section aria-label="Éditeur de carrousel" className="space-y-4">
+    <section ref={editorRoot} tabIndex={-1} aria-label="Éditeur de carrousel" className="min-w-0 w-full space-y-4" onKeyDown={onHistoryKey}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="font-display text-3xl text-primary">Personnaliser mon carrousel</h2>
@@ -444,8 +466,11 @@ export default function CarouselEditor({
             disabled={!history.current.past.length}
             onClick={() => undo()}
             aria-label="Annuler la modification"
+            aria-keyshortcuts="Meta+Z Control+Z"
+            title="Annuler (⌘Z / Ctrl+Z)"
+            className="gap-1.5"
           >
-            <Undo2 size={15} />
+            <Undo2 size={15} /> Annuler
           </Button>
           <Button
             variant="outline"
@@ -453,8 +478,11 @@ export default function CarouselEditor({
             disabled={!history.current.future.length}
             onClick={() => undo(true)}
             aria-label="Rétablir la modification"
+            aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y"
+            title="Rétablir (⌘⇧Z / Ctrl+⇧Z / Ctrl+Y)"
+            className="gap-1.5"
           >
-            <Redo2 size={15} />
+            <Redo2 size={15} /> Rétablir
           </Button>
         </div>
       </div>
@@ -462,11 +490,11 @@ export default function CarouselEditor({
       {cloudTools}
       {quality && quality.status !== "idle" && (
         <div
-          className="rounded-xl border p-3 space-y-2 text-sm"
+          className="min-w-0 rounded-xl border p-3 space-y-2 text-sm"
           aria-label="Contrôle qualité"
         >
-          <div className="flex items-center justify-between gap-2">
-            <p role="status">
+          <div className="flex items-start justify-between gap-2">
+            <p role="status" className="min-w-0 flex-1">
               {quality.status === "checking"
                 ? "Contrôle de toutes les slides…"
                 : quality.status === "error"
@@ -647,6 +675,7 @@ export default function CarouselEditor({
       <div className="grid items-start gap-6 md:grid-cols-[minmax(0,1fr)_280px] lg:grid-cols-[minmax(0,1fr)_320px]">
         <div className="min-w-0 max-w-[540px] w-full mx-auto md:sticky md:top-28">
           <SlideCanvas
+            onHistoryKey={onHistoryKey}
             slide={slide}
             selected={selected}
             onSelect={setSelected}
@@ -689,7 +718,7 @@ export default function CarouselEditor({
           )}
           <fieldset
             disabled={slide.locked}
-            className="space-y-3 disabled:opacity-50"
+            className="min-w-0 space-y-3 disabled:opacity-50"
           >
             {element?.kind === "text" && (
               <>

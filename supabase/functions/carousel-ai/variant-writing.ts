@@ -1,3 +1,4 @@
+import { carouselLengthPrompt } from "../_shared/carousel-length.ts";
 import { CAROUSEL_CONTINUITY, CAROUSEL_FACTS, CAROUSEL_SUBSTANCE, CAROUSEL_TITLES, carouselStructureGuide } from "./writing-contract.ts";
 
 export const VISUAL_SCHEMA_CONTRACT = `SCHÉMAS : objet {type,...données}, jamais une chaîne descriptive ni un objet data intermédiaire. Zéro à deux schémas maximum, jamais consécutifs. Utilise seulement des valeurs établies et utiles à la slide ; null si les champs ne peuvent pas être remplis. Types et formes conservés :
@@ -8,7 +9,7 @@ function brief(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `${confirmed}
 BRIEF ACTUEL : ${JSON.stringify({ subject: body.subject, details: body.subject_details, description: body.photo_description, objective: body.objective, answers: body.deepening_answers, selected_offer: body.selected_offer, editorial_angle: body.editorial_angle, content_structure: body.content_structure, narrative_thread: body.narrative_thread })}
 ${body.slide_structure?.length ? `Répartition imposée : ${JSON.stringify(body.slide_structure)}. Conserve exactement ces ${body.slide_structure.length} slides, leur ordre, type et photo_index.` : ""}
-${body.slide_count ? `Nombre demandé : exactement ${body.slide_count} slides, sauf structure confirmée de longueur différente qui prime.` : `Sans nombre imposé, cible ${body.carousel_type === "mix" ? 8 : 5} slides, ajuste à la matière et aux photos.`}
+${body.carousel_type === "photo" || body.carousel_type === "mix" ? (body.slide_count ? `Nombre demandé : exactement ${body.slide_count} slides, sauf structure confirmée de longueur différente qui prime.` : `Sans nombre imposé, cible ${body.carousel_type === "mix" ? 8 : 5} slides, ajuste à la matière et aux photos.`) : ""}
 ${body.content_structure ? "La structure éditoriale choisie est à conserver. Ses rôles orientent le propos sans autoriser de faits ou d'émotions inventés." : "Choisis une progression adaptée à cette demande, sans arc dramatique imposé."}
 Canal : ${isLinkedIn ? "LinkedIn. Registre professionnel, vouvoiement par défaut sauf voix contraire. Légende optionnelle (gérée aussi par un appel dédié)." : "Instagram. Registre demandé ; à défaut, accessible et chaleureux. Fournis une légende fidèle au sujet."}
 ${CAROUSEL_SUBSTANCE}
@@ -36,7 +37,8 @@ Chaque slide contient slide_number, role, photo_index, photo_description, overla
 
 export function textWritingPrompt(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `Rédige un carrousel TEXTE avec des suggestions visuelles séparées.
-${brief({ ...body, slide_count: body.slide_count || 7 }, isLinkedIn, confirmed)}
+${brief(body, isLinkedIn, confirmed)}
+${carouselLengthPrompt(body)}
 ${body.chosen_angle ? `Angle choisi à conserver : ${JSON.stringify(body.chosen_angle)}.` : ""}
 ${body.selected_hook ? `Accroche choisie par la personne : ${JSON.stringify(body.selected_hook)}. Conserve-la sur la première slide.` : ""}
 ${body.content_structure ? `Structure choisie à conserver : ${body.content_structure}.` : carouselStructureGuide(body.carousel_type)}

@@ -15,7 +15,7 @@ interface FormatNextOptions {
   linkedinCarousel?: boolean;
   photoDump?: boolean;
   textFirstMix?: boolean;
-  slideLength?: "auto" | "short" | "classic";
+  slideLength?: "auto" | "short" | "classic" | "long";
 }
 
 interface UseFormatNextParams {
@@ -38,7 +38,7 @@ interface UseFormatNextParams {
   session: { user: { id?: string } };
   workspaceId: string;
   photoDumpDoneRef: React.MutableRefObject<boolean>;
-  setSlideLength: (length: "auto" | "short" | "classic") => void;
+  setSlideLength: (length: "auto" | "short" | "classic" | "long") => void;
   setExplicitTextFirstMix: (value: boolean) => void;
   setPhotoDumpEnabled: (value: boolean) => void;
   setSelectedFormat: (format: string | null) => void;

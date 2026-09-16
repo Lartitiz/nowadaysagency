@@ -144,6 +144,39 @@ describe('initial creation draft through real React components', () => {
     fireEvent.click(screen.getByText('Retirer photos')); expect(loadPhotos()).toEqual([]);
     app.unmount(); sessionStorage.clear(); mount(); expect(screen.getByTestId('photos')).toBeEmptyDOMElement();
   });
+  it('undoes the initial idea, persists the restored value and clears history across spaces', async () => {
+    const app=mount(); type('Idée corrigée');
+    fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',metaKey:true});
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('');
+    expect(loadFlowState()?.ideaText).toBe('');
+    fireEvent.click(screen.getByLabelText('Rétablir la modification du sujet'));
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('Idée corrigée');
+    fireEvent.click(screen.getByText('Continuer'));
+    await screen.findByText('Retour idée');
+    fireEvent.click(screen.getByText('Retour idée'));
+    fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',ctrlKey:true});
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('');
+    fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'y',ctrlKey:true});
+    mocks.workspace='B'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>);
+    expect(screen.getByLabelText('Annuler la modification du sujet')).toBeDisabled();
+    type('Sujet B'); fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',ctrlKey:true});
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('');
+    mocks.workspace='A'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>);
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('Idée corrigée');
+    expect(screen.getByLabelText('Annuler la modification du sujet')).toBeDisabled();
+  });
+  it('undoes the photo subject without undoing the idea or changing its photos', async () => {
+    mount(); type('Idée texte'); fireEvent.click(screen.getByText('Partir de photos'));
+    fireEvent.click(screen.getByText('Ajouter photo test'));
+    const subject=screen.getByLabelText(/De quoi veux-tu parler/);
+    fireEvent.change(subject,{target:{value:'Sujet photo'}});
+    fireEvent.keyDown(subject,{key:'z',metaKey:true});
+    expect(subject).toHaveValue('');
+    expect(loadFlowState()?.ideaText).toBe('Idée texte');
+    expect(loadPhotos()).toHaveLength(1);
+    fireEvent.keyDown(subject,{key:'Z',metaKey:true,shiftKey:true});
+    expect(subject).toHaveValue('Sujet photo');
+  });
   it('ignores an old callback after switching A → B → A', () => {
     const app=mount(); type('A'); const old=mocks.cloud.onId;
     mocks.workspace='B'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>); type('B');
@@ -344,4 +377,20 @@ it('protects photos saved without a flow record when entering a new creation', a
   mount('/creer');
   await waitFor(() => expect(screen.getByTestId('photos')).toHaveTextContent('Photo sans texte'));
   expect(loadPhotos()).toMatchObject([{userPhotoId:'library-1'}]);
+});
+
+it('reopens the same generated carousel after precisions and a reload, including designs and caption', async () => {
+  const raw = { slides: [{slide_number:1,title:'Couverture',body:''},{slide_number:2,title:'Erreur 1',body:'Une explication à garder'}], caption:{body:'Ma légende'}, _crosspost:{source:'privée'} };
+  const visualSlides = [{slide_number:1,html:'<div>Design original</div>'}];
+  saveFlowState({step:'result',ideaText:'8 erreurs',selectedFormat:'carousel',carouselSubMode:'text',slideLength:'long',questions:[{id:'q1',question:'Quelle erreur veux-tu expliquer ?'}],answers:{q1:'Réponse existante'},result:{type:'carousel',raw},visualSlides,creationId:'same-creation',editingIdeaId:'same-idea'});
+  const app = mount(); await screen.findByTestId('result');
+  fireEvent.click(screen.getByRole('button',{name:/Étape 3.*Précisions/}));
+  await waitFor(() => expect(screen.queryByTestId('result')).not.toBeInTheDocument());
+  expect(await screen.findByText('Quelle erreur veux-tu expliquer ?')).toBeInTheDocument();
+  await waitFor(() => expect(loadFlowState()).toMatchObject({step:'questions',result:{raw},visualSlides,answers:{q1:'Réponse existante'},slideLength:'long'}));
+  app.unmount(); mount();
+  fireEvent.click(screen.getByRole('button',{name:/Étape 4.*Contenu/}));
+  await screen.findByTestId('result');
+  expect(loadFlowState()).toMatchObject({step:'result',result:{raw},visualSlides,creationId:'same-creation',editingIdeaId:'same-idea'});
+  expect(mocks.generate).not.toHaveBeenCalled();
 });
