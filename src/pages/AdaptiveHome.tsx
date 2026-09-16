@@ -223,8 +223,6 @@ function PilotPill({
 const TOUR_STEPS = [
   { target: "card-next-step", title: "Créer ton contenu", text: "Choisis ton canal pour commencer avec une idée, un texte ou tes photos. Ton brouillon reste accessible sur l’accueil.", position: "bottom" as const },
   { target: "card-ideas", title: "Tes idées sauvegardées", text: "Toutes les idées que tu mets de côté atterrissent ici. Tu peux les transformer en contenu en un clic.", position: "top" as const },
-  { target: "card-missions", title: "Tes premiers pas", text: "Quelques petites étapes pour bien démarrer. Avance à ton rythme, coche au fur et à mesure. Rien d'obligatoire, tout est utile.", position: "bottom" as const },
-  { target: "card-assistant", title: "Ta coach de com'", text: "Un doute, une question, besoin d'un coup de pouce ? Elle connaît ton projet et te répond de façon personnalisée.", position: "bottom" as const },
 ];
 
 /* ── Porte « Programmer » ── */
@@ -312,7 +310,6 @@ export default function AdaptiveHome() {
   const FORGOTTEN_PREVIEW = isMobile ? 2 : 5;
 
   const [tourDone, setTourDone] = useState(() => !!localStorage.getItem("lac_dashboard_tour_seen"));
-  const [recycleOpen, setRecycleOpen] = useState(false);
 
   // Le flag « tour vu » vit en localStorage (par navigateur) : sur un nouvel
   // appareil il est vide. On ne remontre donc le tour qu'aux comptes récents —
@@ -695,90 +692,6 @@ export default function AdaptiveHome() {
           </button>
         )}
 
-        {/* Les aides restent disponibles, sans concurrencer les deux portes.
-            Ouvert pendant la visite guidée pour conserver ses ancres. */}
-        <details className="group border-t border-border pt-4" open={(!tourDone && activeRole === "owner" && isRecentAccount) || undefined}>
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 py-2 text-sm text-bordeaux [&::-webkit-details-marker]:hidden">
-            Idées, conseils et premiers pas
-            <ChevronDown size={16} className="transition-transform group-open:rotate-180" />
-          </summary>
-          <div className="mt-4 space-y-5">
-        {/* Bandeau premiers pas — owner uniquement : les missions guident le
-            setup de SON espace. Un·e manager sur l'espace d'une cliente ne doit
-            pas voir « Tes premiers pas » (audit workspace/membres 09/07). */}
-        {activeRole === "owner" && (
-          <OnboardingBanner
-            onNavigate={handleNavigate}
-            heroOwnsNextStep={true}
-            className=""
-          />
-        )}
-
-
-        <div className="grid sm:grid-cols-2 gap-4">
-
-          {/* Porte 2 — Programmer */}
-          <section className="min-w-0 rounded-2xl bg-card border border-secondary p-5">
-            <SectionLabel>Mon calendrier</SectionLabel>
-            <button type="button" onClick={() => { porte("programmer"); navigate("/calendrier"); }} className="mb-3 text-sm text-bordeaux underline underline-offset-4">Ouvrir le calendrier</button>
-            {upcomingLoading ? (
-              <div className="h-16 rounded-xl bg-muted animate-pulse" />
-            ) : nextPost ? (
-              <>
-                <div className="flex items-start gap-2.5 rounded-xl bg-rose-pale px-3 py-2.5 mb-2.5">
-                  <Send className="h-4 w-4 shrink-0 text-primary mt-0.5" strokeWidth={1.75} />
-                  <div className="min-w-0">
-                    <p className="font-body font-bold text-sm text-foreground">
-                      {shortDate(nextPost.date)}
-                      {nextAuto && ` · ${hourLabel(nextPost.scheduled_publish_at!)}`}
-                      {nextPost.canal && CANAL_LABELS[nextPost.canal] && ` · ${CANAL_LABELS[nextPost.canal]}`}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {nextPost.theme || nextPost.format || "Contenu prévu"}
-                    </p>
-                    <p className={`text-xs mt-0.5 ${nextAuto ? "text-bordeaux font-semibold" : "text-muted-foreground"}`}>
-                      {nextAuto ? "partira tout seul" : "prévu au calendrier : à publier toi-même"}
-                    </p>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground mb-3">
-                  {upcomingPosts.length > 1
-                    ? `Puis ${upcomingPosts.length - 1} autre${upcomingPosts.length > 2 ? "s" : ""} à venir.`
-                    : "Ensuite : rien de prévu."}
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground mb-3">
-                Rien de prévu pour l'instant. Choisis un contenu prêt, puis programme sa publication ou garde-le comme rappel dans ton calendrier.
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={(e) => { e.stopPropagation(); porte("programmer"); navigate("/calendrier?import=1"); }}
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:text-bordeaux transition-colors"
-            >
-              Programmer un contenu prêt
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          </section>
-
-          <section className="min-w-0 rounded-2xl border border-secondary bg-card p-5">
-            <SectionLabel>Une idée pour commencer</SectionLabel>
-            {weeklyIdeas().slice(0, 2).map(idea => <button key={idea} type="button" onClick={() => { porte("creer"); navigate(`/creer?sujet=${encodeURIComponent(idea)}`); }} className="flex w-full items-center gap-2 py-2 text-left text-sm text-bordeaux"><span className="flex-1">{idea}</span><ArrowRight size={16} className="shrink-0" /></button>)}
-          </section>
-        </div>
-
-        <div className="flex flex-wrap gap-3">
-          <PilotPill icon={RecycleIcon} label="Recycler un post qui a marché" onClick={() => setRecycleOpen(true)} />
-          <PilotPill dataTour="card-assistant" icon={MessageCircle} label="Parler à ma coach IA" onClick={() => handleNavigate("/dashboard/guide")} />
-          {isAurianaDemoEmail(user?.email) && <button type="button" onClick={() => { clearFlowState(); saveFlowState({ ...AURIANA_DEMO_FLOW, ts: Date.now() }); navigate("/creer", { state: { demo: true, demoScenario: "auriana-carousel" } }); }} className="text-sm text-bordeaux underline">Lancer la démo carrousel</button>}
-        </div>
-
-          </div>
-        </details>
-
-        {/* Recyclage intelligent : les meilleurs posts passés, prêts à ré-angler */}
-        <RecycleDialog open={recycleOpen} onOpenChange={setRecycleOpen} />
 
         {/* Guidage 1re visite : UNIQUEMENT le coachmark GuidedTour. L'overlay
             4 slides « ton espace est prêt » a été retiré (validé Laetitia 04/07) :
