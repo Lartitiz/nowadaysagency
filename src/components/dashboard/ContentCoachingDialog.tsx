@@ -26,6 +26,7 @@ const FORMATS: Record<string, Array<{ id: string; label: string }>> = {
   pinterest: [{ id: "pinterest", label: "Épingle texte" }, { id: "pinterest_visual", label: "Épingle visuelle" }],
   newsletter: [{ id: "newsletter", label: "Newsletter" }],
 };
+const stableJson = (value: unknown): string => JSON.stringify(value, (_key, item) => item && typeof item === "object" && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
 const OBJECTIVES = [{ id: "auto", label: "Selon l'idée" }, { id: "inspirer", label: "Inspirer" }, { id: "eduquer", label: "Éduquer" }, { id: "vendre", label: "Vendre" }, { id: "creer_du_lien", label: "Créer du lien" }];
 
 export default function ContentCoachingDialog(props: Props) {
@@ -48,7 +49,7 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
   })();
   const [preferences, setPreferences] = useState<Preferences>(cached?.preferences || { objectif: "auto", sujet: "", canal: initialChannel || "auto", format: normalizeFormat(initialFormat) || "auto", activity: "", carouselSubMode: "text" });
   useEffect(() => {
-    if (open && initialChannel) setPreferences(p => { ...p, canal: initialChannel, format: normalizeFormat(initialFormat) || (p.canal === initialChannel ? p.format : "auto") });
+    if (open && initialChannel) setPreferences(p => ({ ...p, canal: initialChannel, format: normalizeFormat(initialFormat) || (p.canal === initialChannel ? p.format : "auto") }));
   }, [open, initialChannel, initialFormat]);
   const [refining, setRefining] = useState<string | null>(null);
   const [precision, setPrecision] = useState("");
@@ -111,8 +112,8 @@ function ScopedCoach({ open, onOpenChange, onSelect, initialChannel, initialForm
       if (error) {
         // Lost acknowledgement: reconcile the same UUID before any retry. Never
         // replace an existing row or create a new UUID for the same saved card.
-        const receipt = await supabase.from("saved_ideas").select("id,user_id,workspace_id,titre,angle").eq("id", card.id).maybeSingle();
-        if (receipt.error || !receipt.data || receipt.data.user_id !== userId || receipt.data.workspace_id !== payload.workspace_id || receipt.data.titre !== payload.titre || receipt.data.angle !== payload.angle) throw error;
+        const receipt = await supabase.from("saved_ideas").select("id,user_id,workspace_id,titre,angle,format,canal,objectif,notes,personal_elements").eq("id", card.id).maybeSingle();
+        if (receipt.error || !receipt.data || receipt.data.user_id !== userId || receipt.data.workspace_id !== payload.workspace_id || receipt.data.titre !== payload.titre || receipt.data.angle !== payload.angle || receipt.data.format !== payload.format || receipt.data.canal !== payload.canal || receipt.data.objectif !== payload.objectif || receipt.data.notes !== payload.notes || stableJson(receipt.data.personal_elements) !== stableJson(payload.personal_elements)) throw error;
       } else if (data?.id !== card.id) throw new Error("Sauvegarde non confirmée");
       queryClient.setQueryData<Selection>(queryKey, prev => prev ? { ...prev, cards: prev.cards.map(c => c.id === card.id ? { ...c, saved: true } : c) } : prev);
       queryClient.invalidateQueries({ queryKey: ["saved-ideas"] });
