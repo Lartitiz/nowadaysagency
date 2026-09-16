@@ -1,3 +1,4 @@
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -199,9 +200,9 @@ function SettingsContent() {
   const planLabel = subInfo?.plan === "binome" ? "Binôme de com" : subInfo?.plan === "outil" ? "Premium" : "Gratuit";
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background [--primary:330_50%_20%] [--bordeaux:330_50%_20%] dark:[--primary:338_72%_83%]">
       <AppHeader />
-      <main className="mx-auto max-w-2xl px-4 py-8 animate-fade-in">
+      <main id="main-content" className="mx-auto max-w-4xl px-4 py-8 pb-28 animate-fade-in">
         <div className="flex items-center gap-3 mb-6">
           <div className="h-10 w-10 rounded-xl bg-rose-pale flex items-center justify-center">
             <Settings className="h-5 w-5 text-primary" />
@@ -212,6 +213,111 @@ function SettingsContent() {
           </div>
         </div>
 
+        <Tabs defaultValue="account" className="space-y-6">
+          <TabsList className="grid grid-cols-2 sm:grid-cols-4 h-auto w-full gap-1">
+            <TabsTrigger value="account">Mon compte</TabsTrigger>
+            <TabsTrigger value="connections">Mon espace</TabsTrigger>
+            <TabsTrigger value="preferences">Préférences</TabsTrigger>
+            <TabsTrigger value="billing">Abonnement</TabsTrigger>
+          </TabsList>
+          <TabsContent value="account" forceMount className="data-[state=inactive]:hidden"><p className="mb-4 text-sm text-muted-foreground">Ton accès personnel à l’outil, quel que soit l’espace affiché.</p><Button asChild variant="outline" className="mb-4"><Link to="/profil">Modifier mes informations</Link></Button>
+        {/* ─── Account info ─── */}
+        <Section icon={<Shield className="h-4 w-4" />} title="Mon compte">
+          <div>
+            <label className="text-xs font-mono-ui text-muted-foreground uppercase tracking-wide">Email</label>
+            <p className="text-sm text-foreground mt-1">{user?.email}</p>
+          </div>
+        </Section>
+
+        {/* ─── Change password ─── */}
+        <Section icon={<KeyRound className="h-4 w-4" />} title="Changer de mot de passe">
+          <div className="space-y-3">
+            <div>
+              <label htmlFor="settings-new-password" className="text-sm font-medium mb-1.5 block">Nouveau mot de passe</label>
+              <Input id="settings-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caractères minimum" className="rounded-[10px] h-11" />
+            </div>
+            <div>
+              <label htmlFor="settings-confirm-password" className="text-sm font-medium mb-1.5 block">Confirmer</label>
+              <Input id="settings-confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Répète ton nouveau mot de passe" className="rounded-[10px] h-11" />
+            </div>
+            <Button onClick={handleChangePassword} disabled={changingPassword || !newPassword} className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
+              {changingPassword ? "Modification..." : "Mettre à jour"}
+            </Button>
+          </div>
+        </Section>
+
+          </TabsContent>
+          <TabsContent value="connections" forceMount className="data-[state=inactive]:hidden"><p className="mb-4 text-sm text-muted-foreground">Espace actuel : <strong>{activeWorkspace?.name || "Mon activité"}</strong>. Les connexions et les membres concernent cet espace.</p>
+        {/* ─── Connexions réseaux ─── */}
+        <Section icon={<Share2 className="h-4 w-4" />} title="Mes connexions">
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Connecte tes comptes Instagram, LinkedIn, Pinterest et Canva pour publier et récupérer tes statistiques directement depuis l'app.
+            </p>
+            <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
+              <Link to="/parametres/connexions">Gérer mes connexions</Link>
+            </Button>
+          </div>
+        </Section>
+
+        {/* ─── Membres de l'espace (owner/manager) ─── */}
+        <WorkspaceMembersSection />
+
+          </TabsContent>
+          <TabsContent value="preferences" forceMount className="data-[state=inactive]:hidden">
+        {/* ─── Rendez-vous hebdo ─── */}
+        <Section icon={<CalendarHeart className="h-4 w-4" />} title="Mes idées par email">
+          {ritual.error && <p role="alert">{ritual.error} <Button variant="link" onClick={ritual.reload}>Réessayer</Button></p>}
+          {!ritual.canEdit && <p className="text-sm text-muted-foreground">Ces préférences appartiennent au propriétaire du compte.</p>}
+          <div className="space-y-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="mt-0.5"><Mail className="h-4 w-4 text-muted-foreground" /></div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">Recevoir mes 5 idées de la semaine</p>
+                  <p className="text-xs text-muted-foreground">Un email par mois, lors de la première occurrence du jour choisi. Il reprend 5 idées du pool partagé de la semaine, également disponibles dans l’outil. Tu peux le désactiver quand tu veux.</p>
+                </div>
+              </div>
+              <Switch
+                checked={ritualEnabled}
+                disabled={!ritualLoaded || savingRitual}
+                onCheckedChange={(v) => saveRitual({ enabled: v })}
+                aria-label="Activer les idées par email"
+              />
+            </div>
+            {ritualEnabled && (
+              <div className="flex items-center justify-between gap-4 pl-7">
+                <label htmlFor="ritual-day" className="text-sm text-foreground">Le jour de mon rendez-vous</label>
+                <Select
+                  value={String(ritualDay)}
+                  onValueChange={(v) => saveRitual({ day: Number(v) })}
+                  disabled={!ritualLoaded || savingRitual}
+                >
+                  <SelectTrigger id="ritual-day" className="w-40 rounded-full"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {WEEKDAYS.map((d) => (
+                      <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+        </Section>
+
+        {/* ─── Notification preferences ─── */}
+        <Section icon={<Bell className="h-4 w-4" />} title="Préférences de notification">
+          <p className="text-xs text-muted-foreground mb-3">Ces choix concernent tes emails personnels, indépendamment de l’espace affiché. Ils ne réactivent pas une désinscription générale.</p>
+          {notifications.error && <p role="alert">{notifications.error} <Button variant="link" onClick={notifications.reload}>Réessayer</Button></p>}
+          <Link to="/unsubscribe" className="text-sm text-primary underline">Gérer ma désinscription générale des emails</Link>
+          <div className="space-y-4">
+            <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Conseils de prise en main et informations sur ton utilisation." checked={notifications.data.notification_tips} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_tips: v}); }} />
+            <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Relances d’inactivité et rappels de brouillons oubliés." checked={notifications.data.notification_reminders} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_reminders: v}); }} />
+          </div>
+        </Section>
+
+          </TabsContent>
+          <TabsContent value="billing" forceMount className="data-[state=inactive]:hidden"><p className="mb-4 text-sm text-muted-foreground">Plan et crédits de l’espace actuel. Le portail de facturation te permet de gérer ton abonnement.</p>
         {/* ─── Subscription ─── */}
         <Section icon={<CreditCard className="h-4 w-4" />} title="Mon abonnement">
           {loadingSub ? (
@@ -306,97 +412,9 @@ function SettingsContent() {
           <PurchaseHistory />
         </Section>
 
-        {/* ─── Connexions réseaux ─── */}
-        <Section icon={<Share2 className="h-4 w-4" />} title="Mes connexions">
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              Connecte tes comptes Instagram, LinkedIn, Pinterest et Canva pour publier et récupérer tes statistiques directement depuis l'app.
-            </p>
-            <Button asChild className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
-              <Link to="/parametres/connexions">Gérer mes connexions</Link>
-            </Button>
-          </div>
-        </Section>
-
-        {/* ─── Membres de l'espace (owner/manager) ─── */}
-        <WorkspaceMembersSection />
-
-        {/* ─── Account info ─── */}
-        <Section icon={<Shield className="h-4 w-4" />} title="Mon compte">
-          <div>
-            <label className="text-xs font-mono-ui text-muted-foreground uppercase tracking-wide">Email</label>
-            <p className="text-sm text-foreground mt-1">{user?.email}</p>
-          </div>
-        </Section>
-
-        {/* ─── Change password ─── */}
-        <Section icon={<KeyRound className="h-4 w-4" />} title="Changer de mot de passe">
-          <div className="space-y-3">
-            <div>
-              <label htmlFor="settings-new-password" className="text-sm font-medium mb-1.5 block">Nouveau mot de passe</label>
-              <Input id="settings-new-password" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="6 caractères minimum" className="rounded-[10px] h-11" />
-            </div>
-            <div>
-              <label htmlFor="settings-confirm-password" className="text-sm font-medium mb-1.5 block">Confirmer</label>
-              <Input id="settings-confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Répète ton nouveau mot de passe" className="rounded-[10px] h-11" />
-            </div>
-            <Button onClick={handleChangePassword} disabled={changingPassword || !newPassword} className="rounded-full bg-primary text-primary-foreground hover:bg-bordeaux">
-              {changingPassword ? "Modification..." : "Mettre à jour"}
-            </Button>
-          </div>
-        </Section>
-
-        {/* ─── Rendez-vous hebdo ─── */}
-        <Section icon={<CalendarHeart className="h-4 w-4" />} title="Mes idées par email">
-          {ritual.error && <p role="alert">{ritual.error} <Button variant="link" onClick={ritual.reload}>Réessayer</Button></p>}
-          {!ritual.canEdit && <p className="text-sm text-muted-foreground">Ces préférences appartiennent au propriétaire du compte.</p>}
-          <div className="space-y-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-start gap-3">
-                <div className="mt-0.5"><Mail className="h-4 w-4 text-muted-foreground" /></div>
-                <div>
-                  <p className="text-sm font-medium text-foreground">Recevoir mes 5 idées de la semaine</p>
-                  <p className="text-xs text-muted-foreground">Un email par mois, lors de la première occurrence du jour choisi. Il reprend 5 idées du pool partagé de la semaine, également disponibles dans l’outil. Tu peux le désactiver quand tu veux.</p>
-                </div>
-              </div>
-              <Switch
-                checked={ritualEnabled}
-                disabled={!ritualLoaded || savingRitual}
-                onCheckedChange={(v) => saveRitual({ enabled: v })}
-                aria-label="Activer les idées par email"
-              />
-            </div>
-            {ritualEnabled && (
-              <div className="flex items-center justify-between gap-4 pl-7">
-                <label htmlFor="ritual-day" className="text-sm text-foreground">Le jour de mon rendez-vous</label>
-                <Select
-                  value={String(ritualDay)}
-                  onValueChange={(v) => saveRitual({ day: Number(v) })}
-                  disabled={!ritualLoaded || savingRitual}
-                >
-                  <SelectTrigger id="ritual-day" className="w-40 rounded-full"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {WEEKDAYS.map((d) => (
-                      <SelectItem key={d.value} value={String(d.value)}>{d.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-          </div>
-        </Section>
-
-        {/* ─── Notification preferences ─── */}
-        <Section icon={<Bell className="h-4 w-4" />} title="Préférences de notification">
-          <p className="text-xs text-muted-foreground mb-3">Ces choix concernent tes emails personnels, indépendamment de l’espace affiché. Ils ne réactivent pas une désinscription générale.</p>
-          {notifications.error && <p role="alert">{notifications.error} <Button variant="link" onClick={notifications.reload}>Réessayer</Button></p>}
-          <Link to="/unsubscribe" className="text-sm text-primary underline">Gérer ma désinscription générale des emails</Link>
-          <div className="space-y-4">
-            <PrefRow icon={<Sparkles className="h-4 w-4 text-muted-foreground" />} label="Conseils & astuces" description="Conseils de prise en main et informations sur ton utilisation." checked={notifications.data.notification_tips} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_tips: v}); }} />
-            <PrefRow icon={<Bell className="h-4 w-4 text-muted-foreground" />} label="Rappels de routines" description="Relances d’inactivité et rappels de brouillons oubliés." checked={notifications.data.notification_reminders} disabled={!notifications.loaded || notifications.saving} onCheckedChange={(v) => { void notifications.save({notification_reminders: v}); }} />
-          </div>
-        </Section>
-
+          </TabsContent>
+        </Tabs>
+        <details className="mt-8 border-t border-border pt-5"><summary className="cursor-pointer font-medium text-primary">Confidentialité, aide et réglages avancés</summary><div className="mt-5">
         {/* ─── Cookies ─── */}
         <Section icon={<Cookie className="h-4 w-4" />} title="Cookies et traceurs">
           <div className="space-y-4">
@@ -467,12 +485,12 @@ function SettingsContent() {
             <div>
               <p className="font-semibold mb-1">Ce que l'IA ne fait pas :</p>
               <ul className="list-disc list-inside text-muted-foreground space-y-0.5">
-                <li>Ne publie rien à ta place</li>
+                <li>Les publications nécessitent une action de ta part</li>
                 <li>Ne remplace pas ta voix ni ton expertise</li>
-                <li>Ne stocke pas tes données hors de l'app</li>
+                <li>Tu gardes le choix de conserver ou de modifier les propositions</li>
               </ul>
             </div>
-            <p className="text-muted-foreground">Tes données sont utilisées uniquement pour personnaliser les générations dans l'app. Elles ne sont pas partagées avec des tiers.</p>
+            <p className="text-muted-foreground">Les informations nécessaires à tes demandes sont transmises aux services d’IA utilisés par l’outil. Consulte nos engagements pour connaître le traitement de tes données.</p>
             <Link to="/legal-ia" className="text-primary text-xs font-medium hover:underline">Nos engagements →</Link>
           </div>
         </Section>
@@ -644,6 +662,7 @@ function SettingsContent() {
             </p>
           </Section>
         )}
+        </div></details>
       </main>
     </div>
   );

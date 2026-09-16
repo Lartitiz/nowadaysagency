@@ -1,3 +1,5 @@
+import { auditScopedQuery, saveAuditProfile } from "@/lib/audit-profile-persistence";
+import { AuditWorkspaceScope, useAuditVisit } from "@/components/audit/AuditWorkspaceScope";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,8 +38,11 @@ const AUDIT_LOADING_MESSAGES = [
 ];
 type ViewMode = "hub" | "form" | "results";
 
-export default function InstagramAudit() {
+export default function InstagramAudit() { return <AuditWorkspaceScope page={InstagramAuditForm} />; }
+
+function InstagramAuditForm() {
   const { user } = useAuth();
+  const { ownerUserId, active } = useAuditVisit();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { column, value } = useWorkspaceFilter();
@@ -51,6 +56,9 @@ export default function InstagramAudit() {
   const [auditId, setAuditId] = useState<string | null>(null);
   const [auditDate, setAuditDate] = useState<string | null>(null);
   const [loadingExisting, setLoadingExisting] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const progressKey = `ig_audit_in_progress:${user?.id}:${column}:${value}`;
   const [previousAudit, setPreviousAudit] = useState<any>(null);
   const { data: profileData } = useProfile();
   const queryClient = useQueryClient();
@@ -73,9 +81,10 @@ export default function InstagramAudit() {
     supabase.functions.invoke("social-status", {
       body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
     }).then(({ data }) => {
+      if (!active.current) return;
       const conns = (data as any)?.connections || [];
       setIgConnected(conns.some((c: any) => c.platform === "instagram" && c.connected));
-    }).catch(() => setIgConnected(false));
+    }).catch(() => { if (active.current) setIgConnected(false); });
   }, [user?.id, workspaceId]);
 
   // Récupère profil + statistiques réelles du compte connecté (bio, abonnés,
@@ -85,6 +94,7 @@ export default function InstagramAudit() {
     const { data, error } = await supabase.functions.invoke("instagram-insights-fetch", {
       body: { workspace_id: workspaceId !== user.id ? workspaceId : undefined },
     });
+    if (!active.current) return null;
     if (error || !(data as any)?.metrics) {
       const ctxBody = (error as any)?.context?.body;
       const msg = ctxBody?.error || (data as any)?.error || "";
@@ -140,7 +150,11 @@ export default function InstagramAudit() {
 
   useEffect(() => {
     if (!user) return;
-    (supabase.from("instagram_audit") as any).select("*").eq(column, value).order("created_at", { ascending: false }).limit(2).then(({ data: rows }) => {
+    setLoadingExisting(true); setLoadError(false);
+    let current = true;
+    Promise.resolve(auditScopedQuery("instagram_audit", "*", column, value).order("created_at", { ascending: false }).limit(2)).then(({ data: rows, error }: any) => {
+      if (!current) return;
+      if (error) throw error;
       if (rows && rows.length > 0) {
         const latest = rows[0];
         setHasExistingAudit(true);
@@ -157,9 +171,9 @@ export default function InstagramAudit() {
       // serveur entre-temps, on va aux résultats. Sinon → il a été coupé, on réaffiche
       // le formulaire (déjà pré-rempli depuis le profil) avec une invite à relancer.
       let inProg: { startedAt?: string; userId?: string } | null = null;
-      try { const raw = sessionStorage.getItem("ig_audit_in_progress"); if (raw) inProg = JSON.parse(raw); } catch { /* noop */ }
+      try { const raw = sessionStorage.getItem(progressKey); if (raw) inProg = JSON.parse(raw); } catch { /* noop */ }
       if (inProg && inProg.userId === user.id) {
-        try { sessionStorage.removeItem("ig_audit_in_progress"); } catch { /* noop */ }
+        try { sessionStorage.removeItem(progressKey); } catch { /* noop */ }
         const latestDate = rows?.[0]?.created_at;
         const completedDuringReload = !!(latestDate && inProg.startedAt && new Date(latestDate) > new Date(inProg.startedAt));
         if (completedDuringReload) {
@@ -181,8 +195,9 @@ export default function InstagramAudit() {
       }
 
       setLoadingExisting(false);
-    });
-  }, [user?.id, column, value]);
+    }).catch(() => { if (current) { setLoadError(true); setLoadingExisting(false); } });
+    return () => { current = false; };
+  }, [user?.id, column, value, retry, progressKey]);
 
   const sanitizeFileName = (fileName: string) => {
     const ext = fileName.split(".").pop()?.toLowerCase() || "png";
@@ -203,7 +218,7 @@ export default function InstagramAudit() {
   // liveOverride : stats déjà récupérées lors d'une première tentative — les retries
   // les réutilisent au lieu de re-taper l'API Meta.
   const handleSubmit = async (form: AuditFormData, retryCount = 0, liveOverride?: any) => {
-    if (!user) return;
+    if (!user || !active.current || loadingExisting || loadError) return;
 
     // Pre-check: block if no audit credits left
     if (!canAudit()) {
@@ -223,12 +238,13 @@ export default function InstagramAudit() {
     // du formulaire n'a pas besoin d'être stocké ici : il est déjà sauvé dans `profiles`
     // plus bas, donc rechargé tel quel par `initialForm`.
     try {
-      sessionStorage.setItem("ig_audit_in_progress", JSON.stringify({ startedAt: new Date().toISOString(), userId: user.id }));
+      sessionStorage.setItem(progressKey, JSON.stringify({ startedAt: new Date().toISOString(), userId: user.id }));
     } catch { /* sessionStorage indisponible : non bloquant */ }
 
     try {
       // Refresh session preemptively to avoid JWT expiry during long audit
       await supabase.auth.refreshSession();
+      if (!active.current) return;
 
       // 1. Compte connecté : bio, abonnés, stats et top/flop posts viennent de l'API.
       // Un échec ici arrête l'audit (le toast d'explication est déjà affiché) plutôt
@@ -272,11 +288,14 @@ export default function InstagramAudit() {
       if (atd.frequency) profileUpdate.instagram_frequency = atd.frequency;
       if (form.mode === "connected" && live?.profilePictureUrl) profileUpdate.instagram_photo_url = live.profilePictureUrl;
       if (Object.keys(profileUpdate).length) {
-        const { error: profileUpdateError } = await (supabase.from("profiles") as any).update(profileUpdate as any).eq(column, value);
-        if (profileUpdateError) {
-          console.error("[InstagramAudit] Profile update failed:", profileUpdateError);
-        } else {
-          queryClient.invalidateQueries({ queryKey: ["profile"] });
+        try {
+          await saveAuditProfile(ownerUserId, profileUpdate);
+          if (!active.current) return;
+          queryClient.invalidateQueries({ queryKey: ["profile", ownerUserId] });
+        } catch (error) {
+          if (!active.current) return;
+          console.error("[InstagramAudit] Profile update failed:", error);
+          toast("Le profil n’a pas pu être actualisé. L’audit utilisera les informations récupérées.");
         }
       }
 
@@ -291,6 +310,7 @@ export default function InstagramAudit() {
       }
 
       // 5. Call AI audit (send URLs instead of base64 to avoid memory issues)
+      if (!active.current) return;
       const res = await invokeWithTimeout("audit-instagram-ai", {
         body: {
           screenshotUrls: screenshotUrls.length ? screenshotUrls : undefined,
@@ -310,6 +330,7 @@ export default function InstagramAudit() {
         },
       }, 180000);
 
+      if (!active.current) return;
       // Check for quota limit (403 responses go into res.error with supabase-js)
       if (res.error) {
         const errorMsg = res.error.message || "";
@@ -333,6 +354,7 @@ export default function InstagramAudit() {
         console.log("[Audit] Retryable error, auto-retrying in 3s...", res.data.error);
         setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
+        if (!active.current) return;
         return handleSubmit(form, retryCount + 1, live);
       }
 
@@ -446,6 +468,7 @@ export default function InstagramAudit() {
           posts_analysis: parsed.posts_analysis || null,
           profile_url: null,
         } as any).select("id, created_at").single();
+        if (!active.current) return;
         if (insertError) console.error("[InstagramAudit] Fallback insert failed:", insertError);
         newAuditId = insertData?.id ?? null;
         newAuditDate = (insertData as any)?.created_at ?? null;
@@ -458,6 +481,7 @@ export default function InstagramAudit() {
       setView("results");
       toast.success("Audit terminé !");
     } catch (e: any) {
+      if (!active.current) return;
       console.error("Erreur technique:", e);
       const errStr = e?.message || String(e);
 
@@ -474,6 +498,7 @@ export default function InstagramAudit() {
         console.log("[Audit] Transient error, auto-retrying in 3s...", errStr);
         setLoadingMsg("⏳ L'IA met un peu plus de temps que prévu, on réessaie...");
         await new Promise(r => setTimeout(r, 3000));
+        if (!active.current) return;
         return handleSubmit(form, retryCount + 1, live);
       }
 
@@ -494,20 +519,18 @@ export default function InstagramAudit() {
       setAnalyzing(false);
       // L'audit est retombé (succès, erreur ou quota) : on retire le marqueur. S'il
       // restait posé, c'est qu'un rechargement a coupé l'await → détecté au remontage.
-      try { sessionStorage.removeItem("ig_audit_in_progress"); } catch { /* noop */ }
+      try { sessionStorage.removeItem(progressKey); } catch { /* noop */ }
     }
   };
 
   const handleAdoptBio = async (bio: string) => {
-    if (!user) return;
+    if (!user || !active.current) return;
     try {
-      const { error: profileError } = await (supabase.from("profiles") as any).update({
-        instagram_bio: bio,
-        validated_bio: bio,
-        validated_bio_at: new Date().toISOString(),
-      } as any).eq(column, value);
-      if (profileError) throw profileError;
-      queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await saveAuditProfile(ownerUserId, {
+        instagram_bio: bio, validated_bio: bio, validated_bio_at: new Date().toISOString(),
+      });
+      if (!active.current) return;
+      queryClient.invalidateQueries({ queryKey: ["profile", ownerUserId] });
 
       const { error: validationError } = await supabase.from("audit_validations").upsert({
         user_id: user.id,
@@ -516,17 +539,22 @@ export default function InstagramAudit() {
         validated_at: new Date().toISOString(),
         validated_content: { bio },
       }, { onConflict: "user_id,section" });
-      if (validationError) throw validationError;
+      if (!active.current) return;
+      if (validationError) {
+        toast.error("La bio est enregistrée, mais sa validation personnelle n’a pas pu être enregistrée. Tu peux réessayer depuis ce résultat.");
+        return;
+      }
 
       toast.success("✅ Bio adoptée et sauvegardée !");
     } catch (e: any) {
+      if (!active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     }
   };
 
   const handleSaveToEditorial = async () => {
-    if (!user || !auditResult?.editorial_recommendations) return;
+    if (!user || !active.current || !auditResult?.editorial_recommendations) return;
     try {
       const insights = {
         best_format: auditResult.editorial_recommendations.best_format,
@@ -545,9 +573,11 @@ export default function InstagramAudit() {
         const { error } = await supabase.from("instagram_editorial_line").insert({ user_id: user.id, content_insights: insights, workspace_id: workspaceId !== user.id ? workspaceId : undefined } as any);
         if (error) throw error;
       }
+      if (!active.current) return;
       queryClient.invalidateQueries({ queryKey: ["editorial-line"] });
       toast.success("Insights sauvegardés dans ta ligne éditoriale !");
     } catch (e: any) {
+      if (!active.current) return;
       console.error("Erreur technique:", e);
       toast.error("Erreur", { description: friendlyError(e) });
     }
@@ -594,6 +624,8 @@ export default function InstagramAudit() {
     }
     return { previous_score: prevDetails?.score_global || previousAudit.score_global || 0, current_score: auditResult.score_global || 0, previous_date: previousAudit.created_at, improved, unchanged };
   };
+
+  if (loadError) return <div><AppHeader /><main id="main-content" className="mx-auto max-w-3xl p-6"><p role="alert">Impossible de charger ton audit Instagram.</p><Button className="mt-4" onClick={() => setRetry(n => n + 1)}>Réessayer</Button></main></div>;
 
   // ── Loading ──
   if (loadingExisting) {

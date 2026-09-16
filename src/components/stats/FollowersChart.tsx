@@ -37,7 +37,7 @@ export default function FollowersChart({ data }: FollowersChartProps) {
           }
           contentStyle={{ borderRadius: 12, border: "1px solid hsl(var(--border))", background: "hsl(var(--card))" }}
         />
-        <Line type="monotone" dataKey="followers" stroke="hsl(var(--primary))" name="Abonné·es" strokeWidth={2.5} dot={{ r: 4 }} connectNulls />
+        <Line type="monotone" dataKey="followers" stroke="hsl(var(--primary))" name="Abonné·es" strokeWidth={2.5} dot={{ r: 4 }} connectNulls={false} />
       </LineChart>
     </ResponsiveContainer>
   );

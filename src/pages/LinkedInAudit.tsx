@@ -1,3 +1,5 @@
+import { auditScopedQuery, readAuditProfile } from "@/lib/audit-profile-persistence";
+import { AuditWorkspaceScope, useAuditVisit } from "@/components/audit/AuditWorkspaceScope";
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -111,8 +113,11 @@ function impactEmoji(impact: string) {
   return "🟢";
 }
 
-export default function LinkedInAudit() {
+export default function LinkedInAudit() { return <AuditWorkspaceScope page={LinkedInAuditForm} />; }
+
+function LinkedInAuditForm() {
   const { user } = useAuth();
+  const { ownerUserId, active } = useAuditVisit();
   const navigate = useNavigate();
   const { column, value } = useWorkspaceFilter();
   const workspaceId = useWorkspaceId();
@@ -147,69 +152,37 @@ export default function LinkedInAudit() {
 
   const fileInputRefs = useRef<Record<ScreenshotType, HTMLInputElement | null>>({} as any);
 
-  // Pré-remplissage automatique : URL depuis le profil, à propos + checklist depuis
-  // le module LinkedIn, rythme déduit des posts créés dans l'app sur 30 jours.
+  const [loadError, setLoadError] = useState(false);
+  const [retry, setRetry] = useState(0);
   useEffect(() => {
     if (!user) return;
+    let current = true;
+    setLoadingExisting(true); setLoadError(false);
     (async () => {
-      const { data: prof } = await (supabase.from("profiles") as any)
-        .select("linkedin_url, linkedin_summary").eq(column, value).maybeSingle();
-      if (prof?.linkedin_url) setProfileUrl((cur) => cur || prof.linkedin_url);
-
-      const { data: lp } = await (supabase.from("linkedin_profile") as any)
-        .select("title, title_done, url_done, photo_done, banner_done, featured_done, creator_mode_done, summary_final, resume_current")
-        .eq(column, value).maybeSingle();
-
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-      const { data: posts } = await (supabase.from("calendar_posts") as any)
-        .select("date, content_draft, accroche")
-        .eq(column, value).eq("canal", "linkedin").gte("date", thirtyDaysAgo)
-        .order("date", { ascending: false }).limit(20);
-
-      const appPosts = (posts || []) as any[];
-      const aboutText = lp?.summary_final || lp?.resume_current || prof?.linkedin_summary || "";
-      setAutoData({
-        aboutText,
-        checklist: lp ? {
-          title: lp.title, title_done: lp.title_done, url_done: lp.url_done, photo_done: lp.photo_done,
-          banner_done: lp.banner_done, featured_done: lp.featured_done, creator_mode_done: lp.creator_mode_done,
-        } : null,
-        appPostsCount30d: appPosts.length,
-        recentPosts: appPosts
-          .map((p) => ({ date: p.date || "", excerpt: (p.content_draft || p.accroche || "").slice(0, 400) }))
-          .filter((p) => p.excerpt).slice(0, 3),
-      });
-      const derived = deriveRhythm(appPosts.length);
-      if (derived) setRhythm((cur) => cur || derived);
+      try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+        const [prof, lpRes, postsRes, auditsRes] = await Promise.all([
+          readAuditProfile(ownerUserId, "linkedin_url, linkedin_summary"),
+          auditScopedQuery("linkedin_profile", "title, title_done, url_done, photo_done, banner_done, featured_done, creator_mode_done, summary_final, resume_current", column, value).maybeSingle(),
+          auditScopedQuery("calendar_posts", "date, content_draft, accroche", column, value).eq("canal", "linkedin").gte("date", thirtyDaysAgo).order("date", { ascending: false }).limit(20),
+          auditScopedQuery("linkedin_audit", "*", column, value).order("created_at", { ascending: false }).limit(2),
+        ]);
+        if (!current) return;
+        if (lpRes.error || postsRes.error || auditsRes.error) throw new Error("Lecture indisponible");
+        const lp = lpRes.data, appPosts = postsRes.data || [], audits = auditsRes.data || [];
+        if (prof?.linkedin_url) setProfileUrl(cur => cur || prof.linkedin_url);
+        setAutoData({ aboutText: lp?.summary_final || lp?.resume_current || prof?.linkedin_summary || "", checklist: lp ? Object.fromEntries(Object.entries(lp).filter(([key]) => key === "title" || key.endsWith("_done"))) : null,
+          appPostsCount30d: appPosts.length,
+          recentPosts: appPosts.map((p: any) => ({ date: p.date || "", excerpt: (p.content_draft || p.accroche || "").slice(0, 400) })).filter((p: any) => p.excerpt).slice(0, 3),
+        });
+        const derived = deriveRhythm(appPosts.length); if (derived) setRhythm(cur => cur || derived);
+        if (audits[0]?.audit_result) { setResult(audits[0].audit_result); setAuditDate(audits[0].created_at); setView("results"); }
+        setPreviousScore(audits[1]?.score_global ?? null);
+      } catch { if (current) setLoadError(true); }
+      finally { if (current) setLoadingExisting(false); }
     })();
-  }, [user?.id, column, value]);
-
-  // Load existing audit on mount
-  useEffect(() => {
-    if (!user) return;
-    const loadExisting = async () => {
-      const { data: audits } = await (supabase
-        .from("linkedin_audit" as any)
-        .select("*")
-        .eq(column, value)
-        .order("created_at", { ascending: false })
-        .limit(2) as any);
-
-      if (audits && audits.length > 0) {
-        const latest = audits[0];
-        if (latest.audit_result) {
-          setResult(latest.audit_result as unknown as AuditResult);
-          setAuditDate(latest.created_at);
-          setView("results");
-        }
-        if (audits.length > 1 && audits[1].score_global) {
-          setPreviousScore(audits[1].score_global);
-        }
-      }
-      setLoadingExisting(false);
-    };
-    loadExisting();
-  }, [user?.id]);
+    return () => { current = false; };
+  }, [user?.id, column, value, ownerUserId, retry]);
 
   const sanitizeFileName = (fileName: string): string => {
     const ext = fileName.split(".").pop()?.toLowerCase() || "png";
@@ -251,12 +224,13 @@ export default function LinkedInAudit() {
   };
 
   const handleAnalyze = async () => {
-    if (!user) return;
+    if (!user || !active.current || loadError || loadingExisting) return;
     setAnalyzing(true);
     setQuotaExhausted(null);
     try {
       const uploadedScreenshots = screenshots.length > 0 ? await uploadAllScreenshots() : [];
 
+      if (!active.current) return;
       const res = await invokeWithTimeout("linkedin-audit-ai", {
         body: {
           workspace_id: workspaceId !== user?.id ? workspaceId : undefined,
@@ -275,6 +249,7 @@ export default function LinkedInAudit() {
         },
       }, 120000);
 
+      if (!active.current) return;
       if (res.error) {
         const errorMsg = res.error.message || "";
         if (res.error.isRateLimit || /limit_reached|quota|limit/i.test(errorMsg)) {
@@ -315,11 +290,13 @@ export default function LinkedInAudit() {
         audit_result: parsed,
         top_priorities: parsed.top_5_priorities,
       } as any);
+      if (!active.current) return;
       if (insertError) throw insertError;
 
       setView("results");
       toast.success("Audit terminé ! 🎉");
     } catch (e: any) {
+      if (!active.current) return;
       const errStr = e?.message || String(e);
       if (/quota|crédit|limit_reached|limit/i.test(errStr)) {
         setQuotaExhausted({ message: "" });
@@ -646,7 +623,7 @@ export default function LinkedInAudit() {
           L'IA analyse ton profil, ton contenu, ta stratégie et ton réseau pour te donner un score et des priorités d'action.
         </p>
 
-        {loadingExisting ? (
+        {loadError ? <div role="alert">Impossible de charger ton audit et les informations de cet espace. <Button onClick={() => setRetry(n => n + 1)}>Réessayer</Button></div> : loadingExisting ? (
           <div className="flex justify-center py-12">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
