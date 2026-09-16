@@ -1,3 +1,4 @@
+import { preserveIdeaBrief } from "../../supabase/functions/_shared/ideas/contract";
 import { toast } from "sonner";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { handleQuotaError } from "@/lib/quota-error-handler";
@@ -155,7 +156,7 @@ export function useFormatNext({
     setSelectedFormat(format);
     // « L'IA choisit l'angle » à l'étape format ne doit pas effacer un angle
     // hérité du coach d'idées : lui seul porte le choix éditorial déjà validé.
-    const inheritedAngle = angle || editorialAngle || null;
+    const inheritedAngle = preserveIdeaBrief(angle, editorialAngle);
     setEditorialAngle(inheritedAngle);
     if (format !== "pinterest" && format !== "pinterest_visual") setPinterestData(null);
     if (sub) setCarouselSubMode(sub);

@@ -525,6 +525,7 @@ export function useContentGenerator() {
             body: {
               step: "generate",
               contentType: "stories",
+              editorial_angle: editorialAngle || undefined,
               context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
               objective: objective || null,
               face_cam: faceCam || "flexible",
@@ -561,6 +562,7 @@ export function useContentGenerator() {
             body: {
               step: "generate",
               contentType: "instagram_post",
+              editorial_angle: editorialAngle || undefined,
               context: effectiveSubject + (existingContent ? `\n\n[Contenu existant à approfondir]\n${existingContent}` : ""),
               angle: angle
                 ? {

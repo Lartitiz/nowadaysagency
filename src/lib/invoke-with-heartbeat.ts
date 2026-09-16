@@ -1,3 +1,4 @@
+import { withIdeaBrief } from "@/lib/idea-brief-request";
 import { supabase } from "@/integrations/supabase/client";
 import type { InvokeError } from "./invoke-with-timeout";
 
@@ -53,7 +54,7 @@ export async function invokeWithHeartbeat(
           "apikey": publishableKey,
           "Accept": "text/event-stream",
         },
-        body: JSON.stringify(options.body ?? {}),
+        body: JSON.stringify(withIdeaBrief(functionName, options.body ?? {})),
         signal: controller.signal,
       });
     } catch (err: any) {
