@@ -144,6 +144,39 @@ describe('initial creation draft through real React components', () => {
     fireEvent.click(screen.getByText('Retirer photos')); expect(loadPhotos()).toEqual([]);
     app.unmount(); sessionStorage.clear(); mount(); expect(screen.getByTestId('photos')).toBeEmptyDOMElement();
   });
+  it('undoes the initial idea, persists the restored value and clears history across spaces', async () => {
+    const app=mount(); type('Idée corrigée');
+    fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',metaKey:true});
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('');
+    expect(loadFlowState()?.ideaText).toBe('');
+    fireEvent.click(screen.getByLabelText('Rétablir la modification du sujet'));
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('Idée corrigée');
+    fireEvent.click(screen.getByText('Continuer'));
+    await screen.findByText('Retour idée');
+    fireEvent.click(screen.getByText('Retour idée'));
+    fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',ctrlKey:true});
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('');
+    fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'y',ctrlKey:true});
+    mocks.workspace='B'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>);
+    expect(screen.getByLabelText('Annuler la modification du sujet')).toBeDisabled();
+    type('Sujet B'); fireEvent.keyDown(screen.getByLabelText('Ton idée'), {key:'z',ctrlKey:true});
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('');
+    mocks.workspace='A'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>);
+    expect(screen.getByLabelText('Ton idée')).toHaveValue('Idée corrigée');
+    expect(screen.getByLabelText('Annuler la modification du sujet')).toBeDisabled();
+  });
+  it('undoes the photo subject without undoing the idea or changing its photos', async () => {
+    mount(); type('Idée texte'); fireEvent.click(screen.getByText('Partir de photos'));
+    fireEvent.click(screen.getByText('Ajouter photo test'));
+    const subject=screen.getByLabelText(/De quoi veux-tu parler/);
+    fireEvent.change(subject,{target:{value:'Sujet photo'}});
+    fireEvent.keyDown(subject,{key:'z',metaKey:true});
+    expect(subject).toHaveValue('');
+    expect(loadFlowState()?.ideaText).toBe('Idée texte');
+    expect(loadPhotos()).toHaveLength(1);
+    fireEvent.keyDown(subject,{key:'Z',metaKey:true,shiftKey:true});
+    expect(subject).toHaveValue('Sujet photo');
+  });
   it('ignores an old callback after switching A → B → A', () => {
     const app=mount(); type('A'); const old=mocks.cloud.onId;
     mocks.workspace='B'; app.rerender(<StrictMode><MemoryRouter><CreerUnifie/></MemoryRouter></StrictMode>); type('B');

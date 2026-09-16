@@ -1,0 +1,70 @@
+import React from "react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { act, cleanup, fireEvent, render, renderHook, screen } from "@testing-library/react";
+import CreerStepEdit from "@/components/creer/CreerStepEdit";
+import { useTextEditHistory } from "@/hooks/use-text-edit-history";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: vi.fn() }));
+vi.mock("@/components/ui/textarea-with-voice", () => ({ TextareaWithVoice: (props: any) => <textarea {...props} /> }));
+afterEach(() => { cleanup(); vi.restoreAllMocks(); });
+
+describe("text editing undo", () => {
+  it("groups typing, restores empty text, separates adjustments and clears redo", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1000);
+    const { result } = renderHook(() => useTextEditHistory(""));
+    act(() => { result.current.change("a", true); result.current.change("ab", true); });
+    act(() => result.current.change("Ajusté"));
+    act(() => result.current.travel());
+    expect(result.current.value).toBe("ab");
+    act(() => result.current.travel());
+    expect(result.current.value).toBe("");
+    act(() => result.current.travel(true));
+    expect(result.current.value).toBe("ab");
+    act(() => result.current.change("Nouveau", true));
+    expect(result.current.canRedo).toBe(false);
+  });
+  it("bounds history and records a new typing burst after a pause", () => {
+    const clock = vi.spyOn(Date, "now").mockReturnValue(1000);
+    const { result } = renderHook(() => useTextEditHistory("Source"));
+    act(() => result.current.change("A", true));
+    clock.mockReturnValue(2000);
+    act(() => result.current.change("B", true));
+    act(() => result.current.travel());
+    expect(result.current.value).toBe("A");
+    act(() => { for (let i = 0; i < 40; i++) result.current.change(String(i)); });
+    act(() => { for (let i = 0; i < 40; i++) result.current.travel(); });
+    expect(result.current.value).toBe("9");
+    expect(result.current.canUndo).toBe(false);
+  });
+  it("supports buttons, Mac/Windows keys and saves the restored text without navigating", () => {
+    const save = vi.fn(), back = vi.fn();
+    render(<CreerStepEdit content="Source" format="post" onSave={save} onBack={back} onCopy={vi.fn()} />);
+    const text = screen.getByLabelText("Contenu à peaufiner");
+    expect(screen.getByLabelText("Annuler la modification")).toBeDisabled();
+    fireEvent.change(text, { target: { value: "Modifié" } });
+    fireEvent.keyDown(text, { key: "z", metaKey: true });
+    expect(text).toHaveValue("Source");
+    fireEvent.keyDown(text, { key: "Z", metaKey: true, shiftKey: true });
+    expect(text).toHaveValue("Modifié");
+    fireEvent.click(screen.getByLabelText("Annuler la modification"));
+    fireEvent.keyDown(text, { key: "y", ctrlKey: true });
+    expect(text).toHaveValue("Modifié");
+    fireEvent.keyDown(text, { key: "z", ctrlKey: true });
+    fireEvent.click(screen.getByRole("button", { name: "Sauver" }));
+    expect(save).toHaveBeenCalledWith("Source");
+    expect(back).not.toHaveBeenCalled();
+    fireEvent.keyDown(window, { key: "y", ctrlKey: true });
+    expect(text).toHaveValue("Source");
+  });
+  it("can undo an AI adjustment and blocks edits while its response is pending", async () => {
+    let resolve!: (value: any) => void;
+    vi.mocked(invokeWithTimeout).mockImplementationOnce(() => new Promise(r => { resolve = r; }) as any);
+    render(<CreerStepEdit content="Source" format="post" onSave={vi.fn()} onBack={vi.fn()} onCopy={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: /Plus court/ }));
+    expect(screen.getByLabelText("Contenu à peaufiner")).toBeDisabled();
+    await act(async () => resolve({ data: { content: "Court" }, error: null }));
+    expect(screen.getByLabelText("Contenu à peaufiner")).toHaveValue("Court");
+    fireEvent.click(screen.getByLabelText("Annuler la modification"));
+    expect(screen.getByLabelText("Contenu à peaufiner")).toHaveValue("Source");
+  });
+});

@@ -2,6 +2,8 @@ import { pinterestCurrentText } from "@/lib/pinterest-current-text";
 import { prepareIdeaPhotos } from "@/features/creer/prepare-idea-photos";
 import { isDurableReelUrl, reelSourceKey } from "@/lib/reel-publication";
 import { useCreationEntryKey } from "@/hooks/use-creation-entry-key";
+import { useTextEditHistory } from "@/hooks/use-text-edit-history";
+import { editHistoryShortcut } from "@/lib/edit-history-shortcut";
 import { useState, useEffect, useCallback, useMemo, useRef, lazy, Suspense } from "react";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { invokeWithHeartbeat } from "@/lib/invoke-with-heartbeat";
@@ -33,7 +35,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
-import { Loader2, Palette, RefreshCw, Sparkles } from "lucide-react";
+import { Loader2, Palette, RefreshCw, Sparkles, Undo2, Redo2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import AppHeader from "@/components/AppHeader";
 import SubPageHeader from "@/components/SubPageHeader";
@@ -360,7 +362,10 @@ function CreerWorkspace() {
   })();
   const [step, setStep] = useState<Step>(safeStep);
   
-  const [ideaText, setIdeaText] = useState(ps?.ideaText ?? (paramSujet || locState.sujet || locState.subject || ""));
+  const ideaHistory = useTextEditHistory(ps?.ideaText ?? (paramSujet || locState.sujet || locState.subject || ""));
+  const ideaText = ideaHistory.value;
+  // Incoming sources and new creations establish a new baseline, not an edit.
+  const setIdeaText = ideaHistory.reset;
   const [objective, setObjective] = useState<string | null>(
     ps?.objective || paramObjectif || locState.objectif || locState.objective || null
   );
@@ -424,7 +429,9 @@ function CreerWorkspace() {
     rawType: "photo" | "mix" | null;
   }>({ open: false, rawType: null });
   const [photoDescription, setPhotoDescription] = useState(ps?.photoDescription ?? "");
-  const [photoSubject, setPhotoSubject] = useState(ps?.photoSubject ?? ps?.ideaText ?? "");
+  const photoSubjectHistory = useTextEditHistory(ps?.photoSubject ?? ps?.ideaText ?? "");
+  const photoSubject = photoSubjectHistory.value;
+  const setPhotoSubject = photoSubjectHistory.reset;
   const [photoEntry, setPhotoEntry] = useState(ps?.photoEntry ?? (shouldRestore && loadPhotos().length > 0));
   const [photoMode, setPhotoMode] = useState(false);
   const [demoGenerating, setDemoGenerating] = useState(false);
@@ -1206,7 +1213,7 @@ function CreerWorkspace() {
   }, [objective]);
 
   const handleIdeaNext = (idea: string) => {
-    setIdeaText(idea);
+    ideaHistory.change(idea);
     setNewsjackingContext(null);
     setNewsjackingSuggestedFormat(null);
     // Auriana demo: keep pre-filled format/angle if subject unchanged
@@ -2709,13 +2716,29 @@ function CreerWorkspace() {
 
             {/* Steps */}
             {step === "idea" && (
-              <>
+              <div onKeyDown={(event) => {
+                const target = event.target as HTMLElement;
+                // Preserve native undo in secondary panels and other inputs.
+                if (target.id !== "creation-idea" && target.id !== "creation-photo-subject" && !target.closest('[data-idea-history]')) return;
+                const action = editHistoryShortcut(event.nativeEvent);
+                if (!action || !isCurrentCreation()) return;
+                event.preventDefault();
+                event.stopPropagation();
+                (photoEntry ? photoSubjectHistory : ideaHistory).travel(action === "redo");
+              }}>
                 <LowCreditsBanner remaining={remainingWithBonus()} plan={plan} />
+                {(() => {
+                  const history = photoEntry ? photoSubjectHistory : ideaHistory;
+                  return <div data-idea-history className="mb-4 flex flex-wrap gap-2" aria-label="Historique du sujet">
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={!history.canUndo || !isCurrentCreation()} onClick={() => history.travel()} aria-label="Annuler la modification du sujet" aria-keyshortcuts="Meta+Z Control+Z" title="Annuler (⌘Z / Ctrl+Z)"><Undo2 className="h-3.5 w-3.5" /> Annuler</Button>
+                    <Button type="button" variant="outline" size="sm" className="gap-1.5" disabled={!history.canRedo || !isCurrentCreation()} onClick={() => history.travel(true)} aria-label="Rétablir la modification du sujet" aria-keyshortcuts="Meta+Shift+Z Control+Shift+Z Control+Y" title="Rétablir (⌘⇧Z / Ctrl+⇧Z / Ctrl+Y)"><Redo2 className="h-3.5 w-3.5" /> Rétablir</Button>
+                  </div>;
+                })()}
                 <CreerStepIdea channel={(deriveCanalFromState({ selectedFormat, isLinkedInCarousel }) as ForcedChannel | null) ?? forcedChannel} onNext={handleIdeaNext} onCoachingSelect={handleCoachingSelect} onNewsjackingSelect={handleNewsjackingSelect} onPhotosNext={handlePhotosNext} workspaceId={workspaceId} initialIdea={ideaText} initialPhotos={uploadedPhotos} initialPhotoDescription={photoDescription} initialPhotoSubject={photoSubject}
-                  onIdeaChange={setIdeaText} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
-                  onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={setPhotoSubject}
+                  onIdeaChange={(value) => { if (isCurrentCreation()) ideaHistory.change(value, true); }} onPhotosChange={(photos) => { if (!isCurrentCreation()) return; setUploadedPhotos(photos); void savePhotos(photos); }}
+                  onPhotoDescriptionChange={setPhotoDescription} onPhotoSubjectChange={(value) => { if (isCurrentCreation()) photoSubjectHistory.change(value, true); }}
                   photoEntry={photoEntry} onPhotoEntryChange={setPhotoEntry} />
-              </>
+              </div>
             )}
 
             <Suspense fallback={<div className="py-12 flex justify-center"><Spinner className="h-8 w-8" /></div>}>

@@ -183,6 +183,46 @@ function Harness() {
   );
 }
 describe("carousel editor interaction", () => {
+  it.each([{ metaKey: true }, { ctrlKey: true }])("uses scoped keyboard history even in controlled caption fields (%j)", (modifier) => {
+    render(<Harness />);
+    const caption = screen.getByLabelText("Légende du carrousel");
+    fireEvent.change(caption, { target: { value: "Légende corrigée" } });
+    const snapshot = screen.getByTestId("saved").textContent;
+    fireEvent.keyDown(caption, { key: "z", ...modifier });
+    expect(screen.getByTestId("saved").textContent).not.toContain("Légende corrigée");
+    fireEvent.keyDown(caption, { key: "Z", shiftKey: true, ...modifier });
+    expect(screen.getByTestId("saved").textContent).toBe(snapshot);
+    fireEvent.keyDown(window, { key: "z", ...modifier });
+    expect(screen.getByTestId("saved").textContent).toBe(snapshot);
+    fireEvent.keyDown(caption, { key: "z", isComposing: true, ...modifier });
+    expect(screen.getByTestId("saved").textContent).toBe(snapshot);
+  });
+  it("clears redo after a new edit and does not restore a previous incoming document", () => {
+    const change = vi.fn();
+    const { rerender } = render(<CarouselEditor result={raw} visualSlides={visuals} onChange={change} />);
+    const caption = screen.getByLabelText("Légende du carrousel");
+    fireEvent.change(caption, { target: { value: "A" } });
+    fireEvent.keyDown(caption, { key: "z", ctrlKey: true });
+    fireEvent.change(caption, { target: { value: "B" } });
+    expect(screen.getByLabelText("Rétablir la modification")).toBeDisabled();
+    rerender(<CarouselEditor result={{ ...raw, caption: { body: "Autre document" } }} visualSlides={visuals} onChange={change} />);
+    expect(screen.getByLabelText("Annuler la modification")).toBeDisabled();
+    fireEvent.keyDown(screen.getByLabelText("Légende du carrousel"), { key: "z", metaKey: true });
+    expect(screen.getByLabelText("Légende du carrousel")).toHaveValue("Autre document");
+  });
+  it("forwards keyboard history from the preview iframe document", () => {
+    const width = vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(540);
+    try {
+      render(<Harness />);
+      fireEvent.change(screen.getByLabelText("Légende du carrousel"), {target:{value:"Légende depuis l’aperçu"}});
+      const iframe = screen.getByTitle("Éditeur de la slide 1") as HTMLIFrameElement;
+      fireEvent.load(iframe);
+      fireEvent.keyDown(iframe.contentDocument!, {key:'z',metaKey:true});
+      expect(screen.getByLabelText("Légende du carrousel")).toHaveValue("Une légende");
+      fireEvent.keyDown(iframe.contentDocument!, {key:'Z',metaKey:true,shiftKey:true});
+      expect(screen.getByLabelText("Légende du carrousel")).toHaveValue("Légende depuis l’aperçu");
+    } finally { width.mockRestore(); }
+  });
   it("edits a text in the saved document and restores it with undo/redo", () => {
     render(<Harness />);
     const select = screen.getByLabelText(
