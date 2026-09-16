@@ -3,31 +3,20 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowRight,
-  ChevronDown,
-  Clock,
   Lightbulb,
-  MessageCircle,
-  Rocket,
-  Recycle as RecycleIcon,
   Send,
   Image as ImageIcon,
   Bell,
-  type LucideIcon,
 } from "lucide-react";
 
 import { useGuideRecommendation } from "@/hooks/use-guide-recommendation";
-import { useOnboardingMissions, OnboardingMission } from "@/hooks/use-onboarding-missions";
 
 import GuidedTour from "@/components/GuidedTour";
 import AppHeader from "@/components/AppHeader";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 
-import { isAurianaDemoEmail, AURIANA_DEMO_FLOW } from "@/lib/demo-auriana-data";
-import { weeklyIdeas } from "@/lib/weekly-ideas";
-import RecycleDialog from "@/components/dashboard/RecycleDialog";
-import { saveFlowState, clearFlowState, loadFlowState, loadPhotos } from "@/hooks/use-flow-persistence";
+import { loadFlowState, loadPhotos } from "@/hooks/use-flow-persistence";
 import ClientOnboarding from "@/components/client/ClientOnboarding";
 import { useStorytellingList, usePersona } from "@/hooks/use-branding";
 import { useBrandProfile } from "@/hooks/use-profile";
