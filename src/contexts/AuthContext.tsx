@@ -29,6 +29,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  const [sessionReadFailed, setSessionReadFailed] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   // ID de l'utilisateur pour lequel le rôle admin a été résolu. Sert à DÉRIVER
   // `adminLoading` au rendu (cf. plus bas) plutôt que de le piloter via un effet :
@@ -37,6 +38,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // redirige à tort vers /dashboard avant que le rôle soit vérifié.
   const [adminCheckedForUserId, setAdminCheckedForUserId] = useState<string | null>(null);
   const navigate = useNavigate();
+  // Declarative routers change navigate on route changes; auth subscribes once.
+  const navigateRef = useRef(navigate);
+  navigateRef.current = navigate;
   const lastHiddenAt = useRef<number>(0);
 
   // In demo mode, skip all Supabase auth and provide a fake user
@@ -84,20 +88,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (isDemoMode) return; // Skip Supabase auth entirely in demo mode
     let mounted = true;
-    let initialSessionHandled = false;
+    let authRevision = 0;
+    const initialRevision = authRevision;
 
     // 1. Listen to auth state changes FIRST (per Supabase docs)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, currentSession) => {
         if (!mounted) return;
 
-        // Silent token refresh: update session only, no navigation
-        if (event === 'TOKEN_REFRESHED') {
-          if (currentSession) {
-            setSession(currentSession);
-          }
-          return;
-        }
+        // The SDK can emit INITIAL_SESSION(null) when its read fails. Only
+        // getSession without an error confirms the absence of a session.
+        if (!currentSession && event !== "SIGNED_OUT") return;
+        const eventRevision = ++authRevision;
+        setSessionReadFailed(false);
+        setLoading(false);
 
         // Only update session ref if token actually changed to avoid re-renders
         setSession(prev => {
@@ -109,15 +113,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return currentSession?.user ?? null;
         });
 
-        // Only set loading false on INITIAL_SESSION or if initial load already done
-        if (event === 'INITIAL_SESSION' || initialSessionHandled) {
-          setLoading(false);
+        // An explicit sign-out is authoritative even during bootstrap.
+        if (event === "SIGNED_OUT") {
+          posthog.reset();
+          navigateRef.current("/login");
+          return;
         }
+        if (event === "TOKEN_REFRESHED") return;
 
-        // Skip redirect logic until initial session is resolved
-        if (!initialSessionHandled) return;
-
-        if (event === "SIGNED_IN" && currentSession?.user) {
+        if ((event === "SIGNED_IN" || event === "INITIAL_SESSION") && currentSession?.user) {
           posthog.identify(currentSession.user.id, {
             email: currentSession.user.email,
           });
@@ -126,37 +130,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const redirectTo = searchParams.get("redirect");
 
           if (redirectTo && isSafeRedirectTarget(redirectTo) && (path === "/login" || path === "/connexion")) {
-            navigate(redirectTo);
+            navigateRef.current(redirectTo);
             return;
           }
 
           if (path === "/" || path === "/login" || path === "/connexion") {
             setTimeout(async () => {
-              if (!mounted) return;
+              if (!mounted || authRevision !== eventRevision) return;
               const route = await resolvePostAuthRoute(currentSession.user.id);
-              if (!mounted) return;
-              navigate(route);
+              if (!mounted || authRevision !== eventRevision) return;
+              navigateRef.current(route);
             }, 0);
           }
-        }
-
-        // Only redirect on explicit sign out, NOT on token refresh failures
-        if (event === "SIGNED_OUT") {
-          posthog.reset();
-          navigate("/login");
         }
       }
     );
 
-    // 2. Get initial session. A rejected getSession() is a real error (network
-    // timeout, transient failure during a deploy, etc.) — not the same thing as
-    // "no session" (that resolves normally with session: null). One silent retry
-    // avoids treating a passing network hiccup as a sign-out and bouncing the user
-    // to /login while they're mid-flow.
+    // Keep read failures distinct from a confirmed signed-out session. An
+    // auth event delivered while this read is pending always wins.
     async function loadInitialSession(attempt: 1 | 2 = 1): Promise<void> {
       try {
-        const { data: { session: initialSession } } = await supabase.auth.getSession();
-        if (!mounted) return;
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
+        if (!mounted || authRevision !== initialRevision) return;
+        if (error) throw error;
+        setSessionReadFailed(false);
 
         setSession(initialSession);
         setUser(initialSession?.user ?? null);
@@ -168,31 +165,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const redirectTo = urlParams.get("redirect");
 
           if (redirectTo && isSafeRedirectTarget(redirectTo) && (path === "/login" || path === "/connexion")) {
-            navigate(redirectTo);
-            initialSessionHandled = true;
+            navigateRef.current(redirectTo);
             return;
           }
 
           if (path === "/" || path === "/login" || path === "/connexion") {
             const route = await resolvePostAuthRoute(initialSession.user.id);
-            if (!mounted) return;
-            navigate(route);
+            if (!mounted || authRevision !== initialRevision) return;
+            navigateRef.current(route);
           }
         }
-
-        initialSessionHandled = true;
       } catch (error) {
-        if (!mounted) return;
+        if (!mounted || authRevision !== initialRevision) return;
         if (attempt === 1) {
           await new Promise((resolve) => setTimeout(resolve, 800));
-          if (!mounted) return;
+          if (!mounted || authRevision !== initialRevision) return;
           return loadInitialSession(2);
         }
         console.error("Failed to get initial session after retry:", error);
-        setSession(null);
-        setUser(null);
+        setSessionReadFailed(true);
         setLoading(false);
-        initialSessionHandled = true;
       }
     }
 
@@ -210,13 +202,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // After 30+ min away: force a server refresh to get a fresh token
         // After 5-30 min: just read the cached session (faster, usually still valid)
+        const refreshRevision = authRevision;
         const refreshPromise = elapsed > 30 * 60 * 1000
           ? supabase.auth.refreshSession().then(({ data }) => data.session)
           : supabase.auth.getSession().then(({ data }) => data.session);
 
         refreshPromise.then((refreshedSession) => {
-          if (!mounted) return;
+          if (!mounted || authRevision !== refreshRevision) return;
           if (refreshedSession) {
+            setSessionReadFailed(false);
             setSession(refreshedSession);
             setUser(prev => {
               if (prev?.id === refreshedSession.user?.id) return prev;
@@ -233,7 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription.unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [navigate, isDemoMode]);
+  }, [isDemoMode]);
 
   // Memoize callback functions to prevent context value changes
   const signUp = useCallback(async (email: string, password: string) => {
@@ -307,7 +301,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider value={value}>
-      {children}
+      {sessionReadFailed && !user && !isDemoMode ? (
+        <main className="min-h-screen bg-background flex items-center justify-center p-6">
+          <div role="alert" className="max-w-md space-y-4 rounded-2xl border bg-card p-6 text-center">
+            <h1 className="font-display text-xl text-foreground">Impossible de vérifier ta connexion</h1>
+            <p className="text-sm text-muted-foreground">
+              Recharge la page pour réessayer. Tes brouillons sont conservés.
+            </p>
+            <button type="button" onClick={() => window.location.reload()} className="rounded-lg bg-primary px-4 py-2 text-primary-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+              Recharger la page
+            </button>
+          </div>
+        </main>
+      ) : children}
     </AuthContext.Provider>
   );
 }
