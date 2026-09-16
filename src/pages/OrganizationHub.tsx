@@ -49,7 +49,7 @@ export default function OrganizationHub() {
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main className="mx-auto max-w-[1400px] px-6 py-8 max-md:px-4">
+      <main id="main-content" className="mx-auto max-w-[1600px] px-6 py-8 max-md:px-4 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]">
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6 bg-card border border-border rounded-full p-1 h-auto gap-1 max-w-full overflow-x-auto scrollbar-hide">
             <TabsTrigger

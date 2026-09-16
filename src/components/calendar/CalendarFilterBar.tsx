@@ -55,11 +55,13 @@ export function CalendarFilterBar({
     "whitespace-nowrap rounded-pill px-3 py-1.5 text-xs font-medium border transition-all shrink-0";
   const pillOn = "bg-primary text-primary-foreground border-primary";
   const pillOff = "bg-card text-foreground border-border hover:border-primary/40";
-  const pillDisabled = "bg-muted text-muted-foreground border-border opacity-60 cursor-not-allowed";
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="mb-4">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <select aria-label="Filtrer le calendrier par canal" value={canalFilter} onChange={e => onCanalChange(e.target.value)} className="rounded-lg border border-border bg-card px-3 py-1.5 text-xs text-foreground max-w-full">
+          {CANAL_FILTERS.map(ch => <option key={ch.id} value={ch.id} disabled={!ch.enabled}>{ch.label}{!ch.enabled ? " (Bientôt)" : ""}</option>)}
+        </select>
         <CollapsibleTrigger asChild>
           <button
             className={`flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-all ${
@@ -69,7 +71,7 @@ export function CalendarFilterBar({
             }`}
           >
             <SlidersHorizontal className="h-3.5 w-3.5" />
-            Filtrer
+            Autres filtres
             {hasActive && (
               <span className="ml-0.5 inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-primary text-primary-foreground text-2xs font-bold">
                 {activeCount}
@@ -91,31 +93,12 @@ export function CalendarFilterBar({
 
       <CollapsibleContent>
         <div className="mt-3 space-y-3 rounded-xl border border-border bg-card p-3">
-          {/* Canal */}
-          <div>
-            <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Canal</p>
-            <div className="flex gap-1.5 flex-wrap">
-              {CANAL_FILTERS.map((ch) => (
-                <button
-                  key={ch.id}
-                  onClick={() => ch.enabled && onCanalChange(ch.id)}
-                  disabled={!ch.enabled}
-                  className={`${pillBase} ${
-                    canalFilter === ch.id ? pillOn : ch.enabled ? pillOff : pillDisabled
-                  }`}
-                >
-                  {ch.label}
-                  {!ch.enabled && <span className="ml-1 text-2xs">(Bientôt)</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-
           {/* Objectif */}
           <div>
             <p className="mb-1.5 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">Objectif</p>
             <div className="flex gap-1.5 flex-wrap">
               <button
+                aria-pressed={categoryFilter === "all"}
                 onClick={() => onCategoryChange("all")}
                 className={`${pillBase} ${categoryFilter === "all" ? pillOn : pillOff}`}
               >
@@ -124,6 +107,7 @@ export function CalendarFilterBar({
               {OBJECTIVE_FILTERS.map((f) => (
                 <button
                   key={f.id}
+                  aria-pressed={categoryFilter === f.id}
                   onClick={() => onCategoryChange(f.id)}
                   className={`${pillBase} ${categoryFilter === f.id ? pillOn : pillOff}`}
                 >

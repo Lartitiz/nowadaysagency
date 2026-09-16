@@ -33,7 +33,7 @@ it('R3 sheet planning carries structured data and channel through one confirmed 
 });
 it('R3 sheet resumes generated content through Creer without regenerating', async () => {
  render(<IdeaDetailSheet idea={idea} open onOpenChange={vi.fn()} onUpdated={vi.fn()} onPlanned={vi.fn()}/>);
- fireEvent.click(screen.getByRole('button', {name: /Générer|Créer|Reprendre/}));
+ fireEvent.click(screen.getByRole('button', {name: /Ouvrir l’éditeur|Créer|Reprendre/}));
  await waitFor(()=>expect(state.navigate).toHaveBeenCalled());
  const [route, args]=state.navigate.mock.calls[0];
  expect(route).toContain('/creer');
@@ -42,4 +42,14 @@ it('R3 sheet resumes generated content through Creer without regenerating', asyn
 });
 it('R3 historical string scripts open without a map crash', () => {
  expect(() => render(<IdeaDetailSheet idea={{...idea, format:'reel', content_data:{script:'Ancien script chaîne'}}} open onOpenChange={vi.fn()} onUpdated={vi.fn()} onPlanned={vi.fn()}/>)).not.toThrow();
+});
+
+it('opening a structured idea without text does not save an empty draft over its rich content', async () => {
+ state.row={...idea,content_draft:null};
+ render(<IdeaDetailSheet idea={state.row} open onOpenChange={vi.fn()} onUpdated={vi.fn()} onPlanned={vi.fn()}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Ouvrir l’éditeur'}));
+ await waitFor(()=>expect(state.navigate).toHaveBeenCalled());
+ expect(state.writes[0].payload).not.toHaveProperty('content_draft');
+ expect(state.navigate.mock.calls[0][1].state.resumeIdea.raw).not.toHaveProperty('edited_text');
+ expect(state.navigate.mock.calls[0][1].state.resumeIdea.raw.slides).toEqual(idea.content_data.slides);
 });

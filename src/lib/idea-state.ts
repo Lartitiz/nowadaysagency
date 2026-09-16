@@ -1,16 +1,9 @@
 /**
  * État d'une idée sauvegardée (`saved_ideas`), dérivé de ses colonnes.
  *
- * Trois états seulement, lisibles par une utilisatrice :
- * - `todo`        → « À faire » : un point de départ, rien n'a été produit.
- * - `in_progress` → « En cours » : un brouillon ou un contenu généré est rangé
- *                   dessus (« Sauvegarder en idée », brouillon mis de côté…).
- * - `created`     → « Créée » : le contenu existe au calendrier (lien
- *                   `calendar_post_id`) ou l'idée a été marquée planifiée/publiée.
- *
- * Aucune colonne nouvelle : on relit `status`, `calendar_post_id`,
- * `content_draft`, `content_data`, `format`. Une idée passe en « Créée »
- * automatiquement quand Créer pose le contenu au calendrier (use-calendar-save).
+ * Les clés historiques restent stables : todo = idée, in_progress = contenu
+ * commencé, created = rattaché au calendrier (pas « généré »).
+ * Les vues de la bibliothèque regroupent ces états sans migrer les données.
  */
 export type IdeaState = "todo" | "in_progress" | "created";
 
@@ -47,10 +40,17 @@ export function getIdeaState(idea: IdeaStateInput): IdeaState {
 }
 
 export const IDEA_STATE_LABELS: Record<IdeaState, { singular: string; plural: string; tab: string }> = {
-  todo: { singular: "à faire", plural: "à faire", tab: "À faire" },
-  in_progress: { singular: "en cours", plural: "en cours", tab: "En cours" },
-  created: { singular: "créée", plural: "créées", tab: "Créées" },
+  todo: { singular: "idée à développer", plural: "idées à développer", tab: "Idée à développer" },
+  in_progress: { singular: "contenu commencé", plural: "contenus commencés", tab: "Contenu commencé" },
+  created: { singular: "au calendrier", plural: "au calendrier", tab: "Au calendrier" },
 };
+
+/** Une source d'actualité ou un simple statut ne prouve pas un contenu généré. */
+export function ideaContentLabel(idea: IdeaStateInput): string {
+  if (idea.format === "actu") return "Actu à commenter";
+  if (hasContent(idea)) return "Contenu enregistré";
+  return getIdeaState(idea) === "in_progress" ? "Brouillon à compléter" : "Idée à développer";
+}
 
 /** Une date de calendrier ne prouve pas qu'une publication automatique est activée. */
 export function calendarPlacementLabel(formattedDate: string): string {

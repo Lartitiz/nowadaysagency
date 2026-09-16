@@ -41,7 +41,7 @@ const CANAL_ICONS: Record<string, string> = {
 function getStatusStyle(status: string): { bg: string; borderColor: string; textClass: string } {
   switch (status) {
     case "published":
-      return { bg: "hsl(var(--muted))", borderColor: "hsl(var(--muted-foreground))", textClass: "text-muted-foreground opacity-70" };
+      return { bg: "hsl(var(--muted))", borderColor: "hsl(var(--muted-foreground))", textClass: "text-muted-foreground" };
     case "ready":
     case "draft_ready":
       return { bg: "hsl(var(--success-bg))", borderColor: "hsl(var(--success))", textClass: "text-foreground" };
@@ -327,34 +327,19 @@ function CalendarContentCardImpl({
           <button
             onClick={onClick}
             className={cn(
-              "w-full text-left rounded-md border px-1.5 py-1 transition-shadow hover:shadow-sm cursor-pointer mb-0.5 relative",
+              "w-full text-left rounded-md border px-1.5 py-2 transition-shadow hover:shadow-sm cursor-pointer mb-0.5 relative",
               statusStyle.textClass,
             )}
             style={cardStyle}
           >
-            <div className="flex items-start gap-1">
-              <span className="text-xs shrink-0">{canalIcon}</span>
-              {badge && (
-                <span className={cn("text-xs shrink-0", badge.className)} title={badge.label}>
-                  {badge.icon}
-                </span>
-              )}
-              <p className={cn(
-                "font-body font-bold text-sm leading-snug flex-1 min-w-0 text-foreground",
-                post.status === "published" && "line-through",
-              )}
-
-              style={{
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
-                whiteSpace: 'normal',
-              }}>
-                {title}
-              </p>
+            <div className="flex items-center gap-1 mb-1 text-2xs text-muted-foreground">
+              <span aria-hidden="true">{canalIcon}</span>
+              <span className="truncate">{formatLabel || post.canal}</span>
+              {badge && <span className={cn("ml-auto shrink-0", badge.className)} title={badge.label}><span aria-hidden="true">{badge.icon}</span><span className="sr-only">{badge.label}</span></span>}
               {seriesBadgeCompact}
             </div>
+            <p className="font-body font-semibold text-xs leading-snug line-clamp-3 break-words text-foreground">{title}</p>
+            {post.status === "published" && <span className="text-2xs text-muted-foreground">Publié</span>}
             {(commentCount || 0) > 0 && (
               <span className="absolute bottom-0.5 right-0.5 text-2xs bg-primary/10 text-primary font-semibold px-1 py-0 rounded-full leading-tight">
 

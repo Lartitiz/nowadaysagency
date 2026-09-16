@@ -10,7 +10,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, X, Sparkles, Plus, Instagram, Linkedin, Mail, Pin, ArrowRight, type LucideIcon } from "lucide-react";
+import { Lightbulb, PenLine, CalendarDays, Trash2, Copy, X, Sparkles, Plus, Instagram, Linkedin, Mail, Pin, type LucideIcon } from "lucide-react";
 import { ContentPreview } from "@/components/ContentPreview";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
@@ -21,7 +21,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { TextareaWithVoice as Textarea } from "@/components/ui/textarea-with-voice";
 import { SkeletonCard } from "@/components/ui/skeleton-card";
 import { friendlyError } from "@/lib/error-messages";
-import { calendarPlacementLabel, getIdeaState, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
+import { calendarPlacementLabel, getIdeaState, ideaContentLabel, IDEA_STATE_LABELS, formatLabel, sourceLabel, type IdeaState } from "@/lib/idea-state";
 import { AddIdeaDialog } from "@/components/calendar/CalendarIdeasSidebar";
 
 
@@ -57,7 +57,8 @@ const CANAL_OPTIONS: { id: string; label: string; icon: LucideIcon }[] = [
   { id: "pinterest", label: "Pinterest", icon: Pin },
 ];
 
-const STATE_TABS: IdeaState[] = ["todo", "in_progress", "created"];
+type IdeaView = "active" | "calendar" | "all";
+const VIEW_TABS: { id: IdeaView; label: string }[] = [{ id: "active", label: "À reprendre" }, { id: "calendar", label: "Au calendrier" }, { id: "all", label: "Tout" }];
 
 /** Un brief = les réponses déjà saisies dans Créer, reprises telles quelles. */
 interface SavedBrief {
@@ -151,11 +152,12 @@ function IdeasInWorkspace() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
 
-  // Filtres : l'état (onglet) + le canal (?canal=instagram depuis le hub Instagram)
+  // Les anciens liens gardent leur sélection, sans changer les statuts en base.
   const paramState = searchParams.get("etat");
-  const [stateTab, setStateTab] = useState<IdeaState>(
-    paramState === "in_progress" || paramState === "created" ? paramState : "todo",
-  );
+  const viewParam = searchParams.get("vue");
+  const view: IdeaView = viewParam === "all" ? "all" : viewParam === "calendar" || paramState === "created" ? "calendar" : "active";
+  const kind = paramState === "todo" || paramState === "in_progress" ? paramState : "all";
+  const [query, setQuery] = useState("");
   const [canalFilter, setCanalFilter] = useState(searchParams.get("canal") || "all");
   const [addOpen, setAddOpen] = useState(false);
 
@@ -163,6 +165,7 @@ function IdeasInWorkspace() {
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const visit = useRef(0);
   const mounted = useRef(true);
+  const fetchRequest = useRef(0);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   const closeDetail = () => { visit.current += 1; setSelectedIdea(null); };
   const [detailNotes, setDetailNotes] = useState("");
@@ -173,39 +176,28 @@ function IdeasInWorkspace() {
   }, [user?.id, column, value]);
 
   const fetchIdeas = async () => {
-    if (!user) return;
+    if (!user || !mounted.current) return;
+    const started = ++fetchRequest.current;
     setLoading(true);
     setLoadError(false);
-    try {
-      let query = supabase.from("saved_ideas" as any).select("*").eq(column, value);
-      if (column === "user_id") query = query.is("workspace_id", null);
-      const { data, error } = await query.order("created_at", { ascending: false });
-      if (error) throw error;
-      if (data) setIdeas(data as unknown as SavedIdea[]);
-    } catch (e) {
-      // Échec réseau ≠ liste vide : on le dit, sinon l'écran « rien à faire » ment.
-      console.error("[IdeasPage] saved_ideas fetch failed:", e);
-      setLoadError(true);
+    let ideasQuery = (supabase.from("saved_ideas") as any).select("*").eq(column, value);
+    let briefsQuery = (supabase.from("content_briefs") as any)
+      .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
+      .eq(column, value).is("calendar_post_id", null);
+    if (column === "user_id") {
+      ideasQuery = ideasQuery.is("workspace_id", null);
+      briefsQuery = briefsQuery.is("workspace_id", null);
     }
-    await fetchBriefs();
+    const results = await Promise.allSettled([
+      ideasQuery.order("created_at", { ascending: false }),
+      briefsQuery.order("created_at", { ascending: false }),
+    ]);
+    if (!mounted.current || started !== fetchRequest.current) return;
+    const [ideaResult, briefResult] = results;
+    if (ideaResult.status === "fulfilled" && !ideaResult.value.error) setIdeas((ideaResult.value.data || []) as unknown as SavedIdea[]);
+    if (briefResult.status === "fulfilled" && !briefResult.value.error) setBriefs((briefResult.value.data || []) as unknown as SavedBrief[]);
+    setLoadError(results.some(result => result.status === "rejected" || !!result.value.error));
     setLoading(false);
-  };
-
-  /** Les briefs déjà rattachés à un post du calendrier sont exclus : ils vivent
-      désormais dans la fiche du calendrier, pas ici (sinon doublon). */
-  const fetchBriefs = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("content_briefs" as any)
-        .select("id, subject, format, editorial_angle, objective, questions, answers, calendar_post_id, created_at")
-        .eq(column, value)
-        .is("calendar_post_id", null)
-        .order("created_at", { ascending: false });
-      if (error) throw error;
-      setBriefs((data || []) as unknown as SavedBrief[]);
-    } catch (e) {
-      console.error("[IdeasPage] content_briefs fetch failed:", e);
-    }
   };
 
   const counts = useMemo(() => {
@@ -216,18 +208,22 @@ function IdeasInWorkspace() {
   }, [ideas, briefs]);
 
   const filtered = useMemo(() => {
-    let result = ideas.filter((i) => getIdeaState(i) === stateTab);
+    let result = ideas.filter(i => view === "all" || (view === "calendar" ? getIdeaState(i) === "created" : getIdeaState(i) !== "created"));
+    if (kind !== "all") result = result.filter(i => getIdeaState(i) === kind);
+    const q = query.trim().toLocaleLowerCase("fr");
+    if (q) result = result.filter(i => [i.titre, i.notes, i.angle, getIdeaPreview(i).text].filter(Boolean).join(" ").toLocaleLowerCase("fr").includes(q));
     if (canalFilter !== "all") result = result.filter((i) => (i.canal || "instagram") === canalFilter);
     // Les plus fraîches d'abord (dernière modification, sinon création).
     result.sort((a, b) => new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime());
     return result;
-  }, [ideas, stateTab, canalFilter]);
+  }, [ideas, view, kind, canalFilter, query]);
 
   /** Les briefs n'ont pas de canal : ils n'apparaissent que sans filtre canal. */
   const filteredBriefs = useMemo(() => {
-    if (stateTab !== "in_progress" || canalFilter !== "all") return [];
-    return briefs;
-  }, [briefs, stateTab, canalFilter]);
+    if (view === "calendar" || kind === "todo" || canalFilter !== "all") return [];
+    const q = query.trim().toLocaleLowerCase("fr");
+    return briefs.filter(brief => !q || (brief.subject || "").toLocaleLowerCase("fr").includes(q));
+  }, [briefs, view, kind, canalFilter, query]);
 
   /** Reprend un brief là où il s'était arrêté : questions et réponses déjà remplies. */
   const handleResumeBrief = (brief: SavedBrief) => {
@@ -258,10 +254,15 @@ function IdeasInWorkspace() {
     toast.success("Brief supprimé");
   };
 
-  const changeTab = (tab: IdeaState) => {
-    setStateTab(tab);
+  const changeTab = (nextView: IdeaView) => {
     const next = new URLSearchParams(searchParams);
-    if (tab === "todo") next.delete("etat"); else next.set("etat", tab);
+    next.delete("etat");
+    next.set("vue", nextView);
+    setSearchParams(next, { replace: true });
+  };
+  const changeKind = (nextKind: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (nextKind === "all") next.delete("etat"); else next.set("etat", nextKind);
     setSearchParams(next, { replace: true });
   };
 
@@ -353,20 +354,18 @@ function IdeasInWorkspace() {
     );
   };
 
-  const totalCount = ideas.length;
-  const summary = STATE_TABS
-    .map((s) => `${counts[s]} ${counts[s] === 1 ? IDEA_STATE_LABELS[s].singular : IDEA_STATE_LABELS[s].plural}`)
-    .join(" · ");
+  const totalCount = ideas.length + briefs.length;
+  const viewCounts = { active: counts.todo + counts.in_progress, calendar: counts.created, all: totalCount };
 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main id="main-content" className="mx-auto max-w-[900px] px-6 py-8 max-md:px-4">
+      <main id="main-content" className="mx-auto max-w-[1000px] px-6 py-8 max-md:px-4 [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]">
         {/* En-tête */}
         <div className="flex flex-col gap-3 mb-1 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <h1 className="font-display text-2xl sm:text-3xl font-bold text-foreground">Mes idées</h1>
-            <p className="text-base text-muted-foreground mt-1">Tes points de départ. Une idée devient un contenu, puis elle passe dans « Créées ».</p>
+            <p className="text-base text-muted-foreground mt-1">Tes sujets et tes créations commencées, au même endroit.</p>
           </div>
           <Button
             onClick={() => setAddOpen(true)}
@@ -375,57 +374,48 @@ function IdeasInWorkspace() {
             <Plus className="h-4 w-4" strokeWidth={2} /> Noter une idée
           </Button>
         </div>
-        <p className="font-mono-ui text-xs text-muted-foreground mb-4" data-testid="ideas-summary">
-          {loading ? "…" : totalCount === 0 ? "Aucune idée pour l'instant" : summary}
-        </p>
-
-        {/* Onglets d'état + canal */}
-        <div className="sticky top-14 z-30 bg-background py-3 -mx-6 px-6 max-md:-mx-4 max-md:px-4 border-b border-border mb-4">
-          <div className="flex gap-1.5 flex-wrap items-center">
-            {STATE_TABS.map((s) => (
-              <FilterChip key={s} active={stateTab === s} onClick={() => changeTab(s)}>
-                {IDEA_STATE_LABELS[s].tab}
-                <span className={`ml-1.5 tabular-nums ${stateTab === s ? "text-primary-foreground/80" : "text-muted-foreground/70"}`}>{counts[s]}</span>
-              </FilterChip>
-            ))}
-            <div className="ml-auto flex items-center gap-1">
-              <select
-                value={canalFilter}
-                onChange={(e) => setCanalFilter(e.target.value)}
-                aria-label="Filtrer par canal"
-                className="text-2xs font-mono-ui bg-card border border-border rounded-lg px-2 py-1 text-muted-foreground"
-              >
-                <option value="all">Tous les canaux</option>
-                {CANAL_OPTIONS.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
-            </div>
+        <div className="py-5 space-y-4 border-b border-border mb-5">
+          <div className="flex gap-2 flex-wrap">
+            {VIEW_TABS.map(tab => <FilterChip key={tab.id} active={view === tab.id} onClick={() => changeTab(tab.id)}>
+              {tab.label}<span className="ml-2 tabular-nums">{viewCounts[tab.id]}</span>
+            </FilterChip>)}
           </div>
+          <div className="flex flex-wrap gap-3 items-center">
+            <input type="search" aria-label="Rechercher dans mes idées" value={query} onChange={e => setQuery(e.target.value)} placeholder="Retrouver un sujet…" className="flex-1 min-w-[180px] basis-full sm:basis-auto rounded-xl border border-border bg-card px-4 py-2 text-sm" />
+            <select value={canalFilter} onChange={e => setCanalFilter(e.target.value)} aria-label="Filtrer par canal" className="text-sm bg-card border border-border rounded-xl px-3 py-2 max-w-full">
+              <option value="all">Tous les canaux</option>
+              {CANAL_OPTIONS.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+            {view !== "calendar" && <select value={kind} onChange={e => changeKind(e.target.value)} aria-label="Filtrer par avancement" className="text-sm bg-card border border-border rounded-xl px-3 py-2 max-w-full">
+              <option value="all">Tous les avancements</option><option value="todo">Idées à développer</option><option value="in_progress">Contenus et briefs commencés</option>
+            </select>}
+          </div>
+          <p className="text-xs text-muted-foreground" data-testid="ideas-summary">{loading ? "Chargement…" : `${filtered.length + filteredBriefs.length} élément(s) dans cette sélection`}</p>
+          {canalFilter !== "all" && briefs.length > 0 && view !== "calendar" && <p className="text-xs text-muted-foreground">Les briefs sans canal choisi sont visibles dans <button onClick={() => setCanalFilter("all")} className="underline">Tous les canaux</button>.</p>}
         </div>
+        {!loading && loadError && <div role="alert" className="rounded-xl border border-border bg-muted p-4 mb-4 text-sm"><p>Une partie de tes idées ou de tes briefs n’a pas pu être chargée. La liste peut être incomplète.</p><button onClick={fetchIdeas} className="underline mt-2">Réessayer</button></div>}
 
         {/* Liste */}
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} variant="small" />)}
           </div>
-        ) : loadError && ideas.length === 0 ? (
-          <EmptyState
-            title="Impossible de charger tes idées"
-            body="Une erreur réseau est survenue. Tes idées n'ont pas été perdues : réessaie dans un instant."
-            action={<Button className="rounded-pill" onClick={() => fetchIdeas()}>Réessayer</Button>}
-          />
         ) : filtered.length === 0 && filteredBriefs.length === 0 ? (
-          <EmptyTab state={stateTab} filteredByCanal={canalFilter !== "all"} onAdd={() => setAddOpen(true)} onResetCanal={() => setCanalFilter("all")} />
+          !loadError && <EmptyState
+            title={query || canalFilter !== "all" || kind !== "all" ? "Aucun résultat dans cette sélection" : view === "calendar" ? "Aucune idée au calendrier pour le moment" : "Une idée peut commencer par quelques mots"}
+            body={totalCount ? "Tes autres idées restent disponibles." : "Note un sujet, une question entendue ou ce que tu aimerais raconter."}
+            action={totalCount ? <Button variant="outline" onClick={() => { setQuery(""); setCanalFilter("all"); changeTab("all"); }}>Voir toutes mes idées</Button> : <Button onClick={() => setAddOpen(true)}>Noter une idée</Button>}
+          />
         ) : (
           <ul className="space-y-2.5" data-testid="ideas-list">
             {filteredBriefs.map((brief) => (
               <li
                 key={`brief-${brief.id}`}
-                className="relative rounded-xl border border-[#F0E4EC] bg-card px-4 py-3.5 transition-all cursor-pointer animate-fade-in hover:border-rose-medium hover:shadow-sm"
-                onClick={() => handleResumeBrief(brief)}
+                className="relative rounded-xl border border-[#F0E4EC] bg-card px-4 py-3.5 transition-all animate-fade-in hover:border-rose-medium hover:shadow-sm"
               >
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                   <div className="min-w-0 flex-1 pr-6 sm:pr-0">
-                    <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">{cleanTitle(brief.subject)}</h3>
+                    <h3 className="font-body text-[15px] font-bold leading-snug text-foreground"><button onClick={() => handleResumeBrief(brief)} className="text-left hover:underline">{cleanTitle(brief.subject)}</button></h3>
                     <p className="text-xs text-muted-foreground mt-1">
                       <span className="inline-flex items-center rounded-pill bg-rose-pale px-2 py-0.5 text-2xs font-semibold text-primary-text mr-2">
                         Brief en cours
@@ -460,23 +450,20 @@ function IdeasInWorkspace() {
             ))}
             {filtered.map((idea, idx) => {
               const state = getIdeaState(idea);
-              const preview = state === "in_progress" ? getIdeaPreview(idea) : {};
+              const preview = idea.format !== "actu" ? getIdeaPreview(idea) : {};
               return (
                 <li
                   key={idea.id}
-                  className={`relative rounded-xl border bg-card px-4 py-3.5 transition-all cursor-pointer animate-fade-in hover:border-rose-medium hover:shadow-sm ${
-                    state === "created" ? "border-dashed border-[#E8D3DE] bg-rose-pale/30" : "border-[#F0E4EC]"
-                  }`}
+                  className="relative rounded-xl border border-border bg-card px-4 py-3.5 transition-all animate-fade-in hover:border-rose-medium hover:shadow-sm"
                   style={{ animationDelay: `${Math.min(idx, 10) * 0.04}s` }}
-                  onClick={() => openDetail(idea)}
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                     <div className="min-w-0 flex-1 pr-6 sm:pr-0">
-                      <h3 className={`font-body text-[15px] font-bold leading-snug ${state === "created" ? "text-foreground/70" : "text-foreground"}`}>
-                        {cleanTitle(idea.titre)}
+                      <h3 className="font-body text-[15px] font-bold leading-snug text-foreground">
+                        <button onClick={() => openDetail(idea)} className="text-left hover:underline break-words">{cleanTitle(idea.titre)}</button>
                       </h3>
                       <p className="text-xs text-muted-foreground mt-1">
-                        {metaLine(idea)}
+                        <span className="text-primary-text">{ideaContentLabel(idea)}</span> · {metaLine(idea)}
                         {state === "created" && idea.planned_date && (
                           <> · <span className="text-[#2E7D32]">{calendarPlacementLabel(formatDate(idea.planned_date, "d MMM"))}</span></>
                         )}
@@ -485,7 +472,7 @@ function IdeasInWorkspace() {
                         )}
                       </p>
                       {preview.text && (
-                        <p className="text-sm text-foreground/70 line-clamp-1 mt-1">{preview.text}</p>
+                        <p className="text-sm text-foreground/70 line-clamp-2 mt-2">{preview.text}</p>
                       )}
                     </div>
                     <div className="shrink-0 flex items-center gap-1 sm:ml-auto" onClick={(e) => e.stopPropagation()}>
@@ -515,11 +502,11 @@ function IdeasInWorkspace() {
           </ul>
         )}
 
-        <AddIdeaDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => { fetchIdeas(); changeTab("todo"); }} />
+        <AddIdeaDialog open={addOpen} onOpenChange={setAddOpen} onAdded={() => { fetchIdeas(); changeTab("active"); }} />
 
         {/* Fiche détail */}
         <Dialog open={!!selectedIdea} onOpenChange={(open) => { if (!open) closeDetail(); }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogContent className="max-w-3xl max-h-[90vh] p-0 gap-0 flex flex-col overflow-hidden">
             {selectedIdea && (() => {
               const state = getIdeaState(selectedIdea);
               const hasContent = selectedIdea.content_data != null || selectedIdea.content_draft != null;
@@ -612,6 +599,7 @@ function IdeasInWorkspace() {
                           </button>
                         </div>
                         <Textarea
+                          aria-label="Mes notes"
                           value={detailNotes}
                           onChange={(e) => setDetailNotes(e.target.value)}
                           placeholder="Une précision, une envie, un souvenir à raconter…"
@@ -629,7 +617,7 @@ function IdeasInWorkspace() {
                       </Button>
                     ) : (
                       <Button onClick={() => handleCreate(selectedIdea)} className="rounded-pill gap-2 w-full">
-                        <Sparkles className="h-4 w-4" /> {state === "in_progress" ? "Retravailler dans Créer" : "Créer ce contenu"}
+                        <Sparkles className="h-4 w-4" /> {state === "in_progress" ? "Ouvrir l’éditeur complet" : "Créer ce contenu"}
                       </Button>
                     )}
                     <div className="flex gap-2 min-w-0">
@@ -660,48 +648,6 @@ function IdeasInWorkspace() {
         </Dialog>
       </main>
     </div>
-  );
-}
-
-/* ─── Vide, par onglet ─── */
-function EmptyTab({ state, filteredByCanal, onAdd, onResetCanal }: { state: IdeaState; filteredByCanal: boolean; onAdd: () => void; onResetCanal: () => void }) {
-  if (filteredByCanal) {
-    return (
-      <EmptyState
-        title="Rien pour ce canal"
-        body="Aucune idée dans cet état pour le canal choisi."
-        action={<Button variant="outline" className="rounded-pill" onClick={onResetCanal}>Voir tous les canaux</Button>}
-      />
-    );
-  }
-  if (state === "todo") {
-    return (
-      <EmptyState
-        title="Rien à faire pour l'instant"
-        body="Note une idée qui te passe par la tête, ou lance-toi directement dans un contenu."
-        action={
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Button className="rounded-pill gap-1.5" onClick={onAdd}><Plus className="h-4 w-4" /> Noter une idée</Button>
-            <Link to="/creer?new=1"><Button variant="outline" className="rounded-pill gap-1.5 w-full"><Sparkles className="h-4 w-4" /> Créer un contenu</Button></Link>
-          </div>
-        }
-      />
-    );
-  }
-  if (state === "in_progress") {
-    return (
-      <EmptyState
-        title="Rien en cours"
-        body="Ici tu retrouves les contenus que tu as gardés pour plus tard depuis Créer, avec le bouton « Enregistrer mon contenu »."
-      />
-    );
-  }
-  return (
-    <EmptyState
-      title="Aucune idée créée pour l'instant"
-      body="Quand tu crées un contenu à partir d'une idée et que tu le poses au calendrier, l'idée vient se ranger ici."
-      action={<Link to="/calendrier"><Button variant="outline" className="rounded-pill gap-1.5">Voir mon calendrier <ArrowRight className="h-4 w-4" /></Button></Link>}
-    />
   );
 }
 

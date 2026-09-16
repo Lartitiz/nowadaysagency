@@ -1,6 +1,6 @@
 import { planSavedIdea, moveCalendarPost } from '@/lib/idea-calendar-persistence';
 import { calendarSaveError } from '@/lib/calendar-persistence';
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { LocalErrorBoundary } from "@/components/LocalErrorBoundary";
 import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -143,23 +143,29 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
   };
 
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+    <div className="mb-6 flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between xl:gap-4">
       <div>
         <h1 className="font-display text-2xl sm:text-3xl md:text-4xl font-bold text-foreground">
-          Mon calendrier éditorial
+          Mon calendrier
         </h1>
         {/* Baseline masquée au doigt : 2 lignes de promesse sur un premier écran
             où l'on vient voir SON calendrier (bilan hebdo 24/08). */}
-        <p className="mt-1 hidden text-base text-muted-foreground sm:block">Planifie tes contenus, visualise ta semaine, ne te demande plus jamais « je poste quoi aujourd'hui ».</p>
+        <p className="mt-1 hidden text-base text-muted-foreground sm:block">Tes contenus, tes dates, tes idées à placer.</p>
       </div>
       <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
+        <Button size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>
+          <PenLine className="h-3.5 w-3.5" /> Ajouter un contenu
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="rounded-full gap-1.5" aria-label="Plus d'actions">
-              <MoreHorizontal className="h-4 w-4" /> Plus d’actions
+              <MoreHorizontal className="h-4 w-4" /> <span className="hidden sm:inline">Plus d’actions</span>
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={onCoachingOpen} className="sm:hidden cursor-pointer gap-2">
+              <Sparkles className="h-4 w-4" /> Préparer ma semaine
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setShareOpen(true)} className="cursor-pointer gap-2">
               <Link2 className="h-4 w-4" /> Partager
             </DropdownMenuItem>
@@ -175,11 +181,8 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" className="rounded-full gap-1.5" onClick={onQuickBatchOpen}>
-          <PenLine className="h-3.5 w-3.5" /> Ajouter un contenu
-        </Button>
-        <Button onClick={onCoachingOpen} className="shrink-0 gap-1.5 rounded-full" size="sm">
-          <Sparkles className="h-3.5 w-3.5" /> Planifier ma semaine
+        <Button variant="outline" onClick={onCoachingOpen} className="hidden sm:inline-flex shrink-0 gap-1.5 rounded-full" size="sm">
+          <Sparkles className="h-3.5 w-3.5" /> Préparer ma semaine
         </Button>
       </div>
       <CalendarShareDialog open={shareOpen} onOpenChange={setShareOpen} />
@@ -188,6 +191,12 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
 }
 
 export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
+  const { user } = useAuth();
+  const { column, value } = useWorkspaceFilter();
+  return <CalendarInWorkspace key={JSON.stringify([user?.id, column, value])} embedded={embedded} />;
+}
+
+function CalendarInWorkspace({ embedded }: { embedded: boolean }) {
   const { user } = useAuth();
   const confirm = useConfirm();
   const { column, value } = useWorkspaceFilter();
@@ -209,6 +218,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [viewMode, setViewMode] = useState<"month" | "week">("month");
   const [posts, setPosts] = useState<CalendarPost[]>([]);
   const [postsLoading, setPostsLoading] = useState(true);
+  const [postsError, setPostsError] = useState(false);
+  const postsRequest = useRef(0);
+  const mounted = useRef(true);
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false; postsRequest.current++; }; }, []);
   const [ideasRefreshKey, setIdeasRefreshKey] = useState(0);
   const [canalFilter, setCanalFilter] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -225,7 +238,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   const [coachingOpen, setCoachingOpen] = useState(false);
   const [seasonalOcc, setSeasonalOcc] = useState<MarronnierOccurrence | null>(null);
   const [seasonalOpen, setSeasonalOpen] = useState(false);
-  const [ideasCollapsed, setIdeasCollapsed] = useState(true);
+  const [ideasCollapsed, setIdeasCollapsed] = useState(false);
   const [quickBatchOpen, setQuickBatchOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importDate, setImportDate] = useState<string | null>(null);
@@ -321,7 +334,10 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   }, [viewMode, weekDays, year, month]);
 
   const fetchPosts = useCallback(async () => {
+    if (!mounted.current) return;
+    const started = ++postsRequest.current;
     setPostsLoading(true);
+    setPostsError(false);
     try {
     if (isDemoMode && demoData) {
       // Build demo posts from demoData.calendar_posts
@@ -348,15 +364,18 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
     // Vue mois ou semaine : on récupère les posts de la période visible.
     const { startDate, endDate } = periodRange;
-    const { data } = await (supabase.from("calendar_posts") as any)
-      .select("*").eq(column, value)
-      .gte("date", startDate).lte("date", endDate)
-      .order("date");
-    if (data) setPosts(data as CalendarPost[]);
+    let query = (supabase.from("calendar_posts") as any).select("*").eq(column, value);
+    if (column === "user_id") query = query.is("workspace_id", null);
+    const { data, error } = await query.gte("date", startDate).lte("date", endDate).order("date");
+    if (!mounted.current || started !== postsRequest.current) return;
+    if (error) throw error;
+    setPosts((data || []) as CalendarPost[]);
+    } catch {
+      if (mounted.current && started === postsRequest.current) setPostsError(true);
     } finally {
-      setPostsLoading(false);
+      if (mounted.current && started === postsRequest.current) setPostsLoading(false);
     }
-  }, [user, periodRange, isDemoMode, column, value]);
+  }, [user?.id, periodRange, isDemoMode, demoData, column, value]);
 
   useEffect(() => { fetchPosts(); }, [fetchPosts]);
 
@@ -367,7 +386,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   // est vide (1 ligne max, aucun coût quand le mois est rempli).
   const [nearestOutsidePost, setNearestOutsidePost] = useState<NearestOutsidePost | null>(null);
   useEffect(() => {
-    if (postsLoading) return;
+    if (postsLoading || postsError) return;
     if (posts.length > 0 || !user || isDemoMode) { setNearestOutsidePost(null); return; }
     let cancelled = false;
     (async () => {
@@ -381,7 +400,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       setNearestOutsidePost(past?.[0] ? { date: past[0].date, direction: "past" } : null);
     })();
     return () => { cancelled = true; };
-  }, [posts.length, postsLoading, user, isDemoMode, column, value, periodRange]);
+  }, [posts.length, postsLoading, postsError, user, isDemoMode, column, value, periodRange]);
 
   // Un filtre actif change le sens du vide : « rien de prévu » ≠ « rien qui matche ».
   const filtersActive = canalFilter !== "all" || categoryFilter !== "all" || seriesFilter !== "all";
@@ -865,18 +884,20 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
 
   const calendarContent = (
     <div className="flex flex-col">
-      {/* Marronnier proche : proposer la déclinaison saisonnière d'une photo produit.
-          Au doigt il passe SOUS le calendrier (order-last) : c'est une PROPOSITION,
-          et à ~370 px il repoussait à lui seul la première case hors du premier
-          écran (bilan hebdo 24/08). Il reste juste sous la grille, donc visible
-          au premier défilement. */}
-      <div className="order-last sm:order-none">
-        <MarronnierBanner
-          onDecliner={(occ) => {
-            setSeasonalOcc(occ);
-            setSeasonalOpen(true);
-          }}
-        />
+      {/* Le mois et sa navigation restent lisibles à toutes les largeurs. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full shrink-0" aria-label={viewMode === "month" ? "Mois précédent" : "Semaine précédente"}><ChevronLeft className="h-4 w-4" /></Button>
+          <h2 className="font-display text-lg sm:text-xl font-bold capitalize" aria-live="polite">{viewMode === "month" ? monthName : weekLabel}</h2>
+          <Button variant="ghost" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full shrink-0" aria-label={viewMode === "month" ? "Mois suivant" : "Semaine suivante"}><ChevronRight className="h-4 w-4" /></Button>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setCurrentDate(new Date())} className="rounded-full text-xs">Aujourd'hui</Button>
+          <div className="flex rounded-full border border-border overflow-hidden">
+            {(["month", "week"] as const).map(view => <button key={view} onClick={() => setViewMode(view)} aria-pressed={viewMode === view}
+              className={`px-3 py-2 text-xs font-medium transition-colors ${viewMode === view ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>{view === "month" ? "Mois" : "Semaine"}</button>)}
+          </div>
+        </div>
       </div>
 
       {/* Filtres regroupés (canal + objectif + série) */}
@@ -890,43 +911,6 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
         seriesCounts={seriesCounts}
       />
 
-      {/* View toggle + Navigation */}
-      <div className="flex items-center justify-between mb-4">
-        <Button variant="outline" size="icon" onClick={viewMode === "month" ? prevMonth : prevWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois précédent" : "Semaine précédente"}>
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="flex items-center gap-3">
-          <div className="flex rounded-full border border-border overflow-hidden">
-            <button onClick={() => setViewMode("week")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "week" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              Semaine
-            </button>
-            <button onClick={() => setViewMode("month")}
-              className={`px-3 py-1.5 text-xs font-medium transition-colors ${viewMode === "month" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
-              Mois
-            </button>
-          </div>
-          <div className="flex items-center gap-2">
-            {(() => {
-              const now = new Date();
-              const isCurrentMonth = now.getMonth() === month && now.getFullYear() === year;
-              const isCurrentWeek = viewMode === "week" && weekStart.getTime() === getWeekStart(now).getTime();
-              const isCurrent = viewMode === "month" ? isCurrentMonth : isCurrentWeek;
-              return !isCurrent ? (
-                <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())} className="rounded-full text-xs px-3">
-                  Aujourd'hui
-                </Button>
-              ) : null;
-            })()}
-            <span className="font-display text-lg font-bold capitalize">
-              {viewMode === "month" ? monthName : weekLabel}
-            </span>
-          </div>
-        </div>
-        <Button variant="outline" size="icon" onClick={viewMode === "month" ? nextMonth : nextWeek} className="rounded-full" aria-label={viewMode === "month" ? "Mois suivant" : "Semaine suivante"}>
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
 
 
       {postsLoading ? (
@@ -937,6 +921,12 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
               <div key={i} className="h-24 rounded-[12px] bg-muted animate-pulse" />
             ))}
           </div>
+        </div>
+      ) : postsError ? (
+        <div role="alert" className="rounded-2xl border border-border bg-card p-6 space-y-3">
+          <p className="font-semibold">Impossible de charger ce calendrier.</p>
+          <p className="text-sm text-muted-foreground">Tes contenus n’ont pas été effacés. Réessaie pour voir cette période.</p>
+          <Button variant="outline" onClick={fetchPosts}>Réessayer</Button>
         </div>
       ) : viewMode === "month" ? (
         <CalendarGrid
@@ -971,51 +961,38 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
           
         </>
       )}
+      {/* Marronnier proche : proposer la déclinaison saisonnière d'une photo produit.
+          Au doigt il passe SOUS le calendrier (order-last) : c'est une PROPOSITION,
+          et à ~370 px il repoussait à lui seul la première case hors du premier
+          écran (bilan hebdo 24/08). Il reste juste sous la grille, donc visible
+          au premier défilement. */}
+      <div className="order-last mt-6">
+        <MarronnierBanner
+          onDecliner={(occ) => {
+            setSeasonalOcc(occ);
+            setSeasonalOpen(true);
+          }}
+        />
+      </div>
+
+
     </div>
   );
 
-  // 🔑 AU DOIGT, LE CALENDRIER PASSE DEVANT (bilan hebdo 24/08). Le regard du
-  // 17/08 avait déjà fusionné les deux encarts de connexion en un seul, mais la
-  // page « Calendrier » n'affichait toujours AUCUN calendrier sur le premier
-  // écran : encart de connexion (~300 px) + titre et sous-titre + 3 boutons +
-  // encart marronnier (~370 px) faisaient ~1700 px de préambule avant la
-  // première case. Même parade que #911 sur le tableau de bord : sur mobile
-  // uniquement, `order-*` fait remonter la grille au-dessus des encarts
-  // secondaires (qui restent atteignables juste en dessous) ; `sm:order-none`
-  // rend au desktop l'ordre du DOM, inchangé. Le conteneur doit être flex pour
-  // que `order` s'applique — d'où la colonne qui remplace le fragment.
   const body = (
-    <div className="flex flex-col">
-      {/* Découverte du statut de connexion AVANT le blocage à la programmation :
-          masqué en mode démo et quand le compte est déjà connecté (HubConnectBanner).
-          UN SEUL encart pour les deux réseaux : empilés, ils remplissaient à eux
-          seuls le premier écran au doigt et aucune case de calendrier n'était
-          visible à l'arrivée (regard du 17/08). */}
-      {!isDemoMode && (
-        <div className="order-4 sm:order-none">
-          <HubConnectBanner
-            platform={["instagram", "linkedin"]}
-            benefit="publier tes posts en 1 clic depuis ton calendrier"
-          />
-        </div>
-      )}
-      <div className="order-5 sm:order-none">
-        <AuditRecommendationBanner />
-      </div>
-      <div className="order-1 sm:order-none">
+    <div className="flex flex-col [--primary:330_55%_20%] [--ring:330_55%_20%] dark:[--primary:338_96%_61%] dark:[--ring:338_96%_61%]">
+      <div className="order-1">
         <ExportSection filteredPosts={filteredPosts} canalFilter={canalFilter} onCoachingOpen={() => setCoachingOpen(true)} onQuickBatchOpen={() => setQuickBatchOpen(true)} onImportOpen={() => openImportDialog()} seriesNameById={seriesNameById} />
       </div>
 
-      {/* Mobile tabs — masqués quand le calendrier est embarqué dans OrganizationHub :
-          ses onglets « Calendrier / Mes idées / Ma stratégie » fournissent déjà cette nav
-          (et la page Idées gère la planification), donc ce 2e toggle faisait doublon. */}
-      {!embedded && isMobile && (
-        <div className="order-2 sm:order-none flex rounded-full border border-border overflow-hidden mb-4">
-          <button onClick={() => setMobileTab("calendar")}
+      {/* Sur mobile, accès aux idées à placer même dans le hub Calendrier. */}
+      {isMobile && (
+        <div className="order-2 flex rounded-full border border-border overflow-hidden mb-4">
+          <button aria-pressed={mobileTab === "calendar"} onClick={() => setMobileTab("calendar")}
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${mobileTab === "calendar" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             <CalendarDays className="h-4 w-4" strokeWidth={1.75} /> Calendrier
           </button>
-          <button onClick={() => setMobileTab("ideas")}
+          <button aria-pressed={mobileTab === "ideas"} onClick={() => setMobileTab("ideas")}
             className={`flex-1 px-3 py-2 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${mobileTab === "ideas" ? "bg-primary text-primary-foreground" : "text-muted-foreground"}`}>
             <Lightbulb className="h-4 w-4" strokeWidth={1.75} /> Mes idées
           </button>
@@ -1023,13 +1000,13 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
       )}
 
       {isMobile ? (
-        <div className="order-3 sm:order-none">
+        <div className="order-3">
           {mobileTab === "calendar" ? calendarContent : (
             <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} isMobile refreshKey={ideasRefreshKey} />
           )}
         </div>
       ) : (
-        <Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
+        <div className="order-3"><Suspense fallback={<div className="flex gap-6"><div className="flex-1 min-w-0">{calendarContent}</div></div>}>
           <CalendarDndWrapper onDragStart={handleDragStart} onDragEnd={handleDragEnd} overlayContent={activeDragItem ? (
               <div className="bg-card border border-primary/40 rounded-lg px-3 py-2 shadow-lg text-xs font-medium max-w-[180px]">
                 <span className="truncate block">
@@ -1040,42 +1017,52 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
                 </span>
               </div>
             ) : null}>
-            <div className="flex gap-6">
+            <div className="flex flex-col lg:flex-row gap-6">
               <div className="flex-1 min-w-0">
                 {calendarContent}
               </div>
-              <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "w-10" : "w-[280px]"}`}>
-                <div className="sticky top-24">
+              <div className={`shrink-0 transition-all duration-300 ${ideasCollapsed ? "lg:w-10" : "lg:w-[280px]"} w-full`}>
+                <div className="lg:sticky lg:top-24">
                   {ideasCollapsed ? (
                     <button
                       onClick={() => setIdeasCollapsed(false)}
-                      className="w-10 py-3 rounded-xl border border-border bg-card flex flex-col items-center gap-1.5 hover:bg-muted hover:border-primary/40 transition-colors"
+                      className="w-full lg:w-10 py-3 rounded-xl border border-border bg-card flex flex-col items-center gap-1.5 hover:bg-muted hover:border-primary/40 transition-colors"
                       title="Glisser une idée sur le calendrier"
                       aria-label="Ouvrir le panneau pour glisser une idée sur le calendrier"
                     >
                       <Lightbulb className="h-4 w-4 text-primary" strokeWidth={1.75} />
-                      <span className="text-2xs font-semibold text-muted-foreground [writing-mode:vertical-rl] rotate-180">
-                        Glisser une idée
+                      <span className="text-2xs font-semibold text-muted-foreground lg:[writing-mode:vertical-rl] lg:rotate-180">
+                        Mes idées
                       </span>
                     </button>
                   ) : (
                     <div className="relative border border-border rounded-2xl bg-card p-4 max-h-[calc(100vh-120px)] overflow-hidden flex flex-col">
-                      <button
-                        onClick={() => setIdeasCollapsed(true)}
-                        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                        title="Replier le panneau idées"
-                      >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                      </button>
-                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} refreshKey={ideasRefreshKey} />
+                      <CalendarIdeasSidebar onIdeaPlanned={fetchPosts} onIdeaClick={handleIdeaClick} refreshKey={ideasRefreshKey} onCollapse={() => setIdeasCollapsed(true)} />
                     </div>
                   )}
                 </div>
               </div>
             </div>
           </CalendarDndWrapper>
-        </Suspense>
+        </Suspense></div>
       )}
+
+      {/* Découverte du statut de connexion AVANT le blocage à la programmation :
+          masqué en mode démo et quand le compte est déjà connecté (HubConnectBanner).
+          UN SEUL encart pour les deux réseaux : empilés, ils remplissaient à eux
+          seuls le premier écran au doigt et aucune case de calendrier n'était
+          visible à l'arrivée (regard du 17/08). */}
+      {!isDemoMode && (
+        <div className="order-4 mt-6">
+          <HubConnectBanner
+            platform={["instagram", "linkedin"]}
+            benefit="publier tes posts en 1 clic depuis ton calendrier"
+          />
+        </div>
+      )}
+      <div className="order-5">
+        <AuditRecommendationBanner />
+      </div>
 
       <LocalErrorBoundary fallbackMessage="Erreur dans le dialogue de post.">
         <CalendarPostDialog
@@ -1147,7 +1134,7 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
   return (
     <div className="min-h-screen bg-background">
       <AppHeader />
-      <main id="main-content" className="mx-auto max-w-[1400px] px-6 py-8 max-md:px-4">
+      <main id="main-content" className="mx-auto max-w-[1600px] px-6 py-8 max-md:px-4">
         {isInstagramRoute && (
           <SubPageHeader parentLabel="Instagram" parentTo="/instagram" currentLabel="Calendrier éditorial" useFromParam />
         )}
@@ -1156,4 +1143,3 @@ export default function CalendarPage({ embedded = false }: { embedded?: boolean 
     </div>
   );
 }
-
