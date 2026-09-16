@@ -1,7 +1,7 @@
 import { CONTENT_CLARITY_RULES, claritySourceBlock } from "./content-clarity.ts";
 import { callAnthropic, callAnthropicSimple, getModelForAction, type AnthropicModel, type UsageSink } from "./anthropic.ts";
 import { callCarouselWriter } from "./carousel-model.ts";
-import { applyEditorialReview, carouselEditorialFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_MODEL, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
+import { applyEditorialReview, carouselEditorialFields, carouselEditorialSequence, CAROUSEL_EDITORIAL_REVIEW_PROMPT, CAROUSEL_REVIEW_VERSION, CAROUSEL_REVIEW_MODEL, CAROUSEL_REVIEW_TOOL } from "./carousel-editorial-review.ts";
 
 export type CorrectionFormat = "linkedin" | "carousel" | "newsletter" | "instagram_caption" | "reel" | "stories";
 
@@ -836,7 +836,8 @@ export async function applyCorrectionPassCarousel(
           "\nALERTES À EXAMINER EN CONTEXTE :\n" + (extraInstructions || "Aucune alerte automatique ; effectuer la relecture de tous les champs.") +
           (options.currentBrief ? "\nBRIEF ACTUEL PRIORITAIRE (faits, ton et limites de la demande ; respecter ces contraintes) :\n" + JSON.stringify(options.currentBrief.slice(0, 16000)) +
             "\nUne information déclarée absente dans CE brief reste absente, même si la marque décrit ailleurs une boutique, un produit disponible ou une habitude. Ne transpose pas ces informations à cet objet.\n" : "") +
-          baseline + "\nCHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n" + JSON.stringify(fields.map(({ id, text }) => ({ field_id: id, text }))),
+          baseline + "\nSÉQUENCE DES SLIDES (repères de lecture uniquement, non modifiables) :\n" + JSON.stringify(carouselEditorialSequence(parsed)) +
+          "\nCHAMPS ÉDITABLES DANS L'ORDRE DU CARROUSEL :\n" + JSON.stringify(fields.map(({ id, text }) => ({ field_id: id, text }))),
           }],
           max_tokens: 8192, abortTimeoutMs,
           tool: CAROUSEL_REVIEW_TOOL,

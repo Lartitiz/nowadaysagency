@@ -1,5 +1,5 @@
 /** Carousel-specific writing policy. Layout contracts remain in the variant builders. */
-export const CAROUSEL_WRITING_VERSION = "subject-first-calibrated-v4.1";
+export const CAROUSEL_WRITING_VERSION = "connected-sequence-v4.2";
 
 export const CAROUSEL_FACTS = `CHIFFRES ET FIGURES : conserve le lien entre une quantité et ce qu'elle mesure. Un nombre présent dans le brief n'autorise pas un autre fait portant le même nombre. Si tu reformules une même donnée sous une autre unité, annonce cette relation sans faire croire à une seconde preuve. Une métaphore peut rester si elle éclaire le sujet ; n'en introduis pas pour donner du poids à la conclusion.`;
 
@@ -36,8 +36,12 @@ Un titre permet de saisir le sujet ou l'idée précise de sa slide. Il peut nomm
 
 export const CAROUSEL_CONTINUITY = `
 PROGRESSION ET VOIX
+Construis d'abord le propos entier, avant de rédiger les slides séparément : point de départ, ce que la personne veut faire comprendre et aboutissement adapté à l'objectif. Prépare ce fil en interne, sans ajouter de champ au JSON ni d'étape à l'interface. Une structure confirmée reste prioritaire ; travaille les liens dans l'ordre choisi.
+Pour chaque slide après la couverture, identifie ce qu'elle reprend de la précédente et ce qu'elle apporte : réponse à une question ouverte, explication, conséquence, exemple, nuance ou prochaine étape. Rédige le début en tenant compte de ce qui vient d'être lu. Les références et pronoms restent compréhensibles ; une photo sans texte peut porter une étape quand la matière fournie le permet.
 Lis les textes dans leur ordre réel, photos et texte mêlés : le sujet, les personnes et le passage d'une idée à l'autre doivent être clairs. Les étapes d'une méthode suivent leur ordre ; une analyse relie ses arguments ; une présentation regroupe ses caractéristiques utilement. Deux détails peuvent être permutables sans être mauvais. Préserve le fil choisi et les structures confirmées.
+Une liste, une checklist ou une comparaison peut avoir des éléments indépendants : garde un cadre commun et un ordre lisible, sans fabriquer de causalité entre eux. Le fil peut être explicatif, argumentatif, pratique ou chronologique ; aucune histoire inventée ni recette narrative universelle.
 Chaque slide apporte sa contribution, sans redire l'idée précédente avec plus de gravité. Un lien de sens suffit : ne fabrique pas une transition, un suspense ni une chute à chaque frontière de slide. Une idée aboutie peut s'arrêter. La dernière slide peut finir l'explication ; une action ou une question n'est ajoutée que si elle sert la demande, une seule au maximum.
+Relis enfin couverture, titres et corps comme un texte continu. Repère les idées redites, les changements de sujet sans explication et les conclusions déconnectées du chemin parcouru. Relie les passages avec la matière disponible ; ajouter « ensuite » ne répare pas un saut de raisonnement. Intègre une réserve près de l'affirmation qu'elle limite, sans interrompre le propos par une note éditoriale isolée, sauf demande explicite. Les nuances nécessaires restent présentes.
 Préserve le registre, le je/tu/vous, l'humour, les hésitations et les bonnes phrases de la personne. Ne rends pas tout neutre ou télégraphique. Ne plaque ni oralité ni confession. Les contrastes utiles restent des contrastes, même avec une virgule ou une négation.
 Avant de livrer, examine aussi les titres et fins de paragraphes : une opposition de façade, une révélation banale ou un slogan interchangeable ne devient pas pertinent parce qu'il contient le nom du produit. Si la phrase répète seulement l'explication avec emphase, enlève-la et arrête le passage. Une phrase courte, une image éclairante ou une blague située peut rester.
 `;

@@ -1,5 +1,5 @@
 /** Editorial review contract. No layout, photo, link or structural field is editable. */
-export const CAROUSEL_REVIEW_VERSION = "contextual-astra-medium-v5";
+export const CAROUSEL_REVIEW_VERSION = "connected-sequence-astra-medium-v6";
 export const CAROUSEL_REVIEW_MODEL = "gpt-6-astra" as const;
 export const CAROUSEL_REVIEW_TOOL = {
   name: "review_carousel_fields",
@@ -58,7 +58,31 @@ export function carouselEditorialFields(doc: any): EditorialField[] {
   return fields;
 }
 
+/** Read-only slide boundaries and roles, including photos with no editable text. */
+export function carouselEditorialSequence(doc: any) {
+  const fields = carouselEditorialFields(doc);
+  const collect = (container: any, root: string[]) => {
+    if (!Array.isArray(container?.slides)) return [];
+    return container.slides.map((slide: any, index: number) => {
+      const path = [...root, "slides", index].join(".");
+      return {
+        slide_id: path,
+        position: index + 1,
+        role: typeof slide?.role === "string" ? slide.role : null,
+        slide_type: typeof slide?.slide_type === "string" ? slide.slide_type : null,
+        field_ids: fields.filter(field => field.id.startsWith(path + ".")).map(field => field.id),
+      };
+    });
+  };
+  return [...collect(doc, []), ...collect(doc?.carousel, ["carousel"])];
+}
+
 export const CAROUSEL_EDITORIAL_REVIEW_PROMPT = `Tu es la personne chargée de la révision éditoriale de ce carrousel. Lis toute la progression et sa légende avant de juger les champs. Deux responsabilités égales : fidélité aux faits et à la voix ; qualité du raisonnement et de l'écriture.
+
+RELECTURE DE L'ENSEMBLE AVANT LES CHAMPS
+Lis les slides dans leur ordre, en réunissant titre, corps, overlay et textes de schéma de chaque page. Identifie le point de départ, le fil et l'aboutissement. Pour chaque frontière, vérifie ce que la slide suivante reprend et ce qu'elle ajoute : réponse, explication, conséquence, exemple, nuance ou étape. Repère les doublons entre pages, les références floues, les changements de registre ou de sujet sans lien et les conclusions qui ne découlent pas du développement. Une série de phrases correctes séparément peut rester un carrousel décousu.
+Répare les liens par des retouches coordonnées dans les champs concernés, avec la matière disponible. Un doublon peut laisser place à une explication déjà étayée ou devenir plus bref ; ne laisse pas une slide vide. La première phrase peut reprendre précisément la question laissée ouverte. Ajouter « ensuite », une annonce de rubrique ou du suspense ne suffit pas. Une réserve nécessaire se lit avec l'affirmation qu'elle limite ; préserve sa portée. Pour une actualité, garde le lien entre le cas analysé, l'opinion et l'éventuel conseil métier, sans transformer l'analyse en fiche générique sans transition.
+Une liste, une checklist, une comparaison ou une série photo peut contenir des éléments indépendants. Leur cadre commun suffit quand il est clair ; n'invente aucune causalité, histoire ou tension pour les relier. Préserve les étapes, rôles et choix confirmés. La séquence fournie situe les champs ; elle n'est ni une preuve factuelle ni un champ à modifier. Une photo sans texte reste sans texte. Ne réordonne, n'ajoute ni ne supprime de slide. La légende peut se lire de façon autonome, mais ne doit pas fournir le seul lien permettant de comprendre les slides.
 
 ÉTALONNAGE DU JUGEMENT (exemples de décisions, JAMAIS des faits à réutiliser)
 • Le passage vient d'expliquer le rôle d'un choix graphique. Il finit par « C'est un signal, pas un accident. » : supprimer cette dernière phrase. Elle rejoue l'explication en formule conclusive. La virgule, les deux points ou l'absence de négation ne changent pas ce diagnostic.

@@ -8,6 +8,13 @@ Deno.test("contrat : voix et données transmises, aucune persona imposée", () =
   assert(!prompt.includes("ton Nowadays"));
 });
 
+for (const kind of ["text", "photo", "mix"]) Deno.test(`continuité : plan d'ensemble et liens transmis au rédacteur ${kind}`, () => {
+  const body = { carousel_type: kind, subject: "SUJET", slide_count: 4 };
+  const prompt = kind === "text" ? textWritingPrompt(body, false, "")
+    : kind === "photo" ? photoWritingPrompt(body, false, "") : mixWritingPrompt(body, false, "", "");
+  for (const instruction of ["Construis d'abord le propos entier", "ce qu'elle reprend de la précédente", "sans fabriquer de causalité", "comme un texte continu", "structure confirmée reste prioritaire"]) assert(prompt.includes(instruction), instruction);
+});
+
 for (const type of ["tips", "tutoriel", "prise_de_position", "mythe_realite", "storytelling", "etude_de_cas", "checklist", "comparatif", "before_after", "promo", "coulisses", "photo_dump", "text"]) {
   Deno.test(`structure conservée sans scénario fabriqué : ${type}`, () => {
     const guide = carouselStructureGuide(type);

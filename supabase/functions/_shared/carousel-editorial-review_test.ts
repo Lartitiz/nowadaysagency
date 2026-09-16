@@ -1,5 +1,5 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { applyEditorialReview, carouselEditorialFields, CAROUSEL_EDITORIAL_REVIEW_PROMPT } from "./carousel-editorial-review.ts";
+import { applyEditorialReview, carouselEditorialFields, carouselEditorialSequence, CAROUSEL_EDITORIAL_REVIEW_PROMPT } from "./carousel-editorial-review.ts";
 import { applyCorrectionPassCarousel } from "./correction-pass.ts";
 import { analyzeCarouselRedac, applyGuardedCarouselCorrection } from "./redac-gate.ts";
 
@@ -16,6 +16,19 @@ Deno.test("registre : texte visible complet, aucun champ technique ni hashtag", 
   assertEquals(ids, ["slides.0.title", "slides.0.body", "slides.0.points.0", "slides.0.points.1", "slides.0.visual_schema.steps.0.label", "slides.0.visual_schema.steps.0.desc", "caption.body"]);
   const extra = { carousel: { slides: [{ hook: "Hook", text: "Texte", kicker: "Pastille", detail: "Détail", big_number: "35", attribution: "Auteur", cta_label: "Voir", overlay_text: "Photo", visual_schema: { type: "matrix_2x2", x_axis: { left: "Facile", right: "Difficile" } } }], caption: { hook: "Légende" } }, instagram_caption: "Ancienne légende" };
   assertEquals(carouselEditorialFields(extra).length, 12);
+});
+Deno.test("séquence : photo sans texte, overlay et schéma gardent leur place, sans exposer les médias", () => {
+  const draft = { carousel: { slides: [
+    { role: "contexte", slide_type: "photo_full", photo_url: "private-photo", photo_index: 1 },
+    { role: "explication", slide_type: "photo_integrated", title: "Un choix", overlay_text: "Son effet", visual_schema: { type: "timeline", steps: [{ label: "Étape" }] } },
+  ], caption: { body: "Légende autonome" } } };
+  const before = JSON.stringify(draft);
+  assertEquals(carouselEditorialSequence(draft), [
+    { slide_id: "carousel.slides.0", position: 1, role: "contexte", slide_type: "photo_full", field_ids: [] },
+    { slide_id: "carousel.slides.1", position: 2, role: "explication", slide_type: "photo_integrated", field_ids: ["carousel.slides.1.title", "carousel.slides.1.overlay_text", "carousel.slides.1.visual_schema.steps.0.label"] },
+  ]);
+  assertEquals(JSON.stringify(draft), before);
+  assertEquals(carouselEditorialSequence({ caption: "Sans slides" }), []);
 });
 Deno.test("révision locale : supprime le seul extrait ciblé, garde photos/structure/ponctuation", () => {
   const original = JSON.stringify(doc);
@@ -90,6 +103,36 @@ async function mockReview(response: string, run: (calls: any[]) => Promise<void>
     if (key === undefined) Deno.env.delete("OPENAI_API_KEY"); else Deno.env.set("OPENAI_API_KEY", key);
   }
 }
+Deno.test("relecture globale : retouches coordonnées, une seule requête, structure et source intactes", async () => {
+  const draft = { slides: [
+    { role: "observation", title: "Le soutien exprimé", body: "Le message exprime du soutien.", slide_type: "text_only", photo_index: null },
+    { role: "question", title: "La question ouverte", body: "Le message exprime du soutien. Le rôle reste à expliquer.", slide_type: "text_only", photo_index: null },
+    { role: "application", title: "Mon métier", body: "Je regarde le rôle et les engagements.", slide_type: "photo_integrated", photo_index: 1 },
+  ], caption: { body: "Source : https://example.com/article" } };
+  const response = cleanReview(draft as any);
+  for (const [id, before, after] of [
+    ["slides.1.body", draft.slides[1].body, "Ce soutien laisse une question ouverte : quel rôle la personne prend-elle en charge ?"],
+    ["slides.2.body", draft.slides[2].body, "Pour comprendre ce rôle, je regarde les engagements annoncés."],
+  ]) Object.assign(response.reviews.find((r: any) => r.field_id === id), {
+    decision: "edit", reason: "Relie la question laissée ouverte à son développement, sans nouveau fait", edits: [{ before, after }],
+  });
+  await mockReview(JSON.stringify(response), async calls => {
+    const output = JSON.parse(await applyCorrectionPassCarousel(JSON.stringify(draft), { semanticReview: true, currentBrief: "FIL CONFIRMÉ À PRÉSERVER : soutien, rôle, engagements" }));
+    assertEquals(calls.length, 1);
+    assertStringIncludes(calls[0].instructions, "RELECTURE DE L'ENSEMBLE AVANT LES CHAMPS");
+    const message = calls[0].input.find((item: any) => item.role === "user");
+    const payload = JSON.stringify(message);
+    assertStringIncludes(payload, "SÉQUENCE DES SLIDES");
+    assertStringIncludes(payload, "FIL CONFIRMÉ À PRÉSERVER");
+    for (const role of ["observation", "question", "application"]) assertStringIncludes(payload, role);
+    assertEquals(output.editorial_review.status, "reviewed");
+    assertEquals(output.editorial_review.edits, 2);
+    assertEquals(output.slides.map((s: any) => ({ ...s, body: null })), draft.slides.map(s => ({ ...s, body: null })));
+    assertEquals(output.caption, draft.caption);
+    assertEquals(output.slides[1].body.startsWith("Ce soutien laisse une question ouverte"), true);
+    assertEquals(output.slides[2].body.startsWith("Pour comprendre ce rôle"), true);
+  });
+});
 Deno.test("intégration correction : court, sans source, sans alerte regex, un seul appel structuré", async () => {
   const draft = { slides: [{ body: "Les demandes se contredisent. Et c'est là que tout se joue." }] };
   await mockReview(JSON.stringify(editReview(draft as any)), async calls => {
