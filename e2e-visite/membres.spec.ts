@@ -19,9 +19,18 @@ test("membres : liste, invitation, lien, révocation", async ({ page }, testInfo
 
   await page.goto("/parametres", { waitUntil: "networkidle" });
 
+  // 🔑 18/09 (#1029) — /parametres est passé en onglets : « Membres de
+  // l'espace » vit dans l'onglet « Mon espace », et les panneaux inactifs sont
+  // en display:none (forceMount + data-[state=inactive]:hidden). Sans ce clic,
+  // scrollIntoViewIfNeeded attend un élément jamais affiché (timeout 90 s).
+  const ongletEspace = page.getByRole("tab", { name: /mon espace/i });
+  await expect(ongletEspace).toBeVisible({ timeout: 15_000 });
+  await ongletEspace.click();
+
   const section = page.locator("div.rounded-2xl", {
     has: page.getByRole("heading", { name: "Membres de l'espace" }),
   });
+  await expect(section).toBeVisible({ timeout: 15_000 });
   await section.scrollIntoViewIfNeeded();
 
   // Liste des membres chargée (au moins la ligne « (toi) » avec badge de rôle)

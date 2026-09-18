@@ -23,7 +23,7 @@ test("packshot : génération fond blanc + ajout bibliothèque", async ({ page, 
   test.setTimeout(240_000);
 
   await page.goto("/photos", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: /ma bibliothèque|mes photos/i }).first()).toBeVisible({ timeout: 15_000 });
 
   // Une photo prête est requise (la bibliothèque de Camille en a depuis le chantier photos)
   const firstImg = page.locator(".grid img").first();

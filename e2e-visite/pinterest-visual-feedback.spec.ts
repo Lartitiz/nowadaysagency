@@ -26,10 +26,10 @@ async function driveToGeneration(page: Page) {
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(IDEA);
-  await page.getByRole("button", { name: /suivant/i }).click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
 
   const pinterestCard = page.getByText("Pinterest", { exact: true }).first();
   await expect(pinterestCard).toBeVisible({ timeout: 8000 });
@@ -39,7 +39,7 @@ async function driveToGeneration(page: Page) {
   await expect(visuel).toBeVisible({ timeout: 8000 });
   await visuel.click();
 
-  const suivant = page.getByRole("button", { name: /suivant/i });
+  const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
   await expect(suivant).toBeVisible({ timeout: 5000 });
   await suivant.click();
 

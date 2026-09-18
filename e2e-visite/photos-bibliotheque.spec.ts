@@ -22,11 +22,11 @@ fs.mkdirSync(SHOTS, { recursive: true });
 test("bibliothèque photos : page, séance photo ou grille + liste de courses", async ({ page }) => {
   await page.goto("/photos", { waitUntil: "networkidle" });
 
-  await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: /ma bibliothèque|mes photos/i }).first()).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole("button", { name: /Ajouter des photos/i })).toBeVisible();
   // Audit UX du 14/08 : le haut de page n'a plus que 2 boutons. La retouche a
   // rejoint la fiche photo ; les outils de fabrication passent par « Créer un visuel ».
-  await expect(page.getByRole("button", { name: /Créer un visuel/i })).toBeVisible();
+  await expect(page.getByRole("button", { name: /(composer|créer) un visuel/i })).toBeVisible();
   await expect(page.getByRole("button", { name: /Changer un fond/i })).toHaveCount(0);
 
   // Deux états légitimes selon le compte : séance photo (vide) ou grille + wishlist

@@ -9,7 +9,7 @@
  * - Admin : Camille n'est pas admin → redirection ou "accès refusé" propre (pas un crash)
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
@@ -55,6 +55,11 @@ for (const page_info of LEGAL_PAGES) {
 
 test("T21-params — Bouton 'Refaire l'onboarding' visible + modale de confirmation", async ({ page }) => {
   await page.goto("/parametres", { waitUntil: "networkidle" });
+
+  // 🔑 18/09 (#1029) — les réglages avancés sont replies dans un <details>
+  // « Confidentialité, aide et réglages avancés » : rien dedans n'est visible
+  // tant qu'on ne l'a pas ouvert.
+  await ouvrirReglagesAvances(page);
 
   // Le bouton doit exister
   const resetBtn = page.getByRole("button", { name: /refaire l'onboarding/i });
@@ -114,3 +119,13 @@ test("T21-admin — /admin/audit redirige ou refuse proprement pour Camille (non
   await page.screenshot({ path: path.join(SHOTS, "t21-admin-audit.png") });
   console.log(`✅ T21-admin — /admin/audit : ${isAdminPage ? "accès admin OK" : "redirection propre vers " + url}`);
 });
+
+// Les réglages avancés de /parametres vivent dans un <details> replié. Ouvert
+// via l'API DOM : un <summary> ne répond pas toujours au clic en headless.
+async function ouvrirReglagesAvances(page: Page) {
+  const bloc = page.locator("details", {
+    has: page.getByText(/Confidentialité, aide et réglages avancés/i),
+  }).first();
+  await expect(bloc).toBeAttached({ timeout: 10000 });
+  await bloc.evaluate((el) => ((el as HTMLDetailsElement).open = true));
+}

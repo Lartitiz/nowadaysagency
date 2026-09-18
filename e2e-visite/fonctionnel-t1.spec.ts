@@ -89,10 +89,10 @@ function watchQuota429(page: Page): { hit: () => boolean } {
 }
 
 async function enterIdea(page: Page, idea: string) {
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(idea);
-  const suivant = page.getByRole("button", { name: /suivant/i });
+  const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
   await expect(suivant).toBeVisible({ timeout: 3000 });
   await suivant.click();
 }
@@ -111,7 +111,7 @@ async function selectFormat(page: Page, channel: "instagram" | "linkedin") {
   // DEUX panneaux (format puis photo/angle), chacun validé par « Suivant ».
   // On clique Suivant jusqu'à atteindre l'étape 3 (max 3 fois).
   for (let i = 0; i < 3; i++) {
-    const suivant = page.getByRole("button", { name: /suivant/i }).first();
+    const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i }).first();
     await expect(suivant).toBeEnabled({ timeout: 5000 });
     await suivant.click();
     const onStep3 = await page
@@ -170,7 +170,7 @@ test("T1a — Post Instagram : génération streaming + ajout calendrier", async
   // Le streaming du contenu continue après. Sur 429 catégorie muet (avant
   // publication de #339), l'app rebondit à l'étape 2 sans étape 4 → skip.
   try {
-    await expect(page.getByText(/ton contenu prêt/i)).toBeVisible({ timeout: 90000 });
+    await expect(page.getByText(/étape 4 sur 4/i)).toBeVisible({ timeout: 90000 });
   } catch {
     if (quota429.hit() || (await dismissQuotaWall(page))) {
       console.log("SKIP : quota épuisé (429 catégorie — pas d'étape résultat)");
@@ -266,7 +266,7 @@ test("T1b — Post LinkedIn : génération streaming", async ({ page }) => {
 
   // ── Attente du résultat streamé (90 s max) ───────────────────────────────
   // "Ton contenu prêt" = titre étape 4 = signal UI fiable que la génération est terminée
-  await expect(page.getByText(/ton contenu prêt/i)).toBeVisible({ timeout: 90000 });
+  await expect(page.getByText(/étape 4 sur 4/i)).toBeVisible({ timeout: 90000 });
 
   await page.screenshot({ path: path.join(SHOTS, "t1b-linkedin-result.png") });
 

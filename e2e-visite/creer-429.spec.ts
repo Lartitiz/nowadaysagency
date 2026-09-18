@@ -39,15 +39,15 @@ test.describe("429 pendant la génération", () => {
     });
 
     await page.goto("/creer?new=1", { waitUntil: "networkidle" });
-    const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+    const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
     await expect(textarea).toBeVisible({ timeout: 10_000 });
     await textarea.fill("Pourquoi je montre les coulisses de mon atelier");
-    await page.getByRole("button", { name: /suivant/i }).click();
+    await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
 
     // Étape 2 : Instagram → sous-format Post → Suivant
     await page.getByRole("button", { name: /instagram/i }).first().click();
     await page.getByRole("button", { name: /Post/ }).filter({ hasText: "Post" }).first().click();
-    const suivant = page.getByRole("button", { name: /suivant/i });
+    const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
     await expect(suivant).toBeEnabled({ timeout: 5_000 });
     await suivant.click();
 

@@ -29,10 +29,10 @@ async function startFlow(page: Page) {
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(IDEA);
-  await page.getByRole("button", { name: /suivant/i }).click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
 }
 
 async function generateDirect(page: Page) {
@@ -85,7 +85,7 @@ test("post LinkedIn : bouton LinkedIn, PAS de bouton Instagram", async ({ page }
   await page.waitForTimeout(800);
   await liCard.click({ force: true });
   await page.getByRole("button", { name: /Post 1300/ }).click();
-  const suivant = page.getByRole("button", { name: /suivant/i });
+  const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
   if (await suivant.isVisible({ timeout: 3000 }).catch(() => false)) await suivant.click();
   await generateDirect(page);
   await waitResult(page);
@@ -116,7 +116,7 @@ test("post Instagram : option Instagram toujours là (contrôle)", async ({ page
   await startFlow(page);
   await page.getByRole("button", { name: /Instagram Carrousel, Reel, Story, Post/i }).click();
   await page.getByRole("button", { name: /Post/ }).filter({ hasNotText: /carrousel|reel|story/i }).first().click();
-  const suivant = page.getByRole("button", { name: /suivant/i });
+  const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
   if (await suivant.isVisible({ timeout: 3000 }).catch(() => false)) await suivant.click();
   await generateDirect(page);
   await waitResult(page);
@@ -149,7 +149,7 @@ test("épingle Pinterest visuelle : ni Maintenant ni Programmer", async ({ page 
   await startFlow(page);
   await page.getByText("Pinterest", { exact: true }).first().click();
   await page.getByText("Visuel", { exact: true }).first().click();
-  const suivant = page.getByRole("button", { name: /suivant/i });
+  const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
   if (await suivant.isVisible({ timeout: 3000 }).catch(() => false)) await suivant.click();
   await generateDirect(page);
   await waitResult(page);

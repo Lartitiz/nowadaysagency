@@ -55,10 +55,10 @@ async function goToCreer(page: Page) {
 }
 
 async function enterIdea(page: Page, idea: string) {
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(idea);
-  const suivant = page.getByRole("button", { name: /suivant/i });
+  const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
   await expect(suivant).toBeVisible({ timeout: 3000 });
   await suivant.click();
 }
@@ -73,7 +73,7 @@ async function selectCarouselTexte(page: Page) {
   const texte = page.getByText(/texte design/i).first();
   await expect(texte).toBeVisible({ timeout: 5000 });
   await texte.click();
-  const suivant = page.getByRole("button", { name: /suivant/i });
+  const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i });
   await expect(suivant).toBeEnabled({ timeout: 5000 });
   await suivant.click();
 }
