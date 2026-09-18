@@ -389,7 +389,7 @@ export default function AdaptiveHome() {
           <HomeCreatePanel incompleteBrand={profileSummary.brandingTotal < 50} onCreate={(path) => { porte("creer"); navigate(path); }} />
         </div>
 
-        <section className="grid grid-cols-[64px_minmax(0,1fr)] items-center sm:flex gap-x-4 gap-y-5 sm:gap-5 rounded-2xl border border-border bg-[#f9e8ef] p-6 sm:p-8" aria-labelledby="home-photos-title">
+        <section className="grid grid-cols-[96px_minmax(0,1fr)] items-center sm:flex gap-x-4 gap-y-5 sm:gap-5 rounded-2xl border border-border bg-[#f9e8ef] p-6 sm:p-8" aria-labelledby="home-photos-title">
           <div className="flex shrink-0 items-center -space-x-6 sm:space-x-2" aria-hidden="true">
             {photoThumbs.length > 0 ? photoThumbs.slice(0, 2).map((url, index) => <img key={url} src={url} alt="" className={`h-20 w-14 sm:h-24 sm:w-20 object-cover rounded-sm border-4 border-white shadow-sm ${index ? "rotate-6" : "-rotate-6"}`} />) : <ImageIcon className="h-14 w-14 text-bordeaux/60" strokeWidth={1} />}
           </div>
