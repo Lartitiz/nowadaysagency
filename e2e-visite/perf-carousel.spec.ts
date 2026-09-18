@@ -56,10 +56,10 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
   // Étape 1 : idée
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(IDEA);
-  await page.getByRole("button", { name: /suivant/i }).click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
 
   // Étape 2 : Instagram → Carrousel → sous-mode « Texte design »
   await page.getByRole("button", { name: /instagram/i }).first().click();
@@ -72,7 +72,7 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
     if (await texteDesign.isVisible({ timeout: 2000 }).catch(() => false)) {
       await texteDesign.click();
     }
-    const suivant = page.getByRole("button", { name: /suivant/i }).first();
+    const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i }).first();
     await expect(suivant).toBeEnabled({ timeout: 5000 });
     await suivant.click();
     const onStep3 = await page

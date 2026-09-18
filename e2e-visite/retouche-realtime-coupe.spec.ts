@@ -96,7 +96,7 @@ test("modifier le fond, temps réel coupé : la grille se met à jour sans reloa
   });
 
   await page.goto("/photos", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByRole("heading", { name: /ma bibliothèque|mes photos/i }).first()).toBeVisible({ timeout: 15_000 });
 
   // Photo jetable : upload d'une fixture (sans crédit). Sa vignette apparaît en
   // place (le polling de secours couvre déjà l'upload : ligne posée ready).

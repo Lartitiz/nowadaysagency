@@ -14,7 +14,7 @@
  * branding apparaîtront en warning, ce qui est CORRECT et attendu.
  */
 
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import * as path from "path";
 import * as fs from "fs";
 import { fileURLToPath } from "url";
@@ -25,6 +25,7 @@ fs.mkdirSync(SHOTS, { recursive: true });
 
 test("T10 — Vérif connexions : lance, termine, affiche résultats sans crash", async ({ page }) => {
   await page.goto("/parametres/connexions", { waitUntil: "networkidle" });
+  await ouvrirBlocVerification(page);
 
   // La page doit charger
   const launchBtn = page.getByRole("button", { name: /lancer la vérification/i });
@@ -65,6 +66,7 @@ test("T10 — Vérif connexions : lance, termine, affiche résultats sans crash"
 
 test("T10b — Le bouton devient 'Relancer' après une première vérification", async ({ page }) => {
   await page.goto("/parametres/connexions", { waitUntil: "networkidle" });
+  await ouvrirBlocVerification(page);
 
   const launchBtn = page.getByRole("button", { name: /lancer la vérification/i });
   await expect(launchBtn).toBeVisible({ timeout: 10000 });
@@ -77,3 +79,15 @@ test("T10b — Le bouton devient 'Relancer' après une première vérification",
 
   console.log("✅ T10b — Bouton 'Relancer' visible après première vérification");
 });
+
+// 🔑 18/09 — le bloc « Vérifier le fonctionnement de mon espace » est un
+// <details> replié : le bouton « Lancer la vérification » n'existe pas à
+// l'écran avant son ouverture. Ouvert via l'API DOM (un <summary> ne répond
+// pas toujours au clic en headless).
+async function ouvrirBlocVerification(page: Page) {
+  const bloc = page.locator("details", {
+    has: page.getByText(/Vérifier le fonctionnement de mon espace/i),
+  }).first();
+  await expect(bloc).toBeAttached({ timeout: 15000 });
+  await bloc.evaluate((el) => ((el as HTMLDetailsElement).open = true));
+}

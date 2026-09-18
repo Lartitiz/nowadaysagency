@@ -41,10 +41,10 @@ async function allerJusquAuxAngles(page: Page) {
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 15000 });
   await textarea.fill(SUJET);
-  await page.getByRole("button", { name: /suivant/i }).first().click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).first().click();
 
   await page.getByRole("button", { name: /instagram/i }).first().click();
   const reelCard = page.getByText("Reel", { exact: true }).first();

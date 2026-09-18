@@ -10,10 +10,10 @@ test("mes-slides: parcours jusqu'à l'écran de saisie", async ({ page }, testIn
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
   // Étape 1 : idée
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill("Mes 5 slides déjà écrites sur la savonnerie");
-  await page.getByRole("button", { name: /suivant/i }).click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
 
   // Étape 2 : Instagram → Carrousel → tuile « Mes slides »
   await page.getByRole("button", { name: /instagram/i }).first().click();

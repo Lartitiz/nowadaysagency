@@ -55,10 +55,10 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
   // Étape 1 : sujet
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(SUJET);
-  await page.getByRole("button", { name: /suivant/i }).click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
 
   // Étape 2 : Instagram → Carrousel → « Photos + slides design » (mixte)
   await page.getByRole("button", { name: /instagram/i }).first().click();
@@ -96,7 +96,7 @@ test("carrousel mixte réel : upload → génération → export PPTX composé v
 
   // Avancer jusqu'à la génération (mêmes garde-fous que carousel-photo-live)
   for (let i = 0; i < 4; i++) {
-    const suivant = page.getByRole("button", { name: /suivant/i }).first();
+    const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i }).first();
     await expect(suivant).toBeEnabled({ timeout: 8000 });
     await suivant.click();
     const onStep3 = await page

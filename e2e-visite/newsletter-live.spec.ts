@@ -44,10 +44,10 @@ test("newsletter réelle : sujet → génération streamée → objet + contenu 
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
   // Étape 1 : sujet
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 15000 });
   await textarea.fill(SUJET);
-  await page.getByRole("button", { name: /suivant/i }).first().click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).first().click();
 
   // Étape 2 : canal Newsletter — le clic sélectionne AUSSI le format (un seul
   // format sur ce canal, cf. CreerStepFormat handleChannelSelect).

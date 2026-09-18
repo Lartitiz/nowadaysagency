@@ -92,7 +92,12 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     if (await foldedBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
       await foldedBtn.click();
     }
-    const panelHeading = page.getByText("Glisser une idée sur le calendrier").first();
+    // 🔑 18/09 — le panneau s'intitule désormais « Mes idées à placer » (h2) ;
+    // « Glisser une idée sur le calendrier » n'est plus qu'un title/aria-label
+    // du bouton replié. Le conteneur, lui, n'a pas bougé (CalendarIdeasSidebar).
+    const panelHeading = page
+      .getByRole("heading", { name: /mes idées à placer/i })
+      .first();
     await expect(panelHeading).toBeVisible({ timeout: 10_000 });
     const panel = page.locator("div.flex.flex-col.h-full", { has: panelHeading }).first();
 
@@ -110,16 +115,24 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     await expect(page.getByText("Idée notée").first()).toBeVisible({ timeout: 8_000 });
     const ideaCard = panel.getByText(IDEA_TITLE).first();
     await expect(ideaCard).toBeVisible({ timeout: 8_000 });
+    // 🔑 18/09 (#1024) — le glisser ne part PLUS de la carte : le titre est
+    // devenu un bouton qui OUVRE l'idée, et les écouteurs dnd-kit vivent sur
+    // une poignée dédiée (`aria-label="Glisser : <titre>"`). Tirer la carte
+    // laissait le pointeur sans source : survol visible sur la case du jour,
+    // aucun drop, aucun toast — un échec 10 s plus loin qui ressemblait à une
+    // régression de la planification alors que rien n'était cassé.
+    const ideaGrip = panel.getByRole("button", { name: `Glisser : ${IDEA_TITLE}` });
+    await expect(ideaGrip).toBeVisible({ timeout: 8_000 });
     await page.screenshot({ path: path.join(SHOTS, "01-idee-creee.png") });
 
     // 1) Idée → un jour du mois affiché, choisi hors des bords (cf. safeDayCell)
     const dayCell = await safeDayCell(page);
-    await dragTo(page, ideaCard, dayCell);
+    await dragTo(page, ideaGrip, dayCell);
     // 🔑 15/09 (#1018, `19d9f77f`) — la planification passe par la RPC atomique
     // `plan_saved_idea`, qui rend un reçu : le toast est devenu
     // `"<titre>" prévu au calendrier le <date>` (ou « déjà prévu » au rejeu).
     // On vise la partie stable de la phrase, pas l'ancien « planifié ! ».
-    await expect(page.getByText(/pr[ée]vu au calendrier/i).first()).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/pr[ée]vue? au calendrier/i).first()).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: path.join(SHOTS, "02-planifie.png") });
 
     // Le post apparaît dans la grille (hors panneau) et l'idée est marquée planifiée
@@ -132,7 +145,12 @@ test.describe("Drag & drop calendrier ↔ panneau idées", () => {
     // ligne ~101, `getIdeaState(i) !== "created"`). La carte ne porte donc plus
     // un badge « 📅 Planifiée » : elle QUITTE le panneau. On asserte la
     // disparition, qui est le vrai signe que la planification a pris.
-    const myCard = panel.locator("div.rounded-lg", { hasText: IDEA_TITLE }).first();
+    // 🔑 18/09 (#1024) — la carte d'idée est devenue un <article> (classes
+    // `rounded-xl`). Avec l'ancien `div.rounded-lg`, le `toHaveCount(0)` de la
+    // ligne suivante passait pour la MAUVAISE raison (0 = sélecteur mort, pas
+    // « l'idée a quitté le panneau ») : un faux vert qui masquait la moitié du
+    // test. On s'accroche à la balise, pas à sa mise en forme.
+    const myCard = panel.locator("article", { hasText: IDEA_TITLE }).first();
     await expect(myCard).toHaveCount(0, { timeout: 8_000 });
 
     // 2) Post → panneau idées (le geste corrigé par #330). Point de drop =

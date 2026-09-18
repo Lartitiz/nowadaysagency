@@ -106,9 +106,18 @@ async function openImportForm(page: Page) {
   try {
     await expect(urlInput).toBeVisible({ timeout: 5000 });
   } catch {
-    const reanalyzeBtn = page.getByRole("button", { name: /réanalyser/i });
-    await expect(reanalyzeBtn).toBeVisible({ timeout: 10000 });
-    await reanalyzeBtn.click();
+    // 🔑 18/09 (#1027) — la fiche d'identité n'expose plus de bouton
+    // « Réanalyser » : l'import et la réanalyse sont passés dans le menu
+    // « Autres actions » (« Importer mes informations » / « Actualiser depuis
+    // mes sources »). On ouvre le menu puis on prend l'entrée disponible.
+    const menu = page.getByRole("button", { name: /autres actions/i });
+    await expect(menu).toBeVisible({ timeout: 10000 });
+    await menu.click();
+    const entree = page.getByRole("menuitem", {
+      name: /importer mes informations|actualiser depuis mes sources/i,
+    }).first();
+    await expect(entree).toBeVisible({ timeout: 8000 });
+    await entree.click();
     await expect(urlInput).toBeVisible({ timeout: 10000 });
   }
   return urlInput;

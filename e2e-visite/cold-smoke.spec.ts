@@ -152,7 +152,12 @@ test("Smoke à froid — inscription → dashboard nouveau·lle → entrée diag
   // d'écran blanc). Dérouler tout le diagnostic reste au harnais qa-neuf.
   const suivant = page.locator("button:visible", { hasText: /suivant/i }).first();
   await suivant.click({ timeout: 5000 }).catch(() => {});
-  const step2 = await page.getByText(/Tu te reconnais dans quoi/i).first().isVisible({ timeout: 8000 }).catch(() => false);
+  // 🔑 18/09 — « Tu te reconnais dans quoi ? » n'existe plus dans le code : le
+  // pas suivant est l'étape profil (« Enchantée <prénom> 👋 / tu fais quoi, en
+  // deux mots ? », OnboardingPhase1Profile). Sans cette mise à jour, le
+  // best-effort imprimait « étape 2 non atteinte » à CHAQUE run, même quand le
+  // diagnostic avançait parfaitement.
+  const step2 = await page.getByText(/tu fais quoi, en deux mots/i).first().isVisible({ timeout: 8000 }).catch(() => false);
   await shot(page, "04-diagnostic-etape2");
   if (!step2) console.log("ℹ️  étape 2 non atteinte au clic Suivant (best-effort) — l'entrée diagnostic reste OK");
 

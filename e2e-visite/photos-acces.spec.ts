@@ -71,7 +71,7 @@ test("dashboard : porte « Mes photos » présente et mène à /photos", async (
   // dépendre des coordonnées faussées par l'émulation.
   await pill.evaluate((el) => (el as HTMLElement).click());
   await expect(page).toHaveURL(/\/photos$/, { timeout: 15_000 });
-  await expect(page.getByRole("heading", { name: "Mes photos" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /ma bibliothèque|mes photos/i }).first()).toBeVisible();
 });
 
 test("menu : « Mes photos » présente une seule fois et pointe /photos", async ({ page }) => {

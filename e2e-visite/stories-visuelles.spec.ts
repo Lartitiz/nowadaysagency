@@ -51,10 +51,10 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   await goToCreer(page);
 
   // Étape 1 : l'idée
-  const textarea = page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager/i).first();
+  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(IDEA);
-  await page.getByRole("button", { name: /suivant/i }).click();
+  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
 
   // Étape 2 : canal Instagram → format Story
   await page.getByRole("button", { name: /instagram/i }).first().click();
@@ -63,7 +63,7 @@ test("Stories — génération + aperçus visuels rendus", async ({ page }) => {
   await storyCard.click();
 
   for (let i = 0; i < 3; i++) {
-    const suivant = page.getByRole("button", { name: /suivant/i }).first();
+    const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i }).first();
     await expect(suivant).toBeEnabled({ timeout: 5000 });
     await suivant.click();
     const onStep3 = await page
