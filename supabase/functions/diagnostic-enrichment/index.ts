@@ -249,7 +249,25 @@ Précisions importantes :
       return parseAiJson(raw, "diagnostic-enrichment"); // JSON valide par construction (tool forcé)
     };
 
-    let enrichmentResult: any = await runEnrichmentCall(FIRST_CALL_TIMEOUT_MS);
+    // Un ABORT du 1er essai (120s) n'était pas rattrapé : l'exception remontait au
+    // catch global et, l'appel étant fire-and-forget, la fiche « à valider » n'était
+    // JAMAIS écrite (aucune section pré-remplie, aucune trace pour l'utilisatrice).
+    // On réessaie donc une fois, en demandant explicitement une sortie plus courte :
+    // 120s + 90s = 210s, toujours sous le plafond wall-clock (400s).
+    const isAnthropicTimeout = (e: unknown) =>
+      /timeout après/i.test(e instanceof Error ? e.message : String(e));
+    const TIMEOUT_RETRY_MS = 90_000;
+    let enrichmentResult: any;
+    try {
+      enrichmentResult = await runEnrichmentCall(FIRST_CALL_TIMEOUT_MS);
+    } catch (e) {
+      if (!isAnthropicTimeout(e)) throw e;
+      console.warn("Enrichment: 1er essai coupé sur timeout — réessai court");
+      enrichmentResult = await runEnrichmentCall(
+        TIMEOUT_RETRY_MS,
+        "⚠️ CONTRAINTE DE TEMPS : réponds vite. Remplis CHAQUE section du tool, mais avec des formulations courtes et essentielles (pas de développement long). Aucune section ne doit rester vide.",
+      );
+    }
     if (isDegenerateEnrichment(enrichmentResult)) {
       console.warn("Enrichment: sortie dégénérée (branding_prefill vide) — réessai");
       enrichmentResult = await runEnrichmentCall(
