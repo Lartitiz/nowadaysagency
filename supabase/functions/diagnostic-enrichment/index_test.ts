@@ -154,6 +154,29 @@ Deno.test("toutes les écritures passent -> success: true, sans failed_sections"
   }
 });
 
+Deno.test("timeout Anthropic -> une seule relance courte puis enrichissement enregistré", async () => {
+  let callCount = 0;
+  const mock = installFetchMock({
+    anthropic: () => {
+      callCount++;
+      if (callCount === 1) throw new DOMException("aborted", "AbortError");
+      return anthropicToolSuccess("rendre_enrichissement", ENRICHMENT_INPUT);
+    },
+  });
+  const { writes } = interceptTableWrites([]);
+  try {
+    const res = await handleEnrichment(internalRequest(BASE_BODY));
+    const json = await res.json();
+
+    assertEquals(res.status, 200);
+    assertEquals(json.success, true);
+    assertEquals(mock.anthropicCallCount, 2);
+    assert(writes.includes("brand_profile"));
+  } finally {
+    mock.restore();
+  }
+});
+
 Deno.test("écriture brand_profile en échec -> success: false, section listée, autres sections quand même tentées", async () => {
   const mock = installEnrichmentMock();
   const { writes } = interceptTableWrites(["brand_profile"]);

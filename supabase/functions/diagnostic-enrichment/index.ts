@@ -252,7 +252,8 @@ Précisions importantes :
     // catch global et, l'appel étant fire-and-forget, la fiche « à valider » n'était
     // JAMAIS écrite (aucune section pré-remplie, aucune trace pour l'utilisatrice).
     // On réessaie donc une fois, en demandant explicitement une sortie plus courte :
-    // 120s + 90s = 210s maximum sur le chemin timeout, sous le plafond wall-clock.
+    // 120s + 90s = 210s sur le chemin timeout ; au pire 60s de correction
+    // dégénérée ensuite, soit 270s au total, sous le plafond wall-clock.
     const isAnthropicTimeout = (e: unknown) =>
       (e instanceof AnthropicError && e.status === 504) ||
       /(?:timeout après|met trop de temps)/i.test(e instanceof Error ? e.message : String(e));
