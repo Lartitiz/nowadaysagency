@@ -50,6 +50,12 @@ test("dashboard : porte « Mes photos » présente et mène à /photos", async (
   // On vise l'endroit où une utilisatrice tape VRAIMENT : le bouton d'action.
   const pill = porte.getByRole("button", { name: /Choisir une photo/i });
 
+  // 🔑 Barre d'onglets fixe en bas (mobile, 22/09) : `scrollIntoViewIfNeeded`
+  // ne fait RIEN si le bouton est déjà dans l'écran… même caché SOUS la barre.
+  // Depuis #1039 le bouton tombe pile dessous au chargement → faux « recouvert ».
+  // Une utilisatrice fait défiler : on centre le bouton, comme son pouce.
+  await pill.evaluate((el) => el.scrollIntoView({ block: "center" }));
+
   // Ce qu'on veut VRAIMENT prouver : la porte est atteignable au doigt,
   // c'est-à-dire que rien ne la recouvre à l'endroit où on taperait.
   // On le mesure avec le hit-test de la PAGE (elementFromPoint), pas avec les
