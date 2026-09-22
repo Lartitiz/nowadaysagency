@@ -40,9 +40,8 @@ async function makeDocx(docXml: string, name = "test.docx"): Promise<File> {
   zip.file("[Content_Types].xml", CONTENT_TYPES);
   zip.file("_rels/.rels", RELS);
   zip.file("word/document.xml", docXml);
-  const buf = await zip.generateAsync({ type: "uint8array" });
-  const arrayBuffer = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) as ArrayBuffer;
-  return new File([arrayBuffer], name, {
+  const buf = await zip.generateAsync({ type: "arraybuffer" });
+  return new File([buf], name, {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });
 }
