@@ -185,6 +185,8 @@ export interface AnthropicOptions {
    * génération de questions en Haiku) pour transformer un blocage en retry rapide.
    */
   abortTimeoutMs?: number;
+  /** Nombre de nouvelles tentatives après le premier appel (2 par défaut). */
+  maxRetries?: number;
   /**
    * Désactive `sanitizeDashes` sur la sortie de CET appel. À réserver aux edges
    * de RENDU qui recopient du texte utilisateur verbatim (carousel-visual…) :
@@ -371,10 +373,11 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     timestamp: new Date().toISOString(),
   }));
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  const maxRetries = options.maxRetries ?? MAX_RETRIES;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       const delay = RETRY_DELAYS[attempt - 1] || 6000;
-      console.log(`AnthropicWithMeta retry ${attempt}/${MAX_RETRIES} after ${delay}ms...`);
+      console.log(`AnthropicWithMeta retry ${attempt}/${maxRetries} after ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
     }
 
@@ -402,7 +405,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
         attempt: attempt + 1,
         timestamp: new Date().toISOString(),
       }));
-      if (attempt < MAX_RETRIES) {
+      if (attempt < maxRetries) {
         lastError = new AnthropicError(
           isAbort ? "L'IA met trop de temps, réessai en cours..." : "Connexion à l'IA interrompue, réessai en cours...",
           isAbort ? 504 : 503
@@ -438,7 +441,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     }));
 
     // Retryable: 429, 500, 529
-    if ((response.status === 429 || response.status === 500 || response.status === 529) && attempt < MAX_RETRIES) {
+    if ((response.status === 429 || response.status === 500 || response.status === 529) && attempt < maxRetries) {
       lastError = new AnthropicError(
         response.status === 429
           ? "Trop de requêtes, réessai en cours..."
@@ -594,10 +597,11 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     timestamp: new Date().toISOString(),
   }));
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  const maxRetries = options.maxRetries ?? MAX_RETRIES;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     if (attempt > 0) {
       const delay = RETRY_DELAYS[attempt - 1] || 6000;
-      console.log(`Anthropic retry ${attempt}/${MAX_RETRIES} after ${delay}ms...`);
+      console.log(`Anthropic retry ${attempt}/${maxRetries} after ${delay}ms...`);
       await new Promise((r) => setTimeout(r, delay));
     }
 
@@ -632,7 +636,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
         attempt: attempt + 1,
         timestamp: new Date().toISOString(),
       }));
-      if (attempt < MAX_RETRIES) {
+      if (attempt < maxRetries) {
         lastError = new AnthropicError(
           isAbort ? "L'IA met trop de temps, réessai en cours..." : "Connexion à l'IA interrompue, réessai en cours...",
           isAbort ? 504 : 503
@@ -663,7 +667,7 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     }));
 
     // Retryable: 429 (rate limit), 500 (server error) and 529 (overloaded)
-    if ((response.status === 429 || response.status === 500 || response.status === 529) && attempt < MAX_RETRIES) {
+    if ((response.status === 429 || response.status === 500 || response.status === 529) && attempt < maxRetries) {
       lastError = new AnthropicError(
         response.status === 429
           ? "Trop de requêtes, réessai en cours..."

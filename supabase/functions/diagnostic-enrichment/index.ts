@@ -1,7 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { callAnthropic, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
+import { AnthropicError, callAnthropic, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
 import { parseAiJson } from "../_shared/parse-ai-json.ts";
 // (import logUsage retiré — l'enrichissement ne décompte plus de crédit, voir note dans le handler)
 
@@ -219,11 +219,9 @@ Précisions importantes :
     // décompté par deep-diagnostic (le parent). En logger un 2e ici facturait l'audit
     // en double — et même 1 crédit parasite pendant l'onboarding (où le parent skippe).
 
-    // Budget temps borné explicitement (audit timeouts 17/08, suite #839) :
-    // 1er essai 120s (convention CLAUDE.md « Opus : 120s ») + réessai 60s si sortie
-    // dégénérée = 180s de pire cas total, pas 240s. Le réessai n'a besoin que de
-    // 60s : c'est une simple consigne corrective (« ne laisse rien vide »), pas un
-    // nouveau raisonnement complet sur tout le contenu scrapé comme le 1er essai.
+    // Budget temps borné explicitement : chaque étape n'a qu'une tentative dans
+    // callAnthropic. Sans maxRetries: 0, son retry interne multiplierait chaque
+    // délai par trois et dépasserait le plafond wall-clock avant notre repli court.
     // Aucun timeout côté client ne surveille cet appel : diagnostic-enrichment n'est
     // JAMAIS invoqué depuis le navigateur (grep confirmé : aucun
     // invokeWithTimeout("diagnostic-enrichment"...) dans src/) — seulement en
@@ -245,6 +243,7 @@ Précisions importantes :
         max_tokens: 8192,
         tool: ENRICHMENT_TOOL,
         abortTimeoutMs,
+        maxRetries: 0,
       });
       return parseAiJson(raw, "diagnostic-enrichment"); // JSON valide par construction (tool forcé)
     };
@@ -253,9 +252,10 @@ Précisions importantes :
     // catch global et, l'appel étant fire-and-forget, la fiche « à valider » n'était
     // JAMAIS écrite (aucune section pré-remplie, aucune trace pour l'utilisatrice).
     // On réessaie donc une fois, en demandant explicitement une sortie plus courte :
-    // 120s + 90s = 210s, toujours sous le plafond wall-clock (400s).
+    // 120s + 90s = 210s maximum sur le chemin timeout, sous le plafond wall-clock.
     const isAnthropicTimeout = (e: unknown) =>
-      /timeout après/i.test(e instanceof Error ? e.message : String(e));
+      (e instanceof AnthropicError && e.status === 504) ||
+      /(?:timeout après|met trop de temps)/i.test(e instanceof Error ? e.message : String(e));
     const TIMEOUT_RETRY_MS = 90_000;
     let enrichmentResult: any;
     try {
