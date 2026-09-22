@@ -4,9 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
-import { Loader2, Plus, ChevronRight, AlertTriangle, Eye, FolderOpen, ExternalLink, Trash2 } from "lucide-react";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
+import { Loader2, Plus, ChevronRight, Eye, FolderOpen, ExternalLink, Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace, type Workspace } from "@/contexts/WorkspaceContext";
@@ -24,7 +22,7 @@ interface CoachingProgramListProps {
   onReload: () => void;
 }
 
-export default function CoachingProgramList({ programs, sessions, loading, onSelectProgram, onAddClient, standaloneWorkspaces, onReload }: CoachingProgramListProps) {
+export default function CoachingProgramList({ programs, loading, onSelectProgram, onAddClient, standaloneWorkspaces, onReload }: CoachingProgramListProps) {
   const { user } = useAuth();
   const { switchWorkspace } = useWorkspace();
   const navigate = useNavigate();
@@ -55,12 +53,6 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
       setMemberCounts(counts);
     })();
   }, [standaloneWorkspaces]);
-
-  const getNextSession = (programId: string) => sessions.find(s => s.program_id === programId && s.status === "scheduled" && s.scheduled_date);
-  const getSessionStats = (programId: string) => {
-    const ps = sessions.filter(s => s.program_id === programId);
-    return { done: ps.filter(s => s.status === "completed").length, total: ps.length };
-  };
 
   const handleOpenWorkspace = async (clientUserId: string, clientName: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -290,8 +282,6 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
       ) : (
         <div className="space-y-4">
           {activePrograms.map(p => {
-            const next = getNextSession(p.id);
-            const stats = getSessionStats(p.id);
             const pct = Math.round(((p.current_month || 1) / 6) * 100);
             const isLoadingWs = loadingWsFor === p.client_user_id;
             return (
@@ -307,14 +297,6 @@ export default function CoachingProgramList({ programs, sessions, loading, onSel
                   <Badge variant="secondary">Mois {p.current_month || 1}/6</Badge>
                 </div>
                 <Progress value={pct} className="h-2 mb-3" />
-                <div className="space-y-1 text-sm text-muted-foreground mb-3">
-                  {next ? (
-                    <p>📅 Prochaine : {format(new Date(next.scheduled_date!), "d MMM", { locale: fr })} · {next.title}</p>
-                  ) : (
-                    <p className="text-destructive flex items-center gap-1"><AlertTriangle className="h-3.5 w-3.5" /> Aucune session planifiée</p>
-                  )}
-                  <p>📚 Sessions : {stats.done}/{stats.total}</p>
-                </div>
                 <div className="flex items-center gap-3">
                   <button className="flex items-center gap-1 text-xs text-primary font-semibold" onClick={(e) => { e.stopPropagation(); onSelectProgram(p.id); }}>
                     Voir le programme <ChevronRight className="h-3 w-3" />
