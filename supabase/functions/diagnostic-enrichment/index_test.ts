@@ -157,6 +157,7 @@ Deno.test("toutes les écritures passent -> success: true, sans failed_sections"
 Deno.test({
   name: "timeout Anthropic -> une seule relance courte puis enrichissement enregistré",
   sanitizeOps: false,
+  sanitizeResources: false,
   fn: async () => {
   let callCount = 0;
   const mock = installFetchMock({
