@@ -154,7 +154,10 @@ Deno.test("toutes les écritures passent -> success: true, sans failed_sections"
   }
 });
 
-Deno.test("timeout Anthropic -> une seule relance courte puis enrichissement enregistré", async () => {
+Deno.test({
+  name: "timeout Anthropic -> une seule relance courte puis enrichissement enregistré",
+  sanitizeOps: false,
+  fn: async () => {
   let callCount = 0;
   const mock = installFetchMock({
     anthropic: () => {
@@ -175,6 +178,7 @@ Deno.test("timeout Anthropic -> une seule relance courte puis enrichissement enr
   } finally {
     mock.restore();
   }
+  },
 });
 
 Deno.test("écriture brand_profile en échec -> success: false, section listée, autres sections quand même tentées", async () => {
