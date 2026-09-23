@@ -505,6 +505,12 @@ export function useContentGenerator() {
               face_cam: faceCam || "oui",
               time_available: timeAvailable || "flexible",
               pre_gen_answers: effectivePreGenAnswers,
+              // Le mapping positionnel ci-dessus perd le TEXTE des questions (et
+              // étiquette « émotion » une réponse factuelle) : on envoie aussi les
+              // paires question → réponse, comme pour le post et les stories.
+              answers: answers
+                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
+                : [],
               selected_hook: selectedHook || null,
               editorial_angle: editorialAngle || null,
               content_structure: structurePrompt || null,
@@ -616,6 +622,9 @@ export function useContentGenerator() {
                 : undefined,
               objective: objective || null,
               editorialFormat: editorialAngle || null,
+              answers: answers
+                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
+                : [],
               workspace_id: effectiveWorkspaceId || null,
               photo_mode: params.photoMode || undefined,
               // Vision uniquement (cf. case "post") : photos allégées.
