@@ -531,6 +531,12 @@ export function useContentGenerator() {
               face_cam: faceCam || "flexible",
               time_available: timeAvailable || "flexible",
               pre_gen_answers: preGenAnswers || null,
+              // Réponses aux questions de l'étape 3 : sans elles, le brief
+              // arrivait vide côté edge (« RÉPONSES DE L'UTILISATRICE : »
+              // suivi de rien) et la séquence s'écrivait sans sa matière.
+              answers: answers
+                ? Object.entries(answers).map(([k, v]) => ({ question: k, answer: v }))
+                : [],
               workspace_id: effectiveWorkspaceId || null,
               // Photos de la bibliothèque choisies à l'étape format (lot D) :
               // le brief les traite en priorité absolue, une par story.
