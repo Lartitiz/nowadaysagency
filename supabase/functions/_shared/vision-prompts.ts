@@ -15,11 +15,12 @@ export interface VisionQuestionsParams {
 
 export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
   const ctype = String(p.contentType || "").toLowerCase();
+  const isLinkedIn = ctype.includes("linkedin");
   let channelLabelQ = "Instagram (post photo)";
   let channelGuidanceQ = "Ton ÉMOTION / SCÈNE VÉCUE : ressenti, hors-champ, instant, ce qui se passait juste avant ou après la photo.";
-  if (ctype.includes("linkedin")) {
-    channelLabelQ = "LinkedIn (post pro)";
-    channelGuidanceQ = "Ton PRO : ce qu'on apprend pro derrière l'image, prise de position assumée, résultat / chiffre concret, contexte business.";
+  if (isLinkedIn) {
+    channelLabelQ = "LinkedIn (post)";
+    channelGuidanceQ = "Demande ce que la personne veut raconter ou expliquer à travers ce sujet, puis le fait, le geste, la pensée ou l'émotion qu'elle peut réellement préciser. Un résultat business, un chiffre ou une prise de position ne sont utiles que s'ils servent son intention et sont fournis.";
   } else if (ctype.includes("reel")) {
     channelLabelQ = "Reel Instagram (vidéo courte)";
     channelGuidanceQ = "L'image sert de référence visuelle / vignette / plan d'inspiration. Questions sur : l'instant à montrer, la promesse rapide, ce que la voix off ou face cam dit pendant qu'on voit l'image.";
@@ -52,13 +53,15 @@ export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
   let questionGuidance: string;
   if (seriesMode === "single" || photoCount === 1) {
     photoIntro = `Voici la photo qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}.`;
-    questionGuidance = `Pose exactement 3 questions d'approfondissement sur LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions PEUT s'appuyer sur un détail visible dans la photo ; les autres approfondissent le sujet déclaré (vision, rôle, conviction, contexte pro).`;
+    questionGuidance = `Pose exactement 3 questions d'approfondissement sur LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions PEUT s'appuyer sur un détail visible dans la photo ; les autres approfondissent le sujet déclaré ${isLinkedIn ? "et le point de vue de la personne" : "(vision, rôle, conviction, contexte pro)"}.`;
   } else if (seriesMode === "before_after") {
     photoIntro = `Voici les 2 photos qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}. Elles forment un AVANT (photo 1) / APRÈS (photo 2).`;
-    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur la transformation visible entre les 2 photos ; les autres creusent le sujet déclaré (déclic, geste, apprentissage liés à SON sujet).`;
+    questionGuidance = isLinkedIn
+      ? `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur le changement visible entre les 2 photos ; les autres creusent son intention et les faits vécus, sans supposer de déclic.`
+      : `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur la transformation visible entre les 2 photos ; les autres creusent le sujet déclaré (déclic, geste, apprentissage liés à SON sujet).`;
   } else {
     photoIntro = `Voici les ${photoCount} photos qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}. Elles appartiennent à UNE MÊME SÉQUENCE (chantier, événement, coulisses, étapes…).`;
-    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur un détail visible dans une photo (cite-la) ; les autres approfondissent le sujet déclaré (pourquoi ce sujet, sa vision, son rôle, sa prise de position).`;
+    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur un détail visible dans une photo (cite-la) ; les autres approfondissent le sujet déclaré ${isLinkedIn ? "et le regard de la personne" : "(pourquoi ce sujet, sa vision, son rôle, sa prise de position)"}.`;
   }
 
   const subjectBlock = p.context && p.context.trim()
@@ -84,7 +87,7 @@ RÈGLES :
 - PRIORITÉ ABSOLUE au sujet déclaré ci-dessus. Les photos servent à enrichir, pas à dicter l'angle.
 - Tu peux mentionner ce que tu VOIS sur ${photoCount > 1 ? "les photos (cite leur numéro si pertinent)" : "la photo"} quand c'est pertinent pour le sujet
 - ${channelGuidanceQ.replace("derrière l'image", "sur LE sujet qu'elle veut traiter")}
-- VARIÉTÉ obligatoire : 1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 "raconte-moi")
+- VARIÉTÉ : ${isLinkedIn ? "pose des questions complémentaires adaptées au sujet. Si c'est un récit personnel, explore l'intention, un moment réel et ce qu'elle pensait ou ressentait ; si c'est une idée, creuse son raisonnement. N'exige pas d'anecdote ni de conviction artificielle." : "1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 \"raconte-moi\")"}
 - Questions OUVERTES, ton chaleureux et curieux
 
 Réponds UNIQUEMENT en JSON valide :
@@ -107,46 +110,13 @@ export function buildVisionGenerateBrief(contentType: string | null | undefined)
 
   if (ctype.includes("linkedin")) {
     return {
-      // Longueur 700-1100 (raccourci : l'image porte déjà une partie de la charge
-      // sémantique, et plus court = moins de remplissage / slop).
-      formatBrief: `Rédige un POST LINKEDIN ancré dans la/les photo(s).
+      formatBrief: `Rédige un POST LINKEDIN à partir du sujet déclaré et de ce que les photos montrent réellement.
 
-LONGUEUR : 700-1100 caractères. Plus court = mieux ; coupe tout ce qui n'apporte rien.
-
-ADRESSE : VOUS (vouvoiement). Jamais "tu", jamais "toi", jamais "ton/ta/tes".
-
-STRUCTURE EN 3 TEMPS (sans titres, sans bullet, sans emoji-puce) :
-1. ACCROCHE (1-2 lignes) : une phrase qui se tient SEULE, lisible même sans voir l'image, qui crée une tension, un contraste ou une surprise. Pas de "Aujourd'hui, je voulais vous parler de…". Pas de question rhétorique fermée ("Vous saviez que… ?").
-2. PONT IMAGE↔TEXTE (1 ligne, max 2) : une phrase qui fait un lien CONCRET avec ce qu'on voit, SANS paraphraser l'image. Préférer l'oblique : "Ce détail dit quelque chose de…", "Derrière ce qu'on voit, il y a…".
-3. MESSAGE (le reste) : UNE seule idée pro, prise de position assumée, ou apprentissage concret. Pas de liste à puces, pas de "3 leçons", pas de structure énumérative. Une pensée qui se déroule.
-
-FIN : pas de CTA fabriqué. Soit une phrase ouverte qui invite naturellement à réagir, soit on coupe net.
-
-══ INTERDIT : DÉSIGNER LES IMAGES (même sans les numéroter) ══
-Le contournement le plus fréquent : remplacer "Photo 1" par une désignation visuelle ("ce flyer X", "ce comptoir Y"). C'est la MÊME erreur.
-❌ "Ce flyer orange et jaune, c'est l'événement Aire You Ready."
-❌ "Ce comptoir bleu avec ses illustrations de tartines, c'est l'intérieur des Petits Pâtis."
-❌ "Sur la première, on voit… sur la seconde…"
-✅ NOMMER directement le sujet sans le présenter comme une image : "Aire You Ready, c'est…", "Aux Petits Pâtis, on…".
-Règle simple : retire les descriptions visuelles inutiles, mais GARDE toute phrase qui permet de comprendre le sujet, les personnes, le produit ou l'événement. Le texte doit se comprendre sans deviner ces repères dans l'image.
-
-══ INTERDIT : CASCADES / PHRASES-LISTES PARALLÈLES ══
-Même déguisées en "oral" ou "rythme", elles sonnent IA.
-❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
-❌ "Pas pour faire joli. Pour créer du lien."
-❌ "Pas X. Pas Y. C'est Z."
-✅ Une seule pensée qui se déroule en phrases complètes, avec des connecteurs réels.
-
-══ INTERDIT : CTA FABRIQUÉ ══
-❌ « Ici, il se passe quelque chose. Venez. »
-❌ "Et vous, qu'en pensez-vous ?"
-❌ "Spoiler :", "Plot twist :", "Et si je vous disais que…"
-✅ Couper net sur la dernière phrase du message, OU une phrase ouverte non-injonctive.
-
-AUTRES INTERDITS :
-- Écrire "Photo 1", "Photo 2", "la première photo", "la seconde image", etc.
-- Décrire les photos une par une / faire une légende multi-images
-- Hashtags en fin (sauf si dans les réponses utilisatrice)`,
+- Le sujet et le point de vue de la personne guident le texte ; les photos l'appuient. Ne commence pas par décrire ou numéroter les images. Nomme les personnes, événements ou produits nécessaires à la compréhension seulement s'ils sont fournis ou lisibles.
+- Si la personne raconte un vécu, suis une action, une pensée ou une émotion qu'elle a effectivement donnée, dans sa voix et à sa personne grammaticale. Une image seule ne prouve ni ce qu'elle a pensé, ni ce qu'une autre personne a dit, ni ce qui s'est passé avant ou après.
+- Si aucun vécu n'est fourni, développe le sujet comme une observation ou une idée sans scène fictive. Le post n'a besoin ni d'un désaccord, ni d'une leçon, ni d'un appel à réagir.
+- Chaque paragraphe apporte une information ou une nuance nouvelle. Coupe le remplissage ; la longueur dépend de la matière disponible. Respecte le registre de la marque, qu'elle tutoie, vouvoie ou parle au « je ».
+- Une fin qui aboutit suffit. Pas de hashtags sauf s'ils font partie des réponses de la personne.`,
       jsonShape: `{\n  "content": "...",\n  "accroche": "...",\n  "format": "post_linkedin",\n  "pillar": "...",\n  "objectif": "..."\n}`,
     };
   }

@@ -202,6 +202,22 @@ Deno.test("buildQuestionsPrompt — LinkedIn complet (branding + vocab + newsjac
   })));
 });
 
+Deno.test("buildQuestionsPrompt — récit LinkedIn personnel sans crise imposée", async (t) => {
+  await assertSnapshot(t, promptDoc(buildQuestionsPrompt({
+    QUESTIONS_PREFIX,
+    brandingContext: "Elle anime des ateliers de communication.",
+    brandVocabBlock: "",
+    context: "Ce que j'aime dans la préparation et l'animation d'un atelier au 104factory",
+    contentType: "linkedin",
+    editorialFormatLabel: "Storytelling pro",
+    angle: { title: "Le plaisir de transmettre", structure: ["préparation", "atelier", "ressenti"], tone: "personnel" },
+    calendarBlock: "",
+    objectiveBlock: "\nOBJECTIF : confiance.",
+    newsContextBlock: "",
+    recentBriefsContext: "",
+  })));
+});
+
 Deno.test("buildQuestionsPrompt — Newsletter (guidance profondeur)", async (t) => {
   await assertSnapshot(t, promptDoc(buildQuestionsPrompt({
     QUESTIONS_PREFIX,

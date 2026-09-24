@@ -16,6 +16,7 @@
 
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { installFetchMock, setTestEnv } from "../_shared/test-edge-harness.ts";
+import { buildVisionGenerateBrief, buildVisionQuestionsPrompt } from "../_shared/vision-prompts.ts";
 
 setTestEnv();
 
@@ -164,10 +165,31 @@ Deno.test("runLinkedInTwoStep : texte propre -> pas d'extraInstructions, mais cl
     assertEquals(correctionUserMsg.includes('Voici le post LinkedIn à corriger :'), true);
     assertEquals(correctionUserMsg.includes("La réunion sert à valider le brief du projet."), true);
     assertEquals(JSON.stringify(capturedBodies[1].system).includes("COMPRÉHENSION DU SUJET"), true);
+    assertEquals(JSON.stringify(capturedBodies[1].system).includes("Le post corrigé fait entre 1300 et 1700 caractères"), false);
+    assertEquals(JSON.stringify(capturedBodies[1].system).includes("La longueur du post corrigé suit la matière"), true);
     assertEquals(mock.anthropicCallCount, 2);
   } finally {
     mock.restore();
   }
+});
+
+Deno.test("post LinkedIn avec photos : la photo ne fournit ni pensée ni dialogue", () => {
+  const prompt = buildVisionGenerateBrief("post_linkedin").formatBrief;
+  assertEquals(prompt.includes("Une image seule ne prouve ni ce qu'elle a pensé"), true);
+  assertEquals(prompt.includes("Respecte le registre de la marque"), true);
+  assertEquals(prompt.includes("ADRESSE : VOUS"), false);
+});
+
+Deno.test("questions LinkedIn avec photos : le vécu passe avant le résultat business", () => {
+  const prompt = buildVisionQuestionsPrompt({
+    contentType: "post_linkedin",
+    context: "Ce que j'aime dans la préparation d'un atelier",
+    objective: "confiance",
+    photo_description: null,
+    per_photo_context: null,
+  });
+  assertEquals(prompt.includes("ce qu'elle pensait ou ressentait"), true);
+  assertEquals(prompt.includes("résultat / chiffre concret, contexte business"), false);
 });
 
 Deno.test("runLinkedInTwoStep : élisions appliquées même si la 2e passe échoue (filet déterministe, fallback sur le brut)", async () => {

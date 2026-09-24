@@ -220,7 +220,7 @@ Matrice d'angles par format :
 - Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
 - Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
 - Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
-- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Dense (1300-2000 car.), pas de remplissage.
+- LinkedIn : garde la voix et l'intention de la source. Un récit personnel peut rester personnel ; une analyse peut creuser un point de vue. Ne fabrique ni conflit ni anecdote.
 - Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
 
 RÉDACTION : pour chaque format, rédige un contenu COMPLET et PRÊT À POSTER. Pas un brouillon.
@@ -233,7 +233,7 @@ LONGUEURS OBLIGATOIRES :
 - Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
 - Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
 - Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
-- LinkedIn : 1300-2000 caractères. Prose fluide, pas de listes à puces. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
+- LinkedIn : longueur selon la matière disponible. Prose fluide et ouverture qui situe le sujet. 0-2 hashtags si utiles.
 - Instagram (Carrousel, Reel, Stories) : 3 hashtags maximum en fin de légende. Jamais plus, même si la légende est longue. Choisis-les ciblés (pas de #love #life génériques).
 - Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
 
@@ -557,11 +557,24 @@ export function buildQuestionsPrompt(params: {
 }): { systemPrompt: string; userPrompt: string } {
   const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
   const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
-  const channelGuidance = contentType === "linkedin"
-    ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
+  const linkedinStory = contentType === "linkedin" && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
+  const channelGuidance = linkedinStory
+    ? "Questions orientées RÉCIT PERSONNEL : demande d'abord ce que la personne veut raconter d'elle-même, puis un moment réel (lieu et action) et ce qu'elle pensait ou ressentait. Son plaisir de travailler ou de transmettre peut être le sujet. N'exige ni crise, ni résultat business, ni leçon universelle. Une citation ou un dialogue ne doivent venir que d'un souvenir fourni."
+    : contentType === "linkedin"
+    ? "Questions orientées POINT DE VUE : demande ce que la personne veut exprimer sur ce sujet, puis un choix, une observation ou un fait réel. Si le sujet est un moment vécu, explore son expérience personnelle avant de demander ce qu'elle enseigne aux autres. N'exige pas une prise de position conflictuelle ni un résultat business."
     : contentType === "newsletter"
     ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
     : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
+  const questionTypes = linkedinStory
+    ? `   - INTENTION : qu'est-ce que la personne souhaite raconter d'elle-même à travers ce moment ?
+   - SCÈNE VÉCUE : où était-elle, que faisait-elle, et quel geste ou choix compte dans cette histoire ?
+   - PENSÉE / ÉMOTION : qu'est-ce qui lui traversait l'esprit ou qu'est-ce qu'elle ressentait, avec ses mots ?
+   - DÉROULÉ : qu'a-t-elle fait ensuite et qu'est-ce qui lui plaît ou lui reste de ce moment ?`
+    : `   - ANECDOTE : un moment précis vécu sur ce sujet
+   - POINT DE VUE : ce que la personne pense de ce sujet, sans conflit obligatoire
+   - PROCESS / MÉTHODE : ce qu'elle fait concrètement
+   - OBSERVATION : ce qu'elle voit revenir
+   - CONVICTION : ce qu'elle défend quand c'est pertinent`;
 
   const systemPrompt = `${QUESTIONS_PREFIX}
 ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
@@ -597,7 +610,7 @@ Réfléchis silencieusement à :
 
 Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
 
-Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
+Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire les faits, intentions et formulations personnels utiles à ce contenu.
 
 RÈGLES :
 1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
@@ -605,16 +618,12 @@ RÈGLES :
 3. ${channelGuidance}
 4. Questions OUVERTES (pas oui/non).
 5. Choisis des questions complémentaires parmi les types utiles au sujet, sans quota par type :
-   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
-   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
-   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
-   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
-   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
-   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
+${questionTypes}
+   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Une question peut recueillir la scène, les autres son intention et son ressenti ou son choix.
 6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
 7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
-8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
-9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
+8. ORIENTÉES vers l'objectif sans écraser l'intention du sujet : vente peut demander un choix ou un résultat réel ; engagement un vécu ou une émotion ; visibilité un regard personnel ; crédibilité une méthode ou une preuve. N'exige ni conflit, ni transformation, ni chiffre lorsque la personne raconte simplement ce qu'elle aime faire.
+${recentBriefsContext ? "9. MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
 
 INTERDIT — NE FAIS JAMAIS ÇA :
 - Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
@@ -625,17 +634,7 @@ INTERDIT — NE FAIS JAMAIS ÇA :
 - ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
 - Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
 
-EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
-❌ MAUVAIS MIX :
-1. "Raconte-moi un moment où tu as dû défendre ta valeur."
-2. "Raconte-moi une fois où une cliente t'a demandé une remise."
-3. "Raconte-moi comment tu as changé ta relation à l'argent."
-(= 3x le même type "raconte-moi" → monotone)
-
-✅ BON MIX :
-1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
-2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
-3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
+Cherche des formulations propres au sujet courant ; ne reprends aucun exemple de question prévu pour un autre sujet.
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -1052,7 +1051,7 @@ Matrice d'affinités pour l'attribution :
 - Carrousel : l'idée la plus PÉDAGOGIQUE.
 - Reel : l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE.
 - Stories : l'angle le plus INTIME ou PERSONNEL.
-- LinkedIn : l'angle le plus ENGAGÉ (prise de position).
+- LinkedIn : le regard personnel le plus fidèle à la source, qu’il s’agisse d’un vécu ou d’une idée.
 - Newsletter : l'angle le plus PROFOND (réflexion complète).
 
 Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
@@ -1769,7 +1768,7 @@ function streamLinkedInPhotoVision(params: {
 2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
 3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
 4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
-5. VOIX = JE (ton vécu) + NOUS/ON inclusif pour embarquer. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Ton d'une amie au café, pas d'une audience. (Sauf si la voix de marque indique un autre registre.)
+5. VOIX : respecte la personne grammaticale et le registre de cette marque. Si elle écrit au « je », garde ses mots ; n'impose ni « tu » ni « vous ».
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,
@@ -1789,7 +1788,7 @@ function streamLinkedInPhotoVision(params: {
     }
   });
   const modeInstr = isBeforeAfter
-    ? `\n\n🔄 MODE AVANT / APRÈS : raconte LA transformation comme un récit unique.`
+    ? `\n\n🔄 MODE AVANT / APRÈS : raconte le changement réel comme un fil unique, sans créer de déclic ni de résultat absent du brief.`
     : isSeries
     ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : trouve le fil thématique commun. NE liste/NE numérote PAS.`
     : "";
@@ -1929,9 +1928,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
    → ✅ "Je parle de visibilité, du droit de prendre sa place, de réhabiliter la communication."
 
 6. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs sans exemple concret) :
-   → Si 2 phrases consécutives expriment des valeurs abstraites sans aucun fait : remplace par UN exemple concret.
-   ❌ "Les projets éthiques méritent d'être vus. Les créatrices ont le droit de prendre leur place."
-   → ✅ "Une céramiste qui fait un travail incroyable mais que personne ne connaît, c'est pas un choix de discrétion. C'est un problème de visibilité."
+   → Si 2 phrases consécutives expriment des valeurs abstraites sans fait : utilise un fait déjà fourni, ou coupe la redite. N’invente pas d’exemple.
 
 7. ACCROCHE PROMESSE/SLOGAN :
    → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un FAIT concret ou une scène vécue.
@@ -1951,13 +1948,13 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
     → Si 2+ paragraphes expriment la même idée sous angles différents : garde le plus CONCRET, fusionne ou supprime les autres.
 
 12. LONGUEUR :
-    → Cible : 1300-2000 caractères. Si > 2000 : supprime le paragraphe le plus abstrait. Ne raccourcis PAS un post déjà dans cette fourchette.
+    → Préserve la matière utile ; coupe les redites. N'allonge pas un post pour atteindre une cible de caractères.
 
 ══ RÈGLES ABSOLUES ══
 
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
 - N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
-- Le post corrigé fait entre 1300 et 1700 caractères.
+- La longueur du post corrigé suit la matière réellement disponible ; aucun remplissage.
 - JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
 - Écriture inclusive avec point médian.
 
@@ -2486,24 +2483,12 @@ async function runVisionGenerate(params: {
   if (isLinkedInPhoto) {
     photoContent.push({
       type: "text",
-      text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
-
-1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
-   ❌ "Ce flyer orange et jaune, c'est l'événement Aire You Ready."
-   ❌ "Cette affiche colorée, c'est…"
-   ✅ Tu peux NOMMER le sujet directement : "Aire You Ready, c'est…" / "Vendredi soir, on était…"
-
-2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy".
-   ❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
-   ✅ Une seule pensée qui se déroule : "C'était pas un musée à cocher mais un verre au comptoir, une conversation qui s'étire."
-
-3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
-   ❌ « Ici, il se passe quelque chose. Venez. »
-   ✅ Une phrase qui coupe net, ou une question concrète liée au sujet.
-
-4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT. Si tu vois "#3", écris "#3", jamais "#8".
-
-5. VOIX = JE (ton vécu) + NOUS/ON inclusif. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Une amie au café, pas une audience. (Sauf si la voix de marque indique un autre registre.)
+      text: `══ RÈGLES À LIRE AVANT LES IMAGES ══
+- Le sujet déclaré, les réponses et la voix de la marque priment sur la description visuelle. Ne déroule pas un inventaire des photos ; nomme directement le sujet quand il est connu.
+- Une photo peut étayer un fait visible. Elle ne révèle pas une pensée, une émotion, une citation, un dialogue ou une chronologie hors champ. N'invente pas ces éléments.
+- Évite les slogans, les cascades de phrases courtes et la question finale automatique. Garde les phrases courtes qui correspondent à la personne et au moment raconté.
+- Recopie exactement les chiffres, noms et dates lisibles si tu les utilises.
+- Respecte la personne grammaticale et le registre de la marque, sans tutoiement ni vouvoiement imposé.
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,
@@ -2531,7 +2516,7 @@ async function runVisionGenerate(params: {
   });
 
   const modeInstr = isBeforeAfter
-    ? `\n\n🔄 MODE AVANT / APRÈS : la 1ère image = état AVANT, la 2nde = état APRÈS. Raconte LA transformation comme un récit unique (le déclic, le geste, le résultat). Ne décris pas chaque image séparément.`
+    ? `\n\n🔄 MODE AVANT / APRÈS : la 1ère image = état AVANT, la 2nde = état APRÈS. Raconte le changement réel comme un fil unique ; ne crée ni déclic ni résultat absent du brief. Ne décris pas chaque image séparément.`
     : isSeries
     ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : ces images traitent d'UN MÊME sujet. Trouve le fil thématique commun et écris UN SEUL message qui s'appuie sur l'ensemble. NE liste PAS les images. NE numérote PAS ("photo 1, photo 2" est interdit). Pas de structure "étape 1, étape 2". \n\nINTERDIT d'enchaîner des transitions descriptives type "Ce X visible sur une image, c'est… Ce Y visible sur une autre, c'est…". Le post doit parler du SUJET, pas faire le tour des images.\n\nSi tu n'identifies pas de fil commun évident, reste sur l'observation la plus universelle qui les relie — n'invente pas une chronologie ou un récit qui ne tient pas.`
     : "";
