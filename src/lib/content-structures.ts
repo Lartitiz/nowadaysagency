@@ -209,7 +209,7 @@ export const LINKEDIN_EDITORIAL_ANGLES: EditorialAngle[] = [
     id: "storytelling_pro",
     label: "Storytelling pro",
     emoji: "📖",
-    principle: "Raconter un vécu professionnel et en tirer une leçon applicable.",
+    principle: "Raconter un vécu professionnel avec ton regard et tes mots.",
     defaultStructure: "storytelling",
     objectives: ["confiance", "vente"],
     phase: [2, 3],

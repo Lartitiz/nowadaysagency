@@ -257,13 +257,13 @@ Le critère : une voix fidèle et un propos précis.
    → ✅ "En disant les choses sans forcer personne à deviner."
 
 6. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs sans exemple) :
-   → Remplace par UN exemple concret.
+   → Utilise un fait déjà fourni ou coupe la redite. N'invente pas d'exemple.
 
 7. ACCROCHE PROMESSE/SLOGAN : remplace par un FAIT concret.
 
 8. CTA GÉNÉRIQUE ("Et toi/vous, qu'en penses-tu ?") : question SPÉCIFIQUE au sujet ou supprime.
 
-9. CONCLUSION QUI RÉSUME : remplace par une ouverture (question/tension/invitation).
+9. CONCLUSION QUI RÉSUME : termine sur la pensée, l'action ou le sentiment déjà présent dans le récit. Une question n'est pas obligatoire.
 
 10. GENRÉ : ajoute le point médian.
 
@@ -273,10 +273,10 @@ Le critère : une voix fidèle et un propos précis.
 
 11. REDONDANCE : 2+ paragraphes même idée → garde le plus CONCRET.
 
-12. LONGUEUR : cible 1300-2000 caractères. Ne raccourcis PAS un post déjà dans cette fourchette.
+12. LONGUEUR : préserve les passages utiles, même si le post est court. Supprime le remplissage et n'allonge pas pour atteindre une fourchette.
 
 ══ RÈGLES ABSOLUES ══
-- Garde le SENS, la CONVICTION et les informations qui situent le sujet. N'invente aucun fait, chiffre, citation ou vécu. Tu corriges la FORME, pas le FOND.
+- Garde le SENS, la CONVICTION, le point de vue de l'auteur·ice et les informations qui situent le sujet. N'invente aucun fait, chiffre, citation, pensée, émotion ou vécu. Tu corriges la FORME, pas le FOND.
 - N'invente pas de nouveaux faits.
 - JAMAIS de tiret cadratin (—).
 - Écriture inclusive avec point médian.

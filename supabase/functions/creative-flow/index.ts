@@ -220,7 +220,7 @@ Matrice d'angles par format :
 - Carrousel : prend l'idée la plus PÉDAGOGIQUE. Développe-la en profondeur. Structure en progression logique (constat > bascule > solution > application).
 - Reel : prend l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE. Hook en 3 secondes. Oral, direct, une seule idée martelée.
 - Stories : prend l'angle le plus INTIME ou PERSONNEL. Comme un message vocal à une amie. Confidences, coulisses, réactions spontanées.
-- LinkedIn : prend l'angle le plus ENGAGÉ. Prise de position, conviction, question de fond. Ton direct et pro-amical. Dense (1300-2000 car.), pas de remplissage.
+- LinkedIn : garde la voix et l'intention de la source. Un récit personnel peut rester personnel ; une analyse peut creuser un point de vue. Ne fabrique ni conflit ni anecdote.
 - Newsletter : prend l'angle le plus PROFOND. C'est le format qui a le plus de place : développe une réflexion complète avec nuances, apartés, exemples concrets.
 
 RÉDACTION : pour chaque format, rédige un contenu COMPLET et PRÊT À POSTER. Pas un brouillon.
@@ -233,7 +233,7 @@ LONGUEURS OBLIGATOIRES :
 - Carrousel : 8 slides détaillées (slide 1 = hook, slides 2-7 = développement, slide 8 = punchline + CTA). Chaque slide = 2-4 phrases. Pas de slides d'1 mot.
 - Reel : script complet avec timecodes (0-3s hook, 3-15s contexte, 15-45s coeur, 45-60s CTA). Indique les cuts et le texte à l'écran.
 - Stories : séquence de 5-7 stories. Chaque story = ce qui est affiché (texte, sticker, sondage) + indication visuelle. Story 4 = interaction obligatoire.
-- LinkedIn : 1300-2000 caractères. Prose fluide, pas de listes à puces. Accroche dans les 210 premiers caractères. 0-2 hashtags en fin.
+- LinkedIn : longueur selon la matière disponible. Prose fluide et ouverture qui situe le sujet. 0-2 hashtags si utiles.
 - Instagram (Carrousel, Reel, Stories) : 3 hashtags maximum en fin de légende. Jamais plus, même si la légende est longue. Choisis-les ciblés (pas de #love #life génériques).
 - Newsletter : 1500-3000 caractères. Objet d'email accrocheur. Structure : hook personnel > développement > leçon > CTA.
 
@@ -557,11 +557,24 @@ export function buildQuestionsPrompt(params: {
 }): { systemPrompt: string; userPrompt: string } {
   const { QUESTIONS_PREFIX, brandingContext, brandVocabBlock, context, contentType, editorialFormatLabel, angle, calendarBlock, objectiveBlock, newsContextBlock, recentBriefsContext } = params;
   const channelLabel = contentType === "linkedin" ? "LinkedIn" : contentType === "newsletter" ? "Newsletter" : "Instagram";
-  const channelGuidance = contentType === "linkedin"
-    ? "Questions orientées PRO : demande des situations professionnelles, des apprentissages business, des résultats concrets, des prises de position assumées."
+  const linkedinStory = contentType === "linkedin" && /storytelling|coulisses|récit|histoire/i.test([editorialFormatLabel, angle?.title].filter(Boolean).join(" "));
+  const channelGuidance = linkedinStory
+    ? "Questions orientées RÉCIT PERSONNEL : demande d'abord ce que la personne veut raconter d'elle-même, puis un moment réel (lieu et action) et ce qu'elle pensait ou ressentait. Son plaisir de travailler ou de transmettre peut être le sujet. N'exige ni crise, ni résultat business, ni leçon universelle. Une citation ou un dialogue ne doivent venir que d'un souvenir fourni."
+    : contentType === "linkedin"
+    ? "Questions orientées POINT DE VUE : demande ce que la personne veut exprimer sur ce sujet, puis un choix, une observation ou un fait réel. Si le sujet est un moment vécu, explore son expérience personnelle avant de demander ce qu'elle enseigne aux autres. N'exige pas une prise de position conflictuelle ni un résultat business."
     : contentType === "newsletter"
     ? "Questions orientées PROFONDEUR : demande des réflexions de fond, des convictions, des retours d'expérience détaillés."
     : "Questions orientées ÉMOTION : demande des moments vécus, des ressentis, des transformations personnelles, des coulisses.";
+  const questionTypes = linkedinStory
+    ? `   - INTENTION : qu'est-ce que la personne souhaite raconter d'elle-même à travers ce moment ?
+   - SCÈNE VÉCUE : où était-elle, que faisait-elle, et quel geste ou choix compte dans cette histoire ?
+   - PENSÉE / ÉMOTION : qu'est-ce qui lui traversait l'esprit ou qu'est-ce qu'elle ressentait, avec ses mots ?
+   - DÉROULÉ : qu'a-t-elle fait ensuite et qu'est-ce qui lui plaît ou lui reste de ce moment ?`
+    : `   - ANECDOTE : un moment précis vécu sur ce sujet
+   - POINT DE VUE : ce que la personne pense de ce sujet, sans conflit obligatoire
+   - PROCESS / MÉTHODE : ce qu'elle fait concrètement
+   - OBSERVATION : ce qu'elle voit revenir
+   - CONVICTION : ce qu'elle défend quand c'est pertinent`;
 
   const systemPrompt = `${QUESTIONS_PREFIX}
 ${brandingContext ? `\nCONTEXTE BRANDING DE L'UTILISATRICE :\n${brandingContext}\n` : ""}${brandVocabBlock}
@@ -597,7 +610,7 @@ Réfléchis silencieusement à :
 
 Puis pose les 3 questions qui maximisent la matière personnelle apportée sur CE sujet.
 
-Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire des éléments PERSONNELS (anecdotes, opinions, observations, process, convictions) qui rendront le contenu unique.
+Pose exactement 3 questions pour récupérer SA matière première sur le sujet courant. Ces questions doivent extraire les faits, intentions et formulations personnels utiles à ce contenu.
 
 RÈGLES :
 1. ANCRAGE SUJET (règle n°1, non négociable) : chaque question DOIT contenir un mot du sujet courant ou un aspect concret directement déductible du sujet courant. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
@@ -605,16 +618,12 @@ RÈGLES :
 3. ${channelGuidance}
 4. Questions OUVERTES (pas oui/non).
 5. Choisis des questions complémentaires parmi les types utiles au sujet, sans quota par type :
-   - ANECDOTE : "Raconte un moment précis où…" (une scène concrète vécue)
-   - OPINION TRANCHÉE : "C'est quoi ta position sur… ?" / "Tu penses quoi de… ?"
-   - PROCESS / MÉTHODE : "Comment tu fais concrètement quand… ?" / "C'est quoi ta méthode pour… ?"
-   - OBSERVATION : "Qu'est-ce que tu observes chez… ?" / "Qu'est-ce qui te frappe quand… ?"
-   - CONVICTION : "C'est quoi le truc que tu répètes toujours à ce sujet ?" / "Pourquoi t'es convaincue que… ?"
-   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Maximum 1 question anecdote sur les 3.
+${questionTypes}
+   ⚠️ INTERDIT de faire 3 questions "Raconte-moi une fois où…". Une question peut recueillir la scène, les autres son intention et son ressenti ou son choix.
 6. Le ton des questions est chaleureux et curieux (comme une amie qui s'intéresse vraiment).
 7. Chaque question a un placeholder qui donne un mini-exemple de réponse SPÉCIFIQUE au sujet courant.
-8. ORIENTÉES vers l'objectif : si "vente" → demande des résultats, process, transformations. Si "engagement" → demande des anecdotes, émotions. Si "visibilité" → demande des opinions clivantes, observations décalées. Si "crédibilité" → demande des méthodes, des preuves, des observations terrain.
-9. ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
+8. ORIENTÉES vers l'objectif sans écraser l'intention du sujet : vente peut demander un choix ou un résultat réel ; engagement un vécu ou une émotion ; visibilité un regard personnel ; crédibilité une méthode ou une preuve. N'exige ni conflit, ni transformation, ni chiffre lorsque la personne raconte simplement ce qu'elle aime faire.
+${recentBriefsContext ? "9. MÉMOIRE ANTI-RÉPÉTITION : l'historique ci-dessus liste des sujets DIFFÉRENTS déjà traités. Tu ne dois JAMAIS importer leur contenu, leur vocabulaire spécifique ou leurs scènes dans tes questions sur le sujet courant. Ils servent uniquement à éviter de re-poser une question identique." : ""}
 
 INTERDIT — NE FAIS JAMAIS ÇA :
 - Questions génériques type "Qu'est-ce qui te passionne dans ton métier ?", "Quel est ton parcours ?", "Qu'est-ce qui te différencie ?"
@@ -625,17 +634,7 @@ INTERDIT — NE FAIS JAMAIS ÇA :
 - ⚠️ Questions qui mentionnent des éléments venus de l'historique des briefs précédents (scènes, lieux, personnages, anecdotes d'anciens briefs) — l'historique ne sert PAS de matière narrative pour le sujet courant
 - Chaque question DOIT mentionner le sujet courant ou un aspect concret du sujet courant
 
-EXEMPLES (pour le sujet "Pourquoi je ne fais plus de remises") :
-❌ MAUVAIS MIX :
-1. "Raconte-moi un moment où tu as dû défendre ta valeur."
-2. "Raconte-moi une fois où une cliente t'a demandé une remise."
-3. "Raconte-moi comment tu as changé ta relation à l'argent."
-(= 3x le même type "raconte-moi" → monotone)
-
-✅ BON MIX :
-1. (anecdote) "La dernière fois qu'on t'a demandé une remise, tu as répondu quoi exactement ?"
-2. (opinion) "C'est quoi le truc qui t'agace le plus dans la culture du 'prix cassé' ?"
-3. (process) "Concrètement, comment tu présentes tes tarifs maintenant pour éviter la négociation ?"
+Cherche des formulations propres au sujet courant ; ne reprends aucun exemple de question prévu pour un autre sujet.
 
 Réponds UNIQUEMENT en JSON :
 {
@@ -1951,7 +1950,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
     → Si 2+ paragraphes expriment la même idée sous angles différents : garde le plus CONCRET, fusionne ou supprime les autres.
 
 12. LONGUEUR :
-    → Cible : 1300-2000 caractères. Si > 2000 : supprime le paragraphe le plus abstrait. Ne raccourcis PAS un post déjà dans cette fourchette.
+    → Préserve la matière utile ; coupe les redites. N'allonge pas un post pour atteindre une cible de caractères.
 
 ══ RÈGLES ABSOLUES ══
 

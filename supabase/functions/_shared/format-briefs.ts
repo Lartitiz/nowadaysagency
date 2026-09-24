@@ -2,7 +2,7 @@
 // Extracted verbatim from index.ts to keep prompt quality identical.
 // Each function returns the exact same string literal that was previously inlined.
 
-import { LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
+import { LINKEDIN_STORYTELLING_RULES, LINKEDIN_TEMPLATES } from "./copywriting-prompts.ts";
 
 export function carouselBrief(): string {
   return `FORMAT : CARROUSEL INSTAGRAM (8 slides minimum)
@@ -950,97 +950,24 @@ export function linkedinBrief(editorialFormat: string | null): string {
     ? (LINKEDIN_TEMPLATES as any)[editorialFormat]
     : "";
 
-  return `FORMAT : POST LINKEDIN (1300-2000 caractères)
+  return `FORMAT : POST LINKEDIN
 
-══ ÉTAPE 1 : AVANT D'ÉCRIRE, IDENTIFIE CES 3 ÉLÉMENTS ══
+${LINKEDIN_STORYTELLING_RULES}
 
-Avant de rédiger une seule ligne, tu DOIS répondre mentalement à ces 3 questions :
+AVANT D'ÉCRIRE :
+- Identifie le sujet exact et ce que la personne veut en dire. Sa voix et ses réponses priment sur l'angle suggéré.
+- Sépare les faits de ce contenu des informations générales du profil de marque. Un métier, une valeur ou une ancienne histoire ne prouve pas une scène actuelle.
+- Si elle raconte un moment vécu, suis un fil simple : situation réelle, ce qu'elle fait ou choisit, ce qu'elle pense ou ressent si elle l'a dit, puis la suite ou le sens qu'elle donne à ce moment.
+- Si elle partage une idée ou une expertise sans scène vécue, explique cette idée concrètement sans la déguiser en anecdote.
 
-1. QUELLE CONVICTION ou ÉMOTION porte ce post ?
+${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplateContent}\n\nGarde uniquement les étapes attestées dans le brief et utiles au sujet.` : ""}
 
-   Chaque bon post LinkedIn est porté par un ressort émotionnel : fierté d'un aboutissement, indignation face à un constat, enthousiasme pour une découverte, gratitude envers un parcours, frustration face à une norme...
-
-   → Si tu ne trouves pas l'émotion, le post sera un communiqué. Cherche : qu'est-ce qui ANIME l'auteur·ice sur ce sujet ?
-
-2. QUEL DÉTAIL CONCRET ancre le post dans le réel ?
-
-   Un chiffre précis, une date, un lieu, une phrase entendue, une durée, un nom d'outil, un avant/après mesurable. C'est le détail qui fait que le lecteur se dit "c'est du vécu" et pas "c'est du ChatGPT".
-
-   → Si le sujet ne contient pas de détail, INVENTE-EN PAS. Pose la question dans les réponses de l'utilisatrice, ou ancre dans le contexte branding.
-
-3. QUEL EST LE MOUVEMENT NARRATIF ?
-
-   Un post LinkedIn n'est pas une fiche info. C'est un MOUVEMENT qui embarque :
-
-   - Annonce/événement → nommer et situer brièvement l'événement, puis raconter le CHEMIN qui y mène ou la CONVICTION derrière. Éviter le compte rendu exhaustif.
-
-   - Partage d'expertise → ne PAS lister des conseils. Partir d'un CONSTAT TERRAIN et creuser le POURQUOI.
-
-   - Milestone/bilan → ne PAS énumérer les accomplissements. Choisir UN fil rouge émotionnel (ce qui n'a pas changé, ce qui a été le plus dur, ce qu'on referait).
-
-   - Collaboration/rencontre → présenter brièvement les personnes et le sujet de la rencontre si nécessaires à la compréhension, puis raconter ce qu'elle a PROVOQUÉ ou RÉVÉLÉ.
-
-${linkedinTemplateContent ? `STRUCTURE ÉDITORIALE CHOISIE :\n${linkedinTemplateContent}\n\nSuis cette structure pour organiser le post.` : ""}
-
-══ ÉTAPE 2 : ÉCRITURE ══
-
-ACCROCHE (< 210 caractères) :
-
-- Un FAIT CONCRET ou une ÉMOTION SINCÈRE. Jamais une promesse marketing, un teaser, ou un slogan.
-
-- Exemples de patterns qui marchent : "Ça y est, [fait concret] !" / "Il y a [durée], [situation de départ]. Aujourd'hui, [contraste]." / "Quand [situation concrète], [réaction ou constat]."
-
-- Exemples de patterns INTERDITS : "[Sujet] n'aura plus de secrets pour vous !" / "Je voulais partager avec vous..." / "Et si on parlait de [sujet] ?"
-
-CORPS :
-
-- LinkedIn = conversation entre pro. Le ton est direct, chaleureux, engagé. L'oral est OK, à condition de varier les mots-outils d'un post à l'autre.
-
-- 2-3 paragraphes de prose fluide. UNE idée creusée, pas 5 survolées.
-
-- Chaque paragraphe apporte du NOUVEAU. Si tu reformules le paragraphe précédent, coupe.
-
-- Le rythme vient du CONTRASTE (longue phrase qui déroule → courte qui claque), pas de rafales.
-
-- PRENDS POSITION. Un bon post LinkedIn dit avec quoi l'auteur·ice n'est PAS d'accord, ce qui l'étonne, ce qui le/la dérange. Pas de "chacun son avis".
-
-FIN :
-
-- Question PRÉCISE liée au sujet, ou rien du tout si le texte se suffit.
-
-- La dernière phrase apporte du NOUVEAU ou laisse une tension ouverte.
-
-- JAMAIS de résumé, JAMAIS de crescendo rhétorique.
-
-FORMAT :
-
-- 0-2 emojis max, jamais en puces
-
-- 0-2 hashtags niche en fin
-
-- Écriture inclusive avec point médian
-
-- Pas de tirets cadratin (—), utiliser : ou ;
-
-- DENSE : 1300-2000 caractères. Zéro remplissage.
-
-══ INTERDITS ABSOLUS ══
-
-- Storytelling fabriqué ("Et là, tout a basculé", "Le déclic ?", "Ce jour-là j'ai compris")
-
-- Phrases courtes en rafale pour l'effet dramatique
-
-- Listes à puces inspirationnelles
-
-- Promesses marketing en accroche
-
-- "Et vous, qu'en pensez-vous ?" comme CTA
-
-- Flex déguisé en humilité
-
-- Étirer une idée de 3 phrases sur 8 paragraphes
-
-- Post qui DÉCRIT un sujet sans PRENDRE POSITION dessus`;
+ÉCRITURE :
+- L'ouverture situe le sujet. Pour un récit, elle peut commencer au « je », dans le lieu et l'action fournis ; une introduction logistique n'est pas obligatoire.
+- Chaque paragraphe fait avancer le propos avec un fait, un geste, un choix, une pensée ou une nuance nouvelle. Préserve les formulations personnelles réussies.
+- La fin achève le récit ou la réflexion. Remercie les personnes citées si le brief le prévoit. N'ajoute une question que si elle ouvre une conversation précise et naturelle.
+- Aère pour la lecture sans découper mécaniquement chaque phrase. La longueur suit la matière disponible. Aucun chiffre, lieu, dialogue, sentiment ou résultat inventé.
+- 0 à 2 emojis et 0 à 2 hashtags si pertinents. Respecte la voix et les préférences de la marque.`;
 }
 
 export function pinterestBrief(pinterest_link: string | null, pinterest_board: string | null): string {
