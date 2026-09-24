@@ -1051,7 +1051,7 @@ Matrice d'affinités pour l'attribution :
 - Carrousel : l'idée la plus PÉDAGOGIQUE.
 - Reel : l'idée la plus PROVOCANTE ou CONTRE-INTUITIVE.
 - Stories : l'angle le plus INTIME ou PERSONNEL.
-- LinkedIn : l'angle le plus ENGAGÉ (prise de position).
+- LinkedIn : le regard personnel le plus fidèle à la source, qu’il s’agisse d’un vécu ou d’une idée.
 - Newsletter : l'angle le plus PROFOND (réflexion complète).
 
 Chaque format DOIT recevoir une sous-idée DIFFÉRENTE (dérivation, pas reformatage). Si deux formats risquent de se chevaucher, force un pivot : point d'entrée, question posée ou public visé différent.${pdfWarning}${sourceText ? `\n\nCONTENU SOURCE :\n"""\n${sourceText}\n"""` : ""}${filesContent.length > 0 ? `\n\n${sourceText ? "Le reste du" : "Le"} contenu source est dans les fichiers ci-dessus. Synthétise les informations clés de TOUS les fichiers, ne traite pas chaque fichier isolément.` : ""}`;
@@ -1768,7 +1768,7 @@ function streamLinkedInPhotoVision(params: {
 2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy". Une seule pensée qui se déroule.
 3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
 4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT.
-5. VOIX = JE (ton vécu) + NOUS/ON inclusif pour embarquer. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Ton d'une amie au café, pas d'une audience. (Sauf si la voix de marque indique un autre registre.)
+5. VOIX : respecte la personne grammaticale et le registre de cette marque. Si elle écrit au « je », garde ses mots ; n'impose ni « tu » ni « vous ».
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,
@@ -1788,7 +1788,7 @@ function streamLinkedInPhotoVision(params: {
     }
   });
   const modeInstr = isBeforeAfter
-    ? `\n\n🔄 MODE AVANT / APRÈS : raconte LA transformation comme un récit unique.`
+    ? `\n\n🔄 MODE AVANT / APRÈS : raconte le changement réel comme un fil unique, sans créer de déclic ni de résultat absent du brief.`
     : isSeries
     ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : trouve le fil thématique commun. NE liste/NE numérote PAS.`
     : "";
@@ -1928,9 +1928,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
    → ✅ "Je parle de visibilité, du droit de prendre sa place, de réhabiliter la communication."
 
 6. EMPILEMENT INSPIRATIONNEL (2+ phrases-valeurs sans exemple concret) :
-   → Si 2 phrases consécutives expriment des valeurs abstraites sans aucun fait : remplace par UN exemple concret.
-   ❌ "Les projets éthiques méritent d'être vus. Les créatrices ont le droit de prendre leur place."
-   → ✅ "Une céramiste qui fait un travail incroyable mais que personne ne connaît, c'est pas un choix de discrétion. C'est un problème de visibilité."
+   → Si 2 phrases consécutives expriment des valeurs abstraites sans fait : utilise un fait déjà fourni, ou coupe la redite. N’invente pas d’exemple.
 
 7. ACCROCHE PROMESSE/SLOGAN :
    → Si l'accroche promet quelque chose ("X n'aura plus de secrets", "Voici comment...", "5 erreurs à éviter") : remplace par un FAIT concret ou une scène vécue.
@@ -1956,7 +1954,7 @@ Lis le post à voix haute mentalement. Identifie les passages répétitifs, arti
 
 - Garde le SENS et la CONVICTION du post. Tu corriges la FORME, pas le FOND.
 - N'invente pas de nouveaux faits. Garde les détails concrets de l'original.
-- Le post corrigé fait entre 1300 et 1700 caractères.
+- La longueur du post corrigé suit la matière réellement disponible ; aucun remplissage.
 - JAMAIS de tiret cadratin (—). Utilise : ou ; ou des virgules.
 - Écriture inclusive avec point médian.
 
@@ -2485,24 +2483,12 @@ async function runVisionGenerate(params: {
   if (isLinkedInPhoto) {
     photoContent.push({
       type: "text",
-      text: `══ RÈGLES CRITIQUES À LIRE AVANT DE REGARDER LES IMAGES ══
-
-1. ANTI-PARAPHRASE VISUELLE : tu n'as PAS le droit d'écrire "Ce [adjectif] [objet], c'est…" pour désigner ce que tu vois.
-   ❌ "Ce flyer orange et jaune, c'est l'événement Aire You Ready."
-   ❌ "Cette affiche colorée, c'est…"
-   ✅ Tu peux NOMMER le sujet directement : "Aire You Ready, c'est…" / "Vendredi soir, on était…"
-
-2. ANTI-CASCADE : pas de rafale de phrases courtes pour faire "punchy".
-   ❌ "Pas un musée à cocher. Un verre au comptoir. Une conversation qui s'étire."
-   ✅ Une seule pensée qui se déroule : "C'était pas un musée à cocher mais un verre au comptoir, une conversation qui s'étire."
-
-3. ANTI-CTA FABRIQUÉ : pas de slogan-invitation en italique ou guillemets.
-   ❌ « Ici, il se passe quelque chose. Venez. »
-   ✅ Une phrase qui coupe net, ou une question concrète liée au sujet.
-
-4. CHIFFRES / NUMÉROS / DATES / NOMS VISIBLES : recopie EXACTEMENT. Si tu vois "#3", écris "#3", jamais "#8".
-
-5. VOIX = JE (ton vécu) + NOUS/ON inclusif. Le "TU" reste rare, pour une interpellation ponctuelle : jamais comme adresse de tout le texte, jamais de "vous". Une amie au café, pas une audience. (Sauf si la voix de marque indique un autre registre.)
+      text: `══ RÈGLES À LIRE AVANT LES IMAGES ══
+- Le sujet déclaré, les réponses et la voix de la marque priment sur la description visuelle. Ne déroule pas un inventaire des photos ; nomme directement le sujet quand il est connu.
+- Une photo peut étayer un fait visible. Elle ne révèle pas une pensée, une émotion, une citation, un dialogue ou une chronologie hors champ. N'invente pas ces éléments.
+- Évite les slogans, les cascades de phrases courtes et la question finale automatique. Garde les phrases courtes qui correspondent à la personne et au moment raconté.
+- Recopie exactement les chiffres, noms et dates lisibles si tu les utilises.
+- Respecte la personne grammaticale et le registre de la marque, sans tutoiement ni vouvoiement imposé.
 
 ══ MAINTENANT, REGARDE LES IMAGES ══
 `,
@@ -2530,7 +2516,7 @@ async function runVisionGenerate(params: {
   });
 
   const modeInstr = isBeforeAfter
-    ? `\n\n🔄 MODE AVANT / APRÈS : la 1ère image = état AVANT, la 2nde = état APRÈS. Raconte LA transformation comme un récit unique (le déclic, le geste, le résultat). Ne décris pas chaque image séparément.`
+    ? `\n\n🔄 MODE AVANT / APRÈS : la 1ère image = état AVANT, la 2nde = état APRÈS. Raconte le changement réel comme un fil unique ; ne crée ni déclic ni résultat absent du brief. Ne décris pas chaque image séparément.`
     : isSeries
     ? `\n\n📸 MODE SÉRIE (${validPhotos.length} images) : ces images traitent d'UN MÊME sujet. Trouve le fil thématique commun et écris UN SEUL message qui s'appuie sur l'ensemble. NE liste PAS les images. NE numérote PAS ("photo 1, photo 2" est interdit). Pas de structure "étape 1, étape 2". \n\nINTERDIT d'enchaîner des transitions descriptives type "Ce X visible sur une image, c'est… Ce Y visible sur une autre, c'est…". Le post doit parler du SUJET, pas faire le tour des images.\n\nSi tu n'identifies pas de fil commun évident, reste sur l'observation la plus universelle qui les relie — n'invente pas une chronologie ou un récit qui ne tient pas.`
     : "";
