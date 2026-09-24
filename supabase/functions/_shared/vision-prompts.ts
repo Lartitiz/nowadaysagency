@@ -18,8 +18,8 @@ export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
   let channelLabelQ = "Instagram (post photo)";
   let channelGuidanceQ = "Ton ÉMOTION / SCÈNE VÉCUE : ressenti, hors-champ, instant, ce qui se passait juste avant ou après la photo.";
   if (ctype.includes("linkedin")) {
-    channelLabelQ = "LinkedIn (post pro)";
-    channelGuidanceQ = "Ton PRO : ce qu'on apprend pro derrière l'image, prise de position assumée, résultat / chiffre concret, contexte business.";
+    channelLabelQ = "LinkedIn (post)";
+    channelGuidanceQ = "Demande ce que la personne veut raconter ou expliquer à travers ce sujet, puis le fait, le geste, la pensée ou l'émotion qu'elle peut réellement préciser. Un résultat business, un chiffre ou une prise de position ne sont utiles que s'ils servent son intention et sont fournis.";
   } else if (ctype.includes("reel")) {
     channelLabelQ = "Reel Instagram (vidéo courte)";
     channelGuidanceQ = "L'image sert de référence visuelle / vignette / plan d'inspiration. Questions sur : l'instant à montrer, la promesse rapide, ce que la voix off ou face cam dit pendant qu'on voit l'image.";
@@ -52,13 +52,13 @@ export function buildVisionQuestionsPrompt(p: VisionQuestionsParams): string {
   let questionGuidance: string;
   if (seriesMode === "single" || photoCount === 1) {
     photoIntro = `Voici la photo qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}.`;
-    questionGuidance = `Pose exactement 3 questions d'approfondissement sur LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions PEUT s'appuyer sur un détail visible dans la photo ; les autres approfondissent le sujet déclaré (vision, rôle, conviction, contexte pro).`;
+    questionGuidance = `Pose exactement 3 questions d'approfondissement sur LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions PEUT s'appuyer sur un détail visible dans la photo ; les autres approfondissent le sujet déclaré et le point de vue de la personne.`;
   } else if (seriesMode === "before_after") {
     photoIntro = `Voici les 2 photos qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}. Elles forment un AVANT (photo 1) / APRÈS (photo 2).`;
-    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur la transformation visible entre les 2 photos ; les autres creusent le sujet déclaré (déclic, geste, apprentissage liés à SON sujet).`;
+    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur le changement visible entre les 2 photos ; les autres creusent son intention et les faits vécus, sans supposer de déclic.`;
   } else {
     photoIntro = `Voici les ${photoCount} photos qu'elle veut utiliser pour ILLUSTRER son contenu ${channelLabelQ}. Elles appartiennent à UNE MÊME SÉQUENCE (chantier, événement, coulisses, étapes…).`;
-    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur un détail visible dans une photo (cite-la) ; les autres approfondissent le sujet déclaré (pourquoi ce sujet, sa vision, son rôle, sa prise de position).`;
+    questionGuidance = `Pose exactement 3 questions ANCRÉES dans LE SUJET qu'elle a déclaré (voir bloc PRIORITAIRE ci-dessus), adaptées au format ${channelLabelQ}. Au moins 1 des 3 questions peut s'appuyer sur un détail visible dans une photo (cite-la) ; les autres approfondissent le sujet déclaré et le regard de la personne.`;
   }
 
   const subjectBlock = p.context && p.context.trim()
@@ -84,7 +84,7 @@ RÈGLES :
 - PRIORITÉ ABSOLUE au sujet déclaré ci-dessus. Les photos servent à enrichir, pas à dicter l'angle.
 - Tu peux mentionner ce que tu VOIS sur ${photoCount > 1 ? "les photos (cite leur numéro si pertinent)" : "la photo"} quand c'est pertinent pour le sujet
 - ${channelGuidanceQ.replace("derrière l'image", "sur LE sujet qu'elle veut traiter")}
-- VARIÉTÉ obligatoire : 1 anecdote/scène, 1 opinion/conviction, 1 process/observation (pas 3 "raconte-moi")
+- VARIÉTÉ : pose des questions complémentaires adaptées au sujet. ${ctype.includes("linkedin") ? "Si c'est un récit personnel, explore l'intention, un moment réel et ce qu'elle pensait ou ressentait ; si c'est une idée, creuse son raisonnement. N'exige pas d'anecdote ni de conviction artificielle." : "Évite trois questions qui demandent toutes la même anecdote."}
 - Questions OUVERTES, ton chaleureux et curieux
 
 Réponds UNIQUEMENT en JSON valide :

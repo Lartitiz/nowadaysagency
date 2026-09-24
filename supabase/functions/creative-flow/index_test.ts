@@ -16,7 +16,7 @@
 
 import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { installFetchMock, setTestEnv } from "../_shared/test-edge-harness.ts";
-import { buildVisionGenerateBrief } from "../_shared/vision-prompts.ts";
+import { buildVisionGenerateBrief, buildVisionQuestionsPrompt } from "../_shared/vision-prompts.ts";
 
 setTestEnv();
 
@@ -178,6 +178,18 @@ Deno.test("post LinkedIn avec photos : la photo ne fournit ni pensée ni dialogu
   assertEquals(prompt.includes("Une image seule ne prouve ni ce qu'elle a pensé"), true);
   assertEquals(prompt.includes("Respecte le registre de la marque"), true);
   assertEquals(prompt.includes("ADRESSE : VOUS"), false);
+});
+
+Deno.test("questions LinkedIn avec photos : le vécu passe avant le résultat business", () => {
+  const prompt = buildVisionQuestionsPrompt({
+    contentType: "post_linkedin",
+    context: "Ce que j'aime dans la préparation d'un atelier",
+    objective: "confiance",
+    photo_description: null,
+    per_photo_context: null,
+  });
+  assertEquals(prompt.includes("ce qu'elle pensait ou ressentait"), true);
+  assertEquals(prompt.includes("résultat / chiffre concret, contexte business"), false);
 });
 
 Deno.test("runLinkedInTwoStep : élisions appliquées même si la 2e passe échoue (filet déterministe, fallback sur le brut)", async () => {
