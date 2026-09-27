@@ -54,13 +54,45 @@ Deno.test("chiffre géant décoratif (opacity 0.15) → laissé tel quel", () =>
   assertEquals(fixes, 0);
 });
 
-Deno.test("fond gradient → checks suspendus (zéro faux positif)", () => {
+Deno.test("fond gradient sombre, texte sombre → réécrit en clair (arrêts lisibles)", () => {
   const html =
     `<div style="background:linear-gradient(180deg,#1C1C20,#000)">` +
-    `<p style="color:#1C1C20">Sur gradient, on ne juge pas</p>` +
+    `<p style="color:#1C1C20">Invisible sur le dégradé</p>` +
     `</div>`;
-  const { fixes } = enforceTextContrast(html);
-  assertEquals(fixes, 0);
+  const { html: fixed, fixes } = enforceTextContrast(html);
+  assertEquals(fixes, 1);
+  assertStringIncludes(fixed, "color:#FFFFFF");
+});
+
+// Visite du 26/09 : gabarit « split », légende #FFECF0 sur le haut clair d'une
+// bande terracotta dégradée → 2,37:1 dans le PPTX et à l'écran.
+Deno.test("légende rose clair sur bande terracotta dégradée → foncée", () => {
+  const html =
+    `<div style="background:#FFFFFF;width:1080px;height:1350px;position:relative">` +
+    `<div style="position:absolute;left:0;top:0;width:475px;height:1350px;background:linear-gradient(180deg,#D98A6A 0%,#A0522D 100%)">` +
+    `<span data-pptx-editable="caption" style="font-size:32px;color:#FFECF0">savons en séchage</span>` +
+    `</div></div>`;
+  const { html: fixed, fixes } = enforceTextContrast(html);
+  assertEquals(fixes, 1);
+  assertStringIncludes(fixed, "color:#1C1C20");
+});
+
+Deno.test("dégradé inconnu (nom de couleur, image, arrêt translucide sans fond) → on ne juge pas", () => {
+  for (const bg of [
+    "linear-gradient(tomato,#000)",
+    "linear-gradient(#000,#111),url(x.png)",
+    "linear-gradient(rgba(0,0,0,0.2),#000)",
+  ]) {
+    const html = `<div style="background:${bg}"><p style="color:#111111">x</p></div>`;
+    assertEquals(enforceTextContrast(html).fixes, 0, bg);
+  }
+});
+
+Deno.test("surligneur (transparent → accent) sur fond clair, texte foncé → intact", () => {
+  const html =
+    `<div style="background:#FFFFFF"><p style="color:#1C1C20">Un ` +
+    `<span style="color:#1C1C20;background:linear-gradient(transparent 55%, #FB3D8066 55%)">mot</span></p></div>`;
+  assertEquals(enforceTextContrast(html).fixes, 0);
 });
 
 Deno.test("badge pilule blanc sur fond primaire sombre → intact", () => {
