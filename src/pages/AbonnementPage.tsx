@@ -170,11 +170,6 @@ export default function AbonnementPage() {
                 <div className="mt-2 space-y-1">
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Target className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Accompagnement 6 mois · 7 sessions avec Laetitia</p>
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" strokeWidth={1.75} /> Création de contenu illimitée incluse</p>
-                  <Link to="/accompagnement">
-                    <Button size="sm" variant="outline" className="rounded-full mt-1 text-xs gap-1.5">
-                      <Handshake className="h-3.5 w-3.5" strokeWidth={1.75} /> Voir mon accompagnement →
-                    </Button>
-                  </Link>
                 </div>
               )}
               {subInfo?.source === "promo" && subInfo?.current_period_end && (

@@ -191,7 +191,7 @@ export default function AppSidebar() {
               </button>
               <Link to="/admin/coaching" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
                 <GraduationCap size={16} />
-                🎓 Mes client·es
+                🎓 Admin
               </Link>
               <Link to="/admin/audit" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
                 <Wrench size={16} />
@@ -217,12 +217,6 @@ export default function AppSidebar() {
             <Settings size={16} />
             Paramètres
           </Link>
-          {isBinome && (
-            <Link to="/accompagnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
-              <HeartHandshake size={16} />
-              Mon accompagnement
-            </Link>
-          )}
           <Link to="/abonnement" onClick={() => setOpen(false)} className="flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-body text-foreground hover:bg-rose-pale transition-colors">
             <CreditCard size={16} />
             Mon abonnement
