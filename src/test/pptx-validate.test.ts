@@ -48,6 +48,11 @@ const VOILE_SANS_FOND = png((_x, y) => [28, 28, 32, Math.round(77 + (96 * y) / H
 // l'artefact réel : dominante (26,5,13,217), alpha 89→217, aucun pixel opaque.
 const VOILE_TEINTE_SOMBRE = png((_x, y) => [26, 5, 13, Math.round(89 + (128 * y) / H)]);
 
+// 27/09 (perf-carousel) : dégradé d'ambiance tirant vers le bordeaux, un cran plus
+// clair que le fond : dominante (64,8,32), alpha 230, 0 % opaque, sur <p:bg> 1A050D.
+// Écart rouge 38 > INK_DELTA, mais contraste 1,2 = même ton → rendu fidèle.
+const VOILE_BORDEAUX = png((x) => [48 + Math.round((24 * x) / W), 8, 24 + Math.round((16 * x) / W), 230]);
+
 // Texture papier de marque : crème, opaque, grain fin → 0 % d'encre mais matière
 // réelle. Grain INDÉPENDANT par canal, comme la vraie texture (mesurée le 17/07 :
 // moyenne 240,7, écart-type 2,1, 68 couleurs exactes, 96 % opaque). L'amplitude
@@ -192,6 +197,22 @@ describe("validatePptx — fond aplat hybride légitime (texte natif par-dessus)
       { minSlides: 1, backgroundIsDecorative: true },
     );
     expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(false);
+  });
+
+  it("laisse passer un dégradé sombre un cran plus clair que son fond sombre (même ton, 27/09)", async () => {
+    const r = await valideRels(
+      [{ media: "image-1-1.png", buf: VOILE_BORDEAUX, texte: true, bg: "1A050D" }],
+      { minSlides: 1, backgroundIsDecorative: true },
+    );
+    expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(false);
+  });
+
+  it("le dégradé bordeaux sur un fond natif CLAIR reste « voile sans fond »", async () => {
+    const r = await valideRels(
+      [{ media: "image-1-1.png", buf: VOILE_BORDEAUX, texte: true, bg: "FFECF0" }],
+      { minSlides: 1, backgroundIsDecorative: true },
+    );
+    expect(r.problems.some((p) => p.startsWith("voile sans fond"))).toBe(true);
   });
 
   it("le même voile sombre sur un fond natif CLAIR reste « voile sans fond » (#575)", async () => {
