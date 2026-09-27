@@ -25,9 +25,9 @@ it("ouvre les outils secondaires et respecte les flags et accès contractuels", 
   expect(menu.getByRole("link", { name: "Mon identité" })).toHaveAttribute("href", "/branding");
   expect(menu.getByRole("link", { name: "Améliorer mon site" })).toHaveAttribute("href", "/site");
   expect(menu.getByRole("link", { name: "Coach IA" })).toHaveAttribute("href", "/dashboard/guide");
-  expect(menu.getByRole("link", { name: "Mon accompagnement" })).toBeVisible();
+  expect(menu.queryByRole("link", { name: "Mon accompagnement" })).not.toBeInTheDocument();
   expect(menu.queryByRole("link", { name: "Pinterest" })).not.toBeInTheDocument();
-  expect(menu.queryByRole("link", { name: /Mes client/ })).not.toBeInTheDocument();
+  expect(menu.queryByRole("link", { name: /Admin/ })).not.toBeInTheDocument();
 });
 it("ferme le menu en naviguant sans vider le brouillon avant le garde-fou de Créer", () => {
   saveFlowState({ step: "idea", ideaText: "Texte initial à conserver" });
@@ -45,7 +45,7 @@ it("conserve les outils admin sans les ajouter aux comptes ordinaires", () => {
   state.admin = true; mount(); const menu = openMenu();
   expect(menu.getByRole("link", { name: "Pinterest" })).toBeVisible();
   fireEvent.click(menu.getByText("Administration"));
-  expect(menu.getByRole("link", { name: /Mes client/ })).toBeVisible();
+  expect(menu.getByRole("link", { name: /Admin/ })).toBeVisible();
 });
 it("ne superpose pas la navigation à une session guidée", () => {
   state.session = true; mount();

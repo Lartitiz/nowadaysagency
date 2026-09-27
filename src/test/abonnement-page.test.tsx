@@ -109,7 +109,7 @@ describe("AbonnementPage — plan actuel", () => {
     expect(within(card).getByText(/39€\/mois/)).toBeInTheDocument();
   });
 
-  it("affiche « Binôme de com » et le lien accompagnement pour le plan binôme", async () => {
+  it("affiche « Binôme de com » sans lien accompagnement pour le plan binôme", async () => {
     mockInvokeResponses({
       "check-subscription": { data: { plan: "binome" }, error: null },
     });
@@ -118,10 +118,7 @@ describe("AbonnementPage — plan actuel", () => {
     const card = await waitForPlanLoaded();
     expect(within(card).getByText("Binôme de com")).toBeInTheDocument();
     expect(within(card).getByText(/290€\/mois/)).toBeInTheDocument();
-    expect(within(card).getByRole("link", { name: /Voir mon accompagnement/ })).toHaveAttribute(
-      "href",
-      "/accompagnement",
-    );
+    expect(within(card).queryByRole("link", { name: /Voir mon accompagnement/ })).not.toBeInTheDocument();
   });
 });
 
