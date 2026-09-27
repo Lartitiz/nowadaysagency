@@ -105,7 +105,6 @@ const ContactsPage = lazy(() => import("./pages/ContactsPage"));
 const BrandingAuditPage = lazy(() => import("./pages/BrandingAuditPage"));
 const BrandingAuditResultPage = lazy(() => import("./pages/BrandingAuditResultPage"));
 const AbonnementPage = lazy(() => import("./pages/AbonnementPage"));
-const AccompagnementPage = lazy(() => import("./pages/AccompagnementPage"));
 const AdminCoachingPage = lazy(() => import("./pages/AdminCoachingPage"));
 const AdminAuditPage = lazy(() => import("./pages/AdminAuditPage"));
 const AdminToolsPage = lazy(() => import("./pages/AdminToolsPage"));
@@ -266,7 +265,7 @@ function AnimatedRoutes() {
               <Route path="/parametres" element={<ProtectedRoute><SettingsPage /></ProtectedRoute>} />
               <Route path="/parametres/connexions" element={<ProtectedRoute><ConnectionCheckPage /></ProtectedRoute>} />
               <Route path="/abonnement" element={<ProtectedRoute><AbonnementPage /></ProtectedRoute>} />
-              <Route path="/accompagnement" element={<ProtectedRoute><AccompagnementPage /></ProtectedRoute>} />
+              <Route path="/accompagnement" element={<Navigate to="/dashboard" replace />} />
               <Route path="/admin/coaching" element={<AdminRoute><AdminCoachingPage /></AdminRoute>} />
               <Route path="/clients" element={<Navigate to="/admin/coaching" replace />} />
               <Route path="/admin/audit" element={<AdminRoute><AdminAuditPage /></AdminRoute>} />
