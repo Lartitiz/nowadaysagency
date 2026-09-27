@@ -50,6 +50,27 @@ const FLAT_MAX_COLORS = 24;
  * vraie texture de fond.
  */
 const VEIL_MAX_OPAQUE_RATIO = 0.02;
+/**
+ * Contraste maximal (ratio WCAG) entre la dominante d'un voile et le fond natif
+ * <p:bg> de sa slide pour les juger « du même ton ». Mesuré : 14/09 voile #1A050D
+ * sur 1A050D = 1,0 ; 27/09 voile #40081F (dégradé vers le bordeaux) sur 1A050D =
+ * 1,2 ; bug #575 voile #1C1C20 sur fond CLAIR ≈ 15. Un écart par canal
+ * (INK_DELTA) était trop étroit : il flaggait un dégradé sombre sur fond sombre.
+ */
+const VEIL_SAME_TONE_MAX_CONTRAST = 1.5;
+
+function relLuminance([r, g, b]: readonly number[]): number {
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+function contrastRatio(a: readonly number[], b: readonly number[]): number {
+  const [hi, lo] = [relLuminance(a), relLuminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
 
 /** Mesures d'un raster décodé (cf. inkRatio). */
 interface RasterStats {
@@ -312,8 +333,9 @@ export async function validatePptx(
       if (opaqueRatio <= VEIL_MAX_OPAQUE_RATIO) {
         // Exemption : un voile posé PAR-DESSUS une autre image de la même slide
         // assombrit la photo NATIVE dessous (carrousel photo hybride) — légitime.
-        // 2e exemption (14/09) : voile TEINTÉ de la couleur même du fond natif de
-        // TOUTES ses slides (écart ≤ INK_DELTA par canal). C'est le dégradé
+        // 2e exemption (14/09, élargie 27/09) : voile du MÊME TON que le fond natif
+        // de TOUTES ses slides (contraste ≤ VEIL_SAME_TONE_MAX_CONTRAST — sombre sur
+        // sombre, le composé reste sombre et le texte clair lisible). C'est le dégradé
         // d'ambiance posé sur la racine annotée `data-pptx-shape="background"` :
         // la racine part en <p:bg>, le dégradé reste en raster, le rendu est
         // fidèle (mesuré : voile #1A050D α 0,35→0,85 sur <p:bg> 1A050D, texte
@@ -323,7 +345,7 @@ export async function validatePptx(
         const natives = mediaNativeBg.get(base) ?? [];
         const tintedOnOwnBg =
           natives.length > 0 &&
-          natives.every((c) => c.every((v, i) => Math.abs(v - stats.dominant[i]) <= INK_DELTA));
+          natives.every((c) => contrastRatio(c, stats.dominant) <= VEIL_SAME_TONE_MAX_CONTRAST);
         if (!overImageMedia.has(base) && !tintedOnOwnBg) {
           problems.push(
             `voile sans fond : ${m} — couche 100 % semi-transparente (${b.length} o), l'image qu'elle assombrit a disparu de l'export`,
