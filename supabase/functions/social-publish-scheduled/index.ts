@@ -10,6 +10,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { publishImagesToInstagram, publishReelToInstagram } from "../_shared/instagram-graph.ts";
 import { publishTextToLinkedIn, publishImagesToLinkedIn, publishDocumentToLinkedIn, isLinkedInImageUrl, isLinkedInPdfUrl } from "../_shared/linkedin-graph.ts";
 import { decryptConnTokens } from "../_shared/token-crypto.ts";
+import { isSweepTick, refreshExpiringInstagramTokens } from "../_shared/instagram-token-sweep.ts";
 
 // E-mail best-effort quand une publication programmée échoue : sans lui, la
 // cliente ne l'apprend qu'en rouvrant son calendrier — elle croit avoir publié.
@@ -274,7 +275,11 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   try {
-    const result = await processScheduledPosts(supabase);
+    const result: any = await processScheduledPosts(supabase);
+    // Une fois par heure : prolonge les jetons Instagram qui expirent sous 10 j,
+    // même sans publication (sinon ils ne sont rafraîchis qu'à l'usage).
+    // Best-effort : ne lève jamais, n'empêche pas la réponse du cron.
+    if (isSweepTick()) result.igTokenSweep = await refreshExpiringInstagramTokens(supabase);
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

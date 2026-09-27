@@ -7,10 +7,14 @@ import { encryptToken } from "./token-crypto.ts";
 const GRAPH = "https://graph.instagram.com/v23.0";
 const REFRESH_THRESHOLD_MS = 7 * 24 * 3600 * 1000;
 
-export async function refreshTokenIfNeeded(supabase: any, conn: any): Promise<string> {
+export async function refreshTokenIfNeeded(
+  supabase: any,
+  conn: any,
+  thresholdMs: number = REFRESH_THRESHOLD_MS,
+): Promise<string> {
   if (!conn.token_expires_at) return conn.access_token;
   const expiresAtMs = new Date(conn.token_expires_at).getTime();
-  if (expiresAtMs - Date.now() > REFRESH_THRESHOLD_MS) return conn.access_token;
+  if (expiresAtMs - Date.now() > thresholdMs) return conn.access_token;
 
   const url = new URL("https://graph.instagram.com/refresh_access_token");
   url.searchParams.set("grant_type", "ig_refresh_token");
