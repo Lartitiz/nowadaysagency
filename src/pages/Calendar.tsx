@@ -6,6 +6,7 @@ import { toLocalDateStr } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useWorkspaceFilter, useWorkspaceId } from "@/hooks/use-workspace-query";
+import { CalendarWorkspaceGate } from "@/components/calendar/CalendarWorkspaceGate";
 import { useProfile } from "@/hooks/use-profile";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { useSearchParams, useLocation, useNavigate } from "react-router-dom";
@@ -194,7 +195,11 @@ function ExportSection({ filteredPosts, canalFilter, onCoachingOpen, onQuickBatc
 export default function CalendarPage({ embedded = false }: { embedded?: boolean }) {
   const { user } = useAuth();
   const { column, value } = useWorkspaceFilter();
-  return <CalendarInWorkspace key={JSON.stringify([user?.id, column, value])} embedded={embedded} />;
+  return (
+    <CalendarWorkspaceGate>
+      <CalendarInWorkspace key={JSON.stringify([user?.id, column, value])} embedded={embedded} />
+    </CalendarWorkspaceGate>
+  );
 }
 
 function CalendarInWorkspace({ embedded }: { embedded: boolean }) {

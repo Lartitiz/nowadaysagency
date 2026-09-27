@@ -67,3 +67,26 @@ test("semaine vide (futur lointain) : l'indice pointe vers le dernier contenu", 
   await expect(page.getByText(/Ton dernier contenu était le\s+\S+/i)).toBeVisible();
   await expect(page.getByRole("button", { name: "Le revoir" })).toBeVisible();
 });
+
+// ── Espace de travail lent ──
+// Échec du 27/09/2026 (run complet, 5/5 verts en relance seule) : ce n'était PAS
+// qu'une lenteur. Tant que l'espace de travail n'était pas résolu, le calendrier
+// s'affichait déjà (portée « user_id » de repli), puis se REMONTAIT à l'arrivée
+// de l'espace — le clic « Semaine » était jeté et on retombait en vue mois.
+// On retarde volontairement la lecture des espaces pour rejouer cette course.
+test("espace de travail lent : le clic « Semaine » n'est pas perdu", async ({ page }) => {
+  await page.route(/workspace_members|ensure_owner_workspace/, async (route) => {
+    await new Promise((r) => setTimeout(r, 4000));
+    await route.continue();
+  });
+  await page.goto("/calendrier?date=2029-03-01");
+  await expect(page.getByText(/Rien de prévu ce mois-ci/i)).toBeVisible({ timeout: 20000 });
+
+  await passerEnVueSemaine(page);
+
+  await expect(page.getByText(/Rien de prévu cette semaine/i)).toBeVisible({ timeout: 15000 });
+  // Et ça TIENT : pas de retour en vue mois quelques secondes plus tard.
+  await page.waitForTimeout(5000);
+  await expect(page.getByRole("button", { name: "Semaine", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText(/Rien de prévu cette semaine/i)).toBeVisible();
+});
