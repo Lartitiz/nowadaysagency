@@ -15,6 +15,14 @@
 //   sont laissés tels quels ;
 // - seuil volontairement bas (ratio < 1.6) : on ne corrige que l'illisible,
 //   jamais les contrastes doux voulus (taupe sur papier ≈ 1.63 passe).
+//
+// Fonds en DÉGRADÉ (ajout 27/09/2026) : longtemps ignorés (« fond inconnu »),
+// ils laissaient passer une légende rose très clair (#FFECF0) posée sur le haut
+// clair d'une bande terracotta dégradée (gabarit « split ») → 2,2-2,5:1 à
+// l'écran ET dans le PPTX. Un dégradé dont on sait lire TOUS les arrêts de
+// couleur est désormais jugé contre son arrêt le PLUS DÉFAVORABLE (on ne sait
+// pas où le texte tombe dans le dégradé), avec un plancher propre de 3:1
+// (texte large WCAG). Le seuil 1.6 des fonds unis ne bouge pas.
 
 const VOID_TAGS = new Set([
   "br", "img", "hr", "input", "meta", "link", "area", "base",
@@ -73,19 +81,58 @@ function contrastRatio(l1: number, l2: number): number {
   return (hi + 0.05) / (lo + 0.05);
 }
 
-/** Fond déclaré par un style inline : luminance, ou null si inconnu/gradient/translucide. */
-function backgroundLuminance(style: string): number | null | undefined {
+/**
+ * Fond déclaré par un style inline, en liste de luminances :
+ * - couleur unie opaque → [L] ;
+ * - dégradé dont tous les arrêts sont lisibles → une luminance par arrêt
+ *   (arrêts translucides composés sur le fond parent `parent`, s'il est uni) ;
+ * - undefined : pas de fond déclaré (hérite) ; null : fond inconnu (on ne juge pas).
+ */
+function backgroundLuminances(style: string, parent: number[] | null): number[] | null | undefined {
   // dernière déclaration background gagne
-  const decls = [...style.matchAll(/background(?:-color)?\s*:\s*([^;"']+)/gi)];
+  const decls = [...style.matchAll(/background(?:-color|-image)?\s*:\s*([^;"']+)/gi)];
   if (decls.length === 0) return undefined; // pas de fond déclaré → hérite
   const value = decls[decls.length - 1][1].trim();
-  if (/gradient|url\(/i.test(value)) return null; // fond inconnu → on ne juge pas
+  if (/url\(/i.test(value)) return null; // image → fond inconnu
+  if (/gradient\s*\(/i.test(value)) return gradientLuminances(value, parent);
   const rgb = parseColor(value);
   if (!rgb || rgb.a < 0.9) return null;
-  return luminance(rgb);
+  return [luminance(rgb)];
+}
+
+const COLOR_TOKEN_RE = /#[0-9a-f]{3,8}\b|rgba?\([^)]*\)|\b(?:white|black|transparent)\b/gi;
+// Tout ce qui n'est ni couleur lisible ni géométrie de dégradé (nom de couleur
+// « tomato », hsl(), var(), currentColor…) rend le dégradé inconnu.
+const GRADIENT_GEOMETRY_RE =
+  /\b(?:repeating-)?(?:linear|radial|conic)-gradient\b|\b(?:to|top|bottom|left|right|center|at|from|circle|ellipse|closest-side|closest-corner|farthest-side|farthest-corner|in|srgb|oklab)\b|-?[\d.]+(?:deg|turn|rad|grad|%|px|em|rem|vw|vh)?|[(),\s]/gi;
+
+function gradientLuminances(value: string, parent: number[] | null): number[] | null {
+  const tokens = value.match(COLOR_TOKEN_RE) || [];
+  const rest = value.replace(COLOR_TOKEN_RE, " ").replace(GRADIENT_GEOMETRY_RE, "");
+  if (tokens.length < 2 || rest.trim()) return null;
+  // Arrêt translucide : composé sur le fond parent — seulement si ce dernier est
+  // UNI (une seule luminance connue) ; sinon on ne juge pas.
+  const base = parent && parent.length === 1 ? parent[0] : null;
+  const out: number[] = [];
+  for (const t of tokens) {
+    const c = t.toLowerCase() === "transparent" ? { r: 0, g: 0, b: 0, a: 0 } : parseColor(t);
+    if (!c) return null;
+    if (c.a >= 0.9) { out.push(luminance(c)); continue; }
+    if (base === null) return null;
+    // Composition approchée en luminance (suffisante pour un plancher 3:1).
+    out.push(c.a * luminance(c) + (1 - c.a) * base);
+  }
+  return out;
+}
+
+/** Pire contraste d'une couleur de texte contre tous les arrêts d'un fond. */
+function worstRatio(text: number, bg: number[]): number {
+  return Math.min(...bg.map((b) => contrastRatio(text, b)));
 }
 
 const RATIO_MIN = 1.6;
+/** Plancher sur fond dégradé : texte large WCAG (on juge l'arrêt le plus défavorable). */
+const RATIO_MIN_GRADIENT = 3;
 
 /**
  * Réécrit dans `html` toute couleur de texte quasi identique à son fond direct.
@@ -100,11 +147,14 @@ export function enforceTextContrast(
   if (!html) return { html, fixes: 0 };
 
   // Pile des fonds : chaque tag ouvrant pousse son fond (ou hérite du courant).
-  // null = fond inconnu (gradient…) → les checks sont suspendus dessous.
-  const bgStack: Array<number | null> = [null];
+  // null = fond inconnu (image…) → les checks sont suspendus dessous.
+  // Un fond = liste de luminances (1 pour un uni, 1 par arrêt pour un dégradé).
+  const bgStack: Array<number[] | null> = [null];
   let fixes = 0;
   let out = "";
   let last = 0;
+  const lightLum = luminance(parseColor(light) || { r: 255, g: 255, b: 255, a: 1 });
+  const darkLum = luminance(parseColor(dark) || { r: 28, g: 28, b: 32, a: 1 });
 
   const tagRe = /<\/?([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
   let m: RegExpExecArray | null;
@@ -124,23 +174,52 @@ export function enforceTextContrast(
 
     const styleMatch = tag.match(/style\s*=\s*"([^"]*)"/i);
     const style = styleMatch ? styleMatch[1] : "";
-    const ownBg = style ? backgroundLuminance(style) : undefined;
-    const effectiveBg = ownBg === undefined ? bgStack[bgStack.length - 1] : ownBg;
+    const inherited = bgStack[bgStack.length - 1];
+    const ownBg = style ? backgroundLuminances(style, inherited) : undefined;
+    let effectiveBg = ownBg === undefined ? inherited : ownBg;
 
-    if (style && effectiveBg !== null && effectiveBg !== undefined) {
+    if (style && effectiveBg) {
       const colorMatch = style.match(/(?<![a-zA-Z-])color\s*:\s*([^;"']+)/);
       const opacityMatch = style.match(/(?<![a-zA-Z-])opacity\s*:\s*([\d.]+)/);
       const decorative = opacityMatch ? parseFloat(opacityMatch[1]) < 0.5 : false;
       if (colorMatch && !decorative) {
         const rgb = parseColor(colorMatch[1]);
         if (rgb && rgb.a >= 0.9) {
-          const ratio = contrastRatio(luminance(rgb), effectiveBg);
-          if (ratio < RATIO_MIN) {
-            const replacement = effectiveBg < 0.4 ? light : dark;
-            const fixedStyle = style.replace(
+          const textLum = luminance(rgb);
+          let replacement: string | null = null;
+          let backing: string | null = null;
+          if (effectiveBg.length === 1) {
+            // Fond uni : comportement historique inchangé (seuil 1.6).
+            if (contrastRatio(textLum, effectiveBg[0]) < RATIO_MIN) {
+              replacement = effectiveBg[0] < 0.4 ? light : dark;
+            }
+          } else if (worstRatio(textLum, effectiveBg) < RATIO_MIN_GRADIENT) {
+            // Dégradé : on garde la couleur (claire ou foncée) qui tient le
+            // mieux sur TOUT le dégradé, et seulement si elle fait mieux.
+            const current = worstRatio(textLum, effectiveBg);
+            const withLight = worstRatio(lightLum, effectiveBg);
+            const withDark = worstRatio(darkLum, effectiveBg);
+            const useDark = withDark >= withLight;
+            if (Math.max(withLight, withDark) > current) replacement = useDark ? dark : light;
+            // Dégradé trop étendu (clair ET sombre) : aucune couleur ne tient 3:1
+            // partout. Si le dégradé est HÉRITÉ (texte posé dessus, pas un bouton
+            // qui porte lui-même le dégradé), on pose un cartouche uni opposé
+            // derrière le texte → contraste garanti, à l'écran comme au PPTX
+            // (le fond uni d'un bloc éditable reste dans le raster).
+            if (ownBg === undefined && Math.max(withLight, withDark) < RATIO_MIN_GRADIENT) {
+              replacement = useDark ? dark : light;
+              backing = useDark ? light : dark;
+            }
+          }
+          if (replacement) {
+            let fixedStyle = style.replace(
               /(?<![a-zA-Z-])color\s*:\s*[^;"']+/,
               `color:${replacement}`,
             );
+            if (backing) {
+              fixedStyle = `${fixedStyle.replace(/;?\s*$/, "")};background-color:${backing};padding:0.1em 0.35em;border-radius:0.2em`;
+              effectiveBg = [backing === light ? lightLum : darkLum];
+            }
             tag = tag.replace(styleMatch![0], `style="${fixedStyle}"`);
             fixes++;
           }
@@ -148,7 +227,7 @@ export function enforceTextContrast(
       }
     }
 
-    if (!selfClosing) bgStack.push(effectiveBg === undefined ? bgStack[bgStack.length - 1] : effectiveBg);
+    if (!selfClosing) bgStack.push(effectiveBg);
     out += tag;
     last = tagRe.lastIndex;
   }
