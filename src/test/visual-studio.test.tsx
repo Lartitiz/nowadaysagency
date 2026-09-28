@@ -163,6 +163,29 @@ it("passes the saved Studio image and a return link into content creation", asyn
   expect(JSON.parse(screen.getByTestId("current-state").textContent || "null"))
     .toEqual({ libraryPhotoIds: ["library-ready"] });
 });
+it("resends the first message after an interpretation failure without an invalid session read", async () => {
+  let attempts = 0;
+  mock.request.mockImplementation((body) => {
+    const start = { ...original(), session: { ...original().session, id: body.session_id } };
+    if (body.action === "create") return Promise.resolve(start);
+    if (body.action === "message") {
+      attempts += 1;
+      if (attempts === 1) return Promise.reject(new StudioRequestError("Interprétation indisponible.", "refresh_request"));
+      return Promise.resolve({ ...start, session: { ...start.session, revision: 1, messages: [
+        { role: "user", text: body.message }, { role: "assistant", text: "Une proposition." },
+      ] } });
+    }
+    return Promise.resolve(start);
+  });
+  mount("/photos/studio");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), { target: { value: "Une illustration fictive" } });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  expect(await screen.findByText("Interprétation indisponible.")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Renvoyer ma demande" }));
+  await waitFor(() => expect(attempts).toBe(2));
+  await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/photos/studio?session="));
+  expect(mock.request.mock.calls.some(([body]) => body.action === "read" && !body.session_id)).toBe(false);
+});
 it("shows an uncertain provider outcome without offering an unsafe retry", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{
     id: "unknown", status: "uncertain", proposal, url: null,
