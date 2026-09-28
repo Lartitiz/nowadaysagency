@@ -121,6 +121,7 @@ export function StudioCompositionEditor(
     : design.format === "story"
     ? 640
     : 450;
+  const fullImage = design.layout === "image_full" && useImage && !!backgroundUrl;
   return (
     <Dialog
       open={open}
@@ -130,10 +131,10 @@ export function StudioCompositionEditor(
     >
       <DialogContent className="max-w-5xl max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Composer mon visuel</DialogTitle>
+          <DialogTitle>Finaliser mon visuel</DialogTitle>
           <DialogDescription>
-            Les textes restent modifiables. Aucun crédit image pour composer ou
-            corriger les informations.
+            Ajuste les textes et le logo sur l’image. Ces corrections ne relancent
+            pas la génération et ne décomptent aucun crédit image.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 md:grid-cols-2">
@@ -278,7 +279,7 @@ export function StudioCompositionEditor(
             </p>
             <div className="flex flex-wrap gap-2">
               <Button disabled={disabled || busy} onClick={() => void run()}>
-                Enregistrer la composition
+                Enregistrer ce visuel
               </Button>
               <Button
                 variant="outline"
@@ -320,6 +321,7 @@ export function StudioCompositionEditor(
                 display: "flex",
                 flexDirection: "column",
                 overflow: "hidden",
+                position: "relative",
               }}
             >
               {useImage && backgroundUrl && (
@@ -329,8 +331,9 @@ export function StudioCompositionEditor(
                   alt="Visuel sélectionné"
                   style={{
                     width: "100%",
-                    height: height * .4,
-                    objectFit: "contain",
+                    height: fullImage ? "100%" : height * .4,
+                    objectFit: fullImage ? "cover" : "contain",
+                    ...(fullImage ? { position: "absolute", inset: 0 } as const : {}),
                   }}
                 />
               )}
@@ -338,12 +341,18 @@ export function StudioCompositionEditor(
                 ref={textBox}
                 style={{
                   padding: 26,
-                  flex: 1,
+                  flex: fullImage ? "none" : 1,
                   minHeight: 0,
                   overflow: "hidden",
                   display: "flex",
                   flexDirection: "column",
                   gap: 14,
+                  ...(fullImage ? {
+                    position: "relative",
+                    marginTop: "auto",
+                    maxHeight: "100%",
+                    background: `${design.background}E6`,
+                  } as const : {}),
                 }}
               >
                 <h2

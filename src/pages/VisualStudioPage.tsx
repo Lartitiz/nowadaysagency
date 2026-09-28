@@ -174,8 +174,7 @@ function Studio({
   const [picker, setPicker] = useState(false),
     [sessionsOpen, setSessionsOpen] = useState(false),
     [sessionAction, setSessionAction] = useState<string | null>(null),
-    [mobileChat, setMobileChat] = useState(!!location.state?.studioChatOpen),
-    [mobileConfirm, setMobileConfirm] = useState(false);
+    [mobileChat, setMobileChat] = useState(!!location.state?.studioChatOpen);
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(
     null,
   );
@@ -193,6 +192,7 @@ function Studio({
   const draftRef = useRef(draft);
   const desktopMessages = useRef<HTMLDivElement>(null);
   const mobileMessages = useRef<HTMLDivElement>(null);
+  const versionRail = useRef<HTMLDivElement>(null);
   const alive = useRef(true),
     actionLock = useRef(false),
     creation = useRef({ id: crypto.randomUUID(), photoId: "" }),
@@ -293,7 +293,7 @@ function Studio({
         }
       }
     }
-  }, [current?.session.messages.length, mobileChat, mobileConfirm]);
+  }, [current?.session.messages.length, mobileChat, proposal?.id]);
   useEffect(() => {
     const pending = sent.current;
     if (pending && current?.session.messages.some((m) => m.id === pending.id)) {
@@ -487,7 +487,6 @@ function Studio({
       if (draftRef.current.trim() === submittedText) editDraft("");
       sent.current = null;
       setBranchChoice(null);
-      setMobileConfirm(false);
     }
   }
   async function save(useInContent = false) {
@@ -582,6 +581,9 @@ function Studio({
     }`
     : selectedReference?.name ||
       (source ? "Original" : "Ton espace de création");
+  const galleryCount = references.length +
+    (source && !references.length ? 1 : 0) +
+    (current?.versions.filter((v) => v.status === "ready").length || 0);
   async function openPreparation(message?: StudioMessage) {
     const targetVersion = message?.viewed_version_id
       ? current?.versions.find(v => v.id === message.viewed_version_id)
@@ -652,7 +654,12 @@ function Studio({
               product: "Ton produit en situation",
             }[proposal.operation]}
           </h2>
-          <p>{proposal.summary}</p>
+          {proposal.composition && (
+            <p className="text-sm">
+              L’image de fond sera créée par l’IA. Tu ajouteras ensuite les
+              textes exacts et ton logo dans l’affiche.
+            </p>
+          )}
           {!!proposal.shots?.length && (
             <div className="text-sm space-y-2">
               <h3 className="font-medium">Prises supplémentaires</h3>
@@ -770,7 +777,6 @@ function Studio({
               });
               if (result && alive.current) {
                 setMobileChat(false);
-                setMobileConfirm(false);
               }
             }}
           >
@@ -791,8 +797,6 @@ function Studio({
             className="w-full"
             onClick={() => {
               editDraft(proposal.summary);
-              setMobileConfirm(false);
-              setMobileChat(isMobile);
             }}
           >
             Modifier ma demande
@@ -825,21 +829,11 @@ function Studio({
               {current?.session.name || "Ta demande"}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Échanges conservés dans cette session
+              Fais défiler la conversation ↓ · tout reste dans cette session
             </p>
           </div>
         )}
-        {mobile && mobileConfirm
-          ? (
-            <div className="overflow-y-auto p-4">
-              <Button variant="ghost" onClick={() => setMobileConfirm(false)}>
-                ← Conversation
-              </Button>
-              {confirmation()}
-            </div>
-          )
-          : (
-            <>
+        <>
               <div
                 ref={mobile ? mobileMessages : desktopMessages}
                 className="studio-messages"
@@ -880,7 +874,7 @@ function Studio({
                           setCompositionOpen(true);
                         }}
                       >
-                        Vérifier les textes et composer
+                        Corriger les textes de cette affiche
                       </Button>
                     )}
                     {m.operation === "existing_tool" && (
@@ -896,6 +890,7 @@ function Studio({
                     )}
                   </div>
                 ))}
+                {proposal && <div className="studio-chat-confirmation">{confirmation()}</div>}
                 <div
                   className="flex flex-wrap gap-2"
                   aria-label="Idées d’ajustement"
@@ -926,8 +921,344 @@ function Studio({
                       </Button>
                     ))}
                 </div>
+
+                <section className="studio-chat-actions" aria-label="Actions et références">
+                  {!!display && (
+                    <div className="studio-current-image">
+                      <h3 className="font-medium text-sm">Sur l’image sélectionnée · {label}</h3>
+                      <p className="text-xs text-muted-foreground">
+                        Les ajustements partent de cette version. Les précédentes restent disponibles à droite.
+                      </p>
+                      {version && comparisonSource && (
+                        <Button size="sm" variant="ghost" onClick={() => setCompare(!compare)}>
+                          {compare ? "Voir la version seule" : "Comparer à la source"}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground my-3">
+                    {version
+                      ? version.library_photo_id
+                        ? "Ajoutée à la bibliothèque · conservée dans cette session."
+                        : "Conservée dans cette session · pas encore dans la bibliothèque."
+                      : source
+                      ? "Référence conservée dans la session."
+                      : "Tes échanges et créations restent dans cette session."}
+                  </p>
+                  {version?.proposal.brand_context && (
+                    <StudioBrandContext context={version.proposal.brand_context} />
+                  )}
+                  {version?.status === "ready" && version.proposal.composition && (
+                    <Button
+                      type="button"
+                      className="mb-3"
+                      disabled={!writable || !!busy}
+                      onClick={() => {
+                        setSelectedComposition(null);
+                        setCompositionDraft(version.proposal.composition);
+                        setCompositionOpen(true);
+                      }}
+                    >
+                      Finaliser l’affiche avec ses textes
+                    </Button>
+                  )}
+                  {version?.status === "ready" && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="mb-3"
+                      onClick={() => chooseTab("video")}
+                    >
+                      Créer une vidéo avec cette image
+                    </Button>
+                  )}
+                  {!!display && (
+                    <Button type="button" variant="outline" className="mb-3" disabled={!!busy} onClick={() => void openPreparation()}>
+                      Ajuster la lumière ou le format
+                    </Button>
+                  )}
+                  {(version || current?.session.source_photo_id) && <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="outline"
+                      disabled={!version ||
+                        !!version.library_photo_id ||
+                        !!busy ||
+                        !writable}
+                      onClick={() => void save()}
+                    >
+                      {version?.library_photo_id
+                        ? "Dans la bibliothèque"
+                        : "Ajouter à la bibliothèque"}
+                    </Button>
+                    <Button
+                      disabled={!!busy ||
+                        !writable ||
+                        (!version && !current?.session.source_photo_id)}
+                      onClick={() => void save(true)}
+                    >
+                      Créer un contenu
+                    </Button>
+                  </div>}
+                  {(version || current?.session.source_photo_id) && <p className="mt-3 text-xs text-muted-foreground">
+                    Créer un contenu ajoute aussi la version à ta bibliothèque.
+                    Rien n’est publié.
+                  </p>}
+                  {generating && (
+                    <div
+                      role="status"
+                      className="rounded-xl border bg-card p-4 my-4 text-sm"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                      Création en cours.
+                      <p className="mt-2">
+                        Tu peux quitter le Studio et retrouver le résultat dans
+                        « Mes sessions ».
+                      </p>
+                    </div>
+                  )}
+                  {current?.versions
+                    .filter((v) => v.status === "failed")
+                    .map((v) => (
+                      <div
+                        key={v.id}
+                        className="rounded-xl border p-4 my-4 text-sm"
+                      >
+                        <p>{v.proposal.series_size ? `Image ${(v.proposal.series_index || 0) + 1} de la série · ` : ""}{v.error_message}</p>
+                        <Button
+                          variant="link"
+                          disabled={!writable || !!busy || !!generating}
+                          onClick={() => {
+                            void mutate("retry", {
+                              version_id: v.id,
+                              revision: current!.session.revision,
+                            });
+                            setMobileChat(isMobile);
+                          }}
+                        >
+                          Réessayer cette image seulement
+                        </Button>
+                      </div>
+                    ))}
+                  {current?.versions
+                    .filter((v) => v.status === "uncertain")
+                    .map((v) => (
+                      <div key={v.id} role="status" className="rounded-xl border p-4 my-4 text-sm">
+                        <p>{v.proposal.series_size ? `Image ${(v.proposal.series_index || 0) + 1} de la série · ` : ""}{v.error_message}</p>
+                        <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
+                      </div>
+                    ))}
+                  <div className="studio-references">
+                    {references.map((ref) => (
+                      <div
+                        key={ref.id}
+                        className="rounded-xl border bg-card p-3 my-2 text-sm"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="flex-1">{ref.name}</span>
+                          <select
+                            aria-label={`Rôle de ${ref.name}`}
+                            value={ref.role}
+                            disabled={!writable || !!busy || generating}
+                            onChange={(e) =>
+                              void mutate("reference", {
+                                reference_id: ref.id,
+                                reference_role: e.target.value,
+                                revision: current!.session.revision,
+                              })}
+                          >
+                            <option value="subject">Sujet à préserver</option>
+                            <option value="product">Produit exact</option>
+                            <option value="person">Personne réelle</option>
+                            <option value="casting">Mannequin fictif</option>
+                            <option value="logo">Logo à composer</option>
+                            <option value="style">Ambiance</option>
+                            <option value="composition">Composition</option>
+                          </select>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            aria-label={`Retirer ${ref.name}`}
+                            disabled={!writable || !!busy || generating}
+                            onClick={() =>
+                              void mutate("reference", {
+                                reference_id: ref.id,
+                                remove: true,
+                                revision: current!.session.revision,
+                              })}
+                          >
+                            ×
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {!!current?.suggested_photos?.length && (
+                      <div className="my-4">
+                        <h3 className="font-medium text-sm">
+                          Photos proposées · choisis celle qui convient
+                        </h3>
+                        <div className="studio-versions">
+                          {current.suggested_photos
+                            .filter(
+                              (p) =>
+                                !references.some((r) => r.photo_id === p.id),
+                            )
+                            .map((photo) => (
+                              <button
+                                type="button"
+                                key={photo.id}
+                                disabled={!writable || !!busy || generating}
+                                onClick={() =>
+                                  void mutate("reference", {
+                                    photo_id: photo.id,
+                                    reference_role: "subject",
+                                    revision: current.session.revision,
+                                  })}
+                              >
+                                <img src={photo.url} alt={photo.name} />
+                                <span>Choisir {photo.name}</span>
+                              </button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+                    {references.length > 0 && (
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Sujet = identité à préserver. Ambiance et composition =
+                        inspiration uniquement. Après un changement de
+                        référence, envoie ta demande pour préparer une nouvelle
+                        proposition.
+                      </p>
+                    )}
+                  </div>
+                  <details className="studio-extra-tools">
+                    <summary>Autres outils et créations enregistrées</summary>
+                  {current && (
+                    <StudioMemoryPanel
+                      memory={current.memory || []}
+                      selectedVersion={version?.status === "ready"
+                        ? version.id
+                        : undefined}
+                      brief={current.session.brief || ""}
+                      disabled={!writable || !!busy || !!generating}
+                      onSave={(values) => mutate("memory_save", values)}
+                      onApply={(id) =>
+                        mutate("memory_apply", {
+                          memory_id: id,
+                          revision: current.session.revision,
+                        })}
+                    />
+                  )}
+                  {!!current?.charter_references?.length && (
+                    <details className="my-4 text-sm">
+                      <summary>Références visuelles de ma charte</summary>
+                      <p className="text-xs text-muted-foreground my-2">
+                        Choisis une ambiance à joindre à cette demande.
+                      </p>
+                      <div className="studio-versions">
+                        {current.charter_references.map((r) => (
+                          <button
+                            type="button"
+                            key={r.index}
+                            disabled={!writable || !!busy || generating}
+                            onClick={() =>
+                              void mutate("reference", {
+                                charter_index: r.index,
+                                revision: current.session.revision,
+                              })}
+                          >
+                            <img src={r.url} alt={r.name} />
+                            <span>Utiliser {r.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                  {current && (
+                    <div className="flex flex-wrap gap-2 my-3">
+                      {!!compositionHistory.length && (
+                        <details className="w-full text-sm">
+                          <summary>Compositions enregistrées · {compositionHistory.length}{moreCompositions && current.composition_history?.length === 20 ? "+" : ""}</summary>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {compositionHistory.map((entry) => (
+                              <Button
+                                key={entry.id}
+                                variant="outline"
+                                size="sm"
+                                disabled={!writable || !!busy}
+                                onClick={async () => {
+                                  setBusy("composition_read");
+                                  setError("");
+                                  try {
+                                    const result = await studioRequest<{ composition: {
+                                      id: string;
+                                      design: StudioComposition;
+                                      background_url: string | null;
+                                    } }>({
+                                      action: "composition_read",
+                                      workspace_id: workspaceId,
+                                      session_id: sessionId,
+                                      composition_history_id: entry.id,
+                                    });
+                                    if (alive.current) {
+                                      setSelectedComposition(result.composition);
+                                      setCompositionDraft(undefined);
+                                      setCompositionOpen(true);
+                                    }
+                                  } catch (e) {
+                                    if (alive.current) setError(e instanceof Error ? e.message : "Composition indisponible.");
+                                  } finally {
+                                    if (alive.current) setBusy("");
+                                  }
+                                }}
+                              >
+                                Reprendre {entry.title.slice(0, 48) || "Composition"} · {new Date(entry.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                              </Button>
+                            ))}
+                          </div>
+                          {moreCompositions && current.composition_history?.length === 20 && (
+                            <Button variant="ghost" size="sm" className="mt-2" disabled={olderCompositionsBusy}
+                              onClick={async () => {
+                                if (!sessionId) return;
+                                setOlderCompositionsBusy(true);
+                                setError("");
+                                try {
+                                  const page = await listOlderStudioCompositions(
+                                    workspaceId, sessionId, 20 + olderCompositions.length,
+                                  );
+                                  if (alive.current) {
+                                    setOlderCompositions((existing) => [...existing, ...page.items]);
+                                    setMoreCompositions(page.hasMore);
+                                  }
+                                } catch (e) {
+                                  if (alive.current) setError(e instanceof Error ? e.message : "Historique indisponible.");
+                                } finally {
+                                  if (alive.current) setOlderCompositionsBusy(false);
+                                }
+                              }}
+                            >{olderCompositionsBusy ? "Chargement…" : "Voir les compositions plus anciennes"}</Button>
+                          )}
+                        </details>
+                      )}
+                      <Button
+                        variant="ghost"
+                        disabled={!writable || !!busy}
+                        onClick={() => setExistingTool("before_after")}
+                      >
+                        Avant / après
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        disabled={!writable || !!busy}
+                        onClick={() => setExistingTool("mockup")}
+                      >
+                        Mockup d’offre
+                      </Button>
+                    </div>
+                  )}
+                  </details>
+                </section>
               </div>
-              <div className="p-4 border-t space-y-3">
+              <div className="studio-composer p-4 border-t space-y-3">
                 {activeBranchChoice && (
                   <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
                     <p>Les références ont changé depuis cette version. Lesquelles veux-tu utiliser pour cette nouvelle demande ? Aucune image n’a été lancée.</p>
@@ -982,18 +1313,8 @@ function Studio({
                     Envoyer
                   </Button>
                 </div>
-                {mobile && proposal && (
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => setMobileConfirm(true)}
-                  >
-                    Vérifier la proposition
-                  </Button>
-                )}
               </div>
-            </>
-          )}
+        </>
       </div>
     );
   }
@@ -1110,27 +1431,19 @@ function Studio({
             ? <p className="p-8">Ouverture de la session…</p>
             : (
               <div className="studio-grid">
-                <section
-                  className="studio-chat desktop-chat"
-                  aria-label="Conversation"
-                >
-                  {chat()}
-                </section>
+                {!isMobile && (
+                  <section
+                    className="studio-chat desktop-chat"
+                    aria-label="Conversation"
+                  >
+                    {chat()}
+                  </section>
+                )}
                 <section
                   className="studio-stage"
                   aria-label="Visuels et versions"
                 >
-                  <div className="flex justify-between items-center gap-3 mb-5">
-                    <h2 className="font-display text-2xl">{label}</h2>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={!version || !comparisonSource}
-                      onClick={() => setCompare(!compare)}
-                    >
-                      {compare ? "Voir la version seule" : "Comparer"}
-                    </Button>
-                  </div>
+                  <h2 className="font-display text-2xl mb-5">{label}</h2>
                   <div
                     className={compare && version
                       ? "studio-comparison"
@@ -1172,21 +1485,25 @@ function Studio({
                             portrait, un visuel pour une offre… Discute avec le
                             Studio ; tes créations apparaîtront ici.
                           </p>
-                          <Button
-                            variant="outline"
-                            disabled={!writable || !!busy}
-                            onClick={() => setPicker(true)}
-                          >
-                            <ImagePlus className="h-4 w-4 mr-2" />
-                            Ajouter une photo, si utile
-                          </Button>
+                          <p>Ajoute une référence depuis la conversation si ton idée en a besoin.</p>
                           <p className="text-xs">
                             Aucune image n’est créée avant ta confirmation.
                           </p>
                         </div>
                       )}
                   </div>
-                  <div className="studio-versions" aria-label="Versions">
+                  {galleryCount > 1 && (
+                    <div className="studio-version-navigation">
+                      <span>Images de cette session · fais défiler les versions</span>
+                      <div className="flex gap-1">
+                        <Button type="button" variant="ghost" size="sm" aria-label="Versions précédentes"
+                          onClick={() => versionRail.current?.scrollBy({ left: -220, behavior: "smooth" })}>←</Button>
+                        <Button type="button" variant="ghost" size="sm" aria-label="Versions suivantes"
+                          onClick={() => versionRail.current?.scrollBy({ left: 220, behavior: "smooth" })}>→</Button>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={versionRail} className="studio-versions" aria-label="Versions">
                     {!!source && !references.length && (
                       <button
                         type="button"
@@ -1236,345 +1553,7 @@ function Studio({
                         </button>
                       ))}
                   </div>
-                  <p className="text-xs text-muted-foreground my-3">
-                    {version
-                      ? version.library_photo_id
-                        ? "Ajoutée à la bibliothèque · conservée dans cette session."
-                        : "Conservée dans cette session · pas encore dans la bibliothèque."
-                      : source
-                      ? "Référence conservée dans la session."
-                      : "Tes échanges et créations restent dans cette session."}
-                  </p>
-                  {version?.proposal.brand_context && (
-                    <StudioBrandContext context={version.proposal.brand_context} />
-                  )}
-                  {version?.status === "ready" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="mb-3"
-                      onClick={() => chooseTab("video")}
-                    >
-                      Animer cette image en vidéo
-                    </Button>
-                  )}
-                  {!!display && (
-                    <Button type="button" variant="outline" className="mb-3 ml-2" disabled={!!busy} onClick={() => void openPreparation()}>
-                      Lumière et formats · sans génération
-                    </Button>
-                  )}
-                  {generating && (
-                    <div
-                      role="status"
-                      className="rounded-xl border bg-card p-4 my-4 text-sm"
-                    >
-                      <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
-                      Création en cours.
-                      <p className="mt-2">
-                        Tu peux quitter le Studio et retrouver le résultat dans
-                        « Mes sessions ».
-                      </p>
-                    </div>
-                  )}
-                  {current?.versions
-                    .filter((v) => v.status === "failed")
-                    .map((v) => (
-                      <div
-                        key={v.id}
-                        className="rounded-xl border p-4 my-4 text-sm"
-                      >
-                        <p>{v.proposal.series_size ? `Image ${(v.proposal.series_index || 0) + 1} de la série · ` : ""}{v.error_message}</p>
-                        <Button
-                          variant="link"
-                          disabled={!writable || !!busy || !!generating}
-                          onClick={() => {
-                            void mutate("retry", {
-                              version_id: v.id,
-                              revision: current!.session.revision,
-                            });
-                            setMobileChat(isMobile);
-                            setMobileConfirm(false);
-                          }}
-                        >
-                          Réessayer cette image seulement
-                        </Button>
-                      </div>
-                    ))}
-                  {current?.versions
-                    .filter((v) => v.status === "uncertain")
-                    .map((v) => (
-                      <div key={v.id} role="status" className="rounded-xl border p-4 my-4 text-sm">
-                        <p>{v.proposal.series_size ? `Image ${(v.proposal.series_index || 0) + 1} de la série · ` : ""}{v.error_message}</p>
-                        <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
-                      </div>
-                    ))}
-                  {current && (
-                    <StudioMemoryPanel
-                      memory={current.memory || []}
-                      selectedVersion={version?.status === "ready"
-                        ? version.id
-                        : undefined}
-                      brief={current.session.brief || ""}
-                      disabled={!writable || !!busy || !!generating}
-                      onSave={(values) => mutate("memory_save", values)}
-                      onApply={(id) =>
-                        mutate("memory_apply", {
-                          memory_id: id,
-                          revision: current.session.revision,
-                        })}
-                    />
-                  )}
-                  {!!current?.charter_references?.length && (
-                    <details className="my-4 text-sm">
-                      <summary>Références visuelles de ma charte</summary>
-                      <p className="text-xs text-muted-foreground my-2">
-                        Choisis une ambiance à joindre à cette demande.
-                      </p>
-                      <div className="studio-versions">
-                        {current.charter_references.map((r) => (
-                          <button
-                            type="button"
-                            key={r.index}
-                            disabled={!writable || !!busy || generating}
-                            onClick={() =>
-                              void mutate("reference", {
-                                charter_index: r.index,
-                                revision: current.session.revision,
-                              })}
-                          >
-                            <img src={r.url} alt={r.name} />
-                            <span>Utiliser {r.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                  {current && (
-                    <div className="flex flex-wrap gap-2 my-3">
-                      <Button
-                        variant="outline"
-                        disabled={!writable || !!busy}
-                        onClick={() => {
-                          setSelectedComposition(null);
-                          setCompositionDraft(undefined);
-                          setCompositionOpen(true);
-                        }}
-                      >
-                        Composer une affiche ou un visuel
-                      </Button>
-                      {!!compositionHistory.length && (
-                        <details className="w-full text-sm">
-                          <summary>Compositions enregistrées · {compositionHistory.length}{moreCompositions && current.composition_history?.length === 20 ? "+" : ""}</summary>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {compositionHistory.map((entry) => (
-                              <Button
-                                key={entry.id}
-                                variant="outline"
-                                size="sm"
-                                disabled={!writable || !!busy}
-                                onClick={async () => {
-                                  setBusy("composition_read");
-                                  setError("");
-                                  try {
-                                    const result = await studioRequest<{ composition: {
-                                      id: string;
-                                      design: StudioComposition;
-                                      background_url: string | null;
-                                    } }>({
-                                      action: "composition_read",
-                                      workspace_id: workspaceId,
-                                      session_id: sessionId,
-                                      composition_history_id: entry.id,
-                                    });
-                                    if (alive.current) {
-                                      setSelectedComposition(result.composition);
-                                      setCompositionDraft(undefined);
-                                      setCompositionOpen(true);
-                                    }
-                                  } catch (e) {
-                                    if (alive.current) setError(e instanceof Error ? e.message : "Composition indisponible.");
-                                  } finally {
-                                    if (alive.current) setBusy("");
-                                  }
-                                }}
-                              >
-                                Reprendre {entry.title.slice(0, 48) || "Composition"} · {new Date(entry.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
-                              </Button>
-                            ))}
-                          </div>
-                          {moreCompositions && current.composition_history?.length === 20 && (
-                            <Button variant="ghost" size="sm" className="mt-2" disabled={olderCompositionsBusy}
-                              onClick={async () => {
-                                if (!sessionId) return;
-                                setOlderCompositionsBusy(true);
-                                setError("");
-                                try {
-                                  const page = await listOlderStudioCompositions(
-                                    workspaceId, sessionId, 20 + olderCompositions.length,
-                                  );
-                                  if (alive.current) {
-                                    setOlderCompositions((existing) => [...existing, ...page.items]);
-                                    setMoreCompositions(page.hasMore);
-                                  }
-                                } catch (e) {
-                                  if (alive.current) setError(e instanceof Error ? e.message : "Historique indisponible.");
-                                } finally {
-                                  if (alive.current) setOlderCompositionsBusy(false);
-                                }
-                              }}
-                            >{olderCompositionsBusy ? "Chargement…" : "Voir les compositions plus anciennes"}</Button>
-                          )}
-                        </details>
-                      )}
-                      <Button
-                        variant="ghost"
-                        disabled={!writable || !!busy}
-                        onClick={() => setExistingTool("before_after")}
-                      >
-                        Avant / après
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        disabled={!writable || !!busy}
-                        onClick={() => setExistingTool("mockup")}
-                      >
-                        Mockup d’offre
-                      </Button>
-                    </div>
-                  )}
-                  <div className="studio-references">
-                    {references.map((ref) => (
-                      <div
-                        key={ref.id}
-                        className="rounded-xl border bg-card p-3 my-2 text-sm"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="flex-1">{ref.name}</span>
-                          <select
-                            aria-label={`Rôle de ${ref.name}`}
-                            value={ref.role}
-                            disabled={!writable || !!busy || generating}
-                            onChange={(e) =>
-                              void mutate("reference", {
-                                reference_id: ref.id,
-                                reference_role: e.target.value,
-                                revision: current!.session.revision,
-                              })}
-                          >
-                            <option value="subject">Sujet à préserver</option>
-                            <option value="product">Produit exact</option>
-                            <option value="person">Personne réelle</option>
-                            <option value="casting">Mannequin fictif</option>
-                            <option value="logo">Logo à composer</option>
-                            <option value="style">Ambiance</option>
-                            <option value="composition">Composition</option>
-                          </select>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            aria-label={`Retirer ${ref.name}`}
-                            disabled={!writable || !!busy || generating}
-                            onClick={() =>
-                              void mutate("reference", {
-                                reference_id: ref.id,
-                                remove: true,
-                                revision: current!.session.revision,
-                              })}
-                          >
-                            ×
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {!!current?.suggested_photos?.length && (
-                      <div className="my-4">
-                        <h3 className="font-medium text-sm">
-                          Photos proposées · choisis celle qui convient
-                        </h3>
-                        <div className="studio-versions">
-                          {current.suggested_photos
-                            .filter(
-                              (p) =>
-                                !references.some((r) => r.photo_id === p.id),
-                            )
-                            .map((photo) => (
-                              <button
-                                type="button"
-                                key={photo.id}
-                                disabled={!writable || !!busy || generating}
-                                onClick={() =>
-                                  void mutate("reference", {
-                                    photo_id: photo.id,
-                                    reference_role: "subject",
-                                    revision: current.session.revision,
-                                  })}
-                              >
-                                <img src={photo.url} alt={photo.name} />
-                                <span>Choisir {photo.name}</span>
-                              </button>
-                            ))}
-                        </div>
-                      </div>
-                    )}
-                    {references.length > 0 && (
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Sujet = identité à préserver. Ambiance et composition =
-                        inspiration uniquement. Après un changement de
-                        référence, envoie ta demande pour préparer une nouvelle
-                        proposition.
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="outline"
-                      disabled={!version ||
-                        !!version.library_photo_id ||
-                        !!busy ||
-                        !writable}
-                      onClick={() => void save()}
-                    >
-                      {version?.library_photo_id
-                        ? "Dans la bibliothèque"
-                        : "Ajouter à la bibliothèque"}
-                    </Button>
-                    <Button
-                      disabled={!!busy ||
-                        !writable ||
-                        (!version && !current?.session.source_photo_id)}
-                      onClick={() => void save(true)}
-                    >
-                      Créer un contenu
-                    </Button>
-                  </div>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    Créer un contenu ajoute aussi la version à ta bibliothèque.
-                    Rien n’est publié.
-                  </p>
                 </section>
-                <aside
-                  className="studio-details"
-                  aria-label="Détails et confirmation"
-                >
-                  {confirmation()}
-                  <div className="mt-6 text-sm space-y-2">
-                    <h3 className="font-medium">
-                      Image sélectionnée : {label}
-                    </h3>
-                    <p className="text-muted-foreground">
-                      Les ajustements visent l’image sélectionnée. Chaque
-                      résultat devient une version ; les précédentes restent
-                      disponibles.
-                    </p>
-                    <Button
-                      variant="link"
-                      className="px-0"
-                      onClick={() => setExistingTool("mockup")}
-                    >
-                      Les autres outils photo →
-                    </Button>
-                  </div>
-                </aside>
               </div>
             )}
           {
@@ -1601,7 +1580,7 @@ function Studio({
                 {current?.session.name || "Studio visuel"}
               </DrawerTitle>
               <DrawerDescription>
-                Conversation et confirmation
+                Conversation, confirmation et actions
               </DrawerDescription>
               <Button
                 variant="ghost"

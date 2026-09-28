@@ -29,6 +29,7 @@ export interface StudioProposal {
   provider?: string;
   rules_version?: string;
   brand_context?: StudioBrandContext;
+  composition?: StudioComposition;
 }
 export interface StudioBrandContext {
   captured_at: string;
@@ -44,6 +45,7 @@ export interface StudioComposition {
   body: string;
   footer: string;
   format: "square" | "portrait" | "story";
+  layout?: "image_top" | "image_full";
   background: string;
   foreground: string;
   accent: string;

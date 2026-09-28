@@ -7,6 +7,7 @@ export const compositionSchema = z.object({
   body: z.string().max(1200),
   footer: z.string().max(300),
   format: z.enum(["square", "portrait", "story"]).default("portrait"),
+  layout: z.enum(["image_top", "image_full"]).default("image_top"),
   background: z.string().regex(/^#[0-9a-f]{6}$/i).default("#ffffff"),
   foreground: z.string().regex(/^#[0-9a-f]{6}$/i).default("#242124"),
   accent: z.string().regex(/^#[0-9a-f]{6}$/i).default("#863f67"),

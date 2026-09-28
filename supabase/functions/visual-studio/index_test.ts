@@ -690,8 +690,38 @@ Deno.test('a legacy client never receives hidden extra charged images',async()=>
 
 Deno.test("composition preserves supplied time ranges and titles without style cleanup",async()=>{
  const f=fixture();const design={title:"Noël — atelier",body:"Céramiques faites main",footer:"19 décembre · 10 h – 18 h · Lyon",format:"portrait"};
+ f.session.composition={design:{...design,layout:"image_full"},background_path:"saved-poster"};
  f.setIntent({operation:"compose",summary:"Affiche éditable",composition:design});
- try{const res=await handleStudioRequest(request({...base,studio_version:3,action:"message",message:"Reprends exactement mes horaires",request_id:id(512),revision:0}));assertEquals(res.status,200);const body=await res.json();const saved=body.session.messages.at(-1).composition;assertEquals(saved.title,design.title);assertEquals(saved.footer,design.footer);assertEquals(f.requests.some(p=>p.includes("studio_confirm_generation")),false);}finally{f.restore();}
+ try{const res=await handleStudioRequest(request({...base,studio_version:3,action:"message",message:"Reprends exactement mes horaires",request_id:id(512),revision:0}));assertEquals(res.status,200);const body=await res.json();const saved=body.session.messages.at(-1).composition;assertEquals(saved.title,design.title);assertEquals(saved.footer,design.footer);assertEquals(saved.layout,"image_full");assertEquals(f.requests.some(p=>p.includes("studio_confirm_generation")),false);}finally{f.restore();}
+});
+
+Deno.test("an illustrated poster keeps its editable text with the AI image proposal", async () => {
+  const f = fixture();
+  f.session.source_photo_id = null;
+  f.session.source_path = null;
+  const composition = {
+    title: "Marché de Noël", body: "Céramiques artisanales",
+    footer: "12 décembre · Lyon", format: "portrait",
+  };
+  f.setIntent({
+    operation: "create", summary: "Une affiche illustrée pour le marché",
+    image_prompt: "Illustration artisanale sans texte, espace libre pour le titre",
+    format: "portrait", composition,
+  });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, studio_version: 3, action: "message",
+      message: "Crée une affiche illustrée pour mon marché de Noël du 12 décembre à Lyon",
+      request_id: id(513), revision: 0,
+    }));
+    assertEquals(res.status, 200);
+    const body = await res.json();
+    assertEquals(body.session.proposal.operation, "create");
+    assertEquals(body.session.proposal.composition.title, composition.title);
+    assertEquals(body.session.proposal.composition.footer, composition.footer);
+    assertEquals(body.session.proposal.composition.layout, "image_full");
+    assertEquals(body.session.proposal.cost, 1);
+  } finally { f.restore(); }
 });
 
 Deno.test("a mentioned stored mannequin cannot be used before its reference is explicitly attached",async()=>{
