@@ -274,6 +274,27 @@ Deno.test(
     }
   },
 );
+Deno.test("a light adjustment routes to preparation without claiming image generation", async () => {
+  const f = fixture();
+  f.setIntent({
+    operation: "existing_tool", existing_tool: "preparation",
+    summary: "Je propose d’éclaircir ta photo sans redessiner le produit.",
+    preparation: { exposure: 0.2, contrast: 1.04, format: "post" },
+  });
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, action: "message", message: "Éclaircis ma photo pour un post 4:5",
+      revision: 0, request_id: id(81),
+    }));
+    assertEquals(res.status, 200);
+    const data = await res.json();
+    assertEquals(data.session.proposal, null);
+    assertEquals(data.session.messages.at(-1).existing_tool, "preparation");
+    assertEquals(data.session.messages.at(-1).preparation,
+      { exposure: 0.2, contrast: 1.04, format: "post" });
+    assertEquals(f.requests.some((p) => p.includes("studio_confirm_generation")), false);
+  } finally { f.restore(); }
+});
 Deno.test(
   "model cannot stage a real product without a subject reference",
   async () => {

@@ -766,6 +766,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           {
             role: "assistant",
             existing_tool: intent.existing_tool,
+            preparation: intent.operation === "existing_tool" && intent.existing_tool === "preparation"
+              ? intent.preparation
+              : undefined,
+            viewed_version_id: parent?.id || null,
+            viewed_reference_id: selectedReference?.id || null,
             composition: intent.operation === "compose"
               ? intent.composition
               : undefined,
@@ -1009,7 +1014,18 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                         .eq("id", version.id)
                         .eq("status", "processing")
                         .select("id")
-                        .single(),
+                      .single(),
+                    );
+                  },
+                  uncertain: async () => {
+                    unwrap(
+                      await sb.from("visual_studio_versions").update({
+                        status: "uncertain",
+                        error_message:
+                          "La réponse du service photo a été perdue. Le résultat est incertain. Aucun crédit Studio n’a été décompté pour l’instant ; si l’image est retrouvée, elle comptera une fois. Recharge la session pour vérifier son état avant de relancer cette demande.",
+                        completed_at: new Date().toISOString(),
+                      }).eq("id", version.id).eq("status", "processing")
+                        .select("id").single(),
                     );
                   },
                 }).catch(() =>
@@ -1088,7 +1104,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     for (
       const v of versions.filter(
         (v) =>
-          v.status === "processing" && v.proposal.provider !== "higgsfield" &&
+          (v.status === "processing" || v.status === "uncertain") &&
+          v.proposal.provider !== "higgsfield" &&
           shouldRecover(v.created_at),
       )
     ) {
@@ -1097,6 +1114,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       if (object.data) {
         unwrap(await sb.rpc("studio_complete_generation", { p_version: v.id }));
       } else if (
+        v.status === "processing" &&
         object.error &&
         (("statusCode" in object.error &&
           String(object.error.statusCode) === "404") ||
@@ -1106,9 +1124,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           await sb
             .from("visual_studio_versions")
             .update({
-              status: "failed",
+              status: "uncertain",
               error_message:
-                "Le résultat n’a pas pu être récupéré. Aucune image décomptée.",
+                "La création a été interrompue et aucun résultat n’est disponible. Aucun crédit Studio n’a été décompté pour l’instant ; son issue chez le fournisseur reste inconnue.",
               completed_at: new Date().toISOString(),
             })
             .eq("id", v.id)

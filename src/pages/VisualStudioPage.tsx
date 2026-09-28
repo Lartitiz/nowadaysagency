@@ -13,6 +13,7 @@ import { StudioCompositionEditor } from "@/features/visual-studio/StudioComposit
 import { uploadPhotoOriginal } from "@/lib/photo-storage";
 import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
 import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
+import PhotoPreparationDialog from "@/components/photos/PhotoPreparationDialog";
 import { StudioMemoryPanel } from "@/features/visual-studio/StudioMemoryPanel";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
@@ -45,6 +46,7 @@ import {
   readDraft,
   type StudioComposition,
   type StudioReference,
+  type StudioMessage,
   studioRequest,
   StudioRequestError,
   writeDraft,
@@ -152,6 +154,11 @@ function Studio({
   const [existingTool, setExistingTool] = useState<
     "mockup" | "before_after" | null
   >(null);
+  const [preparation, setPreparation] = useState<{
+    source: { id: string; name: string; dataUrl: string };
+    recipe?: StudioMessage["preparation"];
+    role: StudioReference["role"];
+  } | null>(null);
   const [picker, setPicker] = useState(false),
     [sessionsOpen, setSessionsOpen] = useState(false),
     [mobileChat, setMobileChat] = useState(!!location.state?.studioChatOpen),
@@ -505,6 +512,44 @@ function Studio({
     }`
     : selectedReference?.name ||
       (source ? "Original" : "Ton espace de création");
+  async function openPreparation(message?: StudioMessage) {
+    const targetVersion = message?.viewed_version_id
+      ? current?.versions.find(v => v.id === message.viewed_version_id)
+      : message ? null : version;
+    const targetReference = message?.viewed_reference_id
+      ? references.find(r => r.id === message.viewed_reference_id)
+      : message ? null : selectedReference;
+    const imageUrl = targetVersion?.url || targetReference?.url ||
+      (!message ? source : undefined);
+    if (!imageUrl) {
+      setPicker(true);
+      return;
+    }
+    setBusy("preparation");
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error("La photo n’est plus accessible. Recharge la session.");
+      const blob = await response.blob();
+      if (!/^image\/(jpeg|png|webp)$/.test(blob.type) || blob.size > 15_000_000) {
+        throw new Error("Cette photo ne peut pas être préparée ici.");
+      }
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result));
+        reader.onerror = () => reject(new Error("Lecture de la photo impossible."));
+        reader.readAsDataURL(blob);
+      });
+      if (alive.current) setPreparation({
+        source: { id: crypto.randomUUID(), name: targetReference?.name || "Image du Studio", dataUrl },
+        recipe: message?.preparation,
+        role: targetReference?.role || "subject",
+      });
+    } catch (cause) {
+      if (alive.current) setError(cause instanceof Error ? cause.message : "Préparation impossible.");
+    } finally {
+      if (alive.current) setBusy("");
+    }
+  }
   const videoSource: VideoSource | null = version?.status === "ready"
     ? { kind: "studio_version", id: version.id, name: label }
     : selectedReference?.photo_id
@@ -769,9 +814,11 @@ function Studio({
                       <Button
                         variant="link"
                         className="px-0"
-                        onClick={() => setExistingTool(m.existing_tool || "mockup")}
+                        onClick={() => m.existing_tool === "preparation"
+                          ? void openPreparation(m)
+                          : setExistingTool(m.existing_tool || "mockup")}
                       >
-                        {m.existing_tool === "before_after" ? "Créer l’avant/après" : "Créer le mockup"}
+                        {m.existing_tool === "preparation" ? "Préparer cette photo sans la redessiner" : m.existing_tool === "before_after" ? "Créer l’avant/après" : "Créer le mockup"}
                       </Button>
                     )}
                   </div>
@@ -1105,6 +1152,11 @@ function Studio({
                       Animer cette image en vidéo
                     </Button>
                   )}
+                  {!!display && (
+                    <Button type="button" variant="outline" className="mb-3 ml-2" disabled={!!busy} onClick={() => void openPreparation()}>
+                      Lumière et formats · sans génération
+                    </Button>
+                  )}
                   {generating && (
                     <div
                       role="status"
@@ -1140,6 +1192,14 @@ function Studio({
                         >
                           Réessayer cette image seulement
                         </Button>
+                      </div>
+                    ))}
+                  {current?.versions
+                    .filter((v) => v.status === "uncertain")
+                    .map((v) => (
+                      <div key={v.id} role="status" className="rounded-xl border p-4 my-4 text-sm">
+                        <p>{v.proposal.series_size ? `Image ${(v.proposal.series_index || 0) + 1} de la série · ` : ""}{v.error_message}</p>
+                        <p className="mt-2">Tu peux poursuivre une autre demande dans cette session. Cette image ne peut pas être relancée automatiquement.</p>
                       </div>
                     ))}
                   {current && (
@@ -1438,6 +1498,22 @@ function Studio({
             void mutate("reference", {
               photo_id: photo.id,
               reference_role: "composition",
+              revision: current?.session.revision,
+            });
+          }}
+        />
+      )}
+      {preparation && (
+        <PhotoPreparationDialog
+          open
+          onOpenChange={(open) => { if (!open) setPreparation(null); }}
+          sources={[preparation.source]}
+          initialRecipe={preparation.recipe}
+          onSaved={(photo) => {
+            setPreparation(null);
+            void mutate("reference", {
+              photo_id: photo.id,
+              reference_role: preparation.role,
               revision: current?.session.revision,
             });
           }}
