@@ -39,7 +39,7 @@ const DEFAULT_OPTIONS: ContextOptions = {
  * Fetches all user context data from database in parallel.
  * If workspaceId is provided, queries filter by workspace_id instead of user_id.
  */
-export async function getUserContext(supabase: any, userId: string, workspaceId?: string, channel?: string) {
+export async function getUserContext(supabase: any, userId: string, workspaceId?: string | null, channel?: string) {
   // A denied or unreadable workspace must never become a personal generation.
   const guard = await assertWorkspaceMembership(supabase, userId, workspaceId);
   if (!guard.ok) throw new Error("Impossible de lire l’identité IA : accès à cet espace indisponible.");

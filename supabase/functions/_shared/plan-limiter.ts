@@ -282,7 +282,7 @@ export function isQaTestAccount(userId: string): boolean {
 export async function checkQuota(
   userId: string,
   category: string,
-  workspaceId?: string,
+  workspaceId?: string | null,
   sbOverride?: any
 ): Promise<QuotaResult> {
   // Admin bypass — unlimited quota (check via has_role function)
@@ -427,7 +427,7 @@ export async function logUsage(
   actionType: string,
   tokensUsed?: number,
   modelUsed?: string,
-  workspaceId?: string,
+  workspaceId?: string | null,
   sbOverride?: any
 ): Promise<void> {
   const sb = sbOverride ?? getServiceClient();
