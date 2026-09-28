@@ -85,25 +85,26 @@ export async function studioRequest<T = StudioState>(
     { body: { ...body, studio_version: 2 } },
     60_000,
   );
-  if (error) {
-    let message = error.message;
-    let code: string | undefined;
-    const context = (error as unknown as { context?: Response }).context;
-    if (context) {
+  if (error || data?.error) {
+    // invokeWithTimeout already reads the HTTP response into data. Its error
+    // is normalized, so reading error.context loses business retry codes.
+    let detail = data && typeof data === "object" ? data : null;
+    const context = error?.originalError?.context;
+    if (!detail && context) {
       try {
-        const detail = await context.json();
-        message = detail.message || detail.error || message;
-        code = detail.code;
+        detail = await context.clone().json();
       } catch {
-        /* Preserve the transport error. */
+        /* Preserve the transport error when the response is unavailable. */
       }
     }
+    const message = detail?.message || detail?.error || error?.message;
     throw new StudioRequestError(
-      message || "Le Studio est indisponible. Réessaie.",
-      code,
+      typeof message === "string"
+        ? message
+        : "Le Studio est indisponible. Réessaie.",
+      typeof detail?.code === "string" ? detail.code : undefined,
     );
   }
-  if (data?.error) throw new Error(data.message || data.error);
   return data as T;
 }
 export async function listStudioSessions(workspaceId: string) {
