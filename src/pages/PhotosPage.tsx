@@ -326,7 +326,7 @@ function PhotosLibrary() {
             </Button>
 
           </div>
-          <p className="text-sm text-muted-foreground">Studio : change le fond de tes photos, en Gratuit et Premium, dans ton quota d’images.</p>
+          <p className="text-sm text-muted-foreground">Studio : pars d’une idée, d’une question ou d’une photo. Fonds inclus dans ton quota ; création et mise en scène en Premium.</p>
           <Button variant="link" className="h-auto p-0" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
             Créer un avant/après ou un mockup
           </Button>

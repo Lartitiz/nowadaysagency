@@ -1,13 +1,13 @@
-export interface StudioWorkPorts {
-  readSource: () => Promise<Blob>;
-  generate: (source: Blob) => Promise<Blob>;
+export interface StudioWorkPorts<T = Blob> {
+  readSource: () => Promise<T>;
+  generate: (source: T) => Promise<Blob>;
   store: (result: Blob) => Promise<void>;
   complete: () => Promise<void>;
   fail: () => Promise<void>;
 }
 /** A lost final DB response must never cause another provider call or erase a stored result. */
-export async function executeStudioJob(
-  ports: StudioWorkPorts,
+export async function executeStudioJob<T>(
+  ports: StudioWorkPorts<T>,
 ): Promise<"ready" | "failed" | "recoverable"> {
   let storageAttempted = false;
   try {

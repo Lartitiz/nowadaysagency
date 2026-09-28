@@ -5,7 +5,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 const db: SupabaseClient = supabase;
 export interface StudioProposal {
   id: string;
-  operation: "background";
+  operation: "background" | "create" | "edit" | "product";
+  format?: "square" | "portrait" | "landscape";
+  preserve?: string[];
+  change?: string[];
+  warning?: string | null;
+  references?: StudioReference[];
+  viewed_reference_id?: string | null;
+  input_path?: string | null;
   summary: string;
   background_prompt: string;
   viewed_version_id: string | null;
@@ -16,13 +23,24 @@ export interface StudioMessage {
   role: "user" | "assistant";
   text: string;
   operation?: string;
+  suggestions?: string[];
+  suggested_photo_ids?: string[];
+}
+export interface StudioReference {
+  id: string;
+  photo_id: string;
+  name: string;
+  role: "subject" | "style" | "composition";
+  url: string;
 }
 export interface StudioSession {
   id: string;
   workspace_id: string;
   name: string;
   source_photo_id: string | null;
-  source_url: string;
+  source_url: string | null;
+  references?: StudioReference[];
+  brief?: string;
   revision: number;
   messages: StudioMessage[];
   proposal: StudioProposal | null;
@@ -41,6 +59,8 @@ export interface StudioState {
   session: StudioSession;
   versions: StudioVersion[];
   writable: boolean;
+  generative_allowed?: boolean;
+  suggested_photos?: { id: string; name: string; url: string }[];
   quota: {
     allowed: boolean;
     plan: string;
@@ -62,8 +82,8 @@ export async function studioRequest<T = StudioState>(
 ): Promise<T> {
   const { data, error } = await invokeWithTimeout(
     "visual-studio",
-    { body },
-    40_000,
+    { body: { ...body, studio_version: 2 } },
+    60_000,
   );
   if (error) {
     let message = error.message;

@@ -6,7 +6,7 @@ const actor = id(1),
   space = id(2),
   sessionId = id(3),
   proposalId = id(4);
-const base = { session_id: sessionId, workspace_id: space };
+const base = { studio_version: 2, session_id: sessionId, workspace_id: space };
 function fixture(role = "owner", replay = false) {
   const saved = globalThis.fetch,
     env = [
@@ -14,19 +14,29 @@ function fixture(role = "owner", replay = false) {
       "SUPABASE_SERVICE_ROLE_KEY",
       "SUPABASE_ANON_KEY",
       "PHOTOROOM_API_KEY",
+      "ANTHROPIC_API_KEY",
     ].map((k) => [k, Deno.env.get(k)] as const);
   Deno.env.set("SUPABASE_URL", "https://studio.test");
   Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", "service");
   Deno.env.set("SUPABASE_ANON_KEY", "anon");
   Deno.env.set("PHOTOROOM_API_KEY", "test-only");
+  Deno.env.set("ANTHROPIC_API_KEY", "test-only");
   const requests: string[] = [];
+  const payloads: Record<string, unknown>[] = [];
+  let intent: Record<string, unknown> = {
+    operation: "advise",
+    summary: "Une illustration adaptée à ton offre.",
+  };
   const session = {
     id: sessionId,
     workspace_id: space,
     user_id: actor,
-    source_photo_id: id(5),
+    source_photo_id: id(5) as string | null,
+    references: [] as unknown[],
+    brief: "",
+    source_metadata: {},
     source_ready: true,
-    source_path: "original",
+    source_path: "original" as string | null,
     name: "Photo",
     revision: 0,
     messages: [],
@@ -62,8 +72,34 @@ function fixture(role = "owner", replay = false) {
     if (url.pathname === "/auth/v1/user")
       return json({ id: actor, aud: "authenticated", role: "authenticated" });
     if (url.pathname === "/rest/v1/workspace_members") return json({ role });
-    if (url.pathname === "/rest/v1/visual_studio_sessions")
+    if (url.pathname === "/rest/v1/visual_studio_sessions") {
+      if (init?.method === "PATCH")
+        Object.assign(session, JSON.parse(String(init.body)));
       return json(session);
+    }
+    if (url.pathname === "/rest/v1/rpc/studio_reserve_interpretation")
+      return json(true);
+    if (url.pathname.startsWith("/rest/v1/brand_"))
+      return json({ mission: "Ateliers artisanaux" });
+    if (url.pathname === "/rest/v1/user_photos") {
+      assertEquals(url.searchParams.get("removed_from_library_at"), "is.null");
+      assertEquals(url.searchParams.get("workspace_id"), `eq.${space}`);
+      return json([]);
+    }
+    if (url.pathname === "/v1/messages") {
+      payloads.push(JSON.parse(String(init?.body)));
+      return json({
+        content: [
+          { type: "tool_use", name: "prepare_photo_request", input: intent },
+        ],
+        stop_reason: "tool_use",
+      });
+    }
+    if (
+      url.pathname.startsWith("/storage/v1/object/") &&
+      !url.pathname.includes("/sign/")
+    )
+      return new Response(new Blob(["source"], { type: "image/jpeg" }));
     if (url.pathname === "/rest/v1/visual_studio_versions")
       return json(replay ? [version] : []);
     if (url.pathname === "/rest/v1/rpc/has_role") return json(true);
@@ -75,6 +111,11 @@ function fixture(role = "owner", replay = false) {
   };
   return {
     requests,
+    session,
+    payloads,
+    setIntent: (value: Record<string, unknown>) => {
+      intent = value;
+    },
     restore: () => {
       globalThis.fetch = saved;
       for (const [k, v] of env) {
@@ -179,6 +220,168 @@ Deno.test(
         { ...base, action: "message", message: "x".repeat(1001) },
       ])
         assertEquals((await handleStudioRequest(request(body))).status, 400);
+    } finally {
+      f.restore();
+    }
+  },
+);
+
+Deno.test(
+  "question without a photo loads the brand, advises and never claims generation",
+  async () => {
+    const f = fixture();
+    f.session.source_photo_id = null;
+    f.session.source_path = null;
+    try {
+      const res = await handleStudioRequest(
+        request({
+          ...base,
+          action: "message",
+          message: "Quel visuel pour mon atelier ?",
+          revision: 0,
+          request_id: id(80),
+        }),
+      );
+      assertEquals(res.status, 200);
+      const data = await res.json();
+      assertEquals(data.session.proposal, null);
+      assertEquals(data.session.source_url, null);
+      assertEquals(data.session.messages.at(-1).operation, "advise");
+      assertEquals(f.requests.includes("/rest/v1/brand_profile"), true);
+      assertEquals(
+        f.requests.some((p) => p.includes("studio_confirm")),
+        false,
+      );
+    } finally {
+      f.restore();
+    }
+  },
+);
+Deno.test(
+  "model cannot stage a real product without a subject reference",
+  async () => {
+    const f = fixture();
+    f.session.source_photo_id = null;
+    f.session.source_path = null;
+    f.setIntent({
+      operation: "product",
+      summary: "Ton bol sur une table",
+      image_prompt: "A real cup on a table",
+      requires_real_subject: true,
+    });
+    try {
+      const res = await handleStudioRequest(
+        request({
+          ...base,
+          action: "message",
+          message: "Mon bol sur une table",
+          revision: 0,
+          request_id: id(81),
+        }),
+      );
+      const data = await res.json();
+      assertEquals(res.status, 200);
+      assertEquals(data.session.proposal, null);
+      assertEquals(data.session.messages.at(-1).operation, "clarify");
+    } finally {
+      f.restore();
+    }
+  },
+);
+Deno.test(
+  "a selected subject is actually inspected and snapshotted in the proposal",
+  async () => {
+    const f = fixture();
+    const ref = {
+      id: id(82),
+      photo_id: id(5),
+      path: "source-ref",
+      role: "subject",
+      name: "Bol",
+    };
+    f.session.references = [ref];
+    f.setIntent({
+      operation: "product",
+      summary: "Ton bol sur une table",
+      image_prompt: "A real cup on a table",
+      requires_real_subject: true,
+    });
+    try {
+      const res = await handleStudioRequest(
+        request({
+          ...base,
+          action: "message",
+          message: "Mon bol sur une table",
+          revision: 0,
+          viewed_reference_id: ref.id,
+          request_id: id(83),
+        }),
+      );
+      const data = await res.json();
+      assertEquals(res.status, 200);
+      assertEquals(data.session.proposal.references[0].path, "source-ref");
+      const payload = f.payloads[0] as {
+        messages: { content: { type: string }[] }[];
+      };
+      assertEquals(
+        payload.messages[0].content.some((b) => b.type === "image"),
+        true,
+      );
+      assertEquals(data.session.proposal.original_path, "source-ref");
+      assertEquals(data.session.proposal.cost, 1);
+      assertEquals(
+        f.requests.some((p) => p.includes("studio_confirm")),
+        false,
+      );
+    } finally {
+      f.restore();
+    }
+  },
+);
+
+Deno.test(
+  "editing the second selected reference places it first without duplicating it",
+  async () => {
+    const f = fixture();
+    const first = {
+      id: id(84),
+      photo_id: id(85),
+      path: "first",
+      role: "subject",
+      name: "Premier",
+    };
+    const second = {
+      id: id(86),
+      photo_id: id(87),
+      path: "second",
+      role: "subject",
+      name: "Second",
+    };
+    f.session.references = [first, second];
+    f.setIntent({
+      operation: "edit",
+      summary: "Lumière plus douce",
+      image_prompt: "Softer light on the selected second photo",
+    });
+    try {
+      const res = await handleStudioRequest(
+        request({
+          ...base,
+          action: "message",
+          message: "Lumière plus douce",
+          revision: 0,
+          viewed_reference_id: second.id,
+          request_id: id(88),
+        }),
+      );
+      const data = await res.json();
+      assertEquals(res.status, 200);
+      assertEquals(data.session.proposal.input_path, "second");
+      assertEquals(
+        data.session.proposal.references.map((r: { path: string }) => r.path),
+        ["first"],
+      );
+      assertEquals(data.session.proposal.original_path, "second");
     } finally {
       f.restore();
     }
