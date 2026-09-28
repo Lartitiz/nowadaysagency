@@ -310,6 +310,10 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   async function handleAssemble() {
     if (renderBusy.current || archiveBusy.current) return;
     if (needsReview) { toast.error("Vérifie les passages après la modification du texte."); return; }
+    if (montageMode === "filme" && clips.some(clip => clip?.source === "studio")) {
+      toast.error("Un clip du Studio est muet. Choisis une prise face caméra pour porter ta voix, puis ajoute ce clip comme plan.");
+      return;
+    }
     const generation = activeRender.current.generation;
     const isCurrent = () => activeRender.current.mounted && activeRender.current.generation === generation;
     const chosen = clips.map((c) => (c ? { url: c.url, seek: c.seek } : null));
@@ -799,6 +803,9 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
             <p>Le texte du Reel a changé depuis ce montage. Vérifie les clips, voix et plans pour chaque passage avant d’assembler.</p>
             <Button type="button" variant="outline" size="sm" onClick={() => { setAssociationTexts(sectionTexts); setNeedsReview(false); }}>J’ai vérifié les passages</Button>
           </div>}
+          {montageMode === "filme" && clips.some(clip => clip?.source === "studio") && <p role="alert" className="text-xs text-destructive">
+            Un clip du Studio est muet. Remplace-le par ta prise face caméra, puis ajoute-le comme plan visuel.
+          </p>}
 
           {phase === "rendering" && (
             <p className="text-2xs text-muted-foreground text-center">

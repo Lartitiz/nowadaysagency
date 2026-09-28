@@ -1,6 +1,6 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { beforeEach, it, expect, vi } from 'vitest';
-import ReelMontage from '@/components/creer/ReelMontage';
+import ReelMontage, { type ReelMontageProject } from '@/components/creer/ReelMontage';
 const mocks=vi.hoisted(()=>({submit:vi.fn(),poll:vi.fn(),archive:vi.fn(),suggest:vi.fn(),search:vi.fn()}));
 vi.mock('@/hooks/use-branding',()=>({useBrandCharter:()=>({data:null})}));
 vi.mock('@/lib/stock-videos',()=>({suggestStockKeywords:mocks.suggest,searchStockVideos:mocks.search}));
@@ -95,4 +95,14 @@ it('offers a separate tab if CORS blocks download and keeps the montage visible'
  expect(fallback).toHaveAttribute('target','_blank');expect(fallback).toHaveAttribute('rel','noopener noreferrer');
  expect(screen.getByText(/Ma vidéo · Ma prise/)).toBeTruthy();
  vi.unstubAllGlobals();
+});
+it('refuses to use a silent Studio clip as the voice-bearing face-camera take',async()=>{
+ const project: ReelMontageProject={version:1,sectionTexts:['Mon texte'],montageMode:'filme',voiceMode:'recorded',
+  clips:[{id:'studio-job',studioJobId:'job',url:'https://clips.test/studio.mp4',thumbnail:null,duration:5,source:'studio',label:'Atelier',seek:0}],
+  cutaways:[null],voiceClips:[null]};
+ render(<ReelMontage sections={sections} initialProject={project}/>);
+ await act(async()=>{await Promise.resolve();});
+ expect(screen.getByRole('alert')).toHaveTextContent(/Un clip du Studio est muet/);
+ fireEvent.click(screen.getByRole('button',{name:'Assembler mon reel'}));
+ expect(mocks.submit).not.toHaveBeenCalled();
 });
