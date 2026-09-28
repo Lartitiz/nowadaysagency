@@ -252,8 +252,11 @@ export async function submitHiggsfieldImage(
       (!accepted && error instanceof ProviderHttpError &&
         [400, 401, 402, 403, 404, 422, 429].includes(error.status))
     ) await failHiggsfieldImage(db, version.id);
-    else {await db.from("studio_image_requests").update({ status: "uncertain" })
-        .eq("version_id", version.id).in("status", ["submitting", "queued"]);}
+    else {
+      const uncertain = await db.from("studio_image_requests").update({ status: "uncertain" })
+        .eq("version_id", version.id).in("status", ["submitting", "queued"]);
+      if (uncertain.error) throw uncertain.error;
+    }
     console.error(
       "[studio:higgsfield]",
       error instanceof Error ? error.message : "provider error",

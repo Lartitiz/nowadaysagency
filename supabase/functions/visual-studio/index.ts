@@ -945,11 +945,17 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               };
               const work = version.proposal.provider === "higgsfield"
                 ? (async () => {
-                  if (!(await canWrite(sb, actor, p.workspace_id))) {
-                    throw new Error("Droits retirés");
+                  let inputs: Blob[];
+                  try {
+                    if (!(await canWrite(sb, actor, p.workspace_id))) throw new Error("Droits retirés");
+                    inputs = await readInputs();
+                  } catch {
+                    await failHiggsfieldImage(sb, version.id);
+                    return;
                   }
-                  await submitHiggsfieldImage(sb, version, await readInputs());
-                })().catch(() => failHiggsfieldImage(sb, version.id))
+                  // Once submission starts, a lost receipt must never become a retryable failure.
+                  await submitHiggsfieldImage(sb, version, inputs);
+                })().catch((error) => console.error("[studio:higgsfield-worker]", error instanceof Error ? error.message : "worker failed"))
                 : executeStudioJob({
                   readSource: readInputs,
                   generate: async (inputs) => {
