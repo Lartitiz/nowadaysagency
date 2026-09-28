@@ -538,11 +538,16 @@ export async function fetchSitemapUrls(
     // Beaucoup de sites (WordPress/Yoast, Wix…) servent un sitemap de sitemaps :
     // aucune vraie page à ce niveau. On descend d'UN cran sur les 2 premiers enfants.
     if (opts.followIndex && xml.includes("<sitemapindex")) {
+      // Priorité aux sous-sitemaps de pages/blog (Shopify : sitemap_pages_1,
+      // sitemap_blogs_1) ; les produits/collections noient les pages de marque.
+      const rank = (u: string) =>
+        /product|collection|image|video|agentic/i.test(u) ? 2 : /page|blog|post/i.test(u) ? 0 : 1;
       const children = locs
         .filter(u => {
           try { return isSameSite(new URL(u).hostname, baseHostname); } catch { return false; }
         })
-        .slice(0, 2);
+        .sort((a, b) => rank(a) - rank(b))
+        .slice(0, 3);
       const childXmls = await Promise.all(children.map(u => fetchSitemapXml(u, signal)));
       locs = childXmls.flatMap(extractLocs);
     }
