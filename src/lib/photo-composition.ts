@@ -1,7 +1,7 @@
 /** Photo-only geometry. Full images always fit; only an explicit detail uses a crop. */
 export const PHOTO_FORMATS = {
   post: { label: "Post portrait", width: 1080, height: 1350 },
-  square: { label: "Post carré", width: 1080, height: 1080 },
+  square: { label: "Post 1800×1320", width: 1800, height: 1320 },
   story: { label: "Story", width: 1080, height: 1920 },
   cover: { label: "Couverture de Reel", width: 1080, height: 1920 },
   banner: { label: "Bannière", width: 1600, height: 600 },
