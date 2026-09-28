@@ -603,6 +603,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             model: "claude-haiku-4-5",
             system: studioSystem,
             tool: intentTool,
+            // Supplied titles, dates and time ranges must survive structured output verbatim.
+            keepDashes: true,
             max_tokens: 6000,
             temperature: 0.2,
             abortTimeoutMs: 30_000,
@@ -684,6 +686,17 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Pour représenter fidèlement cette personne ou ce produit, choisis sa photo dans la bibliothèque. Tu peux aussi me demander une illustration sans représentation réelle.";
         }
+        const normalizeName = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+        const requestText = ` ${normalizeName(p.message)} `;
+        const memoryToSelect = memory.filter((m) => m.kind !== "preference" &&
+          !references.some((r) => r.memory_id === m.id || m.references.some((source) => source.path === r.path)) &&
+          (intent.suggested_memory_ids.includes(m.id) ||
+            (/reutilis|reprendr|utiliser/.test(requestText) && requestText.includes(` ${normalizeName(m.name)} `))));
+        if (memoryToSelect.length) {
+          intent.operation = "advise";
+          intent.summary = "Cette référence est enregistrée, mais son image n’est pas encore jointe à cette session. Clique sur « Utiliser ce mannequin » ou « Utiliser cette direction » ci-dessous, puis décris les photos souhaitées. Aucune image n’a été générée.";
+          intent.suggestions = [];
+        }
         if (generative(intent.operation) && !p.studio_version) {
           intent.operation = "existing_tool";
           intent.summary =
@@ -760,6 +773,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             operation: intent.operation,
             suggestions: intent.suggestions,
             suggested_photo_ids: suggestions,
+            suggested_memory_ids: memoryToSelect.map((m) => m.id),
           },
         ];
         const updated = await sb
