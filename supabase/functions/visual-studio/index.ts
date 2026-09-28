@@ -862,7 +862,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (!next || next.id !== p.proposal_id || !next.shots?.length) {
           throw new Error("studio_conflict");
         }
-        next = { ...next, id: crypto.randomUUID(), shots: [], cost: 1 };
+        next = {
+          ...next,
+          id: crypto.randomUUID(),
+          shots: [],
+          cost: 1,
+          summary: "Créer uniquement la première image prévue dans la série, pour valider sa direction avant la suite.",
+          // The complete first-shot prompt remains authoritative; the plan-wide
+          // change list can contain contradictory instructions for later shots.
+          change: [],
+        };
       }
       session = unwrap(
         await sb.from("visual_studio_sessions").update({

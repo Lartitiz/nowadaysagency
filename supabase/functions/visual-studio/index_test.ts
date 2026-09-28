@@ -510,3 +510,27 @@ Deno.test("a mentioned stored mannequin cannot be used before its reference is e
  f.setIntent({operation:"create",summary:"Je vais appliquer ce mannequin automatiquement",image_prompt:"Two photos with the saved mannequin"});
  try{const res=await handleStudioRequest(request({...base,studio_version:3,action:"message",message:"Je veux réutiliser Anna — cobalt",request_id:id(603),revision:0}));assertEquals(res.status,200);const body=await res.json();assertEquals(body.session.proposal,null);assertEquals(body.session.messages.at(-1).suggested_memory_ids,[id(601)]);assertEquals(body.session.references,[]);assertEquals(f.requests.some(p=>p.includes("studio_confirm_generation")),false);}finally{f.restore();}
 });
+
+Deno.test("pilot keeps only the first-shot brief and removes other shots' directions without generating", async () => {
+  const f = fixture();
+  const firstPrompt = "Portrait de profil, tête et épaules";
+  Object.assign(f.session.proposal, {
+    operation: "create", cost: 2, image_prompt: firstPrompt,
+    summary: "Deux portraits : profil puis face",
+    preserve: ["Visage approuvé", "veste cobalt"],
+    change: ["Profil pour la première", "Face pour la seconde"],
+    shots: [{id:id(702),image_prompt:"Portrait de face",summary:"Face",format:"portrait"}],
+  });
+  try {
+    const res = await handleStudioRequest(request({...base,studio_version:3,action:"pilot",proposal_id:proposalId,revision:0}));
+    assertEquals(res.status,200);
+    const plan = (await res.json()).session.proposal;
+    assertEquals(plan.cost,1);
+    assertEquals(plan.shots,[]);
+    assertEquals(plan.change,[]);
+    assertEquals(plan.image_prompt,firstPrompt);
+    assertEquals(plan.preserve,["Visage approuvé", "veste cobalt"]);
+    assertEquals(plan.id === proposalId,false);
+    assertEquals(f.requests.some(p=>p.includes("studio_confirm_generation")),false);
+  } finally { f.restore(); }
+});
