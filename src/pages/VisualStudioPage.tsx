@@ -186,9 +186,29 @@ function Studio({
   }, [current]);
   useEffect(() => {
     for (const ref of [desktopMessages, mobileMessages]) {
-      if (ref.current) ref.current.scrollTop = ref.current.scrollHeight;
+      if (ref.current) {
+        const messages = ref.current.querySelectorAll(".studio-message");
+        const last = messages.item(messages.length - 1);
+        if (last)
+          ref.current.scrollTop +=
+            last.getBoundingClientRect().top -
+            ref.current.getBoundingClientRect().top -
+            12;
+      }
     }
   }, [current?.session.messages.length, mobileChat, mobileConfirm]);
+  useEffect(() => {
+    const pending = sent.current;
+    if (pending && current?.session.messages.some((m) => m.id === pending.id)) {
+      if (draftRef.current.trim() === pending.text) {
+        draftRef.current = "";
+        setDraft("");
+        writeDraft(localKey, "");
+      }
+      sent.current = null;
+      setError("");
+    }
+  }, [current?.session.messages, localKey]);
   function editDraft(value: string) {
     draftRef.current = value;
     setDraft(value);
@@ -574,7 +594,7 @@ function Studio({
       <div className="studio-chat-inner">
         {!mobile && (
           <div className="p-5 border-b">
-            <h2 className="font-medium">
+            <h2 className="font-medium line-clamp-2">
               {current?.session.name || "Ta demande"}
             </h2>
             <p className="text-xs text-muted-foreground">
@@ -623,9 +643,10 @@ function Studio({
                   )}
                 </div>
               ))}
-            </div>
-            <div className="p-4 border-t space-y-3">
-              <div className="flex flex-wrap gap-2">
+              <div
+                className="flex flex-wrap gap-2"
+                aria-label="Idées d’ajustement"
+              >
                 {(current?.session.messages.at(-1)?.suggestions?.length
                   ? current.session.messages.at(-1)!.suggestions!
                   : version
@@ -645,6 +666,7 @@ function Studio({
                     key={t}
                     size="sm"
                     variant="outline"
+                    className="studio-suggestion"
                     disabled={!writable || !!busy || generating}
                     onClick={() => editDraft(t)}
                   >
@@ -652,6 +674,8 @@ function Studio({
                   </Button>
                 ))}
               </div>
+            </div>
+            <div className="p-4 border-t space-y-3">
               <label
                 className="sr-only"
                 htmlFor={mobile ? "studio-draft-mobile" : "studio-draft"}

@@ -467,51 +467,69 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           });
           vision.push(await visionBlock(await download(sb, BUCKET, ref.path)));
         }
-        const raw = await callAnthropic({
-          model: "claude-haiku-4-5",
-          system: studioSystem,
-          tool: intentTool,
-          max_tokens: 2200,
-          temperature: 0.2,
-          abortTimeoutMs: 30_000,
-          maxRetries: 0,
-          messages: [
+        let intent: ReturnType<typeof intentSchema.parse>;
+        try {
+          const raw = await callAnthropic({
+            model: "claude-haiku-4-5",
+            system: studioSystem,
+            tool: intentTool,
+            max_tokens: 2200,
+            temperature: 0.2,
+            abortTimeoutMs: 30_000,
+            maxRetries: 0,
+            messages: [
+              {
+                role: "user",
+                content: [
+                  {
+                    type: "text",
+                    text: JSON.stringify({
+                      marque: {
+                        charte: charter.data,
+                        identite: profile.data,
+                        proposition: proposition.data,
+                        strategy: strategy.data,
+                      },
+                      references: references.map(({ path, ...ref }) => ref),
+                      reference_selectionnee: selectedReference?.id,
+                      version_selectionnee: parent
+                        ? {
+                            id: parent.id,
+                            brief: parent.proposal.brief,
+                            summary: parent.proposal.summary,
+                          }
+                        : null,
+                      brief: parent?.proposal.brief || session.brief || "",
+                      historique: session.messages.slice(-12),
+                      catalogue: (catalogue.data || []).map((row) => ({
+                        ...row,
+                        description: row.description?.slice(0, 250),
+                      })),
+                      demande: p.message,
+                    }),
+                  },
+                  ...vision,
+                ],
+              },
+            ],
+          });
+          intent = intentSchema.parse(JSON.parse(raw));
+        } catch (error) {
+          console.error(
+            "[visual-studio:interpretation]",
+            String(error).replace(/https?:\/\/\S+/g, "[url]"),
+          );
+          // No session write or image generation has happened at this point.
+          // A deliberate resend may reserve a fresh interpretation request.
+          return json(
             {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: JSON.stringify({
-                    marque: {
-                      charte: charter.data,
-                      identite: profile.data,
-                      proposition: proposition.data,
-                      strategy: strategy.data,
-                    },
-                    references: references.map(({ path, ...ref }) => ref),
-                    reference_selectionnee: selectedReference?.id,
-                    version_selectionnee: parent
-                      ? {
-                          id: parent.id,
-                          brief: parent.proposal.brief,
-                          summary: parent.proposal.summary,
-                        }
-                      : null,
-                    brief: parent?.proposal.brief || session.brief || "",
-                    historique: session.messages.slice(-12),
-                    catalogue: (catalogue.data || []).map((row) => ({
-                      ...row,
-                      description: row.description?.slice(0, 250),
-                    })),
-                    demande: p.message,
-                  }),
-                },
-                ...vision,
-              ],
+              error:
+                "Je n’ai pas pu préparer ta demande. Ton texte est conservé : renvoie-le pour réessayer. Aucune image n’a été lancée.",
+              code: "refresh_request",
             },
-          ],
-        });
-        const intent = intentSchema.parse(JSON.parse(raw));
+            503,
+          );
+        }
         // The model cannot invent a real reference or authorize a source-free identity reconstruction.
         if (
           (["background", "edit", "product"].includes(intent.operation) &&
