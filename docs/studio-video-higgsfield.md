@@ -12,9 +12,9 @@ La clé API est `KEY_ID:KEY_SECRET`, uniquement côté serveur dans `HIGGSFIELD_
 
 Sources : [authentification](https://docs.higgsfield.ai/docs/authentication), [envoi de fichiers](https://docs.higgsfield.ai/docs/concepts/file-uploads), [devis et facturation](https://docs.higgsfield.ai/docs/concepts/billing-and-retention).
 
-Le catalogue public indique à titre de repère **0,144 $/s en 480p** et **jusqu'à 0,3236 $/s en 720p** au tarif affiché. Un clip de cinq secondes représente donc environ **0,72 $** en 480p ou **1,62 $** en 720p ; quatre clips de cinq secondes au plus **2,88 $** ou **6,47 $** respectivement, hors stockage/transfert et éventuelle variation du devis du compte. Il faut lire le devis du compte avant de confirmer un plafond d'essai. Aucun achat ou essai payant n'est inclus dans cette intégration.
+Le catalogue public indique à titre de repère **0,144 $/s en 480p** et **jusqu'à 0,3236 $/s en 720p** au tarif affiché. Un clip de cinq secondes représente donc environ **0,72 $** en 480p ou **1,62 $** en 720p ; quatre clips de cinq secondes au plus **2,88 $** ou **6,47 $** respectivement, hors stockage/transfert et éventuelle variation du devis du compte. Il faut lire le devis du compte avant chaque génération. Le 28 septembre, Laetitia a autorisé **100 € maximum** pour les essais vidéo. Le garde-fou technique sera réglé à **100 $ USD par mois au total**, inférieur à 100 € au dernier taux de référence BCE consulté (1 € = 1,1403 $ le 25 septembre) et laissant une marge pour le change et les frais. Le devis réel peut être inférieur ou supérieur au repère du catalogue. Aucun essai payant n'a encore été effectué.
 
-Source : [page Seedance 2.5 et tarif](https://open.higgsfield.ai/models/bytedance/seedance-2.5/image-to-video).
+Sources : [page Seedance 2.5 et tarif](https://open.higgsfield.ai/models/bytedance/seedance-2.5/image-to-video), [taux de référence BCE](https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html).
 
 ## Suivi, conservation et erreurs
 
@@ -36,8 +36,8 @@ Les conditions indiquent aussi que l'API peut utiliser entrées et sorties pour 
 
 1. Provisionner nativement le bucket Storage **privé** `studio-video` avec limite 150 Mo et sans policy cliente.
 2. Déployer la migration additive `20260928190000_studio_video_jobs.sql`, puis la fonction Edge `studio-video`. `verify_jwt=false` est nécessaire pour le webhook public ; toutes les actions utilisateur continuent de passer par `runPipeline`, et le callback vérifie son jeton par tâche ainsi que le résultat chez Higgsfield.
-3. Placer les secrets serveur `HIGGSFIELD_API_KEY`, `HIGGSFIELD_VIDEO_ENABLED=true` et `HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD=<plafond>` ; sans ces trois valeurs, devis et génération restent désactivés. Le plafond est appliqué à la fois par espace et globalement ; une seule génération peut être active à la fois en V1.
-4. Vérifier en lecture seule l'accès au modèle, le solde, le devis réel et les réglages de traitement. Obtenir un plafond d'essai et une référence explicitement autorisée avant la première génération payante.
+3. Placer les secrets serveur `HIGGSFIELD_API_KEY`, `HIGGSFIELD_VIDEO_ENABLED=true` et `HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD=100` ; sans ces trois valeurs, devis et génération restent désactivés. Le plafond est appliqué à la fois par espace et globalement ; une seule génération peut être active à la fois en V1. Vérifier le taux de change et les frais du compte avant l'activation pour maintenir la limite de 100 €.
+4. Vérifier en lecture seule l'accès au modèle, le solde, le devis réel et les réglages de traitement. Le premier essai utilise une image synthétique sans personne ni donnée cliente ; aucune photo privée existante n'est reprise pour cet essai.
 5. Après un premier clip autorisé, contrôler les octets MP4 archivés, la lecture signée, la reprise, le coût réellement débité et le raccord au Reel avec voix/sous-titres.
 
 La création d'un clip à partir d'une image importée passe par la photothèque existante : la V1 n'ajoute pas un second téléverseur. Les vidéos personnelles et Pexels restent des sources du montage Reel.

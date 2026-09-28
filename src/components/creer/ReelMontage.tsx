@@ -148,6 +148,20 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   const [cutaways, setCutaways] = useState<(StudioCutaway | null)[]>(() => initialProject?.cutaways?.length === spoken.length ? initialProject.cutaways : spoken.map(() => null));
   const [studioTarget, setStudioTarget] = useState<{ index: number; create: boolean } | null>(null);
   const [pendingCutaway, setPendingCutaway] = useState<{ index: number; job: StudioVideoJob } | null>(null);
+  const reelReturn = new URLSearchParams(window.location.search);
+  const returnPassage = reelReturn.get("studio_passage");
+  const highlightedPassage = returnPassage !== null && /^\d+$/.test(returnPassage) && Number(returnPassage) < spoken.length
+    ? Number(returnPassage) : null;
+  const returnedClipId = reelReturn.get("studio_clip");
+  const returnClipLoaded = useRef(false);
+  useEffect(() => {
+    if (returnClipLoaded.current || !workspaceId || highlightedPassage === null || !returnedClipId) return;
+    returnClipLoaded.current = true;
+    void readStudioVideo(workspaceId, returnedClipId).then(({ job }) => {
+      if (job.status === "ready" && job.video_url) setPendingCutaway({ index: highlightedPassage, job });
+      else toast.error("Ce clip du Studio n’est pas encore disponible.");
+    }).catch(() => toast.error("Impossible de retrouver ce clip du Studio."));
+  }, [workspaceId, highlightedPassage, returnedClipId]);
   const [associationTexts, setAssociationTexts] = useState(() => initialProject?.sectionTexts || sectionTexts);
   const [needsReview, setNeedsReview] = useState(() => !!initialProject && JSON.stringify(initialProject.sectionTexts) !== JSON.stringify(sectionTexts));
   const sectionFingerprint = JSON.stringify(sectionTexts);
@@ -604,7 +618,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
           <div className="space-y-2">
             {spoken.map((s, i) => (
-              <Card key={i} className="border-border">
+              <Card key={i} id={`studio-reel-passage-${i}`} className={i === highlightedPassage ? "border-primary ring-2 ring-primary/20" : "border-border"}>
                 <CardContent className="p-3 space-y-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     {s.timing && <Badge variant="secondary" className="font-mono text-2xs">{s.timing}</Badge>}
@@ -711,6 +725,9 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
                     <div className="flex gap-2 flex-wrap">
                       <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: false })}>Choisir un clip du Studio</Button>
                       <Button type="button" variant="outline" size="sm" onClick={() => setStudioTarget({ index: i, create: true })}>Créer un clip dans le Studio</Button>
+                      <a href={`/photos/studio?reel_passage=${i}`} className="inline-flex h-9 items-center rounded-md border border-input bg-background px-3 text-sm hover:bg-accent hover:text-accent-foreground">
+                        Préparer une image dans Studio photo
+                      </a>
                     </div>
                     {pendingCutaway?.index === i && <div className="space-y-2 rounded-md border bg-background p-2">
                       <p className="text-xs">Prévisualisation pour ce passage : {s.texte_parle}</p>

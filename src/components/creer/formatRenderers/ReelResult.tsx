@@ -149,7 +149,10 @@ export default function ReelResult({ result, workspaceId, initialMp4Url, onStepC
     { key: "caption", label: "Légende" },
   ];
 
-  const [stepKey, setStepKey] = useState<StepKey>("script");
+  const returnedPassage = new URLSearchParams(window.location.search).get("studio_passage");
+  const returningFromStudio = hasSpoken && returnedPassage !== null && /^\d+$/.test(returnedPassage)
+    && Number(returnedPassage) < sections.filter((s: any) => typeof s?.texte_parle === "string" && s.texte_parle.trim()).length;
+  const [stepKey, setStepKey] = useState<StepKey>(returningFromStudio ? "montage" : "script");
   const currentIndex = Math.max(0, steps.findIndex((s) => s.key === stepKey));
   const isLast = currentIndex === steps.length - 1;
 

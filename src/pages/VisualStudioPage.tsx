@@ -106,6 +106,21 @@ function Studio({
     cache = useQueryClient();
   const [urlParams, setUrlParams] = useSearchParams();
   const videoTab = urlParams.get("tab") === "video";
+  const reelPassage = urlParams.get("reel_passage");
+  const reelReturn = reelPassage !== null && /^\d+$/.test(reelPassage) ? Number(reelPassage) : null;
+  const studioPath = useCallback((id?: string) => {
+    const next = new URLSearchParams();
+    if (id) next.set("session", id);
+    if (reelReturn !== null) next.set("reel_passage", String(reelReturn));
+    const query = next.toString();
+    return `/photos/studio${query ? `?${query}` : ""}`;
+  }, [reelReturn]);
+  const returnToReel = (jobId?: string) => {
+    if (reelReturn === null) return;
+    const next = new URLSearchParams({ studio_passage: String(reelReturn) });
+    if (jobId) next.set("studio_clip", jobId);
+    navigate(`/creer?${next}`);
+  };
   const chooseTab = (tab: "photo" | "video") => {
     const next = new URLSearchParams(urlParams);
     if (tab === "video") next.set("tab", "video");
@@ -235,7 +250,7 @@ function Studio({
             draftKey(userId, workspaceId, result.session.id),
             draftRef.current,
           );
-          navigate(`/photos/studio?session=${result.session.id}`, {
+          navigate(studioPath(result.session.id), {
             replace: true,
           });
         }
@@ -247,7 +262,7 @@ function Studio({
         if (alive.current) setBusy("");
       }
     },
-    [writable, workspaceId, userId, navigate],
+    [writable, workspaceId, userId, navigate, studioPath],
   );
   useEffect(() => {
     if (photoId && !sessionId && !sourceInit.current && writable) {
@@ -327,7 +342,7 @@ function Studio({
           draftRef.current.trim() === text ? "" : draftRef.current,
         );
         writeDraft(localKey, "");
-        navigate(`/photos/studio?session=${id}`, {
+        navigate(studioPath(id), {
           replace: true,
           state: { studioChatOpen: isMobile },
         });
@@ -766,8 +781,12 @@ function Studio({
           <Button type="button" variant={videoTab ? "default" : "outline"} aria-current={videoTab ? "page" : undefined}
             onClick={() => chooseTab("video")}>Clips vidéo</Button>
         </nav>
-        {videoTab && <div className="mx-auto max-w-4xl px-5 pb-10">
-          <StudioVideoPanel workspaceId={workspaceId} writable={writable} initialSource={videoSource} />
+        {videoTab && <div className="mx-auto max-w-4xl px-5 pb-10 space-y-4">
+          {reelReturn !== null && <Button type="button" variant="outline" onClick={() => returnToReel()}>
+            Retour au Reel · passage {reelReturn + 1}
+          </Button>}
+          <StudioVideoPanel workspaceId={workspaceId} writable={writable} initialSource={videoSource}
+            onPickClip={reelReturn !== null ? job => returnToReel(job.id) : undefined} />
         </div>}
         <div hidden={videoTab}>
         {(error || state.error) && (
@@ -933,6 +952,11 @@ function Studio({
                     ? "Référence conservée dans la session."
                     : "Tes échanges et créations restent dans cette session."}
               </p>
+              {version?.status === "ready" && (
+                <Button type="button" variant="outline" className="mb-3" onClick={() => chooseTab("video")}>
+                  Animer cette image en vidéo
+                </Button>
+              )}
               {generating && (
                 <div
                   role="status"
@@ -1174,7 +1198,7 @@ function Studio({
                   className="w-full justify-start overflow-hidden text-ellipsis"
                   onClick={() => {
                     setSessionsOpen(false);
-                    navigate(`/photos/studio?session=${s.id}`);
+                    navigate(studioPath(s.id));
                   }}
                 >
                   {s.name}
@@ -1187,7 +1211,7 @@ function Studio({
           <Button
             onClick={() => {
               setSessionsOpen(false);
-              navigate("/photos/studio");
+              navigate(studioPath());
             }}
           >
             Commencer une nouvelle session
