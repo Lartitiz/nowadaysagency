@@ -152,6 +152,12 @@ try {
     console.log("📈 Bilan hebdo (source Supabase — hors comptes test)");
     console.log(`   IA 7 j : ${cur.appels} appels / ${cur.tokens} tokens / ${cur.utilisatrices} utilisatrices  (vs S-1 : ${delta(cur.appels, prev.appels)} appels, ${delta(cur.tokens, prev.tokens)} tokens)`);
     for (const [m, v] of Object.entries(cur.byModel || {})) console.log(`      modèle ${m} : ${v.appels} appels, ${v.tokens} tokens`);
+    // Relecture éditoriale des carrousels : hors ai_usage (pas de crédit), lue
+    // dans content_quality_events. Absente = edge cron-health pas à jour.
+    if (!cur.relecture_editoriale) console.log("      relecture carrousels : non mesurée (edge cron-health pas redéployée)");
+    for (const r of cur.relecture_editoriale || []) {
+      console.log(`      modèle ${r.modele} (relecture) : ${r.carrousels} carrousels, ${r.input_tokens + r.output_tokens} tokens (${r.input_tokens} entrée / ${r.output_tokens} sortie) ≈ ${r.cout_estime_eur} €`);
+    }
     if (cur.cout_total_estime_eur != null) {
       console.log(
         `   coût estimé 7 j : ${cur.cout_total_estime_eur} €${cur.cout_incomplet ? " ⚠️ INCOMPLET" : ""} (texte ${cur.cout_texte_estime_eur} € + images ${cur.cout_images_estime_eur} €)  (S-1 : ${prev.cout_total_estime_eur ?? "?"} €${prev.cout_incomplet ? " ⚠️ incomplet" : ""})`

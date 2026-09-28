@@ -163,6 +163,25 @@ function extractSlopInputs(
   return null;
 }
 
+/**
+ * Tokens de la relecture éditoriale d'un carrousel (toutes passes), lus dans le
+ * `editorial_review` que correction-pass pose dans le JSON final. Ils ne vont
+ * PAS dans ai_usage (une ligne = un crédit décompté) : cette table de
+ * télémétrie est le seul endroit où cron-health peut chiffrer ce coût.
+ */
+export function editorialUsage(gateContent: unknown): { model: string; input_tokens: number; output_tokens: number } | null {
+  let doc: any = gateContent;
+  if (typeof gateContent === "string") {
+    try { doc = JSON.parse(gateContent); } catch { return null; }
+  }
+  const review = doc?.editorial_review;
+  const total = review?.total_usage;
+  const model = review?.model || review?.usage?.model;
+  const input = Number(total?.input_tokens), output = Number(total?.output_tokens);
+  if (typeof model !== "string" || !model || !(input > 0 || output > 0)) return null;
+  return { model, input_tokens: input || 0, output_tokens: output || 0 };
+}
+
 /** Objet `SlopSignals` calculé sur le contenu final du gate, null si rien d'exploitable. */
 function buildSlopSignals(gateContent: unknown): Record<string, unknown> | null {
   let doc: any = null;
@@ -201,7 +220,9 @@ export async function logContentQuality(
     redac_violations: gate.violations,
     redac_repassed: gate.repassed,
   };
-  const preview = buildContentPreview(gate.content, subject);
+  const review = editorialUsage(gate.content);
+  const basePreview = buildContentPreview(gate.content, subject);
+  const preview = basePreview && review ? { ...basePreview, editorial_usage: review } : basePreview;
   const slopSignals = buildSlopSignals(gate.content);
 
   try {

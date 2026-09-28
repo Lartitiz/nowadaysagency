@@ -431,6 +431,9 @@ Deno.serve(async (req) => {
       "recraftv3-vector": 0.04,
     };
 
+    // ⚠️ Les chiffres ci-dessous sont les tarifs publics en DOLLARS repris tels
+    // quels (1 $ ≈ 1 €, sans conversion) : le « € » surestime donc le coût réel
+    // de ~10-15 %. Borne prudente assumée, garder la même convention partout.
     // Coût texte estimé (€/million de tokens, tarifs Anthropic ~août 2026 :
     // Haiku 4.5 = 1$/5$, Sonnet 5 = 2$/10$, Sonnet 4.6 = 3$/15$,
     // Opus 4.8 et Opus 5 = 5$/25$ in/out).
@@ -465,6 +468,20 @@ Deno.serve(async (req) => {
       // `modeles_non_tarifes` (bilan du 07/09).
       "google/gemini-2.5-flash": 0.85,
       "google/gemini-2.5-flash-lite": 0.18,
+      // OpenAI GPT-6 Astra (10$/50$ par Mtok, page de prix vérifiée le 28/09) :
+      // rédacteur « qualité max » des carrousels. Astra RAISONNE et ses tokens
+      // de réflexion sont facturés en SORTIE : l'hypothèse 75/25 (qui donnerait
+      // 20) le sous-estime. Mix MESURÉ le 28/09 sur 2 carrousels réels :
+      // 68 % entrée / 32 % sortie → 0,68×10 + 0,32×50 ≈ 23. Absent jusqu'ici :
+      // chaque carrousel qualité max était compté ZÉRO (signalé le 14/09).
+      "gpt-6-astra": 23,
+    };
+    // Relecture éditoriale Astra de CHAQUE carrousel : elle n'écrit PAS dans
+    // ai_usage (une ligne = un crédit décompté à l'utilisatrice), ses tokens
+    // arrivent via content_quality_events.content_preview.editorial_usage, avec
+    // entrée et sortie SÉPARÉES → tarif exact, pas de mix supposé.
+    const REVIEW_COST_EUR_PER_MTOKEN: Record<string, { input: number; output: number }> = {
+      "gpt-6-astra": { input: 10, output: 50 },
     };
 
     // Générations RÉELLES mais sans appel modèle : coût API nul, et c'est VOULU.
@@ -615,6 +632,39 @@ Deno.serve(async (req) => {
       }
       cqEvents = cqRows.filter((e: any) => isClient(e.user_id));
     } catch (_) { /* table absente : repli sur les brouillons */ }
+
+    // Relecture éditoriale (hors ai_usage, cf. REVIEW_COST_EUR_PER_MTOKEN) :
+    // ajoutée au coût de la semaine et remontée par modèle. Un modèle de
+    // relecture sans tarif rejoint `modeles_non_tarifes` comme les autres.
+    const addEditorialReview = (summary: any, from: number, to: number) => {
+      const byModel: Record<string, { carrousels: number; input_tokens: number; output_tokens: number }> = {};
+      for (const e of cqEvents || []) {
+        const u = e.content_preview?.editorial_usage;
+        if (!u?.model || !inWindow(e.created_at, from, to)) continue;
+        const m = (byModel[u.model] ||= { carrousels: 0, input_tokens: 0, output_tokens: 0 });
+        m.carrousels++;
+        m.input_tokens += Number(u.input_tokens) || 0;
+        m.output_tokens += Number(u.output_tokens) || 0;
+      }
+      let cout = 0;
+      const relecture = Object.entries(byModel).map(([modele, v]) => {
+        const tarif = REVIEW_COST_EUR_PER_MTOKEN[modele];
+        const c = tarif ? (tarif.input * v.input_tokens + tarif.output * v.output_tokens) / 1_000_000 : 0;
+        cout += c;
+        if (!tarif) {
+          summary.modeles_non_tarifes.push({ modele: `${modele} (relecture)`, appels: v.carrousels, tokens: v.input_tokens + v.output_tokens });
+          summary.cout_incomplet = true;
+        }
+        return { modele, ...v, cout_estime_eur: Math.round(c * 100) / 100 };
+      });
+      const round2 = (n: number) => Math.round(n * 100) / 100;
+      summary.relecture_editoriale = relecture;
+      summary.cout_texte_estime_eur = round2(summary.cout_texte_estime_eur + cout);
+      summary.cout_total_estime_eur = round2(summary.cout_total_estime_eur + cout);
+    };
+    addEditorialReview(aiCur, curFrom, curTo);
+    addEditorialReview(aiPrev, prevFrom, prevTo);
+
     const eventScoreStats = (rows: any[]) => {
       const vals = rows.map((r) => r.redac_score).filter((v: any) => typeof v === "number");
       if (!vals.length) return { n: 0, sur: rows.length, moyenne: null as number | null, sous_60: 0, repasses: 0 };
