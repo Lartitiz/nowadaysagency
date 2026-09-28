@@ -9012,6 +9012,7 @@ export type Database = {
         }
         Returns: Json
       }
+      studio_reconcile_stale_images: { Args: never; Returns: number }
       studio_reserve_image_cost: {
         Args: { p_estimate: number; p_monthly_limit: number; p_version: string }
         Returns: boolean
