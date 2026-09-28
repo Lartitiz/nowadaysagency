@@ -10,14 +10,14 @@ import { hexLuminance } from "./contrast-guard.ts";
 // audit du 13/07, 5 motifs sur 6 passaient au travers).
 //
 // 8 gabarits validés en maquette avec Laetitia (13/07) :
-//   couverture  — affiche éditoriale : kicker + hook serif géant + détail
-//   profonde    — texte long lisible sur dégradé bas, photo visible aux 2/3
-//   etiquette   — pastille fine centrée (AVANT/APRÈS, connecteur) + sous-ligne
+//   couverture  — titre dans la police de marque + repère de couleur + détail
+//   profonde    — texte développé sur une surface locale de la charte
+//   etiquette   — repère court dans la casse et les formes de la marque
 //   chiffre     — chiffre géant + ligne de contexte
 //   liste       — 2-3 points numérotés en couleur d'accent
-//   etape       — numéro fantôme + titre + corps (processus slide à slide)
-//   citation    — verbatim italique + attribution
-//   finale      — question ouverte + invitation en pastille (data-slide-cta)
+//   etape       — numéro et titre sur une ligne + corps (processus)
+//   citation    — verbatim dans la police de titre + attribution
+//   finale      — conclusion + invitation de marque (data-slide-cta)
 //
 // Contrats respectés (consommés par l'édition live, l'export PPTX hybride et
 // pinterest-visual) :
@@ -57,6 +57,9 @@ export interface PhotoSlideSpec {
 }
 
 export interface PhotoCharter {
+  color_primary?: string;
+  color_secondary?: string;
+  border_radius?: string | number;
   color_background?: string;
   color_text?: string;
   color_accent: string;
@@ -86,7 +89,7 @@ function escapeHtml(s: string): string {
 }
 
 function cssFont(name: string, fallback: string): string {
-  const clean = (name || "").replace(/['"]/g, "").trim();
+  const clean = (name || "").replace(/[^\p{L}\p{N} ._-]/gu, "").trim();
   return clean ? `'${clean}', ${fallback}` : fallback;
 }
 
@@ -103,11 +106,30 @@ function scrimPeak(lum: number | undefined): number {
   return 0.58; // photo déjà sombre : voile discret
 }
 
-function dimOpacity(lum: number | undefined): number {
-  if (typeof lum !== "number" || Number.isNaN(lum)) return 0.36;
-  if (lum >= 0.6) return 0.44;
-  if (lum >= 0.35) return 0.34;
-  return 0.24;
+/** Tokens from explicit charter fields; no inferred style based on profession. */
+function design(ch: PhotoCharter) {
+  const hex = (c: unknown, fallback: string) => /^#[0-9a-f]{6}$/i.test(String(c)) ? String(c) : fallback;
+  const background = hex(ch.color_background, "#1a1815");
+  const contrast = (a: string, b: string) => {
+    const x = hexLuminance(a.slice(1)), y = hexLuminance(b.slice(1));
+    return (Math.max(x, y) + .05) / (Math.min(x, y) + .05);
+  };
+  const readable = (preferred: string, bg: string) => contrast(preferred, bg) >= 4.5
+    ? preferred : hexLuminance(bg.slice(1)) > .179 ? "#000000" : "#FFFFFF";
+  const ink = readable(hex(ch.color_text, "#FFFFFF"), background);
+  const primary = hex(ch.color_primary, hex(ch.color_accent, ink));
+  const heading = readable(hex(ch.color_secondary, primary), background);
+  const radiusValue = String(ch.border_radius ?? "0").trim().toLowerCase();
+  const named: Record<string, number> = { none: 0, square: 0, sharp: 0, rounded: 24, soft: 24, pill: 48, organic: 36 };
+  // Reading surfaces keep usable corners even for a pill-shaped brand.
+  const radius = named[radiusValue] ?? (/^\d+(?:\.\d+)?(?:px)?$/.test(radiusValue) ? Math.min(48, Number.parseFloat(radiusValue)) : 0);
+  return { background, ink, primary, onPrimary: readable(ink, primary), heading,
+    accent: readable(hex(ch.color_accent, primary), background), radius };
+}
+
+function readingPanel(inner: string, ch: PhotoCharter, width = 912): string {
+  const d = design(ch);
+  return `<div data-photo-reading-panel="1" style="background:${d.background};color:${d.ink};padding:36px 40px;box-sizing:border-box;width:100%;max-width:${width}px;border-radius:${d.radius}px;">${inner}</div>`;
 }
 
 function zoneFor(position: string | null | undefined): keyof PhotoZoneLuminance {
@@ -140,7 +162,7 @@ function photoLayer(photoIndex: number, zoom = false): string {
 }
 
 function root(fontBody: string, inner: string): string {
-  return `<div style="width:${W}px;height:${H}px;position:relative;overflow:hidden;background:#1a1815;font-family:${fontBody};">${inner}</div>`;
+  return `<div style="width:${W}px;height:${H}px;position:relative;overflow:hidden;background:#1a1815;font-family:${fontBody};font-size:32px;">${inner}</div>`;
 }
 
 /** Bloc de contenu positionné selon overlay_position, safe zones garanties. */
@@ -158,16 +180,16 @@ function contentWrap(
   return `<div data-photo-text-layout="${escapeHtml(p)}" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;display:flex;flex-direction:column;justify-content:${justify};align-items:${alignItems};text-align:${textAlign};padding:${TOP_SAFE}px 84px ${BOTTOM_SAFE}px 84px;box-sizing:border-box;">${inner}</div>`;
 }
 
-function kickerHtml(text: string): string {
-  return `<div data-pptx-editable="caption" style="font-size:32px;letter-spacing:2px;color:#FFFFFF;margin-bottom:18px;">${escapeHtml(text)}</div>`;
+function kickerHtml(text: string, color = "#FFFFFF"): string {
+  return `<div data-pptx-editable="caption" style="font-size:32px;line-height:1.3;font-weight:500;color:${color};margin-bottom:20px;">${escapeHtml(text)}</div>`;
 }
 
-function detailHtml(text: string, marginTop = 22): string {
-  return `<div data-pptx-editable="caption" style="font-size:32px;line-height:1.5;color:#FFFFFF;margin-top:${marginTop}px;max-width:820px;">${escapeHtml(text)}</div>`;
+function detailHtml(text: string, marginTop = 22, color = "#FFFFFF"): string {
+  return `<div data-pptx-editable="caption" style="font-size:34px;line-height:1.4;font-weight:400;color:${color};margin-top:${marginTop}px;max-width:820px;">${escapeHtml(text)}</div>`;
 }
 
 function overlayAnchor(text: string, style: string, tag = "p"): string {
-  return `<${tag} data-slide-text="overlay" data-pptx-editable="overlay" style="margin:0;${style}">${escapeHtml(text)}</${tag}>`;
+  return `<${tag} data-slide-text="overlay" data-pptx-editable="overlay" style="margin:0;font-weight:400;white-space:pre-wrap;overflow-wrap:anywhere;${style}">${escapeHtml(text)}</${tag}>`;
 }
 
 /** Taille du hook de couverture selon sa longueur (règle héros 64-88px). */
@@ -194,141 +216,77 @@ function fitSize(base: number, text: string, nominalWords: number): number {
 // ── Gabarits ────────────────────────────────────────────────────────────────
 
 function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const parts: string[] = [];
-  if (s.kicker) parts.push(kickerHtml(s.kicker));
+  const fontTitle = cssFont(ch.font_title, "Georgia, serif"), d = design(ch);
+  const label = s.kicker ? `<div data-pptx-editable="caption" style="display:inline-block;align-self:inherit;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:12px 20px;font-size:32px;line-height:1.35;margin-bottom:24px;max-width:100%;">${escapeHtml(s.kicker)}</div>` : "";
   const text = s.overlay_text || "";
-  parts.push(
-    overlayAnchor(
-      text,
-      `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.06;color:#FFFFFF;max-width:900px;`,
-      "h1",
-    ),
-  );
-  if (s.detail) parts.push(detailHtml(s.detail));
-  // Bloc haut (kicker + hero + detail) : dégradé rallongé pour couvrir le sommet.
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), 66) +
-    contentWrap(s.overlay_position || "bottom_center", "center", parts.join(""));
+  const parts = label + overlayAnchor(text, `font-family:${fontTitle};font-size:${heroSize(text)}px;line-height:1.1;letter-spacing:-1px;color:#FFFFFF;max-width:900px;`, "h1") + (s.detail ? detailHtml(s.detail, 28) : "");
+  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), 72) +
+    contentWrap(s.overlay_position || "bottom_left", "center", parts);
 }
 
 function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontBody = cssFont(ch.font_body, "sans-serif");
+  const fontBody = cssFont(ch.font_body, "sans-serif"), d = design(ch);
   const text = s.overlay_text || "";
-  const density = wordCount([s.kicker, text, s.detail].filter(Boolean).join(" "));
-  const usePanel = density > 28;
-  const background = /^#[0-9a-f]{6}$/i.test(ch.color_background || "") ? ch.color_background! : "#1a1815";
-  const lumBg = hexLuminance(background.slice(1));
-  const preferred = /^#[0-9a-f]{6}$/i.test(ch.color_text || "") ? ch.color_text! : "#FFFFFF";
-  const lumText = hexLuminance(preferred.slice(1));
-  const ratio = (Math.max(lumBg, lumText) + 0.05) / (Math.min(lumBg, lumText) + 0.05);
-  const color = usePanel ? (ratio >= 4.5 ? preferred : lumBg > 0.179 ? "#000000" : "#FFFFFF") : "#FFFFFF";
-  const parts = [
-    s.kicker ? kickerHtml(s.kicker).replace("#FFFFFF", color) : "",
-    overlayAnchor(text, `font-family:${fontBody};font-size:${fitSize(40, text, 35)}px;line-height:${usePanel ? 1.4 : 1.45};color:${color};max-width:880px;`),
-    s.detail ? detailHtml(s.detail).replace("#FFFFFF", color) : "",
-  ].join("");
-  // Long passages get a local opaque reading surface; the rest of the image stays intact.
-  const inner = usePanel ? `<div data-photo-reading-panel="1" style="background:${background};padding:32px;box-sizing:border-box;max-width:912px;">${parts}</div>` : parts;
+  const usePanel = wordCount([s.kicker, text, s.detail].filter(Boolean).join(" ")) > 28;
+  const color = usePanel ? d.ink : "#FFFFFF";
+  const parts = (s.kicker ? kickerHtml(s.kicker, usePanel ? d.heading : color) : "") +
+    overlayAnchor(text, `font-family:${fontBody};font-size:${fitSize(40, text, 35)}px;line-height:1.45;color:${color};max-width:880px;`) +
+    (s.detail ? detailHtml(s.detail, 24, color) : "");
   return (usePanel ? "" : gradientScrim(s.overlay_position, scrimPeak(lum))) +
-    contentWrap(s.overlay_position || "bottom_left", "center", inner);
+    contentWrap(s.overlay_position || "bottom_left", "center", usePanel ? readingPanel(parts, ch) : parts);
 }
 
 function tplEtiquette(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const pill = overlayAnchor(
-    s.overlay_text || "",
-    `display:inline-block;border:2px solid rgba(255,255,255,0.92);border-radius:999px;padding:16px 44px;font-size:32px;letter-spacing:7px;text-transform:uppercase;color:#FFFFFF;`,
-    "div",
-  );
-  const sub = s.detail
-    ? `<div style="font-family:${fontTitle};font-style:italic;font-size:34px;color:rgba(255,255,255,0.9);margin-top:26px;">${escapeHtml(s.detail)}</div>`
-    : "";
-  return fullDim(dimOpacity(lum)) +
-    contentWrap(s.overlay_position || "center", "center", pill + sub);
+  const d = design(ch);
+  const label = overlayAnchor(s.overlay_text || "", `display:inline-block;font-family:${cssFont(ch.font_title, "Georgia, serif")};background:${d.primary};color:${d.onPrimary};border-radius:${d.radius}px;padding:20px 32px;font-size:56px;line-height:1.15;max-width:880px;`, "div");
+  // Source casing stays intact; brand geometry replaces the universal uppercase pill.
+  const detail = s.detail ? detailHtml(s.detail, 26) : "";
+  return (detail ? gradientScrim(s.overlay_position || "bottom_left", scrimPeak(lum), 66) : "") +
+    contentWrap(s.overlay_position || "bottom_left", "center", label + detail);
 }
 
-function tplChiffre(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const num = `<div style="font-family:${fontTitle};font-size:170px;line-height:1;color:#FFFFFF;">${escapeHtml(s.big_number || "")}</div>`;
-  const line = s.overlay_text
-    ? overlayAnchor(
-      s.overlay_text,
-      `font-size:${fitSize(32, s.overlay_text, 15)}px;line-height:1.5;color:rgba(255,255,255,0.9);max-width:760px;margin-top:20px;`,
-    )
-    : "";
-  return fullDim(Math.max(dimOpacity(lum), 0.3)) +
-    contentWrap(s.overlay_position || "center", "center", num + line);
+function tplChiffre(s: PhotoSlideSpec, ch: PhotoCharter): string {
+  const d = design(ch), num = s.big_number || "";
+  const size = num.length > 10 ? 88 : num.length > 6 ? 112 : 144;
+  const number = `<div data-pptx-editable="title" style="font-family:${cssFont(ch.font_title, "Georgia, serif")};font-size:${size}px;font-weight:400;line-height:1.05;color:${d.heading};overflow-wrap:anywhere;">${escapeHtml(num)}</div>`;
+  const body = s.overlay_text ? overlayAnchor(s.overlay_text, `font-size:${fitSize(40, s.overlay_text, 28)}px;line-height:1.45;color:${d.ink};margin-top:24px;`) : "";
+  const parts = (s.kicker ? kickerHtml(s.kicker, d.heading) : "") + number + body + (s.detail ? detailHtml(s.detail, 24, d.ink) : "");
+  return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(parts, ch));
 }
 
-function tplListe(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const accent = ch.color_accent || "#FFFFFF";
-  const parts: string[] = [];
-  if (s.kicker) parts.push(kickerHtml(s.kicker));
-  if (s.overlay_text) {
-    parts.push(overlayAnchor(
-      s.overlay_text,
-      `font-family:${fontTitle};font-size:${fitSize(44, s.overlay_text, 12)}px;line-height:1.2;color:#FFFFFF;margin-bottom:26px;max-width:880px;`,
-      "h2",
-    ));
-  }
-  const points = (s.points || []).slice(0, 3).map((p, i) =>
-    `<div data-pptx-editable="body" style="font-size:38px;line-height:1.5;color:#FFFFFF;"><span style="font-family:${fontTitle};font-style:italic;color:${accent};margin-right:14px;">${i + 1}</span>${escapeHtml(p)}</div>`
-  ).join("");
-  parts.push(`<div style="display:flex;flex-direction:column;gap:10px;">${points}</div>`);
-  // Bloc haut (kicker + titre + points) : dégradé rallongé pour couvrir le sommet.
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72), 66) +
-    contentWrap(s.overlay_position || "bottom_left", "center", parts.join(""));
+function tplListe(s: PhotoSlideSpec, ch: PhotoCharter): string {
+  const fontTitle = cssFont(ch.font_title, "Georgia, serif"), d = design(ch);
+  const heading = s.overlay_text ? overlayAnchor(s.overlay_text, `font-family:${fontTitle};font-size:${fitSize(48, s.overlay_text, 14)}px;line-height:1.2;color:${d.heading};margin-bottom:28px;`, "h2") : "";
+  const points = (s.points || []).map((p, i) => `<div style="display:flex;align-items:baseline;gap:22px;"><span data-pptx-editable="caption" style="font-family:${fontTitle};font-size:36px;color:${d.accent};min-width:38px;">${i + 1}</span><div data-pptx-editable="body" style="font-size:38px;line-height:1.4;color:${d.ink};flex:1;overflow-wrap:anywhere;">${escapeHtml(p)}</div></div>`).join("");
+  const parts = (s.kicker ? kickerHtml(s.kicker, d.heading) : "") + heading + `<div style="display:flex;flex-direction:column;gap:18px;">${points}</div>` + (s.detail ? detailHtml(s.detail, 24, d.ink) : "");
+  return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(parts, ch));
 }
 
-function tplEtape(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
+function tplEtape(s: PhotoSlideSpec, ch: PhotoCharter): string {
+  const d = design(ch), fontTitle = cssFont(ch.font_title, "Georgia, serif");
   const n = Math.max(1, Math.round(s.step_number || 1));
-  const ghost = `<div style="font-family:${fontTitle};font-style:italic;font-size:96px;line-height:1;color:rgba(255,255,255,0.55);">${String(n).padStart(2, "0")}</div>`;
-  const title = s.kicker
-    ? `<div style="font-family:${fontTitle};font-size:52px;line-height:1.15;color:#FFFFFF;margin-top:14px;max-width:880px;">${escapeHtml(s.kicker)}</div>`
-    : "";
-  const body = s.overlay_text
-    ? overlayAnchor(
-      s.overlay_text,
-      `font-size:${fitSize(34, s.overlay_text, 25)}px;line-height:1.55;color:rgba(255,255,255,0.92);max-width:840px;margin-top:18px;`,
-    )
-    : "";
-  return fullDim(dimOpacity(lum)) + gradientScrim(s.overlay_position, 0.5) +
-    contentWrap(s.overlay_position || "bottom_left", "center", ghost + title + body);
+  const number = `<div data-pptx-editable="caption" style="font-family:${fontTitle};font-size:42px;line-height:1.15;color:${d.heading};flex-shrink:0;">${String(n).padStart(2, "0")}</div>`;
+  const title = s.kicker ? `<div data-pptx-editable="title" style="font-family:${fontTitle};font-size:48px;font-weight:400;line-height:1.15;color:${d.heading};">${escapeHtml(s.kicker)}</div>` : "";
+  const body = s.overlay_text ? overlayAnchor(s.overlay_text, `font-size:${fitSize(40, s.overlay_text, 35)}px;line-height:1.45;color:${d.ink};`) : "";
+  return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(`<div style="display:flex;align-items:baseline;gap:24px;margin-bottom:22px;">${number}${title}</div>` + body + (s.detail ? detailHtml(s.detail, 24, d.ink) : ""), ch));
 }
 
-function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const accent = ch.color_accent || "#FFFFFF";
-  const mark = `<div style="font-family:${fontTitle};font-size:110px;line-height:0.5;color:${accent};">“</div>`;
-  const quote = overlayAnchor(
-    s.overlay_text || "",
-    `font-family:${fontTitle};font-style:italic;font-size:${fitSize(46, s.overlay_text || "", 25)}px;line-height:1.4;color:#FFFFFF;max-width:840px;margin-top:26px;`,
-    "blockquote",
-  );
-  const who = s.attribution
-    ? `<div data-pptx-editable="caption" style="font-size:32px;letter-spacing:1px;color:#FFFFFF;margin-top:28px;">${escapeHtml(s.attribution)}</div>`
-    : "";
-  // Défaut BAS (pas centré) : un portrait a son visage en haut/milieu, une
-  // citation centrée atterrissait dessus. Le voile uniforme garantit le
-  // contraste où qu'elle soit ; on la pose donc dans le tiers bas par défaut.
-  return fullDim(Math.max(dimOpacity(lum), 0.34)) +
-    contentWrap(s.overlay_position || "bottom_center", "center", mark + quote + who);
+function tplCitation(s: PhotoSlideSpec, ch: PhotoCharter): string {
+  const d = design(ch);
+  const quote = overlayAnchor(s.overlay_text || "", `font-family:${cssFont(ch.font_title, "Georgia, serif")};font-size:${fitSize(48, s.overlay_text || "", 25)}px;line-height:1.3;color:${d.ink};`, "blockquote");
+  const who = s.attribution ? `<div data-pptx-editable="caption" style="font-size:32px;line-height:1.4;color:${d.heading};margin-top:28px;">${escapeHtml(s.attribution)}</div>` : "";
+  const parts = (s.kicker ? kickerHtml(s.kicker, d.heading) : "") + quote + who + (s.detail ? detailHtml(s.detail, 24, d.ink) : "");
+  return contentWrap(s.overlay_position || "bottom_left", "center", readingPanel(parts, ch));
 }
 
 function tplFinale(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
-  const fontTitle = cssFont(ch.font_title, "Georgia, serif");
-  const q = overlayAnchor(
-    s.overlay_text || "",
-    `font-family:${fontTitle};font-size:${fitSize(52, s.overlay_text || "", 20)}px;line-height:1.25;color:#FFFFFF;max-width:880px;`,
-    "h2",
-  );
-  const cta = s.cta_label
-    ? `<div data-slide-cta="1" style="margin-top:30px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;border:2px solid rgba(255,255,255,0.85);border-radius:999px;padding:14px 36px;font-size:32px;color:#FFFFFF;">${escapeHtml(s.cta_label)}</span></div>`
-    : "";
-  return gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), 0.72)) +
-    contentWrap(s.overlay_position || "bottom_center", "center", q + cta);
+  const d = design(ch), text = s.overlay_text || "";
+  const usePanel = wordCount([s.kicker, text, s.detail, s.cta_label].filter(Boolean).join(" ")) > 28;
+  const q = overlayAnchor(text, `font-family:${cssFont(ch.font_title, "Georgia, serif")};font-size:${fitSize(56, text, 20)}px;line-height:1.2;color:${usePanel ? d.ink : "#FFFFFF"};max-width:880px;`, "h2");
+  const cta = s.cta_label ? `<div data-slide-cta="1" style="margin-top:30px;"><span data-slide-text="cta" data-pptx-editable="caption" style="display:inline-block;background:${d.primary};color:${d.onPrimary};border-radius:${Math.min(d.radius, 24)}px;padding:16px 24px;font-size:32px;line-height:1.35;max-width:100%;overflow-wrap:anywhere;">${escapeHtml(s.cta_label)}</span></div>` : "";
+  const parts = (s.kicker ? kickerHtml(s.kicker, usePanel ? d.heading : "#FFFFFF") : "") + q + (s.detail ? detailHtml(s.detail, 24, usePanel ? d.ink : "#FFFFFF") : "") + cta;
+  return (usePanel ? "" : gradientScrim(s.overlay_position, Math.max(scrimPeak(lum), .72), 66)) +
+    contentWrap(s.overlay_position || "bottom_left", "center", usePanel ? readingPanel(parts, ch) : parts);
 }
 
 // ── Résolution du gabarit ───────────────────────────────────────────────────
@@ -425,13 +383,7 @@ export function composePhotoSlide(
   }
 
   const template = resolvePhotoTemplate(s, opts);
-  const lum = (opts.luminance || {})[zoneFor(
-    template === "etiquette" || template === "chiffre"
-      ? (s.overlay_position || "center")
-      : template === "citation"
-        ? (s.overlay_position || "bottom_center") // citation posée en bas par défaut
-        : s.overlay_position,
-  )];
+  const lum = (opts.luminance || {})[zoneFor(s.overlay_position)];
 
   const bodyByTemplate: Record<PhotoTemplate, (x: PhotoSlideSpec, c: PhotoCharter, l?: number) => string> = {
     couverture: tplCouverture,
@@ -449,7 +401,7 @@ export function composePhotoSlide(
     slide_number: s.slide_number,
     html: root(fontBody, photoLayer(s.photo_index, opts.zoomOnRepeat) + inner),
     contrast_ok: true,
-    legibility: `gabarit ${template}, voile dosé (${measured})`,
+    legibility: `gabarit ${template}, palette de marque et surface de lecture (${measured})`,
     template,
   };
 }

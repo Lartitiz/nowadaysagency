@@ -928,16 +928,16 @@ Inspire-toi de ce layout pour le placement des éléments et l'ambiance généra
 TYPE "photo_full" — Photo plein écran + overlay
 - Le div principal a : background-image: url({{PHOTO_N}}); background-size: cover; background-position: center
 - Le texte overlay est posé dessus avec un traitement de lisibilité :
-  · Style "sensoriel" : gradient sombre en bas (linear-gradient transparent → rgba(0,0,0,0.7) sur 40% de la hauteur), texte blanc italic en Cormorant Garamond
-  · Style "narratif" : bandeau blanc OPAQUE (background #FFFFFF, data-pptx-shape="card", box-shadow 0 8px 28px rgba(0,0,0,0.18) ; JAMAIS rgba semi-transparent ni backdrop-filter), texte en Work Sans, padding 32px
-  · Style "minimal" : badge pilule #E7C07B ou texte blanc grand avec text-shadow: 0 4px 16px rgba(0,0,0,0.6)
+  · Texte court : titre en Cormorant Garamond, graisse 400, casse du texte conservée ; voile local couvrant toute la hauteur du bloc. Pas d’italique, de capitales espacées ou de pastille par défaut.
+  · Texte développé : surface de lecture OPAQUE #1C1A17, texte #F4EDE3 si le contraste est suffisant (sinon clair/foncé lisible), police Work Sans, padding 36-40px. La photo garde sa couleur hors du bloc ; aucune ombre ni décoration obligatoire.
+  · Repère court ou invitation fournis : fond #E7C07B, texte contrasté et arrondi de charte 12px. Ne pas inventer un label pour décorer.
 
 RÈGLES DE LISIBILITÉ (analyse VISUELLE de chaque photo fournie) :
 - Identifie la zone CLAIRE et la zone SOMBRE de la photo. Pose l'overlay sur la zone qui maximise le contraste avec ton style :
   · Texte clair (blanc) → zone sombre, ou ajoute un gradient/bandeau sombre.
   · Texte foncé → zone claire, ou ajoute un bandeau blanc.
 - Identifie le SUJET PRINCIPAL (visage, produit, élément central). N'écris JAMAIS dessus. Décale l'overlay vers le 1/3 opposé de la photo.
-- Si la photo est globalement texturée, floue ou multicolore, IMPOSE un bandeau opaque (rgba 0.92) — pas un simple gradient.
+- Si la zone du texte est très texturée ou multicolore, utilise une surface 100 % opaque dans la palette de marque. Respecte aussi les INTERDITS VISUELS et le LAYOUT DE RÉFÉRENCE fournis.
 - Position selon overlay_position MAIS adapte si le sujet principal y est, ou si le contraste y est insuffisant.
 
 SAFE ZONES Instagram (impératif) :
@@ -954,9 +954,9 @@ TYPE "photo_integrated" — Photo intégrée dans un layout design
   · "card_photo" : photo et texte dans une composition intégrée au fond de marque, carte uniquement si la charte ou la référence la demande.
   · "banner_photo" : photo 380px en bandeau horizontal en haut, texte en dessous (970px, padding 80px). ÉLÉMENT DISTINCTIF : titre LARGE (font-size 56-64px) sur 2 lignes max, body en 2 colonnes (column-count: 2, column-gap: 40px).
 
-RÈGLE DE RYTHME (impérative) :
-- Sur 3 slides photo_integrated d'un même carrousel, utilise au moins 3 layouts DIFFÉRENTS.
-- Ne répète JAMAIS le même photo_layout sur 2 slides consécutives.
+RÈGLE DE RYTHME :
+- Respecte chaque photo_layout confirmé, même répété. Si aucun layout n’est imposé, adapte-le au sujet de la photo et à la quantité de texte, avec des marges et une hiérarchie stables sur toute la série.
+- Le rythme vient des rôles du récit, du cadrage et de l’échelle des textes ; aucune obligation de changer de layout à chaque slide.
 
 TYPE "text_only" — Slide texte pure
 - Grille éditoriale et plan global identiques aux carrousels texte. La typographie, les placements et les espaces donnent le rythme ; aucune carte, pastille, barre ou décoration automatique.
@@ -1251,16 +1251,16 @@ Border-radius : 20px
 TYPE "photo_full" — Photo plein écran + overlay
 - Le div principal a : background-image: url({{PHOTO_N}}); background-size: cover; background-position: center
 - Le texte overlay est posé dessus avec un traitement de lisibilité :
-  · Style "sensoriel" : gradient sombre en bas (linear-gradient transparent → rgba(0,0,0,0.7) sur 40% de la hauteur), texte blanc italic en Libre Baskerville
-  · Style "narratif" : bandeau blanc OPAQUE (background #FFFFFF, data-pptx-shape="card", box-shadow 0 8px 28px rgba(0,0,0,0.18) ; JAMAIS rgba semi-transparent ni backdrop-filter), texte en IBM Plex Sans, padding 32px
-  · Style "minimal" : badge pilule #FB3D80 ou texte blanc grand avec text-shadow: 0 4px 16px rgba(0,0,0,0.6)
+  · Texte court : titre en Libre Baskerville, graisse 400, casse du texte conservée ; voile local couvrant toute la hauteur du bloc. Pas d’italique, de capitales espacées ou de pastille par défaut.
+  · Texte développé : surface de lecture OPAQUE #FFF4F8, texte #1A1A1A si le contraste est suffisant (sinon clair/foncé lisible), police IBM Plex Sans, padding 36-40px. La photo garde sa couleur hors du bloc ; aucune ombre ni décoration obligatoire.
+  · Repère court ou invitation fournis : fond #FB3D80, texte contrasté et arrondi de charte 20px. Ne pas inventer un label pour décorer.
 
 RÈGLES DE LISIBILITÉ (analyse VISUELLE de chaque photo fournie) :
 - Identifie la zone CLAIRE et la zone SOMBRE de la photo. Pose l'overlay sur la zone qui maximise le contraste avec ton style :
   · Texte clair (blanc) → zone sombre, ou ajoute un gradient/bandeau sombre.
   · Texte foncé → zone claire, ou ajoute un bandeau blanc.
 - Identifie le SUJET PRINCIPAL (visage, produit, élément central). N'écris JAMAIS dessus. Décale l'overlay vers le 1/3 opposé de la photo.
-- Si la photo est globalement texturée, floue ou multicolore, IMPOSE un bandeau opaque (rgba 0.92) — pas un simple gradient.
+- Si la zone du texte est très texturée ou multicolore, utilise une surface 100 % opaque dans la palette de marque. Respecte aussi les INTERDITS VISUELS et le LAYOUT DE RÉFÉRENCE fournis.
 - Position selon overlay_position MAIS adapte si le sujet principal y est, ou si le contraste y est insuffisant.
 
 SAFE ZONES Instagram (impératif) :
@@ -1277,9 +1277,9 @@ TYPE "photo_integrated" — Photo intégrée dans un layout design
   · "card_photo" : photo et texte dans une composition intégrée au fond de marque, carte uniquement si la charte ou la référence la demande.
   · "banner_photo" : photo 380px en bandeau horizontal en haut, texte en dessous (970px, padding 80px). ÉLÉMENT DISTINCTIF : titre LARGE (font-size 56-64px) sur 2 lignes max, body en 2 colonnes (column-count: 2, column-gap: 40px).
 
-RÈGLE DE RYTHME (impérative) :
-- Sur 3 slides photo_integrated d'un même carrousel, utilise au moins 3 layouts DIFFÉRENTS.
-- Ne répète JAMAIS le même photo_layout sur 2 slides consécutives.
+RÈGLE DE RYTHME :
+- Respecte chaque photo_layout confirmé, même répété. Si aucun layout n’est imposé, adapte-le au sujet de la photo et à la quantité de texte, avec des marges et une hiérarchie stables sur toute la série.
+- Le rythme vient des rôles du récit, du cadrage et de l’échelle des textes ; aucune obligation de changer de layout à chaque slide.
 
 TYPE "text_only" — Slide texte pure
 - Grille éditoriale et plan global identiques aux carrousels texte. La typographie, les placements et les espaces donnent le rythme ; aucune carte, pastille, barre ou décoration automatique.

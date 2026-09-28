@@ -85,12 +85,12 @@ async function waitForIframeReady(
         new Promise((r) => setTimeout(r, timeoutMs)),
       ]);
 
-      // Les fontes de stories vivent dans le srcdoc, pas dans la page React.
+      // Les fontes de marque vivent dans le srcdoc, pas toujours dans la page React.
       // Une demande explicite par graisse/taille évite qu'un export lancé juste
       // après l'affichage capture la police de secours pendant le chargement.
-      const storyText = Array.from(doc.querySelectorAll<HTMLElement>("[data-story-pptx]"));
+      const textElements = Array.from(doc.querySelectorAll<HTMLElement>("[data-story-pptx], [data-pptx-editable], [data-slide-text]"));
       const requested = new Set<string>();
-      const loads = storyText.flatMap((el) => {
+      const loads = textElements.flatMap((el) => {
         const cs = doc.defaultView?.getComputedStyle(el);
         if (!cs) return [];
         const shorthand = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
@@ -275,9 +275,16 @@ async function captureSlide(
     }
 
     const target = iframe.contentDocument!.body;
+    // A canvas resolves fonts in its own document. html2canvas's default canvas
+    // belongs to the React page, where a brand font loaded only in the slide is
+    // absent. Keep capture in the slide document so PNG/JPEG use its font faces.
+    const canvasTarget = target.ownerDocument.createElement("canvas");
+    canvasTarget.width = Math.floor(dims.w * output.scale);
+    canvasTarget.height = Math.floor(dims.h * output.scale);
     const fontCss = output.foreignObjectRendering ? await embedExportFonts(iframe.contentDocument!) : "";
     if (output.foreignObjectRendering) await embedExportImages(target);
     const canvas = await html2canvas(target, {
+      canvas: canvasTarget,
       width: dims.w,
       height: dims.h,
       windowWidth: dims.w,

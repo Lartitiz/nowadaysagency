@@ -17,7 +17,7 @@
 //
 // Lancer : deno test --allow-env --allow-read supabase/functions/carousel-visual/index_test.ts
 
-import { assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { installFetchMock, setTestEnv } from "../_shared/test-edge-harness.ts";
 
 /**
@@ -70,7 +70,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { applyCoverIllustration } = await import("./index.ts");
+const { applyCoverIllustration, runComposedByCodeGeneration, stripInventedSurtitres, applyTitleBodyContrastGuard, applyTextContrastGuard, applyMinFontSizeGuard } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -116,4 +116,33 @@ Deno.test("cover_illustration non demandée -> checkQuota jamais consulté, aucu
   } finally {
     mock.restore();
   }
+});
+
+
+Deno.test("design photo : charte transmise et contenu conservé après les gardes de production", () => {
+  const slides = [
+    {slide_number:1,photo_index:1,template:"couverture",overlay_text:"Le point de départ",kicker:"Dans les coulisses",detail:"Une précision fournie"},
+    {slide_number:2,photo_index:1,template:"citation",overlay_text:"Ce choix répond à ma situation.",attribution:"Une personne"},
+    {slide_number:3,photo_index:1,template:"finale",overlay_text:"Comment avancer ensemble ?",cta_label:"En parler"},
+  ];
+  const ch = {color_primary:"#914B30",color_secondary:"#663927",color_accent:"#A46827",color_background:"#FFF6E9",color_text:"#312E2A",font_title:"Georgia",font_body:"Arial",border_radius:"24px"};
+  const result = runComposedByCodeGeneration({slides,ch,reqBody:{photos:[{}]},usage:{},emitStatus:()=>{},tStart:Date.now()});
+  const before = result.slides_html.map((s:any)=>s.html);
+  stripInventedSurtitres(result,{isPhotoCarousel:true,slides});
+  applyTitleBodyContrastGuard(result,{ch});
+  applyTextContrastGuard(result);
+  applyMinFontSizeGuard(result);
+  assertEquals(result.slides_html.map((s:any)=>s.html),before);
+  assert(before[0].includes("background:#914B30"));
+  assert(before[1].includes("background:#FFF6E9"));
+  assert(before[1].includes("border-radius:24px"));
+  assert(before[0].includes("Une précision fournie"));
+  assert(before[1].includes("Une personne"));
+});
+
+Deno.test("nettoyage photo : garde les précisions source mais retire encore les surtitres inventés", () => {
+  const result={slides_html:[{slide_number:1,html:'<div><span data-pptx-editable="caption">Un détail fourni</span><span data-pptx-editable="caption">LA MÉTHODE MAGIQUE</span></div>'},{slide_number:2,html:"<div>Fin</div>"}]};
+  stripInventedSurtitres(result,{isPhotoCarousel:true,slides:[{slide_number:1,overlay_text:"Le récit",detail:"Un détail fourni"}]});
+  assert(result.slides_html[0].html.includes("Un détail fourni"));
+  assert(!result.slides_html[0].html.includes("LA MÉTHODE MAGIQUE"));
 });

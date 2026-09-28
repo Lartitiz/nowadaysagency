@@ -523,16 +523,16 @@ ${buildCharterBlock(ch, {
 TYPE "photo_full" — Photo plein écran + overlay
 - Le div principal a : background-image: url({{PHOTO_N}}); background-size: cover; background-position: center
 - Le texte overlay est posé dessus avec un traitement de lisibilité :
-  · Style "sensoriel" : gradient sombre en bas (linear-gradient transparent → rgba(0,0,0,0.7) sur 40% de la hauteur), texte blanc italic en ${ch.font_title}
-  · Style "narratif" : bandeau blanc OPAQUE (background #FFFFFF, data-pptx-shape="card", box-shadow 0 8px 28px rgba(0,0,0,0.18) ; JAMAIS rgba semi-transparent ni backdrop-filter), texte en ${ch.font_body}, padding 32px
-  · Style "minimal" : badge pilule ${ch.color_primary} ou texte blanc grand avec text-shadow: 0 4px 16px rgba(0,0,0,0.6)
+  · Texte court : titre en ${ch.font_title}, graisse 400, casse du texte conservée ; voile local couvrant toute la hauteur du bloc. Pas d’italique, de capitales espacées ou de pastille par défaut.
+  · Texte développé : surface de lecture OPAQUE ${ch.color_background}, texte ${ch.color_text} si le contraste est suffisant (sinon clair/foncé lisible), police ${ch.font_body}, padding 36-40px. La photo garde sa couleur hors du bloc ; aucune ombre ni décoration obligatoire.
+  · Repère court ou invitation fournis : fond ${ch.color_primary}, texte contrasté et arrondi de charte ${ch.border_radius}. Ne pas inventer un label pour décorer.
 
 RÈGLES DE LISIBILITÉ (analyse VISUELLE de chaque photo fournie) :
 - Identifie la zone CLAIRE et la zone SOMBRE de la photo. Pose l'overlay sur la zone qui maximise le contraste avec ton style :
   · Texte clair (blanc) → zone sombre, ou ajoute un gradient/bandeau sombre.
   · Texte foncé → zone claire, ou ajoute un bandeau blanc.
 - Identifie le SUJET PRINCIPAL (visage, produit, élément central). N'écris JAMAIS dessus. Décale l'overlay vers le 1/3 opposé de la photo.
-- Si la photo est globalement texturée, floue ou multicolore, IMPOSE un bandeau opaque (rgba 0.92) — pas un simple gradient.
+- Si la zone du texte est très texturée ou multicolore, utilise une surface 100 % opaque dans la palette de marque. Respecte aussi les INTERDITS VISUELS et le LAYOUT DE RÉFÉRENCE fournis.
 - Position selon overlay_position MAIS adapte si le sujet principal y est, ou si le contraste y est insuffisant.
 
 SAFE ZONES Instagram (impératif) :
@@ -549,9 +549,9 @@ TYPE "photo_integrated" — Photo intégrée dans un layout design
   · "card_photo" : photo et texte dans une composition intégrée au fond de marque, carte uniquement si la charte ou la référence la demande.
   · "banner_photo" : photo 380px en bandeau horizontal en haut, texte en dessous (970px, padding 80px). ÉLÉMENT DISTINCTIF : titre LARGE (font-size 56-64px) sur 2 lignes max, body en 2 colonnes (column-count: 2, column-gap: 40px).
 
-RÈGLE DE RYTHME (impérative) :
-- Sur 3 slides photo_integrated d'un même carrousel, utilise au moins 3 layouts DIFFÉRENTS.
-- Ne répète JAMAIS le même photo_layout sur 2 slides consécutives.
+RÈGLE DE RYTHME :
+- Respecte chaque photo_layout confirmé, même répété. Si aucun layout n’est imposé, adapte-le au sujet de la photo et à la quantité de texte, avec des marges et une hiérarchie stables sur toute la série.
+- Le rythme vient des rôles du récit, du cadrage et de l’échelle des textes ; aucune obligation de changer de layout à chaque slide.
 
 TYPE "text_only" — Slide texte pure
 - Grille éditoriale et plan global identiques aux carrousels texte. La typographie, les placements et les espaces donnent le rythme ; aucune carte, pastille, barre ou décoration automatique.
@@ -684,7 +684,7 @@ Retourne "slides_html" avec UNIQUEMENT ces slides-là, chacune avec son "slide_n
 // a montré que les gardes regex ne rattrapaient pas les variantes du modèle
 // (5 motifs sur 6 passaient au travers). Zéro appel modèle = plus rapide et
 // moins cher. Le mode MIXTE (slides design + photos) garde le chemin modèle.
-function runComposedByCodeGeneration(params: {
+export function runComposedByCodeGeneration(params: {
   slides: any[];
   ch: any;
   reqBody: any;
@@ -699,6 +699,9 @@ function runComposedByCodeGeneration(params: {
   const minNum = Math.min(...nums);
   const maxNum = Math.max(...nums);
   const templateCharter = {
+    color_primary: ch.color_primary,
+    color_secondary: ch.color_secondary,
+    border_radius: ch.border_radius,
     color_background: ch.color_background,
     color_text: ch.color_text,
     color_accent: ch.color_accent,
@@ -1104,17 +1107,17 @@ function stripSlideNumberBadges(result: any): void {
 // sur 5). On le retire donc par code, sans dépendre du modèle.
 // Handle fiable : le modèle annote ces badges `data-pptx-editable="caption"` (cf. règles
 // d'annotation PPTX) et l'overlay réel `data-pptx-editable="overlay"` ; un élément ne
-// porte jamais les deux. On supprime les "caption" qui ne sont NI un numéro de slide NI
-// l'overlay réel, sauf sur la DERNIÈRE slide (CTA toléré).
-function stripInventedSurtitres(result: any, params: { isPhotoCarousel: boolean; slides: any[] }): void {
+// porte jamais les deux. On préserve tous les champs source (overlay, kicker,
+// détail, attribution…), les numéros et la dernière slide (CTA toléré).
+export function stripInventedSurtitres(result: any, params: { isPhotoCarousel: boolean; slides: any[] }): void {
   const { isPhotoCarousel, slides } = params;
   if (!(isPhotoCarousel && Array.isArray(result?.slides_html))) return;
-  const overlayBySlide = new Map<number, string>();
+  const sourceBySlide = new Map<number, string[]>();
   if (Array.isArray(slides)) {
     slides.forEach((s: any) => {
       const ov = s?.overlay_text ?? s?.overlay ?? s?.text ?? s?.body;
       if (s && s.slide_number != null && typeof ov === "string") {
-        overlayBySlide.set(Number(s.slide_number), ov);
+        sourceBySlide.set(Number(s.slide_number), [ov, s.kicker, s.detail, s.attribution, s.cta_label, s.big_number, ...(s.points || [])].filter((v): v is string => typeof v === "string" && !!v.trim()));
       }
     });
   }
@@ -1126,16 +1129,16 @@ function stripInventedSurtitres(result: any, params: { isPhotoCarousel: boolean;
   const isSlideNumber = (t: string) =>
     /^\s*\d{1,2}\s*([\/.\-]\s*\d{1,2}\s*)?$/.test((t || "").trim());
   let stripped = 0;
-  const stripFromHtml = (rawHtml: string, overlayText: string): string => {
-    const overlayNorm = norm(overlayText);
+  const stripFromHtml = (rawHtml: string, source: string[]): string => {
+    const allowed = source.map(norm).filter(Boolean);
     const shouldDrop = (txt: string): boolean => {
       const t = (txt || "").trim();
       if (!t) return false;
       if (isSlideNumber(t)) return false; // garder les numéros de slide
       const tn = norm(t);
       if (!tn) return false;
-      // ne JAMAIS retirer l'overlay réel (sécurité si le modèle l'a mal annoté)
-      if (overlayNorm && (overlayNorm.includes(tn) || tn.includes(overlayNorm))) return false;
+      // Préserver aussi les champs secondaires explicitement fournis, pas seulement l’overlay.
+      if (allowed.some(t => t.includes(tn) || tn.includes(t))) return false;
       return true;
     };
     let html = rawHtml;
@@ -1160,7 +1163,7 @@ function stripInventedSurtitres(result: any, params: { isPhotoCarousel: boolean;
   result.slides_html = result.slides_html.map((slide: any) => {
     const num = Number(slide?.slide_number) || 0;
     if (num === lastNum) return slide; // dernière slide : CTA toléré
-    const html = stripFromHtml(slide.html || "", overlayBySlide.get(num) || "");
+    const html = stripFromHtml(slide.html || "", sourceBySlide.get(num) || []);
     return { ...slide, html };
   });
   if (stripped > 0) {
@@ -1232,7 +1235,7 @@ function forceGoogleFontsLink(result: any, params: { safeFontTitle: string; safe
 // touche QUE la couleur du cadre titre → les mots-accent (spans internes en primary/
 // accent) sont préservés. Slides déjà lisibles (titre foncé, ou blanc sur fond plein)
 // = contraste OK → non modifiées.
-function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
+export function applyTitleBodyContrastGuard(result: any, params: { ch: any }): void {
   const { ch } = params;
   if (!result?.slides_html) return;
   // Compose une couleur (#hex 3/6/8 ou rgb/rgba) sur un fond hex6 → hex6 RENDU.
@@ -1502,7 +1505,7 @@ function logMissingAnchorsTelemetry(result: any, params: { slides: any[] }): voi
 // → items de comparison et punchline de timeline invisibles. Le prompt
 // l'interdit désormais, mais on ne dépend pas du modèle : toute couleur de
 // texte quasi identique à son fond direct est réécrite en lisible.
-function applyTextContrastGuard(result: any): void {
+export function applyTextContrastGuard(result: any): void {
   if (!Array.isArray(result?.slides_html)) return;
   let contrastFixes = 0;
   result.slides_html = result.slides_html.map((slide: any) => {
@@ -1520,7 +1523,7 @@ function applyTextContrastGuard(result: any): void {
 // illisible sur un feed mobile. Le prompt prescrit 34-40px de corps, mais
 // on ne dépend pas du modèle : tout élément texte éditable sous le plancher
 // de son rôle est remonté au plancher (jamais réduit).
-function applyMinFontSizeGuard(result: any): void {
+export function applyMinFontSizeGuard(result: any): void {
   if (!Array.isArray(result?.slides_html)) return;
   let fontFixes = 0;
   result.slides_html = result.slides_html.map((slide: any) => {

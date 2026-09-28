@@ -32,7 +32,7 @@ Deno.test("contrat : racine 1080×1350, photo {{PHOTO_N}} du photo_index, ancre 
   assertEquals(out.contrast_ok, true);
 });
 
-Deno.test("lisibilité : un voile/scrim est TOUJOURS présent quand il y a du texte", () => {
+Deno.test("lisibilité : les textes ont un voile ou une surface opaque de marque", () => {
   for (const spec of [
     base({}),
     base({ template: "etiquette", overlay_text: "AVANT" }),
@@ -40,7 +40,7 @@ Deno.test("lisibilité : un voile/scrim est TOUJOURS présent quand il y a du te
     base({ template: "citation", attribution: "La propriétaire" }),
   ]) {
     const out = composePhotoSlide(spec, CH, mid);
-    assert(out.html.includes(`data-injected-scrim="1"`), `pas de scrim pour ${out.template}`);
+    assert(out.html.includes(`data-injected-scrim="1"`) || out.html.includes(`data-photo-reading-panel="1"`) || out.html.includes("background:#7BC9A3"), `pas de surface lisible pour ${out.template}`);
   }
 });
 
@@ -66,12 +66,13 @@ Deno.test("résolution : slide 1 avec texte → couverture ; hook court → tail
   assert(out.html.includes("Libre Baskerville"));
 });
 
-Deno.test("résolution : texte ≤ 4 mots → etiquette (pastille), position center par défaut", () => {
+Deno.test("résolution : texte ≤ 4 mots → etiquette de marque, sans capitales forcées", () => {
   const spec = base({ overlay_text: "AVANT" });
   assertEquals(resolvePhotoTemplate(spec, mid), "etiquette");
   const out = composePhotoSlide(spec, CH, mid);
-  assert(out.html.includes("border-radius:999px"));
-  assert(out.html.includes("justify-content:center"));
+  assert(out.html.includes("background:#7BC9A3"));
+  assert(!out.html.includes("text-transform:uppercase"));
+  assert(out.html.includes("justify-content:flex-end"));
 });
 
 Deno.test("résolution par champs : big_number → chiffre, points → liste, step_number → etape, attribution → citation", () => {
@@ -100,7 +101,7 @@ Deno.test("finale : dernière slide en question → finale, CTA en data-slide-ct
   assert(out.html.includes("Dites-le-moi en commentaire"));
 });
 
-Deno.test("liste : numéros en couleur d'accent de la charte, 3 points max", () => {
+Deno.test("liste : numéros en couleur d'accent lisible, tous les points conservés", () => {
   const out = composePhotoSlide(
     base({ points: ["Désencombrer avant de décorer", "Un vrai canapé", "Trois matières, pas dix", "Un de trop"] }),
     CH,
@@ -108,10 +109,10 @@ Deno.test("liste : numéros en couleur d'accent de la charte, 3 points max", () 
   );
   assert(out.html.includes("#7BC9A3"));
   assert(out.html.includes("Trois matières, pas dix"));
-  assert(!out.html.includes("Un de trop"));
+  assert(out.html.includes("Un de trop"));
 });
 
-Deno.test("etape : numéro d'étape fantôme (pas un stamp de pagination), survivrait au kill-badges", () => {
+Deno.test("etape : numéro de processus lisible, pas de pagination décorative", () => {
   const out = composePhotoSlide(base({ step_number: 1, kicker: "On vide, on nettoie le regard" }), CH, mid);
   assert(out.html.includes(">01</div>"));
   assert(!/slide\s*\d/i.test(out.html));
@@ -138,13 +139,14 @@ Deno.test("position top : dégradé ancré en HAUT et contenu justifié flex-sta
   assert(out.html.includes("justify-content:flex-start"));
 });
 
-Deno.test("un seul accent : la couverture n'utilise PAS la couleur d'accent (texte blanc)", () => {
+Deno.test("couverture : le repère fourni utilise la couleur de marque, titre blanc", () => {
   const out = composePhotoSlide(
     base({ slide_number: 1, overlay_text: "Ce salon ne racontait rien", kicker: "Home staging · salon" }),
     CH,
     { isFirst: true, isLast: false },
   );
-  assert(!out.html.includes("#7BC9A3"));
+  assert(out.html.includes("background:#7BC9A3"));
+  assert(out.html.includes("font-weight:400"));
 });
 
 // ── Audit photo 22/07 : dégradations non-vides, etiquette longue, zoom répété ──
@@ -221,4 +223,53 @@ Deno.test("passage développé : panneau de charte local, texte complet et aucun
 Deno.test("texte centré : le voile couvre aussi le centre de l’image", () => {
   const out = composePhotoSlide(base({ overlay_position: "center" }), CH, { ...mid, luminance: { center: .9 } });
   assert(out.html.includes('height:1350px;background:rgba(0,0,0,0.85)'));
+});
+
+Deno.test("identité : primaire, police et angles de marque, sans graisse/italique imposés", () => {
+  const spec = base({ template: "etiquette", overlay_text: "Un geste précis" });
+  const a = composePhotoSlide(spec, { ...CH, color_primary: "#914B30", font_title: "Georgia", border_radius: "square" }, mid).html;
+  const b = composePhotoSlide(spec, { ...CH, color_primary: "#BDE8C5", font_title: "Arial", border_radius: "rounded" }, mid).html;
+  assert(a.includes("background:#914B30"));
+  assert(a.includes("border-radius:0px"));
+  assert(a.includes("font-family:'Georgia'"));
+  assert(b.includes("background:#BDE8C5"));
+  assert(b.includes("border-radius:24px"));
+  assert(b.includes("font-family:'Arial'"));
+  for (const html of [a, b]) {
+    assert(html.includes("Un geste précis"));
+    assert(!html.includes("font-style:italic"));
+    assert(!html.includes("text-transform:uppercase"));
+    assert(!html.includes("border-radius:999px"));
+  }
+});
+
+Deno.test("surfaces claires/sombres : titres, corps et accent pâle restent contrastés", () => {
+  for (const [background, ink] of [["#FFFFFF", "#000000"], ["#000000", "#FFFFFF"]]) {
+    const out = composePhotoSlide(base({template:"liste", points:["Un détail essentiel", "Une suite concrète"]}), {
+      ...CH, color_background:background, color_text:background, color_secondary:background, color_accent:background,
+    }, mid).html;
+    assert(out.includes(`background:${background}`));
+    assert(out.includes(`color:${ink}`));
+    assert(!out.includes(`color:${background};`));
+  }
+});
+
+Deno.test("charte invalide : les champs CSS n'injectent pas de HTML ni une ressource", () => {
+  const out = composePhotoSlide(base({template:"citation", attribution:"Une personne"}), {
+    ...CH, color_background:'red; background:url(https://invalid.test)', border_radius:'0;position:fixed',
+    font_title:'Arial\"><img src=x onerror=alert(1)>',
+  }, mid).html;
+  assert(!out.includes('<img src=x'));
+  assert(!out.includes('https://invalid.test'));
+  assert(!out.includes('position:fixed'));
+});
+
+Deno.test("chiffre et finale : les compléments fournis sont conservés avec une ancre export", () => {
+  for (const template of ["chiffre", "finale"] as const) {
+    const out = composePhotoSlide(base({template, big_number:"48 h", kicker:"Un repère", detail:"Une précision utile", cta_label:"La suite ensemble"}), CH, {isFirst:false,isLast:true}).html;
+    assert(out.includes('Un repère'));
+    assert(out.includes('Une précision utile'));
+    if (template === "chiffre") assert(out.includes('data-pptx-editable="title"'));
+    else assert(out.includes('data-slide-text="cta"'));
+  }
 });
