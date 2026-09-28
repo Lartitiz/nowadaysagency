@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { z } from "zod";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import DiagnosticLoading from "@/components/onboarding/DiagnosticLoading";
 import DiagnosticView from "@/components/onboarding/DiagnosticView";
 import { TOTAL_STEPS } from "@/lib/onboarding-constants";
 import { useOnboarding } from "@/hooks/use-onboarding";
+import { useAuth } from "@/contexts/AuthContext";
 import type { Answers, BrandingAnswers } from "@/hooks/use-onboarding";
 import { toast } from "sonner";
 import {
@@ -69,10 +70,11 @@ const variants = {
 };
 
 export default function Onboarding() {
+  const { user } = useAuth();
   const {
     step, setStep, answers, brandingAnswers,
     set, setBranding, next, prev, progress, saving,
-    uploadedFiles, uploading, diagnosticData, setDiagnosticData,
+    uploadedFiles, uploading, uploadsRestored, draftRestored, diagnosticData, setDiagnosticData,
     isDemoMode, demoData,
     handleFileUpload, removeFile, handleFinish, handleSkipDemo,
     handleDiagnosticComplete, getPlaceholder, getTimeRemaining, triggerPreScrape,
@@ -81,15 +83,28 @@ export default function Onboarding() {
 
   const [pendingAutoNext, setPendingAutoNext] = useState(false);
   const [confirmOverwriteOpen, setConfirmOverwriteOpen] = useState(false);
+  const launchStarted = useRef(false);
 
   // Dernière étape avant le diagnostic. Si l'espace porte déjà une identité de
   // marque, on demande AVANT de lancer : c'est le seul moment où l'on sait
   // encore distinguer « je refais mon onboarding exprès » de « je me suis
   // trompée d'espace ». Sans ce oui/non, l'edge se contentait de tout ignorer.
   const launchDiagnostic = useCallback(() => {
+    if (launchStarted.current) return;
+    launchStarted.current = true;
     next();
     void handleFinish();
   }, [next, handleFinish]);
+
+  // Après un rafraîchissement au milieu de l'analyse, les réponses locales
+  // doivent être relues AVANT la sauvegarde et l'appel Edge.
+  useEffect(() => {
+    if (step === 10 && draftRestored && uploadsRestored && !isDemoMode) {
+      void handleFinish();
+    }
+  // handleFinish conserve la même promesse pendant une visite.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, draftRestored, uploadsRestored, isDemoMode]);
 
   const handleUniquenessNext = useCallback(() => {
     if (brandedSpaceName !== null) {
@@ -170,7 +185,9 @@ export default function Onboarding() {
                       Ne pas y recopier la réponse produits/services/les_deux : elle est
                       déjà conservée telle quelle dans `product_or_service`. */}
                   {step === 2 && <ProductServiceScreen value={answers.product_or_service} onChange={v => set("product_or_service", v)} detailValue={answers.activity_detail} onDetailChange={v => set("activity_detail", v)} activite={answers.activite} onNext={validatedNext} />}
-                  {step === 3 && <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />}
+                  {step === 3 && (uploadsRestored
+                    ? <OnboardingPhase2Import answers={answers} set={set} files={isDemoMode ? [{ id: "demo-file", name: "profil_instagram_lea.png", url: "" }] : uploadedFiles} uploading={uploading} onUpload={isDemoMode ? () => {} : handleFileUpload} onRemove={isDemoMode ? () => {} : removeFile} onNext={next} onLeave={triggerPreScrape} isDemoMode={isDemoMode} />
+                    : <p className="text-center text-sm text-muted-foreground" role="status">Je retrouve tes captures…</p>)}
                   {step === 4 && <CanauxCombinedScreen answers={answers} set={set} onNext={validatedNext} />}
                   {step === 5 && <ObjectifScreen value={answers.objectif} onChange={v => { set("objectif", v); setPendingAutoNext(true); }} />}
                   {step === 6 && <BlocageScreen value={answers.blocage} onChange={v => { set("blocage", v); setPendingAutoNext(true); }} />}
@@ -198,13 +215,27 @@ export default function Onboarding() {
         // plus suspendu par l'animation de sortie de l'étape précédente (cause du blanc).
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="max-w-lg w-full">
-            <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} allowOverwrite={overwriteConfirmed} onReady={(data) => { setDiagnosticData(data); setStep(11); }} />
+            {draftRestored && uploadsRestored ? (
+              <DiagnosticLoading hasInstagram={hasInstagram} hasWebsite={hasWebsite} hasDocuments={isDemoMode ? true : uploadedFiles.length > 0} isDemoMode={isDemoMode} answers={answers} brandingAnswers={brandingAnswers} uploadedFileIds={uploadedFiles.map(f => f.id)} activityType={answers.activity_type} allowOverwrite={overwriteConfirmed} onReady={(data) => {
+                if (!isDemoMode && user?.id) {
+                  try {
+                    localStorage.setItem(`lac_onboarding_diagnostic:${user.id}`, JSON.stringify(data));
+                    localStorage.setItem("lac_onboarding_step", String(TOTAL_STEPS));
+                  }
+                  catch (error) { console.warn("Diagnostic local cache unavailable:", error); }
+                }
+                setDiagnosticData(data);
+                setStep(11);
+              }} />
+            ) : (
+              <p className="text-center text-sm text-muted-foreground" role="status">Je retrouve tes captures avant l'analyse…</p>
+            )}
 
           </div>
         </div>
       ) : diagnosticData ? (
         <DiagnosticView data={diagnosticData} prenom={answers.prenom} onComplete={() => handleDiagnosticComplete()} onCreateFirst={() => handleDiagnosticComplete(true)} hasInstagram={hasInstagram} hasWebsite={hasWebsite} sourcesUsed={diagnosticData.sources_used} sourcesFailed={diagnosticData.sources_failed} />
-      ) : null}
+      ) : <p className="flex-1 text-center p-8 text-muted-foreground" role="status">Je retrouve ton diagnostic…</p>}
 
       <AlertDialog open={confirmOverwriteOpen} onOpenChange={setConfirmOverwriteOpen}>
         <AlertDialogContent>

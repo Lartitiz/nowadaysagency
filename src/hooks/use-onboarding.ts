@@ -12,6 +12,7 @@ import { useWorkspaceFilter, useWorkspaceId, useProfileUserId } from "@/hooks/us
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { posthog } from "@/lib/posthog";
 import { resolveOnboardingStatus } from "@/lib/onboarding-status";
+import { isValidUrl } from "@/components/onboarding/OnboardingShared";
 
 /* ────────────────────────────────────────────── helpers */
 
@@ -119,10 +120,56 @@ export function useOnboarding() {
   const [brandedSpaceName, setBrandedSpaceName] = useState<string | null>(null);
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
   const [restoredFromSave, setRestoredFromSave] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(isDemoMode);
   const [saving, setSaving] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
+  const [uploadsRestoredForUser, setUploadsRestoredForUser] = useState<string | null>(null);
+  const uploadsRestored = isDemoMode || (!!user?.id && uploadsRestoredForUser === user.id);
   const [uploading, setUploading] = useState(false);
   const [diagnosticData, setDiagnosticData] = useState<DiagnosticData | null>(null);
+
+  // Les captures sont déjà en base, mais leur liste n'était conservée qu'en
+  // mémoire React. Après un rafraîchissement, le diagnostic repartait donc
+  // sans documentIds alors que l'utilisatrice les avait bien importées.
+  useEffect(() => {
+    if (isDemoMode) return;
+    if (!user?.id) return;
+    let cancelled = false;
+    setUploadedFiles([]);
+    setUploadsRestoredForUser(null);
+    const key = `lac_onboarding_upload_ids:${user.id}`;
+    let ids: string[] = [];
+    try {
+      const parsed = JSON.parse(localStorage.getItem(key) || "[]");
+      if (Array.isArray(parsed)) ids = parsed.filter((id): id is string => typeof id === "string").slice(0, 3);
+    } catch { /* vieux cache invalide : aucune capture à restaurer */ }
+    if (ids.length === 0) { setUploadsRestoredForUser(user.id); return; }
+    void (async () => {
+      const { data, error } = await supabase.from("user_documents")
+        .select("id, file_name, file_url")
+        .eq("user_id", user.id)
+        .eq("context", "onboarding")
+        .in("id", ids);
+      if (cancelled) return;
+      if (error) {
+        toast.error("Impossible de relire tes captures", { description: "Le diagnostic tentera de les retrouver. Vérifie-les avant de continuer." });
+      }
+      const rows = new Map((data || []).map(row => [row.id, row]));
+      const restored = ids.filter(id => error || rows.has(id)).map(id => {
+        const row = rows.get(id);
+        return row ? { id, name: row.file_name, url: row.file_url } : { id, name: "Capture importée", url: "" };
+      });
+      setUploadedFiles(prev => [...restored, ...prev.filter(file => !ids.includes(file.id))].slice(0, 3));
+      setUploadsRestoredForUser(user.id);
+    })();
+    return () => { cancelled = true; };
+  }, [isDemoMode, user?.id]);
+
+  useEffect(() => {
+    if (!isDemoMode && user?.id && uploadsRestored) {
+      localStorage.setItem(`lac_onboarding_upload_ids:${user.id}`, JSON.stringify(uploadedFiles.map(file => file.id)));
+    }
+  }, [isDemoMode, user?.id, uploadsRestored, uploadedFiles]);
 
   const [answers, setAnswers] = useState<Answers>({
     prenom: isDemoMode ? (demoDefaults?.prenom ?? "") : (localStorage.getItem("lac_prenom") || ""),
@@ -199,7 +246,16 @@ export function useOnboarding() {
         setRestoredFromSave(true);
       }
     } catch { /* ignore parse errors */ }
+    finally { setDraftRestored(true); }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (isDemoMode || !user?.id || step !== TOTAL_STEPS || diagnosticData) return;
+    try {
+      const saved = localStorage.getItem(`lac_onboarding_diagnostic:${user.id}`);
+      if (saved) setDiagnosticData(JSON.parse(saved) as DiagnosticData);
+    } catch { /* le contrôle de statut ramènera vers le formulaire */ }
+  }, [isDemoMode, user?.id, step, diagnosticData]);
 
   // Toast when restored
   useEffect(() => {
@@ -235,7 +291,7 @@ export function useOnboarding() {
       }
 
       // Safety: DB says NOT completed but localStorage has a step beyond the flow → reset to 0
-      if (!done && step >= TOTAL_STEPS) {
+      if (!done && step >= TOTAL_STEPS && !localStorage.getItem(`lac_onboarding_diagnostic:${user.id}`)) {
         console.warn("[onboarding] Stale step detected after reset, resetting to 0");
         localStorage.removeItem("lac_onboarding_step");
         localStorage.removeItem("lac_onboarding_answers");
@@ -341,7 +397,9 @@ export function useOnboarding() {
   // Keyboard shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && step > 0 && step < TOTAL_STEPS) prev();
+      // L'étape d'analyse lance une écriture et un appel Edge. Revenir en
+      // arrière ici laisserait le verrou de lancement actif sans reprise UI.
+      if (e.key === "Escape" && step > 0 && step < TOTAL_STEPS - 1) prev();
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
@@ -349,10 +407,10 @@ export function useOnboarding() {
 
   // Pre-scrape website in background (triggered on leaving step 4)
   const preScrapeTriggered = useRef(false);
-  const triggerPreScrape = useCallback(() => {
+  const triggerPreScrape = useCallback((website?: string) => {
     if (isDemoMode || !user || preScrapeTriggered.current) return;
-    const url = answers.website?.trim();
-    if (!url || url.length < 5 || !url.includes(".")) return;
+    const url = (website ?? answers.website)?.trim();
+    if (!url || !isValidUrl(url)) return;
     preScrapeTriggered.current = true;
     supabase.functions.invoke("pre-scrape-website", {
       body: { userId: user.id, websiteUrl: url },
@@ -415,6 +473,14 @@ export function useOnboarding() {
         if (docError) throw docError;
 
         if (docRecord) {
+          const key = `lac_onboarding_upload_ids:${user.id}`;
+          try {
+            const saved = JSON.parse(localStorage.getItem(key) || "[]");
+            const ids = Array.isArray(saved) ? saved.filter((id): id is string => typeof id === "string") : [];
+            localStorage.setItem(key, JSON.stringify([...new Set([...ids, docRecord.id])].slice(0, 3)));
+          } catch {
+            localStorage.setItem(key, JSON.stringify([docRecord.id]));
+          }
           setUploadedFiles(prev => [...prev, {
             id: docRecord.id,
             name: file.name,
@@ -433,22 +499,27 @@ export function useOnboarding() {
   const removeFile = async (fileId: string) => {
     const file = uploadedFiles.find(f => f.id === fileId);
     if (file) {
-      await supabase.storage.from("onboarding-uploads").remove([file.url]);
       const { error } = await supabase.from("user_documents").delete().eq("id", fileId);
       if (error) {
         console.error("Failed to delete document:", error);
         toast.error("Erreur", { description: "Le document n'a pas pu être supprimé." });
         return;
       }
+      if (file.url) {
+        const { error: storageError } = await supabase.storage.from("onboarding-uploads").remove([file.url]);
+        if (storageError) console.warn("Failed to clean up onboarding upload:", storageError);
+      }
     }
     setUploadedFiles(prev => prev.filter(f => f.id !== fileId));
   };
 
   /* ── save all ── */
-  const handleFinish = async () => {
-    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
-    if (isDemoMode) return;
-    if (!user) return;
+  const finishPromiseRef = useRef<Promise<boolean> | null>(null);
+  const completingRef = useRef(false);
+  const performFinish = async () => {
+    if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return false;}
+    if (isDemoMode) return true;
+    if (!user) return false;
     setSaving(true);
     try {
       // Use canaux from answers (user selection), enriched with link-based channels + desired channels
@@ -466,7 +537,8 @@ export function useOnboarding() {
 
       // 1. PROFILES
       const { data: existingProfile } = await supabase
-        .from("profiles").select("id").eq("user_id", profileUserId).maybeSingle();
+        .from("profiles").select("id, onboarding_completed, onboarding_completed_at").eq("user_id", profileUserId).maybeSingle();
+      const wasCompleted = existingProfile?.onboarding_completed === true;
 
       const profileData: Record<string, unknown> = {
         prenom: answers.prenom,
@@ -477,9 +549,11 @@ export function useOnboarding() {
         main_blocker: answers.blocage,
         main_goal: answers.objectif,
         weekly_time: answers.temps,
-        onboarding_completed: true,
-        onboarding_completed_at: new Date().toISOString(),
-        onboarding_step: TOTAL_STEPS,
+        // Le diagnostic peut durer plus d'une minute. La fin de l'onboarding
+        // est confirmée seulement après que son résultat a été vu et accepté.
+        onboarding_completed: wasCompleted,
+        onboarding_completed_at: wasCompleted ? existingProfile.onboarding_completed_at : null,
+        onboarding_step: wasCompleted ? TOTAL_STEPS : TOTAL_STEPS - 1,
       };
       // Écriture INCONDITIONNELLE : le formulaire fait foi, y compris quand il
       // est vide. En « n'écrire que si non vide », un mauvais handle ou un vieux
@@ -496,49 +570,46 @@ export function useOnboarding() {
         if (updateErr) {
           console.error("Failed to update profile:", updateErr);
           toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
+          return false;
         }
       } else {
         const { error: insertErr } = await supabase.from("profiles").insert({ user_id: profileUserId, ...profileData });
         if (insertErr) {
           console.error("Failed to insert profile:", insertErr);
           toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
+          return false;
         }
       }
 
       // 2. user_plan_config — pre-configure plan from onboarding answers
-      posthog.capture("onboarding_completed", {
-        total_steps: TOTAL_STEPS,
-        has_instagram: Boolean(answers.instagram),
-        has_website: Boolean(answers.website),
-        has_linkedin: Boolean(answers.linkedin),
-        uploaded_files: uploadedFiles.length,
-      });
-
       const planChannels = canaux.filter(c => c !== "none");
       const mappedGoal = mapObjectifToPlanGoal(answers.objectif);
       const mappedTime = mapOnboardingTimeToPlan(answers.temps);
 
       const { data: existingConfig } = await supabase
-        .from("user_plan_config").select("id").eq("user_id", user.id).maybeSingle();
+        .from("user_plan_config").select("id, onboarding_completed, onboarding_completed_at").eq("user_id", user.id).maybeSingle();
+      const planWasCompleted = existingConfig?.onboarding_completed === true;
       const configData = {
         main_goal: mappedGoal,
         level: "beginner",
         weekly_time: mappedTime,
         channels: planChannels,
-        onboarding_completed: true,
-        onboarding_completed_at: new Date().toISOString(),
+        onboarding_completed: planWasCompleted,
+        onboarding_completed_at: planWasCompleted ? existingConfig.onboarding_completed_at : null,
       };
       if (existingConfig) {
         const { error: updErr } = await supabase.from("user_plan_config").update(configData).eq("user_id", user.id);
         if (updErr) {
           console.error("Failed to update plan_config:", updErr);
           toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
+          return false;
         }
       } else {
         const { error: insErr } = await supabase.from("user_plan_config").insert({ user_id: user.id, ...configData });
         if (insErr) {
           console.error("Failed to insert plan_config:", insErr);
           toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
+          return false;
         }
       }
 
@@ -607,18 +678,24 @@ export function useOnboarding() {
         }
       }
 
-      localStorage.removeItem("lac_prenom");
-      localStorage.removeItem("lac_activite");
-      localStorage.removeItem("lac_onboarding_step");
-      localStorage.removeItem("lac_onboarding_answers");
-      localStorage.removeItem("lac_onboarding_branding");
-      localStorage.removeItem("lac_onboarding_ts");
+      return true;
     } catch (error: unknown) {
       console.error("Erreur technique:", error);
       toast.error("Erreur", { description: friendlyError(error as Error) });
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleFinish = () => {
+    if (!finishPromiseRef.current) {
+      finishPromiseRef.current = performFinish().then(saved => {
+        if (!saved) finishPromiseRef.current = null;
+        return saved;
+      });
+    }
+    return finishPromiseRef.current;
   };
 
   const handleSkipDemo = () => {
@@ -627,6 +704,7 @@ export function useOnboarding() {
   };
 
   const handleDiagnosticComplete = async (goCreate = false) => {
+    if (completingRef.current) return;
     if (isDemoMode) {
       skipDemoOnboarding();
       navigate("/welcome", { replace: true });
@@ -637,6 +715,11 @@ export function useOnboarding() {
       return;
     }
     if (!profileUserId) {toast.error("Le profil est encore indisponible. Réessaie."); return;}
+    completingRef.current = true;
+    if (!await handleFinish()) {
+      completingRef.current = false;
+      return;
+    }
     // ── Écritures de COMPLETION : elles décident si toute l'app laisse passer ──
     // Tant qu'aucune des deux tables ne dit onboarding_completed=true,
     // ProtectedRoute renvoie vers /onboarding depuis n'importe quelle page.
@@ -652,19 +735,46 @@ export function useOnboarding() {
     };
     let profileCompletionError: unknown = null;
     for (let attempt = 0; attempt < 2; attempt++) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("profiles")
         .update(completionProfile)
-        .eq("user_id", profileUserId);
-      profileCompletionError = error;
-      if (!error) break;
-      console.error("[onboarding] completion write (profiles) failed:", error);
+        .eq("user_id", profileUserId)
+        .select("id")
+        .maybeSingle();
+      profileCompletionError = error || (!data ? new Error("Aucune ligne profiles mise à jour") : null);
+      if (!profileCompletionError) break;
+      console.error("[onboarding] completion write (profiles) failed:", profileCompletionError);
+    }
+
+    // Ensure user_plan_config.onboarding_completed is set
+    // (safety net in case handleFinish had a silent failure)
+    let configCompletionError: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { data, error } = await (supabase.from("user_plan_config") as any)
+        .update({ onboarding_completed: true, onboarding_completed_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .select("id")
+        .maybeSingle();
+      configCompletionError = error || (!data ? new Error("Aucune ligne user_plan_config mise à jour") : null);
+      if (!configCompletionError) break;
+      console.error("[onboarding] completion write (user_plan_config) failed:", configCompletionError);
+    }
+
+    // Les DEUX écritures ont échoué (après retry) : le compte serait renvoyé
+    // au début de l'onboarding à la prochaine vérification. On le dit au lieu
+    // de continuer comme si de rien n'était.
+    if (profileCompletionError && configCompletionError) {
+      toast.error("Ta fin d'onboarding n'a pas pu être enregistrée", {
+        description: "Vérifie ta connexion — sans ça, l'app te redemandera l'onboarding à la prochaine visite.",
+        duration: 10000,
+      });
+      completingRef.current = false;
+      finishPromiseRef.current = null;
+      return;
     }
 
     try {
-
       if (diagnosticData) {
-        // Save diagnostic as branding audit
         const { error: auditError } = await supabase.from("branding_audits").insert({
           user_id: profileUserId,
           workspace_id: workspaceId !== profileUserId ? workspaceId : undefined,
@@ -682,40 +792,26 @@ export function useOnboarding() {
       }
     } catch (e) {
       console.error("Failed to save diagnostic:", e);
-      // Non bloquant : l'onboarding continue quand même (les écritures de
-      // complétion ci-dessus sont ce qui compte pour ne pas se refaire
-      // téléporter au début). Mais on vient de répondre à tout le
-      // questionnaire de diagnostic : le dire plutôt que le perdre en silence.
       toast.error("Ton diagnostic n'a pas pu être enregistré", {
         description: "Tes points forts/points faibles ne sont pas sauvegardés — tu peux relancer un diagnostic depuis ta fiche marque.",
       });
     }
+
+    posthog.capture("onboarding_completed", {
+      total_steps: TOTAL_STEPS,
+      has_instagram: Boolean(answers.instagram),
+      has_website: Boolean(answers.website),
+      has_linkedin: Boolean(answers.linkedin),
+      uploaded_files: uploadedFiles.length,
+    });
+    localStorage.removeItem("lac_prenom");
+    localStorage.removeItem("lac_activite");
     localStorage.removeItem("lac_onboarding_step");
     localStorage.removeItem("lac_onboarding_answers");
     localStorage.removeItem("lac_onboarding_branding");
     localStorage.removeItem("lac_onboarding_ts");
-
-    // Ensure user_plan_config.onboarding_completed is set
-    // (safety net in case handleFinish had a silent failure)
-    let configCompletionError: unknown = null;
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const { error } = await (supabase.from("user_plan_config") as any)
-        .update({ onboarding_completed: true })
-        .eq("user_id", user.id);
-      configCompletionError = error;
-      if (!error) break;
-      console.error("[onboarding] completion write (user_plan_config) failed:", error);
-    }
-
-    // Les DEUX écritures ont échoué (après retry) : le compte serait renvoyé
-    // au début de l'onboarding à la prochaine vérification. On le dit au lieu
-    // de continuer comme si de rien n'était.
-    if (profileCompletionError && configCompletionError) {
-      toast.error("Ta fin d'onboarding n'a pas pu être enregistrée", {
-        description: "Vérifie ta connexion — sans ça, l'app te redemandera l'onboarding à la prochaine visite.",
-        duration: 10000,
-      });
-    }
+    localStorage.removeItem(`lac_onboarding_upload_ids:${user.id}`);
+    localStorage.removeItem(`lac_onboarding_diagnostic:${user.id}`);
 
     if (goCreate) {
       // On n'envoie plus direct sur /creer : on intercale l'écran de validation
@@ -753,6 +849,8 @@ export function useOnboarding() {
     progress,
     saving,
     uploadedFiles,
+    uploadsRestored,
+    draftRestored,
     uploading,
     
     diagnosticData,

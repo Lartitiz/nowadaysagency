@@ -3,20 +3,35 @@ import { Button } from "@/components/ui/button";
 import { Upload, X, ChevronDown } from "lucide-react";
 import { InputIndicator, isValidUrl, addHttpsIfNeeded } from "./OnboardingShared";
 import type { Answers, UploadedFile } from "@/hooks/use-onboarding";
+import { toast } from "sonner";
 
 /* ── Étape 4 : la promesse est explicite (« ton espace arrive déjà rempli »)
    et le chemin sans site (capture Instagram) est un vrai plan A-bis, plus un
    champ optionnel noyé. LinkedIn passe en repli : utile mais jamais bloquant. ── */
 
 export default function OnboardingPhase2Import({ answers, set, files, uploading, onUpload, onRemove, onNext, onLeave, isDemoMode
-}: {answers: Answers;set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;files: UploadedFile[];uploading: boolean;onUpload: (files: FileList | null) => void;onRemove: (id: string) => void;onNext: () => void;onLeave?: () => void;isDemoMode?: boolean;}) {
+}: {answers: Answers;set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;files: UploadedFile[];uploading: boolean;onUpload: (files: FileList | null) => void;onRemove: (id: string) => void;onNext: () => void;onLeave?: (url: string) => void;isDemoMode?: boolean;}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkedinOpen, setLinkedinOpen] = useState(() => !!answers.linkedin_summary);
   const hasAnyLink = !!(answers.website || answers.instagram || answers.linkedin_summary);
   const hasAnything = hasAnyLink || files.length > 0;
 
   const webStatus: "valid" | "warn" | "none" = !answers.website ? "none" :
-  isValidUrl(answers.website) ? "valid" : "warn";
+  isValidUrl(addHttpsIfNeeded(answers.website)) ? "valid" : "warn";
+
+  const continueFromImport = () => {
+    if (uploading) return;
+    if (webStatus === "warn") {
+      toast.error("L'adresse de ton site semble invalide", {
+        description: "Corrige-la ou vide le champ pour continuer sans site.",
+      });
+      return;
+    }
+    const website = addHttpsIfNeeded(answers.website);
+    if (website !== answers.website) set("website", website);
+    onLeave?.(website);
+    onNext();
+  };
 
   const isImageFile = (name: string) => {
     const ext = name.split('.').pop()?.toLowerCase() || '';
@@ -42,15 +57,18 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           <div className="relative">
             <input
               type="text"
+              inputMode="url"
               value={answers.website}
               onChange={(e) => set("website", e.target.value)}
               onBlur={() => {if (answers.website) set("website", addHttpsIfNeeded(answers.website));}}
               placeholder="https://tonsite.fr"
               aria-label="URL de ton site web"
+              aria-invalid={webStatus === "warn"}
               className="w-full text-base p-3 pr-10 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
 
             <InputIndicator status={webStatus} />
           </div>
+          {webStatus === "warn" && <p className="text-xs text-destructive mt-2">Vérifie cette adresse ou efface-la pour passer sans site.</p>}
         </div>
 
         {/* Instagram — le plan A-bis assumé : le @ suffit, la capture complète */}
@@ -83,7 +101,7 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
               type="file"
               multiple
               accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
-              onChange={(e) => onUpload(e.target.files)}
+              onChange={(e) => { onUpload(e.target.files); e.target.value = ""; }}
               className="hidden" />
 
             </div>
@@ -111,7 +129,9 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
               }
                   <button
                 onClick={() => onRemove(f.id)}
-                className="absolute top-1 right-1 bg-background/80 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive">
+                type="button"
+                aria-label={`Retirer ${f.name}`}
+                className="absolute top-1 right-1 bg-background/80 rounded-full p-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity text-muted-foreground hover:text-destructive">
 
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -151,8 +171,8 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
       </div>
 
       <div className="flex flex-col items-center gap-2">
-        <Button onClick={() => {onLeave?.();onNext();}} className="rounded-full px-8">
-          {hasAnything ? "Continuer →" : "Passer cette étape →"}
+        <Button onClick={continueFromImport} disabled={uploading} className="rounded-full px-8">
+          {uploading ? "Ajout en cours…" : hasAnything ? "Continuer →" : "Passer cette étape →"}
         </Button>
         {!hasAnything &&
         <p className="text-xs text-muted-foreground/60 italic">Sans lien ni capture, ton espace démarrera vide et mon diagnostic sera moins précis</p>
