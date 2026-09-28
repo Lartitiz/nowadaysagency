@@ -92,7 +92,7 @@ serve(async (req) => {
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.pinterest);
-    const charter = charterRes.data || {};
+    const charter = (charterRes.data || {}) as Record<string, any>;
     const brandProfile = brandProfileRes.data || null;
 
     const ch = {

@@ -62,7 +62,7 @@ async function saveUndoLog(
 }
 
 // Execute actions returned by AI
-async function executeActions(sb: any, userId: string, actions: any[], workspaceId?: string, profileUserId?: string): Promise<any[]> {
+async function executeActions(sb: any, userId: string, actions: any[], workspaceId?: string | null, profileUserId?: string): Promise<any[]> {
   const filterCol = workspaceId ? "workspace_id" : "user_id";
   const filterVal = workspaceId || userId;
   const results: any[] = [];

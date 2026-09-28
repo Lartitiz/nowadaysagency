@@ -55,7 +55,7 @@ export const GenerateContentSchema = z.object({
   type: z.enum(["suggest", "weekly-suggestions", "ideas", "bio", "bio-audit", "bio-generator", "launch-ideas", "launch-plan", "raw", "playground", "redaction-structure", "redaction-accroches", "redaction-draft", "instagram-nom", "instagram-pinned", "instagram-edito", "instagram-edito-pillars", "instagram-edito-formats", "instagram-rhythm-adapt", "calendar-quick", "caption", "express-draft"]),
   format: shortText.optional().nullable(),
   sujet: shortText.optional().nullable(),
-  profile: z.record(z.unknown()).optional().nullable(),
+  profile: z.record(z.any()).optional().nullable(),
   canal: z.enum(["instagram", "linkedin", "blog", "pinterest"]).optional().nullable(),
   objectif: z.enum(["visibilite", "confiance", "vente", "credibilite"]).optional().nullable(),
   // Structure IA de la Rédaction guidée : « détaillée étape par étape avec
@@ -68,13 +68,14 @@ export const GenerateContentSchema = z.object({
   workspace_id: optionalUuid,
   // bio-related fields
   bioText: longText.optional().nullable(),
-  brandingContext: z.record(z.unknown()).optional().nullable(),
-  differentiation: z.record(z.unknown()).optional().nullable(),
-  ctaInfo: z.record(z.unknown()).optional().nullable(),
+  brandingContext: z.record(z.any()).optional().nullable(),
+  differentiation: z.record(z.any()).optional().nullable(),
+  ctaInfo: z.record(z.any()).optional().nullable(),
   structureChoice: shortText.optional().nullable(),
   screenshotImages: z.array(z.object({ data: z.string(), media_type: z.string() })).optional(),
   series_id: optionalUuid,
   episode_number: z.number().int().min(1).optional().nullable(),
+  launchContext: z.record(z.any()).optional().nullable(),
 }).passthrough();
 
 /* ─── create-checkout ─── */

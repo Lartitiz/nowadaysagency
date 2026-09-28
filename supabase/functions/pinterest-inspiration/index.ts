@@ -136,7 +136,7 @@ FORMAT DE RÉPONSE (JSON strict, rien d'autre) :
 
     const rawBase64 = reqBody.image_base64.replace(/^data:image\/[a-z]+;base64,/, "");
 
-    const messages = [{
+    const messages: any = [{
       role: "user",
       content: [
         {
