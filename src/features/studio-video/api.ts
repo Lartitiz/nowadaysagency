@@ -3,12 +3,15 @@ import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 export interface StudioVideoJob {
   id: string;
   workspace_id: string;
-  source_kind: "photo" | "studio_version";
-  source_id: string;
+  source_kind: "photo" | "studio_version" | "text" | "references";
+  source_id: string | null;
   source_name: string;
+  source_refs?: Array<{ kind: "photo" | "studio_version"; id: string; role: string; name: string }>;
   prompt: string;
   duration: number;
   resolution: "480p" | "720p";
+  aspect_ratio?: "9:16" | "16:9" | "1:1";
+  model?: string;
   status: "quoted" | "submitting_uncertain" | "queued" | "in_progress" | "archiving" | "ready" | "failed" | "nsfw" | "canceled";
   estimated_usd: number | string;
   estimated_credits: number | string;

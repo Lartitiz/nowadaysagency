@@ -884,9 +884,14 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       <Dialog open={!!studioTarget} onOpenChange={open => { if (!open) setStudioTarget(null); }}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Studio vidéo · passage {studioTarget ? studioTarget.index + 1 : ""}</DialogTitle>
-            <DialogDescription>Le Reel reste ouvert. Le clip créé sera aussi conservé dans le Studio.</DialogDescription></DialogHeader>
+            <DialogDescription>Le Reel reste ouvert. Le clip créé sera aussi conservé dans le Studio.
+              {studioTarget?.create && spoken[studioTarget.index]?.texte_parle &&
+                <span className="block mt-2">Phrase à illustrer : « {spoken[studioTarget.index].texte_parle} »</span>}
+            </DialogDescription></DialogHeader>
           {studioTarget && workspaceId && <StudioVideoPanel workspaceId={workspaceId} writable={studioTarget.create}
-            showComposer={studioTarget.create} initialPrompt={spoken[studioTarget.index]?.texte_parle || ""}
+            showComposer={studioTarget.create} initialPrompt={studioTarget.create && spoken[studioTarget.index]?.texte_parle
+              ? `Plan de coupe sans texte à l'écran : montrer concrètement l'idée « ${spoken[studioTarget.index].texte_parle.slice(0, 680)} ». Le plan doit pouvoir se placer sous la voix du Reel.`
+              : ""}
             onPickClip={job => { setPendingCutaway({ index: studioTarget.index, job }); setStudioTarget(null); }} />}
         </DialogContent>
       </Dialog>

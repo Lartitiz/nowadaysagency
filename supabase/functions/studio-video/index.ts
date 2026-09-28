@@ -2,20 +2,33 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
 import { getServiceClient } from "../_shared/plan-limiter.ts";
-import { estimate, MODEL, ProviderError, publicHttpsUrl, status as providerStatus, submit, uploadImage, type VideoInput } from "./higgsfield.ts";
+import { estimate, MODEL, MODELS, ProviderError, publicHttpsUrl, status as providerStatus, submit, uploadImage, type VideoInput, type VideoModel } from "./higgsfield.ts";
 
 const BUCKET = "studio-video";
 const MAX_VIDEO_BYTES = 150 * 1024 * 1024;
 const quoteSchema = z.object({
   action: z.literal("quote"), workspace_id: z.string().uuid(),
-  source_kind: z.enum(["photo", "studio_version"]), source_id: z.string().uuid(),
+  source_kind: z.enum(["photo", "studio_version", "text", "references"]), source_id: z.string().uuid().optional(),
+  references: z.array(z.object({ kind: z.enum(["photo", "studio_version"]), id: z.string().uuid(),
+    role: z.enum(["subject", "product", "person", "casting", "background", "style", "composition"]) })).min(2).max(4).optional(),
   prompt: z.string().trim().min(3).max(1000), duration: z.number().int().min(4).max(10),
-  resolution: z.enum(["480p", "720p"]), person_free_attested: z.literal(true),
+  resolution: z.enum(["480p", "720p"]), aspect_ratio: z.enum(["9:16", "16:9", "1:1"]).default("9:16"),
+  person_free_attested: z.boolean(),
 });
+function validateQuote(p: z.infer<typeof quoteSchema>, ctx: z.RefinementCtx) {
+  const image = p.source_kind === "photo" || p.source_kind === "studio_version";
+  if (image && (!p.source_id || p.references?.length || !p.person_free_attested)) ctx.addIssue({ code: "custom", message: "Image invalide" });
+  if (p.source_kind === "text" && (p.source_id || p.references?.length)) ctx.addIssue({ code: "custom", message: "Texte invalide" });
+  if (p.source_kind === "references" && (p.source_id || !p.references || !p.person_free_attested ||
+    p.references.some(r => r.role === "person") ||
+    new Set(p.references.map(r => `${r.kind}:${r.id}`)).size !== p.references.length))
+    ctx.addIssue({ code: "custom", message: "Références invalides" });
+}
 const submitSchema = z.object({ action: z.literal("submit"), workspace_id: z.string().uuid(), job_id: z.string().uuid() });
 const statusSchema = z.object({ action: z.literal("status"), workspace_id: z.string().uuid(), job_id: z.string().uuid() });
 const listSchema = z.object({ action: z.literal("list"), workspace_id: z.string().uuid() });
-const bodySchema = z.discriminatedUnion("action", [quoteSchema, submitSchema, statusSchema, listSchema]);
+const bodySchema = z.discriminatedUnion("action", [quoteSchema, submitSchema, statusSchema, listSchema])
+  .superRefine((p, ctx) => { if (p.action === "quote") validateQuote(p, ctx); });
 type DB = ReturnType<typeof getServiceClient>;
 
 function enabled() {
@@ -30,8 +43,9 @@ function monthlyLimit() {
 function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) {
   return {
     id: row.id, workspace_id: row.workspace_id, source_kind: row.source_kind,
-    source_id: row.source_id, source_name: row.source_name, prompt: row.prompt,
-    duration: row.duration, resolution: row.resolution, status: row.status,
+    source_id: row.source_id, source_name: row.source_name, source_refs: row.source_refs,
+    prompt: row.prompt, duration: row.duration, resolution: row.resolution,
+    aspect_ratio: row.aspect_ratio, model: row.model, status: row.status,
     estimated_usd: row.estimated_usd, estimated_credits: row.estimated_credits,
     quote_expires_at: row.quote_expires_at, created_at: row.created_at,
     error_code: row.error_code, video_url: signedUrl,
@@ -61,6 +75,25 @@ async function source(db: DB, workspace: string, kind: "photo" | "studio_version
     throw new Error("studio_video_person_unsupported");
   const session = data.visual_studio_sessions as unknown as { name?: string };
   return { bucket: "visual-studio", path: data.result_path as string, name: (session?.name || "Création du Studio").slice(0, 120) };
+}
+type SourceRef = { kind: "photo" | "studio_version"; id: string; role: string; name?: string };
+const roleInstructions: Record<string, string> = {
+  subject: "sujet à préserver", product: "produit à préserver", person: "personne à préserver",
+  casting: "mannequin fictif", background: "décor", style: "ambiance et lumière",
+  composition: "composition de la scène",
+};
+function referencedPrompt(prompt: string, refs: SourceRef[]) {
+  return `${prompt}\nRéférences visuelles dans l'ordre : ${refs.map((r, i) =>
+    `image ${i + 1} = ${roleInstructions[r.role] || "référence visuelle"}`).join(" ; ")}.`;
+}
+function inputFromJob(row: Record<string, unknown>): VideoInput {
+  const common = { prompt: String(row.prompt), duration: Number(row.duration),
+    resolution: row.resolution as "480p" | "720p", output_format: "mp4" as const,
+    generate_audio: false as const };
+  if (row.source_kind === "text") return { ...common, aspect_ratio: row.aspect_ratio as "9:16" | "16:9" | "1:1" };
+  if (row.source_kind === "references") return { ...common,
+    image_urls: row.input_urls as string[], aspect_ratio: row.aspect_ratio as "9:16" | "16:9" | "1:1" };
+  return { ...common, image_url: String(row.input_url) };
 }
 async function job(db: DB, workspace: string, id: string) {
   const { data, error } = await db.from("studio_video_jobs").select("*").eq("id", id).eq("workspace_id", workspace).maybeSingle();
@@ -163,22 +196,40 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
       if (quoteLimitError) throw quoteLimitError;
       if ((count || 0) >= 10) return json({ error: "Limite de devis atteinte pour aujourd’hui." }, 429);
-      const src = await source(db, p.workspace_id, p.source_kind, p.source_id);
-      const { data: media, error: mediaError } = await db.storage.from(src.bucket).download(src.path);
-      if (mediaError || !media) throw new Error("studio_video_source_unavailable");
-      // The user has explicitly requested this quote and attested that the image
-      // contains no identifiable person. The image is sent to Higgsfield here.
-      const imageUrl = await uploadImage(media);
-      const input: VideoInput = { image_url: imageUrl, prompt: p.prompt, duration: p.duration,
-        resolution: p.resolution, output_format: "mp4", generate_audio: false };
-      const price = await estimate(input);
+      const model: VideoModel = p.source_kind === "text" ? MODELS.text :
+        p.source_kind === "references" ? MODELS.references : MODEL;
+      const refs: SourceRef[] = p.source_kind === "references" ? p.references! : [];
+      const resolved = await Promise.all(refs.map(async ref => ({ ...ref,
+        ...(await source(db, p.workspace_id, ref.kind, ref.id)) })));
+      const single = p.source_kind === "photo" || p.source_kind === "studio_version"
+        ? await source(db, p.workspace_id, p.source_kind, p.source_id!) : null;
+      const images = single ? [single] : resolved;
+      const actualPrompt = refs.length ? referencedPrompt(p.prompt, resolved) : p.prompt;
+      if (actualPrompt.length > 1000) return json({ error: "La consigne avec les rôles dépasse 1 000 caractères. Raccourcis-la." }, 400);
+      const inputUrls: string[] = [];
+      for (const image of images) {
+        const { data: media, error: mediaError } = await db.storage.from(image.bucket).download(image.path);
+        if (mediaError || !media) throw new Error("studio_video_source_unavailable");
+        // Each private image is sent only after a price request and the user's
+        // attestation; text-only requests do not transmit an image.
+        inputUrls.push(await uploadImage(media));
+      }
+      const common = { prompt: actualPrompt, duration: p.duration, resolution: p.resolution,
+        output_format: "mp4" as const, generate_audio: false as const };
+      const input: VideoInput = single ? { ...common, image_url: inputUrls[0] } :
+        refs.length ? { ...common, image_urls: inputUrls, aspect_ratio: p.aspect_ratio } :
+          { ...common, aspect_ratio: p.aspect_ratio };
+      const price = await estimate(input, fetch, model);
       const id = crypto.randomUUID();
       const webhookToken = crypto.randomUUID();
       const { data, error } = await db.from("studio_video_jobs").insert({
         id, workspace_id: p.workspace_id, user_id: pipe.userId, source_kind: p.source_kind,
-        source_id: p.source_id, source_name: src.name, prompt: p.prompt, duration: p.duration,
-        resolution: p.resolution, person_free_attested: true, model: MODEL,
-        input_url: imageUrl, estimated_usd: price.usd, estimated_credits: price.credits,
+        source_id: p.source_id || null, source_name: single?.name || (refs.length ? `${refs.length} références` : "Idée seule"),
+        source_refs: resolved.map(({ kind, id, role, name }) => ({ kind, id, role, name })),
+        prompt: actualPrompt, duration: p.duration, aspect_ratio: p.aspect_ratio,
+        resolution: p.resolution, person_free_attested: p.person_free_attested, model,
+        input_url: single ? inputUrls[0] : null, input_urls: refs.length ? inputUrls : [],
+        estimated_usd: price.usd, estimated_credits: price.credits,
         status: "quoted", webhook_token: webhookToken,
         quote_expires_at: new Date(Date.now() + 15 * 60_000).toISOString(),
       }).select("*").single();
@@ -204,10 +255,9 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         return json({ error: message }, 409);
       }
       if (!claimed) return json({ job: safeJob(await job(db, p.workspace_id, p.job_id)) });
-      const input: VideoInput = { image_url: row.input_url, prompt: row.prompt, duration: row.duration,
-        resolution: row.resolution, output_format: "mp4", generate_audio: false };
+      const input = inputFromJob(row);
       try {
-        const accepted = await submit(input, callback.toString());
+        const accepted = await submit(input, callback.toString(), fetch, row.model as VideoModel);
         const updated = await db.from("studio_video_jobs").update({ status: "queued",
           provider_request_id: accepted.requestId, provider_correlation_id: accepted.correlationId,
         }).eq("id", row.id).eq("status", "submitting_uncertain").select("*").single();
