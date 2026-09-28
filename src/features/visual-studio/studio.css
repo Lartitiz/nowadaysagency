@@ -98,6 +98,8 @@
   padding: 5px;
   border-radius: 9px;
   flex-shrink: 0;
+  width: 100px;
+  white-space: normal;
 }
 .studio-versions button[aria-pressed="true"] {
   border-color: hsl(var(--primary));
@@ -109,7 +111,11 @@
   border-radius: 5px;
 }
 .studio-versions span {
-  display: block;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
   font-size: 12px;
   margin-top: 4px;
 }
