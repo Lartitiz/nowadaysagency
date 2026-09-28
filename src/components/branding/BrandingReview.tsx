@@ -15,6 +15,7 @@ import { importTarget, readImportRows } from "@/lib/branding-import-persistence"
 import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
 import { posthog } from "@/lib/posthog";
 import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
+import { BrandLogoSuggestion } from "@/components/branding/BrandLogoSuggestion";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
@@ -1120,7 +1121,13 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
         const sectionBody = sec.key === "offers"
           ? <OffersSection data={{ ...analysis.offers, offers: editedOffers }} onUpdate={handleOfferUpdate} onDelete={handleOfferDelete} />
           : sec.key === "charter"
-            ? <CharterSection data={editedCharter} onUpdate={handleCharterUpdate} />
+            ? (
+              <>
+                <CharterSection data={editedCharter} onUpdate={handleCharterUpdate} />
+                {/* Logo du site proposé pour la charte (masqué si déjà un logo / rien trouvé). */}
+                <BrandLogoSuggestion placement="brand_review" className="mt-4" />
+              </>
+            )
             : RENDERERS[sec.key](analysis);
 
         return (
