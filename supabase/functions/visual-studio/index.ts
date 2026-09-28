@@ -29,6 +29,7 @@ import { executeStudioJob } from "./worker.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
+  studio_version: z.literal(2).optional(),
   action: z.enum([
     "create",
     "read",
@@ -519,6 +520,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Pour représenter fidèlement cette personne ou ce produit, choisis sa photo dans la bibliothèque. Tu peux aussi me demander une illustration sans représentation réelle.";
         }
+        if (generative(intent.operation) && p.studio_version !== 2) {
+          intent.operation = "existing_tool";
+          intent.summary =
+            "Recharge le Studio pour accéder à la création et aux retouches étendues. Aucune image n’a été lancée.";
+        }
         const proposedRefs =
           intent.operation === "background" ? [] : references;
         const originalPath =
@@ -605,6 +611,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .maybeSingle();
       if (existing.error) throw existing.error;
       if (!existing.data) {
+        if (generative(session.proposal?.operation) && p.studio_version !== 2)
+          return json(
+            { error: "Recharge le Studio avant de confirmer cette création." },
+            409,
+          );
         if (!session.proposal || session.proposal.id !== p.proposal_id)
           return json(
             {

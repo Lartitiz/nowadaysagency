@@ -6,7 +6,7 @@ const actor = id(1),
   space = id(2),
   sessionId = id(3),
   proposalId = id(4);
-const base = { session_id: sessionId, workspace_id: space };
+const base = { studio_version: 2, session_id: sessionId, workspace_id: space };
 function fixture(role = "owner", replay = false) {
   const saved = globalThis.fetch,
     env = [
