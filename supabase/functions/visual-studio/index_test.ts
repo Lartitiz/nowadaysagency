@@ -22,6 +22,7 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
   Deno.env.set("PHOTOROOM_API_KEY", "test-only");
   Deno.env.set("ANTHROPIC_API_KEY", "test-only");
   const memories: Record<string,unknown>[] = [];
+  const compositions: Record<string, unknown>[] = [];
   const requests: string[] = [];
   const payloads: Record<string, unknown>[] = [];
   let intent: Record<string, unknown> = {
@@ -37,6 +38,7 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
     brief: "",
     source_metadata: {},
     source_ready: true,
+    composition: null as { design: Record<string, unknown>; background_path: string | null } | null,
     source_path: "original" as string | null,
     name: "Photo",
     archived_at: null as string | null,
@@ -95,6 +97,25 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       session.proposal = null;
       return json(session);
     }
+    if (url.pathname === "/rest/v1/rpc/studio_save_composition") {
+      const body = JSON.parse(String(init?.body));
+      if (body.p_revision !== session.revision) return json({ message: "studio_conflict" }, 409);
+      const entry = {
+        id: id(700 + compositions.length), session_id: sessionId,
+        workspace_id: space, user_id: actor, design: body.p_design,
+        title: body.p_design.title,
+        background_path: body.p_background_path,
+        created_at: new Date().toISOString(),
+      };
+      compositions.unshift(entry);
+      session.composition = { design: body.p_design, background_path: body.p_background_path };
+      session.revision += 1;
+      return json(session);
+    }
+    if (url.pathname === "/rest/v1/visual_studio_compositions") {
+      const selected = url.searchParams.get("id")?.replace("eq.", "");
+      return json(selected ? compositions.find((entry) => entry.id === selected) : compositions);
+    }
     if (url.pathname === "/rest/v1/studio_brand_memory") return json(memories);
     if (url.pathname.startsWith("/rest/v1/brand_")) {
       return json({ mission: "Ateliers artisanaux" });
@@ -140,6 +161,7 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
   return {
     requests,
     memories,
+    compositions,
     session,
     version,
     payloads,
@@ -377,6 +399,47 @@ Deno.test("an old large photo is resized for interpretation", async () => {
     const image = sent.messages[0].content.find((part) => part.source);
     assertEquals(image?.source?.data, btoa("resized"));
     assertEquals(image?.source?.media_type, "image/webp");
+  } finally { f.restore(); }
+});
+Deno.test("saved compositions remain recoverable with their original background", async () => {
+  const f = fixture();
+  f.version.status = "ready";
+  const design = (title: string) => ({
+    title, body: "Texte", footer: "Samedi 10 h–18 h", format: "portrait",
+    background: "#ffffff", foreground: "#000000", accent: "#ff0000",
+    font: "sans-serif", align: "left",
+  });
+  try {
+    const first = await handleStudioRequest(request({
+      ...base, action: "composition_save", revision: 0,
+      composition: design("Marché de Noël"), viewed_version_id: proposalId,
+    }));
+    assertEquals(first.status, 200);
+    const firstBody = await first.json();
+    assertEquals(firstBody.composition_history.length, 1);
+    assertEquals(firstBody.composition_history[0].design, undefined);
+    assertEquals(f.compositions[0].background_path, f.version.result_path);
+    const firstId = f.compositions[0].id;
+    const opened = await handleStudioRequest(request({
+      ...base, action: "composition_read", composition_history_id: firstId,
+    }));
+    assertEquals(opened.status, 200);
+    assertEquals((await opened.json()).composition.design.title, "Marché de Noël");
+    const second = await handleStudioRequest(request({
+      ...base, action: "composition_save", revision: 1,
+      composition: design("Nouvelle affiche"), composition_use_image: false,
+    }));
+    assertEquals(second.status, 200);
+    assertEquals((await second.json()).composition_history.length, 2);
+    const restored = await handleStudioRequest(request({
+      ...base, action: "composition_save", revision: 2,
+      composition: design("Marché de Noël corrigé"),
+      composition_history_id: firstId, composition_use_image: true,
+    }));
+    assertEquals(restored.status, 200);
+    assertEquals((await restored.json()).composition_history.length, 3);
+    assertEquals(f.compositions[0].background_path, f.version.result_path);
+    assertEquals((f.compositions[0].design as Record<string, unknown>).title, "Marché de Noël corrigé");
   } finally { f.restore(); }
 });
 Deno.test("a light adjustment routes to preparation without claiming image generation", async () => {

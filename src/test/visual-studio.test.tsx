@@ -241,6 +241,36 @@ it("opens deterministic preparation from the chat and returns the saved copy", a
     expect(fetchMock).toHaveBeenCalledWith("/studio-image.jpg");
   } finally { fetchMock.mockRestore(); }
 });
+it("reopens a saved composition with its editable text and source", async () => {
+  const design = {
+    title: "Marché de Noël", body: "Créations artisanales", footer: "Samedi 10 h–18 h",
+    format: "portrait" as const, background: "#ffffff", foreground: "#242124",
+    accent: "#863f67", font: "sans-serif", align: "left" as const,
+  };
+  const state: StudioState = {
+    ...original(),
+    session: { ...original().session, composition: {
+      design: { ...design, title: "Affiche actuelle" }, background_url: null,
+    } },
+    composition_history: [{
+      id: "older-composition", title: design.title,
+      created_at: "2026-09-28T10:00:00Z",
+    }],
+  };
+  mock.request.mockImplementation((body) => Promise.resolve(body.action === "composition_read"
+    ? { composition: { id: "older-composition", design, background_url: "/older.jpg" } }
+    : state));
+  mount();
+  fireEvent.click(await screen.findByText("Compositions enregistrées · 1"));
+  fireEvent.click(screen.getByRole("button", { name: /Reprendre Marché de Noël/ }));
+  expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
+  expect(screen.getByLabelText("Utiliser l’image sélectionnée")).toBeChecked();
+  fireEvent.click(screen.getByRole("button", { name: "Enregistrer la composition" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
+    action: "composition_save", composition_history_id: "older-composition",
+    composition_use_image: true,
+  })));
+});
 it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{
     id: "version-ready", status: "ready", proposal, url: "/version.png",
