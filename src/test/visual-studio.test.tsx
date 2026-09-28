@@ -483,7 +483,7 @@ it("changing a reference role clears confirmation without generating", async () 
   );
   expect(
     mock.request.mock.calls.find(([b]) => b.action === "reference")?.[0],
-  ).toMatchObject({ reference_role: "style", photo_id: "photo", revision: 0 });
+  ).toMatchObject({ reference_role: "style", reference_id: "ref", revision: 0 });
   expect(mock.request.mock.calls.some(([b]) => b.action === "generate")).toBe(
     false,
   );
@@ -576,4 +576,20 @@ it("a persisted reply recovered after a lost acknowledgement clears only its own
   expect(
     mock.request.mock.calls.filter(([b]) => b.action === "message"),
   ).toHaveLength(1);
+});
+
+it("annonce le coût complet d’une série et permet un pilote avant toute génération", async () => {
+ const state=original();state.session.proposal={...proposal,operation:'create',cost:3,shots:[{id:'two',summary:'Un détail',image_prompt:'Detail',format:'square'},{id:'three',summary:'En situation',image_prompt:'Scene',format:'portrait'}]};
+ mock.request.mockResolvedValue(state);mount();
+ expect(await screen.findByText('Un détail')).toBeInTheDocument();
+ const pilot=await screen.findByRole('button',{name:/D’abord une image pilote/});fireEvent.click(pilot);
+ await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'pilot'})));
+ expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
+});
+it("une série partielle conserve un accès à chaque échec sans relancer les images réussies",async()=>{
+ const state=original();state.versions=['failed-1','failed-2'].map((id,index)=>({id,status:'failed',created_at:'',url:null,error_message:'Échec de cet essai',proposal:{...proposal,series_size:3,series_index:index}}));
+ mock.request.mockResolvedValue(state);mount();
+ const retries=await screen.findAllByRole('button',{name:'Réessayer cette image seulement'});expect(retries).toHaveLength(2);fireEvent.click(retries[1]);
+ await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'retry',version_id:'failed-2'})));
+ expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
 });

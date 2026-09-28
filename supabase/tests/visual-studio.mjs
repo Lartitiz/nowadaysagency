@@ -304,6 +304,57 @@ try {
   console.log(
     "PASS source-free original, operation/model attribution and replay",
   );
+  await db.exec(fs.readFileSync(new URL('../migrations/20260928200000_studio_brand_memory.sql',import.meta.url),'utf8'));
+  const memoryId=id(300);
+  const remember=(actor=owner,revision=-1,note='Couleurs franches',remove=false,space=ws)=>value('SELECT to_jsonb(studio_write_memory($1,$2,$3,$4,$5,$6,$7,$8::jsonb,$9)) AS value',[actor,space,memoryId,revision,'preference','Lumière',note,'[]',remove]);
+  for(const actor of [null,viewer,outsider]) await assert.rejects(()=>remember(actor),/studio_forbidden/);
+  assert.equal((await remember()).revision,0);
+  assert.equal((await remember()).revision,0);
+  await assert.rejects(()=>remember(owner,-1,'Autre note'),/studio_conflict/);
+  assert.equal((await remember(owner,0,'Lumière directe')).revision,1);
+  assert.equal((await remember(owner,0,'Lumière directe')).revision,1);
+  await assert.rejects(()=>remember(owner,null),/studio_conflict/);
+  await assert.rejects(()=>remember(outsider,1,'Autre',false,otherWs),/studio_forbidden/);
+  await db.exec('GRANT SELECT ON workspace_members TO authenticated');
+  await asRole('authenticated',outsider);
+  assert.equal(await value('SELECT count(*)::int AS value FROM studio_brand_memory'),0);
+  await asRole('authenticated',viewer);
+  assert.equal(await value('SELECT count(*)::int AS value FROM studio_brand_memory'),1);
+  await assert.rejects(()=>db.exec("UPDATE studio_brand_memory SET note='intrusion'"),/permission denied/);
+  await asRole('service_role',owner);
+  assert.equal((await remember(owner,1,'Lumière directe',true)).revision,2);
+  assert.equal((await remember(owner,1,'Lumière directe',true)).revision,2);
+  await db.exec('RESET ROLE');
+  console.log('PASS memory scope, immutable references, replay, edit conflicts and removal');
+  await db.exec(fs.readFileSync(new URL('../migrations/20260928201000_studio_image_provider.sql',import.meta.url),'utf8'));
+  await db.exec(fs.readFileSync(new URL('../migrations/20260928202000_studio_series.sql',import.meta.url),'utf8'));
+  const seriesId=id(401),shotId=id(402);
+  await propose(freeSession,seriesId);
+  await db.query("UPDATE visual_studio_sessions SET proposal=proposal||$2::jsonb WHERE id=$1",[freeSession,JSON.stringify({operation:'create',image_prompt:'A landscape',shots:[{id:shotId,summary:'Detail',image_prompt:'A close detail',format:'square'}]})]);
+  const currentUsage=await value("SELECT count(*)::int AS value FROM ai_usage");
+  await assert.rejects(()=>claim(owner,freeSession,seriesId,currentUsage+1,99),/studio_quota/);
+  const series=await claim(owner,freeSession,seriesId,999,999);
+  assert.equal(series.versions.length,2);
+  assert.equal(series.versions[1].proposal.series_index,1);
+  assert.equal(series.versions[1].proposal.series_id,seriesId);
+  assert.equal((await claim(owner,freeSession,seriesId,999,999)).claimed,false);
+  await db.query('INSERT INTO studio_image_requests(version_id,workspace_id) VALUES($1,$2)',[seriesId,ws]);
+  await db.query('INSERT INTO studio_image_requests(version_id,workspace_id) VALUES($1,$2)',[shotId,ws]);
+  assert.equal(await value('SELECT studio_reserve_image_cost($1,0.6,1) AS value',[seriesId]),true);
+  assert.equal(await value('SELECT studio_reserve_image_cost($1,0.6,1) AS value',[seriesId]),false);
+  await assert.rejects(()=>db.query('SELECT studio_reserve_image_cost($1,0.6,1)',[shotId]),/studio_provider_budget/);
+  await asRole('authenticated',owner);
+  await assert.rejects(()=>db.exec('SELECT * FROM studio_image_requests'),/permission denied/);
+  await db.exec('RESET ROLE');
+  console.log('PASS series total quota and single claim, private provider receipts and atomic cost reservations');
+  await db.exec(fs.readFileSync(new URL('../migrations/20260928203000_studio_composition.sql',import.meta.url),'utf8'));
+  const beforePhotos=await value("SELECT md5(coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text,'[]')) AS value FROM user_photos p");
+  const composition={design:{title:'Marché de Noël',footer:'12 décembre',format:'portrait'},background_path:null};
+  await db.query('UPDATE visual_studio_sessions SET composition=$2::jsonb WHERE id=$1',[freeSession,JSON.stringify(composition)]);
+  assert.deepEqual(await value('SELECT composition AS value FROM visual_studio_sessions WHERE id=$1',[freeSession]),composition);
+  await assert.rejects(()=>db.query('UPDATE visual_studio_sessions SET composition=$2::jsonb WHERE id=$1',[freeSession,'[]']),/studio_composition_shape/);
+  assert.equal(await value("SELECT md5(coalesce(jsonb_agg(to_jsonb(p) ORDER BY id)::text,'[]')) AS value FROM user_photos p"),beforePhotos);
+  console.log('PASS editable composition persistence, schema and untouched library');
   // Account/workspace removal must not acquire blocking foreign keys.
   await db.query("DELETE FROM workspaces WHERE id=$1", [ws]);
   assert.equal(
