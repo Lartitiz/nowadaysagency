@@ -7202,6 +7202,56 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_brand_memory: {
+        Row: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          note: string
+          references: Json
+          revision: number
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          archived_at?: string | null
+          created_at?: string
+          id: string
+          kind: string
+          name: string
+          note: string
+          references?: Json
+          revision?: number
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          archived_at?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          name?: string
+          note?: string
+          references?: Json
+          revision?: number
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_brand_memory_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       studio_coachings: {
         Row: {
           calendly_link: string | null
@@ -7264,6 +7314,51 @@ export type Database = {
           validated_at?: string | null
         }
         Relationships: []
+      }
+      studio_image_requests: {
+        Row: {
+          callback_token: string
+          created_at: string
+          estimated_usd: number
+          provider_id: string | null
+          status: string
+          version_id: string
+          workspace_id: string
+        }
+        Insert: {
+          callback_token?: string
+          created_at?: string
+          estimated_usd?: number
+          provider_id?: string | null
+          status?: string
+          version_id: string
+          workspace_id: string
+        }
+        Update: {
+          callback_token?: string
+          created_at?: string
+          estimated_usd?: number
+          provider_id?: string | null
+          status?: string
+          version_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_image_requests_version_id_fkey"
+            columns: ["version_id"]
+            isOneToOne: true
+            referencedRelation: "visual_studio_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "studio_image_requests_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       studio_video_jobs: {
         Row: {
@@ -7891,6 +7986,7 @@ export type Database = {
       visual_studio_sessions: {
         Row: {
           brief: string
+          composition: Json | null
           created_at: string
           id: string
           messages: Json
@@ -7908,6 +8004,7 @@ export type Database = {
         }
         Insert: {
           brief?: string
+          composition?: Json | null
           created_at?: string
           id: string
           messages?: Json
@@ -7925,6 +8022,7 @@ export type Database = {
         }
         Update: {
           brief?: string
+          composition?: Json | null
           created_at?: string
           id?: string
           messages?: Json
@@ -8905,6 +9003,10 @@ export type Database = {
         }
         Returns: Json
       }
+      studio_reserve_image_cost: {
+        Args: { p_estimate: number; p_monthly_limit: number; p_version: string }
+        Returns: boolean
+      }
       studio_reserve_interpretation: {
         Args: { p_actor: string; p_request: string; p_session: string }
         Returns: boolean
@@ -8916,6 +9018,38 @@ export type Database = {
       studio_video_claim: {
         Args: { p_actor: string; p_job: string; p_monthly_limit: number }
         Returns: boolean
+      }
+      studio_write_memory: {
+        Args: {
+          p_actor: string
+          p_id: string
+          p_kind: string
+          p_name: string
+          p_note: string
+          p_references: Json
+          p_remove?: boolean
+          p_revision: number
+          p_workspace: string
+        }
+        Returns: {
+          archived_at: string | null
+          created_at: string
+          id: string
+          kind: string
+          name: string
+          note: string
+          references: Json
+          revision: number
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "studio_brand_memory"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       sync_launch_calendar: {
         Args: {
