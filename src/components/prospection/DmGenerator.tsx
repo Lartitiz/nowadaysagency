@@ -233,7 +233,7 @@ export default function DmGenerator({ prospect, interactions, onBack, onMessageS
     if (Object.keys(updates).length === 0) return true;
     if (onSaveContext) return onSaveContext(updates);
     try {
-      const { data, error } = await supabase.from("prospects").update(updates).eq("id", prospect.id)
+      const { data, error } = await supabase.from("prospects").update(updates as any).eq("id", prospect.id)
         .eq(column as "workspace_id" | "user_id", value).select("id").single();
       if (!active.current) return false;
       if (error || data?.id !== prospect.id) throw error || new Error("Contexte non confirmé");

@@ -307,7 +307,7 @@ export default function BrandingAuditPage() {
             }
           }
           if (Object.keys(safeUpdate).length > 0) {
-            const { error } = await supabase.from("brand_profile").update(safeUpdate).eq("id", existing.id);
+            const { error } = await supabase.from("brand_profile").update(safeUpdate as any).eq("id", existing.id);
             if (error) throw error;
           }
         } else {

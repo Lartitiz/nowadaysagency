@@ -15,7 +15,7 @@ export async function persistCoachingSession(id: string, existing: boolean, scop
   const row = { ...payload, persona_id: scope.personaId || null, offer_id: scope.offerId || null };
   const { user_id, workspace_id, section, ...changes } = row as Record<string, unknown>;
   const { error } = existing
-    ? await scopeCoachingSession(supabase.from("branding_coaching_sessions").update(changes), scope).eq("id", id).select("id").single()
+    ? await scopeCoachingSession(supabase.from("branding_coaching_sessions").update(changes as any), scope).eq("id", id).select("id").single()
     : await supabase.from("branding_coaching_sessions").insert({ ...row, id } as any).select("id").single();
   if (error) throw error;
 }

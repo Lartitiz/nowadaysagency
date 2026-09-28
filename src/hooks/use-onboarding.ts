@@ -492,7 +492,7 @@ export function useOnboarding() {
       profileData.linkedin_summary = answers.linkedin_summary || null;
 
       if (existingProfile) {
-        const { error: updateErr } = await supabase.from("profiles").update(profileData).eq("user_id", profileUserId);
+        const { error: updateErr } = await supabase.from("profiles").update(profileData as any).eq("user_id", profileUserId);
         if (updateErr) {
           console.error("Failed to update profile:", updateErr);
           toast.error("Erreur de sauvegarde", { description: "Ton profil n'a pas pu être enregistré. Vérifie ta connexion et réessaie." });
@@ -595,7 +595,7 @@ export function useOnboarding() {
         const { data: existingStrategy } = await (supabase.from("brand_strategy") as any)
           .select("id").eq(column, value).order("updated_at", { ascending: false }).limit(1).maybeSingle();
         if (existingStrategy) {
-          const { error } = await supabase.from("brand_strategy").update(strategyData).eq("id", existingStrategy.id);
+          const { error } = await supabase.from("brand_strategy").update(strategyData as any).eq("id", existingStrategy.id);
           if (error) console.error("Failed to update brand_strategy:", error);
         } else {
           const { error } = await supabase.from("brand_strategy").insert({
