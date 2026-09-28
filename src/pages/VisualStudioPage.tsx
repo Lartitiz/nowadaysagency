@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -176,38 +176,41 @@ function Studio({
     setDraft(value);
     writeDraft(localKey, value);
   }
-  async function openPhoto(id: string) {
-    if (actionLock.current || !writable) return;
-    actionLock.current = true;
-    setBusy("opening");
-    setError("");
-    if (creation.current.photoId !== id)
-      creation.current = { id: crypto.randomUUID(), photoId: id };
-    try {
-      const result = await studioRequest({
-        action: "create",
-        workspace_id: workspaceId,
-        session_id: creation.current.id,
-        photo_id: id,
-      });
-      if (alive.current)
-        navigate(`/photos/studio?session=${result.session.id}`, {
-          replace: true,
+  const openPhoto = useCallback(
+    async (id: string) => {
+      if (actionLock.current || !writable) return;
+      actionLock.current = true;
+      setBusy("opening");
+      setError("");
+      if (creation.current.photoId !== id)
+        creation.current = { id: crypto.randomUUID(), photoId: id };
+      try {
+        const result = await studioRequest({
+          action: "create",
+          workspace_id: workspaceId,
+          session_id: creation.current.id,
+          photo_id: id,
         });
-    } catch (e) {
-      if (alive.current)
-        setError(e instanceof Error ? e.message : "Ouverture impossible.");
-    } finally {
-      actionLock.current = false;
-      if (alive.current) setBusy("");
-    }
-  }
+        if (alive.current)
+          navigate(`/photos/studio?session=${result.session.id}`, {
+            replace: true,
+          });
+      } catch (e) {
+        if (alive.current)
+          setError(e instanceof Error ? e.message : "Ouverture impossible.");
+      } finally {
+        actionLock.current = false;
+        if (alive.current) setBusy("");
+      }
+    },
+    [writable, workspaceId, navigate],
+  );
   useEffect(() => {
-    if (photoId && !sessionId && !sourceInit.current) {
+    if (photoId && !sessionId && !sourceInit.current && writable) {
       sourceInit.current = true;
       void openPhoto(photoId);
     }
-  }, [photoId, sessionId]); // A stable id makes a lost create response retryable.
+  }, [photoId, sessionId, writable, openPhoto]); // A stable id makes a lost create response retryable.
   async function mutate(action: string, extra: Record<string, unknown> = {}) {
     if (!sessionId || actionLock.current || !writable) return null;
     actionLock.current = true;
