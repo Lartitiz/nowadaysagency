@@ -587,7 +587,7 @@ it("annonce le coût complet d’une série et permet un pilote avant toute gén
  expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
 });
 it("une série partielle conserve un accès à chaque échec sans relancer les images réussies",async()=>{
- const state=original();state.versions=['failed-1','failed-2'].map((id,index)=>({id,status:'failed',created_at:'',url:null,error_message:'Échec de cet essai',proposal:{...proposal,series_size:3,series_index:index}}));
+ const state=original();state.versions=['failed-1','failed-2'].map((id,index)=>({id,status:'failed',created_at:'',url:null,library_photo_id:null,error_message:'Échec de cet essai',proposal:{...proposal,series_size:3,series_index:index}}));
  mock.request.mockResolvedValue(state);mount();
  const retries=await screen.findAllByRole('button',{name:'Réessayer cette image seulement'});expect(retries).toHaveLength(2);fireEvent.click(retries[1]);
  await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'retry',version_id:'failed-2'})));
