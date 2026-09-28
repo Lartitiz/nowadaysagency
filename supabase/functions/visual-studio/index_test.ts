@@ -41,21 +41,22 @@ function fixture(role = "owner", replay = false) {
     name: "Photo",
     archived_at: null as string | null,
     revision: 0,
-    messages: [],
+    messages: [] as Array<{ id?: string; role: string; text: string }>,
     proposal: {
       id: proposalId,
       operation: "background",
       summary: "Fond crème",
       background_prompt: "cream",
       cost: 1,
-    },
+    } as { id: string; operation: string; summary: string; background_prompt: string; cost: number } | null,
   };
   const version = {
     id: proposalId,
     session_id: sessionId,
+    result_path: "space/session/version",
     created_at: new Date().toISOString(),
     status: "processing",
-    proposal: session.proposal,
+    proposal: session.proposal!,
   };
   globalThis.fetch = async (
     input: string | URL | Request,
@@ -91,7 +92,7 @@ function fixture(role = "owner", replay = false) {
       const body = JSON.parse(String(init?.body));
       session.archived_at = body.p_archive ? new Date().toISOString() : null;
       session.revision += 1;
-      session.proposal = null as typeof session.proposal;
+      session.proposal = null;
       return json(session);
     }
     if (url.pathname === "/rest/v1/studio_brand_memory") return json(memories);
@@ -119,6 +120,7 @@ function fixture(role = "owner", replay = false) {
       return new Response(new Blob(["source"], { type: "image/jpeg" }));
     }
     if (url.pathname === "/rest/v1/visual_studio_versions") {
+      if (url.searchParams.get("id") === `eq.${proposalId}`) return json(version);
       return json(replay ? [version] : []);
     }
     if (url.pathname === "/rest/v1/rpc/has_role") return json(true);
@@ -133,6 +135,7 @@ function fixture(role = "owner", replay = false) {
     requests,
     memories,
     session,
+    version,
     payloads,
     setIntent: (value: Record<string, unknown>) => {
       intent = value;
@@ -179,6 +182,46 @@ Deno.test("archived sessions can be read and restored but not edited", async () 
     assertEquals(f.requests.includes("/v1/messages"), false);
     assertEquals((await handleStudioRequest(request({ ...base, action: "restore", revision: 1 }))).status, 200);
     assertEquals(f.session.archived_at, null);
+  } finally { f.restore(); }
+});
+Deno.test("an old version asks which references to use before interpreting", async () => {
+  const f = fixture();
+  try {
+    const oldRef = { id: id(71), photo_id: id(72), role: "product", path: `${space}/${sessionId}/old`, name: "Ancien produit" };
+    const newRef = { id: id(73), photo_id: id(74), role: "style", path: `${space}/${sessionId}/new`, name: "Nouvelle direction" };
+    f.session.references.push(newRef);
+    f.session.messages.push({ role: "user", text: "Utilise désormais la nouvelle direction" });
+    f.version.status = "ready";
+    Object.assign(f.version.proposal, { brief: "Produit sur fond clair", reference_snapshot: [oldRef] });
+    const body = { ...base, action: "message", revision: 0, request_id: id(75), viewed_version_id: proposalId, message: "Une autre prise" };
+    const first = await handleStudioRequest(request(body));
+    assertEquals(first.status, 409);
+    assertEquals((await first.json()).code, "branch_reference_choice");
+    assertEquals(f.requests.includes("/rest/v1/rpc/studio_reserve_interpretation"), false);
+    assertEquals(f.payloads.length, 0);
+    const chosen = await handleStudioRequest(request({ ...body, branch_reference_mode: "version" }));
+    assertEquals(chosen.status, 200);
+    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content[0].text);
+    assertEquals(prompt.references.map((r: { id: string }) => r.id), [oldRef.id]);
+    assertEquals(prompt.historique, []);
+    assertEquals(prompt.brief, "Produit sur fond clair");
+  } finally { f.restore(); }
+});
+Deno.test("an explicit current-reference choice excludes the old snapshot", async () => {
+  const f = fixture();
+  try {
+    const oldRef = { id: id(81), photo_id: id(82), role: "product", path: `${space}/${sessionId}/old`, name: "Ancien produit" };
+    const newRef = { id: id(83), photo_id: id(84), role: "style", path: `${space}/${sessionId}/new`, name: "Nouvelle direction" };
+    f.session.references.push(newRef);
+    f.version.status = "ready";
+    Object.assign(f.version.proposal, { brief: "Fond clair", reference_snapshot: [oldRef] });
+    const res = await handleStudioRequest(request({ ...base, action: "message", revision: 0,
+      request_id: id(85), viewed_version_id: proposalId, message: "Une autre prise",
+      branch_reference_mode: "current" }));
+    assertEquals(res.status, 200);
+    const prompt = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content[0].text);
+    assertEquals(prompt.references.map((r: { id: string }) => r.id), [newRef.id]);
+    assertEquals(prompt.historique, []);
   } finally { f.restore(); }
 });
 Deno.test(
@@ -556,7 +599,7 @@ Deno.test("a mentioned stored mannequin cannot be used before its reference is e
 Deno.test("pilot keeps only the first-shot brief and removes other shots' directions without generating", async () => {
   const f = fixture();
   const firstPrompt = "Portrait de profil, tête et épaules";
-  Object.assign(f.session.proposal, {
+  Object.assign(f.session.proposal!, {
     operation: "create", cost: 2, image_prompt: firstPrompt,
     summary: "Deux portraits : profil puis face",
     preserve: ["Visage approuvé", "veste cobalt"],

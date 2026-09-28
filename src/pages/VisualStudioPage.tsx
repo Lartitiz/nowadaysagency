@@ -172,6 +172,10 @@ function Studio({
     [compare, setCompare] = useState(false),
     [busy, setBusy] = useState(""),
     [error, setError] = useState("");
+  const [branchChoice, setBranchChoice] = useState<{
+    target: string;
+    revision: number;
+  } | null>(null);
   const localKey = draftKey(userId, workspaceId, sessionId || "new");
   const [draft, setDraft] = useState(() => readDraft(localKey));
   const draftRef = useRef(draft);
@@ -217,6 +221,9 @@ function Studio({
     version = current?.versions.find((v) => v.id === selectedId),
     proposal = current?.session.proposal;
   const writable = roleWritable && !current?.session.archived_at;
+  const activeBranchChoice = !!branchChoice &&
+    branchChoice.target === selectedId &&
+    branchChoice.revision === current?.session.revision;
   const references = current?.session.references || [];
   const selectedReference =
     references.find((r) => r.id === selectedReferenceId) || references[0];
@@ -224,6 +231,9 @@ function Studio({
     proposal.operation !== "background" &&
     current?.generative_allowed === false;
   const generating = current?.versions.some((v) => v.status === "processing");
+  useEffect(() => {
+    setBranchChoice(null);
+  }, [selectedId, current?.session.revision]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -281,6 +291,7 @@ function Studio({
     }
   }, [current?.session.messages, localKey]);
   function editDraft(value: string) {
+    setBranchChoice(null);
     draftRef.current = value;
     setDraft(value);
     writeDraft(localKey, value);
@@ -348,6 +359,12 @@ function Studio({
       if (e instanceof StudioRequestError && e.code === "refresh_request") {
         sent.current = null;
       }
+      if (e instanceof StudioRequestError && e.code === "branch_reference_choice") {
+        if (alive.current && selectedId && current) {
+          setBranchChoice({ target: selectedId, revision: current.session.revision });
+        }
+        return null;
+      }
       if (alive.current) {
         setError(
           e instanceof Error ? e.message : "La demande n’a pas pu aboutir.",
@@ -360,7 +377,7 @@ function Studio({
       if (alive.current) setBusy("");
     }
   }
-  async function send() {
+  async function send(branchReferenceMode?: "version" | "current") {
     if (
       !draft.trim() ||
       actionLock.current ||
@@ -442,10 +459,12 @@ function Studio({
       revision: sent.current.revision,
       viewed_version_id: selectedId,
       viewed_reference_id: selectedReference?.id || null,
+      branch_reference_mode: branchReferenceMode,
     });
     if (result && alive.current) {
       if (draftRef.current.trim() === submittedText) editDraft("");
       sent.current = null;
+      setBranchChoice(null);
       setMobileConfirm(false);
     }
   }
@@ -884,6 +903,21 @@ function Studio({
                 </div>
               </div>
               <div className="p-4 border-t space-y-3">
+                {activeBranchChoice && (
+                  <div role="status" className="rounded-lg border border-primary/30 bg-card p-3 space-y-2 text-sm">
+                    <p>Les références ont changé depuis cette version. Lesquelles veux-tu utiliser pour cette nouvelle demande ? Aucune image n’a été lancée.</p>
+                    <div className="flex flex-wrap gap-2">
+                      <Button type="button" variant="outline" disabled={!!busy}
+                        onClick={() => void send("version")}>
+                        Celles de cette version
+                      </Button>
+                      <Button type="button" variant="outline" disabled={!!busy}
+                        onClick={() => void send("current")}>
+                        Mes références actuelles
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 <label
                   className="sr-only"
                   htmlFor={mobile ? "studio-draft-mobile" : "studio-draft"}
@@ -913,7 +947,7 @@ function Studio({
                     Envoyer ne génère rien.
                   </span>
                   <Button
-                    disabled={!writable || !!busy || generating ||
+                    disabled={!writable || !!busy || generating || activeBranchChoice ||
                       !draft.trim()}
                     onClick={() => void send()}
                   >
