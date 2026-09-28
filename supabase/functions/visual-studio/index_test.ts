@@ -55,7 +55,10 @@ function fixture(role = "owner", replay = false) {
     status: "processing",
     proposal: session.proposal,
   };
-  globalThis.fetch = async (input, init) => {
+  globalThis.fetch = async (
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
     const url = new URL(
       typeof input === "string"
         ? input
