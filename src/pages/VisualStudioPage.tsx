@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -100,13 +100,14 @@ function Studio({
   sessionId: string | null;
   photoId: string | null;
 }) {
+  const location = useLocation();
   const navigate = useNavigate(),
     cache = useQueryClient();
   const isMobile = useIsMobile();
   const writable = ["owner", "manager", "editor"].includes(role);
   const [picker, setPicker] = useState(false),
     [sessionsOpen, setSessionsOpen] = useState(false),
-    [mobileChat, setMobileChat] = useState(false),
+    [mobileChat, setMobileChat] = useState(!!location.state?.studioChatOpen),
     [mobileConfirm, setMobileConfirm] = useState(false);
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(
     null,
@@ -132,7 +133,6 @@ function Studio({
     } | null>(null);
   const sourceInit = useRef(false),
     seenReady = useRef<string[] | null>(null);
-  const openedMobile = useRef(false);
   const queryKey = ["visual-studio", userId, workspaceId, sessionId];
   const state = useQuery({
     queryKey,
@@ -172,17 +172,6 @@ function Studio({
       alive.current = false;
     };
   }, []);
-  useEffect(() => {
-    if (isMobile && current && !openedMobile.current) {
-      openedMobile.current = true;
-      if (
-        !current.versions.some(
-          (v) => v.status === "ready" || v.status === "processing",
-        )
-      )
-        setMobileChat(true);
-    }
-  }, [isMobile, current]);
   useEffect(() => {
     if (!current) return;
     const ready = current.versions
@@ -317,7 +306,10 @@ function Studio({
           draftRef.current.trim() === text ? "" : draftRef.current,
         );
         writeDraft(localKey, "");
-        navigate(`/photos/studio?session=${id}`, { replace: true });
+        navigate(`/photos/studio?session=${id}`, {
+          replace: true,
+          state: { studioChatOpen: isMobile },
+        });
       } catch (e) {
         if (alive.current) {
           setError(e instanceof Error ? e.message : "Réessaie l’envoi.");
