@@ -23,7 +23,9 @@ function enabled() {
 }
 function monthlyLimit() {
   const limit = Number(Deno.env.get("HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD"));
-  return Number.isFinite(limit) && limit > 0 ? limit : 0;
+  // The authorized trial budget is 100 EUR. USD 100 leaves an exchange-rate
+  // buffer and cannot be raised accidentally through deployment configuration.
+  return Number.isFinite(limit) && limit > 0 ? Math.min(limit, 100) : 0;
 }
 function safeJob(row: Record<string, unknown>, signedUrl: string | null = null) {
   return {
