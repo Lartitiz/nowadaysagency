@@ -119,3 +119,37 @@ Deno.test("les modèles Claude du rédacteur carrousel sont tarifés dans cron-h
   assert(models.includes("claude-opus-5-5"), `rédacteurs lus : ${models.join(", ")}`);
   for (const m of models) assert(src.includes(`"${m}":`), `cron-health n'a pas de tarif pour ${m}`);
 });
+
+/**
+ * Garde anti-oubli (28/09/2026) : `gpt-6-astra` relisait CHAQUE carrousel et
+ * rédigeait le mode qualité max depuis le 03/09 sans figurer dans la grille de
+ * `cron-health` → coût hebdo compté ZÉRO pendant ~4 semaines (signalé le 14/09).
+ * Tout modèle que le code carrousel peut appeler doit avoir un tarif :
+ * rédacteurs dans TEXT_COST_EUR_PER_MTOKEN, relecteur dans les DEUX grilles
+ * (sa relecture est chiffrée à part, entrée/sortie séparées).
+ */
+Deno.test("tout modèle de rédaction ou de relecture carrousel est tarifé dans cron-health", async () => {
+  const { pickCarouselWriter } = await import("./carousel-model.ts");
+  const { CAROUSEL_REVIEW_MODEL } = await import("./carousel-editorial-review.ts");
+  const src = await Deno.readTextFile(new URL("../cron-health/index.ts", import.meta.url));
+
+  const grille = (nom: string) => {
+    const bloc = src.match(new RegExp(`const ${nom}: Record<[^=]+= \\{([\\s\\S]*?)\\n    \\};`));
+    assert(bloc, `${nom} introuvable dans cron-health/index.ts`);
+    return new Set([...bloc[1].matchAll(/^\s*"([^"]+)":/gm)].map((m) => m[1]));
+  };
+  const texte = grille("TEXT_COST_EUR_PER_MTOKEN");
+  const relecture = grille("REVIEW_COST_EUR_PER_MTOKEN");
+
+  // Tous les rédacteurs déclarés (y compris un banc d'essai), pas seulement les défauts.
+  const writerSrc = await Deno.readTextFile(new URL("./carousel-model.ts", import.meta.url));
+  const declares = [...(writerSrc.match(/export type CarouselWriterModel = ([^;]+);/)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const redacteurs = [...new Set([...declares, pickCarouselWriter({}), pickCarouselWriter({ quality_max: true })])];
+  assert(redacteurs.includes("gpt-6-astra"), `rédacteurs lus : ${redacteurs.join(", ")}`);
+  for (const m of [...redacteurs, CAROUSEL_REVIEW_MODEL]) {
+    assert(texte.has(m), `« ${m} » absent de TEXT_COST_EUR_PER_MTOKEN : son coût serait compté 0 €`);
+  }
+  assert(relecture.has(CAROUSEL_REVIEW_MODEL), `« ${CAROUSEL_REVIEW_MODEL} » absent de REVIEW_COST_EUR_PER_MTOKEN : la relecture serait comptée 0 €`);
+  // Le parseur ne doit pas passer « à vide » : il voit bien les lignes connues.
+  assert(texte.has("claude-opus-5") && texte.size >= 5, `grille texte mal lue (${[...texte].join(", ")})`);
+});

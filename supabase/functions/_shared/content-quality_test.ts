@@ -100,3 +100,19 @@ Deno.test("séquence vide + pas de sujet → null (rien à stocker)", () => {
   assertEquals(buildContentPreview(JSON.stringify({ script: [] }), undefined), null);
   assertEquals(buildContentPreview("pas du json", undefined), null);
 });
+
+// Coût de la relecture éditoriale (28/09/2026) : ses tokens ne vont pas dans
+// ai_usage (chaque ligne y décompte un crédit) ; ils voyagent dans l'aperçu.
+Deno.test("editorialUsage : lit le total des passes de relecture, entrée et sortie séparées", async () => {
+  const { editorialUsage } = await import("./content-quality.ts");
+  const content = JSON.stringify({
+    slides: [{ title: "Titre" }],
+    editorial_review: { model: "gpt-6-astra", pass: 2, usage: { model: "gpt-6-astra", input_tokens: 5510, output_tokens: 2249 },
+      total_usage: { input_tokens: 9868, output_tokens: 4415, total_tokens: 14283 } },
+  });
+  assertEquals(editorialUsage(content), { model: "gpt-6-astra", input_tokens: 9868, output_tokens: 4415 });
+  // Relecture indisponible (usage vide) ou absente : rien à chiffrer.
+  assertEquals(editorialUsage(JSON.stringify({ slides: [], editorial_review: { model: null, total_usage: { input_tokens: 0, output_tokens: 0 } } })), null);
+  assertEquals(editorialUsage(JSON.stringify({ slides: [] })), null);
+  assertEquals(editorialUsage("pas du json"), null);
+});
