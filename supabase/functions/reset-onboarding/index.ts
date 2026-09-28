@@ -148,6 +148,26 @@ Deno.serve(async (req) => {
       }
     };
 
+    // Purge des idées issues du diagnostic (source_module = 'diagnostic').
+    // Sans ça, une réinitialisation laissait les idées du run précédent en base :
+    // « Ton premier contenu » repiochait la plus ancienne (order created_at asc)
+    // et proposait un sujet de l'ANCIENNE activité. On ne touche QUE les idées
+    // générées par le diagnostic : les idées écrites à la main sont préservées.
+    const delDiagnosticIdeas = async (col: string, val: string) => {
+      try {
+        const { error } = await admin
+          .from("saved_ideas")
+          .delete()
+          .eq(col, val)
+          .eq("source_module", "diagnostic");
+        if (error) errors.push(`saved_ideas: ${error.message}`);
+        else tablesCleaned++;
+      } catch (e: any) {
+        errors.push(`saved_ideas: ${e.message}`);
+      }
+    };
+
+
     if (workspaceId) {
       // ============================================================
       //  RESET SCOPÉ PAR ESPACE (chemin sûr — self-reset Réglages)
