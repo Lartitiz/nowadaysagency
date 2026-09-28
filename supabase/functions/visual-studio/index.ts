@@ -59,6 +59,7 @@ const schema = z.object({
     "memory_apply",
     "pilot",
     "composition_save",
+    "composition_read",
     "retry",
     "archive",
     "restore",
@@ -206,7 +207,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .single(),
     );
     const writable = ["owner", "manager", "editor"].includes(member.role);
-    if (p.action !== "read" && !writable) {
+    if (!["read", "composition_read"].includes(p.action) && !writable) {
       return json({ error: "Cet espace est en lecture seule." }, 403);
     }
     let sessionResult = await sb
@@ -330,8 +331,23 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         p_revision: p.revision,
         p_archive: p.action === "archive",
       }));
-    } else if (session.archived_at && p.action !== "read") {
+    } else if (session.archived_at && !["read", "composition_read"].includes(p.action)) {
       throw new Error("studio_archived");
+    }
+    if (p.action === "composition_read") {
+      if (!p.composition_history_id) throw new Error("studio_conflict");
+      const saved = unwrap(await sb.from("visual_studio_compositions").select("*")
+        .eq("id", p.composition_history_id).eq("session_id", session.id)
+        .eq("workspace_id", p.workspace_id).single());
+      const signed = saved.background_path
+        ? await sb.storage.from(BUCKET).createSignedUrl(saved.background_path, 900)
+        : null;
+      return json({ composition: {
+        id: saved.id,
+        design: saved.design,
+        created_at: saved.created_at,
+        background_url: signed?.data?.signedUrl || null,
+      } });
     }
     let references: Reference[] = legacyReferences(session);
     if (p.action === "memory_save" || p.action === "memory_apply") {
@@ -1224,7 +1240,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .order("created_at"),
     );
     const compositions = unwrap(
-      await sb.from("visual_studio_compositions").select("*")
+      await sb.from("visual_studio_compositions").select("id,title,created_at")
         .eq("session_id", session.id).eq("workspace_id", p.workspace_id)
         .order("created_at", { ascending: false }).limit(20),
     );
@@ -1259,14 +1275,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           url: v.status === "ready" ? await sign(v.result_path) : null,
         })),
       ),
-      composition_history: await Promise.all(compositions.map(async (entry) => ({
+      composition_history: compositions.map((entry) => ({
         id: entry.id,
-        design: entry.design,
+        title: entry.title,
         created_at: entry.created_at,
-        background_url: entry.background_path
-          ? await sign(entry.background_path).catch(() => null)
-          : null,
-      }))),
+      })),
       quota,
       generative_allowed: premiumAllowed(quota.plan, isQaTestAccount(actor)),
       writable: writable && !session.archived_at,

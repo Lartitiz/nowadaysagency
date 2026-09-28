@@ -253,15 +253,17 @@ it("reopens a saved composition with its editable text and source", async () => 
       design: { ...design, title: "Affiche actuelle" }, background_url: null,
     } },
     composition_history: [{
-      id: "older-composition", design, background_url: "/older.jpg",
+      id: "older-composition", title: design.title,
       created_at: "2026-09-28T10:00:00Z",
     }],
   };
-  mock.request.mockResolvedValue(state);
+  mock.request.mockImplementation((body) => Promise.resolve(body.action === "composition_read"
+    ? { composition: { id: "older-composition", design, background_url: "/older.jpg" } }
+    : state));
   mount();
   fireEvent.click(await screen.findByText("Compositions enregistrées · 1"));
   fireEvent.click(screen.getByRole("button", { name: /Reprendre Marché de Noël/ }));
-  expect(screen.getByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
+  expect(await screen.findByRole("textbox", { name: "Titre" })).toHaveValue("Marché de Noël");
   expect(screen.getByLabelText("Utiliser l’image sélectionnée")).toBeChecked();
   fireEvent.click(screen.getByRole("button", { name: "Enregistrer la composition" }));
   await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({

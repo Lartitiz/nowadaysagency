@@ -153,7 +153,11 @@ function Studio({
   const [compositionDraft, setCompositionDraft] = useState<
     StudioComposition | undefined
   >();
-  const [compositionHistoryId, setCompositionHistoryId] = useState<string | null>(null);
+  const [selectedComposition, setSelectedComposition] = useState<{
+    id: string;
+    design: StudioComposition;
+    background_url: string | null;
+  } | null>(null);
   const [existingTool, setExistingTool] = useState<
     "mockup" | "before_after" | null
   >(null);
@@ -223,9 +227,6 @@ function Studio({
   const current = state.data,
     version = current?.versions.find((v) => v.id === selectedId),
     proposal = current?.session.proposal;
-  const selectedComposition = current?.composition_history?.find((entry) =>
-    entry.id === compositionHistoryId
-  );
   const writable = roleWritable && !current?.session.archived_at;
   const activeBranchChoice = !!branchChoice &&
     branchChoice.target === selectedId &&
@@ -859,7 +860,7 @@ function Studio({
                         variant="link"
                         disabled={!writable}
                         onClick={() => {
-                          setCompositionHistoryId(null);
+                          setSelectedComposition(null);
                           setCompositionDraft(m.composition ? { ...m.composition, logo_data_url: current?.session.composition?.design.logo_data_url || null } : undefined);
                           setCompositionOpen(true);
                         }}
@@ -1339,7 +1340,7 @@ function Studio({
                         variant="outline"
                         disabled={!writable || !!busy}
                         onClick={() => {
-                          setCompositionHistoryId(null);
+                          setSelectedComposition(null);
                           setCompositionDraft(undefined);
                           setCompositionOpen(true);
                         }}
@@ -1356,13 +1357,33 @@ function Studio({
                                 variant="outline"
                                 size="sm"
                                 disabled={!writable || !!busy}
-                                onClick={() => {
-                                  setCompositionHistoryId(entry.id);
-                                  setCompositionDraft(undefined);
-                                  setCompositionOpen(true);
+                                onClick={async () => {
+                                  setBusy("composition_read");
+                                  setError("");
+                                  try {
+                                    const result = await studioRequest<{ composition: {
+                                      id: string;
+                                      design: StudioComposition;
+                                      background_url: string | null;
+                                    } }>({
+                                      action: "composition_read",
+                                      workspace_id: workspaceId,
+                                      session_id: sessionId,
+                                      composition_history_id: entry.id,
+                                    });
+                                    if (alive.current) {
+                                      setSelectedComposition(result.composition);
+                                      setCompositionDraft(undefined);
+                                      setCompositionOpen(true);
+                                    }
+                                  } catch (e) {
+                                    if (alive.current) setError(e instanceof Error ? e.message : "Composition indisponible.");
+                                  } finally {
+                                    if (alive.current) setBusy("");
+                                  }
                                 }}
                               >
-                                Reprendre {entry.design.title?.slice(0, 48) || "Composition"} · {new Date(entry.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                                Reprendre {entry.title.slice(0, 48) || "Composition"} · {new Date(entry.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
                               </Button>
                             ))}
                           </div>
@@ -1562,7 +1583,7 @@ function Studio({
       )}
       {current && (
         <StudioCompositionEditor
-          key={`${sessionId}:${compositionHistoryId || "current"}`}
+          key={`${sessionId}:${selectedComposition?.id || "current"}`}
           open={compositionOpen}
           onOpenChange={setCompositionOpen}
           initial={selectedComposition?.design || compositionDraft || current.session.composition?.design}
@@ -1576,7 +1597,7 @@ function Studio({
             mutate("composition_save", {
               composition: design,
               composition_use_image: useImage,
-              composition_history_id: compositionHistoryId || undefined,
+              composition_history_id: selectedComposition?.id || undefined,
               revision: current.session.revision,
               viewed_version_id:
                 !compositionDraft && current.session.composition

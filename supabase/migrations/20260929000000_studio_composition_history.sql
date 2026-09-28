@@ -4,6 +4,7 @@ CREATE TABLE public.visual_studio_compositions (
   session_id uuid NOT NULL REFERENCES public.visual_studio_sessions(id) ON DELETE CASCADE,
   workspace_id uuid NOT NULL REFERENCES public.workspaces(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title text NOT NULL CHECK (length(title) <= 180),
   design jsonb NOT NULL CHECK (jsonb_typeof(design) = 'object' AND octet_length(design::text) < 420000),
   background_path text,
   created_at timestamptz NOT NULL DEFAULT now()
@@ -20,8 +21,9 @@ CREATE POLICY studio_composition_read ON public.visual_studio_compositions
 
 -- Include the current composition of sessions created before this migration.
 INSERT INTO public.visual_studio_compositions
-  (session_id, workspace_id, user_id, design, background_path, created_at)
-SELECT id, workspace_id, user_id, composition->'design',
+  (session_id, workspace_id, user_id, title, design, background_path, created_at)
+SELECT id, workspace_id, user_id,
+  left(coalesce(composition->'design'->>'title', 'Composition'), 180), composition->'design',
   composition->>'background_path', updated_at
 FROM public.visual_studio_sessions
 WHERE composition IS NOT NULL AND jsonb_typeof(composition->'design') = 'object';
@@ -46,8 +48,9 @@ BEGIN
   IF NOT FOUND OR s.revision IS DISTINCT FROM p_revision OR s.archived_at IS NOT NULL
   THEN RAISE EXCEPTION 'studio_conflict'; END IF;
   INSERT INTO public.visual_studio_compositions
-    (session_id, workspace_id, user_id, design, background_path)
-  VALUES (p_session, p_workspace, p_actor, p_design, p_background_path);
+    (session_id, workspace_id, user_id, title, design, background_path)
+  VALUES (p_session, p_workspace, p_actor,
+    left(coalesce(p_design->>'title', 'Composition'), 180), p_design, p_background_path);
   UPDATE public.visual_studio_sessions SET
     composition = jsonb_build_object('design', p_design, 'background_path', p_background_path),
     revision = revision + 1, updated_at = now()

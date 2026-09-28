@@ -103,6 +103,7 @@ function fixture(role = "owner", replay = false, legacyLarge = false) {
       const entry = {
         id: id(700 + compositions.length), session_id: sessionId,
         workspace_id: space, user_id: actor, design: body.p_design,
+        title: body.p_design.title,
         background_path: body.p_background_path,
         created_at: new Date().toISOString(),
       };
@@ -416,8 +417,14 @@ Deno.test("saved compositions remain recoverable with their original background"
     assertEquals(first.status, 200);
     const firstBody = await first.json();
     assertEquals(firstBody.composition_history.length, 1);
+    assertEquals(firstBody.composition_history[0].design, undefined);
     assertEquals(f.compositions[0].background_path, f.version.result_path);
     const firstId = f.compositions[0].id;
+    const opened = await handleStudioRequest(request({
+      ...base, action: "composition_read", composition_history_id: firstId,
+    }));
+    assertEquals(opened.status, 200);
+    assertEquals((await opened.json()).composition.design.title, "Marché de Noël");
     const second = await handleStudioRequest(request({
       ...base, action: "composition_save", revision: 1,
       composition: design("Nouvelle affiche"), composition_use_image: false,

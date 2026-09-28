@@ -117,8 +117,7 @@ export interface StudioMemory {
 export interface StudioState {
   composition_history?: {
     id: string;
-    design: StudioComposition;
-    background_url: string | null;
+    title: string;
     created_at: string;
   }[];
   memory?: StudioMemory[];
