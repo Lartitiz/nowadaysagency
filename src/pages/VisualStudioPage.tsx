@@ -1564,7 +1564,7 @@ function Studio({
               purpose: "library",
             });
             if (alive.current) {
-              navigate("/creer", {
+              navigate(contentPath, {
                 state: { libraryPhotoIds: [receipt.photoId] },
               });
             }
