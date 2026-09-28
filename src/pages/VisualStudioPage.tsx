@@ -15,6 +15,7 @@ import { OfferMockupDialog } from "@/components/photos/OfferMockupDialog";
 import { AvantApresDialog } from "@/components/photos/AvantApresDialog";
 import PhotoPreparationDialog from "@/components/photos/PhotoPreparationDialog";
 import { StudioMemoryPanel } from "@/features/visual-studio/StudioMemoryPanel";
+import { StudioBrandContext } from "@/features/visual-studio/StudioBrandContext";
 import AppHeader from "@/components/AppHeader";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -694,6 +695,7 @@ function Studio({
               </dd>
             </div>
           </dl>
+          {proposal.brand_context && <StudioBrandContext context={proposal.brand_context} />}
           {proposal.preserve?.length
             ? (
               <p className="text-sm">
@@ -1217,6 +1219,9 @@ function Studio({
                       ? "Référence conservée dans la session."
                       : "Tes échanges et créations restent dans cette session."}
                   </p>
+                  {version?.proposal.brand_context && (
+                    <StudioBrandContext context={version.proposal.brand_context} />
+                  )}
                   {version?.status === "ready" && (
                     <Button
                       type="button"

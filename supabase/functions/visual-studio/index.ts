@@ -575,6 +575,23 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           if (result.error) throw result.error;
         }
         const memory = await readMemory(sb, p.workspace_id);
+        // Keep the exact brand context supplied to the interpreter with the
+        // resulting version. Later edits to the charter must not rewrite the
+        // history of an image that was already generated.
+        const brandContext = {
+          captured_at: new Date().toISOString(),
+          charter: charter.data,
+          identity: profile.data,
+          proposition: proposition.data,
+          strategy: strategy.data,
+          memory: memory.map((item) => ({
+            id: item.id,
+            kind: item.kind,
+            name: item.name,
+            note: item.note,
+            revision: item.revision,
+          })),
+        };
         const terms = searchTerms(p.message);
         let catalogue = recentCatalogue;
         if (terms.length) {
@@ -661,10 +678,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                         note: m.note,
                       })),
                       marque: {
-                        charte: charter.data,
-                        identite: profile.data,
-                        proposition: proposition.data,
-                        strategy: strategy.data,
+                        charte: brandContext.charter,
+                        identite: brandContext.identity,
+                        proposition: brandContext.proposition,
+                        strategy: brandContext.strategy,
                       },
                       references: requestReferences.map(({ path, ...ref }) => ref),
                       reference_selectionnee: selectedReference?.id,
@@ -787,6 +804,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               ? "higgsfield"
               : "default",
             rules_version: RULES_VERSION,
+            brand_context: brandContext,
             warning: generative(intent.operation) &&
                 (requestReferences.some((r) => isIdentity(r.role)) || parent)
               ? "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."

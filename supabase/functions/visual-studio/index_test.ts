@@ -224,6 +224,25 @@ Deno.test("an explicit current-reference choice excludes the old snapshot", asyn
     assertEquals(prompt.historique, []);
   } finally { f.restore(); }
 });
+Deno.test("a proposed image retains the brand context actually sent to the interpreter", async () => {
+  const f = fixture();
+  try {
+    f.memories.push({ id: id(90), workspace_id: space, kind: "preference", name: "Lumière naturelle", note: "Éviter l'effet plastique", revision: 2, references: [] });
+    f.setIntent({ operation: "create", summary: "Scène d'atelier", image_prompt: "Une scène d'atelier" });
+    const response = await handleStudioRequest(request({ ...base, action: "message", revision: 0, request_id: id(91), message: "Imagine un atelier" }));
+    assertEquals(response.status, 200);
+    const sent = JSON.parse((f.payloads[0] as { messages: Array<{ content: Array<{ text: string }> }> }).messages[0].content[0].text);
+    const proposal = f.session.proposal as Record<string, unknown>;
+    const snapshot = proposal.brand_context as Record<string, unknown>;
+    assertEquals(snapshot.charter, sent.marque.charte);
+    assertEquals(snapshot.identity, sent.marque.identite);
+    assertEquals(snapshot.proposition, sent.marque.proposition);
+    assertEquals(snapshot.strategy, sent.marque.strategy);
+    assertEquals((snapshot.memory as Array<Record<string, unknown>>)[0].note, "Éviter l'effet plastique");
+    assertEquals(typeof snapshot.captured_at, "string");
+    assertEquals(typeof proposal.rules_version, "string");
+  } finally { f.restore(); }
+});
 Deno.test(
   "viewer cannot ask the interpreter, generate, create or save",
   async () => {
