@@ -525,13 +525,24 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Recharge le Studio pour accéder à la création et aux retouches étendues. Aucune image n’a été lancée.";
         }
+        const editInput =
+          parent?.result_path ||
+          (intent.operation === "edit" ? selectedReference?.path : null) ||
+          null;
         const proposedRefs =
-          intent.operation === "background" ? [] : references;
+          intent.operation === "background"
+            ? []
+            : references.filter((r) => r.path !== editInput);
         const originalPath =
+          (selectedReference?.role === "subject"
+            ? selectedReference.path
+            : null) ||
           references.find((r) => r.role === "subject")?.path ||
           (parent
             ? parent.proposal.original_path || null
-            : selectedReference?.path || null);
+            : ["background", "edit"].includes(intent.operation)
+              ? selectedReference?.path || null
+              : null);
         const proposal = ["background", "create", "edit", "product"].includes(
           intent.operation,
         )
@@ -543,9 +554,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               cost: 1,
               references: proposedRefs,
               input_path:
-                intent.operation === "background"
-                  ? inputPath
-                  : parent?.result_path || null,
+                intent.operation === "background" ? inputPath : editInput,
               original_path: originalPath,
               subject_kind:
                 references.find((r) => r.role === "subject")?.kind || null,
