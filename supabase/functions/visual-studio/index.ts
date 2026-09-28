@@ -69,6 +69,7 @@ const schema = z.object({
   reference_role: z.enum(REFERENCE_ROLES).optional(),
   composition: compositionSchema.optional(),
   composition_use_image: z.boolean().optional(),
+  composition_history_id: z.string().uuid().optional(),
   charter_index: z.number().int().min(0).max(8).optional(),
   reference_id: z.string().uuid().optional(),
   memory_id: z.string().uuid().optional(),
@@ -882,7 +883,15 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       }
       let backgroundPath = session.composition?.background_path || null;
       if (p.composition_use_image === false) backgroundPath = null;
-      else if (p.viewed_version_id) {
+      else if (p.composition_history_id) {
+        const source = unwrap(
+          await sb.from("visual_studio_compositions").select("background_path")
+            .eq("id", p.composition_history_id)
+            .eq("session_id", session.id).eq("workspace_id", p.workspace_id)
+            .single(),
+        );
+        backgroundPath = source.background_path;
+      } else if (p.viewed_version_id) {
         const source = unwrap(
           await sb.from("visual_studio_versions").select("result_path").eq(
             "id",
@@ -895,16 +904,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           r.id === p.viewed_reference_id
         )?.path || null;
       }
-      session = unwrap(
-        await sb.from("visual_studio_sessions").update({
-          composition: {
-            design: p.composition,
-            background_path: backgroundPath,
-          },
-          revision: session.revision + 1,
-          updated_at: new Date().toISOString(),
-        }).eq("id", session.id).eq("revision", p.revision).select("*").single(),
-      );
+      session = unwrap(await sb.rpc("studio_save_composition", {
+        p_actor: actor,
+        p_workspace: p.workspace_id,
+        p_session: session.id,
+        p_revision: p.revision,
+        p_design: p.composition,
+        p_background_path: backgroundPath,
+      }));
     }
     if (p.action === "pilot" || p.action === "retry") {
       if (session.revision !== p.revision) throw new Error("studio_conflict");
@@ -1216,6 +1223,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .eq("session_id", session.id)
         .order("created_at"),
     );
+    const compositions = unwrap(
+      await sb.from("visual_studio_compositions").select("*")
+        .eq("session_id", session.id).eq("workspace_id", p.workspace_id)
+        .order("created_at", { ascending: false }).limit(20),
+    );
     const sign = async (path: string) =>
       unwrap(await sb.storage.from(BUCKET).createSignedUrl(path, 900))
         .signedUrl;
@@ -1247,6 +1259,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           url: v.status === "ready" ? await sign(v.result_path) : null,
         })),
       ),
+      composition_history: await Promise.all(compositions.map(async (entry) => ({
+        id: entry.id,
+        design: entry.design,
+        created_at: entry.created_at,
+        background_url: entry.background_path
+          ? await sign(entry.background_path).catch(() => null)
+          : null,
+      }))),
       quota,
       generative_allowed: premiumAllowed(quota.plan, isQaTestAccount(actor)),
       writable: writable && !session.archived_at,

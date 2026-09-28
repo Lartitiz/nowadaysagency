@@ -413,6 +413,23 @@ try {
   await assert.rejects(()=>archive(second,secondRevision+1,false),/permission denied/);
   await db.exec('RESET ROLE');
   console.log('PASS reversible Studio archive, active generation guard and preserved media');
+  await db.exec(fs.readFileSync(new URL('../migrations/20260929000000_studio_composition_history.sql',import.meta.url),'utf8'));
+  assert.equal(await value('SELECT count(*)::int AS value FROM visual_studio_compositions WHERE session_id=$1',[freeSession]),1);
+  const revisedDesign={title:'Marché de Noël corrigé',footer:'12 décembre, 10 h–18 h',format:'portrait'};
+  const saveComposition=(actor,revision,design,background=null)=>value(
+    'SELECT to_jsonb(studio_save_composition($1,$2,$3,$4,$5::jsonb,$6::text)) AS value',
+    [actor,ws,freeSession,revision,JSON.stringify(design),background],
+  );
+  const savedComposition=await saveComposition(owner,restored.revision,revisedDesign,'original/background');
+  assert.deepEqual(savedComposition.composition,{design:revisedDesign,background_path:'original/background'});
+  assert.equal(await value('SELECT count(*)::int AS value FROM visual_studio_compositions WHERE session_id=$1',[freeSession]),2);
+  await assert.rejects(()=>saveComposition(owner,restored.revision,revisedDesign),/studio_conflict/);
+  await assert.rejects(()=>saveComposition(viewer,savedComposition.revision,revisedDesign),/studio_forbidden/);
+  assert.equal(await value('SELECT count(*)::int AS value FROM visual_studio_compositions WHERE session_id=$1',[freeSession]),2);
+  await asRole('authenticated',owner);
+  await assert.rejects(()=>saveComposition(owner,savedComposition.revision,revisedDesign),/permission denied/);
+  await db.exec('RESET ROLE');
+  console.log('PASS atomic composition history, legacy backfill, stale revision and role guards');
   // Account/workspace removal must not acquire blocking foreign keys.
   await db.query("DELETE FROM workspaces WHERE id=$1", [ws]);
   assert.equal(
@@ -423,6 +440,7 @@ try {
     await value("SELECT count(*)::int AS value FROM visual_studio_versions"),
     0,
   );
+  assert.equal(await value('SELECT count(*)::int AS value FROM visual_studio_compositions'),0);
   assert.equal(
     await value(
       "SELECT count(*)::int AS value FROM visual_studio_interpretations",

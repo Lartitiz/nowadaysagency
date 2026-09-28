@@ -115,6 +115,12 @@ export interface StudioMemory {
   references: StudioReference[];
 }
 export interface StudioState {
+  composition_history?: {
+    id: string;
+    design: StudioComposition;
+    background_url: string | null;
+    created_at: string;
+  }[];
   memory?: StudioMemory[];
   charter_references?: { index: number; name: string; url: string }[];
   session: StudioSession;

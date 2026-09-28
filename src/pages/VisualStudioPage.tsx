@@ -153,6 +153,7 @@ function Studio({
   const [compositionDraft, setCompositionDraft] = useState<
     StudioComposition | undefined
   >();
+  const [compositionHistoryId, setCompositionHistoryId] = useState<string | null>(null);
   const [existingTool, setExistingTool] = useState<
     "mockup" | "before_after" | null
   >(null);
@@ -222,6 +223,9 @@ function Studio({
   const current = state.data,
     version = current?.versions.find((v) => v.id === selectedId),
     proposal = current?.session.proposal;
+  const selectedComposition = current?.composition_history?.find((entry) =>
+    entry.id === compositionHistoryId
+  );
   const writable = roleWritable && !current?.session.archived_at;
   const activeBranchChoice = !!branchChoice &&
     branchChoice.target === selectedId &&
@@ -855,6 +859,7 @@ function Studio({
                         variant="link"
                         disabled={!writable}
                         onClick={() => {
+                          setCompositionHistoryId(null);
                           setCompositionDraft(m.composition ? { ...m.composition, logo_data_url: current?.session.composition?.design.logo_data_url || null } : undefined);
                           setCompositionOpen(true);
                         }}
@@ -1334,12 +1339,38 @@ function Studio({
                         variant="outline"
                         disabled={!writable || !!busy}
                         onClick={() => {
+                          setCompositionHistoryId(null);
                           setCompositionDraft(undefined);
                           setCompositionOpen(true);
                         }}
                       >
                         Composer une affiche ou un visuel
                       </Button>
+                      {!!current.composition_history?.length && (
+                        <details className="w-full text-sm">
+                          <summary>Compositions enregistrées · {current.composition_history.length}</summary>
+                          <div className="flex flex-wrap gap-2 mt-2">
+                            {current.composition_history.map((entry) => (
+                              <Button
+                                key={entry.id}
+                                variant="outline"
+                                size="sm"
+                                disabled={!writable || !!busy}
+                                onClick={() => {
+                                  setCompositionHistoryId(entry.id);
+                                  setCompositionDraft(undefined);
+                                  setCompositionOpen(true);
+                                }}
+                              >
+                                Reprendre {entry.design.title?.slice(0, 48) || "Composition"} · {new Date(entry.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}
+                              </Button>
+                            ))}
+                          </div>
+                          {current.composition_history.length === 20 && (
+                            <p className="text-xs text-muted-foreground mt-2">Les 20 dernières compositions sont affichées.</p>
+                          )}
+                        </details>
+                      )}
                       <Button
                         variant="ghost"
                         disabled={!writable || !!busy}
@@ -1531,11 +1562,13 @@ function Studio({
       )}
       {current && (
         <StudioCompositionEditor
-          key={sessionId}
+          key={`${sessionId}:${compositionHistoryId || "current"}`}
           open={compositionOpen}
           onOpenChange={setCompositionOpen}
-          initial={compositionDraft || current.session.composition?.design}
-          backgroundUrl={!compositionDraft && current.session.composition
+          initial={selectedComposition?.design || compositionDraft || current.session.composition?.design}
+          backgroundUrl={selectedComposition
+            ? selectedComposition.background_url
+            : !compositionDraft && current.session.composition
             ? current.session.composition.background_url
             : version?.url || selectedReference?.url}
           disabled={!writable || !!busy}
@@ -1543,6 +1576,7 @@ function Studio({
             mutate("composition_save", {
               composition: design,
               composition_use_image: useImage,
+              composition_history_id: compositionHistoryId || undefined,
               revision: current.session.revision,
               viewed_version_id:
                 !compositionDraft && current.session.composition
