@@ -125,6 +125,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
                 <label htmlFor="creation-idea" className="block text-sm font-semibold text-primary">Ton idée</label>
                 <Textarea
                   id="creation-idea"
+                  data-testid="creer-idea-input"
                   value={idea}
                   onChange={(e) => setIdea(e.target.value)}
                   placeholder="Une nouveauté, les coulisses, une question de tes clientes…"
@@ -138,7 +139,7 @@ export default function CreerStepIdea({ initialFormat, channel, onNext, onCoachi
                 )}
                 <div className="flex flex-wrap items-center justify-between gap-4 border-t border-border pt-5">
                   <p className="max-w-56 text-xs leading-relaxed text-muted-foreground">Quelques mots suffisent pour commencer.</p>
-                  <Button onClick={() => onNext(idea.trim())} disabled={!idea.trim()} className="gap-2" size="lg">
+                  <Button onClick={() => onNext(idea.trim())} disabled={!idea.trim()} className="gap-2" size="lg" data-testid="creer-idea-next">
                     Continuer <ArrowRight className="h-4 w-4" />
                   </Button>
                 </div>

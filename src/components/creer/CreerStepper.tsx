@@ -37,7 +37,7 @@ export default function CreerStepper({ current, contentAvailable = false, onStep
   const currentStep = STEPS[currentIndex] ?? STEPS[0];
 
   return (
-    <nav aria-label="Étapes de création" className="mb-8 space-y-3">
+    <nav aria-label="Étapes de création" data-testid="creer-stepper" data-current-step={current} className="mb-8 space-y-3">
       <div className="flex items-start gap-1 sm:gap-3 sm:max-w-xl">
         {STEPS.map((s, i) => {
           const isPast = i < currentIndex;

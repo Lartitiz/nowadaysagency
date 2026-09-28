@@ -16,7 +16,7 @@ export default function CarouselModePicker({ value, onChange, photos = [] }: { v
           { id: "pure_photo", label: "Photos brutes", hint: "Des photos sans texte dessus. L’IA écrit seulement la légende." },
           { id: "user_slides", label: "Mes slides", hint: "Tu fournis ton texte, slide par slide. L’IA le met en page sans le réécrire." },
         ] as { id: CarouselPreviewMode; label: string; hint: string }[]).map((mode) => (
-          <button key={mode.id} type="button" aria-pressed={value === mode.id}
+          <button key={mode.id} type="button" aria-pressed={value === mode.id} data-testid={`carousel-mode-${mode.id}`}
             onClick={() => onChange(mode.id)}
             className={cn("rounded-xl border-2 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2", value === mode.id ? "border-primary bg-primary/5" : "border-border bg-card hover:border-primary/40")}
           >

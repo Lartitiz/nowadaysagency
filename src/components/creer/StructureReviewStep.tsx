@@ -469,6 +469,7 @@ export default function StructureReviewStep({
             variant="ghost"
             className="text-sm text-gray-500"
             onClick={() => onSkip(renumberedSlides)}
+            data-testid="creer-generate-direct"
             disabled={isLoading}
           >
             Générer directement
