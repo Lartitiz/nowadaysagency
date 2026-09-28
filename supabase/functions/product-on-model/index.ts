@@ -151,7 +151,14 @@ function buildPrompt(opts: {
   );
 
   lines.push(
-    "STRICTLY AVOID: background blur, bokeh, shallow depth of field, cinematic look, studio lighting, golden-hour glow, magazine retouching, plastic smooth skin, added text, logos, watermarks."
+    "STRICTLY AVOID: background blur, bokeh, shallow depth of field, cinematic look, studio lighting, golden-hour glow, magazine retouching, plastic smooth skin, any text, logo or watermark ADDED to the scene."
+  );
+
+  // 🔑 « logos » tout court dans la liste ci-dessus (jusqu'au 28/09) pouvait se
+  // lire « aucun logo nulle part » → le modèle effaçait celui DU PRODUIT, alors
+  // que c'est justement ce qui doit rester identique (marque de la cliente).
+  lines.push(
+    "KEEP ON THE PRODUCT: its own logo, brand name, printed text, labels and engravings must stay exactly as on the source photo — same spelling, placement, size and color. Never remove, blur, translate or invent them."
   );
 
   const b = opts.brand;
