@@ -164,6 +164,70 @@ export function extractImageCandidates(html: string, baseUrl: string): SiteImage
   return out;
 }
 
+/* ───────────────────────── Logo ───────────────────────── */
+
+/**
+ * Formats de logo récupérables. SVG volontairement exclu : le mode "fetch"
+ * le refuse (vecteur potentiellement scripté), et on ne le servirait pas
+ * depuis le bucket public brand-assets.
+ */
+const LOGO_REJECTED_EXT = /\.(svg|ico|gif|bmp|tiff?)([?#]|$)/i;
+
+/** Petites images de tiers qui portent le mot « logo » sans être LA marque. */
+const THIRD_PARTY_LOGO =
+  /(visa|mastercard|paypal|stripe|apple-?pay|google-?pay|facebook|instagram|linkedin|pinterest|tiktok|youtube|twitter|whatsapp|partenaire|partner|client|sponsor|label|certif|payment|paiement)/i;
+
+/**
+ * Trouve le logo de la marque sur une page, en URL absolue, ou null.
+ * Ordre de confiance :
+ *  1. JSON-LD (Organization / LocalBusiness "logo") — déclaré par le site
+ *     lui-même, présent sur la plupart des WordPress/Wix/Squarespace ;
+ *  2. premier <img> dont le tag parle de « logo » (class, id, alt, src) —
+ *     l'en-tête vient en premier dans le document ;
+ *  3. apple-touch-icon (PNG carré du logo, faute de mieux).
+ * Pas d'og:image : c'est le plus souvent une photo, pas le logo.
+ */
+export function extractLogoCandidate(html: string, baseUrl: string): string | null {
+  const accept = (raw: string | null | undefined): string | null => {
+    if (!raw) return null;
+    const abs = resolveUrl(raw.replace(/\\\//g, "/"), baseUrl);
+    if (!abs || LOGO_REJECTED_EXT.test(abs)) return null;
+    return abs;
+  };
+
+  // 1. JSON-LD
+  const ldRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+  let ld: RegExpExecArray | null;
+  while ((ld = ldRegex.exec(html)) !== null) {
+    const block = ld[1];
+    const m =
+      block.match(/"logo"\s*:\s*"([^"]+)"/i) ||
+      block.match(/"logo"\s*:\s*\{[^}]*?"(?:url|contentUrl)"\s*:\s*"([^"]+)"/i);
+    const found = accept(m?.[1]);
+    if (found) return found;
+  }
+
+  // 2. <img> « logo »
+  const imgRegex = /<img\b[^>]*>/gi;
+  let im: RegExpExecArray | null;
+  while ((im = imgRegex.exec(html)) !== null) {
+    const tag = im[0];
+    if (!/logo/i.test(tag) || THIRD_PARTY_LOGO.test(tag)) continue;
+    const srcset = attr(tag, "srcset") || attr(tag, "data-srcset");
+    const fromSrcset = srcset ? pickLargestFromSrcset(srcset)?.url : null;
+    const src =
+      fromSrcset ||
+      attr(tag, "data-src") || attr(tag, "data-lazy-src") || attr(tag, "data-original") ||
+      attr(tag, "src");
+    const found = accept(src);
+    if (found) return found;
+  }
+
+  // 3. apple-touch-icon
+  const apple = html.match(/<link[^>]*rel=["']apple-touch-icon[^"']*["'][^>]*href=["']([^"']+)["']/i);
+  return accept(apple?.[1]);
+}
+
 /* ───────────────────────── Instagram ───────────────────────── */
 
 /**

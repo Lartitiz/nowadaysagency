@@ -1,5 +1,5 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { extractImageCandidates, pickLargestFromSrcset } from "./site-photos.ts";
+import { extractImageCandidates, extractLogoCandidate, pickLargestFromSrcset } from "./site-photos.ts";
 
 const BASE = "https://www.exemple-savonnerie.fr/";
 
@@ -160,4 +160,34 @@ Deno.test("Instagram : légende vide → alt null, sans timestamp → name insta
   ]);
   assertEquals(out[0].alt, null);
   assertEquals(out[0].name, "insta");
+});
+
+// ── extractLogoCandidate ──
+
+Deno.test("logo : JSON-LD Organization prioritaire (échappements \\/ gérés)", () => {
+  const html = `<img class="site-logo" src="/header-logo.png">
+    <script type="application/ld+json">{"@type":"Organization","logo":"https:\\/\\/cdn.exemple.fr\\/logo-officiel.png"}</script>`;
+  assertEquals(extractLogoCandidate(html, BASE), "https://cdn.exemple.fr/logo-officiel.png");
+});
+
+Deno.test("logo : JSON-LD en objet ImageObject { url }", () => {
+  const html = `<script type="application/ld+json">{"logo":{"@type":"ImageObject","url":"/wp-content/logo.webp"}}</script>`;
+  assertEquals(extractLogoCandidate(html, BASE), "https://www.exemple-savonnerie.fr/wp-content/logo.webp");
+});
+
+Deno.test("logo : premier <img> « logo » de l'en-tête, logos de paiement ignorés", () => {
+  const html = `<img src="/pay/visa-logo.png" alt="logo Visa">
+    <img class="custom-logo" data-src="/uploads/savonnerie.png" src="data:image/gif;base64,xx">`;
+  assertEquals(extractLogoCandidate(html, BASE), "https://www.exemple-savonnerie.fr/uploads/savonnerie.png");
+});
+
+Deno.test("logo : SVG jamais proposé, repli sur apple-touch-icon", () => {
+  const html = `<img class="logo" src="/logo.svg">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">`;
+  assertEquals(extractLogoCandidate(html, BASE), "https://www.exemple-savonnerie.fr/apple-touch-icon.png");
+});
+
+Deno.test("logo : og:image n'est jamais pris pour un logo", () => {
+  const html = `<meta property="og:image" content="/hero-photo.jpg"><img src="/atelier.jpg">`;
+  assertEquals(extractLogoCandidate(html, BASE), null);
 });

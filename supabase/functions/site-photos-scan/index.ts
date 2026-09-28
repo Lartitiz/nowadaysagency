@@ -6,6 +6,10 @@
  *    Le tri fin (dimensions réelles, images mortes) se fait côté client, qui
  *    peut AFFICHER les images cross-origin sans CORS.
  *
+ *  - mode "logo" : { websiteUrl } → { logo: URL absolue | null } — le logo de
+ *    la marque (JSON-LD, <img> « logo », apple-touch-icon ; jamais d'SVG),
+ *    proposé pour la charte graphique après l'onboarding.
+ *
  *  - mode "instagram" : { workspace_id? } → photos des 50 derniers posts du
  *    compte connecté (API Graph officielle, jamais de scraping) : images
  *    simples + enfants de carrousels, vidéos écartées. ⚠️ les media_url
@@ -26,6 +30,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { safeFetchFollow } from "../_shared/scraping.ts";
 import {
   extractImageCandidates,
+  extractLogoCandidate,
   flattenInstagramMedia,
   type InstagramMediaItem,
 } from "../_shared/site-photos.ts";
@@ -89,7 +94,7 @@ serve(async (req) => {
     const { userId } = await authenticateRequest(req);
     const { mode, websiteUrl, imageUrl, workspace_id: workspaceId } = await req.json();
 
-    if (mode === "scan") {
+    if (mode === "scan" || mode === "logo") {
       if (!websiteUrl || typeof websiteUrl !== "string") {
         return json(corsHeaders, { error: "websiteUrl requis" }, 400);
       }
@@ -110,6 +115,9 @@ serve(async (req) => {
       const html = new TextDecoder("utf-8", { fatal: false }).decode(bytes);
       // finalUrl (après redirections) comme base : les chemins relatifs du HTML
       // se résolvent contre la page réellement servie, pas l'URL saisie.
+      if (mode === "logo") {
+        return json(corsHeaders, { success: true, logo: extractLogoCandidate(html, fetched.finalUrl) });
+      }
       const images = extractImageCandidates(html, fetched.finalUrl);
       return json(corsHeaders, { success: true, images });
     }
@@ -187,7 +195,7 @@ serve(async (req) => {
       return json(corsHeaders, { success: true, images });
     }
 
-    return json(corsHeaders, { error: "mode invalide (scan | fetch | instagram)" }, 400);
+    return json(corsHeaders, { error: "mode invalide (scan | logo | fetch | instagram)" }, 400);
   } catch (e) {
     if (e instanceof AuthError) {
       return json(corsHeaders, { error: e.message }, e.status);
