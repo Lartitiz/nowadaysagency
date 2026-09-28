@@ -164,7 +164,7 @@ function SettingsContent() {
     setDeleting(true);
     try {
       console.log("[delete-account] Calling edge function...");
-      const { data, error } = await invokeWithTimeout("delete-account", {}, 30000);
+      const { data, error } = await invokeWithTimeout("delete-account", {}, 120000);
       console.log("[delete-account] Response:", { data, error });
 
       if (error) {
