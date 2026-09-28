@@ -6,7 +6,7 @@ import { authoredContentSource, currentContentContract } from "../_shared/editor
 import { CONTENT_CLARITY_RULES } from "../_shared/content-clarity.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getUserContext, formatContextForAI, CONTEXT_PRESETS, buildPreGenFallback, buildIdentityBlock, buildBrandGuardText } from "../_shared/user-context.ts";
-import { checkQuota, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
+import { checkQuota, isQaTestAccount, logUsage, quotaDeniedResponse } from "../_shared/plan-limiter.ts";
 import { callAnthropic, getModelForAction, SONNET_MODEL, AnthropicError, type UsageSink, type AnthropicModel, type AnthropicOptions } from "../_shared/anthropic.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { EDITORIAL_ANGLES_REFERENCE } from "../_shared/copywriting-prompts.ts";
@@ -515,6 +515,8 @@ export async function handleRequest(req: Request): Promise<Response> {
     });
     if (!r.ok) return r.response;
     const { userId, supabase } = r;
+    // Banc d'essai du rédacteur (Opus 5.5) : réservé au compte QA Camille.
+    if (!isQaTestAccount(userId)) delete body.writer_bench;
 
     // Champs écrits par l'IA à une étape précédente (structure_proposal, choix
     // d'angle) puis renvoyés tels quels par le front pour la passe d'écriture :

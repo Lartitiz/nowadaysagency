@@ -118,6 +118,20 @@ for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/
     assertEquals(logged[5], TEST_WORKSPACE_ID);
   }
 });
+for (const [userId, expected] of [[TEST_USER_ID, "claude-opus-5"], ["52e6c03c-a7de-4c20-9b4a-276751f976e8", "claude-opus-5-5"]] as const) Deno.test(`writer_bench Opus 5.5 honoured only for the QA account (${expected})`, async () => {
+  resetDeps();
+  _deps.runPipeline = (async () => ({ ok: true, userId, supabase: makeFakeSupabase(userId) as any, corsHeaders: {}, quota: null })) as any;
+  let model = "";
+  _deps.callCarouselWriter = (async (options: any, sink: any) => {
+    model = options.model;
+    Object.assign(sink, { model: options.model, total_tokens: 1 });
+    return JSON.stringify({ hooks: [] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "hooks", writer_bench: "claude-opus-5-5" }));
+  await res.text();
+  assertEquals(res.status, 200);
+  assertEquals(model, expected);
+});
 Deno.test("Max quota denial never calls writer or bills usage", async () => {
   resetDeps();
   _deps.checkQuota = (async (_id: string, category: string) => { assertEquals(category, "quality_max"); return { allowed: false, plan: "free", reason: "quality_max" }; }) as any;
@@ -146,7 +160,7 @@ Deno.test("Mes slides never uses new writer, preserves authored text", async () 
  * Les cas refusés/échoués sont testés séparément, sans repli personnel implicite.
  * Pas de fichier partagé — chaque *_test.ts du repo est autonome par convention.
  */
-function makeFakeSupabase() {
+function makeFakeSupabase(ownerId: string = TEST_USER_ID) {
   // deno-lint-ignore no-explicit-any
   function builder(table?: string): any {
     // deno-lint-ignore no-explicit-any
@@ -164,7 +178,7 @@ function makeFakeSupabase() {
     b.is = () => b;
     b.single = () => Promise.resolve({ data: null, error: null });
     b.maybeSingle = () => {
-      const owner = { workspace_id: TEST_WORKSPACE_ID, user_id: TEST_USER_ID, role: "owner" };
+      const owner = { workspace_id: TEST_WORKSPACE_ID, user_id: ownerId, role: "owner" };
       const matchesOwner = table === "workspace_members" && Object.entries(filters).every(([key, value]) => owner[key as keyof typeof owner] === value);
       return Promise.resolve({ data: matchesOwner ? owner : null, error: null });
     };

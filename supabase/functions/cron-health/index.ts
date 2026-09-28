@@ -450,6 +450,7 @@ Deno.serve(async (req) => {
       "claude-haiku-4-5": 2,
       "claude-sonnet-5": 4,
       "claude-sonnet-4-6": 6,
+      "claude-opus-5-5": 8, // 4 $ / 20 $ par Mtok → 0,75×4 + 0,25×20
       "claude-opus-5": 10,
       "claude-opus-4-8": 10,
       "claude-opus-4-7": 10,
