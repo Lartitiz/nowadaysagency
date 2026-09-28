@@ -685,7 +685,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       body.deepening_answers ? JSON.stringify(body.deepening_answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       depthBlock,
-      Array.isArray(body.photos) ? body.photos.map((p: any) => p?.context || "").join("\n") : "",
+      Array.isArray(body.photo_contexts || body.photos) ? (body.photo_contexts || body.photos).map((p: any) => p?.context || "").join("\n") : "",
       Array.isArray(body.photo_catalog) ? body.photo_catalog.map((p: any) => p?.description || "").join("\n") : "",
       brandingContext || "",
     ].filter(Boolean).join("\n");

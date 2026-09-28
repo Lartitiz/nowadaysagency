@@ -57,6 +57,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
       reviews++;
       const message = request.input[0].content;
       assert(message.includes("BRIEF ACTUEL PRIORITAIRE"));
+      assert(message.includes("CONTEXTE_PHOTO_CONSERVÉ"));
       assert(message.includes("Attendre une réponse commune"));
       assert(message.includes("FIL CONFIRMÉ À PRÉSERVER : FIL_VALIDÉ"));
       assert(message.includes("STRUCTURE CHOISIE À PRÉSERVER : PLAN_VALIDÉ"));
@@ -74,7 +75,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try {
-    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, slide_count: 4, narrative_thread: "FIL_VALIDÉ", content_structure: "PLAN_VALIDÉ", deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, photo_contexts: [{ context: "CONTEXTE_PHOTO_CONSERVÉ : trois demandes reçues par e-mail." }], slide_count: 4, narrative_thread: "FIL_VALIDÉ", content_structure: "PLAN_VALIDÉ", deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
     assertEquals(res.status, 200);
     const output = await res.json();
     assertEquals(output.writer, { version: "opus55-astra-medium-v1", model: qualityMax ? "gpt-6-astra" : "claude-opus-5-5", effort: "medium" });
