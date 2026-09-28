@@ -7994,6 +7994,7 @@ export type Database = {
       }
       visual_studio_sessions: {
         Row: {
+          archived_at: string | null
           brief: string
           composition: Json | null
           created_at: string
@@ -8012,6 +8013,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          archived_at?: string | null
           brief?: string
           composition?: Json | null
           created_at?: string
@@ -8030,6 +8032,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          archived_at?: string | null
           brief?: string
           composition?: Json | null
           created_at?: string
@@ -9024,6 +9027,39 @@ export type Database = {
       studio_save_library: {
         Args: { p_actor: string; p_version: string }
         Returns: string
+      }
+      studio_set_session_archived: {
+        Args: {
+          p_archive: boolean
+          p_revision: number
+          p_session: string
+          p_workspace: string
+        }
+        Returns: {
+          archived_at: string | null
+          brief: string
+          composition: Json | null
+          created_at: string
+          id: string
+          messages: Json
+          name: string
+          proposal: Json | null
+          references: Json | null
+          revision: number
+          source_metadata: Json
+          source_path: string | null
+          source_photo_id: string | null
+          source_ready: boolean
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "visual_studio_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       studio_video_claim: {
         Args: { p_actor: string; p_job: string; p_monthly_limit: number }
