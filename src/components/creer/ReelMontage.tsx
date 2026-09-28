@@ -192,13 +192,22 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
 
   // Changing any render input invalidates publication, while preserving takes,
   // chosen clips and the old downloadable MP4. Late rendering responses are ignored.
-  const renderKey = JSON.stringify([reelSourceKey({ sections }), clips, cutaways, voiceClips, voiceMode, montageMode, subtitleSettingsFromCharter(charter)]);
+  const renderKey = JSON.stringify([reelSourceKey({ sections }),
+    clips.map(clip => clip?.source === "studio" ? { ...clip, url: "" } : clip),
+    cutaways.map(plan => plan ? { ...plan, url: "" } : plan),
+    voiceClips, voiceMode, montageMode, subtitleSettingsFromCharter(charter)]);
   const projectCallback = useRef(onProjectChange);
   projectCallback.current = onProjectChange;
-  const projectInitialized = useRef(false);
+  const lastPersistedProject = useRef<string | null>(null);
   useEffect(() => {
-    if (!projectInitialized.current) { projectInitialized.current = true; return; }
-    projectCallback.current?.({ version: 1, sectionTexts: associationTexts, montageMode, voiceMode, clips, voiceClips, cutaways });
+    const project: ReelMontageProject = { version: 1, sectionTexts: associationTexts, montageMode, voiceMode,
+      clips: clips.map(clip => clip?.source === "studio" ? { ...clip, url: "" } : clip),
+      voiceClips, cutaways: cutaways.map(plan => plan ? { ...plan, url: "" } : plan) };
+    const key = JSON.stringify(project);
+    if (lastPersistedProject.current === null) { lastPersistedProject.current = key; return; }
+    if (lastPersistedProject.current === key) return;
+    lastPersistedProject.current = key;
+    projectCallback.current?.(project);
   }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts]);
   const activeRender = useRef({ key: renderKey, generation: 0, mounted: true });
   if (activeRender.current.key !== renderKey) {
