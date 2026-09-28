@@ -142,3 +142,22 @@ Deno.test("a series shot does not inherit conflicting framing from the other sho
   assertEquals(prompt.includes("not a collage"), true);
   assertEquals(imagePrompt({...proposal, series_size: undefined, operation: "edit"}).includes("First photo: three-quarter length"), true);
 });
+
+Deno.test("the image provider receives the saved visual charter with the shot's priorities", () => {
+  const prompt = imagePrompt({
+    operation: "product",
+    image_prompt: "Photograph the exact cobalt bag against a white wall",
+    references: [{ id: "product", photo_id: "product", path: "private", role: "product", name: "Cobalt bag" }],
+    brand_context: { charter: {
+      photo_style: "Natural daylight, textured surfaces",
+      mood_keywords: ["quiet", "warm"],
+      visual_donts: ["plastic skin", "fake logos"],
+    } },
+  });
+  assertEquals(prompt.includes("Natural daylight, textured surfaces"), true);
+  assertEquals(prompt.includes("quiet; warm"), true);
+  assertEquals(prompt.includes("plastic skin; fake logos"), true);
+  assertEquals(prompt.includes("exact person or product references take priority"), true);
+  assertEquals(prompt.includes("Preserve this exact product"), true);
+  assertEquals(imagePrompt({ operation: "create", image_prompt: "A drawing" }).includes("Brand visual direction"), false);
+});

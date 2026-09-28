@@ -23,6 +23,7 @@ export type Proposal = {
   references?: Reference[];
   input_path?: string | null;
   series_size?: number;
+  brand_context?: { charter?: Record<string, unknown> | null };
 };
 /** The request may have reached the image provider; repeating it may incur another charge. */
 export class ProviderOutcomeUncertainError extends Error {
@@ -174,6 +175,16 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
 export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
   const isSeries = (proposal.series_size || 1) > 1;
+  const charter = proposal.brand_context?.charter;
+  const direction = (value: unknown) =>
+    (typeof value === "string"
+      ? value
+      : Array.isArray(value)
+      ? value.filter((part): part is string => typeof part === "string").join("; ")
+      : "").trim().slice(0, 500);
+  const style = direction(charter?.photo_style);
+  const mood = direction(charter?.mood_keywords);
+  const avoid = direction(charter?.visual_donts);
   return [
     proposal.image_prompt,
     (proposal.operation === "create"
@@ -194,6 +205,13 @@ export function imagePrompt(proposal: Proposal) {
           referenceInstruction(ref.role)
         }`,
     ),
+    style || mood || avoid
+      ? `Brand visual direction from the confirmed charter: ${[
+        style ? `Visual style: ${style}` : "",
+        mood ? `Mood: ${mood}` : "",
+        avoid ? `Avoid: ${avoid}` : "",
+      ].filter(Boolean).join("; ")}. Apply it where compatible with this shot. The user's specific request and exact person or product references take priority; never recolor or reshape them merely to fit the brand.`
+      : "",
     "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",
     isSeries
       ? "Produce ONE image for this shot, not a collage. Its camera framing, crop and pose must follow this shot's brief even when the reference uses a different framing. Shot brief: " + proposal.image_prompt
