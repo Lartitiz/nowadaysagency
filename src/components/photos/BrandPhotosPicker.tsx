@@ -56,12 +56,26 @@ function looksLikeUrl(value: string): boolean {
   return !!v && !/\s/.test(v) && v.includes(".");
 }
 
+/**
+ * Le champ Instagram du profil accepte aussi bien « @lamaiastra » qu'une URL
+ * complète. On en extrait le pseudo nu pour pouvoir le comparer au compte
+ * réellement connecté en OAuth.
+ */
+function normalizeInstagramHandle(value: string | null | undefined): string | null {
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+  const fromUrl = raw.match(/instagram\.com\/([^/?#\s]+)/i)?.[1] ?? raw;
+  const handle = fromUrl.replace(/^@/, "").split(/[/?#]/)[0].trim().toLowerCase();
+  return handle || null;
+}
+
 export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerProps) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
   const workspaceId = useWorkspaceId();
-  const { connected, loading: connectionsLoading } = useSocialConnections();
+  const { connected, accountNames, loading: connectionsLoading } = useSocialConnections();
   const instagramConnected = !!connected.instagram;
+  const connectedInstagramHandle = normalizeInstagramHandle(accountNames.instagram);
   const { mutate: uploadLibrary } = useUploadLibraryPhotos();
 
   const [status, setStatus] = useState<Status>("loading");
@@ -71,6 +85,8 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
   const [expanded, setExpanded] = useState(false);
   const [importedCount, setImportedCount] = useState(0);
   const [hasSite, setHasSite] = useState(false);
+  // Le compte Instagram connecté correspond-il bien à la marque du profil ?
+  const [instagramUsed, setInstagramUsed] = useState(false);
   // Un seul scan par montage (StrictMode monte deux fois en dev).
   const scanStarted = useRef(false);
 
@@ -87,15 +103,26 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
     void (async () => {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("website_url")
+        .select("website_url, instagram_url, instagram_username")
         .eq("user_id", user.id)
         .maybeSingle();
       const websiteUrl = (profile?.website_url ?? "").trim();
       const siteOk = looksLikeUrl(websiteUrl);
       setHasSite(siteOk);
 
+      // Le compte connecté en OAuth peut appartenir à une autre marque que
+      // celle décrite dans le profil (réinitialisation d'onboarding, test).
+      // Dans ce cas on ignore Instagram : on ne mélange pas deux marques.
+      const profileHandle =
+        normalizeInstagramHandle(profile?.instagram_username) ??
+        normalizeInstagramHandle(profile?.instagram_url);
+      const instagramMatchesBrand =
+        instagramConnected &&
+        (!profileHandle || (connectedInstagramHandle !== null && profileHandle === connectedInstagramHandle));
+      setInstagramUsed(instagramMatchesBrand);
+
       const scans: Promise<SiteImageCandidate[]>[] = [];
-      if (instagramConnected) {
+      if (instagramMatchesBrand) {
         scans.push(
           invokeWithTimeout(
             "site-photos-scan",
@@ -140,14 +167,22 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
         posthog.capture("brand_photos_picker_shown", {
           placement,
           count: merged.length,
-          instagram: instagramConnected,
+          instagram: instagramMatchesBrand,
         });
       }
     })().catch((e) => {
       console.error("[BrandPhotosPicker] scan failed:", e);
       setStatus("hidden");
     });
-  }, [isDemoMode, user?.id, workspaceId, connectionsLoading, instagramConnected, placement]);
+  }, [
+    isDemoMode,
+    user?.id,
+    workspaceId,
+    connectionsLoading,
+    instagramConnected,
+    connectedInstagramHandle,
+    placement,
+  ]);
 
   const visible = candidates.filter((c) => !hiddenUrls.has(c.url));
 
@@ -233,7 +268,7 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
     }
   }
 
-  const sourceLabel = instagramConnected
+  const sourceLabel = instagramUsed
     ? hasSite
       ? "sur ton site et ton Instagram"
       : "sur ton Instagram"
@@ -315,8 +350,12 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
 
           <p className="text-2xs text-muted-foreground">
             Choisis uniquement des images qui t'appartiennent (pas de photos de banque d'images sous licence).
-            {!instagramConnected &&
-              " Tes photos Instagram ? Connecte ton compte depuis Paramètres › Connexions pour les importer aussi."}
+            {!instagramUsed &&
+              (instagramConnected
+                ? connectedInstagramHandle
+                  ? ` Le compte Instagram connecté (@${connectedInstagramHandle}) n'est pas celui de cette marque : ses photos ne sont pas proposées ici. Change-le depuis Paramètres › Connexions.`
+                  : " Le compte Instagram connecté n'a pas pu être identifié : ses photos ne sont pas proposées pour cette marque. Vérifie-le depuis Paramètres › Connexions."
+                : " Tes photos Instagram ? Connecte ton compte depuis Paramètres › Connexions pour les importer aussi.")}
           </p>
 
           <div className="flex items-center justify-between gap-3">

@@ -29,6 +29,7 @@ import { executeStudioJob } from "./worker.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
+  studio_version: z.literal(2).optional(),
   action: z.enum([
     "create",
     "read",
@@ -147,6 +148,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               .eq("id", p.photo_id)
               .eq("workspace_id", p.workspace_id)
               .eq("status", "ready")
+              .is("removed_from_library_at", null)
               .single(),
           )
         : null;
@@ -283,6 +285,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             .eq("id", p.photo_id)
             .eq("workspace_id", p.workspace_id)
             .eq("status", "ready")
+            .is("removed_from_library_at", null)
             .single(),
         );
         const id = crypto.randomUUID(),
@@ -429,6 +432,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               .select("id,name,kind,description")
               .eq("workspace_id", p.workspace_id)
               .eq("status", "ready")
+              .is("removed_from_library_at", null)
               .order("created_at", { ascending: false })
               .limit(60),
           ]);
@@ -519,13 +523,29 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           intent.summary =
             "Pour représenter fidèlement cette personne ou ce produit, choisis sa photo dans la bibliothèque. Tu peux aussi me demander une illustration sans représentation réelle.";
         }
+        if (generative(intent.operation) && p.studio_version !== 2) {
+          intent.operation = "existing_tool";
+          intent.summary =
+            "Recharge le Studio pour accéder à la création et aux retouches étendues. Aucune image n’a été lancée.";
+        }
+        const editInput =
+          parent?.result_path ||
+          (intent.operation === "edit" ? selectedReference?.path : null) ||
+          null;
         const proposedRefs =
-          intent.operation === "background" ? [] : references;
+          intent.operation === "background"
+            ? []
+            : references.filter((r) => r.path !== editInput);
         const originalPath =
+          (selectedReference?.role === "subject"
+            ? selectedReference.path
+            : null) ||
           references.find((r) => r.role === "subject")?.path ||
           (parent
             ? parent.proposal.original_path || null
-            : selectedReference?.path || null);
+            : ["background", "edit"].includes(intent.operation)
+              ? selectedReference?.path || null
+              : null);
         const proposal = ["background", "create", "edit", "product"].includes(
           intent.operation,
         )
@@ -537,9 +557,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               cost: 1,
               references: proposedRefs,
               input_path:
-                intent.operation === "background"
-                  ? inputPath
-                  : parent?.result_path || null,
+                intent.operation === "background" ? inputPath : editInput,
               original_path: originalPath,
               subject_kind:
                 references.find((r) => r.role === "subject")?.kind || null,
@@ -605,6 +623,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .maybeSingle();
       if (existing.error) throw existing.error;
       if (!existing.data) {
+        if (generative(session.proposal?.operation) && p.studio_version !== 2)
+          return json(
+            { error: "Recharge le Studio avant de confirmer cette création." },
+            409,
+          );
         if (!session.proposal || session.proposal.id !== p.proposal_id)
           return json(
             {
@@ -835,6 +858,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             .select("id,name,kind,storage_path")
             .eq("workspace_id", p.workspace_id)
             .eq("status", "ready")
+            .is("removed_from_library_at", null)
             .in("id", ids),
         );
         return Promise.all(

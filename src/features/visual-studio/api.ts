@@ -82,7 +82,7 @@ export async function studioRequest<T = StudioState>(
 ): Promise<T> {
   const { data, error } = await invokeWithTimeout(
     "visual-studio",
-    { body },
+    { body: { ...body, studio_version: 2 } },
     60_000,
   );
   if (error) {

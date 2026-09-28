@@ -5,6 +5,8 @@ const m = vi.hoisted(() => ({
   demo: false,
   website: "www.mon-site.fr" as string | null,
   instagram: false,
+  profileInstagram: null as string | null,
+  connectedInstagram: null as string | null,
   scan: vi.fn(),
   upload: vi.fn(),
 }));
@@ -12,7 +14,11 @@ vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-t
 vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => ({ isDemoMode: m.demo }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "ws-1" }));
 vi.mock("@/hooks/use-social-connections", () => ({
-  useSocialConnections: () => ({ connected: { instagram: m.instagram }, loading: false }),
+  useSocialConnections: () => ({
+    connected: { instagram: m.instagram },
+    accountNames: { instagram: m.connectedInstagram },
+    loading: false,
+  }),
 }));
 vi.mock("@/hooks/use-user-photos", () => ({ useUploadLibraryPhotos: () => ({ mutate: m.upload }) }));
 vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
@@ -20,7 +26,9 @@ vi.mock("@/lib/invoke-with-timeout", () => ({ invokeWithTimeout: m.scan }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
     from: () => ({
-      select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { website_url: m.website } }) }) }),
+      select: () => ({ eq: () => ({ maybeSingle: async () => ({
+        data: { website_url: m.website, instagram_username: m.profileInstagram, instagram_url: null },
+      }) }) }),
     }),
   },
 }));
@@ -35,6 +43,8 @@ beforeEach(() => {
   m.demo = false;
   m.website = "www.mon-site.fr";
   m.instagram = false;
+  m.profileInstagram = null;
+  m.connectedInstagram = null;
   vi.clearAllMocks();
 });
 afterEach(cleanup);
@@ -83,6 +93,8 @@ describe("BrandPhotosPicker", () => {
 
   it("ajoute les photos Instagram quand le compte est connecté", async () => {
     m.instagram = true;
+    m.profileInstagram = "@monatelier";
+    m.connectedInstagram = "monatelier";
     m.website = null;
     m.scan.mockResolvedValue({ data: { images: [{ url: "https://cdn.ig/1.jpg", alt: "Post" }] } });
     render(<BrandPhotosPicker placement="welcome" />);
@@ -93,6 +105,37 @@ describe("BrandPhotosPicker", () => {
       45000,
     );
     expect(screen.getByText(/sur ton Instagram/)).toBeInTheDocument();
+  });
+
+  it("écarte les photos d'un compte Instagram relié à une autre marque", async () => {
+    m.instagram = true;
+    m.profileInstagram = "https://www.instagram.com/lamaiastra/";
+    m.connectedInstagram = "nowadaysagency";
+    m.scan.mockResolvedValue({ data: { images } });
+
+    render(<BrandPhotosPicker placement="welcome" />);
+    await screen.findByAltText("Portrait");
+
+    expect(m.scan).toHaveBeenCalledWith(
+      "site-photos-scan",
+      { body: { mode: "scan", websiteUrl: "www.mon-site.fr" } },
+      45000,
+    );
+    expect(m.scan.mock.calls.some(([, options]) => options?.body?.mode === "instagram")).toBe(false);
+    expect(screen.getByText(/compte Instagram connecté.*n'est pas celui de cette marque/)).toBeInTheDocument();
+  });
+
+  it("écarte les photos Instagram quand le compte connecté n'est pas identifiable", async () => {
+    m.instagram = true;
+    m.profileInstagram = "@lamaiastra";
+    m.connectedInstagram = null;
+    m.scan.mockResolvedValue({ data: { images } });
+
+    render(<BrandPhotosPicker placement="welcome" />);
+    await screen.findByAltText("Portrait");
+
+    expect(m.scan.mock.calls.some(([, options]) => options?.body?.mode === "instagram")).toBe(false);
+    expect(screen.getByText(/compte Instagram connecté n'a pas pu être identifié/)).toBeInTheDocument();
   });
 
   it("reste masqué en mode démo", () => {

@@ -6,7 +6,7 @@ const actor = id(1),
   space = id(2),
   sessionId = id(3),
   proposalId = id(4);
-const base = { session_id: sessionId, workspace_id: space };
+const base = { studio_version: 2, session_id: sessionId, workspace_id: space };
 function fixture(role = "owner", replay = false) {
   const saved = globalThis.fetch,
     env = [
@@ -81,7 +81,11 @@ function fixture(role = "owner", replay = false) {
       return json(true);
     if (url.pathname.startsWith("/rest/v1/brand_"))
       return json({ mission: "Ateliers artisanaux" });
-    if (url.pathname === "/rest/v1/user_photos") return json([]);
+    if (url.pathname === "/rest/v1/user_photos") {
+      assertEquals(url.searchParams.get("removed_from_library_at"), "is.null");
+      assertEquals(url.searchParams.get("workspace_id"), `eq.${space}`);
+      return json([]);
+    }
     if (url.pathname === "/v1/messages") {
       payloads.push(JSON.parse(String(init?.body)));
       return json({
@@ -329,6 +333,55 @@ Deno.test(
         f.requests.some((p) => p.includes("studio_confirm")),
         false,
       );
+    } finally {
+      f.restore();
+    }
+  },
+);
+
+Deno.test(
+  "editing the second selected reference places it first without duplicating it",
+  async () => {
+    const f = fixture();
+    const first = {
+      id: id(84),
+      photo_id: id(85),
+      path: "first",
+      role: "subject",
+      name: "Premier",
+    };
+    const second = {
+      id: id(86),
+      photo_id: id(87),
+      path: "second",
+      role: "subject",
+      name: "Second",
+    };
+    f.session.references = [first, second];
+    f.setIntent({
+      operation: "edit",
+      summary: "Lumière plus douce",
+      image_prompt: "Softer light on the selected second photo",
+    });
+    try {
+      const res = await handleStudioRequest(
+        request({
+          ...base,
+          action: "message",
+          message: "Lumière plus douce",
+          revision: 0,
+          viewed_reference_id: second.id,
+          request_id: id(88),
+        }),
+      );
+      const data = await res.json();
+      assertEquals(res.status, 200);
+      assertEquals(data.session.proposal.input_path, "second");
+      assertEquals(
+        data.session.proposal.references.map((r: { path: string }) => r.path),
+        ["first"],
+      );
+      assertEquals(data.session.proposal.original_path, "second");
     } finally {
       f.restore();
     }

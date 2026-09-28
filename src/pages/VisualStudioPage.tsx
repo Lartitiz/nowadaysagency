@@ -132,6 +132,7 @@ function Studio({
     } | null>(null);
   const sourceInit = useRef(false),
     seenReady = useRef<string[] | null>(null);
+  const openedMobile = useRef(false);
   const queryKey = ["visual-studio", userId, workspaceId, sessionId];
   const state = useQuery({
     queryKey,
@@ -171,6 +172,17 @@ function Studio({
       alive.current = false;
     };
   }, []);
+  useEffect(() => {
+    if (isMobile && current && !openedMobile.current) {
+      openedMobile.current = true;
+      if (
+        !current.versions.some(
+          (v) => v.status === "ready" || v.status === "processing",
+        )
+      )
+        setMobileChat(true);
+    }
+  }, [isMobile, current]);
   useEffect(() => {
     if (!current) return;
     const ready = current.versions
@@ -1128,7 +1140,7 @@ function Studio({
                 <Button
                   key={s.id}
                   variant="outline"
-                  className="w-full justify-start"
+                  className="w-full justify-start overflow-hidden text-ellipsis"
                   onClick={() => {
                     setSessionsOpen(false);
                     navigate(`/photos/studio?session=${s.id}`);

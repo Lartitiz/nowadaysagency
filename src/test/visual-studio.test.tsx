@@ -288,8 +288,12 @@ it("mobile drawer exposes the whole conversation and its confirmation", async ()
   });
   mount();
   await screen.findByText("Décris ton fond.");
+  await screen.findByRole("dialog");
   fireEvent.click(
-    screen.getByRole("button", { name: /Toute la conversation/ }),
+    screen.getByRole("button", { name: "Fermer la conversation" }),
+  );
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Toute la conversation/ }),
   );
   await screen.findByRole("dialog");
   fireEvent.click(
