@@ -43,9 +43,11 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import {
   draftKey,
+  listOlderStudioCompositions,
   listStudioSessions,
   readDraft,
   type StudioComposition,
+  type StudioCompositionEntry,
   type StudioReference,
   type StudioMessage,
   studioRequest,
@@ -158,6 +160,9 @@ function Studio({
     design: StudioComposition;
     background_url: string | null;
   } | null>(null);
+  const [olderCompositions, setOlderCompositions] = useState<StudioCompositionEntry[]>([]);
+  const [moreCompositions, setMoreCompositions] = useState(true);
+  const [olderCompositionsBusy, setOlderCompositionsBusy] = useState(false);
   const [existingTool, setExistingTool] = useState<
     "mockup" | "before_after" | null
   >(null);
@@ -227,6 +232,10 @@ function Studio({
   const current = state.data,
     version = current?.versions.find((v) => v.id === selectedId),
     proposal = current?.session.proposal;
+  const compositionHistory = [
+    ...(current?.composition_history || []),
+    ...olderCompositions,
+  ].filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index);
   const writable = roleWritable && !current?.session.archived_at;
   const activeBranchChoice = !!branchChoice &&
     branchChoice.target === selectedId &&
@@ -360,7 +369,13 @@ function Studio({
         workspace_id: workspaceId,
         ...extra,
       });
-      if (alive.current) cache.setQueryData(queryKey, result);
+      if (alive.current) {
+        if (action === "composition_save") {
+          setOlderCompositions([]);
+          setMoreCompositions(true);
+        }
+        cache.setQueryData(queryKey, result);
+      }
       return result;
     } catch (e) {
       if (e instanceof StudioRequestError && e.code === "refresh_request") {
@@ -1347,11 +1362,11 @@ function Studio({
                       >
                         Composer une affiche ou un visuel
                       </Button>
-                      {!!current.composition_history?.length && (
+                      {!!compositionHistory.length && (
                         <details className="w-full text-sm">
-                          <summary>Compositions enregistrées · {current.composition_history.length}</summary>
+                          <summary>Compositions enregistrées · {compositionHistory.length}{moreCompositions && current.composition_history?.length === 20 ? "+" : ""}</summary>
                           <div className="flex flex-wrap gap-2 mt-2">
-                            {current.composition_history.map((entry) => (
+                            {compositionHistory.map((entry) => (
                               <Button
                                 key={entry.id}
                                 variant="outline"
@@ -1387,8 +1402,27 @@ function Studio({
                               </Button>
                             ))}
                           </div>
-                          {current.composition_history.length === 20 && (
-                            <p className="text-xs text-muted-foreground mt-2">Les 20 dernières compositions sont affichées.</p>
+                          {moreCompositions && current.composition_history?.length === 20 && (
+                            <Button variant="ghost" size="sm" className="mt-2" disabled={olderCompositionsBusy}
+                              onClick={async () => {
+                                if (!sessionId) return;
+                                setOlderCompositionsBusy(true);
+                                setError("");
+                                try {
+                                  const page = await listOlderStudioCompositions(
+                                    workspaceId, sessionId, 20 + olderCompositions.length,
+                                  );
+                                  if (alive.current) {
+                                    setOlderCompositions((existing) => [...existing, ...page.items]);
+                                    setMoreCompositions(page.hasMore);
+                                  }
+                                } catch (e) {
+                                  if (alive.current) setError(e instanceof Error ? e.message : "Historique indisponible.");
+                                } finally {
+                                  if (alive.current) setOlderCompositionsBusy(false);
+                                }
+                              }}
+                            >{olderCompositionsBusy ? "Chargement…" : "Voir les compositions plus anciennes"}</Button>
                           )}
                         </details>
                       )}

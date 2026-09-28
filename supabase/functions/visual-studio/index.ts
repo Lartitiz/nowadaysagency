@@ -1242,7 +1242,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     const compositions = unwrap(
       await sb.from("visual_studio_compositions").select("id,title,created_at")
         .eq("session_id", session.id).eq("workspace_id", p.workspace_id)
-        .order("created_at", { ascending: false }).limit(20),
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false }).limit(20),
     );
     const sign = async (path: string) =>
       unwrap(await sb.storage.from(BUCKET).createSignedUrl(path, 900))

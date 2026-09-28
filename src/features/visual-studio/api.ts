@@ -115,11 +115,7 @@ export interface StudioMemory {
   references: StudioReference[];
 }
 export interface StudioState {
-  composition_history?: {
-    id: string;
-    title: string;
-    created_at: string;
-  }[];
+  composition_history?: StudioCompositionEntry[];
   memory?: StudioMemory[];
   charter_references?: { index: number; name: string; url: string }[];
   session: StudioSession;
@@ -134,6 +130,11 @@ export interface StudioState {
     remaining?: number;
     remaining_total?: number;
   };
+}
+export interface StudioCompositionEntry {
+  id: string;
+  title: string;
+  created_at: string;
 }
 export class StudioRequestError extends Error {
   constructor(
@@ -187,6 +188,23 @@ export async function listStudioSessions(workspaceId: string) {
   }
   type Listed = Pick<StudioSession, "id" | "name" | "updated_at" | "archived_at" | "revision">;
   return { active: active.data as Listed[], archived: archived.data as Listed[] };
+}
+export async function listOlderStudioCompositions(
+  workspaceId: string,
+  sessionId: string,
+  offset: number,
+): Promise<{ items: StudioCompositionEntry[]; hasMore: boolean }> {
+  const pageSize = 20;
+  const { data, error } = await db.from("visual_studio_compositions")
+    .select("id,title,created_at")
+    .eq("workspace_id", workspaceId)
+    .eq("session_id", sessionId)
+    .order("created_at", { ascending: false })
+    .order("id", { ascending: false })
+    .range(offset, offset + pageSize);
+  if (error) throw new Error("Les anciennes compositions sont momentanément indisponibles.");
+  const rows = (data || []) as StudioCompositionEntry[];
+  return { items: rows.slice(0, pageSize), hasMore: rows.length > pageSize };
 }
 export function draftKey(
   userId: string,
