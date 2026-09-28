@@ -934,9 +934,9 @@ function parseDocxXml(xmlText: string): string {
 }
 
 async function decompressDeflateAsync(compressed: Uint8Array): Promise<Uint8Array> {
-  const ds = new DecompressionStream("raw");
+  const ds = new DecompressionStream("raw" as CompressionFormat);
   const writer = ds.writable.getWriter();
-  writer.write(compressed);
+  writer.write(compressed as unknown as BufferSource);
   writer.close();
 
   const reader = ds.readable.getReader();

@@ -736,7 +736,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
             position: i + 1, completed: false,
           }))
         ).then(({ error }) => { if (error) console.error("Save recommendations failed:", error); })
-          .catch(e => console.error("Save recommendations failed:", e))
+        ).catch((e: unknown) => console.error("Save recommendations failed:", e))
       );
     }
 
