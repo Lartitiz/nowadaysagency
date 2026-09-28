@@ -3,20 +3,37 @@
 import { AnthropicError, sanitizeStyle, sanitizeStyleDeep, type AnthropicOptions, type UsageSink } from "./anthropic.ts";
 
 export const CAROUSEL_WRITER_VERSION = "opus5-astra-medium-v1";
-export type CarouselWriterModel = "claude-opus-5" | "gpt-6-astra";
+export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "gpt-6-astra";
 export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & { model: CarouselWriterModel };
 
-export function pickCarouselWriter(body: { quality_max?: boolean }): CarouselWriterModel {
-  return body.quality_max ? "gpt-6-astra" : "claude-opus-5";
+// Banc d'essai Opus 5.5 : `writer_bench` n'est honoré que si carousel-ai l'a
+// laissé passer (compte QA Camille uniquement, champ effacé pour tout autre compte).
+export function pickCarouselWriter(body: { quality_max?: boolean; writer_bench?: unknown }): CarouselWriterModel {
+  if (body.quality_max) return "gpt-6-astra";
+  if (body.writer_bench === "claude-opus-5-5") return "claude-opus-5-5";
+  return "claude-opus-5";
 }
 
+// Opus 5.5 refuse `tool_choice` forcé (400) et ne coupe jamais sa réflexion :
+// outil en `auto` + consigne explicite, et une marge de max_tokens pour la
+// réflexion (qui compte dans le plafond sans être renvoyée).
+const OPUS55_MIN_MAX_TOKENS = 16000;
+
 export function writerRequest(options: CarouselWriterOptions): Record<string, unknown> {
-  if (options.model === "claude-opus-5") {
+  if (options.model === "claude-opus-5" || options.model === "claude-opus-5-5") {
+    const opus55 = options.model === "claude-opus-5-5";
+    const system = options.system && options.tool && opus55
+      ? options.system + `\n\nLivre ta réponse uniquement en appelant l'outil \`${options.tool.name}\`, une seule fois.`
+      : options.system;
+    const maxTokens = options.max_tokens || 8192;
     return {
-      model: options.model, system: options.system ? [{ type: "text", text: options.system, cache_control: { type: "ephemeral" } }] : "",
-      messages: options.messages, max_tokens: options.max_tokens || 8192,
+      model: options.model, system: system ? [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] : "",
+      messages: options.messages, max_tokens: opus55 ? Math.max(maxTokens, OPUS55_MIN_MAX_TOKENS) : maxTokens,
       thinking: { type: "adaptive" }, output_config: { effort: "medium" },
-      ...(options.tool ? { tools: [options.tool], tool_choice: { type: "tool", name: options.tool.name } } : {}),
+      ...(options.tool ? {
+        tools: [options.tool],
+        tool_choice: opus55 ? { type: "auto", disable_parallel_tool_use: true } : { type: "tool", name: options.tool.name },
+      } : {}),
     };
   }
   const input = options.messages.map(message => ({
@@ -47,6 +64,9 @@ export function writerResponse(data: any, options: CarouselWriterOptions, sink?:
   const openai = options.model === "gpt-6-astra";
   if (data.model !== options.model && !data.model?.startsWith(options.model + "-20")) {
     throw new AnthropicError("Le modèle de rédaction demandé n'a pas été utilisé. Réessaie.", 502);
+  }
+  if (!openai && data.stop_reason === "refusal") {
+    throw new AnthropicError("Le modèle a refusé cette demande. Reformule le sujet ou réessaie.", 422);
   }
   if (openai ? data.status !== "completed" : data.stop_reason === "max_tokens") {
     throw new AnthropicError("La génération n'est pas complète. Réessaie.", 422);
@@ -93,7 +113,24 @@ export async function callCarouselWriter(options: CarouselWriterOptions, sink?: 
       await response.body?.cancel();
       throw new AnthropicError(response.status === 429 ? "Le modèle est momentanément saturé. Réessaie dans un instant." : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", response.status === 429 ? 429 : 502);
     }
-    return writerResponse(await response.json(), options, sink);
+    const data = await response.json();
+    // Opus 5.5 : l'outil n'est plus forcé. S'il répond sans l'appeler, on relance
+    // UNE fois (même modèle, jamais de repli silencieux vers un autre).
+    if (options.model === "claude-opus-5-5" && options.tool && data.stop_reason === "end_turn"
+      && !(data.content || []).some((b: any) => b.type === "tool_use" && b.name === options.tool!.name)) {
+      console.log(JSON.stringify({ type: "carousel_writer_tool_retry", model: options.model }));
+      const retry = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST", signal: controller.signal,
+        headers: { "Content-Type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify(writerRequest(options)),
+      });
+      if (!retry.ok) {
+        await retry.body?.cancel();
+        throw new AnthropicError(retry.status === 429 ? "Le modèle est momentanément saturé. Réessaie dans un instant." : "Le modèle de rédaction est indisponible. Réessaie dans un instant.", retry.status === 429 ? 429 : 502);
+      }
+      return writerResponse(await retry.json(), options, sink);
+    }
+    return writerResponse(data, options, sink);
   } catch (error) {
     if (error instanceof AnthropicError) throw error;
     throw new AnthropicError(controller.signal.aborted ? "La rédaction a dépassé le délai prévu. Réessaie." : "La connexion au modèle de rédaction a échoué. Réessaie.", controller.signal.aborted ? 504 : 502);

@@ -36,7 +36,7 @@ Deno.test("l'étiquette « sans appel modèle » est la MÊME dans plan-limiter 
  * le rendu par code (coût nul assumé) et le vrai modèle oublié (le bug #697).
  */
 Deno.test("un modèle vraiment inconnu crie ; le rendu par code non", () => {
-  const TARIFES = new Set(["claude-sonnet-5", "claude-opus-5", "gpt-image-2"]);
+  const TARIFES = new Set(["claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "gpt-image-2"]);
   const ZERO_COST = new Set([COMPOSED_BY_CODE_MODEL]);
   const nonTarifes = (modeles: string[]) =>
     modeles.filter((m) => !TARIFES.has(m) && !ZERO_COST.has(m));
@@ -108,4 +108,14 @@ Deno.test("recraftModel : une valeur non reconnue ne part JAMAIS en raster silen
   assertEquals(recraftModel(false), "recraft-v4.1-pro");
 
   Deno.env.delete("RECRAFT_MODEL");
+});
+
+// Chaque rédacteur Claude du carrousel doit avoir un tarif dans cron-health,
+// sinon le bilan hebdo le compte à zéro (cf. #697).
+Deno.test("les modèles Claude du rédacteur carrousel sont tarifés dans cron-health", async () => {
+  const src = await Deno.readTextFile(new URL("../cron-health/index.ts", import.meta.url));
+  const writer = await Deno.readTextFile(new URL("./carousel-model.ts", import.meta.url));
+  const models = [...(writer.match(/export type CarouselWriterModel = ([^;]+);/)?.[1] ?? "").matchAll(/"(claude-[^"]+)"/g)].map((m) => m[1]);
+  assert(models.includes("claude-opus-5-5"), `rédacteurs lus : ${models.join(", ")}`);
+  for (const m of models) assert(src.includes(`"${m}":`), `cron-health n'a pas de tarif pour ${m}`);
 });

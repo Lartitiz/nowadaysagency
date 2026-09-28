@@ -12,6 +12,55 @@ Deno.test("explicit normal/Max routing; no env alias or silent escalation", () =
   assertEquals(pickCarouselWriter({}), "claude-opus-5");
   assertEquals(pickCarouselWriter({ quality_max: false }), "claude-opus-5");
   assertEquals(pickCarouselWriter({ quality_max: true }), "gpt-6-astra");
+  // Banc d'essai Opus 5.5 : valeur exacte seulement, Qualité Max prioritaire.
+  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5-5" }), "claude-opus-5-5");
+  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5-5", quality_max: true }), "gpt-6-astra");
+  assertEquals(pickCarouselWriter({ writer_bench: "claude-fable-5-1" }), "claude-opus-5");
+});
+Deno.test("Opus 5.5: never forced tool nor disabled thinking (both 400), room for thinking", () => {
+  const request = writerRequest({ ...base, model: "claude-opus-5-5", tool });
+  assertEquals(request.model, "claude-opus-5-5");
+  assertEquals(request.thinking, { type: "adaptive" });
+  assertEquals(request.output_config, { effort: "medium" });
+  assertEquals(request.tool_choice, { type: "auto", disable_parallel_tool_use: true });
+  assertEquals(request.tools, [tool]);
+  assert((request.system as any[])[0].text.startsWith("Sources et voix"));
+  assert((request.system as any[])[0].text.includes("`livrer_carrousel`"));
+  assertEquals(request.max_tokens, 16000);
+  assertEquals(writerRequest({ ...base, model: "claude-opus-5-5", max_tokens: 20000 }).max_tokens, 20000);
+  assert(!("temperature" in request));
+  // Opus 5 inchangé : consigne d'outil absente, max_tokens tel quel.
+  const opus5 = writerRequest({ ...base, tool });
+  assertEquals((opus5.system as any[])[0].text, "Sources et voix");
+  assertEquals(opus5.max_tokens, 8192);
+});
+Deno.test("Opus refusal is a clear error, never a success", () => {
+  const sink = {};
+  assertThrows(() => writerResponse({ ...opus, model: "claude-opus-5-5", stop_reason: "refusal", content: [] }, { ...base, model: "claude-opus-5-5" }, sink), AnthropicError, "refusé");
+  assertEquals(sink, {});
+});
+Deno.test("Opus 5.5 without tool call: one retry on the same model, then success or clear error", async () => {
+  const oldKey = Deno.env.get("ANTHROPIC_API_KEY"), oldFetch = globalThis.fetch;
+  Deno.env.set("ANTHROPIC_API_KEY", "fake-secret");
+  const noTool = { ...opus, model: "claude-opus-5-5", content: [{ type: "thinking", thinking: "" }, { type: "text", text: "Voici" }] };
+  const withTool = { ...opus, model: "claude-opus-5-5", content: [{ type: "tool_use", name: tool.name, input: { slides: [] } }] };
+  for (const [second, ok] of [[withTool, true], [noTool, false]] as const) {
+    let calls = 0;
+    globalThis.fetch = ((_url: unknown, init?: RequestInit) => {
+      calls++;
+      const body = JSON.parse(String(init?.body));
+      assertEquals(body.model, "claude-opus-5-5");
+      assertEquals(body.tool_choice.type, "auto");
+      return Promise.resolve(new Response(JSON.stringify(calls === 1 ? noTool : second)));
+    }) as typeof fetch;
+    try {
+      const options = { ...base, model: "claude-opus-5-5" as const, tool };
+      if (ok) assertEquals(JSON.parse(await callCarouselWriter(options)), { slides: [] });
+      else await assertRejects(() => callCarouselWriter(options), AnthropicError);
+      assertEquals(calls, 2);
+    } finally { globalThis.fetch = oldFetch; }
+  }
+  if (oldKey === undefined) Deno.env.delete("ANTHROPIC_API_KEY"); else Deno.env.set("ANTHROPIC_API_KEY", oldKey);
 });
 Deno.test("Opus adaptive medium + forced tool, no unsupported sampling", () => {
   const request = writerRequest({ ...base, tool });
@@ -76,7 +125,7 @@ Deno.test("Opus truncation and wrong/invalid tool never succeed", () => {
   assertThrows(() => writerResponse(opus, { ...base, tool }), AnthropicError);
   assertThrows(() => writerResponse({ ...astra, output: [{ type: "function_call", name: tool.name, arguments: "{" }] }, { ...base, model: "gpt-6-astra", tool }), AnthropicError);
 });
-for(const model of ["claude-opus-5", "gpt-6-astra"] as const) Deno.test(`HTTP ${model}: correct destination; errors never retry/downgrade/leak provider body`, async () => {
+for(const model of ["claude-opus-5", "claude-opus-5-5", "gpt-6-astra"] as const) Deno.test(`HTTP ${model}: correct destination; errors never retry/downgrade/leak provider body`, async () => {
   const name = model === "gpt-6-astra" ? "OPENAI_API_KEY" : "ANTHROPIC_API_KEY";
   const oldKey = Deno.env.get(name), oldFetch = globalThis.fetch;
   Deno.env.set(name, "fake-secret");

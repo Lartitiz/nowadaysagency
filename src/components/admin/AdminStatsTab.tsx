@@ -59,6 +59,7 @@ const tooltipStyle = { borderRadius: 8, fontSize: 13, border: "1px solid hsl(var
  */
 const MODEL_COST_PER_TOKEN: { match: RegExp; rate: number }[] = [
   { match: /^gpt-6-astra(?:$|-)/i, rate: 0.00005 }, // $50/M output; conservative total-token estimate
+  { match: /^claude-opus-5-5(?:$|-)/i, rate: 0.00002 }, // $20/M output (avant Opus 5, que la regex suivante couvrirait)
   { match: /^claude-opus-5(?:$|-)/i, rate: 0.000025 }, // $25/M output (before generic legacy Opus)
   { match: /opus/i, rate: 0.00007 },          // ~75 $/M
   { match: /sonnet/i, rate: 0.000014 },       // ~15 $/M
