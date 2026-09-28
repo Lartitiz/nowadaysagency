@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import React from "react";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -61,14 +62,14 @@ afterEach(cleanup);
 
 it("control: a confirmed empty library displays the first-visit state", () => {
   state.query.data = [];
-  render(<PhotosPage />);
+  render(<MemoryRouter><PhotosPage /></MemoryRouter>);
   expect(screen.getByText("INITIAL_PHOTO_STATE")).toBeInTheDocument();
 });
 
 it("G4: a failed first read is not presented as an empty library and can be retried", () => {
   state.query.isError = true;
   state.query.error = new Error("Network unavailable");
-  render(<PhotosPage />);
+  render(<MemoryRouter><PhotosPage /></MemoryRouter>);
 
   expect(screen.queryByText("INITIAL_PHOTO_STATE")).toBeNull();
   expect(screen.getByRole("alert")).toHaveTextContent("Tes photos n'ont pas disparu");
@@ -78,7 +79,7 @@ it("G4: a failed first read is not presented as an empty library and can be retr
 
 it("G4: loading remains distinct from a confirmed empty library", () => {
   state.query.isLoading = true;
-  render(<PhotosPage />);
+  render(<MemoryRouter><PhotosPage /></MemoryRouter>);
 
   expect(screen.queryByText("INITIAL_PHOTO_STATE")).toBeNull();
   expect(screen.queryByRole("alert")).toBeNull();
@@ -94,7 +95,7 @@ it("G4: a refresh error preserves already loaded photos with a warning", () => {
   }];
   state.query.isError = true;
   state.query.error = new Error("Refresh unavailable");
-  render(<PhotosPage />);
+  render(<MemoryRouter><PhotosPage /></MemoryRouter>);
 
   expect(screen.getByText("PHOTO_cached-photo")).toBeVisible();
   expect(screen.getByRole("alert")).toHaveTextContent("Les photos déjà chargées restent affichées");

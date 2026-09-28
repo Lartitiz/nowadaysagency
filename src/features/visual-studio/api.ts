@@ -1,0 +1,120 @@
+import { supabase } from "@/integrations/supabase/client";
+import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
+import type { SupabaseClient } from "@supabase/supabase-js";
+// Additive tables: explicit boundary until hosted generated types are refreshed.
+const db: SupabaseClient = supabase;
+export interface StudioProposal {
+  id: string;
+  operation: "background";
+  summary: string;
+  background_prompt: string;
+  viewed_version_id: string | null;
+  cost: 1;
+}
+export interface StudioMessage {
+  id?: string;
+  role: "user" | "assistant";
+  text: string;
+  operation?: string;
+}
+export interface StudioSession {
+  id: string;
+  workspace_id: string;
+  name: string;
+  source_photo_id: string | null;
+  source_url: string;
+  revision: number;
+  messages: StudioMessage[];
+  proposal: StudioProposal | null;
+  updated_at: string;
+}
+export interface StudioVersion {
+  id: string;
+  status: "processing" | "ready" | "failed";
+  proposal: StudioProposal;
+  url: string | null;
+  library_photo_id: string | null;
+  error_message: string | null;
+  created_at: string;
+}
+export interface StudioState {
+  session: StudioSession;
+  versions: StudioVersion[];
+  writable: boolean;
+  quota: {
+    allowed: boolean;
+    plan: string;
+    message?: string;
+    remaining?: number;
+    remaining_total?: number;
+  };
+}
+export class StudioRequestError extends Error {
+  constructor(
+    message: string,
+    public code?: string,
+  ) {
+    super(message);
+  }
+}
+export async function studioRequest<T = StudioState>(
+  body: Record<string, unknown>,
+): Promise<T> {
+  const { data, error } = await invokeWithTimeout(
+    "visual-studio",
+    { body },
+    40_000,
+  );
+  if (error) {
+    let message = error.message;
+    let code: string | undefined;
+    const context = (error as unknown as { context?: Response }).context;
+    if (context) {
+      try {
+        const detail = await context.json();
+        message = detail.message || detail.error || message;
+        code = detail.code;
+      } catch {
+        /* Preserve the transport error. */
+      }
+    }
+    throw new StudioRequestError(
+      message || "Le Studio est indisponible. Réessaie.",
+      code,
+    );
+  }
+  if (data?.error) throw new Error(data.message || data.error);
+  return data as T;
+}
+export async function listStudioSessions(workspaceId: string) {
+  const { data, error } = await db
+    .from("visual_studio_sessions")
+    .select("id,name,updated_at")
+    .eq("workspace_id", workspaceId)
+    .eq("source_ready", true)
+    .order("updated_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error("Les sessions sont momentanément indisponibles.");
+  return data as Pick<StudioSession, "id" | "name" | "updated_at">[];
+}
+export function draftKey(
+  userId: string,
+  workspaceId: string,
+  sessionId: string,
+) {
+  return `visual-studio:draft:${userId}:${workspaceId}:${sessionId}`;
+}
+export function readDraft(key: string) {
+  try {
+    return localStorage.getItem(key) || "";
+  } catch {
+    return "";
+  }
+}
+export function writeDraft(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* The visible draft remains editable if local storage is unavailable. */
+  }
+}

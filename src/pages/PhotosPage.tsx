@@ -8,6 +8,7 @@
  */
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Loader2, Plus, RefreshCw, Wand2, Search } from "lucide-react";
 import AppHeader from "@/components/AppHeader";
@@ -79,6 +80,8 @@ export default function PhotosPage() {
 }
 
 function PhotosLibrary() {
+  const navigate = useNavigate();
+  const location = useLocation();
   const [photoLimit, setPhotoLimit] = useState(200);
   const {
     data: photoData,
@@ -91,7 +94,7 @@ function PhotosLibrary() {
   const hasPhotoData = photoData !== undefined;
   const { retry, isRetrying } = useRetryPhotoRetouch();
   const { mutate: uploadLibrary, progress, pendingUploads } = useUploadLibraryPhotos();
-  const { activeWorkspace, loading: wsLoading } = useWorkspace();
+  const { activeWorkspace, loading: wsLoading, activeRole } = useWorkspace();
   const wsReady = !!activeWorkspace && !wsLoading;
 
   const [createVisualOpen, setCreateVisualOpen] = useState(false);
@@ -111,6 +114,12 @@ function PhotosLibrary() {
   }
   const [preparation, setPreparation] = useState<{ photos: UserPhotoRow[]; mode: "single" | "collection" | "kit" } | null>(null);
   const [detailPhotoId, setDetailPhotoId] = useState<string | null>(null);
+  useEffect(() => {
+    const target = location.state as { studioPhotoId?: string; studioWorkspaceId?: string } | null;
+    if (!target?.studioPhotoId || target.studioWorkspaceId !== activeWorkspace?.id || !hasPhotoData) return;
+    if (photos.some(photo => photo.id === target.studioPhotoId)) setDetailPhotoId(target.studioPhotoId);
+    navigate('/photos', { replace: true, state: null });
+  }, [location.state, activeWorkspace?.id, hasPhotoData, photos, navigate]);
   const detailPhoto = detailPhotoId ? (photos.find((p) => p.id === detailPhotoId) ?? null) : null;
   const [packshotPhoto, setPackshotPhoto] = useState<UserPhotoRow | null>(null);
   const [miseEnScenePhoto, setMiseEnScenePhoto] = useState<UserPhotoRow | null>(null);
@@ -312,11 +321,15 @@ function PhotosLibrary() {
                 </>
               )}
             </Button>
-            <Button variant="outline" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
-              <Wand2 className="h-4 w-4 mr-2" /> Composer un visuel
+            <Button variant="outline" onClick={() => navigate('/photos/studio')} disabled={!wsReady}>
+              <Wand2 className="h-4 w-4 mr-2" /> Studio visuel
             </Button>
 
           </div>
+          <p className="text-sm text-muted-foreground">Studio : change le fond de tes photos, en Gratuit et Premium, dans ton quota d’images.</p>
+          <Button variant="link" className="h-auto p-0" onClick={() => setCreateVisualOpen(true)} disabled={!wsReady}>
+            Créer un avant/après ou un mockup
+          </Button>
           {/* L'import site/Instagram est une 2e façon de REMPLIR : lien discret
               plutôt qu'un bouton frère qui doublerait le poids de « Ajouter ». */}
           <p className="text-sm text-muted-foreground">
@@ -471,6 +484,7 @@ function PhotosLibrary() {
         sources={preparation.photos.map(p => ({ id: p.id, photoId: p.id, name: p.name || "Photo" }))} mode={preparation.mode}
         onOpenChange={open => { if (!open) setPreparation(null); }} /></Suspense>}
       <PhotoDetailDialog
+        onStudio={activeRole && ["owner", "manager", "editor"].includes(activeRole) ? (photo) => navigate(`/photos/studio?photo=${photo.id}`) : undefined}
         onPrepare={p => { setDetailPhotoId(null); setPreparation({ photos: [p], mode: "single" }); }}
         onPrepareKit={p => { setDetailPhotoId(null); setPreparation({ photos: [p], mode: "kit" }); }}
         photo={detailPhoto}
