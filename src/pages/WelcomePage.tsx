@@ -6,6 +6,7 @@ import { useWorkspaceFilter, useProfileUserId } from "@/hooks/use-workspace-quer
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useProfile } from "@/hooks/use-profile";
+import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
 
 import EditableText from "@/components/EditableText";
 import { buildFirstContentUrl } from "@/lib/first-content-url";
@@ -709,6 +710,10 @@ export default function WelcomePage() {
             )}
           </div>
         )}
+
+        {/* C-ter) Tes photos : récupérées sur le site (+ Instagram si connecté),
+            à cocher pour la bibliothèque. Se masque seule si rien n'est trouvé. */}
+        {!loading && <BrandPhotosPicker placement="welcome" />}
 
         {/* C-bis) Offres éditables */}
         {!loading && offers.length > 0 && (
