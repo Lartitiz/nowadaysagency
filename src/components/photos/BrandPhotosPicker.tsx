@@ -167,14 +167,22 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
         posthog.capture("brand_photos_picker_shown", {
           placement,
           count: merged.length,
-          instagram: instagramConnected,
+          instagram: instagramMatchesBrand,
         });
       }
     })().catch((e) => {
       console.error("[BrandPhotosPicker] scan failed:", e);
       setStatus("hidden");
     });
-  }, [isDemoMode, user?.id, workspaceId, connectionsLoading, instagramConnected, placement]);
+  }, [
+    isDemoMode,
+    user?.id,
+    workspaceId,
+    connectionsLoading,
+    instagramConnected,
+    connectedInstagramHandle,
+    placement,
+  ]);
 
   const visible = candidates.filter((c) => !hiddenUrls.has(c.url));
 
