@@ -193,11 +193,15 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const { data, error } = await db.from("studio_video_jobs").select("*").eq("workspace_id", p.workspace_id)
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
-      return json({ enabled: enabled() && monthlyLimit() > 0,
+      return json({ enabled: enabled(p.workspace_id) && monthlyLimit() > 0,
         jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null))) });
     }
     if (p.action === "quote") {
-      if (!enabled() || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      const { count: submittedCount, error: trialError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
+        .not("submitted_at", "is", null);
+      if (trialError) throw trialError;
+      if ((submittedCount || 0) >= TRIAL_MAX_SUBMISSIONS) return json({ error: "La génération de recette a déjà été utilisée." }, 409);
       const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
       if (quoteLimitError) throw quoteLimitError;
@@ -226,6 +230,7 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         refs.length ? { ...common, image_urls: inputUrls, aspect_ratio: p.aspect_ratio } :
           { ...common, aspect_ratio: p.aspect_ratio };
       const price = await estimate(input, fetch, model);
+      if (price.usd > monthlyLimit()) return json({ error: "Ce devis dépasse le plafond de la recette vidéo." }, 409);
       const id = crypto.randomUUID();
       const webhookToken = crypto.randomUUID();
       const { data, error } = await db.from("studio_video_jobs").insert({
@@ -245,18 +250,20 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
 
     let row = await job(db, p.workspace_id, p.job_id);
     if (p.action === "submit") {
-      if (!enabled() || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
+      if (!enabled(p.workspace_id) || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
       if (row.status !== "quoted") return json({ job: safeJob(row, row.status === "ready" ? await signed(db, row) : null) });
       const supabaseUrl = Deno.env.get("SUPABASE_URL");
       if (!supabaseUrl || !supabaseUrl.startsWith("https://")) return json({ error: "Le suivi vidéo n’est pas configuré." }, 503);
       const callback = new URL(`${supabaseUrl.replace(/\/$/, "")}/functions/v1/studio-video`);
       callback.searchParams.set("job_id", row.id);
       callback.searchParams.set("token", row.webhook_token);
-      const { data: claimed, error: claimError } = await db.rpc("studio_video_claim", {
-        p_actor: pipe.userId, p_job: p.job_id, p_monthly_limit: monthlyLimit(),
+      const { data: claimed, error: claimError } = await db.rpc("studio_video_claim_trial", {
+        p_actor: pipe.userId, p_job: p.job_id, p_allowed_workspace: p.workspace_id,
+        p_total_limit: monthlyLimit(), p_max_submissions: TRIAL_MAX_SUBMISSIONS,
       });
       if (claimError) {
-        const message = claimError.message.includes("video_budget") ? "Le plafond vidéo de cet espace est atteint." :
+        const message = claimError.message.includes("video_trial_exhausted") ? "La génération de recette a déjà été utilisée." :
+          claimError.message.includes("video_budget") ? "Le plafond vidéo de cet espace est atteint." :
           claimError.message.includes("video_quote_expired") ? "Ce devis a expiré. Vérifie à nouveau le prix." : "La génération ne peut pas démarrer.";
         return json({ error: message }, 409);
       }
@@ -326,4 +333,4 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
   }
 }
 
-serve(handleVideoRequest);
+if (import.meta.main) serve(handleVideoRequest);
