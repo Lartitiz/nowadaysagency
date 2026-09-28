@@ -17,7 +17,7 @@ export async function readAuditProfile(ownerUserId: string, fields: string) {
 /** Select a receipt: a zero-row RLS-filtered update must not announce success. */
 export async function saveAuditProfile(ownerUserId: string, fields: Record<string, unknown>) {
   if (!ownerUserId) throw new Error("Propriétaire indisponible");
-  const { data, error } = await supabase.from("profiles").update(fields).eq("user_id", ownerUserId).select("user_id").single();
+  const { data, error } = await (supabase.from("profiles") as any).update(fields).eq("user_id", ownerUserId).select("user_id").single();
   if (error) throw error;
   if (data?.user_id !== ownerUserId) throw new Error("Sauvegarde du profil non confirmée");
 }

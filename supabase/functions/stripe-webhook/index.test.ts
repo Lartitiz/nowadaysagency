@@ -424,7 +424,7 @@ Deno.test("invoice.paid d'un abonnement ABSENT de la table (lien de paiement hor
 
   const res = await handleStripeWebhookRequest(webhookRequest({}), { stripe, supabase });
   assertEquals(res.status, 200);
-  assertEquals(supabase.calls.filter((c) => c.table === "subscriptions" && c.op === "update").length, 0);
+  assertEquals((supabase.calls as Call[]).filter((c: Call) => c.table === "subscriptions" && c.op === "update").length, 0);
 });
 
 Deno.test("invoice.paid (plan non-studio) : ne touche pas studio_months_paid", async () => {
