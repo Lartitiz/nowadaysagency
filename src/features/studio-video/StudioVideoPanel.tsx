@@ -103,7 +103,7 @@ function VideoComposer({ workspaceId, writable, initialSource, initialPrompt = "
           <label className="flex items-center gap-1"><input type="radio" name={formId} checked={useImages} onChange={() => setUseImages(true)} />Une ou plusieurs images</label>
         </fieldset>
         {useImages && <div className="space-y-2">
-          <p className="text-sm">Choisis 1 à 4 images. Avec plusieurs références, précise le rôle de chacune : elles guideront une même vidéo, pas un diaporama.</p>
+          <p className="text-sm">Choisis 1 à 4 images. Avec plusieurs références, précise le rôle de chacune : elles guideront les éléments d’une même scène.</p>
           {references.map((ref, index) => <div key={`${ref.kind}:${ref.id}`} className="flex items-center gap-2 flex-wrap text-sm">
             <span className="min-w-0 break-words">{index + 1}. {ref.name}</span>
             {ref.previewUrl && <img src={ref.previewUrl} alt="" className="h-14 w-14 object-cover rounded" />}

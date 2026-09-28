@@ -50,7 +50,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
         : <ImageIcon aria-hidden className="aspect-square w-full p-8 bg-muted rounded" />}
       {checked && <Check aria-hidden className="absolute right-3 top-3 rounded-full bg-primary text-primary-foreground" />}
       <span className="block text-xs mt-2 break-words line-clamp-2">{source.name}</span>
-      {unavailable && <span className="block text-xs">Personne identifiable : indisponible pour cet essai.</span>}
+      {unavailable && <span className="block text-xs">Référence classée comme portrait : indisponible pour cet essai.</span>}
     </button>;
   }
   async function importFiles(files: File[]) {
@@ -79,6 +79,7 @@ export function VideoImagePicker({ workspaceId, initialImages, onConfirm, onClos
         <Button type="button" variant={tab === "studio" ? "default" : "outline"} onClick={() => setTab("studio")}>Créations du Studio Photo</Button>
       </div>
       {tab === "library" ? <>
+        <p className="text-xs text-muted-foreground">Pour un mannequin fictif créé dans le Studio, choisis sa version dans « Créations du Studio Photo ».</p>
         <Input aria-label="Rechercher une image" value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher une image…" />
         {photos.isLoading ? <p>Chargement des photos…</p> : photos.isError ? <p role="alert">Bibliothèque indisponible. <button onClick={() => void photos.refetch()}>Réessayer</button></p> :
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{visible.map(p => card({ kind: "photo", id: p.id,
