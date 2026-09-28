@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
-import { getModelForAction, supportsTemperature, stripTrailingAssistant, forcesDisabledThinking, sanitizeStyle } from "../_shared/anthropic.ts";
+import { getModelForAction, supportsTemperature, stripTrailingAssistant, modelRequestFields, sanitizeStyle } from "../_shared/anthropic.ts";
 import { checkQuota, logUsage } from "../_shared/plan-limiter.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { checkRateLimit, rateLimitResponse } from "../_shared/rate-limiter.ts";
@@ -262,8 +262,8 @@ async function streamAnthropicSSE(
   /** Plafond (ms) pour l'appel HTTP d'ouverture du stream — cf. _shared/anthropic-stream.ts. */
   abortTimeoutMs?: number,
 ): Promise<ReadableStream> {
-  // Opus 4.8/4.7 rejettent temperature ET un prefill (dernier tour assistant) → 400.
-  // On retire les deux pour ces modèles (assistant_chat = Opus 4.8 depuis le Lot 2).
+  // Opus (5.5, 4.8) rejette temperature ET un prefill (dernier tour assistant) → 400.
+  // On retire les deux pour ces modèles (assistant_chat = tier Opus depuis le Lot 2).
   const sampled = supportsTemperature(model);
   const ac = abortTimeoutMs ? new AbortController() : null;
   const abortTimer = ac ? setTimeout(() => ac.abort(), abortTimeoutMs) : null;
@@ -282,11 +282,9 @@ async function streamAnthropicSSE(
         system: [{ type: "text", text: systemPrompt, cache_control: { type: "ephemeral" } }],
         messages: sampled ? messages : stripTrailingAssistant(messages as any),
         ...(sampled ? { temperature } : {}),
-        // Sonnet 5 : thinking ADAPTATIF quand le champ est omis → les blocs de
-        // réflexion consomment max_tokens sans text_delta (réponses vides/tronquées).
-        // No-op tant que assistant_chat = Opus 4.8 ; protège si le tier bascule.
-        ...(forcesDisabledThinking(model) ? { thinking: { type: "disabled" } } : {}),
-        max_tokens: maxTokens,
+        // assistant_chat = Opus 5.5 : réflexion toujours active (disabled → 400),
+        // donc effort bas + marge de max_tokens ; Sonnet 5 : thinking disabled.
+        ...modelRequestFields(model, maxTokens),
         stream: true,
       }),
       signal: ac?.signal,

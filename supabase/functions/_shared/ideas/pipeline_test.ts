@@ -5,7 +5,7 @@ const idea = { subject: "Un détail d'usage", angle: "Analyse", insight: "Une di
 Deno.test("direct subjectless entry researches internally and formulates 4 developed ideas", async () => {
   const calls: any[] = []; let researches = 0;
   const result = await generateDeepIdeas({ context: "Céramiste sans histoire personnelle fournie", history: "", previous: [{ subject: "Prix", insight: "Temps de travail" }] }, {
-    model: "claude-opus-4-8", apiKey: "not-a-secret", call: async (o, u) => { calls.push(o); if (u) u.total_tokens = 20; return calls.length === 1 ? JSON.stringify({ candidates: [idea], research_queries: ["Pourquoi la forme d'une anse change sa prise en main ?"] }) : JSON.stringify({ ideas: [1, 2, 3, 4].map(i => ({ ...idea, subject: `Idée ${i}` })) }); },
+    model: "claude-opus-5-5", apiKey: "not-a-secret", call: async (o, u) => { calls.push(o); if (u) u.total_tokens = 20; return calls.length === 1 ? JSON.stringify({ candidates: [idea], research_queries: ["Pourquoi la forme d'une anse change sa prise en main ?"] }) : JSON.stringify({ ideas: [1, 2, 3, 4].map(i => ({ ...idea, subject: `Idée ${i}` })) }); },
     research: async (q) => { researches++; assertEquals(q.length, 1); return { sources: [], status: "unavailable" }; },
   });
   assertEquals(calls.length, 2); assert(calls[0].max_tokens >= 3000); assert(calls[1].max_tokens >= 8000); assertEquals(researches, 1); assertEquals(result.ideas.length, 4); assertEquals(result.usage.total_tokens, 40);
@@ -14,7 +14,7 @@ Deno.test("direct subjectless entry researches internally and formulates 4 devel
 Deno.test("deepen preserves one selected thesis and rejects incomplete outputs without a paid retry cascade", async () => {
   let calls = 0;
   await assertRejects(() => generateDeepIdeas({ context: "Formatrice", history: "" }, {
-    model: "claude-opus-4-8", apiKey: "", call: async () => { calls++; return calls === 1 ? '{"candidates":[{"subject":"A"}],"research_queries":[]}' : '{"ideas":[{"subject":"Un titre seul"}]}'; }, research: async () => ({ sources: [], status: "not_needed" }),
+    model: "claude-opus-5-5", apiKey: "", call: async () => { calls++; return calls === 1 ? '{"candidates":[{"subject":"A"}],"research_queries":[]}' : '{"ideas":[{"subject":"Un titre seul"}]}'; }, research: async () => ({ sources: [], status: "not_needed" }),
   }));
   assertEquals(calls, 2);
 });
