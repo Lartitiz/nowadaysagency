@@ -320,6 +320,37 @@ Deno.test("delete-account: RÉGRESSION 20/08 — calendar_comments, coaching_* e
   }
 });
 
+Deno.test("delete-account: supprime les données récentes avant leurs parents workspace et auth", async () => {
+  const mock = installMockFetch({ callerId: SELF_USER_ID, callerEmail: "cliente@example.com" });
+  try {
+    const res = await call(req({}));
+    assertEquals(res.status, 200);
+    for (const table of [
+      "diagnostic_results", "import_mappings", "photo_wishlist", "photo_workflows",
+      "scrape_cache", "series", "social_connections", "suggested_contents", "user_photos",
+      "checkout_attempts", "client_error_events", "content_briefs", "content_quality_events",
+      "dashboard_clicks", "email_queue", "email_sends", "email_unsubscribes",
+      "frontend_debug_logs", "oauth_states", "reel_publication_receipts",
+    ]) {
+      assert(
+        mock.deletedQueries[table]?.includes(`user_id=eq.${SELF_USER_ID}`),
+        `${table} doit être effacée pour cette utilisatrice`,
+      );
+    }
+    const before = (child: string, parent: string) =>
+      assert(mock.deletedTables.indexOf(child) < mock.deletedTables.indexOf(parent), `${child} avant ${parent}`);
+    before("diagnostic_results", "workspaces");
+    before("photo_wishlist", "user_photos");
+    before("visual_studio_sessions", "user_photos");
+    before("saved_ideas", "series");
+    before("calendar_posts", "series");
+    before("series", "workspaces");
+    assert(mock.authUserDeleted);
+  } finally {
+    restore();
+  }
+});
+
 function call(request: Request): Promise<Response> {
   return handleDeleteAccountRequest(request);
 }
