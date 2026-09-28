@@ -7798,14 +7798,16 @@ export type Database = {
       }
       visual_studio_sessions: {
         Row: {
+          brief: string
           created_at: string
           id: string
           messages: Json
           name: string
           proposal: Json | null
+          references: Json | null
           revision: number
           source_metadata: Json
-          source_path: string
+          source_path: string | null
           source_photo_id: string | null
           source_ready: boolean
           updated_at: string
@@ -7813,14 +7815,16 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          brief?: string
           created_at?: string
           id: string
           messages?: Json
           name: string
           proposal?: Json | null
+          references?: Json | null
           revision?: number
           source_metadata?: Json
-          source_path: string
+          source_path?: string | null
           source_photo_id?: string | null
           source_ready?: boolean
           updated_at?: string
@@ -7828,14 +7832,16 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          brief?: string
           created_at?: string
           id?: string
           messages?: Json
           name?: string
           proposal?: Json | null
+          references?: Json | null
           revision?: number
           source_metadata?: Json
-          source_path?: string
+          source_path?: string | null
           source_photo_id?: string | null
           source_ready?: boolean
           updated_at?: string

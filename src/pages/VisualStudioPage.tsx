@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -101,6 +101,7 @@ function Studio({
   sessionId: string | null;
   photoId: string | null;
 }) {
+  const location = useLocation();
   const navigate = useNavigate(),
     cache = useQueryClient();
   const [urlParams, setUrlParams] = useSearchParams();
@@ -115,7 +116,7 @@ function Studio({
   const writable = ["owner", "manager", "editor"].includes(role);
   const [picker, setPicker] = useState(false),
     [sessionsOpen, setSessionsOpen] = useState(false),
-    [mobileChat, setMobileChat] = useState(false),
+    [mobileChat, setMobileChat] = useState(!!location.state?.studioChatOpen),
     [mobileConfirm, setMobileConfirm] = useState(false);
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(
     null,
@@ -326,7 +327,10 @@ function Studio({
           draftRef.current.trim() === text ? "" : draftRef.current,
         );
         writeDraft(localKey, "");
-        navigate(`/photos/studio?session=${id}`, { replace: true });
+        navigate(`/photos/studio?session=${id}`, {
+          replace: true,
+          state: { studioChatOpen: isMobile },
+        });
       } catch (e) {
         if (alive.current) {
           setError(e instanceof Error ? e.message : "Réessaie l’envoi.");

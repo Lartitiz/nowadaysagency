@@ -5,6 +5,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { MemoryRouter } from "react-router-dom";
@@ -465,6 +466,53 @@ it("changing a reference role clears confirmation without generating", async () 
   expect(
     mock.request.mock.calls.find(([b]) => b.action === "reference")?.[0],
   ).toMatchObject({ reference_role: "style", photo_id: "photo", revision: 0 });
+  expect(mock.request.mock.calls.some(([b]) => b.action === "generate")).toBe(
+    false,
+  );
+});
+
+it("the first mobile question keeps the conversation open after creating its session", async () => {
+  window.innerWidth = 390;
+  const start = original();
+  start.session.source_photo_id = null;
+  start.session.source_url = null;
+  start.session.references = [];
+  mock.request.mockImplementation((body) =>
+    Promise.resolve(
+      body.action === "message"
+        ? {
+            ...start,
+            session: {
+              ...start.session,
+              messages: [
+                {
+                  role: "assistant",
+                  text: "Une direction graphique pour ton atelier.",
+                },
+              ],
+              revision: 1,
+            },
+          }
+        : start,
+    ),
+  );
+  mount("/photos/studio");
+  fireEvent.click(
+    await screen.findByRole("button", { name: /Toute la conversation/ }),
+  );
+  await screen.findByRole("dialog");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
+    target: { value: "Quel visuel pour mon atelier ?" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() =>
+    expect(
+      within(screen.getByRole("dialog")).getByText(
+        "Une direction graphique pour ton atelier.",
+      ),
+    ).toBeVisible(),
+  );
+  expect(screen.getByRole("dialog")).toBeVisible();
   expect(mock.request.mock.calls.some(([b]) => b.action === "generate")).toBe(
     false,
   );
