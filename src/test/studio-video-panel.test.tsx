@@ -3,9 +3,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, expect, it, vi } from "vitest";
 
 const mock = vi.hoisted(() => ({ request: vi.fn(), list: vi.fn(), read: vi.fn() }));
-vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({ PhotoLibraryPickerDialog: ({ open, onConfirm }: {
-  open: boolean; onConfirm: (photos: Array<{ id: string; name: string }>) => void;
-}) => open ? <button onClick={() => onConfirm([{ id: "photo-1", name: "Produit" }, { id: "photo-2", name: "Décor" }])}>Choisir deux photos</button> : null }));
+vi.mock("@/features/studio-video/VideoImagePicker", () => ({ VideoImagePicker: ({ onConfirm }: {
+  onConfirm: (photos: Array<{ kind: string; id: string; name: string; role: string }>) => void;
+}) => <button onClick={() => onConfirm([{ kind: "photo", id: "photo-1", name: "Produit", role: "subject" }, { kind: "photo", id: "photo-2", name: "Décor", role: "subject" }])}>Choisir deux photos</button> }));
 vi.mock("@/features/studio-video/api", () => ({
   videoRequest: mock.request,
   listStudioVideos: mock.list,
@@ -21,25 +21,29 @@ const quote = {
   created_at: "", error_code: null, video_url: null,
 };
 const clients: QueryClient[] = [];
-function mount(withSource = true) {
+async function mount(withSource = true, draftKey?: string) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   clients.push(client);
-  render(<QueryClientProvider client={client}><StudioVideoPanel workspaceId="space" writable
-    initialSource={withSource ? { kind: "photo", id: "photo", name: "Atelier" } : null} /></QueryClientProvider>);
+  const view = render(<QueryClientProvider client={client}><StudioVideoPanel workspaceId="space" writable
+    draftKey={draftKey} initialSource={withSource ? { kind: "photo", id: "photo", name: "Atelier" } : null} /></QueryClientProvider>);
+  await waitFor(() => expect(mock.list).toHaveBeenCalled());
+  await waitFor(() => expect(screen.queryByText("Chargement des clips…")).not.toBeInTheDocument());
+  return view;
 }
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   for (const client of clients) client.clear();
   clients.length = 0;
   mock.request.mockReset(); mock.list.mockReset(); mock.read.mockReset();
 });
 
 it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async () => {
-  mock.list.mockResolvedValue({ jobs: [] });
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   mock.request.mockImplementation(async (body: { action: string }) =>
     body.action === "quote" ? { job: quote } : { job: { ...quote, status: "failed" } });
   mock.read.mockResolvedValue({ job: { ...quote, status: "failed" } });
-  mount();
+  await mount();
   fireEvent.change(screen.getByRole("textbox", { name: "Ce qui doit bouger" }),
     { target: { value: quote.prompt } });
   fireEvent.click(screen.getByRole("checkbox"));
@@ -51,10 +55,10 @@ it("affiche le devis puis n'envoie le POST payant qu'au clic explicite", async (
 });
 
 it("écarte un devis arrivé après que la demande a changé", async () => {
-  mock.list.mockResolvedValue({ jobs: [] });
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   let finish: (value: unknown) => void = () => {};
   mock.request.mockImplementation(() => new Promise(resolve => { finish = resolve; }));
-  mount();
+  await mount();
   const prompt = screen.getByRole("textbox", { name: "Ce qui doit bouger" });
   fireEvent.change(prompt, { target: { value: quote.prompt } });
   fireEvent.click(screen.getByRole("checkbox"));
@@ -67,7 +71,7 @@ it("écarte un devis arrivé après que la demande a changé", async () => {
 
 it("garde la bibliothèque lisible quand les générations sont désactivées", async () => {
   mock.list.mockResolvedValue({ enabled: false, jobs: [] });
-  mount();
+  await mount();
   expect(await screen.findByText(/création vidéo sera disponible après l’activation/)).toBeInTheDocument();
   expect(screen.getByRole("heading", { name: "Mes clips" })).toBeInTheDocument();
   expect(screen.queryByRole("button", { name: "Vérifier le prix" })).not.toBeInTheDocument();
@@ -75,9 +79,9 @@ it("garde la bibliothèque lisible quand les générations sont désactivées", 
 });
 
 it("obtient un devis depuis une idée seule sans attestation d'image", async () => {
-  mock.list.mockResolvedValue({ jobs: [] });
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   mock.request.mockResolvedValue({ job: { ...quote, source_kind: "text", source_id: null } });
-  mount(false);
+  await mount(false);
   fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }),
     { target: { value: "Une main ouvre une boîte dans un atelier lumineux" } });
   expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
@@ -88,11 +92,11 @@ it("obtient un devis depuis une idée seule sans attestation d'image", async () 
 });
 
 it("transmet les rôles et l'ordre de deux références avec le devis", async () => {
-  mock.list.mockResolvedValue({ jobs: [] });
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
   mock.request.mockResolvedValue({ job: { ...quote, source_kind: "references", source_id: null } });
-  mount(false);
-  fireEvent.click(screen.getByRole("radio", { name: "Plusieurs images" }));
-  fireEvent.click(screen.getByRole("button", { name: "Ajouter des images" }));
+  await mount(false);
+  fireEvent.click(screen.getByRole("radio", { name: "Une ou plusieurs images" }));
+  fireEvent.click(screen.getByRole("button", { name: /Choisir des images/ }));
   fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
   fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Décor" }), { target: { value: "background" } });
   fireEvent.change(screen.getByRole("textbox", { name: "Quelle vidéo veux-tu créer ?" }),
@@ -103,4 +107,25 @@ it("transmet les rôles et l'ordre de deux références avec le devis", async ()
   expect(mock.request.mock.calls[0][0]).toMatchObject({ source_kind: "references", references: [
     { kind: "photo", id: "photo-1", role: "subject" }, { kind: "photo", id: "photo-2", role: "background" },
   ] });
+});
+
+it("passe directement d’une photo à plusieurs références sans changer de mode", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  await mount();
+  fireEvent.click(screen.getByRole("button", { name: /Choisir des images/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Choisir deux photos" }));
+  expect(screen.getByRole("combobox", { name: "Rôle de Décor" })).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Choisir des images (2/4)" })).toBeInTheDocument();
+});
+
+it("restaure le brouillon mais pas l’attestation ni le devis", async () => {
+  mock.list.mockResolvedValue({ enabled: true, jobs: [] });
+  const view = await mount(true, "draft-a");
+  fireEvent.change(screen.getByRole("textbox"), { target: { value: "La caméra tourne autour du produit" } });
+  fireEvent.click(screen.getByRole("checkbox"));
+  view.unmount();
+  await mount(true, "draft-a");
+  expect(screen.getByRole("textbox")).toHaveValue("La caméra tourne autour du produit");
+  expect(screen.getByRole("checkbox")).not.toBeChecked();
+  expect(screen.queryByRole("button", { name: /Générer ce clip/ })).not.toBeInTheDocument();
 });

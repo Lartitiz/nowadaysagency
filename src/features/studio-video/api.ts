@@ -23,15 +23,9 @@ export interface StudioVideoJob {
 
 export async function videoRequest<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await invokeWithTimeout("studio-video", { body }, 65_000);
-  if (error) {
-    const context = (error as { context?: Response }).context;
-    if (context) {
-      const detail = await context.json().catch(() => null);
-      if (detail?.error) throw new Error(detail.error);
-    }
-    throw new Error("Le Studio vidéo est indisponible. Réessaie.");
-  }
-  if (data?.error && !data?.job) throw new Error(data.error);
+  // A failed submission can still return its durable job (including uncertain status).
+  if (data?.job) return data as T;
+  if (error || data?.error) throw new Error(data?.message || data?.error || error?.message || "Le Studio vidéo est indisponible. Réessaie.");
   return data as T;
 }
 

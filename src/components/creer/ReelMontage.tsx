@@ -1,3 +1,4 @@
+import { useAuth } from "@/contexts/AuthContext";
 import { reelSourceKey } from "@/lib/reel-publication";
 // build 2026-07-23c
 /**
@@ -136,6 +137,7 @@ function fromMine(v: UserReelVideo, duration: number | null): SelectedClip {
 type MontageMode = "filme" | "cache";
 
 export default function ReelMontage({ sections, subject, workspaceId, initialProject, onProjectChange, onPhaseChange, onMp4Ready }: Props) {
+  const { user } = useAuth();
   const spoken = sections.filter((s) => typeof s.texte_parle === "string" && s.texte_parle.trim());
   const sectionTexts = spoken.map(s => s.texte_parle || "");
   const { data: charter } = useBrandCharter();
@@ -889,6 +891,7 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
                 <span className="block mt-2">Phrase à illustrer : « {spoken[studioTarget.index].texte_parle} »</span>}
             </DialogDescription></DialogHeader>
           {studioTarget && workspaceId && <StudioVideoPanel workspaceId={workspaceId} writable={studioTarget.create}
+            draftKey={user ? `studio-video:${user.id}:${workspaceId}:reel:${JSON.stringify([subject, sectionTexts, studioTarget.index])}` : undefined}
             showComposer={studioTarget.create} initialPrompt={studioTarget.create && spoken[studioTarget.index]?.texte_parle
               ? `Plan de coupe sans texte à l'écran : montrer concrètement l'idée « ${spoken[studioTarget.index].texte_parle.slice(0, 680)} ». Le plan doit pouvoir se placer sous la voix du Reel.`
               : ""}

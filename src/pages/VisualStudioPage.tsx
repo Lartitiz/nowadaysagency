@@ -599,12 +599,13 @@ function Studio({
     }
   }
   const videoSource: VideoSource | null = version?.status === "ready"
-    ? { kind: "studio_version", id: version.id, name: label }
+    ? { kind: "studio_version", id: version.id, name: label, previewUrl: version.url }
     : selectedReference?.photo_id
     ? {
       kind: "photo",
       id: selectedReference.photo_id,
       name: selectedReference.name,
+      previewUrl: selectedReference.url,
     }
     : current?.session.source_photo_id
     ? {
@@ -1043,7 +1044,8 @@ function Studio({
             )}
             <StudioVideoPanel
               workspaceId={workspaceId}
-              writable={writable}
+              writable={roleWritable}
+              draftKey={`studio-video:${userId}:${workspaceId}:${sessionId || "new"}:${videoSource?.id || "idea"}`}
               initialSource={videoSource}
               onPickClip={reelReturn !== null
                 ? (job) => returnToReel(job.id)

@@ -1,3 +1,4 @@
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-user" } }) }));
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { afterEach, beforeEach, it, expect, vi } from 'vitest';
 import ReelMontage, { type ReelMontageProject } from '@/components/creer/ReelMontage';
