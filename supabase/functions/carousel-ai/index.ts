@@ -69,7 +69,7 @@ const QUESTIONS_TOOL = {
   },
 };
 
-// Rédaction uniquement : Opus 5 normal / Astra medium en Qualité Max.
+// Rédaction uniquement : Opus 5.5 normal / Astra medium en Qualité Max.
 // Les suggestions, questions, corrections et visuels gardent leurs modèles.
 const pickCarouselModel = pickCarouselWriter;
 
@@ -515,7 +515,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     });
     if (!r.ok) return r.response;
     const { userId, supabase } = r;
-    // Banc d'essai du rédacteur (Opus 5.5) : réservé au compte QA Camille.
+    // Banc d'essai du rédacteur (retour à Opus 5) : réservé au compte QA Camille.
     if (!isQaTestAccount(userId)) delete body.writer_bench;
 
     // Champs écrits par l'IA à une étape précédente (structure_proposal, choix
