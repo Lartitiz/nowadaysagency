@@ -88,6 +88,7 @@ export function sanitizeStyleDeep<T>(value: T): T {
 }
 
 export type AnthropicModel =
+  | "claude-opus-5-5"
   | "claude-opus-4-8"
   | "claude-sonnet-4-6"
   | "claude-sonnet-5"
@@ -117,6 +118,7 @@ export const SONNET_MODEL: AnthropicModel =
  * utilisent leur échantillonnage par défaut (comportement attendu et seul valide).
  */
 const MODELS_REJECTING_SAMPLING = new Set<string>([
+  "claude-opus-5-5",
   "claude-opus-4-8",
   "claude-opus-4-7",
   // Sonnet 5 rejette lui aussi temperature/top_p/top_k (valeur non-défaut → 400).
@@ -141,6 +143,90 @@ const MODELS_THINKING_ON_WHEN_OMITTED = new Set<string>([
 
 export function forcesDisabledThinking(model: string): boolean {
   return MODELS_THINKING_ON_WHEN_OMITTED.has(model);
+}
+
+/**
+ * Tier « Opus » de l'app (coaching, stratégie, audit branding, assistant, visuels
+ * Qualité Max, Pinterest). Point de vérité unique : changer ici suffit.
+ */
+export const OPUS_MODEL: AnthropicModel = "claude-opus-5-5";
+
+/**
+ * Opus 5.5 ne coupe JAMAIS sa réflexion : `thinking: disabled` → 400, et
+ * `tool_choice` forcé (`tool`/`any`) → 400 aussi. La réflexion compte dans
+ * `max_tokens` sans être renvoyée, et le premier bloc de la réponse peut être un
+ * bloc `thinking` (d'où `responseText`, jamais `content[0].text`).
+ */
+const MODELS_ALWAYS_THINKING = new Set<string>(["claude-opus-5-5"]);
+
+export function alwaysThinks(model: string): boolean {
+  return MODELS_ALWAYS_THINKING.has(model);
+}
+
+/**
+ * Ces routes tournaient SANS réflexion sur Opus 4.8. La doc Opus 5.5 recommande
+ * alors l'effort `low` (le défaut API est `medium`) : réflexion courte, latence
+ * proche de l'ancien comportement. Monter ici si la qualité le demande.
+ */
+const ALWAYS_THINKING_EFFORT = "low";
+
+/** Marge de `max_tokens` pour la réflexion (comptée dans le plafond). */
+export function maxTokensFor(model: string, requested: number): number {
+  return alwaysThinks(model) ? Math.max(16000, Math.ceil(requested * 1.5)) : requested;
+}
+
+/**
+ * Champs de requête qui dépendent du modèle (appels bruts, stream ou non) :
+ * plafond de tokens, effort, réflexion, choix d'outil. Seul endroit à toucher
+ * pour un nouveau modèle.
+ */
+export function modelRequestFields(
+  model: string,
+  maxTokens: number,
+  tool?: { name: string },
+): Record<string, unknown> {
+  const fields: Record<string, unknown> = { max_tokens: maxTokensFor(model, maxTokens) };
+  if (forcesDisabledThinking(model)) fields.thinking = { type: "disabled" };
+  if (alwaysThinks(model)) fields.output_config = { effort: ALWAYS_THINKING_EFFORT };
+  if (tool) {
+    fields.tool_choice = alwaysThinks(model)
+      ? { type: "auto", disable_parallel_tool_use: true }
+      : { type: "tool", name: tool.name };
+  }
+  return fields;
+}
+
+/** Consigne ajoutée au system quand l'outil ne peut pas être forcé (Opus 5.5). */
+export function toolInstruction(model: string, tool?: { name: string }): string {
+  return tool && alwaysThinks(model)
+    ? `\n\nLivre ta réponse uniquement en appelant l'outil \`${tool.name}\`, une seule fois.`
+    : "";
+}
+
+/** Texte d'une réponse non-stream : tous les blocs `text`, jamais les blocs thinking. */
+export function responseText(data: any): string {
+  return (Array.isArray(data?.content) ? data.content : [])
+    .filter((b: any) => b?.type === "text" && typeof b.text === "string")
+    .map((b: any) => b.text)
+    .join("");
+}
+
+/** Opus 5.5 sans outil forcé peut répondre en texte : on relance alors l'appel. */
+function missingExpectedTool(data: any, model: string, tool?: AnthropicTool): boolean {
+  return !!tool && alwaysThinks(model) && data?.stop_reason === "end_turn"
+    && !(Array.isArray(data?.content) && data.content.some((b: any) => b?.type === "tool_use" && b?.name === tool.name));
+}
+
+/** Tous les modèles du tier Opus gardent le repli Sonnet sur 500/529. */
+function hasSonnetFallback(model: string): boolean {
+  return model === OPUS_MODEL || model === "claude-opus-4-8";
+}
+
+/** Corps de repli Sonnet : Sonnet accepte l'outil forcé, on le reforce. */
+function sonnetFallbackBody(body: any, tool?: AnthropicTool): any {
+  const fallback = { ...body, model: "claude-sonnet-4-6" };
+  if (tool) fallback.tool_choice = { type: "tool", name: tool.name };
+  return fallback;
 }
 
 /**
@@ -212,11 +298,11 @@ export interface AnthropicOptions {
 const MODEL_MAP: Record<string, AnthropicModel> = {
   // Opus : tâches complexes qui nécessitent un raisonnement profond
   "audit": "claude-sonnet-4-6",
-  "coaching": "claude-opus-4-8",
+  "coaching": OPUS_MODEL,
   "coaching_light": "claude-sonnet-4-6",
-  "strategy": "claude-opus-4-8",
-  "branding_audit": "claude-opus-4-8",
-  "assistant_chat": "claude-opus-4-8",
+  "strategy": OPUS_MODEL,
+  "branding_audit": OPUS_MODEL,
+  "assistant_chat": OPUS_MODEL,
 
   // Sonnet : contenu courant, génération rapide
   "content": "claude-sonnet-4-6",
@@ -266,7 +352,7 @@ export function getModelForRichContent(
   hasRichPersonalContent: boolean
 ): AnthropicModel {
   if (hasRichPersonalContent) {
-    return "claude-opus-4-8";
+    return OPUS_MODEL;
   }
   return getModelForAction(action);
 }
@@ -330,30 +416,26 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     return { signal: ac?.signal, clear: () => { if (timer) clearTimeout(timer); } };
   };
 
+  // Plafond, réflexion (Sonnet 5 : disabled ; Opus 5.5 : effort) et choix d'outil
+  // selon le modèle — cf. modelRequestFields.
   const body: any = {
     model: options.model,
     messages: prepareMessages(options.model, options.messages),
-    max_tokens: options.max_tokens || 4096,
+    ...modelRequestFields(options.model, options.max_tokens || 4096, options.tool),
   };
 
-  // Sortie structurée : force le modèle à répondre via ce tool. Le `text` renvoyé
+  // Sortie structurée : le modèle répond via ce tool. Le `text` renvoyé
   // devient alors l'`input` du tool sérialisé (JSON valide par construction),
   // ce qui élimine la classe d'échecs « prose au lieu de JSON » du parsing texte.
   if (options.tool) {
     body.tools = [options.tool];
-    body.tool_choice = { type: "tool", name: options.tool.name };
-  }
-
-  // Sonnet 5 : thinking adaptatif ON si omis → on force `disabled` (comportement historique).
-  if (forcesDisabledThinking(options.model)) {
-    body.thinking = { type: "disabled" };
   }
 
   if (options.system) {
     body.system = [
       {
         type: "text",
-        text: options.system,
+        text: options.system + toolInstruction(options.model, options.tool),
         cache_control: { type: "ephemeral" }
       }
     ];
@@ -421,10 +503,14 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
 
     if (response.ok) {
       const data = await response.json();
+      if (missingExpectedTool(data, options.model, options.tool) && attempt < maxRetries) {
+        console.log(JSON.stringify({ type: "ai_tool_missing_retry", model: options.model }));
+        continue;
+      }
       return {
         text: options.tool
           ? toolInputText(data, options.tool.name, options.keepDashes)
-          : sanitizeStyle(data.content?.[0]?.text || ""),
+          : sanitizeStyle(responseText(data)),
         stop_reason: data.stop_reason || null,
         usage: extractUsage(data, options.model),
       };
@@ -454,9 +540,9 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
     }
 
     // Fallback Opus → Sonnet
-    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-8") {
+    if ((response.status === 529 || response.status === 500) && hasSonnetFallback(options.model)) {
       console.log("Opus overloaded after retries (meta) — falling back to Sonnet...");
-      const fallbackBody = { ...body, model: "claude-sonnet-4-6" };
+      const fallbackBody = sonnetFallbackBody(body, options.tool);
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -472,7 +558,7 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
         return {
           text: options.tool
             ? toolInputText(data, options.tool.name, options.keepDashes)
-            : sanitizeStyle(data.content?.[0]?.text || ""),
+            : sanitizeStyle(responseText(data)),
           stop_reason: data.stop_reason || null,
           usage: extractUsage(data, "claude-sonnet-4-6"),
         };
@@ -509,14 +595,21 @@ export async function callAnthropicWithMeta(options: AnthropicOptions): Promise<
  * pour les appelants qui gèrent la troncature eux-mêmes (ex. branding-coaching
  * relance avec un max_tokens plus haut).
  */
+function throwIfRefused(data: any): void {
+  if (data?.stop_reason === "refusal") {
+    throw new AnthropicError("Le modèle a refusé cette demande. Reformule-la ou réessaie.", 422);
+  }
+}
+
 function extractValidatedText(data: any, keepDashes = false): string {
+  throwIfRefused(data);
   if (data?.stop_reason === "max_tokens") {
     throw new AnthropicError(
       "La génération a été coupée car trop longue. Réessaie.",
       422
     );
   }
-  const raw = data?.content?.[0]?.text || "";
+  const raw = responseText(data);
   const text = keepDashes ? raw : sanitizeStyle(raw);
   if (!text.trim()) {
     throw new AnthropicError(
@@ -533,6 +626,7 @@ function extractValidatedText(data: any, keepDashes = false): string {
  * re-sérialise — le JSON renvoyé à l'appelant est donc valide par construction.
  */
 export function extractValidatedToolInput(data: any, toolName: string, keepDashes = false): string {
+  throwIfRefused(data);
   if (data?.stop_reason === "max_tokens") {
     throw new AnthropicError(
       "La génération a été coupée car trop longue. Réessaie.",
@@ -555,27 +649,23 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
   const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
   if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured");
 
+  // Plafond, réflexion (Sonnet 5 : disabled ; Opus 5.5 : effort) et choix d'outil
+  // selon le modèle — cf. modelRequestFields.
   const body: any = {
     model: options.model,
     messages: prepareMessages(options.model, options.messages),
-    max_tokens: options.max_tokens || 4096,
+    ...modelRequestFields(options.model, options.max_tokens || 4096, options.tool),
   };
-
-  // Sonnet 5 : thinking adaptatif ON si omis → on force `disabled` (comportement historique).
-  if (forcesDisabledThinking(options.model)) {
-    body.thinking = { type: "disabled" };
-  }
 
   if (options.tool) {
     body.tools = [options.tool];
-    body.tool_choice = { type: "tool", name: options.tool.name };
   }
 
   if (options.system) {
     body.system = [
       {
         type: "text",
-        text: options.system,
+        text: options.system + toolInstruction(options.model, options.tool),
         cache_control: { type: "ephemeral" }
       }
     ];
@@ -652,6 +742,10 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
 
     if (response.ok) {
       const data = await response.json();
+      if (missingExpectedTool(data, options.model, options.tool) && attempt < maxRetries) {
+        console.log(JSON.stringify({ type: "ai_tool_missing_retry", model: options.model }));
+        continue;
+      }
       if (usageOut) Object.assign(usageOut, extractUsage(data, options.model));
       return options.tool ? extractValidatedToolInput(data, options.tool.name, options.keepDashes) : extractValidatedText(data, options.keepDashes);
     }
@@ -680,9 +774,9 @@ export async function callAnthropic(options: AnthropicOptions, usageOut?: UsageS
     }
 
     // Fallback: if Opus is overloaded (500/529) after all retries, try Sonnet
-    if ((response.status === 529 || response.status === 500) && options.model === "claude-opus-4-8") {
+    if ((response.status === 529 || response.status === 500) && hasSonnetFallback(options.model)) {
       console.log("Opus overloaded after retries — falling back to Sonnet...");
-      const fallbackBody = { ...body, model: "claude-sonnet-4-6" };
+      const fallbackBody = sonnetFallbackBody(body, options.tool);
       const fallbackRes = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
