@@ -7767,6 +7767,168 @@ export type Database = {
         }
         Relationships: []
       }
+      visual_studio_interpretations: {
+        Row: {
+          created_at: string
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          session_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          session_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_studio_interpretations_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "visual_studio_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visual_studio_sessions: {
+        Row: {
+          created_at: string
+          id: string
+          messages: Json
+          name: string
+          proposal: Json | null
+          revision: number
+          source_metadata: Json
+          source_path: string
+          source_photo_id: string | null
+          source_ready: boolean
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          messages?: Json
+          name: string
+          proposal?: Json | null
+          revision?: number
+          source_metadata?: Json
+          source_path: string
+          source_photo_id?: string | null
+          source_ready?: boolean
+          updated_at?: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          messages?: Json
+          name?: string
+          proposal?: Json | null
+          revision?: number
+          source_metadata?: Json
+          source_path?: string
+          source_photo_id?: string | null
+          source_ready?: boolean
+          updated_at?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_studio_sessions_source_photo_id_fkey"
+            columns: ["source_photo_id"]
+            isOneToOne: false
+            referencedRelation: "user_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visual_studio_sessions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      visual_studio_versions: {
+        Row: {
+          base_total_limit: number
+          charge_usage: boolean
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          library_photo_id: string | null
+          proposal: Json
+          result_path: string
+          session_id: string
+          status: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          base_total_limit: number
+          charge_usage: boolean
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id: string
+          library_photo_id?: string | null
+          proposal: Json
+          result_path: string
+          session_id: string
+          status: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          base_total_limit?: number
+          charge_usage?: boolean
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          library_photo_id?: string | null
+          proposal?: Json
+          result_path?: string
+          session_id?: string
+          status?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_studio_versions_library_photo_id_fkey"
+            columns: ["library_photo_id"]
+            isOneToOne: false
+            referencedRelation: "user_photos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visual_studio_versions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "visual_studio_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visual_studio_versions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       voice_guides: {
         Row: {
           created_at: string | null
@@ -8608,6 +8770,50 @@ export type Database = {
       set_photo_library_visibility: {
         Args: { p_photo_id: string; p_removed?: boolean }
         Returns: Json
+      }
+      studio_complete_generation: {
+        Args: { p_version: string }
+        Returns: {
+          base_total_limit: number
+          charge_usage: boolean
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          library_photo_id: string | null
+          proposal: Json
+          result_path: string
+          session_id: string
+          status: string
+          user_id: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "visual_studio_versions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      studio_confirm_generation: {
+        Args: {
+          p_actor: string
+          p_base_total: number
+          p_charge: boolean
+          p_image_limit: number
+          p_proposal: string
+          p_session: string
+          p_total_limit: number
+        }
+        Returns: Json
+      }
+      studio_reserve_interpretation: {
+        Args: { p_actor: string; p_request: string; p_session: string }
+        Returns: boolean
+      }
+      studio_save_library: {
+        Args: { p_actor: string; p_version: string }
+        Returns: string
       }
       sync_launch_calendar: {
         Args: {
