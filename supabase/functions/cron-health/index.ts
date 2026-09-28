@@ -424,8 +424,13 @@ Deno.serve(async (req) => {
     // Coût images estimé (€/image, tarifs ~juillet 2026) : les APIs images sont
     // facturées à l'image, et logUsage écrit 1 ligne ai_usage PAR image — le
     // compte d'appels par modèle suffit donc. gpt-image-2 = high 1024x1536.
+    // GPT Image 2.5 (bascule 28/09) : même tarif au token que gpt-image-2 mais
+    // consommation par image différente (doc OpenAI) → 0,15 PROVISOIRE, à
+    // recaler sur les tokens_used réels d'ai_usage.
     const IMAGE_COST_EUR: Record<string, number> = {
       "gpt-image-2": 0.15,
+      "gpt-image-2.5-flare": 0.15,
+      "gpt-image-2.5-sunburst": 0.15,
       "gpt-image-1": 0.22,
       "photoroom-v2": 0.05,
       "recraftv3-vector": 0.04,

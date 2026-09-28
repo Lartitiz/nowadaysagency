@@ -12,7 +12,8 @@
  *   1. Standard auth/quota/rate-limit (category: photo_retouch)
  *   2. Gate Premium (plan free → { error: "premium_required" }, bypass QA)
  *   3. Charte + profil → bloc « univers de marque » du prompt
- *   4. OpenAI /v1/images/generations (gpt-image-2, n=1, retry 1× sur 5xx)
+ *   4. OpenAI /v1/images/generations (gpt-image-2.5-flare par défaut, cf.
+ *      _shared/openai-image-model.ts ; n=1, retry 1× sur 5xx)
  *   5. logUsage 1 crédit par image (après succès uniquement)
  *
  * Recette anti-effet-IA identique à product-on-model (validée 09/07/2026) :
@@ -27,6 +28,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 import { fetchWithRetry } from "../_shared/http-retry.ts";
+import { openaiImageModel } from "../_shared/openai-image-model.ts";
 
 const BodySchema = z.object({
   workspace_id: z.string().uuid().optional().nullable(),
@@ -174,6 +176,10 @@ serve(async (req) => {
       return jsonResponse({ error: "Configuration OpenAI manquante" }, 500);
     }
 
+    // Flare par défaut (création pure → la vitesse prime) ; retour arrière
+    // par le secret OPENAI_IMAGE_MODEL_SLIDE=gpt-image-2.
+    const imageModel = openaiImageModel("slide");
+
     const callOpenAI = async (): Promise<Response> =>
       await fetch(OPENAI_URL, {
         method: "POST",
@@ -182,7 +188,7 @@ serve(async (req) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-image-2",
+          model: imageModel,
           prompt,
           n: 1,
           size: "1024x1536",
@@ -260,13 +266,14 @@ serve(async (req) => {
       "photo_retouch",
       adjustment ? "casting_slide_image_adjust" : "casting_slide_image",
       tokens,
-      "gpt-image-2",
+      imageModel,
       bodyWorkspaceId ?? undefined
     );
 
     console.log(JSON.stringify({
       event: "carousel_slide_image_success",
       user_id: userId,
+      model: imageModel,
       workspace_id: bodyWorkspaceId,
       has_adjustment: !!adjustment,
       tokens,
