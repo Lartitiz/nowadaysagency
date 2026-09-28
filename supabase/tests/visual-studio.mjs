@@ -62,6 +62,8 @@ try {
  CREATE TABLE user_photos(id uuid PRIMARY KEY,user_id uuid NOT NULL,workspace_id uuid NOT NULL,name text,status text NOT NULL DEFAULT 'ready',storage_path text NOT NULL,original_storage_path text NOT NULL,source_type text NOT NULL DEFAULT 'upload',description text,kind text,tags text[] DEFAULT '{}');
  CREATE TABLE ai_usage(id uuid DEFAULT gen_random_uuid(),user_id uuid NOT NULL,workspace_id uuid,category text NOT NULL,action_type text NOT NULL,model_used text,created_at timestamptz NOT NULL DEFAULT now());
  CREATE TABLE storage.buckets(id text PRIMARY KEY,name text,public boolean,file_size_limit bigint,allowed_mime_types text[]);
+ -- Native Lovable bucket provisioning; MIME checks are enforced by the edge.
+ INSERT INTO storage.buckets VALUES('visual-studio','visual-studio',false,15000000,NULL);
  CREATE TABLE storage.objects(bucket_id text,name text,UNIQUE(bucket_id,name));
  CREATE TABLE bonus_receipts(user_id uuid);
  CREATE FUNCTION consume_bonus_credit(p_user_id uuid) RETURNS void LANGUAGE sql AS $$ INSERT INTO bonus_receipts VALUES(p_user_id) $$;
@@ -76,7 +78,7 @@ try {
   await db.exec(
     fs.readFileSync(
       new URL(
-        "../migrations/20260928140000_visual_studio.sql",
+        "../migrations/20260928120835_e16c6bbb-7c86-445f-b682-a3aa900d9629.sql",
         import.meta.url,
       ),
       "utf8",

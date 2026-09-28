@@ -46,9 +46,21 @@ Les schémas actuels `user_photos` / `ai_usage` et les policies Storage ont ét�
 
 ## Avant mise en service
 
-1. Appliquer la migration additive `20260928140000_visual_studio.sql` après contrôle du registre réel. Vérifier que `visual-studio` est privé et qu’aucune policy générale ne permet un accès client aux objets.
+1. Appliquer la migration additive `20260928120835_e16c6bbb-7c86-445f-b682-a3aa900d9629.sql` après contrôle du registre réel. Vérifier que `visual-studio` est privé et qu’aucune policy générale ne permet un accès client aux objets.
 2. Déployer les fonctions `visual-studio` **et** `delete-account` depuis le même commit. Les clés Anthropic et Photoroom sont des secrets serveur déjà utilisés par le projet ; aucune clé n’est ajoutée au navigateur.
 3. Sur un compte de recette, vérifier création/reprise de session, une génération réelle, conservation du fichier, exactement une ligne d’usage, enregistrement en bibliothèque, accès lecture seule et changement d’espace. Vérifier une réponse perdue sans nouvel appel fournisseur.
 4. Publier le frontend une fois ces vérifications réussies, puis contrôler les assets et le parcours public connecté.
 
-Les outils connectés de cette tâche permettent les requêtes SQL et la publication frontend, mais n’exposent pas de déploiement ciblé de fonction Edge. La PR reste donc en brouillon tant que cette mise en service serveur et la recette connectée n’ont pas eu lieu. Aucun agent Lovable n’a reçu de message.
+Le déploiement ciblé des fonctions Edge passe par l’agent Lovable, autorisé explicitement par Laetitia lors de l’activation ci-dessous. La publication frontend reste conditionnée à la recette décrite ci-dessous.
+
+## Activation serveur — 28 septembre, 12:09 UTC
+
+PR #1064 fusionnée : `45a60ff7`, version source `7c53cde6` validée par les cinq contrôles CI. Lovable a créé la migration `20260928120835` et régénéré uniquement les types Supabase (`5f091cc2`). Le SQL appliqué est identique au fichier initial sauf l'instruction de création du bucket, refusée par la plateforme avant toute exécution. Le fichier initial redondant a été retiré et le test SQL référence désormais le fichier du registre. Ne pas rejouer la migration.
+
+Pour un nouvel environnement, provisionner nativement `visual-studio`, privé, limite exacte 15 000 000 octets, sans policy client sur Storage. L'outil natif ne permet pas de configurer les MIME autorisés : ils sont donc NULL sur le bucket ; les fonctions serveur vérifient jpeg/png/webp à la lecture et JPEG en sortie du fournisseur. Ce n'est pas une restriction MIME au niveau Storage.
+
+Reçu natif : « Successfully deployed edge functions: visual-studio, delete-account ». Code identique à `45a60ff7`, aucune version individuelle exposée. Contrôle indépendant : quatre RPC definer avec search_path public ; EXECUTE refusé à anon/authenticated et autorisé à service_role ; bucket privé et taille confirmés. Les 112 photos préexistantes ont la même empreinte avant/après.
+
+La session Studio a été créée depuis la fiche photo dans l'aperçu authentifié. L'essai d'interprétation puis de génération a été bloqué avant envoi par le contrôle automatique, qui exige une autorisation spécifique de transmission à Anthropic et Photoroom. Une question précise est en attente ; aucune génération réelle ni publication frontend à ce stade.
+
+Le contrôle connecté en format téléphone a révélé que la navigation mobile (`AppSidebar`, hauteur minimale 56 px) masquait le bouton « Toute la conversation ». Le bouton est remonté au-dessus de cette barre, avec prise en compte de la zone sûre et marge de fin de page. La bulle de feedback existante se masque déjà quand elle recouvre une commande. Le contrôle du composant isolé antérieur n'incluait pas cette navigation.
