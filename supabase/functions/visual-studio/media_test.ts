@@ -2,7 +2,7 @@ import {
   assertEquals,
   assertRejects,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { generateImage, imagePrompt, visionBlock, legacyReferences } from "./media.ts";
+import { generateImage, imagePrompt, visionBlock, legacyReferences, ProviderOutcomeUncertainError } from "./media.ts";
 import { intentSchema, premiumAllowed } from "./contract.ts";
 Deno.test(
   "advice is non-generating, free creation needs a prompt and Premium is server-owned",
@@ -103,6 +103,29 @@ Deno.test("vision refuses oversized images explicitly", async () => {
     Error,
     "studio_image_too_large",
   );
+});
+
+Deno.test("lost OpenAI and Photoroom responses are uncertain; explicit 4xx is definite", async () => {
+  const original = globalThis.fetch;
+  const cases = [
+    { operation: "create", image_prompt: "A useful illustration" },
+    { operation: "background", background_prompt: "Blue wall" },
+  ];
+  try {
+    for (const proposal of cases) {
+      const inputs = proposal.operation === "background"
+        ? [new Blob(["source"], { type: "image/jpeg" })]
+        : [];
+      globalThis.fetch = () => Promise.reject(new TypeError("connection lost"));
+      await assertRejects(() => generateImage(proposal, inputs), ProviderOutcomeUncertainError);
+      globalThis.fetch = () => Promise.resolve(new Response("upstream error", { status: 503 }));
+      await assertRejects(() => generateImage(proposal, inputs), ProviderOutcomeUncertainError);
+      globalThis.fetch = () => Promise.resolve(new Response("bad request", { status: 400 }));
+      await assertRejects(() => generateImage(proposal, inputs), Error, "rejected request");
+    }
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 Deno.test("a series shot does not inherit conflicting framing from the other shots", () => {

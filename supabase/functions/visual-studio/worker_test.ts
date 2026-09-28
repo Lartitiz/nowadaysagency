@@ -1,5 +1,6 @@
 import { assertEquals } from "https://deno.land/std@0.168.0/testing/asserts.ts";
 import { executeStudioJob, type StudioWorkPorts } from "./worker.ts";
+import { ProviderOutcomeUncertainError } from "./media.ts";
 import { intentSchema, shouldRecover } from "./contract.ts";
 function ports(failAt?: string) {
   const calls: string[] = [];
@@ -21,6 +22,7 @@ function ports(failAt?: string) {
     },
     complete: () => step("charge"),
     fail: () => step("fail"),
+    uncertain: () => step("uncertain"),
   };
   return { calls, work };
 }
@@ -49,6 +51,15 @@ for (const failure of ["store", "charge"])
       assertEquals(p.calls.includes("fail"), false);
     },
   );
+Deno.test("lost provider response is uncertain and never offered as a free retry", async () => {
+  const p = ports();
+  p.work.generate = async () => {
+    p.calls.push("provider");
+    throw new ProviderOutcomeUncertainError();
+  };
+  assertEquals(await executeStudioJob(p.work), "uncertain");
+  assertEquals(p.calls, ["source", "provider", "uncertain"]);
+});
 Deno.test(
   "unsupported routing and incomplete generated instructions are rejected",
   () => {

@@ -42,7 +42,10 @@ export interface StudioComposition {
 }
 export interface StudioMessage {
   composition?: StudioComposition;
-  existing_tool?: "mockup" | "before_after";
+  existing_tool?: "mockup" | "before_after" | "preparation";
+  preparation?: { exposure?: number; contrast?: number; format?: "post" | "square" | "story" | "cover" | "banner" };
+  viewed_version_id?: string | null;
+  viewed_reference_id?: string | null;
   id?: string;
   role: "user" | "assistant";
   text: string;
@@ -85,7 +88,7 @@ export interface StudioSession {
 }
 export interface StudioVersion {
   id: string;
-  status: "processing" | "ready" | "failed";
+  status: "processing" | "ready" | "failed" | "uncertain";
   proposal: StudioProposal;
   url: string | null;
   library_photo_id: string | null;

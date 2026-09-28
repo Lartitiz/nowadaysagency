@@ -13,7 +13,7 @@ import { useDemoContext } from "@/contexts/DemoContext";
 import { supabase } from "@/integrations/supabase/client";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 import { PhotoCompositionControls } from "./PhotoCompositionControls";
-import { PHOTO_FORMATS, cleanDirection, makePhotoRecipe, photoGeometry, loadPhotoImage,
+import { PHOTO_FORMATS, cleanDirection, cleanRecipe, makePhotoRecipe, photoGeometry, loadPhotoImage,
   renderPhotoComposition, confirmedPhotoCopy, sourceWithCutoutMask, type PhotoRecipe, type PhotoFormat } from "@/lib/photo-composition";
 import { listPhotoWorkflows, savePhotoWorkflow, saveWorkflowPhoto, saveWorkflowCalendarDraft, readWorkflowSource,
   serialisePreparation, parsePreparation, isCalendarDate, type PhotoWorkflowRow, type WorkflowSource, type PreparedPhotoOutput } from "@/lib/photo-workflows";
@@ -27,6 +27,8 @@ interface Props {
   resumeWorkflow?: PhotoWorkflowRow;
   /** Applies the active rendition to an in-progress post, keeping its caption in the parent. */
   onApply?: (dataUrl: string) => void | Promise<void>;
+  initialRecipe?: Partial<Pick<PhotoRecipe, "exposure" | "contrast" | "format">>;
+  onSaved?: (photo: { id: string }) => void;
 }
 function outputFor(sourceIndex: number, format: PhotoFormat, label?: string): PreparedPhotoOutput {
   return { id: crypto.randomUUID(), sourceIndex, label: label || PHOTO_FORMATS[format].label,
@@ -46,14 +48,19 @@ export default function PhotoPreparationDialog(props: Props) {
     {props.open && <PhotoPreparationSession {...props} closeRequest={closeRequest} />}
   </Dialog>;
 }
-function PhotoPreparationSession({ sources: inputs, mode = "single", resumeWorkflow, onApply, onOpenChange, closeRequest }: Props & { closeRequest: { current: () => void } }) {
+function PhotoPreparationSession({ sources: inputs, mode = "single", resumeWorkflow, onApply, onSaved, initialRecipe, onOpenChange, closeRequest }: Props & { closeRequest: { current: () => void } }) {
   const { user } = useAuth(); const { activeWorkspace, loading: workspaceLoading } = useWorkspace();
   const { isDemoMode } = useDemoContext(); const workspaceId = activeWorkspace?.id || "";
   const scope = `${user?.id || ""}:${workspaceId}`;
   const initialScope = useRef(scope); const alive = useRef(true); const busyRef = useRef(false);
   const queryClient = useQueryClient(); const navigate = useNavigate();
   const [sources, setSources] = useState<WorkflowSource[]>([]);
-  const [outputs, setOutputs] = useState<PreparedPhotoOutput[]>(() => makeOutputs(inputs.length, mode));
+  const [outputs, setOutputs] = useState<PreparedPhotoOutput[]>(() => makeOutputs(inputs.length, mode).map(o => {
+    if (!initialRecipe) return o;
+    const format = initialRecipe.format || o.recipe.format;
+    return { ...o, label: PHOTO_FORMATS[format].label, recipe: cleanRecipe({ ...makePhotoRecipe(format),
+      exposure: initialRecipe.exposure ?? 0, contrast: initialRecipe.contrast ?? 1 }) };
+  }));
   const [active, setActive] = useState(0); const [busy, setBusy] = useState("");
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [loadError, setLoadError] = useState(""); const [loaded, setLoaded] = useState(false);
@@ -188,6 +195,8 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", resumeWorkf
       }
     }
     queryClient.invalidateQueries({ queryKey: ["calendar-posts"] });
+    const saved = next.find(o => o.enabled && o.savedPhoto);
+    if (saved) onSaved?.({ id: saved.photoId });
     toast.success(calendar ? "Les brouillons sont dans ton calendrier. Aucune publication automatique." : "Les copies validées sont dans Mes photos.");
   }
   async function restore(row: PhotoWorkflowRow, isCurrent = () => alive.current) {
@@ -258,7 +267,7 @@ function PhotoPreparationSession({ sources: inputs, mode = "single", resumeWorkf
             }}><Undo2 className="h-3 w-3 mr-1" /> Annuler le dernier réglage</Button>
           </div>
           {lowResolution && !current.recipe.crop && <p className="text-xs text-muted-foreground">La source est petite pour ce format : vérifie la netteté de la photo.</p>}
-          <p className="text-xs text-muted-foreground">{current.recipe.crop ? "Le détail provient uniquement de la zone choisie." : "Toute la photo est conservée, même si cela ajoute des marges. Une partie de produit absente reste absente."}</p>
+          <p className="text-xs text-muted-foreground">{current.recipe.crop ? "Le détail provient uniquement de la zone choisie." : current.recipe.fit === "cover" ? "Le cadre est rempli en recadrant les bords. Vérifie que rien d’important n’est coupé." : "Toute la photo est conservée, même si cela ajoute des marges. Une partie de produit absente reste absente."}</p>
           <div className="rounded-lg border p-3 space-y-2">
             <label className="flex gap-2 items-center text-sm"><input type="checkbox" checked={current.enabled} disabled={!!busy || current.savedPhoto} onChange={e => editOutput({ enabled: e.target.checked })} /> Garder ce visuel dans la préparation</label>
             <label className="flex gap-2 items-start text-sm"><input className="mt-1" type="checkbox" checked={current.approved} disabled={!!busy || !preview || !!previewError || !current.enabled || current.savedPhoto} onChange={e => {

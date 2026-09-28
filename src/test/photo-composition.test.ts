@@ -22,6 +22,21 @@ describe("photo composition fidelity", () => {
     expect(g.dest.width).toBe(300); expect(g.dest.height).toBe(400);
     expect(photoGeometry(300, 400, r).detailTooSmall).toBe(true);
   });
+  it("fills exact post and story frames only after an explicit crop choice", () => {
+    for (const format of ["post", "story", "square"] as const) {
+      const recipe = makePhotoRecipe(format);
+      recipe.fit = "cover";
+      recipe.direction.padding = 0;
+      const framed = photoGeometry(1600, 900, recipe);
+      expect(framed.dest.width).toBeCloseTo(recipe.width);
+      expect(framed.dest.height).toBeCloseTo(recipe.height);
+      expect(framed.source.x).toBeGreaterThanOrEqual(0);
+      expect(framed.source.x + framed.source.width).toBeLessThanOrEqual(1600);
+      expect(framed.source.y + framed.source.height).toBeLessThanOrEqual(900);
+      expect(framed.source.width).toBeLessThan(1600);
+      expect(photoGeometry(1600, 900, makePhotoRecipe(format)).source.width).toBe(1600);
+    }
+  });
   it("bounds corrupt stored recipes and crops", () => {
     expect(normaliseCrop({ x: 2, y: -4, width: 3, height: NaN })).toEqual({ x: 0.9, y: 0, width: 0.09999999999999998, height: 0.1 });
     const r = cleanRecipe({ ...makePhotoRecipe("banner"), width: 99999, height: -2, exposure: Infinity, text: 1, direction: null } as never);

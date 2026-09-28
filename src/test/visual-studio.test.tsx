@@ -34,6 +34,12 @@ vi.mock("@/contexts/DemoContext", () => ({
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({
   PhotoLibraryPickerDialog: () => null,
 }));
+vi.mock("@/components/photos/PhotoPreparationDialog", () => ({
+  default: ({ initialRecipe, onSaved }: { initialRecipe?: { exposure?: number; format?: string }; onSaved?: (photo: {id:string}) => void }) =>
+    <div>Préparation ouverte · {initialRecipe?.format || "post"} · {initialRecipe?.exposure || 0}
+      <button onClick={() => onSaved?.({id:"prepared-photo"})}>Enregistrer la préparation test</button>
+    </div>,
+}));
 vi.mock("@/features/studio-video/StudioVideoPanel", () => ({
   StudioVideoPanel: ({ initialSource, onPickClip }: { initialSource?: { kind: string; id: string } | null; onPickClip?: (job: { id: string }) => void }) =>
     <div>Source du clip : {initialSource?.kind || "aucune"} · {initialSource?.id || "aucune"}
@@ -113,6 +119,33 @@ it("ouvre les clips sans quitter la session photo et reprend la version sélecti
   expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
   fireEvent.click(screen.getByRole("button", { name: "Photos" }));
   expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
+});
+it("shows an uncertain provider outcome without offering an unsafe retry", async () => {
+  mock.request.mockResolvedValue({ ...original(), versions: [{
+    id: "unknown", status: "uncertain", proposal, url: null,
+    library_photo_id: null, error_message: "Réponse fournisseur perdue.", created_at: "",
+  }] });
+  mount();
+  expect(await screen.findByText("Réponse fournisseur perdue.")).toBeInTheDocument();
+  expect(screen.queryByRole("button", {name: "Réessayer cette image seulement"})).not.toBeInTheDocument();
+});
+it("opens deterministic preparation from the chat and returns the saved copy", async () => {
+  const state: StudioState = { ...original(), session: {
+    ...original().session, messages: [{role:"assistant",text:"Éclaircir sans redessiner",operation:"existing_tool",existing_tool:"preparation",preparation:{exposure:0.2,format:"post"},viewed_version_id:"v1"}],
+  }, versions: [{id:"v1",status:"ready",proposal,url:"/studio-image.jpg",library_photo_id:null,error_message:null,created_at:""}] };
+  mock.request.mockResolvedValue(state);
+  const fetchMock = vi.spyOn(globalThis,"fetch").mockResolvedValue({
+    ok: true,
+    blob: async () => new Blob(["source"], {type:"image/jpeg"}),
+  } as Response);
+  try {
+    mount();
+    fireEvent.click(await screen.findByRole("button", {name:"Préparer cette photo sans la redessiner"}));
+    expect(await screen.findByText("Préparation ouverte · post · 0.2")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", {name:"Enregistrer la préparation test"}));
+    await waitFor(() => expect(mock.request.mock.calls.some(([body]) => body.action === "reference" && body.photo_id === "prepared-photo")).toBe(true));
+    expect(fetchMock).toHaveBeenCalledWith("/studio-image.jpg");
+  } finally { fetchMock.mockRestore(); }
 });
 it("revient de Photo via Vidéo au passage d'origine du Reel", async () => {
   mock.request.mockResolvedValue({ ...original(), versions: [{

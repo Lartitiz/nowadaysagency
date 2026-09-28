@@ -20,6 +20,7 @@ export interface PhotoDirection {
 }
 export interface PhotoRecipe {
   format: PhotoFormat;
+  fit?: "contain" | "cover";
   width: number;
   height: number;
   direction: PhotoDirection;
@@ -47,12 +48,12 @@ export function cleanDirection(value: Partial<PhotoDirection> = {}): PhotoDirect
 }
 export function makePhotoRecipe(format: PhotoFormat = "post", direction: PhotoDirection = DEFAULT_PHOTO_DIRECTION): PhotoRecipe {
   return { format, width: PHOTO_FORMATS[format].width, height: PHOTO_FORMATS[format].height,
-    direction: cleanDirection(direction), exposure: 0, contrast: 1, text: "" };
+    fit: "contain", direction: cleanDirection(direction), exposure: 0, contrast: 1, text: "" };
 }
 export function cleanRecipe(raw: PhotoRecipe): PhotoRecipe {
   const format = Object.prototype.hasOwnProperty.call(PHOTO_FORMATS, raw.format) ? raw.format : "post";
   const preset = PHOTO_FORMATS[format];
-  return { format, width: format === "banner" ? Math.round(clamp(raw.width, 320, 2400)) : preset.width,
+  return { format, fit: raw.fit === "cover" ? "cover" : "contain", width: format === "banner" ? Math.round(clamp(raw.width, 320, 2400)) : preset.width,
     height: format === "banner" ? Math.round(clamp(raw.height, 320, 2400)) : preset.height,
     direction: cleanDirection(raw.direction || {}), exposure: clamp(raw.exposure ?? 0, -1, 1),
     contrast: clamp(raw.contrast ?? 1, 0.8, 1.2), text: typeof raw.text === "string" ? raw.text.slice(0, 240) : "",
@@ -72,6 +73,18 @@ export function photoGeometry(sourceWidth: number, sourceHeight: number, raw: Ph
   const textHeight = d.textPosition === "none" ? 0 : Math.round(height * 0.24);
   const area = { x: margin, y: margin + (d.textPosition === "top" ? textHeight : 0),
     width: width - 2 * margin, height: height - 2 * margin - textHeight };
+  if (r.fit === "cover" && !r.crop) {
+    const targetRatio = area.width / area.height;
+    if (source.width / source.height > targetRatio) {
+      const visibleWidth = source.height * targetRatio;
+      source.x += (source.width - visibleWidth) * d.horizontal;
+      source.width = visibleWidth;
+    } else {
+      const visibleHeight = source.width / targetRatio;
+      source.y += (source.height - visibleHeight) * d.vertical;
+      source.height = visibleHeight;
+    }
+  }
   // Never hallucinate resolution for a detail: native pixels are the maximum.
   const requestedScale = Math.min(area.width / source.width, area.height / source.height);
   const scale = r.crop ? Math.min(1, requestedScale) : requestedScale;

@@ -24,6 +24,27 @@ export type Proposal = {
   input_path?: string | null;
   series_size?: number;
 };
+/** The request may have reached the image provider; repeating it may incur another charge. */
+export class ProviderOutcomeUncertainError extends Error {
+  constructor() {
+    super("Image provider outcome unknown");
+    this.name = "ProviderOutcomeUncertainError";
+  }
+}
+async function providerResponse(url: string, init: RequestInit): Promise<Response> {
+  let response: Response;
+  try {
+    response = await fetch(url, init);
+  } catch {
+    throw new ProviderOutcomeUncertainError();
+  }
+  // A 4xx response explicitly rejects the request. A server error is less conclusive.
+  if (!response.ok) {
+    if (response.status >= 500) throw new ProviderOutcomeUncertainError();
+    throw new Error("Image provider rejected request");
+  }
+  return response;
+}
 export function legacyReferences(session: {
   references?: Reference[];
   source_path: string | null;
@@ -75,16 +96,15 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
     form.append("removeBackground", "true");
     form.append("outputSize", "originalImage");
     form.append("export.format", "jpeg");
-    response = await fetch("https://image-api.photoroom.com/v2/edit", {
+    response = await providerResponse("https://image-api.photoroom.com/v2/edit", {
       method: "POST",
       headers: { "x-api-key": Deno.env.get("PHOTOROOM_API_KEY")! },
       body: form,
       signal: AbortSignal.timeout(90_000),
     });
-    if (!response.ok) throw new Error("Image provider failed");
-    const blob = await response.blob();
+    const blob = await response.blob().catch(() => { throw new ProviderOutcomeUncertainError(); });
     if (blob.type !== "image/jpeg" || blob.size > 15_000_000) {
-      throw new Error("Invalid output");
+      throw new ProviderOutcomeUncertainError();
     }
     return blob;
   }
@@ -126,23 +146,29 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
     headers["Content-Type"] = "application/json";
     body = JSON.stringify({ ...options, n: 1 });
   }
-  response = await fetch(
+  response = await providerResponse(
     `https://api.openai.com/v1/images/${
       inputs.length ? "edits" : "generations"
     }`,
     { method: "POST", headers, body, signal: AbortSignal.timeout(150_000) },
   );
-  if (!response.ok) throw new Error("Image provider failed");
-  const data = await response.json();
-  const encoded = data.data?.[0]?.b64_json;
+  const data = await response.json().catch(() => { throw new ProviderOutcomeUncertainError(); });
+  const encoded = data?.data?.[0]?.b64_json;
   if (typeof encoded !== "string" || encoded.length > 21_000_000) {
-    throw new Error("Invalid output");
+    throw new ProviderOutcomeUncertainError();
   }
-  const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+  let bytes: Uint8Array;
+  try {
+    bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
+  } catch {
+    throw new ProviderOutcomeUncertainError();
+  }
   if (!bytes.length || bytes.length > 15_000_000) {
-    throw new Error("Invalid output");
+    throw new ProviderOutcomeUncertainError();
   }
-  return new Blob([bytes], { type: "image/jpeg" });
+  const output = new ArrayBuffer(bytes.length);
+  new Uint8Array(output).set(bytes);
+  return new Blob([output], { type: "image/jpeg" });
 }
 
 export function imagePrompt(proposal: Proposal) {
