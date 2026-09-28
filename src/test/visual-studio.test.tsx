@@ -288,9 +288,9 @@ it("mobile drawer exposes the whole conversation and its confirmation", async ()
   });
   mount();
   await screen.findByText("Décris ton fond.");
-  fireEvent.click(
-    screen.getByRole("button", { name: /Toute la conversation/ }),
-  );
+  await screen.findByRole("dialog");
+  fireEvent.click(screen.getByRole("button",{name:"Fermer la conversation"}));
+  fireEvent.click(screen.getByRole("button", { name: /Toute la conversation/ }));
   await screen.findByRole("dialog");
   fireEvent.click(
     screen.getByRole("button", { name: "Vérifier la proposition" }),
