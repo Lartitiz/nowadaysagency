@@ -268,7 +268,7 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
     }
   }
 
-  const sourceLabel = instagramConnected
+  const sourceLabel = instagramUsed
     ? hasSite
       ? "sur ton site et ton Instagram"
       : "sur ton Instagram"
