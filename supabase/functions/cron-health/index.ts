@@ -643,9 +643,17 @@ Deno.serve(async (req) => {
     // relecture sans tarif rejoint `modeles_non_tarifes` comme les autres.
     const addEditorialReview = (summary: any, from: number, to: number) => {
       const byModel: Record<string, { carrousels: number; input_tokens: number; output_tokens: number }> = {};
+      // Issue de la relecture : « rejected » = payée puis jetée par la garde de
+      // fidélité (2/2 le 28/09). `garde` compte la règle qui a bloqué.
+      const issues: Record<string, number> = {}, garde: Record<string, number> = {};
       for (const e of cqEvents || []) {
         const u = e.content_preview?.editorial_usage;
         if (!u?.model || !inWindow(e.created_at, from, to)) continue;
+        if (u.status) issues[u.status] = (issues[u.status] || 0) + 1;
+        for (const g of Array.isArray(u.guard) ? u.guard : []) {
+          const k = String(g).replace(/^(lost-number|new-unsupported-number):.*/, "$1");
+          garde[k] = (garde[k] || 0) + 1;
+        }
         const m = (byModel[u.model] ||= { carrousels: 0, input_tokens: 0, output_tokens: 0 });
         m.carrousels++;
         m.input_tokens += Number(u.input_tokens) || 0;
@@ -664,6 +672,7 @@ Deno.serve(async (req) => {
       });
       const round2 = (n: number) => Math.round(n * 100) / 100;
       summary.relecture_editoriale = relecture;
+      summary.relecture_issues = { ...issues, ...(Object.keys(garde).length ? { garde } : {}) };
       summary.cout_texte_estime_eur = round2(summary.cout_texte_estime_eur + cout);
       summary.cout_total_estime_eur = round2(summary.cout_total_estime_eur + cout);
     };
