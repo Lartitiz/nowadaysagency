@@ -56,6 +56,19 @@ function looksLikeUrl(value: string): boolean {
   return !!v && !/\s/.test(v) && v.includes(".");
 }
 
+/**
+ * Le champ Instagram du profil accepte aussi bien « @lamaiastra » qu'une URL
+ * complète. On en extrait le pseudo nu pour pouvoir le comparer au compte
+ * réellement connecté en OAuth.
+ */
+function normalizeInstagramHandle(value: string | null | undefined): string | null {
+  const raw = (value ?? "").trim();
+  if (!raw) return null;
+  const fromUrl = raw.match(/instagram\.com\/([^/?#\s]+)/i)?.[1] ?? raw;
+  const handle = fromUrl.replace(/^@/, "").split(/[/?#]/)[0].trim().toLowerCase();
+  return handle || null;
+}
+
 export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerProps) {
   const { user } = useAuth();
   const { isDemoMode } = useDemoContext();
