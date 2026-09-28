@@ -148,7 +148,7 @@ export default function CreerStepQuestions({
           <p className="text-2xs font-semibold uppercase tracking-wide text-primary-text mb-1">Ton idée</p>
           <p className="text-sm font-medium text-foreground leading-snug">{subject}</p>
         </div>
-        <Button onClick={handleSkip} disabled={isSubmitting} className="w-full rounded-pill gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base">
+        <Button onClick={handleSkip} disabled={isSubmitting} data-testid="creer-generate-direct" className="w-full rounded-pill gap-2 bg-primary text-primary-foreground hover:bg-primary/90 h-12 text-base">
           {isSubmitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> On rédige ton contenu…</>
           ) : (
@@ -181,7 +181,7 @@ export default function CreerStepQuestions({
             ? "Tu peux quand même générer directement : la qualité reste au rendez-vous."
             : "Pas de questions cette fois : on peut générer directement, ton contenu sera très bien quand même."}
         </p>
-        <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2">
+        <Button onClick={handleSkip} disabled={isSubmitting} className="gap-2" data-testid="creer-generate-direct">
           {isSubmitting ? (
             <><Loader2 className="h-4 w-4 animate-spin" /> Lancement…</>
           ) : (
@@ -255,7 +255,7 @@ export default function CreerStepQuestions({
         <Button variant="ghost" size="sm" onClick={handlePrev} disabled={isSubmitting} className="gap-1">
           <ArrowLeft className="h-3.5 w-3.5" /> {currentIndex > 0 ? "Précédent" : "Retour"}
         </Button>
-        <Button size="sm" onClick={handleNext} disabled={isSubmitting} className="gap-1">
+        <Button size="sm" onClick={handleNext} disabled={isSubmitting} className="gap-1" data-testid="creer-questions-next">
           {isSubmitting ? (
             <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>
           ) : isLast ? (
@@ -273,6 +273,7 @@ export default function CreerStepQuestions({
         className="w-full gap-1.5 text-muted-foreground"
         onClick={handleSkip}
         disabled={isSubmitting}
+        data-testid="creer-generate-direct"
       >
         {isSubmitting ? (
           <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Lancement…</>

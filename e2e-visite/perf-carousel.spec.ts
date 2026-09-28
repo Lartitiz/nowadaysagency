@@ -55,42 +55,54 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   const closeBtn = page.locator('[data-testid="branding-banner-close"], button[aria-label*="ermer"]').first();
   if (await closeBtn.isVisible({ timeout: 2000 }).catch(() => false)) await closeBtn.click();
 
+  // Sélecteurs : data-testid d'abord (stables, posés le 28/09 après que le
+  // renommage « Suivant » → « Continuer » + nouveau placeholder a cassé l'étape 1),
+  // texte en repli tant que le site live n'a pas été re-publié avec les testids.
+  const nextFormat = page.getByTestId("creer-format-next")
+    .or(page.getByRole("button", { name: /^(suivant|continuer)$/i })).first();
+
   // Étape 1 : idée
-  const textarea = page.locator("#creation-idea").or(page.getByPlaceholder(/raconte|idée|mot-clé|envie|partager|nouveauté|coulisses/i)).first();
+  const textarea = page.getByTestId("creer-idea-input")
+    .or(page.locator("#creation-idea"))
+    .or(page.getByPlaceholder(/nouveauté|coulisses|raconte|idée|mot-clé|envie|partager/i)).first();
   await expect(textarea).toBeVisible({ timeout: 8000 });
   await textarea.fill(IDEA);
-  await page.getByRole("button", { name: /^(suivant|continuer)$/i }).click();
+  await page.getByTestId("creer-idea-next")
+    .or(page.getByRole("button", { name: /^(suivant|continuer)$/i })).first().click();
 
   // Étape 2 : Instagram → Carrousel → sous-mode « Texte design »
-  await page.getByRole("button", { name: /instagram/i }).first().click();
-  const carrouselCard = page.getByText(/^Carrousel$/, { exact: true }).first();
+  const instagram = page.getByTestId("creer-channel-instagram")
+    .or(page.getByRole("button", { name: /^instagram/i })).first();
+  await expect(instagram).toBeVisible({ timeout: 15000 });
+  await instagram.click();
+  const carrouselCard = page.getByTestId("creer-format-carousel")
+    .or(page.getByRole("button", { name: /^Carrousel\b/ })).first();
   await expect(carrouselCard).toBeVisible({ timeout: 15000 });
   await carrouselCard.click();
+  const texteDesign = page.getByTestId("carousel-mode-text")
+    .or(page.getByRole("button", { name: /^Texte design/i })).first();
+  await expect(texteDesign).toBeVisible({ timeout: 10000 });
+  await texteDesign.click();
+  await expect(texteDesign).toHaveAttribute("aria-pressed", "true");
+  await expect(nextFormat).toBeEnabled({ timeout: 5000 });
+  await nextFormat.click();
 
-  for (let i = 0; i < 4; i++) {
-    const texteDesign = page.getByText(/Texte design/i).first();
-    if (await texteDesign.isVisible({ timeout: 2000 }).catch(() => false)) {
-      await texteDesign.click();
-    }
-    const suivant = page.getByRole("button", { name: /^(suivant|continuer)$/i }).first();
-    await expect(suivant).toBeEnabled({ timeout: 5000 });
-    await suivant.click();
-    const onStep3 = await page
-      .getByText(/Étape 3 sur 4/i)
-      .first()
-      .waitFor({ state: "visible", timeout: 5000 })
-      .then(() => true)
-      .catch(() => false);
-    if (onStep3) break;
-  }
+  // Étape 3 (Précisions) : quitter l'étape Format est le vrai signal.
+  const stepper = page.getByTestId("creer-stepper");
+  await expect
+    .poll(async () => {
+      if (await stepper.count()) return await stepper.first().getAttribute("data-current-step");
+      return (await page.getByText(/Étape 3 sur 4/i).first().isVisible().catch(() => false)) ? "brief" : "?";
+    }, { timeout: 15000 })
+    .not.toMatch(/^(idea|format|\?)$/);
+  await page.screenshot({ path: "e2e-visite/shots/perf-carousel-etape3.png", fullPage: false });
 
   // Étape 3 : attendre les questions puis générer directement
-  const genDir = page.getByRole("button", { name: /générer directement/i });
-  const genBtn = page.getByRole("button", { name: /^générer\b/i });
-  await Promise.race([
-    expect(genDir).toBeVisible({ timeout: 120000 }),
-    expect(genBtn).toBeVisible({ timeout: 120000 }),
-  ]).catch(() => {});
+  const genDir = page.getByTestId("creer-generate-direct")
+    .or(page.getByRole("button", { name: /générer directement/i })).first();
+  const genBtn = page.getByTestId("creer-questions-next")
+    .or(page.getByRole("button", { name: /^générer\b/i })).first();
+  await expect(genDir.or(genBtn).first()).toBeVisible({ timeout: 120000 });
 
   const tClickGen = Date.now();
   if (await genDir.isVisible().catch(() => false)) await genDir.click();
@@ -117,6 +129,14 @@ test("PERF — carrousel texte : durées par étape", async ({ page }) => {
   const tVisualsReady = Date.now();
   console.log(`⏲ 🖼️  VISUELS affichés après ${((tVisualsReady - tClickGen) / 1000).toFixed(1)}s depuis le clic (+${((tVisualsReady - tTextReady) / 1000).toFixed(1)}s après le texte)`);
 
+  // Capture : l'éditeur apparaît en fondu et l'aperçu (iframe srcdoc) peint après
+  // les vignettes — le 28/09 la capture montrait une slide BLANCHE alors que le
+  // carrousel était bon. On attend du texte DANS l'aperçu, puis on le cadre.
+  await page.waitForFunction(() =>
+    [...document.querySelectorAll("iframe")].some((f) => (f.contentDocument?.body?.innerText || "").trim().length > 0),
+  null, { timeout: 30000 }).catch(() => console.log("⚠️ aucun aperçu de slide avec du texte après 30 s — regarder la capture"));
+  await page.locator("iframe").first().scrollIntoViewIfNeeded().catch(() => {});
+  await page.waitForTimeout(1500); // fin du fondu d'entrée de l'éditeur
   await page.screenshot({ path: "e2e-visite/shots/perf-carousel-final.png", fullPage: false });
 
   // ── Récap ──

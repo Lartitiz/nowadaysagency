@@ -466,6 +466,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
                 <button
                   key={ch.id}
                   onClick={() => handleChannelSelect(ch.id)}
+                  data-testid={`creer-channel-${ch.id}`}
                   className="rounded-xl border-2 border-border bg-card hover:border-primary/40 p-3 text-center transition-all"
                 >
                   <Icon className="h-6 w-6 mx-auto mb-1.5 text-bordeaux" />
@@ -643,6 +644,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
                     key={id}
                     onClick={() => handleFormatSelect(id)}
                     disabled={spec.comingSoon}
+                    data-testid={`creer-format-${id}`}
                     className={`relative rounded-xl border-2 p-3 text-center transition-all ${
                       spec.comingSoon
                         ? "opacity-40 cursor-not-allowed border-border bg-muted"
@@ -1070,6 +1072,7 @@ export default function CreerStepFormat({ idea, objective, forcedChannel, onChan
         <Button
           disabled={!selectedFormat || (selectedFormat === "carousel" && !carouselSubMode) || mixForkPending || (selectedFormat === "pinterest_inspiration" && inspirationPhotos.length === 0)}
           onClick={handleNext}
+          data-testid="creer-format-next"
           className="w-full gap-2"
           size="lg"
         >
