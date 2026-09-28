@@ -148,6 +148,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               .eq("id", p.photo_id)
               .eq("workspace_id", p.workspace_id)
               .eq("status", "ready")
+              .is("removed_from_library_at", null)
               .single(),
           )
         : null;
@@ -284,6 +285,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             .eq("id", p.photo_id)
             .eq("workspace_id", p.workspace_id)
             .eq("status", "ready")
+            .is("removed_from_library_at", null)
             .single(),
         );
         const id = crypto.randomUUID(),
@@ -430,6 +432,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               .select("id,name,kind,description")
               .eq("workspace_id", p.workspace_id)
               .eq("status", "ready")
+              .is("removed_from_library_at", null)
               .order("created_at", { ascending: false })
               .limit(60),
           ]);
@@ -855,6 +858,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             .select("id,name,kind,storage_path")
             .eq("workspace_id", p.workspace_id)
             .eq("status", "ready")
+            .is("removed_from_library_at", null)
             .in("id", ids),
         );
         return Promise.all(

@@ -81,7 +81,11 @@ function fixture(role = "owner", replay = false) {
       return json(true);
     if (url.pathname.startsWith("/rest/v1/brand_"))
       return json({ mission: "Ateliers artisanaux" });
-    if (url.pathname === "/rest/v1/user_photos") return json([]);
+    if (url.pathname === "/rest/v1/user_photos") {
+      assertEquals(url.searchParams.get("removed_from_library_at"), "is.null");
+      assertEquals(url.searchParams.get("workspace_id"), `eq.${space}`);
+      return json([]);
+    }
     if (url.pathname === "/v1/messages") {
       payloads.push(JSON.parse(String(init?.body)));
       return json({
