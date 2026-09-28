@@ -9,7 +9,8 @@ import { ACTIVITY_SECTIONS_REAL_ESTATE, BLOCKERS_REAL_ESTATE, OBJECTIVES_REAL_ES
 import { Progress } from "@/components/ui/progress";
 
 interface Props {
-  // Note: hasInstagram est basé sur les captures d'écran uploadées, pas sur le scraping API (désactivé)
+  // Le pseudo Instagram peut être lu publiquement par l'Edge Function ; les
+  // captures importées sont suivies séparément via hasDocuments.
   hasInstagram: boolean;
   hasWebsite: boolean;
   hasDocuments: boolean;
@@ -45,8 +46,9 @@ function buildInitialMessages(hasWebsite: boolean, hasDocuments: boolean): LiveM
 function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[] {
   const msgs: LiveMessage[] = [];
   const analysis = data?.diagnostic || data?.analysis || data;
+  const sourcesUsed: string[] = data?.sources_used || [];
 
-  if (analysis?.scores?.website != null) {
+  if (sourcesUsed.includes("website") && analysis?.scores?.website != null) {
     msgs.push({ text: "Je lis ton site... ✓", type: "done" });
     if (analysis?.branding_prefill?.positioning) {
       const pos = analysis.branding_prefill.positioning;
@@ -54,7 +56,7 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
     }
   }
 
-  if (analysis?.scores?.instagram != null) {
+  if (sourcesUsed.includes("instagram_screenshot") && analysis?.scores?.instagram != null) {
     msgs.push({ text: "J'analyse ta capture Instagram... ✓", type: "done" });
     if (analysis.scores.instagram >= 60) {
       msgs.push({ text: "Ton profil Instagram a de bonnes bases. Il y a des choses à optimiser, mais la direction est là.", type: "insight" });
@@ -68,7 +70,7 @@ function buildRevealMessages(data: any, answers: Props["answers"]): LiveMessage[
     msgs.push({ text: `Ton ton est plutôt ${tones}. J'aime bien.`, type: "insight" });
   }
 
-  if (analysis?.scores?.linkedin != null) {
+  if (sourcesUsed.includes("linkedin") && analysis?.scores?.linkedin != null) {
     msgs.push({ text: "Je parcours ton LinkedIn... ✓", type: "done" });
   }
 
@@ -124,7 +126,7 @@ const LOADING_TIPS: Record<string, string[]> = {
 };
 
 export default function DiagnosticLoading({
-  hasInstagram, hasWebsite, hasDocuments, isDemoMode,
+  hasWebsite, hasDocuments, isDemoMode,
   answers, brandingAnswers, uploadedFileIds, activityType, allowOverwrite, onReady,
 }: Props) {
   const { user } = useAuth();
@@ -137,6 +139,7 @@ export default function DiagnosticLoading({
   const [messages, setMessages] = useState<LiveMessage[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
   const [checks, setChecks] = useState({ ig: false, web: false, docs: false });
+  const [failedChecks, setFailedChecks] = useState({ web: false, docs: false });
   const [phase, setPhase] = useState<"loading" | "revealing" | "ready">("loading");
   const calledRef = useRef(false);
   const diagnosticDataRef = useRef<DiagnosticData | null>(null);
@@ -178,17 +181,6 @@ export default function DiagnosticLoading({
     }, phase === "revealing" ? 1200 : 2800);
     return () => clearInterval(interval);
   }, [messages.length, phase]);
-
-  // Animate checkmarks during loading
-  useEffect(() => {
-    if (phase !== "loading") return;
-    const timers = [
-      setTimeout(() => hasDocuments && setChecks(c => ({ ...c, docs: true })), 1500),
-      setTimeout(() => hasWebsite && setChecks(c => ({ ...c, web: true })), 3000),
-      setTimeout(() => hasInstagram && setChecks(c => ({ ...c, ig: true })), 4500),
-    ];
-    return () => timers.forEach(clearTimeout);
-  }, [phase, hasDocuments, hasWebsite, hasInstagram]);
 
   // Progress bar logic
   useEffect(() => {
@@ -322,7 +314,16 @@ export default function DiagnosticLoading({
 
         const result = mapEdgeResponseToDiagnostic(data, answers);
         diagnosticDataRef.current = result;
-        setChecks({ ig: true, web: true, docs: true });
+        const used: string[] = data.sources_used || [];
+        setChecks({
+          ig: used.includes("instagram"),
+          web: used.includes("website"),
+          docs: used.includes("instagram_screenshot"),
+        });
+        setFailedChecks({
+          web: hasWebsite && !used.includes("website"),
+          docs: hasDocuments && !used.includes("instagram_screenshot"),
+        });
 
         const reveals = buildRevealMessages(data, answers);
         if (reveals.length > 1) {
@@ -342,7 +343,7 @@ export default function DiagnosticLoading({
     function applyFallback() {
       const data = computeDiagnosticData(answers, brandingAnswers);
       diagnosticDataRef.current = data;
-      setChecks({ ig: true, web: true, docs: true });
+      setFailedChecks({ web: hasWebsite, docs: hasDocuments });
       setTimeout(() => onReady(data), 500);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -350,7 +351,9 @@ export default function DiagnosticLoading({
 
   const getStatus = (key: "ig" | "web" | "docs", has: boolean) => {
     if (!has) return "-";
-    return checks[key] ? "✅" : "en cours...";
+    if (checks[key]) return "✅";
+    if (key !== "ig" && failedChecks[key]) return "non disponible";
+    return "en cours...";
   };
 
   const currentMessage = messages[currentIdx] || messages[0];

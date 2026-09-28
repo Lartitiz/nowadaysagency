@@ -55,6 +55,8 @@ const LOCAL_KEYS = [
 const LOCAL_PREFIXES = [
   "creer_flow_state_backup", // matche "creer_flow_state_backup:{userId}"
   "creer_flow_photos_backup", // manifeste photo de secours, "…:{userId}"
+  "lac_onboarding_upload_ids", // captures reprises après rafraîchissement
+  "lac_onboarding_diagnostic", // résultat repris après rafraîchissement
 ];
 
 // Bases IndexedDB applicatives à supprimer (base64 lourd des photos en cours)

@@ -123,7 +123,15 @@ export function normalizeInstagramHandle(input: string): string {
 }
 
 export function isValidUrl(input: string): boolean {
-  return /^https?:\/\/.+\..+/.test(input.trim());
+  try {
+    const url = new URL(input.trim());
+    return ["http:", "https:"].includes(url.protocol)
+      && !url.username && !url.password
+      && url.hostname.includes(".")
+      && !url.hostname.split(".").some(part => !part);
+  } catch {
+    return false;
+  }
 }
 
 export function addHttpsIfNeeded(input: string): string {
