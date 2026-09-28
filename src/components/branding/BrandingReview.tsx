@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { importTarget, readImportRows } from "@/lib/branding-import-persistence";
 import { isEmptyVal, fillOnlyEmpty } from "@/lib/fill-only-empty";
 import { posthog } from "@/lib/posthog";
+import { BrandPhotosPicker } from "@/components/photos/BrandPhotosPicker";
 
 // ─── Types ───────────────────────────────────────────────────
 export interface AnalysisResult {
@@ -1292,6 +1293,10 @@ export default function BrandingReview({ analysis, sourcesUsed = [], sourcesFail
                 ))}
               </div>
             )}
+
+            {/* Fin de relecture pendant l'onboarding : la marque est posée, on
+                propose ses photos (site / Instagram connecté) avant le 1er contenu. */}
+            {done && mandatory && <BrandPhotosPicker placement="brand_review" className="mb-5" />}
 
             <div className="flex flex-col sm:flex-row gap-2 justify-center">
               {done ? (

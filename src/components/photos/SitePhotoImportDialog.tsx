@@ -36,7 +36,7 @@ import { useWorkspaceId } from "@/hooks/use-workspace-query";
 import { useSocialConnections } from "@/hooks/use-social-connections";
 import { invokeWithTimeout } from "@/lib/invoke-with-timeout";
 
-interface SiteImageCandidate {
+export interface SiteImageCandidate {
   url: string;
   alt: string | null;
   /** Nom de fichier suggéré par l'edge (Instagram : insta-AAAA-MM-JJ). */
@@ -60,7 +60,7 @@ const MIN_REAL_WIDTH = 200;
 /** Téléchargements simultanés côté edge (petites rafales, pas de matraquage). */
 const FETCH_CONCURRENCY = 3;
 
-function fileNameFromUrl(url: string, contentType: string, suggested?: string | null): string {
+export function fileNameFromUrl(url: string, contentType: string, suggested?: string | null): string {
   let base = suggested || "";
   if (!base) {
     base = "photo-site";
@@ -76,7 +76,7 @@ function fileNameFromUrl(url: string, contentType: string, suggested?: string | 
   return `${base}.${ext}`;
 }
 
-function base64ToFile(base64: string, contentType: string, name: string): File {
+export function base64ToFile(base64: string, contentType: string, name: string): File {
   const binary = atob(base64);
   const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
