@@ -534,3 +534,45 @@ it("the first mobile question keeps the conversation open after creating its ses
     false,
   );
 });
+
+it("a persisted reply recovered after a lost acknowledgement clears only its own draft", async () => {
+  const start = original();
+  let received: string | null = null;
+  mock.request.mockImplementation((body) => {
+    if (body.action === "message") {
+      received = body.request_id;
+      return Promise.reject(new Error("Réponse perdue"));
+    }
+    return Promise.resolve(
+      received
+        ? {
+            ...start,
+            session: {
+              ...start.session,
+              revision: 1,
+              proposal,
+              messages: [
+                ...start.session.messages,
+                { role: "user", id: received, text: "Fond crème" },
+                { role: "assistant", text: "Proposition retrouvée" },
+              ],
+            },
+          }
+        : start,
+    );
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
+    target: { value: "Fond crème" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await screen.findByText("Proposition retrouvée");
+  await waitFor(() =>
+    expect(screen.getByRole("textbox", { name: "Ta demande" })).toHaveValue(""),
+  );
+  expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
+  expect(
+    mock.request.mock.calls.filter(([b]) => b.action === "message"),
+  ).toHaveLength(1);
+});

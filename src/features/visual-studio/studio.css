@@ -223,3 +223,17 @@
   border-radius: 6px;
   background: hsl(var(--background));
 }
+
+.studio-suggestion {
+  height: auto;
+  min-height: 34px;
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  justify-content: flex-start;
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+.studio-chat {
+  min-width: 0;
+}

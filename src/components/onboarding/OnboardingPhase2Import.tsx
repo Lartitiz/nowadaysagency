@@ -4,6 +4,10 @@ import { Upload, X, ChevronDown } from "lucide-react";
 import { InputIndicator, isValidUrl, addHttpsIfNeeded } from "./OnboardingShared";
 import type { Answers, UploadedFile } from "@/hooks/use-onboarding";
 import { toast } from "sonner";
+import { useWorkspaceId } from "@/hooks/use-workspace-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { useSocialConnections } from "@/hooks/use-social-connections";
+import { startSocialConnect } from "@/lib/social-connect";
 
 /* ── Étape 4 : la promesse est explicite (« ton espace arrive déjà rempli »)
    et le chemin sans site (capture Instagram) est un vrai plan A-bis, plus un
@@ -13,6 +17,26 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
 }: {answers: Answers;set: <K extends keyof Answers>(k: K, v: Answers[K]) => void;files: UploadedFile[];uploading: boolean;onUpload: (files: FileList | null) => void;onRemove: (id: string) => void;onNext: () => void;onLeave?: (url: string) => void;isDemoMode?: boolean;}) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkedinOpen, setLinkedinOpen] = useState(() => !!answers.linkedin_summary);
+  const workspaceId = useWorkspaceId();
+  const { user } = useAuth();
+  const { isConnected, accountNames } = useSocialConnections();
+  const igConnected = isConnected("instagram");
+  const [connecting, setConnecting] = useState(false);
+
+  const connectInstagram = async () => {
+    // Sauvegarde immédiate (la persistance normale est différée) avant de quitter la page.
+    try { localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers)); } catch { /* ignore */ }
+    setConnecting(true);
+    const res = await startSocialConnect(
+      "instagram",
+      workspaceId && workspaceId !== user?.id ? workspaceId : undefined,
+      { depuis: "/onboarding", quoi: "ton onboarding" },
+    );
+    if (res.error) {
+      setConnecting(false);
+      toast.error("Impossible d'ouvrir la connexion Instagram", { description: "Continue avec ton @, tu pourras connecter ton compte plus tard." });
+    }
+  };
   const hasAnyLink = !!(answers.website || answers.instagram || answers.linkedin_summary);
   const hasAnything = hasAnyLink || files.length > 0;
 
@@ -84,6 +108,26 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
             placeholder="@toncompte"
             aria-label="Ton nom d'utilisateur Instagram"
             className="w-full text-base p-3 mb-3 border-2 border-border rounded-xl focus:border-primary outline-none bg-background transition-colors text-foreground placeholder:text-muted-foreground/50" />
+
+          {!isDemoMode && (
+            <div className="mb-3 rounded-xl bg-secondary/40 p-3 flex flex-col sm:flex-row sm:items-center gap-2">
+              {igConnected ? (
+                <p className="text-xs text-foreground">
+                  ✅ Compte Instagram connecté{accountNames.instagram ? ` (@${accountNames.instagram})` : ""} : tes photos et tes stats seront synchronisées.
+                </p>
+              ) : (
+                <>
+                  <p className="text-xs text-muted-foreground flex-1">
+                    Tu as un compte Instagram Pro ? Connecte-le pour synchroniser automatiquement tes photos et tes stats. <span className="text-muted-foreground/60">(facultatif)</span>
+                  </p>
+                  <Button type="button" size="sm" variant="outline" className="rounded-full shrink-0" disabled={connecting} onClick={connectInstagram}>
+                    {connecting ? "Ouverture…" : "Connecter mon compte"}
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
 
           {!isDemoMode && files.length < 3 &&
           <div

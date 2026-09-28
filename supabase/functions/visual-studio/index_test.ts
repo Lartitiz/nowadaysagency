@@ -387,3 +387,83 @@ Deno.test(
     }
   },
 );
+
+Deno.test(
+  "a detailed edit preserves all eight invariants instead of rejecting or truncating them",
+  async () => {
+    const f = fixture();
+    const preserve = [
+      "Bol",
+      "Forme",
+      "Cobalt",
+      "Cadrage",
+      "Table rouge",
+      "Ombres",
+      "Style",
+      "Angle",
+    ];
+    f.session.references = [
+      {
+        id: id(90),
+        photo_id: id(5),
+        path: "reference",
+        role: "subject",
+        name: "Bol",
+      },
+    ];
+    f.setIntent({
+      operation: "edit",
+      summary: "Enlever seulement le citron",
+      image_prompt: "Same scene without the lemon",
+      preserve,
+      change: ["Enlever le citron"],
+    });
+    try {
+      const res = await handleStudioRequest(
+        request({
+          ...base,
+          action: "message",
+          message: "Enlève seulement le citron",
+          revision: 0,
+          request_id: id(91),
+        }),
+      );
+      assertEquals(res.status, 200);
+      assertEquals((await res.json()).session.proposal.preserve, preserve);
+      assertEquals(
+        f.requests.some((p) => p.includes("studio_confirm")),
+        false,
+      );
+    } finally {
+      f.restore();
+    }
+  },
+);
+Deno.test(
+  "an invalid interpretation permits a deliberate fresh request without writing a message or generating",
+  async () => {
+    const f = fixture();
+    f.setIntent({ operation: "invalid", summary: "Invalid response" });
+    try {
+      const res = await handleStudioRequest(
+        request({
+          ...base,
+          action: "message",
+          message: "Une illustration",
+          revision: 0,
+          request_id: id(92),
+        }),
+      );
+      assertEquals(res.status, 503);
+      assertEquals((await res.json()).code, "refresh_request");
+      assertEquals(f.session.messages, []);
+      assertEquals(f.session.revision, 0);
+      assertEquals(
+        f.requests.some((p) => p.includes("studio_confirm")),
+        false,
+      );
+    } finally {
+      f.restore();
+    }
+  },
+);
