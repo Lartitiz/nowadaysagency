@@ -9065,6 +9065,16 @@ export type Database = {
         Args: { p_actor: string; p_job: string; p_monthly_limit: number }
         Returns: boolean
       }
+      studio_video_claim_trial: {
+        Args: {
+          p_actor: string
+          p_allowed_workspace: string
+          p_job: string
+          p_max_submissions: number
+          p_total_limit: number
+        }
+        Returns: boolean
+      }
       studio_write_memory: {
         Args: {
           p_actor: string
