@@ -162,6 +162,13 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
       else toast.error("Ce clip du Studio n’est pas encore disponible.");
     }).catch(() => toast.error("Impossible de retrouver ce clip du Studio."));
   }, [workspaceId, highlightedPassage, returnedClipId]);
+  useEffect(() => {
+    if (highlightedPassage === null || !montageMode) return;
+    const frame = requestAnimationFrame(() => {
+      document.getElementById(`studio-reel-passage-${highlightedPassage}`)?.scrollIntoView?.({ block: "center" });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [highlightedPassage, montageMode]);
   const [associationTexts, setAssociationTexts] = useState(() => initialProject?.sectionTexts || sectionTexts);
   const [needsReview, setNeedsReview] = useState(() => !!initialProject && JSON.stringify(initialProject.sectionTexts) !== JSON.stringify(sectionTexts));
   const sectionFingerprint = JSON.stringify(sectionTexts);
