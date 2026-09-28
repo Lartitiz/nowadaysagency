@@ -81,4 +81,3 @@ REVOKE ALL ON FUNCTION public.studio_save_library(uuid,uuid) FROM PUBLIC,anon,au
 GRANT EXECUTE ON FUNCTION public.studio_confirm_generation(uuid,uuid,uuid,integer,integer,boolean,integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.studio_complete_generation(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.studio_save_library(uuid,uuid) TO service_role;
-
