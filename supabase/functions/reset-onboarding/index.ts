@@ -148,6 +148,26 @@ Deno.serve(async (req) => {
       }
     };
 
+    // Purge des idées issues du diagnostic (source_module = 'diagnostic').
+    // Sans ça, une réinitialisation laissait les idées du run précédent en base :
+    // « Ton premier contenu » repiochait la plus ancienne (order created_at asc)
+    // et proposait un sujet de l'ANCIENNE activité. On ne touche QUE les idées
+    // générées par le diagnostic : les idées écrites à la main sont préservées.
+    const delDiagnosticIdeas = async (col: string, val: string) => {
+      try {
+        const { error } = await admin
+          .from("saved_ideas")
+          .delete()
+          .eq(col, val)
+          .eq("source_module", "diagnostic");
+        if (error) errors.push(`saved_ideas: ${error.message}`);
+        else tablesCleaned++;
+      } catch (e: any) {
+        errors.push(`saved_ideas: ${e.message}`);
+      }
+    };
+
+
     if (workspaceId) {
       // ============================================================
       //  RESET SCOPÉ PAR ESPACE (chemin sûr — self-reset Réglages)
@@ -241,12 +261,25 @@ Deno.serve(async (req) => {
       for (const table of BRANDING_TABLES) {
         await del(table, "workspace_id", workspaceId);
       }
+      await delDiagnosticIdeas("workspace_id", workspaceId);
 
       // Phase 2 : reset au niveau utilisateur UNIQUEMENT si on réinitialise
       // SON propre espace (owner). Un·e manager qui réinitialise l'espace
       // d'une cliente ne doit PAS voir son propre profil remis à zéro.
       if (ownerUserId) {
         await del("audit_validations", "user_id", ownerUserId);
+
+        // Idées de diagnostic historiques sans espace (écrites avant l'ajout
+        // de workspace_id) : elles appartiennent à l'owner, pas aux autres
+        // espaces — on ne les retrouve que par user_id + workspace_id IS NULL.
+        const { error: legacyIdeasErr } = await admin
+          .from("saved_ideas")
+          .delete()
+          .eq("user_id", ownerUserId)
+          .is("workspace_id", null)
+          .eq("source_module", "diagnostic");
+        if (legacyIdeasErr) errors.push(`saved_ideas (sans espace): ${legacyIdeasErr.message}`);
+
 
         const { error: profileErr } = await admin.from("profiles").update(PROFILE_RESET).eq("user_id", ownerUserId);
         if (profileErr) {
@@ -299,6 +332,8 @@ Deno.serve(async (req) => {
       for (const table of [...BRANDING_TABLES, "audit_validations"]) {
         await del(table, "user_id", targetUserId);
       }
+      await delDiagnosticIdeas("user_id", targetUserId);
+
 
       const { error: profileErr } = await admin.from("profiles").update(PROFILE_RESET).eq("user_id", targetUserId);
       if (profileErr) {
