@@ -15,8 +15,8 @@ describe("colorsLabel — provenance honnête des couleurs à l'onboarding", () 
     expect(label).not.toMatch(/^tes couleurs$/i);
   });
 
-  it("high → annonce la détection sur le site", () => {
-    expect(colorsLabel("high")).toMatch(/détectées sur ton site/i);
+  it("high → annonce les styles du site et la vérification visuelle", () => {
+    expect(colorsLabel("high")).toMatch(/repérées dans les styles de ton site, à vérifier/i);
   });
 
   it("medium → annonce une estimation, pas une détection", () => {

@@ -11,6 +11,24 @@ import { tryParseAiJson } from "../_shared/parse-ai-json.ts";
 
 const MAX_TEXT_PER_SOURCE = 8000;
 const GLOBAL_TIMEOUT_MS = 55000;
+const DIAGNOSTIC_ROUTES = new Set([
+  "/branding", "/branding/proposition/recap", "/branding/offres", "/branding/charter",
+  "/instagram/audit", "/instagram/profil/bio", "/instagram/routine", "/linkedin/profil", "/site/audit",
+  "/site/accueil", "/site/capture", "/calendrier", "/creer", "/idees",
+]);
+const LEGACY_DIAGNOSTIC_ROUTES: Record<string, string> = {
+  "/audit-instagram": "/instagram/audit", "/bio-profile": "/instagram/profil/bio",
+  "/storytelling": "/branding", "/persona": "/branding",
+  "/proposition": "/branding/proposition/recap", "/offre": "/branding/offres",
+  "/charte-graphique": "/branding/charter", "/strategie": "/branding",
+  "/engagement": "/instagram/routine",
+};
+
+export function normalizeDiagnosticRoute(route: unknown): string {
+  const candidate = typeof route === "string" ? route : "";
+  const mapped = LEGACY_DIAGNOSTIC_ROUTES[candidate] || candidate;
+  return DIAGNOSTIC_ROUTES.has(mapped) ? mapped : "/branding";
+}
 
 // Sortie structurée forcée : l'API garantit un `input` conforme — élimine la
 // classe d'échecs « JSON tronqué/illisible » du parsing texte (cf #640).
@@ -64,11 +82,13 @@ const DIAGNOSTIC_TOOL: AnthropicTool = {
           properties: {
             title: { type: "string" },
             why: { type: "string" },
+            first_step: { type: "string", description: "Premier geste réalisable maintenant, précis et vérifiable" },
+            example: { type: "string", description: "Exemple de formulation ou de contrôle adapté à cette personne, sans inventer de faits" },
             time: { type: "string" },
             route: { type: "string" },
             impact: { type: "string", enum: ["high", "medium"] },
           },
-          required: ["title", "why", "route"],
+          required: ["title", "why", "first_step", "example", "route"],
         },
       },
       branding_prefill: {
@@ -364,6 +384,24 @@ serve(async (req) => {
 
     // Website : lire le cache du pre-scrape, avec fallback scrape direct
     let cachedStyleHints = "";
+    const loadWebsiteStyleHints = async (): Promise<string> => {
+      try {
+        let formattedUrl = websiteUrl.trim();
+        if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
+        if (!isSafePublicUrl(formattedUrl)) return "";
+        const resp = await fetch(formattedUrl, {
+          signal: controller.signal,
+          headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+          redirect: "manual",
+        });
+        if (!resp.ok) return "";
+        const html = await resp.text();
+        const externalCss = await fetchExternalCss(html, formattedUrl, controller.signal);
+        return extractVisualInfo(html, externalCss);
+      } catch {
+        return "";
+      }
+    };
     if (websiteUrl) {
       scrapePromises.push((async () => {
         try {
@@ -382,6 +420,10 @@ serve(async (req) => {
             sourcesUsed.push("website");
             if (cached.style_hints) {
               cachedStyleHints = cached.style_hints;
+            } else {
+              // Un cache texte ancien peut précéder l'extraction CSS : on retente
+              // les styles au lieu de présenter ensuite une palette déduite du texte.
+              cachedStyleHints = await loadWebsiteStyleHints();
             }
             console.log("Website content loaded from pre-scrape cache", cached.style_hints ? "(with style hints)" : "(no style hints)");
           } else {
@@ -393,24 +435,7 @@ serve(async (req) => {
                 scrapedContent.website = directContent.slice(0, MAX_TEXT_PER_SOURCE);
                 sourcesUsed.push("website");
                 console.log("Website scraped directly (fallback)");
-                // Try to extract visual info too
-                try {
-                  let formattedUrl = websiteUrl.trim();
-                  if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
-                  // SSRF : fetch visuel hors scrapeWebsite -> garde explicite + redirect manual.
-                  if (!isSafePublicUrl(formattedUrl)) throw new Error("URL non publique");
-                  const resp = await fetch(formattedUrl, {
-                    signal: controller.signal,
-                    headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-                    redirect: "manual",
-                  });
-                  if (resp.ok) {
-                    const html = await resp.text();
-                    // CSS externes = là où vivent les vraies couleurs (cf pre-scrape-website)
-                    const externalCss = await fetchExternalCss(html, formattedUrl, controller.signal);
-                    cachedStyleHints = extractVisualInfo(html, externalCss);
-                  }
-                } catch { /* style hints are nice-to-have */ }
+                cachedStyleHints = await loadWebsiteStyleHints();
               } else {
                 sourcesFailed.push("website");
               }
@@ -489,7 +514,7 @@ CONTEXTE : cette personne vient de terminer son onboarding. Ce diagnostic est la
 === RÈGLES ABSOLUES ===
 
 1. SOURCES UNIQUEMENT
-Tu ne peux commenter QUE les sources présentes dans les sections "SOURCE:" du message utilisateur.
+Tu peux commenter les réponses de la section PROFIL et des RÉPONSES LIBRES, ainsi que les sources présentes dans les sections "SOURCE:" du message utilisateur. Distingue toujours ce que la personne a déclaré de ce que tu as réellement observé sur son site.
 - Pas de section "SOURCE: WEBSITE" → RIEN sur le site web (pas de CTA, pas de SEO, pas de navigation, rien)
 - Pas de screenshot Instagram → RIEN sur Instagram (pas de bio, pas de feed, pas d'abonnés, rien)
 - Pas de section "SOURCE: LINKEDIN" → RIEN sur LinkedIn
@@ -514,12 +539,16 @@ Quand tu as une source WEBSITE, lis ATTENTIVEMENT la section "Signaux de convers
 - Tu peux critiquer la QUALITÉ ou le PLACEMENT des CTAs, mais pas dire qu'ils n'existent pas quand les données prouvent le contraire.
 
 5. INSTAGRAM : REDIRIGER VERS L'AUDIT DÉDIÉ
-Puisque tu n'as pas accès à Instagram, ne fais AUCUNE recommandation spécifique Instagram. Si l'utilisatrice utilise Instagram, ajoute dans les priorités : "Fais ton audit Instagram dans l'outil pour un diagnostic détaillé" avec la route /audit-instagram.
+Puisque tu n'as pas accès à Instagram, ne fais AUCUNE recommandation spécifique Instagram. Si l'utilisatrice utilise Instagram, ajoute dans les priorités : "Fais ton audit Instagram dans l'outil pour un diagnostic détaillé" avec la route /instagram/audit.
 
 6. RECOMMANDATIONS CONCRÈTES ET ACTIONNABLES
 Chaque faiblesse doit expliquer le PROBLÈME RÉEL et donner une piste concrète.
 - ✅ BON : "Ton site parle de 'coaching' mais ne précise pas pour qui ni quel résultat concret. Tes visiteuses ne savent pas si c'est pour elles."
 - ❌ MAUVAIS : "Ta stratégie de contenu manque de structure" (générique, non vérifiable)
+Pour chacune des 3 priorités, donne une raison liée à une preuve observée, un premier geste faisable en 5 à 20 minutes et un exemple que la personne peut adapter ou un contrôle précis à effectuer. La première priorité doit répondre à son changement souhaité ou à son blocage principal si les sources le permettent. Ne recommande pas un canal absent de ses canaux actuels ou souhaités sans raison explicite. Une visite du site ou un handle Instagram ne prouvent pas la fréquence de publication.
+- first_step commence par un verbe concret : « Écris… », « Remplace… », « Vérifie… ».
+- example utilise des mots réellement fournis, ou des emplacements [à compléter] ; jamais de chiffre, citation client ou résultat inventé.
+- Si une source manque, propose une vérification à faire, sans affirmer qu'un problème existe.
 
 7. TON
 Écriture inclusive point médian, tutoiement, ton direct et bienveillant. Pas de jargon marketing (pas de ROI, funnel, lead magnet, etc.).
@@ -531,12 +560,12 @@ Chaque faiblesse doit expliquer le PROBLÈME RÉEL et donner une piste concrète
   "strengths": [{ "title": "titre court", "detail": "explication avec citation concrète entre guillemets", "source": "website|profile|about" }],
   "weaknesses": [{ "title": "titre court", "detail": "explication du problème réel avec preuve", "source": "website|profile|about", "fix_hint": "piste concrète et actionnable" }],
   "scores": { "total": 0, "branding": 0, "instagram": null, "website": null, "linkedin": null },
-  "priorities": [{ "title": "action", "why": "raison", "time": "durée", "route": "/route", "impact": "high|medium" }],
+  "priorities": [{ "title": "action", "why": "raison reliée à un constat", "first_step": "premier geste réalisable tout de suite", "example": "exemple à adapter ou vérification précise", "time": "durée réaliste", "route": "/route", "impact": "high|medium" }],
   "branding_prefill": { "positioning": null, "mission": null, "target_description": null, "tone_keywords": [], "values": [], "offers": [] }
 }
 
-Routes disponibles : /storytelling, /persona, /proposition, /calendrier, /engagement, /bio-profile, /audit-instagram, /strategie, /offre, /charte-graphique
-Scores sur 100. TOUJOURS null pour les sources non analysées (pas de score inventé). Instagram est TOUJOURS null (pas scrappable).
+Routes disponibles : /branding, /branding/proposition/recap, /branding/offres, /branding/charter, /instagram/audit, /instagram/profil/bio, /linkedin/profil, /site/audit, /site/accueil, /site/capture, /calendrier, /creer, /idees. Utilise uniquement ces routes.
+Scores sur 100 : estimation initiale, fondée sur la clarté de l'offre, du public, du résultat promis et du prochain pas visible dans les sources effectivement lues. Ne récompense pas seulement le nombre de liens/champs remplis. TOUJOURS null pour les sources non analysées (pas de score inventé). Instagram est TOUJOURS null (pas scrappable).
 Max 3-4 forces, 3-4 faiblesses, 3 priorités.`;
 
     // Build user prompt
@@ -573,6 +602,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       const freeformParts: string[] = ["=== RÉPONSES LIBRES ==="];
       if (freeformAnswers.change_priority) freeformParts.push(`Priorité de changement : ${freeformAnswers.change_priority}`);
       if (freeformAnswers.product_or_service) freeformParts.push(`Produits ou services : ${freeformAnswers.product_or_service}`);
+      if (freeformAnswers.activity_detail) freeformParts.push(`Détail de l'activité : ${freeformAnswers.activity_detail}`);
       if (freeformAnswers.uniqueness) freeformParts.push(`Ce qui te rend unique : ${freeformAnswers.uniqueness}`);
       if (freeformAnswers.positioning) freeformParts.push(`Positionnement : ${freeformAnswers.positioning}`);
       if (freeformAnswers.mission) freeformParts.push(`Mission : ${freeformAnswers.mission}`);
@@ -606,8 +636,9 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 - Scores : uniquement pour les sources réellement analysées. Instagram = TOUJOURS null.
 - RAPPEL : lis la section "Signaux de conversion" AVANT de dire qu'il manque des CTAs sur le site.
 - RAPPEL : ne remonte JAMAIS comme problème un champ non rempli dans l'outil. L'outil est neuf.
-- RAPPEL : pas de recommandation Instagram sauf "Fais ton audit Instagram" avec route /audit-instagram.
-- Chaque force/faiblesse cite un extrait concret entre guillemets dans le "detail".`);
+- RAPPEL : pas de recommandation Instagram sauf "Fais ton audit Instagram" avec route /instagram/audit.
+- Chaque force/faiblesse cite un extrait concret entre guillemets dans le "detail".
+- Chaque priorité a un premier geste et un exemple utile, sans fait inventé.`);
 
     const userPrompt = userParts.join("\n\n");
 
@@ -673,6 +704,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
           userId,
           workspaceId,
           userPrompt: enrichmentPrompt,
+          websiteStyleHints: cachedStyleHints,
           savedDiagId: null,
           isOnboarding,
           // Remplacement explicitement confirmé à l'écran (espace déjà brandé).
@@ -697,6 +729,12 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
       workspaceId,
       isOnboarding: !!isOnboarding,
     });
+    if (Array.isArray((analysisResult as any).priorities)) {
+      (analysisResult as any).priorities = (analysisResult as any).priorities.map((priority: any) => ({
+        ...priority,
+        route: normalizeDiagnosticRoute(priority.route),
+      }));
+    }
 
     // ====== SAVE TO DB (fast: only diagnostic essentials) ======
     // Non bloquant : le diagnostic vient d'être généré avec succès — un échec
@@ -732,7 +770,7 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
             priorities.map((p: any, i: number) => ({
               user_id: userId, workspace_id: workspaceId,
               label: p.title, titre: p.title, module: "diagnostic",
-              route: p.route || "/dashboard", detail: p.why || null,
+              route: p.route || "/dashboard", detail: [p.why, p.first_step, p.example].filter(Boolean).join("\n") || null,
               temps_estime: p.time || null, priorite: p.impact || "medium",
               position: i + 1, completed: false,
             }))
@@ -924,22 +962,28 @@ function buildFallbackDiagnostic(
   // Build priorities — use activity-specific first priority if available
   const priorities = [
     {
-      title: insights?.priority || "Complète ton identité de marque",
-      why: insights ? "C'est le levier le plus impactant pour ton type d'activité" : "Sans fondations claires, ta communication manque de cohérence",
-      time: "30 min",
-      route: insights ? "/storytelling" : "/storytelling",
+      title: "Écris ta promesse en une phrase",
+      why: insights ? "Cette piste correspond au type d'activité que tu as indiqué, mais elle reste à vérifier avec tes contenus." : "Tes réponses donnent un point de départ pour formuler clairement ce que tu apportes.",
+      first_step: "Écris une phrase qui dit ce que tu proposes, à qui et ce que cette personne y gagne.",
+      example: "J'aide [public] à [résultat] grâce à [mon approche].",
+      time: "15 min",
+      route: "/branding",
       impact: "high",
     },
     {
-      title: "Définis ta cliente idéale",
-      why: "Savoir à qui tu parles change tout dans ton contenu",
-      time: "20 min",
-      route: "/persona",
+      title: "Choisis une personne à qui parler en premier",
+      why: "Une situation précise rend ton prochain contenu plus facile à écrire.",
+      first_step: "Note une question réelle qu'une personne te pose avant d'acheter ou de te contacter.",
+      example: "« Comment savoir si [offre] est adaptée à ma situation ? »",
+      time: "10 min",
+      route: "/branding",
       impact: "high",
     },
     {
-      title: "Planifie tes premiers contenus",
-      why: "La régularité est plus importante que la perfection",
+      title: "Prépare un premier contenu utile",
+      why: "Tu peux partir de cette question sans attendre un plan éditorial complet.",
+      first_step: "Réponds à cette question en trois phrases, puis choisis où publier cette réponse.",
+      example: "Une phrase pour le problème, une pour ta réponse, une pour inviter à échanger.",
       time: "15 min",
       route: "/calendrier",
       impact: "medium",

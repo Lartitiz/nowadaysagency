@@ -34,6 +34,8 @@ export interface DiagnosticData {
     time: string;
     route: string;
     why?: string;
+    first_step?: string;
+    example?: string;
   }[];
   channelScores: { emoji: string; label: string; score: number | null }[];
   scores?: DiagnosticScores;
@@ -121,11 +123,11 @@ export function computeDiagnosticData(
   }
 
   const priorities: DiagnosticData["priorities"] = [];
-  if (hasIg) priorities.push({ title: "Optimise ton profil Instagram", channel: "instagram", impact: "high", time: "20 min", route: "/instagram/profil" });
-  if (brandingScore < 80) priorities.push({ title: "Complète ton branding", channel: "branding", impact: "high", time: "30 min", route: "/branding" });
-  if (!hasNl) priorities.push({ title: "Lance ta newsletter", channel: "newsletter", impact: "medium", time: "45 min", route: "/site/capture" });
-  else if (hasWeb) priorities.push({ title: "Améliore ton site web", channel: "website", impact: "medium", time: "30 min", route: "/site/accueil" });
-  if (hasLi) priorities.push({ title: "Optimise ton profil LinkedIn", channel: "linkedin", impact: "medium", time: "25 min", route: "/linkedin/profil" });
+  if (hasIg) priorities.push({ title: "Fais l'audit de ton profil Instagram", channel: "instagram", impact: "high", time: "10 min", route: "/instagram/audit", first_step: "Ouvre l'audit Instagram et ajoute une capture récente de ton profil.", example: "Vérifie d'abord si ta bio dit clairement ce que tu proposes, à qui et comment te contacter." });
+  if (brandingScore < 80) priorities.push({ title: "Clarifie ta promesse", channel: "branding", impact: "high", time: "15 min", route: "/branding", first_step: "Écris une phrase avec ton activité, la personne que tu aides et le résultat concret.", example: "J'aide [public] à [résultat] grâce à [ton approche]." });
+  if (!hasNl) priorities.push({ title: "Prépare une première inscription email", channel: "newsletter", impact: "medium", time: "20 min", route: "/site/capture", first_step: "Rédige une phrase qui explique ce que la personne recevra et à quelle fréquence.", example: "Un conseil concret chaque mois pour [résultat], directement dans ta boîte mail." });
+  else if (hasWeb) priorities.push({ title: "Vérifie la première action sur ton site", channel: "website", impact: "medium", time: "10 min", route: "/site/accueil", first_step: "Ouvre ta page d'accueil sur mobile et note le premier bouton visible sans défiler.", example: "Une visiteuse comprend-elle où cliquer pour te contacter ou découvrir ton offre ?" });
+  if (hasLi) priorities.push({ title: "Clarifie ton en-tête LinkedIn", channel: "linkedin", impact: "medium", time: "10 min", route: "/linkedin/profil", first_step: "Relis ton titre de profil du point de vue d'une personne qui ne te connaît pas.", example: "Indique ton métier, ton public et le bénéfice concret, dans tes propres mots." });
 
   const channelScores: DiagnosticData["channelScores"] = [
     { emoji: "🎨", label: "Identité", score: brandingScore },
@@ -170,9 +172,9 @@ export const DEMO_DIAGNOSTIC: DiagnosticData = {
     { title: "Pas de page Témoignages sur ton site", why: "La preuve sociale, c'est ce qui transforme les visiteuses en clientes.", source: "website", fix_hint: "Crée une section témoignages avec 3-5 retours clients." },
   ],
   priorities: [
-    { title: "Optimise ta bio Instagram", channel: "instagram", impact: "high", time: "5 min", route: "/instagram/profil/bio", why: "C'est la première chose que voient tes visiteurs." },
-    { title: "Crée un calendrier de publication régulier", channel: "instagram", impact: "high", time: "20 min", route: "/calendrier", why: "La régularité est le facteur n°1 de croissance." },
-    { title: "Ajoute des CTA dans tes légendes", channel: "instagram", impact: "medium", time: "2 min/post", route: "/creer", why: "Sans CTA, tes posts ne convertissent pas." },
+    { title: "Optimise ta bio Instagram", channel: "instagram", impact: "high", time: "5 min", route: "/instagram/profil/bio", why: "Ta bio doit dire en quelques secondes ce que tu proposes et à qui.", first_step: "Écris ta spécialité et ton public dans la première phrase de ta bio.", example: "Portraits pour entrepreneures qui veulent se sentir à l'aise devant l'objectif." },
+    { title: "Prépare un contenu qui répond à une hésitation", channel: "instagram", impact: "high", time: "20 min", route: "/creer", why: "Le coaching posture que tu proposes mérite d'être expliqué avant la réservation.", first_step: "Note une question qu'une cliente se pose avant une séance et réponds-y en trois phrases.", example: "« Je ne sais pas poser » → raconte comment tu l'accompagnes pendant la séance." },
+    { title: "Ajoute une invitation claire en fin de légende", channel: "instagram", impact: "medium", time: "2 min/post", route: "/creer", why: "La prochaine étape doit être visible après la lecture.", first_step: "Termine ta prochaine légende par une invitation adaptée à ce contenu.", example: "« Tu prépares de nouvelles photos pour ton activité ? Écris-moi pour en parler. »" },
   ],
   channelScores: [
     { emoji: "📱", label: "Instagram", score: 58 },
