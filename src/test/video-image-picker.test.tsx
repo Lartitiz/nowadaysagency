@@ -1,0 +1,53 @@
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { afterEach, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ upload: vi.fn(), photos: Array.from({ length: 5 }, (_, i) => ({ id: `p${i}`, name: `Photo ${i}`, status: "ready", kind: "other", storage_path: `p${i}.jpg` })) }));
+vi.mock("@/hooks/use-user-photos", () => ({ useUserPhotos: () => ({ data: mocks.photos, refetch: vi.fn() }), useUploadLibraryPhotos: () => ({ mutate: mocks.upload }) }));
+vi.mock("@/lib/photo-storage", () => ({ getSignedPhotoUrls: async () => new Map() }));
+vi.mock("@/features/visual-studio/api", () => ({
+  listStudioSessions: async () => ({ active: [{ id: "s1", name: "Mon décor" }], archived: [] }),
+  studioRequest: async () => ({ session: { name: "Mon décor" }, versions: [{ id: "v1", status: "ready", url: "https://example.com/photo.jpg" }] }),
+}));
+import { VideoImagePicker } from "@/features/studio-video/VideoImagePicker";
+import type { VideoReference } from "@/features/studio-video/sources";
+const clients: QueryClient[] = [];
+function mount(images: VideoReference[] = []) {
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } }); clients.push(client);
+  const confirm = vi.fn(), close = vi.fn();
+  render(<QueryClientProvider client={client}><VideoImagePicker workspaceId="workspace" initialImages={images} onConfirm={confirm} onClose={close} /></QueryClientProvider>);
+  return { confirm, close };
+}
+afterEach(async () => { await act(async () => { cleanup(); }); clients.forEach(c => c.clear()); clients.length = 0; mocks.upload.mockReset(); });
+it("pré-sélectionne les références, conserve leurs rôles et applique la limite aux quatre images", async () => {
+  const { confirm } = mount([{ kind: "photo", id: "p0", name: "Photo 0", role: "product" }]);
+  expect(screen.getByRole("button", { name: "Photo 0" })).toHaveAttribute("aria-pressed", "true");
+  for (const i of [1, 2, 3]) fireEvent.click(screen.getByRole("button", { name: `Photo ${i}` }));
+  expect(screen.getByRole("button", { name: "Photo 4" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Utiliser la sélection (4)" }));
+  expect(confirm.mock.calls[0][0]).toHaveLength(4);
+  expect(confirm.mock.calls[0][0][0].role).toBe("product");
+  await waitFor(() => expect(screen.getByText("4 / 4 images sélectionnées")).toBeInTheDocument());
+});
+it("combine bibliothèque et version Photo sans perdre la première sélection", async () => {
+  const { confirm } = mount();
+  fireEvent.click(screen.getByRole("button", { name: "Photo 0" }));
+  fireEvent.click(screen.getByRole("button", { name: "Créations du Studio Photo" }));
+  await screen.findByRole("option", { name: "Mon décor" });
+  fireEvent.change(screen.getByRole("combobox", { name: "Session Photo" }), { target: { value: "s1" } });
+  fireEvent.click(await screen.findByRole("button", { name: "Mon décor · version 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Utiliser la sélection (2)" }));
+  expect(confirm.mock.calls[0][0].map((r: VideoReference) => [r.kind, r.id])).toEqual([["photo", "p0"], ["studio_version", "v1"]]);
+});
+it("annuler ne modifie pas les références du compositeur", async () => {
+  const images: VideoReference[] = [{ kind: "photo", id: "p0", name: "Photo 0", role: "product" }];
+  const { confirm, close } = mount(images);
+  fireEvent.click(screen.getByRole("button", { name: "Photo 1" }));
+  fireEvent.click(screen.getByRole("button", { name: "Annuler" }));
+  expect(images).toHaveLength(1); expect(confirm).not.toHaveBeenCalled(); expect(close).toHaveBeenCalledOnce();
+});
+it("refuse un import qui dépasse la capacité avant tout envoi", async () => {
+  mount([{ kind: "photo", id: "p0", name: "Photo 0", role: "product" }]);
+  fireEvent.change(screen.getByLabelText("Importer des photos"), { target: { files: Array.from({length:4}, (_,i) => new File(["x"], `photo${i}.png`, {type:"image/png"})) } });
+  expect(await screen.findByRole("alert")).toHaveTextContent("Il reste 3 places");
+  expect(mocks.upload).not.toHaveBeenCalled();
+});
