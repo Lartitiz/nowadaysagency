@@ -39,7 +39,7 @@ const realListen = Deno.listen;
   unref() {},
   // deno-lint-ignore no-explicit-any
 }) as any;
-const { runFastDiagnostic } = await import("./index.ts");
+const { runFastDiagnostic, normalizeDiagnosticRoute } = await import("./index.ts");
 // deno-lint-ignore no-explicit-any
 (Deno as any).listen = realListen;
 
@@ -64,6 +64,13 @@ const VALID_DIAGNOSTIC = {
   priorities: [{ title: "Priorité", why: "raison", time: "20 min", route: "/persona", impact: "high" }],
   branding_prefill: { positioning: null, mission: null, target_description: null, tone_keywords: [], values: [], offers: [] },
 };
+
+Deno.test("les anciennes routes du diagnostic ouvrent une page existante", () => {
+  assertEquals(normalizeDiagnosticRoute("/audit-instagram"), "/instagram/audit");
+  assertEquals(normalizeDiagnosticRoute("/persona"), "/branding");
+  assertEquals(normalizeDiagnosticRoute("/site/audit"), "/site/audit");
+  assertEquals(normalizeDiagnosticRoute("/route-inventee"), "/branding");
+});
 
 Deno.test("succès IA -> logUsage appelé (1 ligne ai_usage, action deep_diagnostic)", async () => {
   const mock = installFetchMock({

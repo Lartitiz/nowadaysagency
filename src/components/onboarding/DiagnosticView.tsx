@@ -60,8 +60,8 @@ function MobileSlides({ data, prenom, onComplete, onCreateFirst, hasInstagram, h
   // renvoyer 0 faiblesse → titre « Ce qu'on va travailler » sans contenu)
   if (data.strengths.length > 0) sections.push(<StrengthsSection key="c" strengths={data.strengths} />);
   if (data.weaknesses.length > 0) sections.push(<WeaknessesSection key="d" weaknesses={data.weaknesses} />);
+  if (data.priorities.length > 0) sections.push(<PrioritiesSection key="e" priorities={data.priorities} />);
   sections.push(
-    <PrioritiesSection key="e" priorities={data.priorities} />,
     <ChannelScoresSection key="f" channelScores={data.channelScores} />,
     // Slide toujours présente (état d'attente inclus) : l'enrichissement est
     // asynchrone et une slide qui apparaît en cours de route décalerait l'index
@@ -130,7 +130,7 @@ function DesktopScroll({ data, prenom, onComplete, onCreateFirst, hasInstagram, 
         <AnimatedSection><ScoreSection score={data.totalScore} /></AnimatedSection>
         {data.strengths.length > 0 && <AnimatedSection><StrengthsSection strengths={data.strengths} /></AnimatedSection>}
         {data.weaknesses.length > 0 && <AnimatedSection><WeaknessesSection weaknesses={data.weaknesses} /></AnimatedSection>}
-        <AnimatedSection><PrioritiesSection priorities={data.priorities} /></AnimatedSection>
+        {data.priorities.length > 0 && <AnimatedSection><PrioritiesSection priorities={data.priorities} /></AnimatedSection>}
         <AnimatedSection><ChannelScoresSection channelScores={data.channelScores} /></AnimatedSection>
         <AnimatedSection><BrandLearnedSection /></AnimatedSection>
         <AnimatedSection><FinalSection onComplete={onComplete} onCreateFirst={onCreateFirst} /></AnimatedSection>
@@ -258,7 +258,7 @@ function ScoreSection({ score }: { score: number }) {
 
   return (
     <div ref={ref} className="text-center space-y-6">
-      <h2 className="text-xl font-display font-bold text-foreground">Ton score de communication</h2>
+      <h2 className="text-xl font-display font-bold text-foreground">Ton premier repère de communication</h2>
       <div className="relative w-[200px] h-[200px] mx-auto">
         <svg width="200" height="200" viewBox="0 0 200 200">
           <circle cx="100" cy="100" r="80" fill="none" stroke="hsl(var(--border))" strokeWidth="8" />
@@ -278,6 +278,7 @@ function ScoreSection({ score }: { score: number }) {
         </div>
       </div>
       <p className="text-base text-muted-foreground italic max-w-sm mx-auto">{getScoreMessage(score)}</p>
+      <p className="text-xs text-muted-foreground max-w-sm mx-auto">Une estimation à partir de tes réponses et des sources accessibles aujourd'hui. Les canaux non analysés restent « à auditer ».</p>
     </div>
   );
 }
@@ -362,6 +363,10 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
     instagram: "📱", website: "🌐", newsletter: "✉️",
     seo: "🔍", branding: "🎨", linkedin: "💼",
   };
+  const channelLabel: Record<string, string> = {
+    instagram: "Instagram", website: "Site web", newsletter: "Newsletter",
+    seo: "SEO", branding: "Identité", linkedin: "LinkedIn",
+  };
   const impactBorder: Record<string, string> = {
     high: "border-l-primary", medium: "border-l-accent", low: "border-l-border",
   };
@@ -369,7 +374,7 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
   return (
     <div className="space-y-4">
       <h2 className="text-xl font-display font-bold text-foreground">🎯 Par où commencer</h2>
-      <p className="text-sm text-muted-foreground">Si tu fais 3 choses ce mois-ci, fais celles-là :</p>
+      <p className="text-sm text-muted-foreground">Voici tes premiers gestes. Tu peux commencer par le premier aujourd'hui.</p>
       <div className="space-y-3">
         {priorities.map((p, i) => (
           <motion.div
@@ -384,8 +389,10 @@ function PrioritiesSection({ priorities }: { priorities: DiagnosticData["priorit
               <div>
                 <p className="font-medium text-foreground">{p.title}</p>
                 {p.why && <p className="text-sm text-muted-foreground mt-1">{p.why}</p>}
+                {p.first_step && <p className="text-sm text-foreground mt-3"><span className="font-semibold">À faire maintenant :</span> {p.first_step}</p>}
+                {p.example && <p className="text-sm text-muted-foreground mt-2 rounded-lg bg-muted/60 px-3 py-2"><span className="font-medium">Pour t'aider :</span> {p.example}</p>}
                 <div className="flex gap-3 mt-2 text-xs text-muted-foreground">
-                  <span>{channelEmoji[p.channel] || "📌"} {p.channel}</span>
+                  <span>{channelEmoji[p.channel] || "📌"} {channelLabel[p.channel] || p.channel}</span>
                   <span>·</span>
                   <span>Impact {p.impact === "high" ? "fort" : "moyen"}</span>
                   <span>·</span>
@@ -505,4 +512,3 @@ function FinalSection({ onComplete, onCreateFirst }: { onComplete: () => void; o
     </div>
   );
 }
-

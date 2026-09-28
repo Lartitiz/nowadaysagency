@@ -41,7 +41,7 @@ type LearnedData = {
    invention présentée comme une détection est un bug invisible. */
 export const colorsLabel = (conf: string | null): string => {
   if (!conf) return "Tes couleurs";
-  if (conf === "high") return "Tes couleurs, détectées sur ton site";
+  if (conf === "high") return "Couleurs repérées dans les styles de ton site, à vérifier";
   if (conf === "medium") return "Tes couleurs, estimées depuis ton logo";
   return "Palette proposée d'après ton univers";
 };

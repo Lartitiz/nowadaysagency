@@ -28,7 +28,7 @@ serve(async (req) => {
     // Check si déjà en cache (moins de 30 min)
     const { data: cached } = await supabaseAdmin
       .from("scrape_cache")
-      .select("id, content")
+      .select("id, content, style_hints")
       .eq("user_id", userId)
       .eq("url", websiteUrl)
       .gte("created_at", new Date(Date.now() - 30 * 60 * 1000).toISOString())
@@ -36,7 +36,8 @@ serve(async (req) => {
       .limit(1)
       .maybeSingle();
 
-    if (cached?.content) {
+    // Un ancien cache texte sans styles ne doit pas figer une palette inventée.
+    if (cached?.content && cached.style_hints) {
       return new Response(JSON.stringify({ success: true, cached: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -14,7 +14,7 @@ interface Props {
   hasWebsite: boolean;
   hasDocuments: boolean;
   isDemoMode: boolean;
-  answers: { canaux: string[]; instagram: string; website: string; linkedin?: string; activite?: string; activity_type?: string; objectif?: string; blocage?: string; temps?: string; change_priority?: string; product_or_service?: string; uniqueness?: string };
+  answers: { canaux: string[]; desired_channels?: string[]; instagram: string; website: string; linkedin?: string; activite?: string; activity_detail?: string; activity_type?: string; objectif?: string; blocage?: string; temps?: string; change_priority?: string; product_or_service?: string; uniqueness?: string };
   brandingAnswers: {
     positioning: string; mission: string; target_description: string;
     tone_keywords: string[]; offers: { name: string; price?: string; description?: string }[]; values: string[];
@@ -278,6 +278,7 @@ export default function DiagnosticLoading({
             blocker: answers.blocage || "",
             blockerLabel: onboardingLabel(answers.blocage, BLOCKERS, BLOCKERS_REAL_ESTATE),
             weeklyTime: onboardingLabel(answers.temps, TIME_OPTIONS),
+            channels: answers.canaux,
           },
           freeformAnswers: {
             positioning: brandingAnswers.positioning || "",
@@ -285,6 +286,8 @@ export default function DiagnosticLoading({
             target_description: brandingAnswers.target_description || "",
             change_priority: answers.change_priority || "",
             product_or_service: onboardingLabel(answers.product_or_service, PRODUCT_OPTIONS),
+            activity_detail: answers.activity_detail || "",
+            desired_channels: answers.desired_channels || [],
             uniqueness: answers.uniqueness || "",
             linkedin_summary: (answers as any).linkedin_summary || "",
           },
@@ -312,7 +315,7 @@ export default function DiagnosticLoading({
 
         if (error || !data) {
           console.warn("Edge function failed, using fallback:", error);
-          useFallback();
+          applyFallback();
           return;
         }
 
@@ -331,12 +334,12 @@ export default function DiagnosticLoading({
         }
       } catch (err) {
         console.warn("Deep diagnostic error, using fallback:", err);
-        useFallback();
+        applyFallback();
       }
 
     }
 
-    function useFallback() {
+    function applyFallback() {
       const data = computeDiagnosticData(answers, brandingAnswers);
       diagnosticDataRef.current = data;
       setChecks({ ig: true, web: true, docs: true });
@@ -487,6 +490,8 @@ function mapEdgeResponseToDiagnostic(data: any, answers?: { canaux?: string[] })
     time: p.time || "",
     route: p.route || "/dashboard",
     why: p.why || "",
+    first_step: p.first_step || "",
+    example: p.example || "",
   }));
 
   return {

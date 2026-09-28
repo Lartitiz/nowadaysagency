@@ -334,22 +334,25 @@ export function extractVisualInfo(html: string, extraCss: string = ""): string {
     families.forEach(f => fonts.add(f));
   }
 
-  // ORDRE DES SECTIONS : couleurs puis typos d'abord — le cache
-  // scrape_cache.style_hints est tronqué à 3000 caractères, l'essentiel doit
-  // survivre à la coupe (les variables CSS passent après).
-  if (colorCounts.size > 0) {
-    const ranked = [...colorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
-    parts.push(`Couleurs détectées dans le CSS (triées par fréquence d'usage): ${ranked.map(([c, n]) => `${c} (×${n})`).join(", ")}`);
-  }
-
-  if (fonts.size > 0) {
-    parts.push(`Typographies détectées: ${[...fonts].join(", ")}`);
-  }
-
   // Variables CSS : seulement celles dont la VALEUR est une couleur. Les thèmes
   // Tailwind/shadcn déclarent des centaines de variables (tailles, ombres,
   // `initial`, `var(...)`) qui noyaient les vraies couleurs dans le prompt.
   const varRegex = /--([\w-]*(?:color|brand|primary|secondary|accent|bg|background|text|heading|main)[\w-]*)\s*:\s*([^;}]+)/gi;
+  const hslToHex = (value: string): string | null => {
+    const match = value.match(/^(?:hsl\(\s*)?(\d{1,3}(?:\.\d+)?)(?:deg)?[\s,]+(\d{1,3}(?:\.\d+)?)%[\s,]+(\d{1,3}(?:\.\d+)?)%(?:\s*\))?$/i);
+    if (!match) return null;
+    const h = Number(match[1]) % 360;
+    const s = Number(match[2]) / 100;
+    const l = Number(match[3]) / 100;
+    if (s > 1 || l > 1) return null;
+    const c = (1 - Math.abs(2 * l - 1)) * s;
+    const x = c * (1 - Math.abs((h / 60) % 2 - 1));
+    const m = l - c / 2;
+    const rgb = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0]
+      : h < 180 ? [0, c, x] : h < 240 ? [0, x, c]
+      : h < 300 ? [x, 0, c] : [c, 0, x];
+    return `#${rgb.map((channel) => Math.round((channel + m) * 255).toString(16).padStart(2, "0")).join("")}`;
+  };
   let vm: RegExpExecArray | null;
   let varCount = 0;
   while ((vm = varRegex.exec(allCss)) !== null && varCount < 20) {
@@ -358,8 +361,20 @@ export function extractVisualInfo(html: string, extraCss: string = ""): string {
     const isColorValue = /^(#[0-9a-fA-F]{3,8}\b|(rgb|hsl|oklch|oklab)a?\()/.test(varValue)
       || /^\d{1,3}(\.\d+)?(deg)?[ ,]+\d{1,3}(\.\d+)?%[ ,]+\d{1,3}(\.\d+)?%$/.test(varValue);
     if (!isColorValue) continue;
-    parts.push(`CSS variable: --${vm[1].trim()}: ${varValue}`);
+    const hex = hslToHex(varValue);
+    parts.push(`CSS variable: --${vm[1].trim()}: ${varValue}${hex ? ` (équivalent hex calculé: ${hex})` : ""}`);
     varCount++;
+  }
+
+  // Les variables nommées sont plus utiles que le rang de fréquence du CSS
+  // complet ; elles doivent survivre à la coupe du cache à 3000 caractères.
+  if (colorCounts.size > 0) {
+    const ranked = [...colorCounts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
+    parts.push(`Couleurs détectées dans le CSS (triées par fréquence d'usage): ${ranked.map(([c, n]) => `${c} (×${n})`).join(", ")}`);
+  }
+
+  if (fonts.size > 0) {
+    parts.push(`Typographies détectées: ${[...fonts].join(", ")}`);
   }
 
   // Extract meta theme-color

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { validateSitePalette } from "../_shared/validate-site-palette.ts";
 import { AnthropicError, callAnthropic, getModelForAction, type AnthropicTool } from "../_shared/anthropic.ts";
 import { parseAiJson } from "../_shared/parse-ai-json.ts";
 // (import logUsage retiré — l'enrichissement ne décompte plus de crédit, voir note dans le handler)
@@ -81,7 +82,7 @@ export async function handleEnrichment(req: Request): Promise<Response> {
       });
     }
 
-    const { userId, workspaceId, userPrompt, savedDiagId, isOnboarding, allowOverwrite } = await req.json();
+    const { userId, workspaceId, userPrompt, websiteStyleHints, savedDiagId, isOnboarding, allowOverwrite } = await req.json();
     // `allowOverwrite` ne vaut true que si l'utilisatrice a répondu « oui,
     // remplacer » à l'écran (Onboarding.tsx) devant le nom de son espace.
     const overwrite = allowOverwrite === true;
@@ -202,7 +203,7 @@ Précisions importantes :
 - Pour les combats, identifie les causes défendues, les refus assumés, les convictions fortes.
 - CHARTE GRAPHIQUE — DEUX CAS :
 
-  1. Si des données CSS sont présentes (sections "Couleurs détectées dans le CSS", "CSS variable", "Typographies détectées", "Google Fonts") → utilise les valeurs EXACTES détectées. confidence: "high".
+  1. Si des données CSS sont présentes (sections "Couleurs détectées dans le CSS", "CSS variable", "Typographies détectées", "Google Fonts") → utilise uniquement les codes hex indiqués dans ces données (certains sont calculés depuis les valeurs HSL du CSS). Pour attribuer les rôles primaire/secondaire/fond/texte, privilégie les variables nommées (brand, primary, background, text) et les styles de boutons/liens ; la fréquence seule ne prouve pas qu'une couleur domine la page visible. Laisse un rôle à null si tu ne peux pas le déduire. confidence: "high" seulement si au moins une couleur vient effectivement du CSS du site.
 
   2. Si AUCUNE donnée CSS n'est présente (cas fréquent avec Squarespace, Wix, Webflow) → propose une palette d'ambiance cohérente avec le positionnement, l'univers et le ton de la marque. Choisis des couleurs qui reflètent l'identité visuelle perçue du site (tons sombres pour un univers luxe/intime, tons chauds pour l'artisanat, pastels pour le bien-être, etc.). confidence: "low". Pour les typos sans données CSS, propose une paire titre/corps cohérente avec l'ambiance (serif élégante pour le luxe, sans-serif ronde pour le friendly, etc.).
 
@@ -283,6 +284,10 @@ Précisions importantes :
       });
     }
 
+    enrichmentResult.charter_prefill = validateSitePalette(
+      enrichmentResult.charter_prefill || {},
+      typeof websiteStyleHints === "string" ? websiteStyleHints : "",
+    );
     const prefill = enrichmentResult.branding_prefill;
 
     const filterCol = workspaceId ? "workspace_id" : "user_id";
