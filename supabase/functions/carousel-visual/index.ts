@@ -12,7 +12,7 @@ import { extractImagePayload } from "../_shared/image-utils.ts";
 import { assertWorkspaceMembership, workspaceDeniedResponse } from "../_shared/workspace-guard.ts";
 import { fetchRecraftIllustrationSvg, buildCoverSlideHtml, hexToRgb } from "../_shared/recraft-illustration.ts";
 import { enforceTextContrast, hexLuminance } from "../_shared/contrast-guard.ts";
-import { enforceMinFontSize } from "../_shared/font-size-guard.ts";
+import { enforceMinFontSize, enforceEditorFontFloor } from "../_shared/font-size-guard.ts";
 import { enforceSafeZones, injectFallbackScrim, enforceHeroHook } from "../_shared/photo-visual-guards.ts";
 import { composePhotoSlide } from "../_shared/photo-overlay-templates.ts";
 import { enforceAnchoredText, ensureAnchor, ensurePptxEditable, type VerbatimAnchor } from "../_shared/verbatim-guard.ts";
@@ -1531,9 +1531,11 @@ function applyMinFontSizeGuard(result: any): void {
   if (!Array.isArray(result?.slides_html)) return;
   let fontFixes = 0;
   result.slides_html = result.slides_html.map((slide: any) => {
-    const { html, fixes } = enforceMinFontSize(slide?.html || "", { body: 38, subtitle: 38, title: 48, caption: 32, overlay: 38 });
-    fontFixes += fixes;
-    return fixes > 0 ? { ...slide, html } : slide;
+    const byRole = enforceMinFontSize(slide?.html || "", { body: 38, subtitle: 38, title: 48, caption: 32, overlay: 38 });
+    // 2e passe : ce que l'éditeur jugera aussi (texte sans rôle, taille héritée).
+    const { html, fixes } = enforceEditorFontFloor(byRole.html);
+    fontFixes += byRole.fixes + fixes;
+    return byRole.fixes + fixes > 0 ? { ...slide, html } : slide;
   });
   if (fontFixes > 0) {
     console.warn(`carousel-visual: ${fontFixes} font-size sous plancher remontée(s) (garde lisibilité)`);
@@ -2305,11 +2307,12 @@ Si un défaut est détecté, corrige DANS LA MÊME PASSE — ne livre pas de con
     injectSlidesInvariantsFallback(result, { invariants });
     logMissingAnchorsTelemetry(result, { slides });
     applyTextContrastGuard(result);
-    applyMinFontSizeGuard(result);
     enforceVerbatimAnchorsGuard(result, { slides });
     enforcePhotoSlideAnchorsGuard(result, { slides });
     logSchemaFidelityTelemetry(result, { slides, userId: user.id });
     const coverIllustrationDone = await applyCoverIllustration(result, { reqBody, slides, ch, userId: user.id, workspaceId, usage });
+    // En DERNIER : la couverture illustrée remplace aussi du HTML.
+    applyMinFontSizeGuard(result);
     await logUsage(user.id, reqBody?.quality_max ? "quality_max" : "content", "carousel_visual", usage.total_tokens, usage.model, workspaceId);
 
     return new Response(JSON.stringify({ result, cover_illustration_applied: coverIllustrationDone, remaining: quota.remaining }), {
