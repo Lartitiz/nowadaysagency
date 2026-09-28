@@ -1,14 +1,21 @@
 // Server-only Seedance 2.5 adapter. No generation POST is retried here.
-export const MODEL = "bytedance/seedance-2.5/image-to-video";
+export const MODELS = {
+  image: "bytedance/seedance-2.5/image-to-video",
+  text: "bytedance/seedance-2.5/text-to-video",
+  references: "bytedance/seedance-2.5/reference-to-video",
+} as const;
+export const MODEL = MODELS.image;
 const BASE = "https://api.higgsfield.ai";
-export type VideoInput = {
-  image_url: string;
+export type VideoInput = ({ image_url: string; image_urls?: never; aspect_ratio?: never } |
+  { image_urls: string[]; image_url?: never; aspect_ratio: "9:16" | "16:9" | "1:1" } |
+  { image_url?: never; image_urls?: never; aspect_ratio: "9:16" | "16:9" | "1:1" }) & {
   prompt: string;
   duration: number;
   resolution: "480p" | "720p";
   output_format: "mp4";
   generate_audio: false;
 };
+export type VideoModel = typeof MODELS[keyof typeof MODELS];
 export type ProviderState = "queued" | "in_progress" | "completed" | "failed" | "nsfw" | "canceled";
 export type ProviderResult = {
   request_id: string;
@@ -73,16 +80,16 @@ export async function uploadImage(blob: Blob, fetcher = fetch) {
   return data.public_url as string;
 }
 
-export async function estimate(input: VideoInput, fetcher = fetch) {
-  const { data } = await api(`estimate/${MODEL}`, "POST", input, fetcher);
+export async function estimate(input: VideoInput, fetcher = fetch, model: VideoModel = MODEL) {
+  const { data } = await api(`estimate/${model}`, "POST", input, fetcher);
   const usd = Number(data.usd), credits = Number(data.credits);
   if (!Number.isFinite(usd) || usd <= 0 || !Number.isFinite(credits) || credits <= 0)
     throw new Error("higgsfield_estimate_invalid");
   return { usd, credits };
 }
 
-export async function submit(input: VideoInput, webhookUrl?: string, fetcher = fetch) {
-  const endpoint = webhookUrl ? `${MODEL}?hf_webhook=${encodeURIComponent(webhookUrl)}` : MODEL;
+export async function submit(input: VideoInput, webhookUrl?: string, fetcher = fetch, model: VideoModel = MODEL) {
+  const endpoint = webhookUrl ? `${model}?hf_webhook=${encodeURIComponent(webhookUrl)}` : model;
   const { data, correlationId } = await api(endpoint, "POST", input, fetcher);
   if (typeof data.request_id !== "string" || !/^[0-9a-f-]{36}$/i.test(data.request_id) ||
     typeof data.status_url !== "string" ||

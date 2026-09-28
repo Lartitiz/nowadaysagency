@@ -1,4 +1,4 @@
-import { estimate, publicHttpsUrl, status, submit, uploadImage, type VideoInput } from "./higgsfield.ts";
+import { estimate, MODELS, publicHttpsUrl, status, submit, uploadImage, type VideoInput } from "./higgsfield.ts";
 
 function assert(value: unknown, message: string) { if (!value) throw new Error(message); }
 const requestId = "3c90c3cc-0d44-4b50-8888-8dd25736052a";
@@ -39,6 +39,25 @@ Deno.test("private reference upload never sends the API key to presigned storage
   assert(requests[0].headers.get("Authorization") === "Key test-id:test-secret", "API authentication");
   assert(!requests[1].headers.has("Authorization"), "no secret to storage");
   assert(requests[1].headers.get("x-amz-tagging") === "retention=temporary", "upload headers preserved");
+});
+
+Deno.test("text and ordered image references use separate documented model routes", async () => {
+  Deno.env.set("HIGGSFIELD_API_KEY", "test-id:test-secret");
+  const calls: Array<{ url: string; body: VideoInput }> = [];
+  const fetcher = async (url: string | URL | Request, init?: RequestInit) => {
+    calls.push({ url: String(url), body: JSON.parse(String(init?.body)) });
+    return new Response(JSON.stringify({ usd: 1, credits: 10 }), { status: 200 });
+  };
+  const textInput: VideoInput = { prompt: "Atelier lumineux", duration: 5, resolution: "480p",
+    aspect_ratio: "9:16", output_format: "mp4", generate_audio: false };
+  const refsInput: VideoInput = { ...textInput, image_urls: ["https://cdn.example.com/produit.jpg",
+    "https://cdn.example.com/decor.jpg"] };
+  await estimate(textInput, fetcher as typeof fetch, MODELS.text);
+  await estimate(refsInput, fetcher as typeof fetch, MODELS.references);
+  assert(calls[0].url.endsWith("/text-to-video") && !Object.hasOwn(calls[0].body, "image_urls"), "text route without image");
+  assert(calls[1].url.endsWith("/reference-to-video") &&
+    JSON.stringify((calls[1].body as { image_urls: string[] }).image_urls) === JSON.stringify(refsInput.image_urls),
+    "reference route preserves order");
 });
 
 Deno.test("terminal status validates the request identity and public video URL", async () => {
