@@ -63,8 +63,8 @@ function fixture(role = "owner", replay = false) {
       typeof input === "string"
         ? input
         : input instanceof URL
-          ? input.href
-          : input.url,
+        ? input.href
+        : input.url,
     );
     requests.push(url.pathname);
     const json = (data: unknown, status = 200) =>
@@ -72,18 +72,23 @@ function fixture(role = "owner", replay = false) {
         status,
         headers: { "Content-Type": "application/json" },
       });
-    if (url.pathname === "/auth/v1/user")
+    if (url.pathname === "/auth/v1/user") {
       return json({ id: actor, aud: "authenticated", role: "authenticated" });
+    }
     if (url.pathname === "/rest/v1/workspace_members") return json({ role });
     if (url.pathname === "/rest/v1/visual_studio_sessions") {
-      if (init?.method === "PATCH")
+      if (init?.method === "PATCH") {
         Object.assign(session, JSON.parse(String(init.body)));
+      }
       return json(session);
     }
-    if (url.pathname === "/rest/v1/rpc/studio_reserve_interpretation")
+    if (url.pathname === "/rest/v1/rpc/studio_reserve_interpretation") {
       return json(true);
-    if (url.pathname.startsWith("/rest/v1/brand_"))
+    }
+    if (url.pathname === "/rest/v1/studio_brand_memory") return json([]);
+    if (url.pathname.startsWith("/rest/v1/brand_")) {
       return json({ mission: "Ateliers artisanaux" });
+    }
     if (url.pathname === "/rest/v1/user_photos") {
       assertEquals(url.searchParams.get("removed_from_library_at"), "is.null");
       assertEquals(url.searchParams.get("workspace_id"), `eq.${space}`);
@@ -101,13 +106,16 @@ function fixture(role = "owner", replay = false) {
     if (
       url.pathname.startsWith("/storage/v1/object/") &&
       !url.pathname.includes("/sign/")
-    )
+    ) {
       return new Response(new Blob(["source"], { type: "image/jpeg" }));
-    if (url.pathname === "/rest/v1/visual_studio_versions")
+    }
+    if (url.pathname === "/rest/v1/visual_studio_versions") {
       return json(replay ? [version] : []);
+    }
     if (url.pathname === "/rest/v1/rpc/has_role") return json(true);
-    if (url.pathname.startsWith("/storage/v1/object/sign/"))
+    if (url.pathname.startsWith("/storage/v1/object/sign/")) {
       return json({ signedURL: "/signed-original" });
+    }
     throw new Error(
       "Unexpected network request " + url.pathname + " " + init?.method,
     );
@@ -155,11 +163,12 @@ Deno.test(
   async () => {
     const f = fixture("viewer");
     try {
-      for (const action of ["message", "generate", "create", "save"])
+      for (const action of ["message", "generate", "create", "save"]) {
         assertEquals(
           (await handleStudioRequest(request({ ...base, action }))).status,
           403,
         );
+      }
       assertEquals(
         f.requests.some((p) => p.includes("studio_confirm")),
         false,
@@ -218,11 +227,14 @@ Deno.test(
   async () => {
     const f = fixture();
     try {
-      for (const body of [
-        { ...base, action: "create", photo_id: "outside-storage/path" },
-        { ...base, action: "message", message: "x".repeat(1001) },
-      ])
+      for (
+        const body of [
+          { ...base, action: "create", photo_id: "outside-storage/path" },
+          { ...base, action: "message", message: "x".repeat(1001) },
+        ]
+      ) {
         assertEquals((await handleStudioRequest(request(body))).status, 400);
+      }
     } finally {
       f.restore();
     }
@@ -470,3 +482,17 @@ Deno.test(
     }
   },
 );
+Deno.test('series confirmation snapshots stable child ids and displays the full charge',async()=>{
+ const f=fixture();f.session.source_photo_id=null;f.session.source_path=null;
+ f.setIntent({operation:'create',summary:'Premier plan',image_prompt:'Illustration du service',shots:[{summary:'Détail',image_prompt:'Un détail graphique',format:'square'},{summary:'Bannière',image_prompt:'Une bannière graphique',format:'landscape'}]});
+ try{
+  const res=await handleStudioRequest(request({...base,studio_version:3,action:'message',message:'Trois images pour mon site',request_id:id(510),revision:0}));
+  assertEquals(res.status,200);const body=await res.json();assertEquals(body.session.proposal.cost,3);assertEquals(body.session.proposal.shots.length,2);
+  assertEquals(new Set([body.session.proposal.id,...body.session.proposal.shots.map((s:{id:string})=>s.id)]).size,3);
+  assertEquals(f.requests.some(p=>p.includes('studio_confirm_generation')),false);
+ }finally{f.restore();}
+});
+Deno.test('a legacy client never receives hidden extra charged images',async()=>{
+ const f=fixture();f.setIntent({operation:'create',summary:'Une illustration',image_prompt:'Une illustration',shots:[{summary:'Autre',image_prompt:'Un autre plan',format:'square'}]});
+ try{const res=await handleStudioRequest(request({...base,action:'message',message:'Deux images',request_id:id(511),revision:0}));const body=await res.json();assertEquals(res.status,200);assertEquals(body.session.proposal.cost,1);assertEquals(body.session.proposal.shots,[]);}finally{f.restore();}
+});

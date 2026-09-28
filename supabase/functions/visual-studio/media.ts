@@ -1,12 +1,15 @@
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import { openaiImageModel } from "../_shared/openai-image-model.ts";
+import { referenceInstruction, type ReferenceRole } from "./competencies.ts";
 export type Reference = {
   id: string;
-  photo_id: string;
-  role: "subject" | "style" | "composition";
+  photo_id: string | null;
+  role: ReferenceRole;
   path: string;
   name: string;
   kind?: string;
+  memory_id?: string;
+  version_id?: string;
   description?: string;
 };
 export type Proposal = {
@@ -29,8 +32,8 @@ export function legacyReferences(session: {
 }): Reference[] {
   return (
     session.references ??
-    (session.source_path && session.source_photo_id
-      ? [
+      (session.source_path && session.source_photo_id
+        ? [
           {
             id: session.source_photo_id,
             photo_id: session.source_photo_id,
@@ -40,7 +43,7 @@ export function legacyReferences(session: {
             ...session.source_metadata,
           },
         ]
-      : [])
+        : [])
   );
 }
 export async function visionBlock(blob: Blob) {
@@ -56,11 +59,9 @@ export async function visionBlock(blob: Blob) {
   };
 }
 export function imageModel(operation: string) {
-  return operation === "background"
-    ? "photoroom-v2"
-    : openaiImageModel(
-        ["product", "edit"].includes(operation) ? "product" : "slide",
-      );
+  return operation === "background" ? "photoroom-v2" : openaiImageModel(
+    ["product", "edit"].includes(operation) ? "product" : "slide",
+  );
 }
 export async function generateImage(proposal: Proposal, inputs: Blob[]) {
   let response: Response;
@@ -81,33 +82,17 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
     });
     if (!response.ok) throw new Error("Image provider failed");
     const blob = await response.blob();
-    if (blob.type !== "image/jpeg" || blob.size > 15_000_000)
+    if (blob.type !== "image/jpeg" || blob.size > 15_000_000) {
       throw new Error("Invalid output");
+    }
     return blob;
   }
-  const refs = proposal.references || [];
-  const prompt = [
-    proposal.image_prompt,
-    "Modify only what is requested. Preserve: " +
-      (proposal.preserve || []).join("; "),
-    "Changes: " + (proposal.change || []).join("; "),
-    proposal.input_path
-      ? "Image 1 is the selected version to edit. Keep its other features."
-      : "",
-    ...refs.map(
-      (ref, i) =>
-        `Image ${i + 1 + (proposal.input_path ? 1 : 0)}: ${ref.role} reference, ${ref.name}. ${ref.role === "subject" ? "Preserve its real identity, geometry, material, colors and markings." : "Use only for the stated role, not as a person or product identity."}`,
-    ),
-    "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",
-  ]
-    .filter(Boolean)
-    .join("\n");
-  const size =
-    proposal.format === "landscape"
-      ? "1536x1024"
-      : proposal.format === "portrait"
-        ? "1024x1536"
-        : "1024x1024";
+  const prompt = imagePrompt(proposal);
+  const size = proposal.format === "landscape"
+    ? "1536x1024"
+    : proposal.format === "portrait"
+    ? "1024x1536"
+    : "1024x1024";
   const options = {
     model: proposal.model || imageModel(proposal.operation),
     prompt,
@@ -126,8 +111,14 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
       form.append(
         "image[]",
         blob,
-        `reference-${i}.${blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg"}`,
-      ),
+        `reference-${i}.${
+          blob.type === "image/png"
+            ? "png"
+            : blob.type === "image/webp"
+            ? "webp"
+            : "jpg"
+        }`,
+      )
     );
     body = form;
   } else {
@@ -135,16 +126,44 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
     body = JSON.stringify({ ...options, n: 1 });
   }
   response = await fetch(
-    `https://api.openai.com/v1/images/${inputs.length ? "edits" : "generations"}`,
+    `https://api.openai.com/v1/images/${
+      inputs.length ? "edits" : "generations"
+    }`,
     { method: "POST", headers, body, signal: AbortSignal.timeout(150_000) },
   );
   if (!response.ok) throw new Error("Image provider failed");
   const data = await response.json();
   const encoded = data.data?.[0]?.b64_json;
-  if (typeof encoded !== "string" || encoded.length > 21_000_000)
+  if (typeof encoded !== "string" || encoded.length > 21_000_000) {
     throw new Error("Invalid output");
+  }
   const bytes = Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0));
-  if (!bytes.length || bytes.length > 15_000_000)
+  if (!bytes.length || bytes.length > 15_000_000) {
     throw new Error("Invalid output");
+  }
   return new Blob([bytes], { type: "image/jpeg" });
+}
+
+export function imagePrompt(proposal: Proposal) {
+  const refs = proposal.references || [];
+  return [
+    proposal.image_prompt,
+    "Modify only what is requested. Preserve: " +
+    (proposal.preserve || []).join("; "),
+    "Changes: " + (proposal.change || []).join("; "),
+    proposal.input_path
+      ? "Image 1 is the selected version to edit. Keep its other features."
+      : "",
+    ...refs.map(
+      (ref, i) =>
+        `Image ${
+          i + 1 + (proposal.input_path ? 1 : 0)
+        }: ${ref.role} reference, ${ref.name}. ${
+          referenceInstruction(ref.role)
+        }`,
+    ),
+    "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",
+  ]
+    .filter(Boolean)
+    .join("\n");
 }

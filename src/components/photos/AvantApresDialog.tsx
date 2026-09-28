@@ -48,6 +48,8 @@ import {
 } from "@/lib/avant-apres";
 
 interface AvantApresDialogProps {
+  onSaved?: (photo: UserPhotoRow) => void;
+  initialImages?: (string | null | undefined)[];
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }
@@ -59,7 +61,7 @@ const SIDE_COPY: Record<Side, { title: string; hint: string }> = {
   after: { title: "Après", hint: "le résultat" },
 };
 
-export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) {
+export function AvantApresDialog({ open, onOpenChange, initialImages, onSaved }: AvantApresDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -110,6 +112,16 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
     setLoadingSide(null);
   }, [open]);
 
+  const initialBefore=initialImages?.[0],initialAfter=initialImages?.[1];
+  useEffect(()=>{
+    if(!open)return;
+    let stale=false;
+    for(const [side,url] of [["before",initialBefore],["after",initialAfter]] as const){
+      if(!url)continue;
+      fetch(url).then(r=>{if(!r.ok)throw new Error();return r.blob();}).then(createImageBitmap).then(bitmap=>{if(stale){bitmap.close();return;}setImages(old=>({...old,[side]:bitmap}));}).catch(()=>{if(!stale)toast.error("Impossible de reprendre une image. Choisis-la dans la bibliothèque.");});
+    }
+    return ()=>{stale=true;};
+  },[open,initialBefore,initialAfter]);
   const ready = !!images.before && !!images.after;
 
   // Aperçu live : re-compose à chaque changement (déterministe, ~30 ms)
@@ -236,6 +248,7 @@ export function AvantApresDialog({ open, onOpenChange }: AvantApresDialogProps) 
     setIsSaving(true);
     try {
       const photo = await saveToLibrary();
+      if(onSaved && then === "none"){onSaved(photo);onOpenChange(false);return;}
       if (then === "create") {
         onOpenChange(false);
         navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });

@@ -16,9 +16,33 @@ export interface StudioProposal {
   summary: string;
   background_prompt: string;
   viewed_version_id: string | null;
-  cost: 1;
+  cost: number;
+  shots?: {
+    id: string;
+    summary: string;
+    image_prompt: string;
+    format: string;
+  }[];
+  series_id?: string;
+  series_index?: number;
+  series_size?: number;
+  provider?: string;
+}
+export interface StudioComposition {
+  logo_data_url?: string | null;
+  title: string;
+  body: string;
+  footer: string;
+  format: "square" | "portrait" | "story";
+  background: string;
+  foreground: string;
+  accent: string;
+  font: string;
+  align: "left" | "center";
 }
 export interface StudioMessage {
+  composition?: StudioComposition;
+  existing_tool?: "mockup" | "before_after";
   id?: string;
   role: "user" | "assistant";
   text: string;
@@ -28,9 +52,18 @@ export interface StudioMessage {
 }
 export interface StudioReference {
   id: string;
-  photo_id: string;
+  photo_id: string | null;
+  memory_id?: string;
+  version_id?: string;
   name: string;
-  role: "subject" | "style" | "composition";
+  role:
+    | "subject"
+    | "product"
+    | "person"
+    | "casting"
+    | "style"
+    | "composition"
+    | "logo";
   url: string;
 }
 export interface StudioSession {
@@ -41,6 +74,9 @@ export interface StudioSession {
   source_url: string | null;
   references?: StudioReference[];
   brief?: string;
+  composition?:
+    | { design: StudioComposition; background_url: string | null }
+    | null;
   revision: number;
   messages: StudioMessage[];
   proposal: StudioProposal | null;
@@ -55,7 +91,17 @@ export interface StudioVersion {
   error_message: string | null;
   created_at: string;
 }
+export interface StudioMemory {
+  id: string;
+  kind: "preference" | "direction" | "casting";
+  name: string;
+  note: string;
+  revision: number;
+  references: StudioReference[];
+}
 export interface StudioState {
+  memory?: StudioMemory[];
+  charter_references?: { index: number; name: string; url: string }[];
   session: StudioSession;
   versions: StudioVersion[];
   writable: boolean;
@@ -82,7 +128,7 @@ export async function studioRequest<T = StudioState>(
 ): Promise<T> {
   const { data, error } = await invokeWithTimeout(
     "visual-studio",
-    { body: { ...body, studio_version: 2 } },
+    { body: { ...body, studio_version: 3 } },
     60_000,
   );
   if (error || data?.error) {

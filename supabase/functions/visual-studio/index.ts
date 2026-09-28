@@ -1,3 +1,4 @@
+import { compositionSchema } from "./composition.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { z } from "https://deno.land/x/zod@v3.22.4/mod.ts";
 import { runPipeline } from "../_shared/request-pipeline.ts";
@@ -11,25 +12,41 @@ import {
   quotaDeniedResponse,
 } from "../_shared/plan-limiter.ts";
 import {
+  generative,
   intentSchema,
   intentTool,
-  studioSystem,
-  shouldRecover,
-  generative,
   premiumAllowed,
+  shouldRecover,
+  studioSystem,
 } from "./contract.ts";
 import {
   generateImage,
   imageModel,
   legacyReferences,
-  visionBlock,
   type Reference,
+  visionBlock,
 } from "./media.ts";
+import {
+  COMPETENCIES,
+  isIdentity,
+  MAX_REFERENCES,
+  REFERENCE_ROLES,
+  RULES_VERSION,
+  searchTerms,
+} from "./competencies.ts";
+import {
+  failHiggsfieldImage,
+  higgsfieldImagesEnabled,
+  imageCallback,
+  reconcileHiggsfieldImage,
+  submitHiggsfieldImage,
+} from "./higgsfield-image.ts";
+import { handleMemory, readMemory } from "./memory.ts";
 import { executeStudioJob } from "./worker.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
-  studio_version: z.literal(2).optional(),
+  studio_version: z.union([z.literal(2), z.literal(3)]).optional(),
   action: z.enum([
     "create",
     "read",
@@ -37,11 +54,26 @@ const schema = z.object({
     "generate",
     "save",
     "reference",
+    "memory_save",
+    "memory_apply",
+    "pilot",
+    "composition_save",
+    "retry",
   ]),
   workspace_id: z.string().uuid(),
   session_id: z.string().uuid(),
   photo_id: z.string().uuid().optional(),
-  reference_role: z.enum(["subject", "style", "composition"]).optional(),
+  reference_role: z.enum(REFERENCE_ROLES).optional(),
+  composition: compositionSchema.optional(),
+  composition_use_image: z.boolean().optional(),
+  charter_index: z.number().int().min(0).max(8).optional(),
+  reference_id: z.string().uuid().optional(),
+  memory_id: z.string().uuid().optional(),
+  memory_revision: z.number().int().min(-1).optional(),
+  memory_kind: z.enum(["preference", "direction", "casting"]).optional(),
+  memory_name: z.string().trim().min(1).max(120).optional(),
+  memory_note: z.string().trim().min(1).max(1500).optional(),
+  fictional_model: z.literal(true).optional(),
   remove: z.boolean().optional(),
   viewed_reference_id: z.string().uuid().nullable().optional(),
   proposal_id: z.string().uuid().optional(),
@@ -72,8 +104,9 @@ async function download(
   path: string,
 ) {
   const blob = unwrap(await sb.storage.from(bucket).download(path));
-  if (!/^image\/(jpeg|png|webp)$/.test(blob.type) || blob.size > 15_000_000)
+  if (!/^image\/(jpeg|png|webp)$/.test(blob.type) || blob.size > 15_000_000) {
     throw new Error("Photo non prise en charge");
+  }
   return blob;
 }
 async function store(
@@ -102,7 +135,33 @@ async function canWrite(
   );
   return ["owner", "manager", "editor"].includes(row.role);
 }
+async function charterReferences(
+  sb: ReturnType<typeof getServiceClient>,
+  workspace: string,
+): Promise<{ path: string; name: string }[]> {
+  const { data, error } = await sb.from("brand_charter").select(
+    "moodboard_images",
+  ).eq("workspace_id", workspace).maybeSingle();
+  if (error) throw error;
+  if (!Array.isArray(data?.moodboard_images)) return [];
+  const members = unwrap(
+    await sb.from("workspace_members").select("user_id").eq(
+      "workspace_id",
+      workspace,
+    ),
+  );
+  const owners = new Set(members.map((m) => m.user_id));
+  return data.moodboard_images.filter((
+    r: unknown,
+  ): r is { path: string; name: string } =>
+    !!r && typeof r === "object" && "path" in r && typeof r.path === "string" &&
+    !r.path.includes("..") && owners.has(r.path.split("/")[0]) && "name" in r &&
+    typeof r.name === "string"
+  ).slice(0, 9);
+}
 export async function handleStudioRequest(req: Request): Promise<Response> {
+  const callback = await imageCallback(req);
+  if (callback) return callback;
   const parsed = schema.safeParse(
     req.method === "OPTIONS" ? null : await req.json().catch(() => null),
   );
@@ -130,8 +189,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .single(),
     );
     const writable = ["owner", "manager", "editor"].includes(member.role);
-    if (p.action !== "read" && !writable)
+    if (p.action !== "read" && !writable) {
       return json({ error: "Cet espace est en lecture seule." }, 403);
+    }
     let sessionResult = await sb
       .from("visual_studio_sessions")
       .select("*")
@@ -142,21 +202,22 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     if (p.action === "create") {
       const photo = p.photo_id
         ? unwrap(
-            await sb
-              .from("user_photos")
-              .select("*")
-              .eq("id", p.photo_id)
-              .eq("workspace_id", p.workspace_id)
-              .eq("status", "ready")
-              .is("removed_from_library_at", null)
-              .single(),
-          )
+          await sb
+            .from("user_photos")
+            .select("*")
+            .eq("id", p.photo_id)
+            .eq("workspace_id", p.workspace_id)
+            .eq("status", "ready")
+            .is("removed_from_library_at", null)
+            .single(),
+        )
         : null;
       if (
         sessionResult.data &&
         sessionResult.data.source_photo_id !== (photo?.id || null)
-      )
+      ) {
         return json({ error: "Cette session utilise une autre photo." }, 409);
+      }
       if (!sessionResult.data) {
         const { error } = await sb.from("visual_studio_sessions").insert({
           id: p.session_id,
@@ -177,7 +238,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           messages: [
             {
               role: "assistant",
-              text: "Quelle image aimerais-tu créer, améliorer ou imaginer ? Tu peux commencer par une question. Je m’appuie sur ta marque et les références que tu choisis. Rien n’est généré avant ta confirmation.",
+              text:
+                "Quelle image aimerais-tu créer, améliorer ou imaginer ? Tu peux commencer par une question. Je m’appuie sur ta marque et les références que tu choisis. Rien n’est généré avant ta confirmation.",
             },
           ],
         });
@@ -190,8 +252,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .eq("workspace_id", p.workspace_id)
         .single();
       const sourceSession = unwrap(sessionResult);
-      if (sourceSession.source_photo_id !== (photo?.id || null))
+      if (sourceSession.source_photo_id !== (photo?.id || null)) {
         throw new Error("studio_conflict");
+      }
       if (!sourceSession.source_ready) {
         const existing = await sb.storage
           .from(BUCKET)
@@ -211,8 +274,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           if (
             uploaded.error &&
             uploaded.error.message !== "The resource already exists"
-          )
+          ) {
             throw uploaded.error;
+          }
         }
         unwrap(
           await sb
@@ -232,7 +296,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .eq("workspace_id", p.workspace_id)
         .single(),
     );
-    if (!session.source_ready)
+    if (!session.source_ready) {
       return json(
         {
           error:
@@ -240,9 +304,17 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         },
         409,
       );
+    }
     let references: Reference[] = legacyReferences(session);
+    if (p.action === "memory_save" || p.action === "memory_apply") {
+      session = await handleMemory(sb, actor, p, session, references);
+      references = legacyReferences(session);
+    }
     if (p.action === "reference") {
-      if (!p.photo_id || p.revision !== session.revision)
+      if (
+        (!p.photo_id && !p.reference_id && p.charter_index == null) ||
+        p.revision !== session.revision
+      ) {
         return json(
           {
             code: "refresh_request",
@@ -250,6 +322,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           },
           409,
         );
+      }
       const active = unwrap(
         await sb
           .from("visual_studio_versions")
@@ -257,52 +330,69 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .eq("session_id", session.id)
           .eq("status", "processing"),
       );
-      if (active.length)
+      if (active.length) {
         return json(
           { error: "Attends le résultat avant de changer les références." },
           409,
         );
-      const found = references.find((r) => r.photo_id === p.photo_id);
-      if (p.remove)
-        references = references.filter((r) => r.photo_id !== p.photo_id);
-      else if (found)
+      }
+      const matches = (r: Reference) =>
+        p.reference_id ? r.id === p.reference_id : r.photo_id === p.photo_id;
+      const found = references.find(matches);
+      if (p.remove) {
+        references = references.filter((r) => !matches(r));
+      } else if (found) {
         references = references.map((r) =>
-          r === found ? { ...r, role: p.reference_role || "subject" } : r,
+          r === found ? { ...r, role: p.reference_role || "subject" } : r
         );
-      else {
-        if (references.length >= 3)
+      } else {
+        if (!p.photo_id && p.charter_index == null) {
+          throw new Error("studio_conflict");
+        }
+        if (references.length >= MAX_REFERENCES) {
           return json(
             {
               error:
-                "Garde jusqu’à trois références par demande. Retire-en une pour en choisir une autre.",
+                "Garde jusqu’à huit références par demande. Retire-en une pour en choisir une autre.",
             },
             400,
           );
-        const photo = unwrap(
-          await sb
-            .from("user_photos")
-            .select("*")
-            .eq("id", p.photo_id)
-            .eq("workspace_id", p.workspace_id)
-            .eq("status", "ready")
-            .is("removed_from_library_at", null)
-            .single(),
+        }
+        const charterImage = p.charter_index == null
+          ? null
+          : (await charterReferences(sb, p.workspace_id))[p.charter_index];
+        if (p.charter_index != null && !charterImage) {
+          throw new Error("studio_conflict");
+        }
+        const photo = charterImage ? null : unwrap(
+          await sb.from("user_photos").select("*")
+            .eq("id", p.photo_id).eq("workspace_id", p.workspace_id).eq(
+              "status",
+              "ready",
+            ).is("removed_from_library_at", null).single(),
         );
         const id = crypto.randomUUID(),
           path = `${p.workspace_id}/${session.id}/reference-${id}`;
-        const blob = await download(sb, "user-photos", photo.storage_path);
+        const blob = await download(
+          sb,
+          charterImage ? "moodboards" : "user-photos",
+          charterImage?.path || photo!.storage_path,
+        );
         if (blob.size > 5_000_000) throw new Error("studio_image_too_large");
         await store(sb, BUCKET, path, blob);
         references = [
           ...references,
           {
             id,
-            photo_id: photo.id,
+            photo_id: photo?.id || null,
             path,
-            role: p.reference_role || "subject",
-            name: (photo.name || "Référence").slice(0, 120),
-            kind: photo.kind,
-            description: photo.description?.slice(0, 500),
+            role: charterImage ? "style" : p.reference_role || "subject",
+            name: (charterImage?.name || photo?.name || "Référence").slice(
+              0,
+              120,
+            ),
+            kind: photo?.kind,
+            description: photo?.description?.slice(0, 500),
           },
         ];
       }
@@ -322,15 +412,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       );
     }
     if (p.action === "message") {
-      if (!p.message || p.revision == null || !p.request_id)
+      if (!p.message || p.revision == null || !p.request_id) {
         return json({ error: "Demande incomplète." }, 400);
+      }
       // A lost acknowledgement is replayed without paying the interpreter again.
       if (
         !(session.messages as Array<{ id?: string }>).some(
           (m) => m.id === p.request_id,
         )
       ) {
-        if (session.revision !== p.revision)
+        if (session.revision !== p.revision) {
           return json(
             {
               code: "refresh_request",
@@ -338,11 +429,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             409,
           );
+        }
         if (
           (session.messages as Array<{ role: string }>).filter(
             (m) => m.role === "user",
           ).length >= 50
-        )
+        ) {
           return json(
             {
               error:
@@ -350,22 +442,24 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             429,
           );
+        }
         const parent = p.viewed_version_id
           ? unwrap(
-              await sb
-                .from("visual_studio_versions")
-                .select("*")
-                .eq("id", p.viewed_version_id)
-                .eq("session_id", session.id)
-                .eq("status", "ready")
-                .single(),
-            )
+            await sb
+              .from("visual_studio_versions")
+              .select("*")
+              .eq("id", p.viewed_version_id)
+              .eq("session_id", session.id)
+              .eq("status", "ready")
+              .single(),
+          )
           : null;
         if (
           p.viewed_reference_id &&
           !references.some((r) => r.id === p.viewed_reference_id)
-        )
+        ) {
           return json({ error: "Référence indisponible." }, 409);
+        }
         const { data: active, error: activeError } = await sb
           .from("visual_studio_versions")
           .select("id")
@@ -373,13 +467,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .eq("status", "processing")
           .limit(1);
         if (activeError) throw activeError;
-        if (active?.length)
+        if (active?.length) {
           return json(
             {
               error: "Attends le résultat en cours avant une nouvelle demande.",
             },
             409,
           );
+        }
         const reserved = unwrap(
           await sb.rpc("studio_reserve_interpretation", {
             p_actor: actor,
@@ -387,7 +482,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             p_request: p.request_id,
           }),
         );
-        if (!reserved)
+        if (!reserved) {
           return json(
             {
               code: "refresh_request",
@@ -396,8 +491,9 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             409,
           );
+        }
         // Read only brand fields useful for visual direction, scoped to the active workspace.
-        const [charter, profile, proposition, strategy, catalogue] =
+        const [charter, profile, proposition, strategy, recentCatalogue] =
           await Promise.all([
             sb
               .from("brand_charter")
@@ -436,20 +532,54 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               .order("created_at", { ascending: false })
               .limit(60),
           ]);
-        for (const result of [
-          charter,
-          profile,
-          proposition,
-          strategy,
-          catalogue,
-        ])
+        for (
+          const result of [
+            charter,
+            profile,
+            proposition,
+            strategy,
+            recentCatalogue,
+          ]
+        ) {
           if (result.error) throw result.error;
-        const selectedReference =
-          references.find((r) => r.id === p.viewed_reference_id) ||
-          references.find((r) => r.role === "subject") ||
+        }
+        const memory = await readMemory(sb, p.workspace_id);
+        const terms = searchTerms(p.message);
+        let catalogue = recentCatalogue;
+        if (terms.length) {
+          const matches = await sb.from("user_photos").select(
+            "id,name,kind,description",
+          )
+            .eq("workspace_id", p.workspace_id).eq("status", "ready").is(
+              "removed_from_library_at",
+              null,
+            )
+            .or(
+              terms.flatMap(
+                (t) => [`name.ilike.%${t}%`, `description.ilike.%${t}%`],
+              ).join(","),
+            )
+            .order("created_at", { ascending: false }).limit(40);
+          if (matches.error) throw matches.error;
+          const seen = new Set<string>();
+          catalogue = {
+            ...recentCatalogue,
+            error: null,
+            data: [...(matches.data || []), ...(recentCatalogue.data || [])]
+              .filter((row) => {
+                if (seen.has(row.id)) return false;
+                seen.add(row.id);
+                return true;
+              }).slice(0, 80),
+          };
+        }
+        const selectedReference = references.find((r) =>
+          r.id === p.viewed_reference_id
+        ) ||
+          references.find((r) => isIdentity(r.role)) ||
           references[0];
-        const inputPath =
-          parent?.result_path || selectedReference?.path || null;
+        const inputPath = parent?.result_path || selectedReference?.path ||
+          null;
         const vision = [];
         if (parent) {
           vision.push({
@@ -473,7 +603,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             model: "claude-haiku-4-5",
             system: studioSystem,
             tool: intentTool,
-            max_tokens: 2200,
+            max_tokens: 6000,
             temperature: 0.2,
             abortTimeoutMs: 30_000,
             maxRetries: 0,
@@ -484,6 +614,19 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                   {
                     type: "text",
                     text: JSON.stringify({
+                      composition_editable: session.composition ? { ...session.composition.design, logo_data_url: undefined, logo_present: !!session.composition.design?.logo_data_url } : null,
+                      competences_disponibles: COMPETENCIES,
+                      memoire_confirmee: memory.filter((m) =>
+                        m.kind === "preference"
+                      ).map((m) => ({ id: m.id, name: m.name, note: m.note })),
+                      directions_et_castings_disponibles: memory.filter((m) =>
+                        m.kind !== "preference"
+                      ).map((m) => ({
+                        id: m.id,
+                        kind: m.kind,
+                        name: m.name,
+                        note: m.note,
+                      })),
                       marque: {
                         charte: charter.data,
                         identite: profile.data,
@@ -494,10 +637,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                       reference_selectionnee: selectedReference?.id,
                       version_selectionnee: parent
                         ? {
-                            id: parent.id,
-                            brief: parent.proposal.brief,
-                            summary: parent.proposal.summary,
-                          }
+                          id: parent.id,
+                          brief: parent.proposal.brief,
+                          summary: parent.proposal.summary,
+                        }
                         : null,
                       brief: parent?.proposal.brief || session.brief || "",
                       historique: session.messages.slice(-12),
@@ -535,67 +678,84 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           (["background", "edit", "product"].includes(intent.operation) &&
             !inputPath) ||
           ((intent.requires_real_subject || intent.operation === "product") &&
-            !references.some((r) => r.role === "subject"))
+            !references.some((r) => isIdentity(r.role)))
         ) {
           intent.operation = "clarify";
           intent.summary =
             "Pour représenter fidèlement cette personne ou ce produit, choisis sa photo dans la bibliothèque. Tu peux aussi me demander une illustration sans représentation réelle.";
         }
-        if (generative(intent.operation) && p.studio_version !== 2) {
+        if (generative(intent.operation) && !p.studio_version) {
           intent.operation = "existing_tool";
           intent.summary =
             "Recharge le Studio pour accéder à la création et aux retouches étendues. Aucune image n’a été lancée.";
         }
-        const editInput =
-          parent?.result_path ||
+        const editInput = parent?.result_path ||
           (intent.operation === "edit" ? selectedReference?.path : null) ||
           null;
-        const proposedRefs =
-          intent.operation === "background"
-            ? []
-            : references.filter((r) => r.path !== editInput);
+        const proposedRefs = intent.operation === "background"
+          ? []
+          : references.filter((r) => r.path !== editInput);
         const originalPath =
-          (selectedReference?.role === "subject"
+          (selectedReference && isIdentity(selectedReference.role)
             ? selectedReference.path
             : null) ||
-          references.find((r) => r.role === "subject")?.path ||
+          references.find((r) => isIdentity(r.role))?.path ||
           (parent
             ? parent.proposal.original_path || null
             : ["background", "edit"].includes(intent.operation)
-              ? selectedReference?.path || null
-              : null);
+            ? selectedReference?.path || null
+            : null);
         const proposal = ["background", "create", "edit", "product"].includes(
-          intent.operation,
-        )
+            intent.operation,
+          )
           ? {
-              ...intent,
-              id: crypto.randomUUID(),
-              viewed_version_id: parent?.id || null,
-              viewed_reference_id: selectedReference?.id || null,
-              cost: 1,
-              references: proposedRefs,
-              input_path:
-                intent.operation === "background" ? inputPath : editInput,
-              original_path: originalPath,
-              subject_kind:
-                references.find((r) => r.role === "subject")?.kind || null,
-              model: imageModel(intent.operation),
-              rules_version: "studio-open-1",
-              warning:
-                generative(intent.operation) &&
-                (references.some((r) => r.role === "subject") || parent)
-                  ? "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."
-                  : null,
-            }
+            ...intent,
+            id: crypto.randomUUID(),
+            viewed_version_id: parent?.id || null,
+            viewed_reference_id: selectedReference?.id || null,
+            cost: 1 + (p.studio_version === 3 && generative(intent.operation)
+              ? intent.shots.length
+              : 0),
+            shots: p.studio_version === 3 && generative(intent.operation)
+              ? intent.shots.map((shot) => ({
+                ...shot,
+                id: crypto.randomUUID(),
+              }))
+              : [],
+            references: proposedRefs,
+            input_path: intent.operation === "background"
+              ? inputPath
+              : editInput,
+            original_path: originalPath,
+            subject_kind: references.find((r) => isIdentity(r.role))?.kind ||
+              null,
+            model: generative(intent.operation) && higgsfieldImagesEnabled()
+              ? `marketing-studio/image/${
+                intent.operation === "create" ? "flare" : "sunburst"
+              }`
+              : imageModel(intent.operation),
+            provider: generative(intent.operation) && higgsfieldImagesEnabled()
+              ? "higgsfield"
+              : "default",
+            rules_version: RULES_VERSION,
+            warning: generative(intent.operation) &&
+                (references.some((r) => isIdentity(r.role)) || parent)
+              ? "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."
+              : null,
+          }
           : null;
         const suggestions = intent.suggested_photo_ids.filter((id) =>
-          (catalogue.data || []).some((row) => row.id === id),
+          (catalogue.data || []).some((row) => row.id === id)
         );
         const messages = [
           ...session.messages,
           { id: p.request_id, role: "user", text: p.message },
           {
             role: "assistant",
+            existing_tool: intent.existing_tool,
+            composition: intent.operation === "compose"
+              ? intent.composition
+              : undefined,
             text: intent.summary,
             operation: intent.operation,
             suggestions: intent.suggestions,
@@ -619,7 +779,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .select("*")
           .maybeSingle();
         if (updated.error) throw updated.error;
-        if (!updated.data)
+        if (!updated.data) {
           return json(
             {
               code: "refresh_request",
@@ -627,12 +787,80 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             409,
           );
+        }
         session = updated.data;
       }
     }
+    if (p.action === "composition_save") {
+      if (!p.composition || p.revision !== session.revision) {
+        throw new Error("studio_conflict");
+      }
+      let backgroundPath = session.composition?.background_path || null;
+      if (p.composition_use_image === false) backgroundPath = null;
+      else if (p.viewed_version_id) {
+        const source = unwrap(
+          await sb.from("visual_studio_versions").select("result_path").eq(
+            "id",
+            p.viewed_version_id,
+          ).eq("session_id", session.id).eq("status", "ready").single(),
+        );
+        backgroundPath = source.result_path;
+      } else if (p.viewed_reference_id) {
+        backgroundPath = references.find((r) =>
+          r.id === p.viewed_reference_id
+        )?.path || null;
+      }
+      session = unwrap(
+        await sb.from("visual_studio_sessions").update({
+          composition: {
+            design: p.composition,
+            background_path: backgroundPath,
+          },
+          revision: session.revision + 1,
+          updated_at: new Date().toISOString(),
+        }).eq("id", session.id).eq("revision", p.revision).select("*").single(),
+      );
+    }
+    if (p.action === "pilot" || p.action === "retry") {
+      if (session.revision !== p.revision) throw new Error("studio_conflict");
+      const active = unwrap(
+        await sb.from("visual_studio_versions").select("id").eq(
+          "session_id",
+          session.id,
+        ).eq("status", "processing"),
+      );
+      if (active.length) throw new Error("studio_busy");
+      let next = session.proposal;
+      if (p.action === "retry") {
+        const failed = unwrap(
+          await sb.from("visual_studio_versions").select("proposal").eq(
+            "id",
+            p.version_id,
+          ).eq("session_id", session.id).eq("status", "failed").single(),
+        );
+        next = {
+          ...failed.proposal,
+          id: crypto.randomUUID(),
+          shots: [],
+          cost: 1,
+        };
+      } else {
+        if (!next || next.id !== p.proposal_id || !next.shots?.length) {
+          throw new Error("studio_conflict");
+        }
+        next = { ...next, id: crypto.randomUUID(), shots: [], cost: 1 };
+      }
+      session = unwrap(
+        await sb.from("visual_studio_sessions").update({
+          proposal: next,
+          revision: session.revision + 1,
+        }).eq("id", session.id).eq("revision", p.revision).select("*").single(),
+      );
+    }
     if (p.action === "generate") {
-      if (!p.proposal_id)
+      if (!p.proposal_id) {
         return json({ error: "Confirme une proposition." }, 400);
+      }
       const existing = await sb
         .from("visual_studio_versions")
         .select("id")
@@ -641,34 +869,39 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .maybeSingle();
       if (existing.error) throw existing.error;
       if (!existing.data) {
-        if (generative(session.proposal?.operation) && p.studio_version !== 2)
+        if (generative(session.proposal?.operation) && !p.studio_version) {
           return json(
             { error: "Recharge le Studio avant de confirmer cette création." },
             409,
           );
-        if (!session.proposal || session.proposal.id !== p.proposal_id)
+        }
+        if (!session.proposal || session.proposal.id !== p.proposal_id) {
           return json(
             {
               error: "Cette proposition a changé. Vérifie la dernière demande.",
             },
             409,
           );
+        }
         if (
           !Deno.env.get(
             generative(session.proposal.operation)
-              ? "OPENAI_API_KEY"
+              ? (session.proposal.provider === "higgsfield"
+                ? "HIGGSFIELD_API_KEY"
+                : "OPENAI_API_KEY")
               : "PHOTOROOM_API_KEY",
           )
-        )
+        ) {
           return json(
             { error: "Le service photo est momentanément indisponible." },
             503,
           );
+        }
         const quota = await checkQuota(actor, "photo_retouch", p.workspace_id);
         if (
           generative(session.proposal.operation) &&
           !premiumAllowed(quota.plan, isQaTestAccount(actor))
-        )
+        ) {
           return json(
             {
               error:
@@ -676,6 +909,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             403,
           );
+        }
         if (!quota.allowed) return quotaDeniedResponse(quota, pipe.corsHeaders);
         const exempt = isQaTestAccount(actor) || quota.plan === "admin",
           bonus = exempt ? 0 : await getBonusCredits(sb, actor);
@@ -686,65 +920,86 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             p_session: session.id,
             p_proposal: p.proposal_id,
             p_total_limit: quota.usage?.total.limit ?? 9999,
-            p_image_limit:
-              bonus > 0
-                ? (quota.usage?.total.limit ?? 9999)
-                : limits.photo_retouch,
+            p_image_limit: bonus > 0
+              ? (quota.usage?.total.limit ?? 9999)
+              : limits.photo_retouch,
             p_charge: !exempt,
             p_base_total: limits.total,
           }),
         );
         if (claim.claimed) {
-          const version = claim.version;
-          const work = executeStudioJob({
-            readSource: async () => {
-              const proposal = version.proposal;
-              const paths = proposal.references
-                ? [
+          const batch = async () => {
+            for (const version of (claim.versions || [claim.version])) {
+              const readInputs = async () => {
+                const proposal = version.proposal;
+                const paths = proposal.references
+                  ? [
                     ...(proposal.input_path ? [proposal.input_path] : []),
                     ...proposal.references.map((r: Reference) => r.path),
                   ]
-                : [session.source_path];
-              return Promise.all(
-                paths
-                  .filter(Boolean)
-                  .map((path: string) => download(sb, BUCKET, path)),
-              );
-            },
-            generate: async (inputs) => {
-              if (!(await canWrite(sb, actor, p.workspace_id)))
-                throw new Error("Droits retirés");
-              return generateImage(version.proposal, inputs);
-            },
-            store: (blob) => store(sb, BUCKET, version.result_path, blob),
-            complete: async () => {
-              unwrap(
-                await sb.rpc("studio_complete_generation", {
-                  p_version: version.id,
-                }),
-              );
-            },
-            fail: async () => {
-              unwrap(
-                await sb
-                  .from("visual_studio_versions")
-                  .update({
-                    status: "failed",
-                    error_message:
-                      "La création a échoué. Aucune image décomptée.",
-                    completed_at: new Date().toISOString(),
-                  })
-                  .eq("id", version.id)
-                  .eq("status", "processing")
-                  .select("id")
-                  .single(),
-              );
-            },
-          }).catch(() =>
-            console.error("[visual-studio] task state could not be persisted"),
-          );
-          if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(work);
-          else await work;
+                  : [session.source_path];
+                return Promise.all(
+                  paths
+                    .filter(Boolean)
+                    .map((path: string) => download(sb, BUCKET, path)),
+                );
+              };
+              const work = version.proposal.provider === "higgsfield"
+                ? (async () => {
+                  let inputs: Blob[];
+                  try {
+                    if (!(await canWrite(sb, actor, p.workspace_id))) throw new Error("Droits retirés");
+                    inputs = await readInputs();
+                  } catch {
+                    await failHiggsfieldImage(sb, version.id);
+                    return;
+                  }
+                  // Once submission starts, a lost receipt must never become a retryable failure.
+                  await submitHiggsfieldImage(sb, version, inputs);
+                })().catch((error) => console.error("[studio:higgsfield-worker]", error instanceof Error ? error.message : "worker failed"))
+                : executeStudioJob({
+                  readSource: readInputs,
+                  generate: async (inputs) => {
+                    if (!(await canWrite(sb, actor, p.workspace_id))) {
+                      throw new Error("Droits retirés");
+                    }
+                    return generateImage(version.proposal, inputs);
+                  },
+                  store: (blob) => store(sb, BUCKET, version.result_path, blob),
+                  complete: async () => {
+                    unwrap(
+                      await sb.rpc("studio_complete_generation", {
+                        p_version: version.id,
+                      }),
+                    );
+                  },
+                  fail: async () => {
+                    unwrap(
+                      await sb
+                        .from("visual_studio_versions")
+                        .update({
+                          status: "failed",
+                          error_message:
+                            "La création a échoué. Aucune image décomptée.",
+                          completed_at: new Date().toISOString(),
+                        })
+                        .eq("id", version.id)
+                        .eq("status", "processing")
+                        .select("id")
+                        .single(),
+                    );
+                  },
+                }).catch(() =>
+                  console.error(
+                    "[visual-studio] task state could not be persisted",
+                  )
+                );
+              await work;
+            }
+          };
+          if (typeof EdgeRuntime !== "undefined") {
+            EdgeRuntime.waitUntil(batch());
+          } else await batch();
         }
       }
     }
@@ -769,13 +1024,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           `${v.user_id}/studio_${v.id}.jpg`,
           result,
         );
-        if (originalPath)
+        if (originalPath) {
           await store(
             sb,
             "user-photos",
             `${v.user_id}/studio_${v.id}_original.jpg`,
             await download(sb, BUCKET, originalPath),
           );
+        }
       }
       const photoId = unwrap(
         await sb.rpc("studio_save_library", {
@@ -792,14 +1048,32 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .eq("session_id", session.id)
         .order("created_at"),
     );
-    for (const v of versions.filter(
-      (v) => v.status === "processing" && shouldRecover(v.created_at),
-    )) {
+    await Promise.all(
+      versions.filter((v) =>
+        v.status === "processing" && v.proposal.provider === "higgsfield"
+      ).map(async (v) => {
+        try {
+          await reconcileHiggsfieldImage(sb, v.id);
+        } catch (error) {
+          console.error(
+            "[studio:higgsfield-recovery]",
+            error instanceof Error ? error.message : "recovery failed",
+          );
+        }
+      }),
+    );
+    for (
+      const v of versions.filter(
+        (v) =>
+          v.status === "processing" && v.proposal.provider !== "higgsfield" &&
+          shouldRecover(v.created_at),
+      )
+    ) {
       // Reconcile stored outputs after a worker timeout. Never reissue a provider request.
       const object = await sb.storage.from(BUCKET).download(v.result_path);
-      if (object.data)
+      if (object.data) {
         unwrap(await sb.rpc("studio_complete_generation", { p_version: v.id }));
-      else if (
+      } else if (
         object.error &&
         (("statusCode" in object.error &&
           String(object.error.statusCode) === "404") ||
@@ -842,6 +1116,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
     return json({
       session: {
         ...session,
+        composition: session.composition
+          ? {
+            ...session.composition,
+            background_url: session.composition.background_path
+              ? await sign(session.composition.background_path)
+              : null,
+          }
+          : null,
         source_url: session.source_path
           ? await sign(session.source_path)
           : null,
@@ -861,6 +1143,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       quota,
       generative_allowed: premiumAllowed(quota.plan, isQaTestAccount(actor)),
       writable,
+      memory: await readMemory(sb, p.workspace_id),
+      charter_references: await Promise.all(
+        (await charterReferences(sb, p.workspace_id)).map(async (r, index) => ({
+          index,
+          name: r.name,
+          url: unwrap(
+            await sb.storage.from("moodboards").createSignedUrl(r.path, 900),
+          ).signedUrl,
+        })),
+      ),
       suggested_photos: await (async () => {
         const ids = [
           ...new Set(
@@ -900,10 +1192,16 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       message.replace(/https?:\/\/\S+/g, "[url]"),
     );
     const known: Record<string, string> = {
+      studio_reference_limit:
+        "Garde jusqu’à huit références. Retire une référence avant d’ajouter cette direction.",
       studio_image_too_large:
         "Cette photo dépasse 5 Mo. Ajoute une version plus légère pour que le Studio puisse l’examiner.",
       studio_interpretation_limit:
         "Tu as envoyé beaucoup de demandes. Réessaie un peu plus tard.",
+      studio_memory_limit:
+        "La marque conserve déjà 100 éléments. Retire une ancienne préférence pour en ajouter une.",
+      studio_casting_source:
+        "Choisis une image de mannequin fictif. Une photo de personne réelle ne devient pas un mannequin fictif.",
       studio_busy:
         "Une image est déjà en cours dans cet espace. Reprends sa session.",
       studio_quota: "Le quota a changé. Recharge la session.",

@@ -1,0 +1,30 @@
+import {render,screen,fireEvent,waitFor,cleanup} from '@testing-library/react';
+import {afterEach,it,expect,vi} from 'vitest';
+import {StudioMemoryPanel} from '@/features/visual-studio/StudioMemoryPanel';
+afterEach(cleanup);
+it('saving a preference requires the edited content and an explicit confirmation',async()=>{
+ const save=vi.fn().mockResolvedValue({}),apply=vi.fn();
+ render(<StudioMemoryPanel memory={[]} brief="Une demande ponctuelle" disabled={false} onSave={save} onApply={apply}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Mémoire de marque'}));
+ fireEvent.click(screen.getByRole('button',{name:'Ajouter une préférence'}));
+ expect(screen.getByLabelText('À retenir')).toHaveValue('');
+ expect(save).not.toHaveBeenCalled();
+ fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Lumière'}});
+ fireEvent.change(screen.getByLabelText('À retenir'),{target:{value:'Lumière directe, sans grain ajouté'}});
+ fireEvent.click(screen.getByRole('button',{name:'Enregistrer pour ma marque'}));
+ await waitFor(()=>expect(save).toHaveBeenCalledWith(expect.objectContaining({memory_revision:-1,memory_kind:'preference',memory_note:'Lumière directe, sans grain ajouté'})));
+});
+it('casting is explicit and a failed acknowledgement keeps the same request id',async()=>{
+ const save=vi.fn().mockResolvedValue(null);
+ render(<StudioMemoryPanel memory={[]} selectedVersion="version-2" brief="Casting pour cette marque" disabled={false} onSave={save} onApply={vi.fn()}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Garder ce mannequin'}));
+ fireEvent.change(screen.getByLabelText('Nom'),{target:{value:'Camille'}});
+ expect(screen.getByRole('button',{name:'Enregistrer pour ma marque'})).toBeDisabled();
+ fireEvent.click(screen.getByRole('checkbox'));
+ fireEvent.click(screen.getByRole('button',{name:'Enregistrer pour ma marque'}));
+ await waitFor(()=>expect(save).toHaveBeenCalledTimes(1));
+ fireEvent.click(screen.getByRole('button',{name:'Enregistrer pour ma marque'}));
+ await waitFor(()=>expect(save).toHaveBeenCalledTimes(2));
+ expect(save.mock.calls[0][0].memory_id).toBe(save.mock.calls[1][0].memory_id);
+ expect(save.mock.calls[1][0]).toMatchObject({version_id:'version-2',fictional_model:true});
+});

@@ -39,6 +39,8 @@ import {
 } from "@/lib/offer-mockup";
 
 interface OfferMockupDialogProps {
+  onSaved?: (photo: UserPhotoRow) => void;
+  initialImage?: string | null;
   open: boolean;
   onOpenChange: (v: boolean) => void;
   /** Enchaîne sur « Changer le décor » (ambiance IA, 1 crédit) après l'ajout. */
@@ -47,7 +49,7 @@ interface OfferMockupDialogProps {
 
 type BgChoice = "marque" | "blanc";
 
-export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMockupDialogProps) {
+export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch, initialImage, onSaved }: OfferMockupDialogProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const workspaceId = useWorkspaceId();
@@ -91,6 +93,12 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
     setSavedPhotoId(null);
   }, [open]);
 
+  useEffect(()=>{
+    if(!open || !initialImage)return;
+    let stale=false;
+    fetch(initialImage).then(r=>{if(!r.ok)throw new Error();return r.blob();}).then(createImageBitmap).then(bitmap=>{if(stale){bitmap.close();return;}setImage(bitmap);setImageName("Visuel du Studio");setSupport(pickDefaultSupport(bitmap.width,bitmap.height));}).catch(()=>{if(!stale)toast.error("Impossible de reprendre l’image. Tu peux en choisir une autre.");});
+    return ()=>{stale=true;};
+  },[open,initialImage]);
   // Aperçu live : re-compose à chaque changement (déterministe, ~30 ms)
   useEffect(() => {
     if (!image) return;
@@ -171,6 +179,7 @@ export function OfferMockupDialog({ open, onOpenChange, onOpenRetouch }: OfferMo
     setIsSaving(true);
     try {
       const photo = await saveToLibrary();
+      if(onSaved && then === "none"){onSaved(photo);onOpenChange(false);return;}
       if (then === "create") {
         onOpenChange(false);
         navigate("/creer", { state: { libraryPhotoIds: [photo.id] } });
