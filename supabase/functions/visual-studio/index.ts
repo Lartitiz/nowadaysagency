@@ -603,6 +603,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             model: "claude-haiku-4-5",
             system: studioSystem,
             tool: intentTool,
+            // Supplied titles, dates and time ranges must survive structured output verbatim.
+            keepDashes: true,
             max_tokens: 6000,
             temperature: 0.2,
             abortTimeoutMs: 30_000,
