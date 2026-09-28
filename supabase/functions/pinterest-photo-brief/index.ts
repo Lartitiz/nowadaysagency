@@ -202,7 +202,7 @@ ${contextText}
 
 CHARTE : primary ${ch.color_primary}, secondary ${ch.color_secondary}, accent ${ch.color_accent}, bg ${ch.color_background}, text ${ch.color_text}, font_title ${ch.font_title}, font_body ${ch.font_body}`;
 
-    const messages = hasReference
+    const messages: any = hasReference
       ? [{
           role: "user",
           content: [
