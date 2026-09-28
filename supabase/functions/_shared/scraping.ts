@@ -658,9 +658,8 @@ export function pickSecondaryUrls(candidates: string[]): string[] {
     seen.add(k);
     return true;
   });
-  const about = uniq.find(u => { try { return ABOUT_RE.test(decodeURIComponent(new URL(u).pathname)); } catch { return false; } });
-  const rest = uniq.filter(u => u !== about);
-  return (about ? [about, ...rest] : rest).slice(0, 2);
+  const isAbout = (u: string) => { try { return ABOUT_RE.test(decodeURIComponent(new URL(u).pathname)); } catch { return false; } };
+  return [...uniq.filter(isAbout), ...uniq.filter(u => !isAbout(u))].slice(0, 2);
 }
 
 export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<string | null> {
