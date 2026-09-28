@@ -159,7 +159,8 @@ export const intentTool = {
   },
 };
 export function shouldRecover(createdAt: string, now = Date.now()) {
-  return now - Date.parse(createdAt) > 10 * 60_000;
+  // A four-image series may take four provider timeouts; do not release its slot early.
+  return now - Date.parse(createdAt) > 20 * 60_000;
 }
 export function generative(operation: string) {
   return ["create", "edit", "product"].includes(operation);
