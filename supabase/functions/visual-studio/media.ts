@@ -69,7 +69,21 @@ export function legacyReferences(session: {
         : [])
   );
 }
-export async function visionBlock(blob: Blob) {
+export async function visionBlock(
+  blob: Blob,
+  resize?: (width: number) => Promise<Blob | null>,
+) {
+  // Keep the original for image generation. Only the interpreter sees a resized copy.
+  if (blob.size > 5_000_000 && resize) {
+    for (const width of [2048, 1600, 1200]) {
+      const candidate = await resize(width);
+      if (candidate && /^image\/(jpeg|png|webp)$/.test(candidate.type) &&
+        candidate.size <= 5_000_000) {
+        blob = candidate;
+        break;
+      }
+    }
+  }
   // Anthropic image limit is 5 MB; fail explicitly rather than pretending to have seen it.
   if (blob.size > 5_000_000) throw new Error("studio_image_too_large");
   return {

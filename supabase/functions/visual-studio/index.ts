@@ -113,6 +113,18 @@ async function download(
   }
   return blob;
 }
+async function visionFromStorage(
+  sb: ReturnType<typeof getServiceClient>,
+  bucket: string,
+  path: string,
+) {
+  return await visionBlock(await download(sb, bucket, path), async (width) => {
+    const { data, error } = await sb.storage.from(bucket).download(path, {
+      transform: { width, quality: 75, resize: "contain" },
+    });
+    return error ? null : data;
+  });
+}
 async function store(
   sb: ReturnType<typeof getServiceClient>,
   bucket: string,
@@ -393,7 +405,6 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           charterImage ? "moodboards" : "user-photos",
           charterImage?.path || photo!.storage_path,
         );
-        if (blob.size > 5_000_000) throw new Error("studio_image_too_large");
         await store(sb, BUCKET, path, blob);
         references = [
           ...references,
@@ -634,16 +645,14 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             type: "text",
             text: "Version sélectionnée à modifier",
           });
-          vision.push(
-            await visionBlock(await download(sb, BUCKET, parent.result_path)),
-          );
+          vision.push(await visionFromStorage(sb, BUCKET, parent.result_path));
         }
         for (const ref of requestReferences) {
           vision.push({
             type: "text",
             text: `Référence ${ref.id} : ${ref.role}, ${ref.name}`,
           });
-          vision.push(await visionBlock(await download(sb, BUCKET, ref.path)));
+          vision.push(await visionFromStorage(sb, BUCKET, ref.path));
         }
         let intent: ReturnType<typeof intentSchema.parse>;
         try {

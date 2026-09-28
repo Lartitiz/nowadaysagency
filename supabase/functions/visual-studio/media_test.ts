@@ -104,6 +104,24 @@ Deno.test("vision refuses oversized images explicitly", async () => {
     "studio_image_too_large",
   );
 });
+Deno.test("vision resizes legacy sources for interpretation without changing the original", async () => {
+  const original = new Blob([new Uint8Array(5_000_001)], { type: "image/jpeg" });
+  const widths: number[] = [];
+  const result = await visionBlock(original, async (width) => {
+    widths.push(width);
+    return new Blob([width === 2048 ? new Uint8Array(5_000_001) : "resized"], {
+      type: "image/jpeg",
+    });
+  });
+  assertEquals(widths, [2048, 1600]);
+  assertEquals(original.size, 5_000_001);
+  assertEquals(result.source.data, btoa("resized"));
+  await assertRejects(
+    () => visionBlock(original, async () => null),
+    Error,
+    "studio_image_too_large",
+  );
+});
 
 Deno.test("lost OpenAI and Photoroom responses are uncertain; explicit 4xx is definite", async () => {
   const original = globalThis.fetch;
