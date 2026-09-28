@@ -37,12 +37,21 @@ function parse(html: string): Document {
 function serialize(doc: Document) {
   return doc.head.innerHTML + doc.body.innerHTML;
 }
+/** Texte visible hors <svg>/<style>… : un picto SVG n'est pas du texte éditable. */
+export function ownText(el: Element): string {
+  let text = "";
+  el.childNodes.forEach((n) => {
+    if (n.nodeType === 3) text += n.textContent || "";
+    else if (n.nodeType === 1 && !(n as Element).matches(skip)) text += ownText(n as Element);
+  });
+  return text;
+}
 function textNodes(doc: Document): HTMLElement[] {
   return Array.from(doc.body.querySelectorAll<HTMLElement>("*")).filter(
     (el) => {
       if (
         el.matches(skip) ||
-        (!el.textContent?.trim() &&
+        (!ownText(el).trim() &&
           !el.hasAttribute("data-slide-text") &&
           !el.hasAttribute("data-pptx-editable"))
       )
@@ -52,7 +61,7 @@ function textNodes(doc: Document): HTMLElement[] {
         el.hasAttribute("data-slide-text") ||
         el.hasAttribute("data-pptx-editable") ||
         !Array.from(el.children).some(
-          (c) => c.textContent?.trim() && !c.matches(skip),
+          (c) => !c.matches(skip) && ownText(c).trim(),
         )
       );
     },

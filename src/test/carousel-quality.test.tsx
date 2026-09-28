@@ -163,4 +163,16 @@ describe("carousel quality checks", () => {
     el.style.display = "none";
     expect(inspectSlide(document, 0)).toEqual([]);
   });
+  it("does not judge an SVG pictogram wrapper as tiny text (bug 28/09)", () => {
+    const el = fixture("font-size:16px");
+    el.innerHTML = '<svg><text font-size="36">🧼</text></svg>';
+    expect(inspectSlide(document, 0).filter((i) => i.kind === "size")).toEqual([]);
+  });
+  it("keeps the secondary floor for a CTA the editor tagged body", () => {
+    const el = fixture("font-size:34px");
+    el.dataset.slideText = "cta";
+    expect(inspectSlide(document, 0).filter((i) => i.kind === "size")).toEqual([]);
+    el.dataset.slideText = "";
+    expect(inspectSlide(document, 0).filter((i) => i.kind === "size")).toHaveLength(1);
+  });
 });

@@ -95,3 +95,80 @@ export function enforceGlobalMinFontSize(
   });
   return { html: out, fixes };
 }
+
+/**
+ * Plancher BLOQUANT du contrôle qualité de l'éditeur (src/lib/carousel-quality.ts,
+ * ESSENTIAL_FLOOR_PX) : sous cette taille, la publication est refusée.
+ */
+export const EDITOR_BLOCKING_FLOOR_PX = 32;
+
+/**
+ * Garde alignée sur le contrôle de l'éditeur (bug 28/09/2026 : carrousel
+ * fraîchement généré bloqué à la publication).
+ *
+ * `enforceMinFontSize` ne regarde que les éléments que le MODÈLE a tagués
+ * data-pptx-editable. Or l'éditeur, à l'ouverture, tague lui-même « body »
+ * tout élément porteur de texte (libellés de cartes, CTA, emojis…) et les
+ * juge tous au plancher de 32 px — y compris ceux qui HÉRITENT leur taille
+ * (16 px par défaut du navigateur si rien n'est posé). Cette passe couvre
+ * donc ce que l'éditeur jugera :
+ * - tout font-size inline en px sous le plancher est remonté, quel que soit
+ *   l'élément (hors décors que l'éditeur ignore aussi : aria-hidden,
+ *   data-decorative, data-slide-page, pagination « 3 / 8 ») ;
+ * - le conteneur racine reçoit une taille par défaut s'il n'en a pas, pour
+ *   que le texte sans taille propre n'hérite plus des 16 px du navigateur ;
+ * - le contenu des <svg> n'est jamais touché (illustrations).
+ * Bump only, jamais de réduction ; font-size:0 (astuce d'espacement) ignoré.
+ */
+export function enforceEditorFontFloor(
+  html: string,
+  floorPx = EDITOR_BLOCKING_FLOOR_PX,
+): { html: string; fixes: number } {
+  if (!html) return { html, fixes: 0 };
+  let fixes = 0;
+  let rootSeen = false;
+  const tagRe = /<([a-zA-Z][a-zA-Z0-9]*)((?:[^>"']|"[^"]*"|'[^']*')*)>([^<]*)/g;
+  const fixTags = (chunk: string) =>
+    chunk.replace(tagRe, (whole, name: string, _attrs: string, text: string) => {
+      const tag = whole.slice(0, whole.length - text.length);
+      const lower = name.toLowerCase();
+      if (["link", "style", "meta", "script", "br", "img"].includes(lower)) return whole;
+      const isRoot = !rootSeen;
+      rootSeen = true;
+      if (
+        /aria-hidden\s*=\s*"true"/i.test(tag) ||
+        /\sdata-(decorative|slide-page)\b/i.test(tag) ||
+        /data-pptx-editable\s*=\s*"(page|page_number|pagination|slide_number|number)"/i.test(tag) ||
+        /^\s*\d+\s*\/\s*\d+\s*$/.test(text)
+      ) return whole;
+      const styleMatch = tag.match(/style\s*=\s*"([^"]*)"/i);
+      const hasSize = !!styleMatch && /(?<![a-zA-Z-])font-size\s*:/i.test(styleMatch[1]);
+      if (isRoot && !hasSize) {
+        fixes++;
+        const next = styleMatch
+          ? tag.replace(styleMatch[0], `style="${styleMatch[1].replace(/;?\s*$/, ";")}font-size:${floorPx}px"`)
+          : tag.replace(/\s*>$/, ` style="font-size:${floorPx}px">`);
+        return next + text;
+      }
+      if (!styleMatch) return whole;
+      let bumped = false;
+      const fixedStyle = styleMatch[1].replace(
+        /(?<![a-zA-Z-])font-size\s*:\s*([\d.]+)px/gi,
+        (decl, px) => {
+          const v = parseFloat(px);
+          if (v < 1 || v >= floorPx) return decl;
+          bumped = true;
+          return `font-size:${floorPx}px`;
+        },
+      );
+      if (!bumped) return whole;
+      fixes++;
+      return tag.replace(styleMatch[0], `style="${fixedStyle}"`) + text;
+    });
+  // Les <svg> (illustrations, pictos) restent intacts.
+  const out = html
+    .split(/(<svg[\s\S]*?<\/svg>)/i)
+    .map((part) => (/^<svg/i.test(part) ? part : fixTags(part)))
+    .join("");
+  return { html: out, fixes };
+}

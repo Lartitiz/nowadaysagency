@@ -1,3 +1,4 @@
+import { ownText } from "@/lib/carousel-editor";
 export interface QualityIssue {
   slide: number;
   elementId: string;
@@ -90,7 +91,9 @@ export function collectInspectables(doc: Document): Inspectable[] {
   for (const el of doc.querySelectorAll<HTMLElement>("[data-editor-id]")) {
     if (isPhoto(el) || isDecorative(el) || !isVisible(el, view)) continue;
     if (el.parentElement?.closest('[data-slide-text],[data-pptx-editable]')) continue;
-    const hasText = !!el.textContent?.trim();
+    // Le texte d'un picto SVG (emoji dans <text>) a sa propre taille : le
+    // conteneur n'est pas un texte à juger (faux « 16 px » bloquant, 28/09).
+    const hasText = !!ownText(el).trim();
     const isShape = el.hasAttribute("data-pptx-shape") || el.hasAttribute("data-editor-shape");
     if (!hasText && !isShape) continue;
     if (!isShape && !el.hasAttribute("data-pptx-editable") && !el.hasAttribute("data-slide-text") &&
@@ -217,7 +220,11 @@ export function inspectSlide(doc: Document, slide: number): QualityIssue[] {
       add("margin", "Texte proche du bord : laisse idéalement 40 px de marge.");
     if (item.kind !== "text") continue;
     const font = parseFloat(style.fontSize);
-    const secondary = SECONDARY_ROLE.test(item.role);
+    // L'éditeur tague « body » tout texte sans rôle : un CTA garde son rôle
+    // d'origine (data-slide-text) pour le plancher secondaire.
+    const secondary =
+      SECONDARY_ROLE.test(item.role) ||
+      SECONDARY_ROLE.test((el.dataset.slideText || "").toLowerCase());
     if (secondary) {
       if (font < SECONDARY_FLOOR_PX)
         add(

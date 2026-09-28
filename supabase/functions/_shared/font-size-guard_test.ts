@@ -97,3 +97,38 @@ Deno.test("global : plancher paramétrable", () => {
   assertEquals(fixes, 1);
   assertEquals(html.includes("font-size:28px"), true);
 });
+
+import { enforceEditorFontFloor } from "./font-size-guard.ts";
+
+// Cas réel 28/09 (carrousel Camille) : libellés de cartes SANS rôle à 32→ok,
+// mais un libellé à 26px sans rôle passait sous le garde par rôle.
+Deno.test("éditeur : texte sans rôle sous 32px → bump", () => {
+  const { html } = enforceEditorFontFloor(
+    '<div style="width:1080px;font-size:40px"><p style="font-size:26px;font-weight:600">Partages</p></div>',
+  );
+  assertEquals(html.includes("font-size:26px"), false);
+  assertEquals(html.includes('<p style="font-size:32px;font-weight:600">'), true);
+});
+
+Deno.test("éditeur : racine sans taille → taille par défaut (fin des 16px hérités)", () => {
+  const { html, fixes } = enforceEditorFontFloor(
+    '<link href="x" rel="stylesheet"><style>*{box-sizing:border-box}</style><div data-pptx-shape="background" style="width:1080px;height:1350px"><p>Sans taille</p></div>',
+  );
+  assertEquals(fixes, 1);
+  assertEquals(html.includes('style="width:1080px;height:1350px;font-size:32px"'), true);
+});
+
+Deno.test("éditeur : svg, pagination, décors et font-size:0 intacts", () => {
+  const src =
+    '<div style="font-size:40px">' +
+    '<svg><text style="font-size:12px">🧼</text></svg>' +
+    '<span data-slide-page style="font-size:22px">3 / 8</span>' +
+    '<span style="font-size:20px">4 / 8</span>' +
+    '<span aria-hidden="true" style="font-size:14px">“</span>' +
+    '<span data-decorative style="font-size:14px">•</span>' +
+    '<div style="font-size:0px"></div>' +
+    '<h1 style="font-size:72px">Titre</h1></div>';
+  const { html, fixes } = enforceEditorFontFloor(src);
+  assertEquals(fixes, 0);
+  assertEquals(html, src);
+});
