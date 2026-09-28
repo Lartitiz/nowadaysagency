@@ -2,7 +2,8 @@
  * product-on-model — « Mettre en scène » une photo produit de la bibliothèque.
  *
  * Génère des variantes réalistes du produit porté par une vraie personne (ou
- * posé en situation) via OpenAI Images Edits (gpt-image-2). La photo produit
+ * posé en situation) via OpenAI Images Edits (gpt-image-2.5-sunburst par défaut,
+ * cf. _shared/openai-image-model.ts). La photo produit
  * ORIGINALE est envoyée à CHAQUE appel (fidélité haute automatique) : c'est elle
  * qui protège la fidélité du produit (jamais d'itération sur une image générée,
  * sinon le produit s'érode).
@@ -28,6 +29,7 @@ import { runPipeline } from "../_shared/request-pipeline.ts";
 import { validateInput, ValidationError } from "../_shared/input-validators.ts";
 import { isQaTestAccount, logUsage } from "../_shared/plan-limiter.ts";
 import { fetchWithRetry } from "../_shared/http-retry.ts";
+import { openaiImageModel } from "../_shared/openai-image-model.ts";
 
 // ── Body schema ──
 const BodySchema = z.object({
@@ -327,11 +329,13 @@ serve(async (req) => {
       return jsonResponse({ error: "Configuration OpenAI manquante" }, 500);
     }
 
+    // Sunburst par défaut (précision d'édition = fidélité produit) ; retour
+    // arrière par le secret OPENAI_IMAGE_MODEL_PRODUCT=gpt-image-2.
+    const imageModel = openaiImageModel("product");
+
     const buildForm = () => {
       const form = new FormData();
-      // gpt-image-2 = flagship actuel (gpt-image-1 déprécié oct. 2026) — même
-      // génération que le ChatGPT avec lequel Laetitia a validé la qualité.
-      form.append("model", "gpt-image-2");
+      form.append("model", imageModel);
       // ⚠️ notation tableau `image[]` obligatoire (la forme `image` est celle
       // de dall-e-2 → 400 immédiat).
       form.append(
@@ -353,7 +357,8 @@ serve(async (req) => {
       form.append("size", "1024x1536");
       form.append("quality", "high");
       // Pas d'input_fidelity : gpt-image-2 traite TOUTE image d'entrée en
-      // fidélité haute automatiquement (le paramètre est refusé par l'API).
+      // fidélité haute automatiquement (le paramètre est refusé par l'API) ;
+      // la doc 2.5 ne le mentionne pas non plus.
       form.append("output_format", "jpeg");
       return form;
     };
@@ -444,7 +449,7 @@ serve(async (req) => {
             ? "mise_en_scene_variants"
             : "mise_en_scene",
         i === 0 ? tokens : undefined,
-        "gpt-image-2",
+        imageModel,
         bodyWorkspaceId ?? undefined
       );
     }
@@ -452,6 +457,7 @@ serve(async (req) => {
     console.log(JSON.stringify({
       event: "product_on_model_success",
       user_id: userId,
+      model: imageModel,
       workspace_id: bodyWorkspaceId,
       n_requested: n,
       n_returned: b64List.length,

@@ -555,7 +555,7 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
   };
 
   // Génération IA de l'image d'une slide depuis sa directive (lot 2).
-  // 1 crédit par appel (edge carousel-slide-image, gpt-image-2, gate Premium).
+  // 1 crédit par appel (edge carousel-slide-image, gpt-image-2.5-flare, gate Premium).
   const generateForSlide = async (idx: number, adjustment?: string) => {
     const directive = (slides[idx]?.photo_directive as string | undefined)?.trim();
     if (!directive || genState[idx]?.loading) return;
