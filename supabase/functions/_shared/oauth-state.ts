@@ -10,7 +10,7 @@ function b64urlEncode(bytes: Uint8Array): string {
   return btoa(bin).replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
 }
 
-function b64urlDecode(s: string): Uint8Array {
+function b64urlDecode(s: string): Uint8Array<ArrayBuffer> {
   const pad = (4 - (s.length % 4)) % 4;
   const b64 = s.replace(/-/g, "+").replace(/_/g, "/") + "=".repeat(pad);
   const bin = atob(b64);

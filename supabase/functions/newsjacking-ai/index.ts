@@ -249,7 +249,7 @@ serve(async (req) => {
     const activityRaw = ctx?.profile?.activite || ctx?.profile?.type_activite || "";
     const pillarsRaw = Array.isArray(ctx?.profile?.piliers) ? ctx.profile.piliers.join(", ") : "";
     const cibleRaw = ctx?.profile?.cible || "";
-    const combatCause = ctx?.brand_profile?.combat_cause || "";
+    const combatCause = (ctx as any)?.brand_profile?.combat_cause || "";
     const nicheLabel = activityRaw || "son secteur";
 
     // Date context for "récent"

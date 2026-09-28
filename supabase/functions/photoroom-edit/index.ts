@@ -45,7 +45,7 @@ const BodySchema = z
 const PHOTOROOM_URL = "https://image-api.photoroom.com/v2/edit";
 const PHOTOROOM_TIMEOUT_MS = 60_000;
 
-function decodeBase64Image(input: string): { bytes: Uint8Array; mime: string } {
+function decodeBase64Image(input: string): { bytes: Uint8Array<ArrayBuffer>; mime: string } {
   let mime = "image/jpeg";
   let b64 = input;
   const m = input.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
@@ -106,7 +106,7 @@ serve(async (req) => {
     }
 
     // Decode incoming image
-    let imgBytes: Uint8Array;
+    let imgBytes: Uint8Array<ArrayBuffer>;
     let imgMime: string;
     try {
       const decoded = decodeBase64Image(parsed.image_base64);

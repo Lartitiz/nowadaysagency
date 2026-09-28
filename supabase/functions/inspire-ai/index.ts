@@ -159,7 +159,7 @@ Réponds UNIQUEMENT en JSON valide :
     let messages: any[];
     if (isScreenshot) {
       const contentParts: any[] = [{ type: "text", text: systemPrompt }];
-      for (const img of images) {
+      for (const img of (images ?? []) as any[]) {
         const imgUrl = typeof img === "string" ? img : img.data;
         const mediaType = typeof img === "string" ? undefined : img.type;
 

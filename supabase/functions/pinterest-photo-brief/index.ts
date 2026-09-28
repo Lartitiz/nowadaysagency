@@ -85,7 +85,7 @@ serve(async (req) => {
     ]);
 
     const contextText = formatContextForAI(ctx, CONTEXT_PRESETS.pinterest);
-    const charter = charterRes.data || {};
+    const charter = (charterRes.data || {}) as Record<string, any>;
 
     const ch = {
       color_primary: charter.color_primary || "#FB3D80",
