@@ -97,7 +97,10 @@ export function useUserPhotos(limit = 200) {
   useEffect(() => {
     if (!workspaceId) return;
     const channel = supabase
-      .channel(`user_photos:${workspaceId}`)
+      // Plusieurs vues peuvent appeler ce hook en même temps (bibliothèque,
+      // sélecteurs, création). Un topic partagé peut alors être récupéré déjà
+      // abonné, et Supabase refuse d'y ajouter un nouveau callback.
+      .channel(`user_photos:${workspaceId}:${crypto.randomUUID()}`)
       .on(
         "postgres_changes",
         {
