@@ -699,6 +699,8 @@ function runComposedByCodeGeneration(params: {
   const minNum = Math.min(...nums);
   const maxNum = Math.max(...nums);
   const templateCharter = {
+    color_background: ch.color_background,
+    color_text: ch.color_text,
     color_accent: ch.color_accent,
     font_title: ch.font_title,
     font_body: ch.font_body,
@@ -708,15 +710,6 @@ function runComposedByCodeGeneration(params: {
       ? Number(s.photo_index)
       : (i % Math.max(1, reqBody.photos?.length || 1)) + 1
   );
-  // Zoom narratif en ALTERNANCE : sur une suite de slides portées par la
-  // même photo, on alterne plan large / plan serré. Zoomer TOUTES les
-  // répétitions (version #614) redonnait des slides identiques entre elles
-  // dès la 2e répétition (vu au re-test live : 5 slides même cadrage).
-  const zoomFlags: boolean[] = [];
-  specs.forEach((_s: any, i: number) => {
-    const repeat = i > 0 && photoIdxs[i - 1] === photoIdxs[i];
-    zoomFlags.push(repeat && !zoomFlags[i - 1]);
-  });
   const composed = specs.map((s: any, i: number) => {
     const photoIndex = photoIdxs[i];
     const luminance = (reqBody.photos?.[photoIndex - 1] as any)?.luminance;
@@ -727,7 +720,7 @@ function runComposedByCodeGeneration(params: {
         isFirst: nums[i] === minNum,
         isLast: nums[i] === maxNum,
         luminance,
-        zoomOnRepeat: zoomFlags[i],
+
       },
     );
   });

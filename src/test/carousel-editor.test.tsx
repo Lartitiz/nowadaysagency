@@ -13,6 +13,7 @@ import {
   listDocumentFonts,
   makeSlide,
   patchElement,
+  positionPhotoText,
   prepareSlideHtml,
   readCarouselDocument,
   renumberDocument,
@@ -323,5 +324,19 @@ describe("carousel brand tokens", () => {
   });
   it("falls back to the document brand for the whole carousel", () => {
     expect(documentTokens([{ html: branded }]).bodyFont).toContain("Chivo");
+  });
+});
+
+describe("photo text placement", () => {
+  it("moves the complete group and scrim, keeps text, photo and saved position", () => {
+    const slide = { id: "photo", data: { slide_number: 1, overlay_text: "Ma phrase" }, html: '<div><div data-pptx-photo="1" style="background-image:url(photo.jpg)"></div><div data-injected-scrim="1"></div><div data-photo-text-layout="bottom_left"><p data-slide-text="overlay">Ma phrase</p><p>Ma précision</p></div></div>' };
+    const top = positionPhotoText(slide, "top_left");
+    expect(top.html).toContain("justify-content: flex-start");
+    expect(top.html).toContain("height: 66%");
+    expect(top.html).toContain("Ma précision");
+    expect(top.html).toContain("photo.jpg");
+    expect(top.data.overlay_position).toBe("top_left");
+    expect(positionPhotoText(top, "center").html).toContain("height: 1350px");
+    expect(positionPhotoText({ ...slide, locked: true }, "top_left").html).toBe(slide.html);
   });
 });

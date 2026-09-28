@@ -32,6 +32,7 @@ import {
   listDocumentFonts,
   makeSlide,
   patchElement,
+  positionPhotoText,
   readCarouselDocument,
   renumberDocument,
   replacePhoto,
@@ -830,6 +831,27 @@ export default function CarouselEditor({
             )}
             {element?.kind === "photo" && (
               <>
+                <label className="block text-xs">
+                  Affichage de la photo
+                  <select
+                    aria-label="Affichage de la photo"
+                    className="mt-1 w-full rounded border bg-background p-2"
+                    value={css["object-fit"] === "contain" || css["background-size"] === "contain" ? "contain" : "cover"}
+                    onChange={(e) => style({
+                      "object-fit": e.target.value,
+                      "background-size": e.target.value,
+                      "background-repeat": "no-repeat",
+                      "object-position": "50% 50%",
+                      "background-position": "50% 50%",
+                      "--editor-zoom": "1",
+                      "--editor-base-transform": "",
+                      transform: "none",
+                    })}
+                  >
+                    <option value="cover">Remplir le cadre</option>
+                    <option value="contain">Voir toute la photo</option>
+                  </select>
+                </label>
                 {range(
                   "Cadrage horizontal",
                   numberOr(
@@ -1005,6 +1027,21 @@ export default function CarouselEditor({
             <p className="text-xs text-muted-foreground">
               Changer de mise en page recompose cette slide. Tu peux annuler.
             </p>
+            {slide.html.includes("data-photo-text-layout") && (
+              <label className="block text-xs">
+                Texte sur la photo
+                <select
+                  aria-label="Texte sur la photo"
+                  className="mt-1 w-full rounded border bg-background p-2"
+                  value={slide.data.overlay_position === "center" ? "center" : String(slide.data.overlay_position || "").startsWith("top") ? "top_left" : "bottom_left"}
+                  onChange={(e) => changeSlide(positionPhotoText(slide, e.target.value as "top_left" | "bottom_left" | "center"))}
+                >
+                  <option value="top_left">En haut</option>
+                  <option value="bottom_left">En bas</option>
+                  <option value="center">Au centre</option>
+                </select>
+              </label>
+            )}
             <label className="flex items-center justify-between text-xs">
               Fond de la slide
               <input

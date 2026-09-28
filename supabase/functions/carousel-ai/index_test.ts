@@ -661,3 +661,34 @@ Deno.test("fil : « Mes slides » (texte de la personne) et structure confirmée
     assertEquals(judged, 0);
   } finally { globalThis.fetch = oldFetch; }
 });
+
+for (const kind of ["photo", "mix"]) Deno.test(`structure ${kind} : deux photos n'imposent ni avant/après ni longueur`, async () => {
+  resetDeps();
+  let prompt = "";
+  _deps.callAnthropic = (async (o: any) => {
+    prompt = o.system + JSON.stringify(o.messages);
+    return JSON.stringify({ slides: [{ slide_number: 1, role: "hook", title_suggestion: "Titre", strategic_note: "note", overlay_position: "top_left" }], total_slides: 1 });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: kind, slide_count: 3, photos: [
+    { base64: "aGVsbG8=", context: "Deux étapes du service", libraryContext: "Portrait observé" }, { base64: "aGVsbG8=" },
+  ] }));
+  assertEquals(res.status, 200); await res.text();
+  assert(prompt.includes("exactement 3 slides"));
+  assert(prompt.includes("Deux photos ne prouvent pas un avant/après"));
+  assert(prompt.includes("Deux étapes du service"));
+  assert(prompt.includes("indications de bibliothèque, potentiellement déduites"));
+  for (const stale of ["3 à 4", "5 à 7", "7 à 9", "slide pivot", "Utiliser CHAQUE"]) assert(!prompt.includes(stale), stale);
+});
+Deno.test("questions photo : faits manquants sans émotion imposée ni étape ajoutée", async () => {
+  resetDeps(); let prompt = "";
+  _deps.callAnthropic = (async (o: any) => {
+    prompt = JSON.stringify(o.messages);
+    return JSON.stringify({ questions: [{ question: "A", placeholder: "" }, { question: "B", placeholder: "" }, { question: "C", placeholder: "" }] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", subject: "Les étapes de mon diagnostic", photos: [{ base64: "aGVsbG8=", context: "Étape déjà expliquée" }] }));
+  assertEquals(res.status, 200); await res.text();
+  assert(prompt.includes("exactement 3 questions"));
+  assert(prompt.includes("Ne redemande pas une réponse déjà présente"));
+  assert(!prompt.includes("POURQUOI PROFOND"));
+  assert(!prompt.includes("ÉMOTION/SCÈNE VÉCUE"));
+});

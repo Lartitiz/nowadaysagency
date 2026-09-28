@@ -376,9 +376,9 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
     }
   }, [result]);
 
-  // Log si la légende est vide / trop courte (Action 5)
+  // Log si la légende est vide (Action 5)
   useEffect(() => {
-    if (!caption?.body || caption.body.length < 50) {
+    if (!caption?.body?.trim()) {
       console.warn("[caption_missing]", {
         channel,
         slidesCount: slides.length,
@@ -1310,14 +1310,14 @@ export default function CarouselPhotoResult({ result, photos, onSlidesUpdate, vi
       {/* Alerte légende incomplète (Action 4) — masquée pendant le chargement de la légende LinkedIn */}
       {!captionLoading && (
         channel === "instagram"
-          ? (!caption?.fullText || caption.fullText.length < 80)
-          : (!caption?.body || caption.body.length < 50)
+          ? !caption?.fullText?.trim()
+          : !caption?.body?.trim()
       ) && (
         <div className="rounded-lg border border-warning/30 bg-warning-bg p-3 flex items-start gap-2">
           <AlertTriangle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
           <div className="flex-1 space-y-1.5">
             <p className="text-xs font-medium text-warning">
-              ⚠ La légende n'a pas été générée correctement.
+              Aucune légende pour le moment.
             </p>
             <p className="text-2xs text-warning">
               Tu peux la rédiger à la main ci-dessous{onRegenerateCaption ? ", relancer uniquement la légende," : ""}{onRetry ? " ou relancer la génération du carrousel." : "."}

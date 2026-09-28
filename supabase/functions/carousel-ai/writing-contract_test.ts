@@ -28,7 +28,7 @@ for (const linkedIn of [false, true]) for (const kind of ["photo", "mix"]) {
   Deno.test(`format ${kind}, LinkedIn=${linkedIn} : contraintes et contexte conservés`, () => {
     const body = { subject: "SUJET_FIXÉ", subject_details: "DÉTAIL", photo_description: "PHOTO_FOND", carousel_type: kind, slide_count: 4, selected_offer: "OFFRE", editorial_angle: "ANGLE", content_structure: "STRUCTURE", narrative_thread: "FIL", deepening_answers: { voix: "MOTS_FOURNIS" }, slide_structure: [{ type: "text_only", slide_number: 1 }] };
     const p = kind === "photo" ? photoWritingPrompt(body, linkedIn, "STRUCTURE_CONFIRMÉE") : mixWritingPrompt(body, linkedIn, "STRUCTURE_CONFIRMÉE", "DIRECTIVES_TEXTE_FIRST");
-    for (const x of ["SUJET_FIXÉ", "DÉTAIL", "PHOTO_FOND", "OFFRE", "ANGLE", "STRUCTURE", "FIL", "MOTS_FOURNIS", "STRUCTURE_CONFIRMÉE", "exactement 4 slides", "photo_index", "caption"]) assert(p.includes(x));
+    for (const x of ["SUJET_FIXÉ", "DÉTAIL", "PHOTO_FOND", "OFFRE", "ANGLE", "STRUCTURE", "FIL", "MOTS_FOURNIS", "STRUCTURE_CONFIRMÉE", "exactement 1 slides", "photo_index", "caption"]) assert(p.includes(x));
     assertEquals(p.includes("Légende optionnelle"), linkedIn);
     if (kind === "photo") for (const template of ["couverture", "profonde", "etiquette", "chiffre", "liste", "etape", "citation", "finale"]) assert(p.includes(template));
     if (kind === "mix") assert(p.includes("DIRECTIVES_TEXTE_FIRST"));

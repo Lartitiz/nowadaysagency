@@ -9,7 +9,7 @@ function brief(body: any, isLinkedIn: boolean, confirmed: string): string {
   return `${confirmed}
 BRIEF ACTUEL : ${JSON.stringify({ subject: body.subject, details: body.subject_details, description: body.photo_description, objective: body.objective, answers: body.deepening_answers, selected_offer: body.selected_offer, editorial_angle: body.editorial_angle, content_structure: body.content_structure, narrative_thread: body.narrative_thread })}
 ${body.slide_structure?.length ? `Répartition imposée : ${JSON.stringify(body.slide_structure)}. Conserve exactement ces ${body.slide_structure.length} slides, leur ordre, type et photo_index.` : ""}
-${body.carousel_type === "photo" || body.carousel_type === "mix" ? (body.slide_count ? `Nombre demandé : exactement ${body.slide_count} slides, sauf structure confirmée de longueur différente qui prime.` : `Sans nombre imposé, cible ${body.carousel_type === "mix" ? 8 : 5} slides, ajuste à la matière et aux photos.`) : ""}
+${carouselLengthPrompt(body)}
 ${body.content_structure ? "La structure éditoriale choisie est à conserver. Ses rôles orientent le propos sans autoriser de faits ou d'émotions inventés." : "Choisis une progression adaptée à cette demande, sans arc dramatique imposé."}
 Canal : ${isLinkedIn ? "LinkedIn. Registre professionnel, vouvoiement par défaut sauf voix contraire. Légende optionnelle (gérée aussi par un appel dédié)." : "Instagram. Registre demandé ; à défaut, accessible et chaleureux. Fournis une légende fidèle au sujet."}
 ${CAROUSEL_SUBSTANCE}
@@ -25,10 +25,11 @@ ${brief(body, isLinkedIn, confirmed)}
 Les photos sont numérotées depuis 1. Une photo peut se répéter pour porter plusieurs étapes du propos, même lorsqu'elle ne montre qu'une partie du sujet. Respecte l'ordre et les story_beat confirmés. Ne prétends pas que la photo illustre un événement ou identifie une personne sans information fournie. Les textes peuvent expliquer un geste visible, développer une méthode, raconter une expérience fournie ou exprimer un point de vue ; ils ne doivent pas se réduire à des légendes indépendantes.
 
 CONTRAT VISUEL
-overlay_text : une phrase naturelle, généralement 5-25 mots, maximum 28 ; couverture maximum 12. Une photo qui se suffit peut avoir overlay_text:null. Le texte reste le récit ou l'explication, pas une suite de mots-clés. Ne remplis pas chaque champ facultatif.
+overlay_text : un passage naturel, généralement 15-45 mots lorsque le propos le demande ; couverture maximum 12. Préserve les transitions, détails et nuances utiles. Une phrase courte convient quand elle suffit ; ne transforme pas une explication en slogan pour tenir sur la photo. Le gabarit doit s’adapter au texte. Une photo qui se suffit peut avoir overlay_text:null. Le texte reste le récit ou l'explication, pas une suite de mots-clés. Ne remplis pas chaque champ facultatif.
 overlay_style : narratif, sensoriel, minimal ou technique, selon la matière. overlay_position : bottom_left, bottom_center, top_left, top_center ou center.
 Gabarits conservés : couverture (première slide), profonde (prose, défaut), etiquette (label court), chiffre (big_number sourcé), liste (points courts), etape (step_number), citation (verbatim fourni, attribution), finale (dernière slide).
 La finale peut terminer une explication ou proposer une action pertinente ; ce gabarit n'impose pas de question. cta_label:null si aucune invitation. kicker et detail sont facultatifs, ils servent la lecture sans doubler le texte. Une slide sans texte n'a pas de template.
+Choisis overlay_position dans une zone dégagée, en protégeant le visage, le geste, l’objet et les détails utiles ; respecte une position confirmée. Une répétition de photo ne demande aucun zoom automatique.
 visual_anchor : détail visible dans la photo, utile à sa composition. photo_description et note restent des indications techniques ; aucune prose nouvelle ne doit être cachée dans ces champs.
 
 Retourne un objet JSON avec fil:{arrivee,etapes} en première clé (arrivee = ce que la personne qui lit comprend à la fin ; etapes = une ligne par slide, ce qu'elle ajoute à la précédente), puis carousel_type:"photo", chosen_angle:{title,description}, slides et caption.
@@ -54,7 +55,7 @@ export function mixWritingPrompt(body: any, isLinkedIn: boolean, confirmed: stri
   return `Rédige un carrousel MIXTE : photos et slides design participent au même propos.
 ${brief(body, isLinkedIn, confirmed)}
 CONTRAT DE COMPOSITION
-Types : photo_full (photo plein écran, overlay_text 5-20 mots), photo_integrated (photo et texte, title/body), text_only (title/body, sans photo).
+Types : photo_full (photo plein écran, overlay_text généralement 15-45 mots selon la matière), photo_integrated (photo et texte, title/body), text_only (title/body, sans photo).
 photo_integrated accepte photo_layout:top_photo,left_photo,right_photo,card_photo,banner_photo.
 Sans répartition imposée : commence en photo_full, termine en text_only, ${body.text_first ? "deux à quatre slides photo au maximum (pas de ratio imposé en texte-d'abord)" : "au moins la moitié des slides avec photo"} ; alterne les types sans trois slides identiques consécutives. Une photo peut se répéter et on conserve les photos pertinentes. Une répartition confirmée prime sur ces préférences. La fin en text_only n'impose pas de CTA.
 Les photos sont numérotées depuis 1. Respecte les photo_index et layouts confirmés. photo_index:null sur text_only. Les overlays complètent le sujet et l'image ; une description utile est autorisée. Le texte peut expliquer ce que la photo ne montre pas sans inventer une scène.

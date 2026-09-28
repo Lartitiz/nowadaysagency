@@ -15,6 +15,7 @@ export interface SlideProposal {
   slide_type?: "photo_full" | "photo_integrated" | "text_only";
   story_beat?: string;
   visual_anchor?: string;
+  overlay_position?: string;
 }
 
 export interface StructureProposal {

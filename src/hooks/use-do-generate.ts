@@ -287,7 +287,7 @@ export function useDoGenerate({
             ? uploadedPhotos.slice(0, 10).map((p) => ({
                 base64: p.base64,
                 mimeType: (p as any).mimeType || "image/jpeg",
-                context: p.context,
+                context: p.context, libraryContext: p.libraryContext,
               }))
             : undefined,
           photoDescription: photoMode ? photoDescription : undefined,
@@ -475,7 +475,7 @@ export function useDoGenerate({
         // garde le plein format via uploadedPhotos / generatedWithPhotos.
         if (carouselSubMode === "photo" && uploadedPhotos.length > 0) {
           structureBody.photos = await downscalePhotosForVision(
-            uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
+            uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType }))
           );
           // Snapshot pour handleGenerateVisuals (résiste aux resets de state UI)
           setGeneratedWithPhotos(uploadedPhotos);
@@ -534,8 +534,8 @@ export function useDoGenerate({
             answers: Object.keys(ans).length > 0 ? ans : undefined,
             channel: isLinkedInCarousel ? "linkedin" : undefined,
             slideCount: slideCountChoice,
-            ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
+            ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
+            ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
             ...(qualityMax ? { qualityMax: true } : {}),
             ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
           });
@@ -562,15 +562,15 @@ export function useDoGenerate({
         slideCount: slideCountChoice,
         confirmedStructure: lastConfirmedStructure,
         ...(lastNarrativeThread ? { narrativeThread: lastNarrativeThread } : {}),
-        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+        ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
         ...(carouselSubMode === "mix"
         ? (isTextFirstMix
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
-            : { carouselType: "mix", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+            : { carouselType: "mix", photos: regenPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription })
         : {}),
         // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
         ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", carouselSubMode: "pure_photo", photoDescription: pureDumpDescription ?? photoDescription } : {}),
-        ...(photoMode ? { photoMode: true, photos: regenPhotos.length > 0 ? regenPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
+        ...(photoMode ? { photoMode: true, photos: regenPhotos.length > 0 ? regenPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
         ...(qualityMax ? { qualityMax: true } : {}),
         ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
       });
@@ -589,15 +589,15 @@ export function useDoGenerate({
       channel: isLinkedInCarousel ? "linkedin" : undefined,
       slideCount: slideCountChoice,
       ...(selectedFormat === "reel" && reelHook ? { selectedHook: reelHook } : {}),
-      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix"
         ? (isTextFirstMix
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
-            : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+            : { carouselType: "mix", photos: uploadedPhotos.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription })
         : {}),
       // pure_photo : les photos résolues par le dump priment (setState async → variable locale)
       ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", carouselSubMode: "pure_photo", photoDescription: pureDumpDescription ?? photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: uploadedPhotos.length > 0 ? uploadedPhotos.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });

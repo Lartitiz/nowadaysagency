@@ -592,3 +592,23 @@ export function captionFromText(text: string) {
     hashtags,
   };
 }
+
+/** Move the existing overlay group, preserving its content, panel and typography. */
+export function positionPhotoText(slide: EditorSlide, position: "top_left" | "bottom_left" | "center"): EditorSlide {
+  if (slide.locked) return slide;
+  const doc = parse(slide.html);
+  const group = doc.querySelector<HTMLElement>("[data-photo-text-layout]");
+  if (!group) return slide;
+  group.dataset.photoTextLayout = position;
+  group.style.justifyContent = position === "center" ? "center" : position === "top_left" ? "flex-start" : "flex-end";
+  group.style.alignItems = position === "center" ? "center" : "flex-start";
+  group.style.textAlign = position === "center" ? "center" : "left";
+  // Existing gradient must follow the words too. A centered block needs a full veil.
+  for (const scrim of doc.querySelectorAll<HTMLElement>("[data-injected-scrim]")) {
+    scrim.style.top = position === "bottom_left" ? "auto" : "0";
+    scrim.style.bottom = position === "bottom_left" ? "0" : "auto";
+    scrim.style.height = position === "center" ? "1350px" : "66%";
+    scrim.style.background = position === "center" ? "rgba(0,0,0,0.85)" : `linear-gradient(${position === "top_left" ? "180deg" : "0deg"},rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%)`;
+  }
+  return { ...slide, data: { ...slide.data, overlay_position: position }, html: serialize(doc) };
+}

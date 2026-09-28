@@ -41,7 +41,7 @@ export interface GenerateParams {
   // pure_photo (photo dump) court-circuite la vision — cf. usage dans generate()
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
   // Photo-related
-  photos?: { base64: string; context?: string; mimeType?: string; userPhotoId?: string }[];
+  photos?: { base64: string; context?: string; libraryContext?: string; mimeType?: string; userPhotoId?: string }[];
   photoDescription?: string;
   photoMode?: boolean;
   slideStructure?: Array<{
@@ -59,6 +59,7 @@ export interface GenerateParams {
     slide_type?: "photo_full" | "photo_integrated" | "text_only";
     story_beat?: string;
     visual_anchor?: string;
+    overlay_position?: string;
   }>;
   // Récit transmis du pass structure vers le pass d'écriture (carrousel uniquement)
   narrativeThread?: string;
@@ -80,7 +81,7 @@ export interface GenerateQuestionsParams {
   channel?: "instagram" | "linkedin";
   workspaceId?: string;
   // Photo-related — when present, ask vision-anchored questions
-  photos?: Array<{ base64: string; context?: string; mimeType?: string; userPhotoId?: string }>;
+  photos?: Array<{ base64: string; context?: string; libraryContext?: string; mimeType?: string; userPhotoId?: string }>;
   photoDescription?: string;
   carouselSubMode?: "text" | "photo" | "mix" | "pure_photo" | "user_slides";
   photoMode?: boolean;
@@ -461,6 +462,8 @@ export function useContentGenerator() {
               // gateway (504). Le contexte des slides est passé en texte via
               // photo_description ; la légende s'écrit sans voir les images.
               photos: (!params.confirmedStructure && params.carouselSubMode !== "pure_photo" && (params.carouselType === "photo" || params.carouselType === "mix")) ? await downscalePhotosForVision(params.photos) : undefined,
+              photo_contexts: (params.carouselType === "photo" || params.carouselType === "mix")
+                ? params.photos?.slice(0, 10).map(p => ({ context: p.context, libraryContext: p.libraryContext })) : undefined,
               photo_description: (params.carouselType === "photo" || params.carouselType === "mix") ? params.photoDescription : undefined,
               slide_structure: params.slideStructure || null,
               confirmed_structure: params.confirmedStructure || null,
@@ -592,7 +595,7 @@ export function useContentGenerator() {
               // Vision uniquement côté edge (jamais de rendu) : versions allégées,
               // le master plein format reste côté client.
               photos: params.photoMode && params.photos?.length
-                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map(p => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
+                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map(p => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context, libraryContext: p.libraryContext }))
                 : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
@@ -629,7 +632,7 @@ export function useContentGenerator() {
               photo_mode: params.photoMode || undefined,
               // Vision uniquement (cf. case "post") : photos allégées.
               photos: params.photoMode && params.photos?.length
-                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context }))
+                ? (await downscalePhotosForVision(params.photos.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType || "image/jpeg", context: p.context, libraryContext: p.libraryContext }))
                 : undefined,
               photo_description: params.photoMode ? params.photoDescription : undefined,
               ...(newsContext && newsContext.trim() ? { news_context: newsContext.slice(0, 3800) } : {}),
@@ -816,7 +819,7 @@ export function useContentGenerator() {
               // Vision uniquement (questions ancrées) : photos allégées + cap à 10
               // (le schéma zod de carousel-ai refuse au-delà de 10).
               photos: visionMode
-                ? (await downscalePhotosForVision(params.photos!.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType, context: p.context }))
+                ? (await downscalePhotosForVision(params.photos!.slice(0, 10)))?.map((p) => ({ base64: p.base64, mimeType: p.mimeType, context: p.context, libraryContext: p.libraryContext }))
                 : undefined,
               photo_description: visionMode ? params.photoDescription || undefined : undefined,
               ...(params.newsContext && params.newsContext.trim() ? { news_context: params.newsContext.slice(0, 3800) } : {}),
@@ -887,7 +890,7 @@ export function useContentGenerator() {
                 ? (await downscalePhotosForVision(params.photos!.slice(0, 10)))?.map(p => ({
                     base64: p.base64,
                     mimeType: p.mimeType || "image/jpeg",
-                    context: p.context,
+                    context: p.context, libraryContext: p.libraryContext,
                   }))
                 : undefined,
               photo_description: photoModeCF ? params.photoDescription || undefined : undefined,
@@ -1028,7 +1031,7 @@ export function useContentGenerator() {
                     photos: (await downscalePhotosForVision(photos.slice(0, 10)))?.map((p) => ({
                       base64: p.base64,
                       mimeType: p.mimeType || "image/jpeg",
-                      context: p.context,
+                      context: p.context, libraryContext: p.libraryContext,
                     })),
                   }
                 : {}),
@@ -1121,7 +1124,7 @@ export interface GenerateStreamParams {
   answers?: Record<string, string>;
   workspaceId?: string;
   photoMode?: boolean;
-  photos?: { base64: string; mimeType?: string; context?: string; userPhotoId?: string }[];
+  photos?: { base64: string; mimeType?: string; context?: string; libraryContext?: string; userPhotoId?: string }[];
   photoDescription?: string;
   deepResearch?: boolean;
   pinterestLink?: string;
