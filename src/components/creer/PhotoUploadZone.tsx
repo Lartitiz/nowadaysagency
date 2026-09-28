@@ -12,6 +12,8 @@ import { autoSelectStockPhotos, type StockKeywordContext } from "@/lib/stock-pho
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
 import { convertHeicIfNeeded, isHeic } from "@/lib/heic";
 
+import { carouselLibraryContext } from "@/lib/carousel-photo-context";
+
 const MAX_FILE_SIZE_MB = UX_UPLOAD_LIMITS.photo / MB;
 
 const PhotoPreparationDialog = lazy(() => import("@/components/photos/PhotoPreparationDialog"));
@@ -21,6 +23,7 @@ export interface PhotoItem {
   preview: string;
   name: string;
   context?: string;
+  libraryContext?: string;
   /** MIME type of the bytes inside base64 — used server-side to set Anthropic media_type. */
   mimeType?: string;
   /** Original image kept the first time the photo is edited, so the user can revert. */
@@ -232,6 +235,7 @@ export function PhotoUploadZone({
               name: r.value.name,
               mimeType: r.value.mimeType,
               context: "",
+              libraryContext: carouselLibraryContext(slice[i]),
               userPhotoId: slice[i].id,
             });
           } else {

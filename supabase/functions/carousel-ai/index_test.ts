@@ -57,6 +57,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
       reviews++;
       const message = request.input[0].content;
       assert(message.includes("BRIEF ACTUEL PRIORITAIRE"));
+      assert(message.includes("CONTEXTE_PHOTO_CONSERVÉ"));
       assert(message.includes("Attendre une réponse commune"));
       assert(message.includes("FIL CONFIRMÉ À PRÉSERVER : FIL_VALIDÉ"));
       assert(message.includes("STRUCTURE CHOISIE À PRÉSERVER : PLAN_VALIDÉ"));
@@ -74,7 +75,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     return Promise.resolve(new Response(JSON.stringify({ content: [{ type: "text", text }], stop_reason: "end_turn", usage: { input_tokens: 1, output_tokens: 1 } })));
   }) as typeof fetch;
   try {
-    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, slide_count: 4, narrative_thread: "FIL_VALIDÉ", content_structure: "PLAN_VALIDÉ", deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
+    const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, photo_contexts: [{ context: "CONTEXTE_PHOTO_CONSERVÉ : trois demandes reçues par e-mail." }], slide_count: 4, narrative_thread: "FIL_VALIDÉ", content_structure: "PLAN_VALIDÉ", deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
     assertEquals(res.status, 200);
     const output = await res.json();
     assertEquals(output.writer, { version: "opus55-astra-medium-v1", model: qualityMax ? "gpt-6-astra" : "claude-opus-5-5", effort: "medium" });
@@ -660,4 +661,35 @@ Deno.test("fil : « Mes slides » (texte de la personne) et structure confirmée
     }
     assertEquals(judged, 0);
   } finally { globalThis.fetch = oldFetch; }
+});
+
+for (const kind of ["photo", "mix"]) Deno.test(`structure ${kind} : deux photos n'imposent ni avant/après ni longueur`, async () => {
+  resetDeps();
+  let prompt = "";
+  _deps.callAnthropic = (async (o: any) => {
+    prompt = o.system + JSON.stringify(o.messages);
+    return JSON.stringify({ slides: [{ slide_number: 1, role: "hook", title_suggestion: "Titre", strategic_note: "note", overlay_position: "top_left" }], total_slides: 1 });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "structure_proposal", carousel_type: kind, slide_count: 3, photos: [
+    { base64: "aGVsbG8=", context: "Deux étapes du service", libraryContext: "Portrait observé" }, { base64: "aGVsbG8=" },
+  ] }));
+  assertEquals(res.status, 200); await res.text();
+  assert(prompt.includes("exactement 3 slides"));
+  assert(prompt.includes("Deux photos ne prouvent pas un avant/après"));
+  assert(prompt.includes("Deux étapes du service"));
+  assert(prompt.includes("indications de bibliothèque, potentiellement déduites"));
+  for (const stale of ["3 à 4", "5 à 7", "7 à 9", "slide pivot", "Utiliser CHAQUE"]) assert(!prompt.includes(stale), stale);
+});
+Deno.test("questions photo : faits manquants sans émotion imposée ni étape ajoutée", async () => {
+  resetDeps(); let prompt = "";
+  _deps.callAnthropic = (async (o: any) => {
+    prompt = JSON.stringify(o.messages);
+    return JSON.stringify({ questions: [{ question: "A", placeholder: "" }, { question: "B", placeholder: "" }, { question: "C", placeholder: "" }] });
+  }) as any;
+  const res = await handleRequest(makeHooksRequest({ type: "deepening_questions", carousel_type: "photo", subject: "Les étapes de mon diagnostic", photos: [{ base64: "aGVsbG8=", context: "Étape déjà expliquée" }] }));
+  assertEquals(res.status, 200); await res.text();
+  assert(prompt.includes("exactement 3 questions"));
+  assert(prompt.includes("Ne redemande pas une réponse déjà présente"));
+  assert(!prompt.includes("POURQUOI PROFOND"));
+  assert(!prompt.includes("ÉMOTION/SCÈNE VÉCUE"));
 });

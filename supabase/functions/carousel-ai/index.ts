@@ -84,16 +84,13 @@ function pickCorrectionModel(body: any): AnthropicModel {
 // ── Helpers contexte par photo ──
 // L'ordre des photos correspond à l'ordre d'envoi côté front (post-reorder UX).
 // `context` (max 200 chars, validé Zod) provient du champ optionnel par photo dans PhotoUploadZone.
-function buildPhotoContextRecap(photos: Array<{ base64: string; context?: string }> | undefined): string {
-  if (!photos || photos.length === 0) return "";
-  const withCtx = photos
-    .map((p, i) => ({ idx: i + 1, ctx: p.context?.trim() }))
-    .filter((p) => p.ctx);
-  if (withCtx.length === 0) return "";
-  const lines = withCtx.map((p) => `- Photo ${p.idx} : ${p.ctx}`).join("\n");
-  const missing = photos.length - withCtx.length;
-  const tail = missing > 0 ? `\n(Les ${missing} autre${missing > 1 ? "s" : ""} photo${missing > 1 ? "s n'ont" : " n'a"} pas de contexte fourni.)` : "";
-  return `\n\nINDICES PRÉCIS PAR PHOTO (fournis par l'utilisatrice — utilise-les pour identifier ce qui est représenté) :\n${lines}${tail}\n`;
+function buildPhotoContextRecap(photos: Array<{ context?: string; libraryContext?: string }> | undefined): string {
+  if (!photos?.length) return "";
+  const lines = photos.map((p, i) => [
+    p.context?.trim() ? `Photo ${i + 1} — contexte fourni par la personne : ${p.context.trim()}` : "",
+    p.libraryContext?.trim() ? `Photo ${i + 1} — indications de bibliothèque, potentiellement déduites : ${p.libraryContext.trim()}` : "",
+  ].filter(Boolean).join("\n")).filter(Boolean);
+  return lines.length ? `\nCONTEXTE PAR PHOTO :\n${lines.join("\n")}\nLes indications de bibliothèque aident à reconnaître l'image ; elles ne prouvent ni origine, fabrication, identité, chronologie, résultat ni vécu. Le contexte explicite de la personne prime.\n` : "";
 }
 
 function pushPhotoWithContext(messageContent: any[], photo: { base64: string; context?: string; mimeType?: string }, index: number) {
@@ -277,9 +274,9 @@ const MIX_CAROUSEL_TOOL = {
             title: { type: "string" },
             body: { type: "string" },
             overlay_text: { type: "string" },
-            overlay_position: { type: "string" },
             overlay_style: { type: "string" },
             visual_anchor: { type: "string" },
+            overlay_position: { type: "string", enum: ["top_left", "top_center", "bottom_left", "bottom_center", "center"] },
             photo_directive: { type: "string" },
             photo_query_en: { type: "string" },
             library_photo_index: { type: ["number", "null"] },
@@ -336,9 +333,9 @@ const PHOTO_CAROUSEL_TOOL = {
             slide_type: { type: "string" },
             photo_description: { type: "string" },
             overlay_text: { type: "string" },
-            overlay_position: { type: "string" },
             overlay_style: { type: "string" },
             visual_anchor: { type: "string" },
+            overlay_position: { type: "string", enum: ["top_left", "top_center", "bottom_left", "bottom_center", "center"] },
             note: { type: "string" },
             // ── Gabarits composés par code (chantier 13/07) : le modèle choisit
             // le gabarit et fournit ses champs ; le rendu HTML est déterministe.
@@ -346,7 +343,7 @@ const PHOTO_CAROUSEL_TOOL = {
               type: ["string", "null"],
               enum: ["couverture", "profonde", "etiquette", "chiffre", "liste", "etape", "citation", "finale", null],
               description:
-                "Gabarit visuel. couverture=slide 1 uniquement (affiche). profonde=texte 15-25 mots sur dégradé bas (défaut). etiquette=texte ≤4 mots en pastille (AVANT/APRÈS, connecteur). chiffre=big_number requis. liste=points requis. etape=step_number requis (processus). citation=attribution recommandée. finale=dernière slide uniquement (fin du propos ou action pertinente, question facultative).",
+                "Gabarit visuel. couverture=slide 1 uniquement (affiche). profonde=prose suivie, généralement 15-45 mots selon le sujet, sur fond de lecture adapté (défaut). etiquette=texte ≤4 mots en pastille (AVANT/APRÈS, connecteur). chiffre=big_number requis. liste=points requis. etape=step_number requis (processus). citation=attribution recommandée. finale=dernière slide uniquement (fin du propos ou action pertinente, question facultative).",
             },
             kicker: { type: ["string", "null"], description: "Sur-titre court (≤6 mots) : couverture, liste, etape (titre de l'étape)." },
             detail: { type: ["string", "null"], description: "Ligne de détail (≤12 mots) : couverture, etiquette." },
@@ -401,6 +398,7 @@ const STRUCTURE_PROPOSAL_TOOL = {
             photo_index: { type: ["number", "null"] },
             slide_type: { type: "string" },
             visual_anchor: { type: "string" },
+            overlay_position: { type: "string", enum: ["top_left", "top_center", "bottom_left", "bottom_center", "center"] },
           },
         },
       },
@@ -423,7 +421,7 @@ function carouselSlideFloor(body: any, defaultTarget: number): number {
   if (Array.isArray(body.confirmed_structure) && body.confirmed_structure.length > 0) {
     return body.confirmed_structure.length;
   }
-  return Math.min(4, body.slide_count || defaultTarget);
+  return Math.min(4, carouselLength(body).exact || defaultTarget);
 }
 
 // UN retry quand le modèle livre un carrousel écrasé (entre 1 slide et le plancher).
@@ -543,7 +541,8 @@ export async function handleRequest(req: Request): Promise<Response> {
       workspace_id: z.string().uuid().optional().nullable(),
       editorial_angle: z.string().max(100).optional().nullable(),
       content_structure: z.string().max(5000).optional().nullable(),
-      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional(), mimeType: z.string().max(50).optional() })).max(10).optional(),
+      photos: z.array(z.object({ base64: z.string(), context: z.string().max(200).optional(), libraryContext: z.string().max(800).optional(), mimeType: z.string().max(50).optional() })).max(10).optional(),
+      photo_contexts: z.array(z.object({ context: z.string().max(200).optional(), libraryContext: z.string().max(800).optional() })).max(10).optional(),
       photo_description: z.string().max(2000).optional().nullable(),
       slide_structure: z.array(z.object({
         slide_number: z.number(),
@@ -560,6 +559,7 @@ export async function handleRequest(req: Request): Promise<Response> {
         slide_type: z.enum(["photo_full", "photo_integrated", "text_only"]).optional(),
         story_beat: z.string().max(300).optional(),
         visual_anchor: z.string().max(120).optional(),
+        overlay_position: z.enum(["top_left", "top_center", "bottom_left", "bottom_center", "center"]).optional(),
       })).optional().nullable(),
       narrative_thread: z.string().max(1000).optional().nullable(),
       recent_briefs_context: z.string().max(6000).optional().nullable(),
@@ -630,7 +630,7 @@ export async function handleRequest(req: Request): Promise<Response> {
     // À capturer AVANT le fallback branding ci-dessous, qui remplit le même champ.
     const hadUserDeepening = !!body.deepening_answers;
     const currentAuthoredText = authoredContentSource(body);
-    const currentBrief = [body.subject, body.subject_details, body.photo_description, body.editorial_angle, body.objective,
+    const currentBrief = [body.subject, body.subject_details, body.photo_description, buildPhotoContextRecap(body.photo_contexts || body.photos), body.editorial_angle, body.objective,
       body.narrative_thread ? `FIL CONFIRMÉ À PRÉSERVER : ${body.narrative_thread}` : "",
       body.content_structure ? `STRUCTURE CHOISIE À PRÉSERVER : ${body.content_structure}` : "",
       currentAuthoredText, typeof body.news_context === "string" ? body.news_context : ""].filter(Boolean).join("\n");
@@ -685,7 +685,7 @@ export async function handleRequest(req: Request): Promise<Response> {
       body.deepening_answers ? JSON.stringify(body.deepening_answers) : "",
       typeof body.news_context === "string" ? body.news_context : "",
       depthBlock,
-      Array.isArray(body.photos) ? body.photos.map((p: any) => p?.context || "").join("\n") : "",
+      Array.isArray(body.photo_contexts || body.photos) ? (body.photo_contexts || body.photos).map((p: any) => p?.context || "").join("\n") : "",
       Array.isArray(body.photo_catalog) ? body.photo_catalog.map((p: any) => p?.description || "").join("\n") : "",
       brandingContext || "",
     ].filter(Boolean).join("\n");
@@ -908,7 +908,11 @@ async function repairCarouselThread(content: string, opts: {
   judgeThread?: boolean;
 }): Promise<{ content: string; warnings: string[]; threadWarnings: string[] }> {
   const { body, label, emitStatus, usage } = opts;
-  const inspect = opts.inspect || (() => []);
+  const inspect = opts.inspect || ((value: string): string[] => {
+    const exact = carouselLength(body).exact;
+    const count = countCarouselSlides(value);
+    return exact && count > 0 && count !== exact ? [`${count} slides reçues, exactement ${exact} demandées.`] : [];
+  });
   const length = carouselLength(body);
   const judge = async (value: string): Promise<string[]> => {
     if (opts.judgeThread === false) return [];
@@ -1111,7 +1115,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   // Cible affichée à l'IA — même valeur que le plancher de retryIfTooShort plus
   // bas (carouselSlideFloor(body, 8)) : sans elle, un mix sans slide_count explicite
   // n'avait AUCUN chiffre de longueur nulle part dans le prompt.
-  const mixSlideTarget = body.slide_count ? `${body.slide_count} à ${body.slide_count + 1}` : "8";
+  const mixSlideTarget = carouselLengthPrompt(body);
 
   if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
     const messageContent: any[] = [];
@@ -1120,7 +1124,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const photoCtxRecap = buildPhotoContextRecap(body.photos);
     messageContent.push({
       type: "text",
-      text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${body.slide_count ? `Nombre de slides cible : ${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur toute autre fourchette, même avec ${body.photos.length} photo(s).\n` : ""}${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
+      text: `BRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer TOUT le carrousel.\n\nObjectif : ${body.objective || "engagement"}\n${carouselLengthPrompt(body)}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}${photoCtxRecap}\n\nVoici ${body.photos.length} photo(s) à intégrer dans le carrousel :`,
     });
 
     // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -1136,7 +1140,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     // run/2 en photo (même symptôme probable ici, jamais mesuré côté mix).
     messageContent.push({
       type: "text",
-      text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.\n\nRappel de longueur : livre bien ${mixSlideTarget} slides — compte-les avant de répondre, un carrousel écrasé à 1-2 slides est un échec même si le récit te semble complet.\n\nRappel : tu GÉNÈRES avec ces photos (en écarter une individuellement est permis). Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
+      text: `Analyse ces ${body.photos.length} photo(s) et crée un carrousel mixte qui respecte le brief créatif ci-dessus. Le concept "${body.subject || ""}" doit être la colonne vertébrale de chaque slide.\n\n${mixSlideTarget}\n\nRappel : tu GÉNÈRES avec ces photos (en écarter une individuellement est permis). Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
@@ -1152,7 +1156,7 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
     const photoDescLine = body.text_first
       ? ""
       : `\nDescription des photos : "${body.photo_description || "non fournie"}"`;
-    const textPrompt = mixPrompt + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\nNombre de slides estimé : ${body.slide_count || 8}${body.slide_count ? " — choix explicite de l'utilisatrice, il PRIME sur toute autre fourchette" : ""}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
+    const textPrompt = mixPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nBRIEF CRÉATIF : "${body.subject || "non précisé"}". Ce concept doit structurer tout le carrousel.\n${photoDescLine}\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${body.slide_structure ? `\nStructure imposée : ${body.slide_structure.length} slides définies par l'utilisateur·ice.` : ""}`;
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
@@ -1219,8 +1223,8 @@ async function handleMixCarouselRequest(reqCtx: CarouselRequestContext): Promise
   } else {
     // Restaure l'intention de la structure confirmée (photo_index/slide_type)
     // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07).
-    content = mergeConfirmedStructure(content, body.confirmed_structure);
-    const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
+    content = mergeConfirmedStructure(content, body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
+    const photoCountForIndexes = body.photos?.length || body.photo_contexts?.length || maxStructurePhotoIndex(body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
     content = normalizePhotoIndexes(content, photoCountForIndexes);
     content = normalizeOverlayStyles(content);
     // Télémétrie composition (lot D, audit 12/07) : ratio photo < 40 % ou 3 slides
@@ -1274,9 +1278,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // Cible affichée à l'IA, réutilisée dans le rappel de fin de message (recency,
   // audit timeouts 17/08) — même valeur que la clause "Nombre de slides cible"
   // du 1er bloc ci-dessous.
-  const photoSlideTarget = body.slide_count
-    ? `${body.slide_count} à ${body.slide_count + 1}`
-    : `${Math.max(6, Math.min(body.photos?.length || 6, 10))}`;
+  const photoSlideTarget = carouselLengthPrompt(body);
 
   if (body.photos && body.photos.length > 0 && !body.confirmed_structure) {
     // Vision mode: send photos to Claude
@@ -1286,7 +1288,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     // 1. Brief + recap contexte AVANT les photos
     messageContent.push({
       type: "text",
-      text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\nNombre de slides cible : ${body.slide_count ? `${body.slide_count} à ${body.slide_count + 1} — CHOIX EXPLICITE de l'utilisatrice : il PRIME sur les fourchettes des CAS PARTICULIERS, même avec ${body.photos.length} photo(s) (une même photo peut porter plusieurs slides, ou certaines photos ne pas servir)` : `${Math.max(6, Math.min(body.photos.length, 10))} — le nombre de slides suit la RICHESSE DU RÉCIT, pas le nombre de photos (une même photo peut porter plusieurs slides, cf CAS PARTICULIERS)`}. Ne descends JAMAIS sous 4 slides.\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
+      text: `Voici ${body.photos.length} photo(s) pour un carrousel photo ${isLinkedIn ? "LinkedIn" : "Instagram"}.\n\nSujet : "${body.subject || "non précisé"}"\nObjectif : ${body.objective || "engagement"}\n${carouselLengthPrompt(body)}\n${body.photo_description ? `Description complémentaire : "${body.photo_description}"` : ""}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : "L'IA choisit le meilleur angle."}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}${photoCtxRecap}`,
     });
 
     // 2. Photos (avec contexte par photo s'il existe — l'ordre = ordre d'envoi front)
@@ -1302,7 +1304,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     // complet (2e appel vision de plein tarif) plutôt qu'une exception rare.
     messageContent.push({
       type: "text",
-      text: `Analyse chaque photo et génère le carrousel photo.\n\nRappel de longueur : livre bien ${photoSlideTarget} slides (jamais moins de 4) — compte-les avant de répondre, un carrousel écrasé à 1-2 slides est un échec même si le récit te semble complet.\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
+      text: `Analyse chaque photo et génère le carrousel photo.\n\n${photoSlideTarget}\n\nRappel : tu GÉNÈRES avec ces photos. Le refus photo_mismatch est réservé à une contradiction frontale entre les photos et une chose concrète que le sujet tapé promet de montrer — jamais à un décalage d'esthétique ou d'univers de marque.`,
     });
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
@@ -1316,7 +1318,7 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
     }, sink);
   } else {
     // Text-only mode: description without actual photos
-    const textPrompt = photoPrompt + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\nNombre de slides cible : ${body.slide_count || 6} — ne descends JAMAIS sous ${Math.min(4, body.slide_count || 6)} slides, quel que soit le nombre de photos (les textes portent la progression).\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
+    const textPrompt = photoPrompt + buildPhotoContextRecap(body.photo_contexts || body.photos) + `\n\nSujet : "${body.subject || "non précisé"}"\nDescription des photos : "${body.photo_description || "non fournie"}"\n${carouselLengthPrompt(body)}\nObjectif : ${body.objective || "engagement"}\n${body.editorial_angle ? `Angle éditorial : ${body.editorial_angle}` : ""}\n${body.deepening_answers ? `Réponses de l'utilisatrice : ${JSON.stringify(body.deepening_answers)}` : ""}`;
 
     doGenerate = (sink: UsageSink) => _deps.callCarouselWriter({
       model: pickCarouselModel(body),
@@ -1386,9 +1388,9 @@ async function handlePhotoCarouselRequest(reqCtx: CarouselRequestContext): Promi
   // AVANT le filet séquentiel — le modèle les omet en sortie (audit 12/07 :
   // null 13/13 malgré la consigne). En photo pur, une slide sans slide_type
   // EST une slide photo (le renderer front fait déjà cette hypothèse).
-  content = mergeConfirmedStructure(content, body.confirmed_structure);
+  content = mergeConfirmedStructure(content, body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
   {
-    const photoCountForIndexes = body.photos?.length || maxStructurePhotoIndex(body.confirmed_structure);
+    const photoCountForIndexes = body.photos?.length || body.photo_contexts?.length || maxStructurePhotoIndex(body.confirmed_structure?.length ? body.confirmed_structure : body.slide_structure);
     content = normalizePhotoIndexes(content, photoCountForIndexes, { assumePhotoWhenTypeMissing: true });
   }
   // Un overlay long en style « minimal »/« technique » rend un pavé (lot E).
@@ -1436,76 +1438,19 @@ async function handleExpressFullRequest(reqCtx: CarouselRequestContext): Promise
 
 async function handleStructureProposalRequest(reqCtx: CarouselRequestContext): Promise<Response> {
   const { body, brandingContext, newsContext, corsHeaders } = reqCtx;
-  const { subject, carousel_type, objective, slide_count, editorial_angle, deepening_answers, photos, photo_description } = body;
+  const { subject, carousel_type, objective, editorial_angle, deepening_answers, photos, photo_description } = body;
   const hasPhotos = photos && Array.isArray(photos) && photos.length > 0;
   const isPhotoMode = carousel_type === "photo";
   const isMixMode = carousel_type === "mix";
 
-  let photoInstruction = "";
-  if (hasPhotos && (isPhotoMode || isMixMode)) {
-    if (isPhotoMode) {
-      const n = photos.length;
-      // slide_count explicite = choix de longueur de l'utilisatrice (puces
-      // « Longueur » du front) — il prime sur la fourchette adaptative.
-      const slideTarget = slide_count ? `${slide_count} à ${slide_count + 1}`
-        : n === 1 ? "4 à 6"
-        : n === 2 ? "5 à 7"
-        : n <= 4 ? "6 à 8"
-        : `${n} à ${n + 2}`;
-      const photoAssignmentRule = n === 1
-        ? `Une seule photo fournie → elle apparaît sur CHAQUE slide. Le récit se construit uniquement par les textes (overlay) qui s'enchaînent.`
-        : n === 2
-        ? `Deux photos fournies → traite-les comme un duo narratif (typiquement AVANT / APRÈS, ou DEUX FACES d'une même réalité).
-- N'alterne PAS mécaniquement photo 1 / photo 2 / photo 1 / photo 2. Cette alternance est INTERDITE sans justification narrative.
-- Structure conseillée : 2-3 slides successives avec photo 1 (poser le "avant" / contexte / problème) → 1 slide pivot (bascule, déclic) → 2-3 slides avec photo 2 ("après" / résolution / nouveau regard).
-- Variante acceptée : commencer par photo 2 en hook teaser, puis revenir à photo 1 pour raconter d'où on vient, puis ramener photo 2 pour boucler.
-- Dans tous les cas, le rythme des photos doit servir un ARC narratif clair, pas un effet de montage.`
-        : `${n} photos fournies → chaque photo peut se répéter si son rôle narratif change (ex: la même photo en hook puis en clôture avec un sens nouveau). Évite l'enchaînement plat "1 photo = 1 slide" si le récit gagne à insister sur une image-clé.`;
-
-      photoInstruction = `\nMODE PHOTO — ${n} photo(s) fournie(s).
-
-NOMBRE DE SLIDES : cible ${slideTarget} slides. ${slide_count ? `C'est un CHOIX EXPLICITE de l'utilisatrice : respecte-le, même si le nombre de photos suggérerait autre chose (une même photo peut porter plusieurs slides, ou certaines photos ne pas servir).` : `Le nombre de slides s'ajuste à la richesse narrative du sujet ET au nombre de photos — il n'y a PAS de plancher rigide à 7-8 slides.`}
-
-RÉPARTITION DES PHOTOS :
-${photoAssignmentRule}
-
-Pour chaque slide, indique "photo_index" (1-based, peut se répéter d'une slide à l'autre) et "slide_type": "photo_full".
-
-CHAÎNAGE NARRATIF DES TEXTES (CRITIQUE) :
-Les overlay_text de chaque slide doivent se lire à la suite comme UN SEUL mini-récit. La slide N reprend, prolonge ou fait basculer ce que la slide N-1 a posé. Si on permute deux slides au hasard et que ça "marche encore", c'est raté — recommence.
-
-Quand une même photo se répète sur 2-3 slides consécutives, les textes DOIVENT porter une progression (zoom narratif, avancée temporelle, retournement) — pas trois variantes d'une même idée.
-${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
-    } else {
-      photoInstruction = `\nMODE MIXTE — ${photos.length} photo(s) fournies.
-
-OBJECTIF DU FORMAT MIXTE : un dialogue ÉQUILIBRÉ entre image et mot. Ce N'EST PAS un carrousel texte avec quelques photos décoratives. Si tu produis 70% de slides texte, tu rates le format. Ce n'est PAS non plus un diaporama photo : si le sujet a de la profondeur, il faut des slides texte d'approfondissement.
-
-NOMBRE DE SLIDES — RÈGLE D'OR :
-Le nombre de slides suit la RICHESSE NARRATIVE du sujet, PAS le nombre de photos. Cible : ${slide_count || 7} à ${(slide_count || 7) + 2} slides. Ne descends JAMAIS sous ${slide_count || 7} slides sous prétexte qu'il n'y a que ${photos.length} photo(s).
-
-Si le sujet porte une vraie profondeur (vécu, conviction, mécanisme à expliquer, retournement de croyance, prise de position), ÉTIRE à ${slide_count || 7}-${(slide_count || 7) + 2} slides en intercalant des slides texte d'approfondissement entre les slides photo. Une photo peut être réutilisée 2 fois sous des cadrages/rôles différents (ex: photo_full en hook, puis photo_integrated plus loin avec un angle analytique) si le récit le justifie — c'est même recommandé quand il y a peu de photos pour un sujet riche.
-
-ÉQUILIBRE PHOTO / TEXTE :
-- Au minimum 50% de slides photo (photo_full ou photo_integrated) — réutilisation autorisée
-- Utiliser CHAQUE photo uploadée au moins une fois (les écarter doit être l'exception)
-- Les slides texte d'approfondissement (mécanisme, croyance retournée, prise de position, chiffre, transition charnière, CTA) sont LÉGITIMES et essentielles à la profondeur — pas un "bonus" de 1-2 slides max. Mets-en autant que la profondeur du sujet l'exige.
-
-QUAND UNE SLIDE TEXTE EST UTILE :
-Elle développe un usage, un détail, une explication, une étape, une nuance ou une position fournis qui gagnent à être lus. Aucun mécanisme caché, chiffre ou retournement obligatoire.
-
-Pour les slides avec photo : "photo_index" (1-based, peut se répéter entre slides) + "slide_type" = "photo_full" ou "photo_integrated".
-Pour les slides texte : "slide_type" = "text_only", pas de photo_index. Indique dans "strategic_note" pourquoi cette slide DOIT être texte (mécanisme, croyance, chiffre, transition, prise de position…) — et si elle gagnerait à porter un schéma visuel (comparaison, timeline, opposition, liste structurée).
-
-Répartis les photos intelligemment : la plus impactante en hook (slide 1) ou conclusion, les autres selon leur contenu narratif. Si une photo est réutilisée, change son rôle/cadrage entre les deux occurrences.
-
-CHAÎNAGE NARRATIF (CRITIQUE) :
-Les title_suggestion lus dans l'ordre suivent une progression adaptée au sujet : usage, explication, récit, méthode ou analyse. Aucun arc dramatique imposé.
-Chaque strategic_note doit dire ce que la slide FAIT AVANCER dans le récit (ce qu'elle ajoute, retourne ou révèle par rapport à la précédente), pas seulement pourquoi elle est à cette position dans la structure.
-Test de permutation : si on échange deux slides au hasard et que la structure "marche encore", c'est raté — recommence.
-${photo_description ? `Description complémentaire des photos : "${photo_description}"` : ""}`;
-    }
-  }
+  const photoInstruction = hasPhotos && (isPhotoMode || isMixMode) ? `
+MODE ${isPhotoMode ? "PHOTO" : "MIXTE"} — ${photos.length} photo(s) fournies.
+Le nombre de photos ne détermine ni la longueur ni le type d'histoire. Deux photos ne prouvent pas un avant/après. Préserve l'ordre choisi ; une photo peut porter plusieurs passages, sans zoom imposé. Écarte une photo seulement si elle ne sert pas le sujet.
+${isPhotoMode ? 'Chaque slide utilise slide_type:"photo_full" et un photo_index depuis 1.' : 'Répartis photo_full, photo_integrated et text_only selon les besoins du propos. Le texte approfondit ce que les photos accompagnent ; une répartition confirmée prime. photo_index depuis 1 pour les slides photo, absent pour text_only.'}
+Chaque story_beat indique ce que la slide reprend et ce qu'elle ajoute. Les textes se lisent ensemble comme un récit ou une explication suivie, avec une entrée et un aboutissement. Les listes gardent un cadre commun sans causalité artificielle.
+Choisis overlay_position (top_left, top_center, bottom_left, bottom_center, center) pour les slides photo_full dans une zone dégagée qui laisse visibles visage, mains, objet et détails importants. Évite center quand le sujet occupe le centre. Respecte le cadrage original.
+${photo_description ? `Description complémentaire : ${photo_description}` : ""}
+` : "";
 
   const hasNewsContextForStructure = typeof newsContext === "string" && newsContext.trim().length > 0;
   // Bloc condensé spécifique à structure_proposal : on ne réutilise PAS newsContextBlock
@@ -1531,7 +1476,7 @@ RÈGLES :
 - Justifie chaque position par son lien avec ce qui précède et son apport à l'ensemble, en 1 phrase max.
 - Propose des titres spécifiques en français (voir RÈGLES TITRES ci-dessous), sans scène inventée.
 - Sois concise et actionnable, pas théorique
-${!photos?.length && carousel_type !== "mix" ? carouselLengthPrompt(body) : `- Le nombre de slides cible est ${slide_count || 7} en mode MIX ; en mode PHOTO il s'adapte au nombre de photos (voir MODE PHOTO ci-dessous).`}
+${carouselLengthPrompt(body)}
 ${photoInstruction}
 
 ${SLIDE_TITLE_RULES}
@@ -1554,6 +1499,7 @@ Retourne UNIQUEMENT un objet JSON valide (pas de texte avant ou après, pas de b
       "story_beat": "Ce que cette slide fait comprendre ou raconte avec la matière fournie, et comment elle poursuit la précédente, en 1 phrase. Une étape du propos, sans émotion, événement ou bascule inventés ; une description de photo seule ne suffit pas."${hasPhotos ? `,
       "photo_index": 1,
       "slide_type": "photo_full",
+      "overlay_position": "bottom_left",
       "visual_anchor": "OBLIGATOIRE pour toute slide avec photo_index. 3-8 mots qui pointent UN détail concret VISIBLE dans CETTE photo, mobilisable par le pass d'écriture comme matière première (ex : « la poussière sur les bottes », « les deux tasses encore pleines »). C'est UN détail précis, JAMAIS un résumé de l'image. Ne l'omets que si la photo est vraiment sans aucun détail saisissable."` : ""}
     }
   ],
@@ -1702,7 +1648,7 @@ ${body.photo_description && body.photo_description.trim() ? `Ce qu'elle dit de s
     : "";
 
   const angleDepthBlock = (body.editorial_angle && body.content_structure)
-    ? `\n\nANGLE ÉDITORIAL : ${body.editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${body.content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel ET ses photos.`
+    ? `\n\nANGLE ÉDITORIAL : ${body.editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${body.content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec les faits, explications ou expériences qu’elle souhaite partager et ses photos.`
     : "";
 
   const reasoningBlock = `\n\n══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
@@ -1723,9 +1669,9 @@ Tu es une coach com' spécialisée en contenu visuel. Tu as DEUX matières à cr
 Tes questions doivent :
 - MENTIONNER ce que tu VOIS RÉELLEMENT dans les photos (éléments concrets, ambiance, couleurs, scène, geste, lieu)${crossingRules}
 - Aider l'utilisatrice à définir l'histoire que ces photos racontent ensemble${isMix ? ", ET QUELS PASSAGES TEXTUELS viennent s'intercaler entre les slides photo (réflexion, chiffre, conviction)" : ""}
-- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND (vécu, conviction, opinion tranchée, leçon métier). Pas seulement décrire ce que les photos montrent ni évoquer une émotion floue : extraire du vécu, des anecdotes, des opinions, des exemples concrets.
+- Chercher les informations manquantes qui permettront de relier les slides : ordre des gestes, choix et raisons connus, usage, exemple, résultat ou nuance. Ne redemande pas une réponse déjà présente dans le sujet, les descriptions ou le contexte fourni. Aucune conviction, anecdote ou émotion obligatoire.
 - Être SPÉCIFIQUES à CE brief (pas génériques, pas interchangeables avec un autre sujet ou d'autres photos)
-${isLinkedIn ? "- Garder un ton PRO : demander des données, des résultats concrets, des leçons métier, l'expertise spécifique derrière l'image (pas juste l'émotion)" : "- Garder un ton ÉMOTION/SCÈNE VÉCUE (ressenti, coulisses, instant) tout en allant chercher la conviction derrière"}
+- Adapter le ton à la voix et au sujet de la personne, sur les deux réseaux : produit, service, méthode, récit personnel ou pédagogie. Une émotion est utile seulement si la personne veut la raconter.
 ${recentBriefsContext ? "- MÉMOIRE ANTI-RÉPÉTITION : l'historique liste des sujets DIFFÉRENTS déjà traités. N'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant." : ""}
 
 Exemples de bonnes questions${isMix ? " (carrousel mixte)" : ""} :${crossingExamples}
@@ -1738,7 +1684,7 @@ ${isMix
 INTERDIT :
 - Questions génériques qui pourraient s'appliquer à n'importe quel sujet ou n'importe quelles photos (sans vocabulaire métier)
 - Questions sans aucune référence visuelle aux photos analysées
-- Questions purement descriptives ("c'était dans quel contexte ?") sans aller chercher le POURQUOI / la conviction / le vécu${hasWrittenIntent ? `
+- Questions qui présupposent une difficulté, une émotion, une transformation ou un résultat non fourni${hasWrittenIntent ? `
 - Questions qui IGNORENT complètement ce qu'elle a écrit dans son sujet/description et ne parlent que des photos (le pont entre texte et image est OBLIGATOIRE${isMix ? " sur au moins 2 questions" : ""})` : ""}
 - Questions qui réutilisent une scène, un lieu, un personnage venu de l'historique des briefs précédents
 
@@ -1783,7 +1729,7 @@ async function handleDeepeningQuestionsRequest(reqCtx: CarouselRequestContext): 
   // ── Photo/mix carousel with description only (no actual photos) ──
   let userPrompt: string;
   if ((body.carousel_type === "photo" || body.carousel_type === "mix") && body.photo_description) {
-    const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : l'ambiance, le contexte invisible, l'émotion derrière ces images, l'histoire qu'elles racontent ensemble.`;
+    const photoDescBlock = `\n\nL'utilisatrice décrit ses photos : "${body.photo_description}". Pose des questions en lien avec ce qu'elle décrit : les informations manquantes qui relient les images au propos, sans imposer de vécu ni d’émotion. Ne redemande pas les faits déjà fournis.`;
     userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock) + photoDescBlock;
   } else {
     userPrompt = buildDeepeningQuestionsPrompt(body, brandingContext, isLinkedIn, recentBriefsContext, brandVocabBlock);
@@ -1923,7 +1869,7 @@ function buildDeepeningQuestionsPrompt(body: any, brandingContext?: string, isLi
   let angleBlock = "";
   if (editorial_angle && content_structure) {
     formatLabel = editorial_angle;
-    angleBlock = `\n\nANGLE ÉDITORIAL : ${editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${content_structure}\n\nLes questions doivent aider l'utilisatrice à remplir les étapes de cette structure avec son vécu personnel.`;
+    angleBlock = `\n\nANGLE ÉDITORIAL : ${editorial_angle}\nSTRUCTURE DU CARROUSEL :\n${content_structure}\n\nLes questions doivent aider la personne à compléter cette structure avec les faits, exemples ou expériences disponibles.`;
   } else {
     formatLabel = CAROUSEL_TYPE_LABELS[carousel_type] || carousel_type;
   }
@@ -1940,7 +1886,7 @@ Les 3 questions doivent toutes porter sur CE sujet précis.
 Si une question pourrait concerner un autre sujet, elle est invalide.
 
 OBJECTIF : ${OBJ_LABELS[objective] || objective || "non précisé"}
-${objective ? `\nOriente les questions vers cet objectif. Si "vente" : témoignages clients, résultats, transformations. Si "engagement" : anecdotes personnelles, moments vécus. Si "visibilité" : opinions tranchées, constats provocants.\n` : ""}${brandingBlock}${brandVocabBlock || ""}${recentBriefsContext || ""}${angleBlock}
+${objective ? `\nOriente les questions vers cet objectif. Cherche les informations utiles pour cet objectif, sans imposer témoignage, anecdote, résultat ni provocation.\n` : ""}${brandingBlock}${brandVocabBlock || ""}${recentBriefsContext || ""}${angleBlock}
 ${isLinkedIn ? `\nATTENTION : c'est un carrousel LINKEDIN. Les questions doivent orienter vers du contenu expert et professionnel :\n- Demander des données, des résultats concrets, des leçons métier\n- Chercher l'expertise spécifique (pas juste l'émotion)\n- Orienter vers du contenu qui positionne comme référence sur le sujet` : ""}
 
 ══ AVANT DE POSER LES QUESTIONS — RAISONNEMENT INTERNE (ne PAS afficher) ══
@@ -1949,12 +1895,12 @@ Réfléchis silencieusement à :
 2. Quel vocabulaire métier puis-je intégrer ?
 3. Y a-t-il un sujet identique dans l'historique récent ? Si oui, quelle question NE PAS reposer ?
 
-TON RÔLE : coach com' qui aide à extraire le vécu, les opinions et l'expertise PERSONNELLE pour que le contenu ne soit pas générique.
+TON RÔLE : aider à compléter la matière utile à ce sujet, en tenant compte de ce que la personne a déjà fourni.
 
 RÈGLES :
 - ANCRAGE SUJET (règle n°1, non négociable) : chaque question doit contenir un mot du sujet courant ou un aspect directement déductible. Une question qui ne référence pas le sujet courant est invalide — réécris-la.
-- Chaque question doit faire émerger du vécu, des anecdotes, des opinions tranchées, des exemples concrets
-- AU MOINS 1 question sur 3 doit creuser le POURQUOI PROFOND
+- Demande les faits, choix, explications, exemples ou expériences qui manquent pour relier les slides. Une émotion ou une conviction est facultative.
+- Ne redemande pas une réponse déjà présente dans le sujet, le contexte des photos ou les réponses fournies.
 - Si le contexte branding est présent, adapte les questions à son activité et sa cible
 - ${recentBriefsContext ? "MÉMOIRE ANTI-RÉPÉTITION : l'historique liste des sujets DIFFÉRENTS déjà traités. N'importe JAMAIS leur contenu, vocabulaire ou scènes dans tes questions sur le sujet courant." : ""}
 - ${isLinkedIn ? "Vouvoyez l'utilisatrice, restez professionnel·le et chaleureux·se" : "Tutoie l'utilisatrice, sois directe et chaleureuse"}
@@ -2010,6 +1956,7 @@ function buildConfirmedStructureBlock(
     .map((s: any) => {
       let line = `  Slide ${s.slide_number} — Rôle : ${s.role} — Titre : "${s.title_suggestion}"`;
       if (s.photo_index) line += ` — Photo n°${s.photo_index}${s.slide_type ? ` (${s.slide_type})` : ""}`;
+      if (s.overlay_position) line += ` — Position du texte : ${s.overlay_position}`;
       line += ` — ${s.strategic_note}`;
       if (withStoryBeat) {
         if (s.story_beat) line += `\n    → Raconte : ${s.story_beat}`;

@@ -1549,14 +1549,14 @@ function CreerWorkspace() {
       slideCount: slideCountChoice,
       confirmedStructure: confirmedSlides,
       ...(narrativeThread ? { narrativeThread } : {}),
-      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(carouselSubMode === "photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
       ...(carouselSubMode === "mix"
         ? (isTextFirstMix
             ? { carouselType: "mix", textFirst: true, ...(textFirstCatalog.length > 0 ? { photoCatalog: textFirstCatalog } : {}) }
-            : { carouselType: "mix", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription })
+            : { carouselType: "mix", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription })
         : {}),
-      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, mimeType: p.mimeType })), photoDescription } : {}),
-      ...(photoMode ? { photoMode: true, photos: photosForText.length > 0 ? photosForText.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
+      ...(carouselSubMode === "pure_photo" ? { carouselType: "photo", photos: photosForText.map(p => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType })), photoDescription } : {}),
+      ...(photoMode ? { photoMode: true, photos: photosForText.length > 0 ? photosForText.slice(0, 10).map((p) => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType, userPhotoId: p.userPhotoId })) : undefined, photoDescription } : {}),
       ...(qualityMax ? { qualityMax: true } : {}),
       ...(newsjackingContext ? { newsContext: newsjackingContext } : {}),
     });

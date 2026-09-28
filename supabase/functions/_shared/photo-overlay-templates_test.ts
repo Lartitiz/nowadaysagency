@@ -202,3 +202,23 @@ Deno.test("citation : posée dans le tiers bas par défaut (évite le visage cen
   );
   assert(out.html.includes("justify-content:flex-end"));
 });
+
+Deno.test("passage développé : panneau de charte local, texte complet et aucun zoom implicite", () => {
+  const text = "Je reprends ensuite cette bordure pour garder la même largeur sur toute la pièce. Ce passage demande plusieurs essais : je conserve ici les deux versions pour montrer précisément ce qui change dans le geste et dans le résultat visible.";
+  for (const [background, color] of [["#FFF4E9", "#000000"], ["#182128", "#FFFFFF"]]) {
+    const out = composePhotoSlide(base({ overlay_text: text, kicker: "Le même geste", detail: "Une précision utile", overlay_position: "top_left" }), { ...CH, color_background: background, color_text: background }, mid);
+    assert(out.html.includes(text));
+    assert(out.html.includes("Le même geste"));
+    assert(out.html.includes("Une précision utile"));
+    assert(out.html.includes('data-photo-reading-panel="1"'));
+    assert(out.html.includes(`background:${background}`));
+    assert(out.html.includes(`color:${color}`));
+    assert(!out.html.includes('data-injected-scrim'));
+    assert(!out.html.includes('background-size:150%'));
+    assert(out.html.includes('justify-content:flex-start'));
+  }
+});
+Deno.test("texte centré : le voile couvre aussi le centre de l’image", () => {
+  const out = composePhotoSlide(base({ overlay_position: "center" }), CH, { ...mid, luminance: { center: .9 } });
+  assert(out.html.includes('height:1350px;background:rgba(0,0,0,0.85)'));
+});

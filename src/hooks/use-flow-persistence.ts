@@ -181,6 +181,7 @@ export interface PhotoManifestEntry {
   name?: string;
   mimeType?: string;
   context?: string;
+  libraryContext?: string;
   userPhotoId?: string;
   edited?: boolean;
   stockSource?: string;
@@ -279,7 +280,7 @@ export async function savePhotos(photos: any[]): Promise<void> {
         id,
         name: p.name,
         mimeType: p.mimeType,
-        context: p.context,
+        context: p.context, libraryContext: p.libraryContext,
         userPhotoId: p.userPhotoId,
         edited: !!p.edited,
         stockSource: p.stockSource, stockPhotographer: p.stockPhotographer, stockSourceUrl: p.stockSourceUrl,
@@ -343,7 +344,7 @@ export function loadPhotos(): PhotoManifestEntry[] {
             id: e.id || newPhotoId(),
             name: e.name,
             mimeType: e.mimeType,
-            context: e.context,
+            context: e.context, libraryContext: e.libraryContext,
             userPhotoId: e.userPhotoId,
             edited: !!e.edited,
             local: !!e.base64,

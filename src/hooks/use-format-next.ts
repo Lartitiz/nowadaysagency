@@ -276,7 +276,7 @@ export function useFormatNext({
       objective: objective || undefined,
       channel: channelForQuestions,
       photos: photosForQuestions && photosForQuestions.length > 0
-        ? photosForQuestions.map((p: any) => ({ base64: p.base64, context: p.context, mimeType: p.mimeType }))
+        ? photosForQuestions.map((p: any) => ({ base64: p.base64, context: p.context, libraryContext: p.libraryContext, mimeType: p.mimeType }))
         : undefined,
       photoDescription: descForQuestions || undefined,
       carouselSubMode: subModeForQuestions || undefined,

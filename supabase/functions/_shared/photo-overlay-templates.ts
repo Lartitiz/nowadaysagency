@@ -1,3 +1,5 @@
+import { hexLuminance } from "./contrast-guard.ts";
+
 // Composition PAR CODE des slides photo+overlay (chantier gabarits 13/07).
 //
 // Le modèle ne produit plus le HTML des slides photo : il fournit le CONTENU
@@ -55,6 +57,8 @@ export interface PhotoSlideSpec {
 }
 
 export interface PhotoCharter {
+  color_background?: string;
+  color_text?: string;
   color_accent: string;
   font_title: string;
   font_body: string;
@@ -115,6 +119,7 @@ function zoneFor(position: string | null | undefined): keyof PhotoZoneLuminance 
 
 /** Dégradé ancré au bord porteur du texte (bas par défaut). */
 function gradientScrim(position: string | null | undefined, peak: number, heightPct = 54): string {
+  if (position === "center") return fullDim(peak);
   const isTop = /^top/.test(String(position || ""));
   const dir = isTop ? "180deg" : "0deg";
   return `<div data-injected-scrim="1" style="position:absolute;left:0;${isTop ? "top" : "bottom"}:0;width:${W}px;height:${heightPct}%;background:linear-gradient(${dir},rgba(0,0,0,${peak}) 0%,rgba(0,0,0,0) 100%);"></div>`;
@@ -127,8 +132,7 @@ function fullDim(opacity: number): string {
 
 function photoLayer(photoIndex: number, zoom = false): string {
   const n = Math.max(1, Math.round(photoIndex || 1));
-  // Zoom narratif : quand la MÊME photo porte deux slides consécutives, la
-  // seconde passe en plan serré (150 %) — jamais deux slides identiques d'affilée.
+  // Zoom facultatif, uniquement demandé explicitement par un appelant.
   const sizing = zoom
     ? `background-size:150%;background-position:center 38%;`
     : `background-size:cover;background-position:center;`;
@@ -151,7 +155,7 @@ function contentWrap(
   const justify = isCenter ? "center" : isTop ? "flex-start" : "flex-end";
   const textAlign = /left$/.test(p) ? "left" : "center";
   const alignItems = /left$/.test(p) ? "flex-start" : align;
-  return `<div style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;display:flex;flex-direction:column;justify-content:${justify};align-items:${alignItems};text-align:${textAlign};padding:${TOP_SAFE}px 84px ${BOTTOM_SAFE}px 84px;box-sizing:border-box;">${inner}</div>`;
+  return `<div data-photo-text-layout="${escapeHtml(p)}" style="position:absolute;top:0;left:0;width:${W}px;height:${H}px;display:flex;flex-direction:column;justify-content:${justify};align-items:${alignItems};text-align:${textAlign};padding:${TOP_SAFE}px 84px ${BOTTOM_SAFE}px 84px;box-sizing:border-box;">${inner}</div>`;
 }
 
 function kickerHtml(text: string): string {
@@ -210,12 +214,23 @@ function tplCouverture(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): strin
 function tplProfonde(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
   const fontBody = cssFont(ch.font_body, "sans-serif");
   const text = s.overlay_text || "";
-  const inner = overlayAnchor(
-    text,
-    `font-family:${fontBody};font-size:${fitSize(40, text, 25)}px;line-height:1.45;color:#FFFFFF;max-width:880px;`,
-  );
-  return gradientScrim(s.overlay_position, scrimPeak(lum)) +
-    contentWrap(s.overlay_position || "bottom_center", "center", inner);
+  const density = wordCount([s.kicker, text, s.detail].filter(Boolean).join(" "));
+  const usePanel = density > 28;
+  const background = /^#[0-9a-f]{6}$/i.test(ch.color_background || "") ? ch.color_background! : "#1a1815";
+  const lumBg = hexLuminance(background.slice(1));
+  const preferred = /^#[0-9a-f]{6}$/i.test(ch.color_text || "") ? ch.color_text! : "#FFFFFF";
+  const lumText = hexLuminance(preferred.slice(1));
+  const ratio = (Math.max(lumBg, lumText) + 0.05) / (Math.min(lumBg, lumText) + 0.05);
+  const color = usePanel ? (ratio >= 4.5 ? preferred : lumBg > 0.179 ? "#000000" : "#FFFFFF") : "#FFFFFF";
+  const parts = [
+    s.kicker ? kickerHtml(s.kicker).replace("#FFFFFF", color) : "",
+    overlayAnchor(text, `font-family:${fontBody};font-size:${fitSize(40, text, 35)}px;line-height:${usePanel ? 1.4 : 1.45};color:${color};max-width:880px;`),
+    s.detail ? detailHtml(s.detail).replace("#FFFFFF", color) : "",
+  ].join("");
+  // Long passages get a local opaque reading surface; the rest of the image stays intact.
+  const inner = usePanel ? `<div data-photo-reading-panel="1" style="background:${background};padding:32px;box-sizing:border-box;max-width:912px;">${parts}</div>` : parts;
+  return (usePanel ? "" : gradientScrim(s.overlay_position, scrimPeak(lum))) +
+    contentWrap(s.overlay_position || "bottom_left", "center", inner);
 }
 
 function tplEtiquette(s: PhotoSlideSpec, ch: PhotoCharter, lum?: number): string {
@@ -332,7 +347,7 @@ const KNOWN: PhotoTemplate[] = [
 /**
  * Choix DÉTERMINISTE du gabarit : le champ `template` de la structure prime
  * s'il est cohérent avec les champs fournis ; sinon on dérive du contenu.
- * Jamais d'échec : au pire, `profonde` (lisible pour tout texte ≤ 25 mots).
+ * Jamais d'échec : au pire, `profonde` (surface de lecture adaptée à la longueur).
  */
 export function resolvePhotoTemplate(
   s: PhotoSlideSpec,

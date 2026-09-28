@@ -50,14 +50,14 @@ Deno.test("merge : restaure photo_index et slide_type omis par le modèle (cas a
   assertEquals(out.slides.map((s: any) => s.slide_type), ["photo_full", "photo_full", "photo_full", "text_only"]);
 });
 
-Deno.test("merge : ne touche pas une assignation valide posée par le modèle", () => {
+Deno.test("merge : le plan confirmé prime sur une assignation différente du modèle", () => {
   const content = wrap([
     { slide_number: 1, slide_type: "photo_full", photo_index: 2 },
     { slide_number: 2, slide_type: "photo_integrated", photo_index: 1 },
   ]);
   const out = parse(mergeConfirmedStructure(content, STRUCTURE));
-  assertEquals(out.slides.map((s: any) => s.photo_index), [2, 1]);
-  assertEquals(out.slides[1].slide_type, "photo_integrated");
+  assertEquals(out.slides.map((s: any) => s.photo_index), [1, 1]);
+  assertEquals(out.slides[1].slide_type, "photo_full");
 });
 
 Deno.test("merge : une slide text_only ne garde jamais de photo_index", () => {
@@ -85,14 +85,14 @@ Deno.test("merge : sans structure ou contenu illisible → contenu inchangé", (
   assertEquals(mergeConfirmedStructure("pas du json", STRUCTURE), "pas du json");
 });
 
-Deno.test("merge : recopie role manquant, garde role existant", () => {
+Deno.test("merge : conserve les rôles du plan confirmé", () => {
   const content = wrap([
     { slide_number: 1, overlay_text: "a" },
     { slide_number: 2, overlay_text: "b", role: "emotion" },
   ]);
   const out = parse(mergeConfirmedStructure(content, STRUCTURE));
   assertEquals(out.slides[0].role, "hook");
-  assertEquals(out.slides[1].role, "emotion");
+  assertEquals(out.slides[1].role, "process");
 });
 
 // ── normalizePhotoIndexes ──
@@ -126,14 +126,14 @@ Deno.test("normalize : assignation valide avec répétitions voulues respectée"
   assertEquals(out.slides.map((s: any) => s.photo_index), [1, 1, 2]);
 });
 
-Deno.test("normalize : dégénéré (tout sur la photo 1 avec 3 photos dispo) → séquentiel", () => {
+Deno.test("normalize : une seule photo répétée reste un choix valide", () => {
   const content = wrap([
     { slide_number: 1, slide_type: "photo_full", photo_index: 1 },
     { slide_number: 2, slide_type: "photo_full", photo_index: 1 },
     { slide_number: 3, slide_type: "photo_full", photo_index: 1 },
   ]);
   const out = parse(normalizePhotoIndexes(content, 3));
-  assertEquals(out.slides.map((s: any) => s.photo_index), [1, 2, 3]);
+  assertEquals(out.slides.map((s: any) => s.photo_index), [1, 1, 1]);
 });
 
 Deno.test("normalize : index hors range → séquentiel plafonné au photoCount", () => {
@@ -209,4 +209,17 @@ Deno.test("composition mix : alternance saine → aucun flag", () => {
   const r = analyzeMixComposition(content)!;
   assertEquals(r.violatesRatio, false);
   assertEquals(r.violatesRun, false);
+});
+
+Deno.test("index invalides corrigés sans déplacer les autres associations", () => {
+  const input = wrap([{ slide_type: "photo_full", photo_index: 2 }, { slide_type: "photo_full", photo_index: 0 }, { slide_type: "photo_full", photo_index: 2 }]);
+  assertEquals(parse(normalizePhotoIndexes(input, 3)).slides.map((s: any) => s.photo_index), [2, 2, 2]);
+});
+Deno.test("structure manuelle : type, cadrage de texte et layout priment", () => {
+  const input = wrap([{ slide_number: 1, slide_type: "photo_full", photo_index: 1, overlay_text: "Mes mots" }]);
+  const out = parse(mergeConfirmedStructure(input, [{ slide_number: 1, type: "photo_full", photo_index: 2, overlay_position: "top_left", photo_layout: "left_photo" }]));
+  assertEquals(out.slides[0].photo_index, 2);
+  assertEquals(out.slides[0].overlay_position, "top_left");
+  assertEquals(out.slides[0].photo_layout, "left_photo");
+  assertEquals(out.slides[0].overlay_text, "Mes mots");
 });

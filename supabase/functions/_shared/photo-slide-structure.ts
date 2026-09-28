@@ -50,8 +50,7 @@ export function maxStructurePhotoIndex(structure: unknown): number {
 
 /**
  * Recopie photo_index / slide_type / role de la structure confirmée vers les
- * slides générées, appariées par slide_number (fallback : position). Ne touche
- * jamais une valeur déjà valide posée par le modèle — on restaure, on n'écrase pas.
+ * slides générées, appariées par slide_number (fallback : position). La structure validée prime sur les choix du modèle.
  */
 export function mergeConfirmedStructure(content: string, structure: unknown): string {
   if (!Array.isArray(structure) || structure.length === 0) return content;
@@ -72,24 +71,36 @@ export function mergeConfirmedStructure(content: string, structure: unknown): st
     const ref = byNumber.get(slide.slide_number as number) ?? (structure[i] as AnySlide | undefined);
     if (!ref) return;
 
-    const refType = ref.slide_type;
-    if (typeof refType === "string" && refType && typeof slide.slide_type !== "string") {
+    const refType = ref.slide_type || ref.type;
+    if (typeof refType === "string" && refType && slide.slide_type !== refType) {
       slide.slide_type = refType;
       merged++;
     }
     const effectiveType = typeof slide.slide_type === "string" ? slide.slide_type : refType;
+
+    // If the writer returned a different layout, keep its visible words available
+    // in the fields consumed by the confirmed layout (never discard the source).
+    if (effectiveType === "photo_full" && !slide.overlay_text) {
+      const words = [slide.title, slide.body].filter(v => typeof v === "string" && v.trim());
+      if (words.length) slide.overlay_text = words.join("\n\n");
+    } else if ((effectiveType === "text_only" || effectiveType === "photo_integrated") && !slide.body && typeof slide.overlay_text === "string") {
+      slide.body = slide.overlay_text;
+    }
 
     const refIdx = ref.photo_index;
     const slideIdx = slide.photo_index;
     if (effectiveType === "text_only") {
       // Une slide texte ne porte jamais de photo (null explicite, jamais undefined).
       if (slideIdx !== null) slide.photo_index = null;
-    } else if (!Number.isInteger(slideIdx) && Number.isInteger(refIdx)) {
+    } else if (Number.isInteger(refIdx) && slideIdx !== refIdx) {
       slide.photo_index = refIdx;
       merged++;
     }
 
-    if (typeof ref.role === "string" && ref.role && typeof slide.role !== "string") {
+    for (const field of ["photo_layout", "overlay_position"]) {
+      if (typeof ref[field] === "string") slide[field] = ref[field];
+    }
+    if (typeof ref.role === "string" && ref.role) {
       slide.role = ref.role;
     }
   });
@@ -109,8 +120,7 @@ export function mergeConfirmedStructure(content: string, structure: unknown): st
  * `assumePhotoWhenTypeMissing`, une slide sans slide_type est traitée comme
  * photo_full (c'est ce que le renderer front fait déjà).
  *
- * Réassigne séquentiellement quand l'assignation IA est invalide ou dégénérée
- * (plusieurs photos dispo mais une seule utilisée). Une assignation valide —
+ * Corrige uniquement les index absents ou hors plage. Une assignation valide —
  * y compris avec répétitions voulues — est respectée telle quelle.
  */
 export function normalizePhotoIndexes(
@@ -134,34 +144,15 @@ export function normalizePhotoIndexes(
       if (s && s.slide_type === "text_only") s.photo_index = null;
     });
   } else {
-    const aiIndexes = photoSlides.map((s: AnySlide) => s.photo_index);
-    const allInRange = aiIndexes.every(
-      (v: unknown) => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= photoCount,
-    );
-    const distinctCount = new Set(aiIndexes).size;
-    // Dégénéré : plusieurs photos disponibles ET plusieurs slides-photo ET
-    // toutes les slides-photo pointent la même photo.
-    const degenerate = photoCount > 1 && photoSlides.length > 1 && distinctCount === 1;
-
-    if (!allInRange || degenerate) {
-      let photoCursor = 0;
-      slides.forEach((s: AnySlide) => {
-        if (!s) return;
-        if (isPhotoSlide(s)) {
-          s.photo_index = Math.min(photoCursor + 1, photoCount);
-          photoCursor += 1;
-        } else if (s.slide_type === "text_only") {
-          s.photo_index = null;
-        }
-      });
-      console.log(
-        `[photo-slide-structure] photo_index normalisé : IA=${JSON.stringify(aiIndexes)} → séquentiel (photoCount=${photoCount})`,
-      );
-    } else {
-      slides.forEach((s: AnySlide) => {
-        if (s && s.slide_type === "text_only") s.photo_index = null;
-      });
-    }
+    let cursor = 0;
+    slides.forEach((s: AnySlide) => {
+      if (!s) return;
+      if (isPhotoSlide(s)) {
+        const fallback = Math.min(++cursor, photoCount);
+        const idx = s.photo_index;
+        if (!Number.isInteger(idx) || (idx as number) < 1 || (idx as number) > photoCount) s.photo_index = fallback;
+      } else if (s.slide_type === "text_only") s.photo_index = null;
+    });
   }
 
   return content.replace(doc.jsonText, JSON.stringify(doc.parsed, null, 2));
