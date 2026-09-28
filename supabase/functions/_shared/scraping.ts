@@ -647,6 +647,22 @@ async function discoverLinksFromHomepage(
   }
 }
 
+const ABOUT_RE = /a-propos|apropos|about|notre-histoire|mon-histoire|histoire|qui-sommes|qui-suis|story/i;
+
+/** 2 pages secondaires max, en garantissant la page « à propos » si elle existe. */
+export function pickSecondaryUrls(candidates: string[]): string[] {
+  const seen = new Set<string>();
+  const uniq = candidates.filter(u => {
+    const k = u.replace(/\/$/, "");
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+  const about = uniq.find(u => { try { return ABOUT_RE.test(decodeURIComponent(new URL(u).pathname)); } catch { return false; } });
+  const rest = uniq.filter(u => u !== about);
+  return (about ? [about, ...rest] : rest).slice(0, 2);
+}
+
 export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<string | null> {
   let formattedUrl = url.trim();
   if (!formattedUrl.startsWith("http")) formattedUrl = `https://${formattedUrl}`;
@@ -657,52 +673,38 @@ export async function scrapeWebsite(url: string, signal: AbortSignal): Promise<s
   let secondaryUrls: string[] = [];
   let jinaCallsUsed = 0;
 
-  // ÉTAPE 1 : Try sitemap first (1 fetch, not a Jina call)
-  const sitemapUrls = await fetchSitemapUrls(formattedUrl, signal);
+  // HTML brut de l'accueil (1 fetch) : infos visuelles + liens « à propos »
+  let rawHtml = "";
+  try {
+    const resp = await fetch(formattedUrl, {
+      signal,
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
+    });
+    if (resp.ok) rawHtml = await resp.text();
+  } catch {
+    // ignore
+  }
+
+  // ÉTAPE 1 : sitemap (en descendant dans les sitemapindex, ex. Shopify)
+  const sitemapUrls = await fetchSitemapUrls(formattedUrl, signal, { followIndex: true, limit: 5 });
+  const htmlLinks = rawHtml ? discoverLinksFromHtml(rawHtml, formattedUrl, 8) : [];
 
   if (sitemapUrls.length > 0) {
-    // Sitemap found! Scrape homepage via Jina (call 1)
     mainText = await jinaFetch(formattedUrl, signal);
     jinaCallsUsed++;
-    secondaryUrls = sitemapUrls.slice(0, 2); // max 2 secondary
+    secondaryUrls = pickSecondaryUrls([...sitemapUrls, ...htmlLinks]);
   } else {
-    // ÉTAPE 2 : No sitemap → discover links from homepage via Jina with X-With-Links (call 1)
+    // ÉTAPE 2 : pas de sitemap → liens via Jina X-With-Links + liens du HTML
     const { links, homepageContent } = await discoverLinksFromHomepage(formattedUrl, signal);
     jinaCallsUsed++;
     mainText = homepageContent;
-    secondaryUrls = links.slice(0, 2);
+    secondaryUrls = pickSecondaryUrls([...links, ...htmlLinks]);
   }
 
-  // Fallback for main text if Jina failed + always extract visual info
   let visualInfo = "";
-  if (!mainText) {
-    try {
-      const resp = await fetch(formattedUrl, {
-        signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-      });
-      if (resp.ok) {
-        const html = await resp.text();
-        mainText = extractTextFromHtml(html);
-        visualInfo = extractVisualInfo(html);
-      }
-    } catch {
-      // ignore
-    }
-  } else {
-    // Jina succeeded for text, but we still need the raw HTML for visual extraction
-    try {
-      const resp = await fetch(formattedUrl, {
-        signal,
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; BrandAnalyzer/1.0)" },
-      });
-      if (resp.ok) {
-        const html = await resp.text();
-        visualInfo = extractVisualInfo(html);
-      }
-    } catch {
-      // ignore — visual info is nice-to-have
-    }
+  if (rawHtml) {
+    if (!mainText) mainText = extractTextFromHtml(rawHtml);
+    visualInfo = extractVisualInfo(rawHtml);
   }
 
   if (!mainText) return null;
