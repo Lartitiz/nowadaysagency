@@ -614,6 +614,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                   {
                     type: "text",
                     text: JSON.stringify({
+                      composition_editable: session.composition ? { ...session.composition.design, logo_data_url: undefined, logo_present: !!session.composition.design?.logo_data_url } : null,
                       competences_disponibles: COMPETENCIES,
                       memoire_confirmee: memory.filter((m) =>
                         m.kind === "preference"

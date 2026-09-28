@@ -765,7 +765,7 @@ function Studio({
                         variant="link"
                         disabled={!writable}
                         onClick={() => {
-                          setCompositionDraft(m.composition);
+                          setCompositionDraft(m.composition ? { ...m.composition, logo_data_url: current?.session.composition?.design.logo_data_url || null } : undefined);
                           setCompositionOpen(true);
                         }}
                       >
