@@ -2,16 +2,17 @@
 // Other generators keep their models. No silent provider/model fallback.
 import { AnthropicError, sanitizeStyle, sanitizeStyleDeep, type AnthropicOptions, type UsageSink } from "./anthropic.ts";
 
-export const CAROUSEL_WRITER_VERSION = "opus5-astra-medium-v1";
+export const CAROUSEL_WRITER_VERSION = "opus55-astra-medium-v1";
 export type CarouselWriterModel = "claude-opus-5" | "claude-opus-5-5" | "gpt-6-astra";
 export type CarouselWriterOptions = Omit<AnthropicOptions, "model"> & { model: CarouselWriterModel };
 
-// Banc d'essai Opus 5.5 : `writer_bench` n'est honoré que si carousel-ai l'a
-// laissé passer (compte QA Camille uniquement, champ effacé pour tout autre compte).
+// Rédacteur par défaut : Opus 5.5. `writer_bench: "claude-opus-5"` rejoue l'ancien
+// rédacteur pour comparaison ; carousel-ai ne le laisse passer que pour le compte
+// QA Camille (champ effacé pour tout autre compte).
 export function pickCarouselWriter(body: { quality_max?: boolean; writer_bench?: unknown }): CarouselWriterModel {
   if (body.quality_max) return "gpt-6-astra";
-  if (body.writer_bench === "claude-opus-5-5") return "claude-opus-5-5";
-  return "claude-opus-5";
+  if (body.writer_bench === "claude-opus-5") return "claude-opus-5";
+  return "claude-opus-5-5";
 }
 
 // Opus 5.5 refuse `tool_choice` forcé (400) et ne coupe jamais sa réflexion :

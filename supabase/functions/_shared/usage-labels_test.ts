@@ -36,7 +36,7 @@ Deno.test("l'étiquette « sans appel modèle » est la MÊME dans plan-limiter 
  * le rendu par code (coût nul assumé) et le vrai modèle oublié (le bug #697).
  */
 Deno.test("un modèle vraiment inconnu crie ; le rendu par code non", () => {
-  const TARIFES = new Set(["claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "gpt-image-2"]);
+  const TARIFES = new Set(["claude-sonnet-5", "claude-opus-5", "claude-opus-5-5", "gpt-image-2", "gpt-image-2.5-flare", "gpt-image-2.5-sunburst"]);
   const ZERO_COST = new Set([COMPOSED_BY_CODE_MODEL]);
   const nonTarifes = (modeles: string[]) =>
     modeles.filter((m) => !TARIFES.has(m) && !ZERO_COST.has(m));
@@ -152,4 +152,21 @@ Deno.test("tout modèle de rédaction ou de relecture carrousel est tarifé dans
   assert(relecture.has(CAROUSEL_REVIEW_MODEL), `« ${CAROUSEL_REVIEW_MODEL} » absent de REVIEW_COST_EUR_PER_MTOKEN : la relecture serait comptée 0 €`);
   // Le parseur ne doit pas passer « à vide » : il voit bien les lignes connues.
   assert(texte.has("claude-opus-5") && texte.size >= 5, `grille texte mal lue (${[...texte].join(", ")})`);
+});
+
+/**
+ * Bascule GPT Image 2.5 (28/09/2026) : le modèle image est désormais choisi par
+ * `_shared/openai-image-model.ts`. Si un défaut change sans que cron-health
+ * connaisse son tarif, le bilan hebdo compterait ces images ZÉRO (le piège
+ * #697). On relit le source de cron-health, qui n'importe rien de `_shared/`.
+ */
+Deno.test("chaque modèle image par défaut (et le retour arrière) est tarifé dans cron-health", async () => {
+  const { OPENAI_IMAGE_MODEL_DEFAULTS } = await import("./openai-image-model.ts");
+  const src = await Deno.readTextFile(new URL("../cron-health/index.ts", import.meta.url));
+  const bloc = src.match(/const IMAGE_COST_EUR: Record<[^=]+= \{([\s\S]*?)\n    \};/);
+  assert(bloc, "IMAGE_COST_EUR introuvable dans cron-health/index.ts");
+  const tarifes = new Set([...bloc[1].matchAll(/^\s*"([^"]+)":/gm)].map((m) => m[1]));
+  for (const model of [...Object.values(OPENAI_IMAGE_MODEL_DEFAULTS), "gpt-image-2"]) {
+    assert(tarifes.has(model), `« ${model} » absent de IMAGE_COST_EUR : ses images seraient comptées 0 €`);
+  }
 });

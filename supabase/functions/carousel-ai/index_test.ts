@@ -32,7 +32,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     { slide_number: 4, slide_type: "text_only", title: "La réponse commune", body: "J'attends votre réponse avant de modifier la maquette." },
   ], caption: { body: "Les retours arrivent par e-mail.", hashtags: [] } };
   _deps.callAnthropic = (async (options: any, sink: any) => {
-    assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5");
+    assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
     Object.assign(sink, { model: options.model, total_tokens: 30 });
     const prompt = options.system + JSON.stringify(options.messages) + JSON.stringify(options.tool);
     for (const contradiction of ["ARC NARRATIF OBLIGATOIRE", "MÉCANISME INVISIBLE", "CROYANCE SOUS-JACENTE", "AU MOINS 1 analogie", "30-50 mots MINIMUM", "le retournement FORMULÉ", "finale=dernière slide uniquement (question ouverte)", "Mieux vaut une généralisation honnête", "ce que ce mouvement révèle", "cf. DEPTH_LAYER_DUAL"]) {
@@ -77,7 +77,7 @@ for (const qualityMax of [false, true]) for (const variant of ["text", "mix", "p
     const res = await handleRequest(makeHooksRequest({ type: "express_full", carousel_type: variant, quality_max: qualityMax, news_context: news, slide_count: 4, narrative_thread: "FIL_VALIDÉ", content_structure: "PLAN_VALIDÉ", deepening_answers: { faits: "Retours par e-mail. Attendre une réponse commune avant la modification de la maquette." } }));
     assertEquals(res.status, 200);
     const output = await res.json();
-    assertEquals(output.writer, { version: "opus5-astra-medium-v1", model: qualityMax ? "gpt-6-astra" : "claude-opus-5", effort: "medium" });
+    assertEquals(output.writer, { version: "opus55-astra-medium-v1", model: qualityMax ? "gpt-6-astra" : "claude-opus-5-5", effort: "medium" });
     assertEquals(typeof output.content, "string");
     const parsed = JSON.parse(output.content.match(/\{[\s\S]*\}/)[0]);
     assertEquals(parsed.slides[1].body, "Les demandes se contredisent.");
@@ -103,7 +103,7 @@ for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/
     _deps.checkQuota = (async (_id: string, cat: string) => { category = cat; order.push("quota"); return { allowed: true, plan: "outil" }; }) as any;
     _deps.callCarouselWriter = (async (options: any, sink: any) => {
       order.push("writer");
-      assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5");
+      assertEquals(options.model, qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
       Object.assign(sink, { model: options.model, total_tokens: 123 });
       return JSON.stringify(type === "hooks" ? { hooks: [] } : { slides: [], caption: {} });
     }) as any;
@@ -114,11 +114,11 @@ for(const qualityMax of [false, true]) Deno.test(`writer quota and usage, hooks/
     assertEquals(order, ["quota", "writer", "usage"]);
     assertEquals(category, qualityMax ? "quality_max" : "content");
     assertEquals(logged[3], 123);
-    assertEquals(logged[4], qualityMax ? "gpt-6-astra" : "claude-opus-5");
+    assertEquals(logged[4], qualityMax ? "gpt-6-astra" : "claude-opus-5-5");
     assertEquals(logged[5], TEST_WORKSPACE_ID);
   }
 });
-for (const [userId, expected] of [[TEST_USER_ID, "claude-opus-5"], ["52e6c03c-a7de-4c20-9b4a-276751f976e8", "claude-opus-5-5"]] as const) Deno.test(`writer_bench Opus 5.5 honoured only for the QA account (${expected})`, async () => {
+for (const [userId, expected] of [[TEST_USER_ID, "claude-opus-5-5"], ["52e6c03c-a7de-4c20-9b4a-276751f976e8", "claude-opus-5"]] as const) Deno.test(`writer_bench (back to Opus 5) honoured only for the QA account (${expected})`, async () => {
   resetDeps();
   _deps.runPipeline = (async () => ({ ok: true, userId, supabase: makeFakeSupabase(userId) as any, corsHeaders: {}, quota: null })) as any;
   let model = "";
@@ -127,7 +127,7 @@ for (const [userId, expected] of [[TEST_USER_ID, "claude-opus-5"], ["52e6c03c-a7
     Object.assign(sink, { model: options.model, total_tokens: 1 });
     return JSON.stringify({ hooks: [] });
   }) as any;
-  const res = await handleRequest(makeHooksRequest({ type: "hooks", writer_bench: "claude-opus-5-5" }));
+  const res = await handleRequest(makeHooksRequest({ type: "hooks", writer_bench: "claude-opus-5" }));
   await res.text();
   assertEquals(res.status, 200);
   assertEquals(model, expected);
