@@ -152,12 +152,14 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
       const { data, error } = await db.from("studio_video_jobs").select("*").eq("workspace_id", p.workspace_id)
         .order("created_at", { ascending: false }).limit(50);
       if (error) throw error;
-      return json({ jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null))) });
+      return json({ enabled: enabled() && monthlyLimit() > 0,
+        jobs: await Promise.all((data || []).map(async (row) => safeJob(row, row.status === "ready" ? await signed(db, row) : null))) });
     }
     if (p.action === "quote") {
       if (!enabled() || !monthlyLimit()) return json({ error: "La création vidéo n’est pas encore activée." }, 503);
-      const { count } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
+      const { count, error: quoteLimitError } = await db.from("studio_video_jobs").select("id", { count: "exact", head: true })
         .eq("user_id", pipe.userId).gte("created_at", new Date(Date.now() - 86_400_000).toISOString());
+      if (quoteLimitError) throw quoteLimitError;
       if ((count || 0) >= 10) return json({ error: "Limite de devis atteinte pour aujourd’hui." }, 429);
       const src = await source(db, p.workspace_id, p.source_kind, p.source_id);
       const { data: media, error: mediaError } = await db.storage.from(src.bucket).download(src.path);

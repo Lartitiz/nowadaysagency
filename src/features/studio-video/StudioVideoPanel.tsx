@@ -77,7 +77,8 @@ export function StudioVideoPanel({ workspaceId, writable, initialSource, initial
         <h2 className="text-lg font-semibold flex items-center gap-2"><Film className="h-5 w-5" /> Clips du Studio</h2>
         <p className="text-sm text-muted-foreground">Anime une image avec Seedance 2.5. Le clip reste ici, même sans Reel.</p>
       </div>
-      {writable && showComposer && <div className="rounded-lg border p-4 space-y-3">
+      {jobs.data?.enabled === false && <p role="status" className="rounded-md border p-3 text-sm">La création vidéo sera disponible après l’activation du Studio. Tes clips déjà créés restent accessibles ici.</p>}
+      {writable && showComposer && jobs.data?.enabled !== false && <div className="rounded-lg border p-4 space-y-3">
         <h3 className="font-medium">Créer un clip</h3>
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm">Image : {source?.name || "aucune sélectionnée"}</span>

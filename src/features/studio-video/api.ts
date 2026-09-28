@@ -33,7 +33,7 @@ export async function videoRequest<T>(body: Record<string, unknown>): Promise<T>
 }
 
 export function listStudioVideos(workspaceId: string) {
-  return videoRequest<{ jobs: StudioVideoJob[] }>({ action: "list", workspace_id: workspaceId });
+  return videoRequest<{ jobs: StudioVideoJob[]; enabled?: boolean }>({ action: "list", workspace_id: workspaceId });
 }
 
 export function readStudioVideo(workspaceId: string, jobId: string) {

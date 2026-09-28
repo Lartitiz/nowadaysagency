@@ -62,3 +62,12 @@ it("écarte un devis arrivé après que la demande a changé", async () => {
   await waitFor(() => expect(mock.list).toHaveBeenCalledTimes(2));
   expect(screen.queryByRole("button", { name: /Générer ce clip/ })).not.toBeInTheDocument();
 });
+
+it("garde la bibliothèque lisible quand les générations sont désactivées", async () => {
+  mock.list.mockResolvedValue({ enabled: false, jobs: [] });
+  mount();
+  expect(await screen.findByText(/création vidéo sera disponible après l’activation/)).toBeInTheDocument();
+  expect(screen.getByRole("heading", { name: "Mes clips" })).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Vérifier le prix" })).not.toBeInTheDocument();
+  expect(mock.request).not.toHaveBeenCalled();
+});
