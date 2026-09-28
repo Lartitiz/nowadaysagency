@@ -92,5 +92,6 @@ Deno.test(
 Deno.test("recover only stale jobs, not active generation", () => {
   const now = Date.now();
   assertEquals(shouldRecover(new Date(now - 1000).toISOString(), now), false);
-  assertEquals(shouldRecover(new Date(now - 601000).toISOString(), now), true);
+  assertEquals(shouldRecover(new Date(now - 601000).toISOString(), now), false);
+  assertEquals(shouldRecover(new Date(now - 1201000).toISOString(), now), true);
 });
