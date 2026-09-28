@@ -10,9 +10,12 @@ const m = vi.hoisted(() => ({
   failCompletion: false,
   failSave: false,
   existingCompleted: false,
+  metadata: {} as Record<string, string>,
+  statusDelay: false,
+  signedUrlFails: false,
 }));
 
-vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: m.userId, user_metadata: {} } }) }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: m.userId, user_metadata: m.metadata } }) }));
 vi.mock("@/contexts/DemoContext", () => ({ useDemoContext: () => ({ isDemoMode: false, demoData: null }) }));
 vi.mock("@/contexts/WorkspaceContext", () => ({ useWorkspace: () => ({ ownWorkspace: null }) }));
 vi.mock("@/hooks/use-workspace-query", () => ({
@@ -22,9 +25,18 @@ vi.mock("@/hooks/use-workspace-query", () => ({
 }));
 vi.mock("react-router-dom", () => ({ useNavigate: () => m.navigate }));
 vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
-vi.mock("@/lib/onboarding-status", () => ({ resolveOnboardingStatus: async () => "needs" }));
+vi.mock("@/lib/onboarding-status", () => ({ resolveOnboardingStatus: async () => {
+  if (m.statusDelay) await new Promise(resolve => setTimeout(resolve, 700));
+  return "needs";
+} }));
 vi.mock("@/integrations/supabase/client", () => ({
   supabase: {
+    storage: { from: () => ({
+      createSignedUrl: async (path: string) => {
+        if (m.signedUrlFails) throw new Error("signed URL unavailable");
+        return { data: { signedUrl: `https://signed.example/${path}` }, error: null };
+      },
+    }) },
     from: (table: string) => {
       let operation = "read";
       const chain = {
@@ -54,9 +66,19 @@ vi.mock("@/integrations/supabase/client", () => ({
   },
 }));
 
-beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.existingCompleted = false; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
+beforeEach(() => { localStorage.clear(); m.userId = "qa-a"; m.failCompletion = false; m.failSave = false; m.existingCompleted = false; m.metadata = {}; m.statusDelay = false; m.signedUrlFails = false; m.query.mockClear(); m.writes.length = 0; m.navigate.mockClear(); });
 
 describe("reprise des captures de l'onboarding", () => {
+  it("attend le profil avant d'écrire un brouillon vide sur un autre appareil", async () => {
+    m.metadata = { prenom: "QA", activite: "Agence de communication" };
+    m.statusDelay = true;
+    const { result } = renderHook(() => useOnboarding());
+    await new Promise(resolve => setTimeout(resolve, 550));
+    expect(localStorage.getItem("lac_onboarding_answers")).toBeNull();
+    await waitFor(() => expect(result.current.answers.prenom).toBe("QA"));
+    await waitFor(() => expect(JSON.parse(localStorage.getItem("lac_onboarding_answers") || "{}").prenom).toBe("QA"));
+  });
+
   it("relit les réponses avant de reprendre une analyse interrompue", async () => {
     localStorage.setItem("lac_onboarding_step", "10");
     localStorage.setItem("lac_onboarding_answers", JSON.stringify({ prenom: "Test", website: "https://exemple.fr" }));
@@ -94,10 +116,21 @@ describe("reprise des captures de l'onboarding", () => {
     await waitFor(() => expect(result.current.uploadsRestored).toBe(true));
     expect(result.current.uploadedFiles).toEqual([{
       id: "file-a", name: "profil.png", url: "qa-a/onboarding/profil.png",
+      previewUrl: "https://signed.example/qa-a/onboarding/profil.png",
     }]);
     expect(m.query).toHaveBeenCalledWith("eq", "user_id", "qa-a");
     expect(m.query).toHaveBeenCalledWith("eq", "context", "onboarding");
     expect(m.query).toHaveBeenCalledWith("in", "id", ["file-a"]);
+  });
+
+  it("conserve la capture si la signature de son aperçu échoue", async () => {
+    localStorage.setItem("lac_onboarding_upload_ids:qa-a", JSON.stringify(["file-a"]));
+    m.signedUrlFails = true;
+    const { result } = renderHook(() => useOnboarding());
+    await waitFor(() => expect(result.current.uploadsRestored).toBe(true));
+    expect(result.current.uploadedFiles).toEqual([{
+      id: "file-a", name: "profil.png", url: "qa-a/onboarding/profil.png", previewUrl: undefined,
+    }]);
   });
 
   it("ne reporte pas les captures d'un compte sur le suivant", async () => {

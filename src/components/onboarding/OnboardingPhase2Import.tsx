@@ -115,9 +115,9 @@ export default function OnboardingPhase2Import({ answers, set, files, uploading,
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
               {files.map((f) =>
             <div key={f.id} className="relative group rounded-xl border border-border overflow-hidden bg-card aspect-square">
-                  {isImageFile(f.name) && f.url ?
+                  {isImageFile(f.name) && f.previewUrl ?
               <img loading="lazy"
-                src={`${import.meta.env.VITE_SUPABASE_URL}/storage/v1/object/public/onboarding-uploads/${f.url}`}
+                src={f.previewUrl}
                 alt={f.name}
                 className="w-full h-full object-cover"
                 onError={(e) => {(e.target as HTMLImageElement).style.display = 'none';}} /> :

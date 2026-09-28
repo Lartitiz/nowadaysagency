@@ -90,6 +90,19 @@ export interface UploadedFile {
   id: string;
   name: string;
   url: string;
+  previewUrl?: string;
+}
+
+async function createOnboardingPreviewUrl(path: string): Promise<string | undefined> {
+  try {
+    const { data, error } = await supabase.storage
+      .from("onboarding-uploads").createSignedUrl(path, 24 * 60 * 60);
+    if (error) console.warn("Onboarding preview unavailable:", error);
+    return data?.signedUrl;
+  } catch (error) {
+    console.warn("Onboarding preview unavailable:", error);
+    return undefined;
+  }
 }
 
 
@@ -121,6 +134,7 @@ export function useOnboarding() {
   const [overwriteConfirmed, setOverwriteConfirmed] = useState(false);
   const [restoredFromSave, setRestoredFromSave] = useState(false);
   const [draftRestored, setDraftRestored] = useState(isDemoMode);
+  const [profileReadCompleteForUser, setProfileReadCompleteForUser] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [uploadsRestoredForUser, setUploadsRestoredForUser] = useState<string | null>(null);
@@ -155,10 +169,12 @@ export function useOnboarding() {
         toast.error("Impossible de relire tes captures", { description: "Le diagnostic tentera de les retrouver. Vérifie-les avant de continuer." });
       }
       const rows = new Map((data || []).map(row => [row.id, row]));
-      const restored = ids.filter(id => error || rows.has(id)).map(id => {
+      const restored = await Promise.all(ids.filter(id => error || rows.has(id)).map(async id => {
         const row = rows.get(id);
-        return row ? { id, name: row.file_name, url: row.file_url } : { id, name: "Capture importée", url: "" };
-      });
+        if (!row) return { id, name: "Capture importée", url: "" };
+        return { id, name: row.file_name, url: row.file_url, previewUrl: await createOnboardingPreviewUrl(row.file_url) };
+      }));
+      if (cancelled) return;
       setUploadedFiles(prev => [...restored, ...prev.filter(file => !ids.includes(file.id))].slice(0, 3));
       setUploadsRestoredForUser(user.id);
     })();
@@ -202,7 +218,10 @@ export function useOnboarding() {
 
   // Persist step + answers to localStorage (debounced)
   useEffect(() => {
-    if (isDemoMode) return;
+    // Une inscription confirmée sur un autre appareil n'a pas de brouillon
+    // local. Attendre la lecture du profil avant d'enregistrer les valeurs
+    // initiales vides, sinon celle-ci empêche le préremplissage asynchrone.
+    if (isDemoMode || !draftRestored || !user?.id || profileReadCompleteForUser !== user.id) return;
     const timer = setTimeout(() => {
       localStorage.setItem("lac_onboarding_step", String(step));
       localStorage.setItem("lac_onboarding_answers", JSON.stringify(answers));
@@ -210,7 +229,7 @@ export function useOnboarding() {
       localStorage.setItem("lac_onboarding_ts", new Date().toISOString());
     }, 500);
     return () => clearTimeout(timer);
-  }, [step, isDemoMode, answers, brandingAnswers]);
+  }, [step, isDemoMode, draftRestored, user?.id, profileReadCompleteForUser, answers, brandingAnswers]);
 
   // Restore answers from localStorage on mount
   useEffect(() => {
@@ -336,7 +355,9 @@ export function useOnboarding() {
         }
       }
     };
-    check();
+    void check()
+      .catch(error => console.error("[onboarding] Profile prefill failed:", error))
+      .finally(() => { if (!cancelled) setProfileReadCompleteForUser(user.id); });
     return () => {cancelled = true;};
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id, profileUserId, isDemoMode]);
@@ -473,6 +494,7 @@ export function useOnboarding() {
         if (docError) throw docError;
 
         if (docRecord) {
+          const previewUrl = await createOnboardingPreviewUrl(filePath);
           const key = `lac_onboarding_upload_ids:${user.id}`;
           try {
             const saved = JSON.parse(localStorage.getItem(key) || "[]");
@@ -485,6 +507,7 @@ export function useOnboarding() {
             id: docRecord.id,
             name: file.name,
             url: filePath,
+            previewUrl,
           }]);
         }
       }

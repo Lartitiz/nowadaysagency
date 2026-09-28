@@ -48,6 +48,15 @@ describe("import de l'onboarding", () => {
     expect(onNext).not.toHaveBeenCalled();
   });
 
+  it("affiche l'aperçu signé d'une capture du bucket privé", () => {
+    render(<OnboardingPhase2Import
+      answers={answers()} set={vi.fn()}
+      files={[{ id: "file-a", name: "profil.png", url: "user/onboarding/profil.png", previewUrl: "https://signed.example/profil.png" }]}
+      uploading={false} onUpload={vi.fn()} onRemove={vi.fn()} onNext={vi.fn()}
+    />);
+    expect(screen.getByRole("img", { name: "profil.png" })).toHaveAttribute("src", "https://signed.example/profil.png");
+  });
+
   it("rejette les URL qui ressemblent seulement à un lien", () => {
     expect(isValidUrl("https://exemple.fr")).toBe(true);
     expect(isValidUrl("https://exemple .fr")).toBe(false);
