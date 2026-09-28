@@ -1063,18 +1063,21 @@ function Studio({
               className="mx-4 my-3 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
             >
               {error || state.error?.message}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setError("");
-                  if (photoId && !sessionId) void openPhoto(photoId);
-                  else void state.refetch();
-                }}
-              >
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Réessayer
-              </Button>
+              {(sessionId || photoId || draft.trim()) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setError("");
+                    if (photoId && !sessionId) void openPhoto(photoId);
+                    else if (!sessionId) void send();
+                    else void state.refetch();
+                  }}
+                >
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  {!sessionId && !photoId ? "Renvoyer ma demande" : "Réessayer"}
+                </Button>
+              )}
             </div>
           )}
           {!writable && (
@@ -1561,7 +1564,7 @@ function Studio({
               purpose: "library",
             });
             if (alive.current) {
-              navigate("/creer", {
+              navigate(contentPath, {
                 state: { libraryPhotoIds: [receipt.photoId] },
               });
             }
