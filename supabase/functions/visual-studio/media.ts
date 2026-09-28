@@ -22,6 +22,7 @@ export type Proposal = {
   model?: string;
   references?: Reference[];
   input_path?: string | null;
+  series_size?: number;
 };
 export function legacyReferences(session: {
   references?: Reference[];
@@ -146,11 +147,16 @@ export async function generateImage(proposal: Proposal, inputs: Blob[]) {
 
 export function imagePrompt(proposal: Proposal) {
   const refs = proposal.references || [];
+  const isSeries = (proposal.series_size || 1) > 1;
   return [
     proposal.image_prompt,
-    "Modify only what is requested. Preserve: " +
+    (proposal.operation === "create"
+      ? "Create a new photograph or artwork following this shot's brief. Reference images define only their stated roles; do not copy their camera framing or pose unless requested. Preserve: "
+      : "Modify only what is requested. Preserve: ") +
     (proposal.preserve || []).join("; "),
-    "Changes: " + (proposal.change || []).join("; "),
+    // Series snapshots share the plan's change list, which may describe other shots.
+    // Each shot's complete image_prompt is the authority for its framing and pose.
+    !isSeries ? "Changes: " + (proposal.change || []).join("; ") : "",
     proposal.input_path
       ? "Image 1 is the selected version to edit. Keep its other features."
       : "",
@@ -163,6 +169,9 @@ export function imagePrompt(proposal: Proposal) {
         }`,
     ),
     "No invented watermarks, promotional claims or extra decorative elements. Match the requested visual medium; do not default to stock imagery.",
+    isSeries
+      ? "Produce ONE image for this shot, not a collage. Its camera framing, crop and pose must follow this shot's brief even when the reference uses a different framing. Shot brief: " + proposal.image_prompt
+      : "",
   ]
     .filter(Boolean)
     .join("\n");

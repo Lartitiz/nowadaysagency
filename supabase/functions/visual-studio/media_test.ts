@@ -2,7 +2,7 @@ import {
   assertEquals,
   assertRejects,
 } from "https://deno.land/std@0.168.0/testing/asserts.ts";
-import { generateImage, visionBlock, legacyReferences } from "./media.ts";
+import { generateImage, imagePrompt, visionBlock, legacyReferences } from "./media.ts";
 import { intentSchema, premiumAllowed } from "./contract.ts";
 Deno.test(
   "advice is non-generating, free creation needs a prompt and Premium is server-owned",
@@ -103,4 +103,19 @@ Deno.test("vision refuses oversized images explicitly", async () => {
     Error,
     "studio_image_too_large",
   );
+});
+
+Deno.test("a series shot does not inherit conflicting framing from the other shots", () => {
+  const proposal = {
+    operation: "create", series_size: 2,
+    image_prompt: "Close-up bust, front-facing, legs outside the frame",
+    change: ["First photo: three-quarter length", "Second photo: close-up bust"],
+    preserve: ["cobalt jacket", "approved fictional face"],
+  };
+  const prompt = imagePrompt(proposal);
+  assertEquals(prompt.includes("First photo: three-quarter length"), false);
+  assertEquals(prompt.includes(proposal.image_prompt), true);
+  assertEquals(prompt.includes("cobalt jacket"), true);
+  assertEquals(prompt.includes("not a collage"), true);
+  assertEquals(imagePrompt({...proposal, series_size: undefined, operation: "edit"}).includes("First photo: three-quarter length"), true);
 });
