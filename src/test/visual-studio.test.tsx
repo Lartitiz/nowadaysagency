@@ -134,7 +134,10 @@ it("opens deterministic preparation from the chat and returns the saved copy", a
     ...original().session, messages: [{role:"assistant",text:"Éclaircir sans redessiner",operation:"existing_tool",existing_tool:"preparation",preparation:{exposure:0.2,format:"post"},viewed_version_id:"v1"}],
   }, versions: [{id:"v1",status:"ready",proposal,url:"/studio-image.jpg",library_photo_id:null,error_message:null,created_at:""}] };
   mock.request.mockResolvedValue(state);
-  const fetchMock = vi.spyOn(globalThis,"fetch").mockResolvedValue(new Response(new Blob(["source"],{type:"image/jpeg"}),{status:200,headers:{"Content-Type":"image/jpeg"}}));
+  const fetchMock = vi.spyOn(globalThis,"fetch").mockResolvedValue({
+    ok: true,
+    blob: async () => new Blob(["source"], {type:"image/jpeg"}),
+  } as Response);
   try {
     mount();
     fireEvent.click(await screen.findByRole("button", {name:"Préparer cette photo sans la redessiner"}));
