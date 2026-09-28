@@ -47,4 +47,17 @@ describe("Pending review is independent from completeness", () => {
     expect(output.state.creationReturnState).toEqual(draft);
     expect(new URLSearchParams(output.search).get("returnTo")).toBe("/creer?canal=linkedin");
   });
+  it("keeps a Studio photo and its return path through the brand review gate", async () => {
+    const source = "/photos/studio?session=studio-session";
+    const returnTo = `/creer?${new URLSearchParams({ from: source })}`;
+    const state = { libraryPhotoIds: ["studio-version"] };
+    render(<MemoryRouter initialEntries={["/creer"]}><Routes>
+      <Route path="/creer" element={<BrandReviewGate returnTo={returnTo} returnState={state} />} />
+      <Route path="/branding" element={<Destination />} />
+    </Routes></MemoryRouter>);
+    fireEvent.click(screen.getByText(/Valider ma fiche de marque/));
+    const output = JSON.parse((await screen.findByRole("status")).textContent || "{}");
+    expect(new URLSearchParams(output.search).get("returnTo")).toBe(returnTo);
+    expect(output.state.creationReturnState).toEqual(state);
+  });
 });

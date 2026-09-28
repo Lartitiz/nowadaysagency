@@ -63,6 +63,7 @@ import CreerStepper, { type StepperKey } from "@/components/creer/CreerStepper";
 const PinterestInspirationStep = lazy(() => import("@/components/creer/PinterestInspirationStep"));
 import type { PhotoItem } from "@/components/creer/PhotoUploadZone";
 import { userPhotoToBase64, type UserPhotoRow } from "@/lib/photo-storage";
+import { carouselLibraryContext } from "@/lib/carousel-photo-context";
 import { useUserPhotos } from "@/hooks/use-user-photos";
 const StructureReviewStep = lazy(() => import("@/components/creer/StructureReviewStep"));
 // Mode « Mes slides » : l'utilisatrice fournit le texte, l'IA ne fait que le design.
@@ -1019,12 +1020,16 @@ function CreerWorkspace() {
               name: r.value.name,
               mimeType: r.value.mimeType,
               context: "",
+              libraryContext: carouselLibraryContext(ordered[i]),
               userPhotoId: ordered[i].id,
             });
           }
         });
         if (cancelled) return;
         if (items.length === 0) throw new Error("Impossible de charger la photo.");
+        if (items.length !== ids.length) {
+          toast.warning(`${ids.length - items.length} photo${ids.length - items.length > 1 ? "s" : ""} n'ont pas pu être chargées. Vérifie ta sélection avant de créer le contenu.`);
+        }
         setUploadedPhotos(items);
         if (items.length > 0) savePhotos(items);
 
@@ -1071,7 +1076,7 @@ function CreerWorkspace() {
       try {
         const local = await loadPhotosLocal();
         const needFetch = local.filter((p: any) => p.needsLibraryFetch && p.userPhotoId);
-        const byUserPhotoId: Record<string, { base64: string; mimeType?: string; name?: string }> = {};
+        const byUserPhotoId: Record<string, { base64: string; mimeType?: string; name?: string; libraryContext?: string }> = {};
         if (needFetch.length > 0 && workspaceId) {
           const ids = needFetch.map((p: any) => p.userPhotoId as string);
           const { data } = await supabase
@@ -1088,6 +1093,7 @@ function CreerWorkspace() {
                 base64: res.value.base64,
                 mimeType: res.value.mimeType,
                 name: res.value.name,
+                libraryContext: carouselLibraryContext(rows[i]),
               };
             }
           });
@@ -1103,6 +1109,7 @@ function CreerWorkspace() {
               preview: lib.base64,
               mimeType: p.mimeType || lib.mimeType,
               name: p.name || lib.name,
+              libraryContext: p.libraryContext || lib.libraryContext,
               needsLibraryFetch: undefined,
             };
           })
@@ -3297,6 +3304,9 @@ function CreerWorkspace() {
         contentType={mapFormatToContentType(selectedFormat)}
         subject={ideaText}
         contentData={result?.raw}
+        sourcePhotos={selectedFormat === "post" || photoMode ||
+          (selectedFormat === "carousel" && ["photo", "mix", "pure_photo", "user_slides"].includes(carouselSubMode || ""))
+          ? uploadedPhotos : []}
         onPrepareContent={selectedFormat === "post" && uploadedPhotos.length > 0
           ? raw => prepareIdeaPhotos(supabase, session?.user?.id, editingIdeaId, uploadedPhotos, raw)
           : undefined}

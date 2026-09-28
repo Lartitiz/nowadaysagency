@@ -121,6 +121,20 @@ describe("SaveToIdeasDialog — attache des visuels en arrière-plan", () => {
     // L'idée elle-même est bien sauvegardée malgré l'échec des visuels
     expect(mocks.insertSingle).toHaveBeenCalled();
   });
+  it("keeps the source photo association when carousel visuals finish uploading", async () => {
+    const onSaved = vi.fn();
+    const { getByText } = render(<SaveToIdeasDialog {...baseProps}
+      sourcePhotos={[{ userPhotoId: "studio-version", edited: false }]}
+      onOpenChange={vi.fn()} onSaved={onSaved}
+      onUploadVisuals={async () => ["https://x/1.png", "https://x/2.png"]} />);
+    fireEvent.click(getByText("Enregistrer dans Mes idées"));
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    const withVisuals = mocks.updatePayloads.find((p) => p.content_data?.visual_urls);
+    expect(withVisuals.content_data.source_photo_ids).toEqual(["studio-version"]);
+    expect(withVisuals.content_data.photo_provenance).toEqual([
+      { index: 0, photo_id: "studio-version", edited: false },
+    ]);
+  });
 
   it("aucun toast de progression pour un contenu sans visuels", async () => {
     const onOpenChange = vi.fn();
