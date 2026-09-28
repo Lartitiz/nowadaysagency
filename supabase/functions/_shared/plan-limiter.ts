@@ -180,7 +180,7 @@ function bestPlan(planA: string, planB: string): string {
  * (checkQuota/logUsage) doivent TOUS LES DEUX passer par ici — toute divergence
  * ré-introduit le bug « header N restantes pendant que le serveur refuse » (T19).
  */
-export async function getEffectivePlan(sb: any, userId: string, workspaceId?: string): Promise<string> {
+export async function getEffectivePlan(sb: any, userId: string, workspaceId?: string | null): Promise<string> {
   const userPlan = await getUserPlan(sb, userId);
   const workspacePlan = workspaceId ? await getWorkspacePlan(sb, workspaceId) : "free";
   const coachingPlan = await getCoachingPlan(sb, userId);
