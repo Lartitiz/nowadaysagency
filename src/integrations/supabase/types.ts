@@ -7362,6 +7362,7 @@ export type Database = {
       }
       studio_video_jobs: {
         Row: {
+          aspect_ratio: string
           completed_at: string | null
           created_at: string
           duration: number
@@ -7369,7 +7370,8 @@ export type Database = {
           estimated_credits: number
           estimated_usd: number
           id: string
-          input_url: string
+          input_url: string | null
+          input_urls: Json
           model: string
           person_free_attested: boolean
           prompt: string
@@ -7379,9 +7381,10 @@ export type Database = {
           quote_expires_at: string
           resolution: string
           result_path: string | null
-          source_id: string
+          source_id: string | null
           source_kind: string
           source_name: string
+          source_refs: Json
           status: string
           submitted_at: string | null
           user_id: string
@@ -7389,6 +7392,7 @@ export type Database = {
           workspace_id: string
         }
         Insert: {
+          aspect_ratio?: string
           completed_at?: string | null
           created_at?: string
           duration: number
@@ -7396,7 +7400,8 @@ export type Database = {
           estimated_credits: number
           estimated_usd: number
           id: string
-          input_url: string
+          input_url?: string | null
+          input_urls?: Json
           model?: string
           person_free_attested: boolean
           prompt: string
@@ -7406,9 +7411,10 @@ export type Database = {
           quote_expires_at: string
           resolution: string
           result_path?: string | null
-          source_id: string
+          source_id?: string | null
           source_kind: string
           source_name: string
+          source_refs?: Json
           status: string
           submitted_at?: string | null
           user_id: string
@@ -7416,6 +7422,7 @@ export type Database = {
           workspace_id: string
         }
         Update: {
+          aspect_ratio?: string
           completed_at?: string | null
           created_at?: string
           duration?: number
@@ -7423,7 +7430,8 @@ export type Database = {
           estimated_credits?: number
           estimated_usd?: number
           id?: string
-          input_url?: string
+          input_url?: string | null
+          input_urls?: Json
           model?: string
           person_free_attested?: boolean
           prompt?: string
@@ -7433,9 +7441,10 @@ export type Database = {
           quote_expires_at?: string
           resolution?: string
           result_path?: string | null
-          source_id?: string
+          source_id?: string | null
           source_kind?: string
           source_name?: string
+          source_refs?: Json
           status?: string
           submitted_at?: string | null
           user_id?: string
