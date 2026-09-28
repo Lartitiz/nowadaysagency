@@ -545,17 +545,6 @@ function Studio({
                   <li key={shot.id}>{shot.summary}</li>
                 ))}
               </ol>
-              <Button
-                variant="outline"
-                disabled={!!busy || !writable}
-                onClick={() =>
-                  void mutate("pilot", {
-                    proposal_id: proposal.id,
-                    revision: current!.session.revision,
-                  })}
-              >
-                Préparer seulement la première image · 1 image
-              </Button>
             </div>
           )}
           {proposal.provider === "higgsfield" && (
@@ -675,7 +664,7 @@ function Studio({
               ? `Générer la série · ${proposal.cost} images`
               : "Générer cette image · 1 image"}
           </Button>
-          {!!proposal.shots?.length && <Button variant="outline" className="w-full" disabled={!writable || !!busy || !!generating} onClick={() => void mutate("pilot", { revision: current!.session.revision })}>D’abord une image pilote · 1 image</Button>}
+          {!!proposal.shots?.length && <Button variant="outline" className="w-full h-auto whitespace-normal py-2" disabled={!writable || !!busy || !!generating} onClick={() => void mutate("pilot", { proposal_id: proposal.id, revision: current!.session.revision })}>D’abord une image pilote · 1 image</Button>}
           <p className="text-xs text-muted-foreground">
             Une image réussie compte même si tu ne la gardes pas. Un échec
             technique n’est pas décompté.
@@ -762,7 +751,7 @@ function Studio({
                     <p>{m.text}</p>
                     {m.suggested_memory_ids?.map((id) => {
                       const item = current.memory?.find((entry) => entry.id === id);
-                      return item ? <Button key={id} variant="outline" className="my-2" disabled={!writable || !!busy || !!generating || references.some((r) => r.memory_id === id)} onClick={() => void mutate("memory_apply", {memory_id:id,revision:current.session.revision})}>{item.kind === "casting" ? "Utiliser ce mannequin" : "Utiliser cette direction"} · {item.name}</Button> : null;
+                      return item ? <Button key={id} variant="outline" className="my-2 max-w-full h-auto whitespace-normal break-words py-2" disabled={!writable || !!busy || !!generating || references.some((r) => r.memory_id === id)} onClick={() => void mutate("memory_apply", {memory_id:id,revision:current.session.revision})}>{item.kind === "casting" ? "Utiliser ce mannequin" : "Utiliser cette direction"} · {item.name}</Button> : null;
                     })}
                     {m.operation === "compose" && (
                       <Button

@@ -583,7 +583,7 @@ it("annonce le coût complet d’une série et permet un pilote avant toute gén
  mock.request.mockResolvedValue(state);mount();
  expect(await screen.findByText('Un détail')).toBeInTheDocument();
  const pilot=await screen.findByRole('button',{name:/D’abord une image pilote/});fireEvent.click(pilot);
- await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'pilot'})));
+ await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'pilot',proposal_id:proposal.id,revision:state.session.revision})));
  expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
 });
 it("une série partielle conserve un accès à chaque échec sans relancer les images réussies",async()=>{
