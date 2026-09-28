@@ -85,6 +85,7 @@ export interface StudioSession {
   messages: StudioMessage[];
   proposal: StudioProposal | null;
   updated_at: string;
+  archived_at: string | null;
 }
 export interface StudioVersion {
   id: string;
@@ -158,15 +159,19 @@ export async function studioRequest<T = StudioState>(
   return data as T;
 }
 export async function listStudioSessions(workspaceId: string) {
-  const { data, error } = await db
-    .from("visual_studio_sessions")
-    .select("id,name,updated_at")
-    .eq("workspace_id", workspaceId)
-    .eq("source_ready", true)
-    .order("updated_at", { ascending: false })
-    .limit(50);
-  if (error) throw new Error("Les sessions sont momentanément indisponibles.");
-  return data as Pick<StudioSession, "id" | "name" | "updated_at">[];
+  const base = () => db.from("visual_studio_sessions")
+    .select("id,name,updated_at,archived_at,revision")
+    .eq("workspace_id", workspaceId).eq("source_ready", true)
+    .order("updated_at", { ascending: false }).limit(50);
+  const [active, archived] = await Promise.all([
+    base().is("archived_at", null),
+    base().not("archived_at", "is", null),
+  ]);
+  if (active.error || archived.error) {
+    throw new Error("Les sessions sont momentanément indisponibles.");
+  }
+  type Listed = Pick<StudioSession, "id" | "name" | "updated_at" | "archived_at" | "revision">;
+  return { active: active.data as Listed[], archived: archived.data as Listed[] };
 }
 export function draftKey(
   userId: string,

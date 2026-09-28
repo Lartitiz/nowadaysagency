@@ -146,7 +146,7 @@ function Studio({
     setUrlParams(next);
   };
   const isMobile = useIsMobile();
-  const writable = ["owner", "manager", "editor"].includes(role);
+  const roleWritable = ["owner", "manager", "editor"].includes(role);
   const [compositionOpen, setCompositionOpen] = useState(false);
   const [compositionDraft, setCompositionDraft] = useState<
     StudioComposition | undefined
@@ -161,6 +161,7 @@ function Studio({
   } | null>(null);
   const [picker, setPicker] = useState(false),
     [sessionsOpen, setSessionsOpen] = useState(false),
+    [sessionAction, setSessionAction] = useState<string | null>(null),
     [mobileChat, setMobileChat] = useState(!!location.state?.studioChatOpen),
     [mobileConfirm, setMobileConfirm] = useState(false);
   const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(
@@ -215,6 +216,7 @@ function Studio({
   const current = state.data,
     version = current?.versions.find((v) => v.id === selectedId),
     proposal = current?.session.proposal;
+  const writable = roleWritable && !current?.session.archived_at;
   const references = current?.session.references || [];
   const selectedReference =
     references.find((r) => r.id === selectedReferenceId) || references[0];
@@ -489,6 +491,33 @@ function Studio({
     } finally {
       actionLock.current = false;
       if (alive.current) setBusy("");
+    }
+  }
+  async function setSessionArchived(id: string, revision: number, archive: boolean) {
+    if (!roleWritable || sessionAction) return;
+    setSessionAction(id);
+    try {
+      await studioRequest({
+        action: archive ? "archive" : "restore",
+        workspace_id: workspaceId,
+        session_id: id,
+        revision,
+      });
+      await cache.invalidateQueries({ queryKey: ["visual-studio-sessions", userId, workspaceId] });
+      if (id === sessionId) {
+        if (archive) {
+          setSessionsOpen(false);
+          navigate(studioPath());
+        } else {
+          await state.refetch();
+        }
+      }
+      toast.success(archive ? "Session archivée. Ses images restent disponibles." : "Session restaurée.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Impossible de modifier cette session.");
+      await sessions.refetch();
+    } finally {
+      setSessionAction(null);
     }
   }
   const source = selectedReference?.url ||
@@ -956,6 +985,17 @@ function Studio({
             Clips vidéo
           </Button>
         </nav>
+        {!videoTab && current?.session.archived_at && (
+          <div role="status" className="mx-5 mb-4 rounded-xl border border-border bg-card p-4 text-sm flex flex-wrap items-center justify-between gap-3">
+            <span>Cette session est archivée. Les échanges, versions et images enregistrées sont conservés.</span>
+            {roleWritable && (
+              <Button type="button" variant="outline" disabled={!!sessionAction}
+                onClick={() => void setSessionArchived(current.session.id, current.session.revision, false)}>
+                Restaurer la session
+              </Button>
+            )}
+          </div>
+        )}
         {videoTab && (
           <div className="mx-auto max-w-4xl px-5 pb-10 space-y-4">
             {reelReturn !== null && (
@@ -1576,21 +1616,38 @@ function Studio({
                 </Button>
               </div>
             )
-            : sessions.data?.length
+            : sessions.data && (sessions.data.active.length || sessions.data.archived.length)
             ? (
               <div className="max-h-[55vh] overflow-y-auto space-y-2">
-                {sessions.data.map((s) => (
-                  <Button
-                    key={s.id}
-                    variant="outline"
-                    className="w-full justify-start overflow-hidden text-ellipsis"
-                    onClick={() => {
-                      setSessionsOpen(false);
-                      navigate(studioPath(s.id));
-                    }}
-                  >
-                    {s.name}
-                  </Button>
+                {sessions.data.active.map((s) => (
+                  <div key={s.id} className="flex gap-2">
+                    <Button variant="outline" className="min-w-0 flex-1 justify-start overflow-hidden text-ellipsis"
+                      onClick={() => { setSessionsOpen(false); navigate(studioPath(s.id)); }}>
+                      {s.name}
+                    </Button>
+                    {roleWritable && (
+                      <Button type="button" variant="ghost" disabled={!!sessionAction}
+                        aria-label={`Archiver ${s.name}`}
+                        onClick={() => void setSessionArchived(s.id, s.revision, true)}>
+                        Archiver
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                {!!sessions.data.archived.length && (
+                  <h3 className="pt-3 text-sm font-medium">Sessions archivées</h3>
+                )}
+                {sessions.data.archived.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2 text-sm">
+                    <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                    {roleWritable && (
+                      <Button type="button" variant="outline" disabled={!!sessionAction}
+                        aria-label={`Restaurer ${s.name}`}
+                        onClick={() => void setSessionArchived(s.id, s.revision, false)}>
+                        Restaurer
+                      </Button>
+                    )}
+                  </div>
                 ))}
               </div>
             )

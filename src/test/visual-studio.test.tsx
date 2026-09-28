@@ -12,6 +12,7 @@ import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const mock = vi.hoisted(() => ({
   request: vi.fn(),
+  list: vi.fn(),
   space: "A",
   role: "owner",
   user: "user",
@@ -49,7 +50,7 @@ vi.mock("@/features/studio-video/StudioVideoPanel", () => ({
 vi.mock("@/features/visual-studio/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   studioRequest: mock.request,
-  listStudioSessions: async () => [],
+  listStudioSessions: mock.list,
 }));
 import VisualStudioPage from "@/pages/VisualStudioPage";
 import { draftKey, type StudioState } from "@/features/visual-studio/api";
@@ -64,6 +65,7 @@ const original = (): StudioState => ({
     messages: [{ role: "assistant", text: "Décris ton fond." }],
     proposal: null,
     updated_at: "",
+    archived_at: null,
   },
   versions: [],
   writable: true,
@@ -96,12 +98,39 @@ function mount(path = "/photos/studio?session=session") {
 }
 beforeEach(() => {
   mock.request.mockReset();
+  mock.list.mockReset();
+  mock.list.mockResolvedValue({ active: [], archived: [] });
   mock.space = "A";
   mock.role = "owner";
   mock.demo = false;
   mock.user = "user";
   localStorage.clear();
   Object.defineProperty(window, "innerWidth", { value: 1280, writable: true });
+});
+it("archives a session without deleting it and offers restoration", async () => {
+  const start = original();
+  mock.request.mockImplementation((body) => Promise.resolve(
+    body.action === "read" ? start : {
+      ...start,
+      session: { ...start.session, archived_at: body.action === "archive" ? "2026-09-28T00:00:00Z" : null, revision: 1 },
+    },
+  ));
+  mock.list.mockResolvedValue({ active: [{ id: "session", name: "Ma tasse", revision: 0, archived_at: null }], archived: [] });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Mes sessions" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Archiver Ma tasse" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
+    action: "archive", session_id: "session", revision: 0,
+  })));
+  await waitFor(() => expect(screen.getByTestId("current-path")).toHaveTextContent("/photos/studio"));
+  expect(screen.getByTestId("current-path")).not.toHaveTextContent("session=session");
+  mock.list.mockResolvedValue({ active: [], archived: [{ id: "session", name: "Ma tasse", revision: 1, archived_at: "2026-09-28T00:00:00Z" }] });
+  fireEvent.click(screen.getByRole("button", { name: "Mes sessions" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Restaurer Ma tasse" }));
+  await waitFor(() => expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({
+    action: "restore", session_id: "session", revision: 1,
+  })));
 });
 afterEach(() => {
   cleanup();
