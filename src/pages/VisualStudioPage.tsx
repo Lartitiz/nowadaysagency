@@ -32,6 +32,7 @@ import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDemoContext } from "@/contexts/DemoContext";
 import {
   StudioRequestError,
+  type StudioReference,
   studioRequest,
   listStudioSessions,
   draftKey,
@@ -107,6 +108,10 @@ function Studio({
     [sessionsOpen, setSessionsOpen] = useState(false),
     [mobileChat, setMobileChat] = useState(false),
     [mobileConfirm, setMobileConfirm] = useState(false);
+  const [selectedReferenceId, setSelectedReferenceId] = useState<string | null>(
+    null,
+  );
+  const referenceRole: StudioReference["role"] = "subject";
   const [selectedId, setSelectedId] = useState<string | null>(null),
     [compare, setCompare] = useState(false),
     [busy, setBusy] = useState(""),
@@ -119,7 +124,12 @@ function Studio({
   const alive = useRef(true),
     actionLock = useRef(false),
     creation = useRef({ id: crypto.randomUUID(), photoId: "" }),
-    sent = useRef<{ id: string; text: string; revision: number } | null>(null);
+    sent = useRef<{
+      id: string;
+      text: string;
+      revision: number;
+      target?: string;
+    } | null>(null);
   const sourceInit = useRef(false),
     seenReady = useRef<string[] | null>(null);
   const queryKey = ["visual-studio", userId, workspaceId, sessionId];
@@ -147,6 +157,13 @@ function Studio({
   const current = state.data,
     version = current?.versions.find((v) => v.id === selectedId),
     proposal = current?.session.proposal;
+  const references = current?.session.references || [];
+  const selectedReference =
+    references.find((r) => r.id === selectedReferenceId) || references[0];
+  const premiumBlocked =
+    !!proposal &&
+    proposal.operation !== "background" &&
+    current?.generative_allowed === false;
   const generating = current?.versions.some((v) => v.status === "processing");
   useEffect(() => {
     alive.current = true;
@@ -191,10 +208,15 @@ function Studio({
           session_id: creation.current.id,
           photo_id: id,
         });
-        if (alive.current)
+        if (alive.current) {
+          writeDraft(
+            draftKey(userId, workspaceId, result.session.id),
+            draftRef.current,
+          );
           navigate(`/photos/studio?session=${result.session.id}`, {
             replace: true,
           });
+        }
       } catch (e) {
         if (alive.current)
           setError(e instanceof Error ? e.message : "Ouverture impossible.");
@@ -203,7 +225,7 @@ function Studio({
         if (alive.current) setBusy("");
       }
     },
-    [writable, workspaceId, navigate],
+    [writable, workspaceId, userId, navigate],
   );
   useEffect(() => {
     if (photoId && !sessionId && !sourceInit.current && writable) {
@@ -242,17 +264,72 @@ function Studio({
     }
   }
   async function send() {
-    if (!draft.trim() || !current) return;
+    if (
+      !draft.trim() ||
+      actionLock.current ||
+      !writable ||
+      (sessionId && !current)
+    )
+      return;
+    if (!current) {
+      actionLock.current = true;
+      setBusy("message");
+      setError("");
+      const text = draft.trim(),
+        id = creation.current.id;
+      try {
+        const opened = await studioRequest({
+          action: "create",
+          workspace_id: workspaceId,
+          session_id: id,
+        });
+        if (!alive.current) return;
+        if (!sent.current || sent.current.text !== text)
+          sent.current = {
+            id: crypto.randomUUID(),
+            text,
+            revision: opened.session.revision,
+          };
+        const result = await studioRequest({
+          action: "message",
+          workspace_id: workspaceId,
+          session_id: id,
+          message: text,
+          request_id: sent.current.id,
+          revision: sent.current.revision,
+        });
+        if (!alive.current) return;
+        cache.setQueryData(["visual-studio", userId, workspaceId, id], result);
+        writeDraft(
+          draftKey(userId, workspaceId, id),
+          draftRef.current.trim() === text ? "" : draftRef.current,
+        );
+        writeDraft(localKey, "");
+        navigate(`/photos/studio?session=${id}`, { replace: true });
+      } catch (e) {
+        if (alive.current) {
+          setError(e instanceof Error ? e.message : "Réessaie l’envoi.");
+          if (e instanceof StudioRequestError && e.code === "refresh_request")
+            sent.current = null;
+        }
+      } finally {
+        actionLock.current = false;
+        if (alive.current) setBusy("");
+      }
+      return;
+    }
     // Keep the same request ID after an uncertain response, but not for a different message.
     if (
       !sent.current ||
       sent.current.text !== draft.trim() ||
-      sent.current.revision !== current.session.revision
+      sent.current.revision !== current.session.revision ||
+      sent.current.target !== (selectedId || selectedReference?.id || "")
     )
       sent.current = {
         id: crypto.randomUUID(),
         text: draft.trim(),
         revision: current.session.revision,
+        target: selectedId || selectedReference?.id || "",
       };
     const submittedText = sent.current.text;
     const result = await mutate("message", {
@@ -260,6 +337,7 @@ function Studio({
       request_id: sent.current.id,
       revision: sent.current.revision,
       viewed_version_id: selectedId,
+      viewed_reference_id: selectedReference?.id || null,
     });
     if (result && alive.current) {
       if (draftRef.current.trim() === submittedText) editDraft("");
@@ -309,11 +387,25 @@ function Studio({
       if (alive.current) setBusy("");
     }
   }
-  const source = current?.session.source_url,
+  const source =
+      selectedReference?.url ||
+      (current?.session.references === undefined
+        ? current?.session.source_url
+        : undefined) ||
+      undefined,
     display = version?.url || source;
+  const comparisonSource =
+    source ||
+    current?.versions.find((v) => v.id === version?.proposal.viewed_version_id)
+      ?.url ||
+    (current?.versions
+      .filter((v) => v.status === "ready")
+      .find((v) => v.id !== version?.id)?.url ??
+      undefined);
   const label = version
     ? `Version ${current!.versions.filter((v) => v.status === "ready").findIndex((v) => v.id === version.id) + 1}`
-    : "Original";
+    : selectedReference?.name ||
+      (source ? "Original" : "Ton espace de création");
   const toTools = () =>
     navigate("/photos", {
       state: {
@@ -328,32 +420,80 @@ function Studio({
         aria-label="Demande à confirmer"
       >
         <p className="text-xs text-primary font-medium">À confirmer</p>
-        <h2 className="font-display text-xl">Un nouveau fond</h2>
+        <h2 className="font-display text-xl">
+          {
+            {
+              background: "Un nouveau fond",
+              create: "Une nouvelle image",
+              edit: "Une image ajustée",
+              product: "Ton produit en situation",
+            }[proposal.operation]
+          }
+        </h2>
         <p>{proposal.summary}</p>
         <dl className="text-sm space-y-3">
           <div>
             <dt className="text-muted-foreground">Photo réellement utilisée</dt>
-            <dd>L’original conservé dans cette session</dd>
+            <dd>
+              {proposal.viewed_version_id
+                ? `Version ${(current?.versions.filter((v) => v.status === "ready").findIndex((v) => v.id === proposal.viewed_version_id) ?? -1) + 1}`
+                : proposal.viewed_reference_id
+                  ? references.find(
+                      (r) => r.id === proposal.viewed_reference_id,
+                    )?.name || "Référence choisie"
+                  : "Création sans photo de départ"}
+            </dd>
+            {proposal.viewed_version_id &&
+              proposal.viewed_version_id !== selectedId && (
+                <p className="mt-2 text-primary">
+                  La demande vise cette version, même si tu en regardes une
+                  autre.
+                </p>
+              )}
           </div>
           <div>
             <dt className="text-muted-foreground">Outil</dt>
-            <dd>Changer le décor · Photoroom</dd>
+            <dd>
+              {proposal.operation === "background"
+                ? "Changer le décor"
+                : "Création générative · Premium"}
+            </dd>
           </div>
           <div>
             <dt className="text-muted-foreground">Format</dt>
-            <dd>Dimensions de la photo d’origine</dd>
+            <dd>
+              {proposal.operation === "background"
+                ? "Dimensions de la photo source"
+                : {
+                    portrait: "Portrait",
+                    landscape: "Paysage",
+                    square: "Carré",
+                  }[proposal.format || "square"]}
+            </dd>
           </div>
         </dl>
+        {proposal.preserve?.length ? (
+          <p className="text-sm">
+            <strong>À conserver : </strong>
+            {proposal.preserve.join(" · ")}
+          </p>
+        ) : null}
+        {proposal.change?.length ? (
+          <p className="text-sm">
+            <strong>À changer : </strong>
+            {proposal.change.join(" · ")}
+          </p>
+        ) : null}
         <p className="rounded-lg bg-background p-3 text-sm">
-          Le fond sera remplacé. La pose, la tenue et le sujet ne sont pas
-          redessinés. Vérifie le détourage et les détails avant d’utiliser
-          l’image.
+          {proposal.operation === "background"
+            ? "Le fond sera remplacé. Le sujet n’est pas redessiné. Vérifie le détourage avant d’utiliser l’image."
+            : proposal.warning ||
+              "Vérifie les détails du résultat avant de l’utiliser."}
         </p>
-        {proposal.viewed_version_id && (
-          <p className="text-xs text-muted-foreground">
-            Tu regardais une version précédente en préparant cette demande. La
-            génération repartira de l’original et pourra produire un autre
-            décor.
+        {premiumBlocked && (
+          <p role="status" className="text-sm">
+            Cette création est réservée à Premium. Tu peux continuer à préparer
+            ton idée. Rien n’a été décompté.
           </p>
         )}
         <div className="flex justify-between gap-2">
@@ -371,7 +511,11 @@ function Studio({
         <Button
           className="w-full"
           disabled={
-            !writable || !!busy || generating || !current?.quota.allowed
+            !writable ||
+            !!busy ||
+            generating ||
+            !current?.quota.allowed ||
+            premiumBlocked
           }
           onClick={async () => {
             const result = await mutate("generate", {
@@ -406,14 +550,17 @@ function Studio({
       </section>
     ) : (
       <div className="studio-confirm space-y-3">
-        <h2 className="font-display text-xl">Un fond qui te ressemble</h2>
+        <h2 className="font-display text-xl">
+          Une idée, une question, une image
+        </h2>
         <p className="text-sm">
           Décris ton idée. La conversation prépare ta demande ; seule ta
           confirmation lance la création.
         </p>
         <p className="text-xs text-muted-foreground">
-          Dans cette première version : changement de fond et portrait avec le
-          sujet conservé. Les autres outils photo restent dans la bibliothèque.
+          Fonds inclus dans ton quota. Création, mise en scène et transformation
+          générative en Premium. La vidéo et les compositions à texte éditable
+          viendront ensuite.
         </p>
       </div>
     );
@@ -445,6 +592,15 @@ function Studio({
               className="studio-messages"
               aria-live="polite"
             >
+              {!current && (
+                <div className="studio-message">
+                  <p>
+                    Quel visuel t’aiderait aujourd’hui ? Décris ton idée, pose
+                    une question ou choisis une photo. Je m’appuie sur
+                    l’identité de ta marque pour t’aider à préciser le résultat.
+                  </p>
+                </div>
+              )}
               {current?.session.messages.map((m, i) => (
                 <div
                   key={m.id || i}
@@ -466,11 +622,21 @@ function Studio({
             </div>
             <div className="p-4 border-t space-y-3">
               <div className="flex flex-wrap gap-2">
-                {[
-                  "Un fond uni crème",
-                  "Un décor de bureau lumineux",
-                  "Une table en bois, au jardin",
-                ].map((t) => (
+                {(current?.session.messages.at(-1)?.suggestions?.length
+                  ? current.session.messages.at(-1)!.suggestions!
+                  : version
+                    ? [
+                        "Garde la scène, change la lumière",
+                        "Propose une autre direction",
+                      ]
+                    : source
+                      ? ["Un fond uni crème", "Mets ce produit en situation"]
+                      : [
+                          "Quel visuel pour mon offre ?",
+                          "Crée une illustration",
+                          "Aide-moi à choisir une photo",
+                        ]
+                ).map((t) => (
                   <Button
                     key={t}
                     size="sm"
@@ -495,8 +661,17 @@ function Studio({
                 maxLength={1000}
                 onChange={(e) => editDraft(e.target.value)}
                 disabled={!writable}
-                placeholder="Décris le fond que tu aimerais…"
+                placeholder="Une idée, une question, une image à améliorer…"
               />
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={!writable || !!busy || generating}
+                onClick={() => setPicker(true)}
+              >
+                <ImagePlus className="h-4 w-4 mr-2" />
+                Choisir une référence
+              </Button>
               <div className="flex justify-between items-center gap-2">
                 <span className="text-xs text-muted-foreground">
                   Envoyer ne génère rien.
@@ -578,37 +753,8 @@ function Studio({
             Cet espace est en lecture seule. Tu peux consulter ses sessions.
           </p>
         )}
-        {!current ? (
-          <section className="mx-auto max-w-xl py-20 px-5 text-center space-y-5">
-            {busy === "opening" || state.isFetching ? (
-              <>
-                <Loader2 className="mx-auto animate-spin" />
-                <p>Ouverture de la session…</p>
-              </>
-            ) : (
-              <>
-                <Sparkles className="mx-auto h-9 w-9 text-primary" />
-                <h2 className="font-display text-2xl">
-                  Partons d’une photo à toi
-                </h2>
-                <p className="text-muted-foreground">
-                  Choisis un portrait ou un objet pour créer un nouveau fond. Tu
-                  verras la demande et le coût avant de lancer.
-                </p>
-                <Button onClick={() => setPicker(true)} disabled={!writable}>
-                  <ImagePlus className="mr-2 h-4 w-4" />
-                  Choisir une photo
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                  Gratuit et Premium, dans ton quota d’images. Mise en scène,
-                  packshot et montages restent accessibles dans la bibliothèque.
-                </p>
-                <Button variant="link" onClick={toTools}>
-                  Retrouver les autres outils photo
-                </Button>
-              </>
-            )}
-          </section>
+        {busy === "opening" || (sessionId && !current && state.isFetching) ? (
+          <p className="p-8">Ouverture de la session…</p>
         ) : (
           <div className="studio-grid">
             <section
@@ -623,10 +769,10 @@ function Studio({
                 <Button
                   size="sm"
                   variant="outline"
-                  disabled={!version}
+                  disabled={!version || !comparisonSource}
                   onClick={() => setCompare(!compare)}
                 >
-                  {compare ? "Voir la version seule" : "Comparer à l’original"}
+                  {compare ? "Voir la version seule" : "Comparer"}
                 </Button>
               </div>
               <div
@@ -638,36 +784,85 @@ function Studio({
               >
                 {compare && version && (
                   <figure>
-                    <img src={source} alt="Photo originale" />
-                    <figcaption>Original</figcaption>
+                    <img
+                      src={comparisonSource}
+                      alt="Référence de comparaison"
+                    />
+                    <figcaption>
+                      {source ? "Référence" : "Version précédente"}
+                    </figcaption>
                   </figure>
                 )}
-                <figure>
-                  <img
-                    src={display}
-                    alt={label}
-                    onError={() =>
-                      setError(
-                        "L’aperçu a expiré ou n’est pas disponible. Réessaie pour le recharger, sans régénérer.",
-                      )
-                    }
-                  />
-                  <figcaption>{label}</figcaption>
-                </figure>
+                {display ? (
+                  <figure>
+                    <img
+                      src={display}
+                      alt={label}
+                      onError={() =>
+                        setError(
+                          "L’aperçu a expiré ou n’est pas disponible. Réessaie pour le recharger, sans régénérer.",
+                        )
+                      }
+                    />
+                    <figcaption>{label}</figcaption>
+                  </figure>
+                ) : (
+                  <div className="studio-empty">
+                    <Sparkles className="h-9 w-9 text-primary" />
+                    <h3 className="font-display text-2xl">
+                      Tout commence par ton idée
+                    </h3>
+                    <p>
+                      Une illustration, ton produit en situation, un portrait,
+                      un visuel pour une offre… Discute avec le Studio ; tes
+                      créations apparaîtront ici.
+                    </p>
+                    <Button
+                      variant="outline"
+                      disabled={!writable || !!busy}
+                      onClick={() => setPicker(true)}
+                    >
+                      <ImagePlus className="h-4 w-4 mr-2" />
+                      Ajouter une photo, si utile
+                    </Button>
+                    <p className="text-xs">
+                      Aucune image n’est créée avant ta confirmation.
+                    </p>
+                  </div>
+                )}
               </div>
               <div className="studio-versions" aria-label="Versions">
-                <button
-                  type="button"
-                  aria-pressed={!selectedId}
-                  onClick={() => {
-                    setSelectedId(null);
-                    setCompare(false);
-                  }}
-                >
-                  <img src={source} alt="" />
-                  <span>Original</span>
-                </button>
-                {current.versions
+                {!!source && !references.length && (
+                  <button
+                    type="button"
+                    aria-pressed={!selectedId}
+                    onClick={() => {
+                      setSelectedId(null);
+                      setCompare(false);
+                    }}
+                  >
+                    <img src={source} alt="" />
+                    <span>Original</span>
+                  </button>
+                )}
+                {references.map((ref) => (
+                  <button
+                    type="button"
+                    key={ref.id}
+                    aria-pressed={
+                      !selectedId && selectedReference?.id === ref.id
+                    }
+                    onClick={() => {
+                      setSelectedId(null);
+                      setSelectedReferenceId(ref.id);
+                      setCompare(false);
+                    }}
+                  >
+                    <img src={ref.url} alt="" />
+                    <span>{ref.name}</span>
+                  </button>
+                ))}
+                {current?.versions
                   .filter((v) => v.status === "ready")
                   .map((v, i) => (
                     <button
@@ -692,7 +887,9 @@ function Studio({
                   ? version.library_photo_id
                     ? "Ajoutée à la bibliothèque · conservée dans cette session."
                     : "Conservée dans cette session · pas encore dans la bibliothèque."
-                  : "Original conservé dans la session."}
+                  : source
+                    ? "Référence conservée dans la session."
+                    : "Tes échanges et créations restent dans cette session."}
               </p>
               {generating && (
                 <div
@@ -707,7 +904,7 @@ function Studio({
                   </p>
                 </div>
               )}
-              {current.versions
+              {current?.versions
                 .filter((v) => v.status === "failed")
                 .slice(-1)
                 .map((v) => (
@@ -728,6 +925,86 @@ function Studio({
                     </Button>
                   </div>
                 ))}
+              <div className="studio-references">
+                {references.map((ref) => (
+                  <div
+                    key={ref.id}
+                    className="rounded-xl border bg-card p-3 my-2 text-sm"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="flex-1">{ref.name}</span>
+                      <select
+                        aria-label={`Rôle de ${ref.name}`}
+                        value={ref.role}
+                        disabled={!writable || !!busy || generating}
+                        onChange={(e) =>
+                          void mutate("reference", {
+                            photo_id: ref.photo_id,
+                            reference_role: e.target.value,
+                            revision: current!.session.revision,
+                          })
+                        }
+                      >
+                        <option value="subject">Sujet à préserver</option>
+                        <option value="style">Ambiance</option>
+                        <option value="composition">Composition</option>
+                      </select>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        aria-label={`Retirer ${ref.name}`}
+                        disabled={!writable || !!busy || generating}
+                        onClick={() =>
+                          void mutate("reference", {
+                            photo_id: ref.photo_id,
+                            remove: true,
+                            revision: current!.session.revision,
+                          })
+                        }
+                      >
+                        ×
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {!!current?.suggested_photos?.length && (
+                  <div className="my-4">
+                    <h3 className="font-medium text-sm">
+                      Photos proposées · choisis celle qui convient
+                    </h3>
+                    <div className="studio-versions">
+                      {current.suggested_photos
+                        .filter(
+                          (p) => !references.some((r) => r.photo_id === p.id),
+                        )
+                        .map((photo) => (
+                          <button
+                            type="button"
+                            key={photo.id}
+                            disabled={!writable || !!busy || generating}
+                            onClick={() =>
+                              void mutate("reference", {
+                                photo_id: photo.id,
+                                reference_role: "subject",
+                                revision: current.session.revision,
+                              })
+                            }
+                          >
+                            <img src={photo.url} alt={photo.name} />
+                            <span>Choisir {photo.name}</span>
+                          </button>
+                        ))}
+                    </div>
+                  </div>
+                )}
+                {references.length > 0 && (
+                  <p className="text-xs text-muted-foreground mb-4">
+                    Sujet = identité à préserver. Ambiance et composition =
+                    inspiration uniquement. Après un changement de référence,
+                    envoie ta demande pour préparer une nouvelle proposition.
+                  </p>
+                )}
+              </div>
               <div className="flex flex-wrap gap-2">
                 <Button
                   variant="outline"
@@ -747,7 +1024,7 @@ function Studio({
                   disabled={
                     !!busy ||
                     !writable ||
-                    (!version && !current.session.source_photo_id)
+                    (!version && !current?.session.source_photo_id)
                   }
                   onClick={() => void save(true)}
                 >
@@ -767,8 +1044,8 @@ function Studio({
               <div className="mt-6 text-sm space-y-2">
                 <h3 className="font-medium">Image sélectionnée : {label}</h3>
                 <p className="text-muted-foreground">
-                  Chaque nouveau fond repart de l’original. Les précédentes
-                  versions restent disponibles.
+                  Les ajustements visent l’image sélectionnée. Chaque résultat
+                  devient une version ; les précédentes restent disponibles.
                 </p>
                 <Button variant="link" className="px-0" onClick={toTools}>
                   Les autres outils photo →
@@ -777,7 +1054,7 @@ function Studio({
             </aside>
           </div>
         )}
-        {current && (
+        {
           <div className="studio-mobile-launch">
             <Button
               className="w-full justify-between"
@@ -790,7 +1067,7 @@ function Studio({
               <span>{proposal ? "1 proposition" : "Ouvrir"}</span>
             </Button>
           </div>
-        )}
+        }
       </main>
       <Drawer open={mobileChat} onOpenChange={setMobileChat}>
         <DrawerContent className="studio-mobile-drawer">
@@ -816,7 +1093,15 @@ function Studio({
         maxSelectable={1}
         onConfirm={(photos) => {
           setPicker(false);
-          if (photos[0]) void openPhoto(photos[0].id);
+          if (photos[0]) {
+            if (current)
+              void mutate("reference", {
+                photo_id: photos[0].id,
+                reference_role: referenceRole,
+                revision: current.session.revision,
+              });
+            else void openPhoto(photos[0].id);
+          }
         }}
       />
       <Dialog open={sessionsOpen} onOpenChange={setSessionsOpen}>

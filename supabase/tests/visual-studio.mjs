@@ -84,6 +84,15 @@ try {
       "utf8",
     ),
   );
+  await db.exec(
+    fs.readFileSync(
+      new URL(
+        "../migrations/20260928160000_studio_open_chat.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   assert.deepEqual(
     await value("SELECT to_jsonb(p) AS value FROM user_photos p"),
     historical,
@@ -248,6 +257,53 @@ try {
     /studio_interpretation_limit/,
   );
   console.log("PASS paid interpretation replay and durable minute/day limits");
+  // Source-free generation saves its own immutable first asset, without inventing a source photo.
+  const freeSession = id(301),
+    freeProposal = id(302);
+  await db.query(
+    "INSERT INTO visual_studio_sessions(id,workspace_id,user_id,name,source_path,source_ready) VALUES($1,$2,$3,'Illustration',NULL,true)",
+    [freeSession, ws, owner],
+  );
+  await db.query(
+    "UPDATE visual_studio_sessions SET proposal=$2::jsonb WHERE id=$1",
+    [
+      freeSession,
+      JSON.stringify({
+        id: freeProposal,
+        operation: "create",
+        original_path: null,
+        model: "test-image-model",
+        summary: "Illustration",
+        image_prompt: "graphical illustration",
+        cost: 1,
+      }),
+    ],
+  );
+  const freeClaim = await claim(owner, freeSession, freeProposal);
+  assert.equal(freeClaim.claimed, true);
+  await db.query("INSERT INTO storage.objects VALUES('visual-studio',$1)", [
+    freeClaim.version.result_path,
+  ]);
+  await db.query("SELECT studio_complete_generation($1)", [freeProposal]);
+  await db.query("INSERT INTO storage.objects VALUES('user-photos',$1)", [
+    `${owner}/studio_${freeProposal}.jpg`,
+  ]);
+  await db.query("SELECT studio_save_library($1,$2)", [owner, freeProposal]);
+  const freePhoto = await value(
+    "SELECT to_jsonb(p) AS value FROM user_photos p WHERE id=$1",
+    [freeProposal],
+  );
+  assert.equal(freePhoto.original_storage_path, freePhoto.storage_path);
+  assert.equal(
+    await value(
+      "SELECT model_used AS value FROM ai_usage WHERE action_type='studio_create'",
+    ),
+    "test-image-model",
+  );
+  assert.equal((await claim(owner, freeSession, freeProposal)).claimed, false);
+  console.log(
+    "PASS source-free original, operation/model attribution and replay",
+  );
   // Account/workspace removal must not acquire blocking foreign keys.
   await db.query("DELETE FROM workspaces WHERE id=$1", [ws]);
   assert.equal(
