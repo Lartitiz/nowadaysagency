@@ -13,7 +13,9 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const USER_PHOTOS_BUCKET = "user-photos";
 const MAX_DIMENSION = 2048;
-const TARGET_MAX_BYTES = 5 * 1024 * 1024; // 5 MB upload cap
+// The Studio's vision input accepts at most 5,000,000 bytes, not 5 MiB.
+// Leave a little room for file metadata and provider-side accounting.
+const TARGET_MAX_BYTES = 4_900_000;
 
 export type PhotoStatus = "pending" | "processing" | "ready" | "failed";
 
@@ -46,7 +48,7 @@ export interface UserPhotoRow {
  * Compress an image with canvas, capping dimension and target byte size.
  * Returns a JPEG Blob.
  */
-async function compressToJpeg(
+export async function compressToJpeg(
   file: File,
   maxDimension = MAX_DIMENSION,
   maxBytes = TARGET_MAX_BYTES,
@@ -59,54 +61,47 @@ async function compressToJpeg(
     height = Math.round(height * ratio);
   }
 
-  const canvas =
-    typeof OffscreenCanvas !== "undefined"
-      ? new OffscreenCanvas(width, height)
-      : (() => {
+  try {
+    // A detailed source can remain too large even at low JPEG quality.
+    // Reduce its dimensions before storing it rather than saving a file the
+    // Studio will later refuse to inspect.
+    for (let scale = 0; scale < 4; scale++) {
+      const canvas = typeof OffscreenCanvas !== "undefined"
+        ? new OffscreenCanvas(width, height)
+        : (() => {
           const c = document.createElement("canvas");
           c.width = width;
           c.height = height;
           return c as unknown as OffscreenCanvas;
         })();
-
-  const ctx = canvas.getContext("2d") as
-    | OffscreenCanvasRenderingContext2D
-    | CanvasRenderingContext2D
-    | null;
-  if (!ctx) throw new Error("Canvas indisponible");
-  // JPEG n'a pas d'alpha : sans fond posé d'abord, les pixels transparents
-  // d'un PNG deviennent NOIRS à l'encodage. Fond blanc = rendu attendu.
-  ctx.fillStyle = "#ffffff";
-  ctx.fillRect(0, 0, width, height);
-  ctx.drawImage(bitmap, 0, 0, width, height);
-  bitmap.close?.();
-
-  for (const quality of [0.9, 0.8, 0.7, 0.55, 0.4]) {
-    const blob =
-      "convertToBlob" in canvas
-        ? await (canvas as OffscreenCanvas).convertToBlob({ type: "image/jpeg", quality })
-        : await new Promise<Blob>((resolve, reject) =>
+      const ctx = canvas.getContext("2d") as
+        | OffscreenCanvasRenderingContext2D
+        | CanvasRenderingContext2D
+        | null;
+      if (!ctx) throw new Error("Canvas indisponible");
+      // JPEG has no alpha. A white base avoids black areas from transparent PNGs.
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      for (const quality of [0.9, 0.8, 0.7, 0.55, 0.4, 0.3]) {
+        const blob = "convertToBlob" in canvas
+          ? await (canvas as OffscreenCanvas).convertToBlob({ type: "image/jpeg", quality })
+          : await new Promise<Blob>((resolve, reject) =>
             (canvas as unknown as HTMLCanvasElement).toBlob(
-              (b) => (b ? resolve(b) : reject(new Error("toBlob a échoué"))),
+              (b) => b ? resolve(b) : reject(new Error("toBlob a échoué")),
               "image/jpeg",
               quality,
-            ),
+            )
           );
-    if (blob.size <= maxBytes) return { blob, width, height };
+        if (blob.size <= maxBytes) return { blob, width, height };
+      }
+      width = Math.max(1, Math.round(width * 0.75));
+      height = Math.max(1, Math.round(height * 0.75));
+    }
+    throw new Error("Cette photo reste trop volumineuse après compression. Choisis une image plus petite.");
+  } finally {
+    bitmap.close?.();
   }
-
-  // Last resort
-  const blob =
-    "convertToBlob" in canvas
-      ? await (canvas as OffscreenCanvas).convertToBlob({ type: "image/jpeg", quality: 0.3 })
-      : await new Promise<Blob>((resolve, reject) =>
-          (canvas as unknown as HTMLCanvasElement).toBlob(
-            (b) => (b ? resolve(b) : reject(new Error("toBlob a échoué"))),
-            "image/jpeg",
-            0.3,
-          ),
-        );
-  return { blob, width, height };
 }
 
 export interface UploadOriginalParams {
