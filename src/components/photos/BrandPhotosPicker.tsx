@@ -350,8 +350,10 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
 
           <p className="text-2xs text-muted-foreground">
             Choisis uniquement des images qui t'appartiennent (pas de photos de banque d'images sous licence).
-            {!instagramConnected &&
-              " Tes photos Instagram ? Connecte ton compte depuis Paramètres › Connexions pour les importer aussi."}
+            {!instagramUsed &&
+              (instagramConnected
+                ? ` Le compte Instagram connecté (@${connectedInstagramHandle}) n'est pas celui de cette marque : ses photos ne sont pas proposées ici. Change-le depuis Paramètres › Connexions.`
+                : " Tes photos Instagram ? Connecte ton compte depuis Paramètres › Connexions pour les importer aussi.")}
           </p>
 
           <div className="flex items-center justify-between gap-3">
