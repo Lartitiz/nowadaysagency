@@ -593,3 +593,7 @@ it("une série partielle conserve un accès à chaque échec sans relancer les i
  await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'retry',version_id:'failed-2'})));
  expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
 });
+
+it("le bouton proposé par le chat attache réellement la mémoire avant une création",async()=>{
+ const state=original();state.memory=[{id:'casting',kind:'casting',name:'Anna',note:'Fictive',revision:0,references:[]}];state.session.messages=[{role:'assistant',text:'Choisis la référence',suggested_memory_ids:['casting']}];mock.request.mockResolvedValue(state);mount();fireEvent.click(await screen.findByRole('button',{name:'Utiliser ce mannequin · Anna'}));await waitFor(()=>expect(mock.request).toHaveBeenCalledWith(expect.objectContaining({action:'memory_apply',memory_id:'casting'})));expect(mock.request.mock.calls.some(([p])=>p.action==='generate')).toBe(false);
+});

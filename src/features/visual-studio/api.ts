@@ -49,6 +49,7 @@ export interface StudioMessage {
   operation?: string;
   suggestions?: string[];
   suggested_photo_ids?: string[];
+  suggested_memory_ids?: string[];
 }
 export interface StudioReference {
   id: string;
