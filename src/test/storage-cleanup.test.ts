@@ -63,6 +63,8 @@ describe("clearAppStorage — isolation entre comptes", () => {
     localStorage.setItem("lac_onboarding_answers", '{"prenom":"Camille"}');
     localStorage.setItem("lac_onboarding_branding", "{}");
     localStorage.setItem("lac_onboarding_ts", "2026-06-30T00:00:00.000Z");
+    localStorage.setItem("lac_onboarding_upload_ids:user-123", '["capture-1"]');
+    localStorage.setItem("lac_onboarding_diagnostic:user-123", '{"totalScore":52}');
     localStorage.setItem("lac_branding_cache_refreshed", "true");
 
     clearAppStorage();
@@ -72,6 +74,8 @@ describe("clearAppStorage — isolation entre comptes", () => {
     expect(localStorage.getItem("lac_onboarding_answers")).toBeNull();
     expect(localStorage.getItem("lac_onboarding_branding")).toBeNull();
     expect(localStorage.getItem("lac_onboarding_ts")).toBeNull();
+    expect(localStorage.getItem("lac_onboarding_upload_ids:user-123")).toBeNull();
+    expect(localStorage.getItem("lac_onboarding_diagnostic:user-123")).toBeNull();
     expect(localStorage.getItem("lac_branding_cache_refreshed")).toBeNull();
   });
 
