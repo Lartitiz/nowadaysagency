@@ -169,7 +169,11 @@ function extractSlopInputs(
  * PAS dans ai_usage (une ligne = un crédit décompté) : cette table de
  * télémétrie est le seul endroit où cron-health peut chiffrer ce coût.
  */
-export function editorialUsage(gateContent: unknown): { model: string; input_tokens: number; output_tokens: number } | null {
+export function editorialUsage(gateContent: unknown): {
+  model: string; input_tokens: number; output_tokens: number;
+  /** Issue de la dernière passe : mesure le taux de relectures jetées (garde de fidélité). */
+  status?: string; pass?: number; total_edits?: number; guard?: string[];
+} | null {
   let doc: any = gateContent;
   if (typeof gateContent === "string") {
     try { doc = JSON.parse(gateContent); } catch { return null; }
@@ -179,7 +183,13 @@ export function editorialUsage(gateContent: unknown): { model: string; input_tok
   const model = review?.model || review?.usage?.model;
   const input = Number(total?.input_tokens), output = Number(total?.output_tokens);
   if (typeof model !== "string" || !model || !(input > 0 || output > 0)) return null;
-  return { model, input_tokens: input || 0, output_tokens: output || 0 };
+  return {
+    model, input_tokens: input || 0, output_tokens: output || 0,
+    ...(typeof review.status === "string" ? { status: review.status } : {}),
+    ...(typeof review.pass === "number" ? { pass: review.pass } : {}),
+    ...(typeof review.total_edits === "number" ? { total_edits: review.total_edits } : {}),
+    ...(Array.isArray(review.guard) ? { guard: review.guard.slice(0, 10) } : {}),
+  };
 }
 
 /** Objet `SlopSignals` calculé sur le contenu final du gate, null si rien d'exploitable. */

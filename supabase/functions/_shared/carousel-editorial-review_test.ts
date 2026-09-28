@@ -1,7 +1,7 @@
 import { assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { applyEditorialReview, carouselEditorialFields, carouselEditorialSequence, CAROUSEL_EDITORIAL_REVIEW_PROMPT } from "./carousel-editorial-review.ts";
 import { applyCorrectionPassCarousel } from "./correction-pass.ts";
-import { analyzeCarouselRedac, applyGuardedCarouselCorrection } from "./redac-gate.ts";
+import { analyzeCarouselRedac, applyGuardedCarouselCorrection, runRedacGate } from "./redac-gate.ts";
 
 const doc = { slides: [{ title: "Les retours sur la maquette", body: "Les demandes se contredisent. Et c'est là que tout se joue.", photo_index: 2, photo_url: "https://example.com/photo", template: "liste", points: ["Une réponse commune", "Un arbitrage explicite"], visual_schema: { type: "timeline", steps: [{ label: "Retours", desc: "Choisir entre les demandes" }], color: "pink" } }], caption: { body: "J'attends votre réponse commune.", hashtags: ["design"] } };
 const cleanReview = (d = doc): any => ({ reviews: carouselEditorialFields(d).map(f => ({ field_id: f.id, decision: "keep", reason: "information utile", edits: [] })) });
@@ -162,6 +162,29 @@ Deno.test("intégration garde : prix sourcé conservé et révision rejetée exp
     const output = JSON.parse(await applyGuardedCarouselCorrection(JSON.stringify(draft), { inputText: "Le bol coûte 35 euros à Lyon.", correction: { semanticReview: true } }));
     assertEquals(output.slides, draft.slides);
     assertEquals(output.editorial_review.status, "rejected");
+    // The discarded review says why and what it proposed.
+    assertEquals(output.editorial_review.guard, ["lost-number:35"]);
+    assertEquals(output.editorial_review.proposed_edits, 1);
+  });
+});
+Deno.test("gate : une 1re relecture rejetée par la garde n'est pas rejouée à l'identique", async () => {
+  const draft = { ...doc, slides: [{ ...doc.slides[0], body: "Le bol coûte 35 euros. Disponible à Lyon." }] };
+  await mockReview(JSON.stringify(editReview(draft, "Le bol coûte 35 euros. ", "")), async calls => {
+    const inputText = "Le bol coûte 35 euros à Lyon.";
+    const first = await applyGuardedCarouselCorrection(JSON.stringify(draft), { inputText, correction: { semanticReview: true } });
+    assertEquals(calls.length, 1);
+    const gate = await runRedacGate(first, { isLinkedIn: false, inputText, correction: { semanticReview: true, reviewBaseline: JSON.stringify(draft) } });
+    assertEquals(calls.length, 1);
+    assertEquals(gate.repassed, false);
+    assertEquals(JSON.parse(gate.content).editorial_review.pass, 1);
+  });
+});
+Deno.test("gate : une 1re relecture en échec technique est retentée une fois", async () => {
+  await mockReview("Réécriture opaque", async calls => {
+    const first = await applyCorrectionPassCarousel(JSON.stringify(doc), { semanticReview: true });
+    assertEquals(JSON.parse(first).editorial_review.status, "invalid");
+    await runRedacGate(first, { isLinkedIn: false, correction: { semanticReview: true, reviewBaseline: JSON.stringify(doc) } });
+    assertEquals(calls.length, 2);
   });
 });
 Deno.test("contrat : privilégie le sens et protège les contrastes utiles", () => {

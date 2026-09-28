@@ -683,12 +683,14 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
       a.overlongOverlays.length, Number(a.ctaDuplicated), a.moulded.length,
       a.fabricatedNumbers.length, a.durationConflicts.length, a.brandCopyOverlap.length, a.hookEchoes.length];
     const beforeCounts = counts(before);
-    const regression = counts(after).some((n, i) => n > beforeCounts[i]);
+    const COUNT_NAMES = ["reversals", "overlong-slides", "overlong-overlays", "cta-duplicated", "moulded",
+      "fabricated-numbers", "duration-conflicts", "brand-copy", "hook-echoes"];
+    const regressions = counts(after).map((n, i) => n > beforeCounts[i] ? `regression:${COUNT_NAMES[i]}` : "").filter(Boolean);
     // Equal counts can still hide a new unsupported value (5 days → 9 days).
     // Reuse the detector's ordinal exclusions and decimal normalization.
     const unsupportedValue = (finding: string) => finding.split(" ")[0].replace(",", ".");
     const originalUnsupported = new Set(before.fabricatedNumbers.map(unsupportedValue));
-    const newUnsupported = after.fabricatedNumbers.some(n => !originalUnsupported.has(unsupportedValue(n)));
+    const newUnsupported = after.fabricatedNumbers.map(unsupportedValue).filter(v => !originalUnsupported.has(v));
     const prose = (doc: any) => [
       ...(Array.isArray(doc.slides) ? doc.slides.map(slideTexts) : []),
       typeof doc.caption === "string" ? doc.caption : [doc.caption?.hook, doc.caption?.body, doc.caption?.cta].filter(Boolean).join(" "),
@@ -696,16 +698,21 @@ export async function applyGuardedCarouselCorrection(content: string, opts: Caro
     const originalText = opts.correction.semanticReview ? carouselEditorialFields(originalDoc).map(f => f.text).join("\n") : prose(original);
     const candidateText = opts.correction.semanticReview ? carouselEditorialFields(candidateDoc).map(f => f.text).join("\n") : prose(candidate);
     const candidateNumbers = numbersIn(candidateText);
-    const lostNumber = allowed && [...numbersIn(originalText)].some(n => allowed.has(n) && !candidateNumbers.has(n));
+    const lostNumbers = allowed ? [...numbersIn(originalText)].filter(n => allowed.has(n) && !candidateNumbers.has(n)) : [];
     // Protect sourced quotations; unrelated quotation marks in the brand
     // profile do not force material into the output. This is not a fact checker.
     const quotes = [...originalText.matchAll(/«\s*([^»]+?)\s*»|“([^”]+)”|"([^"\n]{6,})"/g)]
       .map(m => (m[1] || m[2] || m[3]).trim());
-    const lostQuote = source && quotes.some(q => source.includes(q) && !candidateText.includes(q));
-    if (regression || newUnsupported || lostNumber || lostQuote) {
-      opts.correction.logger?.("[carousel-correction] original conservé : contrôle dégradé ou donnée source supprimée");
+    const lostQuote = Boolean(source) && quotes.some(q => source!.includes(q) && !candidateText.includes(q));
+    // Named reasons: the rejection used to be silent, so 2/2 real reviews were
+    // thrown away (28/09) without any way to tell which check tripped.
+    const guard = [...regressions, ...newUnsupported.map(v => `new-unsupported-number:${v}`),
+      ...lostNumbers.map(n => `lost-number:${n}`), ...(lostQuote ? ["lost-quote"] : [])];
+    if (guard.length) {
+      opts.correction.logger?.(`[carousel-correction] original conservé : contrôle dégradé ou donnée source supprimée ${JSON.stringify(guard)}`);
       if (opts.correction.semanticReview) {
         originalDoc.editorial_review = { ...candidateDoc.editorial_review, status: "rejected", edits: 0,
+          proposed_edits: candidateDoc.editorial_review?.edits ?? null, guard,
           total_edits: originalDoc.editorial_review?.total_edits || 0, error: "fidelity-guard" };
         return content.replace(content.match(/\{[\s\S]*\}/)![0], () => JSON.stringify(originalDoc));
       }
@@ -768,8 +775,12 @@ export async function runRedacGate(
         : `La caption se termine par une question alors que la forme imposée n'en est pas une : réécris le champ "cta" de la CAPTION dans la forme imposée, SANS aucun point d'interrogation. Garde le sens, change la forme.`);
   }
   const review = first.parsed.editorial_review;
+  // Second review only to verify kept edits or to retry a technical failure.
+  // A first review rejected by the fidelity guard left the draft untouched:
+  // re-asking the same model about the same text is the same call again
+  // (2/2 rejected twice on 28/09, ~55 % of the review cost for nothing).
   const verifySemanticReview = opts.correction.semanticReview && opts.correction.reviewBaseline &&
-    (review?.status !== "reviewed" || review?.edits > 0);
+    review?.status !== "rejected" && (review?.status !== "reviewed" || review?.edits > 0);
   if (fixes || verifySemanticReview) {
     try {
       opts.onStatus?.("correcting");
@@ -781,7 +792,8 @@ export async function runRedacGate(
       });
       if (corrected && corrected !== out) {
         out = corrected;
-        repassed = true;
+        // A rejected review only rewrites its own report, never the text.
+        repassed = parseFenced(corrected)?.parsed?.editorial_review?.status !== "rejected";
       }
     } catch (e) {
       console.error("[redac-gate] re-passe ciblée échouée, contenu conservé :", e);

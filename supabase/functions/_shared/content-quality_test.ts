@@ -110,7 +110,12 @@ Deno.test("editorialUsage : lit le total des passes de relecture, entrée et sor
     editorial_review: { model: "gpt-6-astra", pass: 2, usage: { model: "gpt-6-astra", input_tokens: 5510, output_tokens: 2249 },
       total_usage: { input_tokens: 9868, output_tokens: 4415, total_tokens: 14283 } },
   });
-  assertEquals(editorialUsage(content), { model: "gpt-6-astra", input_tokens: 9868, output_tokens: 4415 });
+  assertEquals(editorialUsage(content), { model: "gpt-6-astra", input_tokens: 9868, output_tokens: 4415, pass: 2 });
+  // Relecture jetée par la garde : l'issue et la raison voyagent avec le coût.
+  const rejected = JSON.stringify({ slides: [], editorial_review: { model: "gpt-6-astra", status: "rejected", pass: 1, total_edits: 0,
+    guard: ["lost-number:26"], total_usage: { input_tokens: 4358, output_tokens: 2166 } } });
+  assertEquals(editorialUsage(rejected), { model: "gpt-6-astra", input_tokens: 4358, output_tokens: 2166,
+    status: "rejected", pass: 1, total_edits: 0, guard: ["lost-number:26"] });
   // Relecture indisponible (usage vide) ou absente : rien à chiffrer.
   assertEquals(editorialUsage(JSON.stringify({ slides: [], editorial_review: { model: null, total_usage: { input_tokens: 0, output_tokens: 0 } } })), null);
   assertEquals(editorialUsage(JSON.stringify({ slides: [] })), null);
