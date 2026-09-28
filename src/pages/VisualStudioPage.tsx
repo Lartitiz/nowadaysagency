@@ -1160,7 +1160,7 @@ function Studio({
         }
         </div>
       </main>
-      <Drawer open={mobileChat && !videoTab} onOpenChange={setMobileChat}>
+      {mobileChat && !videoTab && <Drawer open onOpenChange={setMobileChat}>
         <DrawerContent className="studio-mobile-drawer">
           <DrawerHeader className="text-left">
             <DrawerTitle>
@@ -1177,7 +1177,7 @@ function Studio({
           </DrawerHeader>
           {chat(true)}
         </DrawerContent>
-      </Drawer>
+      </Drawer>}
       <PhotoLibraryPickerDialog
         open={picker}
         onOpenChange={setPicker}
