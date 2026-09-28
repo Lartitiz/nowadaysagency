@@ -5,6 +5,12 @@ import { isValidUrl } from "./OnboardingShared";
 import type { Answers } from "@/hooks/use-onboarding";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+// Instagram connection added to this screen now reads the app providers.
+// These import/validation tests exercise the screen with a disconnected account.
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "user-a" } }) }));
+vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "space-a" }));
+vi.mock("@/hooks/use-social-connections", () => ({ useSocialConnections: () => ({ isConnected: () => false, accountNames: {} }) }));
+vi.mock("@/lib/social-connect", () => ({ startSocialConnect: vi.fn() }));
 
 const answers = (website = ""): Answers => ({
   prenom: "Léa", activite: "Céramiste", activity_type: "artisane",
