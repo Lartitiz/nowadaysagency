@@ -7265,6 +7265,98 @@ export type Database = {
         }
         Relationships: []
       }
+      studio_video_jobs: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          duration: number
+          error_code: string | null
+          estimated_credits: number
+          estimated_usd: number
+          id: string
+          input_url: string
+          model: string
+          person_free_attested: boolean
+          prompt: string
+          provider_correlation_id: string | null
+          provider_request_id: string | null
+          provider_video_url: string | null
+          quote_expires_at: string
+          resolution: string
+          result_path: string | null
+          source_id: string
+          source_kind: string
+          source_name: string
+          status: string
+          submitted_at: string | null
+          user_id: string
+          webhook_token: string
+          workspace_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          duration: number
+          error_code?: string | null
+          estimated_credits: number
+          estimated_usd: number
+          id: string
+          input_url: string
+          model?: string
+          person_free_attested: boolean
+          prompt: string
+          provider_correlation_id?: string | null
+          provider_request_id?: string | null
+          provider_video_url?: string | null
+          quote_expires_at: string
+          resolution: string
+          result_path?: string | null
+          source_id: string
+          source_kind: string
+          source_name: string
+          status: string
+          submitted_at?: string | null
+          user_id: string
+          webhook_token: string
+          workspace_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          duration?: number
+          error_code?: string | null
+          estimated_credits?: number
+          estimated_usd?: number
+          id?: string
+          input_url?: string
+          model?: string
+          person_free_attested?: boolean
+          prompt?: string
+          provider_correlation_id?: string | null
+          provider_request_id?: string | null
+          provider_video_url?: string | null
+          quote_expires_at?: string
+          resolution?: string
+          result_path?: string | null
+          source_id?: string
+          source_kind?: string
+          source_name?: string
+          status?: string
+          submitted_at?: string | null
+          user_id?: string
+          webhook_token?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "studio_video_jobs_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           cancel_at: string | null
@@ -8820,6 +8912,10 @@ export type Database = {
       studio_save_library: {
         Args: { p_actor: string; p_version: string }
         Returns: string
+      }
+      studio_video_claim: {
+        Args: { p_actor: string; p_job: string; p_monthly_limit: number }
+        Returns: boolean
       }
       sync_launch_calendar: {
         Args: {
