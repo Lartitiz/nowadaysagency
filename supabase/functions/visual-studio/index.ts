@@ -43,6 +43,7 @@ import {
 } from "./higgsfield-image.ts";
 import { handleMemory, readMemory } from "./memory.ts";
 import { executeStudioJob } from "./worker.ts";
+import { referencesAtVersion, referencesDiffer } from "./branch-context.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
@@ -81,6 +82,7 @@ const schema = z.object({
   proposal_id: z.string().uuid().optional(),
   version_id: z.string().uuid().optional(),
   viewed_version_id: z.string().uuid().nullable().optional(),
+  branch_reference_mode: z.enum(["version", "current"]).optional(),
   revision: z.number().int().nonnegative().optional(),
   message: z.string().trim().min(1).max(1000).optional(),
   request_id: z.string().uuid().optional(),
@@ -467,6 +469,22 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               .single(),
           )
           : null;
+        const versionReferences: Reference[] = parent
+          ? referencesAtVersion(parent.proposal)
+          : references;
+        const changedReferences = !!parent &&
+          referencesDiffer(versionReferences, references);
+        if (changedReferences && !p.branch_reference_mode) {
+          return json({
+            code: "branch_reference_choice",
+            error:
+              "Les références ont changé depuis cette version. Choisis celles à utiliser avant d’envoyer ; aucune image n’a été lancée.",
+          }, 409);
+        }
+        const requestReferences = changedReferences &&
+            p.branch_reference_mode === "version"
+          ? versionReferences
+          : references;
         if (
           p.viewed_reference_id &&
           !references.some((r) => r.id === p.viewed_reference_id)
@@ -586,11 +604,11 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               }).slice(0, 80),
           };
         }
-        const selectedReference = references.find((r) =>
+        const selectedReference = requestReferences.find((r) =>
           r.id === p.viewed_reference_id
         ) ||
-          references.find((r) => isIdentity(r.role)) ||
-          references[0];
+          requestReferences.find((r) => isIdentity(r.role)) ||
+          requestReferences[0];
         const inputPath = parent?.result_path || selectedReference?.path ||
           null;
         const vision = [];
@@ -603,7 +621,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             await visionBlock(await download(sb, BUCKET, parent.result_path)),
           );
         }
-        for (const ref of references) {
+        for (const ref of requestReferences) {
           vision.push({
             type: "text",
             text: `Référence ${ref.id} : ${ref.role}, ${ref.name}`,
@@ -629,7 +647,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                   {
                     type: "text",
                     text: JSON.stringify({
-                      composition_editable: session.composition ? { ...session.composition.design, logo_data_url: undefined, logo_present: !!session.composition.design?.logo_data_url } : null,
+                      composition_editable: !parent && session.composition ? { ...session.composition.design, logo_data_url: undefined, logo_present: !!session.composition.design?.logo_data_url } : null,
                       competences_disponibles: COMPETENCIES,
                       memoire_confirmee: memory.filter((m) =>
                         m.kind === "preference"
@@ -648,17 +666,21 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
                         proposition: proposition.data,
                         strategy: strategy.data,
                       },
-                      references: references.map(({ path, ...ref }) => ref),
+                      references: requestReferences.map(({ path, ...ref }) => ref),
                       reference_selectionnee: selectedReference?.id,
                       version_selectionnee: parent
                         ? {
                           id: parent.id,
                           brief: parent.proposal.brief,
                           summary: parent.proposal.summary,
+                          preserve: parent.proposal.preserve,
+                          change: parent.proposal.change,
                         }
                         : null,
-                      brief: parent?.proposal.brief || session.brief || "",
-                      historique: session.messages.slice(-12),
+                      brief: parent
+                        ? parent.proposal.brief || parent.proposal.summary || ""
+                        : session.brief || "",
+                      historique: parent ? [] : session.messages.slice(-12),
                       catalogue: (catalogue.data || []).map((row) => ({
                         ...row,
                         description: row.description?.slice(0, 250),
@@ -693,7 +715,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           (["background", "edit", "product"].includes(intent.operation) &&
             !inputPath) ||
           ((intent.requires_real_subject || intent.operation === "product") &&
-            !references.some((r) => isIdentity(r.role)))
+            !requestReferences.some((r) => isIdentity(r.role)))
         ) {
           intent.operation = "clarify";
           intent.summary =
@@ -702,7 +724,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         const normalizeName = (value: string) => value.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
         const requestText = ` ${normalizeName(p.message)} `;
         const memoryToSelect = memory.filter((m) => m.kind !== "preference" &&
-          !references.some((r) => r.memory_id === m.id || m.references.some((source) => source.path === r.path)) &&
+          !requestReferences.some((r) => r.memory_id === m.id || m.references.some((source) => source.path === r.path)) &&
           (intent.suggested_memory_ids.includes(m.id) ||
             (/reutilis|reprendr|utiliser/.test(requestText) && requestText.includes(` ${normalizeName(m.name)} `))));
         if (memoryToSelect.length) {
@@ -720,12 +742,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           null;
         const proposedRefs = intent.operation === "background"
           ? []
-          : references.filter((r) => r.path !== editInput);
+          : requestReferences.filter((r) => r.path !== editInput);
         const originalPath =
           (selectedReference && isIdentity(selectedReference.role)
             ? selectedReference.path
             : null) ||
-          references.find((r) => isIdentity(r.role))?.path ||
+          requestReferences.find((r) => isIdentity(r.role))?.path ||
           (parent
             ? parent.proposal.original_path || null
             : ["background", "edit"].includes(intent.operation)
@@ -749,11 +771,12 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               }))
               : [],
             references: proposedRefs,
+            reference_snapshot: requestReferences,
             input_path: intent.operation === "background"
               ? inputPath
               : editInput,
             original_path: originalPath,
-            subject_kind: references.find((r) => isIdentity(r.role))?.kind ||
+            subject_kind: requestReferences.find((r) => isIdentity(r.role))?.kind ||
               null,
             model: generative(intent.operation) && higgsfieldImagesEnabled()
               ? `marketing-studio/image/${
@@ -765,7 +788,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
               : "default",
             rules_version: RULES_VERSION,
             warning: generative(intent.operation) &&
-                (references.some((r) => isIdentity(r.role)) || parent)
+                (requestReferences.some((r) => isIdentity(r.role)) || parent)
               ? "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."
               : null,
           }
@@ -799,7 +822,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .update({
             messages,
             proposal,
-            brief: intent.brief || session.brief || "",
+            brief: intent.brief ||
+              (parent
+                ? parent.proposal.brief || parent.proposal.summary || ""
+                : session.brief || ""),
             ...(session.name === "Nouvelle idée"
               ? { name: p.message.slice(0, 100) }
               : {}),

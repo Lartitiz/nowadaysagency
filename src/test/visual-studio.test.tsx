@@ -53,7 +53,7 @@ vi.mock("@/features/visual-studio/api", async (importOriginal) => ({
   listStudioSessions: mock.list,
 }));
 import VisualStudioPage from "@/pages/VisualStudioPage";
-import { draftKey, type StudioState } from "@/features/visual-studio/api";
+import { draftKey, StudioRequestError, type StudioState } from "@/features/visual-studio/api";
 const original = (): StudioState => ({
   session: {
     id: "session",
@@ -157,6 +157,34 @@ it("shows an uncertain provider outcome without offering an unsafe retry", async
   mount();
   expect(await screen.findByText("Réponse fournisseur perdue.")).toBeInTheDocument();
   expect(screen.queryByRole("button", {name: "Réessayer cette image seulement"})).not.toBeInTheDocument();
+});
+it("asks which references to reuse before branching from an older version", async () => {
+  const start: StudioState = { ...original(), versions: [{
+    id: "older", status: "ready", proposal, url: "/old.png",
+    library_photo_id: null, error_message: null, created_at: "",
+  }] };
+  mock.request.mockImplementation((body) => {
+    if (body.action === "read") return Promise.resolve(start);
+    if (body.action === "message" && !body.branch_reference_mode) {
+      return Promise.reject(new StudioRequestError("Les références ont changé.", "branch_reference_choice"));
+    }
+    return Promise.resolve({ ...start, session: { ...start.session, revision: 1,
+      messages: [...start.session.messages, { role: "user", text: body.message }, { role: "assistant", text: "Une autre prise." }] } });
+  });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
+    target: { value: "Une autre prise" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  expect(await screen.findByText(/Les références ont changé depuis cette version/)).toBeInTheDocument();
+  expect(screen.getByRole("button", { name: "Envoyer" })).toBeDisabled();
+  fireEvent.click(screen.getByRole("button", { name: "Celles de cette version" }));
+  await waitFor(() => expect(mock.request.mock.calls.some(([body]) =>
+    body.action === "message" && body.branch_reference_mode === "version")).toBe(true));
+  const sent = mock.request.mock.calls.map(([body]) => body).filter((body) => body.action === "message");
+  expect(sent[1].request_id).toBe(sent[0].request_id);
+  expect(mock.request.mock.calls.some(([body]) => body.action === "generate")).toBe(false);
 });
 it("opens deterministic preparation from the chat and returns the saved copy", async () => {
   const state: StudioState = { ...original(), session: {
