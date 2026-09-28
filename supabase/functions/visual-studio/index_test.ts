@@ -7,7 +7,7 @@ const actor = id(1),
   sessionId = id(3),
   proposalId = id(4);
 const base = { studio_version: 2, session_id: sessionId, workspace_id: space };
-function fixture(role = "owner", replay = false) {
+function fixture(role = "owner", replay = false, legacyLarge = false) {
   const saved = globalThis.fetch,
     env = [
       "SUPABASE_URL",
@@ -113,11 +113,17 @@ function fixture(role = "owner", replay = false) {
         stop_reason: "tool_use",
       });
     }
+    if (url.pathname.startsWith("/storage/v1/render/image/authenticated/")) {
+      return new Response(new Blob(["resized"], { type: "image/webp" }));
+    }
     if (
       url.pathname.startsWith("/storage/v1/object/") &&
       !url.pathname.includes("/sign/")
     ) {
-      return new Response(new Blob(["source"], { type: "image/jpeg" }));
+      return new Response(new Blob(
+        [legacyLarge ? new Uint8Array(5_000_001) : "source"],
+        { type: "image/jpeg" },
+      ));
     }
     if (url.pathname === "/rest/v1/visual_studio_versions") {
       if (url.searchParams.get("id") === `eq.${proposalId}`) return json(version);
@@ -357,6 +363,22 @@ Deno.test(
     }
   },
 );
+Deno.test("an old large photo is resized for interpretation", async () => {
+  const f = fixture("owner", false, true);
+  f.session.references = null as unknown as unknown[];
+  try {
+    const res = await handleStudioRequest(request({
+      ...base, action: "message", message: "Éclaircis cette photo",
+      revision: 0, request_id: id(86),
+    }));
+    assertEquals(res.status, 200);
+    assertEquals(f.requests.some((p) => p.startsWith("/storage/v1/render/image/authenticated/")), true);
+    const sent = f.payloads[0] as { messages: Array<{ content: Array<{ source?: { data: string; media_type: string } }> }> };
+    const image = sent.messages[0].content.find((part) => part.source);
+    assertEquals(image?.source?.data, btoa("resized"));
+    assertEquals(image?.source?.media_type, "image/webp");
+  } finally { f.restore(); }
+});
 Deno.test("a light adjustment routes to preparation without claiming image generation", async () => {
   const f = fixture();
   f.setIntent({
