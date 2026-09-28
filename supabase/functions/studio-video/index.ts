@@ -211,8 +211,9 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         return json({ job: safeJob(updated.data) });
       } catch (error) {
         if (error instanceof ProviderError && error.status >= 400 && error.status < 500) {
-          await db.from("studio_video_jobs").update({ status: "failed", error_code: `provider_http_${error.status}`,
+          const failed = await db.from("studio_video_jobs").update({ status: "failed", error_code: `provider_http_${error.status}`,
             provider_correlation_id: error.correlationId }).eq("id", row.id).eq("status", "submitting_uncertain");
+          if (failed.error) throw failed.error;
           return json({ error: error.status === 403 ? "Solde API Higgsfield insuffisant." : "Higgsfield a refusé la demande.",
             job: safeJob(await job(db, p.workspace_id, p.job_id)) }, 409);
         }
@@ -242,7 +243,10 @@ export async function handleVideoRequest(req: Request): Promise<Response> {
         if (updated.error || !updated.data) throw new Error("studio_video_status_store_failed");
         row = updated.data;
       } else {
-        if (state.status !== row.status) await db.from("studio_video_jobs").update({ status: state.status }).eq("id", row.id);
+        if (state.status !== row.status) {
+          const updated = await db.from("studio_video_jobs").update({ status: state.status }).eq("id", row.id);
+          if (updated.error) throw updated.error;
+        }
         return json({ job: safeJob({ ...row, status: state.status }) });
       }
     }

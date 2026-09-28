@@ -27,6 +27,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { PhotoLibraryPickerDialog } from "@/components/photos/PhotoLibraryPickerDialog";
+import { StudioVideoPanel, type VideoSource } from "@/features/studio-video/StudioVideoPanel";
 import { useAuth } from "@/contexts/AuthContext";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { useDemoContext } from "@/contexts/DemoContext";
@@ -102,6 +103,14 @@ function Studio({
 }) {
   const navigate = useNavigate(),
     cache = useQueryClient();
+  const [urlParams, setUrlParams] = useSearchParams();
+  const videoTab = urlParams.get("tab") === "video";
+  const chooseTab = (tab: "photo" | "video") => {
+    const next = new URLSearchParams(urlParams);
+    if (tab === "video") next.set("tab", "video");
+    else next.delete("tab");
+    setUrlParams(next);
+  };
   const isMobile = useIsMobile();
   const writable = ["owner", "manager", "editor"].includes(role);
   const [picker, setPicker] = useState(false),
@@ -418,6 +427,13 @@ function Studio({
     ? `Version ${current!.versions.filter((v) => v.status === "ready").findIndex((v) => v.id === version.id) + 1}`
     : selectedReference?.name ||
       (source ? "Original" : "Ton espace de création");
+  const videoSource: VideoSource | null = version?.status === "ready"
+    ? { kind: "studio_version", id: version.id, name: label }
+    : selectedReference?.photo_id
+      ? { kind: "photo", id: selectedReference.photo_id, name: selectedReference.name }
+      : current?.session.source_photo_id
+        ? { kind: "photo", id: current.session.source_photo_id, name: "Photo de la session" }
+        : null;
   const toTools = () =>
     navigate("/photos", {
       state: {
@@ -731,15 +747,25 @@ function Studio({
           </div>
           <div className="text-right">
             <p className="text-sm">{workspaceName}</p>
-            <Button
+            {!videoTab && <Button
               variant="outline"
               size="sm"
               onClick={() => setSessionsOpen(true)}
             >
               Mes sessions
-            </Button>
+            </Button>}
           </div>
         </header>
+        <nav aria-label="Sections du Studio" className="flex gap-2 px-5 pb-4">
+          <Button type="button" variant={videoTab ? "outline" : "default"} aria-current={!videoTab ? "page" : undefined}
+            onClick={() => chooseTab("photo")}>Photos</Button>
+          <Button type="button" variant={videoTab ? "default" : "outline"} aria-current={videoTab ? "page" : undefined}
+            onClick={() => chooseTab("video")}>Clips vidéo</Button>
+        </nav>
+        {videoTab && <div className="mx-auto max-w-4xl px-5 pb-10">
+          <StudioVideoPanel workspaceId={workspaceId} writable={writable} initialSource={videoSource} />
+        </div>}
+        <div hidden={videoTab}>
         {(error || state.error) && (
           <div
             role="alert"
@@ -1080,8 +1106,9 @@ function Studio({
             </Button>
           </div>
         }
+        </div>
       </main>
-      <Drawer open={mobileChat} onOpenChange={setMobileChat}>
+      <Drawer open={mobileChat && !videoTab} onOpenChange={setMobileChat}>
         <DrawerContent className="studio-mobile-drawer">
           <DrawerHeader className="text-left">
             <DrawerTitle>

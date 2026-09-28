@@ -199,8 +199,6 @@ export default function ReelMontage({ sections, subject, workspaceId, initialPro
   useEffect(() => {
     if (!projectInitialized.current) { projectInitialized.current = true; return; }
     projectCallback.current?.({ version: 1, sectionTexts: associationTexts, montageMode, voiceMode, clips, voiceClips, cutaways });
-  // sectionTexts is derived from sections and captured on each meaningful change.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [montageMode, voiceMode, clips, voiceClips, cutaways, associationTexts]);
   const activeRender = useRef({ key: renderKey, generation: 0, mounted: true });
   if (activeRender.current.key !== renderKey) {

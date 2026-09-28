@@ -36,7 +36,7 @@ Les conditions indiquent aussi que l'API peut utiliser entrées et sorties pour 
 
 1. Provisionner nativement le bucket Storage **privé** `studio-video` avec limite 150 Mo et sans policy cliente.
 2. Déployer la migration additive `20260928190000_studio_video_jobs.sql`, puis la fonction Edge `studio-video`. `verify_jwt=false` est nécessaire pour le webhook public ; toutes les actions utilisateur continuent de passer par `runPipeline`, et le callback vérifie son jeton par tâche ainsi que le résultat chez Higgsfield.
-3. Placer les secrets serveur `HIGGSFIELD_API_KEY`, `HIGGSFIELD_VIDEO_ENABLED=true` et `HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD=<plafond>` ; sans ces trois valeurs, devis et génération restent désactivés.
+3. Placer les secrets serveur `HIGGSFIELD_API_KEY`, `HIGGSFIELD_VIDEO_ENABLED=true` et `HIGGSFIELD_VIDEO_MONTHLY_LIMIT_USD=<plafond>` ; sans ces trois valeurs, devis et génération restent désactivés. Le plafond est appliqué à la fois par espace et globalement ; une seule génération peut être active à la fois en V1.
 4. Vérifier en lecture seule l'accès au modèle, le solde, le devis réel et les réglages de traitement. Obtenir un plafond d'essai et une référence explicitement autorisée avant la première génération payante.
 5. Après un premier clip autorisé, contrôler les octets MP4 archivés, la lecture signée, la reprise, le coût réellement débité et le raccord au Reel avec voix/sous-titres.
 

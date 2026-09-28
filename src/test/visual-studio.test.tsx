@@ -33,6 +33,10 @@ vi.mock("@/contexts/DemoContext", () => ({
 vi.mock("@/components/photos/PhotoLibraryPickerDialog", () => ({
   PhotoLibraryPickerDialog: () => null,
 }));
+vi.mock("@/features/studio-video/StudioVideoPanel", () => ({
+  StudioVideoPanel: ({ initialSource }: { initialSource?: { kind: string; id: string } | null }) =>
+    <div>Source du clip : {initialSource?.kind || "aucune"} · {initialSource?.id || "aucune"}</div>,
+}));
 vi.mock("@/features/visual-studio/api", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   studioRequest: mock.request,
@@ -92,6 +96,18 @@ afterEach(() => {
   cleanup();
   clients.forEach((c) => c.clear());
   clients.length = 0;
+});
+it("ouvre les clips sans quitter la session photo et reprend la version sélectionnée", async () => {
+  mock.request.mockResolvedValue({ ...original(), versions: [{
+    id: "version-ready", status: "ready", proposal, url: "/version.png",
+    library_photo_id: null, error_message: null, created_at: "",
+  }] });
+  mount();
+  await screen.findByText("Décris ton fond.");
+  fireEvent.click(screen.getByRole("button", { name: "Clips vidéo" }));
+  expect(await screen.findByText("Source du clip : studio_version · version-ready")).toBeInTheDocument();
+  fireEvent.click(screen.getByRole("button", { name: "Photos" }));
+  expect(screen.getByText("Décris ton fond.")).toBeInTheDocument();
 });
 it("sending only interprets; explicit confirmation is locked against duplicate clicks", async () => {
   const start = original(),

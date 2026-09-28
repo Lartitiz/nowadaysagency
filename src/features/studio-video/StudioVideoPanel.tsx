@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Film, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -27,12 +27,18 @@ export function StudioVideoPanel({ workspaceId, writable, initialSource, initial
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [watchId, setWatchId] = useState<string | null>(null);
+  const inputKey = JSON.stringify([source?.kind, source?.id, prompt.trim(), duration, resolution, personFree]);
+  const currentInputKey = useRef(inputKey);
+  currentInputKey.current = inputKey;
   const jobs = useQuery({ queryKey: ["studio-videos", workspaceId], queryFn: () => listStudioVideos(workspaceId), retry: 1 });
   const watched = useQuery({ queryKey: ["studio-video", workspaceId, watchId], enabled: !!watchId,
     queryFn: () => readStudioVideo(workspaceId, watchId!), retry: 1,
     refetchInterval: (query) => ["queued", "in_progress", "archiving"].includes(query.state.data?.job.status || "") ? 5000 : false });
 
-  useEffect(() => { setQuote(null); }, [source?.id, prompt, duration, resolution]);
+  useEffect(() => { setQuote(null); }, [source?.kind, source?.id, prompt, duration, resolution, personFree]);
+  useEffect(() => {
+    if (initialSource?.id) setSource({ id: initialSource.id, kind: initialSource.kind, name: initialSource.name });
+  }, [initialSource?.id, initialSource?.kind, initialSource?.name]);
   useEffect(() => {
     if (["ready", "failed", "nsfw", "canceled"].includes(watched.data?.job.status || "")) {
       void cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
@@ -40,19 +46,21 @@ export function StudioVideoPanel({ workspaceId, writable, initialSource, initial
   }, [cache, watched.data?.job.status, workspaceId]);
 
   async function checkPrice() {
-    if (!source || !personFree || prompt.trim().length < 3 || busy) return;
+    if (!source || !personFree || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || busy) return;
+    const requestedKey = inputKey;
     setBusy("quote"); setError("");
     try {
       const result = await videoRequest<{ job: StudioVideoJob }>({ action: "quote", workspace_id: workspaceId,
         source_kind: source.kind, source_id: source.id, prompt: prompt.trim(), duration, resolution,
         person_free_attested: true });
-      setQuote(result.job);
+      if (currentInputKey.current === requestedKey) setQuote(result.job);
       await cache.invalidateQueries({ queryKey: ["studio-videos", workspaceId] });
     } catch (e) { setError(e instanceof Error ? e.message : "Le devis n’a pas pu être obtenu."); }
     finally { setBusy(""); }
   }
   async function generate() {
-    if (!quote || busy) return;
+    if (!quote || !source || !personFree || busy || quote.source_kind !== source.kind || quote.source_id !== source.id ||
+      quote.prompt !== prompt.trim() || quote.duration !== duration || quote.resolution !== resolution) return;
     setBusy("submit"); setError("");
     try {
       const result = await videoRequest<{ job: StudioVideoJob; error?: string }>({ action: "submit", workspace_id: workspaceId, job_id: quote.id });
@@ -90,10 +98,10 @@ export function StudioVideoPanel({ workspaceId, writable, initialSource, initial
           <span>Je confirme que cette image ne montre aucune personne identifiable et que je peux la transmettre à Higgsfield pour obtenir le prix et créer ce clip.</span>
         </label>
         <p className="text-xs text-muted-foreground">Vérifier le prix transmet l’image à Higgsfield. La génération ne démarre qu’après le clic suivant. La voix du Reel restera dans le montage : ce clip est créé sans son.</p>
-        <Button type="button" variant="outline" disabled={!source || !personFree || prompt.trim().length < 3 || duration < 4 || duration > 10 || !!busy}
+        <Button type="button" variant="outline" disabled={!source || !personFree || prompt.trim().length < 3 || !Number.isInteger(duration) || duration < 4 || duration > 10 || !!busy}
           onClick={checkPrice}>{busy === "quote" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Vérifier le prix</Button>
         {quote && <div className="rounded-md border border-primary/30 bg-primary/5 p-3 space-y-2" role="status">
-          <p className="text-sm">Devis Higgsfield : <strong>{Number(quote.estimated_usd).toFixed(2)} $</strong> pour {quote.duration} s en {quote.resolution} ({quote.estimated_credits} crédits API). Le montant est réservé dans le plafond de cet espace au lancement.</p>
+          <p className="text-sm">Devis Higgsfield : <strong>{Number(quote.estimated_usd).toFixed(2)} $</strong> pour {quote.duration} s en {quote.resolution} ({quote.estimated_credits} crédits API). Le montant est réservé dans le plafond vidéo au lancement.</p>
           <p className="text-xs text-muted-foreground">Une nouvelle tentative serait facturée séparément si ce clip est créé mais ne convient pas.</p>
           <Button type="button" disabled={!!busy || Date.parse(quote.quote_expires_at) <= Date.now()} onClick={generate}>
             {busy === "submit" ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}Générer ce clip · {Number(quote.estimated_usd).toFixed(2)} $
@@ -125,8 +133,9 @@ export function StudioVideoPanel({ workspaceId, writable, initialSource, initial
           </article>;
         })}
       </div>
-      <PhotoLibraryPickerDialog open={picker} onOpenChange={setPicker} maxSelectable={1}
+      {picker && <PhotoLibraryPickerDialog open={picker} onOpenChange={setPicker} maxSelectable={1}
         onConfirm={photos => { const photo = photos[0]; if (photo) { setSource({ kind: "photo", id: photo.id, name: photo.name || "Photo" }); setPicker(false); } }} />
+      }
     </section>
   );
 }
