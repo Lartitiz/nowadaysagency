@@ -7963,6 +7963,54 @@ export type Database = {
         }
         Relationships: []
       }
+      visual_studio_compositions: {
+        Row: {
+          background_path: string | null
+          created_at: string
+          design: Json
+          id: string
+          session_id: string
+          title: string
+          user_id: string
+          workspace_id: string
+        }
+        Insert: {
+          background_path?: string | null
+          created_at?: string
+          design: Json
+          id?: string
+          session_id: string
+          title: string
+          user_id: string
+          workspace_id: string
+        }
+        Update: {
+          background_path?: string | null
+          created_at?: string
+          design?: Json
+          id?: string
+          session_id?: string
+          title?: string
+          user_id?: string
+          workspace_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "visual_studio_compositions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "visual_studio_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "visual_studio_compositions_workspace_id_fkey"
+            columns: ["workspace_id"]
+            isOneToOne: false
+            referencedRelation: "workspaces"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       visual_studio_interpretations: {
         Row: {
           created_at: string
@@ -9023,6 +9071,41 @@ export type Database = {
       studio_reserve_interpretation: {
         Args: { p_actor: string; p_request: string; p_session: string }
         Returns: boolean
+      }
+      studio_save_composition: {
+        Args: {
+          p_actor: string
+          p_background_path: string
+          p_design: Json
+          p_revision: number
+          p_session: string
+          p_workspace: string
+        }
+        Returns: {
+          archived_at: string | null
+          brief: string
+          composition: Json | null
+          created_at: string
+          id: string
+          messages: Json
+          name: string
+          proposal: Json | null
+          references: Json | null
+          revision: number
+          source_metadata: Json
+          source_path: string | null
+          source_photo_id: string | null
+          source_ready: boolean
+          updated_at: string
+          user_id: string
+          workspace_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "visual_studio_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       studio_save_library: {
         Args: { p_actor: string; p_version: string }
