@@ -15,15 +15,34 @@ import {
   intentTool,
   studioSystem,
   shouldRecover,
+  generative,
+  premiumAllowed,
 } from "./contract.ts";
+import {
+  generateImage,
+  imageModel,
+  legacyReferences,
+  visionBlock,
+  type Reference,
+} from "./media.ts";
 import { executeStudioJob } from "./worker.ts";
 
 declare const EdgeRuntime: { waitUntil: (work: Promise<unknown>) => void };
 const schema = z.object({
-  action: z.enum(["create", "read", "message", "generate", "save"]),
+  action: z.enum([
+    "create",
+    "read",
+    "message",
+    "generate",
+    "save",
+    "reference",
+  ]),
   workspace_id: z.string().uuid(),
   session_id: z.string().uuid(),
   photo_id: z.string().uuid().optional(),
+  reference_role: z.enum(["subject", "style", "composition"]).optional(),
+  remove: z.boolean().optional(),
+  viewed_reference_id: z.string().uuid().nullable().optional(),
   proposal_id: z.string().uuid().optional(),
   version_id: z.string().uuid().optional(),
   viewed_version_id: z.string().uuid().nullable().optional(),
@@ -120,35 +139,43 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       .maybeSingle();
     if (sessionResult.error) throw sessionResult.error;
     if (p.action === "create") {
-      if (!p.photo_id) return json({ error: "Choisis une photo." }, 400);
-      const photo = unwrap(
-        await sb
-          .from("user_photos")
-          .select("*")
-          .eq("id", p.photo_id)
-          .eq("workspace_id", p.workspace_id)
-          .eq("status", "ready")
-          .single(),
-      );
-      if (sessionResult.data && sessionResult.data.source_photo_id !== photo.id)
+      const photo = p.photo_id
+        ? unwrap(
+            await sb
+              .from("user_photos")
+              .select("*")
+              .eq("id", p.photo_id)
+              .eq("workspace_id", p.workspace_id)
+              .eq("status", "ready")
+              .single(),
+          )
+        : null;
+      if (
+        sessionResult.data &&
+        sessionResult.data.source_photo_id !== (photo?.id || null)
+      )
         return json({ error: "Cette session utilise une autre photo." }, 409);
       if (!sessionResult.data) {
         const { error } = await sb.from("visual_studio_sessions").insert({
           id: p.session_id,
           workspace_id: p.workspace_id,
           user_id: actor,
-          source_photo_id: photo.id,
-          name: (photo.name || "Ma session photo").slice(0, 120),
-          source_path: `${p.workspace_id}/${p.session_id}/original`,
+          source_photo_id: photo?.id || null,
+          name: (photo?.name || "Nouvelle idée").slice(0, 120),
+          source_path: photo
+            ? `${p.workspace_id}/${p.session_id}/original`
+            : null,
+          source_ready: !photo,
+          references: photo ? null : [],
           source_metadata: {
-            kind: photo.kind,
-            description: photo.description,
-            input_path: photo.original_storage_path || photo.storage_path,
+            kind: photo?.kind,
+            description: photo?.description,
+            input_path: photo?.storage_path,
           },
           messages: [
             {
               role: "assistant",
-              text: "Décris le nouveau fond que tu aimerais. Le sujet de ta photo sera conservé. Tu vérifieras la demande et son coût avant de lancer.",
+              text: "Quelle image aimerais-tu créer, améliorer ou imaginer ? Tu peux commencer par une question. Je m’appuie sur ta marque et les références que tu choisis. Rien n’est généré avant ta confirmation.",
             },
           ],
         });
@@ -161,7 +188,7 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .eq("workspace_id", p.workspace_id)
         .single();
       const sourceSession = unwrap(sessionResult);
-      if (sourceSession.source_photo_id !== photo.id)
+      if (sourceSession.source_photo_id !== (photo?.id || null))
         throw new Error("studio_conflict");
       if (!sourceSession.source_ready) {
         const existing = await sb.storage
@@ -211,6 +238,86 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         },
         409,
       );
+    let references: Reference[] = legacyReferences(session);
+    if (p.action === "reference") {
+      if (!p.photo_id || p.revision !== session.revision)
+        return json(
+          {
+            code: "refresh_request",
+            error: "Recharge la session avant de choisir une référence.",
+          },
+          409,
+        );
+      const active = unwrap(
+        await sb
+          .from("visual_studio_versions")
+          .select("id")
+          .eq("session_id", session.id)
+          .eq("status", "processing"),
+      );
+      if (active.length)
+        return json(
+          { error: "Attends le résultat avant de changer les références." },
+          409,
+        );
+      const found = references.find((r) => r.photo_id === p.photo_id);
+      if (p.remove)
+        references = references.filter((r) => r.photo_id !== p.photo_id);
+      else if (found)
+        references = references.map((r) =>
+          r === found ? { ...r, role: p.reference_role || "subject" } : r,
+        );
+      else {
+        if (references.length >= 3)
+          return json(
+            {
+              error:
+                "Garde jusqu’à trois références par demande. Retire-en une pour en choisir une autre.",
+            },
+            400,
+          );
+        const photo = unwrap(
+          await sb
+            .from("user_photos")
+            .select("*")
+            .eq("id", p.photo_id)
+            .eq("workspace_id", p.workspace_id)
+            .eq("status", "ready")
+            .single(),
+        );
+        const id = crypto.randomUUID(),
+          path = `${p.workspace_id}/${session.id}/reference-${id}`;
+        const blob = await download(sb, "user-photos", photo.storage_path);
+        if (blob.size > 5_000_000) throw new Error("studio_image_too_large");
+        await store(sb, BUCKET, path, blob);
+        references = [
+          ...references,
+          {
+            id,
+            photo_id: photo.id,
+            path,
+            role: p.reference_role || "subject",
+            name: (photo.name || "Référence").slice(0, 120),
+            kind: photo.kind,
+            description: photo.description?.slice(0, 500),
+          },
+        ];
+      }
+      session = unwrap(
+        await sb
+          .from("visual_studio_sessions")
+          .update({
+            references,
+            proposal: null,
+            revision: session.revision + 1,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", session.id)
+          .eq("revision", p.revision)
+          .select("*")
+          .single(),
+      );
+    }
     if (p.action === "message") {
       if (!p.message || p.revision == null || !p.request_id)
         return json({ error: "Demande incomplète." }, 400);
@@ -240,16 +347,22 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             429,
           );
-        if (p.viewed_version_id)
-          unwrap(
-            await sb
-              .from("visual_studio_versions")
-              .select("id")
-              .eq("id", p.viewed_version_id)
-              .eq("session_id", session.id)
-              .eq("status", "ready")
-              .single(),
-          );
+        const parent = p.viewed_version_id
+          ? unwrap(
+              await sb
+                .from("visual_studio_versions")
+                .select("*")
+                .eq("id", p.viewed_version_id)
+                .eq("session_id", session.id)
+                .eq("status", "ready")
+                .single(),
+            )
+          : null;
+        if (
+          p.viewed_reference_id &&
+          !references.some((r) => r.id === p.viewed_reference_id)
+        )
+          return json({ error: "Référence indisponible." }, 409);
         const { data: active, error: activeError } = await sb
           .from("visual_studio_versions")
           .select("id")
@@ -280,43 +393,168 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             },
             409,
           );
-        const charter = await sb
-          .from("brand_charter")
-          .select(
-            "photo_style,mood_keywords,visual_donts,moodboard_description",
-          )
-          .eq("workspace_id", p.workspace_id)
-          .maybeSingle();
-        if (charter.error) throw charter.error;
+        // Read only brand fields useful for visual direction, scoped to the active workspace.
+        const [charter, profile, proposition, strategy, catalogue] =
+          await Promise.all([
+            sb
+              .from("brand_charter")
+              .select(
+                "color_primary,color_secondary,color_accent,color_background,color_text,font_title,font_body,photo_style,mood_keywords,visual_donts,moodboard_description",
+              )
+              .eq("workspace_id", p.workspace_id)
+              .maybeSingle(),
+            sb
+              .from("brand_profile")
+              .select(
+                "mission,offer,target_description,voice_description,things_to_avoid",
+              )
+              .eq("workspace_id", p.workspace_id)
+              .maybeSingle(),
+            sb
+              .from("brand_proposition")
+              .select("version_final,version_one_liner")
+              .eq("workspace_id", p.workspace_id)
+              .order("created_at", { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+            sb
+              .from("brand_strategy")
+              .select(
+                "creative_concept,pillar_major,pillar_minor_1,pillar_minor_2",
+              )
+              .eq("workspace_id", p.workspace_id)
+              .maybeSingle(),
+            sb
+              .from("user_photos")
+              .select("id,name,kind,description")
+              .eq("workspace_id", p.workspace_id)
+              .eq("status", "ready")
+              .order("created_at", { ascending: false })
+              .limit(60),
+          ]);
+        for (const result of [
+          charter,
+          profile,
+          proposition,
+          strategy,
+          catalogue,
+        ])
+          if (result.error) throw result.error;
+        const selectedReference =
+          references.find((r) => r.id === p.viewed_reference_id) ||
+          references.find((r) => r.role === "subject") ||
+          references[0];
+        const inputPath =
+          parent?.result_path || selectedReference?.path || null;
+        const vision = [];
+        if (parent) {
+          vision.push({
+            type: "text",
+            text: "Version sélectionnée à modifier",
+          });
+          vision.push(
+            await visionBlock(await download(sb, BUCKET, parent.result_path)),
+          );
+        }
+        for (const ref of references) {
+          vision.push({
+            type: "text",
+            text: `Référence ${ref.id} : ${ref.role}, ${ref.name}`,
+          });
+          vision.push(await visionBlock(await download(sb, BUCKET, ref.path)));
+        }
         const raw = await callAnthropic({
           model: "claude-haiku-4-5",
           system: studioSystem,
           tool: intentTool,
-          max_tokens: 600,
+          max_tokens: 2200,
           temperature: 0.2,
-          abortTimeoutMs: 25_000,
+          abortTimeoutMs: 30_000,
+          maxRetries: 0,
           messages: [
             {
               role: "user",
-              content: JSON.stringify({
-                photo: session.source_metadata,
-                marque: charter.data,
-                historique: session.messages.slice(-12),
-                demande: p.message,
-              }),
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify({
+                    marque: {
+                      charte: charter.data,
+                      identite: profile.data,
+                      proposition: proposition.data,
+                      strategy: strategy.data,
+                    },
+                    references: references.map(({ path, ...ref }) => ref),
+                    reference_selectionnee: selectedReference?.id,
+                    version_selectionnee: parent
+                      ? {
+                          id: parent.id,
+                          brief: parent.proposal.brief,
+                          summary: parent.proposal.summary,
+                        }
+                      : null,
+                    brief: parent?.proposal.brief || session.brief || "",
+                    historique: session.messages.slice(-12),
+                    catalogue: (catalogue.data || []).map((row) => ({
+                      ...row,
+                      description: row.description?.slice(0, 250),
+                    })),
+                    demande: p.message,
+                  }),
+                },
+                ...vision,
+              ],
             },
           ],
         });
         const intent = intentSchema.parse(JSON.parse(raw));
-        const proposal =
-          intent.operation === "background"
-            ? {
-                ...intent,
-                id: crypto.randomUUID(),
-                viewed_version_id: p.viewed_version_id || null,
-                cost: 1,
-              }
-            : null;
+        // The model cannot invent a real reference or authorize a source-free identity reconstruction.
+        if (
+          (["background", "edit", "product"].includes(intent.operation) &&
+            !inputPath) ||
+          ((intent.requires_real_subject || intent.operation === "product") &&
+            !references.some((r) => r.role === "subject"))
+        ) {
+          intent.operation = "clarify";
+          intent.summary =
+            "Pour représenter fidèlement cette personne ou ce produit, choisis sa photo dans la bibliothèque. Tu peux aussi me demander une illustration sans représentation réelle.";
+        }
+        const proposedRefs =
+          intent.operation === "background" ? [] : references;
+        const originalPath =
+          references.find((r) => r.role === "subject")?.path ||
+          (parent
+            ? parent.proposal.original_path || null
+            : selectedReference?.path || null);
+        const proposal = ["background", "create", "edit", "product"].includes(
+          intent.operation,
+        )
+          ? {
+              ...intent,
+              id: crypto.randomUUID(),
+              viewed_version_id: parent?.id || null,
+              viewed_reference_id: selectedReference?.id || null,
+              cost: 1,
+              references: proposedRefs,
+              input_path:
+                intent.operation === "background"
+                  ? inputPath
+                  : parent?.result_path || null,
+              original_path: originalPath,
+              subject_kind:
+                references.find((r) => r.role === "subject")?.kind || null,
+              model: imageModel(intent.operation),
+              rules_version: "studio-open-1",
+              warning:
+                generative(intent.operation) &&
+                (references.some((r) => r.role === "subject") || parent)
+                  ? "Cette transformation redessine l’image. Elle peut modifier des détails du produit ou du visage. Compare le résultat aux références avant de l’utiliser."
+                  : null,
+            }
+          : null;
+        const suggestions = intent.suggested_photo_ids.filter((id) =>
+          (catalogue.data || []).some((row) => row.id === id),
+        );
         const messages = [
           ...session.messages,
           { id: p.request_id, role: "user", text: p.message },
@@ -324,6 +562,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
             role: "assistant",
             text: intent.summary,
             operation: intent.operation,
+            suggestions: intent.suggestions,
+            suggested_photo_ids: suggestions,
           },
         ];
         const updated = await sb
@@ -331,6 +571,10 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .update({
             messages,
             proposal,
+            brief: intent.brief || session.brief || "",
+            ...(session.name === "Nouvelle idée"
+              ? { name: p.message.slice(0, 100) }
+              : {}),
             revision: session.revision + 1,
             updated_at: new Date().toISOString(),
           })
@@ -361,12 +605,36 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .maybeSingle();
       if (existing.error) throw existing.error;
       if (!existing.data) {
-        if (!Deno.env.get("PHOTOROOM_API_KEY"))
+        if (!session.proposal || session.proposal.id !== p.proposal_id)
+          return json(
+            {
+              error: "Cette proposition a changé. Vérifie la dernière demande.",
+            },
+            409,
+          );
+        if (
+          !Deno.env.get(
+            generative(session.proposal.operation)
+              ? "OPENAI_API_KEY"
+              : "PHOTOROOM_API_KEY",
+          )
+        )
           return json(
             { error: "Le service photo est momentanément indisponible." },
             503,
           );
         const quota = await checkQuota(actor, "photo_retouch", p.workspace_id);
+        if (
+          generative(session.proposal.operation) &&
+          !premiumAllowed(quota.plan, isQaTestAccount(actor))
+        )
+          return json(
+            {
+              error:
+                "Cette création est disponible en Premium. Rien n’a été décompté.",
+            },
+            403,
+          );
         if (!quota.allowed) return quotaDeniedResponse(quota, pipe.corsHeaders);
         const exempt = isQaTestAccount(actor) || quota.plan === "admin",
           bonus = exempt ? 0 : await getBonusCredits(sb, actor);
@@ -388,34 +656,24 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         if (claim.claimed) {
           const version = claim.version;
           const work = executeStudioJob({
-            readSource: () => download(sb, BUCKET, session.source_path),
-            generate: async (original) => {
+            readSource: async () => {
+              const proposal = version.proposal;
+              const paths = proposal.references
+                ? [
+                    ...(proposal.input_path ? [proposal.input_path] : []),
+                    ...proposal.references.map((r: Reference) => r.path),
+                  ]
+                : [session.source_path];
+              return Promise.all(
+                paths
+                  .filter(Boolean)
+                  .map((path: string) => download(sb, BUCKET, path)),
+              );
+            },
+            generate: async (inputs) => {
               if (!(await canWrite(sb, actor, p.workspace_id)))
                 throw new Error("Droits retirés");
-              const form = new FormData();
-              form.append("imageFile", original, "source.jpg");
-              form.append("referenceBox", "originalImage");
-              form.append(
-                "background.prompt",
-                version.proposal.background_prompt,
-              );
-              form.append("removeBackground", "true");
-              form.append("outputSize", "originalImage");
-              form.append("export.format", "jpeg");
-              const response = await fetch(
-                "https://image-api.photoroom.com/v2/edit",
-                {
-                  method: "POST",
-                  headers: { "x-api-key": Deno.env.get("PHOTOROOM_API_KEY")! },
-                  body: form,
-                  signal: AbortSignal.timeout(60_000),
-                },
-              );
-              if (!response.ok) throw new Error("Échec fournisseur");
-              const blob = await response.blob();
-              if (blob.type !== "image/jpeg" || blob.size > 15_000_000)
-                throw new Error("Réponse image invalide");
-              return blob;
+              return generateImage(version.proposal, inputs);
             },
             store: (blob) => store(sb, BUCKET, version.result_path, blob),
             complete: async () => {
@@ -460,22 +718,23 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
           .single(),
       );
       if (!v.library_photo_id) {
-        const [result, original] = await Promise.all([
-          download(sb, BUCKET, v.result_path),
-          download(sb, BUCKET, session.source_path),
-        ]);
+        const result = await download(sb, BUCKET, v.result_path);
+        const originalPath = Object.hasOwn(v.proposal, "original_path")
+          ? v.proposal.original_path
+          : session.source_path;
         await store(
           sb,
           "user-photos",
           `${v.user_id}/studio_${v.id}.jpg`,
           result,
         );
-        await store(
-          sb,
-          "user-photos",
-          `${v.user_id}/studio_${v.id}_original.jpg`,
-          original,
-        );
+        if (originalPath)
+          await store(
+            sb,
+            "user-photos",
+            `${v.user_id}/studio_${v.id}_original.jpg`,
+            await download(sb, BUCKET, originalPath),
+          );
       }
       const photoId = unwrap(
         await sb.rpc("studio_save_library", {
@@ -540,7 +799,18 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         .signedUrl;
     const quota = await checkQuota(actor, "photo_retouch", p.workspace_id);
     return json({
-      session: { ...session, source_url: await sign(session.source_path) },
+      session: {
+        ...session,
+        source_url: session.source_path
+          ? await sign(session.source_path)
+          : null,
+        references: await Promise.all(
+          legacyReferences(session).map(async (r) => ({
+            ...r,
+            url: await sign(r.path),
+          })),
+        ),
+      },
       versions: await Promise.all(
         versions.map(async (v) => ({
           ...v,
@@ -548,7 +818,38 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
         })),
       ),
       quota,
+      generative_allowed: premiumAllowed(quota.plan, isQaTestAccount(actor)),
       writable,
+      suggested_photos: await (async () => {
+        const ids = [
+          ...new Set(
+            (session.messages as { suggested_photo_ids?: string[] }[])
+              .slice(-2)
+              .flatMap((m) => m.suggested_photo_ids || []),
+          ),
+        ];
+        if (!ids.length) return [];
+        const photos = unwrap(
+          await sb
+            .from("user_photos")
+            .select("id,name,kind,storage_path")
+            .eq("workspace_id", p.workspace_id)
+            .eq("status", "ready")
+            .in("id", ids),
+        );
+        return Promise.all(
+          photos.map(async (photo) => ({
+            id: photo.id,
+            name: photo.name,
+            kind: photo.kind,
+            url: unwrap(
+              await sb.storage
+                .from("user-photos")
+                .createSignedUrl(photo.storage_path, 900),
+            ).signedUrl,
+          })),
+        );
+      })(),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -557,6 +858,8 @@ export async function handleStudioRequest(req: Request): Promise<Response> {
       message.replace(/https?:\/\/\S+/g, "[url]"),
     );
     const known: Record<string, string> = {
+      studio_image_too_large:
+        "Cette photo dépasse 5 Mo. Ajoute une version plus légère pour que le Studio puisse l’examiner.",
       studio_interpretation_limit:
         "Tu as envoyé beaucoup de demandes. Réessaie un peu plus tard.",
       studio_busy:

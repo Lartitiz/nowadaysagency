@@ -197,3 +197,29 @@
     max-width: 46%;
   }
 }
+
+.studio-empty {
+  min-height: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 20px;
+  padding: 28px;
+  border: 1px dashed hsl(var(--border));
+  border-radius: 18px;
+  background: hsl(var(--background));
+}
+.studio-empty p {
+  max-width: 420px;
+  color: hsl(var(--muted-foreground));
+  font-size: 14px;
+}
+.studio-references select {
+  max-width: 145px;
+  padding: 6px;
+  border: 1px solid hsl(var(--border));
+  border-radius: 6px;
+  background: hsl(var(--background));
+}

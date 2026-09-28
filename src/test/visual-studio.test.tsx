@@ -65,14 +65,14 @@ const proposal = {
   cost: 1 as const,
 };
 const clients: QueryClient[] = [];
-function mount() {
+function mount(path = "/photos/studio?session=session") {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });
   clients.push(client);
   const element = (
     <QueryClientProvider client={client}>
-      <MemoryRouter initialEntries={["/photos/studio?session=session"]}>
+      <MemoryRouter initialEntries={[path]}>
         <VisualStudioPage />
       </MemoryRouter>
     </QueryClientProvider>
@@ -325,4 +325,127 @@ it("a response preserves new text typed while the previous request was in flight
     finish({ ...start, session: { ...start.session, revision: 1, proposal } }),
   );
   expect(input).toHaveValue("Et une lumière du matin");
+});
+
+it("a question starts a source-free session and prepares without generating", async () => {
+  const start = original();
+  start.session.source_photo_id = null;
+  start.session.source_url = null;
+  start.session.references = [];
+  mock.request.mockImplementation((body) =>
+    Promise.resolve(
+      body.action === "message"
+        ? {
+            ...start,
+            session: {
+              ...start.session,
+              messages: [
+                {
+                  role: "assistant",
+                  text: "Une illustration pour ton atelier.",
+                },
+              ],
+              revision: 1,
+              proposal: {
+                ...proposal,
+                operation: "create",
+                image_prompt: "Illustration",
+              },
+            },
+          }
+        : start,
+    ),
+  );
+  mount("/photos/studio");
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
+    target: { value: "Quel visuel pour mon atelier ?" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await screen.findByText("Une illustration pour ton atelier.");
+  const actions = mock.request.mock.calls.map(([b]) => b);
+  expect(actions.find((b) => b.action === "create")).not.toHaveProperty(
+    "photo_id",
+  );
+  expect(actions.filter((b) => b.action === "message")).toHaveLength(1);
+  expect(actions.some((b) => b.action === "generate")).toBe(false);
+});
+it("generative Premium gating is visible before confirmation", async () => {
+  const start = original();
+  mock.request.mockResolvedValue({
+    ...start,
+    generative_allowed: false,
+    session: {
+      ...start.session,
+      proposal: { ...proposal, operation: "create" },
+    },
+  });
+  mount();
+  await screen.findByText(/Cette création est réservée à Premium/);
+  expect(
+    screen.getByRole("button", { name: /Générer cette image/ }),
+  ).toBeDisabled();
+});
+it("editing an older selected version sends that parent, not the latest", async () => {
+  const start = original();
+  const v = (id: string) => ({
+    id,
+    status: "ready",
+    proposal,
+    url: `/${id}.jpg`,
+    library_photo_id: null,
+    error_message: null,
+    created_at: "",
+  });
+  mock.request.mockResolvedValue({ ...start, versions: [v("v1"), v("v2")] });
+  mount();
+  await screen.findByRole("button", { name: "Version 1" });
+  fireEvent.click(screen.getByRole("button", { name: "Version 1" }));
+  fireEvent.change(screen.getByRole("textbox", { name: "Ta demande" }), {
+    target: { value: "Garde la scène, enlève la plante" },
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Envoyer" }));
+  await waitFor(() =>
+    expect(
+      mock.request.mock.calls.find(([b]) => b.action === "message")?.[0]
+        .viewed_version_id,
+    ).toBe("v1"),
+  );
+});
+it("changing a reference role clears confirmation without generating", async () => {
+  const start = original();
+  const ref = {
+    id: "ref",
+    photo_id: "photo",
+    name: "Bol",
+    role: "subject",
+    url: "/bol.jpg",
+  };
+  mock.request.mockImplementation((body) =>
+    Promise.resolve({
+      ...start,
+      session: {
+        ...start.session,
+        proposal: body.action === "reference" ? null : proposal,
+        references: [
+          { ...ref, role: body.action === "reference" ? "style" : "subject" },
+        ],
+      },
+    }),
+  );
+  mount();
+  await screen.findByRole("combobox", { name: "Rôle de Bol" });
+  fireEvent.change(screen.getByRole("combobox", { name: "Rôle de Bol" }), {
+    target: { value: "style" },
+  });
+  await waitFor(() =>
+    expect(
+      screen.queryByRole("button", { name: /Générer cette image/ }),
+    ).toBeNull(),
+  );
+  expect(
+    mock.request.mock.calls.find(([b]) => b.action === "reference")?.[0],
+  ).toMatchObject({ reference_role: "style", photo_id: "photo", revision: 0 });
+  expect(mock.request.mock.calls.some(([b]) => b.action === "generate")).toBe(
+    false,
+  );
 });
