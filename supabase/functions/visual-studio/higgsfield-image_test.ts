@@ -78,8 +78,9 @@ function lifecycle() {
   globalThis.fetch = async (input, init) => {
     const req = input instanceof Request ? input : null;
     const url = new URL(req ? req.url : String(input));
-    const method = init?.method || req?.method || "GET";
-    const raw = init?.body ||
+    const opts = init as { method?: string; body?: unknown } | undefined;
+    const method = opts?.method || req?.method || "GET";
+    const raw = opts?.body ||
       (req && method !== "GET" ? await req.text() : null);
     const body = typeof raw === "string" && raw ? JSON.parse(raw) : {};
     if (url.pathname === "/rest/v1/studio_image_requests") {
