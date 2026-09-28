@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "npm:@supabase/supabase-js@2.57.2";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@2.57.2";
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
   apiVersion: "2025-08-27.basil",
@@ -81,7 +82,7 @@ async function fireEmailEvent(event: string, userId: string | null | undefined) 
 // prod, avec les clients réels — comportement inchangé.
 export type StripeWebhookDeps = {
   stripe: Pick<Stripe, "webhooks" | "subscriptions" | "checkout" | "products">;
-  supabase: ReturnType<typeof createClient>;
+  supabase: SupabaseClient<any, any, any, any, any>;
   sendEmailEvent?: typeof fireEmailEvent;
 };
 

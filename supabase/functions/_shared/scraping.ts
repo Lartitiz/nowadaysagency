@@ -1,6 +1,7 @@
 // Shared scraping utilities for edge functions (analyze-brand, deep-diagnostic, etc.)
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
+import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.95.3";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36";
 
@@ -1060,7 +1061,7 @@ export async function extractFromBlob(blob: Blob, fileName: string, signal?: Abo
 }
 
 export async function processDocuments(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any, any, any>,
   documentIds: string[],
   userId: string,
   maxTextLength = 5000,
@@ -1120,7 +1121,7 @@ export async function processDocuments(
 }
 
 export async function processScreenshots(
-  supabase: ReturnType<typeof createClient>,
+  supabase: SupabaseClient<any, any, any, any, any>,
   documentIds: string[],
   userId: string,
 ): Promise<{ base64: string; mediaType: string }[]> {
