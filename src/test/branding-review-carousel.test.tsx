@@ -42,6 +42,8 @@ vi.mock("sonner", () => ({ toast: mocks.toast }));
 vi.mock("@/lib/posthog", () => ({ posthog: { capture: vi.fn() } }));
 vi.mock("@/components/Confetti", () => ({ default: () => <div data-testid="confetti" /> }));
 vi.mock("@/components/branding/BrandingCoachingFlow", () => ({ default: () => <div data-testid="coaching" /> }));
+// Carte réseau (détection du logo du site) : hors du périmètre de ce test du carrousel.
+vi.mock("@/components/branding/BrandLogoSuggestion", () => ({ BrandLogoSuggestion: () => null }));
 vi.mock("framer-motion", () => ({
   motion: new Proxy({}, { get: () => (props: any) => <div {...props} /> }),
   AnimatePresence: ({ children }: any) => <>{children}</>,
