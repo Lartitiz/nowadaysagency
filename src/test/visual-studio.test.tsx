@@ -326,6 +326,7 @@ it("mobile drawer exposes the whole conversation and its confirmation", async ()
   fireEvent.click(
     screen.getByRole("button", { name: "Fermer la conversation" }),
   );
+  await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument(), { timeout: 3000 });
   fireEvent.click(
     await screen.findByRole("button", { name: /Toute la conversation/ }),
   );
