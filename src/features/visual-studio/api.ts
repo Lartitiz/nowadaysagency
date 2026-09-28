@@ -27,6 +27,16 @@ export interface StudioProposal {
   series_index?: number;
   series_size?: number;
   provider?: string;
+  rules_version?: string;
+  brand_context?: StudioBrandContext;
+}
+export interface StudioBrandContext {
+  captured_at: string;
+  charter: Record<string, unknown> | null;
+  identity: Record<string, unknown> | null;
+  proposition: Record<string, unknown> | null;
+  strategy: Record<string, unknown> | null;
+  memory: { id: string; kind: string; name: string; note: string; revision: number }[];
 }
 export interface StudioComposition {
   logo_data_url?: string | null;
