@@ -296,3 +296,6 @@ verify_jwt = false
 
 [functions.extract-offer-from-url]
 verify_jwt = false
+
+[functions.visual-studio]
+verify_jwt = false

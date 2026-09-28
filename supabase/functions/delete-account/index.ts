@@ -107,6 +107,9 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
 
     // Phase 1 — Child tables (dependencies first)
     const phase1: string[] = [
+      "visual_studio_interpretations",
+      "visual_studio_versions",
+      "visual_studio_sessions",
       "assistant_undo_log",
       "audit_recommendations",
       "audit_validations",
@@ -275,6 +278,8 @@ export async function handleDeleteAccountRequest(req: Request): Promise<Response
 
     type ParentFilter = { column: string; ids: string[] | null };
     const PARENT_FILTERS: Record<string, ParentFilter[]> = {
+      visual_studio_versions: [{ column: "workspace_id", ids: workspaceIds }, { column: "user_id", ids: [userId] }],
+      visual_studio_sessions: [{ column: "workspace_id", ids: workspaceIds }, { column: "user_id", ids: [userId] }],
       calendar_comments: [
         { column: "share_id", ids: shareIds },
         { column: "calendar_post_id", ids: postIds },

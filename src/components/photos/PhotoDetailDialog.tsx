@@ -48,7 +48,8 @@ interface PhotoDetailDialogProps {
   onMiseEnScene?: (photo: UserPhotoRow) => void;
   /** Ouvre le Portrait pro (fond de marque, visage intact) — photos kind=portrait. */
   onPortraitPro?: (photo: UserPhotoRow) => void;
-  /** Demande la suppression (le détail se ferme, la confirmation est côté page). */
+  /** Ouvre une session Studio avec cette photo. */
+  onStudio?: (photo: UserPhotoRow) => void;
   onPrepare?: (photo: UserPhotoRow) => void;
   onPrepareKit?: (photo: UserPhotoRow) => void;
   onDelete?: (photo: UserPhotoRow) => void;
@@ -75,7 +76,7 @@ function slugify(s: string): string {
     .slice(0, 60) || "photo";
 }
 
-export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro, onDelete, onPrepare, onPrepareKit }: PhotoDetailDialogProps) {
+export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRetouche, onMiseEnScene, onPortraitPro, onDelete, onPrepare, onPrepareKit, onStudio }: PhotoDetailDialogProps) {
   const navigate = useNavigate();
   const [view, setView] = useState<"after" | "before">("after");
   const [afterUrl, setAfterUrl] = useState<string | null>(null);
@@ -335,6 +336,9 @@ export function PhotoDetailDialog({ photo, open, onOpenChange, onPackshot, onRet
               <Sparkles className="h-4 w-4 mr-2 shrink-0" />
               <span className="truncate">Créer un contenu</span>
             </Button>
+            {onStudio && <Button variant="outline" onClick={() => { onOpenChange(false); onStudio(photo); }}>
+              <Sparkles className="h-4 w-4 mr-2" /> Retravailler dans le Studio
+            </Button>}
             {retouchOptions.length > 0 && (
               <Button
                 variant="outline"

@@ -1,3 +1,4 @@
+import { MemoryRouter } from "react-router-dom";
 import React from "react";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
@@ -70,7 +71,7 @@ function photo(id: string, name: string, kind = "portrait") {
 }
 it("keeps selected source IDs across filters and prepares only that selection", async () => {
   state.query.data = [photo("p1", "Portrait"), photo("p2", "Tasse", "produit"), photo("p3", "Atelier")];
-  render(<PhotosPage />);
+  render(<MemoryRouter><PhotosPage /></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: "Sélectionner" }));
   fireEvent.click(screen.getByRole("button", { name: "Ouvrir Portrait" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Rechercher une photo" }), { target: { value: "Tasse" } });
@@ -82,19 +83,19 @@ it("keeps selected source IDs across filters and prepares only that selection", 
 });
 it("clears selection, filters and dialogs when the workspace changes", () => {
   state.query.data = [photo("p1", "Portrait")];
-  const view = render(<PhotosPage />);
+  const view = render(<MemoryRouter><PhotosPage /></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: "Sélectionner" }));
   fireEvent.click(screen.getByRole("button", { name: "Ouvrir Portrait" }));
   fireEvent.change(screen.getByRole("textbox", { name: "Rechercher une photo" }), { target: { value: "Port" } });
   state.space = "space-b"; state.query.data = [photo("p2", "Atelier")];
-  view.rerender(<PhotosPage />);
+  view.rerender(<MemoryRouter><PhotosPage /></MemoryRouter>);
   expect(screen.getByRole("textbox", { name: "Rechercher une photo" })).toHaveValue("");
   expect(screen.queryByRole("button", { name: "Préparer cette photo" })).toBeNull();
   expect(screen.getByRole("button", { name: "Sélectionner" })).toHaveAttribute("aria-pressed", "false");
 });
 it("limits the batch to twelve ready sources", async () => {
   state.query.data = Array.from({length:13}, (_,i) => photo("p"+i, "Photo "+i));
-  render(<PhotosPage />);
+  render(<MemoryRouter><PhotosPage /></MemoryRouter>);
   fireEvent.click(screen.getByRole("button", { name: "Sélectionner" }));
   for(let i=0;i<13;i++) fireEvent.click(screen.getByRole("button", { name: "Ouvrir Photo "+i }));
   fireEvent.click(screen.getByRole("button", { name: "Harmoniser ces photos" }));

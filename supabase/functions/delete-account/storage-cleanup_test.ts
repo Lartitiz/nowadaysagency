@@ -36,3 +36,13 @@ for (const phase of ["list", "remove"] as const) {
     await assertRejects(() => cleanupUserStorage(fakeStorage(phase).admin, "u1"));
   });
 }
+
+Deno.test('Studio cleanup includes workspace paths, collaborator versions and stops on inventory errors',async()=>{
+ const removed:string[]=[];let inventoryFails=false;
+ const admin={storage:{listBuckets:async()=>({data:[{id:'visual-studio'}],error:null}),from:()=>({remove:async(paths:string[])=>{removed.push(...paths);return {error:null};}})},from:(table:string)=>{
+  const q={select:()=>q,eq:()=>table==='workspaces'?Promise.resolve({data:[{id:'space'}],error:null}):q,or:(filter:string)=>{assertEquals(filter,'user_id.eq.user-1,workspace_id.in.(space)');return q;},order:()=>q,range:async()=>inventoryFails?{error:{message:'offline'}}:{data:table==='visual_studio_sessions'?[{source_path:'space/session/original',visual_studio_versions:[{result_path:'space/session/result.jpg'}]}]:[{result_path:'another/session/my-version.jpg'}],error:null}};return q;
+ }};
+ assertEquals(await cleanupUserStorage(admin,'user-1'),3);
+ assertEquals(removed,['space/session/original','space/session/result.jpg','another/session/my-version.jpg']);
+ inventoryFails=true;await assertRejects(()=>cleanupUserStorage(admin,'user-1'));assertEquals(removed.length,3);
+});

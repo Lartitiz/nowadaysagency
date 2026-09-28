@@ -79,6 +79,9 @@ jobs:
       - name: Tests edge functions (Deno)
         run: npm run test:edges
 
+      - name: Studio edge type-check
+        run: deno check --no-config --no-lock --node-modules-dir=none supabase/functions/visual-studio/index.ts
+
       - name: Build
         run: npm run build
 
@@ -154,3 +157,6 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: psql -v ON_ERROR_STOP=1 -h localhost -U postgres -d calendar_test -f supabase/tests/idea-calendar-transfers.sql
+
+      - name: Studio confirmation, credits and workspace isolation (disposable PGlite database)
+        run: PGLITE_MODULE="$RUNNER_TEMP/linkedin-sql/node_modules/@electric-sql/pglite/dist/index.js" node supabase/tests/visual-studio.mjs
