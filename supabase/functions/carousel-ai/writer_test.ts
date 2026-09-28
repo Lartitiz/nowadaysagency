@@ -9,13 +9,13 @@ const opus = { model: "claude-opus-5", stop_reason: "end_turn", usage, content: 
 const astra = { model: "gpt-6-astra", status: "completed", usage, output: [{ type: "reasoning", summary: [] }, { type: "message", content: [{ type: "output_text", text: "Texte" }] }] };
 
 Deno.test("explicit normal/Max routing; no env alias or silent escalation", () => {
-  assertEquals(pickCarouselWriter({}), "claude-opus-5");
-  assertEquals(pickCarouselWriter({ quality_max: false }), "claude-opus-5");
+  assertEquals(pickCarouselWriter({}), "claude-opus-5-5");
+  assertEquals(pickCarouselWriter({ quality_max: false }), "claude-opus-5-5");
   assertEquals(pickCarouselWriter({ quality_max: true }), "gpt-6-astra");
-  // Banc d'essai Opus 5.5 : valeur exacte seulement, Qualité Max prioritaire.
-  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5-5" }), "claude-opus-5-5");
-  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5-5", quality_max: true }), "gpt-6-astra");
-  assertEquals(pickCarouselWriter({ writer_bench: "claude-fable-5-1" }), "claude-opus-5");
+  // Banc d'essai (retour à Opus 5) : valeur exacte seulement, Qualité Max prioritaire.
+  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5" }), "claude-opus-5");
+  assertEquals(pickCarouselWriter({ writer_bench: "claude-opus-5", quality_max: true }), "gpt-6-astra");
+  assertEquals(pickCarouselWriter({ writer_bench: "claude-fable-5-1" }), "claude-opus-5-5");
 });
 Deno.test("Opus 5.5: never forced tool nor disabled thinking (both 400), room for thinking", () => {
   const request = writerRequest({ ...base, model: "claude-opus-5-5", tool });
