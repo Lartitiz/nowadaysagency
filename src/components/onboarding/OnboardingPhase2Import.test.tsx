@@ -5,6 +5,11 @@ import { isValidUrl } from "./OnboardingShared";
 import type { Answers } from "@/hooks/use-onboarding";
 
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("@/contexts/AuthContext", () => ({ useAuth: () => ({ user: { id: "test-user" } }) }));
+vi.mock("@/hooks/use-workspace-query", () => ({ useWorkspaceId: () => "test-workspace" }));
+vi.mock("@/hooks/use-social-connections", () => ({ useSocialConnections: () => ({
+  isConnected: () => false, accountNames: () => [],
+}) }));
 
 const answers = (website = ""): Answers => ({
   prenom: "Léa", activite: "Céramiste", activity_type: "artisane",
