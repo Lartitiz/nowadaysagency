@@ -727,15 +727,16 @@ Cette personne utilise L'Assistant Com'. Elle vient de terminer son onboarding. 
 
     if (priorities?.length > 0) {
       fastSaves.push(
-        supabaseAdmin.from("audit_recommendations").insert(
-          priorities.map((p: any, i: number) => ({
-            user_id: userId, workspace_id: workspaceId,
-            label: p.title, titre: p.title, module: "diagnostic",
-            route: p.route || "/dashboard", detail: p.why || null,
-            temps_estime: p.time || null, priorite: p.impact || "medium",
-            position: i + 1, completed: false,
-          }))
-        ).then(({ error }) => { if (error) console.error("Save recommendations failed:", error); })
+        Promise.resolve(
+          supabaseAdmin.from("audit_recommendations").insert(
+            priorities.map((p: any, i: number) => ({
+              user_id: userId, workspace_id: workspaceId,
+              label: p.title, titre: p.title, module: "diagnostic",
+              route: p.route || "/dashboard", detail: p.why || null,
+              temps_estime: p.time || null, priorite: p.impact || "medium",
+              position: i + 1, completed: false,
+            }))
+          ).then(({ error }) => { if (error) console.error("Save recommendations failed:", error); })
         ).catch((e: unknown) => console.error("Save recommendations failed:", e))
       );
     }
