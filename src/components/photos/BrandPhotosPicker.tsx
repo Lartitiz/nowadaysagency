@@ -118,7 +118,7 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
         normalizeInstagramHandle(profile?.instagram_url);
       const instagramMatchesBrand =
         instagramConnected &&
-        (!profileHandle || !connectedInstagramHandle || profileHandle === connectedInstagramHandle);
+        (!profileHandle || (connectedInstagramHandle !== null && profileHandle === connectedInstagramHandle));
       setInstagramUsed(instagramMatchesBrand);
 
       const scans: Promise<SiteImageCandidate[]>[] = [];
@@ -352,7 +352,9 @@ export function BrandPhotosPicker({ placement, className }: BrandPhotosPickerPro
             Choisis uniquement des images qui t'appartiennent (pas de photos de banque d'images sous licence).
             {!instagramUsed &&
               (instagramConnected
-                ? ` Le compte Instagram connecté (@${connectedInstagramHandle}) n'est pas celui de cette marque : ses photos ne sont pas proposées ici. Change-le depuis Paramètres › Connexions.`
+                ? connectedInstagramHandle
+                  ? ` Le compte Instagram connecté (@${connectedInstagramHandle}) n'est pas celui de cette marque : ses photos ne sont pas proposées ici. Change-le depuis Paramètres › Connexions.`
+                  : " Le compte Instagram connecté n'a pas pu être identifié : ses photos ne sont pas proposées pour cette marque. Vérifie-le depuis Paramètres › Connexions."
                 : " Tes photos Instagram ? Connecte ton compte depuis Paramètres › Connexions pour les importer aussi.")}
           </p>
 
